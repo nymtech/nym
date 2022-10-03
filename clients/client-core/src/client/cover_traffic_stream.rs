@@ -3,6 +3,7 @@
 
 use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::topology_control::TopologyAccessor;
+use crate::spawn_future;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
@@ -13,9 +14,10 @@ use nymsphinx::utils::sample_poisson_duration;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;
-use task::ShutdownListener;
-use tokio::task::JoinHandle;
 use tokio::time;
+
+#[cfg(not(target_arch = "wasm32"))]
+use task::ShutdownListener;
 
 pub struct LoopCoverTrafficStream<R>
 where
@@ -51,6 +53,7 @@ where
     topology_access: TopologyAccessor,
 
     /// Listen to shutdown signals.
+    #[cfg(not(target_arch = "wasm32"))]
     shutdown: ShutdownListener,
 }
 
@@ -97,7 +100,7 @@ impl LoopCoverTrafficStream<OsRng> {
         mix_tx: BatchMixMessageSender,
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
-        shutdown: ShutdownListener,
+        #[cfg(not(target_arch = "wasm32"))] shutdown: ShutdownListener,
     ) -> Self {
         let rng = OsRng;
 
@@ -111,6 +114,7 @@ impl LoopCoverTrafficStream<OsRng> {
             our_full_destination,
             rng,
             topology_access,
+            #[cfg(not(target_arch = "wasm32"))]
             shutdown,
         }
     }
@@ -156,6 +160,9 @@ impl LoopCoverTrafficStream<OsRng> {
 
         // JS: due to identical logical structure to OutQueueControl::on_message(), this is also
         // presumably required to prevent bugs in the future. Exact reason is still unknown to me.
+
+        // TODO: temporary and BAD workaround for wasm (we should find a way to yield here in wasm)
+        #[cfg(not(target_arch = "wasm32"))]
         tokio::task::yield_now().await;
     }
 
@@ -166,30 +173,34 @@ impl LoopCoverTrafficStream<OsRng> {
             self.average_cover_message_sending_delay,
         )));
 
-        let mut shutdown = self.shutdown.clone();
-        while !shutdown.is_shutdown() {
-            tokio::select! {
-                biased;
-                _ = shutdown.recv() => {
-                    log::trace!("LoopCoverTrafficStream: Received shutdown");
-                }
-                next = self.next() => {
-                    if next.is_some() {
-                        self.on_new_message().await;
-                    } else {
-                        log::trace!("LoopCoverTrafficStream: Stopping since channel closed");
-                        break;
-                    }
-                }
-            }
+        // TODO: fix it for non-wasm
+
+        while self.next().await.is_some() {
+            self.on_new_message().await;
         }
-        assert!(self.shutdown.is_shutdown_poll());
-        log::debug!("LoopCoverTrafficStream: Exiting");
+
+        // let mut shutdown = self.shutdown.clone();
+        // while !shutdown.is_shutdown() {
+        //     tokio::select! {
+        //         biased;
+        //         _ = shutdown.recv() => {
+        //             log::trace!("LoopCoverTrafficStream: Received shutdown");
+        //         }
+        //         next = self.next() => {
+        //             if next.is_some() {
+        //                 self.on_new_message().await;
+        //             } else {
+        //                 log::trace!("LoopCoverTrafficStream: Stopping since channel closed");
+        //                 break;
+        //             }
+        //         }
+        //     }
+        // }
+        // assert!(self.shutdown.is_shutdown_poll());
+        // log::debug!("LoopCoverTrafficStream: Exiting");
     }
 
-    pub fn start(mut self) -> JoinHandle<()> {
-        tokio::spawn(async move {
-            self.run().await;
-        })
+    pub fn start(mut self) {
+        spawn_future(async move { self.run().await })
     }
 }

@@ -35,7 +35,7 @@ tap = "1.0.1"
 tauri = { version = "^1.0.2", features = ["clipboard-write-text", "shell-open", "system-tray", "updater"] }
 tendermint-rpc = "0.23.0"
 thiserror = "1.0"
-tokio = { version = "1.19.1", features = ["sync", "time"] }
+tokio = { version = "1.21.2", features = ["sync", "time"] }
 url = "2.2"
 
 client-core = { path = "../../clients/client-core" }

@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::spawn_future;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
@@ -10,11 +11,12 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::time;
 use std::time::Duration;
-use task::ShutdownListener;
 use tokio::sync::{RwLock, RwLockReadGuard};
-use tokio::task::JoinHandle;
 use topology::{nym_topology_from_bonds, NymTopology};
 use url::Url;
+
+#[cfg(not(target_arch = "wasm32"))]
+use task::ShutdownListener;
 
 // I'm extremely curious why compiler NEVER complained about lack of Debug here before
 #[derive(Debug)]
@@ -304,20 +306,28 @@ impl TopologyRefresher {
         self.topology_accessor.is_routable().await
     }
 
-    pub fn start(mut self, mut shutdown: ShutdownListener) -> JoinHandle<()> {
-        tokio::spawn(async move {
-            while !shutdown.is_shutdown() {
-                tokio::select! {
-                    _ = tokio::time::sleep(self.refresh_rate) => {
-                        self.refresh().await;
-                    },
-                    _ = shutdown.recv() => {
-                        log::trace!("TopologyRefresher: Received shutdown");
-                    },
-                }
+    pub fn start(mut self, #[cfg(not(target_arch = "wasm32"))] mut shutdown: ShutdownListener) {
+        // TODO: usual non-wasm, etc, etc
+
+        spawn_future(async move {
+            loop {
+                // TODO: this won't work in wasm
+                tokio::time::sleep(self.refresh_rate).await;
+                self.refresh().await;
             }
-            assert!(shutdown.is_shutdown_poll());
-            log::debug!("TopologyRefresher: Exiting");
+
+            // while !shutdown.is_shutdown() {
+            //     tokio::select! {
+            //         _ = tokio::time::sleep(self.refresh_rate) => {
+            //             self.refresh().await;
+            //         },
+            //         _ = shutdown.recv() => {
+            //             log::trace!("TopologyRefresher: Received shutdown");
+            //         },
+            //     }
+            // }
+            // assert!(shutdown.is_shutdown_poll());
+            // log::debug!("TopologyRefresher: Exiting");
         })
     }
 }

@@ -9,11 +9,11 @@ use self::{
     acknowledgement_control::AcknowledgementController, real_traffic_stream::OutQueueControl,
 };
 use crate::client::real_messages_control::acknowledgement_control::AcknowledgementControllerConnectors;
-use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::{
     inbound_messages::InputMessageReceiver, mix_traffic::BatchMixMessageSender,
     topology_control::TopologyAccessor,
 };
+use crate::spawn_future;
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
@@ -22,8 +22,12 @@ use nymsphinx::addressing::clients::Recipient;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 use std::time::Duration;
+
+#[cfg(feature = "reply-surb")]
+use crate::client::reply_key_storage::ReplyKeyStorage;
+
+#[cfg(not(target_arch = "wasm32"))]
 use task::ShutdownListener;
-use tokio::task::JoinHandle;
 
 mod acknowledgement_control;
 mod real_traffic_stream;
@@ -91,8 +95,8 @@ impl RealMessagesController<OsRng> {
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
         topology_access: TopologyAccessor,
-        reply_key_storage: ReplyKeyStorage,
-        shutdown: ShutdownListener,
+        #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
+        #[cfg(not(target_arch = "wasm32"))] shutdown: ShutdownListener,
     ) -> Self {
         let rng = OsRng;
 
@@ -119,8 +123,10 @@ impl RealMessagesController<OsRng> {
             topology_access.clone(),
             Arc::clone(&config.ack_key),
             config.self_recipient,
-            reply_key_storage,
             ack_controller_connectors,
+            #[cfg(feature = "reply-surb")]
+            reply_key_storage,
+            #[cfg(not(target_arch = "wasm32"))]
             shutdown.clone(),
         );
 
@@ -139,6 +145,7 @@ impl RealMessagesController<OsRng> {
             rng,
             config.self_recipient,
             topology_access,
+            #[cfg(not(target_arch = "wasm32"))]
             shutdown,
         );
 
@@ -155,28 +162,23 @@ impl RealMessagesController<OsRng> {
         // the below are log messages are errors as at the current stage we do not expect any of
         // the task to ever finish. This will of course change once we introduce
         // graceful shutdowns.
-        let out_queue_control_fut = tokio::spawn(async move {
+        let out_queue_control_fut = spawn_future(async move {
             out_queue_control.run_out_queue_control().await;
             debug!("The out queue controller has finished execution!");
-            out_queue_control
         });
-        let ack_control_fut = tokio::spawn(async move {
+        let ack_control_fut = spawn_future(async move {
             ack_control.run().await;
             debug!("The acknowledgement controller has finished execution!");
-            ack_control
         });
 
-        // technically we don't have to bring `RealMessagesController` back to a valid state
-        // but we can do it, so why not? Perhaps it might be useful if we wanted to allow
-        // for restarts of certain modules without killing the entire process.
-        self.out_queue_control = Some(out_queue_control_fut.await.unwrap());
-        self.ack_control = Some(ack_control_fut.await.unwrap());
+        // // technically we don't have to bring `RealMessagesController` back to a valid state
+        // // but we can do it, so why not? Perhaps it might be useful if we wanted to allow
+        // // for restarts of certain modules without killing the entire process.
+        // self.out_queue_control = Some(out_queue_control_fut.await.unwrap());
+        // self.ack_control = Some(ack_control_fut.await.unwrap());
     }
 
-    pub fn start(mut self) -> JoinHandle<Self> {
-        tokio::spawn(async move {
-            self.run().await;
-            self
-        })
+    pub fn start(mut self) {
+        spawn_future(async move { self.run().await })
     }
 }

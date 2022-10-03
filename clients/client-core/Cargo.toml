@@ -13,26 +13,35 @@ humantime-serde = "1.0"
 log = "0.4"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { version = "1.0", features = ["derive"] }
-sled = "0.34"
+sled = { version = "0.34", optional = true }
 thiserror = "1.0.34"
-tokio = { version = "1.19.1", features = ["macros"] }
 url = { version ="2.2", features = ["serde"] }
 
 # internal
 config = { path = "../../common/config" }
 crypto = { path = "../../common/crypto" }
-gateway-client = { path = "../../common/client-libs/gateway-client" }
+gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm", "coconut"] }
 gateway-requests = { path = "../../gateway/gateway-requests" }
 nonexhaustive-delayqueue = { path = "../../common/nonexhaustive-delayqueue" }
 nymsphinx = { path = "../../common/nymsphinx" }
 pemstore = { path = "../../common/pemstore" }
-task = { path = "../../common/task" }
+#task = { path = "../../common/task" }
 topology = { path = "../../common/topology" }
-validator-client = { path = "../../common/client-libs/validator-client" }
+validator-client = { path = "../../common/client-libs/validator-client", default-features = false }
 tap = "1.0.1"
+
+tokio = { version = "1.21.2", features = ["time", "macros"]}
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen-futures]
+version = "0.4"
+
 
 [dev-dependencies]
 tempfile = "3.1.0"
 
 [features]
-coconut = ["gateway-client/coconut", "gateway-requests/coconut"]
+#wasm = ["gateway-client/wasm"]
+default = ["reply-surb"]
+wasm = []
+#coconut = ["gateway-client/coconut", "gateway-requests/coconut"]
+reply-surb = ["sled"]

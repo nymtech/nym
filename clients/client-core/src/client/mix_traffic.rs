@@ -1,13 +1,14 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::spawn_future;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use gateway_client::GatewayClient;
 use log::*;
 use nymsphinx::forwarding::packet::MixPacket;
+#[cfg(not(target_arch = "wasm32"))]
 use task::ShutdownListener;
-use tokio::task::JoinHandle;
 
 pub type BatchMixMessageSender = mpsc::UnboundedSender<Vec<MixPacket>>;
 pub type BatchMixMessageReceiver = mpsc::UnboundedReceiver<Vec<MixPacket>>;
@@ -19,6 +20,7 @@ pub struct MixTrafficController {
     // later on gateway_client will need to be accessible by other entities
     gateway_client: GatewayClient,
     mix_rx: BatchMixMessageReceiver,
+    #[cfg(not(target_arch = "wasm32"))]
     shutdown: ShutdownListener,
 
     // TODO: this is temporary work-around.
@@ -30,13 +32,14 @@ impl MixTrafficController {
     pub fn new(
         mix_rx: BatchMixMessageReceiver,
         gateway_client: GatewayClient,
-        shutdown: ShutdownListener,
+        #[cfg(not(target_arch = "wasm32"))] shutdown: ShutdownListener,
     ) -> MixTrafficController {
         MixTrafficController {
             gateway_client,
             mix_rx,
-            shutdown,
             consecutive_gateway_failure_count: 0,
+            #[cfg(not(target_arch = "wasm32"))]
+            shutdown,
         }
     }
 
@@ -70,29 +73,32 @@ impl MixTrafficController {
     }
 
     pub async fn run(&mut self) {
-        while !self.shutdown.is_shutdown() {
-            tokio::select! {
-                mix_packets = self.mix_rx.next() => match mix_packets {
-                    Some(mix_packets) => {
-                        self.on_messages(mix_packets).await;
-                    },
-                    None => {
-                        log::trace!("MixTrafficController: Stopping since channel closed");
-                        break;
-                    }
-                },
-                _ = self.shutdown.recv() => {
-                    log::trace!("MixTrafficController: Received shutdown");
-                }
-            }
+        // TODO: the usual wasm stuff
+        while let Some(mix_packets) = self.mix_rx.next().await {
+            self.on_messages(mix_packets).await;
         }
-        assert!(self.shutdown.is_shutdown_poll());
-        log::debug!("MixTrafficController: Exiting");
+
+        // while !self.shutdown.is_shutdown() {
+        //     tokio::select! {
+        //         mix_packets = self.mix_rx.next() => match mix_packets {
+        //             Some(mix_packets) => {
+        //                 self.on_messages(mix_packets).await;
+        //             },
+        //             None => {
+        //                 log::trace!("MixTrafficController: Stopping since channel closed");
+        //                 break;
+        //             }
+        //         },
+        //         _ = self.shutdown.recv() => {
+        //             log::trace!("MixTrafficController: Received shutdown");
+        //         }
+        //     }
+        // }
+        // assert!(self.shutdown.is_shutdown_poll());
+        // log::debug!("MixTrafficController: Exiting");
     }
 
-    pub fn start(mut self) -> JoinHandle<()> {
-        tokio::spawn(async move {
-            self.run().await;
-        })
+    pub fn start(mut self) {
+        spawn_future(async move { self.run().await })
     }
 }

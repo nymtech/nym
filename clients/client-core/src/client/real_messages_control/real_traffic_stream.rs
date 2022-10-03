@@ -19,8 +19,10 @@ use std::collections::VecDeque;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
-use task::ShutdownListener;
 use tokio::time;
+
+#[cfg(not(target_arch = "wasm32"))]
+use task::ShutdownListener;
 
 /// Configurable parameters of the `OutQueueControl`
 pub(crate) struct Config {
@@ -86,6 +88,7 @@ where
     received_buffer: VecDeque<RealMessage>,
 
     /// Listens for shutdown signals
+    #[cfg(not(target_arch = "wasm32"))]
     shutdown: ShutdownListener,
 }
 
@@ -178,7 +181,7 @@ where
         rng: R,
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
-        shutdown: ShutdownListener,
+        #[cfg(not(target_arch = "wasm32"))] shutdown: ShutdownListener,
     ) -> Self {
         OutQueueControl {
             config,
@@ -191,6 +194,7 @@ where
             rng,
             topology_access,
             received_buffer: VecDeque::with_capacity(0), // we won't be putting any data into this guy directly
+            #[cfg(not(target_arch = "wasm32"))]
             shutdown,
         }
     }
@@ -246,6 +250,7 @@ where
         // - the receiver channel is closed
         // in either case there's no recovery and we can only panic
         if let Err(err) = self.mix_tx.unbounded_send(vec![next_message]) {
+            #[cfg(not(target_arch = "wasm32"))]
             if self.shutdown.is_shutdown_poll() {
                 log::info!("Failed to send (shutdown detected)");
             } else {
@@ -260,6 +265,9 @@ where
         // JS2: Basically it was the case that with high enough rate, the stream had already a next value
         // ready and hence was immediately re-scheduled causing other tasks to be starved;
         // yield makes it go back the scheduling queue regardless of its value availability
+
+        // TODO: temporary and BAD workaround for wasm (we should find a way to yield here in wasm)
+        #[cfg(not(target_arch = "wasm32"))]
         tokio::task::yield_now().await;
     }
 
@@ -271,26 +279,32 @@ where
             self.config.average_message_sending_delay,
         )));
 
-        let mut shutdown = self.shutdown.clone();
-        while !shutdown.is_shutdown() {
-            tokio::select! {
-                biased;
-                _ = shutdown.recv() => {
-                    log::trace!("OutQueueControl: Received shutdown");
-                }
-                next_message = self.next() => match next_message {
-                    Some(next_message) => {
-                        self.on_message(next_message).await;
-                    },
-                    None => {
-                        log::trace!("OutQueueControl: Stopping since channel closed");
-                        break;
-                    }
-                }
-            }
+        // TODO: fix it for non-wasm
+
+        while let Some(next_message) = self.next().await {
+            self.on_message(next_message).await;
         }
-        assert!(shutdown.is_shutdown_poll());
-        log::debug!("OutQueueControl: Exiting");
+
+        // let mut shutdown = self.shutdown.clone();
+        // while !shutdown.is_shutdown() {
+        //     tokio::select! {
+        //         biased;
+        //         _ = shutdown.recv() => {
+        //             log::trace!("OutQueueControl: Received shutdown");
+        //         }
+        //         next_message = self.next() => match next_message {
+        //             Some(next_message) => {
+        //                 self.on_message(next_message).await;
+        //             },
+        //             None => {
+        //                 log::trace!("OutQueueControl: Stopping since channel closed");
+        //                 break;
+        //             }
+        //         }
+        //     }
+        // }
+        // assert!(shutdown.is_shutdown_poll());
+        // log::debug!("OutQueueControl: Exiting");
     }
 
     pub(crate) async fn run_out_queue_control(&mut self) {

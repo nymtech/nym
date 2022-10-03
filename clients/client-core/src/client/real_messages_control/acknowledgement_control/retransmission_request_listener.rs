@@ -14,6 +14,8 @@ use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{acknowledgements::AckKey, addressing::clients::Recipient};
 use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
+
+#[cfg(not(target_arch = "wasm32"))]
 use task::ShutdownListener;
 
 // responsible for packet retransmission upon fired timer
@@ -28,6 +30,7 @@ where
     real_message_sender: BatchRealMessageSender,
     request_receiver: RetransmissionRequestReceiver,
     topology_access: TopologyAccessor,
+    #[cfg(not(target_arch = "wasm32"))]
     shutdown: ShutdownListener,
 }
 
@@ -44,7 +47,7 @@ where
         real_message_sender: BatchRealMessageSender,
         request_receiver: RetransmissionRequestReceiver,
         topology_access: TopologyAccessor,
-        shutdown: ShutdownListener,
+        #[cfg(not(target_arch = "wasm32"))] shutdown: ShutdownListener,
     ) -> Self {
         RetransmissionRequestListener {
             ack_key,
@@ -54,6 +57,7 @@ where
             real_message_sender,
             request_receiver,
             topology_access,
+            #[cfg(not(target_arch = "wasm32"))]
             shutdown,
         }
     }
@@ -127,21 +131,26 @@ where
     pub(super) async fn run(&mut self) {
         debug!("Started RetransmissionRequestListener");
 
-        while !self.shutdown.is_shutdown() {
-            tokio::select! {
-                timed_out_ack = self.request_receiver.next() => match timed_out_ack {
-                    Some(timed_out_ack) => self.on_retransmission_request(timed_out_ack).await,
-                    None => {
-                        log::trace!("RetransmissionRequestListener: Stopping since channel closed");
-                        break;
-                    }
-                },
-                _ = self.shutdown.recv() => {
-                    log::trace!("RetransmissionRequestListener: Received shutdown");
-                }
-            }
+        // TODO: shutdown without wasm etc etc
+        while let Some(timed_out_ack) = self.request_receiver.next().await {
+            self.on_retransmission_request(timed_out_ack).await;
         }
-        assert!(self.shutdown.is_shutdown_poll());
-        log::debug!("RetransmissionRequestListener: Exiting");
+
+        // while !self.shutdown.is_shutdown() {
+        //     tokio::select! {
+        //         timed_out_ack = self.request_receiver.next() => match timed_out_ack {
+        //             Some(timed_out_ack) => self.on_retransmission_request(timed_out_ack).await,
+        //             None => {
+        //                 log::trace!("RetransmissionRequestListener: Stopping since channel closed");
+        //                 break;
+        //             }
+        //         },
+        //         _ = self.shutdown.recv() => {
+        //             log::trace!("RetransmissionRequestListener: Received shutdown");
+        //         }
+        //     }
+        // }
+        // assert!(self.shutdown.is_shutdown_poll());
+        // log::debug!("RetransmissionRequestListener: Exiting");
     }
 }

@@ -1,8 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::SHUTDOWN_HAS_BEEN_SIGNALLED;
+use crate::spawn_future;
 use crypto::asymmetric::encryption;
 use crypto::symmetric::stream_cipher;
 use crypto::Digest;
@@ -17,8 +17,11 @@ use nymsphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMe
 use std::collections::HashSet;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
+
+#[cfg(not(target_arch = "wasm32"))]
+use crate::client::reply_key_storage::ReplyKeyStorage;
+#[cfg(not(target_arch = "wasm32"))]
 use task::ShutdownListener;
-use tokio::task::JoinHandle;
 
 // Buffer Requests to say "hey, send any reconstructed messages to this channel"
 // or to say "hey, I'm going offline, don't send anything more to me. Just buffer them instead"
@@ -116,13 +119,14 @@ struct ReceivedMessagesBuffer {
 
     /// Storage containing keys to all [`ReplySURB`]s ever sent out that we did not receive back.
     // There's no need to put it behind a Mutex since it's already properly concurrent
+    #[cfg(feature = "reply-surb")]
     reply_key_storage: ReplyKeyStorage,
 }
 
 impl ReceivedMessagesBuffer {
     fn new(
         local_encryption_keypair: Arc<encryption::KeyPair>,
-        reply_key_storage: ReplyKeyStorage,
+        #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
     ) -> Self {
         ReceivedMessagesBuffer {
             inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
@@ -132,6 +136,7 @@ impl ReceivedMessagesBuffer {
                 message_sender: None,
                 recently_reconstructed: HashSet::new(),
             })),
+            #[cfg(feature = "reply-surb")]
             reply_key_storage,
         }
     }
@@ -180,6 +185,7 @@ impl ReceivedMessagesBuffer {
         self.inner.lock().await.messages.extend(msgs)
     }
 
+    #[cfg(feature = "reply-surb")]
     fn process_received_reply(
         reply_ciphertext: &[u8],
         reply_key: SurbEncryptionKey,
@@ -227,6 +233,7 @@ impl ReceivedMessagesBuffer {
 
             // TODO: this might be a bottleneck - since the keys are stored on disk we, presumably,
             // are doing a disk operation every single received fragment
+            #[cfg(feature = "reply-surb")]
             if let Some(reply_encryption_key) = self
                 .reply_key_storage
                 .get_and_remove_encryption_key(possible_key_digest)
@@ -243,6 +250,13 @@ impl ReceivedMessagesBuffer {
                 if let Some(completed_message) = inner_guard.process_received_fragment(msg) {
                     completed_messages.push(completed_message)
                 }
+            }
+
+            // TODO: make it nicer and stuff
+
+            #[cfg(not(feature = "reply-surb"))]
+            if let Some(completed_message) = inner_guard.process_received_fragment(msg) {
+                completed_messages.push(completed_message)
             }
         }
 
@@ -293,8 +307,8 @@ impl RequestReceiver {
         }
     }
 
-    fn start(mut self) -> JoinHandle<()> {
-        tokio::spawn(async move {
+    fn start(mut self) {
+        spawn_future(async move {
             loop {
                 tokio::select! {
                     request = self.query_receiver.next() => {
@@ -323,6 +337,7 @@ impl RequestReceiver {
 struct FragmentedMessageReceiver {
     received_buffer: ReceivedMessagesBuffer,
     mixnet_packet_receiver: MixnetMessageReceiver,
+    #[cfg(not(target_arch = "wasm32"))]
     shutdown: ShutdownListener,
 }
 
@@ -330,34 +345,40 @@ impl FragmentedMessageReceiver {
     fn new(
         received_buffer: ReceivedMessagesBuffer,
         mixnet_packet_receiver: MixnetMessageReceiver,
-        shutdown: ShutdownListener,
+        #[cfg(not(target_arch = "wasm32"))] shutdown: ShutdownListener,
     ) -> Self {
         FragmentedMessageReceiver {
             received_buffer,
             mixnet_packet_receiver,
+            #[cfg(not(target_arch = "wasm32"))]
             shutdown,
         }
     }
-    fn start(mut self) -> JoinHandle<()> {
-        tokio::spawn(async move {
-            while !self.shutdown.is_shutdown() {
-                tokio::select! {
-                    new_messages = self.mixnet_packet_receiver.next() => match new_messages {
-                        Some(new_messages) => {
-                            self.received_buffer.handle_new_received(new_messages).await;
-                        }
-                        None => {
-                            log::trace!("FragmentedMessageReceiver: Stopping since channel closed");
-                            break;
-                        }
-                    },
-                    _ = self.shutdown.recv() => {
-                        log::trace!("FragmentedMessageReceiver: Received shutdown");
-                    }
-                }
+    fn start(mut self) {
+        // TODO: wasm and stuff
+        spawn_future(async move {
+            while let Some(new_messages) = self.mixnet_packet_receiver.next().await {
+                self.received_buffer.handle_new_received(new_messages).await;
             }
-            assert!(self.shutdown.is_shutdown_poll());
-            log::debug!("FragmentedMessageReceiver: Exiting");
+
+            // while !self.shutdown.is_shutdown() {
+            //     tokio::select! {
+            //         new_messages = self.mixnet_packet_receiver.next() => match new_messages {
+            //             Some(new_messages) => {
+            //                 self.received_buffer.handle_new_received(new_messages).await;
+            //             }
+            //             None => {
+            //                 log::trace!("FragmentedMessageReceiver: Stopping since channel closed");
+            //                 break;
+            //             }
+            //         },
+            //         _ = self.shutdown.recv() => {
+            //             log::trace!("FragmentedMessageReceiver: Received shutdown");
+            //         }
+            //     }
+            // }
+            // assert!(self.shutdown.is_shutdown_poll());
+            // log::debug!("FragmentedMessageReceiver: Exiting");
         })
     }
 }
@@ -372,16 +393,20 @@ impl ReceivedMessagesBufferController {
         local_encryption_keypair: Arc<encryption::KeyPair>,
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_packet_receiver: MixnetMessageReceiver,
-        reply_key_storage: ReplyKeyStorage,
-        shutdown: ShutdownListener,
+        #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
+        #[cfg(not(target_arch = "wasm32"))] shutdown: ShutdownListener,
     ) -> Self {
-        let received_buffer =
-            ReceivedMessagesBuffer::new(local_encryption_keypair, reply_key_storage);
+        let received_buffer = ReceivedMessagesBuffer::new(
+            local_encryption_keypair,
+            #[cfg(feature = "reply-surb")]
+            reply_key_storage,
+        );
 
         ReceivedMessagesBufferController {
             fragmented_message_receiver: FragmentedMessageReceiver::new(
                 received_buffer.clone(),
                 mixnet_packet_receiver,
+                #[cfg(not(target_arch = "wasm32"))]
                 shutdown,
             ),
             request_receiver: RequestReceiver::new(received_buffer, query_receiver),

@@ -38,7 +38,7 @@ async function main() {
     // this is current limitation of wasm in rust - for async methods you can't take self my reference...
     // I'm trying to figure out if I can somehow hack my way around it, but for time being you have to re-assign
     // the object (it's the same one)
-    client = await client.initial_setup();
+    client = await client.start();
 
     const self_address = client.self_address();
     displaySenderAddress(self_address);

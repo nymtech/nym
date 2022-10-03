@@ -6,6 +6,8 @@ use super::SentPacketNotificationReceiver;
 use futures::StreamExt;
 use log::*;
 use nymsphinx::chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID};
+
+#[cfg(not(target_arch = "wasm32"))]
 use task::ShutdownListener;
 
 /// Module responsible for starting up retransmission timers.
@@ -15,6 +17,7 @@ use task::ShutdownListener;
 pub(super) struct SentNotificationListener {
     sent_notifier: SentPacketNotificationReceiver,
     action_sender: ActionSender,
+    #[cfg(not(target_arch = "wasm32"))]
     shutdown: ShutdownListener,
 }
 
@@ -22,11 +25,12 @@ impl SentNotificationListener {
     pub(super) fn new(
         sent_notifier: SentPacketNotificationReceiver,
         action_sender: ActionSender,
-        shutdown: ShutdownListener,
+        #[cfg(not(target_arch = "wasm32"))] shutdown: ShutdownListener,
     ) -> Self {
         SentNotificationListener {
             sent_notifier,
             action_sender,
+            #[cfg(not(target_arch = "wasm32"))]
             shutdown,
         }
     }
@@ -48,23 +52,29 @@ impl SentNotificationListener {
 
     pub(super) async fn run(&mut self) {
         debug!("Started SentNotificationListener");
-        while !self.shutdown.is_shutdown() {
-            tokio::select! {
-                frag_id = self.sent_notifier.next() => match frag_id {
-                    Some(frag_id) => {
-                        self.on_sent_message(frag_id).await;
-                    }
-                    None => {
-                        log::trace!("SentNotificationListener: Stopping since channel closed");
-                        break;
-                    }
-                },
-                _ = self.shutdown.recv() => {
-                    log::trace!("SentNotificationListener: Received shutdown");
-                }
-            }
+
+        // TODO: shutdown without wasm etc etc
+        while let Some(frag_id) = self.sent_notifier.next().await {
+            self.on_sent_message(frag_id).await;
         }
-        assert!(self.shutdown.is_shutdown_poll());
-        log::debug!("SentNotificationListener: Exiting");
+
+        // while !self.shutdown.is_shutdown() {
+        //     tokio::select! {
+        //         frag_id = self.sent_notifier.next() => match frag_id {
+        //             Some(frag_id) => {
+        //                 self.on_sent_message(frag_id).await;
+        //             }
+        //             None => {
+        //                 log::trace!("SentNotificationListener: Stopping since channel closed");
+        //                 break;
+        //             }
+        //         },
+        //         _ = self.shutdown.recv() => {
+        //             log::trace!("SentNotificationListener: Received shutdown");
+        //         }
+        //     }
+        // }
+        // assert!(self.shutdown.is_shutdown_poll());
+        // log::debug!("SentNotificationListener: Exiting");
     }
 }

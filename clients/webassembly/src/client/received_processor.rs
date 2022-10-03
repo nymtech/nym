@@ -167,7 +167,7 @@ impl ReceivedMessagesProcessor {
                 mix_msgs = fused_mixnet_messages_receiver.next() => {
                     for mix_msg in mix_msgs.unwrap() {
                         if let Some(processed) = self.process_received_fragment(mix_msg) {
-                            let arg1 = JsValue::from_serde(&processed).unwrap();
+                            let arg1 = serde_wasm_bindgen::to_value(&processed).unwrap();
                             on_message.call1(&this, &arg1).expect("on message failed!");
                         }
                     }

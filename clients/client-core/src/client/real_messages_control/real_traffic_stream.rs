@@ -19,7 +19,12 @@ use std::collections::VecDeque;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
+
+#[cfg(not(target_arch = "wasm32"))]
 use tokio::time;
+
+#[cfg(target_arch = "wasm32")]
+use fluvio_wasm_timer as wasm_timer;
 
 #[cfg(not(target_arch = "wasm32"))]
 use task::ShutdownListener;
@@ -65,7 +70,11 @@ where
 
     /// Internal state, determined by `average_message_sending_delay`,
     /// used to keep track of when a next packet should be sent out.
+    #[cfg(not(target_arch = "wasm32"))]
     next_delay: Pin<Box<time::Sleep>>,
+
+    #[cfg(target_arch = "wasm32")]
+    next_delay: Pin<Box<wasm_timer::Delay>>,
 
     /// Channel used for sending prepared sphinx packets to `MixTrafficController` that sends them
     /// out to the network without any further delays.
@@ -131,13 +140,22 @@ where
         // we know it's time to send a message, so let's prepare delay for the next one
         // Get the `now` by looking at the current `delay` deadline
         let avg_delay = self.config.average_message_sending_delay;
-        let now = self.next_delay.deadline();
+
         let next_poisson_delay = sample_poisson_duration(&mut self.rng, avg_delay);
 
         // The next interval value is `next_poisson_delay` after the one that just
         // yielded.
-        let next = now + next_poisson_delay;
-        self.next_delay.as_mut().reset(next);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let now = self.next_delay.deadline();
+            let next = now + next_poisson_delay;
+            self.next_delay.as_mut().reset(next);
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            self.next_delay.as_mut().reset(next_poisson_delay);
+        }
 
         // check if we have anything immediately available
         if let Some(real_available) = self.received_buffer.pop_front() {
@@ -183,11 +201,17 @@ where
         topology_access: TopologyAccessor,
         #[cfg(not(target_arch = "wasm32"))] shutdown: ShutdownListener,
     ) -> Self {
+        #[cfg(not(target_arch = "wasm32"))]
+        let next_delay = Box::pin(time::sleep(Default::default()));
+
+        #[cfg(target_arch = "wasm32")]
+        let next_delay = Box::pin(wasm_timer::Delay::new(Default::default()));
+
         OutQueueControl {
             config,
             ack_key,
             sent_notifier,
-            next_delay: Box::pin(time::sleep(Default::default())),
+            next_delay,
             mix_tx,
             real_receiver,
             our_full_destination,
@@ -274,13 +298,18 @@ where
     // Send messages at certain rate and if no real traffic is available, send cover message.
     async fn run_normal_out_queue(&mut self) {
         // we should set initial delay only when we actually start the stream
-        self.next_delay = Box::pin(time::sleep(sample_poisson_duration(
-            &mut self.rng,
-            self.config.average_message_sending_delay,
-        )));
+        let sampled =
+            sample_poisson_duration(&mut self.rng, self.config.average_message_sending_delay);
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let next_delay = Box::pin(time::sleep(sampled));
+
+        #[cfg(target_arch = "wasm32")]
+        let next_delay = Box::pin(wasm_timer::Delay::new(sampled));
+
+        self.next_delay = next_delay;
 
         // TODO: fix it for non-wasm
-
         while let Some(next_message) = self.next().await {
             self.on_message(next_message).await;
         }

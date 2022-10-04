@@ -4,13 +4,30 @@
 use std::pin::Pin;
 use std::task::{Context, Poll, Waker};
 use std::time::Duration;
-use tokio::time::Instant;
 use tokio_stream::Stream;
-use tokio_util::time::{delay_queue, DelayQueue};
 
 pub use tokio::time::error::Error as TimerError;
+
+#[cfg(target_arch = "wasm32")]
+mod wasm_delay_queue;
+
+#[cfg(not(target_arch = "wasm32"))]
+type DelayQueue<T> = tokio_util::time::DelayQueue<T>;
+#[cfg(not(target_arch = "wasm32"))]
 pub use tokio_util::time::delay_queue::Expired;
-pub type QueueKey = delay_queue::Key;
+#[cfg(not(target_arch = "wasm32"))]
+pub type QueueKey = tokio_util::time::delay_queue::Key;
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::time::Instant;
+
+#[cfg(target_arch = "wasm32")]
+type DelayQueue<T> = crate::wasm_delay_queue::DelayQueue<T>;
+#[cfg(target_arch = "wasm32")]
+pub use crate::wasm_delay_queue::delay_queue::Expired;
+#[cfg(target_arch = "wasm32")]
+pub type QueueKey = crate::wasm_delay_queue::delay_queue::Key;
+#[cfg(target_arch = "wasm32")]
+use wasm_timer::Instant;
 
 /// A variant of tokio's `DelayQueue`, such that its `Stream` implementation will never return a 'None'.
 pub struct NonExhaustiveDelayQueue<T> {

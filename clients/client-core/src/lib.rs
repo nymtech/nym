@@ -5,14 +5,21 @@ pub mod config;
 pub mod error;
 pub mod init;
 
-// for now we're losing the output but we never really cared about it anyway
+// TODO: move those to separate lower modules and conditionally re-export them accordingly to make intellij happier about name clash
+
+#[cfg(target_arch = "wasm32")]
 pub(crate) fn spawn_future<F>(future: F)
 where
     F: Future<Output = ()> + 'static,
 {
-    #[cfg(not(target_arch = "wasm32"))]
-    tokio::spawn(future);
-
-    #[cfg(target_arch = "wasm32")]
     wasm_bindgen_futures::spawn_local(future);
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) fn spawn_future<F>(future: F)
+where
+    F: Future + Send + 'static,
+    F::Output: Send + 'static,
+{
+    tokio::spawn(future);
 }

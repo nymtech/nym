@@ -651,6 +651,7 @@ dependencies = [
  "config",
  "crypto",
  "dirs",
+ "fluvio-wasm-timer",
  "futures",
  "gateway-client",
  "gateway-requests",
@@ -663,11 +664,14 @@ dependencies = [
  "serde",
  "sled",
  "tap",
+ "task",
  "tempfile",
  "thiserror",
+ "tokio",
  "topology",
  "url",
  "validator-client",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]
@@ -1719,6 +1723,7 @@ dependencies = [
  "isocountry",
  "itertools",
  "log",
+ "maxminddb",
  "mixnet-contract-common",
  "network-defaults",
  "okapi",
@@ -2710,6 +2715,15 @@ checksum = "879d54834c8c76457ef4293a689b2a8c59b076067ad77b15efafbb05f92a592b"
 
 [[package]]
 name = "ipnetwork"
+version = "0.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4088d739b183546b239688ddbc79891831df421773df95e236daf7867866d355"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "ipnetwork"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bf466541e9d546596ee94f9f69590f89473455f88372423e0008fc1a7daf100e"
@@ -2934,6 +2948,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "73cbba799671b762df5a175adf59ce145165747bb891505c43d09aefbbf38beb"
 
 [[package]]
+name = "maxminddb"
+version = "0.23.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe2ba61113f9f7a9f0e87c519682d39c43a6f3f79c2cc42c3ba3dda83b1fa334"
+dependencies = [
+ "ipnetwork 0.18.0",
+ "log",
+ "memchr",
+ "serde",
+]
+
+[[package]]
 name = "maybe-uninit"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3117,9 +3143,12 @@ dependencies = [
 name = "nonexhaustive-delayqueue"
 version = "0.1.0"
 dependencies = [
+ "futures-core",
+ "slab",
  "tokio",
  "tokio-stream",
  "tokio-util 0.7.4",
+ "wasm-timer",
 ]
 
 [[package]]
@@ -3360,7 +3389,7 @@ dependencies = [
  "clap 3.2.21",
  "dirs",
  "futures",
- "ipnetwork",
+ "ipnetwork 0.20.0",
  "log",
  "network-defaults",
  "nymsphinx",
@@ -6014,9 +6043,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.21.1"
+version = "1.21.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0020c875007ad96677dcc890298f4b942882c5d4eb7cc8f439fc3bf813dc9c95"
+checksum = "a9e03c497dc955702ba729190dc4aac6f2a0ce97f913e5b1b5912fc5039d9099"
 dependencies = [
  "autocfg 1.1.0",
  "bytes",
@@ -6024,7 +6053,6 @@ dependencies = [
  "memchr",
  "mio",
  "num_cpus",
- "once_cell",
  "parking_lot 0.12.1",
  "pin-project-lite",
  "signal-hook-registry",
@@ -6813,6 +6841,20 @@ name = "wasm-bindgen-shared"
 version = "0.2.78"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0237232789cf037d5480773fe568aac745bfe2afbc11a863e97901780a6b47cc"
+
+[[package]]
+name = "wasm-timer"
+version = "0.2.5"
+source = "git+https://github.com/jstuczyn/wasm-timer?rev=2859241251dd00c54a9c99b74727b99bd7feffb4#2859241251dd00c54a9c99b74727b99bd7feffb4"
+dependencies = [
+ "futures",
+ "js-sys",
+ "parking_lot 0.11.2",
+ "pin-utils",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
 
 [[package]]
 name = "wasm-utils"

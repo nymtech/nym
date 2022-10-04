@@ -25,7 +25,6 @@ gateway-requests = { path = "../../gateway/gateway-requests" }
 nonexhaustive-delayqueue = { path = "../../common/nonexhaustive-delayqueue" }
 nymsphinx = { path = "../../common/nymsphinx" }
 pemstore = { path = "../../common/pemstore" }
-#task = { path = "../../common/task" }
 topology = { path = "../../common/topology" }
 validator-client = { path = "../../common/client-libs/validator-client", default-features = false }
 tap = "1.0.1"
@@ -35,6 +34,11 @@ tokio = { version = "1.21.2", features = ["time", "macros"]}
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen-futures]
 version = "0.4"
 
+[target."cfg(target_arch = \"wasm32\")".dependencies.fluvio-wasm-timer]
+version = "0.2.5"
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.task]
+path = "../../common/task"
 
 [dev-dependencies]
 tempfile = "3.1.0"
@@ -43,5 +47,5 @@ tempfile = "3.1.0"
 #wasm = ["gateway-client/wasm"]
 default = ["reply-surb"]
 wasm = []
-#coconut = ["gateway-client/coconut", "gateway-requests/coconut"]
+coconut = ["gateway-client/coconut", "gateway-requests/coconut"]
 reply-surb = ["sled"]

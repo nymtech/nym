@@ -12,12 +12,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {
-    NymClient,
-    set_panic_hook
-} from "@nymproject/nym-client-wasm"
+import {NymClient, set_panic_hook} from "@nymproject/nym-client-wasm"
 
-// current limitation of rust-wasm for async stuff : (
+class ClientWrapper {
+    constructor(validator) {
+        this.rustClient = new NymClient(validator);
+        this.rustClient.set_on_message(this.on_message);
+        this.rustClient.set_on_gateway_connect(this.on_connect);
+    }
+
+    selfAddress = () => {
+        const self_address = this.rustClient.self_address();
+        console.log(self_address)
+    }
+
+    on_message = (msg) => displayReceived(msg);
+    on_connect = () => {
+        console.log("Established (and authenticated) gateway connection!");
+    }
+
+    start = async () => {
+        // this is current limitation of wasm in rust - for async methods you can't take self my reference...
+        // I'm trying to figure out if I can somehow hack my way around it, but for time being you have to re-assign
+        // the object (it's the same one)
+        this.rustClient = await this.rustClient.start()
+    }
+
+    sendMessage = async (recipient, message) => {
+        this.rustClient = await this.rustClient.send_message(recipient, message)
+    }
+}
+
+// // current limitation of rust-wasm for async stuff : (
 let client = null
 
 async function main() {
@@ -27,20 +53,10 @@ async function main() {
     // validator server we will use to get topology from
     const validator = "https://validator.nymtech.net/api"; //"http://localhost:8081";
 
-    client = new NymClient(validator);
+    client = new ClientWrapper(validator);
+    await client.start();
 
-    const on_message = (msg) => displayReceived(msg);
-    const on_connect = () => console.log("Established (and authenticated) gateway connection!");
-
-    client.set_on_message(on_message);
-    client.set_on_gateway_connect(on_connect);
-
-    // this is current limitation of wasm in rust - for async methods you can't take self my reference...
-    // I'm trying to figure out if I can somehow hack my way around it, but for time being you have to re-assign
-    // the object (it's the same one)
-    client = await client.start();
-
-    const self_address = client.self_address();
+    const self_address = client.rustClient.self_address();
     displaySenderAddress(self_address);
 
     const sendButton = document.querySelector('#send-button');
@@ -59,7 +75,8 @@ async function main() {
 async function sendMessageTo() {
     const message = document.getElementById("message").value;
     const recipient = document.getElementById("recipient").value;
-    client = await client.send_message(message, recipient);
+
+    await client.sendMessage(message, recipient);
     displaySend(message);
 }
 

@@ -4,12 +4,14 @@
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::InputMessage;
 use client_core::client::inbound_messages::InputMessageReceiver;
+use client_core::client::inbound_messages::InputMessageSender;
 use client_core::client::key_manager::KeyManager;
 use client_core::client::mix_traffic::BatchMixMessageReceiver;
 use client_core::client::mix_traffic::BatchMixMessageSender;
 use client_core::client::mix_traffic::MixTrafficController;
 use client_core::client::real_messages_control;
 use client_core::client::real_messages_control::RealMessagesController;
+use client_core::client::received_buffer::ReceivedBufferMessage;
 use client_core::client::received_buffer::ReceivedBufferRequestReceiver;
 use client_core::client::received_buffer::ReceivedMessagesBufferController;
 use client_core::client::topology_control::TopologyAccessor;
@@ -17,6 +19,7 @@ use client_core::client::topology_control::TopologyRefresher;
 use client_core::client::topology_control::TopologyRefresherConfig;
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
+use futures::StreamExt;
 use gateway_client::AcknowledgementReceiver;
 use gateway_client::AcknowledgementSender;
 use gateway_client::GatewayClient;
@@ -41,7 +44,7 @@ pub(crate) mod received_processor;
 const ACK_WAIT_MULTIPLIER: f64 = 1.5;
 const ACK_WAIT_ADDITION: Duration = Duration::from_millis(1_500);
 const LOOP_COVER_STREAM_AVERAGE_DELAY: Duration = Duration::from_millis(200);
-const MESSAGE_STREAM_AVERAGE_DELAY: Duration = Duration::from_millis(20);
+const MESSAGE_STREAM_AVERAGE_DELAY: Duration = Duration::from_millis(10);
 const AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(50);
 const AVERAGE_ACK_DELAY: Duration = Duration::from_millis(50);
 const TOPOLOGY_REFRESH_RATE: Duration = Duration::from_secs(5 * 60);
@@ -62,6 +65,9 @@ pub struct NymClient {
 
     // TODO: this should be stored somewhere persistently
     // received_keys: HashSet<SURBEncryptionKey>,
+    /// Channel used for transforming 'raw' messages into sphinx packets and sending them
+    /// through the mix network.
+    input_tx: Option<InputMessageSender>,
 
     // TODO: only temporary
     topology: Option<NymTopology>,
@@ -95,6 +101,7 @@ impl NymClient {
             on_message: None,
             on_gateway_connect: None,
             disabled_credentials_mode: true,
+            input_tx: None,
         }
     }
 
@@ -125,8 +132,8 @@ impl NymClient {
     }
 
     pub fn self_address(&self) -> String {
-        return "foomp".into();
-        // self.as_mix_recipient().to_string()
+        // return "foomp".into();
+        self.as_mix_recipient().to_string()
     }
 
     // future constantly pumping loop cover traffic at some specified average rate
@@ -138,16 +145,16 @@ impl NymClient {
     ) {
         console_log!("Starting loop cover traffic stream...");
 
-        LoopCoverTrafficStream::new(
-            self.key_manager.ack_key(),
-            AVERAGE_ACK_DELAY,
-            AVERAGE_PACKET_DELAY,
-            LOOP_COVER_STREAM_AVERAGE_DELAY,
-            mix_tx,
-            self.as_mix_recipient(),
-            topology_accessor,
-        )
-        .start();
+        // LoopCoverTrafficStream::new(
+        //     self.key_manager.ack_key(),
+        //     AVERAGE_ACK_DELAY,
+        //     AVERAGE_PACKET_DELAY,
+        //     LOOP_COVER_STREAM_AVERAGE_DELAY,
+        //     mix_tx,
+        //     self.as_mix_recipient(),
+        //     topology_accessor,
+        // )
+        // .start();
     }
 
     fn start_real_traffic_controller(
@@ -232,7 +239,7 @@ impl NymClient {
             self.key_manager.identity_keypair(),
             gateway_identity,
             gateway_owner,
-            Some(self.key_manager.gateway_shared_key()),
+            None,
             mixnet_message_sender,
             ack_sender,
             GATEWAY_RESPONSE_TIMEOUT,
@@ -241,10 +248,11 @@ impl NymClient {
 
         gateway_client.set_disabled_credentials_mode(self.disabled_credentials_mode);
 
-        gateway_client
+        let shared_keys = gateway_client
             .authenticate_and_start()
             .await
             .expect("could not authenticate and start up the gateway connection");
+        self.key_manager.insert_gateway_shared_key(shared_keys);
 
         match self.on_gateway_connect.as_ref() {
             Some(callback) => {
@@ -284,7 +292,7 @@ impl NymClient {
         }
 
         console_log!("Starting topology refresher...");
-        topology_refresher.start();
+        // topology_refresher.start();
     }
 
     // controller for sending sphinx packets to mixnet (either real traffic or cover traffic)
@@ -351,6 +359,29 @@ impl NymClient {
         );
 
         self.start_cover_traffic_stream(shared_topology_accessor, sphinx_message_sender);
+
+        self.input_tx = Some(input_sender);
+
+        // TEMP
+        spawn_local(async move {
+            let (reconstructed_sender, mut reconstructed_receiver) = mpsc::unbounded();
+
+            // tell the buffer to start sending stuff to us
+            received_buffer_request_sender
+                .unbounded_send(ReceivedBufferMessage::ReceiverAnnounce(
+                    reconstructed_sender,
+                ))
+                .expect("the buffer request failed!");
+
+            // self.receive_tx = Some(reconstructed_receiver);
+            // self.input_tx = Some(input_sender);
+
+            while let Some(new) = reconstructed_receiver.next().await {
+                console_log!("received: len {:?}", new[0].message.len());
+                console_log!("received: {:?}", new);
+            }
+        });
+
         self
     }
 
@@ -424,7 +455,28 @@ impl NymClient {
     pub async fn send_message(mut self, message: String, recipient: String) -> Self {
         console_log!("Sending {} to {}", message, recipient);
 
-        todo!()
+        let message_bytes = message.into_bytes();
+
+        let new_message = std::iter::repeat(message_bytes)
+            .flatten()
+            .take(1000000)
+            .collect::<Vec<_>>();
+
+        let message_bytes = new_message;
+
+        let recipient = Recipient::try_from_base58_string(recipient).unwrap();
+
+        let input_msg = InputMessage::new_fresh(recipient, message_bytes, false);
+
+        self.input_tx
+            .as_ref()
+            .expect("start method was not called before!")
+            .unbounded_send(input_msg)
+            .unwrap();
+
+        self
+
+        // todo!()
 
         // let message_bytes = message.into_bytes();
         // let recipient = Recipient::try_from_base58_string(recipient).unwrap();

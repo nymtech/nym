@@ -18,7 +18,7 @@ use std::collections::HashSet;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "reply-surb")]
 use crate::client::reply_key_storage::ReplyKeyStorage;
 #[cfg(not(target_arch = "wasm32"))]
 use task::ShutdownListener;

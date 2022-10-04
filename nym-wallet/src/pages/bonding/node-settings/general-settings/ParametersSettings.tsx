@@ -6,7 +6,7 @@ import { TBondedMixnode, TBondedGateway } from '../../../../context/bonding';
 import { SimpleModal } from '../../../../components/Modals/SimpleModal';
 
 export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
-  const { bond } = bondedNode;
+  const { bond, type } = bondedNode;
 
   const [buttonActive, setButtonActive] = useState<boolean>(false);
   const [open, setOpen] = useState(true);
@@ -19,12 +19,16 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
   const theme = useTheme();
 
   useEffect(() => {
-    if (profitMargin === profitMarginPercent && operatorCost === parseInt(bond.amount)) {
+    if (
+      type === 'mixnode' &&
+      bondedNode.profitMargin === profitMarginPercent &&
+      operatorCost === parseInt(bond.amount)
+    ) {
       setButtonActive(false);
     } else {
       setButtonActive(true);
     }
-  }, [profitMargin, operatorCost]);
+  }, [profitMarginPercent, operatorCost]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { value, id } = e.target;
@@ -97,23 +101,25 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
             </Typography>
           </Grid>
           <Grid spacing={3} item container alignItems="center" xs={12} md={6}>
-            <Grid item width={1} spacing={3}>
-              <TextField
-                id="profitMargin"
-                type="input"
-                label="Profit margin"
-                value={profitMargin}
-                onChange={(e) => handleChange(e)}
-                fullWidth
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <span>%</span>
-                    </InputAdornment>
-                  ),
-                }}
-              />
-            </Grid>
+            {type === 'mixnode' && (
+              <Grid item width={1} spacing={3}>
+                <TextField
+                  id="profitMargin"
+                  type="input"
+                  label="Profit margin"
+                  value={profitMarginPercent}
+                  onChange={(e) => handleChange(e)}
+                  fullWidth
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <span>%</span>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid>
+            )}
           </Grid>
         </Grid>
         <Divider flexItem />

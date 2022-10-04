@@ -11,13 +11,14 @@ import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { NymCard } from 'src/components';
 import { PageLayout } from 'src/layouts';
 import { Tabs } from 'src/components/Tabs';
-import { useBondingContext, BondingContextProvider } from 'src/context';
+import { useBondingContext, BondingContextProvider, TBondedMixnode } from 'src/context';
 import { AppContext, urls } from 'src/context/main';
 
 import { NodeGeneralSettings } from './settings-pages/general-settings';
 import { NodeUnbondPage } from './settings-pages/NodeUnbondPage';
 import { createNavItems } from './node-settings.constant';
 import { isMixnode } from 'src/types';
+import { ApyPlayground } from './apy-playground';
 
 export const NodeSettings = () => {
   const theme = useTheme();
@@ -124,6 +125,7 @@ export const NodeSettings = () => {
         {value === 'Unbond' && bondedNode && (
           <NodeUnbondPage bondedNode={bondedNode} onConfirm={handleUnbond} onError={handleError} />
         )}
+        {value === 'Playground' && bondedNode && <ApyPlayground bondedNode={bondedNode as TBondedMixnode} />}
         {confirmationDetails && confirmationDetails.status === 'success' && (
           <ConfirmationDetailsModal
             title={confirmationDetails.title}

@@ -364,7 +364,7 @@ impl Client {
 
     pub async fn compute_mixnode_reward_estimation(
         &self,
-        identity: IdentityKeyRef<'_>,
+        mix_id: MixId,
         request_body: &ComputeRewardEstParam,
     ) -> Result<RewardEstimationResponse, ValidatorAPIError> {
         self.post_validator_api(
@@ -372,7 +372,7 @@ impl Client {
                 routes::API_VERSION,
                 routes::STATUS_ROUTES,
                 routes::MIXNODE,
-                identity,
+                &mix_id.to_string(),
                 routes::COMPUTE_REWARD_ESTIMATION,
             ],
             NO_PARAMS,

@@ -2,10 +2,10 @@ import React, { useRef } from 'react';
 import { ArrowForward, CheckCircleOutline, Description, Download } from '@mui/icons-material';
 import { Box, Button, Card, Chip, CircularProgress, Divider, Grid, Stack, Typography } from '@mui/material';
 import format from 'date-fns/format';
-import { ResultsCard } from '../components/ResultsCard';
-import { ResultsCardDetail } from '../components/ResultsCardDetail';
 import { NodePath } from 'src/svg-icons/node-path';
 import { useReactToPrint } from 'react-to-print';
+import { ResultsCard } from '../components/ResultsCard';
+import { ResultsCardDetail } from '../components/ResultsCardDetail';
 
 export type Layer = '1' | '2' | '3' | 'gateway';
 

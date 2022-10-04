@@ -4,11 +4,11 @@
 use crate::api_client;
 use crate::error::BackendError;
 use crate::state::WalletState;
-use mixnet_contract_common::{IdentityKeyRef, MixId};
+use mixnet_contract_common::{reward_params::Performance, IdentityKeyRef, MixId, Percent, Coin};
 use validator_client::models::{
-    GatewayCoreStatusResponse, GatewayStatusReportResponse, InclusionProbabilityResponse,
+    ComputeRewardEstParam, GatewayCoreStatusResponse, InclusionProbabilityResponse,
     MixnodeCoreStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
-    StakeSaturationResponse, ComputeRewardEstParam
+    StakeSaturationResponse, GatewayStatusReportResponse
 };
 
 #[tauri::command]
@@ -61,21 +61,25 @@ pub async fn mixnode_reward_estimation(
 
 #[tauri::command]
 pub async fn compute_mixnode_reward_estimation(
-    identity: &str,
-    uptime: Option<u8>,
-    is_active: Option<bool>,
+    mix_id: u32,
+    performance: Option<Performance>,
+    active_in_rewarded_set: Option<bool>,
     pledge_amount: Option<u64>,
     total_delegation: Option<u64>,
+    interval_operating_cost: Option<Coin>,
+    profit_margin_percent: Option<Percent>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<RewardEstimationResponse, BackendError> {
     let request_body = ComputeRewardEstParam {
-        uptime,
-        is_active,
+        performance,
+        active_in_rewarded_set,
         pledge_amount,
         total_delegation,
+        interval_operating_cost,
+        profit_margin_percent
     };
     Ok(api_client!(state)
-        .compute_mixnode_reward_estimation(identity, &request_body)
+        .compute_mixnode_reward_estimation(mix_id, &request_body)
         .await?)
 }
 

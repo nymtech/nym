@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Button, Grid, TextField, Typography } from '@mui/material';
 import { useForm } from 'react-hook-form';
@@ -15,6 +15,8 @@ export type CalculateArgs = {
   bond: string;
   delegations: string;
   uptime: string;
+  profitMargin: string;
+  operatorCost: string;
 };
 
 const inputFields: InputFields = [
@@ -30,11 +32,20 @@ export const Inputs = ({
   defaultValues,
 }: {
   onCalculate: (args: CalculateArgs) => Promise<void>;
-  defaultValues: DefaultInputValues | undefined;
+  defaultValues: DefaultInputValues;
 }) => {
-  const handleCalculate = async (args: CalculateArgs) => {
-    onCalculate({ bond: args.bond, delegations: args.delegations, uptime: args.uptime });
-  };
+  const handleCalculate = useCallback(
+    async (args: CalculateArgs) => {
+      onCalculate({
+        bond: args.bond,
+        delegations: args.delegations,
+        uptime: args.uptime,
+        profitMargin: args.profitMargin,
+        operatorCost: args.operatorCost,
+      });
+    },
+    [onCalculate],
+  );
 
   const {
     register,

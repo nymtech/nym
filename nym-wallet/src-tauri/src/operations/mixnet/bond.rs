@@ -344,7 +344,7 @@ pub async fn get_mix_node_description(
 
 #[tauri::command]
 pub async fn get_mixnode_uptime(
-    mix_id: NodeId,
+    mix_id: MixId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<u8, BackendError> {
     log::info!(">>> Get mixnode uptime");

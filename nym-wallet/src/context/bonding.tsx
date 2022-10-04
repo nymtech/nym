@@ -46,7 +46,7 @@ export type TBondedMixnode = {
   delegators: number;
   status: MixnodeStatus;
   proxy?: string;
-  operatorCost?: number;
+  operatorCost?: string;
   host: string;
 };
 
@@ -120,10 +120,9 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
   };
 
   const getAdditionalMixnodeDetails = async (mixId: number) => {
-    const additionalDetails: { status: MixnodeStatus; stakeSaturation: string; operatorCost?: number } = {
+    const additionalDetails: { status: MixnodeStatus; stakeSaturation: string; operatorCost?: string } = {
       status: 'not_found',
       stakeSaturation: '0',
-      operatorCost: 0,
     };
 
     try {
@@ -141,7 +140,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     }
     try {
       const rewardEstimation = await getMixnodeRewardEstimation(mixId);
-      additionalDetails.operatorCost = rewardEstimation.estimated_operator_cost;
+      additionalDetails.operatorCost = rewardEstimation.estimation.operating_cost;
     } catch (e) {
       Console.log(e);
     }

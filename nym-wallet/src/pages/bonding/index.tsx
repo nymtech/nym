@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from 'react';
-import { FeeDetails } from '@nymproject/types';
+import { FeeDetails, DecCoin } from '@nymproject/types';
 import { TPoolOption } from 'src/components';
 import { Bond } from 'src/components/Bonding/Bond';
 import { BondedMixnode } from 'src/components/Bonding/BondedMixnode';
@@ -17,17 +17,18 @@ import { BondedGateway } from 'src/components/Bonding/BondedGateway';
 import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsModal';
 import { Box } from '@mui/material';
 import { BondingContextProvider, useBondingContext } from '../../context';
+import { BondMoreModal } from '../../components/Bonding/modals/BondMoreModal';
 
 const Bonding = () => {
   const [showModal, setShowModal] = useState<
-    'bond-mixnode' | 'bond-gateway' | 'bond-more' | 'unbond' | 'redeem' | 'compound' | 'node-settings'
+    'bond-mixnode' | 'bond-gateway' | 'bond-more' | 'unbond' | 'redeem' | 'node-settings'
   >();
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
 
   const {
     network,
     clientDetails,
-    userBalance: { originalVesting },
+    userBalance: { originalVesting, balance, tokenAllocation },
   } = useContext(AppContext);
 
   const {
@@ -35,6 +36,7 @@ const Bonding = () => {
     bondMixnode,
     bondGateway,
     unbond,
+    bondMore,
     updateMixnode,
     redeemRewards,
     isLoading,
@@ -143,6 +145,23 @@ const Bonding = () => {
     return undefined;
   };
 
+  const handleBondMore = async ({
+    signature,
+    additionalBond,
+  }: {
+    additionalBond: DecCoin;
+    signature: string;
+    tokenPool: TPoolOption;
+  }) => {
+    setShowModal(undefined);
+    const tx = await bondMore(signature, additionalBond);
+    setConfirmationDetails({
+      status: 'success',
+      title: 'Bond more successful',
+      txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
+    });
+  };
+
   return (
     <Box sx={{ mt: 4 }}>
       {!bondedNode && <Bond disabled={isLoading} onBond={() => setShowModal('bond-mixnode')} />}
@@ -177,6 +196,16 @@ const Bonding = () => {
           onSelectNodeType={() => setShowModal('bond-mixnode')}
           onClose={() => setShowModal(undefined)}
           onError={handleError}
+        />
+      )}
+
+      {showModal === 'bond-more' && bondedNode && (
+        <BondMoreModal
+          currentBond={bondedNode.bond}
+          userBalance={balance?.printable_balance}
+          hasVestingTokens={Number(tokenAllocation?.vesting) > 0}
+          onConfirm={handleBondMore}
+          onClose={() => setShowModal(undefined)}
         />
       )}
 

@@ -1,74 +1,30 @@
 import { useEffect, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
 import { Button, Divider, Typography, TextField, Grid, Alert, IconButton } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
 import { TBondedMixnode, TBondedGateway } from '../../../../context/bonding';
 import { SimpleModal } from '../../../../components/Modals/SimpleModal';
-
-const getNumberlength = (number: number) => {
-  return number.toString().length;
-};
-
-// TODO: adding ip regex that works well
-const ipRegex = /^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$/;
-// TODO: only accept valid nym wallet versions
-const appVersionRegex = /^\d+(?:\.\d+){2}$/gm;
+import { amountSchema, mixnodeValidationSchema } from '../../../../components/Bonding/forms/mixnodeValidationSchema';
 
 export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
-  const { mixPort, verlocPort, httpApiPort, host, version } = bondedNode;
-
-  const [buttonActive, setButtonActive] = useState<boolean>(false);
   const [open, setOpen] = useState(true);
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
-  const [mixPortUpdated, setMixPortUpdated] = useState<number>(mixPort);
-  const [verlocPortUpdated, setVerlocPortUpdated] = useState<number>(verlocPort);
-  const [httpApiPortUpdated, setHttpApiPortUpdated] = useState<number>(httpApiPort);
-  const [hostUpdated, setHostUpdated] = useState<string>(host);
-  const [versionUpdated, setVersionUpdated] = useState<string>(version);
 
   const theme = useTheme();
 
-  useEffect(() => {
-    setButtonActive(true);
-    if (
-      mixPortUpdated === mixPort &&
-      verlocPortUpdated === verlocPort &&
-      httpApiPortUpdated === httpApiPort &&
-      hostUpdated === host &&
-      versionUpdated === version
-    ) {
-      setButtonActive(false);
-    }
-    if (
-      getNumberlength(mixPortUpdated) !== 4 ||
-      getNumberlength(verlocPortUpdated) !== 4 ||
-      getNumberlength(httpApiPortUpdated) !== 4 ||
-      !versionUpdated.match(appVersionRegex)
-    ) {
-      setButtonActive(false);
-    }
-  }, [mixPortUpdated, verlocPortUpdated, httpApiPortUpdated, hostUpdated, versionUpdated]);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm({
+    resolver: yupResolver(mixnodeValidationSchema),
+    defaultValues: bondedNode.type === 'mixnode' ? bondedNode : {},
+  });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { value, id } = e.target;
-    const numNewValue = parseInt(value) || 0;
-
-    switch (id) {
-      case 'mixPort':
-        setMixPortUpdated(numNewValue);
-        break;
-      case 'verlocPort':
-        setVerlocPortUpdated(numNewValue);
-        break;
-      case 'httpApiPort':
-        setHttpApiPortUpdated(numNewValue);
-        break;
-      case 'host':
-        setHostUpdated(value);
-        break;
-      case 'version':
-        setVersionUpdated(value);
-    }
+  const onSubmit = async () => {
+    console.log('hola');
   };
 
   return (
@@ -120,35 +76,32 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
           <Grid spacing={3} item container alignItems="center" xs={12} md={6}>
             <Grid item width={1}>
               <TextField
-                id="mixPort"
-                type="input"
+                {...register('mixPort')}
+                name="mixPort"
                 label="Mix Port"
-                value={mixPortUpdated}
-                onChange={(e) => handleChange(e)}
-                inputProps={{ maxLength: 4 }}
                 fullWidth
+                error={!!errors.mixPort}
+                helperText={errors.mixPort?.message}
               />
             </Grid>
             <Grid item width={1}>
               <TextField
-                id="verlocPort"
-                type="input"
+                {...register('verlocPort')}
+                name="verlocPort"
                 label="Verloc Port"
-                value={verlocPortUpdated}
-                onChange={(e) => handleChange(e)}
-                inputProps={{ maxLength: 4 }}
                 fullWidth
+                error={!!errors.verlocPort}
+                helperText={errors.verlocPort?.message}
               />
             </Grid>
             <Grid item width={1}>
               <TextField
-                id="httpApiPort"
-                type="input"
+                {...register('httpApiPort')}
+                name="httpApiPort"
                 label="HTTP port"
-                value={httpApiPortUpdated}
-                onChange={(e) => handleChange(e)}
-                inputProps={{ maxLength: 4 }}
                 fullWidth
+                error={!!errors.httpApiPort}
+                helperText={errors.httpApiPort?.message}
               />
             </Grid>
           </Grid>
@@ -173,12 +126,12 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
           <Grid spacing={3} item container alignItems="center" xs={12} md={6}>
             <Grid item width={1}>
               <TextField
-                id="host"
-                type="input"
+                {...register('host')}
+                name="host"
                 label="host"
-                value={hostUpdated}
-                onChange={(e) => handleChange(e)}
                 fullWidth
+                error={!!errors.host}
+                helperText={errors.host?.message}
               />
             </Grid>
           </Grid>
@@ -203,12 +156,12 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
           <Grid spacing={3} item container alignItems="center" xs={12} md={6}>
             <Grid item width={1}>
               <TextField
-                id="version"
-                type="input"
+                {...register('version')}
+                name="version"
                 label="Version"
-                value={versionUpdated}
-                onChange={(e) => handleChange(e)}
                 fullWidth
+                error={!!errors.version}
+                helperText={errors.version?.message}
               />
             </Grid>
           </Grid>
@@ -218,8 +171,10 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
           <Button
             size="large"
             variant="contained"
-            disabled={!buttonActive}
-            onClick={() => setOpenConfirmationModal(true)}
+            disabled={isSubmitting}
+            onClick={handleSubmit(onSubmit)}
+            type="submit"
+            // onClick={() => setOpenConfirmationModal(true)}
             sx={{ m: 3, width: '320px' }}
           >
             Save all display changes

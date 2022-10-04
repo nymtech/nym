@@ -40,6 +40,10 @@ class ClientWrapper {
     sendMessage = async (recipient, message) => {
         this.rustClient = await this.rustClient.send_message(recipient, message)
     }
+
+    sendBinaryMessage = async (recipient, message) => {
+        this.rustClient = await this.rustClient.send_binary_message(recipient, message)
+    }
 }
 
 let client = null

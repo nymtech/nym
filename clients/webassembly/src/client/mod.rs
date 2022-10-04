@@ -110,9 +110,9 @@ impl NymClient {
 
         // LoopCoverTrafficStream::new(
         //     self.key_manager.ack_key(),
-        //     AVERAGE_ACK_DELAY,
-        //     AVERAGE_PACKET_DELAY,
-        //     LOOP_COVER_STREAM_AVERAGE_DELAY,
+        //     self.config.debug.average_ack_delay,
+        //     self.config.debug.average_packet_delay,
+        //     self.config.debug.loop_cover_traffic_average_delay,
         //     mix_tx,
         //     self.as_mix_recipient(),
         //     topology_accessor,
@@ -170,12 +170,6 @@ impl NymClient {
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
     ) -> GatewayClient {
-        // let gateway_owner = "n1kymvkx6vsq7pvn6hfurkpg06h3j4gxj4em7tlg".into();
-        // let gateway_id = "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM".to_string();
-        // let gateway_address = "ws://213.219.38.119:9000".into();
-        //
-        // // let gateway_address = "213.219.38.119".into();
-
         let gateway_id = self.config.gateway_endpoint.gateway_id.clone();
         if gateway_id.is_empty() {
             panic!("The identity of the gateway is unknown - did you run `get_gateway()`?")
@@ -364,9 +358,15 @@ impl NymClient {
         console_log!("Sending {} to {}", message, recipient);
 
         let message_bytes = message.into_bytes();
+        self.send_binary_message(message_bytes, recipient).await
+    }
+
+    pub async fn send_binary_message(mut self, message: Vec<u8>, recipient: String) -> Self {
+        console_log!("Sending {} bytes to {}", message.len(), recipient);
+
         let recipient = Recipient::try_from_base58_string(recipient).unwrap();
 
-        let input_msg = InputMessage::new_fresh(recipient, message_bytes, false);
+        let input_msg = InputMessage::new_fresh(recipient, message, false);
 
         self.input_tx
             .as_ref()

@@ -119,11 +119,11 @@ impl<C> ValidatorCacheRefresher<C> {
         }
     }
 
-    async fn get_performance(&self, node_id: NodeId, epoch: Interval) -> Option<Performance> {
+    async fn get_performance(&self, mix_id: NodeId, epoch: Interval) -> Option<Performance> {
         self.storage
             .as_ref()?
             .get_average_mixnode_uptime_in_the_last_24hrs(
-                node_id,
+                mix_id,
                 epoch.current_epoch_end_unix_timestamp(),
             )
             .await

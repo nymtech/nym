@@ -6,30 +6,36 @@ import { TBondedMixnode, TBondedGateway } from '../../../../context/bonding';
 import { SimpleModal } from '../../../../components/Modals/SimpleModal';
 
 export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
-  const { profitMarginPercent, bond } = bondedNode;
+  const { bond, type } = bondedNode;
 
   const [buttonActive, setButtonActive] = useState<boolean>(false);
   const [open, setOpen] = useState(true);
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
-  const [profitMargin, setProfitMargin] = useState<number>(profitMarginPercent);
+  const [profitMarginPercent, setProfitMarginPercent] = useState<string>(
+    bondedNode.type === 'mixnode' ? bondedNode.profitMargin : '',
+  );
   const [operatorCost, setOperatorCost] = useState<number>(parseInt(bond.amount));
 
   const theme = useTheme();
 
   useEffect(() => {
-    if (profitMargin === profitMarginPercent && operatorCost === parseInt(bond.amount)) {
+    if (
+      type === 'mixnode' &&
+      bondedNode.profitMargin === profitMarginPercent &&
+      operatorCost === parseInt(bond.amount)
+    ) {
       setButtonActive(false);
     } else {
       setButtonActive(true);
     }
-  }, [profitMargin, operatorCost]);
+  }, [profitMarginPercent, operatorCost]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { value, id } = e.target;
     const numNewValue = parseInt(value) || 0;
     switch (id) {
       case 'profitMargin':
-        setProfitMargin(numNewValue);
+        setProfitMarginPercent(value);
         break;
       case 'operatorCost':
         setOperatorCost(numNewValue);
@@ -95,23 +101,25 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
             </Typography>
           </Grid>
           <Grid spacing={3} item container alignItems="center" xs={12} md={6}>
-            <Grid item width={1} spacing={3}>
-              <TextField
-                id="profitMargin"
-                type="input"
-                label="Profit margin"
-                value={profitMargin}
-                onChange={(e) => handleChange(e)}
-                fullWidth
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <span>%</span>
-                    </InputAdornment>
-                  ),
-                }}
-              />
-            </Grid>
+            {type === 'mixnode' && (
+              <Grid item width={1} spacing={3}>
+                <TextField
+                  id="profitMargin"
+                  type="input"
+                  label="Profit margin"
+                  value={profitMarginPercent}
+                  onChange={(e) => handleChange(e)}
+                  fullWidth
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment position="end">
+                        <span>%</span>
+                      </InputAdornment>
+                    ),
+                  }}
+                />
+              </Grid>
+            )}
           </Grid>
         </Grid>
         <Divider flexItem />

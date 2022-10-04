@@ -78,34 +78,34 @@ impl MixNodeDetails {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeRewarding {
     /// Information provided by the operator that influence the cost function.    
-    #[serde(rename = "cp")]
+    #[serde(alias = "cp")]
     pub cost_params: MixNodeCostParams,
 
     /// Total pledge and compounded reward earned by the node operator.
-    #[serde(rename = "op")]
+    #[serde(alias = "op")]
     pub operator: Decimal,
 
     /// Total delegation and compounded reward earned by all node delegators.
-    #[serde(rename = "dg")]
+    #[serde(alias = "dg")]
     pub delegates: Decimal,
 
     /// Cumulative reward earned by the "unit delegation" since the block 0.
-    #[serde(rename = "tur")]
+    #[serde(alias = "tur")]
     pub total_unit_reward: Decimal,
 
     /// Value of the theoretical "unit delegation" that has delegated to this mixnode at block 0.
-    #[serde(rename = "ud")]
+    #[serde(alias = "ud")]
     pub unit_delegation: Decimal,
 
     /// Marks the epoch when this node was last rewarded so that we wouldn't accidentally attempt
     /// to reward it multiple times in the same epoch.
-    #[serde(rename = "le")]
+    #[serde(alias = "le")]
     pub last_rewarded_epoch: EpochId,
 
     // technically we don't need that field to determine reward magnitude or anything
     // but it saves on extra queries to determine if we're removing the final delegation
     // (so that we could zero the field correctly)
-    #[serde(rename = "uqd")]
+    #[serde(alias = "uqd")]
     pub unique_delegations: u32,
 }
 

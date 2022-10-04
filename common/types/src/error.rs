@@ -72,6 +72,8 @@ pub enum TypesError {
     UnknownCoinDenom(String),
     #[error("Provided event is not a delegation event")]
     NotADelegationEvent,
+    #[error("Unknown network - {0}")]
+    UnknownNetwork(String),
 }
 
 impl Serialize for TypesError {

@@ -453,10 +453,7 @@ pub mod tests {
 
         // but fails if repeated (since the node is already in the "unbonding" state)(
         let res = try_remove_mixnode(deps.as_mut(), info);
-        assert_eq!(
-            res,
-            Err(MixnetContractError::MixnodeIsUnbonding { node_id: mix_id })
-        )
+        assert_eq!(res, Err(MixnetContractError::MixnodeIsUnbonding { mix_id }))
     }
 
     #[test]
@@ -522,10 +519,7 @@ pub mod tests {
         // but we cannot perform any updates whilst the mixnode is already unbonding
         try_remove_mixnode(deps.as_mut(), info.clone()).unwrap();
         let res = try_update_mixnode_config(deps.as_mut(), info, update);
-        assert_eq!(
-            res,
-            Err(MixnetContractError::MixnodeIsUnbonding { node_id: mix_id })
-        )
+        assert_eq!(res, Err(MixnetContractError::MixnodeIsUnbonding { mix_id }))
     }
 
     #[test]
@@ -586,7 +580,7 @@ pub mod tests {
         assert_eq!(1, event.0);
         assert_eq!(
             PendingIntervalEventData::ChangeMixCostParams {
-                mix_id: mix_id,
+                mix_id,
                 new_costs: update.clone()
             },
             event.1
@@ -604,10 +598,7 @@ pub mod tests {
         // but we cannot perform any updates whilst the mixnode is already unbonding
         try_remove_mixnode(deps.as_mut(), info.clone()).unwrap();
         let res = try_update_mixnode_cost_params(deps.as_mut(), info, update);
-        assert_eq!(
-            res,
-            Err(MixnetContractError::MixnodeIsUnbonding { node_id: mix_id })
-        )
+        assert_eq!(res, Err(MixnetContractError::MixnodeIsUnbonding { mix_id }))
     }
 
     #[test]

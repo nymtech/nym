@@ -41,18 +41,6 @@ use wasm_utils::{console_log, console_warn};
 
 pub mod config;
 
-// TODO: make those properly configurable later
-const ACK_WAIT_MULTIPLIER: f64 = 1.5;
-const ACK_WAIT_ADDITION: Duration = Duration::from_millis(1_500);
-const LOOP_COVER_STREAM_AVERAGE_DELAY: Duration = Duration::from_millis(200);
-const MESSAGE_STREAM_AVERAGE_DELAY: Duration = Duration::from_millis(10);
-const AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(50);
-const AVERAGE_ACK_DELAY: Duration = Duration::from_millis(50);
-const TOPOLOGY_REFRESH_RATE: Duration = Duration::from_secs(5 * 60);
-const TOPOLOGY_RESOLUTION_TIMEOUT: Duration = Duration::from_millis(5_000);
-
-const GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
-
 #[wasm_bindgen]
 pub struct NymClient {
     config: Config,
@@ -141,11 +129,11 @@ impl NymClient {
     ) {
         let controller_config = real_messages_control::Config::new(
             self.key_manager.ack_key(),
-            ACK_WAIT_MULTIPLIER,
-            ACK_WAIT_ADDITION,
-            AVERAGE_ACK_DELAY,
-            MESSAGE_STREAM_AVERAGE_DELAY,
-            AVERAGE_PACKET_DELAY,
+            self.config.debug.ack_wait_multiplier,
+            self.config.debug.ack_wait_addition,
+            self.config.debug.average_ack_delay,
+            self.config.debug.message_sending_average_delay,
+            self.config.debug.average_packet_delay,
             self.as_mix_recipient(),
         );
 
@@ -212,7 +200,7 @@ impl NymClient {
             None,
             mixnet_message_sender,
             ack_sender,
-            GATEWAY_RESPONSE_TIMEOUT,
+            self.config.debug.gateway_response_timeout,
             None,
         );
 
@@ -241,7 +229,7 @@ impl NymClient {
     async fn start_topology_refresher(&mut self, topology_accessor: TopologyAccessor) {
         let topology_refresher_config = TopologyRefresherConfig::new(
             vec![self.config.validator_api_url.clone()],
-            TOPOLOGY_REFRESH_RATE,
+            self.config.debug.topology_refresh_rate,
             env!("CARGO_PKG_VERSION").to_string(),
         );
         let mut topology_refresher =

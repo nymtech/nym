@@ -31,7 +31,6 @@ use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::preparer::MessagePreparer;
 use rand::rngs::OsRng;
-use received_processor::ReceivedMessagesProcessor;
 use std::sync::Arc;
 use std::time::Duration;
 use topology::{gateway, nym_topology_from_bonds, NymTopology};
@@ -41,7 +40,6 @@ use wasm_bindgen_futures::spawn_local;
 use wasm_utils::{console_log, console_warn};
 
 pub mod config;
-pub(crate) mod received_processor;
 
 // TODO: make those properly configurable later
 const ACK_WAIT_MULTIPLIER: f64 = 1.5;

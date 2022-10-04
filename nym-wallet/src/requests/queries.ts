@@ -54,10 +54,10 @@ export const getGatewayReport = async (identity: string) =>
 
 export const computeMixnodeRewardEstimation = async (args: {
   identity: string;
-  uptime: number;
+  performance: string;
   isActive: boolean;
   pledgeAmount: number;
   totalDelegation: number;
-}) => invokeWrapper<any>('compute_mixnode_reward_estimation', args);
+}) => invokeWrapper<RewardEstimationResponse>('compute_mixnode_reward_estimation', args);
 
 export const getMixnodeUptime = async (mixId: number) => invokeWrapper<number>('get_mixnode_uptime', { mixId });

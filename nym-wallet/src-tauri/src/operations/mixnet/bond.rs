@@ -11,7 +11,6 @@ use nym_types::mixnode::{MixNodeCostParams, MixNodeDetails};
 use nym_types::transaction::TransactionExecuteResult;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use validator_client::models::UptimeResponse;
 use validator_client::nymd::traits::{MixnetQueryClient, MixnetSigningClient};
 use validator_client::nymd::Fee;
 

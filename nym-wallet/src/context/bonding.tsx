@@ -270,6 +270,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
           );
           const routingScore = await getAvgUptime();
           setBondedNode({
+            id: data.bond_information.id,
             name: nodeDescription?.name,
             mixId: mix_id,
             identityKey: bond_information.mix_node.identity_key,

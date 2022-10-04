@@ -1,8 +1,9 @@
+import { RewardEstimate } from './RewardEstimate';
+import { RewardingParams } from './RewardingParams';
+
 export type RewardEstimationResponse = {
-  estimated_total_node_reward: number;
-  estimated_operator_reward: number;
-  estimated_delegators_reward: number;
-  estimated_node_profit: number;
-  estimated_operator_cost: number;
+  estimation: RewardEstimate;
+  reward_params: RewardingParams;
+  // epoch: Interval;
   as_at: number;
 };

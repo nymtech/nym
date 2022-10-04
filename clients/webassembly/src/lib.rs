@@ -5,6 +5,7 @@ use wasm_bindgen::prelude::*;
 
 #[cfg(target_arch = "wasm32")]
 mod client;
+pub mod gateway_selector;
 
 #[wasm_bindgen]
 pub fn set_panic_hook() {

@@ -1,6 +1,7 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use self::config::Config;
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::InputMessage;
 use client_core::client::inbound_messages::InputMessageReceiver;
@@ -13,6 +14,7 @@ use client_core::client::real_messages_control;
 use client_core::client::real_messages_control::RealMessagesController;
 use client_core::client::received_buffer::ReceivedBufferMessage;
 use client_core::client::received_buffer::ReceivedBufferRequestReceiver;
+use client_core::client::received_buffer::ReceivedBufferRequestSender;
 use client_core::client::received_buffer::ReceivedMessagesBufferController;
 use client_core::client::topology_control::TopologyAccessor;
 use client_core::client::topology_control::TopologyRefresher;
@@ -38,6 +40,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use wasm_utils::{console_log, console_warn};
 
+pub mod config;
 pub(crate) mod received_processor;
 
 // TODO: make those properly configurable later
@@ -54,25 +57,16 @@ const GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_millis(1_500);
 
 #[wasm_bindgen]
 pub struct NymClient {
-    validator_server: Url,
-    disabled_credentials_mode: bool,
+    config: Config,
 
     /// KeyManager object containing smart pointers to all relevant keys used by the client.
     key_manager: KeyManager,
-
-    // message_preparer: Option<MessagePreparer<OsRng>>,
-    // message_receiver: MessageReceiver,
 
     // TODO: this should be stored somewhere persistently
     // received_keys: HashSet<SURBEncryptionKey>,
     /// Channel used for transforming 'raw' messages into sphinx packets and sending them
     /// through the mix network.
     input_tx: Option<InputMessageSender>,
-
-    // TODO: only temporary
-    topology: Option<NymTopology>,
-    // gateway_client: Option<GatewayClient>,
-    gateway_identity: Option<identity::PublicKey>,
 
     // callbacks
     on_message: Option<js_sys::Function>,
@@ -82,25 +76,17 @@ pub struct NymClient {
 #[wasm_bindgen]
 impl NymClient {
     #[wasm_bindgen(constructor)]
-    pub fn new(validator_server: String) -> Self {
+    pub fn new(config: Config) -> Self {
         let mut rng = OsRng;
         // for time being generate new keys each time...
         let mut key_manager = KeyManager::new(&mut rng);
         console_log!("generated new set of keys");
 
         Self {
+            config,
             key_manager,
-            validator_server: validator_server
-                .parse()
-                .expect("malformed validator server url provided"),
-            // message_preparer: None,
-            // received_keys: Default::default(),
-            topology: None,
-            // gateway_client: None,
-            gateway_identity: None,
             on_message: None,
             on_gateway_connect: None,
-            disabled_credentials_mode: true,
             input_tx: None,
         }
     }
@@ -114,25 +100,16 @@ impl NymClient {
         self.on_gateway_connect = Some(on_connect)
     }
 
-    pub fn set_disabled_credentials_mode(&mut self, disabled_credentials_mode: bool) {
-        console_log!(
-            "Setting disabled credentials mode to {}",
-            disabled_credentials_mode
-        );
-        self.disabled_credentials_mode = disabled_credentials_mode;
-    }
-
     fn as_mix_recipient(&self) -> Recipient {
         Recipient::new(
             *self.key_manager.identity_keypair().public_key(),
             *self.key_manager.encryption_keypair().public_key(),
-            self.gateway_identity
-                .expect("gateway connection was not established!"),
+            identity::PublicKey::from_base58_string(&self.config.gateway_endpoint.gateway_id)
+                .expect("no gateway has been selected"),
         )
     }
 
     pub fn self_address(&self) -> String {
-        // return "foomp".into();
         self.as_mix_recipient().to_string()
     }
 
@@ -207,32 +184,27 @@ impl NymClient {
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
     ) -> GatewayClient {
-        let gateway_owner = "n1kymvkx6vsq7pvn6hfurkpg06h3j4gxj4em7tlg".into();
-        let gateway_id = "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM".to_string();
+        // let gateway_owner = "n1kymvkx6vsq7pvn6hfurkpg06h3j4gxj4em7tlg".into();
+        // let gateway_id = "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM".to_string();
+        // let gateway_address = "ws://213.219.38.119:9000".into();
+        //
+        // // let gateway_address = "213.219.38.119".into();
 
-        // TODO: might need a port
-        let gateway_address = "ws://213.219.38.119:9000".into();
-        // let gateway_address = "213.219.38.119".into();
-
-        // for now there are no configs, etc.
-        // let gateway_id = self.config.get_base().get_gateway_id();
-        // if gateway_id.is_empty() {
-        //     panic!("The identity of the gateway is unknown - did you run `nym-client` init?")
-        // }
-        // let gateway_owner = self.config.get_base().get_gateway_owner();
-        // if gateway_owner.is_empty() {
-        //     panic!("The owner of the gateway is unknown - did you run `nym-client` init?")
-        // }
-        // let gateway_address = self.config.get_base().get_gateway_listener();
-        // if gateway_address.is_empty() {
-        //     panic!("The address of the gateway is unknown - did you run `nym-client` init?")
-        // }
+        let gateway_id = self.config.gateway_endpoint.gateway_id.clone();
+        if gateway_id.is_empty() {
+            panic!("The identity of the gateway is unknown - did you run `get_gateway()`?")
+        }
+        let gateway_owner = self.config.gateway_endpoint.gateway_owner.clone();
+        if gateway_owner.is_empty() {
+            panic!("The owner of the gateway is unknown - did you run `get_gateway()`?")
+        }
+        let gateway_address = self.config.gateway_endpoint.gateway_listener.clone();
+        if gateway_address.is_empty() {
+            panic!("The address of the gateway is unknown - did you run `get_gateway()`?")
+        }
 
         let gateway_identity = identity::PublicKey::from_base58_string(gateway_id)
             .expect("provided gateway id is invalid!");
-
-        self.force_update_internal_topology().await;
-        let gateway = self.choose_gateway();
 
         let mut gateway_client = GatewayClient::new(
             gateway_address,
@@ -246,7 +218,7 @@ impl NymClient {
             None,
         );
 
-        gateway_client.set_disabled_credentials_mode(self.disabled_credentials_mode);
+        gateway_client.set_disabled_credentials_mode(self.config.disabled_credentials_mode);
 
         let shared_keys = gateway_client
             .authenticate_and_start()
@@ -263,8 +235,6 @@ impl NymClient {
             None => console_log!("Gateway connection established - no callback specified"),
         };
 
-        self.gateway_identity = Some(gateway_client.gateway_identity());
-
         gateway_client
     }
 
@@ -272,7 +242,7 @@ impl NymClient {
     // the current global view of topology
     async fn start_topology_refresher(&mut self, topology_accessor: TopologyAccessor) {
         let topology_refresher_config = TopologyRefresherConfig::new(
-            vec![self.validator_server.clone()],
+            vec![self.config.validator_api_url.clone()],
             TOPOLOGY_REFRESH_RATE,
             env!("CARGO_PKG_VERSION").to_string(),
         );
@@ -292,6 +262,7 @@ impl NymClient {
         }
 
         console_log!("Starting topology refresher...");
+        // TODO: re-enable
         // topology_refresher.start();
     }
 
@@ -308,10 +279,45 @@ impl NymClient {
         MixTrafficController::new(mix_rx, gateway_client).start();
     }
 
+    // TODO: this procedure is extremely overcomplicated, because it's based off native client's behaviour
+    // which doesn't fully apply in this case
+    fn start_reconstructed_pusher(
+        &mut self,
+        received_buffer_request_sender: ReceivedBufferRequestSender,
+    ) {
+        let on_message = self.on_message.take();
+
+        spawn_local(async move {
+            let (reconstructed_sender, mut reconstructed_receiver) = mpsc::unbounded();
+
+            // tell the buffer to start sending stuff to us
+            received_buffer_request_sender
+                .unbounded_send(ReceivedBufferMessage::ReceiverAnnounce(
+                    reconstructed_sender,
+                ))
+                .expect("the buffer request failed!");
+
+            let this = JsValue::null();
+
+            while let Some(reconstructed) = reconstructed_receiver.next().await {
+                if let Some(ref callback) = on_message {
+                    for msg in reconstructed {
+                        if msg.reply_surb.is_some() {
+                            console_log!("the received message contained a reply-surb that we do not know how to handle (yet)")
+                        }
+                        let stringified = String::from_utf8_lossy(&msg.message).into_owned();
+                        let arg1 = JsValue::from_serde(&stringified).unwrap();
+                        callback.call1(&this, &arg1).expect("on message failed!");
+                    }
+                } else {
+                    console_warn!("no on_message callback was specified. the received message content is getting dropped");
+                    console_log!("the raw messages: {:?}", reconstructed)
+                }
+            }
+        });
+    }
+
     pub async fn start(mut self) -> NymClient {
-        // println!("hello world print");
-        // console_log!("hello world log");
-        // self
         console_log!("Starting nym client");
         // channels for inter-component communication
         // TODO: make the channels be internally created by the relevant components
@@ -360,93 +366,9 @@ impl NymClient {
 
         self.start_cover_traffic_stream(shared_topology_accessor, sphinx_message_sender);
 
+        self.start_reconstructed_pusher(received_buffer_request_sender);
         self.input_tx = Some(input_sender);
 
-        // TEMP
-        spawn_local(async move {
-            let (reconstructed_sender, mut reconstructed_receiver) = mpsc::unbounded();
-
-            // tell the buffer to start sending stuff to us
-            received_buffer_request_sender
-                .unbounded_send(ReceivedBufferMessage::ReceiverAnnounce(
-                    reconstructed_sender,
-                ))
-                .expect("the buffer request failed!");
-
-            // self.receive_tx = Some(reconstructed_receiver);
-            // self.input_tx = Some(input_sender);
-
-            while let Some(new) = reconstructed_receiver.next().await {
-                console_log!("received: len {:?}", new[0].message.len());
-                console_log!("received: {:?}", new);
-            }
-        });
-
-        self
-    }
-
-    // Right now it's impossible to have async exported functions to take `&self` rather than self
-    pub async fn initial_setup(self) -> Self {
-        // let disabled_credentials_mode = self.disabled_credentials_mode;
-        //
-        // let bandwidth_controller = None;
-        //
-        // let mut client = self.get_and_update_topology().await;
-        // let gateway = client.choose_gateway();
-        //
-        // let (mixnet_messages_sender, mixnet_messages_receiver) = mpsc::unbounded();
-        // let (ack_sender, ack_receiver) = mpsc::unbounded();
-        //
-        // let mut gateway_client = GatewayClient::new(
-        //     gateway.clients_address(),
-        //     Arc::clone(&client.identity),
-        //     gateway.identity_key,
-        //     gateway.owner.clone(),
-        //     None,
-        //     mixnet_messages_sender,
-        //     ack_sender,
-        //     GATEWAY_RESPONSE_TIMEOUT,
-        //     bandwidth_controller,
-        // );
-        //
-        // gateway_client.set_disabled_credentials_mode(disabled_credentials_mode);
-        //
-        // gateway_client
-        //     .authenticate_and_start()
-        //     .await
-        //     .expect("could not authenticate and start up the gateway connection");
-        //
-        // client.gateway_client = Some(gateway_client);
-        // match client.on_gateway_connect.as_ref() {
-        //     Some(callback) => {
-        //         callback
-        //             .call0(&JsValue::null())
-        //             .expect("on connect callback failed!");
-        //     }
-        //     None => console_log!("Gateway connection established - no callback specified"),
-        // };
-        //
-        // let rng = rand::rngs::OsRng;
-        // let message_preparer = MessagePreparer::new(
-        //     rng,
-        //     client.self_recipient(),
-        //     AVERAGE_PACKET_DELAY,
-        //     AVERAGE_ACK_DELAY,
-        // );
-        //
-        // let received_processor = ReceivedMessagesProcessor::new(
-        //     Arc::clone(&client.encryption_keys),
-        //     Arc::clone(&client.ack_key),
-        // );
-        //
-        // client.message_preparer = Some(message_preparer);
-        //
-        // spawn_local(received_processor.start_processing(
-        //     mixnet_messages_receiver,
-        //     ack_receiver,
-        //     client.on_message.take().expect("on_message was not set!"),
-        // ));
-        //
         self
     }
 
@@ -456,14 +378,6 @@ impl NymClient {
         console_log!("Sending {} to {}", message, recipient);
 
         let message_bytes = message.into_bytes();
-
-        let new_message = std::iter::repeat(message_bytes)
-            .flatten()
-            .take(1000000)
-            .collect::<Vec<_>>();
-
-        let message_bytes = new_message;
-
         let recipient = Recipient::try_from_base58_string(recipient).unwrap();
 
         let input_msg = InputMessage::new_fresh(recipient, message_bytes, false);
@@ -475,102 +389,5 @@ impl NymClient {
             .unwrap();
 
         self
-
-        // todo!()
-
-        // let message_bytes = message.into_bytes();
-        // let recipient = Recipient::try_from_base58_string(recipient).unwrap();
-        //
-        // let topology = self
-        //     .topology
-        //     .as_ref()
-        //     .expect("did not obtain topology before");
-        //
-        // let message_preparer = self.message_preparer.as_mut().unwrap();
-        //
-        // let (split_message, _reply_keys) = message_preparer
-        //     .prepare_and_split_message(message_bytes, false, topology)
-        //     .expect("failed to split the message");
-        //
-        // let mut mix_packets = Vec::with_capacity(split_message.len());
-        // for message_chunk in split_message {
-        //     // don't bother with acks etc. for time being
-        //     let prepared_fragment = message_preparer
-        //         .prepare_chunk_for_sending(message_chunk, topology, &self.ack_key, &recipient)
-        //         .unwrap();
-        //
-        //     console_warn!("packet is going to have round trip time of {:?}, but we're not going to do anything for acks anyway ", prepared_fragment.total_delay);
-        //     mix_packets.push(prepared_fragment.mix_packet);
-        // }
-        // self.gateway_client
-        //     .as_mut()
-        //     .unwrap()
-        //     .batch_send_mix_packets(mix_packets)
-        //     .await
-        //     .unwrap();
-        // self
-    }
-
-    pub(crate) fn choose_gateway(&self) -> &gateway::Node {
-        let topology = self
-            .topology
-            .as_ref()
-            .expect("did not obtain topology before");
-
-        // choose the first one available
-        assert!(!topology.gateways().is_empty());
-        topology.gateways().first().unwrap()
-    }
-
-    // Right now it's impossible to have async exported functions to take `&mut self` rather than mut self
-    // self: Rc<Self>
-    // or this: Rc<RefCell<Self>>
-    pub async fn get_and_update_topology(mut self) -> Self {
-        self.force_update_internal_topology().await;
-        self
-    }
-
-    pub(crate) async fn force_update_internal_topology(&mut self) {
-        let new_topology = self.get_nym_topology().await;
-        self.update_topology(new_topology);
-    }
-
-    pub(crate) fn update_topology(&mut self, topology: NymTopology) {
-        self.topology = Some(topology)
-    }
-
-    // // when updated to 0.10.0, to prevent headache later on, this function requires those two imports:
-    // // use js_sys::Promise;
-    // // use wasm_bindgen_futures::future_to_promise;
-    // //
-    // // pub fn get_full_topology_json(&self) -> Promise {
-    // //     let validator_client_config = validator_client::Config::new(
-    // //         vec![self.validator_server.clone()],
-    // //         &self.mixnet_contract_address,
-    // //     );
-    // //     let validator_client = validator_client::Client::new(validator_client_config);
-    // //
-    // //     future_to_promise(async move {
-    // //         let topology = &validator_client.get_active_topology().await.unwrap();
-    // //         Ok(JsValue::from_serde(&topology).unwrap())
-    // //     })
-    // // }
-
-    pub(crate) async fn get_nym_topology(&self) -> NymTopology {
-        let validator_client = validator_client::ApiClient::new(self.validator_server.clone());
-
-        let mixnodes = match validator_client.get_cached_active_mixnodes().await {
-            Err(err) => panic!("{:?}", err),
-            Ok(mixes) => mixes,
-        };
-
-        let gateways = match validator_client.get_cached_gateways().await {
-            Err(err) => panic!("{}", err),
-            Ok(gateways) => gateways,
-        };
-
-        let topology = nym_topology_from_bonds(mixnodes, gateways);
-        let version = env!("CARGO_PKG_VERSION");
-        topology.filter_system_version(version)
     }
 }

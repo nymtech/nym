@@ -671,6 +671,7 @@ dependencies = [
  "topology",
  "url",
  "validator-client",
+ "wasm-bindgen",
  "wasm-bindgen-futures",
 ]
 

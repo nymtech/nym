@@ -1,4 +1,4 @@
-// Copyright 2020 Nym Technologies SA
+// Copyright 2020-2022 Nym Technologies SA
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,18 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {NymClient, set_panic_hook} from "@nymproject/nym-client-wasm"
+import {default_debug, get_gateway, NymClient, set_panic_hook, Config} from "@nymproject/nym-client-wasm"
 
 class ClientWrapper {
-    constructor(validator) {
-        this.rustClient = new NymClient(validator);
+    constructor(config) {
+        this.rustClient = new NymClient(config);
         this.rustClient.set_on_message(this.on_message);
         this.rustClient.set_on_gateway_connect(this.on_connect);
     }
 
     selfAddress = () => {
-        const self_address = this.rustClient.self_address();
-        console.log(self_address)
+        return this.rustClient.self_address()
     }
 
     on_message = (msg) => displayReceived(msg);
@@ -32,7 +31,7 @@ class ClientWrapper {
     }
 
     start = async () => {
-        // this is current limitation of wasm in rust - for async methods you can't take self my reference...
+        // this is current limitation of wasm in rust - for async methods you can't take self by reference...
         // I'm trying to figure out if I can somehow hack my way around it, but for time being you have to re-assign
         // the object (it's the same one)
         this.rustClient = await this.rustClient.start()
@@ -43,7 +42,6 @@ class ClientWrapper {
     }
 }
 
-// // current limitation of rust-wasm for async stuff : (
 let client = null
 
 async function main() {
@@ -52,8 +50,17 @@ async function main() {
 
     // validator server we will use to get topology from
     const validator = "https://validator.nymtech.net/api"; //"http://localhost:8081";
+    const preferredGateway = "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM";
 
-    client = new ClientWrapper(validator);
+    const gatewayEndpoint = await get_gateway(validator, preferredGateway);
+
+    // only really useful if you want to adjust some settings like traffic rate
+    // (if not needed you can just pass a null)
+    const debug = default_debug();
+
+    const config = new Config("my-awesome-wasm-client", validator, gatewayEndpoint, debug)
+
+    client = new ClientWrapper(config);
     await client.start();
 
     const self_address = client.rustClient.self_address();
@@ -104,14 +111,14 @@ function displaySend(message) {
  * @param {string} message
  */
 function displayReceived(message) {
-    const content = message.message
-    const replySurb = message.replySurb
+    const content = message;
 
     let timestamp = new Date().toISOString().substr(11, 12);
     let receivedDiv = document.createElement("div")
     let paragraph = document.createElement("p")
     paragraph.setAttribute('style', 'color: green')
-    let paragraphContent = document.createTextNode(timestamp + " received >>> " + content + ((replySurb != null) ? "Reply SURB was attached here (but we can't do anything with it yet" : " (NO REPLY-SURB AVAILABLE)"))
+    let paragraphContent = document.createTextNode(timestamp + " received >>> " + content);
+    // let paragraphContent = document.createTextNode(timestamp + " received >>> " + content + ((replySurb != null) ? "Reply SURB was attached here (but we can't do anything with it yet" : " (NO REPLY-SURB AVAILABLE)"))
     paragraph.appendChild(paragraphContent)
     receivedDiv.appendChild(paragraph)
     document.getElementById("output").appendChild(receivedDiv)

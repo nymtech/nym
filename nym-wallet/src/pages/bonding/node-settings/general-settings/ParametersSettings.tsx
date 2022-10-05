@@ -1,61 +1,68 @@
-import { useState, useEffect } from 'react';
-import { Button, Divider, Typography, TextField, InputAdornment, Grid, Alert, IconButton } from '@mui/material';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { yupResolver } from '@hookform/resolvers/yup';
+import {
+  Button,
+  Divider,
+  Typography,
+  TextField,
+  InputAdornment,
+  Grid,
+  Alert,
+  IconButton,
+  CircularProgress,
+} from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
+import { updateMixnodeCostParams, vestingUpdateMixnodeCostParams } from '../../../../requests';
 import { TBondedMixnode, TBondedGateway } from '../../../../context/bonding';
 import { SimpleModal } from '../../../../components/Modals/SimpleModal';
+import { mixnodeparametersValidationSchema } from '../../../../components/Bonding/forms/mixnodeValidationSchema';
 
-export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
-  const { bond, type } = bondedNode;
-
-  const [buttonActive, setButtonActive] = useState<boolean>(false);
+export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }): JSX.Element => {
   const [open, setOpen] = useState(true);
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
-  const [profitMarginPercent, setProfitMarginPercent] = useState<string>(
-    bondedNode.type === 'mixnode' ? bondedNode.profitMargin : '',
-  );
-  const [operatorCost, setOperatorCost] = useState<number>(parseInt(bond.amount));
 
   const theme = useTheme();
 
-  useEffect(() => {
-    if (
-      type === 'mixnode' &&
-      bondedNode.profitMargin === profitMarginPercent &&
-      operatorCost === parseInt(bond.amount)
-    ) {
-      setButtonActive(false);
-    } else {
-      setButtonActive(true);
-    }
-  }, [profitMarginPercent, operatorCost]);
+  const {
+    register,
+    handleSubmit,
+    getValues,
+    formState: { errors, isSubmitting, isDirty, isValid },
+    getFieldState,
+  } = useForm({
+    resolver: yupResolver(mixnodeparametersValidationSchema),
+    mode: 'onChange',
+    defaultValues:
+      bondedNode.type === 'mixnode'
+        ? {
+            operatorCost: bondedNode.bond.amount,
+            profitMargin: bondedNode.profitMargin,
+          }
+        : {},
+  });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { value, id } = e.target;
-    const numNewValue = parseInt(value) || 0;
-    switch (id) {
-      case 'profitMargin':
-        setProfitMarginPercent(value);
-        break;
-      case 'operatorCost':
-        setOperatorCost(numNewValue);
-        break;
+  const onSubmit = async (data: { operatorCost?: string; profitMargin?: string }) => {
+    if (data.operatorCost && data.profitMargin) {
+      const MixNodeCostParams = {
+        profit_margin_percent: data.profitMargin.toString(),
+        interval_operating_cost: {
+          denom: bondedNode.bond.denom,
+          amount: data.operatorCost.toString(),
+        },
+      };
+      try {
+        await updateMixnodeCostParams(MixNodeCostParams);
+        setOpenConfirmationModal(true);
+      } catch (error) {
+        console.error(error);
+      }
     }
   };
 
-  // Something could be useful to update the profitMargin
-  // const handleUpdateProfitMargin = async (profitMargin: number, fee?: FeeDetails) => {
-  //   setShowModal(undefined);
-  //   const tx = await updateMixnode(profitMargin, fee);
-  //   setConfirmationDetails({
-  //     status: 'success',
-  //     title: 'Profit margin update successful',
-  //     txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
-  //   });
-  // };
-
   return (
-    <Grid container xs>
+    <Grid container xs item>
       {open && (
         <Alert
           severity="info"
@@ -85,7 +92,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
       )}
       <Grid container direction="column">
         <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3} spacing={1}>
-          <Grid item direction="column">
+          <Grid item>
             <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
               Profit Margin
             </Typography>
@@ -100,16 +107,16 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
               Profit margin can be changed once a month
             </Typography>
           </Grid>
-          <Grid spacing={3} item container alignItems="center" xs={12} md={6}>
-            {type === 'mixnode' && (
-              <Grid item width={1} spacing={3}>
+          <Grid spacing={3} container item alignItems="center" xs={12} md={6}>
+            {bondedNode.type === 'mixnode' && (
+              <Grid item width={1}>
                 <TextField
-                  id="profitMargin"
-                  type="input"
+                  {...register('profitMargin')}
+                  name="profitMargin"
                   label="Profit margin"
-                  value={profitMarginPercent}
-                  onChange={(e) => handleChange(e)}
                   fullWidth
+                  error={!!errors.profitMargin}
+                  helperText={errors.profitMargin?.message}
                   InputProps={{
                     endAdornment: (
                       <InputAdornment position="end">
@@ -124,7 +131,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
         </Grid>
         <Divider flexItem />
         <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3} spacing={1}>
-          <Grid item direction="column">
+          <Grid item>
             <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
               Operator cost
             </Typography>
@@ -139,19 +146,19 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
               Lock Wallet after a certain time
             </Typography>
           </Grid>
-          <Grid spacing={3} item container alignItems="center" xs={12} md={6}>
-            <Grid item width={1} spacing={3}>
+          <Grid spacing={3} container item alignItems="center" xs={12} md={6}>
+            <Grid item width={1}>
               <TextField
-                id="operatorCost"
-                type="input"
+                {...register('operatorCost')}
+                name="operatorCost"
                 label="Operator cost"
-                value={operatorCost}
-                onChange={(e) => handleChange(e)}
                 fullWidth
+                error={!!errors.operatorCost}
+                helperText={errors?.operatorCost?.message}
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
-                      <span>{bond.denom.toUpperCase()}</span>
+                      <span>{bondedNode.bond.denom.toUpperCase()}</span>
                     </InputAdornment>
                   ),
                 }}
@@ -164,9 +171,11 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
           <Button
             size="large"
             variant="contained"
-            disabled={!buttonActive}
-            onClick={() => setOpenConfirmationModal(true)}
+            disabled={isSubmitting || !isDirty || !isValid}
+            onClick={handleSubmit((d) => onSubmit(d))}
+            type="submit"
             sx={{ m: 3, width: '320px' }}
+            endIcon={isSubmitting && <CircularProgress size={20} />}
           >
             Save all display changes
           </Button>
@@ -174,7 +183,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
       </Grid>
       <SimpleModal
         open={openConfirmationModal}
-        header="Your changes will take place 
+        header="Your changes will take place
         in the next interval"
         okLabel="close"
         hideCloseIcon

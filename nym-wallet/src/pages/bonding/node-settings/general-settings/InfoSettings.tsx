@@ -6,7 +6,7 @@ import { useTheme } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
 import { TBondedMixnode, TBondedGateway } from '../../../../context/bonding';
 import { SimpleModal } from '../../../../components/Modals/SimpleModal';
-import { amountSchema, mixnodeValidationSchema } from '../../../../components/Bonding/forms/mixnodeValidationSchema';
+import { mixnodeValidationSchema } from '../../../../components/Bonding/forms/mixnodeValidationSchema';
 
 export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
   const [open, setOpen] = useState(true);
@@ -24,11 +24,11 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
   });
 
   const onSubmit = async () => {
-    console.log('hola');
+    await setOpenConfirmationModal(false);
   };
 
   return (
-    <Grid container xs>
+    <Grid container xs item>
       {open && (
         <Alert
           severity="info"
@@ -174,7 +174,6 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
             disabled={isSubmitting}
             onClick={handleSubmit(onSubmit)}
             type="submit"
-            // onClick={() => setOpenConfirmationModal(true)}
             sx={{ m: 3, width: '320px' }}
           >
             Save all display changes

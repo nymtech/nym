@@ -38,8 +38,6 @@ where
     topology_access: TopologyAccessor,
     #[cfg(feature = "reply-surb")]
     reply_key_storage: ReplyKeyStorage,
-    #[cfg(not(target_arch = "wasm32"))]
-    shutdown: ShutdownListener,
 }
 
 impl<R> InputMessageListener<R>
@@ -58,7 +56,6 @@ where
         real_message_sender: BatchRealMessageSender,
         topology_access: TopologyAccessor,
         #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
-        #[cfg(not(target_arch = "wasm32"))] shutdown: ShutdownListener,
     ) -> Self {
         InputMessageListener {
             ack_key,
@@ -70,8 +67,6 @@ where
             topology_access,
             #[cfg(feature = "reply-surb")]
             reply_key_storage,
-            #[cfg(not(target_arch = "wasm32"))]
-            shutdown,
         }
     }
 
@@ -193,31 +188,35 @@ where
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+        debug!("Started InputMessageListener with graceful shutdown support");
+
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                input_msg = self.input_receiver.next() => match input_msg {
+                    Some(input_msg) => {
+                        self.on_input_message(input_msg).await;
+                    },
+                    None => {
+                        log::trace!("InputMessageListener: Stopping since channel closed");
+                        break;
+                    }
+                },
+                _ = shutdown.recv() => {
+                    log::trace!("InputMessageListener: Received shutdown");
+                }
+            }
+        }
+        assert!(shutdown.is_shutdown_poll());
+        log::debug!("InputMessageListener: Exiting");
+    }
+
+    #[cfg(target_arch = "wasm32")]
     pub(super) async fn run(&mut self) {
-        // TODO: shutdown without wasm etc etc
-        debug!("Started InputMessageListener");
+        debug!("Started InputMessageListener without graceful shutdown support");
         while let Some(input_msg) = self.input_receiver.next().await {
             self.on_input_message(input_msg).await;
         }
-
-        // debug!("Started InputMessageListener");
-        // while !self.shutdown.is_shutdown() {
-        //     tokio::select! {
-        //         input_msg = self.input_receiver.next() => match input_msg {
-        //             Some(input_msg) => {
-        //                 self.on_input_message(input_msg).await;
-        //             },
-        //             None => {
-        //                 log::trace!("InputMessageListener: Stopping since channel closed");
-        //                 break;
-        //             }
-        //         },
-        //         _ = self.shutdown.recv() => {
-        //             log::trace!("InputMessageListener: Received shutdown");
-        //         }
-        //     }
-        // }
-        // assert!(self.shutdown.is_shutdown_poll());
-        // log::debug!("InputMessageListener: Exiting");
     }
 }

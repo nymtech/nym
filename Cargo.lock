@@ -651,7 +651,6 @@ dependencies = [
  "config",
  "crypto",
  "dirs",
- "fluvio-wasm-timer",
  "futures",
  "gateway-client",
  "gateway-requests",
@@ -673,6 +672,7 @@ dependencies = [
  "validator-client",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasm-timer",
 ]
 
 [[package]]

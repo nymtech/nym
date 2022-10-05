@@ -37,8 +37,9 @@ version = "0.4"
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]
 version = "=0.2.78"
 
-[target."cfg(target_arch = \"wasm32\")".dependencies.fluvio-wasm-timer]
-version = "0.2.5"
+[target."cfg(target_arch = \"wasm32\")".dependencies.wasm-timer]
+git = "https://github.com/jstuczyn/wasm-timer"
+rev = "2859241251dd00c54a9c99b74727b99bd7feffb4"
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.task]
 path = "../../common/task"

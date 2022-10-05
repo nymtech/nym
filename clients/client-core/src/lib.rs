@@ -5,8 +5,6 @@ pub mod config;
 pub mod error;
 pub mod init;
 
-// TODO: move those to separate lower modules and conditionally re-export them accordingly to make intellij happier about name clash
-
 #[cfg(target_arch = "wasm32")]
 pub(crate) fn spawn_future<F>(future: F)
 where

@@ -82,8 +82,8 @@ pub struct RealMessagesController<R>
 where
     R: CryptoRng + Rng,
 {
-    out_queue_control: Option<OutQueueControl<R>>,
-    ack_control: Option<AcknowledgementController<R>>,
+    out_queue_control: OutQueueControl<R>,
+    ack_control: AcknowledgementController<R>,
 }
 
 // obviously when we finally make shared rng that is on 'higher' level, this should become
@@ -96,7 +96,6 @@ impl RealMessagesController<OsRng> {
         mix_sender: BatchMixMessageSender,
         topology_access: TopologyAccessor,
         #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
-        #[cfg(not(target_arch = "wasm32"))] shutdown: ShutdownListener,
     ) -> Self {
         let rng = OsRng;
 
@@ -126,8 +125,6 @@ impl RealMessagesController<OsRng> {
             ack_controller_connectors,
             #[cfg(feature = "reply-surb")]
             reply_key_storage,
-            #[cfg(not(target_arch = "wasm32"))]
-            shutdown.clone(),
         );
 
         let out_queue_config = real_traffic_stream::Config::new(
@@ -145,40 +142,36 @@ impl RealMessagesController<OsRng> {
             rng,
             config.self_recipient,
             topology_access,
-            #[cfg(not(target_arch = "wasm32"))]
-            shutdown,
         );
 
         RealMessagesController {
-            out_queue_control: Some(out_queue_control),
-            ack_control: Some(ack_control),
+            out_queue_control,
+            ack_control,
         }
     }
 
-    pub(super) async fn run(&mut self) {
-        let mut out_queue_control = self.out_queue_control.take().unwrap();
-        let mut ack_control = self.ack_control.take().unwrap();
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn start_with_shutdown(self, shutdown: task::ShutdownListener) {
+        let mut out_queue_control = self.out_queue_control;
+        let mut ack_control = self.ack_control;
 
-        // the below are log messages are errors as at the current stage we do not expect any of
-        // the task to ever finish. This will of course change once we introduce
-        // graceful shutdowns.
-        let out_queue_control_fut = spawn_future(async move {
-            out_queue_control.run_out_queue_control().await;
+        let shutdown_handle = shutdown.clone();
+        spawn_future(async move {
+            out_queue_control.run_with_shutdown(shutdown_handle).await;
             debug!("The out queue controller has finished execution!");
         });
-        let ack_control_fut = spawn_future(async move {
-            ack_control.run().await;
-            debug!("The acknowledgement controller has finished execution!");
-        });
-
-        // // technically we don't have to bring `RealMessagesController` back to a valid state
-        // // but we can do it, so why not? Perhaps it might be useful if we wanted to allow
-        // // for restarts of certain modules without killing the entire process.
-        // self.out_queue_control = Some(out_queue_control_fut.await.unwrap());
-        // self.ack_control = Some(ack_control_fut.await.unwrap());
+        ack_control.start_with_shutdown(shutdown);
     }
 
+    #[cfg(target_arch = "wasm32")]
     pub fn start(mut self) {
-        spawn_future(async move { self.run().await })
+        let mut out_queue_control = self.out_queue_control;
+        let mut ack_control = self.ack_control;
+
+        spawn_future(async move {
+            out_queue_control.run().await;
+            debug!("The out queue controller has finished execution!");
+        });
+        ack_control.start();
     }
 }

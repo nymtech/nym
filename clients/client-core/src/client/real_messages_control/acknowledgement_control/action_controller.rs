@@ -102,17 +102,12 @@ pub(super) struct ActionController {
 
     /// Channel for notifying `RetransmissionRequestListener` about expired acknowledgements.
     retransmission_sender: RetransmissionRequestSender,
-
-    /// Listen for shutdown notifications
-    #[cfg(not(target_arch = "wasm32"))]
-    shutdown: ShutdownListener,
 }
 
 impl ActionController {
     pub(super) fn new(
         config: Config,
         retransmission_sender: RetransmissionRequestSender,
-        #[cfg(not(target_arch = "wasm32"))] shutdown: ShutdownListener,
     ) -> (Self, ActionSender) {
         let (sender, receiver) = mpsc::unbounded();
         (
@@ -122,8 +117,6 @@ impl ActionController {
                 pending_acks_timers: NonExhaustiveDelayQueue::new(),
                 incoming_actions: receiver,
                 retransmission_sender,
-                #[cfg(not(target_arch = "wasm32"))]
-                shutdown,
             },
             sender,
         )
@@ -255,42 +248,46 @@ impl ActionController {
         }
     }
 
-    pub(super) async fn run(&mut self) {
-        // TODO: shutdown without wasm etc etc
-        loop {
-            // at some point there will be a global shutdown signal here as the third option
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+        debug!("Started ActionController with graceful shutdown support");
+
+        while !shutdown.is_shutdown() {
             tokio::select! {
-                // we NEVER expect for ANY sender to get dropped so unwrap here is fine
+                action = self.incoming_actions.next() => match action {
+                    Some(action) => self.process_action(action),
+                    None => {
+                        log::trace!(
+                            "ActionController: Stopping since incoming actions channel closed"
+                        );
+                        break;
+                    }
+                },
+                expired_ack = self.pending_acks_timers.next() => match expired_ack {
+                    Some(expired_ack) => self.handle_expired_ack_timer(expired_ack),
+                    None => {
+                        log::trace!("ActionController: Stopping since ack channel closed");
+                        break;
+                    }
+                },
+                _ = shutdown.recv() => {
+                    log::trace!("ActionController: Received shutdown");
+                }
+            }
+        }
+        assert!(shutdown.is_shutdown_poll());
+        log::debug!("ActionController: Exiting");
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(super) async fn run(&mut self) {
+        debug!("Started ActionController without graceful shutdown support");
+
+        loop {
+            tokio::select! {
                 action = self.incoming_actions.next() => self.process_action(action.unwrap()),
-                // pending ack queue Stream CANNOT return a `None` so unwrap here is fine
                 expired_ack = self.pending_acks_timers.next() => self.handle_expired_ack_timer(expired_ack.unwrap())
             }
         }
-
-        // while !self.shutdown.is_shutdown() {
-        //     tokio::select! {
-        //         action = self.incoming_actions.next() => match action {
-        //             Some(action) => self.process_action(action),
-        //             None => {
-        //                 log::trace!(
-        //                     "ActionController: Stopping since incoming actions channel closed"
-        //                 );
-        //                 break;
-        //             }
-        //         },
-        //         expired_ack = self.pending_acks_timers.next() => match expired_ack {
-        //             Some(expired_ack) => self.handle_expired_ack_timer(expired_ack),
-        //             None => {
-        //                 log::trace!("ActionController: Stopping since ack channel closed");
-        //                 break;
-        //             }
-        //         },
-        //         _ = self.shutdown.recv() => {
-        //             log::trace!("ActionController: Received shutdown");
-        //         }
-        //     }
-        // }
-        // assert!(self.shutdown.is_shutdown_poll());
-        // log::debug!("ActionController: Exiting");
     }
 }

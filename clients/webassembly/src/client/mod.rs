@@ -242,6 +242,7 @@ impl NymClient {
         }
 
         console_log!("Starting topology refresher...");
+
         // TODO: re-enable
         // topology_refresher.start();
     }
@@ -354,14 +355,14 @@ impl NymClient {
 
     // Right now it's impossible to have async exported functions to take `&mut self` rather than mut self
     // TODO: try Rc<RefCell<Self>> approach?
-    pub async fn send_message(mut self, message: String, recipient: String) -> Self {
+    pub async fn send_message(self, message: String, recipient: String) -> Self {
         console_log!("Sending {} to {}", message, recipient);
 
         let message_bytes = message.into_bytes();
         self.send_binary_message(message_bytes, recipient).await
     }
 
-    pub async fn send_binary_message(mut self, message: Vec<u8>, recipient: String) -> Self {
+    pub async fn send_binary_message(self, message: Vec<u8>, recipient: String) -> Self {
         console_log!("Sending {} bytes to {}", message.len(), recipient);
 
         let recipient = Recipient::try_from_base58_string(recipient).unwrap();

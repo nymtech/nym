@@ -306,28 +306,33 @@ impl TopologyRefresher {
         self.topology_accessor.is_routable().await
     }
 
-    pub fn start(mut self, #[cfg(not(target_arch = "wasm32"))] mut shutdown: ShutdownListener) {
-        // TODO: usual non-wasm, etc, etc
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn start_with_shutdown(mut self, mut shutdown: task::ShutdownListener) {
+        debug!("Started TopologyRefresher with graceful shutdown support");
+
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                _ = tokio::time::sleep(self.refresh_rate) => {
+                    self.refresh().await;
+                },
+                _ = shutdown.recv() => {
+                    log::trace!("TopologyRefresher: Received shutdown");
+                },
+            }
+        }
+        assert!(shutdown.is_shutdown_poll());
+        log::debug!("TopologyRefresher: Exiting");
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn start(mut self) {
+        debug!("Started TopologyRefresher without graceful shutdown support");
 
         spawn_future(async move {
             loop {
-                // TODO: this won't work in wasm
-                tokio::time::sleep(self.refresh_rate).await;
+                wasm_timer::Delay::new(self.refresh_rate).await;
                 self.refresh().await;
             }
-
-            // while !shutdown.is_shutdown() {
-            //     tokio::select! {
-            //         _ = tokio::time::sleep(self.refresh_rate) => {
-            //             self.refresh().await;
-            //         },
-            //         _ = shutdown.recv() => {
-            //             log::trace!("TopologyRefresher: Received shutdown");
-            //         },
-            //     }
-            // }
-            // assert!(shutdown.is_shutdown_poll());
-            // log::debug!("TopologyRefresher: Exiting");
         })
     }
 }

@@ -61,6 +61,11 @@ async function main() {
     // only really useful if you want to adjust some settings like traffic rate
     // (if not needed you can just pass a null)
     const debug = default_debug();
+    debug.loop_cover_traffic_average_delay_ms = BigInt(60_000);
+    // note: we still have poisson distribution so, on average, we will be sending SOME packet every 20ms
+    debug.message_sending_average_delay_ms = BigInt(20);
+    debug.average_packet_delay_ms = BigInt(10);
+    debug.average_ack_delay_ms = BigInt(10);
 
     const config = new Config("my-awesome-wasm-client", validator, gatewayEndpoint, debug)
 

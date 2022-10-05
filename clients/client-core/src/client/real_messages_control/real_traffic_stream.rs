@@ -24,7 +24,7 @@ use std::time::Duration;
 use tokio::time;
 
 #[cfg(target_arch = "wasm32")]
-use fluvio_wasm_timer as wasm_timer;
+use wasm_timer;
 
 #[cfg(not(target_arch = "wasm32"))]
 use task::ShutdownListener;
@@ -95,10 +95,6 @@ where
 
     /// Buffer containing all real messages received. It is first exhausted before more are pulled.
     received_buffer: VecDeque<RealMessage>,
-
-    /// Listens for shutdown signals
-    #[cfg(not(target_arch = "wasm32"))]
-    shutdown: ShutdownListener,
 }
 
 pub(crate) struct RealMessage {
@@ -199,7 +195,6 @@ where
         rng: R,
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
-        #[cfg(not(target_arch = "wasm32"))] shutdown: ShutdownListener,
     ) -> Self {
         #[cfg(not(target_arch = "wasm32"))]
         let next_delay = Box::pin(time::sleep(Default::default()));
@@ -218,8 +213,6 @@ where
             rng,
             topology_access,
             received_buffer: VecDeque::with_capacity(0), // we won't be putting any data into this guy directly
-            #[cfg(not(target_arch = "wasm32"))]
-            shutdown,
         }
     }
 
@@ -295,49 +288,69 @@ where
         tokio::task::yield_now().await;
     }
 
-    // Send messages at certain rate and if no real traffic is available, send cover message.
-    async fn run_normal_out_queue(&mut self) {
+    // // Send messages at certain rate and if no real traffic is available, send cover message.
+    // async fn run_normal_out_queue(&mut self) {
+    //     // we should set initial delay only when we actually start the stream
+    //     let sampled =
+    //         sample_poisson_duration(&mut self.rng, self.config.average_message_sending_delay);
+    //
+    //     #[cfg(not(target_arch = "wasm32"))]
+    //     let next_delay = Box::pin(time::sleep(sampled));
+    //
+    //     #[cfg(target_arch = "wasm32")]
+    //     let next_delay = Box::pin(wasm_timer::Delay::new(sampled));
+    //
+    //     self.next_delay = next_delay;
+    //
+    //     // TODO: fix it for non-wasm
+    // }
+
+    // pub(crate) async fn run_out_queue_control(&mut self) {
+    //     debug!("Starting out queue controller...");
+    //     self.run_normal_out_queue().await
+    // }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+        debug!("Started OutQueueControl with graceful shutdown support");
+
         // we should set initial delay only when we actually start the stream
         let sampled =
             sample_poisson_duration(&mut self.rng, self.config.average_message_sending_delay);
+        self.next_delay = Box::pin(time::sleep(sampled));
 
-        #[cfg(not(target_arch = "wasm32"))]
-        let next_delay = Box::pin(time::sleep(sampled));
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                biased;
+                _ = shutdown.recv() => {
+                    log::trace!("OutQueueControl: Received shutdown");
+                }
+                next_message = self.next() => match next_message {
+                    Some(next_message) => {
+                        self.on_message(next_message).await;
+                    },
+                    None => {
+                        log::trace!("OutQueueControl: Stopping since channel closed");
+                        break;
+                    }
+                }
+            }
+        }
+        assert!(shutdown.is_shutdown_poll());
+        log::debug!("OutQueueControl: Exiting");
+    }
 
-        #[cfg(target_arch = "wasm32")]
-        let next_delay = Box::pin(wasm_timer::Delay::new(sampled));
+    #[cfg(target_arch = "wasm32")]
+    pub(super) async fn run(&mut self) {
+        debug!("Started OutQueueControl without graceful shutdown support");
 
-        self.next_delay = next_delay;
+        // we should set initial delay only when we actually start the stream
+        let sampled =
+            sample_poisson_duration(&mut self.rng, self.config.average_message_sending_delay);
+        self.next_delay = Box::pin(wasm_timer::Delay::new(sampled));
 
-        // TODO: fix it for non-wasm
         while let Some(next_message) = self.next().await {
             self.on_message(next_message).await;
         }
-
-        // let mut shutdown = self.shutdown.clone();
-        // while !shutdown.is_shutdown() {
-        //     tokio::select! {
-        //         biased;
-        //         _ = shutdown.recv() => {
-        //             log::trace!("OutQueueControl: Received shutdown");
-        //         }
-        //         next_message = self.next() => match next_message {
-        //             Some(next_message) => {
-        //                 self.on_message(next_message).await;
-        //             },
-        //             None => {
-        //                 log::trace!("OutQueueControl: Stopping since channel closed");
-        //                 break;
-        //             }
-        //         }
-        //     }
-        // }
-        // assert!(shutdown.is_shutdown_poll());
-        // log::debug!("OutQueueControl: Exiting");
-    }
-
-    pub(crate) async fn run_out_queue_control(&mut self) {
-        debug!("Starting out queue controller...");
-        self.run_normal_out_queue().await
     }
 }

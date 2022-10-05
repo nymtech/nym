@@ -15,6 +15,8 @@ pub struct Config {
 
     pub(crate) disabled_credentials_mode: bool,
 
+    pub(crate) enable_cover_traffic_stream: bool,
+
     /// Information regarding how the client should send data to gateway.
     pub(crate) gateway_endpoint: GatewayEndpoint,
 
@@ -36,6 +38,9 @@ impl Config {
                 .parse()
                 .expect("provided url was malformed"),
             disabled_credentials_mode: true,
+            // don't enable it by default because it seems the browser cannot handle so many promises at once
+            // (I guess we need some worker threads first)
+            enable_cover_traffic_stream: false,
             gateway_endpoint,
             debug: debug.map(Into::into).unwrap_or_default(),
         }

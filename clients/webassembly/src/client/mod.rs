@@ -336,7 +336,9 @@ impl NymClient {
             sphinx_message_sender.clone(),
         );
 
-        self.start_cover_traffic_stream(shared_topology_accessor, sphinx_message_sender);
+        if self.config.enable_cover_traffic_stream {
+            self.start_cover_traffic_stream(shared_topology_accessor, sphinx_message_sender);
+        }
 
         self.start_reconstructed_pusher(received_buffer_request_sender);
         self.input_tx = Some(input_sender);

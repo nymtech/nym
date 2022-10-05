@@ -64,12 +64,9 @@ export const UnbondModal = ({ node, onConfirm, onClose, onError }: Props) => {
           setShowConfirmModal(false);
         }}
         onClose={onClose}
-        disabled={confirmField !== 'UNBOND'}
+        disabled={confirmField !== 'Continue'}
       >
-        <Typography fontWeight={600} mb={2}>
-          If you unbond your node you will loose all your delegators!
-        </Typography>
-        <Error message="This action is irreversible and it will not be possible to restore the current state again" />
+        <Error message="If you unbond your node you will loose all delegations! This action is irreversible and it will not be possible to restore the current state of your node again" />
         <Typography mt={2} mb={2}>
           To unbond, type{' '}
           <Typography display="inline" component="span" sx={{ color: (t) => t.palette.nym.highlight }}>

@@ -101,12 +101,17 @@ pub struct ComputeRewardEstParam {
     pub total_delegation: Option<u64>,
 }
 
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/RewardEstimationResponse.ts")
+)]
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct RewardEstimationResponse {
     pub estimation: RewardEstimate,
-
     pub reward_params: RewardingParams,
     pub epoch: Interval,
+    #[cfg_attr(feature = "generate-ts", ts(type = "number"))]
     pub as_at: i64,
 }
 

@@ -17,7 +17,8 @@ const bondedMixnodeMock: TBondedMixnode = {
   operatorRewards: { denom: 'nym', amount: '1234' },
   delegators: 5423,
   status: 'active',
-  host: '1.2.34.5 ',
+  operatorCost: '2',
+  host: '1.2.3.4',
   httpApiPort: 8000,
   mixPort: 1789,
   verlocPort: 1790,
@@ -134,14 +135,6 @@ export const MockBondingContextProvider = ({
     return TxResultMock;
   };
 
-  const compoundRewards = async (): Promise<TransactionExecuteResult | undefined> => {
-    setIsLoading(true);
-    await mockSleep(SLEEP_MS);
-    triggerStateUpdate();
-    setIsLoading(false);
-    return TxResultMock;
-  };
-
   const updateMixnode = async (): Promise<TransactionExecuteResult> => {
     setIsLoading(true);
     await mockSleep(SLEEP_MS);
@@ -177,7 +170,6 @@ export const MockBondingContextProvider = ({
       unbond,
       refresh,
       redeemRewards,
-      compoundRewards,
       fee,
       feeLoading,
       getFee,

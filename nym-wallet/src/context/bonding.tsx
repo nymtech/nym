@@ -13,6 +13,9 @@ import {
   bondGateway as bondGatewayRequest,
   bondMixNode as bondMixNodeRequest,
   claimOperatorReward,
+  getGatewayBondDetails,
+  getMixnodeBondDetails,
+  getMixnodeRewardEstimation,
   unbondGateway as unbondGatewayRequest,
   unbondMixNode as unbondMixnodeRequest,
   vestingBondGateway,
@@ -22,8 +25,6 @@ import {
   updateMixnodeCostParams as updateMixnodeCostParamsRequest,
   vestingUpdateMixnodeCostParams as updateMixnodeVestingCostParamsRequest,
   getNodeDescription as getNodeDescriptioRequest,
-  getGatewayBondDetails,
-  getMixnodeBondDetails,
   getMixnodeStatus,
   getPendingOperatorRewards,
   getMixnodeStakeSaturation,
@@ -51,6 +52,7 @@ export type TBondedMixnode = {
   mixPort: number;
   verlocPort: number;
   version: string;
+  operatorCost?: string;
 };
 
 export interface TBondedGateway {
@@ -78,6 +80,7 @@ export type TBondingContext = {
   bondMixnode: (data: TBondMixNodeArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   bondGateway: (data: TBondGatewayArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   unbond: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
+  bondMore: (signature: string, amount: DecCoin, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   redeemRewards: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   updateMixnode: (pm: string, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   checkOwnership: () => Promise<void>;
@@ -96,6 +99,9 @@ export const BondingContext = createContext<TBondingContext>({
     throw new Error('Not implemented');
   },
   unbond: async () => {
+    throw new Error('Not implemented');
+  },
+  bondMore: async () => {
     throw new Error('Not implemented');
   },
   redeemRewards: async () => {
@@ -125,10 +131,11 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
   };
 
   const getAdditionalMixnodeDetails = async (mixId: number) => {
-    const additionalDetails: { status: MixnodeStatus; stakeSaturation: string } = {
+    const additionalDetails: { status: MixnodeStatus; stakeSaturation: string; operatorCost?: string } = {
       status: 'not_found',
       stakeSaturation: '0',
     };
+
     try {
       const statusResponse = await getMixnodeStatus(mixId);
       additionalDetails.status = statusResponse.status;
@@ -139,6 +146,12 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     try {
       const stakeSaturationResponse = await getMixnodeStakeSaturation(mixId);
       additionalDetails.stakeSaturation = decimalToPercentage(stakeSaturationResponse.saturation);
+    } catch (e) {
+      Console.log(e);
+    }
+    try {
+      const rewardEstimation = await getMixnodeRewardEstimation(mixId);
+      additionalDetails.operatorCost = rewardEstimation.estimation.operating_cost;
     } catch (e) {
       Console.log(e);
     }
@@ -168,7 +181,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
         }
         if (data) {
           const { bond_information, rewarding_details } = data;
-          const { status, stakeSaturation } = await getAdditionalMixnodeDetails(bond_information.id);
+          const { status, stakeSaturation, operatorCost } = await getAdditionalMixnodeDetails(data.bond_information.id);
           const nodeDescription = await getNodeDescription(
             bond_information.mix_node.host,
             bond_information.mix_node.http_api_port,
@@ -194,6 +207,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             mixPort: bond_information.mix_node.mix_port,
             verlocPort: bond_information.mix_node.verloc_port,
             version: bond_information.mix_node.version,
+            operatorCost,
           } as TBondedMixnode);
         }
       } catch (e: any) {

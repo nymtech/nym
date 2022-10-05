@@ -3021,6 +3021,7 @@ dependencies = [
  "bs58",
  "contracts-common",
  "cosmwasm-std",
+ "humantime-serde",
  "log",
  "rand_chacha 0.3.1",
  "schemars",

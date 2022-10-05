@@ -41,6 +41,7 @@ declare module '@mui/material/styles' {
       grey: string;
     };
     linkHover: string;
+    border: { menu: string };
   }
 
   interface NymPaletteVariant {

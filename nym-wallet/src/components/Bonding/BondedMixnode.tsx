@@ -32,6 +32,11 @@ const headers: Header[] = [
       'The percentage of the node rewards that you as the node operator will take before the rest of the reward is shared between you and the delegators.',
   },
   {
+    header: 'Operator cost',
+    id: 'operator-cost',
+    // tooltipText: 'TODO', // TODO
+  },
+  {
     header: 'Operator rewards',
     id: 'operator-rewards',
     tooltipText:
@@ -57,10 +62,18 @@ export const BondedMixnode = ({
   onActionSelect: (action: TBondedMixnodeActions) => void;
 }) => {
   const navigate = useNavigate();
-
-  const { name, stake, bond, stakeSaturation, profitMargin, operatorRewards, delegators, status, identityKey } =
-    mixnode;
-
+  const {
+    name,
+    stake,
+    bond,
+    stakeSaturation,
+    profitMargin,
+    operatorRewards,
+    operatorCost,
+    delegators,
+    status,
+    identityKey,
+  } = mixnode;
   const cells: Cell[] = [
     {
       cell: `${stake.amount} ${stake.denom}`,
@@ -77,6 +90,10 @@ export const BondedMixnode = ({
     {
       cell: `${profitMargin}%`,
       id: 'pm-cell',
+    },
+    {
+      cell: operatorCost ? `${operatorCost} USD` : '-',
+      id: 'operator-cost-cell',
     },
     {
       cell: operatorRewards ? `${operatorRewards.amount} ${operatorRewards.denom}` : '-',

@@ -8,6 +8,8 @@ use tokio_stream::Stream;
 
 pub use tokio::time::error::Error as TimerError;
 
+// this is a copy of tokio-util delay_queue with `Sleep` and `Instant` being replaced with
+// `wasm_timer` equivalents
 #[cfg(target_arch = "wasm32")]
 mod wasm_delay_queue;
 

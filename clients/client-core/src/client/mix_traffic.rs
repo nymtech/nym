@@ -7,8 +7,6 @@ use futures::StreamExt;
 use gateway_client::GatewayClient;
 use log::*;
 use nymsphinx::forwarding::packet::MixPacket;
-#[cfg(not(target_arch = "wasm32"))]
-use task::ShutdownListener;
 
 pub type BatchMixMessageSender = mpsc::UnboundedSender<Vec<MixPacket>>;
 pub type BatchMixMessageReceiver = mpsc::UnboundedReceiver<Vec<MixPacket>>;
@@ -20,8 +18,6 @@ pub struct MixTrafficController {
     // later on gateway_client will need to be accessible by other entities
     gateway_client: GatewayClient,
     mix_rx: BatchMixMessageReceiver,
-    #[cfg(not(target_arch = "wasm32"))]
-    shutdown: ShutdownListener,
 
     // TODO: this is temporary work-around.
     // in long run `gateway_client` will be moved away from `MixTrafficController` anyway.
@@ -32,14 +28,11 @@ impl MixTrafficController {
     pub fn new(
         mix_rx: BatchMixMessageReceiver,
         gateway_client: GatewayClient,
-        #[cfg(not(target_arch = "wasm32"))] shutdown: ShutdownListener,
     ) -> MixTrafficController {
         MixTrafficController {
             gateway_client,
             mix_rx,
             consecutive_gateway_failure_count: 0,
-            #[cfg(not(target_arch = "wasm32"))]
-            shutdown,
         }
     }
 
@@ -72,33 +65,40 @@ impl MixTrafficController {
         }
     }
 
-    pub async fn run(&mut self) {
-        // TODO: the usual wasm stuff
-        while let Some(mix_packets) = self.mix_rx.next().await {
-            self.on_messages(mix_packets).await;
-        }
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn start_with_shutdown(mut self, mut shutdown: task::ShutdownListener) {
+        spawn_future(async move {
+            debug!("Started MixTrafficController with graceful shutdown support");
 
-        // while !self.shutdown.is_shutdown() {
-        //     tokio::select! {
-        //         mix_packets = self.mix_rx.next() => match mix_packets {
-        //             Some(mix_packets) => {
-        //                 self.on_messages(mix_packets).await;
-        //             },
-        //             None => {
-        //                 log::trace!("MixTrafficController: Stopping since channel closed");
-        //                 break;
-        //             }
-        //         },
-        //         _ = self.shutdown.recv() => {
-        //             log::trace!("MixTrafficController: Received shutdown");
-        //         }
-        //     }
-        // }
-        // assert!(self.shutdown.is_shutdown_poll());
-        // log::debug!("MixTrafficController: Exiting");
+            while !shutdown.is_shutdown() {
+                tokio::select! {
+                    mix_packets = self.mix_rx.next() => match mix_packets {
+                        Some(mix_packets) => {
+                            self.on_messages(mix_packets).await;
+                        },
+                        None => {
+                            log::trace!("MixTrafficController: Stopping since channel closed");
+                            break;
+                        }
+                    },
+                    _ = shutdown.recv() => {
+                        log::trace!("MixTrafficController: Received shutdown");
+                    }
+                }
+            }
+            assert!(shutdown.is_shutdown_poll());
+            log::debug!("MixTrafficController: Exiting");
+        })
     }
 
+    #[cfg(target_arch = "wasm32")]
     pub fn start(mut self) {
-        spawn_future(async move { self.run().await })
+        spawn_future(async move {
+            debug!("Started MixTrafficController without graceful shutdown support");
+
+            while let Some(mix_packets) = self.mix_rx.next().await {
+                self.on_messages(mix_packets).await;
+            }
+        })
     }
 }

@@ -1,27 +1,25 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::SHUTDOWN_HAS_BEEN_SIGNALLED;
 use crate::spawn_future;
 use crypto::asymmetric::encryption;
-use crypto::symmetric::stream_cipher;
-use crypto::Digest;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
 use gateway_client::MixnetMessageReceiver;
 use log::*;
-use nymsphinx::anonymous_replies::{encryption_key::EncryptionKeyDigest, SurbEncryptionKey};
-use nymsphinx::params::{ReplySurbEncryptionAlgorithm, ReplySurbKeyDigestAlgorithm};
 use nymsphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
 use std::collections::HashSet;
-use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
 #[cfg(feature = "reply-surb")]
 use crate::client::reply_key_storage::ReplyKeyStorage;
-#[cfg(not(target_arch = "wasm32"))]
-use task::ShutdownListener;
+#[cfg(feature = "reply-surb")]
+use crypto::{symmetric::stream_cipher, Digest};
+#[cfg(feature = "reply-surb")]
+use nymsphinx::anonymous_replies::{encryption_key::EncryptionKeyDigest, SurbEncryptionKey};
+#[cfg(feature = "reply-surb")]
+use nymsphinx::params::{ReplySurbEncryptionAlgorithm, ReplySurbKeyDigestAlgorithm};
 
 // Buffer Requests to say "hey, send any reconstructed messages to this channel"
 // or to say "hey, I'm going offline, don't send anything more to me. Just buffer them instead"
@@ -218,41 +216,45 @@ impl ReceivedMessagesBuffer {
         let mut completed_messages = Vec::new();
         let mut inner_guard = self.inner.lock().await;
 
-        let reply_surb_digest_size = ReplySurbKeyDigestAlgorithm::output_size();
-
         // first check if this is a reply or a chunked message
         // TODO: verify with @AP if this way of doing it is safe or whether it could
         // cause some attacks due to, I don't know, stupid edge case collisions?
         // Update: this DOES introduce a possible leakage: https://github.com/nymtech/nym/issues/296
         for msg in msgs {
-            let possible_key_digest =
-                EncryptionKeyDigest::clone_from_slice(&msg[..reply_surb_digest_size]);
+            // TODO:
+            // 1. make it nicer
+            // 2. make it not feature-locked
 
-            // check first `HasherOutputSize` bytes if they correspond to known encryption key
-            // if yes - this is a reply message
-
-            // TODO: this might be a bottleneck - since the keys are stored on disk we, presumably,
-            // are doing a disk operation every single received fragment
             #[cfg(feature = "reply-surb")]
-            if let Some(reply_encryption_key) = self
-                .reply_key_storage
-                .get_and_remove_encryption_key(possible_key_digest)
-                .expect("storage operation failed!")
             {
-                if let Some(completed_message) = Self::process_received_reply(
-                    &msg[reply_surb_digest_size..],
-                    reply_encryption_key,
-                ) {
-                    completed_messages.push(completed_message)
-                }
-            } else {
-                // otherwise - it's a 'normal' message
-                if let Some(completed_message) = inner_guard.process_received_fragment(msg) {
-                    completed_messages.push(completed_message)
+                let reply_surb_digest_size = ReplySurbKeyDigestAlgorithm::output_size();
+
+                let possible_key_digest =
+                    EncryptionKeyDigest::clone_from_slice(&msg[..reply_surb_digest_size]);
+
+                // check first `HasherOutputSize` bytes if they correspond to known encryption key
+                // if yes - this is a reply message
+
+                // TODO: this might be a bottleneck - since the keys are stored on disk we, presumably,
+                // are doing a disk operation every single received fragment
+                if let Some(reply_encryption_key) = self
+                    .reply_key_storage
+                    .get_and_remove_encryption_key(possible_key_digest)
+                    .expect("storage operation failed!")
+                {
+                    if let Some(completed_message) = Self::process_received_reply(
+                        &msg[reply_surb_digest_size..],
+                        reply_encryption_key,
+                    ) {
+                        completed_messages.push(completed_message)
+                    }
+                } else {
+                    // otherwise - it's a 'normal' message
+                    if let Some(completed_message) = inner_guard.process_received_fragment(msg) {
+                        completed_messages.push(completed_message)
+                    }
                 }
             }
-
-            // TODO: make it nicer and stuff
 
             #[cfg(not(feature = "reply-surb"))]
             if let Some(completed_message) = inner_guard.process_received_fragment(msg) {
@@ -307,79 +309,97 @@ impl RequestReceiver {
         }
     }
 
-    fn start(mut self) {
-        spawn_future(async move {
-            loop {
-                tokio::select! {
-                    request = self.query_receiver.next() => {
-                        match request {
-                            Some(ReceivedBufferMessage::ReceiverAnnounce(sender)) => {
-                                self.received_buffer.connect_sender(sender).await;
-                            }
-                            Some(ReceivedBufferMessage::ReceiverDisconnect) => {
-                                self.received_buffer.disconnect_sender().await
-                            }
-                            None => {
-                                log::trace!("RequestReceiver: Stopping since channel closed");
-                                break;
-                            },
-                        }
-                    },
-                };
+    async fn handle_message(&mut self, message: ReceivedBufferMessage) {
+        match message {
+            ReceivedBufferMessage::ReceiverAnnounce(sender) => {
+                self.received_buffer.connect_sender(sender).await;
             }
+            ReceivedBufferMessage::ReceiverDisconnect => {
+                self.received_buffer.disconnect_sender().await
+            }
+        }
+    }
 
-            assert!(SHUTDOWN_HAS_BEEN_SIGNALLED.load(Ordering::Relaxed));
-            log::debug!("RequestReceiver: Exiting");
-        })
+    #[cfg(not(target_arch = "wasm32"))]
+    async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+        debug!("Started RequestReceiver with graceful shutdown support");
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                biased;
+                _ = shutdown.recv() => {
+                    log::trace!("RequestReceiver: Received shutdown");
+                }
+                request = self.query_receiver.next() => {
+                    match request {
+                        Some(message) => self.handle_message(message).await,
+                        None => {
+                            log::trace!("RequestReceiver: Stopping since channel closed");
+                            break;
+                        },
+                    }
+                },
+            }
+        }
+        assert!(shutdown.is_shutdown_poll());
+        log::debug!("RequestReceiver: Exiting");
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    async fn run(&mut self) {
+        debug!("Started RequestReceiver without graceful shutdown support");
+
+        while let Some(message) = self.query_receiver.next().await {
+            self.handle_message(message).await
+        }
     }
 }
 
 struct FragmentedMessageReceiver {
     received_buffer: ReceivedMessagesBuffer,
     mixnet_packet_receiver: MixnetMessageReceiver,
-    #[cfg(not(target_arch = "wasm32"))]
-    shutdown: ShutdownListener,
 }
 
 impl FragmentedMessageReceiver {
     fn new(
         received_buffer: ReceivedMessagesBuffer,
         mixnet_packet_receiver: MixnetMessageReceiver,
-        #[cfg(not(target_arch = "wasm32"))] shutdown: ShutdownListener,
     ) -> Self {
         FragmentedMessageReceiver {
             received_buffer,
             mixnet_packet_receiver,
-            #[cfg(not(target_arch = "wasm32"))]
-            shutdown,
         }
     }
-    fn start(mut self) {
-        // TODO: wasm and stuff
-        spawn_future(async move {
-            while let Some(new_messages) = self.mixnet_packet_receiver.next().await {
-                self.received_buffer.handle_new_received(new_messages).await;
-            }
 
-            // while !self.shutdown.is_shutdown() {
-            //     tokio::select! {
-            //         new_messages = self.mixnet_packet_receiver.next() => match new_messages {
-            //             Some(new_messages) => {
-            //                 self.received_buffer.handle_new_received(new_messages).await;
-            //             }
-            //             None => {
-            //                 log::trace!("FragmentedMessageReceiver: Stopping since channel closed");
-            //                 break;
-            //             }
-            //         },
-            //         _ = self.shutdown.recv() => {
-            //             log::trace!("FragmentedMessageReceiver: Received shutdown");
-            //         }
-            //     }
-            // }
-            // assert!(self.shutdown.is_shutdown_poll());
-            // log::debug!("FragmentedMessageReceiver: Exiting");
-        })
+    #[cfg(not(target_arch = "wasm32"))]
+    async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+        debug!("Started FragmentedMessageReceiver with graceful shutdown support");
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                new_messages = self.mixnet_packet_receiver.next() => match new_messages {
+                    Some(new_messages) => {
+                        self.received_buffer.handle_new_received(new_messages).await;
+                    }
+                    None => {
+                        log::trace!("FragmentedMessageReceiver: Stopping since channel closed");
+                        break;
+                    }
+                },
+                _ = shutdown.recv() => {
+                    log::trace!("FragmentedMessageReceiver: Received shutdown");
+                }
+            }
+        }
+        assert!(shutdown.is_shutdown_poll());
+        log::debug!("FragmentedMessageReceiver: Exiting");
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    async fn run(&mut self) {
+        debug!("Started FragmentedMessageReceiver without graceful shutdown support");
+
+        while let Some(new_messages) = self.mixnet_packet_receiver.next().await {
+            self.received_buffer.handle_new_received(new_messages).await;
+        }
     }
 }
 
@@ -394,7 +414,6 @@ impl ReceivedMessagesBufferController {
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_packet_receiver: MixnetMessageReceiver,
         #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
-        #[cfg(not(target_arch = "wasm32"))] shutdown: ShutdownListener,
     ) -> Self {
         let received_buffer = ReceivedMessagesBuffer::new(
             local_encryption_keypair,
@@ -406,16 +425,36 @@ impl ReceivedMessagesBufferController {
             fragmented_message_receiver: FragmentedMessageReceiver::new(
                 received_buffer.clone(),
                 mixnet_packet_receiver,
-                #[cfg(not(target_arch = "wasm32"))]
-                shutdown,
             ),
             request_receiver: RequestReceiver::new(received_buffer, query_receiver),
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn start_with_shutdown(self, shutdown: task::ShutdownListener) {
+        let mut fragmented_message_receiver = self.fragmented_message_receiver;
+        let mut request_receiver = self.request_receiver;
+
+        let shutdown_handle = shutdown.clone();
+        spawn_future(async move {
+            fragmented_message_receiver
+                .run_with_shutdown(shutdown_handle)
+                .await;
+        });
+        spawn_future(async move {
+            request_receiver.run_with_shutdown(shutdown).await;
+        });
+    }
+
+    #[cfg(target_arch = "wasm32")]
     pub fn start(self) {
-        // TODO: should we do anything with JoinHandle(s) returned by start methods?
-        self.fragmented_message_receiver.start();
-        self.request_receiver.start();
+        let mut fragmented_message_receiver = self.fragmented_message_receiver;
+        let mut request_receiver = self.request_receiver;
+        spawn_future(async move {
+            fragmented_message_receiver.run().await;
+        });
+        spawn_future(async move {
+            request_receiver.run().await;
+        });
     }
 }

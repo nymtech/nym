@@ -66,6 +66,7 @@ async function main() {
     debug.message_sending_average_delay_ms = BigInt(20);
     debug.average_packet_delay_ms = BigInt(10);
     debug.average_ack_delay_ms = BigInt(10);
+    debug.topology_refresh_rate_ms = BigInt(60000)
 
     const config = new Config("my-awesome-wasm-client", validator, gatewayEndpoint, debug)
 

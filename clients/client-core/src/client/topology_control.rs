@@ -15,9 +15,6 @@ use tokio::sync::{RwLock, RwLockReadGuard};
 use topology::{nym_topology_from_bonds, NymTopology};
 use url::Url;
 
-#[cfg(not(target_arch = "wasm32"))]
-use task::ShutdownListener;
-
 // I'm extremely curious why compiler NEVER complained about lack of Debug here before
 #[derive(Debug)]
 pub struct TopologyAccessorInner(Option<NymTopology>);
@@ -308,29 +305,32 @@ impl TopologyRefresher {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn start_with_shutdown(mut self, mut shutdown: task::ShutdownListener) {
-        debug!("Started TopologyRefresher with graceful shutdown support");
+        spawn_future(async move {
+            debug!("Started TopologyRefresher with graceful shutdown support");
 
-        while !shutdown.is_shutdown() {
-            tokio::select! {
-                _ = tokio::time::sleep(self.refresh_rate) => {
-                    self.refresh().await;
-                },
-                _ = shutdown.recv() => {
-                    log::trace!("TopologyRefresher: Received shutdown");
-                },
+            while !shutdown.is_shutdown() {
+                tokio::select! {
+                    _ = tokio::time::sleep(self.refresh_rate) => {
+                        self.refresh().await;
+                    },
+                    _ = shutdown.recv() => {
+                        log::trace!("TopologyRefresher: Received shutdown");
+                    },
+                }
             }
-        }
-        assert!(shutdown.is_shutdown_poll());
-        log::debug!("TopologyRefresher: Exiting");
+            assert!(shutdown.is_shutdown_poll());
+            log::debug!("TopologyRefresher: Exiting");
+        })
     }
 
     #[cfg(target_arch = "wasm32")]
     pub fn start(mut self) {
-        debug!("Started TopologyRefresher without graceful shutdown support");
-
         spawn_future(async move {
             loop {
-                wasm_timer::Delay::new(self.refresh_rate).await;
+                debug!("Started TopologyRefresher without graceful shutdown support");
+
+                // wasm_timer::Delay::new(self.refresh_rate).await;
+                gloo_timers::future::TimeoutFuture::new(self.refresh_rate.as_millis() as u32).await;
                 self.refresh().await;
             }
         })

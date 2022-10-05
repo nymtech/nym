@@ -15,9 +15,6 @@ use nymsphinx::{acknowledgements::AckKey, addressing::clients::Recipient};
 use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
 
-#[cfg(not(target_arch = "wasm32"))]
-use task::ShutdownListener;
-
 // responsible for packet retransmission upon fired timer
 pub(super) struct RetransmissionRequestListener<R>
 where

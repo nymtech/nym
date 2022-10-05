@@ -4,19 +4,16 @@
 //!
 //! [`DelayQueue`]: struct@DelayQueue
 
-use crate::wasm_delay_queue::wheel::{self, Wheel};
-
-use futures_core::ready;
-// use tokio::time::{sleep_until, Duration, Instant, Sleep};
 use crate::wasm_delay_queue::sleep_until;
+use crate::wasm_delay_queue::wheel::{self, Wheel};
 use core::ops::{Index, IndexMut};
+use futures_core::ready;
 use slab::Slab;
 use std::cmp;
 use std::collections::HashMap;
 use std::convert::From;
 use std::fmt;
 use std::fmt::Debug;
-use std::future::Future;
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::task::{self, Poll, Waker};
@@ -1024,7 +1021,7 @@ impl<T> DelayQueue<T> {
     /// should be returned.
     ///
     /// A slot should be returned when the associated deadline has been reached.
-    fn poll_idx(&mut self, cx: &mut task::Context<'_>) -> Poll<Option<Key>> {
+    fn poll_idx(&mut self, _cx: &mut task::Context<'_>) -> Poll<Option<Key>> {
         use self::wheel::Stack;
 
         let expired = self.expired.pop(&mut self.slab);
@@ -1035,7 +1032,8 @@ impl<T> DelayQueue<T> {
 
         loop {
             if let Some(ref mut delay) = self.delay {
-                // TODO: i dont like that
+                // TODO: I really dislike having done that; it's because the wasm_timer
+                // doesn't have an `is_elapsed` equivalent
                 // if !delay.is_elapsed() {
                 //     ready!(Pin::new(&mut *delay).poll(cx));
                 // }

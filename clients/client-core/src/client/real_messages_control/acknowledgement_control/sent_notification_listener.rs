@@ -7,9 +7,6 @@ use futures::StreamExt;
 use log::*;
 use nymsphinx::chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID};
 
-#[cfg(not(target_arch = "wasm32"))]
-use task::ShutdownListener;
-
 /// Module responsible for starting up retransmission timers.
 /// It is required because when we send our packet to the `real traffic stream` controlled
 /// by a poisson timer, there's no guarantee the message will be sent immediately, so we might

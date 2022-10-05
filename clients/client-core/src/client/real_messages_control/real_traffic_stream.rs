@@ -26,9 +26,6 @@ use tokio::time;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
 
-#[cfg(not(target_arch = "wasm32"))]
-use task::ShutdownListener;
-
 /// Configurable parameters of the `OutQueueControl`
 pub(crate) struct Config {
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
@@ -136,7 +133,6 @@ where
         // we know it's time to send a message, so let's prepare delay for the next one
         // Get the `now` by looking at the current `delay` deadline
         let avg_delay = self.config.average_message_sending_delay;
-
         let next_poisson_delay = sample_poisson_duration(&mut self.rng, avg_delay);
 
         // The next interval value is `next_poisson_delay` after the one that just
@@ -267,14 +263,10 @@ where
         // - the receiver channel is closed
         // in either case there's no recovery and we can only panic
         if let Err(err) = self.mix_tx.unbounded_send(vec![next_message]) {
-            #[cfg(not(target_arch = "wasm32"))]
-            if self.shutdown.is_shutdown_poll() {
-                log::info!("Failed to send (shutdown detected)");
-            } else {
-                // We don't try to limp along, panic to avoid continuing in a potentially
-                // inconsistent state
-                panic!("{err}");
-            }
+            log::warn!(
+                "Failed to send {} packets (possible process shutdown?)",
+                err.into_inner().len()
+            );
         }
 
         // JS: Not entirely sure why or how it fixes stuff, but without the yield call,
@@ -287,28 +279,6 @@ where
         #[cfg(not(target_arch = "wasm32"))]
         tokio::task::yield_now().await;
     }
-
-    // // Send messages at certain rate and if no real traffic is available, send cover message.
-    // async fn run_normal_out_queue(&mut self) {
-    //     // we should set initial delay only when we actually start the stream
-    //     let sampled =
-    //         sample_poisson_duration(&mut self.rng, self.config.average_message_sending_delay);
-    //
-    //     #[cfg(not(target_arch = "wasm32"))]
-    //     let next_delay = Box::pin(time::sleep(sampled));
-    //
-    //     #[cfg(target_arch = "wasm32")]
-    //     let next_delay = Box::pin(wasm_timer::Delay::new(sampled));
-    //
-    //     self.next_delay = next_delay;
-    //
-    //     // TODO: fix it for non-wasm
-    // }
-
-    // pub(crate) async fn run_out_queue_control(&mut self) {
-    //     debug!("Starting out queue controller...");
-    //     self.run_normal_out_queue().await
-    // }
 
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {

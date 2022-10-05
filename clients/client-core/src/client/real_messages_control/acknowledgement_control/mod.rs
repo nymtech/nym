@@ -29,9 +29,6 @@ use std::{
 #[cfg(feature = "reply-surb")]
 use crate::client::reply_key_storage::ReplyKeyStorage;
 
-#[cfg(not(target_arch = "wasm32"))]
-use task::ShutdownListener;
-
 mod acknowledgement_listener;
 mod action_controller;
 mod input_message_listener;

@@ -26,9 +26,6 @@ use std::time::Duration;
 #[cfg(feature = "reply-surb")]
 use crate::client::reply_key_storage::ReplyKeyStorage;
 
-#[cfg(not(target_arch = "wasm32"))]
-use task::ShutdownListener;
-
 mod acknowledgement_control;
 mod real_traffic_stream;
 
@@ -153,7 +150,7 @@ impl RealMessagesController<OsRng> {
     #[cfg(not(target_arch = "wasm32"))]
     pub fn start_with_shutdown(self, shutdown: task::ShutdownListener) {
         let mut out_queue_control = self.out_queue_control;
-        let mut ack_control = self.ack_control;
+        let ack_control = self.ack_control;
 
         let shutdown_handle = shutdown.clone();
         spawn_future(async move {
@@ -164,9 +161,9 @@ impl RealMessagesController<OsRng> {
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub fn start(mut self) {
+    pub fn start(self) {
         let mut out_queue_control = self.out_queue_control;
-        let mut ack_control = self.ack_control;
+        let ack_control = self.ack_control;
 
         spawn_future(async move {
             out_queue_control.run().await;

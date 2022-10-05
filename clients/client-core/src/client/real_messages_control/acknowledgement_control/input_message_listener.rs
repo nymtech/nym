@@ -19,9 +19,6 @@ use std::sync::Arc;
 #[cfg(feature = "reply-surb")]
 use crate::client::reply_key_storage::ReplyKeyStorage;
 
-#[cfg(not(target_arch = "wasm32"))]
-use task::ShutdownListener;
-
 /// Module responsible for dealing with the received messages: splitting them, creating acknowledgements,
 /// putting everything into sphinx packets, etc.
 /// It also makes an initial sending attempt for said messages.
@@ -130,6 +127,9 @@ where
                 .insert_encryption_key(reply_key)
                 .expect("Failed to insert surb reply key to the store!")
         }
+
+        #[cfg(not(feature = "reply-surb"))]
+        let _reply_key = reply_key;
 
         // encrypt chunks, put them inside sphinx packets and generate acks
         let mut pending_acks = Vec::with_capacity(split_message.len());

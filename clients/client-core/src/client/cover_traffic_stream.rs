@@ -14,10 +14,13 @@ use nymsphinx::utils::sample_poisson_duration;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;
-use tokio::time;
+use std::time::Duration;
 
 #[cfg(not(target_arch = "wasm32"))]
-use task::ShutdownListener;
+use tokio::time;
+
+#[cfg(target_arch = "wasm32")]
+use wasm_timer;
 
 pub struct LoopCoverTrafficStream<R>
 where
@@ -27,17 +30,21 @@ where
     ack_key: Arc<AckKey>,
 
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
-    average_ack_delay: time::Duration,
+    average_ack_delay: Duration,
 
     /// Average delay a data packet is going to get delay at a single mixnode.
-    average_packet_delay: time::Duration,
+    average_packet_delay: Duration,
 
     /// Average delay between sending subsequent cover packets.
-    average_cover_message_sending_delay: time::Duration,
+    average_cover_message_sending_delay: Duration,
 
     /// Internal state, determined by `average_message_sending_delay`,
     /// used to keep track of when a next packet should be sent out.
+    #[cfg(not(target_arch = "wasm32"))]
     next_delay: Pin<Box<time::Sleep>>,
+
+    #[cfg(target_arch = "wasm32")]
+    next_delay: Pin<Box<wasm_timer::Delay>>,
 
     /// Channel used for sending prepared sphinx packets to `MixTrafficController` that sends them
     /// out to the network without any further delays.
@@ -51,10 +58,6 @@ where
 
     /// Accessor to the common instance of network topology.
     topology_access: TopologyAccessor,
-
-    /// Listen to shutdown signals.
-    #[cfg(not(target_arch = "wasm32"))]
-    shutdown: ShutdownListener,
 }
 
 impl<R> Stream for LoopCoverTrafficStream<R>
@@ -76,13 +79,21 @@ where
         // we know it's time to send a message, so let's prepare delay for the next one
         // Get the `now` by looking at the current `delay` deadline
         let avg_delay = self.average_cover_message_sending_delay;
-        let now = self.next_delay.deadline();
         let next_poisson_delay = sample_poisson_duration(&mut self.rng, avg_delay);
 
         // The next interval value is `next_poisson_delay` after the one that just
         // yielded.
-        let next = now + next_poisson_delay;
-        self.next_delay.as_mut().reset(next);
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let now = self.next_delay.deadline();
+            let next = now + next_poisson_delay;
+            self.next_delay.as_mut().reset(next);
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            self.next_delay.as_mut().reset(next_poisson_delay);
+        }
 
         Poll::Ready(Some(()))
     }
@@ -94,28 +105,31 @@ impl LoopCoverTrafficStream<OsRng> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         ack_key: Arc<AckKey>,
-        average_ack_delay: time::Duration,
-        average_packet_delay: time::Duration,
-        average_cover_message_sending_delay: time::Duration,
+        average_ack_delay: Duration,
+        average_packet_delay: Duration,
+        average_cover_message_sending_delay: Duration,
         mix_tx: BatchMixMessageSender,
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
-        #[cfg(not(target_arch = "wasm32"))] shutdown: ShutdownListener,
     ) -> Self {
         let rng = OsRng;
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let next_delay = Box::pin(time::sleep(Default::default()));
+
+        #[cfg(target_arch = "wasm32")]
+        let next_delay = Box::pin(wasm_timer::Delay::new(Default::default()));
 
         LoopCoverTrafficStream {
             ack_key,
             average_ack_delay,
             average_packet_delay,
             average_cover_message_sending_delay,
-            next_delay: Box::pin(time::sleep(Default::default())),
+            next_delay,
             mix_tx,
             our_full_destination,
             rng,
             topology_access,
-            #[cfg(not(target_arch = "wasm32"))]
-            shutdown,
         }
     }
 
@@ -166,41 +180,50 @@ impl LoopCoverTrafficStream<OsRng> {
         tokio::task::yield_now().await;
     }
 
-    async fn run(&mut self) {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn start_with_shutdown(mut self, mut shutdown: task::ShutdownListener) {
         // we should set initial delay only when we actually start the stream
-        self.next_delay = Box::pin(time::sleep(sample_poisson_duration(
-            &mut self.rng,
-            self.average_cover_message_sending_delay,
-        )));
+        let sampled =
+            sample_poisson_duration(&mut self.rng, self.average_cover_message_sending_delay);
+        self.next_delay = Box::pin(time::sleep(sampled));
 
-        // TODO: fix it for non-wasm
+        spawn_future(async move {
+            debug!("Started LoopCoverTrafficStream with graceful shutdown support");
 
-        while self.next().await.is_some() {
-            self.on_new_message().await;
-        }
-
-        // let mut shutdown = self.shutdown.clone();
-        // while !shutdown.is_shutdown() {
-        //     tokio::select! {
-        //         biased;
-        //         _ = shutdown.recv() => {
-        //             log::trace!("LoopCoverTrafficStream: Received shutdown");
-        //         }
-        //         next = self.next() => {
-        //             if next.is_some() {
-        //                 self.on_new_message().await;
-        //             } else {
-        //                 log::trace!("LoopCoverTrafficStream: Stopping since channel closed");
-        //                 break;
-        //             }
-        //         }
-        //     }
-        // }
-        // assert!(self.shutdown.is_shutdown_poll());
-        // log::debug!("LoopCoverTrafficStream: Exiting");
+            while !shutdown.is_shutdown() {
+                tokio::select! {
+                    biased;
+                    _ = shutdown.recv() => {
+                        log::trace!("LoopCoverTrafficStream: Received shutdown");
+                    }
+                    next = self.next() => {
+                        if next.is_some() {
+                            self.on_new_message().await;
+                        } else {
+                            log::trace!("LoopCoverTrafficStream: Stopping since channel closed");
+                            break;
+                        }
+                    }
+                }
+            }
+            assert!(shutdown.is_shutdown_poll());
+            log::debug!("LoopCoverTrafficStream: Exiting");
+        })
     }
 
+    #[cfg(target_arch = "wasm32")]
     pub fn start(mut self) {
-        spawn_future(async move { self.run().await })
+        // we should set initial delay only when we actually start the stream
+        let sampled =
+            sample_poisson_duration(&mut self.rng, self.average_cover_message_sending_delay);
+        self.next_delay = Box::pin(wasm_timer::Delay::new(sampled));
+
+        spawn_future(async move {
+            debug!("Started LoopCoverTrafficStream without graceful shutdown support");
+
+            while self.next().await.is_some() {
+                self.on_new_message().await;
+            }
+        })
     }
 }

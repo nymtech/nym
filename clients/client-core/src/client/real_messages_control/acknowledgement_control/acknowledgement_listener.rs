@@ -11,9 +11,6 @@ use nymsphinx::{
 };
 use std::sync::Arc;
 
-#[cfg(not(target_arch = "wasm32"))]
-use task::ShutdownListener;
-
 /// Module responsible for listening for any data resembling acknowledgements from the network
 /// and firing actions to remove them from the 'Pending' state.
 pub(super) struct AcknowledgementListener {

@@ -2,39 +2,27 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::config::Config;
-use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
-use client_core::client::inbound_messages::InputMessage;
-use client_core::client::inbound_messages::InputMessageReceiver;
-use client_core::client::inbound_messages::InputMessageSender;
-use client_core::client::key_manager::KeyManager;
-use client_core::client::mix_traffic::BatchMixMessageReceiver;
-use client_core::client::mix_traffic::BatchMixMessageSender;
-use client_core::client::mix_traffic::MixTrafficController;
-use client_core::client::real_messages_control;
-use client_core::client::real_messages_control::RealMessagesController;
-use client_core::client::received_buffer::ReceivedBufferMessage;
-use client_core::client::received_buffer::ReceivedBufferRequestReceiver;
-use client_core::client::received_buffer::ReceivedBufferRequestSender;
-use client_core::client::received_buffer::ReceivedMessagesBufferController;
-use client_core::client::topology_control::TopologyAccessor;
-use client_core::client::topology_control::TopologyRefresher;
-use client_core::client::topology_control::TopologyRefresherConfig;
-use crypto::asymmetric::{encryption, identity};
+use client_core::client::{
+    cover_traffic_stream::LoopCoverTrafficStream,
+    inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender},
+    key_manager::KeyManager,
+    mix_traffic::{BatchMixMessageReceiver, BatchMixMessageSender, MixTrafficController},
+    real_messages_control::{self, RealMessagesController},
+    received_buffer::{
+        ReceivedBufferMessage, ReceivedBufferRequestReceiver, ReceivedBufferRequestSender,
+        ReceivedMessagesBufferController,
+    },
+    topology_control::{TopologyAccessor, TopologyRefresher, TopologyRefresherConfig},
+};
+use crypto::asymmetric::identity;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use gateway_client::AcknowledgementReceiver;
-use gateway_client::AcknowledgementSender;
-use gateway_client::GatewayClient;
-use gateway_client::MixnetMessageReceiver;
-use gateway_client::MixnetMessageSender;
-use nymsphinx::acknowledgements::AckKey;
+use gateway_client::{
+    AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
+    MixnetMessageSender,
+};
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::preparer::MessagePreparer;
 use rand::rngs::OsRng;
-use std::sync::Arc;
-use std::time::Duration;
-use topology::{gateway, nym_topology_from_bonds, NymTopology};
-use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
 use wasm_utils::{console_log, console_warn};
@@ -63,18 +51,21 @@ pub struct NymClient {
 impl NymClient {
     #[wasm_bindgen(constructor)]
     pub fn new(config: Config) -> Self {
-        let mut rng = OsRng;
-        // for time being generate new keys each time...
-        let mut key_manager = KeyManager::new(&mut rng);
-        console_log!("generated new set of keys");
-
         Self {
             config,
-            key_manager,
+            key_manager: Self::setup_key_manager(),
             on_message: None,
             on_gateway_connect: None,
             input_tx: None,
         }
+    }
+
+    // perhaps this should be public?
+    fn setup_key_manager() -> KeyManager {
+        let mut rng = OsRng;
+        // for time being generate new keys each time...
+        console_log!("generated new set of keys");
+        KeyManager::new(&mut rng)
     }
 
     pub fn set_on_message(&mut self, on_message: js_sys::Function) {
@@ -108,16 +99,16 @@ impl NymClient {
     ) {
         console_log!("Starting loop cover traffic stream...");
 
-        // LoopCoverTrafficStream::new(
-        //     self.key_manager.ack_key(),
-        //     self.config.debug.average_ack_delay,
-        //     self.config.debug.average_packet_delay,
-        //     self.config.debug.loop_cover_traffic_average_delay,
-        //     mix_tx,
-        //     self.as_mix_recipient(),
-        //     topology_accessor,
-        // )
-        // .start();
+        LoopCoverTrafficStream::new(
+            self.key_manager.ack_key(),
+            self.config.debug.average_ack_delay,
+            self.config.debug.average_packet_delay,
+            self.config.debug.loop_cover_traffic_average_delay,
+            mix_tx,
+            self.as_mix_recipient(),
+            topology_accessor,
+        )
+        .start();
     }
 
     fn start_real_traffic_controller(
@@ -244,7 +235,7 @@ impl NymClient {
         console_log!("Starting topology refresher...");
 
         // TODO: re-enable
-        // topology_refresher.start();
+        topology_refresher.start();
     }
 
     // controller for sending sphinx packets to mixnet (either real traffic or cover traffic)
@@ -287,7 +278,7 @@ impl NymClient {
                             console_log!("the received message contained a reply-surb that we do not know how to handle (yet)")
                         }
                         let stringified = String::from_utf8_lossy(&msg.message).into_owned();
-                        let arg1 = JsValue::from_serde(&stringified).unwrap();
+                        let arg1 = serde_wasm_bindgen::to_value(&stringified).unwrap();
                         callback.call1(&this, &arg1).expect("on message failed!");
                     }
                 } else {
@@ -299,7 +290,7 @@ impl NymClient {
     }
 
     pub async fn start(mut self) -> NymClient {
-        console_log!("Starting nym client");
+        console_log!("Starting wasm client '{}'", self.config.id);
         // channels for inter-component communication
         // TODO: make the channels be internally created by the relevant components
         // rather than creating them here, so say for example the buffer controller would create the request channels

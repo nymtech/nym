@@ -13,9 +13,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-#[cfg(not(target_arch = "wasm32"))]
-use task::ShutdownListener;
-
 pub(crate) type ActionSender = UnboundedSender<Action>;
 
 // The actual data being sent off as well as potential key to the delay queue

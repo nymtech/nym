@@ -2,6 +2,7 @@ import React from 'react';
 import { Stack, Typography, Box, useTheme, Grid, LinearProgress, LinearProgressProps } from '@mui/material';
 import { TBondedMixnode } from 'src/context';
 import { Cell, Pie, PieChart, Legend, ResponsiveContainer } from 'recharts';
+import { SelectionChance } from '@nymproject/types';
 import { NymCard } from '../NymCard';
 import { InfoTooltip } from '../InfoToolTip';
 
@@ -57,6 +58,20 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
     { key: 'rest', value: 100 - routingScore },
   ];
   const colors = [theme.palette.success.main, '#E6E6E6'];
+
+  const getSetProbabilityLabel = (chance?: SelectionChance) => {
+    if (!chance) return 'Unknown';
+    switch (chance) {
+      case 'High':
+        return 'High';
+      case 'Good':
+        return 'Good';
+      case 'Low':
+        return 'Low';
+      default:
+        return 'Unknown';
+    }
+  };
 
   const renderLegend = () => (
     <Stack
@@ -115,7 +130,7 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
         <Grid item xs={12} sm={12} md={6} lg={4}>
           <StatRow label="Profit margin" tooltipText="TODO" value={`${profitMargin}%`} />
           <StatDivider />
-          <StatRow label="Operator Cost" tooltipText="TODO" value={`${operatorCost} USD`} />
+          <StatRow label="Operator Cost" tooltipText="TODO" value={operatorCost ? `${operatorCost} USD` : '-'} />
           <StatDivider />
           <StatRow
             label="Estimated reward"
@@ -129,15 +144,13 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
           <StatRow
             label="Chance of being in the active set"
             tooltipText="TODO"
-            value={activeSetProbability}
-            withProgress
+            value={getSetProbabilityLabel(activeSetProbability)}
           />
           <StatDivider />
           <StatRow
             label="Chance of being in the standby set"
             tooltipText="TODO"
-            value={standbySetProbability}
-            withProgress
+            value={getSetProbabilityLabel(standbySetProbability)}
           />
         </Grid>
       </Grid>

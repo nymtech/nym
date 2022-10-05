@@ -19,8 +19,8 @@ const bondedMixnodeMock: TBondedMixnode = {
   operatorCost: '2',
   host: '1.2.3.4',
   routingScore: 75, // TODO hard code these values for now
-  activeSetProbability: 42,
-  standbySetProbability: 24,
+  activeSetProbability: 'High',
+  standbySetProbability: 'Low',
   estimatedRewards: { denom: 'nym', amount: '2' },
   httpApiPort: 8000,
   mixPort: 1789,

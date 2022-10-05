@@ -1,9 +1,10 @@
-import { RewardEstimate } from './RewardEstimate';
-import { RewardingParams } from './RewardingParams';
+import type { Interval } from './Interval';
+import type { RewardEstimate } from './RewardEstimate';
+import type { RewardingParams } from './RewardingParams';
 
-export type RewardEstimationResponse = {
+export interface RewardEstimationResponse {
   estimation: RewardEstimate;
   reward_params: RewardingParams;
-  // epoch: Interval;
+  epoch: Interval;
   as_at: number;
-};
+}

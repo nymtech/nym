@@ -60,14 +60,22 @@ pub(crate) mod string_rfc3339_offset_date_time {
     }
 }
 
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/Interval.ts")
+)]
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct Interval {
     id: IntervalId,
     epochs_in_interval: u32,
 
+    // TODO add a better TS type generation
+    #[cfg_attr(feature = "generate-ts", ts(type = "undefined"))]
     #[serde(with = "string_rfc3339_offset_date_time")]
     current_epoch_start: OffsetDateTime,
     current_epoch_id: EpochId,
+    #[cfg_attr(feature = "generate-ts", ts(type = "{ secs: number; nanos: number; }"))]
     epoch_length: Duration,
     total_elapsed_epochs: EpochId,
 }

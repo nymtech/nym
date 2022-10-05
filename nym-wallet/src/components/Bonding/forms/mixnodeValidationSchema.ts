@@ -49,3 +49,31 @@ export const amountSchema = Yup.object().shape({
   }),
   profitMargin: Yup.number().required('Profit Percentage is required').min(0).max(100),
 });
+
+export const bondedInfoParametersValidationSchema = Yup.object().shape({
+  host: Yup.string()
+    .required('A host is required')
+    .test('valid-host', 'A valid host is required', (value) => (value ? isValidHostname(value) : false)),
+
+  version: Yup.string()
+    .required('A version is required')
+    .test('valid-version', 'A valid version is required', (value) => (value ? validateVersion(value) : false)),
+
+  mixPort: Yup.number()
+    .required('A mixport is required')
+    .test('valid-mixport', 'A valid mixport is required', (value) => (value ? validateRawPort(value) : false)),
+
+  verlocPort: Yup.number()
+    .required('A verloc port is required')
+    .test('valid-verloc', 'A valid verloc port is required', (value) => (value ? validateRawPort(value) : false)),
+
+  httpApiPort: Yup.number()
+    .required('A http-api port is required')
+    .test('valid-http', 'A valid http-api port is required', (value) => (value ? validateRawPort(value) : false)),
+});
+
+export const bondedNodeParametersValidationSchema = Yup.object().shape({
+  profitMargin: Yup.number().required('Profit Percentage is required').min(0).max(100),
+
+  operatorCost: Yup.number().required('Operator cost is required'),
+})

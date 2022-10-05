@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Button, Divider, Typography, TextField, Grid, Alert, IconButton } from '@mui/material';
+import { Button, Divider, Typography, TextField, Grid, Alert, IconButton, CircularProgress } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
+import { updateMixnodeConfig } from '../../../../requests';
 import { TBondedMixnode, TBondedGateway } from '../../../../context/bonding';
 import { SimpleModal } from '../../../../components/Modals/SimpleModal';
-import { mixnodeValidationSchema } from '../../../../components/Bonding/forms/mixnodeValidationSchema';
+import { bondedInfoParametersValidationSchema } from '../../../../components/Bonding/forms/mixnodeValidationSchema';
 
 export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
   const [open, setOpen] = useState(true);
@@ -17,14 +18,36 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting },
+    formState: { errors, isSubmitting, isDirty, isValid },
   } = useForm({
-    resolver: yupResolver(mixnodeValidationSchema),
+    resolver: yupResolver(bondedInfoParametersValidationSchema),
+    mode: 'onChange',
     defaultValues: bondedNode.type === 'mixnode' ? bondedNode : {},
   });
 
-  const onSubmit = async () => {
-    await setOpenConfirmationModal(false);
+  const onSubmit = async (data: {
+    host?: string;
+    version?: string;
+    mixPort?: number;
+    verlocPort?: number;
+    httpApiPort?: number;
+  }) => {
+    const { host, version, mixPort, verlocPort, httpApiPort } = data;
+    if (host && version && mixPort && verlocPort && httpApiPort) {
+      const MixNodeConfigParams = {
+        host,
+        mix_port: mixPort,
+        verloc_port: verlocPort,
+        http_api_port: httpApiPort,
+        version,
+      };
+      try {
+        await updateMixnodeConfig(MixNodeConfigParams);
+        setOpenConfirmationModal(true);
+      } catch (error) {
+        console.error(error);
+      }
+    }
   };
 
   return (
@@ -171,10 +194,11 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
           <Button
             size="large"
             variant="contained"
-            disabled={isSubmitting}
-            onClick={handleSubmit(onSubmit)}
+            disabled={isSubmitting || !isDirty || !isValid}
+            onClick={handleSubmit((d) => onSubmit(d))}
             type="submit"
             sx={{ m: 3, width: '320px' }}
+            endIcon={isSubmitting && <CircularProgress size={20} />}
           >
             Save all display changes
           </Button>

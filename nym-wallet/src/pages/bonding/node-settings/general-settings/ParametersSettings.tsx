@@ -14,10 +14,10 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
-import { updateMixnodeCostParams, vestingUpdateMixnodeCostParams } from '../../../../requests';
+import { updateMixnodeCostParams } from '../../../../requests';
 import { TBondedMixnode, TBondedGateway } from '../../../../context/bonding';
 import { SimpleModal } from '../../../../components/Modals/SimpleModal';
-import { mixnodeparametersValidationSchema } from '../../../../components/Bonding/forms/mixnodeValidationSchema';
+import { bondedNodeParametersValidationSchema } from '../../../../components/Bonding/forms/mixnodeValidationSchema';
 
 export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }): JSX.Element => {
   const [open, setOpen] = useState(true);
@@ -28,11 +28,9 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
   const {
     register,
     handleSubmit,
-    getValues,
     formState: { errors, isSubmitting, isDirty, isValid },
-    getFieldState,
   } = useForm({
-    resolver: yupResolver(mixnodeparametersValidationSchema),
+    resolver: yupResolver(bondedNodeParametersValidationSchema),
     mode: 'onChange',
     defaultValues:
       bondedNode.type === 'mixnode'

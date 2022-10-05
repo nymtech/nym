@@ -66,7 +66,7 @@ impl MixTrafficController {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub async fn start_with_shutdown(mut self, mut shutdown: task::ShutdownListener) {
+    pub fn start_with_shutdown(mut self, mut shutdown: task::ShutdownListener) {
         spawn_future(async move {
             debug!("Started MixTrafficController with graceful shutdown support");
 

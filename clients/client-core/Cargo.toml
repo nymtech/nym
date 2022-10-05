@@ -20,7 +20,8 @@ url = { version ="2.2", features = ["serde"] }
 # internal
 config = { path = "../../common/config" }
 crypto = { path = "../../common/crypto" }
-gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm", "coconut"] }
+gateway-client = { path = "../../common/client-libs/gateway-client" }
+#gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm", "coconut"] }
 gateway-requests = { path = "../../gateway/gateway-requests" }
 nonexhaustive-delayqueue = { path = "../../common/nonexhaustive-delayqueue" }
 nymsphinx = { path = "../../common/nymsphinx" }
@@ -48,14 +49,11 @@ features = ["futures"]
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.task]
 path = "../../common/task"
 
-
-
 [dev-dependencies]
 tempfile = "3.1.0"
 
 [features]
-#wasm = ["gateway-client/wasm"]
 default = ["reply-surb"]
-wasm = []
+wasm = ["gateway-client/wasm"]
 coconut = ["gateway-client/coconut", "gateway-requests/coconut"]
 reply-surb = ["sled"]

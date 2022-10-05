@@ -100,9 +100,8 @@ impl NymClient {
             mix_tx,
             self.as_mix_recipient(),
             topology_accessor,
-            shutdown,
         )
-        .start();
+        .start_with_shutdown(shutdown);
     }
 
     fn start_real_traffic_controller(
@@ -133,9 +132,8 @@ impl NymClient {
             mix_sender,
             topology_accessor,
             reply_key_storage,
-            shutdown,
         )
-        .start();
+        .start_with_shutdown(shutdown);
     }
 
     // buffer controlling all messages fetched from provider
@@ -153,9 +151,8 @@ impl NymClient {
             query_receiver,
             mixnet_receiver,
             reply_key_storage,
-            shutdown,
         )
-        .start()
+        .start_with_shutdown(shutdown)
     }
 
     async fn start_gateway_client(
@@ -245,7 +242,7 @@ impl NymClient {
         }
 
         info!("Starting topology refresher...");
-        topology_refresher.start(shutdown);
+        topology_refresher.start_with_shutdown(shutdown);
     }
 
     // controller for sending sphinx packets to mixnet (either real traffic or cover traffic)
@@ -259,7 +256,7 @@ impl NymClient {
         shutdown: ShutdownListener,
     ) {
         info!("Starting mix traffic controller...");
-        MixTrafficController::new(mix_rx, gateway_client, shutdown).start();
+        MixTrafficController::new(mix_rx, gateway_client).start_with_shutdown(shutdown);
     }
 
     fn start_websocket_listener(

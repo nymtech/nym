@@ -31,28 +31,11 @@ import {
   getMixnodeStakeSaturation,
   vestingClaimOperatorReward,
   getInclusionProbability,
+  getMixnodeAvgUptime,
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
 import { attachDefaultOperatingCost, toPercentFloatString, toPercentIntegerString } from '../utils';
-
-const bonded: TBondedMixnode = {
-  name: 'Monster node',
-  identityKey: 'B2Xx4haarLWMajX8w259oHjtRZsC7nHwagbWrJNiA3QC',
-  bond: { denom: 'nym', amount: '1234' },
-  delegators: 123,
-  operatorRewards: { denom: 'nym', amount: '12' },
-  profitMargin: '10',
-  stake: { denom: 'nym', amount: '99' },
-  stakeSaturation: '99',
-  status: 'active',
-  operatorCost: '1',
-  host: '1.1.1.1',
-  routingScore: 75, // TODO hard code these values for now
-  activeSetProbability: 'High',
-  standbySetProbability: 'Low',
-  estimatedRewards: { denom: 'nym', amount: '2' },
-};
 
 // TODO add relevant data
 export type TBondedMixnode = {
@@ -199,6 +182,16 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     return result;
   };
 
+  const getAvgUptime = async () => {
+    let result;
+    try {
+      result = await getMixnodeAvgUptime();
+    } catch (e: any) {
+      Console.log(e);
+    }
+    return result;
+  };
+
   const refresh = useCallback(async () => {
     setIsLoading(true);
 
@@ -220,6 +213,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             bond_information.mix_node.host,
             bond_information.mix_node.http_api_port,
           );
+          const routingScore = await getAvgUptime();
           setBondedNode({
             name: nodeDescription?.name,
             identityKey: bond_information.mix_node.identity_key,
@@ -235,8 +229,9 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             operatorRewards,
             status,
             stakeSaturation,
+            operatorCost,
             host: bond_information.mix_node.host.replace(/\s/g, ''),
-            routingScore: 75, // TODO hard code these values for now
+            routingScore,
             activeSetProbability: setProbabilities?.in_active,
             standbySetProbability: setProbabilities?.in_reserve,
             estimatedRewards: { denom: 'nym', amount: '2' },
@@ -244,7 +239,6 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             mixPort: bond_information.mix_node.mix_port,
             verlocPort: bond_information.mix_node.verloc_port,
             version: bond_information.mix_node.version,
-            operatorCost,
           } as TBondedMixnode);
         }
       } catch (e: any) {

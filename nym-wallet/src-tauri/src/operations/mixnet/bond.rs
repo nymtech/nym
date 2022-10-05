@@ -129,7 +129,7 @@ pub async fn update_mixnode_cost_params(
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     let cost_params = new_costs.try_convert_to_mixnet_contract_cost_params(reg)?;
     log::info!(
-        ">>> Update mixnode cost parameters: ameters = {}, fee {:?}",
+        ">>> Update mixnode cost parameters: new parameters = {}, fee {:?}",
         cost_params.to_inline_json(),
         fee,
     );

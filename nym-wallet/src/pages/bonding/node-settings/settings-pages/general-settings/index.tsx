@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { Box, Button, Divider, Grid } from '@mui/material';
-import { TBondedMixnode, TBondedGateway } from '../../../../context/bonding';
+import { TBondedMixnode, TBondedGateway } from '../../../../../context/bonding';
 import { InfoSettings } from './InfoSettings';
 import { ParametersSettings } from './ParametersSettings';
 

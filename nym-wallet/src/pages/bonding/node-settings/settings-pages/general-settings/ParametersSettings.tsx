@@ -14,10 +14,10 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
-import { updateMixnodeCostParams } from '../../../../requests';
-import { TBondedMixnode, TBondedGateway } from '../../../../context/bonding';
-import { SimpleModal } from '../../../../components/Modals/SimpleModal';
-import { bondedNodeParametersValidationSchema } from '../../../../components/Bonding/forms/mixnodeValidationSchema';
+import { updateMixnodeCostParams } from '../../../../../requests';
+import { TBondedMixnode, TBondedGateway } from '../../../../../context/bonding';
+import { SimpleModal } from '../../../../../components/Modals/SimpleModal';
+import { bondedNodeParametersValidationSchema } from '../../../../../components/Bonding/forms/mixnodeValidationSchema';
 
 export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }): JSX.Element => {
   const [open, setOpen] = useState(true);

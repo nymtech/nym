@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Box, Button, Typography, Grid, TextField } from '@mui/material';
 import { TBondedMixnode, TBondedGateway } from 'src/context/bonding';
 import { Error } from 'src/components/Error';

@@ -13,8 +13,8 @@ import { Tabs } from 'src/components/Tabs';
 import { useBondingContext, BondingContextProvider } from 'src/context';
 import { AppContext, urls } from 'src/context/main';
 
-import { NodeGeneralSettings } from './general-settings';
-import { NodeUnbondPage } from './unbond';
+import { NodeGeneralSettings } from './settings-pages/general-settings';
+import { NodeUnbondPage } from './settings-pages/NodeUnbondPage';
 import { nodeSettingsNav } from './node-settings.constant';
 
 const useQuery = () => {

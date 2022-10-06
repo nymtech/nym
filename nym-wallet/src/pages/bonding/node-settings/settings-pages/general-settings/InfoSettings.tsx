@@ -4,10 +4,10 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import { Button, Divider, Typography, TextField, Grid, Alert, IconButton, CircularProgress } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
-import { updateMixnodeConfig } from '../../../../requests';
-import { TBondedMixnode, TBondedGateway } from '../../../../context/bonding';
-import { SimpleModal } from '../../../../components/Modals/SimpleModal';
-import { bondedInfoParametersValidationSchema } from '../../../../components/Bonding/forms/mixnodeValidationSchema';
+import { updateMixnodeConfig } from '../../../../../requests';
+import { TBondedMixnode, TBondedGateway } from '../../../../../context/bonding';
+import { SimpleModal } from '../../../../../components/Modals/SimpleModal';
+import { bondedInfoParametersValidationSchema } from '../../../../../components/Bonding/forms/mixnodeValidationSchema';
 
 export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
   const [open, setOpen] = useState(true);

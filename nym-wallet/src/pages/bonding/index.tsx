@@ -1,2 +1,2 @@
 export * from './Bonding';
-export * from './node-settings';
+export * from './node-settings/NodeSettings';

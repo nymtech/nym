@@ -4,4 +4,4 @@ enum Options {
 }
 type NavItem = keyof typeof Options;
 
-export const nodeSettingsNav: NavItem[] = ['General', 'Playground', 'Unbond'];
+export const nodeSettingsNav: NavItem[] = ['General', 'Unbond'];

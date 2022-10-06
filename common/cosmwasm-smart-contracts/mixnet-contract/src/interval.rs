@@ -75,8 +75,7 @@ pub struct Interval {
     #[serde(with = "string_rfc3339_offset_date_time")]
     current_epoch_start: OffsetDateTime,
     current_epoch_id: EpochId,
-    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
-    #[serde(with = "humantime_serde")]
+    #[cfg_attr(feature = "generate-ts", ts(type = "{ secs: number; nanos: number; }"))]
     epoch_length: Duration,
     total_elapsed_epochs: EpochId,
 }

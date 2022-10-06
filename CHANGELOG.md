@@ -10,6 +10,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - validator-client: added `query_contract_smart` and `query_contract_raw` on `NymdClient` ([#1558])
 - network-requester: added additional Blockstream Green wallet endpoint to `example.allowed.list` ([#1611](https://github.com/nymtech/nym/pull/1611))
 - common/ledger: new library for communicating with a Ledger device ([#1640])
+- native-client/socks5-client: `disable_loop_cover_traffic_stream` Debug config option to disable the separate loop cover traffic stream ([#1666])
 
 ### Fixed
 
@@ -28,6 +29,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1591]: https://github.com/nymtech/nym/pull/1591
 [#1640]: https://github.com/nymtech/nym/pull/1640
 [#1645]: https://github.com/nymtech/nym/pull/1645
+[#1666]: https://github.com/nymtech/nym/pull/1645
 
 
 ## [nym-binaries-1.0.2](https://github.com/nymtech/nym/tree/nym-binaries-1.0.2)

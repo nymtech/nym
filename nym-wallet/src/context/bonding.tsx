@@ -36,7 +36,6 @@ import { attachDefaultOperatingCost, toPercentFloatString, toPercentIntegerStrin
 
 // TODO add relevant data
 export type TBondedMixnode = {
-  type: 'mixnode';
   name?: string;
   identityKey: string;
   stake: DecCoin;
@@ -56,7 +55,6 @@ export type TBondedMixnode = {
 };
 
 export interface TBondedGateway {
-  type: 'gateway';
   name: string;
   identityKey: string;
   ip: string;
@@ -170,7 +168,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
   const refresh = useCallback(async () => {
     setIsLoading(true);
 
-    if (ownership.hasOwnership && ownership.nodeType === 'mixnode' && clientDetails) {
+    if (ownership.hasOwnership && clientDetails) {
       try {
         const data = await getMixnodeBondDetails();
         let operatorRewards;
@@ -187,7 +185,6 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             bond_information.mix_node.http_api_port,
           );
           setBondedNode({
-            type: ownership.nodeType,
             name: nodeDescription?.name,
             identityKey: bond_information.mix_node.identity_key,
             ip: bond_information.id,
@@ -216,14 +213,13 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
       }
     }
 
-    if (ownership.hasOwnership && ownership.nodeType === 'gateway') {
+    if (ownership.hasOwnership) {
       try {
         const data = await getGatewayBondDetails();
         if (data) {
           const nodeDescription = await getNodeDescription(data.gateway.host, data.gateway.clients_port);
 
           setBondedNode({
-            type: ownership.nodeType,
             name: nodeDescription?.name,
             identityKey: data.gateway.identity_key,
             ip: data.gateway.host,

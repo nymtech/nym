@@ -4,10 +4,11 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import { Button, Divider, Typography, TextField, Grid, Alert, IconButton, CircularProgress } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
-import { updateMixnodeConfig } from '../../../../../requests';
-import { TBondedMixnode, TBondedGateway } from '../../../../../context/bonding';
-import { SimpleModal } from '../../../../../components/Modals/SimpleModal';
-import { bondedInfoParametersValidationSchema } from '../../../../../components/Bonding/forms/mixnodeValidationSchema';
+import { isMixnode } from 'src/types';
+import { updateMixnodeConfig } from 'src/requests';
+import { TBondedMixnode, TBondedGateway } from 'src/context/bonding';
+import { SimpleModal } from 'src/components/Modals/SimpleModal';
+import { bondedInfoParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
 
 export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
   const [open, setOpen] = useState(true);
@@ -22,7 +23,7 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
   } = useForm({
     resolver: yupResolver(bondedInfoParametersValidationSchema),
     mode: 'onChange',
-    defaultValues: bondedNode.type === 'mixnode' ? bondedNode : {},
+    defaultValues: isMixnode(bondedNode) ? bondedNode : {},
   });
 
   const onSubmit = async (data: {

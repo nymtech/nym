@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
+import { isMixnode } from 'src/types';
 import { TBondedMixnode, urls } from 'src/context';
 import { NymCard } from 'src/components';
 import { Network } from 'src/types';
@@ -135,7 +136,7 @@ export const BondedMixnode = ({
         </Stack>
       }
       Action={
-        mixnode.type === 'mixnode' && (
+        isMixnode(mixnode) && (
           <Button
             variant="text"
             color="secondary"

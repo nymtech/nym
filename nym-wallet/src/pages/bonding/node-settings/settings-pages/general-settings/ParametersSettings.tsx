@@ -14,10 +14,11 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
-import { updateMixnodeCostParams } from '../../../../../requests';
-import { TBondedMixnode, TBondedGateway } from '../../../../../context/bonding';
-import { SimpleModal } from '../../../../../components/Modals/SimpleModal';
-import { bondedNodeParametersValidationSchema } from '../../../../../components/Bonding/forms/mixnodeValidationSchema';
+import { isMixnode } from 'src/types';
+import { updateMixnodeCostParams } from 'src/requests';
+import { TBondedMixnode, TBondedGateway } from 'src/context/bonding';
+import { SimpleModal } from 'src/components/Modals/SimpleModal';
+import { bondedNodeParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
 
 export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }): JSX.Element => {
   const [open, setOpen] = useState(true);
@@ -32,13 +33,12 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
   } = useForm({
     resolver: yupResolver(bondedNodeParametersValidationSchema),
     mode: 'onChange',
-    defaultValues:
-      bondedNode.type === 'mixnode'
-        ? {
-            operatorCost: bondedNode.bond.amount,
-            profitMargin: bondedNode.profitMargin,
-          }
-        : {},
+    defaultValues: isMixnode(bondedNode)
+      ? {
+          operatorCost: bondedNode.bond.amount,
+          profitMargin: bondedNode.profitMargin,
+        }
+      : {},
   });
 
   const onSubmit = async (data: { operatorCost?: string; profitMargin?: string }) => {
@@ -105,8 +105,8 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
               Profit margin can be changed once a month
             </Typography>
           </Grid>
-          <Grid spacing={3} container item alignItems="center" xs={12} md={6}>
-            {bondedNode.type === 'mixnode' && (
+          <Grid spacing={3} container item alignItems="center" sm={12} md={6}>
+            {isMixnode(bondedNode) && (
               <Grid item width={1}>
                 <TextField
                   {...register('profitMargin')}

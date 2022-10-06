@@ -8,6 +8,16 @@ This is the [cosmwasm](https://www.cosmwasm.com) smart contract which runs the N
 RUSTFLAGS='-C link-arg=-s' cargo wasm
 ```
 
+## Production build
+
+Install wasm-opt:
+
+```
+npm i wasm-opt -g
+```
+
+Run `make mixnet-opt` from the top level Nym directory
+
 ## CI Support
 
 We have template configurations for both [GitHub Actions](.github/workflows/Basic.yml)

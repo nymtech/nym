@@ -172,6 +172,12 @@ pub enum ExecuteMsg {
         mix_id: NodeId,
         owner: String,
     },
+
+    // testing-only
+    #[cfg(feature = "contract-testing")]
+    TestingResolveAllPendingEvents {
+        limit: Option<u32>,
+    },
 }
 
 impl ExecuteMsg {
@@ -256,6 +262,10 @@ impl ExecuteMsg {
                 "withdrawing delegator reward from mixnode {} on behalf",
                 mix_id
             ),
+            #[cfg(feature = "contract-testing")]
+            ExecuteMsg::TestingResolveAllPendingEvents { .. } => {
+                "resolving all pending events".into()
+            }
         }
     }
 }

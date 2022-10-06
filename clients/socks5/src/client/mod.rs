@@ -122,6 +122,9 @@ impl NymClient {
             self.config.get_base().get_average_ack_delay(),
             self.config.get_base().get_message_sending_average_delay(),
             self.config.get_base().get_average_packet_delay(),
+            self.config
+                .get_base()
+                .get_disabled_main_poisson_packet_distribution(),
             self.as_mix_recipient(),
         );
 

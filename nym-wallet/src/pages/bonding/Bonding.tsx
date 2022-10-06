@@ -1,4 +1,5 @@
 import React, { useContext, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { FeeDetails } from '@nymproject/types';
 import { TPoolOption } from 'src/components';
 import { Bond } from 'src/components/Bonding/Bond';
@@ -7,7 +8,6 @@ import { TBondedMixnodeActions } from 'src/components/Bonding/BondedMixnodeActio
 import { BondGatewayModal } from 'src/components/Bonding/modals/BondGatewayModal';
 import { BondMixnodeModal } from 'src/components/Bonding/modals/BondMixnodeModal';
 import { ConfirmationDetailProps, ConfirmationDetailsModal } from 'src/components/Bonding/modals/ConfirmationModal';
-import { UnbondModal } from 'src/components/Bonding/modals/UnbondModal';
 import { ErrorModal } from 'src/components/Modals/ErrorModal';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { AppContext, urls } from 'src/context/main';
@@ -27,17 +27,10 @@ const Bonding = () => {
     userBalance: { originalVesting },
   } = useContext(AppContext);
 
-  const {
-    bondedNode,
-    bondMixnode,
-    bondGateway,
-    unbond,
-    updateMixnode,
-    redeemRewards,
-    // compoundRewards,
-    isLoading,
-    checkOwnership,
-  } = useBondingContext();
+  const navigate = useNavigate();
+
+  const { bondedNode, bondMixnode, bondGateway, unbond, redeemRewards, isLoading, checkOwnership } =
+    useBondingContext();
 
   const handleCloseModal = async () => {
     setShowModal(undefined);
@@ -101,7 +94,7 @@ const Bonding = () => {
         break;
       }
       case 'unbond': {
-        setShowModal('unbond');
+        navigate('/bonding/node-settings?tab=unbond');
         break;
       }
       case 'redeem': {
@@ -148,15 +141,6 @@ const Bonding = () => {
           onBondGateway={handleBondGateway}
           onSelectNodeType={() => setShowModal('bond-mixnode')}
           onClose={() => setShowModal(undefined)}
-          onError={handleError}
-        />
-      )}
-
-      {showModal === 'unbond' && bondedNode && (
-        <UnbondModal
-          node={bondedNode}
-          onClose={() => setShowModal(undefined)}
-          onConfirm={handleUnbond}
           onError={handleError}
         />
       )}

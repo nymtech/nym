@@ -1,45 +1,47 @@
 import React, { useContext, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { FeeDetails } from '@nymproject/types';
 import { Box, Typography, Stack, Button, Divider } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { ConfirmationDetailProps, ConfirmationDetailsModal } from 'src/components/Bonding/modals/ConfirmationModal';
 import { Node as NodeIcon } from 'src/svg-icons/node';
-import { NymCard } from '../../../components';
-import { PageLayout } from '../../../layouts';
+import { LoadingModal } from 'src/components/Modals/LoadingModal';
+import { NymCard } from 'src/components';
+import { PageLayout } from 'src/layouts';
 import { Tabs } from 'src/components/Tabs';
-import { useBondingContext, BondingContextProvider } from '../../../context';
+import { useBondingContext, BondingContextProvider } from 'src/context';
 import { AppContext, urls } from 'src/context/main';
 
 import { NodeGeneralSettings } from './general-settings';
-import { UnbondModal } from '../../../components/Bonding/modals/UnbondModal';
+import { NodeUnbondPage } from './unbond';
 import { nodeSettingsNav } from './node-settings.constant';
 
+const useQuery = () => {
+  const { search } = useLocation();
+
+  return React.useMemo(() => new URLSearchParams(search), [search]);
+};
+
+const getTabs = () => {
+  const tabs = Object.values(nodeSettingsNav) as string[];
+  const length = tabs.length;
+  return tabs.splice(0, length / 2);
+};
+
 export const NodeSettings = () => {
-  const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
-  const [value, setValue] = React.useState(0);
-
   const theme = useTheme();
+  const { network } = useContext(AppContext);
+  const { bondedNode, unbond, isLoading } = useBondingContext();
+  const navigate = useNavigate();
+  const query = useQuery();
+  const queryTab = query.get('tab');
+  const tabs = getTabs();
 
+  const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
+  const [value, setValue] = React.useState(queryTab === 'unbond' ? 1 : 0);
   const handleChange = (event: React.SyntheticEvent, tab: number) => {
     setValue(tab);
-  };
-
-  const { network } = useContext(AppContext);
-
-  const { bondedNode, unbond } = useBondingContext();
-
-  const navigate = useNavigate();
-
-  const handleCloseUnboundModal = () => {
-    if (nodeSettingsNav.length === 1) {
-      navigate('/bonding');
-    } else if (nodeSettingsNav[0] === 'Unbond') {
-      setValue(1);
-    } else {
-      setValue(0);
-    }
   };
 
   const handleUnbond = async (fee?: FeeDetails) => {
@@ -81,7 +83,7 @@ export const NodeSettings = () => {
             </Box>
             <Box sx={{ width: '100%' }}>
               <Tabs
-                tabs={nodeSettingsNav}
+                tabs={tabs}
                 selectedTab={value}
                 onChange={handleChange}
                 tabSx={{
@@ -118,12 +120,7 @@ export const NodeSettings = () => {
         <Divider />
         {nodeSettingsNav[value] === 'General' && bondedNode && <NodeGeneralSettings bondedNode={bondedNode} />}
         {nodeSettingsNav[value] === 'Unbond' && bondedNode && (
-          <UnbondModal
-            node={bondedNode}
-            onClose={handleCloseUnboundModal}
-            onConfirm={handleUnbond}
-            onError={handleError}
-          />
+          <NodeUnbondPage bondedNode={bondedNode} onConfirm={handleUnbond} onError={handleError} />
         )}
         {confirmationDetails && confirmationDetails.status === 'success' && (
           <ConfirmationDetailsModal
@@ -137,6 +134,7 @@ export const NodeSettings = () => {
             }}
           />
         )}
+        {isLoading && <LoadingModal />}
       </NymCard>
     </PageLayout>
   );

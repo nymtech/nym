@@ -1,7 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FeeDetails } from '@nymproject/types';
-import { Box, Typography, Stack, Button, Divider } from '@mui/material';
+import { Box, Typography, Stack, IconButton, Divider } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import { useTheme } from '@mui/material/styles';
 import { ConfirmationDetailProps, ConfirmationDetailsModal } from 'src/components/Bonding/modals/ConfirmationModal';
@@ -39,7 +39,9 @@ export const NodeSettings = () => {
   const tabs = getTabs();
 
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
-  const [value, setValue] = React.useState(queryTab === 'unbond' ? 1 : 0);
+  const [value, setValue] = React.useState(
+    queryTab === 'unbond' ? nodeSettingsNav['Unbond'] : nodeSettingsNav['General'],
+  );
   const handleChange = (event: React.SyntheticEvent, tab: number) => {
     setValue(tab);
   };
@@ -107,14 +109,15 @@ export const NodeSettings = () => {
           </Stack>
         }
         Action={
-          <Button
+          <IconButton
             size="small"
             sx={{
               color: 'text.primary',
             }}
             onClick={() => navigate('/bonding')}
-            startIcon={<Close />}
-          ></Button>
+          >
+            <Close />
+          </IconButton>
         }
       >
         <Divider />

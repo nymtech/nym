@@ -3133,6 +3133,7 @@ dependencies = [
  "bs58",
  "contracts-common",
  "cosmwasm-std",
+ "humantime-serde",
  "log",
  "schemars",
  "serde",

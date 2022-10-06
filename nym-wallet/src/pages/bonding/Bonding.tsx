@@ -94,7 +94,7 @@ const Bonding = () => {
         break;
       }
       case 'unbond': {
-        navigate('/bonding/node-settings?tab=unbond');
+        navigate('/bonding/node-settings', { state: 'unbond' });
         break;
       }
       case 'redeem': {

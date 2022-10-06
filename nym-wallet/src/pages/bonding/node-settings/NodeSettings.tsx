@@ -1,4 +1,4 @@
-import React, { useContext, useState } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { FeeDetails } from '@nymproject/types';
 import { Box, Typography, Stack, IconButton, Divider } from '@mui/material';
@@ -17,26 +17,25 @@ import { NodeGeneralSettings } from './settings-pages/general-settings';
 import { NodeUnbondPage } from './settings-pages/NodeUnbondPage';
 import { nodeSettingsNav } from './node-settings.constant';
 
-const useQuery = () => {
-  const { search } = useLocation();
-
-  return React.useMemo(() => new URLSearchParams(search), [search]);
-};
-
 export const NodeSettings = () => {
   const theme = useTheme();
   const { network } = useContext(AppContext);
   const { bondedNode, unbond, isLoading } = useBondingContext();
   const navigate = useNavigate();
-  const query = useQuery();
-  const queryTab = query.get('tab');
-  // const tabs = getTabs();
+  const location = useLocation();
 
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
-  const [value, setValue] = React.useState(queryTab === 'unbond' ? nodeSettingsNav.indexOf('Unbond') : 0);
+  const [value, setValue] = React.useState(0);
   const handleChange = (event: React.SyntheticEvent, tab: number) => {
     setValue(tab);
   };
+
+  useEffect(() => {
+    if (location.state === 'unbond') {
+      const unbondIndex = nodeSettingsNav.indexOf('Unbond');
+      setValue(unbondIndex);
+    }
+  }, [location]);
 
   const handleUnbond = async (fee?: FeeDetails) => {
     const tx = await unbond(fee);
@@ -54,6 +53,7 @@ export const NodeSettings = () => {
       subtitle: error,
     });
   };
+
   return (
     <PageLayout>
       <NymCard

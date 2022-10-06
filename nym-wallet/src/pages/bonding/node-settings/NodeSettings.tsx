@@ -23,12 +23,6 @@ const useQuery = () => {
   return React.useMemo(() => new URLSearchParams(search), [search]);
 };
 
-const getTabs = () => {
-  const tabs = Object.values(nodeSettingsNav) as string[];
-  const length = tabs.length;
-  return tabs.splice(0, length / 2);
-};
-
 export const NodeSettings = () => {
   const theme = useTheme();
   const { network } = useContext(AppContext);
@@ -36,12 +30,10 @@ export const NodeSettings = () => {
   const navigate = useNavigate();
   const query = useQuery();
   const queryTab = query.get('tab');
-  const tabs = getTabs();
+  // const tabs = getTabs();
 
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
-  const [value, setValue] = React.useState(
-    queryTab === 'unbond' ? nodeSettingsNav['Unbond'] : nodeSettingsNav['General'],
-  );
+  const [value, setValue] = React.useState(queryTab === 'unbond' ? nodeSettingsNav.indexOf('Unbond') : 0);
   const handleChange = (event: React.SyntheticEvent, tab: number) => {
     setValue(tab);
   };
@@ -85,7 +77,7 @@ export const NodeSettings = () => {
             </Box>
             <Box sx={{ width: '100%' }}>
               <Tabs
-                tabs={tabs}
+                tabs={nodeSettingsNav}
                 selectedTab={value}
                 onChange={handleChange}
                 tabSx={{

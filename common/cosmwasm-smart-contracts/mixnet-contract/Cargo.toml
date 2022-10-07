@@ -29,4 +29,5 @@ time = { version = "0.3.5", features = ["serde", "macros"] }
 
 [features]
 default = []
+contract-testing = []
 generate-ts = ['ts-rs']

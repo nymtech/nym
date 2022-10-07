@@ -15,8 +15,6 @@ pub struct Config {
 
     pub(crate) disabled_credentials_mode: bool,
 
-    pub(crate) enable_cover_traffic_stream: bool,
-
     /// Information regarding how the client should send data to gateway.
     pub(crate) gateway_endpoint: GatewayEndpoint,
 
@@ -38,9 +36,6 @@ impl Config {
                 .parse()
                 .expect("provided url was malformed"),
             disabled_credentials_mode: true,
-            // don't enable it by default because it seems the browser cannot handle so many promises at once
-            // (I guess we need some worker threads first)
-            enable_cover_traffic_stream: false,
             gateway_endpoint,
             debug: debug.map(Into::into).unwrap_or_default(),
         }
@@ -94,6 +89,14 @@ pub struct Debug {
     /// path. This timeout determines waiting period until it is decided that the packet
     /// did not reach its destination.
     pub topology_resolution_timeout_ms: u64,
+
+    /// Controls whether the dedicated loop cover traffic stream should be enabled.
+    /// (and sending packets, on average, every [Self::loop_cover_traffic_average_delay_ms])
+    pub disable_loop_cover_traffic_stream: bool,
+
+    /// Controls whether the main packet stream constantly produces packets according to the predefined
+    /// poisson distribution.
+    pub disable_main_poisson_packet_distribution: bool,
 }
 
 impl From<Debug> for ConfigDebug {
@@ -114,6 +117,9 @@ impl From<Debug> for ConfigDebug {
             topology_resolution_timeout: Duration::from_millis(
                 debug.topology_resolution_timeout_ms,
             ),
+            disable_loop_cover_traffic_stream: debug.disable_loop_cover_traffic_stream,
+            disable_main_poisson_packet_distribution: debug
+                .disable_main_poisson_packet_distribution,
         }
     }
 }
@@ -132,6 +138,9 @@ impl From<ConfigDebug> for Debug {
             gateway_response_timeout_ms: debug.gateway_response_timeout.as_millis() as u64,
             topology_refresh_rate_ms: debug.topology_refresh_rate.as_millis() as u64,
             topology_resolution_timeout_ms: debug.topology_resolution_timeout.as_millis() as u64,
+            disable_loop_cover_traffic_stream: debug.disable_loop_cover_traffic_stream,
+            disable_main_poisson_packet_distribution: debug
+                .disable_main_poisson_packet_distribution,
         }
     }
 }

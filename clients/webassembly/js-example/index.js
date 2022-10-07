@@ -61,10 +61,12 @@ async function main() {
     // only really useful if you want to adjust some settings like traffic rate
     // (if not needed you can just pass a null)
     const debug = default_debug();
-    // note: we still have poisson distribution so, on average, we will be sending SOME packet every 20ms
-    debug.message_sending_average_delay_ms = BigInt(20);
+    debug.disable_main_poisson_packet_distribution = true;
+    debug.disable_loop_cover_traffic_stream = true;
     debug.average_packet_delay_ms = BigInt(10);
     debug.average_ack_delay_ms = BigInt(10);
+    debug.ack_wait_addition_ms = BigInt(3000);
+    debug.ack_wait_multiplier = 10;
 
     // this is currently disabled, i.e. we'll keep using the topology we get at startup
     // debug.topology_refresh_rate_ms = BigInt(60000)

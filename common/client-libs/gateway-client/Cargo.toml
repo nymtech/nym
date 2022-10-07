@@ -17,6 +17,7 @@ rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 secp256k1 = { version = "0.20.3", optional = true }
 web3 = { version = "0.17.0", default-features = false, optional = true }
 async-trait = { version = "0.1.51" }
+tokio = { version = "1.21.2", features = ["macros"] }
 
 # internal
 coconut-interface = { path = "../../coconut-interface", optional = true }
@@ -28,13 +29,14 @@ nymsphinx = { path = "../../nymsphinx" }
 pemstore = { path = "../../pemstore" }
 validator-client = { path = "../validator-client", optional = true }
 
+
 [dependencies.tungstenite]
 version = "0.13"
 default-features = false
 
 # non-wasm-only dependencies
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
-version = "1.19.1"
+version = "1.21.2"
 features = ["macros", "rt", "net", "sync", "time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]

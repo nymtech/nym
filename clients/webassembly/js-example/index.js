@@ -12,92 +12,67 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {default_debug, get_gateway, NymClient, set_panic_hook, Config} from "@nymproject/nym-client-wasm"
+class WebWorkerClient {
+  worker = null;
 
-class ClientWrapper {
-    constructor(config) {
-        this.rustClient = new NymClient(config);
-        this.rustClient.set_on_message(this.on_message);
-        this.rustClient.set_on_gateway_connect(this.on_connect);
+  constructor() {
+    this.worker = new Worker('./worker.js');
+
+    this.worker.onmessage = (ev) => {
+      if (ev.data && ev.data.kind) {
+        switch (ev.data.kind) {
+          case 'Ready':
+            const { selfAddress } = ev.data.args;
+            displaySenderAddress(selfAddress);
+            break;
+          case 'ReceiveMessage':
+            const { message } = ev.data.args;
+            displayReceived(message);
+            break;
+        }
+      }
+    };
+  }
+
+  sendMessage = (message, recipient) => {
+    if (!this.worker) {
+      console.error('Could not send message because worker does not exist');
+      return;
     }
 
-    selfAddress = () => {
-        return this.rustClient.self_address()
-    }
-
-    on_message = (msg) => displayReceived(msg);
-    on_connect = () => {
-        console.log("Established (and authenticated) gateway connection!");
-    }
-
-    start = async () => {
-        // this is current limitation of wasm in rust - for async methods you can't take self by reference...
-        // I'm trying to figure out if I can somehow hack my way around it, but for time being you have to re-assign
-        // the object (it's the same one)
-        this.rustClient = await this.rustClient.start()
-    }
-
-    sendMessage = async (recipient, message) => {
-        this.rustClient = await this.rustClient.send_message(recipient, message)
-    }
-
-    sendBinaryMessage = async (recipient, message) => {
-        this.rustClient = await this.rustClient.send_binary_message(recipient, message)
-    }
+    this.worker.postMessage({
+      kind: 'SendMessage',
+      args: {
+        message, recipient,
+      },
+    });
+  };
 }
 
-let client = null
+let client = null;
 
 async function main() {
-    // sets up better stack traces in case of in-rust panics
-    set_panic_hook();
+  client = new WebWorkerClient();
 
-    // validator server we will use to get topology from
-    const validator = "https://validator.nymtech.net/api"; //"http://localhost:8081";
-    const preferredGateway = "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM";
-
-    const gatewayEndpoint = await get_gateway(validator, preferredGateway);
-
-    // only really useful if you want to adjust some settings like traffic rate
-    // (if not needed you can just pass a null)
-    const debug = default_debug();
-    debug.disable_main_poisson_packet_distribution = true;
-    debug.disable_loop_cover_traffic_stream = true;
-    debug.average_packet_delay_ms = BigInt(10);
-    debug.average_ack_delay_ms = BigInt(10);
-    debug.ack_wait_addition_ms = BigInt(3000);
-    debug.ack_wait_multiplier = 10;
-
-    // this is currently disabled, i.e. we'll keep using the topology we get at startup
-    // debug.topology_refresh_rate_ms = BigInt(60000)
-
-    const config = new Config("my-awesome-wasm-client", validator, gatewayEndpoint, debug)
-
-    client = new ClientWrapper(config);
-    await client.start();
-
-    const self_address = client.rustClient.self_address();
-    displaySenderAddress(self_address);
-
-    const sendButton = document.querySelector('#send-button');
-    sendButton.onclick = function () {
-        sendMessageTo();
-    }
+  const sendButton = document.querySelector('#send-button');
+  sendButton.onclick = function() {
+    sendMessageTo();
+  };
 }
 
 /**
  * Create a Sphinx packet and send it to the mixnet through the gateway node.
- * 
+ *
  * Message and recipient are taken from the values in the user interface.
  *
  * @param {Client} nymClient the nym client to use for message sending
  */
 async function sendMessageTo() {
-    const message = document.getElementById("message").value;
-    const recipient = document.getElementById("recipient").value;
+  const message = document.getElementById('message').value;
+  const recipient = document.getElementById('recipient').value;
 
-    await client.sendMessage(message, recipient);
-    displaySend(message);
+  await client.sendMessage(message, recipient);
+  displaySend(message);
 }
 
 /**
@@ -106,16 +81,16 @@ async function sendMessageTo() {
  * @param {string} message
  */
 function displaySend(message) {
-    let timestamp = new Date().toISOString().substr(11, 12);
+  let timestamp = new Date().toISOString().substr(11, 12);
 
-    let sendDiv = document.createElement("div")
-    let paragraph = document.createElement("p")
-    paragraph.setAttribute('style', 'color: blue')
-    let paragraphContent = document.createTextNode(timestamp + " sent >>> " + message)
-    paragraph.appendChild(paragraphContent)
+  let sendDiv = document.createElement('div');
+  let paragraph = document.createElement('p');
+  paragraph.setAttribute('style', 'color: blue');
+  let paragraphContent = document.createTextNode(timestamp + ' sent >>> ' + message);
+  paragraph.appendChild(paragraphContent);
 
-    sendDiv.appendChild(paragraph)
-    document.getElementById("output").appendChild(sendDiv)
+  sendDiv.appendChild(paragraph);
+  document.getElementById('output').appendChild(sendDiv);
 }
 
 /**
@@ -124,17 +99,17 @@ function displaySend(message) {
  * @param {string} message
  */
 function displayReceived(message) {
-    const content = message;
+  const content = message;
 
-    let timestamp = new Date().toISOString().substr(11, 12);
-    let receivedDiv = document.createElement("div")
-    let paragraph = document.createElement("p")
-    paragraph.setAttribute('style', 'color: green')
-    let paragraphContent = document.createTextNode(timestamp + " received >>> " + content);
-    // let paragraphContent = document.createTextNode(timestamp + " received >>> " + content + ((replySurb != null) ? "Reply SURB was attached here (but we can't do anything with it yet" : " (NO REPLY-SURB AVAILABLE)"))
-    paragraph.appendChild(paragraphContent)
-    receivedDiv.appendChild(paragraph)
-    document.getElementById("output").appendChild(receivedDiv)
+  let timestamp = new Date().toISOString().substr(11, 12);
+  let receivedDiv = document.createElement('div');
+  let paragraph = document.createElement('p');
+  paragraph.setAttribute('style', 'color: green');
+  let paragraphContent = document.createTextNode(timestamp + ' received >>> ' + content);
+  // let paragraphContent = document.createTextNode(timestamp + " received >>> " + content + ((replySurb != null) ? "Reply SURB was attached here (but we can't do anything with it yet" : " (NO REPLY-SURB AVAILABLE)"))
+  paragraph.appendChild(paragraphContent);
+  receivedDiv.appendChild(paragraph);
+  document.getElementById('output').appendChild(receivedDiv);
 }
 
 
@@ -144,7 +119,7 @@ function displayReceived(message) {
  * @param {Client} nymClient
  */
 function displaySenderAddress(address) {
-    document.getElementById("sender").value = address;
+  document.getElementById('sender').value = address;
 }
 
 // Let's get started!

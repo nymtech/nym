@@ -36,7 +36,7 @@ use tungstenite::protocol::Message;
 use tokio_tungstenite::connect_async;
 
 #[cfg(target_arch = "wasm32")]
-use fluvio_wasm_timer as wasm_timer;
+use wasm_timer;
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
 

@@ -1756,21 +1756,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fluvio-wasm-timer"
-version = "0.2.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b768c170dc045fa587a8f948c91f9bcfb87f774930477c6215addf54317f137f"
-dependencies = [
- "futures",
- "js-sys",
- "parking_lot 0.11.2",
- "pin-utils",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
-]
-
-[[package]]
 name = "fnv"
 version = "1.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1946,7 +1931,6 @@ dependencies = [
  "credential-storage",
  "credentials",
  "crypto",
- "fluvio-wasm-timer",
  "futures",
  "gateway-requests",
  "getrandom 0.2.7",
@@ -1965,6 +1949,7 @@ dependencies = [
  "validator-client",
  "wasm-bindgen",
  "wasm-bindgen-futures",
+ "wasm-timer",
  "wasm-utils",
 ]
 
@@ -6565,7 +6550,7 @@ checksum = "1c38c045535d93ec4f0b4defec448e4291638ee608530863b1e2ba115d4fff7f"
 [[package]]
 name = "wasm-timer"
 version = "0.2.5"
-source = "git+https://github.com/jstuczyn/wasm-timer?rev=2859241251dd00c54a9c99b74727b99bd7feffb4#2859241251dd00c54a9c99b74727b99bd7feffb4"
+source = "git+https://github.com/mmsinclair/wasm-timer?rev=b9d1a54ad514c2f230a026afe0dde341e98cd7b6#b9d1a54ad514c2f230a026afe0dde341e98cd7b6"
 dependencies = [
  "futures",
  "js-sys",

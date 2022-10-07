@@ -391,11 +391,18 @@ impl NymClient {
             shutdown.subscribe(),
         );
 
-        self.start_cover_traffic_stream(
-            shared_topology_accessor,
-            sphinx_message_sender,
-            shutdown.subscribe(),
-        );
+        if !self
+            .config
+            .get_base()
+            .get_disabled_loop_cover_traffic_stream()
+        {
+            self.start_cover_traffic_stream(
+                shared_topology_accessor,
+                sphinx_message_sender,
+                shutdown.subscribe(),
+            );
+        }
+
         self.start_socks5_listener(
             received_buffer_request_sender,
             input_sender,

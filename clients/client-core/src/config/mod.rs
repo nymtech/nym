@@ -236,6 +236,10 @@ impl<T: NymConfig> Config<T> {
         self.debug.topology_resolution_timeout
     }
 
+    pub fn get_disabled_loop_cover_traffic_stream(&self) -> bool {
+        self.debug.disable_loop_cover_traffic_stream
+    }
+
     pub fn get_version(&self) -> &str {
         &self.client.version
     }
@@ -445,6 +449,10 @@ pub struct Debug {
     /// did not reach its destination.
     #[serde(with = "humantime_serde")]
     topology_resolution_timeout: Duration,
+
+    /// Controls whether the dedicated loop cover traffic stream should be enabled.
+    /// (and sending packets, on average, every [Self::loop_cover_traffic_average_delay])
+    disable_loop_cover_traffic_stream: bool,
 }
 
 impl Default for Debug {
@@ -459,6 +467,7 @@ impl Default for Debug {
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             topology_refresh_rate: DEFAULT_TOPOLOGY_REFRESH_RATE,
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
+            disable_loop_cover_traffic_stream: false,
         }
     }
 }

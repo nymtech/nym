@@ -1021,7 +1021,7 @@ impl<T> DelayQueue<T> {
     /// should be returned.
     ///
     /// A slot should be returned when the associated deadline has been reached.
-    fn poll_idx(&mut self, _cx: &mut task::Context<'_>) -> Poll<Option<Key>> {
+    fn poll_idx(&mut self, cx: &mut task::Context<'_>) -> Poll<Option<Key>> {
         use self::wheel::Stack;
 
         let expired = self.expired.pop(&mut self.slab);
@@ -1032,11 +1032,7 @@ impl<T> DelayQueue<T> {
 
         loop {
             if let Some(ref mut delay) = self.delay {
-                // TODO: I really dislike having done that; it's because the wasm_timer
-                // doesn't have an `is_elapsed` equivalent
-                // if !delay.is_elapsed() {
-                //     ready!(Pin::new(&mut *delay).poll(cx));
-                // }
+                ready!(Pin::new(&mut *delay).poll(cx)).ok();
 
                 let now = crate::wasm_delay_queue::ms(
                     delay.deadline() - self.start,

@@ -125,7 +125,6 @@ impl NymClient {
             self.config.debug.average_ack_delay,
             self.config.debug.message_sending_average_delay,
             self.config.debug.average_packet_delay,
-            self.config.debug.disable_main_poisson_packet_distribution,
             self.as_mix_recipient(),
         );
 

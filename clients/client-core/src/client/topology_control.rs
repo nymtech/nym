@@ -324,18 +324,15 @@ impl TopologyRefresher {
     }
 
     #[cfg(target_arch = "wasm32")]
-    pub fn start(self) {
-        _ = self.refresh_rate;
-        spawn_future(async move {
-            debug!("we can't refresh the topology : (");
+    pub fn start(mut self) {
+        use futures::StreamExt;
 
-            // loop {
-            //     debug!("Started TopologyRefresher without graceful shutdown support");
-            //
-            //     // wasm_timer::Delay::new(self.refresh_rate).await;
-            //     gloo_timers::future::TimeoutFuture::new(self.refresh_rate.as_millis() as u32).await;
-            //     self.refresh().await;
-            // }
+        spawn_future(async move {
+            let mut interval =
+                gloo_timers::future::IntervalStream::new(self.refresh_rate.as_millis() as u32);
+            while let Some(_) = interval.next().await {
+                self.refresh().await;
+            }
         })
     }
 }

@@ -93,10 +93,6 @@ pub struct Debug {
     /// Controls whether the dedicated loop cover traffic stream should be enabled.
     /// (and sending packets, on average, every [Self::loop_cover_traffic_average_delay_ms])
     pub disable_loop_cover_traffic_stream: bool,
-
-    /// Controls whether the main packet stream constantly produces packets according to the predefined
-    /// poisson distribution.
-    pub disable_main_poisson_packet_distribution: bool,
 }
 
 impl From<Debug> for ConfigDebug {
@@ -118,8 +114,6 @@ impl From<Debug> for ConfigDebug {
                 debug.topology_resolution_timeout_ms,
             ),
             disable_loop_cover_traffic_stream: debug.disable_loop_cover_traffic_stream,
-            disable_main_poisson_packet_distribution: debug
-                .disable_main_poisson_packet_distribution,
         }
     }
 }
@@ -139,8 +133,6 @@ impl From<ConfigDebug> for Debug {
             topology_refresh_rate_ms: debug.topology_refresh_rate.as_millis() as u64,
             topology_resolution_timeout_ms: debug.topology_resolution_timeout.as_millis() as u64,
             disable_loop_cover_traffic_stream: debug.disable_loop_cover_traffic_stream,
-            disable_main_poisson_packet_distribution: debug
-                .disable_main_poisson_packet_distribution,
         }
     }
 }

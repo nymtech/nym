@@ -73,6 +73,11 @@ impl ReceivedMessagesBufferInner {
         if self.recently_reconstructed.contains(&fragment.id()) {
             debug!("Received a chunk of already re-assembled message ({:?})! It probably got here because the ack got lost", fragment.id());
             return None;
+        } else {
+            debug!(
+                "Received a chunk of message ({:?}) for the first time",
+                fragment.id()
+            );
         }
 
         // if we returned an error the underlying message is malformed in some way
@@ -204,7 +209,7 @@ impl ReceivedMessagesBuffer {
     }
 
     async fn handle_new_received(&mut self, msgs: Vec<Vec<u8>>) {
-        debug!(
+        trace!(
             "Processing {:?} new message that might get added to the buffer!",
             msgs.len()
         );

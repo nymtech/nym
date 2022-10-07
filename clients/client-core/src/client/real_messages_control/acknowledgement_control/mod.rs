@@ -178,6 +178,9 @@ where
             config.average_ack_delay,
         );
 
+        let message_preparer =
+            message_preparer.with_packet_size(nymsphinx::params::PacketSize::ExtendedPacket);
+
         // will listen for any acks coming from the network
         let acknowledgement_listener = AcknowledgementListener::new(
             Arc::clone(&ack_key),

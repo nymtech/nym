@@ -14,8 +14,10 @@ pub const MISSING_VALUE: &str = "MISSING VALUE";
 
 // 'DEBUG'
 const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 1.5;
+//const DEFAULT_ACK_WAIT_MULTIPLIER: f64 = 10.0;
 
-const DEFAULT_ACK_WAIT_ADDITION: Duration = Duration::from_millis(1_500);
+//const DEFAULT_ACK_WAIT_ADDITION: Duration = Duration::from_millis(1_500);
+const DEFAULT_ACK_WAIT_ADDITION: Duration = Duration::from_millis(10_000);
 const DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY: Duration = Duration::from_millis(20);
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(50);

@@ -128,7 +128,7 @@ impl ActionController {
     fn handle_insert(&mut self, pending_acks: Vec<PendingAcknowledgement>) {
         for pending_ack in pending_acks {
             let frag_id = pending_ack.message_chunk.fragment_identifier();
-            trace!("{} is inserted", frag_id);
+            debug!("{} is inserted", frag_id);
 
             if self
                 .pending_acks_data
@@ -141,7 +141,7 @@ impl ActionController {
     }
 
     fn handle_start_timer(&mut self, frag_id: FragmentIdentifier) {
-        trace!("{} is starting its timer", frag_id);
+        debug!("{} is starting its timer", frag_id);
 
         if let Some((pending_ack_data, queue_key)) = self.pending_acks_data.get_mut(&frag_id) {
             if queue_key.is_some() {
@@ -164,7 +164,7 @@ impl ActionController {
     }
 
     fn handle_remove(&mut self, frag_id: FragmentIdentifier) {
-        trace!("{} is getting removed", frag_id);
+        debug!("{} is getting removed", frag_id);
 
         match self.pending_acks_data.remove(&frag_id) {
             None => {
@@ -195,7 +195,7 @@ impl ActionController {
     // initiated basically as a first step of retransmission. At first data has its delay updated
     // (as new sphinx packet was created with new expected delivery time)
     fn handle_update_delay(&mut self, frag_id: FragmentIdentifier, delay: SphinxDelay) {
-        trace!("{} is updating its delay", frag_id);
+        debug!("{} is updating its delay", frag_id);
         // TODO: is it possible to solve this without either locking or temporarily removing the value?
         if let Some((pending_ack_data, queue_key)) = self.pending_acks_data.remove(&frag_id) {
             // this Action is triggered by `RetransmissionRequestListener` which held the other potential
@@ -221,7 +221,7 @@ impl ActionController {
         // about it. Perhaps just reschedule it at later point?
         let frag_id = expired_ack.into_inner();
 
-        trace!("{} has expired", frag_id);
+        debug!("{} has expired", frag_id);
 
         if let Some((pending_ack_data, queue_key)) = self.pending_acks_data.get_mut(&frag_id) {
             if queue_key.is_none() {

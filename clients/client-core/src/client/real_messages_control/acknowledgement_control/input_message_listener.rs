@@ -104,6 +104,7 @@ where
         content: Vec<u8>,
         with_reply_surb: bool,
     ) -> Option<Vec<RealMessage>> {
+        log::debug!("handle_fresh_message");
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = match topology_permit
             .try_get_valid_topology_ref(&self.ack_recipient, Some(&recipient))
@@ -160,6 +161,7 @@ where
     }
 
     async fn on_input_message(&mut self, msg: InputMessage) {
+        log::debug!("on_input_message");
         let real_messages = match msg {
             InputMessage::Fresh {
                 recipient,

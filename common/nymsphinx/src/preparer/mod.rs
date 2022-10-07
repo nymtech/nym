@@ -271,6 +271,8 @@ where
 
         // including set of delays
         let delays = delays::generate_from_average_duration(route.len(), self.average_packet_delay);
+        //let delays = vec![Delay::new_from_nanos(0); route.len()];
+        //assert!(delays_pre.len() == delays.len());
 
         // create the actual sphinx packet here. With valid route and correct payload size,
         // there's absolutely no reason for this call to fail.

@@ -82,6 +82,66 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, MixnetContractError> {
     match msg {
+        // families
+        ExecuteMsg::CreateFamily {
+            owner_signature,
+            label,
+        } => crate::families::transactions::try_create_family(deps, info, owner_signature, &label),
+        ExecuteMsg::JoinFamily {
+            signature,
+            family_head,
+        } => crate::families::transactions::try_join_family(deps, info, signature, family_head),
+        ExecuteMsg::LeaveFamily {
+            signature,
+            family_head,
+        } => crate::families::transactions::try_leave_family(deps, info, signature, family_head),
+        ExecuteMsg::KickFamilyMember { signature, member } => {
+            crate::families::transactions::try_head_kick_member(deps, info, signature, &member)
+        }
+        ExecuteMsg::CreateFamilyOnBehalf {
+            owner_address,
+            owner_signature,
+            label,
+        } => crate::families::transactions::try_create_family_on_behalf(
+            deps,
+            info,
+            owner_address,
+            owner_signature,
+            &label,
+        ),
+        ExecuteMsg::JoinFamilyOnBehalf {
+            member_address,
+            signature,
+            family_head,
+        } => crate::families::transactions::try_join_family_on_behalf(
+            deps,
+            info,
+            member_address,
+            signature,
+            family_head,
+        ),
+        ExecuteMsg::LeaveFamilyOnBehalf {
+            member_address,
+            signature,
+            family_head,
+        } => crate::families::transactions::try_leave_family_on_behalf(
+            deps,
+            info,
+            member_address,
+            signature,
+            family_head,
+        ),
+        ExecuteMsg::KickFamilyMemberOnBehalf {
+            head_address,
+            signature,
+            member,
+        } => crate::families::transactions::try_head_kick_member_on_behalf(
+            deps,
+            info,
+            head_address,
+            signature,
+            &member,
+        ),
         // state/sys-params-related
         ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
             crate::mixnet_contract_settings::transactions::try_update_rewarding_validator_address(

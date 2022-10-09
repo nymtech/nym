@@ -73,6 +73,47 @@ impl InitialRewardingParams {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
+    // Families
+    /// Only owner of the node can crate the family with node as head
+    CreateFamily {
+        owner_signature: String,
+        label: String,
+    },
+    /// Family head needs to sign the joining node IdentityKey
+    JoinFamily {
+        signature: String,
+        family_head: IdentityKey,
+    },
+    LeaveFamily {
+        signature: String,
+        family_head: IdentityKey,
+    },
+    KickFamilyMember {
+        signature: String,
+        member: IdentityKey,
+    },
+    CreateFamilyOnBehalf {
+        owner_address: String,
+        owner_signature: String,
+        label: String,
+    },
+    /// Family head needs to sign the joining node IdentityKey
+    JoinFamilyOnBehalf {
+        member_address: String,
+        signature: String,
+        family_head: IdentityKey,
+    },
+    LeaveFamilyOnBehalf {
+        member_address: String,
+        signature: String,
+        family_head: IdentityKey,
+    },
+    KickFamilyMemberOnBehalf {
+        head_address: String,
+        signature: String,
+        member: IdentityKey,
+    },
+
     // state/sys-params-related
     UpdateRewardingValidatorAddress {
         address: String,
@@ -194,6 +235,26 @@ pub enum ExecuteMsg {
 impl ExecuteMsg {
     pub fn default_memo(&self) -> String {
         match self {
+            ExecuteMsg::CreateFamily { .. } => "crating node family with".to_string(),
+            ExecuteMsg::JoinFamily { family_head, .. } => {
+                format!("joining family {}", family_head)
+            }
+            ExecuteMsg::LeaveFamily { family_head, .. } => {
+                format!("leaving family {}", family_head)
+            }
+            ExecuteMsg::KickFamilyMember { member, .. } => {
+                format!("kicking {} from family", member)
+            }
+            ExecuteMsg::CreateFamilyOnBehalf { .. } => "crating node family with".to_string(),
+            ExecuteMsg::JoinFamilyOnBehalf { family_head, .. } => {
+                format!("joining family {}", family_head)
+            }
+            ExecuteMsg::LeaveFamilyOnBehalf { family_head, .. } => {
+                format!("leaving family {}", family_head)
+            }
+            ExecuteMsg::KickFamilyMemberOnBehalf { member, .. } => {
+                format!("kicking {} from family", member)
+            }
             ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
                 format!("updating rewarding validator to {}", address)
             }

@@ -96,7 +96,7 @@ fn _try_add_mixnode(
     validate_node_identity_signature(
         deps.as_ref(),
         &owner,
-        owner_signature,
+        &owner_signature,
         &mixnode.identity_key,
     )?;
 
@@ -359,7 +359,7 @@ pub mod tests {
 
         // if we don't send enough funds
         let info = mock_info(sender, &[insufficient_pledge.clone()]);
-        let (mixnode, sig) = test_helpers::mixnode_with_signature(&mut rng, sender);
+        let (mixnode, sig, _) = test_helpers::mixnode_with_signature(&mut rng, sender);
         let cost_params = fixtures::mix_node_cost_params_fixture();
 
         // we are informed that we didn't send enough funds
@@ -427,7 +427,7 @@ pub mod tests {
         );
 
         let info = mock_info(sender2, &tests::fixtures::good_mixnode_pledge());
-        let (mixnode, sig) = test_helpers::mixnode_with_signature(&mut rng, sender2);
+        let (mixnode, sig, _) = test_helpers::mixnode_with_signature(&mut rng, sender2);
 
         let result = try_add_mixnode(
             deps.as_mut(),

@@ -7,6 +7,7 @@
 mod constants;
 pub mod contract;
 mod delegations;
+mod families;
 mod gateways;
 mod interval;
 mod mixnet_contract_settings;

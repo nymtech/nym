@@ -20,8 +20,12 @@ use std::collections::VecDeque;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
-use task::ShutdownListener;
+
+#[cfg(not(target_arch = "wasm32"))]
 use tokio::time;
+
+#[cfg(target_arch = "wasm32")]
+use wasm_timer;
 
 /// Configurable parameters of the `OutQueueControl`
 pub(crate) struct Config {
@@ -79,7 +83,11 @@ where
 
     /// Internal state, determined by `average_message_sending_delay`,
     /// used to keep track of when a next packet should be sent out.
+    #[cfg(not(target_arch = "wasm32"))]
     next_delay: Option<Pin<Box<time::Sleep>>>,
+
+    #[cfg(target_arch = "wasm32")]
+    next_delay: Option<Pin<Box<wasm_timer::Delay>>>,
 
     /// Channel used for sending prepared sphinx packets to `MixTrafficController` that sends them
     /// out to the network without any further delays.
@@ -100,9 +108,6 @@ where
 
     /// Buffer containing all real messages received. It is first exhausted before more are pulled.
     received_buffer: VecDeque<RealMessage>,
-
-    /// Listens for shutdown signals
-    shutdown: ShutdownListener,
 }
 
 pub(crate) struct RealMessage {
@@ -145,7 +150,6 @@ where
         rng: R,
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
-        shutdown: ShutdownListener,
     ) -> Self {
         OutQueueControl {
             config,
@@ -158,7 +162,6 @@ where
             rng,
             topology_access,
             received_buffer: VecDeque::with_capacity(0), // we won't be putting any data into this guy directly
-            shutdown,
         }
     }
 
@@ -195,7 +198,7 @@ where
                 generate_loop_cover_packet(
                     &mut self.rng,
                     topology_ref,
-                    &self.ack_key,
+                    &*self.ack_key,
                     &self.our_full_destination,
                     self.config.average_ack_delay,
                     self.config.average_packet_delay,
@@ -214,13 +217,10 @@ where
         // - the receiver channel is closed
         // in either case there's no recovery and we can only panic
         if let Err(err) = self.mix_tx.unbounded_send(vec![next_message]) {
-            if self.shutdown.is_shutdown_poll() {
-                log::info!("Failed to send (shutdown detected)");
-            } else {
-                // We don't try to limp along, panic to avoid continuing in a potentially
-                // inconsistent state
-                panic!("{err}");
-            }
+            log::warn!(
+                "Failed to send {} packets (possible process shutdown?)",
+                err.into_inner().len()
+            );
         }
 
         // JS: Not entirely sure why or how it fixes stuff, but without the yield call,
@@ -228,36 +228,10 @@ where
         // JS2: Basically it was the case that with high enough rate, the stream had already a next value
         // ready and hence was immediately re-scheduled causing other tasks to be starved;
         // yield makes it go back the scheduling queue regardless of its value availability
+
+        // TODO: temporary and BAD workaround for wasm (we should find a way to yield here in wasm)
+        #[cfg(not(target_arch = "wasm32"))]
         tokio::task::yield_now().await;
-    }
-
-    // Send messages at certain rate and if no real traffic is available, send cover message.
-    async fn run_normal_out_queue(&mut self) {
-        let mut shutdown = self.shutdown.clone();
-        while !shutdown.is_shutdown() {
-            tokio::select! {
-                biased;
-                _ = shutdown.recv() => {
-                    log::trace!("OutQueueControl: Received shutdown");
-                }
-                next_message = self.next() => match next_message {
-                    Some(next_message) => {
-                        self.on_message(next_message).await;
-                    },
-                    None => {
-                        log::trace!("OutQueueControl: Stopping since channel closed");
-                        break;
-                    }
-                }
-            }
-        }
-        assert!(shutdown.is_shutdown_poll());
-        log::debug!("OutQueueControl: Exiting");
-    }
-
-    pub(crate) async fn run_out_queue_control(&mut self) {
-        debug!("Starting out queue controller...");
-        self.run_normal_out_queue().await
     }
 
     fn poll_poisson(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
@@ -270,13 +244,21 @@ where
             // we know it's time to send a message, so let's prepare delay for the next one
             // Get the `now` by looking at the current `delay` deadline
             let avg_delay = self.config.average_message_sending_delay;
-            let now = next_delay.deadline();
             let next_poisson_delay = sample_poisson_duration(&mut self.rng, avg_delay);
 
             // The next interval value is `next_poisson_delay` after the one that just
             // yielded.
-            let next = now + next_poisson_delay;
-            next_delay.as_mut().reset(next);
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let now = next_delay.deadline();
+                let next = now + next_poisson_delay;
+                next_delay.as_mut().reset(next);
+            }
+
+            #[cfg(target_arch = "wasm32")]
+            {
+                next_delay.as_mut().reset(next_poisson_delay);
+            }
 
             // check if we have anything immediately available
             if let Some(real_available) = self.received_buffer.pop_front() {
@@ -305,10 +287,16 @@ where
             // we never set an initial delay - let's do it now
             cx.waker().wake_by_ref();
 
-            self.next_delay = Some(Box::pin(time::sleep(sample_poisson_duration(
-                &mut self.rng,
-                self.config.average_message_sending_delay,
-            ))));
+            let sampled =
+                sample_poisson_duration(&mut self.rng, self.config.average_message_sending_delay);
+
+            #[cfg(not(target_arch = "wasm32"))]
+            let next_delay = Box::pin(time::sleep(sampled));
+
+            #[cfg(target_arch = "wasm32")]
+            let next_delay = Box::pin(wasm_timer::Delay::new(sampled));
+
+            self.next_delay = Some(next_delay);
 
             Poll::Pending
         }
@@ -352,6 +340,40 @@ where
             self.poll_immediate(cx)
         } else {
             self.poll_poisson(cx)
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+        debug!("Started OutQueueControl with graceful shutdown support");
+
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                biased;
+                _ = shutdown.recv() => {
+                    log::trace!("OutQueueControl: Received shutdown");
+                }
+                next_message = self.next() => match next_message {
+                    Some(next_message) => {
+                        self.on_message(next_message).await;
+                    },
+                    None => {
+                        log::trace!("OutQueueControl: Stopping since channel closed");
+                        break;
+                    }
+                }
+            }
+        }
+        assert!(shutdown.is_shutdown_poll());
+        log::debug!("OutQueueControl: Exiting");
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(super) async fn run(&mut self) {
+        debug!("Started OutQueueControl without graceful shutdown support");
+
+        while let Some(next_message) = self.next().await {
+            self.on_message(next_message).await;
         }
     }
 }

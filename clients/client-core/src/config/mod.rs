@@ -8,6 +8,9 @@ use std::path::PathBuf;
 use std::time::Duration;
 use url::Url;
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
 pub mod persistence;
 
 pub const MISSING_VALUE: &str = "MISSING VALUE";
@@ -264,6 +267,7 @@ impl<T: NymConfig> Default for Config<T> {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter_with_clone))]
 pub struct GatewayEndpoint {
     /// gateway_id specifies ID of the gateway to which the client should send messages.
     /// If initially omitted, a random gateway will be chosen from the available topology.

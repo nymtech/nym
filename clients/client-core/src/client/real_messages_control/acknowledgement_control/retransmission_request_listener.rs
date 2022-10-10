@@ -14,7 +14,6 @@ use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{acknowledgements::AckKey, addressing::clients::Recipient};
 use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
-use task::ShutdownListener;
 
 // responsible for packet retransmission upon fired timer
 pub(super) struct RetransmissionRequestListener<R>
@@ -28,7 +27,6 @@ where
     real_message_sender: BatchRealMessageSender,
     request_receiver: RetransmissionRequestReceiver,
     topology_access: TopologyAccessor,
-    shutdown: ShutdownListener,
 }
 
 impl<R> RetransmissionRequestListener<R>
@@ -44,7 +42,6 @@ where
         real_message_sender: BatchRealMessageSender,
         request_receiver: RetransmissionRequestReceiver,
         topology_access: TopologyAccessor,
-        shutdown: ShutdownListener,
     ) -> Self {
         RetransmissionRequestListener {
             ack_key,
@@ -54,7 +51,6 @@ where
             real_message_sender,
             request_receiver,
             topology_access,
-            shutdown,
         }
     }
 
@@ -124,10 +120,11 @@ where
             .unwrap();
     }
 
-    pub(super) async fn run(&mut self) {
-        debug!("Started RetransmissionRequestListener");
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+        debug!("Started RetransmissionRequestListener with graceful shutdown support");
 
-        while !self.shutdown.is_shutdown() {
+        while !shutdown.is_shutdown() {
             tokio::select! {
                 timed_out_ack = self.request_receiver.next() => match timed_out_ack {
                     Some(timed_out_ack) => self.on_retransmission_request(timed_out_ack).await,
@@ -136,12 +133,21 @@ where
                         break;
                     }
                 },
-                _ = self.shutdown.recv() => {
+                _ = shutdown.recv() => {
                     log::trace!("RetransmissionRequestListener: Received shutdown");
                 }
             }
         }
-        assert!(self.shutdown.is_shutdown_poll());
+        assert!(shutdown.is_shutdown_poll());
         log::debug!("RetransmissionRequestListener: Exiting");
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(super) async fn run(&mut self) {
+        debug!("Started RetransmissionRequestListener without graceful shutdown support");
+
+        while let Some(timed_out_ack) = self.request_receiver.next().await {
+            self.on_retransmission_request(timed_out_ack).await;
+        }
     }
 }

@@ -4,6 +4,16 @@ This example application demonstrates how to use WebAssembly to create Sphinx pa
 
 ## 🚴 Usage
 
+Build the WASM package for bundling:
+
+```
+wasm-pack build --scope nymproject --target no-modules
+```
+
+in the `clients/webassembly` directory (one up).
+
+Start the webpack dev server:
+
 ```
 npm install         # set up dependencies
 npm run start       # starts a web server at http://localhost:8001
@@ -15,4 +25,4 @@ Check your dev console for output.
 
 Install `wasm-pack`. Instruction are at the [Rust WASM tutorial](https://rustwasm.github.io/docs/book/game-of-life/hello-world.html). 
 
-`wasm-pack build` in the `clients/webassembly` directory (one up) will rebuild the wasm package if you make changes to the Rust source. That will be automatically picked up (and reloaded, if need be) by the npm dev server.
+`wasm-pack build --scope nymproject --target no-modules` in the `clients/webassembly` directory (one up) will rebuild the wasm package if you make changes to the Rust source. That will be automatically picked up (and reloaded, if need be) by the npm dev server.

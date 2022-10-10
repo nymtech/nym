@@ -6435,6 +6435,7 @@ dependencies = [
  "base64",
  "bip39",
  "coconut-bandwidth-contract-common",
+ "coconut-dkg-common",
  "coconut-interface",
  "colored",
  "config",

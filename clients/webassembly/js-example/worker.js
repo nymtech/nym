@@ -61,9 +61,16 @@ async function main() {
   // sets up better stack traces in case of in-rust panics
   set_panic_hook();
 
+  console.error("the current mainnet is not compatible with v2! - either use the pre-merge branch or explicitly set the client to use one of V2 QA networks")
+  return
+
   // validator server we will use to get topology from
+  // MAINNET (V1):
   const validator = 'https://validator.nymtech.net/api'; //"http://localhost:8081";
   const preferredGateway = 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM';
+  // QA (V2):
+  // const validator = 'https://qa-validator-api.nymtech.net/api'; //"http://localhost:8081";
+  // const preferredGateway = 'CgQrYP8etksSBf4nALNqp93SHPpgFwEUyTsjBNNLj5WM';
 
   const gatewayEndpoint = await get_gateway(validator, preferredGateway);
 

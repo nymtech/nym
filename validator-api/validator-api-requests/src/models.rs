@@ -1,11 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::Decimal;
+use cosmwasm_std::{Coin, Decimal};
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use mixnet_contract_common::rewarding::RewardEstimate;
-use mixnet_contract_common::{Interval, MixNode, NodeId, RewardedSetNodeStatus};
+use mixnet_contract_common::{Interval, MixNode, NodeId, Percent, RewardedSetNodeStatus};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{fmt, time::Duration};
@@ -99,6 +99,8 @@ pub struct ComputeRewardEstParam {
     pub active_in_rewarded_set: Option<bool>,
     pub pledge_amount: Option<u64>,
     pub total_delegation: Option<u64>,
+    pub interval_operating_cost: Option<Coin>,
+    pub profit_margin_percent: Option<Percent>,
 }
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]

@@ -31,6 +31,7 @@ use gateway_client::{
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
+use nymsphinx::params::PacketSize;
 use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
 
 use crate::client::config::Config;
@@ -91,7 +92,7 @@ impl NymClient {
     ) {
         info!("Starting loop cover traffic stream...");
 
-        LoopCoverTrafficStream::new(
+        let mut stream = LoopCoverTrafficStream::new(
             self.key_manager.ack_key(),
             self.config.get_base().get_average_ack_delay(),
             self.config.get_base().get_average_packet_delay(),
@@ -101,8 +102,13 @@ impl NymClient {
             mix_tx,
             self.as_mix_recipient(),
             topology_accessor,
-        )
-        .start_with_shutdown(shutdown);
+        );
+
+        if self.config.get_base().get_use_extended_packet_size() {
+            stream.set_custom_packet_size(PacketSize::ExtendedPacket)
+        }
+
+        stream.start_with_shutdown(shutdown);
     }
 
     fn start_real_traffic_controller(
@@ -114,7 +120,7 @@ impl NymClient {
         mix_sender: BatchMixMessageSender,
         shutdown: ShutdownListener,
     ) {
-        let controller_config = client_core::client::real_messages_control::Config::new(
+        let mut controller_config = client_core::client::real_messages_control::Config::new(
             self.key_manager.ack_key(),
             self.config.get_base().get_ack_wait_multiplier(),
             self.config.get_base().get_ack_wait_addition(),
@@ -126,6 +132,10 @@ impl NymClient {
                 .get_disabled_main_poisson_packet_distribution(),
             self.as_mix_recipient(),
         );
+
+        if self.config.get_base().get_use_extended_packet_size() {
+            controller_config.set_custom_packet_size(PacketSize::ExtendedPacket)
+        }
 
         info!("Starting real traffic stream...");
 

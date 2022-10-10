@@ -76,6 +76,7 @@ pub fn generate_loop_cover_packet<R>(
     full_address: &Recipient,
     average_ack_delay: time::Duration,
     average_packet_delay: time::Duration,
+    packet_size: PacketSize,
 ) -> Result<MixPacket, CoverMessageError>
 where
     R: RngCore + CryptoRng,
@@ -96,7 +97,7 @@ where
 
     let public_key_bytes = ephemeral_keypair.public_key().to_bytes();
     let cover_size =
-        PacketSize::default().plaintext_size() - public_key_bytes.len() - ack_bytes.len();
+        packet_size.plaintext_size() - public_key_bytes.len() - ack_bytes.len();
 
     let mut cover_content: Vec<_> = LOOP_COVER_MESSAGE_PAYLOAD
         .iter()
@@ -129,7 +130,7 @@ where
 
     // once merged, that's an easy rng injection point for sphinx packets : )
     let packet = SphinxPacketBuilder::new()
-        .with_payload_size(PacketSize::default().payload_size())
+        .with_payload_size(packet_size.payload_size())
         .build_packet(packet_payload, &route, &destination, &delays)
         .unwrap();
 

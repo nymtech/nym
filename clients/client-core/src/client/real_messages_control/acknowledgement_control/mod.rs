@@ -13,6 +13,7 @@ use crate::spawn_future;
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
+use nymsphinx::params::PacketSize;
 use nymsphinx::{
     acknowledgements::AckKey,
     addressing::clients::Recipient,
@@ -121,6 +122,9 @@ pub(super) struct Config {
 
     /// Average delay a data packet is going to get delayed at a single mixnode.
     average_packet_delay: Duration,
+
+    /// Predefined packet size used for the encapsulated messages.
+    packet_size: PacketSize,
 }
 
 impl Config {
@@ -135,7 +139,13 @@ impl Config {
             ack_wait_multiplier,
             average_ack_delay,
             average_packet_delay,
+            packet_size: Default::default(),
         }
+    }
+
+    pub fn with_custom_packet_size(mut self, packet_size: PacketSize) -> Self {
+        self.packet_size = packet_size;
+        self
     }
 }
 
@@ -176,7 +186,8 @@ where
             ack_recipient,
             config.average_packet_delay,
             config.average_ack_delay,
-        );
+        )
+        .with_custom_real_message_packet_size(config.packet_size);
 
         // will listen for any acks coming from the network
         let acknowledgement_listener = AcknowledgementListener::new(

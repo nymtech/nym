@@ -96,8 +96,7 @@ where
     >(rng, full_address.encryption_key());
 
     let public_key_bytes = ephemeral_keypair.public_key().to_bytes();
-    let cover_size =
-        packet_size.plaintext_size() - public_key_bytes.len() - ack_bytes.len();
+    let cover_size = packet_size.plaintext_size() - public_key_bytes.len() - ack_bytes.len();
 
     let mut cover_content: Vec<_> = LOOP_COVER_MESSAGE_PAYLOAD
         .iter()

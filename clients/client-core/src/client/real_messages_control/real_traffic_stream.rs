@@ -13,6 +13,7 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::chunking::fragment::FragmentIdentifier;
 use nymsphinx::cover::generate_loop_cover_packet;
 use nymsphinx::forwarding::packet::MixPacket;
+use nymsphinx::params::PacketSize;
 use nymsphinx::utils::sample_poisson_duration;
 use rand::{CryptoRng, Rng};
 use std::collections::VecDeque;
@@ -21,7 +22,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use task::ShutdownListener;
 use tokio::time;
-use nymsphinx::params::PacketSize;
 
 /// Configurable parameters of the `OutQueueControl`
 pub(crate) struct Config {
@@ -54,7 +54,7 @@ impl Config {
             average_packet_delay,
             average_message_sending_delay,
             disable_poisson_packet_distribution,
-            cover_packet_size: Default::default()
+            cover_packet_size: Default::default(),
         }
     }
 

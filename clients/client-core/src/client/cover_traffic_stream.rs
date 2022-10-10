@@ -9,6 +9,7 @@ use log::*;
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::cover::generate_loop_cover_packet;
+use nymsphinx::params::PacketSize;
 use nymsphinx::utils::sample_poisson_duration;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::pin::Pin;
@@ -16,7 +17,6 @@ use std::sync::Arc;
 use task::ShutdownListener;
 use tokio::task::JoinHandle;
 use tokio::time;
-use nymsphinx::params::PacketSize;
 
 pub struct LoopCoverTrafficStream<R>
 where

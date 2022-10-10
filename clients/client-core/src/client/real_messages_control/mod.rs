@@ -19,12 +19,12 @@ use gateway_client::AcknowledgementReceiver;
 use log::*;
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::params::PacketSize;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 use std::time::Duration;
 use task::ShutdownListener;
 use tokio::task::JoinHandle;
-use nymsphinx::params::PacketSize;
 
 mod acknowledgement_control;
 mod real_traffic_stream;
@@ -82,7 +82,7 @@ impl Config {
             average_packet_delay_duration,
             average_ack_delay_duration,
             disable_main_poisson_packet_distribution,
-            packet_size: Default::default()
+            packet_size: Default::default(),
         }
     }
 
@@ -128,7 +128,8 @@ impl RealMessagesController<OsRng> {
             config.ack_wait_multiplier,
             config.average_ack_delay_duration,
             config.average_packet_delay_duration,
-        ).with_custom_packet_size(config.packet_size);
+        )
+        .with_custom_packet_size(config.packet_size);
 
         let ack_control = AcknowledgementController::new(
             ack_control_config,
@@ -146,7 +147,8 @@ impl RealMessagesController<OsRng> {
             config.average_packet_delay_duration,
             config.average_message_sending_delay,
             config.disable_main_poisson_packet_distribution,
-        ).with_custom_cover_packet_size(config.packet_size);
+        )
+        .with_custom_cover_packet_size(config.packet_size);
 
         let out_queue_control = OutQueueControl::new(
             out_queue_config,

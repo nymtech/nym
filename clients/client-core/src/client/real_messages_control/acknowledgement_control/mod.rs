@@ -13,6 +13,7 @@ use crate::client::{inbound_messages::InputMessageReceiver, topology_control::To
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
+use nymsphinx::params::PacketSize;
 use nymsphinx::{
     acknowledgements::AckKey,
     addressing::clients::Recipient,
@@ -27,7 +28,6 @@ use std::{
 };
 use task::ShutdownListener;
 use tokio::task::JoinHandle;
-use nymsphinx::params::PacketSize;
 
 mod acknowledgement_listener;
 mod action_controller;
@@ -138,7 +138,7 @@ impl Config {
             ack_wait_multiplier,
             average_ack_delay,
             average_packet_delay,
-            packet_size: Default::default()
+            packet_size: Default::default(),
         }
     }
 
@@ -186,7 +186,8 @@ where
             ack_recipient,
             config.average_packet_delay,
             config.average_ack_delay,
-        ).with_custom_real_message_packet_size(config.packet_size);
+        )
+        .with_custom_real_message_packet_size(config.packet_size);
 
         // will listen for any acks coming from the network
         let acknowledgement_listener = AcknowledgementListener::new(

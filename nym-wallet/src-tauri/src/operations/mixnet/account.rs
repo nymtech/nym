@@ -565,16 +565,11 @@ fn _show_mnemonic_for_account_in_password(
     let stored_account = wallet_storage::load_existing_login(login_id, password)?;
     let mnemonic = match stored_account {
         wallet_storage::StoredLogin::Mnemonic(ref account) => account.mnemonic().clone(),
-        wallet_storage::StoredLogin::Multiple(ref accounts) => {
-            for account in accounts.get_accounts() {
-                log::debug!("{:?}", account);
-            }
-            accounts
-                .get_account(account_id)
-                .ok_or(BackendError::WalletNoSuchAccountIdInWalletLogin)?
-                .mnemonic()
-                .clone()
-        }
+        wallet_storage::StoredLogin::Multiple(ref accounts) => accounts
+            .get_account(account_id)
+            .ok_or(BackendError::WalletNoSuchAccountIdInWalletLogin)?
+            .mnemonic()
+            .clone(),
     };
     Ok(mnemonic)
 }

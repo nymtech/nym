@@ -223,50 +223,6 @@ where
         tokio::task::yield_now().await;
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
-        debug!("Started OutQueueControl with graceful shutdown support");
-
-        // we should set initial delay only when we actually start the stream
-        let sampled =
-            sample_poisson_duration(&mut self.rng, self.config.average_message_sending_delay);
-        self.next_delay = Box::pin(time::sleep(sampled));
-
-        while !shutdown.is_shutdown() {
-            tokio::select! {
-                biased;
-                _ = shutdown.recv() => {
-                    log::trace!("OutQueueControl: Received shutdown");
-                }
-                next_message = self.next() => match next_message {
-                    Some(next_message) => {
-                        self.on_message(next_message).await;
-                    },
-                    None => {
-                        log::trace!("OutQueueControl: Stopping since channel closed");
-                        break;
-                    }
-                }
-            }
-        }
-        assert!(shutdown.is_shutdown_poll());
-        log::debug!("OutQueueControl: Exiting");
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub(super) async fn run(&mut self) {
-        debug!("Started OutQueueControl without graceful shutdown support");
-
-        // we should set initial delay only when we actually start the stream
-        let sampled =
-            sample_poisson_duration(&mut self.rng, self.config.average_message_sending_delay);
-        self.next_delay = Box::pin(wasm_timer::Delay::new(sampled));
-
-        while let Some(next_message) = self.next().await {
-            self.on_message(next_message).await;
-        }
-    }
-
     fn poll_poisson(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
         if let Some(ref mut next_delay) = &mut self.next_delay {
             // it is not yet time to return a message
@@ -277,13 +233,21 @@ where
             // we know it's time to send a message, so let's prepare delay for the next one
             // Get the `now` by looking at the current `delay` deadline
             let avg_delay = self.config.average_message_sending_delay;
-            let now = next_delay.deadline();
             let next_poisson_delay = sample_poisson_duration(&mut self.rng, avg_delay);
 
             // The next interval value is `next_poisson_delay` after the one that just
             // yielded.
-            let next = now + next_poisson_delay;
-            next_delay.as_mut().reset(next);
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let now = next_delay.deadline();
+                let next = now + next_poisson_delay;
+                next_delay.as_mut().reset(next);
+            }
+
+            #[cfg(target_arch = "wasm32")]
+            {
+                next_delay.as_mut().reset(next_poisson_delay);
+            }
 
             // check if we have anything immediately available
             if let Some(real_available) = self.received_buffer.pop_front() {
@@ -312,10 +276,16 @@ where
             // we never set an initial delay - let's do it now
             cx.waker().wake_by_ref();
 
-            self.next_delay = Some(Box::pin(time::sleep(sample_poisson_duration(
-                &mut self.rng,
-                self.config.average_message_sending_delay,
-            ))));
+            let sampled =
+                sample_poisson_duration(&mut self.rng, self.config.average_message_sending_delay);
+
+            #[cfg(not(target_arch = "wasm32"))]
+            let next_delay = Box::pin(time::sleep(sampled));
+
+            #[cfg(target_arch = "wasm32")]
+            let next_delay = Box::pin(wasm_timer::Delay::new(sampled));
+
+            self.next_delay = Some(next_delay);
 
             Poll::Pending
         }
@@ -359,6 +329,40 @@ where
             self.poll_immediate(cx)
         } else {
             self.poll_poisson(cx)
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+        debug!("Started OutQueueControl with graceful shutdown support");
+
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                biased;
+                _ = shutdown.recv() => {
+                    log::trace!("OutQueueControl: Received shutdown");
+                }
+                next_message = self.next() => match next_message {
+                    Some(next_message) => {
+                        self.on_message(next_message).await;
+                    },
+                    None => {
+                        log::trace!("OutQueueControl: Stopping since channel closed");
+                        break;
+                    }
+                }
+            }
+        }
+        assert!(shutdown.is_shutdown_poll());
+        log::debug!("OutQueueControl: Exiting");
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(super) async fn run(&mut self) {
+        debug!("Started OutQueueControl without graceful shutdown support");
+
+        while let Some(next_message) = self.next().await {
+            self.on_message(next_message).await;
         }
     }
 }

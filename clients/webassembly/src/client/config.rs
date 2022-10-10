@@ -97,6 +97,9 @@ pub struct Debug {
     /// Controls whether the main packet stream constantly produces packets according to the predefined
     /// poisson distribution.
     pub disable_main_poisson_packet_distribution: bool,
+
+    /// Controls whether the sent sphinx packet use the NON-DEFAULT bigger size.
+    pub use_extended_packet_size: bool,
 }
 
 impl From<Debug> for ConfigDebug {
@@ -120,6 +123,7 @@ impl From<Debug> for ConfigDebug {
             disable_loop_cover_traffic_stream: debug.disable_loop_cover_traffic_stream,
             disable_main_poisson_packet_distribution: debug
                 .disable_main_poisson_packet_distribution,
+            use_extended_packet_size: debug.use_extended_packet_size,
         }
     }
 }
@@ -141,6 +145,7 @@ impl From<ConfigDebug> for Debug {
             disable_loop_cover_traffic_stream: debug.disable_loop_cover_traffic_stream,
             disable_main_poisson_packet_distribution: debug
                 .disable_main_poisson_packet_distribution,
+            use_extended_packet_size: debug.use_extended_packet_size,
         }
     }
 }

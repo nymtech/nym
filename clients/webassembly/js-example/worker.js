@@ -73,6 +73,7 @@ async function main() {
 
   debug.disable_main_poisson_packet_distribution = true;
   debug.disable_loop_cover_traffic_stream = true;
+  debug.use_extended_packet_size = true;
   // debug.average_packet_delay_ms = BigInt(10);
   // debug.average_ack_delay_ms = BigInt(10);
   // debug.ack_wait_addition_ms = BigInt(3000);

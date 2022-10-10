@@ -488,7 +488,7 @@ impl Default for Debug {
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
             disable_loop_cover_traffic_stream: false,
             disable_main_poisson_packet_distribution: false,
-            use_extended_packet_size: false
+            use_extended_packet_size: false,
         }
     }
 }

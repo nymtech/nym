@@ -22,6 +22,7 @@ use gateway_client::{
     MixnetMessageSender,
 };
 use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::params::PacketSize;
 use rand::rngs::OsRng;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
@@ -99,7 +100,7 @@ impl NymClient {
     ) {
         console_log!("Starting loop cover traffic stream...");
 
-        LoopCoverTrafficStream::new(
+        let mut stream = LoopCoverTrafficStream::new(
             self.key_manager.ack_key(),
             self.config.debug.average_ack_delay,
             self.config.debug.average_packet_delay,
@@ -107,8 +108,13 @@ impl NymClient {
             mix_tx,
             self.as_mix_recipient(),
             topology_accessor,
-        )
-        .start();
+        );
+
+        if self.config.debug.use_extended_packet_size {
+            stream.set_custom_packet_size(PacketSize::ExtendedPacket)
+        }
+
+        stream.start();
     }
 
     fn start_real_traffic_controller(
@@ -118,7 +124,7 @@ impl NymClient {
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
     ) {
-        let controller_config = real_messages_control::Config::new(
+        let mut controller_config = real_messages_control::Config::new(
             self.key_manager.ack_key(),
             self.config.debug.ack_wait_multiplier,
             self.config.debug.ack_wait_addition,
@@ -128,6 +134,10 @@ impl NymClient {
             self.config.debug.disable_main_poisson_packet_distribution,
             self.as_mix_recipient(),
         );
+
+        if self.config.debug.use_extended_packet_size {
+            controller_config.set_custom_packet_size(PacketSize::ExtendedPacket)
+        }
 
         console_log!("Starting real traffic stream...");
 

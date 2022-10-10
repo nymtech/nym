@@ -20,9 +20,9 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
+use nymsphinx::params::PacketSize;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time;
-use nymsphinx::params::PacketSize;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
@@ -58,7 +58,7 @@ impl Config {
             average_packet_delay,
             average_message_sending_delay,
             disable_poisson_packet_distribution,
-            cover_packet_size: Default::default()
+            cover_packet_size: Default::default(),
         }
     }
 

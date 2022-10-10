@@ -51,7 +51,7 @@ export type TBondedMixnode = {
   proxy?: string;
   operatorCost?: string;
   host: string;
-  estimatedRewards: DecCoin;
+  estimatedRewards?: DecCoin;
   activeSetProbability?: SelectionChance;
   standbySetProbability?: SelectionChance;
   routingScore: number;
@@ -136,7 +136,12 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
   };
 
   const getAdditionalMixnodeDetails = async (mixId: number) => {
-    const additionalDetails: { status: MixnodeStatus; stakeSaturation: string; operatorCost?: string } = {
+    const additionalDetails: {
+      status: MixnodeStatus;
+      stakeSaturation: string;
+      operatorCost?: string;
+      estimatedRewards?: DecCoin;
+    } = {
       status: 'not_found',
       stakeSaturation: '0',
     };
@@ -157,6 +162,10 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     try {
       const rewardEstimation = await getMixnodeRewardEstimation(mixId);
       additionalDetails.operatorCost = rewardEstimation.estimation.operating_cost;
+      additionalDetails.estimatedRewards = {
+        amount: rewardEstimation.estimation.total_node_reward,
+        denom: 'nym',
+      };
     } catch (e) {
       Console.log(e);
     }
@@ -210,7 +219,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             rewarding_details,
             bond_information: { id },
           } = data;
-          const { status, stakeSaturation, operatorCost } = await getAdditionalMixnodeDetails(id);
+          const { status, stakeSaturation, operatorCost, estimatedRewards } = await getAdditionalMixnodeDetails(id);
           const setProbabilities = await getSetProbabilities(id);
           const nodeDescription = await getNodeDescription(
             bond_information.mix_node.host,
@@ -237,7 +246,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             routingScore,
             activeSetProbability: setProbabilities?.in_active,
             standbySetProbability: setProbabilities?.in_reserve,
-            estimatedRewards: { denom: 'nym', amount: '2' },
+            estimatedRewards,
             httpApiPort: bond_information.mix_node.http_api_port,
             mixPort: bond_information.mix_node.mix_port,
             verlocPort: bond_information.mix_node.verloc_port,

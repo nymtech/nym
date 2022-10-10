@@ -24,19 +24,23 @@ const StatRow = ({
   label,
   tooltipText,
   value,
-  withProgress,
+  progressValue,
 }: {
   label: string;
   tooltipText: string;
   value: string | number;
-  withProgress?: boolean;
+  progressValue?: number;
 }) => (
   <Stack direction="row" gap={1} justifyContent="space-between" alignItems="center" width="100%">
     <Stack direction="row" alignItems="center" gap={1} sx={{ color: (t) => t.palette.nym.text.muted }}>
       <InfoTooltip title={tooltipText} />
       <Typography>{label}</Typography>
     </Stack>
-    {withProgress ? <LinearProgressWithLabel value={value as number} /> : <Typography>{value}</Typography>}
+    {typeof progressValue === 'number' ? (
+      <LinearProgressWithLabel value={progressValue} />
+    ) : (
+      <Typography>{value}</Typography>
+    )}
   </Stack>
 );
 
@@ -133,13 +137,18 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
           <StatRow label="Operator Cost" tooltipText="TODO" value={operatorCost ? `${operatorCost} USD` : '-'} />
           <StatDivider />
           <StatRow
-            label="Estimated reward"
+            label="Total node rewards"
             tooltipText="TODO"
-            value={`~${estimatedRewards.amount} ${estimatedRewards.denom.toUpperCase()}`}
+            value={estimatedRewards ? `~${estimatedRewards.amount} ${estimatedRewards.denom.toUpperCase()}` : '-'}
           />
         </Grid>
         <Grid item xs={12} sm={12} md={12} lg={5}>
-          <StatRow label="Node stake saturation" tooltipText="TODO" value={stakeSaturation} withProgress />
+          <StatRow
+            label="Node stake saturation"
+            tooltipText="TODO"
+            value={stakeSaturation}
+            progressValue={Number(stakeSaturation)}
+          />
           <StatDivider />
           <StatRow
             label="Chance of being in the active set"

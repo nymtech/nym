@@ -18,6 +18,10 @@ const bondedMixnodeMock: TBondedMixnode = {
   status: 'active',
   operatorCost: '2',
   host: '1.2.3.4',
+  httpApiPort: 8000,
+  mixPort: 1789,
+  verlocPort: 1790,
+  version: '1.0.2',
 };
 
 const bondedGatewayMock: TBondedGateway = {
@@ -25,6 +29,11 @@ const bondedGatewayMock: TBondedGateway = {
   identityKey: 'WayM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
   ip: '112.43.234.57',
   bond: { denom: 'nym', amount: '1234' },
+  host: '1.2.34.5 ',
+  httpApiPort: 8000,
+  mixPort: 1789,
+  verlocPort: 1790,
+  version: '1.0.2',
 };
 
 const TxResultMock: TransactionExecuteResult = {

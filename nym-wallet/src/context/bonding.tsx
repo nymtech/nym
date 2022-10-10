@@ -46,8 +46,12 @@ export type TBondedMixnode = {
   delegators: number;
   status: MixnodeStatus;
   proxy?: string;
-  operatorCost?: string;
   host: string;
+  httpApiPort: number;
+  mixPort: number;
+  verlocPort: number;
+  version: string;
+  operatorCost?: string;
 };
 
 export interface TBondedGateway {
@@ -57,6 +61,11 @@ export interface TBondedGateway {
   bond: DecCoin;
   location?: string; // TODO not yet available, only available in Network Explorer API
   proxy?: string;
+  host: string;
+  httpApiPort: number;
+  mixPort: number;
+  verlocPort: number;
+  version: string;
 }
 
 export type TokenPool = 'locked' | 'balance';
@@ -159,7 +168,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
   const refresh = useCallback(async () => {
     setIsLoading(true);
 
-    if (ownership.hasOwnership && ownership.nodeType === 'mixnode' && clientDetails) {
+    if (ownership.hasOwnership && clientDetails) {
       try {
         const data = await getMixnodeBondDetails();
         let operatorRewards;
@@ -169,28 +178,33 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
           Console.warn(`get_operator_rewards request failed: ${e}`);
         }
         if (data) {
+          const { bond_information, rewarding_details } = data;
           const { status, stakeSaturation, operatorCost } = await getAdditionalMixnodeDetails(data.bond_information.id);
           const nodeDescription = await getNodeDescription(
-            data.bond_information.mix_node.host,
-            data.bond_information.mix_node.http_api_port,
+            bond_information.mix_node.host,
+            bond_information.mix_node.http_api_port,
           );
           setBondedNode({
             name: nodeDescription?.name,
-            identityKey: data.bond_information.mix_node.identity_key,
-            ip: '',
+            identityKey: bond_information.mix_node.identity_key,
+            ip: bond_information.id,
             stake: {
-              amount: calculateStake(data.rewarding_details.operator, data.rewarding_details.delegates).toString(),
-              denom: data.bond_information.original_pledge.denom,
+              amount: calculateStake(rewarding_details.operator, data.rewarding_details.delegates).toString(),
+              denom: bond_information.original_pledge.denom,
             },
-            bond: data.bond_information.original_pledge,
-            profitMargin: toPercentIntegerString(data.rewarding_details.cost_params.profit_margin_percent),
-            delegators: data.rewarding_details.unique_delegations,
-            proxy: data.bond_information.proxy,
+            bond: bond_information.original_pledge,
+            profitMargin: toPercentIntegerString(rewarding_details.cost_params.profit_margin_percent),
+            delegators: rewarding_details.unique_delegations,
+            proxy: bond_information.proxy,
             operatorRewards,
             status,
             stakeSaturation,
+            host: bond_information.mix_node.host.replace(/\s/g, ''),
+            httpApiPort: bond_information.mix_node.http_api_port,
+            mixPort: bond_information.mix_node.mix_port,
+            verlocPort: bond_information.mix_node.verloc_port,
+            version: bond_information.mix_node.version,
             operatorCost,
-            host: data.bond_information.mix_node.host,
           } as TBondedMixnode);
         }
       } catch (e: any) {
@@ -199,7 +213,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
       }
     }
 
-    if (ownership.hasOwnership && ownership.nodeType === 'gateway') {
+    if (ownership.hasOwnership) {
       try {
         const data = await getGatewayBondDetails();
         if (data) {

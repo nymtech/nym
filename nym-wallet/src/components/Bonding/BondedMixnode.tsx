@@ -1,6 +1,8 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
+import { isMixnode } from 'src/types';
 import { TBondedMixnode, urls } from 'src/context';
 import { NymCard } from 'src/components';
 import { Network } from 'src/types';
@@ -60,6 +62,7 @@ export const BondedMixnode = ({
   network?: Network;
   onActionSelect: (action: TBondedMixnodeActions) => void;
 }) => {
+  const navigate = useNavigate();
   const {
     name,
     stake,
@@ -133,14 +136,16 @@ export const BondedMixnode = ({
         </Stack>
       }
       Action={
-        <Button
-          variant="text"
-          color="secondary"
-          onClick={() => onActionSelect('nodeSettings')}
-          startIcon={<NodeIcon />}
-        >
-          Node Settings
-        </Button>
+        isMixnode(mixnode) && (
+          <Button
+            variant="text"
+            color="secondary"
+            onClick={() => navigate('/bonding/node-settings')}
+            startIcon={<NodeIcon />}
+          >
+            Settings
+          </Button>
+        )
       }
     >
       <NodeTable headers={headers} cells={cells} />

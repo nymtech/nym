@@ -1,11 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{Decimal, Coin};
+use cosmwasm_std::{Coin, Decimal};
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use mixnet_contract_common::rewarding::RewardEstimate;
-use mixnet_contract_common::{Interval, MixNode, NodeId, RewardedSetNodeStatus, Percent};
+use mixnet_contract_common::{Interval, MixNode, NodeId, Percent, RewardedSetNodeStatus};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{fmt, time::Duration};

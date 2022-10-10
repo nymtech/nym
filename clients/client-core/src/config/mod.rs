@@ -240,6 +240,10 @@ impl<T: NymConfig> Config<T> {
         self.debug.disable_loop_cover_traffic_stream
     }
 
+    pub fn get_disabled_main_poisson_packet_distribution(&self) -> bool {
+        self.debug.disable_main_poisson_packet_distribution
+    }
+
     pub fn get_version(&self) -> &str {
         &self.client.version
     }
@@ -453,6 +457,10 @@ pub struct Debug {
     /// Controls whether the dedicated loop cover traffic stream should be enabled.
     /// (and sending packets, on average, every [Self::loop_cover_traffic_average_delay])
     pub disable_loop_cover_traffic_stream: bool,
+
+    /// Controls whether the main packet stream constantly produces packets according to the predefined
+    /// poisson distribution.
+    pub disable_main_poisson_packet_distribution: bool,
 }
 
 impl Default for Debug {
@@ -468,6 +476,7 @@ impl Default for Debug {
             topology_refresh_rate: DEFAULT_TOPOLOGY_REFRESH_RATE,
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
             disable_loop_cover_traffic_stream: false,
+            disable_main_poisson_packet_distribution: false,
         }
     }
 }

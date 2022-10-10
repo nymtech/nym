@@ -32,6 +32,10 @@ pub(crate) struct Config {
 
     /// Average delay between sending subsequent packets.
     average_message_sending_delay: Duration,
+
+    /// Controls whether the stream constantly produces packets according to the predefined
+    /// poisson distribution.
+    disable_poisson_packet_distribution: bool,
 }
 
 impl Config {
@@ -39,11 +43,13 @@ impl Config {
         average_ack_delay: Duration,
         average_packet_delay: Duration,
         average_message_sending_delay: Duration,
+        disable_poisson_packet_distribution: bool,
     ) -> Self {
         Config {
             average_ack_delay,
             average_packet_delay,
             average_message_sending_delay,
+            disable_poisson_packet_distribution,
         }
     }
 }
@@ -63,7 +69,7 @@ where
 
     /// Internal state, determined by `average_message_sending_delay`,
     /// used to keep track of when a next packet should be sent out.
-    next_delay: Pin<Box<time::Sleep>>,
+    next_delay: Option<Pin<Box<time::Sleep>>>,
 
     /// Channel used for sending prepared sphinx packets to `MixTrafficController` that sends them
     /// out to the network without any further delays.
@@ -113,55 +119,6 @@ pub(crate) enum StreamMessage {
     Real(Box<RealMessage>),
 }
 
-impl<R> Stream for OutQueueControl<R>
-where
-    R: CryptoRng + Rng + Unpin,
-{
-    type Item = StreamMessage;
-
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        // it is not yet time to return a message
-        if self.next_delay.as_mut().poll(cx).is_pending() {
-            return Poll::Pending;
-        };
-
-        // we know it's time to send a message, so let's prepare delay for the next one
-        // Get the `now` by looking at the current `delay` deadline
-        let avg_delay = self.config.average_message_sending_delay;
-        let now = self.next_delay.deadline();
-        let next_poisson_delay = sample_poisson_duration(&mut self.rng, avg_delay);
-
-        // The next interval value is `next_poisson_delay` after the one that just
-        // yielded.
-        let next = now + next_poisson_delay;
-        self.next_delay.as_mut().reset(next);
-
-        // check if we have anything immediately available
-        if let Some(real_available) = self.received_buffer.pop_front() {
-            return Poll::Ready(Some(StreamMessage::Real(Box::new(real_available))));
-        }
-
-        // decide what kind of message to send
-        match Pin::new(&mut self.real_receiver).poll_next(cx) {
-            // in the case our real message channel stream was closed, we should also indicate we are closed
-            // (and whoever is using the stream should panic)
-            Poll::Ready(None) => Poll::Ready(None),
-
-            // if there are more messages available, return first one and store the rest
-            Poll::Ready(Some(real_messages)) => {
-                self.received_buffer = real_messages.into();
-                // we MUST HAVE received at least ONE message
-                Poll::Ready(Some(StreamMessage::Real(Box::new(
-                    self.received_buffer.pop_front().unwrap(),
-                ))))
-            }
-
-            // otherwise construct a dummy one
-            Poll::Pending => Poll::Ready(Some(StreamMessage::Cover)),
-        }
-    }
-}
-
 impl<R> OutQueueControl<R>
 where
     R: CryptoRng + Rng + Unpin,
@@ -184,7 +141,7 @@ where
             config,
             ack_key,
             sent_notifier,
-            next_delay: Box::pin(time::sleep(Default::default())),
+            next_delay: None,
             mix_tx,
             real_receiver,
             our_full_destination,
@@ -265,12 +222,6 @@ where
 
     // Send messages at certain rate and if no real traffic is available, send cover message.
     async fn run_normal_out_queue(&mut self) {
-        // we should set initial delay only when we actually start the stream
-        self.next_delay = Box::pin(time::sleep(sample_poisson_duration(
-            &mut self.rng,
-            self.config.average_message_sending_delay,
-        )));
-
         let mut shutdown = self.shutdown.clone();
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -296,5 +247,111 @@ where
     pub(crate) async fn run_out_queue_control(&mut self) {
         debug!("Starting out queue controller...");
         self.run_normal_out_queue().await
+    }
+
+    fn poll_poisson(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
+        if let Some(ref mut next_delay) = &mut self.next_delay {
+            // it is not yet time to return a message
+            if next_delay.as_mut().poll(cx).is_pending() {
+                return Poll::Pending;
+            };
+
+            // we know it's time to send a message, so let's prepare delay for the next one
+            // Get the `now` by looking at the current `delay` deadline
+            let avg_delay = self.config.average_message_sending_delay;
+            let now = next_delay.deadline();
+            let next_poisson_delay = sample_poisson_duration(&mut self.rng, avg_delay);
+
+            // The next interval value is `next_poisson_delay` after the one that just
+            // yielded.
+            let next = now + next_poisson_delay;
+            next_delay.as_mut().reset(next);
+
+            // check if we have anything immediately available
+            if let Some(real_available) = self.received_buffer.pop_front() {
+                return Poll::Ready(Some(StreamMessage::Real(Box::new(real_available))));
+            }
+
+            // decide what kind of message to send
+            match Pin::new(&mut self.real_receiver).poll_next(cx) {
+                // in the case our real message channel stream was closed, we should also indicate we are closed
+                // (and whoever is using the stream should panic)
+                Poll::Ready(None) => Poll::Ready(None),
+
+                // if there are more messages available, return first one and store the rest
+                Poll::Ready(Some(real_messages)) => {
+                    self.received_buffer = real_messages.into();
+                    // we MUST HAVE received at least ONE message
+                    Poll::Ready(Some(StreamMessage::Real(Box::new(
+                        self.received_buffer.pop_front().unwrap(),
+                    ))))
+                }
+
+                // otherwise construct a dummy one
+                Poll::Pending => Poll::Ready(Some(StreamMessage::Cover)),
+            }
+        } else {
+            // we never set an initial delay - let's do it now
+            cx.waker().wake_by_ref();
+
+            self.next_delay = Some(Box::pin(time::sleep(sample_poisson_duration(
+                &mut self.rng,
+                self.config.average_message_sending_delay,
+            ))));
+
+            Poll::Pending
+        }
+    }
+
+    fn poll_immediate(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
+        // check if we have anything immediately available
+        if let Some(real_available) = self.received_buffer.pop_front() {
+            // if there are more messages immediately available, notify the runtime
+            // because we should be polled again
+            if !self.received_buffer.is_empty() {
+                cx.waker().wake_by_ref()
+            }
+            return Poll::Ready(Some(StreamMessage::Real(Box::new(real_available))));
+        }
+
+        match Pin::new(&mut self.real_receiver).poll_next(cx) {
+            // in the case our real message channel stream was closed, we should also indicate we are closed
+            // (and whoever is using the stream should panic)
+            Poll::Ready(None) => Poll::Ready(None),
+
+            // if there are more messages available, return first one and store the rest
+            Poll::Ready(Some(real_messages)) => {
+                self.received_buffer = real_messages.into();
+                // we MUST HAVE received at least ONE message
+                Poll::Ready(Some(StreamMessage::Real(Box::new(
+                    self.received_buffer.pop_front().unwrap(),
+                ))))
+            }
+
+            // if there's nothing, then there's nothing
+            Poll::Pending => Poll::Pending,
+        }
+    }
+
+    fn poll_next_message(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<StreamMessage>> {
+        if self.config.disable_poisson_packet_distribution {
+            self.poll_immediate(cx)
+        } else {
+            self.poll_poisson(cx)
+        }
+    }
+}
+
+impl<R> Stream for OutQueueControl<R>
+where
+    R: CryptoRng + Rng + Unpin,
+{
+    type Item = StreamMessage;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.poll_next_message(cx)
     }
 }

@@ -11,6 +11,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - network-requester: added additional Blockstream Green wallet endpoint to `example.allowed.list` ([#1611](https://github.com/nymtech/nym/pull/1611))
 - common/ledger: new library for communicating with a Ledger device ([#1640])
 - native-client/socks5-client: `disable_loop_cover_traffic_stream` Debug config option to disable the separate loop cover traffic stream ([#1666])
+- native-client/socks5-client: `disable_main_poisson_packet_distribution` Debug config option to make the client ignore poisson distribution in the main packet stream and ONLY send real message (and as fast as they come) ([#1664])
 
 ### Fixed
 
@@ -30,6 +31,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1591]: https://github.com/nymtech/nym/pull/1591
 [#1640]: https://github.com/nymtech/nym/pull/1640
 [#1645]: https://github.com/nymtech/nym/pull/1645
+[#1664]: https://github.com/nymtech/nym/pull/1664
 [#1666]: https://github.com/nymtech/nym/pull/1645
 [#1669]: https://github.com/nymtech/nym/pull/1669
 

@@ -15,12 +15,17 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - validator-client: made `fee` argument optional for `execute` and `execute_multiple` ([#1541])
 - socks5 client: graceful shutdown should fix error on disconnect in nym-connect ([#1591])
 - wasm-client: fixed build errors on MacOS and changed example JS code to use mainnet ([#1585])
+- gateway-client: will attempt to read now as many as 8 websocket messages at once, assuming they're already available on the socket ([#1669])
 
 [#1541]: https://github.com/nymtech/nym/pull/1541
 [#1558]: https://github.com/nymtech/nym/pull/1558
 [#1577]: https://github.com/nymtech/nym/pull/1577
 [#1585]: https://github.com/nymtech/nym/pull/1585
 [#1591]: https://github.com/nymtech/nym/pull/1591
+[#1640]: https://github.com/nymtech/nym/pull/1640
+[#1645]: https://github.com/nymtech/nym/pull/1645
+[#1666]: https://github.com/nymtech/nym/pull/1645
+[#1669]: https://github.com/nymtech/nym/pull/1669
 
 
 ## [nym-binaries-1.0.2](https://github.com/nymtech/nym/tree/nym-binaries-1.0.2)

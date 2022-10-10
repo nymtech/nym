@@ -104,7 +104,7 @@ where
     }
 
     /// Allows setting non-default size of the sphinx packets sent out.
-    pub fn with_packet_size(mut self, packet_size: PacketSize) -> Self {
+    pub fn with_custom_real_message_packet_size(mut self, packet_size: PacketSize) -> Self {
         self.packet_size = packet_size;
         self
     }

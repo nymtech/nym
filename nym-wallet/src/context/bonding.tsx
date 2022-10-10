@@ -205,8 +205,11 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
           Console.warn(`get_operator_rewards request failed: ${e}`);
         }
         if (data) {
-          const { bond_information, rewarding_details } = data;
-          const { id } = bond_information;
+          const {
+            bond_information,
+            rewarding_details,
+            bond_information: { id },
+          } = data;
           const { status, stakeSaturation, operatorCost } = await getAdditionalMixnodeDetails(id);
           const setProbabilities = await getSetProbabilities(id);
           const nodeDescription = await getNodeDescription(

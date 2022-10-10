@@ -21,6 +21,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use task::ShutdownListener;
 use tokio::time;
+use nymsphinx::params::PacketSize;
 
 /// Configurable parameters of the `OutQueueControl`
 pub(crate) struct Config {
@@ -36,6 +37,9 @@ pub(crate) struct Config {
     /// Controls whether the stream constantly produces packets according to the predefined
     /// poisson distribution.
     disable_poisson_packet_distribution: bool,
+
+    /// Predefined packet size used for the loop cover messages.
+    cover_packet_size: PacketSize,
 }
 
 impl Config {
@@ -50,7 +54,13 @@ impl Config {
             average_packet_delay,
             average_message_sending_delay,
             disable_poisson_packet_distribution,
+            cover_packet_size: Default::default()
         }
+    }
+
+    pub fn with_custom_cover_packet_size(mut self, packet_size: PacketSize) -> Self {
+        self.cover_packet_size = packet_size;
+        self
     }
 }
 
@@ -189,6 +199,7 @@ where
                     &self.our_full_destination,
                     self.config.average_ack_delay,
                     self.config.average_packet_delay,
+                    self.config.cover_packet_size,
                 )
                 .expect("Somehow failed to generate a loop cover message with a valid topology")
             }

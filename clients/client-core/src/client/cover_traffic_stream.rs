@@ -16,6 +16,7 @@ use std::sync::Arc;
 use task::ShutdownListener;
 use tokio::task::JoinHandle;
 use tokio::time;
+use nymsphinx::params::PacketSize;
 
 pub struct LoopCoverTrafficStream<R>
 where
@@ -49,6 +50,9 @@ where
 
     /// Accessor to the common instance of network topology.
     topology_access: TopologyAccessor,
+
+    /// Predefined packet size used for the loop cover messages.
+    packet_size: PacketSize,
 
     /// Listen to shutdown signals.
     shutdown: ShutdownListener,
@@ -111,8 +115,13 @@ impl LoopCoverTrafficStream<OsRng> {
             our_full_destination,
             rng,
             topology_access,
+            packet_size: Default::default(),
             shutdown,
         }
+    }
+
+    pub fn set_custom_packet_size(&mut self, packet_size: PacketSize) {
+        self.packet_size = packet_size;
     }
 
     async fn on_new_message(&mut self) {
@@ -140,6 +149,7 @@ impl LoopCoverTrafficStream<OsRng> {
             &self.our_full_destination,
             self.average_ack_delay,
             self.average_packet_delay,
+            self.packet_size,
         )
         .expect("Somehow failed to generate a loop cover message with a valid topology");
 

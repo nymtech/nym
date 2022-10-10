@@ -208,7 +208,7 @@ impl ReceivedMessagesBuffer {
     }
 
     async fn handle_new_received(&mut self, msgs: Vec<Vec<u8>>) {
-        debug!(
+        trace!(
             "Processing {:?} new message that might get added to the buffer!",
             msgs.len()
         );

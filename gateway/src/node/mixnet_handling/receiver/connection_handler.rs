@@ -143,7 +143,7 @@ impl<St: Storage> ConnectionHandler<St> {
                 .await
             {
                 Err(err) => error!("Failed to store client data - {}", err),
-                Ok(_) => trace!("Stored packet for {}", client_address),
+                Ok(_) => debug!("Stored packet for {}", client_address),
             },
             Ok(_) => trace!("Pushed received packet to {}", client_address),
         }

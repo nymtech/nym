@@ -187,7 +187,8 @@ where
             config.average_packet_delay,
             config.average_ack_delay,
         )
-        .with_custom_real_message_packet_size(config.packet_size);
+        //.with_custom_real_message_packet_size(config.packet_size);
+        .with_custom_real_message_packet_size(nymsphinx::params::PacketSize::ExtendedPacket);
 
         // will listen for any acks coming from the network
         let acknowledgement_listener = AcknowledgementListener::new(

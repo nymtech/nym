@@ -1,6 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+// due to expansion of #[wasm_bindgen] macro on `Debug` Config struct
+#![allow(clippy::drop_non_drop)]
+
 use client_core::config::{Debug as ConfigDebug, GatewayEndpoint};
 use std::time::Duration;
 use url::Url;

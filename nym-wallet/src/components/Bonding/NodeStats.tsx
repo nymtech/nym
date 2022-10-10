@@ -57,7 +57,7 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
     { key: 'routingScore', value: routingScore },
     { key: 'rest', value: 100 - routingScore },
   ];
-  const colors = [theme.palette.success.main, '#E6E6E6'];
+  const colors = [theme.palette.success.main, theme.palette.nym.nymWallet.chart.grey];
 
   const getSetProbabilityLabel = (chance?: SelectionChance) => {
     if (!chance) return 'Unknown';
@@ -79,7 +79,7 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
       maxWidth={200}
       width={200}
       sx={{
-        borderBottom: '1px solid #E8E9EB',
+        borderBottom: `1px solid ${theme.palette.nym.nymWallet.chart.grey}`,
       }}
     >
       <Typography sx={{ color: (t) => t.palette.nym.text.muted }}>Routing score</Typography>

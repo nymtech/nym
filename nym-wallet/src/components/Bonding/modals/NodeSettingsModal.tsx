@@ -108,7 +108,7 @@ export const NodeSettings = ({
       okLabel="Next"
       onClose={onClose}
     >
-      <Tabs tabs={['System variables']} selectedTab={0} disableActiveTabHighlight />
+      <Tabs tabs={['System variables']} selectedTab={'System variables'} disableActiveTabHighlight />
       <Box sx={{ p: 3 }}>
         <Typography fontWeight={600} sx={{ mb: 1 }}>
           Set profit margin

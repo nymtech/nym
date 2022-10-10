@@ -32,6 +32,9 @@ const nymPalette: NymPalette = {
     grey: '#5B6174',
   },
   linkHover: '#AF4D36',
+  border: {
+    menu: '#E8E9EB',
+  },
 };
 
 const darkMode: NymPaletteVariant = {
@@ -59,6 +62,9 @@ const darkMode: NymPaletteVariant = {
   hover: {
     background: '#36393E',
   },
+  modal: {
+    border: '#484d53',
+  },
 };
 
 const lightMode: NymPaletteVariant = {
@@ -85,6 +91,9 @@ const lightMode: NymPaletteVariant = {
   },
   hover: {
     background: '#F9F9F9',
+  },
+  modal: {
+    border: 'transparent',
   },
 };
 
@@ -277,6 +286,15 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
           root: {
             fontWeight: 600,
           },
+        },
+      },
+      MuiMenu: {
+        styleOverrides: {
+          list: ({ _, theme }) => ({
+            backgroundColor: theme.palette.mode === 'dark' ? darkMode.background.main : undefined,
+            border: `1px solid ${theme.palette.nym.border.menu}`,
+            borderRadius: '8px',
+          }),
         },
       },
     },

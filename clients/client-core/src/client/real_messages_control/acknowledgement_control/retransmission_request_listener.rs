@@ -14,6 +14,7 @@ use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{acknowledgements::AckKey, addressing::clients::Recipient};
 use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
+use task::ShutdownListener;
 
 // responsible for packet retransmission upon fired timer
 pub(super) struct RetransmissionRequestListener<R>
@@ -27,12 +28,14 @@ where
     real_message_sender: BatchRealMessageSender,
     request_receiver: RetransmissionRequestReceiver,
     topology_access: TopologyAccessor,
+    shutdown: ShutdownListener,
 }
 
 impl<R> RetransmissionRequestListener<R>
 where
     R: CryptoRng + Rng,
 {
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         ack_key: Arc<AckKey>,
         ack_recipient: Recipient,
@@ -41,6 +44,7 @@ where
         real_message_sender: BatchRealMessageSender,
         request_receiver: RetransmissionRequestReceiver,
         topology_access: TopologyAccessor,
+        shutdown: ShutdownListener,
     ) -> Self {
         RetransmissionRequestListener {
             ack_key,
@@ -50,6 +54,7 @@ where
             real_message_sender,
             request_receiver,
             topology_access,
+            shutdown,
         }
     }
 
@@ -83,7 +88,6 @@ where
         let prepared_fragment = self
             .message_preparer
             .prepare_chunk_for_sending(chunk_clone, topology_ref, &self.ack_key, packet_recipient)
-            .await
             .unwrap();
 
         // if we have the ONLY strong reference to the ack data, it means it was removed from the
@@ -122,9 +126,22 @@ where
 
     pub(super) async fn run(&mut self) {
         debug!("Started RetransmissionRequestListener");
-        while let Some(timed_out_ack) = self.request_receiver.next().await {
-            self.on_retransmission_request(timed_out_ack).await;
+
+        while !self.shutdown.is_shutdown() {
+            tokio::select! {
+                timed_out_ack = self.request_receiver.next() => match timed_out_ack {
+                    Some(timed_out_ack) => self.on_retransmission_request(timed_out_ack).await,
+                    None => {
+                        log::trace!("RetransmissionRequestListener: Stopping since channel closed");
+                        break;
+                    }
+                },
+                _ = self.shutdown.recv() => {
+                    log::trace!("RetransmissionRequestListener: Received shutdown");
+                }
+            }
         }
-        error!("TODO: error msg. Or maybe panic?")
+        assert!(self.shutdown.is_shutdown_poll());
+        log::debug!("RetransmissionRequestListener: Exiting");
     }
 }

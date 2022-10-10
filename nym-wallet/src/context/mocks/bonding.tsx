@@ -11,11 +11,13 @@ const bondedMixnodeMock: TBondedMixnode = {
   identityKey: '7mjM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
   stake: { denom: 'nym', amount: '1234' },
   bond: { denom: 'nym', amount: '1234' },
-  stakeSaturation: 95,
-  profitMargin: 15,
+  stakeSaturation: '95',
+  profitMargin: '15',
   operatorRewards: { denom: 'nym', amount: '1234' },
   delegators: 5423,
   status: 'active',
+  operatorCost: '2',
+  host: '1.2.3.4',
 };
 
 const bondedGatewayMock: TBondedGateway = {
@@ -122,14 +124,6 @@ export const MockBondingContextProvider = ({
     return TxResultMock;
   };
 
-  const compoundRewards = async (): Promise<TransactionExecuteResult | undefined> => {
-    setIsLoading(true);
-    await mockSleep(SLEEP_MS);
-    triggerStateUpdate();
-    setIsLoading(false);
-    return TxResultMock;
-  };
-
   const updateMixnode = async (): Promise<TransactionExecuteResult> => {
     setIsLoading(true);
     await mockSleep(SLEEP_MS);
@@ -165,7 +159,6 @@ export const MockBondingContextProvider = ({
       unbond,
       refresh,
       redeemRewards,
-      compoundRewards,
       fee,
       feeLoading,
       getFee,

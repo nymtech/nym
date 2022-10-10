@@ -11,7 +11,7 @@ use rand::rngs::OsRng;
 use received_processor::ReceivedMessagesProcessor;
 use std::sync::Arc;
 use std::time::Duration;
-use topology::{gateway, nym_topology_from_bonds, NymTopology};
+use topology::{gateway, nym_topology_from_detailed, NymTopology};
 use url::Url;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
@@ -132,9 +132,7 @@ impl NymClient {
             bandwidth_controller,
         );
 
-        if disabled_credentials_mode {
-            gateway_client.set_disabled_credentials_mode(true)
-        }
+        gateway_client.set_disabled_credentials_mode(disabled_credentials_mode);
 
         gateway_client
             .authenticate_and_start()
@@ -199,7 +197,6 @@ impl NymClient {
             // don't bother with acks etc. for time being
             let prepared_fragment = message_preparer
                 .prepare_chunk_for_sending(message_chunk, topology, &self.ack_key, &recipient)
-                .await
                 .unwrap();
 
             console_warn!("packet is going to have round trip time of {:?}, but we're not going to do anything for acks anyway ", prepared_fragment.total_delay);
@@ -268,7 +265,7 @@ impl NymClient {
             Ok(gateways) => gateways,
         };
 
-        let topology = nym_topology_from_bonds(mixnodes, gateways);
+        let topology = nym_topology_from_detailed(mixnodes, gateways);
         let version = env!("CARGO_PKG_VERSION");
         topology.filter_system_version(version)
     }

@@ -35,23 +35,10 @@ pub(crate) struct Run {
     port: Option<u16>,
 
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
-    /// with bandwidth credential requirement. If this value is set, --eth-endpoint and
-    /// --eth-private-key don't need to be set.
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    #[clap(long, conflicts_with_all = &["eth-endpoint", "eth-private-key"])]
+    /// with bandwidth credential requirement.
+    #[cfg(feature = "coconut")]
+    #[clap(long)]
     enabled_credentials_mode: bool,
-
-    /// URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20
-    /// tokens. If you don't want to set this value, use --enabled-credentials-mode instead
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    #[clap(long)]
-    eth_endpoint: Option<String>,
-
-    /// Ethereum private key used for obtaining bandwidth tokens from ERC20 tokens. If you don't
-    /// want to set this value, use --enabled-credentials-mode instead")
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    #[clap(long)]
-    eth_private_key: Option<String>,
 }
 
 impl From<Run> for OverrideConfig {
@@ -61,15 +48,8 @@ impl From<Run> for OverrideConfig {
             disable_socket: run_config.disable_socket,
             port: run_config.port,
             fastmode: false,
-
-            #[cfg(all(feature = "eth", not(feature = "coconut")))]
+            #[cfg(feature = "coconut")]
             enabled_credentials_mode: run_config.enabled_credentials_mode,
-
-            #[cfg(all(feature = "eth", not(feature = "coconut")))]
-            eth_private_key: run_config.eth_private_key,
-
-            #[cfg(all(feature = "eth", not(feature = "coconut")))]
-            eth_endpoint: run_config.eth_endpoint,
         }
     }
 }
@@ -82,7 +62,7 @@ fn version_check(cfg: &Config) -> bool {
     if binary_version == config_version {
         true
     } else {
-        warn!("The mixnode binary has different version than what is specified in config file! {} and {}", binary_version, config_version);
+        warn!("The native-client binary has different version than what is specified in config file! {} and {}", binary_version, config_version);
         if is_minor_version_compatible(binary_version, config_version) {
             info!("but they are still semver compatible. However, consider running the `upgrade` command");
             true

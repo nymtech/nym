@@ -144,7 +144,7 @@ impl Tau {
 
         let tau_mem = self.0.as_raw_slice();
         assert_eq!(tau_mem.len(), 1, "tau length invariant was broken");
-        random_oracle_builder.update(&tau_mem[0].to_be_bytes());
+        random_oracle_builder.update(tau_mem[0].to_be_bytes());
 
         let oracle_output = random_oracle_builder.finalize();
         debug_assert_eq!(oracle_output.len() * 8, HASH_SECURITY_PARAM);

@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-validator-api"
-version = "1.0.1"
+version = "1.0.2"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -16,34 +16,46 @@ rust-version = "1.56"
 
 [dependencies]
 async-trait = "0.1.52"
-clap = "2.33.0"
+cfg-if = "1.0"
+clap = { version = "3.2", features = ["cargo"] }
+console-subscriber = { version = "0.1.1", optional = true } # validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
 dirs = "4.0"
 dotenv = "0.15.0"
-futures = "0.3"
+futures = "0.3.24"
 humantime-serde = "1.0"
-log = "0.4"
+log = "0.4.17"
 pin-project = "1.0"
-pretty_env_logger = "0.4"
-rand = "0.8"
-rand-07 = { package = "rand", version = "0.7" } # required for compatibility
-reqwest = { version = "0.11", features = ["json"] }
+pretty_env_logger = "0.4.0"
+rand = "0.8.5"
+rand-07 = { package = "rand", version = "0.7.3" } # required for compatibility
+reqwest = { version = "0.11.11", features = ["json"] }
 rocket = { version = "0.5.0-rc.2", features = ["json"] }
-rocket_cors = { git="https://github.com/lawliet89/rocket_cors", rev="dfd3662c49e2f6fc37df35091cb94d82f7fb5915" }
+rocket_cors = { git = "https://github.com/lawliet89/rocket_cors", rev = "dfd3662c49e2f6fc37df35091cb94d82f7fb5915" }
 serde = "1.0"
 serde_json = "1.0"
-thiserror = "1"
-time = { version = "0.3", features = ["serde-human-readable", "parsing"]}
-tokio = { version = "1.19.1", features = ["rt-multi-thread", "macros", "signal", "time"] }
+tap = "1.0"
+thiserror = "1.0"
+time = { version = "0.3.14", features = ["serde-human-readable", "parsing"] }
+tokio = { version = "1.19", features = [
+    "rt-multi-thread",
+    "macros",
+    "signal",
+    "time",
+] }
 tokio-stream = "0.1.9"
 url = "2.2"
 
-ts-rs = "6.1.2"
+ts-rs = {version = "6.1", optional = true}
 
-anyhow = "1"
+anyhow = "1.0"
 getset = "0.1.1"
 
-rocket_sync_db_pools = { version = "0.1.0-rc.2", default-features = false }
-sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]}
+sqlx = { version = "0.6.1", features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "macros",
+    "migrate",
+] }
 
 okapi = { version = "0.7.0-rc.1", features = ["impl_json_schema"] }
 rocket_okapi = { version = "0.8.0-rc.2", features = ["swagger"] }
@@ -51,37 +63,53 @@ schemars = { version = "0.8", features = ["preserve_order"] }
 
 ## internal
 coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
+coconut-interface = { path = "../common/coconut-interface", optional = true }
 config = { path = "../common/config" }
 cosmwasm-std = "1.0.0"
-crypto = { path="../common/crypto" }
-gateway-client = { path="../common/client-libs/gateway-client" }
-mixnet-contract-common = { path= "../common/cosmwasm-smart-contracts/mixnet-contract" }
-multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
-nymsphinx = { path="../common/nymsphinx" }
-task = { path = "../common/task" }
-topology = { path="../common/topology" }
-validator-api-requests = { path = "validator-api-requests" }
-validator-client = { path="../common/client-libs/validator-client", features = ["nymd-client"] }
-version-checker = { path="../common/version-checker" }
-coconut-interface = { path = "../common/coconut-interface", optional = true }
-credentials = { path = "../common/credentials", optional = true }
 credential-storage = { path = "../common/credential-storage" }
-# validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
-console-subscriber = { version = "0.1.1", optional = true}
-cfg-if = "1.0"
+credentials = { path = "../common/credentials", optional = true }
+crypto = { path = "../common/crypto" }
+gateway-client = { path = "../common/client-libs/gateway-client" }
+inclusion-probability = { path = "../common/inclusion-probability" }
+mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
+multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
+nymcoconut = { path = "../common/nymcoconut", optional = true }
+nymsphinx = { path = "../common/nymsphinx" }
+task = { path = "../common/task" }
+topology = { path = "../common/topology" }
+validator-api-requests = { path = "validator-api-requests" }
+validator-client = { path = "../common/client-libs/validator-client", features = [
+    "nymd-client",
+] }
+version-checker = { path = "../common/version-checker" }
 
 [features]
-coconut = ["coconut-interface", "credentials", "gateway-client/coconut", "credentials/coconut", "validator-api-requests/coconut"]
+coconut = [
+    "coconut-interface",
+    "credentials",
+    "gateway-client/coconut",
+    "credentials/coconut",
+    "validator-api-requests/coconut",
+    "nymcoconut",
+]
 no-reward = []
-generate-ts = []
+generate-ts = ["ts-rs"]
 
 [build-dependencies]
 tokio = { version = "1.19.1", features = ["rt-multi-thread", "macros"] }
-sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
-vergen = { version = "5", default-features = false, features = ["build", "git", "rustc", "cargo"] }
+sqlx = { version = "0.6.2", features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "macros",
+    "migrate",
+] }
+vergen = { version = "7", default-features = false, features = [
+    "build",
+    "git",
+    "rustc",
+    "cargo",
+] }
 
 [dev-dependencies]
-attohttpc = {version = "0.18.0", features = ["json"]}
-nymcoconut = { path = "../common/nymcoconut" }
 cw3 = "0.13.2"
 cw-utils = "0.13.2"

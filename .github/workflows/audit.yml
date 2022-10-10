@@ -31,7 +31,6 @@ jobs:
           KEYBASE_NYMBOT_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
           KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBTECH_TEAM }}"
           KEYBASE_NYM_CHANNEL: "test"
-          IS_SUCCESS: "${{ env.WORKFLOW_CONCLUSION == 'success' }}"
         uses: docker://keybaseio/client:stable-node
         with:
           args: .github/workflows/support-files/notifications/entry_point.sh

@@ -16,6 +16,7 @@ futures = "0.3"
 log = "0.4"
 socks5-requests = { path = "../requests" }
 ordered-buffer = { path = "../ordered-buffer" }
+task = { path = "../../task" }
 
 [dev-dependencies]
 tokio-test = "0.4.2"

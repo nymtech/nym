@@ -31,6 +31,11 @@ const headers: Header[] = [
       'The percentage of the node rewards that you as the node operator will take before the rest of the reward is shared between you and the delegators.',
   },
   {
+    header: 'Operator cost',
+    id: 'operator-cost',
+    // tooltipText: 'TODO', // TODO
+  },
+  {
     header: 'Operator rewards',
     id: 'operator-rewards',
     tooltipText:
@@ -55,8 +60,18 @@ export const BondedMixnode = ({
   network?: Network;
   onActionSelect: (action: TBondedMixnodeActions) => void;
 }) => {
-  const { name, stake, bond, stakeSaturation, profitMargin, operatorRewards, delegators, status, identityKey } =
-    mixnode;
+  const {
+    name,
+    stake,
+    bond,
+    stakeSaturation,
+    profitMargin,
+    operatorRewards,
+    operatorCost,
+    delegators,
+    status,
+    identityKey,
+  } = mixnode;
   const cells: Cell[] = [
     {
       cell: `${stake.amount} ${stake.denom}`,
@@ -75,7 +90,11 @@ export const BondedMixnode = ({
       id: 'pm-cell',
     },
     {
-      cell: `${operatorRewards.amount} ${operatorRewards.denom}`,
+      cell: operatorCost ? `${operatorCost} USD` : '-',
+      id: 'operator-cost-cell',
+    },
+    {
+      cell: operatorRewards ? `${operatorRewards.amount} ${operatorRewards.denom}` : '-',
       id: 'operator-rewards-cell',
     },
     {
@@ -86,7 +105,7 @@ export const BondedMixnode = ({
       cell: (
         <BondedMixnodeActions
           onActionSelect={onActionSelect}
-          disabledRedeemAndCompound={Number(mixnode.operatorRewards.amount) === 0}
+          disabledRedeemAndCompound={(operatorRewards && Number(operatorRewards.amount) === 0) || false}
         />
       ),
       id: 'actions-cell',
@@ -98,8 +117,8 @@ export const BondedMixnode = ({
     <NymCard
       borderless
       title={
-        <Stack gap={2}>
-          <Box display="flex" alignItems="center" gap={2}>
+        <Stack gap={3}>
+          <Box display="flex" alignItems="center" gap={3}>
             <Typography variant="h5" fontWeight={600}>
               Mix node
             </Typography>
@@ -120,7 +139,7 @@ export const BondedMixnode = ({
           onClick={() => onActionSelect('nodeSettings')}
           startIcon={<NodeIcon />}
         >
-          Settings
+          Node Settings
         </Button>
       }
     >

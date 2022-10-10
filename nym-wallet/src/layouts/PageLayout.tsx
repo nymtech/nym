@@ -10,7 +10,7 @@ export const PageLayout: React.FC<{ position?: 'flex-start' | 'flex-end' }> = ({
       justifyContent: 'start',
       alignItems: position || 'center',
       overflow: 'auto',
-      mt: 2,
+      mt: 4,
     }}
   >
     <Box width="100%" margin="auto">

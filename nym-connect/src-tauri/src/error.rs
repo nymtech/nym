@@ -1,3 +1,4 @@
+use client_core::error::ClientCoreError;
 use serde::{Serialize, Serializer};
 use thiserror::Error;
 
@@ -29,6 +30,11 @@ pub enum BackendError {
         #[from]
         source: serde_json::Error,
     },
+    #[error("{source}")]
+    ClientCoreError {
+        #[from]
+        source: ClientCoreError,
+    },
 
     #[error("State error")]
     StateError,
@@ -52,6 +58,10 @@ pub enum BackendError {
     CouldNotInitWithoutServiceProvider,
     #[error("Could not get file name")]
     CouldNotGetFilename,
+    #[error("Could not get config file location")]
+    CouldNotGetConfigFilename,
+    #[error("Could not load existing gateway configuration")]
+    CouldNotLoadExistingGatewayConfiguration(std::io::Error),
 }
 
 impl Serialize for BackendError {

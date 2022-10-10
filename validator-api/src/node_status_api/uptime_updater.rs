@@ -72,14 +72,20 @@ impl HistoricalUptimeUpdater {
         while !shutdown.is_shutdown() {
             tokio::select! {
                 _ = sleep(ONE_DAY) => {
-                    if let Err(err) = self.update_uptimes().await {
-                        // normally that would have been a warning rather than an error,
-                        // however, in this case it implies some underlying issues with our database
-                        // that might affect the entire program
-                        error!(
-                            "We failed to update daily uptimes of active nodes - {}",
-                            err
-                        )
+                    tokio::select! {
+                        biased;
+                        _ = shutdown.recv() => {
+                            trace!("UpdateHandler: Received shutdown");
+                        }
+                        Err(err) = self.update_uptimes() => {
+                            // normally that would have been a warning rather than an error,
+                            // however, in this case it implies some underlying issues with our database
+                            // that might affect the entire program
+                            error!(
+                                "We failed to update daily uptimes of active nodes - {}",
+                                err
+                            );
+                        }
                     }
                 }
                 _ = shutdown.recv() => {

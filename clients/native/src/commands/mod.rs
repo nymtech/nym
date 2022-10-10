@@ -2,15 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::{Config, SocketType};
+use clap::CommandFactory;
 use clap::{Parser, Subcommand};
-use url::Url;
-
-#[cfg(not(feature = "coconut"))]
-pub(crate) const DEFAULT_ETH_ENDPOINT: &str =
-    "https://rinkeby.infura.io/v3/00000000000000000000000000000000";
-#[cfg(not(feature = "coconut"))]
-pub(crate) const DEFAULT_ETH_PRIVATE_KEY: &str =
-    "0000000000000000000000000000000000000000000000000000000000000001";
+use completions::{fig_generate, ArgShell};
 
 pub(crate) mod init;
 pub(crate) mod run;
@@ -70,6 +64,12 @@ pub(crate) enum Commands {
     Run(run::Run),
     /// Try to upgrade the client
     Upgrade(upgrade::Upgrade),
+
+    /// Generate shell completions
+    Completions(ArgShell),
+
+    /// Generate Fig specification
+    GenerateFigSpec,
 }
 
 // Configuration that can be overridden.
@@ -79,46 +79,33 @@ pub(crate) struct OverrideConfig {
     port: Option<u16>,
     fastmode: bool,
 
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    #[cfg(feature = "coconut")]
     enabled_credentials_mode: bool,
-
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    eth_private_key: Option<String>,
-
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
-    eth_endpoint: Option<String>,
 }
 
 pub(crate) async fn execute(args: &Cli) {
+    let bin_name = "nym-native-client";
+
     match &args.command {
         Commands::Init(m) => init::execute(m).await,
         Commands::Run(m) => run::execute(m).await,
         Commands::Upgrade(m) => upgrade::execute(m),
+        Commands::Completions(s) => s.generate(&mut Cli::into_app(), bin_name),
+        Commands::GenerateFigSpec => fig_generate(&mut Cli::into_app(), bin_name),
     }
-}
-
-fn parse_validators(raw: &str) -> Vec<Url> {
-    raw.split(',')
-        .map(|raw_validator| {
-            raw_validator
-                .trim()
-                .parse()
-                .expect("one of the provided validator api urls is invalid")
-        })
-        .collect()
 }
 
 pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
     if let Some(raw_validators) = args.validators {
         config
             .get_base_mut()
-            .set_custom_validator_apis(parse_validators(&raw_validators));
+            .set_custom_validator_apis(config::parse_validators(&raw_validators));
     } else if std::env::var(network_defaults::var_names::CONFIGURED).is_ok() {
         let raw_validators = std::env::var(network_defaults::var_names::API_VALIDATOR)
             .expect("api validator not set");
         config
             .get_base_mut()
-            .set_custom_validator_apis(parse_validators(&raw_validators));
+            .set_custom_validator_apis(config::parse_validators(&raw_validators));
     }
 
     if args.disable_socket {
@@ -129,26 +116,10 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
         config = config.with_port(port);
     }
 
-    #[cfg(all(not(feature = "eth"), not(feature = "coconut")))]
-    {
-        config
-            .get_base_mut()
-            .with_eth_endpoint(DEFAULT_ETH_ENDPOINT.to_string());
-        config
-            .get_base_mut()
-            .with_eth_private_key(DEFAULT_ETH_PRIVATE_KEY.to_string());
-    }
-
-    #[cfg(all(feature = "eth", not(feature = "coconut")))]
+    #[cfg(feature = "coconut")]
     {
         if args.enabled_credentials_mode {
             config.get_base_mut().with_disabled_credentials(false)
-        }
-        if let Some(eth_endpoint) = args.eth_endpoint {
-            config.get_base_mut().with_eth_endpoint(eth_endpoint);
-        }
-        if let Some(eth_private_key) = args.eth_private_key {
-            config.get_base_mut().with_eth_private_key(eth_private_key);
         }
     }
 

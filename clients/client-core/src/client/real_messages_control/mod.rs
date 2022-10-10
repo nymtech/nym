@@ -22,6 +22,7 @@ use nymsphinx::addressing::clients::Recipient;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 use std::time::Duration;
+use task::ShutdownListener;
 use tokio::task::JoinHandle;
 
 mod acknowledgement_control;
@@ -49,9 +50,15 @@ pub struct Config {
 
     /// Average delay an acknowledgement packet is going to get delayed at a single mixnode.
     average_ack_delay_duration: Duration,
+
+    /// Controls whether the main packet stream constantly produces packets according to the predefined
+    /// poisson distribution.
+    disable_main_poisson_packet_distribution: bool,
 }
 
 impl Config {
+    // TODO: change the config into a builder
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         ack_key: Arc<AckKey>,
         ack_wait_multiplier: f64,
@@ -59,6 +66,7 @@ impl Config {
         average_ack_delay_duration: Duration,
         average_message_sending_delay: Duration,
         average_packet_delay_duration: Duration,
+        disable_main_poisson_packet_distribution: bool,
         self_recipient: Recipient,
     ) -> Self {
         Config {
@@ -69,6 +77,7 @@ impl Config {
             average_message_sending_delay,
             average_packet_delay_duration,
             average_ack_delay_duration,
+            disable_main_poisson_packet_distribution,
         }
     }
 }
@@ -91,6 +100,7 @@ impl RealMessagesController<OsRng> {
         mix_sender: BatchMixMessageSender,
         topology_access: TopologyAccessor,
         reply_key_storage: ReplyKeyStorage,
+        shutdown: ShutdownListener,
     ) -> Self {
         let rng = OsRng;
 
@@ -119,12 +129,14 @@ impl RealMessagesController<OsRng> {
             config.self_recipient,
             reply_key_storage,
             ack_controller_connectors,
+            shutdown.clone(),
         );
 
         let out_queue_config = real_traffic_stream::Config::new(
             config.average_ack_delay_duration,
             config.average_packet_delay_duration,
             config.average_message_sending_delay,
+            config.disable_main_poisson_packet_distribution,
         );
 
         let out_queue_control = OutQueueControl::new(
@@ -136,6 +148,7 @@ impl RealMessagesController<OsRng> {
             rng,
             config.self_recipient,
             topology_access,
+            shutdown,
         );
 
         RealMessagesController {
@@ -153,12 +166,12 @@ impl RealMessagesController<OsRng> {
         // graceful shutdowns.
         let out_queue_control_fut = tokio::spawn(async move {
             out_queue_control.run_out_queue_control().await;
-            error!("The out queue controller has finished execution!");
+            debug!("The out queue controller has finished execution!");
             out_queue_control
         });
         let ack_control_fut = tokio::spawn(async move {
             ack_control.run().await;
-            error!("The acknowledgement controller has finished execution!");
+            debug!("The acknowledgement controller has finished execution!");
             ack_control
         });
 

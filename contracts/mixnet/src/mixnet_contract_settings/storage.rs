@@ -1,69 +1,58 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::mixnet_contract_settings::models::ContractState;
-use cosmwasm_std::StdResult;
-use cosmwasm_std::Storage;
+use crate::constants::CONTRACT_STATE_KEY;
+use cosmwasm_std::{Addr, Storage};
+use cosmwasm_std::{Coin, StdResult};
 use cw_storage_plus::Item;
-use mixnet_contract_common::{Layer, LayerDistribution};
+use mixnet_contract_common::error::MixnetContractError;
+use mixnet_contract_common::ContractState;
 
-pub(crate) const CONTRACT_STATE: Item<'_, ContractState> = Item::new("config");
-pub(crate) const LAYERS: Item<'_, LayerDistribution> = Item::new("layers");
+pub(crate) const CONTRACT_STATE: Item<'_, ContractState> = Item::new(CONTRACT_STATE_KEY);
 
-pub fn rewarding_validator_address(storage: &dyn Storage) -> StdResult<String> {
-    CONTRACT_STATE
+pub fn rewarding_validator_address(storage: &dyn Storage) -> Result<Addr, MixnetContractError> {
+    Ok(CONTRACT_STATE
         .load(storage)
-        .map(|state| state.rewarding_validator_address.to_string())
+        .map(|state| state.rewarding_validator_address)?)
 }
 
-pub fn mix_denom(storage: &dyn Storage) -> StdResult<String> {
-    CONTRACT_STATE.load(storage).map(|state| state.mix_denom)
+pub(crate) fn minimum_mixnode_pledge(storage: &dyn Storage) -> Result<Coin, MixnetContractError> {
+    Ok(CONTRACT_STATE
+        .load(storage)
+        .map(|state| state.params.minimum_mixnode_pledge)?)
 }
 
-pub fn increment_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResult<()> {
-    LAYERS
-        .update(storage, |mut distribution| {
-            match layer {
-                Layer::Gateway => distribution.gateways += 1,
-                Layer::One => distribution.layer1 += 1,
-                Layer::Two => distribution.layer2 += 1,
-                Layer::Three => distribution.layer3 += 1,
-            }
-            Ok(distribution)
-        })
-        .map(|_| ())
+pub(crate) fn minimum_gateway_pledge(storage: &dyn Storage) -> Result<Coin, MixnetContractError> {
+    Ok(CONTRACT_STATE
+        .load(storage)
+        .map(|state| state.params.minimum_gateway_pledge)?)
 }
 
-pub fn decrement_layer_count(storage: &mut dyn Storage, layer: Layer) -> StdResult<()> {
-    LAYERS
-        .update(storage, |mut distribution| {
-            match layer {
-                Layer::Gateway => {
-                    distribution.gateways = distribution
-                        .gateways
-                        .checked_sub(1)
-                        .expect("tried to subtract from unsigned zero!")
-                }
-                Layer::One => {
-                    distribution.layer1 = distribution
-                        .layer1
-                        .checked_sub(1)
-                        .expect("tried to subtract from unsigned zero!")
-                }
-                Layer::Two => {
-                    distribution.layer2 = distribution
-                        .layer2
-                        .checked_sub(1)
-                        .expect("tried to subtract from unsigned zero!")
-                }
-                Layer::Three => {
-                    distribution.layer3 = distribution
-                        .layer3
-                        .checked_sub(1)
-                        .expect("tried to subtract from unsigned zero!")
-                }
-            }
-            Ok(distribution)
-        })
-        .map(|_| ())
+#[allow(unused)]
+pub(crate) fn minimum_delegation_stake(
+    storage: &dyn Storage,
+) -> Result<Option<Coin>, MixnetContractError> {
+    Ok(CONTRACT_STATE
+        .load(storage)
+        .map(|state| state.params.minimum_mixnode_delegation)?)
+}
+
+#[allow(unused)]
+pub(crate) fn rewarding_denom(storage: &dyn Storage) -> Result<String, MixnetContractError> {
+    Ok(CONTRACT_STATE
+        .load(storage)
+        .map(|state| state.rewarding_denom)?)
+}
+
+pub(crate) fn vesting_contract_address(storage: &dyn Storage) -> Result<Addr, MixnetContractError> {
+    Ok(CONTRACT_STATE
+        .load(storage)
+        .map(|state| state.vesting_contract_address)?)
+}
+
+pub(crate) fn initialise_storage(
+    storage: &mut dyn Storage,
+    initial_state: ContractState,
+) -> StdResult<()> {
+    CONTRACT_STATE.save(storage, &initial_state)
 }

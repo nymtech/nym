@@ -188,7 +188,7 @@ export const PageMixnodes: React.FC = () => {
         />
       ),
       headerClassName: 'MuiDataGrid-header-override',
-      width: 190,
+      width: 185,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
@@ -204,11 +204,11 @@ export const PageMixnodes: React.FC = () => {
       ),
     },
     {
-      field: 'self_percentage',
-      headerName: 'Self %',
-      width: 110,
+      field: 'pledge_amount',
+      headerName: 'Bond',
+      width: 200,
       headerClassName: 'MuiDataGrid-header-override',
-      renderHeader: () => <CustomColumnHeading headingTitle="Self %" />,
+      renderHeader: () => <CustomColumnHeading headingTitle="Bond" tooltipInfo="Node operator's share of stake." />,
       type: 'number',
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
@@ -217,7 +217,7 @@ export const PageMixnodes: React.FC = () => {
           component={RRDLink}
           to={`/network-components/mixnode/${params.row.identity_key}`}
         >
-          {params.value}%
+          {currencyToString(params.value)}
         </MuiLink>
       ),
     },
@@ -231,7 +231,7 @@ export const PageMixnodes: React.FC = () => {
         />
       ),
       headerClassName: 'MuiDataGrid-header-override',
-      width: 165,
+      width: 160,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
@@ -253,7 +253,7 @@ export const PageMixnodes: React.FC = () => {
         />
       ),
       headerClassName: 'MuiDataGrid-header-override',
-      width: 160,
+      width: 165,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink

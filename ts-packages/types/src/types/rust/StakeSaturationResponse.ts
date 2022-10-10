@@ -1,4 +1,5 @@
 export interface StakeSaturationResponse {
-  saturation: number;
+  saturation: string;
+  uncapped_saturation: string;
   as_at: bigint;
 }

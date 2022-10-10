@@ -14,11 +14,11 @@ export const Bond = ({
     <Box
       sx={{
         display: 'flex',
-        alignItems: 'center',
+        alignItems: 'flex-end',
         justifyContent: 'space-between',
       }}
     >
-      <Typography>Bond a mixnode or a gateway</Typography>
+      <Typography variant="body2">Bond a mixnode or a gateway</Typography>
       <Box
         sx={{
           display: 'flex',

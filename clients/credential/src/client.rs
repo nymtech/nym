@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::Result;
-use crate::{MNEMONIC, NYMD_URL};
 use bip39::Mnemonic;
 use network_defaults::{NymNetworkDetails, VOUCHER_INFO};
 use std::str::FromStr;
@@ -17,9 +16,9 @@ pub(crate) struct Client {
 }
 
 impl Client {
-    pub fn new() -> Self {
-        let nymd_url = Url::from_str(NYMD_URL).unwrap();
-        let mnemonic = Mnemonic::from_str(MNEMONIC).unwrap();
+    pub fn new(nymd_url: &str, mnemonic: &str) -> Self {
+        let nymd_url = Url::from_str(nymd_url).unwrap();
+        let mnemonic = Mnemonic::from_str(mnemonic).unwrap();
         let network_details = NymNetworkDetails::new_from_env();
         let config = nymd::Config::try_from_nym_network_details(&network_details)
             .expect("failed to construct valid validator client config with the provided network");

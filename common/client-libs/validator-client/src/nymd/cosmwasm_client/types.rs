@@ -489,7 +489,7 @@ impl TryFrom<ProtoContractCodeHistoryEntry> for ContractCodeHistoryEntry {
     }
 }
 
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, Serialize)]
 pub struct GasInfo {
     /// GasWanted is the maximum units of work we allow this tx to perform.
     pub gas_wanted: Gas,
@@ -645,7 +645,7 @@ impl InstantiateOptions {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct InstantiateResult {
     /// The address of the newly instantiated contract
     pub contract_address: AccountId,
@@ -658,7 +658,7 @@ pub struct InstantiateResult {
     pub gas_info: GasInfo,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct ChangeAdminResult {
     pub logs: Vec<Log>,
 
@@ -668,7 +668,7 @@ pub struct ChangeAdminResult {
     pub gas_info: GasInfo,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct MigrateResult {
     pub logs: Vec<Log>,
 
@@ -678,7 +678,7 @@ pub struct MigrateResult {
     pub gas_info: GasInfo,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct ExecuteResult {
     pub logs: Vec<Log>,
 

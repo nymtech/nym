@@ -9,6 +9,7 @@ export type MixnodeRowType = {
   identity_key: string;
   bond: number;
   self_percentage: string;
+  pledge_amount: number;
   host: string;
   layer: string;
   profit_percentage: string;
@@ -35,6 +36,7 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
     bond: totalBond || 0,
     location: item?.location?.country_name || '',
     self_percentage: selfPercentage,
+    pledge_amount: pledge,
     host: item?.mix_node?.host || '',
     layer: item?.layer || '',
     profit_percentage: `${profitPercentage}%`,

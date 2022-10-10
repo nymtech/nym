@@ -2,7 +2,7 @@ import React, { createContext, useEffect, useMemo, useState } from 'react';
 import { forage } from '@tauri-apps/tauri-forage';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
-import { Account, AccountEntry, MixNodeBond } from '@nymproject/types';
+import { Account, AccountEntry, MixNodeBond, MixNodeDetails } from '@nymproject/types';
 import { getVersion } from '@tauri-apps/api/app';
 import { AppEnv, Network } from '../types';
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';
@@ -37,7 +37,7 @@ export type TAppContext = {
   appVersion?: string;
   clientDetails?: Account;
   storedAccounts?: AccountEntry[];
-  mixnodeDetails?: MixNodeBond | null;
+  mixnodeDetails?: MixNodeDetails | null;
   userBalance: TUseuserBalance;
   showAdmin: boolean;
   showTerminal: boolean;
@@ -68,7 +68,7 @@ export const AppContext = createContext({} as TAppContext);
 export const AppProvider = ({ children }: { children: React.ReactNode }) => {
   const [clientDetails, setClientDetails] = useState<Account>();
   const [storedAccounts, setStoredAccounts] = useState<AccountEntry[]>();
-  const [mixnodeDetails, setMixnodeDetails] = useState<MixNodeBond | null>(null);
+  const [mixnodeDetails, setMixnodeDetails] = useState<MixNodeDetails | null>(null);
   const [network, setNetwork] = useState<Network | undefined>();
   const [appEnv, setAppEnv] = useState<AppEnv>();
   const [showAdmin, setShowAdmin] = useState(false);

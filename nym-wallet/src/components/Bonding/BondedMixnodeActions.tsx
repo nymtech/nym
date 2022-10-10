@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Typography } from '@mui/material';
 import { ActionsMenu, ActionsMenuItem } from 'src/components/ActionsMenu';
-import { Unbond as UnbondIcon } from '../../svg-icons';
+import { Unbond as UnbondIcon, Bond as BondIcon } from '../../svg-icons';
 
-export type TBondedMixnodeActions = 'nodeSettings' | 'bondMore' | 'unbond' | 'redeem' | 'compound';
+export type TBondedMixnodeActions = 'nodeSettings' | 'bondMore' | 'unbond' | 'redeem';
 
 export const BondedMixnodeActions = ({
   onActionSelect,
@@ -25,23 +25,20 @@ export const BondedMixnodeActions = ({
   return (
     <ActionsMenu open={isOpen} onOpen={handleOpen} onClose={handleClose}>
       <ActionsMenuItem
-        title="Unbond"
-        Icon={<UnbondIcon fontSize="inherit" />}
-        onClick={() => handleActionClick('unbond')}
-      />
-      <ActionsMenuItem
-        title="Compound rewards"
-        Icon={<Typography sx={{ pl: 1 }}>C</Typography>}
-        description={disabledRedeemAndCompound ? 'No rewards to compound' : 'Add your rewards to you balance'}
-        onClick={() => handleActionClick('compound')}
-        disabled={disabledRedeemAndCompound}
+        title="Bond More"
+        Icon={<BondIcon fontSize="inherit" />}
+        onClick={() => handleActionClick('bondMore')}
       />
       <ActionsMenuItem
         title="Redeem rewards"
-        Icon={<Typography sx={{ pl: 1 }}>R</Typography>}
-        description={disabledRedeemAndCompound ? 'No rewards to redeem' : 'Add your rewards to you balance'}
+        Icon={<Typography sx={{ pl: 1, fontWeight: 700 }}>R</Typography>}
         onClick={() => handleActionClick('redeem')}
         disabled={disabledRedeemAndCompound}
+      />
+      <ActionsMenuItem
+        title="Unbond"
+        Icon={<UnbondIcon fontSize="inherit" />}
+        onClick={() => handleActionClick('unbond')}
       />
     </ActionsMenu>
   );

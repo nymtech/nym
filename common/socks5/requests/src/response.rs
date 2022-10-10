@@ -1,8 +1,15 @@
+// Copyright 2020-2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use thiserror::Error;
+
 use crate::ConnectionId;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, Error, PartialEq, Eq)]
 pub enum ResponseError {
+    #[error("not enough bytes to recover the connection id")]
     ConnectionIdTooShort,
+    #[error("no data provided")]
     NoData,
 }
 /// A remote network response retrieved by the Socks5 service provider. This

@@ -1,5 +1,5 @@
-import React, { useContext, useState } from 'react';
-import { FeeDetails } from '@nymproject/types';
+import React, { useContext, useEffect, useState } from 'react';
+import { FeeDetails, DecCoin } from '@nymproject/types';
 import { TPoolOption } from 'src/components';
 import { Bond } from 'src/components/Bonding/Bond';
 import { BondedMixnode } from 'src/components/Bonding/BondedMixnode';
@@ -15,21 +15,20 @@ import { AppContext, urls } from 'src/context/main';
 import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
 import { BondedGateway } from 'src/components/Bonding/BondedGateway';
 import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsModal';
-import { CompoundRewardsModal } from 'src/components/Bonding/modals/CompoundRewardsModal';
-import { PageLayout } from '../../layouts';
-import { BondingContextProvider, useBondingContext } from '../../context';
 import { Box } from '@mui/material';
+import { BondingContextProvider, useBondingContext } from '../../context';
+import { BondMoreModal } from '../../components/Bonding/modals/BondMoreModal';
 
 const Bonding = () => {
   const [showModal, setShowModal] = useState<
-    'bond-mixnode' | 'bond-gateway' | 'bond-more' | 'unbond' | 'redeem' | 'compound' | 'node-settings'
+    'bond-mixnode' | 'bond-gateway' | 'bond-more' | 'unbond' | 'redeem' | 'node-settings'
   >();
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
 
   const {
     network,
     clientDetails,
-    userBalance: { originalVesting },
+    userBalance: { originalVesting, balance, tokenAllocation },
   } = useContext(AppContext);
 
   const {
@@ -37,24 +36,36 @@ const Bonding = () => {
     bondMixnode,
     bondGateway,
     unbond,
+    bondMore,
     updateMixnode,
     redeemRewards,
-    compoundRewards,
     isLoading,
     checkOwnership,
+    error,
   } = useBondingContext();
+
+  useEffect(() => {
+    if (error) {
+      setShowModal(undefined);
+      setConfirmationDetails({
+        status: 'error',
+        title: 'An error occurred',
+        subtitle: error,
+      });
+    }
+  }, [error]);
 
   const handleCloseModal = async () => {
     setShowModal(undefined);
     await checkOwnership();
   };
 
-  const handleError = (error: string) => {
+  const handleError = (e: string) => {
     setShowModal(undefined);
     setConfirmationDetails({
       status: 'error',
       title: 'An error occurred',
-      subtitle: error,
+      subtitle: e,
     });
   };
 
@@ -89,7 +100,7 @@ const Bonding = () => {
     });
   };
 
-  const handleUpdateProfitMargin = async (profitMargin: number, fee?: FeeDetails) => {
+  const handleUpdateProfitMargin = async (profitMargin: string, fee?: FeeDetails) => {
     setShowModal(undefined);
     const tx = await updateMixnode(profitMargin, fee);
     setConfirmationDetails({
@@ -109,17 +120,6 @@ const Bonding = () => {
     });
   };
 
-  const handleCompoundReward = async (fee?: FeeDetails) => {
-    setShowModal(undefined);
-    const tx = await compoundRewards(fee);
-    setConfirmationDetails({
-      status: 'success',
-      title: 'Rewards compounded successfully',
-      txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
-    });
-    return undefined;
-  };
-
   const handleBondedMixnodeAction = (action: TBondedMixnodeActions) => {
     switch (action) {
       case 'bondMore': {
@@ -134,10 +134,6 @@ const Bonding = () => {
         setShowModal('redeem');
         break;
       }
-      case 'compound': {
-        setShowModal('compound');
-        break;
-      }
       case 'nodeSettings': {
         setShowModal('node-settings');
         break;
@@ -147,6 +143,23 @@ const Bonding = () => {
       }
     }
     return undefined;
+  };
+
+  const handleBondMore = async ({
+    signature,
+    additionalBond,
+  }: {
+    additionalBond: DecCoin;
+    signature: string;
+    tokenPool: TPoolOption;
+  }) => {
+    setShowModal(undefined);
+    const tx = await bondMore(signature, additionalBond);
+    setConfirmationDetails({
+      status: 'success',
+      title: 'Bond more successful',
+      txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
+    });
   };
 
   return (
@@ -186,6 +199,16 @@ const Bonding = () => {
         />
       )}
 
+      {showModal === 'bond-more' && bondedNode && (
+        <BondMoreModal
+          currentBond={bondedNode.bond}
+          userBalance={balance?.printable_balance}
+          hasVestingTokens={Number(tokenAllocation?.vesting) > 0}
+          onConfirm={handleBondMore}
+          onClose={() => setShowModal(undefined)}
+        />
+      )}
+
       {showModal === 'unbond' && bondedNode && (
         <UnbondModal
           node={bondedNode}
@@ -200,15 +223,6 @@ const Bonding = () => {
           node={bondedNode}
           onClose={() => setShowModal(undefined)}
           onConfirm={handleRedeemReward}
-          onError={handleError}
-        />
-      )}
-
-      {showModal === 'compound' && bondedNode && isMixnode(bondedNode) && (
-        <CompoundRewardsModal
-          node={bondedNode}
-          onClose={() => setShowModal(undefined)}
-          onConfirm={handleCompoundReward}
           onError={handleError}
         />
       )}

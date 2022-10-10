@@ -1,6 +1,6 @@
 [package]
 name = "nym-network-statistics"
-version = "0.1.0"
+version = "1.0.2"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -14,7 +14,6 @@ serde = { version = "1.0", features = ["derive"] }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "chrono"]}
 thiserror = "1"
 tokio = { version = "1.4", features = [ "net", "rt-multi-thread", "macros", "time" ] }
-tokio-tungstenite = "0.14"
 
 statistics-common = { path = "../../common/statistics" }
 

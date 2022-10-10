@@ -12,6 +12,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - common/ledger: new library for communicating with a Ledger device ([#1640])
 - native-client/socks5-client: `disable_loop_cover_traffic_stream` Debug config option to disable the separate loop cover traffic stream ([#1666])
 - native-client/socks5-client: `disable_main_poisson_packet_distribution` Debug config option to make the client ignore poisson distribution in the main packet stream and ONLY send real message (and as fast as they come) ([#1664])
+- native-client/socks5-client: `use_extended_packet_size` Debug config option to make the client use 'ExtendedPacketSize' for its traffic (32kB as opposed to 2kB in 1.0.2) ([#1671])
 
 ### Fixed
 
@@ -34,6 +35,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1664]: https://github.com/nymtech/nym/pull/1664
 [#1666]: https://github.com/nymtech/nym/pull/1645
 [#1669]: https://github.com/nymtech/nym/pull/1669
+[#1671]: https://github.com/nymtech/nym/pull/1671
 
 
 ## [nym-binaries-1.0.2](https://github.com/nymtech/nym/tree/nym-binaries-1.0.2)

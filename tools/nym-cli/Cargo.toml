@@ -7,9 +7,9 @@ edition = "2021"
 [dependencies]
 base64 = "0.13.0"
 bs58 = "0.4"
-clap = { version = "3.2.8", features = ["derive"] }
-clap_complete = "3.2.4"
-clap_complete_fig = "3.2.4"
+clap = { version = "3.2", features = ["derive"] }
+clap_complete = "3.2"
+clap_complete_fig = "3.2"
 dotenv = "0.15.0"
 log = "0.4"
 pretty_env_logger = "0.4"

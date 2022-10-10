@@ -5,7 +5,7 @@ use clap::Parser;
 use comfy_table::Table;
 
 use crate::context::QueryClientWithValidatorAPI;
-use crate::utils::{pretty_cosmwasm_coin, show_error};
+use crate::utils::{pretty_decimal_with_denom, show_error};
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -19,7 +19,8 @@ pub async fn query(args: Args, client: &QueryClientWithValidatorAPI) {
         Ok(res) => match args.identity_key {
             Some(identity_key) => {
                 let node = res.iter().find(|node| {
-                    node.mix_node
+                    node.bond_information
+                        .mix_node
                         .identity_key
                         .to_string()
                         .eq_ignore_ascii_case(&identity_key)
@@ -33,6 +34,7 @@ pub async fn query(args: Args, client: &QueryClientWithValidatorAPI) {
                 let mut table = Table::new();
 
                 table.set_header(vec![
+                    "Mix id",
                     "Identity Key",
                     "Owner",
                     "Host",
@@ -41,13 +43,15 @@ pub async fn query(args: Args, client: &QueryClientWithValidatorAPI) {
                     "Version",
                 ]);
                 for node in res {
+                    let denom = &node.bond_information.original_pledge().denom;
                     table.add_row(vec![
-                        node.mix_node.identity_key.to_string(),
-                        node.owner.to_string(),
-                        node.mix_node.host.to_string(),
-                        pretty_cosmwasm_coin(&node.pledge_amount),
-                        pretty_cosmwasm_coin(&node.total_delegation()),
-                        node.mix_node.version,
+                        node.mix_id().to_string(),
+                        node.bond_information.mix_node.identity_key.clone(),
+                        node.bond_information.owner.clone().into_string(),
+                        node.bond_information.mix_node.host.clone(),
+                        pretty_decimal_with_denom(node.rewarding_details.operator, denom),
+                        pretty_decimal_with_denom(node.rewarding_details.delegates, denom),
+                        node.bond_information.mix_node.version,
                     ]);
                 }
 

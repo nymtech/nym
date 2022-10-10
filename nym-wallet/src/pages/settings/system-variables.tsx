@@ -8,9 +8,10 @@ import { InclusionProbabilityResponse, SelectionChance } from '@nymproject/types
 import { validationSchema } from './validationSchema';
 import { InfoTooltip } from '../../components';
 import { useCheckOwnership } from '../../hooks/useCheckOwnership';
-import { updateMixnode, vestingUpdateMixnode } from '../../requests';
-import { AppContext } from '../../context/main';
+import { updateMixnodeCostParams, vestingUpdateMixnodeCostParams } from '../../requests';
+import { AppContext } from '../../context';
 import { Console } from '../../utils/console';
+import { attachDefaultOperatingCost, toPercentFloatString } from '../../utils';
 
 const DataField = ({ title, info, Indicator }: { title: string; info: string; Indicator: React.ReactElement }) => (
   <Grid container justifyContent="space-between">
@@ -30,19 +31,15 @@ const DataField = ({ title, info, Indicator }: { title: string; info: string; In
 );
 
 const colorMap: { [key in SelectionChance]: string } = {
-  VeryLow: 'error.main',
   Low: 'error.main',
-  Moderate: 'warning.main',
+  Good: 'warning.main',
   High: 'success.main',
-  VeryHigh: 'success.main',
 };
 
 const textMap: { [key in SelectionChance]: string } = {
-  VeryLow: 'VeryLow',
   Low: 'Low',
-  Moderate: 'Moderate',
+  Good: 'Good',
   High: 'High',
-  VeryHigh: 'Very high',
 };
 
 const InclusionProbability = ({ probability }: { probability: SelectionChance }) => (
@@ -85,12 +82,12 @@ export const SystemVariables = ({
     formState: { errors, isSubmitting },
   } = useForm({
     resolver: yupResolver(validationSchema),
-    defaultValues: { profitMarginPercent: mixnodeDetails?.mix_node.profit_margin_percent },
+    defaultValues: { profitMarginPercent: mixnodeDetails?.rewarding_details.cost_params.profit_margin_percent },
   });
 
   const onSubmit = async (
-    profitMarginPercent: number | undefined,
-    cb: (profitMarginPercent: number) => Promise<any>,
+    profitMarginPercent: string | undefined,
+    cb: (profitMarginPercent: string) => Promise<any>,
   ) => {
     if (profitMarginPercent) {
       try {
@@ -101,6 +98,18 @@ export const SystemVariables = ({
         Console.log(e as string);
       }
     }
+  };
+
+  const updateMixnodeProfitMargin = async (profitMarginPercent: string) => {
+    // TODO: this will have to be updated with allowing users to provide their operating cost in the form
+    const defaultCostParams = await attachDefaultOperatingCost(toPercentFloatString(profitMarginPercent));
+    await updateMixnodeCostParams(defaultCostParams);
+  };
+
+  const vestingUpdateMixnodeProfitMargin = async (profitMarginPercent: string) => {
+    // TODO: this will have to be updated with allowing users to provide their operating cost in the form
+    const defaultCostParams = await attachDefaultOperatingCost(toPercentFloatString(profitMarginPercent));
+    await vestingUpdateMixnodeCostParams(defaultCostParams);
   };
 
   if (!mixnodeDetails) return null;
@@ -166,7 +175,10 @@ export const SystemVariables = ({
           variant="contained"
           color="primary"
           onClick={handleSubmit((data) =>
-            onSubmit(data.profitMarginPercent, ownership.vestingPledge ? vestingUpdateMixnode : updateMixnode),
+            onSubmit(
+              data.profitMarginPercent,
+              ownership.vestingPledge ? updateMixnodeProfitMargin : vestingUpdateMixnodeProfitMargin,
+            ),
           )}
           disableElevation
           endIcon={isSubmitting && <CircularProgress size={20} />}

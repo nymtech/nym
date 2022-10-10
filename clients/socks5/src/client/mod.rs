@@ -3,6 +3,11 @@
 
 use std::sync::atomic::Ordering;
 
+use crate::client::config::Config;
+use crate::socks::{
+    authentication::{AuthenticationMethods, Authenticator, User},
+    server::SphinxSocksServer,
+};
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
     InputMessage, InputMessageReceiver, InputMessageSender,
@@ -33,12 +38,6 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use nymsphinx::params::PacketSize;
 use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
-
-use crate::client::config::Config;
-use crate::socks::{
-    authentication::{AuthenticationMethods, Authenticator, User},
-    server::SphinxSocksServer,
-};
 
 pub mod config;
 

@@ -1,6 +1,8 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Box, Button, Stack, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
+import { isMixnode } from 'src/types';
 import { TBondedMixnode, urls } from 'src/context';
 import { NymCard } from 'src/components';
 import { Network } from 'src/types';
@@ -31,6 +33,11 @@ const headers: Header[] = [
       'The percentage of the node rewards that you as the node operator will take before the rest of the reward is shared between you and the delegators.',
   },
   {
+    header: 'Operator cost',
+    id: 'operator-cost',
+    // tooltipText: 'TODO', // TODO
+  },
+  {
     header: 'Operator rewards',
     id: 'operator-rewards',
     tooltipText:
@@ -55,8 +62,19 @@ export const BondedMixnode = ({
   network?: Network;
   onActionSelect: (action: TBondedMixnodeActions) => void;
 }) => {
-  const { name, stake, bond, stakeSaturation, profitMargin, operatorRewards, delegators, status, identityKey } =
-    mixnode;
+  const navigate = useNavigate();
+  const {
+    name,
+    stake,
+    bond,
+    stakeSaturation,
+    profitMargin,
+    operatorRewards,
+    operatorCost,
+    delegators,
+    status,
+    identityKey,
+  } = mixnode;
   const cells: Cell[] = [
     {
       cell: `${stake.amount} ${stake.denom}`,
@@ -73,6 +91,10 @@ export const BondedMixnode = ({
     {
       cell: `${profitMargin}%`,
       id: 'pm-cell',
+    },
+    {
+      cell: operatorCost ? `${operatorCost} USD` : '-',
+      id: 'operator-cost-cell',
     },
     {
       cell: operatorRewards ? `${operatorRewards.amount} ${operatorRewards.denom}` : '-',
@@ -98,8 +120,8 @@ export const BondedMixnode = ({
     <NymCard
       borderless
       title={
-        <Stack gap={2}>
-          <Box display="flex" alignItems="center" gap={2}>
+        <Stack gap={3}>
+          <Box display="flex" alignItems="center" gap={3}>
             <Typography variant="h5" fontWeight={600}>
               Mix node
             </Typography>
@@ -114,14 +136,16 @@ export const BondedMixnode = ({
         </Stack>
       }
       Action={
-        <Button
-          variant="text"
-          color="secondary"
-          onClick={() => onActionSelect('nodeSettings')}
-          startIcon={<NodeIcon />}
-        >
-          Settings
-        </Button>
+        isMixnode(mixnode) && (
+          <Button
+            variant="text"
+            color="secondary"
+            onClick={() => navigate('/bonding/node-settings')}
+            startIcon={<NodeIcon />}
+          >
+            Settings
+          </Button>
+        )
       }
     >
       <NodeTable headers={headers} cells={cells} />

@@ -1,4 +1,11 @@
-import { FeeDetails, DecCoin, MixnodeStatus, TransactionExecuteResult } from '@nymproject/types';
+import {
+  FeeDetails,
+  DecCoin,
+  MixnodeStatus,
+  TransactionExecuteResult,
+  decimalToFloatApproximation,
+  decimalToPercentage,
+} from '@nymproject/types';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
 import { Console } from 'src/utils/console';
@@ -6,39 +13,45 @@ import {
   bondGateway as bondGatewayRequest,
   bondMixNode as bondMixNodeRequest,
   claimOperatorReward,
-  compoundOperatorReward,
+  getGatewayBondDetails,
+  getMixnodeBondDetails,
+  getMixnodeRewardEstimation,
   unbondGateway as unbondGatewayRequest,
   unbondMixNode as unbondMixnodeRequest,
   vestingBondGateway,
   vestingBondMixNode,
   vestingUnbondGateway,
   vestingUnbondMixnode,
-  updateMixnode as updateMixnodeRequest,
-  vestingUpdateMixnode as updateMixnodeVestingRequest,
+  updateMixnodeCostParams as updateMixnodeCostParamsRequest,
+  vestingUpdateMixnodeCostParams as updateMixnodeVestingCostParamsRequest,
   getNodeDescription as getNodeDescriptioRequest,
-  getGatewayBondDetails,
-  getMixnodeBondDetails,
   getMixnodeStatus,
-  getOperatorRewards,
+  getPendingOperatorRewards,
   getMixnodeStakeSaturation,
-  getNumberOfMixnodeDelegators,
   vestingClaimOperatorReward,
-  vestingCompoundOperatorReward,
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
+import { attachDefaultOperatingCost, toPercentFloatString, toPercentIntegerString } from '../utils';
 
+// TODO add relevant data
 export type TBondedMixnode = {
   name?: string;
   identityKey: string;
   stake: DecCoin;
   bond: DecCoin;
-  stakeSaturation: number;
-  profitMargin: number;
+  stakeSaturation: string;
+  profitMargin: string;
   operatorRewards?: DecCoin;
   delegators: number;
   status: MixnodeStatus;
   proxy?: string;
+  host: string;
+  httpApiPort: number;
+  mixPort: number;
+  verlocPort: number;
+  version: string;
+  operatorCost?: string;
 };
 
 export interface TBondedGateway {
@@ -48,6 +61,11 @@ export interface TBondedGateway {
   bond: DecCoin;
   location?: string; // TODO not yet available, only available in Network Explorer API
   proxy?: string;
+  host: string;
+  httpApiPort: number;
+  mixPort: number;
+  verlocPort: number;
+  version: string;
 }
 
 export type TokenPool = 'locked' | 'balance';
@@ -60,16 +78,14 @@ export type TBondingContext = {
   bondMixnode: (data: TBondMixNodeArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   bondGateway: (data: TBondGatewayArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   unbond: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
+  bondMore: (signature: string, amount: DecCoin, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   redeemRewards: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
-  compoundRewards: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
-  updateMixnode: (pm: number, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
+  updateMixnode: (pm: string, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   checkOwnership: () => Promise<void>;
 };
 
-const calculateStake = (pledge: DecCoin, delegations: DecCoin) => {
-  const total = Number(pledge.amount) + Number(delegations.amount);
-  return { amount: total.toString(), denom: pledge.denom };
-};
+const calculateStake = (pledge: string, delegations: string): number =>
+  decimalToFloatApproximation(pledge) + decimalToFloatApproximation(delegations);
 
 export const BondingContext = createContext<TBondingContext>({
   isLoading: true,
@@ -83,10 +99,10 @@ export const BondingContext = createContext<TBondingContext>({
   unbond: async () => {
     throw new Error('Not implemented');
   },
-  redeemRewards: async () => {
+  bondMore: async () => {
     throw new Error('Not implemented');
   },
-  compoundRewards: async () => {
+  redeemRewards: async () => {
     throw new Error('Not implemented');
   },
   updateMixnode: async () => {
@@ -112,40 +128,37 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     setBondedNode(undefined);
   };
 
-  const getAdditionalMixnodeDetails = async (identityKey: string) => {
-    const additionalDetails: { status: MixnodeStatus; stakeSaturation: number; numberOfDelegators: number } = {
+  const getAdditionalMixnodeDetails = async (mixId: number) => {
+    const additionalDetails: { status: MixnodeStatus; stakeSaturation: string; operatorCost?: string } = {
       status: 'not_found',
-      stakeSaturation: 0,
-      numberOfDelegators: 0,
+      stakeSaturation: '0',
     };
+
     try {
-      const statusResponse = await getMixnodeStatus(identityKey);
+      const statusResponse = await getMixnodeStatus(mixId);
       additionalDetails.status = statusResponse.status;
     } catch (e) {
       Console.log(e);
     }
 
     try {
-      const stakeSaturationResponse = await getMixnodeStakeSaturation(identityKey);
-      additionalDetails.stakeSaturation = Math.round(stakeSaturationResponse.saturation * 100);
+      const stakeSaturationResponse = await getMixnodeStakeSaturation(mixId);
+      additionalDetails.stakeSaturation = decimalToPercentage(stakeSaturationResponse.saturation);
     } catch (e) {
       Console.log(e);
     }
-
     try {
-      const numberOfDelegators = await getNumberOfMixnodeDelegators(identityKey);
-      additionalDetails.numberOfDelegators = numberOfDelegators;
+      const rewardEstimation = await getMixnodeRewardEstimation(mixId);
+      additionalDetails.operatorCost = rewardEstimation.estimation.operating_cost;
     } catch (e) {
       Console.log(e);
     }
-
     return additionalDetails;
   };
 
   const getNodeDescription = async (host: string, port: number) => {
     try {
-      const nodeDescription = await getNodeDescriptioRequest(host, port);
-      return nodeDescription;
+      return await getNodeDescriptioRequest(host, port);
     } catch (e) {
       Console.log(e);
     }
@@ -155,33 +168,43 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
   const refresh = useCallback(async () => {
     setIsLoading(true);
 
-    if (ownership.hasOwnership && ownership.nodeType === 'mixnode' && clientDetails) {
+    if (ownership.hasOwnership && clientDetails) {
       try {
         const data = await getMixnodeBondDetails();
         let operatorRewards;
         try {
-          operatorRewards = await getOperatorRewards(clientDetails?.client_address);
+          operatorRewards = await getPendingOperatorRewards(clientDetails?.client_address);
         } catch (e) {
           Console.warn(`get_operator_rewards request failed: ${e}`);
         }
         if (data) {
-          const { status, stakeSaturation, numberOfDelegators } = await getAdditionalMixnodeDetails(
-            data.mix_node.identity_key,
+          const { bond_information, rewarding_details } = data;
+          const { status, stakeSaturation, operatorCost } = await getAdditionalMixnodeDetails(data.bond_information.id);
+          const nodeDescription = await getNodeDescription(
+            bond_information.mix_node.host,
+            bond_information.mix_node.http_api_port,
           );
-          const nodeDescription = await getNodeDescription(data.mix_node.host, data.mix_node.http_api_port);
           setBondedNode({
             name: nodeDescription?.name,
-            identityKey: data.mix_node.identity_key,
-            ip: '',
-            stake: calculateStake(data.pledge_amount, data.total_delegation),
-            bond: data.pledge_amount,
-            profitMargin: data.mix_node.profit_margin_percent,
-            nodeRewards: data.accumulated_rewards,
-            delegators: numberOfDelegators,
-            proxy: data.proxy,
+            identityKey: bond_information.mix_node.identity_key,
+            ip: bond_information.id,
+            stake: {
+              amount: calculateStake(rewarding_details.operator, data.rewarding_details.delegates).toString(),
+              denom: bond_information.original_pledge.denom,
+            },
+            bond: bond_information.original_pledge,
+            profitMargin: toPercentIntegerString(rewarding_details.cost_params.profit_margin_percent),
+            delegators: rewarding_details.unique_delegations,
+            proxy: bond_information.proxy,
             operatorRewards,
             status,
             stakeSaturation,
+            host: bond_information.mix_node.host.replace(/\s/g, ''),
+            httpApiPort: bond_information.mix_node.http_api_port,
+            mixPort: bond_information.mix_node.mix_port,
+            verlocPort: bond_information.mix_node.verloc_port,
+            version: bond_information.mix_node.version,
+            operatorCost,
           } as TBondedMixnode);
         }
       } catch (e: any) {
@@ -190,7 +213,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
       }
     }
 
-    if (ownership.hasOwnership && ownership.nodeType === 'gateway') {
+    if (ownership.hasOwnership) {
       try {
         const data = await getGatewayBondDetails();
         if (data) {
@@ -282,12 +305,21 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     return tx;
   };
 
-  const updateMixnode = async (pm: number, fee?: FeeDetails) => {
+  const updateMixnode = async (pm: string, fee?: FeeDetails) => {
     let tx;
     setIsLoading(true);
+
+    // TODO: this will have to be updated with allowing users to provide their operating cost in the form
+    const defaultCostParams = await attachDefaultOperatingCost(toPercentFloatString(pm));
+
     try {
-      if (bondedNode?.proxy) tx = await updateMixnodeVestingRequest(pm, fee?.fee);
-      else tx = await updateMixnodeRequest(pm, fee?.fee);
+      // JS: this check is not entirely valid. you can have proxy field set whilst not using the vesting contract,
+      // you have to check if proxy exists AND if it matches the known vesting contract address!
+      if (bondedNode?.proxy) {
+        tx = await updateMixnodeVestingCostParamsRequest(defaultCostParams, fee?.fee);
+      } else {
+        tx = await updateMixnodeCostParamsRequest(defaultCostParams, fee?.fee);
+      }
     } catch (e: any) {
       Console.warn(e);
       setError(`an error occurred: ${e}`);
@@ -311,20 +343,6 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     return tx;
   };
 
-  const compoundRewards = async (fee?: FeeDetails) => {
-    let tx;
-    setIsLoading(true);
-    try {
-      if (bondedNode?.proxy) tx = await vestingCompoundOperatorReward(fee?.fee);
-      else tx = await compoundOperatorReward(fee?.fee);
-    } catch (e: any) {
-      setError(`an error occurred: ${e}`);
-    } finally {
-      setIsLoading(false);
-    }
-    return tx;
-  };
-
   const bondMore = async (_signature: string, _additionalBond: DecCoin) =>
     // TODO to implement
     undefined;
@@ -340,7 +358,6 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
       updateMixnode,
       refresh,
       redeemRewards,
-      compoundRewards,
       bondMore,
       checkOwnership,
     }),

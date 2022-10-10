@@ -23,6 +23,7 @@ const nymPalette: NymPalette = {
   highlight: '#FB6E4E',
   success: '#21D073',
   info: '#60D7EF',
+  red: '#DA465B',
   fee: '#967FF0',
   background: { light: '#F4F6F8', dark: '#1D2125' },
   text: {
@@ -32,6 +33,9 @@ const nymPalette: NymPalette = {
     grey: '#5B6174',
   },
   linkHover: '#AF4D36',
+  border: {
+    menu: '#E8E9EB',
+  },
 };
 
 const darkMode: NymPaletteVariant = {
@@ -49,6 +53,7 @@ const darkMode: NymPaletteVariant = {
     warn: '#FFE600',
     contrast: '#1D2125',
     grey: '#5B6174',
+    blue: '#60D7EF',
   },
   topNav: {
     background: '#111826',
@@ -79,6 +84,7 @@ const lightMode: NymPaletteVariant = {
     warn: '#FFE600',
     contrast: '#FFFFFF',
     grey: '#3A4053',
+    blue: '#514EFB',
   },
   topNav: {
     background: '#111826',
@@ -283,6 +289,25 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
           root: {
             fontWeight: 600,
           },
+        },
+      },
+      MuiToolbar: {
+        styleOverrides: {
+          root: {
+            minWidth: 0,
+            '@media (min-width: 0px)': {
+              minHeight: 'fit-content',
+            },
+          },
+        },
+      },
+      MuiMenu: {
+        styleOverrides: {
+          list: ({ _, theme }) => ({
+            backgroundColor: theme.palette.mode === 'dark' ? darkMode.background.main : undefined,
+            border: `1px solid ${theme.palette.nym.border.menu}`,
+            borderRadius: '8px',
+          }),
         },
       },
     },

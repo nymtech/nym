@@ -51,7 +51,7 @@ pub async fn query_balance(
                 return;
             }
 
-            let denom = args.denom.unwrap_or_else(|| "".to_string());
+            let denom = args.denom.unwrap_or_default();
 
             for coin in coins {
                 if denom.is_empty() || denom.eq_ignore_ascii_case(&coin.denom) {

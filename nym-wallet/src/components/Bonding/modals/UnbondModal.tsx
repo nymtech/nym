@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Typography } from '@mui/material';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { TBondedGateway, TBondedMixnode } from 'src/context';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { isGateway, isMixnode } from 'src/types';
@@ -57,16 +57,7 @@ export const UnbondModal = ({ node, onConfirm, onClose, onError }: Props) => {
       onOk={onConfirm}
       onClose={onClose}
     >
-      <ModalListItem label="Amount to unbond" value={`${node.bond.amount} ${node.bond.denom.toUpperCase()}`} divider />
-      {isMixnode(node) && (
-        <ModalListItem
-          label="Operator rewards"
-          value={
-            node.operatorRewards ? `${node.operatorRewards.amount} ${node.operatorRewards.denom.toUpperCase()}` : '-'
-          }
-          divider
-        />
-      )}
+      <ModalListItem label="Total to unbond" value={`${node.bond.amount} ${node.bond.denom.toUpperCase()}`} divider />
       <ModalFee isLoading={isFeeLoading} fee={fee} divider />
       <Typography fontSize="small">Tokens will be transferred to the account you are logged in with now</Typography>
     </SimpleModal>

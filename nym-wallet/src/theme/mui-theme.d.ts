@@ -31,6 +31,7 @@ declare module '@mui/material/styles' {
     highlight: string;
     success: string;
     info: string;
+    red: string;
     fee: string;
     background: { light: string; dark: string };
     text: {
@@ -40,6 +41,7 @@ declare module '@mui/material/styles' {
       grey: string;
     };
     linkHover: string;
+    border: { menu: string };
   }
 
   interface NymPaletteVariant {
@@ -57,6 +59,7 @@ declare module '@mui/material/styles' {
       warn: string;
       contrast: string;
       grey: string;
+      blue: string;
     };
     topNav: {
       background: string;

@@ -18,7 +18,7 @@ rust-version = "1.58.1"
 [dependencies]
 anyhow = "1.0.40"
 bs58 = "0.4.0"
-clap = { version = "3.0.10", features = ["cargo", "derive"] }
+clap = { version = "3.2", features = ["cargo", "derive"] }
 colored = "2.0"
 cupid = "0.6.1"
 dirs = "4.0"
@@ -40,6 +40,7 @@ url = { version = "2.2", features = ["serde"] }
 ## internal
 config = { path="../common/config" }
 crypto = { path="../common/crypto" }
+completions = { path="../common/completions" }
 mixnet-client = { path="../common/client-libs/mixnet-client" }
 mixnode-common = { path="../common/mixnode-common" }
 nonexhaustive-delayqueue = { path="../common/nonexhaustive-delayqueue" }

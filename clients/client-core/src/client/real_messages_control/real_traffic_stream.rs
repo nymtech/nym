@@ -13,6 +13,7 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::chunking::fragment::FragmentIdentifier;
 use nymsphinx::cover::generate_loop_cover_packet;
 use nymsphinx::forwarding::packet::MixPacket;
+use nymsphinx::params::PacketSize;
 use nymsphinx::utils::sample_poisson_duration;
 use rand::{CryptoRng, Rng};
 use std::collections::VecDeque;
@@ -20,7 +21,6 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
-use nymsphinx::params::PacketSize;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time;
 

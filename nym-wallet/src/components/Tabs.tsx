@@ -3,7 +3,7 @@ import { Tab, Tabs as MuiTabs, SxProps } from '@mui/material';
 
 type Props = {
   tabs: readonly string[];
-  selectedTab: string;
+  selectedTab: string | number;
   disabled?: boolean;
   onChange?: (event: React.SyntheticEvent, tab: string) => void;
   disableActiveTabHighlight?: boolean;

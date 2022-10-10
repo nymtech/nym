@@ -1,7 +1,3 @@
-enum Options {
-  General,
-  Unbond,
-}
-type NavItem = keyof typeof Options;
+export const navItems = ['General', 'Unbond'] as const;
 
-export const nodeSettingsNav: NavItem[] = ['General', 'Unbond'];
+export type NodeSettingsNav = typeof navItems[number]; // type NodeSettingsNav = 'General' | 'Unbond';

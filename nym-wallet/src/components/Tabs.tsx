@@ -1,15 +1,25 @@
 import React from 'react';
 import { Tab, Tabs as MuiTabs, SxProps } from '@mui/material';
 
-export const Tabs: React.FC<{
-  tabs: string[];
-  selectedTab: number;
+type Props = {
+  tabs: readonly string[];
+  selectedTab: string;
   disabled?: boolean;
-  onChange?: (event: React.SyntheticEvent, tab: number) => void;
+  onChange?: (event: React.SyntheticEvent, tab: string) => void;
   disableActiveTabHighlight?: boolean;
   tabSx?: SxProps;
   tabIndicatorStyles?: {};
-}> = ({ tabs, selectedTab, disabled, disableActiveTabHighlight, onChange, tabSx, tabIndicatorStyles }) => (
+};
+
+export const Tabs = ({
+  tabs,
+  selectedTab,
+  disabled,
+  disableActiveTabHighlight,
+  onChange,
+  tabSx,
+  tabIndicatorStyles,
+}: Props) => (
   <MuiTabs
     value={selectedTab}
     onChange={onChange}
@@ -29,7 +39,7 @@ export const Tabs: React.FC<{
     }}
   >
     {tabs.map((tabName) => (
-      <Tab key={tabName} label={tabName} sx={{ textTransform: 'capitalize' }} disabled={disabled} />
+      <Tab key={tabName} label={tabName} sx={{ textTransform: 'capitalize' }} value={tabName} disabled={disabled} />
     ))}
   </MuiTabs>
 );

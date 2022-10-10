@@ -15,7 +15,7 @@ import { AppContext, urls } from 'src/context/main';
 
 import { NodeGeneralSettings } from './settings-pages/general-settings';
 import { NodeUnbondPage } from './settings-pages/NodeUnbondPage';
-import { nodeSettingsNav } from './node-settings.constant';
+import { navItems, NodeSettingsNav } from './node-settings.constant';
 
 export const NodeSettings = () => {
   const theme = useTheme();
@@ -25,15 +25,14 @@ export const NodeSettings = () => {
   const location = useLocation();
 
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
-  const [value, setValue] = React.useState(0);
-  const handleChange = (event: React.SyntheticEvent, tab: number) => {
-    setValue(tab);
+  const [value, setValue] = React.useState<NodeSettingsNav>('General');
+  const handleChange = (event: React.SyntheticEvent, tab: string) => {
+    setValue(tab as NodeSettingsNav);
   };
 
   useEffect(() => {
     if (location.state === 'unbond') {
-      const unbondIndex = nodeSettingsNav.indexOf('Unbond');
-      setValue(unbondIndex);
+      setValue('Unbond');
     }
   }, [location]);
 
@@ -77,7 +76,7 @@ export const NodeSettings = () => {
             </Box>
             <Box sx={{ width: '100%' }}>
               <Tabs
-                tabs={nodeSettingsNav}
+                tabs={navItems}
                 selectedTab={value}
                 onChange={handleChange}
                 tabSx={{
@@ -113,8 +112,8 @@ export const NodeSettings = () => {
         }
       >
         <Divider />
-        {nodeSettingsNav[value] === 'General' && bondedNode && <NodeGeneralSettings bondedNode={bondedNode} />}
-        {nodeSettingsNav[value] === 'Unbond' && bondedNode && (
+        {value === 'General' && bondedNode && <NodeGeneralSettings bondedNode={bondedNode} />}
+        {value === 'Unbond' && bondedNode && (
           <NodeUnbondPage bondedNode={bondedNode} onConfirm={handleUnbond} onError={handleError} />
         )}
         {confirmationDetails && confirmationDetails.status === 'success' && (

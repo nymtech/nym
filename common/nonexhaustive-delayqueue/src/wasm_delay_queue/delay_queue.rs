@@ -7,7 +7,7 @@
 use crate::wasm_delay_queue::sleep_until;
 use crate::wasm_delay_queue::wheel::{self, Wheel};
 use core::ops::{Index, IndexMut};
-use futures_core::ready;
+use futures_core::{ready, Future};
 use slab::Slab;
 use std::cmp;
 use std::collections::HashMap;

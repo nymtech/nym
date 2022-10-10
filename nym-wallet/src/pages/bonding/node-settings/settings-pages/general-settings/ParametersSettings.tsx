@@ -11,6 +11,7 @@ import {
   Alert,
   IconButton,
   CircularProgress,
+  Box,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
@@ -19,6 +20,7 @@ import { updateMixnodeCostParams } from 'src/requests';
 import { TBondedMixnode, TBondedGateway } from 'src/context/bonding';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { bondedNodeParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
+import { Console } from 'src/utils/console';
 
 export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }): JSX.Element => {
   const [open, setOpen] = useState(true);
@@ -54,7 +56,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
         await updateMixnodeCostParams(MixNodeCostParams);
         setOpenConfirmationModal(true);
       } catch (error) {
-        console.error(error);
+        Console.error(error);
       }
     }
   };
@@ -85,7 +87,9 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
             '& .MuiAlert-icon': { color: (theme) => theme.palette.nym.nymWallet.text.blue, mr: 1 },
           }}
         >
-          <strong>Profit margin can be changed once a month, your changes will be applied in the next interval</strong>
+          <Box sx={{ fontWeight: 600 }}>
+            Profit margin can be changed once a month, your changes will be applied in the next interval
+          </Box>
         </Alert>
       )}
       <Grid container direction="column">
@@ -118,7 +122,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
                   InputProps={{
                     endAdornment: (
                       <InputAdornment position="end">
-                        <span>%</span>
+                        <Box>%</Box>
                       </InputAdornment>
                     ),
                   }}
@@ -156,7 +160,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
-                      <span>{bondedNode.bond.denom.toUpperCase()}</span>
+                      <Box>{bondedNode.bond.denom.toUpperCase()}</Box>
                     </InputAdornment>
                   ),
                 }}

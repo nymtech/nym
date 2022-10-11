@@ -137,6 +137,8 @@ impl<St: Storage> ConnectionHandler<St> {
 
         // we failed to push message directly to the client - it's probably offline.
         // we should store it on the disk instead.
+        let t = tokio::time::Instant::now();
+
         match self.try_push_message_to_client(client_address, message) {
             Err(unsent_plaintext) => match self
                 .store_processed_packet_payload(client_address, unsent_plaintext)
@@ -145,8 +147,14 @@ impl<St: Storage> ConnectionHandler<St> {
                 Err(err) => error!("Failed to store client data - {}", err),
                 Ok(_) => debug!("Stored packet for {}", client_address),
             },
-            Ok(_) => trace!("Pushed received packet to {}", client_address),
+            Ok(_) => debug!("Pushed received packet to {}", client_address),
         }
+
+        let elapsed = t.elapsed();
+        if elapsed.as_millis() > 100 {
+            log::error!("push message top client, time elapsed: {:?}", elapsed);
+        }
+
 
         // if we managed to either push message directly to the [online] client or store it at
         // its inbox, it means that it must exist at this gateway, hence we can send the

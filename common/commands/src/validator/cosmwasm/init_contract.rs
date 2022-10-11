@@ -28,7 +28,7 @@ pub struct Args {
 
     #[clap(
         long,
-        requires = "fundsDenom",
+        requires = "funds-denom",
         help = "Amount to supply as funds in micro denomination (e.g. unym or unyx)"
     )]
     pub funds: Option<u128>,

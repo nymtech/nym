@@ -111,12 +111,19 @@ pub(crate) fn perform_pending_interval_actions(
 pub fn try_reconcile_epoch_events(
     mut deps: DepsMut<'_>,
     env: Env,
+    info: MessageInfo,
     mut limit: Option<u32>,
 ) -> Result<Response, MixnetContractError> {
+    // we need to ensure the request actually comes from the rewarding validator. otherwise the following would be possible:
+    // - epoch has just finished (i.e. it's possible to call the reconcile function)
+    // - the validator API is ABOUT to start rewarding
+    // - somebody sneaks in some extra delegations
+    // - the same person decides to pay the transaction fees and reconcile epoch events themselves
+    // - the validator API distributes the rewards -> this new sneaky delegation is now included in reward calculation!
+    ensure_is_authorized(info.sender, deps.storage)?;
+
     let mut response = Response::new().add_event(new_reconcile_pending_events());
 
-    // there's no need for authorization, as anyone willing to pay the fees should be allowed to reconcile
-    // contract events ASSUMING the corresponding epoch/interval has finished
     let interval = storage::current_interval(deps.storage)?;
     if !interval.is_current_epoch_over(&env) {
         // if the current epoch is in progress, so must be the interval so there's no need to check that
@@ -773,6 +780,7 @@ mod tests {
     mod reconciling_epoch_events {
         use super::*;
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
+        use cosmwasm_std::testing::mock_info;
         use cosmwasm_std::{coin, coins, BankMsg, Empty, SubMsg};
         use mixnet_contract_common::events::{
             new_delegation_on_unbonded_node_event, new_rewarding_params_update_event,
@@ -784,12 +792,30 @@ mod tests {
         fn returns_error_if_epoch_is_in_progress() {
             let mut test = TestSetup::new();
             let env = test.env();
+            let rewarding_validator = test.rewarding_validator();
 
-            let res = try_reconcile_epoch_events(test.deps_mut(), env, None);
+            let res = try_reconcile_epoch_events(test.deps_mut(), env, rewarding_validator, None);
             assert!(matches!(
                 res,
                 Err(MixnetContractError::EpochInProgress { .. })
             ))
+        }
+
+        #[test]
+        fn returns_error_if_not_performed_by_the_rewarding_validator() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+
+            test.skip_to_current_epoch_end();
+
+            let random = mock_info("alice", &[]);
+            let owner = test.owner();
+
+            let res = try_reconcile_epoch_events(test.deps_mut(), env.clone(), random, None);
+            assert!(matches!(res, Err(MixnetContractError::Unauthorized)));
+
+            let res = try_reconcile_epoch_events(test.deps_mut(), env, owner, None);
+            assert!(matches!(res, Err(MixnetContractError::Unauthorized)));
         }
 
         #[test]
@@ -801,7 +827,9 @@ mod tests {
             test.skip_to_current_epoch_end();
 
             let env = test.env();
-            try_reconcile_epoch_events(test.deps_mut(), env, None).unwrap();
+            let rewarding_validator = test.rewarding_validator();
+
+            try_reconcile_epoch_events(test.deps_mut(), env, rewarding_validator, None).unwrap();
 
             let epoch_events = test.pending_epoch_events();
             let interval_events = test.pending_interval_events();
@@ -816,9 +844,10 @@ mod tests {
             push_n_dummy_epoch_actions(&mut test, 10);
             push_n_dummy_interval_actions(&mut test, 10);
             test.skip_to_current_interval_end();
+            let rewarding_validator = test.rewarding_validator();
 
             let env = test.env();
-            try_reconcile_epoch_events(test.deps_mut(), env, None).unwrap();
+            try_reconcile_epoch_events(test.deps_mut(), env, rewarding_validator, None).unwrap();
 
             let epoch_events = test.pending_epoch_events();
             let interval_events = test.pending_interval_events();
@@ -840,50 +869,95 @@ mod tests {
             }
 
             let env = test1.env();
+            // all test cases are using the same one
+            let rewarding_validator = test1.rewarding_validator();
 
-            try_reconcile_epoch_events(test1.deps_mut(), env.clone(), Some(5)).unwrap();
+            try_reconcile_epoch_events(
+                test1.deps_mut(),
+                env.clone(),
+                rewarding_validator.clone(),
+                Some(5),
+            )
+            .unwrap();
             let epoch_events = test1.pending_epoch_events();
             let interval_events = test1.pending_interval_events();
             assert_eq!(epoch_events.len(), 5);
             assert_eq!(interval_events.len(), 10);
 
-            try_reconcile_epoch_events(test1.deps_mut(), env.clone(), Some(7)).unwrap();
+            try_reconcile_epoch_events(
+                test1.deps_mut(),
+                env.clone(),
+                rewarding_validator.clone(),
+                Some(7),
+            )
+            .unwrap();
             let epoch_events = test1.pending_epoch_events();
             let interval_events = test1.pending_interval_events();
             assert!(epoch_events.is_empty());
             assert_eq!(interval_events.len(), 8);
 
-            try_reconcile_epoch_events(test1.deps_mut(), env.clone(), Some(7)).unwrap();
+            try_reconcile_epoch_events(
+                test1.deps_mut(),
+                env.clone(),
+                rewarding_validator.clone(),
+                Some(7),
+            )
+            .unwrap();
             let epoch_events = test1.pending_epoch_events();
             let interval_events = test1.pending_interval_events();
             assert!(epoch_events.is_empty());
             assert_eq!(interval_events.len(), 1);
 
-            try_reconcile_epoch_events(test1.deps_mut(), env.clone(), Some(7)).unwrap();
+            try_reconcile_epoch_events(
+                test1.deps_mut(),
+                env.clone(),
+                rewarding_validator.clone(),
+                Some(7),
+            )
+            .unwrap();
             let epoch_events = test1.pending_epoch_events();
             let interval_events = test1.pending_interval_events();
             assert!(epoch_events.is_empty());
             assert!(interval_events.is_empty());
 
-            try_reconcile_epoch_events(test2.deps_mut(), env.clone(), Some(15)).unwrap();
+            try_reconcile_epoch_events(
+                test2.deps_mut(),
+                env.clone(),
+                rewarding_validator.clone(),
+                Some(15),
+            )
+            .unwrap();
             let epoch_events = test2.pending_epoch_events();
             let interval_events = test2.pending_interval_events();
             assert!(epoch_events.is_empty());
             assert_eq!(interval_events.len(), 5);
 
-            try_reconcile_epoch_events(test2.deps_mut(), env.clone(), Some(15)).unwrap();
+            try_reconcile_epoch_events(
+                test2.deps_mut(),
+                env.clone(),
+                rewarding_validator.clone(),
+                Some(15),
+            )
+            .unwrap();
             let epoch_events = test2.pending_epoch_events();
             let interval_events = test2.pending_interval_events();
             assert!(epoch_events.is_empty());
             assert!(interval_events.is_empty());
 
-            try_reconcile_epoch_events(test3.deps_mut(), env.clone(), Some(20)).unwrap();
+            try_reconcile_epoch_events(
+                test3.deps_mut(),
+                env.clone(),
+                rewarding_validator.clone(),
+                Some(20),
+            )
+            .unwrap();
             let epoch_events = test3.pending_epoch_events();
             let interval_events = test3.pending_interval_events();
             assert!(epoch_events.is_empty());
             assert!(interval_events.is_empty());
 
-            try_reconcile_epoch_events(test4.deps_mut(), env, Some(100)).unwrap();
+            try_reconcile_epoch_events(test4.deps_mut(), env, rewarding_validator, Some(100))
+                .unwrap();
             let epoch_events = test4.pending_epoch_events();
             let interval_events = test4.pending_interval_events();
             assert!(epoch_events.is_empty());
@@ -937,7 +1011,10 @@ mod tests {
 
             test.skip_to_current_interval_end();
             let env = test.env();
-            let res = try_reconcile_epoch_events(test.deps_mut(), env, None).unwrap();
+            let rewarding_validator = test.rewarding_validator();
+
+            let res = try_reconcile_epoch_events(test.deps_mut(), env, rewarding_validator, None)
+                .unwrap();
             let mut expected = Response::new().add_events(expected_events);
             expected.messages = expected_messages;
             assert_eq!(res, expected);

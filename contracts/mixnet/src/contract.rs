@@ -138,7 +138,7 @@ pub fn execute(
             expected_active_set_size,
         ),
         ExecuteMsg::ReconcileEpochEvents { limit } => {
-            crate::interval::transactions::try_reconcile_epoch_events(deps, env, limit)
+            crate::interval::transactions::try_reconcile_epoch_events(deps, env, info, limit)
         }
 
         // mixnode-related:

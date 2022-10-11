@@ -3,11 +3,11 @@ import {
   DecCoin,
   MixnodeStatus,
   TransactionExecuteResult,
-  decimalToFloatApproximation,
   decimalToPercentage,
   SelectionChance,
 } from '@nymproject/types';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import Big from 'big.js';
 import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
 import { Console } from 'src/utils/console';
 import {
@@ -35,7 +35,10 @@ import {
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
-import { attachDefaultOperatingCost, toPercentFloatString, toPercentIntegerString } from '../utils';
+import { attachDefaultOperatingCost, toPercentFloatString, toPercentIntegerString, unymToNym } from '../utils';
+
+// fixed number of decimal places
+const DP = 4;
 
 // TODO add relevant data
 export type TBondedMixnode = {
@@ -49,7 +52,7 @@ export type TBondedMixnode = {
   delegators: number;
   status: MixnodeStatus;
   proxy?: string;
-  operatorCost?: string;
+  operatorCost?: string; // unit NYM
   host: string;
   estimatedRewards?: DecCoin;
   activeSetProbability?: SelectionChance;
@@ -90,9 +93,6 @@ export type TBondingContext = {
   updateMixnode: (pm: string, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   checkOwnership: () => Promise<void>;
 };
-
-const calculateStake = (pledge: string, delegations: string): number =>
-  decimalToFloatApproximation(pledge) + decimalToFloatApproximation(delegations);
 
 export const BondingContext = createContext<TBondingContext>({
   isLoading: true,
@@ -161,9 +161,9 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     }
     try {
       const rewardEstimation = await getMixnodeRewardEstimation(mixId);
-      additionalDetails.operatorCost = rewardEstimation.estimation.operating_cost;
+      additionalDetails.operatorCost = unymToNym(rewardEstimation.estimation.operating_cost);
       additionalDetails.estimatedRewards = {
-        amount: rewardEstimation.estimation.total_node_reward,
+        amount: Big(rewardEstimation.estimation.total_node_reward).toFixed(DP),
         denom: 'nym',
       };
     } catch (e) {
@@ -202,6 +202,16 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     return result;
   };
 
+  const calculateStake = (pledge: string, delegations: string) => {
+    let stake;
+    try {
+      stake = unymToNym(Big(pledge).plus(delegations));
+    } catch (e: any) {
+      Console.warn(`not a valid decimal number: ${e}`);
+    }
+    return stake;
+  };
+
   const refresh = useCallback(async () => {
     setIsLoading(true);
 
@@ -211,6 +221,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
         let operatorRewards;
         try {
           operatorRewards = await getPendingOperatorRewards(clientDetails?.client_address);
+          operatorRewards.amount = Big(operatorRewards.amount).toFixed(DP);
         } catch (e) {
           Console.warn(`get_operator_rewards request failed: ${e}`);
         }
@@ -220,6 +231,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             rewarding_details,
             bond_information: { id },
           } = data;
+
           const { status, stakeSaturation, operatorCost, estimatedRewards } = await getAdditionalMixnodeDetails(id);
           const setProbabilities = await getSetProbabilities(id);
           const nodeDescription = await getNodeDescription(
@@ -232,7 +244,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             identityKey: bond_information.mix_node.identity_key,
             ip: bond_information.id,
             stake: {
-              amount: calculateStake(rewarding_details.operator, data.rewarding_details.delegates).toString(),
+              amount: calculateStake(rewarding_details.operator, rewarding_details.delegates),
               denom: bond_information.original_pledge.denom,
             },
             bond: bond_information.original_pledge,

@@ -133,7 +133,7 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
         <Grid item xs={12} sm={12} md={6} lg={4}>
           <StatRow label="Profit margin" tooltipText="TODO" value={`${profitMargin}%`} />
           <StatDivider />
-          <StatRow label="Operator Cost" tooltipText="TODO" value={operatorCost ? `${operatorCost} USD` : '-'} />
+          <StatRow label="Operator Cost" tooltipText="TODO" value={operatorCost ? `${operatorCost} NYM` : '-'} />
           <StatDivider />
           <StatRow
             label="Total node rewards"

@@ -7,13 +7,14 @@ use crate::interval::helpers::change_interval_config;
 use crate::interval::storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::helpers::{cleanup_post_unbond_mixnode_storage, get_mixnode_details_by_id};
+use crate::mixnodes::storage as mixnodes_storage;
 use crate::rewards::storage as rewards_storage;
 use crate::support::helpers::send_to_proxy_or_owner;
 use cosmwasm_std::{wasm_execute, Addr, Coin, DepsMut, Env, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_active_set_update_event, new_delegation_event, new_delegation_on_unbonded_node_event,
-    new_mixnode_cost_params_update_event, new_mixnode_unbonding_event,
+    new_mixnode_cost_params_update_event, new_mixnode_unbonding_event, new_pledge_increase_event,
     new_rewarding_params_update_event, new_undelegation_event,
 };
 use mixnet_contract_common::mixnode::MixNodeCostParams;
@@ -258,6 +259,42 @@ pub(crate) fn update_active_set_size(
     Ok(Response::new().add_event(new_active_set_update_event(created_at, active_set_size)))
 }
 
+pub(crate) fn increase_pledge(
+    deps: DepsMut<'_>,
+    created_at: BlockHeight,
+    mix_id: MixId,
+    increase: Coin,
+) -> Result<Response, MixnetContractError> {
+    // note: we have already validated the amount to know it has the correct denomination
+
+    // the target node MUST exist - we have checked it at the time of putting this event onto the queue
+    // we have also verified there were no preceding unbond events
+    let mix_details = get_mixnode_details_by_id(deps.storage, mix_id)?.ok_or(
+        MixnetContractError::InconsistentState {
+            comment:
+                "mixnode getting processed to increase its pledge doesn't exist in the storage"
+                    .into(),
+        },
+    )?;
+
+    let mut updated_bond = mix_details.bond_information.clone();
+    let mut updated_rewarding = mix_details.rewarding_details;
+
+    updated_bond.original_pledge.amount += increase.amount;
+    updated_rewarding.increase_operator_uint128(increase.amount)?;
+
+    // update both, bond information and rewarding details
+    mixnodes_storage::mixnode_bonds().replace(
+        deps.storage,
+        mix_id,
+        Some(&updated_bond),
+        Some(&mix_details.bond_information),
+    )?;
+    rewards_storage::MIXNODE_REWARDING.save(deps.storage, mix_id, &updated_rewarding)?;
+
+    Ok(Response::new().add_event(new_pledge_increase_event(created_at, mix_id, &increase)))
+}
+
 impl ContractExecutableEvent for PendingEpochEventData {
     fn execute(self, deps: DepsMut<'_>, env: &Env) -> Result<Response, MixnetContractError> {
         // note that the basic validation on all those events was already performed before
@@ -274,6 +311,9 @@ impl ContractExecutableEvent for PendingEpochEventData {
                 mix_id,
                 proxy,
             } => undelegate(deps, self.created_at, owner, mix_id, proxy),
+            PendingEpochEventKind::PledgeMore { mix_id, amount } => {
+                increase_pledge(deps, self.created_at, mix_id, amount)
+            }
             PendingEpochEventKind::UnbondMixnode { mix_id } => {
                 unbond_mixnode(deps, env, self.created_at, mix_id)
             }

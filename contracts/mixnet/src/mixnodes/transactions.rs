@@ -5,16 +5,20 @@ use super::storage;
 use crate::interval::storage as interval_storage;
 use crate::interval::storage::push_new_interval_event;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
-use crate::mixnodes::helpers::{must_get_mixnode_bond_by_owner, save_new_mixnode};
+use crate::mixnet_contract_settings::storage::rewarding_denom;
+use crate::mixnodes::helpers::{
+    get_mixnode_details_by_owner, must_get_mixnode_bond_by_owner, save_new_mixnode,
+};
 use crate::support::helpers::{
     ensure_bonded, ensure_no_existing_bond, ensure_proxy_match, validate_node_identity_signature,
     validate_pledge,
 };
-use cosmwasm_std::{Addr, Coin, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{coin, Addr, Coin, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_mixnode_bonding_event, new_mixnode_config_update_event,
     new_mixnode_pending_cost_params_update_event, new_pending_mixnode_unbonding_event,
+    new_pending_pledge_increase_event,
 };
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use mixnet_contract_common::pending_events::{PendingEpochEventKind, PendingIntervalEventKind};
@@ -115,6 +119,54 @@ fn _try_add_mixnode(
         node_id,
         layer,
     )))
+}
+
+pub fn try_increase_pledge(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+) -> Result<Response, MixnetContractError> {
+    _try_increase_pledge(deps, env, info.funds, info.sender, None)
+}
+
+pub fn try_increase_pledge_on_behalf(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    owner: String,
+) -> Result<Response, MixnetContractError> {
+    let proxy = info.sender;
+    let owner = deps.api.addr_validate(&owner)?;
+    _try_increase_pledge(deps, env, info.funds, owner, Some(proxy))
+}
+
+pub fn _try_increase_pledge(
+    deps: DepsMut<'_>,
+    env: Env,
+    increase: Vec<Coin>,
+    owner: Addr,
+    proxy: Option<Addr>,
+) -> Result<Response, MixnetContractError> {
+    let mix_details = get_mixnode_details_by_owner(deps.storage, owner.clone())?
+        .ok_or(MixnetContractError::NoAssociatedMixNodeBond { owner })?;
+    let mix_id = mix_details.mix_id();
+
+    ensure_proxy_match(&proxy, &mix_details.bond_information.proxy)?;
+    ensure_bonded(&mix_details.bond_information)?;
+
+    let rewarding_denom = rewarding_denom(deps.storage)?;
+    let pledge_increase = validate_pledge(increase, coin(1, rewarding_denom))?;
+
+    let cosmos_event = new_pending_pledge_increase_event(mix_id, &pledge_increase);
+
+    // push the event to execute it at the end of the epoch
+    let epoch_event = PendingEpochEventKind::PledgeMore {
+        mix_id,
+        amount: pledge_increase,
+    };
+    interval_storage::push_new_epoch_event(deps.storage, &env, epoch_event)?;
+
+    Ok(Response::new().add_event(cosmos_event))
 }
 
 pub fn try_remove_mixnode_on_behalf(

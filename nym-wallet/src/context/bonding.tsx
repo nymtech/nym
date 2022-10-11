@@ -25,7 +25,7 @@ import {
   vestingUnbondMixnode,
   updateMixnodeCostParams as updateMixnodeCostParamsRequest,
   vestingUpdateMixnodeCostParams as updateMixnodeVestingCostParamsRequest,
-  getNodeDescription as getNodeDescriptioRequest,
+  getNodeDescription as getNodeDescriptionRequest,
   getMixnodeStatus,
   getPendingOperatorRewards,
   getMixnodeStakeSaturation,
@@ -150,14 +150,14 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
       const statusResponse = await getMixnodeStatus(mixId);
       additionalDetails.status = statusResponse.status;
     } catch (e) {
-      Console.log(e);
+      Console.log('getMixnodeStatus fails', e);
     }
 
     try {
       const stakeSaturationResponse = await getMixnodeStakeSaturation(mixId);
       additionalDetails.stakeSaturation = decimalToPercentage(stakeSaturationResponse.saturation);
     } catch (e) {
-      Console.log(e);
+      Console.log('getMixnodeStakeSaturation fails', e);
     }
     try {
       const rewardEstimation = await getMixnodeRewardEstimation(mixId);
@@ -167,7 +167,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
         denom: 'nym',
       };
     } catch (e) {
-      Console.log(e);
+      Console.log('getMixnodeRewardEstimation fails', e);
     }
     return additionalDetails;
   };
@@ -175,9 +175,9 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
   const getNodeDescription = async (host: string, port: number) => {
     let result;
     try {
-      result = await getNodeDescriptioRequest(host, port);
+      result = await getNodeDescriptionRequest(host, port);
     } catch (e) {
-      Console.log(e);
+      Console.log('getNodeDescriptionRequest fails', e);
     }
     return result;
   };
@@ -187,7 +187,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     try {
       result = await getInclusionProbability(mixId);
     } catch (e: any) {
-      Console.log(e);
+      Console.log('getInclusionProbability fails', e);
     }
     return result;
   };
@@ -197,7 +197,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     try {
       result = await getMixnodeAvgUptime();
     } catch (e: any) {
-      Console.log(e);
+      Console.log('getMixnodeAvgUptime fails', e);
     }
     return result;
   };

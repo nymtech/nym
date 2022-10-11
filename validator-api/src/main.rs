@@ -39,7 +39,7 @@ use validator_client::nymd::SigningNymdClient;
 
 use crate::epoch_operations::RewardedSetUpdater;
 #[cfg(feature = "coconut")]
-use coconut::{comm::QueryCommunicationChannel, InternalSignRequest};
+use coconut::{comm::QueryCommunicationChannel, dkg::DkgController, InternalSignRequest};
 #[cfg(feature = "coconut")]
 use coconut_interface::{Base58, KeyPair};
 use logging::setup_logging;
@@ -546,6 +546,13 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
 
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
     let node_status_cache = rocket.state::<NodeStatusCache>().unwrap().clone();
+
+    #[cfg(feature = "coconut")]
+    {
+        let dkg_controller = DkgController::new(signing_nymd_client.clone());
+        let shutdown_listener = shutdown.subscribe();
+        tokio::spawn(async move { dkg_controller.run(shutdown_listener).await });
+    }
 
     // if network monitor is disabled, we're not going to be sending any rewarding hence
     // we're not starting signing client

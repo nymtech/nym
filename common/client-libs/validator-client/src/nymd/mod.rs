@@ -120,7 +120,7 @@ impl Config {
                 prefix,
             )?,
             coconut_dkg_contract_address: Self::parse_optional_account(
-                details.contracts.multisig_contract_address.as_ref(),
+                details.contracts.coconut_dkg_contract_address.as_ref(),
                 prefix,
             )?,
         })

@@ -26,10 +26,20 @@ use async_trait::async_trait;
 #[cfg(feature = "coconut")]
 use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
 #[cfg(feature = "coconut")]
+use coconut_dkg_common::dealer::DealerDetailsResponse;
+#[cfg(feature = "coconut")]
+use coconut_dkg_common::types::EncodedBTEPublicKeyWithProof;
+#[cfg(feature = "coconut")]
+use contracts_common::commitment::ContractSafeCommitment;
+#[cfg(feature = "coconut")]
 use multisig_contract_common::msg::ProposalResponse;
 #[cfg(feature = "coconut")]
 use validator_client::nymd::{
-    traits::{CoconutBandwidthQueryClient, MultisigQueryClient, MultisigSigningClient},
+    cosmwasm_client::types::ExecuteResult,
+    traits::{
+        CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, MultisigQueryClient,
+        MultisigSigningClient,
+    },
     AccountId, Fee,
 };
 
@@ -294,6 +304,19 @@ where
             .await?)
     }
 
+    async fn get_self_registered_dealer_details(
+        &self,
+    ) -> crate::coconut::error::Result<DealerDetailsResponse> {
+        let self_address = &self.address().await;
+        Ok(self
+            .0
+            .read()
+            .await
+            .nymd
+            .get_dealer_details(self_address)
+            .await?)
+    }
+
     async fn vote_proposal(
         &self,
         proposal_id: u64,
@@ -307,5 +330,31 @@ where
             .vote_proposal(proposal_id, vote_yes, fee)
             .await?;
         Ok(())
+    }
+
+    async fn register_dealer(
+        &self,
+        bte_key: EncodedBTEPublicKeyWithProof,
+    ) -> Result<ExecuteResult, CoconutError> {
+        Ok(self
+            .0
+            .write()
+            .await
+            .nymd
+            .register_dealer(bte_key, None)
+            .await?)
+    }
+
+    async fn submit_dealing_commitment(
+        &self,
+        commitment: ContractSafeCommitment,
+    ) -> Result<ExecuteResult, CoconutError> {
+        Ok(self
+            .0
+            .write()
+            .await
+            .nymd
+            .submit_dealing_commitment(commitment, None)
+            .await?)
     }
 }

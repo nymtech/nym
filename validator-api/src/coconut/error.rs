@@ -77,6 +77,9 @@ pub enum CoconutError {
 
     #[error("Invalid status of credential: {status}")]
     InvalidCredentialStatus { status: String },
+
+    #[error("Failed to recover assigned node index")]
+    NodeIndexRecoveryError,
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {

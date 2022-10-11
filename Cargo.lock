@@ -637,6 +637,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "coconut-dkg-common"
+version = "0.1.0"
+dependencies = [
+ "contracts-common",
+ "cosmwasm-std",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "coconut-interface"
 version = "0.1.0"
 dependencies = [
@@ -745,7 +755,11 @@ checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 name = "contracts-common"
 version = "0.1.0"
 dependencies = [
+ "blake3",
+ "bs58",
  "cosmwasm-std",
+ "digest 0.10.3",
+ "generic-array 0.14.5",
  "schemars",
  "serde",
  "serde_json",
@@ -1971,6 +1985,7 @@ version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd48d33ec7f05fbfa152300fdad764757cbded343c1aa1cff2fbaf4134851803"
 dependencies = [
+ "serde",
  "typenum",
  "version_check",
 ]

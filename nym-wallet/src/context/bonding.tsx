@@ -173,12 +173,13 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
   };
 
   const getNodeDescription = async (host: string, port: number) => {
+    let result;
     try {
-      return await getNodeDescriptioRequest(host, port);
+      result = await getNodeDescriptioRequest(host, port);
     } catch (e) {
       Console.log(e);
     }
-    return undefined;
+    return result;
   };
 
   const getSetProbabilities = async (mixId: number) => {

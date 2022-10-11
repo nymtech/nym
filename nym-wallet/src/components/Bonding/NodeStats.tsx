@@ -1,5 +1,5 @@
 import React from 'react';
-import { Stack, Typography, Box, useTheme, Grid, LinearProgress, LinearProgressProps } from '@mui/material';
+import { Stack, Typography, Box, useTheme, Grid, LinearProgress, LinearProgressProps, Divider } from '@mui/material';
 import { TBondedMixnode } from 'src/context';
 import { Cell, Pie, PieChart, Legend, ResponsiveContainer } from 'recharts';
 import { SelectionChance } from '@nymproject/types';
@@ -44,7 +44,7 @@ const StatRow = ({
   </Stack>
 );
 
-const StatDivider = () => <Box borderTop="1px solid" borderColor="rgba(141, 147, 153, 0.2)" my={1} />;
+const StatDivider = () => <Divider sx={{ my: 1 }} />;
 
 export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
   const {
@@ -64,7 +64,6 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
   const colors = [theme.palette.success.main, theme.palette.nym.nymWallet.chart.grey];
 
   const getSetProbabilityLabel = (chance?: SelectionChance) => {
-    if (!chance) return 'Unknown';
     switch (chance) {
       case 'High':
         return 'High';
@@ -86,7 +85,7 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
         borderBottom: `1px solid ${theme.palette.nym.nymWallet.chart.grey}`,
       }}
     >
-      <Typography sx={{ color: (t) => t.palette.nym.text.muted }}>Routing score</Typography>
+      <Typography color="nym.text.muted">Routing score</Typography>
       <Typography fontWeight={600} fontSize={28}>
         {routingScore}%
       </Typography>

@@ -12,6 +12,8 @@ cfg_if::cfg_if! {
         use commands::{Commands, Execute};
         use error::Result;
         use network_defaults::setup_env;
+        use clap::CommandFactory;
+        use completions::fig_generate;
 
         use clap::Parser;
         use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
@@ -52,10 +54,14 @@ cfg_if::cfg_if! {
                 ),
             };
 
+            let bin_name = "nym-credential-client";
+
             match &args.command {
                 Commands::Deposit(m) => m.execute(&mut db, shared_storage).await?,
                 Commands::ListDeposits(m) => m.execute(&mut db, shared_storage).await?,
                 Commands::GetCredential(m) => m.execute(&mut db, shared_storage).await?,
+                Commands::Completions(s) => s.generate(&mut crate::Cli::into_app(), bin_name),
+                Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::into_app(), bin_name)
             }
 
             Ok(())

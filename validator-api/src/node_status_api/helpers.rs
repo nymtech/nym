@@ -148,6 +148,22 @@ pub(crate) async fn _compute_mixnode_reward_estimation(
                 Decimal::from_ratio(total_delegation, 1u64);
         }
 
+        if let Some(profit_margin_percent) = user_reward_param.profit_margin_percent {
+            mixnode
+                .mixnode_details
+                .rewarding_details
+                .cost_params
+                .profit_margin_percent = profit_margin_percent;
+        }
+
+        if let Some(interval_operating_cost) = user_reward_param.interval_operating_cost {
+            mixnode
+                .mixnode_details
+                .rewarding_details
+                .cost_params
+                .interval_operating_cost = interval_operating_cost;
+        }
+
         if mixnode.mixnode_details.rewarding_details.operator
             + mixnode.mixnode_details.rewarding_details.delegates
             > reward_params.interval.staking_supply

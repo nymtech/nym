@@ -173,10 +173,10 @@ fn get_common_owner(delegations: &[Delegation]) -> Option<Addr> {
 }
 
 fn get_common_mix_id(delegations: &[Delegation]) -> Option<NodeId> {
-    let mix_id = delegations.iter().next()?.node_id;
+    let mix_id = delegations.iter().next()?.mix_id;
     if delegations
         .iter()
-        .any(|delegation| delegation.node_id != mix_id)
+        .any(|delegation| delegation.mix_id != mix_id)
     {
         log::warn!("Unexpected different node identities when summing delegations");
         return None;

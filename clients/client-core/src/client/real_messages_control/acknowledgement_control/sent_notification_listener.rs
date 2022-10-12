@@ -6,7 +6,6 @@ use super::SentPacketNotificationReceiver;
 use futures::StreamExt;
 use log::*;
 use nymsphinx::chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID};
-use task::ShutdownListener;
 
 /// Module responsible for starting up retransmission timers.
 /// It is required because when we send our packet to the `real traffic stream` controlled
@@ -15,19 +14,16 @@ use task::ShutdownListener;
 pub(super) struct SentNotificationListener {
     sent_notifier: SentPacketNotificationReceiver,
     action_sender: ActionSender,
-    shutdown: ShutdownListener,
 }
 
 impl SentNotificationListener {
     pub(super) fn new(
         sent_notifier: SentPacketNotificationReceiver,
         action_sender: ActionSender,
-        shutdown: ShutdownListener,
     ) -> Self {
         SentNotificationListener {
             sent_notifier,
             action_sender,
-            shutdown,
         }
     }
 
@@ -46,9 +42,11 @@ impl SentNotificationListener {
             .unwrap();
     }
 
-    pub(super) async fn run(&mut self) {
-        debug!("Started SentNotificationListener");
-        while !self.shutdown.is_shutdown() {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+        debug!("Started SentNotificationListener with graceful shutdown support");
+
+        while !shutdown.is_shutdown() {
             tokio::select! {
                 frag_id = self.sent_notifier.next() => match frag_id {
                     Some(frag_id) => {
@@ -59,12 +57,21 @@ impl SentNotificationListener {
                         break;
                     }
                 },
-                _ = self.shutdown.recv() => {
+                _ = shutdown.recv() => {
                     log::trace!("SentNotificationListener: Received shutdown");
                 }
             }
         }
-        assert!(self.shutdown.is_shutdown_poll());
+        assert!(shutdown.is_shutdown_poll());
         log::debug!("SentNotificationListener: Exiting");
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(super) async fn run(&mut self) {
+        debug!("Started SentNotificationListener without graceful shutdown support");
+
+        while let Some(frag_id) = self.sent_notifier.next().await {
+            self.on_sent_message(frag_id).await;
+        }
     }
 }

@@ -10,12 +10,22 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - validator-client: added `query_contract_smart` and `query_contract_raw` on `NymdClient` ([#1558])
 - network-requester: added additional Blockstream Green wallet endpoint to `example.allowed.list` ([#1611](https://github.com/nymtech/nym/pull/1611))
 - common/ledger: new library for communicating with a Ledger device ([#1640])
+- native-client/socks5-client: `disable_loop_cover_traffic_stream` Debug config option to disable the separate loop cover traffic stream ([#1666])
+- native-client/socks5-client: `disable_main_poisson_packet_distribution` Debug config option to make the client ignore poisson distribution in the main packet stream and ONLY send real message (and as fast as they come) ([#1664])
+- native-client/socks5-client: `use_extended_packet_size` Debug config option to make the client use 'ExtendedPacketSize' for its traffic (32kB as opposed to 2kB in 1.0.2) ([#1671])
+- wasm-client: uses updated wasm-compatible `client-core` so that it's now capable of packet retransmission, cover traffic and poisson delay (among other things!) ([#1673])
+- validator-api: add `interval_operating_cost` and `profit_margin_percent` to cmpute reward estimation endpoint
+
+### Fixed
+
+- validator-api, mixnode, gateway should now prefer values in config.toml over mainnet defaults ([#1645])
 
 ### Changed
 
 - validator-client: made `fee` argument optional for `execute` and `execute_multiple` ([#1541])
 - socks5 client: graceful shutdown should fix error on disconnect in nym-connect ([#1591])
 - wasm-client: fixed build errors on MacOS and changed example JS code to use mainnet ([#1585])
+- gateway-client: will attempt to read now as many as 8 websocket messages at once, assuming they're already available on the socket ([#1669])
 
 [#1541]: https://github.com/nymtech/nym/pull/1541
 [#1558]: https://github.com/nymtech/nym/pull/1558
@@ -23,6 +33,12 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1585]: https://github.com/nymtech/nym/pull/1585
 [#1591]: https://github.com/nymtech/nym/pull/1591
 [#1640]: https://github.com/nymtech/nym/pull/1640
+[#1645]: https://github.com/nymtech/nym/pull/1645
+[#1664]: https://github.com/nymtech/nym/pull/1664
+[#1666]: https://github.com/nymtech/nym/pull/1645
+[#1669]: https://github.com/nymtech/nym/pull/1669
+[#1671]: https://github.com/nymtech/nym/pull/1671
+[#1673]: https://github.com/nymtech/nym/pull/1673
 
 
 ## [nym-binaries-1.0.2](https://github.com/nymtech/nym/tree/nym-binaries-1.0.2)

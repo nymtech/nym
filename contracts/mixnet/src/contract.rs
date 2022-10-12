@@ -259,6 +259,12 @@ pub fn execute(
                 deps, info, mix_id, owner,
             )
         }
+
+        // testing-only
+        #[cfg(feature = "contract-testing")]
+        ExecuteMsg::TestingResolveAllPendingEvents { limit } => {
+            crate::testing::transactions::try_resolve_all_pending_events(deps, env, limit)
+        }
     }
 }
 

@@ -5,6 +5,9 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum Errors {
+    #[error("account id does not match")]
+    AccountIdError,
+
     #[error("signature error - {0}")]
     SignatureError(#[from] k256::ecdsa::signature::Error),
 

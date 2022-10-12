@@ -213,8 +213,8 @@ export const DelegateModal: React.FC<{
         onPrev={resetFeeState}
         onConfirm={handleOk}
       >
-        <ModalListItem label="Node identity key:" value={identityKey} divider />
-        <ModalListItem label="Amount:" value={`${amount} ${denom.toUpperCase()}`} divider />
+        <ModalListItem label="Node identity key" value={identityKey} divider />
+        <ModalListItem label="Amount" value={`${amount} ${denom.toUpperCase()}`} divider />
       </ConfirmTx>
     );
   }
@@ -267,7 +267,7 @@ export const DelegateModal: React.FC<{
       >
         {errorIdentityKey}
       </Typography>
-      <Box display="flex" gap={3} alignItems="center" sx={{ mt: 3 }}>
+      <Box display="flex" gap={2} alignItems="center" sx={{ mt: 3 }}>
         {hasVestingContract && <TokenPoolSelector disabled={false} onSelect={(pool) => setTokenPool(pool)} />}
         <CurrencyFormField
           required

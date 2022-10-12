@@ -19,12 +19,16 @@ const textColour = (value: EconomicsRowsType, field: string, theme: Theme) => {
     return theme.palette.warning.main;
   }
   if (field === 'selectionChance') {
+    // TODO: when v2 will be deployed, remove cases: VeryHigh, Moderate and VeryLow
     switch (fieldValue) {
       case 'High':
+      case 'VeryHigh':
         return theme.palette.nym.networkExplorer.selectionChance.overModerate;
       case 'Good':
+      case 'Moderate':
         return theme.palette.nym.networkExplorer.selectionChance.moderate;
       case 'Low':
+      case 'VeryLow':
         return theme.palette.nym.networkExplorer.selectionChance.underModerate;
       default:
         return theme.palette.nym.wallet.fee;

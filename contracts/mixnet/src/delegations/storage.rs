@@ -32,7 +32,7 @@ pub(crate) fn delegations<'a>() -> IndexedMap<'a, PrimaryKey, Delegation, Delega
             DELEGATION_OWNER_IDX_NAMESPACE,
         ),
         mixnode: MultiIndex::new(
-            |d| d.node_id,
+            |d| d.mix_id,
             DELEGATION_PK_NAMESPACE,
             DELEGATION_MIXNODE_IDX_NAMESPACE,
         ),

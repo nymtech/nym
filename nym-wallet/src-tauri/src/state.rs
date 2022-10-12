@@ -1,6 +1,7 @@
 use crate::config;
 use crate::error::BackendError;
 use crate::simulate::SimulateResult;
+use ::config::defaults::NymNetworkDetails;
 use cosmwasm_std::Decimal;
 use itertools::Itertools;
 use log::warn;
@@ -215,8 +216,9 @@ impl WalletStateInner {
     }
 
     pub fn register_default_denoms(&mut self, network: Network) {
+        let details = NymNetworkDetails::from(network);
         self.registered_coins
-            .insert(network, RegisteredCoins::default_denoms(network.into()));
+            .insert(network, RegisteredCoins::default_denoms(&details));
     }
 
     pub fn set_network(&mut self, network: Network) {

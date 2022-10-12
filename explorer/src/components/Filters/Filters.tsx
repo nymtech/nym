@@ -60,6 +60,7 @@ export const Filters = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [isFiltered, setIsFiltered] = useState(false);
   const [filters, setFilters] = React.useState<TFilters>();
+  const [upperSaturationValue, setUpperSaturationValue] = React.useState<number>(100);
 
   const baseFilters = useRef<TFilters>();
   const prevFilters = useRef<TFilters>();
@@ -67,11 +68,10 @@ export const Filters = () => {
   const handleToggleShowFilters = () => setShowFilters(!showFilters);
 
   const initialiseFilters = useCallback(async () => {
-    let upperSaturationValue;
     const allMixnodes = await Api.fetchMixnodes();
     if (allMixnodes) {
-      upperSaturationValue = Math.round(Math.max(...allMixnodes.map((m) => m.stake_saturation)) * 100 + 1);
-      const initFilters = generateFilterSchema(upperSaturationValue);
+      setUpperSaturationValue(Math.round(Math.max(...allMixnodes.map((m) => m.stake_saturation)) * 100 + 1));
+      const initFilters = generateFilterSchema();
       baseFilters.current = initFilters;
       prevFilters.current = initFilters;
       setFilters(initFilters);
@@ -79,8 +79,18 @@ export const Filters = () => {
   }, []);
 
   const handleOnChange = (id: EnumFilterKey, newValue: number[]) => {
+    if (id === 'stakeSaturation' && newValue[1] === 100) {
+      newValue.splice(1, 1, upperSaturationValue);
+    }
     setFilters((ftrs) => {
-      if (ftrs) return { ...ftrs, [id]: { ...ftrs[id], value: newValue } };
+      if (ftrs)
+        return {
+          ...ftrs,
+          [id]: {
+            ...ftrs[id],
+            value: newValue,
+          },
+        };
       return undefined;
     });
   };

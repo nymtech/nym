@@ -8,6 +8,9 @@ use std::path::PathBuf;
 use std::time::Duration;
 use url::Url;
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
 pub mod persistence;
 
 pub const MISSING_VALUE: &str = "MISSING VALUE";
@@ -236,6 +239,18 @@ impl<T: NymConfig> Config<T> {
         self.debug.topology_resolution_timeout
     }
 
+    pub fn get_disabled_loop_cover_traffic_stream(&self) -> bool {
+        self.debug.disable_loop_cover_traffic_stream
+    }
+
+    pub fn get_disabled_main_poisson_packet_distribution(&self) -> bool {
+        self.debug.disable_main_poisson_packet_distribution
+    }
+
+    pub fn get_use_extended_packet_size(&self) -> bool {
+        self.debug.use_extended_packet_size
+    }
+
     pub fn get_version(&self) -> &str {
         &self.client.version
     }
@@ -252,6 +267,7 @@ impl<T: NymConfig> Default for Config<T> {
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter_with_clone))]
 pub struct GatewayEndpoint {
     /// gateway_id specifies ID of the gateway to which the client should send messages.
     /// If initially omitted, a random gateway will be chosen from the available topology.
@@ -398,53 +414,64 @@ pub struct Debug {
     /// So for a packet going through three mix nodes, on average, it will take three times this value
     /// until the packet reaches its destination.
     #[serde(with = "humantime_serde")]
-    average_packet_delay: Duration,
+    pub average_packet_delay: Duration,
 
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent acknowledgement is going to be delayed at any given mix node.
     /// So for an ack going through three mix nodes, on average, it will take three times this value
     /// until the packet reaches its destination.
     #[serde(with = "humantime_serde")]
-    average_ack_delay: Duration,
+    pub average_ack_delay: Duration,
 
     /// Value multiplied with the expected round trip time of an acknowledgement packet before
     /// it is assumed it was lost and retransmission of the data packet happens.
     /// In an ideal network with 0 latency, this value would have been 1.
-    ack_wait_multiplier: f64,
+    pub ack_wait_multiplier: f64,
 
     /// Value added to the expected round trip time of an acknowledgement packet before
     /// it is assumed it was lost and retransmission of the data packet happens.
     /// In an ideal network with 0 latency, this value would have been 0.
     #[serde(with = "humantime_serde")]
-    ack_wait_addition: Duration,
+    pub ack_wait_addition: Duration,
 
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take for another loop cover traffic message to be sent.
     #[serde(with = "humantime_serde")]
-    loop_cover_traffic_average_delay: Duration,
+    pub loop_cover_traffic_average_delay: Duration,
 
     /// The parameter of Poisson distribution determining how long, on average,
     /// it is going to take another 'real traffic stream' message to be sent.
     /// If no real packets are available and cover traffic is enabled,
     /// a loop cover message is sent instead in order to preserve the rate.
     #[serde(with = "humantime_serde")]
-    message_sending_average_delay: Duration,
+    pub message_sending_average_delay: Duration,
 
     /// How long we're willing to wait for a response to a message sent to the gateway,
     /// before giving up on it.
     #[serde(with = "humantime_serde")]
-    gateway_response_timeout: Duration,
+    pub gateway_response_timeout: Duration,
 
     /// The uniform delay every which clients are querying the directory server
     /// to try to obtain a compatible network topology to send sphinx packets through.
     #[serde(with = "humantime_serde")]
-    topology_refresh_rate: Duration,
+    pub topology_refresh_rate: Duration,
 
     /// During topology refresh, test packets are sent through every single possible network
     /// path. This timeout determines waiting period until it is decided that the packet
     /// did not reach its destination.
     #[serde(with = "humantime_serde")]
-    topology_resolution_timeout: Duration,
+    pub topology_resolution_timeout: Duration,
+
+    /// Controls whether the dedicated loop cover traffic stream should be enabled.
+    /// (and sending packets, on average, every [Self::loop_cover_traffic_average_delay])
+    pub disable_loop_cover_traffic_stream: bool,
+
+    /// Controls whether the main packet stream constantly produces packets according to the predefined
+    /// poisson distribution.
+    pub disable_main_poisson_packet_distribution: bool,
+
+    /// Controls whether the sent sphinx packet use the NON-DEFAULT bigger size.
+    pub use_extended_packet_size: bool,
 }
 
 impl Default for Debug {
@@ -459,6 +486,9 @@ impl Default for Debug {
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             topology_refresh_rate: DEFAULT_TOPOLOGY_REFRESH_RATE,
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
+            disable_loop_cover_traffic_stream: false,
+            disable_main_poisson_packet_distribution: false,
+            use_extended_packet_size: false,
         }
     }
 }

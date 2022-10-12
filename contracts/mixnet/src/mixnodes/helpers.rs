@@ -28,9 +28,9 @@ pub(crate) fn must_get_mixnode_bond_by_owner(
 
 pub(crate) fn get_mixnode_details_by_id(
     store: &dyn Storage,
-    node_id: NodeId,
+    mix_id: NodeId,
 ) -> StdResult<Option<MixNodeDetails>> {
-    if let Some(bond_information) = storage::mixnode_bonds().may_load(store, node_id)? {
+    if let Some(bond_information) = storage::mixnode_bonds().may_load(store, mix_id)? {
         // if bond exists, rewarding details MUST also exist
         let rewarding_details =
             rewards_storage::MIXNODE_REWARDING.load(store, bond_information.id)?;

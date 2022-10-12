@@ -1,12 +1,12 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::cleanup_socket_message;
+use crate::cleanup_socket_messages;
 use crate::error::GatewayClientError;
 use crate::packet_router::PacketRouter;
 use futures::channel::oneshot;
 use futures::stream::{SplitSink, SplitStream};
-use futures::{FutureExt, SinkExt, StreamExt};
+use futures::{SinkExt, StreamExt};
 use gateway_requests::registration::handshake::SharedKeys;
 use gateway_requests::BinaryResponse;
 use log::*;
@@ -44,16 +44,15 @@ pub(crate) struct PartiallyDelegated {
 }
 
 impl PartiallyDelegated {
-    fn route_socket_message(
-        ws_msg: Message,
-        packet_router: &mut PacketRouter,
-        shared_key: &SharedKeys,
-    ) -> Result<(), GatewayClientError> {
-        match ws_msg {
-            Message::Binary(bin_msg) => {
-                // this function decrypts the request and checks the MAC
-                let plaintext =
-                    match BinaryResponse::try_from_encrypted_tagged_bytes(bin_msg, shared_key) {
+    fn recover_received_plaintexts(ws_msgs: Vec<Message>, shared_key: &SharedKeys) -> Vec<Vec<u8>> {
+        let mut plaintexts = Vec::with_capacity(ws_msgs.len());
+        for ws_msg in ws_msgs {
+            match ws_msg {
+                Message::Binary(bin_msg) => {
+                    // this function decrypts the request and checks the MAC
+                    let plaintext = match BinaryResponse::try_from_encrypted_tagged_bytes(
+                        bin_msg, shared_key,
+                    ) {
                         Ok(bin_response) => match bin_response {
                             BinaryResponse::PushedMixMessage(plaintext) => plaintext,
                         },
@@ -62,29 +61,37 @@ impl PartiallyDelegated {
                                 "message received from the gateway was malformed! - {:?}",
                                 err
                             );
-                            return Ok(());
+                            continue;
                         }
                     };
+                    plaintexts.push(plaintext)
+                }
+                // I think that in the future we should perhaps have some sequence number system, i.e.
+                // so each request/response pair can be easily identified, so that if messages are
+                // not ordered (for some peculiar reason) we wouldn't lose anything.
+                // This would also require NOT discarding any text responses here.
 
-                // TODO: some batching mechanism to allow reading and sending more than
-                // one packet at the time, because the receiver can easily handle it
-                packet_router.route_received(vec![plaintext])
-            }
-            // I think that in the future we should perhaps have some sequence number system, i.e.
-            // so each request/response pair can be easily identified, so that if messages are
-            // not ordered (for some peculiar reason) we wouldn't lose anything.
-            // This would also require NOT discarding any text responses here.
-
-            // TODO: those can return the "send confirmations" - perhaps it should be somehow worked around?
-            Message::Text(text) => {
-                trace!(
+                // TODO: those can return the "send confirmations" - perhaps it should be somehow worked around?
+                Message::Text(text) => {
+                    trace!(
                     "received a text message - probably a response to some previous query! - {}",
                     text
                 );
-                Ok(())
+                    continue;
+                }
+                _ => continue,
             }
-            _ => Ok(()),
         }
+        plaintexts
+    }
+
+    fn route_socket_messages(
+        ws_msgs: Vec<Message>,
+        packet_router: &mut PacketRouter,
+        shared_key: &SharedKeys,
+    ) -> Result<(), GatewayClientError> {
+        let plaintexts = Self::recover_received_plaintexts(ws_msgs, shared_key);
+        packet_router.route_received(plaintexts)
     }
 
     pub(crate) fn split_and_listen_for_mixnet_messages(
@@ -101,47 +108,46 @@ impl PartiallyDelegated {
         let (sink, mut stream) = conn.split();
 
         let mixnet_receiver_future = async move {
-            let mut fused_receiver = notify_receiver.fuse();
-            let mut fused_stream = (&mut stream).fuse();
+            let mut notify_receiver = notify_receiver;
+            let mut chunk_stream = (&mut stream).ready_chunks(8);
             let mut packet_router = packet_router;
 
             // Bit of an ugly workaround for selecting on an `Option` without having access to
             // `tokio::select`
             #[cfg(not(target_arch = "wasm32"))]
             let shutdown = {
-                let m_shutdown = shutdown.clone();
                 async {
-                    if let Some(mut s) = m_shutdown {
+                    if let Some(mut s) = shutdown {
                         s.recv().await
                     } else {
                         std::future::pending::<()>().await
                     }
                 }
-                .fuse()
             };
             #[cfg(not(target_arch = "wasm32"))]
             tokio::pin!(shutdown);
 
             #[cfg(target_arch = "wasm32")]
-            let mut shutdown = std::future::pending::<()>().fuse();
+            let mut shutdown = std::future::pending::<()>();
 
             let ret_err = loop {
-                futures::select! {
-                    _ = shutdown => {
+                tokio::select! {
+                    _ = &mut shutdown => {
                         log::trace!("GatewayClient listener: Received shutdown");
                         log::debug!("GatewayClient listener: Exiting");
                         return;
                     }
-                    _ = &mut fused_receiver => {
+                    _ = &mut notify_receiver => {
                         break Ok(());
                     }
-                    msg = fused_stream.next() => {
-                        let ws_msg = match cleanup_socket_message(msg) {
+                    msgs = chunk_stream.next() => {
+                        let ws_msgs = match cleanup_socket_messages(msgs) {
                             Err(err) => break Err(err),
-                            Ok(msg) => msg
+                            Ok(msgs) => msgs
                         };
-                        if let Err(err) = Self::route_socket_message(ws_msg, &mut packet_router, shared_key.as_ref()) {
-                            log::warn!("Route socket message failed: {:?}", err);
+
+                        if let Err(err) = Self::route_socket_messages(ws_msgs, &mut packet_router, shared_key.as_ref()) {
+                            log::warn!("Route socket messages failed: {:?}", err);
                         }
                     }
                 };

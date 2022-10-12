@@ -6,8 +6,9 @@ use crate::storage::models::NodeStatus;
 use mixnet_contract_common::reward_params::Performance;
 use mixnet_contract_common::{IdentityKey, MixId};
 use okapi::openapi3::{Responses, SchemaObject};
-use rocket::http::{ContentType, Status};
+use rocket::http::Status;
 use rocket::response::{self, Responder, Response};
+use rocket::serde::json::Json;
 use rocket::Request;
 use rocket_okapi::gen::OpenApiGenerator;
 use rocket_okapi::response::OpenApiResponderInner;
@@ -19,11 +20,10 @@ use serde::{Deserialize, Serialize};
 use sqlx::Error;
 use std::convert::TryFrom;
 use std::fmt::{self, Display, Formatter};
-use std::io::Cursor;
 use time::OffsetDateTime;
 use validator_api_requests::models::{
     GatewayStatusReportResponse, GatewayUptimeHistoryResponse, HistoricalUptimeResponse,
-    MixnodeStatusReportResponse, MixnodeUptimeHistoryResponse,
+    MixnodeStatusReportResponse, MixnodeUptimeHistoryResponse, RequestError,
 };
 
 // todo: put into some error enum
@@ -302,24 +302,25 @@ impl From<HistoricalUptime> for HistoricalUptimeResponse {
 }
 
 pub(crate) struct ErrorResponse {
-    error_message: String,
+    error_message: RequestError,
     status: Status,
 }
 
 impl ErrorResponse {
     pub(crate) fn new(error_message: impl Into<String>, status: Status) -> Self {
         ErrorResponse {
-            error_message: error_message.into(),
+            error_message: RequestError::new(error_message),
             status,
         }
     }
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for ErrorResponse {
-    fn respond_to(self, _: &'r Request<'_>) -> response::Result<'o> {
+    fn respond_to(self, req: &'r Request<'_>) -> response::Result<'o> {
+        // piggyback on the existing implementation
+        // also prefer json over plain for ease of use in frontend
         Response::build()
-            .header(ContentType::Plain)
-            .sized_body(self.error_message.len(), Cursor::new(self.error_message))
+            .merge(Json(self.error_message).respond_to(req)?)
             .status(self.status)
             .ok()
     }

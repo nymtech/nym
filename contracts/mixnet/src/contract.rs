@@ -492,7 +492,6 @@ fn blacklist_malicious_node(storage: &mut dyn Storage, owner: &Addr) -> Result<(
 }
 
 // Removes nodes we've deemed malicious, returns the pledge to the owners, but does not send any rewards
-#[allow(unused)]
 fn remove_malicious_node(
     storage: &mut dyn Storage,
     api: &dyn Api,
@@ -509,8 +508,17 @@ fn remove_malicious_node(
 }
 
 #[entry_point]
-pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
-    Ok(Response::default())
+pub fn migrate(deps: DepsMut<'_>, env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+    let mut response = Response::new();
+    for node in msg.nodes_to_remove().iter() {
+        let mut sub_response = remove_malicious_node(deps.storage, deps.api, &env, node)
+            .unwrap_or_else(|_| panic!("Could not remove node: {:?}", node));
+        response.messages.append(&mut sub_response.messages);
+        response.attributes.append(&mut sub_response.attributes);
+        response.events.append(&mut sub_response.events);
+    }
+
+    Ok(response)
 }
 
 #[cfg(test)]

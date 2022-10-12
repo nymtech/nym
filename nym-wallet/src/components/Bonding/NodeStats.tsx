@@ -57,9 +57,13 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
     routingScore,
   } = mixnode;
   const theme = useTheme();
+
+  // clamp routing score to [0-100]
+  const score = Math.min(Math.max(routingScore, 0), 100);
+
   const data = [
-    { key: 'routingScore', value: routingScore },
-    { key: 'rest', value: 100 - routingScore },
+    { key: 'routingScore', value: score },
+    { key: 'rest', value: 100 - score },
   ];
   const colors = [theme.palette.success.main, theme.palette.nym.nymWallet.chart.grey];
 
@@ -85,8 +89,7 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
         borderBottom: `1px solid ${theme.palette.nym.nymWallet.chart.grey}`,
       }}
     >
-      <Typography color="nym.text.muted">Routing score</Typography>
-      <Typography fontWeight={600} fontSize={28}>
+      <Typography fontWeight={600} fontSize={24} mb={1}>
         {routingScore}%
       </Typography>
     </Stack>
@@ -103,32 +106,35 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
     >
       <Grid container spacing={4} direction="row" justifyContent="space-between" alignItems="flex-end">
         <Grid item xs={12} sm={12} md={6} lg={3}>
-          <ResponsiveContainer width="100%" height={100}>
-            <PieChart width={200} height={100}>
-              <Pie
-                cy={90}
-                data={data}
-                startAngle={180}
-                endAngle={0}
-                innerRadius={58}
-                outerRadius={78}
-                dataKey="value"
-                stroke="none"
-              >
-                {data.map(({ key }, index) => (
-                  <Cell key={`cell-${key}`} fill={colors[index]} />
-                ))}
-              </Pie>
-              <Legend
-                verticalAlign="bottom"
-                content={renderLegend}
-                wrapperStyle={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
+          <Stack justifyContent="center" alignItems="center">
+            <ResponsiveContainer width="100%" height={100}>
+              <PieChart width={200} height={100}>
+                <Pie
+                  cy={90}
+                  data={data}
+                  startAngle={180}
+                  endAngle={0}
+                  innerRadius={58}
+                  outerRadius={78}
+                  dataKey="value"
+                  stroke="none"
+                >
+                  {data.map(({ key }, index) => (
+                    <Cell key={`cell-${key}`} fill={colors[index]} />
+                  ))}
+                </Pie>
+                <Legend
+                  verticalAlign="bottom"
+                  content={renderLegend}
+                  wrapperStyle={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            <Typography color="nym.text.muted">Routing score</Typography>
+          </Stack>
         </Grid>
         <Grid item xs={12} sm={12} md={6} lg={4}>
           <StatRow label="Profit margin" tooltipText="TODO" value={`${profitMargin}%`} />

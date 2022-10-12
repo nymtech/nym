@@ -4,7 +4,7 @@
 use crate::validator_api::error::ValidatorAPIError;
 use crate::validator_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
 use mixnet_contract_common::mixnode::MixNodeDetails;
-use mixnet_contract_common::{GatewayBond, IdentityKeyRef, NodeId};
+use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use serde::{Deserialize, Serialize};
 use url::Url;
 use validator_api_requests::coconut::{
@@ -183,7 +183,7 @@ impl Client {
 
     pub async fn get_mixnode_core_status_count(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
         since: Option<i64>,
     ) -> Result<MixnodeCoreStatusResponse, ValidatorAPIError> {
         if let Some(since) = since {
@@ -215,7 +215,7 @@ impl Client {
 
     pub async fn get_mixnode_status(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<MixnodeStatusResponse, ValidatorAPIError> {
         self.query_validator_api(
             &[
@@ -232,7 +232,7 @@ impl Client {
 
     pub async fn get_mixnode_reward_estimation(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<RewardEstimationResponse, ValidatorAPIError> {
         self.query_validator_api(
             &[
@@ -249,7 +249,7 @@ impl Client {
 
     pub async fn get_mixnode_stake_saturation(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<StakeSaturationResponse, ValidatorAPIError> {
         self.query_validator_api(
             &[
@@ -266,7 +266,7 @@ impl Client {
 
     pub async fn get_mixnode_inclusion_probability(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<InclusionProbabilityResponse, ValidatorAPIError> {
         self.query_validator_api(
             &[
@@ -283,7 +283,7 @@ impl Client {
 
     pub async fn get_mixnode_avg_uptime(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<UptimeResponse, ValidatorAPIError> {
         self.query_validator_api(
             &[

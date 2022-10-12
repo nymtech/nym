@@ -2,7 +2,7 @@ use crate::vesting::Account;
 use crate::{contract::INITIAL_LOCKED_PLEDGE_CAP, errors::ContractError};
 use cosmwasm_std::{Addr, Api, Storage, Uint128};
 use cw_storage_plus::{Item, Map};
-use mixnet_contract_common::{IdentityKey, NodeId};
+use mixnet_contract_common::{IdentityKey, MixId};
 use vesting_contract_common::PledgeData;
 
 pub(crate) type BlockTimestampSecs = u64;
@@ -16,7 +16,7 @@ const BOND_PLEDGES: Map<'_, u32, PledgeData> = Map::new("bnd");
 const GATEWAY_PLEDGES: Map<'_, u32, PledgeData> = Map::new("gtw");
 pub const _OLD_DELEGATIONS: Map<'_, (u32, IdentityKey, BlockTimestampSecs), Uint128> =
     Map::new("dlg");
-pub const DELEGATIONS: Map<'_, (u32, NodeId, BlockTimestampSecs), Uint128> = Map::new("dlg_v2");
+pub const DELEGATIONS: Map<'_, (u32, MixId, BlockTimestampSecs), Uint128> = Map::new("dlg_v2");
 pub const ADMIN: Item<'_, String> = Item::new("adm");
 pub const MIXNET_CONTRACT_ADDRESS: Item<'_, String> = Item::new("mix");
 pub const MIX_DENOM: Item<'_, String> = Item::new("den");
@@ -37,7 +37,7 @@ pub fn update_locked_pledge_cap(
 }
 
 pub fn save_delegation(
-    key: (u32, NodeId, BlockTimestampSecs),
+    key: (u32, MixId, BlockTimestampSecs),
     amount: Uint128,
     storage: &mut dyn Storage,
 ) -> Result<(), ContractError> {
@@ -46,7 +46,7 @@ pub fn save_delegation(
 }
 
 pub fn remove_delegation(
-    key: (u32, NodeId, BlockTimestampSecs),
+    key: (u32, MixId, BlockTimestampSecs),
     storage: &mut dyn Storage,
 ) -> Result<(), ContractError> {
     DELEGATIONS.remove(storage, key);

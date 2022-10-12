@@ -7,7 +7,7 @@ use config::defaults::{NymNetworkDetails, DEFAULT_VALIDATOR_API_PORT};
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::RewardingParams;
 use mixnet_contract_common::{
-    CurrentIntervalResponse, ExecuteMsg, GatewayBond, NodeId, RewardedSetNodeStatus,
+    CurrentIntervalResponse, ExecuteMsg, GatewayBond, MixId, RewardedSetNodeStatus,
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -168,7 +168,7 @@ impl<C> Client<C> {
 
     pub(crate) async fn get_rewarded_set_mixnodes(
         &self,
-    ) -> Result<Vec<(NodeId, RewardedSetNodeStatus)>, ValidatorClientError>
+    ) -> Result<Vec<(MixId, RewardedSetNodeStatus)>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync + Send,
     {
@@ -225,7 +225,7 @@ impl<C> Client<C> {
 
     pub(crate) async fn advance_current_epoch(
         &self,
-        new_rewarded_set: Vec<NodeId>,
+        new_rewarded_set: Vec<MixId>,
         expected_active_set_size: u32,
     ) -> Result<(), ValidatorClientError>
     where

@@ -10,12 +10,12 @@ use cosmwasm_std::{Order, StdResult, Storage};
 use cw_storage_plus::{Item, Map};
 use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
 use mixnet_contract_common::{
-    EpochEventId, Interval, IntervalEventId, NodeId, RewardedSetNodeStatus,
+    EpochEventId, Interval, IntervalEventId, MixId, RewardedSetNodeStatus,
 };
 use std::collections::HashMap;
 
 pub(crate) const CURRENT_INTERVAL: Item<'_, Interval> = Item::new(CURRENT_INTERVAL_KEY);
-pub(crate) const REWARDED_SET: Map<NodeId, RewardedSetNodeStatus> = Map::new(REWARDED_SET_KEY);
+pub(crate) const REWARDED_SET: Map<MixId, RewardedSetNodeStatus> = Map::new(REWARDED_SET_KEY);
 
 pub(crate) const EPOCH_EVENT_ID_COUNTER: Item<EpochEventId> = Item::new(EPOCH_EVENT_ID_COUNTER_KEY);
 pub(crate) const INTERVAL_EVENT_ID_COUNTER: Item<IntervalEventId> =
@@ -81,7 +81,7 @@ pub(crate) fn push_new_interval_event(
 pub(crate) fn update_rewarded_set(
     storage: &mut dyn Storage,
     active_set_size: u32,
-    new_set: Vec<NodeId>,
+    new_set: Vec<MixId>,
 ) -> StdResult<()> {
     // our goal is to reduce the number of reads and writes to the underlying storage,
     // whilst completely overwriting the current rewarded set.
@@ -138,7 +138,7 @@ mod tests {
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::Order;
 
-    fn read_entire_set(storage: &mut dyn Storage) -> HashMap<NodeId, RewardedSetNodeStatus> {
+    fn read_entire_set(storage: &mut dyn Storage) -> HashMap<MixId, RewardedSetNodeStatus> {
         REWARDED_SET
             .range(storage, None, None, Order::Ascending)
             .map(|r| r.unwrap())

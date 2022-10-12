@@ -14,7 +14,7 @@ use crate::node_status_api::models::{
 };
 use crate::storage::ValidatorApiStorage;
 use crate::ValidatorCache;
-use mixnet_contract_common::NodeId;
+use mixnet_contract_common::MixId;
 use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
@@ -73,7 +73,7 @@ pub(crate) async fn gateway_core_status_count(
 #[get("/mixnode/<mix_id>/report")]
 pub(crate) async fn mixnode_report(
     storage: &State<ValidatorApiStorage>,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Result<Json<MixnodeStatusReport>, ErrorResponse> {
     Ok(Json(_mixnode_report(storage, mix_id).await?))
 }
@@ -82,7 +82,7 @@ pub(crate) async fn mixnode_report(
 #[get("/mixnode/<mix_id>/history")]
 pub(crate) async fn mixnode_uptime_history(
     storage: &State<ValidatorApiStorage>,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Result<Json<MixnodeUptimeHistory>, ErrorResponse> {
     Ok(Json(_mixnode_uptime_history(storage, mix_id).await?))
 }
@@ -91,7 +91,7 @@ pub(crate) async fn mixnode_uptime_history(
 #[get("/mixnode/<mix_id>/core-status-count?<since>")]
 pub(crate) async fn mixnode_core_status_count(
     storage: &State<ValidatorApiStorage>,
-    mix_id: NodeId,
+    mix_id: MixId,
     since: Option<i64>,
 ) -> Result<Json<MixnodeCoreStatusResponse>, ErrorResponse> {
     Ok(Json(
@@ -103,7 +103,7 @@ pub(crate) async fn mixnode_core_status_count(
 #[get("/mixnode/<mix_id>/status")]
 pub(crate) async fn get_mixnode_status(
     cache: &State<ValidatorCache>,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Json<MixnodeStatusResponse> {
     Json(_get_mixnode_status(cache, mix_id).await)
 }
@@ -112,7 +112,7 @@ pub(crate) async fn get_mixnode_status(
 #[get("/mixnode/<mix_id>/reward-estimation")]
 pub(crate) async fn get_mixnode_reward_estimation(
     cache: &State<ValidatorCache>,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Result<Json<RewardEstimationResponse>, ErrorResponse> {
     Ok(Json(_get_mixnode_reward_estimation(cache, mix_id).await?))
 }
@@ -125,7 +125,7 @@ pub(crate) async fn get_mixnode_reward_estimation(
 pub(crate) async fn compute_mixnode_reward_estimation(
     user_reward_param: Json<ComputeRewardEstParam>,
     cache: &State<ValidatorCache>,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Result<Json<RewardEstimationResponse>, ErrorResponse> {
     Ok(Json(
         _compute_mixnode_reward_estimation(user_reward_param.into_inner(), cache, mix_id).await?,
@@ -136,7 +136,7 @@ pub(crate) async fn compute_mixnode_reward_estimation(
 #[get("/mixnode/<mix_id>/stake-saturation")]
 pub(crate) async fn get_mixnode_stake_saturation(
     cache: &State<ValidatorCache>,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Result<Json<StakeSaturationResponse>, ErrorResponse> {
     Ok(Json(_get_mixnode_stake_saturation(cache, mix_id).await?))
 }
@@ -145,7 +145,7 @@ pub(crate) async fn get_mixnode_stake_saturation(
 #[get("/mixnode/<mix_id>/inclusion-probability")]
 pub(crate) async fn get_mixnode_inclusion_probability(
     cache: &State<NodeStatusCache>,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Result<Json<InclusionProbabilityResponse>, ErrorResponse> {
     Ok(Json(
         _get_mixnode_inclusion_probability(cache, mix_id).await?,
@@ -157,7 +157,7 @@ pub(crate) async fn get_mixnode_inclusion_probability(
 pub(crate) async fn get_mixnode_avg_uptime(
     cache: &State<ValidatorCache>,
     storage: &State<ValidatorApiStorage>,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Result<Json<UptimeResponse>, ErrorResponse> {
     Ok(Json(_get_mixnode_avg_uptime(cache, storage, mix_id).await?))
 }

@@ -4,7 +4,7 @@
 use crate::error::BackendError;
 use crate::state::WalletState;
 use crate::vesting::delegate::vesting_undelegate_from_mixnode;
-use mixnet_contract_common::NodeId;
+use mixnet_contract_common::MixId;
 use nym_types::currency::DecCoin;
 use nym_types::delegation::{Delegation, DelegationWithEverything, DelegationsSummaryResponse};
 use nym_types::deprecated::{
@@ -64,7 +64,7 @@ pub async fn get_pending_delegation_events(
 
 #[tauri::command]
 pub async fn delegate_to_mixnode(
-    mix_id: NodeId,
+    mix_id: MixId,
     amount: DecCoin,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
@@ -94,7 +94,7 @@ pub async fn delegate_to_mixnode(
 
 #[tauri::command]
 pub async fn undelegate_from_mixnode(
-    mix_id: NodeId,
+    mix_id: MixId,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
@@ -120,7 +120,7 @@ pub async fn undelegate_from_mixnode(
 
 #[tauri::command]
 pub async fn undelegate_all_from_mixnode(
-    mix_id: NodeId,
+    mix_id: MixId,
     uses_vesting_contract_tokens: bool,
     fee_liquid: Option<Fee>,
     fee_vesting: Option<Fee>,
@@ -291,7 +291,7 @@ pub async fn get_all_mix_delegations(
 }
 
 fn filter_pending_events(
-    mix_id: NodeId,
+    mix_id: MixId,
     pending_events: &[WrappedDelegationEvent],
 ) -> Vec<DelegationEvent> {
     pending_events
@@ -305,7 +305,7 @@ fn filter_pending_events(
 #[tauri::command]
 pub async fn get_pending_delegator_rewards(
     address: String,
-    mix_id: NodeId,
+    mix_id: MixId,
     proxy: Option<String>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<DecCoin, BackendError> {

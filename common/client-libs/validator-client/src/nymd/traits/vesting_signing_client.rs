@@ -7,7 +7,7 @@ use crate::nymd::error::NymdError;
 use crate::nymd::{Coin, Fee, NymdClient};
 use async_trait::async_trait;
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
-use mixnet_contract_common::{Gateway, MixNode, NodeId};
+use mixnet_contract_common::{Gateway, MixId, MixNode};
 use vesting_contract_common::messages::{ExecuteMsg as VestingExecuteMsg, VestingSpecification};
 
 #[async_trait]
@@ -81,21 +81,21 @@ pub trait VestingSigningClient {
     async fn vesting_track_undelegation(
         &self,
         address: &str,
-        mix_id: NodeId,
+        mix_id: MixId,
         amount: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>;
 
     async fn vesting_delegate_to_mixnode(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
         amount: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>;
 
     async fn vesting_undelegate_from_mixnode(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>;
 
@@ -330,7 +330,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
     async fn vesting_track_undelegation(
         &self,
         address: &str,
-        mix_id: NodeId,
+        mix_id: MixId,
         amount: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError> {
@@ -348,7 +348,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
 
     async fn vesting_delegate_to_mixnode(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
         amount: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError> {
@@ -365,7 +365,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
 
     async fn vesting_undelegate_from_mixnode(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError> {
         self.execute_vesting_contract(

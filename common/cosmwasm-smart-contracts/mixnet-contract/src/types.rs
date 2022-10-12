@@ -19,7 +19,7 @@ pub type SphinxKey = String;
 pub type SphinxKeyRef<'a> = &'a str;
 pub type EpochId = u32;
 pub type IntervalId = u32;
-pub type NodeId = u32;
+pub type MixId = u32;
 pub type EpochEventId = u32;
 pub type IntervalEventId = u32;
 
@@ -202,8 +202,8 @@ pub struct ContractStateParams {
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub struct PagedRewardedSetResponse {
-    pub nodes: Vec<(NodeId, RewardedSetNodeStatus)>,
-    pub start_next_after: Option<NodeId>,
+    pub nodes: Vec<(MixId, RewardedSetNodeStatus)>,
+    pub start_next_after: Option<MixId>,
 }
 
 #[cfg(test)]

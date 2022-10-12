@@ -155,14 +155,14 @@ pub(crate) fn _try_remove_mixnode(
     updated_bond.is_unbonding = true;
     storage::mixnode_bonds().replace(
         deps.storage,
-        existing_bond.id,
+        existing_bond.mix_id,
         Some(&updated_bond),
         Some(&existing_bond),
     )?;
 
     // push the event to execute it at the end of the epoch
     let epoch_event = PendingEpochEventData::UnbondMixnode {
-        mix_id: existing_bond.id,
+        mix_id: existing_bond.mix_id,
     };
     interval_storage::push_new_epoch_event(deps.storage, &epoch_event)?;
 
@@ -171,7 +171,7 @@ pub(crate) fn _try_remove_mixnode(
             &existing_bond.owner,
             &existing_bond.proxy,
             existing_bond.identity(),
-            existing_bond.id,
+            existing_bond.mix_id,
         )),
     )
 }
@@ -208,7 +208,7 @@ pub(crate) fn _try_update_mixnode_config(
     ensure_proxy_match(&proxy, &existing_bond.proxy)?;
 
     let cfg_update_event =
-        new_mixnode_config_update_event(existing_bond.id, &owner, &proxy, &new_config);
+        new_mixnode_config_update_event(existing_bond.mix_id, &owner, &proxy, &new_config);
 
     let mut updated_bond = existing_bond.clone();
     updated_bond.mix_node.host = new_config.host;
@@ -219,7 +219,7 @@ pub(crate) fn _try_update_mixnode_config(
 
     storage::mixnode_bonds().replace(
         deps.storage,
-        existing_bond.id,
+        existing_bond.mix_id,
         Some(&updated_bond),
         Some(&existing_bond),
     )?;
@@ -259,12 +259,16 @@ pub(crate) fn _try_update_mixnode_cost_params(
     ensure_proxy_match(&proxy, &existing_bond.proxy)?;
     ensure_bonded(&existing_bond)?;
 
-    let cosmos_event =
-        new_mixnode_pending_cost_params_update_event(existing_bond.id, &owner, &proxy, &new_costs);
+    let cosmos_event = new_mixnode_pending_cost_params_update_event(
+        existing_bond.mix_id,
+        &owner,
+        &proxy,
+        &new_costs,
+    );
 
     // push the interval event
     let interval_event = PendingIntervalEventData::ChangeMixCostParams {
-        mix_id: existing_bond.id,
+        mix_id: existing_bond.mix_id,
         new_costs,
     };
     push_new_interval_event(deps.storage, &interval_event)?;
@@ -387,7 +391,7 @@ pub mod tests {
         // make sure we got assigned the next id (note: we have already bonded a mixnode before in this test)
         let bond = must_get_mixnode_bond_by_owner(deps.as_ref().storage, &Addr::unchecked(sender2))
             .unwrap();
-        assert_eq!(2, bond.id);
+        assert_eq!(2, bond.mix_id);
 
         // and make sure we're on layer 2 (because it was the next empty one)
         assert_eq!(Layer::Two, bond.layer);

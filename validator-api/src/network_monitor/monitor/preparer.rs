@@ -8,7 +8,7 @@ use crate::network_monitor::test_packet::{NodeType, TestPacket};
 use crate::network_monitor::test_route::TestRoute;
 use crypto::asymmetric::{encryption, identity};
 use log::info;
-use mixnet_contract_common::{Addr, GatewayBond, Layer, MixNodeBond, NodeId};
+use mixnet_contract_common::{Addr, GatewayBond, Layer, MixId, MixNodeBond};
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::forwarding::packet::MixPacket;
 use rand::seq::SliceRandom;
@@ -49,7 +49,7 @@ impl Display for InvalidNode {
 }
 
 impl InvalidNode {
-    pub(crate) fn mix_id(&self) -> Option<NodeId> {
+    pub(crate) fn mix_id(&self) -> Option<MixId> {
         match self {
             InvalidNode::Outdated(_, _, node_type, _) => node_type.mix_id(),
             InvalidNode::Malformed(_, _, node_type) => node_type.mix_id(),
@@ -79,7 +79,7 @@ pub(crate) struct TestedNode {
 }
 
 impl TestedNode {
-    pub(crate) fn mix_id(&self) -> Option<NodeId> {
+    pub(crate) fn mix_id(&self) -> Option<MixId> {
         self.node_type.mix_id()
     }
 }
@@ -398,7 +398,7 @@ impl PacketPreparer {
                 invalid_nodes.push(InvalidNode::Malformed(
                     mixnode.mix_node.identity_key,
                     mixnode.owner,
-                    NodeType::Mixnode(mixnode.id),
+                    NodeType::Mixnode(mixnode.mix_id),
                 ));
             }
         }

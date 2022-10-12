@@ -6,7 +6,7 @@ use crate::node_status_api::utils::{ActiveGatewayStatuses, ActiveMixnodeStatuses
 use crate::storage::models::{
     ActiveGateway, ActiveMixnode, NodeStatus, RewardingReport, TestingRoute,
 };
-use mixnet_contract_common::{EpochId, IdentityKey, NodeId};
+use mixnet_contract_common::{EpochId, IdentityKey, MixId};
 use std::convert::TryFrom;
 
 #[derive(Clone)]
@@ -15,12 +15,12 @@ pub(crate) struct StorageManager {
 }
 
 pub struct AvgMixnodeReliability {
-    mix_id: NodeId,
+    mix_id: MixId,
     value: Option<f32>,
 }
 
 impl AvgMixnodeReliability {
-    pub fn mix_id(&self) -> NodeId {
+    pub fn mix_id(&self) -> MixId {
         self.mix_id
     }
 
@@ -49,9 +49,9 @@ impl StorageManager {
     pub(super) async fn get_mixnode_mix_ids_by_identity(
         &self,
         identity: &str,
-    ) -> Result<Vec<NodeId>, sqlx::Error> {
+    ) -> Result<Vec<MixId>, sqlx::Error> {
         let ids = sqlx::query!(
-            r#"SELECT mix_id as "mix_id: NodeId" FROM mixnode_details WHERE identity_key = ?"#,
+            r#"SELECT mix_id as "mix_id: MixId" FROM mixnode_details WHERE identity_key = ?"#,
             identity
         )
         .fetch_all(&self.connection_pool)
@@ -90,7 +90,7 @@ impl StorageManager {
             AvgMixnodeReliability,
             r#"
             SELECT
-                d.mix_id as "mix_id: NodeId",
+                d.mix_id as "mix_id: MixId",
                 AVG(s.reliability) as "value: f32"
             FROM
                 mixnode_details d
@@ -144,7 +144,7 @@ impl StorageManager {
     /// * `mix_id`: mix-id (as assigned by the smart contract) of the mixnode.
     pub(super) async fn get_mixnode_database_id(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<Option<i64>, sqlx::Error> {
         let id = sqlx::query!("SELECT id FROM mixnode_details WHERE mix_id = ?", mix_id)
             .fetch_optional(&self.connection_pool)
@@ -178,7 +178,7 @@ impl StorageManager {
     /// * `mix_id`: mix-id (as assigned by the smart contract) of the mixnode.
     pub(super) async fn get_mixnode_owner(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<Option<String>, sqlx::Error> {
         let owner = sqlx::query!("SELECT owner FROM mixnode_details WHERE mix_id = ?", mix_id)
             .fetch_optional(&self.connection_pool)
@@ -195,7 +195,7 @@ impl StorageManager {
     /// * `mix_id`: mix-id (as assigned by the smart contract) of the mixnode.
     pub(super) async fn get_mixnode_identity_key(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<Option<IdentityKey>, sqlx::Error> {
         let identity_key = sqlx::query!(
             "SELECT identity_key FROM mixnode_details WHERE mix_id = ?",
@@ -237,7 +237,7 @@ impl StorageManager {
     /// * `timestamp`: unix timestamp of the lower bound of the selection.
     pub(super) async fn get_mixnode_statuses_since(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
         timestamp: i64,
     ) -> Result<Vec<NodeStatus>, sqlx::Error> {
         sqlx::query_as!(
@@ -291,7 +291,7 @@ impl StorageManager {
     /// * `mix_id`: mix-id (as assigned by the smart contract) of the mixnode.
     pub(super) async fn get_mixnode_historical_uptimes(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<Vec<HistoricalUptime>, sqlx::Error> {
         let uptimes = sqlx::query!(
             r#"
@@ -563,11 +563,11 @@ impl StorageManager {
     ///
     /// # Arguments
     ///
-    /// * `mixnode_id`: id (as saved in the database) of the mixnode.
+    /// * `db_mixnode_id`: id (as saved in the database) of the mixnode.
     /// * `since`: unix timestamp indicating the lower bound interval of the selection.
     pub(super) async fn get_mixnode_testing_route_presence_count_since(
         &self,
-        mixnode_id: i64,
+        db_mixnode_id: i64,
         since: i64,
     ) -> Result<i32, sqlx::Error> {
         let count = sqlx::query!(
@@ -586,9 +586,9 @@ impl StorageManager {
                 ) monitor_run
                 ON monitor_run.id = testing_route.monitor_run_id;
             "#,
-            mixnode_id,
-            mixnode_id,
-            mixnode_id,
+            db_mixnode_id,
+            db_mixnode_id,
+            db_mixnode_id,
             since,
         ).fetch_one(&self.connection_pool)
             .await?
@@ -658,13 +658,13 @@ impl StorageManager {
     /// * `uptime`: the actual uptime of the node during the specified day.
     pub(super) async fn insert_mixnode_historical_uptime(
         &self,
-        node_id: i64,
+        mix_id: i64,
         date: &str,
         uptime: u8,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             "INSERT INTO mixnode_historical_uptime(mixnode_details_id, date, uptime) VALUES (?, ?, ?)",
-                node_id,
+                mix_id,
                 date,
                 uptime,
             ).execute(&self.connection_pool).await?;
@@ -680,13 +680,13 @@ impl StorageManager {
     /// * `uptime`: the actual uptime of the node during the specified day.
     pub(super) async fn insert_gateway_historical_uptime(
         &self,
-        node_id: i64,
+        mix_id: i64,
         date: &str,
         uptime: u8,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             "INSERT INTO gateway_historical_uptime(gateway_details_id, date, uptime) VALUES (?, ?, ?)",
-                node_id,
+                mix_id,
                 date,
                 uptime,
             ).execute(&self.connection_pool).await?;
@@ -779,7 +779,7 @@ impl StorageManager {
         sqlx::query_as!(
             ActiveMixnode,
             r#"
-                SELECT DISTINCT identity_key, mix_id as "mix_id: NodeId", owner, id
+                SELECT DISTINCT identity_key, mix_id as "mix_id: MixId", owner, id
                     FROM mixnode_details
                     JOIN mixnode_status
                     ON mixnode_details.id = mixnode_status.mixnode_details_id

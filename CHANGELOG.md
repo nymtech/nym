@@ -30,6 +30,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - socks5 client: graceful shutdown should fix error on disconnect in nym-connect ([#1591])
 - wasm-client: fixed build errors on MacOS and changed example JS code to use mainnet ([#1585])
 - gateway-client: will attempt to read now as many as 8 websocket messages at once, assuming they're already available on the socket ([#1669])
+- validator-api: changed error serialization on `inclusion_probability`, `stake-saturation` and `reward-estimation` endpoints to provide more accurate information ([#1681]) 
 - moved `Percent` struct to to `contracts-common`, change affects explorer-api
 - clients: bound the sphinx packet channel and reduce sending rate if gateway can't keep up ([#1703],[#1725])
 
@@ -45,6 +46,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1669]: https://github.com/nymtech/nym/pull/1669
 [#1671]: https://github.com/nymtech/nym/pull/1671
 [#1673]: https://github.com/nymtech/nym/pull/1673
+[#1681]: https://github.com/nymtech/nym/pull/1681
 [#1687]: https://github.com/nymtech/nym/pull/1687
 [#1702]: https://github.com/nymtech/nym/pull/1702
 [#1703]: https://github.com/nymtech/nym/pull/1703

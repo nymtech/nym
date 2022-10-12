@@ -14,6 +14,7 @@ pub const VESTING_UNDELEGATION_EVENT_TYPE: &str = "vesting_undelegation";
 pub const VESTING_GATEWAY_BONDING_EVENT_TYPE: &str = "vesting_gateway_bonding";
 pub const VESTING_GATEWAY_UNBONDING_EVENT_TYPE: &str = "vesting_gateway_unbonding";
 pub const VESTING_MIXNODE_BONDING_EVENT_TYPE: &str = "vesting_mixnode_bonding";
+pub const VESTING_PLEDGE_MORE_EVENT_TYPE: &str = "vesting_pledge_more";
 pub const VESTING_MIXNODE_UNBONDING_EVENT_TYPE: &str = "vesting_mixnode_unbonding";
 pub const VESTING_UPDATE_MIXNODE_CONFIG_EVENT_TYPE: &str = "vesting_update_mixnode_config";
 pub const VESTING_UPDATE_MIXNODE_COST_PARAMS_EVENT_TYPE: &str =
@@ -110,6 +111,10 @@ pub fn new_vesting_gateway_unbonding_event() -> Event {
 
 pub fn new_vesting_mixnode_bonding_event() -> Event {
     Event::new(VESTING_MIXNODE_BONDING_EVENT_TYPE)
+}
+
+pub fn new_vesting_pledge_more_event() -> Event {
+    Event::new(VESTING_PLEDGE_MORE_EVENT_TYPE)
 }
 
 pub fn new_vesting_update_mixnode_config_event() -> Event {

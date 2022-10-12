@@ -101,6 +101,9 @@ pub enum ExecuteMsg {
         owner_signature: String,
         amount: Coin,
     },
+    PledgeMore {
+        amount: Coin,
+    },
     UnbondMixnode {},
     TrackUnbondMixnode {
         owner: String,
@@ -145,6 +148,7 @@ impl ExecuteMsg {
             ExecuteMsg::WithdrawVestedCoins { .. } => "VestingExecuteMsg::WithdrawVestedCoins",
             ExecuteMsg::TrackUndelegation { .. } => "VestingExecuteMsg::TrackUndelegation",
             ExecuteMsg::BondMixnode { .. } => "VestingExecuteMsg::BondMixnode",
+            ExecuteMsg::PledgeMore { .. } => "VestingExecuteMsg::PledgeMore",
             ExecuteMsg::UnbondMixnode { .. } => "VestingExecuteMsg::UnbondMixnode",
             ExecuteMsg::TrackUnbondMixnode { .. } => "VestingExecuteMsg::TrackUnbondMixnode",
             ExecuteMsg::BondGateway { .. } => "VestingExecuteMsg::BondGateway",

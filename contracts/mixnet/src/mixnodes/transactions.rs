@@ -732,4 +732,187 @@ pub mod tests {
         )
         .is_err());
     }
+
+    #[cfg(test)]
+    mod increasing_mixnode_pledge {
+        use super::*;
+        use crate::mixnodes::helpers::tests::{
+            setup_mix_combinations, OWNER_UNBONDED, OWNER_UNBONDED_LEFTOVER, OWNER_UNBONDING,
+        };
+        use crate::support::tests::test_helpers::TestSetup;
+
+        #[test]
+        fn is_not_allowed_if_account_doesnt_own_mixnode() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+            let sender = mock_info("not-mix-owner", &[]);
+
+            let res = try_increase_pledge(test.deps_mut(), env, sender);
+            assert_eq!(
+                res,
+                Err(MixnetContractError::NoAssociatedMixNodeBond {
+                    owner: Addr::unchecked("not-mix-owner")
+                })
+            )
+        }
+
+        #[test]
+        fn is_not_allowed_if_theres_proxy_mismatch() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+
+            let owner_without_proxy = Addr::unchecked("no-proxy");
+            let owner_with_proxy = Addr::unchecked("with-proxy");
+            let proxy = Addr::unchecked("proxy");
+            let wrong_proxy = Addr::unchecked("unrelated-proxy");
+
+            test.add_dummy_mixnode(owner_without_proxy.as_str(), None);
+            test.add_dummy_mixnode_with_proxy(owner_with_proxy.as_str(), None, proxy.clone());
+
+            let res = _try_increase_pledge(
+                test.deps_mut(),
+                env.clone(),
+                Vec::new(),
+                owner_without_proxy.clone(),
+                Some(proxy),
+            );
+            assert_eq!(
+                res,
+                Err(MixnetContractError::ProxyMismatch {
+                    existing: "None".to_string(),
+                    incoming: "proxy".to_string()
+                })
+            );
+
+            let res = _try_increase_pledge(
+                test.deps_mut(),
+                env.clone(),
+                Vec::new(),
+                owner_with_proxy.clone(),
+                None,
+            );
+            assert_eq!(
+                res,
+                Err(MixnetContractError::ProxyMismatch {
+                    existing: "proxy".to_string(),
+                    incoming: "None".to_string()
+                })
+            );
+
+            let res = _try_increase_pledge(
+                test.deps_mut(),
+                env,
+                Vec::new(),
+                owner_with_proxy.clone(),
+                Some(wrong_proxy),
+            );
+            assert_eq!(
+                res,
+                Err(MixnetContractError::ProxyMismatch {
+                    existing: "proxy".to_string(),
+                    incoming: "unrelated-proxy".to_string()
+                })
+            )
+        }
+
+        #[test]
+        fn is_not_allowed_if_mixnode_has_unbonded_or_is_unbonding() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+
+            // TODO: I dislike this cross-test access, but it provides us with exactly what we need
+            // perhaps it should be refactored a bit?
+            let owner_unbonding = Addr::unchecked(OWNER_UNBONDING);
+            let owner_unbonded = Addr::unchecked(OWNER_UNBONDED);
+            let owner_unbonded_leftover = Addr::unchecked(OWNER_UNBONDED_LEFTOVER);
+
+            let ids = setup_mix_combinations(&mut test);
+            let mix_id_unbonding = ids[1];
+
+            let res = try_increase_pledge(
+                test.deps_mut(),
+                env.clone(),
+                mock_info(owner_unbonding.as_str(), &[]),
+            );
+            assert_eq!(
+                res,
+                Err(MixnetContractError::MixnodeIsUnbonding {
+                    mix_id: mix_id_unbonding
+                })
+            );
+
+            // if the nodes are gone we treat them as tey never existed in the first place
+            // (regardless of if there's some leftover data)
+            let res = try_increase_pledge(
+                test.deps_mut(),
+                env.clone(),
+                mock_info(owner_unbonded_leftover.as_str(), &[]),
+            );
+            assert_eq!(
+                res,
+                Err(MixnetContractError::NoAssociatedMixNodeBond {
+                    owner: owner_unbonded_leftover
+                })
+            );
+
+            let res = try_increase_pledge(
+                test.deps_mut(),
+                env,
+                mock_info(owner_unbonded.as_str(), &[]),
+            );
+            assert_eq!(
+                res,
+                Err(MixnetContractError::NoAssociatedMixNodeBond {
+                    owner: owner_unbonded
+                })
+            )
+        }
+
+        #[test]
+        fn is_not_allowed_if_no_tokens_were_sent() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+            let owner = "mix-owner";
+
+            test.add_dummy_mixnode(owner, None);
+
+            let sender_empty = mock_info(owner, &[]);
+            let res = try_increase_pledge(test.deps_mut(), env.clone(), sender_empty);
+            assert_eq!(res, Err(MixnetContractError::NoBondFound));
+
+            let sender_zero = mock_info(owner, &[test.coin(0)]);
+            let res = try_increase_pledge(test.deps_mut(), env, sender_zero);
+            assert_eq!(
+                res,
+                Err(MixnetContractError::InsufficientPledge {
+                    received: test.coin(0),
+                    minimum: test.coin(1)
+                })
+            )
+        }
+
+        #[test]
+        fn with_valid_information_creates_pending_event() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+            let owner = "mix-owner";
+            let mix_id = test.add_dummy_mixnode(owner, None);
+
+            let events = test.pending_epoch_events();
+            assert!(events.is_empty());
+
+            let sender = mock_info(owner, &[test.coin(1000)]);
+            try_increase_pledge(test.deps_mut(), env, sender).unwrap();
+
+            let events = test.pending_epoch_events();
+
+            assert_eq!(
+                events[0].kind,
+                PendingEpochEventKind::PledgeMore {
+                    mix_id,
+                    amount: test.coin(1000)
+                }
+            );
+        }
+    }
 }

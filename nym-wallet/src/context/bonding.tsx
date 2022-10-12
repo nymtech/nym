@@ -35,12 +35,14 @@ import {
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
-import { attachDefaultOperatingCost, toPercentFloatString, toPercentIntegerString, unymToNym } from '../utils';
+import {
+  attachDefaultOperatingCost,
+  toDisplay,
+  toPercentFloatString,
+  toPercentIntegerString,
+  unymToNym,
+} from '../utils';
 
-// fixed number of decimal places
-const DP = 4;
-
-// TODO add relevant data
 export type TBondedMixnode = {
   name?: string;
   identityKey: string;
@@ -52,7 +54,7 @@ export type TBondedMixnode = {
   delegators: number;
   status: MixnodeStatus;
   proxy?: string;
-  operatorCost?: string; // unit NYM
+  operatorCost?: string;
   host: string;
   estimatedRewards?: DecCoin;
   activeSetProbability?: SelectionChance;
@@ -162,10 +164,13 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     try {
       const rewardEstimation = await getMixnodeRewardEstimation(mixId);
       additionalDetails.operatorCost = unymToNym(rewardEstimation.estimation.operating_cost);
-      additionalDetails.estimatedRewards = {
-        amount: Big(rewardEstimation.estimation.total_node_reward).toFixed(DP),
-        denom: 'nym',
-      };
+      const estimatedRewards = unymToNym(rewardEstimation.estimation.total_node_reward);
+      if (estimatedRewards) {
+        additionalDetails.estimatedRewards = {
+          amount: estimatedRewards,
+          denom: 'nym',
+        };
+      }
     } catch (e) {
       Console.log('getMixnodeRewardEstimation fails', e);
     }
@@ -221,7 +226,10 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
         let operatorRewards;
         try {
           operatorRewards = await getPendingOperatorRewards(clientDetails?.client_address);
-          operatorRewards.amount = Big(operatorRewards.amount).toFixed(DP);
+          const opRewards = toDisplay(operatorRewards.amount);
+          if (opRewards) {
+            operatorRewards.amount = opRewards;
+          }
         } catch (e) {
           Console.warn(`get_operator_rewards request failed: ${e}`);
         }

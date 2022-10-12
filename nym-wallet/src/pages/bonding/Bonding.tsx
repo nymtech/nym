@@ -67,16 +67,6 @@ const Bonding = () => {
     });
   };
 
-  const handleUnbond = async (fee?: FeeDetails) => {
-    setShowModal(undefined);
-    const tx = await unbond(fee);
-    setConfirmationDetails({
-      status: 'success',
-      title: 'Unbond successful',
-      txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
-    });
-  };
-
   const handleRedeemReward = async (fee?: FeeDetails) => {
     setShowModal(undefined);
     const tx = await redeemRewards(fee);

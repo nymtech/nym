@@ -93,7 +93,7 @@ export const BondedMixnode = ({
       id: 'pm-cell',
     },
     {
-      cell: operatorCost ? `${operatorCost} USD` : '-',
+      cell: operatorCost ? `${operatorCost} NYM` : '-',
       id: 'operator-cost-cell',
     },
     {

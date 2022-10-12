@@ -59,7 +59,15 @@ export const NodeUnbondPage = ({ bondedNode, onConfirm, onError }: Props) => {
         </Grid>
       </Grid>
       {isConfirmed && (
-        <UnbondModal node={bondedNode} onConfirm={onConfirm} onClose={() => setIsConfirmed(false)} onError={onError} />
+        <UnbondModal
+          node={bondedNode}
+          onConfirm={async () => {
+            setIsConfirmed(false);
+            onConfirm();
+          }}
+          onClose={() => setIsConfirmed(false)}
+          onError={onError}
+        />
       )}
     </Box>
   );

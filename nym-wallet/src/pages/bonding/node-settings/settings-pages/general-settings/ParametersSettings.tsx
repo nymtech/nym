@@ -21,6 +21,7 @@ import { TBondedMixnode, TBondedGateway } from 'src/context/bonding';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { bondedNodeParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
 import { Console } from 'src/utils/console';
+import { decimalToFloatApproximation, decimalToPercentage } from '@nymproject/types';
 
 export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }): JSX.Element => {
   const [open, setOpen] = useState(true);
@@ -37,7 +38,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
     mode: 'onChange',
     defaultValues: isMixnode(bondedNode)
       ? {
-          operatorCost: bondedNode.bond.amount,
+          operatorCost: bondedNode.operatorCost,
           profitMargin: bondedNode.profitMargin,
         }
       : {},
@@ -46,7 +47,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
   const onSubmit = async (data: { operatorCost?: string; profitMargin?: string }) => {
     if (data.operatorCost && data.profitMargin) {
       const MixNodeCostParams = {
-        profit_margin_percent: data.profitMargin.toString(),
+        profit_margin_percent: (+data.profitMargin / 100).toString(),
         interval_operating_cost: {
           denom: bondedNode.bond.denom,
           amount: data.operatorCost.toString(),

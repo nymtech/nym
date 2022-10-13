@@ -51,14 +51,12 @@ export const amountSchema = Yup.object().shape({
   operatorCost: Yup.object().shape({
     amount: Yup.string()
       .required('An operating cost is required')
-      .test('valid-operating-cost', 'Invalid amount for operating cost', async function isValidAmount(this, value) {
-        let isValid;
+      .test('valid-operating-cost', 'Operating cost must be at least 40', async function isValidAmount(this, value) {
         if (value && isLessThan(+value, 40)) {
-          isValid = false;
+          this.createError({ message: 'A valid amount is required (min 40)' });
+          return false;
         }
-        if (!isValid) {
-          return this.createError({ message: 'A valid amount is required (min 40)' });
-        }
+
         return true;
       }),
   }),

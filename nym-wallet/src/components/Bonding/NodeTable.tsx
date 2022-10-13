@@ -28,7 +28,7 @@ export const NodeTable = ({ headers, cells }: TableProps) => (
         <TableRow>
           {headers.map(({ header, id, tooltipText }) => (
             <TableCell key={id}>
-              <Stack direction="row" gap={1}>
+              <Stack direction="row" alignItems="center" gap={1}>
                 {tooltipText && <InfoTooltip title={tooltipText} />}
                 <Typography>{header}</Typography>
               </Stack>

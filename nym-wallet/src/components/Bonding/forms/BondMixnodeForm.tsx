@@ -175,7 +175,7 @@ const AmountFormData = ({
       <CurrencyFormField
         required
         fullWidth
-        label="Operator cost"
+        label="Operating cost"
         onChanged={(newValue) => {
           setValue('operatorCost', newValue, { shouldValidate: true });
         }}

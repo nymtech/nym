@@ -1,31 +1,27 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import {
-  Button,
-  Divider,
-  Typography,
-  TextField,
-  InputAdornment,
-  Grid,
-  Alert,
-  IconButton,
-  CircularProgress,
-  Box,
-} from '@mui/material';
+import { Button, Divider, Typography, TextField, InputAdornment, Grid, CircularProgress, Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import CloseIcon from '@mui/icons-material/Close';
+
 import { isMixnode } from 'src/types';
-import { updateMixnodeCostParams } from 'src/requests';
+import { getCurrentInterval, updateMixnodeCostParams } from 'src/requests';
 import { TBondedMixnode, TBondedGateway } from 'src/context/bonding';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { bondedNodeParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
 import { Console } from 'src/utils/console';
 import { decimalToFloatApproximation, decimalToPercentage } from '@nymproject/types';
+import { format, fromUnixTime } from 'date-fns';
+import { Alert } from 'src/components/Alert';
 
 export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }): JSX.Element => {
-  const [open, setOpen] = useState(true);
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
+
+  const getIntervalAsDate = async () => {
+    const interval = await getCurrentInterval();
+    const bigIntToNumber = Number(interval.current_epoch_start_unix);
+    return format(fromUnixTime(bigIntToNumber), 'MM/dd/yyyy hh:mm');
+  };
 
   const theme = useTheme();
 
@@ -64,35 +60,15 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
 
   return (
     <Grid container xs item>
-      {open && (
-        <Alert
-          severity="info"
-          action={
-            <IconButton
-              aria-label="close"
-              color="inherit"
-              size="small"
-              onClick={() => {
-                setOpen(false);
-              }}
-            >
-              <CloseIcon fontSize="inherit" />
-            </IconButton>
-          }
-          sx={{
-            width: 1,
-            px: 2,
-            borderRadius: 0,
-            bgcolor: 'background.default',
-            color: (theme) => theme.palette.nym.nymWallet.text.blue,
-            '& .MuiAlert-icon': { color: (theme) => theme.palette.nym.nymWallet.text.blue, mr: 1 },
-          }}
-        >
+      <Alert
+        title={
           <Box sx={{ fontWeight: 600 }}>
             Profit margin can be changed once a month, your changes will be applied in the next interval
           </Box>
-        </Alert>
-      )}
+        }
+        dismissable
+      />
+
       <Grid container direction="column">
         <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3} spacing={1}>
           <Grid item>
@@ -107,7 +83,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
                 color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
               }}
             >
-		    Changes to PM will be applied in the next interval.
+              Changes to PM will be applied in the next interval.
             </Typography>
           </Grid>
           <Grid spacing={3} container item alignItems="center" sm={12} md={6}>
@@ -146,8 +122,8 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
                 color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
               }}
             >
-            Changes to cost will be applied in the next interval.
-	    </Typography>
+              Changes to cost will be applied in the next interval.
+            </Typography>
           </Grid>
           <Grid spacing={3} container item alignItems="center" xs={12} md={6}>
             <Grid item width={1}>

@@ -74,9 +74,6 @@ export const BondMixnodeModal = ({
     const pm = toPercentFloatString(data.profitMargin);
     setAmountData({ ...data, profitMargin: pm });
 
-    // TODO: this will have to be updated with allowing users to provide their operating cost in the form
-    const defaultCostParams = await attachDefaultOperatingCost(pm);
-
     const payload = {
       pledge: data.amount,
       ownerSignature: mixnodeData.ownerSignature,
@@ -88,9 +85,15 @@ export const BondMixnodeModal = ({
         sphinx_key: mixnodeData.sphinxKey,
         identity_key: mixnodeData.identityKey,
       },
-      costParams: defaultCostParams,
+      costParams: {
+        profit_margin_percent: pm,
+        interval_operating_cost: {
+          amount: data.operatorCost.amount,
+          denom: data.operatorCost.denom,
+        },
+      },
     };
-
+    console.log(payload);
     if (data.tokenPool === 'balance') {
       await getFee<TBondMixNodeArgs>(simulateBondMixnode, payload);
     } else {

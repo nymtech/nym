@@ -1,5 +1,5 @@
 import React from 'react';
-import { Stack, Typography, Box, useTheme, Grid, LinearProgress, LinearProgressProps, Divider } from '@mui/material';
+import { Stack, Typography, Box, useTheme, Grid, LinearProgress, LinearProgressProps } from '@mui/material';
 import { TBondedMixnode } from 'src/context';
 import { Cell, Pie, PieChart, Legend, ResponsiveContainer } from 'recharts';
 import { SelectionChance } from '@nymproject/types';
@@ -46,10 +46,8 @@ const StatRow = ({
   </Stack>
 );
 
-const StatDivider = () => <Divider sx={{ my: 1 }} />;
-
 export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
-  const { stakeSaturation, profitMargin, estimatedRewards, activeSetProbability, operatorCost, routingScore } = mixnode;
+  const { activeSetProbability, routingScore } = mixnode;
   const theme = useTheme();
 
   // clamp routing score to [0-100]
@@ -93,7 +91,7 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
 
   return (
     <Grid container spacing={4} direction="row" justifyContent="space-between" alignItems="flex-end">
-      <Grid item xs={12} sm={8} md={6} lg={3}>
+      <Grid item xs={12} sm={8} md={6} lg={4}>
         <NymCard
           borderless
           title={
@@ -138,7 +136,7 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
           />
         </NymCard>
       </Grid>
-      <Grid item xs={12} sm={4} md={6} lg={4} />
+      <Grid item xs={12} sm={4} md={6} lg={8} />
     </Grid>
   );
 };

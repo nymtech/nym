@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Box } from '@mui/material';
 import { CurrencyDenom, TNodeType } from '@nymproject/types';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
@@ -25,7 +24,7 @@ const defaultMixnodeValues: MixnodeData = {
 
 const defaultAmountValues = (denom: CurrencyDenom) => ({
   amount: { amount: '100', denom },
-  operatorCost: { amount: '0', denom },
+  operatorCost: { amount: '40', denom },
   profitMargin: '10',
   tokenPool: 'balance',
 });

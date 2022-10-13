@@ -1,5 +1,5 @@
 import * as Yup from 'yup';
-import { isValidHostname, validateAmount, validateKey, validateRawPort, validateVersion } from 'src/utils';
+import { isLessThan, isValidHostname, validateAmount, validateKey, validateRawPort, validateVersion } from 'src/utils';
 
 export const mixnodeValidationSchema = Yup.object().shape({
   identityKey: Yup.string()
@@ -48,6 +48,20 @@ export const amountSchema = Yup.object().shape({
       }),
   }),
   profitMargin: Yup.number().required('Profit Percentage is required').min(0).max(100),
+  operatorCost: Yup.object().shape({
+    amount: Yup.string()
+      .required('An operating cost is required')
+      .test('valid-operating-cost', 'Invalid amount for operating cost', async function isValidAmount(this, value) {
+        let isValid;
+        if (value && isLessThan(+value, 40)) {
+          isValid = false;
+        }
+        if (!isValid) {
+          return this.createError({ message: 'A valid amount is required (min 40)' });
+        }
+        return true;
+      }),
+  }),
 });
 
 export const bondedInfoParametersValidationSchema = Yup.object().shape({
@@ -76,4 +90,4 @@ export const bondedNodeParametersValidationSchema = Yup.object().shape({
   profitMargin: Yup.number().required('Profit Percentage is required').min(0).max(100),
 
   operatorCost: Yup.number().required('Operator cost is required'),
-})
+});

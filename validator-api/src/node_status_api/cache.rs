@@ -2,25 +2,31 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::contract_cache::{Cache, CacheNotification, ValidatorCache};
-use contracts_common::truncate_decimal;
-use mixnet_contract_common::{MixId, MixNodeDetails, RewardingParams};
+use crate::storage::ValidatorApiStorage;
+use mixnet_contract_common::reward_params::Performance;
+use mixnet_contract_common::{
+    Interval, MixId, MixNodeDetails, RewardedSetNodeStatus, RewardingParams,
+};
 use rocket::fairing::AdHoc;
-use serde::Serialize;
+use std::collections::HashMap;
 use std::{sync::Arc, time::Duration};
-use tap::TapFallible;
 use task::ShutdownListener;
+use tokio::sync::RwLockReadGuard;
 use tokio::{
     sync::{watch, RwLock},
     time,
 };
-use validator_api_requests::models::InclusionProbability;
+use validator_api_requests::models::{MixNodeBondAnnotated, MixnodeStatus};
+
+use self::inclusion_probabilities::InclusionProbabilities;
+
+mod inclusion_probabilities;
 
 const CACHE_TIMOUT_MS: u64 = 100;
-const MAX_SIMULATION_SAMPLES: u64 = 5000;
-const MAX_SIMULATION_TIME_SEC: u64 = 15;
 
 enum NodeStatusCacheError {
     SimulationFailed,
+    SourceDataMissing,
 }
 
 // A node status cache suitable for caching values computed in one sweep, such as active set
@@ -32,25 +38,14 @@ pub struct NodeStatusCache {
     inner: Arc<RwLock<NodeStatusCacheInner>>,
 }
 
+#[derive(Default)]
 struct NodeStatusCacheInner {
+    mixnodes_annotated: Cache<Vec<MixNodeBondAnnotated>>,
+    rewarded_set_annotated: Cache<Vec<MixNodeBondAnnotated>>,
+    active_set_annotated: Cache<Vec<MixNodeBondAnnotated>>,
+
+    // Estimated active set inclusion probabilities from Monte Carlo simulation
     inclusion_probabilities: Cache<InclusionProbabilities>,
-}
-
-#[derive(Clone, Default, Serialize, schemars::JsonSchema)]
-pub(crate) struct InclusionProbabilities {
-    pub inclusion_probabilities: Vec<InclusionProbability>,
-    pub samples: u64,
-    pub elapsed: Duration,
-    pub delta_max: f64,
-    pub delta_l2: f64,
-}
-
-impl InclusionProbabilities {
-    pub fn node(&self, mix_id: MixId) -> Option<&InclusionProbability> {
-        self.inclusion_probabilities
-            .iter()
-            .find(|x| x.mix_id == mix_id)
-    }
 }
 
 impl NodeStatusCache {
@@ -66,9 +61,18 @@ impl NodeStatusCache {
         })
     }
 
-    async fn update_cache(&self, inclusion_probabilities: InclusionProbabilities) {
+    async fn update_cache(
+        &self,
+        mixnodes: Vec<MixNodeBondAnnotated>,
+        rewarded_set: Vec<MixNodeBondAnnotated>,
+        active_set: Vec<MixNodeBondAnnotated>,
+        inclusion_probabilities: InclusionProbabilities,
+    ) {
         match time::timeout(Duration::from_millis(CACHE_TIMOUT_MS), self.inner.write()).await {
             Ok(mut cache) => {
+                cache.mixnodes_annotated.update(mixnodes);
+                cache.rewarded_set_annotated.update(rewarded_set);
+                cache.active_set_annotated.update(active_set);
                 cache
                     .inclusion_probabilities
                     .update(inclusion_probabilities);
@@ -77,45 +81,93 @@ impl NodeStatusCache {
         }
     }
 
-    pub(crate) async fn inclusion_probabilities(&self) -> Option<Cache<InclusionProbabilities>> {
+    async fn get_cache<T>(
+        &self,
+        fn_arg: impl FnOnce(RwLockReadGuard<'_, NodeStatusCacheInner>) -> Cache<T>,
+    ) -> Option<Cache<T>> {
         match time::timeout(Duration::from_millis(CACHE_TIMOUT_MS), self.inner.read()).await {
-            Ok(cache) => Some(cache.inclusion_probabilities.clone()),
+            Ok(cache) => Some(fn_arg(cache)),
             Err(e) => {
                 error!("{e}");
                 None
             }
         }
     }
+
+    pub(crate) async fn mixnodes_annotated(&self) -> Option<Cache<Vec<MixNodeBondAnnotated>>> {
+        self.get_cache(|c| c.mixnodes_annotated.clone()).await
+    }
+
+    pub(crate) async fn rewarded_set_annotated(&self) -> Option<Cache<Vec<MixNodeBondAnnotated>>> {
+        self.get_cache(|c| c.rewarded_set_annotated.clone()).await
+    }
+
+    pub(crate) async fn active_set_annotated(&self) -> Option<Cache<Vec<MixNodeBondAnnotated>>> {
+        self.get_cache(|c| c.active_set_annotated.clone()).await
+    }
+
+    pub(crate) async fn inclusion_probabilities(&self) -> Option<Cache<InclusionProbabilities>> {
+        self.get_cache(|c| c.inclusion_probabilities.clone()).await
+    }
+
+    pub async fn mixnode_details(
+        &self,
+        mix_id: MixId,
+    ) -> (Option<MixNodeBondAnnotated>, MixnodeStatus) {
+        // it might not be the most optimal to possibly iterate the entire vector to find (or not)
+        // the relevant value. However, the vectors are relatively small (< 10_000 elements, < 1000 for active set)
+
+        let active_set = &self.active_set_annotated().await.unwrap().into_inner();
+        if let Some(bond) = active_set.iter().find(|mix| mix.mix_id() == mix_id) {
+            return (Some(bond.clone()), MixnodeStatus::Active);
+        }
+
+        let rewarded_set = &self.rewarded_set_annotated().await.unwrap().into_inner();
+        if let Some(bond) = rewarded_set.iter().find(|mix| mix.mix_id() == mix_id) {
+            return (Some(bond.clone()), MixnodeStatus::Standby);
+        }
+
+        let all_bonded = &self.mixnodes_annotated().await.unwrap().into_inner();
+        if let Some(bond) = all_bonded.iter().find(|mix| mix.mix_id() == mix_id) {
+            (Some(bond.clone()), MixnodeStatus::Inactive)
+        } else {
+            (None, MixnodeStatus::NotFound)
+        }
+    }
 }
 
 impl NodeStatusCacheInner {
     pub fn new() -> Self {
-        Self {
-            inclusion_probabilities: Default::default(),
-        }
+        Self::default()
     }
 }
 
 // Long running task responsible of keeping the cache up-to-date.
 pub struct NodeStatusCacheRefresher {
+    // Main stored data
     cache: NodeStatusCache,
+    fallback_caching_interval: Duration,
+
+    // Sources for when refreshing data
     contract_cache: ValidatorCache,
     contract_cache_listener: watch::Receiver<CacheNotification>,
-    fallback_caching_interval: Duration,
+    storage: Option<ValidatorApiStorage>,
 }
 
 impl NodeStatusCacheRefresher {
     pub(crate) fn new(
         cache: NodeStatusCache,
+        fallback_caching_interval: Duration,
         contract_cache: ValidatorCache,
         contract_cache_listener: watch::Receiver<CacheNotification>,
-        fallback_caching_interval: Duration,
+        storage: Option<ValidatorApiStorage>,
     ) -> Self {
         Self {
             cache,
+            fallback_caching_interval,
             contract_cache,
             contract_cache_listener,
-            fallback_caching_interval,
+            storage,
         }
     }
 
@@ -176,78 +228,159 @@ impl NodeStatusCacheRefresher {
 
     async fn refresh_cache(&self) -> Result<(), NodeStatusCacheError> {
         log::info!("Updating node status cache");
-        let mixnode_bonds = self.contract_cache.mixnodes().await;
-        let params = self
-            .contract_cache
-            .interval_reward_params()
-            .await
-            .into_inner()
-            .ok_or(NodeStatusCacheError::SimulationFailed)?;
-        let inclusion_probabilities = compute_inclusion_probabilities(&mixnode_bonds, params)
-            .ok_or_else(|| {
-                error!(
-                    "Failed to simulate selection probabilties for mixnodes, not updating cache"
-                );
-                NodeStatusCacheError::SimulationFailed
-            })?;
 
-        self.cache.update_cache(inclusion_probabilities).await;
+        // Fetch contract cache data to work with
+        let mixnode_details = self.contract_cache.mixnodes().await;
+        let interval_reward_params = self.contract_cache.interval_reward_params().await;
+        let current_interval = self.contract_cache.current_interval().await;
+
+        let rewarded_set = self.contract_cache.rewarded_set().await;
+        let active_set = self.contract_cache.active_set().await;
+
+        let interval_reward_params =
+            interval_reward_params.ok_or(NodeStatusCacheError::SourceDataMissing)?;
+        let current_interval = current_interval.ok_or(NodeStatusCacheError::SourceDataMissing)?;
+
+        // Compute inclusion probabilities
+        let inclusion_probabilities = InclusionProbabilities::compute(
+            &mixnode_details,
+            interval_reward_params,
+        )
+        .ok_or_else(|| {
+            error!("Failed to simulate selection probabilties for mixnodes, not updating cache");
+            NodeStatusCacheError::SimulationFailed
+        })?;
+
+        // Create annotated data
+        let rewarded_set_node_status = to_rewarded_set_node_status(&rewarded_set, &active_set);
+        let mixnodes_annotated = self
+            .annotate_node_with_details(
+                mixnode_details,
+                interval_reward_params,
+                current_interval,
+                &rewarded_set_node_status,
+            )
+            .await;
+
+        // Create the annotated rewarded and active sets
+        let (rewarded_set, active_set) =
+            split_into_active_and_rewarded_set(&mixnodes_annotated, &rewarded_set_node_status);
+
+        self.cache
+            .update_cache(
+                mixnodes_annotated,
+                rewarded_set,
+                active_set,
+                inclusion_probabilities,
+            )
+            .await;
         Ok(())
+    }
+
+    async fn get_performance_from_storage(
+        &self,
+        mix_id: MixId,
+        epoch: Interval,
+    ) -> Option<Performance> {
+        self.storage
+            .as_ref()?
+            .get_average_mixnode_uptime_in_the_last_24hrs(
+                mix_id,
+                epoch.current_epoch_end_unix_timestamp(),
+            )
+            .await
+            .ok()
+            .map(Into::into)
+    }
+
+    async fn annotate_node_with_details(
+        &self,
+        mixnodes: Vec<MixNodeDetails>,
+        interval_reward_params: RewardingParams,
+        current_interval: Interval,
+        rewarded_set: &HashMap<MixId, RewardedSetNodeStatus>,
+    ) -> Vec<MixNodeBondAnnotated> {
+        let mut annotated = Vec::new();
+        for mixnode in mixnodes {
+            let stake_saturation = mixnode
+                .rewarding_details
+                .bond_saturation(&interval_reward_params);
+
+            let uncapped_stake_saturation = mixnode
+                .rewarding_details
+                .uncapped_bond_saturation(&interval_reward_params);
+
+            // If the performance can't be obtained, because the validator-api was not started with
+            // the monitoring (and hence, storage), then reward estimates will be all zero
+            let performance = self
+                .get_performance_from_storage(mixnode.mix_id(), current_interval)
+                .await
+                .unwrap_or_default();
+
+            let rewarded_set_status = rewarded_set.get(&mixnode.mix_id()).copied();
+
+            // WIP(JON): these functions (and module) probably needs to be moved
+            let reward_estimate = crate::contract_cache::reward_estimate::compute_reward_estimate(
+                &mixnode,
+                performance,
+                rewarded_set_status,
+                interval_reward_params,
+                current_interval,
+            );
+
+            let (estimated_operator_apy, estimated_delegators_apy) =
+                crate::contract_cache::reward_estimate::compute_apy_from_reward(
+                    &mixnode,
+                    reward_estimate,
+                    current_interval,
+                );
+
+            annotated.push(MixNodeBondAnnotated {
+                mixnode_details: mixnode,
+                stake_saturation,
+                uncapped_stake_saturation,
+                performance,
+                estimated_operator_apy,
+                estimated_delegators_apy,
+            });
+        }
+        annotated
     }
 }
 
-fn compute_inclusion_probabilities(
-    mixnodes: &[MixNodeDetails],
-    params: RewardingParams,
-) -> Option<InclusionProbabilities> {
-    let active_set_size = params.active_set_size;
-    let standby_set_size = params.rewarded_set_size - active_set_size;
-
-    // Unzip list of total bonds into ids and bonds.
-    // We need to go through this zip/unzip procedure to make sure we have matching identities
-    // for the input to the simulator, which assumes the identity is the position in the vec
-    let (ids, mixnode_total_bonds) = unzip_into_mixnode_ids_and_total_bonds(mixnodes);
-
-    // Compute inclusion probabilitites and keep track of how long time it took.
-    let mut rng = rand::thread_rng();
-    let results = inclusion_probability::simulate_selection_probability_mixnodes(
-        &mixnode_total_bonds,
-        active_set_size as usize,
-        standby_set_size as usize,
-        MAX_SIMULATION_SAMPLES,
-        Duration::from_secs(MAX_SIMULATION_TIME_SEC),
-        &mut rng,
-    )
-    .tap_err(|err| error!("{err}"))
-    .ok()?;
-
-    Some(InclusionProbabilities {
-        inclusion_probabilities: zip_ids_together_with_results(&ids, &results),
-        samples: results.samples,
-        elapsed: results.time,
-        delta_max: results.delta_max,
-        delta_l2: results.delta_l2,
-    })
-}
-
-fn unzip_into_mixnode_ids_and_total_bonds(mixnodes: &[MixNodeDetails]) -> (Vec<MixId>, Vec<u128>) {
-    mixnodes
+fn to_rewarded_set_node_status(
+    rewarded_set: &[MixNodeDetails],
+    active_set: &[MixNodeDetails],
+) -> HashMap<MixId, RewardedSetNodeStatus> {
+    let mut rewarded_set_node_status: HashMap<MixId, RewardedSetNodeStatus> = rewarded_set
         .iter()
-        .map(|m| (m.mix_id(), truncate_decimal(m.total_stake()).u128()))
-        .unzip()
+        .map(|m| (m.mix_id(), RewardedSetNodeStatus::Standby))
+        .collect();
+    for mixnode in active_set {
+        *rewarded_set_node_status
+            .get_mut(&mixnode.mix_id())
+            .expect("All active nodes are rewarded nodes") = RewardedSetNodeStatus::Active;
+    }
+    rewarded_set_node_status
 }
 
-fn zip_ids_together_with_results(
-    ids: &[MixId],
-    results: &inclusion_probability::SelectionProbability,
-) -> Vec<InclusionProbability> {
-    ids.iter()
-        .zip(results.active_set_probability.iter())
-        .zip(results.reserve_set_probability.iter())
-        .map(|((&mix_id, a), r)| InclusionProbability {
-            mix_id,
-            in_active: *a,
-            in_reserve: *r,
+fn split_into_active_and_rewarded_set(
+    mixnodes_annotated: &[MixNodeBondAnnotated],
+    rewarded_set_node_status: &HashMap<u32, RewardedSetNodeStatus>,
+) -> (Vec<MixNodeBondAnnotated>, Vec<MixNodeBondAnnotated>) {
+    let rewarded_set: Vec<_> = mixnodes_annotated
+        .iter()
+        .filter(|mixnode| rewarded_set_node_status.get(&mixnode.mix_id()).is_some())
+        .cloned()
+        .collect();
+    let active_set: Vec<_> = rewarded_set
+        .iter()
+        .filter(|mixnode| {
+            rewarded_set_node_status
+                .get(&mixnode.mix_id())
+                .map_or(false, RewardedSetNodeStatus::is_active)
         })
-        .collect()
+        .cloned()
+        .collect();
+    (rewarded_set, active_set)
 }

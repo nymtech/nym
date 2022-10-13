@@ -12,9 +12,10 @@ use mixnet_contract_common::{Interval, MixId, RewardedSetNodeStatus};
 use rocket::http::Status;
 use rocket::State;
 use validator_api_requests::models::{
-    ComputeRewardEstParam, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
-    MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse,
-    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    AllInclusionProbabilitiesResponse, ComputeRewardEstParam, InclusionProbabilityResponse,
+    MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
+    MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
+    StakeSaturationResponse, UptimeResponse,
 };
 
 pub(crate) async fn _mixnode_report(
@@ -62,17 +63,18 @@ pub(crate) async fn _get_mixnode_status(
 }
 
 pub(crate) async fn _get_mixnode_reward_estimation(
-    cache: &State<ValidatorCache>,
+    cache: &State<NodeStatusCache>,
+    validator_cache: &State<ValidatorCache>,
     mix_id: MixId,
 ) -> Result<RewardEstimationResponse, ErrorResponse> {
     let (mixnode, status) = cache.mixnode_details(mix_id).await;
     if let Some(mixnode) = mixnode {
-        let reward_params = cache.interval_reward_params().await;
+        let reward_params = validator_cache.interval_reward_params().await;
         let as_at = reward_params.timestamp();
         let reward_params = reward_params
             .into_inner()
             .ok_or_else(|| ErrorResponse::new("server error", Status::InternalServerError))?;
-        let current_interval = cache
+        let current_interval = validator_cache
             .current_interval()
             .await
             .into_inner()
@@ -117,17 +119,18 @@ async fn average_mixnode_performance(
 
 pub(crate) async fn _compute_mixnode_reward_estimation(
     user_reward_param: ComputeRewardEstParam,
-    cache: &ValidatorCache,
+    cache: &NodeStatusCache,
+    validator_cache: &ValidatorCache,
     mix_id: MixId,
 ) -> Result<RewardEstimationResponse, ErrorResponse> {
     let (mixnode, actual_status) = cache.mixnode_details(mix_id).await;
     if let Some(mut mixnode) = mixnode {
-        let reward_params = cache.interval_reward_params().await;
+        let reward_params = validator_cache.interval_reward_params().await;
         let as_at = reward_params.timestamp();
         let reward_params = reward_params
             .into_inner()
             .ok_or_else(|| ErrorResponse::new("server error", Status::InternalServerError))?;
-        let current_interval = cache
+        let current_interval = validator_cache
             .current_interval()
             .await
             .into_inner()
@@ -200,14 +203,15 @@ pub(crate) async fn _compute_mixnode_reward_estimation(
 }
 
 pub(crate) async fn _get_mixnode_stake_saturation(
-    cache: &ValidatorCache,
+    cache: &NodeStatusCache,
+    validator_cache: &ValidatorCache,
     mix_id: MixId,
 ) -> Result<StakeSaturationResponse, ErrorResponse> {
     let (mixnode, _) = cache.mixnode_details(mix_id).await;
     if let Some(mixnode) = mixnode {
         // Recompute the stake saturation just so that we can confidently state that the `as_at`
         // field is consistent and correct. Luckily this is very cheap.
-        let reward_params = cache.interval_reward_params().await;
+        let reward_params = validator_cache.interval_reward_params().await;
         let as_at = reward_params.timestamp();
         let rewarding_params = reward_params
             .into_inner()
@@ -265,4 +269,52 @@ pub(crate) async fn _get_mixnode_avg_uptime(
         mix_id,
         avg_uptime: performance.round_to_integer(),
     })
+}
+
+pub(crate) async fn _get_mixnode_inclusion_probabilities(
+    cache: &NodeStatusCache,
+) -> Result<AllInclusionProbabilitiesResponse, ErrorResponse> {
+    if let Some(prob) = cache.inclusion_probabilities().await {
+        let as_at = prob.timestamp();
+        let prob = prob.into_inner();
+        Ok(AllInclusionProbabilitiesResponse {
+            inclusion_probabilities: prob.inclusion_probabilities,
+            samples: prob.samples,
+            elapsed: prob.elapsed,
+            delta_max: prob.delta_max,
+            delta_l2: prob.delta_l2,
+            as_at,
+        })
+    } else {
+        Err(ErrorResponse::new(
+            "No data available".to_string(),
+            Status::ServiceUnavailable,
+        ))
+    }
+}
+
+pub(crate) async fn _get_mixnodes_detailed(cache: &NodeStatusCache) -> Vec<MixNodeBondAnnotated> {
+    cache
+        .mixnodes_annotated()
+        .await
+        .unwrap_or_default()
+        .into_inner()
+}
+
+pub(crate) async fn _get_rewarded_set_detailed(
+    cache: &NodeStatusCache,
+) -> Vec<MixNodeBondAnnotated> {
+    cache
+        .rewarded_set_annotated()
+        .await
+        .unwrap_or_default()
+        .into_inner()
+}
+
+pub(crate) async fn _get_active_set_detailed(cache: &NodeStatusCache) -> Vec<MixNodeBondAnnotated> {
+    cache
+        .active_set_annotated()
+        .await
+        .unwrap_or_default()
+        .into_inner()
 }

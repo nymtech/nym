@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Button, Divider, Typography, TextField, InputAdornment, Grid, CircularProgress, Box } from '@mui/material';
@@ -16,14 +16,19 @@ import { Alert } from 'src/components/Alert';
 
 export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }): JSX.Element => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
+  const [intervalTime, setIntervalTime] = useState<string>();
+
+  const theme = useTheme();
 
   const getIntervalAsDate = async () => {
     const interval = await getCurrentInterval();
     const bigIntToNumber = Number(interval.current_epoch_start_unix);
-    return format(fromUnixTime(bigIntToNumber), 'MM/dd/yyyy hh:mm');
+    setIntervalTime(format(fromUnixTime(bigIntToNumber), 'MM/dd/yyyy hh:mm'));
   };
 
-  const theme = useTheme();
+  useEffect(() => {
+    getIntervalAsDate();
+  }, []);
 
   const {
     register,
@@ -60,14 +65,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
 
   return (
     <Grid container xs item>
-      <Alert
-        title={
-          <Box sx={{ fontWeight: 600 }}>
-            Profit margin can be changed once a month, your changes will be applied in the next interval
-          </Box>
-        }
-        dismissable
-      />
+      <Alert title={<Box sx={{ fontWeight: 600 }}>{`Next interval: ${intervalTime}`}</Box>} dismissable />
 
       <Grid container direction="column">
         <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3} spacing={1}>

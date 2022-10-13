@@ -24,22 +24,24 @@ const StatRow = ({
   label,
   tooltipText,
   value,
+  textColor,
   progressValue,
 }: {
   label: string;
-  tooltipText: string;
+  tooltipText?: string;
   value: string | number;
+  textColor?: string;
   progressValue?: number;
 }) => (
   <Stack direction="row" gap={1} justifyContent="space-between" alignItems="center" width="100%">
     <Stack direction="row" alignItems="center" gap={1} sx={{ color: (t) => t.palette.nym.text.muted }}>
-      <InfoTooltip title={tooltipText} />
+      {tooltipText && <InfoTooltip title={tooltipText} />}
       <Typography>{label}</Typography>
     </Stack>
     {typeof progressValue === 'number' ? (
       <LinearProgressWithLabel value={progressValue} />
     ) : (
-      <Typography>{value}</Typography>
+      <Typography color={textColor}>{value}</Typography>
     )}
   </Stack>
 );
@@ -47,15 +49,7 @@ const StatRow = ({
 const StatDivider = () => <Divider sx={{ my: 1 }} />;
 
 export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
-  const {
-    stakeSaturation,
-    profitMargin,
-    estimatedRewards,
-    activeSetProbability,
-    standbySetProbability,
-    operatorCost,
-    routingScore,
-  } = mixnode;
+  const { stakeSaturation, profitMargin, estimatedRewards, activeSetProbability, operatorCost, routingScore } = mixnode;
   const theme = useTheme();
 
   // clamp routing score to [0-100]
@@ -67,16 +61,16 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
   ];
   const colors = [theme.palette.success.main, theme.palette.nym.nymWallet.chart.grey];
 
-  const getSetProbabilityLabel = (chance?: SelectionChance) => {
+  const getSetProbabilityLabel = (chance?: SelectionChance): { value: string; color?: string } => {
     switch (chance) {
       case 'High':
-        return 'High';
+        return { value: 'High', color: theme.palette.nym.success };
       case 'Good':
-        return 'Good';
+        return { value: 'Good' };
       case 'Low':
-        return 'Low';
+        return { value: 'Low', color: theme.palette.nym.red };
       default:
-        return 'Unknown';
+        return { value: 'Unknown' };
     }
   };
 
@@ -95,18 +89,20 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
     </Stack>
   );
 
+  const activeSetProb = getSetProbabilityLabel(activeSetProbability);
+
   return (
-    <NymCard
-      borderless
-      title={
-        <Typography variant="h5" fontWeight={600}>
-          Node stats
-        </Typography>
-      }
-    >
-      <Grid container spacing={4} direction="row" justifyContent="space-between" alignItems="flex-end">
-        <Grid item xs={12} sm={12} md={6} lg={3}>
-          <Stack justifyContent="center" alignItems="center">
+    <Grid container spacing={4} direction="row" justifyContent="space-between" alignItems="flex-end">
+      <Grid item xs={12} sm={8} md={6} lg={3}>
+        <NymCard
+          borderless
+          title={
+            <Typography variant="h5" fontWeight={600}>
+              Node stats
+            </Typography>
+          }
+        >
+          <Stack justifyContent="center" alignItems="center" mb={2}>
             <ResponsiveContainer width="100%" height={100}>
               <PieChart width={200} height={100}>
                 <Pie
@@ -135,39 +131,14 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
             </ResponsiveContainer>
             <Typography color="nym.text.muted">Routing score</Typography>
           </Stack>
-        </Grid>
-        <Grid item xs={12} sm={12} md={6} lg={4}>
-          <StatRow label="Profit margin" tooltipText="TODO" value={`${profitMargin}%`} />
-          <StatDivider />
-          <StatRow label="Operator Cost" tooltipText="TODO" value={operatorCost ? `${operatorCost} NYM` : '-'} />
-          <StatDivider />
-          <StatRow
-            label="Total node rewards"
-            tooltipText="TODO"
-            value={estimatedRewards ? `~${estimatedRewards.amount} ${estimatedRewards.denom.toUpperCase()}` : '-'}
-          />
-        </Grid>
-        <Grid item xs={12} sm={12} md={12} lg={5}>
-          <StatRow
-            label="Node stake saturation"
-            tooltipText="TODO"
-            value={stakeSaturation}
-            progressValue={Number(stakeSaturation)}
-          />
-          <StatDivider />
           <StatRow
             label="Chance of being in the active set"
-            tooltipText="TODO"
-            value={getSetProbabilityLabel(activeSetProbability)}
+            value={activeSetProb.value}
+            textColor={activeSetProb.color}
           />
-          <StatDivider />
-          <StatRow
-            label="Chance of being in the standby set"
-            tooltipText="TODO"
-            value={getSetProbabilityLabel(standbySetProbability)}
-          />
-        </Grid>
+        </NymCard>
       </Grid>
-    </NymCard>
+      <Grid item xs={12} sm={4} md={6} lg={4} />
+    </Grid>
   );
 };

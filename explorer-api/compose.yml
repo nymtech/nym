@@ -1,0 +1,18 @@
+services:
+  geoipupdate:
+    container_name: geoipupdate
+    image: maxmindinc/geoipupdate
+    restart: unless-stopped
+    environment:
+      GEOIPUPDATE_ACCOUNT_ID: ${GEOIPUPDATE_ACCOUNT_ID}
+      GEOIPUPDATE_LICENSE_KEY: ${GEOIPUPDATE_LICENSE_KEY}
+      GEOIPUPDATE_EDITION_IDS: ${GEOIPUPDATE_EDITION_IDS}
+      GEOIPUPDATE_FREQUENCY: ${GEOIPUPDATE_FREQUENCY}
+    networks:
+      - geoipupdate
+    volumes:
+      - ${GEOIP_DB_DIRECTORY}:/usr/share/GeoIP
+
+networks:
+  geoipupdate:
+

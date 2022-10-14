@@ -241,7 +241,6 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
   const bondMixnode = async (data: TBondMixNodeArgs, tokenPool: TokenPool) => {
     let tx: TransactionExecuteResult | undefined;
     setIsLoading(true);
-    console.log(data);
     try {
       if (tokenPool === 'balance') {
         tx = await bondMixNodeRequest(data);

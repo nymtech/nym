@@ -1583,6 +1583,7 @@ version = "1.0.1"
 dependencies = [
  "chrono",
  "clap 3.2.8",
+ "dotenv",
  "humantime-serde",
  "isocountry",
  "itertools",

@@ -22,6 +22,9 @@ For example, in dev env:
 GEOIP_DB_PATH=./geo_ip/GeoLite2-Country.mmdb cargo run
 ```
 
+Note: For non production environments (`development`, `test`...),
+explorer-api binary reads `.env` file.
+
 Run as a service and reverse proxy with `nginx` to add `https` with Lets Encrypt.
 
 Setup nginx to inject the request IP to the header `X-Real-IP`.

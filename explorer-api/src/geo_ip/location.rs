@@ -17,7 +17,7 @@ pub enum GeoIpError {
 // The current State implementation does not allow to fail on state
 // creation, ie. returning Result<>. To avoid to use unwrap family,
 // as a workaround, wrap the state inside an Option<>
-// If Reader::open_readfile fails for some reason db will will be set to None
+// If Reader::open_readfile fails for some reason db will be set to None
 // and an error will be logged.
 pub(crate) struct GeoIp {
     pub(crate) db: Option<Reader<Vec<u8>>>,

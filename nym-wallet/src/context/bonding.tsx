@@ -15,7 +15,6 @@ import {
   claimOperatorReward,
   getGatewayBondDetails,
   getMixnodeBondDetails,
-  getMixnodeRewardEstimation,
   unbondGateway as unbondGatewayRequest,
   unbondMixNode as unbondMixnodeRequest,
   vestingBondGateway,

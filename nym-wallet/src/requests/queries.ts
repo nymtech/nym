@@ -16,6 +16,7 @@ export const getAllPendingDelegations = async () =>
 
 export const getMixnodeBondDetails = async () => invokeWrapper<MixNodeDetails | null>('mixnode_bond_details');
 export const getGatewayBondDetails = async () => invokeWrapper<GatewayBond | null>('gateway_bond_details');
+export const getMixnodeAvgUptime = async () => invokeWrapper<number | null>('get_mixnode_avg_uptime');
 
 export const getPendingOperatorRewards = async (address: string) =>
   invokeWrapper<DecCoin>('get_pending_operator_rewards', { address });

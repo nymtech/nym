@@ -1,16 +1,16 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Button, Stack, Typography } from '@mui/material';
+import { Box, Button, Stack, Tooltip, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
-import { isMixnode } from 'src/types';
+import { isMixnode, Network } from 'src/types';
 import { TBondedMixnode, urls } from 'src/context';
 import { NymCard } from 'src/components';
-import { Network } from 'src/types';
 import { IdentityKey } from 'src/components/IdentityKey';
 import { NodeStatus } from 'src/components/NodeStatus';
 import { Node as NodeIcon } from '../../svg-icons/node';
 import { Cell, Header, NodeTable } from './NodeTable';
 import { BondedMixnodeActions, TBondedMixnodeActions } from './BondedMixnodeActions';
+import { NodeStats } from './NodeStats';
 
 const headers: Header[] = [
   {
@@ -74,6 +74,7 @@ export const BondedMixnode = ({
     delegators,
     status,
     identityKey,
+    host,
   } = mixnode;
   const cells: Cell[] = [
     {
@@ -93,7 +94,7 @@ export const BondedMixnode = ({
       id: 'pm-cell',
     },
     {
-      cell: operatorCost ? `${operatorCost} USD` : '-',
+      cell: operatorCost ? `${operatorCost} NYM` : '-',
       id: 'operator-cost-cell',
     },
     {
@@ -109,6 +110,7 @@ export const BondedMixnode = ({
         <BondedMixnodeActions
           onActionSelect={onActionSelect}
           disabledRedeemAndCompound={(operatorRewards && Number(operatorRewards.amount) === 0) || false}
+          disabledBondMore // TODO for now disable bond more feature until backend is ready
         />
       ),
       id: 'actions-cell',
@@ -117,46 +119,51 @@ export const BondedMixnode = ({
   ];
 
   return (
-    <NymCard
-      borderless
-      title={
-        <Stack gap={3}>
-          <Box display="flex" alignItems="center" gap={3}>
-            <Typography variant="h5" fontWeight={600}>
-              Mix node
-            </Typography>
-            <NodeStatus status={status} />
-          </Box>
-          {name && (
-            <Typography fontWeight="regular" variant="h6">
-              {name}
-            </Typography>
-          )}
-          <IdentityKey identityKey={identityKey} />
-        </Stack>
-      }
-      Action={
-        isMixnode(mixnode) && (
-          <Button
-            variant="text"
-            color="secondary"
-            onClick={() => navigate('/bonding/node-settings')}
-            startIcon={<NodeIcon />}
-          >
-            Settings
-          </Button>
-        )
-      }
-    >
-      <NodeTable headers={headers} cells={cells} />
-      {network && (
-        <Typography sx={{ mt: 2, fontSize: 'small' }}>
-          Check more stats of your node on the{' '}
-          <Link href={`${urls(network).networkExplorer}/network-components/mixnodes`} target="_blank">
-            explorer
-          </Link>
-        </Typography>
-      )}
-    </NymCard>
+    <Stack gap={2}>
+      <NymCard
+        borderless
+        title={
+          <Stack gap={3}>
+            <Box display="flex" alignItems="center" gap={2}>
+              <Typography variant="h5" fontWeight={600}>
+                Mix node
+              </Typography>
+              <NodeStatus status={status} />
+            </Box>
+            {name && (
+              <Tooltip title={host} arrow>
+                <Typography fontWeight="regular" variant="h6">
+                  {name}
+                </Typography>
+              </Tooltip>
+            )}
+            <IdentityKey identityKey={identityKey} />
+          </Stack>
+        }
+        Action={
+          isMixnode(mixnode) && (
+            <Button
+              variant="text"
+              color="secondary"
+              onClick={() => navigate('/bonding/node-settings')}
+              startIcon={<NodeIcon />}
+            >
+              Node Settings
+            </Button>
+          )
+        }
+      >
+        <NodeTable headers={headers} cells={cells} />
+        {network && (
+          <Typography sx={{ mt: 2, fontSize: 'small' }}>
+            Check more stats of your node on the{' '}
+            <Link href={`${urls(network).networkExplorer}/network-components/mixnodes`} target="_blank">
+              explorer
+            </Link>
+          </Typography>
+        )}
+      </NymCard>
+      <NodeStats mixnode={mixnode} />
+    </Stack>
   );
 };

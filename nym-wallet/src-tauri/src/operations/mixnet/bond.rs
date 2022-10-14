@@ -171,6 +171,32 @@ pub async fn update_mixnode_config(
 }
 
 #[tauri::command]
+pub async fn get_mixnode_avg_uptime(
+    state: tauri::State<'_, WalletState>,
+) -> Result<Option<u8>, BackendError> {
+    log::info!(">>> Get mixnode bond details");
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+    let res = client.nymd.get_owned_mixnode(client.nymd.address()).await?;
+
+    match res.mixnode_details {
+        Some(details) => {
+            let id = details.mix_id();
+            log::trace!("  >>> Get average uptime percentage: mix_id = {}", id);
+            let avg_uptime_percent = client
+                .validator_api
+                .get_mixnode_avg_uptime(id)
+                .await
+                .ok()
+                .map(|r| r.avg_uptime);
+            log::trace!("  <<< {:?}", avg_uptime_percent);
+            Ok(avg_uptime_percent)
+        }
+        None => Ok(None),
+    }
+}
+
+#[tauri::command]
 pub async fn mixnode_bond_details(
     state: tauri::State<'_, WalletState>,
 ) -> Result<Option<MixNodeDetails>, BackendError> {

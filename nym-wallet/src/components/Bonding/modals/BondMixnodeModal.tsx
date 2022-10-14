@@ -93,7 +93,7 @@ export const BondMixnodeModal = ({
         },
       },
     };
-    console.log(payload);
+
     if (data.tokenPool === 'balance') {
       await getFee<TBondMixNodeArgs>(simulateBondMixnode, payload);
     } else {
@@ -102,12 +102,8 @@ export const BondMixnodeModal = ({
   };
 
   const handleConfirm = async () => {
-    // TODO: this will have to be updated with allowing users to provide their operating cost in the form
-    const defaultCostParams = await attachDefaultOperatingCost(amountData.profitMargin);
-
     await onBondMixnode(
       {
-        costParams: defaultCostParams,
         pledge: amountData.amount,
         ownerSignature: mixnodeData.ownerSignature,
         mixnode: {
@@ -117,6 +113,13 @@ export const BondMixnodeModal = ({
           verloc_port: mixnodeData.verlocPort,
           sphinx_key: mixnodeData.sphinxKey,
           identity_key: mixnodeData.identityKey,
+        },
+        costParams: {
+          profit_margin_percent: amountData.profitMargin,
+          interval_operating_cost: {
+            amount: amountData.operatorCost.amount,
+            denom: amountData.operatorCost.denom,
+          },
         },
       },
       amountData.tokenPool as TPoolOption,

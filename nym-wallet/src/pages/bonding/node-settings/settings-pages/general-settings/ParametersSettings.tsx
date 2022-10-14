@@ -12,18 +12,36 @@ import { bondedNodeParametersValidationSchema } from 'src/components/Bonding/for
 import { Console } from 'src/utils/console';
 import { decimalToFloatApproximation, decimalToPercentage } from '@nymproject/types';
 import { format, fromUnixTime } from 'date-fns';
+import { add, format, fromUnixTime } from 'date-fns';
 import { Alert } from 'src/components/Alert';
 
 export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }): JSX.Element => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
   const [intervalTime, setIntervalTime] = useState<string>();
-
+  const [nextEpoch, setNextEpoch] = useState<string>();
   const theme = useTheme();
 
   const getIntervalAsDate = async () => {
     const interval = await getCurrentInterval();
-    const bigIntToNumber = Number(interval.current_epoch_start_unix);
-    setIntervalTime(format(fromUnixTime(bigIntToNumber), 'MM/dd/yyyy hh:mm'));
+    const secondsToNextInterval =
+      Number(interval.epochs_in_interval - interval.current_epoch_id) * Number(interval.epoch_length_seconds);
+
+    setIntervalTime(
+      format(
+        add(new Date(), {
+          seconds: secondsToNextInterval,
+        }),
+        'MM/dd/yyyy hh:mm',
+      ),
+    );
+    setNextEpoch(
+      format(
+        add(fromUnixTime(Number(interval.current_epoch_start_unix)), {
+          seconds: Number(interval.epoch_length_seconds),
+        }),
+        'MM/dd/yyyy hh:mm',
+      ),
+    );
   };
 
   useEffect(() => {
@@ -65,8 +83,16 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
 
   return (
     <Grid container xs item>
-      <Alert title={<Box sx={{ fontWeight: 600 }}>{`Next interval: ${intervalTime}`}</Box>} dismissable />
-
+      <Alert
+        title={
+          <>
+            <Box component="span" sx={{ fontWeight: 600, mr: 2 }}>{`Next interval: ${intervalTime}`}</Box>
+            <Box component="span" sx={{ fontWeight: 600 }}>
+              {`Next epoch ${nextEpoch}`}
+            </Box>
+          </>
+        }
+      />
       <Grid container direction="column">
         <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3} spacing={1}>
           <Grid item>

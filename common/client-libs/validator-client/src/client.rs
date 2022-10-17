@@ -1,7 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nymd::traits::DkgQueryClient;
 use crate::{validator_api, ValidatorClientError};
 use coconut_dkg_common::dealer::ContractDealingCommitment;
 use coconut_dkg_common::types::DealerDetails;
@@ -19,7 +18,7 @@ use validator_api_requests::models::{
 };
 
 #[cfg(feature = "nymd-client")]
-use crate::nymd::traits::MixnetQueryClient;
+use crate::nymd::traits::{DkgQueryClient, MixnetQueryClient};
 #[cfg(feature = "nymd-client")]
 use crate::nymd::{self, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient};
 #[cfg(feature = "nymd-client")]

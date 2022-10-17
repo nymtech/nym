@@ -16,7 +16,7 @@ use mixnet_contract_common::events::{
     new_reconcile_pending_events,
 };
 use mixnet_contract_common::pending_events::PendingIntervalEventData;
-use mixnet_contract_common::NodeId;
+use mixnet_contract_common::MixId;
 use std::collections::BTreeSet;
 
 // those two should be called in separate tx (from advancing epoch),
@@ -162,7 +162,7 @@ pub fn try_reconcile_epoch_events(
 
 fn update_rewarded_set(
     storage: &mut dyn Storage,
-    new_rewarded_set: Vec<NodeId>,
+    new_rewarded_set: Vec<MixId>,
     expected_active_set_size: u32,
 ) -> Result<(), MixnetContractError> {
     let reward_params = rewards_storage::REWARDING_PARAMS.load(storage)?;
@@ -202,7 +202,7 @@ pub fn try_advance_epoch(
     mut deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
-    new_rewarded_set: Vec<NodeId>,
+    new_rewarded_set: Vec<MixId>,
     expected_active_set_size: u32,
 ) -> Result<Response, MixnetContractError> {
     // Only rewarding validator can attempt to advance epoch
@@ -307,7 +307,7 @@ mod tests {
         for i in 0..n {
             let dummy_action = PendingEpochEventData::Undelegate {
                 owner: Addr::unchecked("foomp"),
-                mix_id: i as NodeId,
+                mix_id: i as MixId,
                 proxy: None,
             };
             storage::push_new_epoch_event(test.deps_mut().storage, &dummy_action).unwrap();
@@ -319,7 +319,7 @@ mod tests {
         // it will return an empty response, but will not fail
         for i in 0..n {
             let dummy_action = PendingIntervalEventData::ChangeMixCostParams {
-                mix_id: i as NodeId,
+                mix_id: i as MixId,
                 new_costs: fixtures::mix_node_cost_params_fixture(),
             };
             storage::push_new_interval_event(test.deps_mut().storage, &dummy_action).unwrap();

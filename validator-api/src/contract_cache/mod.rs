@@ -8,7 +8,7 @@ use anyhow::Result;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use mixnet_contract_common::{
-    GatewayBond, IdentityKey, Interval, MixNodeBond, NodeId, RewardedSetNodeStatus,
+    GatewayBond, IdentityKey, Interval, MixId, MixNodeBond, RewardedSetNodeStatus,
 };
 use okapi::openapi3::OpenApi;
 use rocket::fairing::AdHoc;
@@ -59,7 +59,7 @@ struct ValidatorCacheInner {
     mixnodes: Cache<Vec<MixNodeBondAnnotated>>,
     gateways: Cache<Vec<GatewayBond>>,
 
-    mixnodes_blacklist: Cache<HashSet<NodeId>>,
+    mixnodes_blacklist: Cache<HashSet<MixId>>,
     gateways_blacklist: Cache<HashSet<IdentityKey>>,
 
     rewarded_set: Cache<Vec<MixNodeBondAnnotated>>,
@@ -119,7 +119,7 @@ impl<C> ValidatorCacheRefresher<C> {
         }
     }
 
-    async fn get_performance(&self, mix_id: NodeId, epoch: Interval) -> Option<Performance> {
+    async fn get_performance(&self, mix_id: MixId, epoch: Interval) -> Option<Performance> {
         self.storage
             .as_ref()?
             .get_average_mixnode_uptime_in_the_last_24hrs(
@@ -140,7 +140,7 @@ impl<C> ValidatorCacheRefresher<C> {
         mixnodes: Vec<MixNodeDetails>,
         interval_reward_params: RewardingParams,
         current_interval: Interval,
-        rewarded_set: &HashMap<NodeId, RewardedSetNodeStatus>,
+        rewarded_set: &HashMap<MixId, RewardedSetNodeStatus>,
     ) -> Vec<MixNodeBondAnnotated> {
         let mut annotated = Vec::new();
         for mixnode in mixnodes {
@@ -186,7 +186,7 @@ impl<C> ValidatorCacheRefresher<C> {
         annotated
     }
 
-    async fn get_rewarded_set_map(&self) -> HashMap<NodeId, RewardedSetNodeStatus>
+    async fn get_rewarded_set_map(&self) -> HashMap<MixId, RewardedSetNodeStatus>
     where
         C: CosmWasmClient + Sync + Send,
     {
@@ -199,7 +199,7 @@ impl<C> ValidatorCacheRefresher<C> {
 
     fn collect_rewarded_and_active_set_details(
         all_mixnodes: &[MixNodeBondAnnotated],
-        rewarded_set_nodes: &HashMap<NodeId, RewardedSetNodeStatus>,
+        rewarded_set_nodes: &HashMap<MixId, RewardedSetNodeStatus>,
     ) -> (Vec<MixNodeBondAnnotated>, Vec<MixNodeBondAnnotated>) {
         let mut active_set = Vec::new();
         let mut rewarded_set = Vec::new();
@@ -346,7 +346,7 @@ impl ValidatorCache {
         }
     }
 
-    pub async fn mixnodes_blacklist(&self) -> Option<Cache<HashSet<NodeId>>> {
+    pub async fn mixnodes_blacklist(&self) -> Option<Cache<HashSet<MixId>>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
             Ok(cache) => Some(cache.mixnodes_blacklist.clone()),
             Err(e) => {
@@ -366,18 +366,18 @@ impl ValidatorCache {
         }
     }
 
-    pub async fn update_mixnodes_blacklist(&self, add: HashSet<NodeId>, remove: HashSet<NodeId>) {
+    pub async fn update_mixnodes_blacklist(&self, add: HashSet<MixId>, remove: HashSet<MixId>) {
         let blacklist = self.mixnodes_blacklist().await;
         if let Some(blacklist) = blacklist {
             let mut blacklist = blacklist
                 .value
                 .union(&add)
                 .cloned()
-                .collect::<HashSet<NodeId>>();
+                .collect::<HashSet<MixId>>();
             let to_remove = blacklist
                 .intersection(&remove)
                 .cloned()
-                .collect::<HashSet<NodeId>>();
+                .collect::<HashSet<MixId>>();
             for key in to_remove {
                 blacklist.remove(&key);
             }
@@ -560,7 +560,7 @@ impl ValidatorCache {
 
     pub async fn mixnode_details(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> (Option<MixNodeBondAnnotated>, MixnodeStatus) {
         // it might not be the most optimal to possibly iterate the entire vector to find (or not)
         // the relevant value. However, the vectors are relatively small (< 10_000 elements, < 1000 for active set)
@@ -583,7 +583,7 @@ impl ValidatorCache {
         }
     }
 
-    pub async fn mixnode_status(&self, mix_id: NodeId) -> MixnodeStatus {
+    pub async fn mixnode_status(&self, mix_id: MixId) -> MixnodeStatus {
         self.mixnode_details(mix_id).await.1
     }
 

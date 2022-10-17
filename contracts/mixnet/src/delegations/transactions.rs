@@ -12,12 +12,12 @@ use mixnet_contract_common::events::{
     new_pending_delegation_event, new_pending_undelegation_event,
 };
 use mixnet_contract_common::pending_events::PendingEpochEventData;
-use mixnet_contract_common::{Delegation, NodeId};
+use mixnet_contract_common::{Delegation, MixId};
 
 pub(crate) fn try_delegate_to_mixnode(
     deps: DepsMut<'_>,
     info: MessageInfo,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Result<Response, MixnetContractError> {
     _try_delegate_to_mixnode(deps, mix_id, info.sender, info.funds, None)
 }
@@ -25,7 +25,7 @@ pub(crate) fn try_delegate_to_mixnode(
 pub(crate) fn try_delegate_to_mixnode_on_behalf(
     deps: DepsMut<'_>,
     info: MessageInfo,
-    mix_id: NodeId,
+    mix_id: MixId,
     delegate: String,
 ) -> Result<Response, MixnetContractError> {
     let delegate = deps.api.addr_validate(&delegate)?;
@@ -34,7 +34,7 @@ pub(crate) fn try_delegate_to_mixnode_on_behalf(
 
 pub(crate) fn _try_delegate_to_mixnode(
     deps: DepsMut<'_>,
-    mix_id: NodeId,
+    mix_id: MixId,
     delegate: Addr,
     amount: Vec<Coin>,
     proxy: Option<Addr>,
@@ -73,7 +73,7 @@ pub(crate) fn _try_delegate_to_mixnode(
 pub(crate) fn try_remove_delegation_from_mixnode(
     deps: DepsMut<'_>,
     info: MessageInfo,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Result<Response, MixnetContractError> {
     _try_remove_delegation_from_mixnode(deps, mix_id, info.sender, None)
 }
@@ -81,7 +81,7 @@ pub(crate) fn try_remove_delegation_from_mixnode(
 pub(crate) fn try_remove_delegation_from_mixnode_on_behalf(
     deps: DepsMut<'_>,
     info: MessageInfo,
-    mix_id: NodeId,
+    mix_id: MixId,
     delegate: String,
 ) -> Result<Response, MixnetContractError> {
     let delegate = deps.api.addr_validate(&delegate)?;
@@ -90,7 +90,7 @@ pub(crate) fn try_remove_delegation_from_mixnode_on_behalf(
 
 pub(crate) fn _try_remove_delegation_from_mixnode(
     deps: DepsMut<'_>,
-    mix_id: NodeId,
+    mix_id: MixId,
     delegate: Addr,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {

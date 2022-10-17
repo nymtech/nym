@@ -6,7 +6,7 @@ use crate::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use crate::reward_params::{
     IntervalRewardParams, IntervalRewardingParamsUpdate, Performance, RewardingParams,
 };
-use crate::{delegation, ContractStateParams, NodeId, Percent};
+use crate::{delegation, ContractStateParams, MixId, Percent};
 use crate::{Gateway, IdentityKey, MixNode};
 use cosmwasm_std::Decimal;
 use schemars::JsonSchema;
@@ -87,7 +87,7 @@ pub enum ExecuteMsg {
         force_immediately: bool,
     },
     AdvanceCurrentEpoch {
-        new_rewarded_set: Vec<NodeId>,
+        new_rewarded_set: Vec<MixId>,
         expected_active_set_size: u32,
     },
     ReconcileEpochEvents {
@@ -142,23 +142,23 @@ pub enum ExecuteMsg {
 
     // delegation-related:
     DelegateToMixnode {
-        mix_id: NodeId,
+        mix_id: MixId,
     },
     DelegateToMixnodeOnBehalf {
-        mix_id: NodeId,
+        mix_id: MixId,
         delegate: String,
     },
     UndelegateFromMixnode {
-        mix_id: NodeId,
+        mix_id: MixId,
     },
     UndelegateFromMixnodeOnBehalf {
-        mix_id: NodeId,
+        mix_id: MixId,
         delegate: String,
     },
 
     // reward-related
     RewardMixnode {
-        mix_id: NodeId,
+        mix_id: MixId,
         performance: Performance,
     },
     WithdrawOperatorReward {},
@@ -166,10 +166,10 @@ pub enum ExecuteMsg {
         owner: String,
     },
     WithdrawDelegatorReward {
-        mix_id: NodeId,
+        mix_id: MixId,
     },
     WithdrawDelegatorRewardOnBehalf {
-        mix_id: NodeId,
+        mix_id: MixId,
         owner: String,
     },
 
@@ -282,46 +282,46 @@ pub enum QueryMsg {
     GetCurrentIntervalDetails {},
     GetRewardedSet {
         limit: Option<u32>,
-        start_after: Option<NodeId>,
+        start_after: Option<MixId>,
     },
 
     // mixnode-related:
     GetMixNodeBonds {
         limit: Option<u32>,
-        start_after: Option<NodeId>,
+        start_after: Option<MixId>,
     },
     GetMixNodesDetailed {
         limit: Option<u32>,
-        start_after: Option<NodeId>,
+        start_after: Option<MixId>,
     },
     GetUnbondedMixNodes {
         limit: Option<u32>,
-        start_after: Option<NodeId>,
+        start_after: Option<MixId>,
     },
     GetUnbondedMixNodesByOwner {
         owner: String,
         limit: Option<u32>,
-        start_after: Option<NodeId>,
+        start_after: Option<MixId>,
     },
     GetUnbondedMixNodesByIdentityKey {
         identity_key: String,
         limit: Option<u32>,
-        start_after: Option<NodeId>,
+        start_after: Option<MixId>,
     },
     GetOwnedMixnode {
         address: String,
     },
     GetMixnodeDetails {
-        mix_id: NodeId,
+        mix_id: MixId,
     },
     GetMixnodeRewardingDetails {
-        mix_id: NodeId,
+        mix_id: MixId,
     },
     GetStakeSaturation {
-        mix_id: NodeId,
+        mix_id: MixId,
     },
     GetUnbondedMixNodeInformation {
-        mix_id: NodeId,
+        mix_id: MixId,
     },
     GetBondedMixnodeDetailsByIdentity {
         mix_identity: IdentityKey,
@@ -343,7 +343,7 @@ pub enum QueryMsg {
     // delegation-related:
     // gets all [paged] delegations associated with particular mixnode
     GetMixnodeDelegations {
-        mix_id: NodeId,
+        mix_id: MixId,
         // since `start_after` is user-provided input, we can't use `Addr` as we
         // can't guarantee it's validated.
         start_after: Option<String>,
@@ -354,12 +354,12 @@ pub enum QueryMsg {
         // since `delegator` is user-provided input, we can't use `Addr` as we
         // can't guarantee it's validated.
         delegator: String,
-        start_after: Option<(NodeId, OwnerProxySubKey)>,
+        start_after: Option<(MixId, OwnerProxySubKey)>,
         limit: Option<u32>,
     },
     // gets delegation associated with particular mixnode, delegator pair
     GetDelegationDetails {
-        mix_id: NodeId,
+        mix_id: MixId,
         delegator: String,
         proxy: Option<String>,
     },
@@ -374,21 +374,21 @@ pub enum QueryMsg {
         address: String,
     },
     GetPendingMixNodeOperatorReward {
-        mix_id: NodeId,
+        mix_id: MixId,
     },
     GetPendingDelegatorReward {
         address: String,
-        mix_id: NodeId,
+        mix_id: MixId,
         proxy: Option<String>,
     },
     // given the provided performance, estimate the reward at the end of the current epoch
     GetEstimatedCurrentEpochOperatorReward {
-        mix_id: NodeId,
+        mix_id: MixId,
         estimated_performance: Performance,
     },
     GetEstimatedCurrentEpochDelegatorReward {
         address: String,
-        mix_id: NodeId,
+        mix_id: MixId,
         proxy: Option<String>,
         estimated_performance: Performance,
     },

@@ -5,7 +5,7 @@ use cosmwasm_std::{Coin, Decimal};
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use mixnet_contract_common::rewarding::RewardEstimate;
-use mixnet_contract_common::{Interval, MixNode, NodeId, Percent, RewardedSetNodeStatus};
+use mixnet_contract_common::{Interval, MixId, MixNode, Percent, RewardedSetNodeStatus};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{fmt, time::Duration};
@@ -48,7 +48,7 @@ impl MixnodeStatus {
     ts(export_to = "ts-packages/types/src/types/rust/MixnodeCoreStatusResponse.ts")
 )]
 pub struct MixnodeCoreStatusResponse {
-    pub mix_id: NodeId,
+    pub mix_id: MixId,
     pub count: i32,
 }
 
@@ -88,7 +88,7 @@ impl MixNodeBondAnnotated {
         &self.mixnode_details.bond_information.mix_node
     }
 
-    pub fn mix_id(&self) -> NodeId {
+    pub fn mix_id(&self) -> MixId {
         self.mixnode_details.mix_id()
     }
 }
@@ -119,7 +119,7 @@ pub struct RewardEstimationResponse {
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct UptimeResponse {
-    pub mix_id: NodeId,
+    pub mix_id: MixId,
     pub avg_uptime: u8,
 }
 
@@ -215,7 +215,7 @@ pub struct AllInclusionProbabilitiesResponse {
 
 #[derive(Clone, Serialize, schemars::JsonSchema)]
 pub struct InclusionProbability {
-    pub id: NodeId,
+    pub mix_id: MixId,
     pub in_active: f64,
     pub in_reserve: f64,
 }

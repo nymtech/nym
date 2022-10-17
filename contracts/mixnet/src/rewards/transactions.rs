@@ -26,14 +26,14 @@ use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingInter
 use mixnet_contract_common::reward_params::{
     IntervalRewardingParamsUpdate, NodeRewardParams, Performance,
 };
-use mixnet_contract_common::{Delegation, NodeId};
+use mixnet_contract_common::{Delegation, MixId};
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 pub(crate) fn try_reward_mixnode(
     deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
-    mix_id: NodeId,
+    mix_id: MixId,
     node_performance: Performance,
 ) -> Result<Response, MixnetContractError> {
     ensure_is_authorized(info.sender, deps.storage)?;
@@ -184,7 +184,7 @@ pub(crate) fn _try_withdraw_operator_reward(
 pub(crate) fn try_withdraw_delegator_reward(
     deps: DepsMut<'_>,
     info: MessageInfo,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Result<Response, MixnetContractError> {
     _try_withdraw_delegator_reward(deps, mix_id, info.sender, None)
 }
@@ -192,7 +192,7 @@ pub(crate) fn try_withdraw_delegator_reward(
 pub(crate) fn try_withdraw_delegator_reward_on_behalf(
     deps: DepsMut<'_>,
     info: MessageInfo,
-    mix_id: NodeId,
+    mix_id: MixId,
     owner: String,
 ) -> Result<Response, MixnetContractError> {
     let proxy = info.sender;
@@ -202,7 +202,7 @@ pub(crate) fn try_withdraw_delegator_reward_on_behalf(
 
 pub(crate) fn _try_withdraw_delegator_reward(
     deps: DepsMut<'_>,
-    mix_id: NodeId,
+    mix_id: MixId,
     owner: Addr,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {

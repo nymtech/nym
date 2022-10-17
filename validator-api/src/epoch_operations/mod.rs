@@ -17,7 +17,7 @@ use crate::nymd_client::Client;
 use crate::storage::models::RewardingReport;
 use crate::storage::ValidatorApiStorage;
 use mixnet_contract_common::{
-    reward_params::Performance, CurrentIntervalResponse, ExecuteMsg, Interval, NodeId,
+    reward_params::Performance, CurrentIntervalResponse, ExecuteMsg, Interval, MixId,
 };
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
@@ -36,7 +36,7 @@ use task::ShutdownListener;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct MixnodeToReward {
-    pub(crate) mix_id: NodeId,
+    pub(crate) mix_id: MixId,
 
     pub(crate) performance: Performance,
 }
@@ -82,7 +82,7 @@ impl RewardedSetUpdater {
         &self,
         mixnodes: Vec<MixNodeDetails>,
         nodes_to_select: u32,
-    ) -> Vec<NodeId> {
+    ) -> Vec<MixId> {
         if mixnodes.is_empty() {
             return Vec::new();
         }
@@ -153,7 +153,7 @@ impl RewardedSetUpdater {
     async fn nodes_to_reward(&self, interval: Interval) -> Vec<MixnodeToReward> {
         // try to get current up to date view of the network bypassing the cache
         // in case the epochs were significantly shortened for the purposes of testing
-        let rewarded_set: Vec<NodeId> = match self.nymd_client.get_rewarded_set_mixnodes().await {
+        let rewarded_set: Vec<MixId> = match self.nymd_client.get_rewarded_set_mixnodes().await {
             Ok(nodes) => nodes.into_iter().map(|(id, _)| id).collect::<Vec<_>>(),
             Err(err) => {
                 warn!("failed to obtain the current rewarded set - {}. falling back to the cached version", err);

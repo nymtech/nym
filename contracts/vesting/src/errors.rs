@@ -1,5 +1,5 @@
 use cosmwasm_std::{Addr, StdError, Uint128};
-use mixnet_contract_common::NodeId;
+use mixnet_contract_common::MixId;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -31,7 +31,7 @@ pub enum ContractError {
     #[error("VESTING ({}): Received multiple denoms, expected 1", line!())]
     MultipleDenoms,
     #[error("VESTING ({}): No delegations found for account {0}, mix_identity {1}", line!())]
-    NoSuchDelegation(Addr, NodeId),
+    NoSuchDelegation(Addr, MixId),
     #[error("VESTING ({}): Only mixnet contract can perform this operation, got {0}", line!())]
     NotMixnetContract(Addr),
     #[error("VESTING ({}): Calculation underflowed", line!())]

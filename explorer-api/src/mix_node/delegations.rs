@@ -4,11 +4,11 @@
 use super::models::SummedDelegations;
 use crate::client::ThreadsafeValidatorClient;
 use itertools::Itertools;
-use mixnet_contract_common::{Delegation, NodeId};
+use mixnet_contract_common::{Delegation, MixId};
 
 pub(crate) async fn get_single_mixnode_delegations(
     client: &ThreadsafeValidatorClient,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Vec<Delegation> {
     match client
         .0
@@ -25,7 +25,7 @@ pub(crate) async fn get_single_mixnode_delegations(
 
 pub(crate) async fn get_single_mixnode_delegations_summed(
     client: &ThreadsafeValidatorClient,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Vec<SummedDelegations> {
     let delegations_by_owner = get_single_mixnode_delegations(client, mix_id)
         .await

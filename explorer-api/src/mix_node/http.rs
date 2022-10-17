@@ -9,7 +9,7 @@ use crate::mix_node::models::{
     EconomicDynamicsStats, NodeDescription, NodeStats, PrettyDetailedMixNodeBond, SummedDelegations,
 };
 use crate::state::ExplorerApiStateContext;
-use mixnet_contract_common::{Delegation, NodeId};
+use mixnet_contract_common::{Delegation, MixId};
 use reqwest::Error as ReqwestError;
 use rocket::response::status::NotFound;
 use rocket::serde::json::Json;
@@ -46,7 +46,7 @@ async fn get_mix_node_stats(host: &str, port: u16) -> Result<NodeStats, ReqwestE
 #[openapi(tag = "mix_nodes")]
 #[get("/<mix_id>")]
 pub(crate) async fn get_by_id(
-    mix_id: NodeId,
+    mix_id: MixId,
     state: &State<ExplorerApiStateContext>,
 ) -> Result<Json<PrettyDetailedMixNodeBond>, NotFound<String>> {
     match state.inner.mixnodes.get_detailed_mixnode(mix_id).await {
@@ -58,7 +58,7 @@ pub(crate) async fn get_by_id(
 #[openapi(tag = "mix_node")]
 #[get("/<mix_id>/delegations")]
 pub(crate) async fn get_delegations(
-    mix_id: NodeId,
+    mix_id: MixId,
     state: &State<ExplorerApiStateContext>,
 ) -> Json<Vec<Delegation>> {
     Json(get_single_mixnode_delegations(&state.inner.validator_client, mix_id).await)
@@ -67,7 +67,7 @@ pub(crate) async fn get_delegations(
 #[openapi(tag = "mix_node")]
 #[get("/<mix_id>/delegations/summed")]
 pub(crate) async fn get_delegations_summed(
-    mix_id: NodeId,
+    mix_id: MixId,
     state: &State<ExplorerApiStateContext>,
 ) -> Json<Vec<SummedDelegations>> {
     Json(get_single_mixnode_delegations_summed(&state.inner.validator_client, mix_id).await)
@@ -76,7 +76,7 @@ pub(crate) async fn get_delegations_summed(
 #[openapi(tag = "mix_node")]
 #[get("/<mix_id>/description")]
 pub(crate) async fn get_description(
-    mix_id: NodeId,
+    mix_id: MixId,
     state: &State<ExplorerApiStateContext>,
 ) -> Option<Json<NodeDescription>> {
     match state.inner.mixnode.clone().get_description(mix_id).await {
@@ -124,7 +124,7 @@ pub(crate) async fn get_description(
 #[openapi(tag = "mix_node")]
 #[get("/<mix_id>/stats")]
 pub(crate) async fn get_stats(
-    mix_id: NodeId,
+    mix_id: MixId,
     state: &State<ExplorerApiStateContext>,
 ) -> Option<Json<NodeStats>> {
     match state.inner.mixnode.get_node_stats(mix_id).await {
@@ -169,7 +169,7 @@ pub(crate) async fn get_stats(
 #[openapi(tag = "mix_node")]
 #[get("/<mix_id>/economic-dynamics-stats")]
 pub(crate) async fn get_economic_dynamics_stats(
-    mix_id: NodeId,
+    mix_id: MixId,
     state: &State<ExplorerApiStateContext>,
 ) -> Option<Json<EconomicDynamicsStats>> {
     match state.inner.mixnode.get_econ_stats(mix_id).await {

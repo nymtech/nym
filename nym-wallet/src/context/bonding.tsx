@@ -237,11 +237,11 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
           const {
             bond_information,
             rewarding_details,
-            bond_information: { id },
+            bond_information: { mix_id },
           } = data;
 
-          const { status, stakeSaturation, operatorCost, estimatedRewards } = await getAdditionalMixnodeDetails(id);
-          const setProbabilities = await getSetProbabilities(id);
+          const { status, stakeSaturation, operatorCost, estimatedRewards } = await getAdditionalMixnodeDetails(mix_id);
+          const setProbabilities = await getSetProbabilities(mix_id);
           const nodeDescription = await getNodeDescription(
             bond_information.mix_node.host,
             bond_information.mix_node.http_api_port,
@@ -250,7 +250,6 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
           setBondedNode({
             name: nodeDescription?.name,
             identityKey: bond_information.mix_node.identity_key,
-            ip: bond_information.id,
             stake: {
               amount: calculateStake(rewarding_details.operator, rewarding_details.delegates),
               denom: bond_information.original_pledge.denom,

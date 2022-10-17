@@ -3,7 +3,7 @@
 
 use crate::mixnode::MixNodeCostParams;
 use crate::reward_params::IntervalRewardingParamsUpdate;
-use crate::{EpochEventId, IntervalEventId, NodeId};
+use crate::{EpochEventId, IntervalEventId, MixId};
 use cosmwasm_std::{Addr, Coin};
 use serde::{Deserialize, Serialize};
 
@@ -19,17 +19,17 @@ pub enum PendingEpochEventData {
     // `cumulative_reward_ratio` ahead of time
     Delegate {
         owner: Addr,
-        mix_id: NodeId,
+        mix_id: MixId,
         amount: Coin,
         proxy: Option<Addr>,
     },
     Undelegate {
         owner: Addr,
-        mix_id: NodeId,
+        mix_id: MixId,
         proxy: Option<Addr>,
     },
     UnbondMixnode {
-        mix_id: NodeId,
+        mix_id: MixId,
     },
     UpdateActiveSetSize {
         new_size: u32,
@@ -54,7 +54,7 @@ pub struct PendingIntervalEvent {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum PendingIntervalEventData {
     ChangeMixCostParams {
-        mix_id: NodeId,
+        mix_id: MixId,
         new_costs: MixNodeCostParams,
     },
 

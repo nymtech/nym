@@ -5,7 +5,7 @@ use crate::error::BackendError;
 use crate::operations::simulate::FeeDetails;
 use crate::WalletState;
 use mixnet_contract_common::MixNodeConfigUpdate;
-use mixnet_contract_common::{ExecuteMsg, Gateway, MixNode, NodeId};
+use mixnet_contract_common::{ExecuteMsg, Gateway, MixId, MixNode};
 use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
 
@@ -123,7 +123,7 @@ pub async fn simulate_update_mixnode_config(
 
 #[tauri::command]
 pub async fn simulate_delegate_to_mixnode(
-    mix_id: NodeId,
+    mix_id: MixId,
     amount: DecCoin,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
@@ -137,7 +137,7 @@ pub async fn simulate_delegate_to_mixnode(
 
 #[tauri::command]
 pub async fn simulate_undelegate_from_mixnode(
-    mix_id: NodeId,
+    mix_id: MixId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     simulate_mixnet_operation(ExecuteMsg::UndelegateFromMixnode { mix_id }, None, &state).await
@@ -152,7 +152,7 @@ pub async fn simulate_claim_operator_reward(
 
 #[tauri::command]
 pub async fn simulate_claim_delegator_reward(
-    mix_id: NodeId,
+    mix_id: MixId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
     simulate_mixnet_operation(ExecuteMsg::WithdrawDelegatorReward { mix_id }, None, &state).await

@@ -133,4 +133,10 @@ pub enum MixnetContractError {
 
     #[error("Mixnode {mix_id} appears multiple times in the provided rewarded set update!")]
     DuplicateRewardedSetNode { mix_id: MixId },
+
+    #[error("Family with head {head} and proxy {proxy} does not exist!")]
+    FamilyDoesNotExist { head: String, proxy: String },
+
+    #[error("Family with label '{0}' already exists")]
+    FamilyWithLabelExists(String),
 }

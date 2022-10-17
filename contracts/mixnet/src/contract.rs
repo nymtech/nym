@@ -345,6 +345,15 @@ pub fn query(
     msg: QueryMsg,
 ) -> Result<QueryResponse, MixnetContractError> {
     let query_res = match msg {
+        QueryMsg::GetAllFamilies {} => {
+            to_binary(&crate::families::queries::get_all_families(deps.storage))
+        }
+        QueryMsg::GetFamilyByHead { head, proxy } => to_binary(
+            &crate::families::queries::get_family_by_head(&head, proxy, deps.storage)?,
+        ),
+        QueryMsg::GetFamilyByLabel { label } => to_binary(
+            &crate::families::queries::get_family_by_label(&label, deps.storage)?,
+        ),
         QueryMsg::GetContractVersion {} => {
             to_binary(&crate::mixnet_contract_settings::queries::query_contract_version())
         }

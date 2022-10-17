@@ -347,6 +347,15 @@ impl ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    // families
+    GetAllFamilies {},
+    GetFamilyByHead {
+        head: String,
+        proxy: Option<String>,
+    },
+    GetFamilyByLabel {
+        label: String,
+    },
     // state/sys-params-related
     GetContractVersion {},
     GetRewardingValidatorAddress {},

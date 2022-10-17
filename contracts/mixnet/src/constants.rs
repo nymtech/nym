@@ -69,3 +69,6 @@ pub(crate) const UNBONDED_MIXNODES_IDENTITY_IDX_NAMESPACE: &str = "umi";
 pub(crate) const REWARDING_PARAMS_KEY: &str = "rparams";
 pub(crate) const PENDING_REWARD_POOL_KEY: &str = "prp";
 pub(crate) const MIXNODES_REWARDING_PK_NAMESPACE: &str = "mnr";
+
+pub(crate) const FAMILIES_INDEX_NAMESPACE: &str = "faml";
+pub(crate) const FAMILIES_MAP_NAMESPACE: &str = "fam";

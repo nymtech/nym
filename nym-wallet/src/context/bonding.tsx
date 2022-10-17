@@ -250,7 +250,6 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
           setBondedNode({
             name: nodeDescription?.name,
             identityKey: bond_information.mix_node.identity_key,
-            ip: bond_information.mix_node.host,
             stake: {
               amount: calculateStake(rewarding_details.operator, rewarding_details.delegates),
               denom: bond_information.original_pledge.denom,

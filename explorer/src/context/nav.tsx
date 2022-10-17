@@ -26,7 +26,7 @@ export const originalNavOptions: NavOptionType[] = [
     id: 1,
     isActive: false,
     url: '/network-components',
-    title: 'Network Nodes',
+    title: 'Network Components',
     Icon: <NetworkComponentsSVG />,
     nested: [
       {

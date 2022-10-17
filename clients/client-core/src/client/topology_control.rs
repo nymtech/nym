@@ -305,7 +305,7 @@ impl TopologyRefresher {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub fn start_with_shutdown(mut self, mut shutdown: task::ShutdownListener) {
-        spawn_future(async move {
+        spawn_future("topology refresher", async move {
             debug!("Started TopologyRefresher with graceful shutdown support");
 
             while !shutdown.is_shutdown() {

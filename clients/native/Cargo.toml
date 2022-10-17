@@ -28,6 +28,7 @@ rand = { version = "0.7.3", features = ["wasm-bindgen"] } # rng-related traits +
 serde = { version = "1.0.104", features = ["derive"] } # for config serialization/deserialization
 sled = "0.34" # for storage of replySURB decryption keys
 tokio = { version = "1.21.2", features = ["rt-multi-thread", "net", "signal"] } # async runtime
+console-subscriber = { version = "0.1.8"} # validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
 tokio-tungstenite = "0.14" # websocket
 
 ## internal

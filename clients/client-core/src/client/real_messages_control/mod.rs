@@ -173,7 +173,7 @@ impl RealMessagesController<OsRng> {
         let ack_control = self.ack_control;
 
         let shutdown_handle = shutdown.clone();
-        spawn_future(async move {
+        spawn_future("out queue control", async move {
             out_queue_control.run_with_shutdown(shutdown_handle).await;
             debug!("The out queue controller has finished execution!");
         });

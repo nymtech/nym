@@ -436,12 +436,12 @@ impl ReceivedMessagesBufferController {
         let mut request_receiver = self.request_receiver;
 
         let shutdown_handle = shutdown.clone();
-        spawn_future(async move {
+        spawn_future("fragmented message receiver", async move {
             fragmented_message_receiver
                 .run_with_shutdown(shutdown_handle)
                 .await;
         });
-        spawn_future(async move {
+        spawn_future("request receiver", async move {
             request_receiver.run_with_shutdown(shutdown).await;
         });
     }

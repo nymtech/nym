@@ -383,11 +383,13 @@ impl GatewayClient {
     ) -> Result<(), GatewayClientError> {
         match self.connection {
             SocketState::Available(ref mut conn) => {
+                log::debug!("SocketState::Available: sending size: {}", messages.len());
                 let stream_messages: Vec<_> = messages.into_iter().map(Ok).collect();
                 let mut send_stream = futures::stream::iter(stream_messages);
                 Ok(conn.send_all(&mut send_stream).await?)
             }
             SocketState::PartiallyDelegated(ref mut partially_delegated) => {
+                log::debug!("SocketState::PartiallyDelegated: sending size: {}", messages.len());
                 if let Err(err) = partially_delegated
                     .batch_send_without_response(messages)
                     .await

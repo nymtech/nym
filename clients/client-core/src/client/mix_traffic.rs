@@ -8,8 +8,10 @@ use gateway_client::GatewayClient;
 use log::*;
 use nymsphinx::forwarding::packet::MixPacket;
 
-pub type BatchMixMessageSender = mpsc::UnboundedSender<Vec<MixPacket>>;
-pub type BatchMixMessageReceiver = mpsc::UnboundedReceiver<Vec<MixPacket>>;
+//pub type BatchMixMessageSender = mpsc::UnboundedSender<Vec<MixPacket>>;
+//pub type BatchMixMessageReceiver = mpsc::UnboundedReceiver<Vec<MixPacket>>;
+pub type BatchMixMessageSender = mpsc::Sender<Vec<MixPacket>>;
+pub type BatchMixMessageReceiver = mpsc::Receiver<Vec<MixPacket>>;
 
 const MAX_FAILURE_COUNT: usize = 100;
 
@@ -38,6 +40,7 @@ impl MixTrafficController {
 
     async fn on_messages(&mut self, mut mix_packets: Vec<MixPacket>) {
         debug_assert!(!mix_packets.is_empty());
+        //log::debug!("on_messages: {}", mix_packets.len());
 
         let result = if mix_packets.len() == 1 {
             let mix_packet = mix_packets.pop().unwrap();
@@ -67,7 +70,7 @@ impl MixTrafficController {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub fn start_with_shutdown(mut self, mut shutdown: task::ShutdownListener) {
-        spawn_future(async move {
+        spawn_future("mix traffic controller", async move {
             debug!("Started MixTrafficController with graceful shutdown support");
 
             while !shutdown.is_shutdown() {

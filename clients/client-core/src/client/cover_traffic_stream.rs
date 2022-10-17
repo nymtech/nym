@@ -175,7 +175,8 @@ impl LoopCoverTrafficStream<OsRng> {
         // - we run out of memory
         // - the receiver channel is closed
         // in either case there's no recovery and we can only panic
-        self.mix_tx.unbounded_send(vec![cover_message]).unwrap();
+        //self.mix_tx.unbounded_send(vec![cover_message]).unwrap();
+        self.mix_tx.try_send(vec![cover_message]).unwrap();
 
         // TODO: I'm not entirely sure whether this is really required, because I'm not 100%
         // sure how `yield_now()` works - whether it just notifies the scheduler or whether it
@@ -197,7 +198,7 @@ impl LoopCoverTrafficStream<OsRng> {
             sample_poisson_duration(&mut self.rng, self.average_cover_message_sending_delay);
         self.next_delay = Box::pin(time::sleep(sampled));
 
-        spawn_future(async move {
+        spawn_future("loop cover traffic stream", async move {
             debug!("Started LoopCoverTrafficStream with graceful shutdown support");
 
             while !shutdown.is_shutdown() {

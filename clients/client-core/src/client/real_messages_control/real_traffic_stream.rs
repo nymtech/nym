@@ -216,12 +216,13 @@ where
         // - we run out of memory
         // - the receiver channel is closed
         // in either case there's no recovery and we can only panic
-        if let Err(err) = self.mix_tx.unbounded_send(vec![next_message]) {
-            log::warn!(
-                "Failed to send {} packets (possible process shutdown?)",
-                err.into_inner().len()
-            );
-        }
+        //if let Err(err) = self.mix_tx.unbounded_send(vec![next_message]) {
+        //    log::warn!(
+        //        "Failed to send {} packets (possible process shutdown?)",
+        //        err.into_inner().len()
+        //    );
+        //}
+        self.mix_tx.try_send(vec![next_message]).unwrap();
 
         // JS: Not entirely sure why or how it fixes stuff, but without the yield call,
         // the UnboundedReceiver [of mix_rx] will not get a chance to read anything

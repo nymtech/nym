@@ -187,8 +187,8 @@ where
             config.average_packet_delay,
             config.average_ack_delay,
         )
-        //.with_custom_real_message_packet_size(config.packet_size);
-        .with_custom_real_message_packet_size(nymsphinx::params::PacketSize::ExtendedPacket);
+        .with_custom_real_message_packet_size(config.packet_size);
+        //.with_custom_real_message_packet_size(nymsphinx::params::PacketSize::ExtendedPacket);
 
         // will listen for any acks coming from the network
         let acknowledgement_listener = AcknowledgementListener::new(
@@ -244,7 +244,7 @@ where
         let mut action_controller = self.action_controller;
 
         let shutdown_handle = shutdown.clone();
-        spawn_future(async move {
+        spawn_future("acknowledgement listener", async move {
             acknowledgement_listener
                 .run_with_shutdown(shutdown_handle)
                 .await;
@@ -252,7 +252,7 @@ where
         });
 
         let shutdown_handle = shutdown.clone();
-        spawn_future(async move {
+        spawn_future("input message listener", async move {
             input_message_listener
                 .run_with_shutdown(shutdown_handle)
                 .await;
@@ -260,7 +260,7 @@ where
         });
 
         let shutdown_handle = shutdown.clone();
-        spawn_future(async move {
+        spawn_future("retransmission request listener", async move {
             retransmission_request_listener
                 .run_with_shutdown(shutdown_handle)
                 .await;
@@ -268,14 +268,14 @@ where
         });
 
         let shutdown_handle = shutdown.clone();
-        spawn_future(async move {
+        spawn_future("sent notification listener", async move {
             sent_notification_listener
                 .run_with_shutdown(shutdown_handle)
                 .await;
             debug!("The sent notification listener has finished execution!");
         });
 
-        spawn_future(async move {
+        spawn_future("action controller", async move {
             action_controller.run_with_shutdown(shutdown).await;
             debug!("The controller has finished execution!");
         });

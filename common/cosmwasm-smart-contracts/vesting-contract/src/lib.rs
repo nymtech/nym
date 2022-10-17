@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 use cosmwasm_std::{Addr, Coin, Timestamp, Uint128};
@@ -39,6 +41,48 @@ impl PledgeData {
 
     pub fn new(amount: Coin, block_time: Timestamp) -> Self {
         Self { amount, block_time }
+    }
+}
+
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub enum PledgeCap {
+    Percent(u8),
+    Absolute(Uint128),
+}
+
+impl FromStr for PledgeCap {
+    type Err = String;
+
+    fn from_str(cap: &str) -> Result<Self, Self::Err> {
+        match cap.parse::<f32>() {
+            Ok(f) => {
+                if f > 0. && f <= 1. {
+                    Ok(PledgeCap::Percent((f * 100.) as u8))
+                } else {
+                    Err(format!("Floats have to be > 0. and <= 1., got {}", f))
+                }
+            }
+            Err(_) => match cap.parse::<u128>() {
+                Ok(i) => Ok(PledgeCap::Absolute(Uint128::from(i))),
+                Err(_e) => Err(format!("Could not parse {} as f32 or u128", cap)),
+            },
+        }
+    }
+}
+
+impl Default for PledgeCap {
+    fn default() -> Self {
+        PledgeCap::Absolute(Uint128::from(100_000_000_000u128))
+    }
+}
+
+impl PledgeCap {
+    pub fn valid(&self) -> bool {
+        match &self {
+            PledgeCap::Percent(p) => *p > 0 && *p <= 100,
+            PledgeCap::Absolute(_) => true,
+        }
     }
 }
 

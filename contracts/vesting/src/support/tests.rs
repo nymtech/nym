@@ -37,6 +37,7 @@ pub mod helpers {
             },
             start_time_ts,
             periods,
+            None,
             storage,
         )
         .unwrap()
@@ -56,6 +57,7 @@ pub mod helpers {
             },
             start_time,
             periods,
+            None,
             storage,
         )
         .unwrap()

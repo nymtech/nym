@@ -15,14 +15,12 @@ use cosmrs::rpc::query::Query;
 use cosmrs::rpc::Error as TendermintRpcError;
 use cosmrs::rpc::HttpClientUrl;
 use cosmrs::tx::Msg;
-use cosmwasm_std::Uint128;
 use execute::execute;
 use network_defaults::{ChainDetails, NymNetworkDetails};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::time::SystemTime;
 use vesting_contract_common::ExecuteMsg as VestingExecuteMsg;
-use vesting_contract_common::QueryMsg as VestingQueryMsg;
 
 pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
@@ -47,6 +45,7 @@ pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
 use mixnet_contract_common::MixId;
 pub use signing_client::Client as SigningNymdClient;
 pub use traits::{VestingQueryClient, VestingSigningClient};
+use vesting_contract_common::PledgeCap;
 
 pub mod coin;
 pub mod cosmwasm_client;
@@ -482,16 +481,6 @@ impl<C> NymdClient<C> {
         self.client.get_total_supply().await
     }
 
-    pub async fn vesting_get_locked_pledge_cap(&self) -> Result<Uint128, NymdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        let request = VestingQueryMsg::GetLockedPledgeCap {};
-        self.client
-            .query_contract_smart(self.vesting_contract_address(), &request)
-            .await
-    }
-
     pub async fn simulate<I, M>(&self, messages: I) -> Result<SimulateResponse, NymdError>
     where
         C: SigningCosmWasmClient + Sync,
@@ -737,12 +726,16 @@ impl<C> NymdClient<C> {
     #[execute("vesting")]
     fn _vesting_update_locked_pledge_cap(
         &self,
-        amount: Uint128,
+        address: String,
+        cap: PledgeCap,
         fee: Option<Fee>,
     ) -> (VestingExecuteMsg, Option<Fee>)
     where
         C: SigningCosmWasmClient + Sync,
     {
-        (VestingExecuteMsg::UpdateLockedPledgeCap { amount }, fee)
+        (
+            VestingExecuteMsg::UpdateLockedPledgeCap { address, cap },
+            fee,
+        )
     }
 }

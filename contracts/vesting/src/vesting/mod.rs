@@ -51,6 +51,7 @@ mod tests {
     use mixnet_contract_common::{Gateway, MixNode, Percent};
     use vesting_contract_common::messages::{ExecuteMsg, VestingSpecification};
     use vesting_contract_common::Period;
+    use vesting_contract_common::PledgeCap;
 
     #[test]
     fn test_account_creation() {
@@ -61,6 +62,7 @@ mod tests {
             owner_address: "owner".to_string(),
             staking_address: Some("staking".to_string()),
             vesting_spec: None,
+            cap: Some(PledgeCap::Absolute(Uint128::from(100_000_000_000u128))),
         };
         // Try creating an account when not admin
         let response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
@@ -813,6 +815,7 @@ mod tests {
             },
             Timestamp::from_seconds(account_creation_timestamp),
             periods,
+            Some(PledgeCap::Absolute(Uint128::from(100_000_000_000u128))),
             deps.as_mut().storage,
         )
         .unwrap();

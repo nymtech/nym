@@ -10,7 +10,7 @@ use cw_storage_plus::Bound;
 use mixnet_contract_common::MixId;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vesting_contract_common::{Period, PledgeData};
+use vesting_contract_common::{Period, PledgeCap, PledgeData};
 
 mod delegating_account;
 mod gateway_bonding_account;
@@ -31,6 +31,7 @@ pub struct Account {
     pub periods: Vec<VestingPeriod>,
     pub coin: Coin,
     storage_key: u32,
+    pub pledge_cap: Option<PledgeCap>,
 }
 
 impl Account {
@@ -40,6 +41,7 @@ impl Account {
         coin: Coin,
         start_time: Timestamp,
         periods: Vec<VestingPeriod>,
+        pledge_cap: Option<PledgeCap>,
         storage: &mut dyn Storage,
     ) -> Result<Self, ContractError> {
         let storage_key = generate_storage_key(storage)?;
@@ -51,10 +53,24 @@ impl Account {
             periods,
             coin,
             storage_key,
+            pledge_cap,
         };
         save_account(&account, storage)?;
         account.save_balance(amount, storage)?;
         Ok(account)
+    }
+
+    pub fn pledge_cap(&self) -> PledgeCap {
+        self.pledge_cap.clone().unwrap_or_default()
+    }
+
+    pub fn absolute_pledge_cap(&self, storage: &dyn Storage) -> Result<Uint128, ContractError> {
+        match self.pledge_cap() {
+            PledgeCap::Absolute(cap) => Ok(cap),
+            PledgeCap::Percent(p) => Ok(Uint128::from(
+                self.load_balance(storage)?.u128() * (p as u128 / 100u128),
+            )),
+        }
     }
 
     pub fn coin(&self) -> Coin {

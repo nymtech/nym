@@ -12,6 +12,7 @@ use validator_client::nymd::AccountId;
 use validator_client::nymd::VestingSigningClient;
 use validator_client::nymd::{CosmosCoin, Denom};
 use vesting_contract_common::messages::VestingSpecification;
+use vesting_contract_common::PledgeCap;
 
 use crate::context::SigningClient;
 
@@ -34,6 +35,9 @@ pub struct Args {
 
     #[clap(long)]
     pub staking_address: Option<String>,
+
+    #[clap(long)]
+    pub pledge_cap: Option<PledgeCap>,
 }
 
 pub async fn create(args: Args, client: SigningClient, network_details: &NymNetworkDetails) {
@@ -55,6 +59,7 @@ pub async fn create(args: Args, client: SigningClient, network_details: &NymNetw
             args.staking_address,
             Some(vesting),
             coin.into(),
+            args.pledge_cap,
             None,
         )
         .await

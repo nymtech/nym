@@ -1,6 +1,5 @@
 use super::PledgeData;
 use crate::errors::ContractError;
-use crate::storage::locked_pledge_cap;
 use crate::storage::MIXNET_CONTRACT_ADDRESS;
 use crate::traits::GatewayBondingAccount;
 use crate::traits::VestingAccount;
@@ -23,7 +22,7 @@ impl GatewayBondingAccount for Account {
     ) -> Result<Response, ContractError> {
         let current_balance = self.load_balance(storage)?;
         let total_pledged_after = self.total_pledged_locked(storage, env)? + pledge.amount;
-        let locked_pledge_cap = locked_pledge_cap(storage);
+        let locked_pledge_cap = self.absolute_pledge_cap(storage)?;
 
         if locked_pledge_cap < total_pledged_after {
             return Err(ContractError::LockedPledgeCapReached {

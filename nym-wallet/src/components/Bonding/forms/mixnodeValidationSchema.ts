@@ -49,7 +49,7 @@ export const amountSchema = Yup.object().shape({
   }),
   profitMargin: Yup.number().required('Profit Percentage is required').min(0).max(100),
   operatorCost: Yup.object().shape({
-    amount: Yup.string()
+    amount: Yup.number()
       .required('An operating cost is required')
       .test('valid-operating-cost', 'Operating cost must be at least 40', async function isValidAmount(this, value) {
         if (value && isLessThan(+value, 40)) {

@@ -1,26 +1,25 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::constants::MINIMUM_DEPOSIT;
+use crate::dealers::queries::{
+    query_current_dealers_paged, query_dealer_details, query_past_dealers_paged,
+};
+use crate::dealings::queries::query_epoch_dealings_commitments_paged;
 use crate::error::ContractError;
+use crate::state::{State, STATE};
 use coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use coconut_dkg_common::types::MinimumDepositResponse;
 use cosmwasm_std::{
     entry_point, to_binary, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
 };
 use cw4::Cw4Contract;
-use crate::constants::MINIMUM_DEPOSIT;
-use crate::state::{State, STATE};
-use crate::dealers::queries::{
-     query_current_dealers_paged,
-    query_dealer_details, query_past_dealers_paged,
-};
-use crate::dealings::queries::query_epoch_dealings_commitments_paged;
 
+mod constants;
+mod dealers;
+mod dealings;
 mod error;
 mod state;
-mod dealers;
-mod constants;
-mod dealings;
 
 /// Instantiate the contract.
 ///
@@ -58,16 +57,12 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::RegisterDealer {
-            bte_key_with_proof,
-        } => dealers::transactions::try_add_dealer(
-            deps,
-            info,
-            bte_key_with_proof,
-        ),
-        ExecuteMsg::CommitDealing {
-            commitment,
-        } => dealings::transactions::try_commit_dealing(deps, info,  commitment),
+        ExecuteMsg::RegisterDealer { bte_key_with_proof } => {
+            dealers::transactions::try_add_dealer(deps, info, bte_key_with_proof)
+        }
+        ExecuteMsg::CommitDealing { commitment } => {
+            dealings::transactions::try_commit_dealing(deps, info, commitment)
+        }
         ExecuteMsg::DebugUnsafeResetAll { init_msg } => {
             reset_contract_state(deps, env, info, init_msg)
         }
@@ -127,14 +122,9 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
             MINIMUM_DEPOSIT.u128(),
             STATE.load(deps.storage)?.mix_denom,
         )))?,
-        QueryMsg::GetDealingsCommitments {
-            limit,
-            start_after,
-        } => to_binary(&query_epoch_dealings_commitments_paged(
-            deps,
-            start_after,
-            limit,
-        )?)?,
+        QueryMsg::GetDealingsCommitments { limit, start_after } => to_binary(
+            &query_epoch_dealings_commitments_paged(deps, start_after, limit)?,
+        )?,
     };
 
     Ok(response)
@@ -158,7 +148,7 @@ mod tests {
         let env = mock_env();
         let msg = InstantiateMsg {
             group_addr: "group_addr".to_string(),
-            mix_denom: "nym".to_string()
+            mix_denom: "nym".to_string(),
         };
         let info = mock_info("creator", &[]);
 

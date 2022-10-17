@@ -3,8 +3,8 @@
 
 use cw4::Cw4Contract;
 use cw_storage_plus::Item;
-use serde::{Serialize, Deserialize};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]
 pub struct State {

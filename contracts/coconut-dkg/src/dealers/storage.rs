@@ -1,11 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_dkg_common::types::{
-     DealerDetails, NodeIndex,
-};
+use coconut_dkg_common::types::{DealerDetails, NodeIndex};
 use cosmwasm_std::{Addr, StdResult, Storage};
-use cw_storage_plus::{Index, IndexList, IndexedMap, Item,  UniqueIndex};
+use cw_storage_plus::{Index, IndexList, IndexedMap, Item, UniqueIndex};
 
 const CURRENT_DEALERS_PK: &str = "crd";
 const PAST_DEALERS_PK: &str = "ptd";

@@ -14,13 +14,13 @@ pub enum ContractError {
     InvalidGroup { addr: String },
 
     #[error("No coin was sent for the deposit, you must send {denom}")]
-    NoDepositFound{denom: String},
+    NoDepositFound { denom: String },
 
     #[error("Received multiple coin types")]
     MultipleDenoms,
 
     #[error("Wrong coin denomination, you must send {denom}")]
-    WrongDenom{denom: String},
+    WrongDenom { denom: String },
 
     #[error("Not enough funds sent for deposit. (received {received}, minimum {minimum})")]
     InsufficientDeposit { received: u128, minimum: u128 },

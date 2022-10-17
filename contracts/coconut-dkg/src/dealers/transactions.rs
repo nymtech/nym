@@ -1,23 +1,16 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::constants::{ MINIMUM_DEPOSIT};
+use crate::constants::MINIMUM_DEPOSIT;
 use crate::dealers::storage as dealers_storage;
-use crate::{ContractError, STATE, State};
-use coconut_dkg_common::types::{
-     DealerDetails, EncodedBTEPublicKeyWithProof,
-
-};
-use cosmwasm_std::{Addr, Coin,  DepsMut,  MessageInfo, Response};
+use crate::{ContractError, State, STATE};
+use coconut_dkg_common::types::{DealerDetails, EncodedBTEPublicKeyWithProof};
+use cosmwasm_std::{Addr, Coin, DepsMut, MessageInfo, Response};
 
 // currently we only require that
 // a) it's part of the signer group
 // b) it isn't already a dealer
-fn verify_dealer(
-    deps: DepsMut<'_>,
-    state: &State,
-    dealer: &Addr,
-) -> Result<(), ContractError> {
+fn verify_dealer(deps: DepsMut<'_>, state: &State, dealer: &Addr) -> Result<(), ContractError> {
     if dealers_storage::current_dealers()
         .may_load(deps.storage, dealer)?
         .is_some()
@@ -36,7 +29,9 @@ fn verify_dealer(
 fn validate_dealer_deposit(state: &State, mut deposit: Vec<Coin>) -> Result<Coin, ContractError> {
     // check if anything was put as deposit
     if deposit.is_empty() {
-        return Err(ContractError::NoDepositFound{denom: state.mix_denom.clone()});
+        return Err(ContractError::NoDepositFound {
+            denom: state.mix_denom.clone(),
+        });
     }
 
     if deposit.len() > 1 {
@@ -45,7 +40,9 @@ fn validate_dealer_deposit(state: &State, mut deposit: Vec<Coin>) -> Result<Coin
 
     // check that the denomination is correct
     if deposit[0].denom != state.mix_denom {
-        return Err(ContractError::WrongDenom {denom: state.mix_denom.clone()});
+        return Err(ContractError::WrongDenom {
+            denom: state.mix_denom.clone(),
+        });
     }
 
     // check that we have at least MINIMUM_DEPOSIT coins in our deposit
@@ -58,7 +55,9 @@ fn validate_dealer_deposit(state: &State, mut deposit: Vec<Coin>) -> Result<Coin
 
     // the unwrap would have been safe here under all circumstances, since we checked whether the vector is empty
     // but in case something did change, change option into an error
-    deposit.pop().ok_or(ContractError::NoDepositFound{denom: state.mix_denom.clone()})
+    deposit.pop().ok_or(ContractError::NoDepositFound {
+        denom: state.mix_denom.clone(),
+    })
 }
 
 pub fn try_add_dealer(
@@ -75,7 +74,7 @@ pub fn try_add_dealer(
 
     // if it was already a dealer in the past, assign the same node index
     let node_index = if let Some(prior_details) =
-    dealers_storage::past_dealers().may_load(deps.storage, &info.sender)?
+        dealers_storage::past_dealers().may_load(deps.storage, &info.sender)?
     {
         // since this dealer is going to become active now, remove it from the past dealers
         dealers_storage::past_dealers().replace(

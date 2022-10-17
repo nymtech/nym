@@ -26,9 +26,7 @@ pub fn query_epoch_dealings_commitments_paged(
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|res| {
-            res.map(|(dealer, commitment)| {
-                ContractDealingCommitment::new(commitment, dealer)
-            })
+            res.map(|(dealer, commitment)| ContractDealingCommitment::new(commitment, dealer))
         })
         .collect::<StdResult<Vec<_>>>()?;
 

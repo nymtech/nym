@@ -31,6 +31,7 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use nymsphinx::anonymous_replies::ReplySurb;
+use nymsphinx::params::PacketSize;
 use nymsphinx::receiver::ReconstructedMessage;
 use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
 
@@ -90,7 +91,7 @@ impl NymClient {
     ) {
         info!("Starting loop cover traffic stream...");
 
-        LoopCoverTrafficStream::new(
+        let mut stream = LoopCoverTrafficStream::new(
             self.key_manager.ack_key(),
             self.config.get_base().get_average_ack_delay(),
             self.config.get_base().get_average_packet_delay(),
@@ -100,9 +101,13 @@ impl NymClient {
             mix_tx,
             self.as_mix_recipient(),
             topology_accessor,
-            shutdown,
-        )
-        .start();
+        );
+
+        if self.config.get_base().get_use_extended_packet_size() {
+            stream.set_custom_packet_size(PacketSize::ExtendedPacket)
+        }
+
+        stream.start_with_shutdown(shutdown);
     }
 
     fn start_real_traffic_controller(
@@ -114,15 +119,22 @@ impl NymClient {
         mix_sender: BatchMixMessageSender,
         shutdown: ShutdownListener,
     ) {
-        let controller_config = real_messages_control::Config::new(
+        let mut controller_config = real_messages_control::Config::new(
             self.key_manager.ack_key(),
             self.config.get_base().get_ack_wait_multiplier(),
             self.config.get_base().get_ack_wait_addition(),
             self.config.get_base().get_average_ack_delay(),
             self.config.get_base().get_message_sending_average_delay(),
             self.config.get_base().get_average_packet_delay(),
+            self.config
+                .get_base()
+                .get_disabled_main_poisson_packet_distribution(),
             self.as_mix_recipient(),
         );
+
+        if self.config.get_base().get_use_extended_packet_size() {
+            controller_config.set_custom_packet_size(PacketSize::ExtendedPacket)
+        }
 
         info!("Starting real traffic stream...");
 
@@ -133,9 +145,8 @@ impl NymClient {
             mix_sender,
             topology_accessor,
             reply_key_storage,
-            shutdown,
         )
-        .start();
+        .start_with_shutdown(shutdown);
     }
 
     // buffer controlling all messages fetched from provider
@@ -153,9 +164,8 @@ impl NymClient {
             query_receiver,
             mixnet_receiver,
             reply_key_storage,
-            shutdown,
         )
-        .start()
+        .start_with_shutdown(shutdown)
     }
 
     async fn start_gateway_client(
@@ -245,7 +255,7 @@ impl NymClient {
         }
 
         info!("Starting topology refresher...");
-        topology_refresher.start(shutdown);
+        topology_refresher.start_with_shutdown(shutdown);
     }
 
     // controller for sending sphinx packets to mixnet (either real traffic or cover traffic)
@@ -259,7 +269,7 @@ impl NymClient {
         shutdown: ShutdownListener,
     ) {
         info!("Starting mix traffic controller...");
-        MixTrafficController::new(mix_rx, gateway_client, shutdown).start();
+        MixTrafficController::new(mix_rx, gateway_client).start_with_shutdown(shutdown);
     }
 
     fn start_websocket_listener(
@@ -401,11 +411,17 @@ impl NymClient {
             shutdown.subscribe(),
         );
 
-        self.start_cover_traffic_stream(
-            shared_topology_accessor,
-            sphinx_message_sender,
-            shutdown.subscribe(),
-        );
+        if !self
+            .config
+            .get_base()
+            .get_disabled_loop_cover_traffic_stream()
+        {
+            self.start_cover_traffic_stream(
+                shared_topology_accessor,
+                sphinx_message_sender,
+                shutdown.subscribe(),
+            );
+        }
 
         match self.config.get_socket_type() {
             SocketType::WebSocket => {

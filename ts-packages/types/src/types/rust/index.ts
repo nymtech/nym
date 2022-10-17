@@ -40,6 +40,7 @@ export * from './PendingIntervalEventData';
 export * from './PendingUndelegate';
 export * from './Period';
 export * from './PledgeData';
+export * from './RewardEstimationResponse';
 export * from './RewardedSetNodeStatus';
 export * from './RewardingParams';
 export * from './RpcTransactionResponse';

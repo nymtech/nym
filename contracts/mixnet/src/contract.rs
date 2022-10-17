@@ -138,7 +138,7 @@ pub fn execute(
             expected_active_set_size,
         ),
         ExecuteMsg::ReconcileEpochEvents { limit } => {
-            crate::interval::transactions::try_reconcile_epoch_events(deps, env, limit)
+            crate::interval::transactions::try_reconcile_epoch_events(deps, env, info, limit)
         }
 
         // mixnode-related:
@@ -258,6 +258,12 @@ pub fn execute(
             crate::rewards::transactions::try_withdraw_delegator_reward_on_behalf(
                 deps, info, mix_id, owner,
             )
+        }
+
+        // testing-only
+        #[cfg(feature = "contract-testing")]
+        ExecuteMsg::TestingResolveAllPendingEvents { limit } => {
+            crate::testing::transactions::try_resolve_all_pending_events(deps, env, limit)
         }
     }
 }

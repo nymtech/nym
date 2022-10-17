@@ -67,6 +67,7 @@ members = [
     "explorer-api",
     "gateway",
     "gateway/gateway-requests",
+    "integrations/bity",
     "mixnode",
     "service-providers/network-requester",
     "service-providers/network-statistics",

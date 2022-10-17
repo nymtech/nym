@@ -160,7 +160,7 @@ mod qa {
     pub(crate) const STAKE_DENOM: DenomDetails = DenomDetails::new("unyx", "nyx", 6);
 
     pub(crate) const MIXNET_CONTRACT_ADDRESS: &str =
-        "n1suhgf5svhu4usrurvxzlgn54ksxmn8gljarjtxqnapv8kjnp4nrsd3qaep";
+        "n1rjzps6qrmdqmf0xz4cn4x4rcmqeqzq6hnzqg4wcvd0r2lyasdq5sepn5s8";
     pub(crate) const VESTING_CONTRACT_ADDRESS: &str =
         "n1xr3rq8yvd7qplsw5yx90ftsr2zdhg4e9z60h5duusgxpv72hud3sjkxkav";
     pub(crate) const BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str =

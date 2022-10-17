@@ -9,21 +9,23 @@ use self::{
     acknowledgement_control::AcknowledgementController, real_traffic_stream::OutQueueControl,
 };
 use crate::client::real_messages_control::acknowledgement_control::AcknowledgementControllerConnectors;
-use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::{
     inbound_messages::InputMessageReceiver, mix_traffic::BatchMixMessageSender,
     topology_control::TopologyAccessor,
 };
+use crate::spawn_future;
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::params::PacketSize;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 use std::time::Duration;
-use task::ShutdownListener;
-use tokio::task::JoinHandle;
+
+#[cfg(feature = "reply-surb")]
+use crate::client::reply_key_storage::ReplyKeyStorage;
 
 mod acknowledgement_control;
 mod real_traffic_stream;
@@ -50,9 +52,18 @@ pub struct Config {
 
     /// Average delay an acknowledgement packet is going to get delayed at a single mixnode.
     average_ack_delay_duration: Duration,
+
+    /// Controls whether the main packet stream constantly produces packets according to the predefined
+    /// poisson distribution.
+    disable_main_poisson_packet_distribution: bool,
+
+    /// Predefined packet size used for the encapsulated messages.
+    packet_size: PacketSize,
 }
 
 impl Config {
+    // TODO: change the config into a builder
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         ack_key: Arc<AckKey>,
         ack_wait_multiplier: f64,
@@ -60,6 +71,7 @@ impl Config {
         average_ack_delay_duration: Duration,
         average_message_sending_delay: Duration,
         average_packet_delay_duration: Duration,
+        disable_main_poisson_packet_distribution: bool,
         self_recipient: Recipient,
     ) -> Self {
         Config {
@@ -70,7 +82,13 @@ impl Config {
             average_message_sending_delay,
             average_packet_delay_duration,
             average_ack_delay_duration,
+            disable_main_poisson_packet_distribution,
+            packet_size: Default::default(),
         }
+    }
+
+    pub fn set_custom_packet_size(&mut self, packet_size: PacketSize) {
+        self.packet_size = packet_size;
     }
 }
 
@@ -78,8 +96,8 @@ pub struct RealMessagesController<R>
 where
     R: CryptoRng + Rng,
 {
-    out_queue_control: Option<OutQueueControl<R>>,
-    ack_control: Option<AcknowledgementController<R>>,
+    out_queue_control: OutQueueControl<R>,
+    ack_control: AcknowledgementController<R>,
 }
 
 // obviously when we finally make shared rng that is on 'higher' level, this should become
@@ -91,8 +109,7 @@ impl RealMessagesController<OsRng> {
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
         topology_access: TopologyAccessor,
-        reply_key_storage: ReplyKeyStorage,
-        shutdown: ShutdownListener,
+        #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
     ) -> Self {
         let rng = OsRng;
 
@@ -111,7 +128,8 @@ impl RealMessagesController<OsRng> {
             config.ack_wait_multiplier,
             config.average_ack_delay_duration,
             config.average_packet_delay_duration,
-        );
+        )
+        .with_custom_packet_size(config.packet_size);
 
         let ack_control = AcknowledgementController::new(
             ack_control_config,
@@ -119,16 +137,18 @@ impl RealMessagesController<OsRng> {
             topology_access.clone(),
             Arc::clone(&config.ack_key),
             config.self_recipient,
-            reply_key_storage,
             ack_controller_connectors,
-            shutdown.clone(),
+            #[cfg(feature = "reply-surb")]
+            reply_key_storage,
         );
 
         let out_queue_config = real_traffic_stream::Config::new(
             config.average_ack_delay_duration,
             config.average_packet_delay_duration,
             config.average_message_sending_delay,
-        );
+            config.disable_main_poisson_packet_distribution,
+        )
+        .with_custom_cover_packet_size(config.packet_size);
 
         let out_queue_control = OutQueueControl::new(
             out_queue_config,
@@ -139,44 +159,36 @@ impl RealMessagesController<OsRng> {
             rng,
             config.self_recipient,
             topology_access,
-            shutdown,
         );
 
         RealMessagesController {
-            out_queue_control: Some(out_queue_control),
-            ack_control: Some(ack_control),
+            out_queue_control,
+            ack_control,
         }
     }
 
-    pub(super) async fn run(&mut self) {
-        let mut out_queue_control = self.out_queue_control.take().unwrap();
-        let mut ack_control = self.ack_control.take().unwrap();
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn start_with_shutdown(self, shutdown: task::ShutdownListener) {
+        let mut out_queue_control = self.out_queue_control;
+        let ack_control = self.ack_control;
 
-        // the below are log messages are errors as at the current stage we do not expect any of
-        // the task to ever finish. This will of course change once we introduce
-        // graceful shutdowns.
-        let out_queue_control_fut = tokio::spawn(async move {
-            out_queue_control.run_out_queue_control().await;
+        let shutdown_handle = shutdown.clone();
+        spawn_future(async move {
+            out_queue_control.run_with_shutdown(shutdown_handle).await;
             debug!("The out queue controller has finished execution!");
-            out_queue_control
         });
-        let ack_control_fut = tokio::spawn(async move {
-            ack_control.run().await;
-            debug!("The acknowledgement controller has finished execution!");
-            ack_control
-        });
-
-        // technically we don't have to bring `RealMessagesController` back to a valid state
-        // but we can do it, so why not? Perhaps it might be useful if we wanted to allow
-        // for restarts of certain modules without killing the entire process.
-        self.out_queue_control = Some(out_queue_control_fut.await.unwrap());
-        self.ack_control = Some(ack_control_fut.await.unwrap());
+        ack_control.start_with_shutdown(shutdown);
     }
 
-    pub fn start(mut self) -> JoinHandle<Self> {
-        tokio::spawn(async move {
-            self.run().await;
-            self
-        })
+    #[cfg(target_arch = "wasm32")]
+    pub fn start(self) {
+        let mut out_queue_control = self.out_queue_control;
+        let ack_control = self.ack_control;
+
+        spawn_future(async move {
+            out_queue_control.run().await;
+            debug!("The out queue controller has finished execution!");
+        });
+        ack_control.start();
     }
 }

@@ -13,7 +13,7 @@ export const ActionsMenu: React.FC<{ open: boolean; onOpen: () => void; onClose:
   return (
     <>
       <IconButton ref={anchorEl} onClick={onOpen}>
-        <MoreVertSharp />
+        <MoreVertSharp sx={{ color: (t) => t.palette.nym.nymWallet.text.main }} />
       </IconButton>
       <Menu anchorEl={anchorEl.current} open={open} onClose={onClose}>
         {children}

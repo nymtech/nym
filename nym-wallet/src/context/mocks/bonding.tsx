@@ -16,6 +16,16 @@ const bondedMixnodeMock: TBondedMixnode = {
   operatorRewards: { denom: 'nym', amount: '1234' },
   delegators: 5423,
   status: 'active',
+  operatorCost: '0.22',
+  host: '1.2.3.4',
+  routingScore: 75,
+  activeSetProbability: 'High',
+  standbySetProbability: 'Low',
+  estimatedRewards: { denom: 'nym', amount: '2' },
+  httpApiPort: 8000,
+  mixPort: 1789,
+  verlocPort: 1790,
+  version: '1.0.2',
 };
 
 const bondedGatewayMock: TBondedGateway = {
@@ -23,6 +33,11 @@ const bondedGatewayMock: TBondedGateway = {
   identityKey: 'WayM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
   ip: '112.43.234.57',
   bond: { denom: 'nym', amount: '1234' },
+  host: '1.2.34.5 ',
+  httpApiPort: 8000,
+  mixPort: 1789,
+  verlocPort: 1790,
+  version: '1.0.2',
 };
 
 const TxResultMock: TransactionExecuteResult = {
@@ -122,14 +137,6 @@ export const MockBondingContextProvider = ({
     return TxResultMock;
   };
 
-  const compoundRewards = async (): Promise<TransactionExecuteResult | undefined> => {
-    setIsLoading(true);
-    await mockSleep(SLEEP_MS);
-    triggerStateUpdate();
-    setIsLoading(false);
-    return TxResultMock;
-  };
-
   const updateMixnode = async (): Promise<TransactionExecuteResult> => {
     setIsLoading(true);
     await mockSleep(SLEEP_MS);
@@ -165,7 +172,6 @@ export const MockBondingContextProvider = ({
       unbond,
       refresh,
       redeemRewards,
-      compoundRewards,
       fee,
       feeLoading,
       getFee,

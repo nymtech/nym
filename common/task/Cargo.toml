@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 log = "0.4"
-tokio = { version = "1.19.1", features = ["rt-multi-thread", "net", "signal"] }
+tokio = { version = "1.21.2", features = ["macros", "signal", "time", "sync"] }
 
 [dev-dependencies]
-tokio = { version = "1.19.1", features = ["rt-multi-thread", "net", "signal", "test-util", "macros"] }
+tokio = { version = "1.21.2", features = ["rt-multi-thread", "net", "signal", "test-util", "macros"] }

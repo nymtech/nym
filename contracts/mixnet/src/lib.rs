@@ -10,3 +10,6 @@ mod mixnet_contract_settings;
 mod mixnodes;
 mod rewards;
 mod support;
+
+#[cfg(feature = "contract-testing")]
+mod testing;

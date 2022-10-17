@@ -104,6 +104,9 @@ fmt-connect:
 wasm:
 	RUSTFLAGS='-C link-arg=-s' cargo build --manifest-path contracts/Cargo.toml --release --target wasm32-unknown-unknown
 
+mixnet-opt: wasm
+	cd contracts/mixnet && make opt
+
 generate-typescript:
 	cd tools/ts-rs-cli && cargo run && cd ../..
 	yarn types:lint:fix

@@ -580,6 +580,7 @@ pub struct UnbondedMixnode {
     #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
     pub proxy: Option<Addr>,
 
+    #[cfg_attr(feature = "generate-ts", ts(type = "number"))]
     pub unbonding_height: u64,
 }
 

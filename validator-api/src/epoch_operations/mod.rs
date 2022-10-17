@@ -151,24 +151,34 @@ impl RewardedSetUpdater {
     }
 
     async fn nodes_to_reward(&self, interval: Interval) -> Vec<MixnodeToReward> {
-        let rewarded_set = self
-            .validator_cache
-            .rewarded_set_detailed()
-            .await
-            .into_inner();
+        // try to get current up to date view of the network bypassing the cache
+        // in case the epochs were significantly shortened for the purposes of testing
+        let rewarded_set: Vec<NodeId> = match self.nymd_client.get_rewarded_set_mixnodes().await {
+            Ok(nodes) => nodes.into_iter().map(|(id, _)| id).collect::<Vec<_>>(),
+            Err(err) => {
+                warn!("failed to obtain the current rewarded set - {}. falling back to the cached version", err);
+                self.validator_cache
+                    .rewarded_set_detailed()
+                    .await
+                    .into_inner()
+                    .into_iter()
+                    .map(|node| node.mix_id())
+                    .collect::<Vec<_>>()
+            }
+        };
 
         let mut eligible_nodes = Vec::with_capacity(rewarded_set.len());
-        for mixnode in rewarded_set {
+        for mix_id in rewarded_set {
             let uptime = self
                 .storage
                 .get_average_mixnode_uptime_in_the_last_24hrs(
-                    mixnode.mix_id(),
+                    mix_id,
                     interval.current_epoch_end_unix_timestamp(),
                 )
                 .await
                 .unwrap_or_default();
             eligible_nodes.push(MixnodeToReward {
-                mix_id: mixnode.mix_id(),
+                mix_id,
                 performance: uptime.into(),
             })
         }

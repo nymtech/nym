@@ -91,7 +91,7 @@ export const AccountsModal = () => {
             startIcon={<Add fontSize="small" />}
             onClick={() => setDialogToDisplay('Add')}
           >
-            Add new account
+            Create account
           </Button>
         </DialogActions>
       </Paper>

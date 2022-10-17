@@ -138,8 +138,6 @@ pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Respon
 #[cfg(test)]
 mod tests {
     use super::*;
-    use config::defaults::DENOM;
-    use cosmwasm_std::coins;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
 
     #[test]

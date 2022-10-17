@@ -14,7 +14,7 @@ pub struct DealerDetails {
     pub deposit: Coin,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum DealerType {
     Current,
@@ -66,7 +66,7 @@ impl PagedDealerResponse {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct ContractDealingCommitment {
     pub commitment: ContractSafeCommitment,
@@ -79,7 +79,7 @@ impl ContractDealingCommitment {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct PagedCommitmentsResponse {
     pub commitments: Vec<ContractDealingCommitment>,

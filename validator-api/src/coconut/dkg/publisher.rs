@@ -5,6 +5,7 @@ use crate::coconut::client::Client;
 use crate::coconut::error::CoconutError;
 use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, NodeIndex};
 use contracts_common::commitment::ContractSafeCommitment;
+use validator_client::nymd::cosmwasm_client::logs::{find_attribute, NODE_INDEX};
 use validator_client::nymd::AccountId;
 
 pub(crate) struct Publisher {
@@ -28,18 +29,18 @@ impl Publisher {
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
     ) -> Result<NodeIndex, CoconutError> {
-        self.client.register_dealer(bte_key).await?;
+        let res = self.client.register_dealer(bte_key).await?;
+        let node_index = find_attribute(&res.logs, "wasm", NODE_INDEX)
+            .ok_or(CoconutError::NodeIndexRecoveryError {
+                reason: String::from("node index not found"),
+            })?
+            .value
+            .parse::<NodeIndex>()
+            .map_err(|_| CoconutError::NodeIndexRecoveryError {
+                reason: String::from("node index could not be parsed"),
+            })?;
 
-        // once we figure out how to properly deserialize `data` field from the response use that
-        // instead of this query
-        let self_details = self.client.get_self_registered_dealer_details().await?;
-        if let Some(details) = self_details.details {
-            if self_details.dealer_type.is_current() {
-                return Ok(details.assigned_index);
-            }
-        }
-
-        Err(CoconutError::NodeIndexRecoveryError)
+        Ok(node_index)
     }
 
     pub(crate) async fn submit_dealing_commitment(

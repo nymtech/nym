@@ -97,5 +97,5 @@ pub fn try_add_dealer(
     };
     dealers_storage::current_dealers().save(deps.storage, &info.sender, &dealer_details)?;
 
-    Ok(Response::new().set_data(node_index.to_be_bytes()))
+    Ok(Response::new().add_attribute("node_index", node_index.to_string()))
 }

@@ -665,7 +665,9 @@ name = "contracts-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "schemars",
  "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -5308,6 +5310,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 name = "vesting-contract"
 version = "1.1.0"
 dependencies = [
+ "contracts-common",
  "cosmwasm-std",
  "cw-storage-plus",
  "mixnet-contract-common",
@@ -5321,7 +5324,9 @@ dependencies = [
 name = "vesting-contract-common"
 version = "0.1.0"
 dependencies = [
+ "contracts-common",
  "cosmwasm-std",
+ "log",
  "mixnet-contract-common",
  "schemars",
  "serde",

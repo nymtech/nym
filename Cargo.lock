@@ -737,7 +737,9 @@ name = "contracts-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "schemars",
  "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -1584,6 +1586,7 @@ dependencies = [
  "chrono",
  "clap 3.2.8",
  "dotenv",
+ "contracts-common",
  "humantime-serde",
  "isocountry",
  "itertools",
@@ -3349,6 +3352,7 @@ dependencies = [
  "coconut-interface",
  "config",
  "console-subscriber",
+ "contracts-common",
  "cosmwasm-std",
  "credential-storage",
  "credentials",
@@ -6474,6 +6478,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 name = "vesting-contract"
 version = "1.1.0"
 dependencies = [
+ "contracts-common",
  "cosmwasm-std",
  "cw-storage-plus",
  "mixnet-contract-common",
@@ -6487,7 +6492,9 @@ dependencies = [
 name = "vesting-contract-common"
 version = "0.1.0"
 dependencies = [
+ "contracts-common",
  "cosmwasm-std",
+ "log",
  "mixnet-contract-common",
  "schemars",
  "serde",

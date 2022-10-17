@@ -31,6 +31,7 @@ pub struct Account {
     pub periods: Vec<VestingPeriod>,
     pub coin: Coin,
     storage_key: u32,
+    #[serde(default)]
     pub pledge_cap: Option<PledgeCap>,
 }
 
@@ -67,9 +68,7 @@ impl Account {
     pub fn absolute_pledge_cap(&self, storage: &dyn Storage) -> Result<Uint128, ContractError> {
         match self.pledge_cap() {
             PledgeCap::Absolute(cap) => Ok(cap),
-            PledgeCap::Percent(p) => Ok(Uint128::from(
-                self.load_balance(storage)?.u128() * (p as u128 / 100u128),
-            )),
+            PledgeCap::Percent(p) => Ok(p * self.load_balance(storage)?),
         }
     }
 

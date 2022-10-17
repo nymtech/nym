@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::contract_cache::{Cache, CacheNotification, ValidatorCache};
-use mixnet_contract_common::rewarding::helpers::truncate_decimal;
-use mixnet_contract_common::{MixId, MixNodeDetails, RewardingParams};
+use contracts_common::truncate_decimal;
+use mixnet_contract_common::{MixNodeDetails, MixId, RewardingParams};
 use rocket::fairing::AdHoc;
 use serde::Serialize;
 use std::{sync::Arc, time::Duration};

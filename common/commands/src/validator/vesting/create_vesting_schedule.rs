@@ -36,7 +36,10 @@ pub struct Args {
     #[clap(long)]
     pub staking_address: Option<String>,
 
-    #[clap(long)]
+    #[clap(
+        long,
+        help = "Specify pledge cap as either absolute uNYM value or percentage, flgitoats need to be in the 0.0 to 1.0 range and will be parsed as percentages, integers will be parsed as uNYM"
+    )]
     pub pledge_cap: Option<PledgeCap>,
 }
 

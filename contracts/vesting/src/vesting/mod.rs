@@ -38,6 +38,7 @@ pub fn populate_vesting_periods(
 mod tests {
     use crate::contract::*;
     use crate::storage::*;
+    use crate::support::tests::helpers::vesting_account_percent_fixture;
     use crate::support::tests::helpers::{
         init_contract, vesting_account_mid_fixture, vesting_account_new_fixture, TEST_COIN_DENOM,
     };
@@ -389,6 +390,19 @@ mod tests {
 
         // vesting - delegated_vesting - pledged_vesting
         assert_eq!(locked_coins.amount, Uint128::new(660_000_000_000));
+    }
+
+    #[test]
+    fn test_percent_cap() {
+        let mut deps = init_contract();
+        let env = mock_env();
+
+        let account = vesting_account_percent_fixture(&mut deps.storage, &env);
+
+        assert_eq!(
+            account.absolute_pledge_cap(&deps.storage).unwrap(),
+            Uint128::new(100_000_000_000)
+        )
     }
 
     #[test]

@@ -155,9 +155,8 @@ pub fn try_update_locked_pledge_cap(
         return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
     }
     let mut account = account_from_address(&address, deps.storage, deps.api)?;
-    if cap.valid() {
-        account.pledge_cap = Some(cap)
-    }
+
+    account.pledge_cap = Some(cap);
     // update_locked_pledge_cap(amount, deps.storage)?;
     Ok(Response::default())
 }
@@ -445,8 +444,6 @@ fn try_create_periodic_vesting_account(
     if info.sender != ADMIN.load(deps.storage)? {
         return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
     }
-
-    let cap = cap.map(|c| if c.valid() { c } else { PledgeCap::default() });
 
     let mix_denom = MIX_DENOM.load(deps.storage)?;
 

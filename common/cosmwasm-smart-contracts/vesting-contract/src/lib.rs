@@ -2,7 +2,9 @@ use std::str::FromStr;
 
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
+use contracts_common::Percent;
 use cosmwasm_std::{Addr, Coin, Timestamp, Uint128};
+use log::warn;
 use mixnet_contract_common::MixId;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -47,26 +49,33 @@ impl PledgeData {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub enum PledgeCap {
-    Percent(u8),
-    Absolute(Uint128),
+    Percent(Percent),
+    Absolute(Uint128), // This has to be in unym
 }
 
 impl FromStr for PledgeCap {
     type Err = String;
 
     fn from_str(cap: &str) -> Result<Self, Self::Err> {
-        match cap.parse::<f32>() {
-            Ok(f) => {
-                if f > 0. && f <= 1. {
-                    Ok(PledgeCap::Percent((f * 100.) as u8))
-                } else {
-                    Err(format!("Floats have to be > 0. and <= 1., got {}", f))
+        let cap = cap.replace('_', "").replace(',', ".");
+        match Percent::from_str(&cap) {
+            Ok(p) => {
+                if p.is_zero() {
+                    warn!("Pledge cap set to 0%, are you sure this is right?")
+                }
+                Ok(PledgeCap::Percent(p))
+            }
+            Err(_) => {
+                match cap.parse::<u128>() {
+                    Ok(i) => {
+                        if i < 100_000_000_000 {
+                            warn!("PledgeCap set to less then 100_000 NYM, are you sure this is right?");
+                        }
+                        Ok(PledgeCap::Absolute(Uint128::from(i)))
+                    }
+                    Err(_e) => Err(format!("Could not parse {} as Percent or Uint128", cap)),
                 }
             }
-            Err(_) => match cap.parse::<u128>() {
-                Ok(i) => Ok(PledgeCap::Absolute(Uint128::from(i))),
-                Err(_e) => Err(format!("Could not parse {} as f32 or u128", cap)),
-            },
         }
     }
 }
@@ -74,15 +83,6 @@ impl FromStr for PledgeCap {
 impl Default for PledgeCap {
     fn default() -> Self {
         PledgeCap::Absolute(Uint128::from(100_000_000_000u128))
-    }
-}
-
-impl PledgeCap {
-    pub fn valid(&self) -> bool {
-        match &self {
-            PledgeCap::Percent(p) => *p > 0 && *p <= 100,
-            PledgeCap::Absolute(_) => true,
-        }
     }
 }
 
@@ -141,4 +141,33 @@ pub struct DelegationTimesResponse {
 pub struct AllDelegationsResponse {
     pub delegations: Vec<VestingDelegation>,
     pub start_next_after: Option<(u32, MixId, u64)>,
+}
+
+#[cfg(test)]
+mod test {
+    use contracts_common::Percent;
+    use cosmwasm_std::Uint128;
+    use std::str::FromStr;
+
+    use crate::PledgeCap;
+
+    #[test]
+    fn test_pledge_cap_from_str() {
+        assert_eq!(
+            PledgeCap::from_str("0.1").unwrap(),
+            PledgeCap::Percent(Percent::from_percentage_value(10).unwrap())
+        );
+        assert_eq!(
+            PledgeCap::from_str("0,1").unwrap(),
+            PledgeCap::Percent(Percent::from_percentage_value(10).unwrap())
+        );
+        assert_eq!(
+            PledgeCap::from_str("100_000_000_000").unwrap(),
+            PledgeCap::Absolute(Uint128::new(100_000_000_000))
+        );
+        assert_eq!(
+            PledgeCap::from_str("100000000000").unwrap(),
+            PledgeCap::Absolute(Uint128::new(100_000_000_000))
+        );
+    }
 }

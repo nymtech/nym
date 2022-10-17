@@ -19,9 +19,11 @@ export const Alert = ({ title, dismissable }: { title: string | React.ReactNode;
         '& .MuiAlert-icon': { color: 'nym.nymWallet.text.blue', mr: 1 },
       }}
       action={
-        <IconButton aria-label="close" color="inherit" size="small" onClick={dismissable ? handleDismiss : undefined}>
-          <Close fontSize="inherit" />
-        </IconButton>
+        dismissable && (
+          <IconButton aria-label="close" color="inherit" size="small" onClick={handleDismiss}>
+            <Close fontSize="inherit" />
+          </IconButton>
+        )
       }
     >
       {title}

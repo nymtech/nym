@@ -129,7 +129,7 @@ pub const APPROXIMATE_TIME_LEFT_SECS_KEY: &str = "approximate_time_left_secs";
 pub const INTERVAL_REWARDING_PARAMS_UPDATE_KEY: &str = "interval_rewarding_params_update";
 pub const UPDATED_INTERVAL_REWARDING_PARAMS_KEY: &str = "updated_interval_rewarding_params";
 pub const PRIOR_DELEGATES_KEY: &str = "prior_delegates";
-pub const PRIOR_UNIT_DELEGATION_KEY: &str = "prior_unit_delegation";
+pub const PRIOR_UNIT_REWARD: &str = "prior_unit_reward";
 
 pub const DISTRIBUTED_DELEGATION_REWARDS_KEY: &str = "distributed_delegation_rewards";
 pub const FURTHER_DELEGATIONS_TO_REWARD_KEY: &str = "further_delegations";
@@ -453,7 +453,7 @@ pub fn new_mix_rewarding_event(
     mix_id: MixId,
     reward_distribution: RewardDistribution,
     prior_delegates: Decimal,
-    prior_unit_delegation: Decimal,
+    prior_unit_reward: Decimal,
 ) -> Event {
     Event::new(MixnetEventType::MixnodeRewarding)
         .add_attribute(
@@ -461,7 +461,7 @@ pub fn new_mix_rewarding_event(
             interval.current_epoch_absolute_id().to_string(),
         )
         .add_attribute(PRIOR_DELEGATES_KEY, prior_delegates.to_string())
-        .add_attribute(PRIOR_UNIT_DELEGATION_KEY, prior_unit_delegation.to_string())
+        .add_attribute(PRIOR_UNIT_REWARD, prior_unit_reward.to_string())
         .add_attribute(MIX_ID_KEY, mix_id.to_string())
         .add_attribute(
             OPERATOR_REWARD_KEY,

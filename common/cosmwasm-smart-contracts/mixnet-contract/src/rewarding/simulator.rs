@@ -157,6 +157,7 @@ impl Simulator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::helpers::compare_decimals;
     use crate::reward_params::IntervalRewardParams;
     use crate::rewarding::helpers::truncate_reward_amount;
     use cosmwasm_std::testing::mock_env;
@@ -204,15 +205,6 @@ mod tests {
             initial_pledge,
             interval,
         )
-    }
-
-    fn compare_decimals(a: Decimal, b: Decimal) {
-        let epsilon = Decimal::from_ratio(1u128, 100_000_000u128);
-        if a > b {
-            assert!(a - b < epsilon, "{} != {}", a, b)
-        } else {
-            assert!(b - a < epsilon, "{} != {}", a, b)
-        }
     }
 
     // essentially our delegations + estimated rewards HAVE TO equal to what we actually determined

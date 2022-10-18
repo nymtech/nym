@@ -6,6 +6,7 @@ pub mod delegation;
 pub mod error;
 pub mod events;
 pub mod gateway;
+pub mod helpers;
 mod interval;
 pub mod mixnode;
 mod msg;

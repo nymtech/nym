@@ -73,58 +73,6 @@ impl Tau {
         Tau(child)
     }
 
-    pub fn right_child(&self) -> Self {
-        let mut child = self.0.clone();
-        child.push(true);
-        Tau(child)
-    }
-
-    pub fn is_leaf(&self, params: &Params) -> bool {
-        self.height() == params.lambda_t
-    }
-
-    pub fn try_get_parent_at_height(&self, height: usize) -> Result<Self, DkgError> {
-        if height > self.0.len() {
-            return Err(DkgError::NotAValidParent);
-        }
-
-        Ok(Tau(self.0[..height].to_bitvec()))
-    }
-
-    // essentially is this tau prefixing the other
-    pub fn is_parent_of(&self, other: &Tau) -> bool {
-        if self.0.len() > other.0.len() {
-            return false;
-        }
-
-        for (i, b) in self.0.iter().enumerate() {
-            if b != other.0[i] {
-                return false;
-            }
-        }
-
-        true
-    }
-
-    pub fn lowest_valid_epoch_child(&self, params: &Params) -> Result<Epoch, DkgError> {
-        if self.0.len() > params.lambda_t {
-            // this node is already BELOW a valid leaf-epoch node. it can only happen
-            // if either some invariant was broken or additional data was pushed to `tau`
-            // in order compute some intermediate results, but in that case this method should have
-            // never been called anyway. tl;dr: if this is called, the underlying key is malformed
-            return Err(DkgError::NotAValidParent);
-        }
-        let mut child = self.0.clone();
-        for _ in 0..(params.lambda_t - self.0.len()) {
-            child.push(false)
-        }
-
-        // the unwrap here is fine as we ensure we have exactly `params.tree_height` bits here
-        // (we could just propagate the error instead of unwraping and putting it behind an `Ok` anyway
-        // but I'd prefer to just blow up since this would be a serious error
-        Ok(Epoch::try_from_tau(&Tau(child), params).unwrap())
-    }
-
     pub fn height(&self) -> usize {
         self.0.len()
     }
@@ -165,17 +113,6 @@ impl Tau {
             .iter()
             .by_vals()
             .zip(params.fs.iter().chain(params.fh.iter()))
-            .filter(|(i, _)| *i)
-            .map(|(_, f_i)| f_i)
-            .fold(params.f0, |acc, f_i| acc + f_i)
-    }
-
-    // only considers up to lambda_t bits
-    fn evaluate_partial_f(&self, params: &Params) -> G2Projective {
-        self.0
-            .iter()
-            .by_vals()
-            .zip(params.fs.iter())
             .filter(|(i, _)| *i)
             .map(|(_, f_i)| f_i)
             .fold(params.f0, |acc, f_i| acc + f_i)
@@ -263,14 +200,6 @@ impl Epoch {
     ) -> Tau {
         self.as_tau().extend(rr, ss, cc)
     }
-
-    pub(crate) fn try_from_tau(tau: &Tau, params: &Params) -> Result<Self, DkgError> {
-        if !tau.is_leaf(params) {
-            Err(DkgError::MalformedEpoch)
-        } else {
-            Ok(Epoch(tau.0.load_be()))
-        }
-    }
 }
 
 impl From<Epoch> for Tau {
@@ -303,30 +232,6 @@ pub struct Params {
 }
 
 pub fn setup() -> Params {
-    let f0 = hash_g2(b"f0", SETUP_DOMAIN);
-
-    let fs = (1..=MAX_EPOCHS_EXP)
-        .map(|i| hash_g2(format!("f{}", i), SETUP_DOMAIN))
-        .collect();
-
-    let fh = (0..HASH_SECURITY_PARAM)
-        .map(|i| hash_g2(format!("fh{}", i), SETUP_DOMAIN))
-        .collect();
-
-    let h = hash_g2(b"h", SETUP_DOMAIN);
-
-    Params {
-        lambda_t: MAX_EPOCHS_EXP,
-        lambda_h: HASH_SECURITY_PARAM,
-        f0,
-        fs,
-        fh,
-        h,
-        _h_prepared: G2Prepared::from(h.to_affine()),
-    }
-}
-
-pub fn setup_no_fwd_secrecy() -> Params {
     let f0 = hash_g2(b"f0", SETUP_DOMAIN);
 
     let fs = (1..=1)
@@ -393,56 +298,6 @@ mod tests {
             0, 1, 1
         ];
         assert_eq!(expected, big_val.0)
-    }
-
-    #[test]
-    fn getting_parent_at_height() {
-        let tau = Tau(bitvec![u32, Msb0; 1,0,1,1,0,0,1]);
-
-        let expected_0 = Tau(BitVec::new());
-        let expected_1 = Tau(bitvec![u32, Msb0; 1]);
-        let expected_5 = Tau(bitvec![u32, Msb0; 1,0,1,1,0]);
-
-        assert_eq!(expected_0, tau.try_get_parent_at_height(0).unwrap());
-        assert_eq!(expected_1, tau.try_get_parent_at_height(1).unwrap());
-        assert_eq!(expected_5, tau.try_get_parent_at_height(5).unwrap());
-        assert_eq!(tau, tau.try_get_parent_at_height(7).unwrap());
-        assert!(tau.try_get_parent_at_height(8).is_err())
-    }
-
-    #[test]
-    fn converting_tau_to_epoch() {
-        let params = setup();
-
-        let tau0: Tau = Epoch::new(0).into();
-        let tau1: Tau = Epoch::new(1).into();
-        let tau42: Tau = Epoch::new(42).into();
-        let tau_big: Tau = Epoch::new(3292547435).into();
-
-        assert_eq!(Epoch::new(0), Epoch::try_from_tau(&tau0, &params).unwrap());
-        assert_eq!(Epoch::new(1), Epoch::try_from_tau(&tau1, &params).unwrap());
-        assert_eq!(
-            Epoch::new(42),
-            Epoch::try_from_tau(&tau42, &params).unwrap()
-        );
-        assert_eq!(
-            Epoch::new(3292547435),
-            Epoch::try_from_tau(&tau_big, &params).unwrap()
-        );
-
-        assert!(Epoch::try_from_tau(&Tau(BitVec::new()), &params).is_err());
-        assert!(Epoch::try_from_tau(&Tau(bitvec![u32, Msb0; 1,0,1,1,0]), &params).is_err());
-        let _31bit_tau = Tau(bitvec![u32, Msb0;
-            1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1,
-            0, 1
-        ]);
-        assert!(Epoch::try_from_tau(&_31bit_tau, &params).is_err());
-
-        let _33bit_tau = Tau(bitvec![u32, Msb0;
-            1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1,
-            0, 1, 1, 0
-        ]);
-        assert!(Epoch::try_from_tau(&_33bit_tau, &params).is_err());
     }
 
     #[test]

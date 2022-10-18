@@ -248,7 +248,7 @@ pub struct KeyPair {
 }
 
 impl KeyPair {
-    pub fn new(params: &Params, mut rng: impl RngCore) -> Self {
+    pub fn new(params: &Params, rng: impl RngCore) -> Self {
         let (dk, pk) = keygen(params, rng);
         Self {
             private_key: dk,
@@ -261,6 +261,13 @@ impl KeyPair {
 
     pub fn public_key(&self) -> &PublicKeyWithProof {
         &self.public_key
+    }
+
+    pub fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Result<Self, DkgError> {
+        Ok(KeyPair {
+            private_key: DecryptionKey::try_from_bytes(priv_bytes)?,
+            public_key: PublicKeyWithProof::try_from_bytes(pub_bytes)?,
+        })
     }
 }
 

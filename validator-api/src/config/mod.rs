@@ -299,9 +299,11 @@ impl CoconutSigner {
 impl Default for CoconutSigner {
     fn default() -> Self {
         Self {
+            enabled: Default::default(),
+            keypair_path: Default::default(),
             decryption_key_path: CoconutSigner::default_dkg_decryption_key_path(),
             public_key_with_proof_path: CoconutSigner::default_dkg_public_key_with_proof_path(),
-            ..Default::default()
+            all_validator_apis: Default::default(),
         }
     }
 }
@@ -481,6 +483,16 @@ impl Config {
     #[cfg(feature = "coconut")]
     pub fn keypair_path(&self) -> PathBuf {
         self.coconut_signer.keypair_path.clone()
+    }
+
+    #[cfg(feature = "coconut")]
+    pub fn decryption_key_path(&self) -> PathBuf {
+        self.coconut_signer.decryption_key_path.clone()
+    }
+
+    #[cfg(feature = "coconut")]
+    pub fn public_key_with_proof_path(&self) -> PathBuf {
+        self.coconut_signer.public_key_with_proof_path.clone()
     }
 
     // fix dead code warnings as this method is only ever used with coconut feature

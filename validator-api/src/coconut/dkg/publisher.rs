@@ -21,7 +21,7 @@ impl Publisher {
         Publisher { client }
     }
 
-    pub(crate) async fn get_address(&self) -> AccountId {
+    pub(crate) async fn _get_address(&self) -> AccountId {
         self.client.address().await
     }
 
@@ -43,7 +43,7 @@ impl Publisher {
         Ok(node_index)
     }
 
-    pub(crate) async fn submit_dealing_commitment(
+    pub(crate) async fn _submit_dealing_commitment(
         &self,
         commitment: ContractSafeCommitment,
     ) -> Result<(), CoconutError> {

@@ -506,8 +506,8 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
 
     // try to load config from the file, if it doesn't exist, use default values
     let id = matches.value_of(ID);
-    let config = match Config::load_from_file(id) {
-        Ok(cfg) => cfg,
+    let (config, _already_inited) = match Config::load_from_file(id) {
+        Ok(cfg) => (cfg, true),
         Err(_) => {
             let config_path = Config::default_config_file_path(id)
                 .into_os_string()
@@ -517,7 +517,7 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
                 "Could not load the configuration file from {}. Either the file did not exist or was malformed. Using the default values instead",
                 config_path
             );
-            Config::new()
+            (Config::new(), false)
         }
     };
 
@@ -549,7 +549,8 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
 
     #[cfg(feature = "coconut")]
     {
-        let dkg_controller = DkgController::new(signing_nymd_client.clone());
+        let dkg_controller =
+            DkgController::new(&config, _already_inited, signing_nymd_client.clone())?;
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(async move { dkg_controller.run(shutdown_listener).await });
     }

@@ -5,6 +5,7 @@ use crate::storage::{
     remove_delegation, remove_gateway_pledge, save_account, save_balance, save_bond_pledge,
     save_gateway_pledge, save_withdrawn, BlockTimestampSecs, DELEGATIONS, KEY,
 };
+use crate::traits::VestingAccount;
 use cosmwasm_std::{Addr, Coin, Order, Storage, Timestamp, Uint128};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::MixId;
@@ -65,10 +66,10 @@ impl Account {
         self.pledge_cap.clone().unwrap_or_default()
     }
 
-    pub fn absolute_pledge_cap(&self, storage: &dyn Storage) -> Result<Uint128, ContractError> {
+    pub fn absolute_pledge_cap(&self) -> Result<Uint128, ContractError> {
         match self.pledge_cap() {
             PledgeCap::Absolute(cap) => Ok(cap),
-            PledgeCap::Percent(p) => Ok(p * self.load_balance(storage)?),
+            PledgeCap::Percent(p) => Ok(p * self.get_original_vesting().amount.amount),
         }
     }
 

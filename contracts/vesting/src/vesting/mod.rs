@@ -400,7 +400,7 @@ mod tests {
         let account = vesting_account_percent_fixture(&mut deps.storage, &env);
 
         assert_eq!(
-            account.absolute_pledge_cap(&deps.storage).unwrap(),
+            account.absolute_pledge_cap().unwrap(),
             Uint128::new(100_000_000_000)
         )
     }

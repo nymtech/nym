@@ -15,6 +15,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - native-client/socks5-client: `use_extended_packet_size` Debug config option to make the client use 'ExtendedPacketSize' for its traffic (32kB as opposed to 2kB in 1.0.2) ([#1671])
 - wasm-client: uses updated wasm-compatible `client-core` so that it's now capable of packet retransmission, cover traffic and poisson delay (among other things!) ([#1673])
 - validator-api: add `interval_operating_cost` and `profit_margin_percent` to cmpute reward estimation endpoint
+- vesting-contract: optional locked token pledge cap per account ([#1687]), defaults to 100_000 NYM
 
 ### Fixed
 
@@ -26,6 +27,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - socks5 client: graceful shutdown should fix error on disconnect in nym-connect ([#1591])
 - wasm-client: fixed build errors on MacOS and changed example JS code to use mainnet ([#1585])
 - gateway-client: will attempt to read now as many as 8 websocket messages at once, assuming they're already available on the socket ([#1669])
+- moved `Percent` struct to to `contracts-common`, change affects explorer-api
 
 [#1541]: https://github.com/nymtech/nym/pull/1541
 [#1558]: https://github.com/nymtech/nym/pull/1558
@@ -39,6 +41,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1669]: https://github.com/nymtech/nym/pull/1669
 [#1671]: https://github.com/nymtech/nym/pull/1671
 [#1673]: https://github.com/nymtech/nym/pull/1673
+[#1687]: https://github.com/nymtech/nym/pull/1687
 
 
 ## [nym-binaries-1.0.2](https://github.com/nymtech/nym/tree/nym-binaries-1.0.2)

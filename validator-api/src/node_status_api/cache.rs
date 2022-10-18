@@ -3,7 +3,7 @@
 
 use crate::contract_cache::{Cache, CacheNotification, ValidatorCache};
 use contracts_common::truncate_decimal;
-use mixnet_contract_common::{MixNodeDetails, MixId, RewardingParams};
+use mixnet_contract_common::{MixId, MixNodeDetails, RewardingParams};
 use rocket::fairing::AdHoc;
 use serde::Serialize;
 use std::{sync::Arc, time::Duration};

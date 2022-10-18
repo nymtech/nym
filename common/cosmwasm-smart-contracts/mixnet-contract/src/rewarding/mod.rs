@@ -6,6 +6,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 pub mod helpers;
+pub mod multi_node_simulator;
 pub mod simulator;
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]

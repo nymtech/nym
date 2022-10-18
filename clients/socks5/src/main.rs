@@ -11,7 +11,7 @@ pub mod socks;
 #[tokio::main]
 async fn main() {
     // instrument tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time
-    console_subscriber::init();
+    //console_subscriber::init();
 
     setup_logging();
     println!("{}", banner());

@@ -77,6 +77,7 @@ impl MixTrafficController {
                 tokio::select! {
                     mix_packets = self.mix_rx.next() => match mix_packets {
                         Some(mix_packets) => {
+                            //log::debug!("received mix packet to send to gateway");
                             self.on_messages(mix_packets).await;
                         },
                         None => {

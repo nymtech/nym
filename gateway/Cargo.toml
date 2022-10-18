@@ -49,6 +49,7 @@ tokio-stream = { version = "0.1.9", features = ["fs"] }
 tokio-tungstenite = "0.14"
 tokio-util = { version = "0.7.3", features = ["codec"] }
 url = { version = "2.2", features = ["serde"] }
+console-subscriber = { version = "0.1.8"} # validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
 
 # internal
 coconut-interface = { path = "../common/coconut-interface", optional = true }

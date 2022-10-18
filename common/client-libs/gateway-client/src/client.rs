@@ -417,8 +417,12 @@ impl GatewayClient {
         msg: Message,
     ) -> Result<(), GatewayClientError> {
         match self.connection {
-            SocketState::Available(ref mut conn) => Ok(conn.send(msg).await?),
+            SocketState::Available(ref mut conn) => {
+                //log::debug!("SocketState::Available: conn.send()");
+                Ok(conn.send(msg).await?)
+            },
             SocketState::PartiallyDelegated(ref mut partially_delegated) => {
+                //log::debug!("SocketState::PartiallyDelegated: send_without_response()");
                 if let Err(err) = partially_delegated.send_without_response(msg).await {
                     error!("failed to send message without response - {}...", err);
                     // we must ensure we do not leave the task still active
@@ -609,6 +613,7 @@ impl GatewayClient {
         &mut self,
         packets: Vec<MixPacket>,
     ) -> Result<(), GatewayClientError> {
+        //log::debug!("batch_send_mix_packets: {}", packets.len());
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }
@@ -679,6 +684,7 @@ impl GatewayClient {
         &mut self,
         mix_packet: MixPacket,
     ) -> Result<(), GatewayClientError> {
+        //log::debug!("send_mix_packet");
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
         }

@@ -3199,6 +3199,7 @@ dependencies = [
  "colored",
  "completions",
  "config",
+ "console-subscriber",
  "credentials",
  "crypto",
  "dashmap",

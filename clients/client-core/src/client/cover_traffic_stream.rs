@@ -176,7 +176,9 @@ impl LoopCoverTrafficStream<OsRng> {
         // - the receiver channel is closed
         // in either case there's no recovery and we can only panic
         //self.mix_tx.unbounded_send(vec![cover_message]).unwrap();
-        self.mix_tx.try_send(vec![cover_message]).unwrap();
+        if let Err(err) = self.mix_tx.try_send(vec![cover_message]) {
+            log::error!("Failed to send cover traffic: {}", err);
+        }
 
         // TODO: I'm not entirely sure whether this is really required, because I'm not 100%
         // sure how `yield_now()` works - whether it just notifies the scheduler or whether it
@@ -209,6 +211,7 @@ impl LoopCoverTrafficStream<OsRng> {
                     }
                     next = self.next() => {
                         if next.is_some() {
+                            //log::debug!("loop cover traffic: got next msg to send to mix traffic");
                             self.on_new_message().await;
                         } else {
                             log::trace!("LoopCoverTrafficStream: Stopping since channel closed");

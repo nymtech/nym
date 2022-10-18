@@ -35,7 +35,8 @@ default-features = false
 # non-wasm-only dependencies
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
 version = "1.21.2"
-features = ["macros", "rt", "net", "sync", "time"]
+#features = ["macros", "rt", "net", "sync", "time"]
+features = ["full", "tracing"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
 version = "0.1.9"

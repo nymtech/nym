@@ -4,7 +4,7 @@
 use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
-use futures::channel::mpsc;
+use futures::channel::mpsc::{self, TrySendError};
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
@@ -20,12 +20,15 @@ use std::collections::VecDeque;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::time::sleep;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
+
+const REDUCE_DELAY_THRESHOLD: usize = 100;
 
 /// Configurable parameters of the `OutQueueControl`
 pub(crate) struct Config {
@@ -89,6 +92,13 @@ where
     #[cfg(target_arch = "wasm32")]
     next_delay: Option<Pin<Box<wasm_timer::Delay>>>,
 
+    /// The current message delay, only different from `average_message_sending_delay` if there has been
+    /// backpressure from the gateway client to slow down.
+    current_average_message_sending_delay: Duration,
+
+    /// Count the number of successful sends to determine if we should reduce sending delay
+    number_of_consectivive_successful_sends: usize,
+
     /// Channel used for sending prepared sphinx packets to `MixTrafficController` that sends them
     /// out to the network without any further delays.
     mix_tx: BatchMixMessageSender,
@@ -151,11 +161,14 @@ where
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
     ) -> Self {
+        let current_average_message_sending_delay = config.average_message_sending_delay;
         OutQueueControl {
             config,
             ack_key,
             sent_notifier,
             next_delay: None,
+            current_average_message_sending_delay,
+            number_of_consectivive_successful_sends: 0,
             mix_tx,
             real_receiver,
             our_full_destination,
@@ -173,10 +186,12 @@ where
         self.sent_notifier.unbounded_send(frag_id).unwrap();
     }
 
+    #[allow(clippy::too_many_lines)]
     async fn on_message(&mut self, next_message: StreamMessage) {
         trace!("created new message");
 
-        let next_message = match next_message {
+        //let next_message = match next_message {
+        match next_message {
             StreamMessage::Cover => {
                 // TODO for way down the line: in very rare cases (during topology update) we might have
                 // to wait a really tiny bit before actually obtaining the permit hence messing with our
@@ -195,7 +210,7 @@ where
                 }
                 let topology_ref = topology_ref_option.unwrap();
 
-                generate_loop_cover_packet(
+                let next_message = generate_loop_cover_packet(
                     &mut self.rng,
                     topology_ref,
                     &self.ack_key,
@@ -204,11 +219,104 @@ where
                     self.config.average_packet_delay,
                     self.config.cover_packet_size,
                 )
-                .expect("Somehow failed to generate a loop cover message with a valid topology")
+                .expect("Somehow failed to generate a loop cover message with a valid topology");
+
+                match self.mix_tx.try_send(vec![next_message]) {
+                    Ok(_) => {
+                        self.number_of_consectivive_successful_sends += 1;
+                        if self.number_of_consectivive_successful_sends > REDUCE_DELAY_THRESHOLD {
+                            self.number_of_consectivive_successful_sends = 0;
+                            log::error!(
+                                "old average_message_sending_delay: {:?}",
+                                self.current_average_message_sending_delay
+                            );
+                            self.current_average_message_sending_delay =
+                                self.current_average_message_sending_delay.mul_f64(0.9);
+                            log::error!(
+                                "new average_message_sending_delay: {:?}",
+                                self.current_average_message_sending_delay
+                            );
+                        }
+                    }
+                    Err(err) => {
+                        if err.is_full() {
+                            self.number_of_consectivive_successful_sends = 0;
+                            // Increase average send delay
+                            log::error!(
+                                "old average_message_sending_delay: {:?}",
+                                self.current_average_message_sending_delay
+                            );
+                            //self.current_average_message_sending_delay *= 2;
+                            self.current_average_message_sending_delay =
+                                self.current_average_message_sending_delay.mul_f64(1.2);
+                            log::error!(
+                                "new average_message_sending_delay: {:?}",
+                                self.current_average_message_sending_delay
+                            );
+                            sleep(Duration::from_millis(100)).await;
+                        } else if err.is_disconnected() {
+                            log::warn!("should not happen during normal operation!");
+                        } else {
+                        }
+                    }
+                };
             }
             StreamMessage::Real(real_message) => {
-                self.sent_notify(real_message.fragment_id);
-                real_message.mix_packet
+                let RealMessage {
+                    mix_packet: next_message,
+                    fragment_id,
+                } = *real_message;
+                match self.mix_tx.try_send(vec![next_message]) {
+                    Ok(_) => {
+                        self.sent_notify(fragment_id);
+                        self.number_of_consectivive_successful_sends += 1;
+                        if self.number_of_consectivive_successful_sends > REDUCE_DELAY_THRESHOLD {
+                            self.number_of_consectivive_successful_sends = 0;
+                            log::error!(
+                                "old average_message_sending_delay: {:?}",
+                                self.current_average_message_sending_delay
+                            );
+                            self.current_average_message_sending_delay =
+                                self.current_average_message_sending_delay.mul_f64(0.9);
+                            log::error!(
+                                "new average_message_sending_delay: {:?}",
+                                self.current_average_message_sending_delay
+                            );
+                        }
+                    }
+                    Err(err) => {
+                        if err.is_full() {
+                            log::error!(
+                                "Failed to send, channel full, will retry: {}",
+                                fragment_id
+                            );
+                            self.number_of_consectivive_successful_sends = 0;
+                            // Re-queue at the front
+                            let mut msg = err.into_inner();
+                            assert!(msg.len() == 1);
+                            let msg = msg.pop().unwrap();
+                            let new_real_message = RealMessage::new(msg, real_message.fragment_id);
+                            self.received_buffer.push_front(new_real_message);
+
+                            // Increase average send delay
+                            log::error!(
+                                "old average_message_sending_delay: {:?}",
+                                self.current_average_message_sending_delay
+                            );
+                            //self.current_average_message_sending_delay *= 2;
+                            self.current_average_message_sending_delay =
+                                self.current_average_message_sending_delay.mul_f64(1.2);
+                            log::error!(
+                                "new average_message_sending_delay: {:?}",
+                                self.current_average_message_sending_delay
+                            );
+                            sleep(Duration::from_millis(100)).await;
+                        } else if err.is_disconnected() {
+                            log::warn!("should not happen during normal operation!");
+                        } else {
+                        }
+                    }
+                };
             }
         };
 
@@ -222,7 +330,7 @@ where
         //        err.into_inner().len()
         //    );
         //}
-        self.mix_tx.try_send(vec![next_message]).unwrap();
+        //self.mix_tx.try_send(vec![next_message]).unwrap();
 
         // JS: Not entirely sure why or how it fixes stuff, but without the yield call,
         // the UnboundedReceiver [of mix_rx] will not get a chance to read anything
@@ -239,12 +347,15 @@ where
         if let Some(ref mut next_delay) = &mut self.next_delay {
             // it is not yet time to return a message
             if next_delay.as_mut().poll(cx).is_pending() {
+                //log::debug!("poisson: pending");
                 return Poll::Pending;
+                //} else {
+                //log::debug!("poisson: not pending");
             };
 
             // we know it's time to send a message, so let's prepare delay for the next one
             // Get the `now` by looking at the current `delay` deadline
-            let avg_delay = self.config.average_message_sending_delay;
+            let avg_delay = self.current_average_message_sending_delay;
             let next_poisson_delay = sample_poisson_duration(&mut self.rng, avg_delay);
 
             // The next interval value is `next_poisson_delay` after the one that just
@@ -263,6 +374,11 @@ where
 
             // check if we have anything immediately available
             if let Some(real_available) = self.received_buffer.pop_front() {
+                //log::debug!("real available");
+                log::debug!(
+                    "sending from received_buffer: {}",
+                    self.received_buffer.len()
+                );
                 return Poll::Ready(Some(StreamMessage::Real(Box::new(real_available))));
             }
 
@@ -274,6 +390,7 @@ where
 
                 // if there are more messages available, return first one and store the rest
                 Poll::Ready(Some(real_messages)) => {
+                    log::debug!("sending from real_receiver: {}", real_messages.len());
                     self.received_buffer = real_messages.into();
                     // we MUST HAVE received at least ONE message
                     Poll::Ready(Some(StreamMessage::Real(Box::new(
@@ -282,9 +399,13 @@ where
                 }
 
                 // otherwise construct a dummy one
-                Poll::Pending => Poll::Ready(Some(StreamMessage::Cover)),
+                Poll::Pending => {
+                    //log::debug!("cover message");
+                    Poll::Ready(Some(StreamMessage::Cover))
+                }
             }
         } else {
+            log::debug!("poisson: not send");
             // we never set an initial delay - let's do it now
             cx.waker().wake_by_ref();
 
@@ -348,14 +469,29 @@ where
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
         debug!("Started OutQueueControl with graceful shutdown support");
 
+        //let stream = self.delay_stream();
+        //let stream = delay_stream(self.config.average_message_sending_delay);
+        //tokio::pin!(stream);
+
         while !shutdown.is_shutdown() {
             tokio::select! {
                 biased;
                 _ = shutdown.recv() => {
                     log::trace!("OutQueueControl: Received shutdown");
                 }
+                //next_message = stream.next() => match next_message {
+                //    Some(next_message) => {
+                //        log::debug!("out queue control: got next_message to send to mix traffic");
+                //        self.on_message(next_message).await;
+                //    },
+                //    None => {
+                //        log::trace!("OutQueueControl: Stopping since channel closed");
+                //        break;
+                //    }
+                //}
                 next_message = self.next() => match next_message {
                     Some(next_message) => {
+                        //log::debug!("out queue control: got next_message to send to mix traffic");
                         self.on_message(next_message).await;
                     },
                     None => {
@@ -378,6 +514,19 @@ where
         }
     }
 }
+
+//fn delay_stream(avg_delay: Duration) -> impl futures::Stream<Item = StreamMessage> + 'static {
+//    let mut rng = rand::rngs::OsRng;
+//
+//    futures::stream::unfold((rng, avg_delay), |(mut rng, avg_delay)| async {
+//        //let avg_delay = out_queue_control.config.average_message_sending_delay;
+//        let next_poisson_delay = sample_poisson_duration(&mut rng, avg_delay);
+//        time::sleep(next_poisson_delay).await;
+//        //let a = 1;
+//        let msg = StreamMessage::Cover;
+//        Some((msg, (rng, avg_delay)))
+//    })
+//}
 
 impl<R> Stream for OutQueueControl<R>
 where

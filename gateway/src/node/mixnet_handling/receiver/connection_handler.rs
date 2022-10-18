@@ -120,7 +120,7 @@ impl<St: Storage> ConnectionHandler<St> {
 
     fn forward_ack(&self, forward_ack: Option<MixPacket>, client_address: DestinationAddressBytes) {
         if let Some(forward_ack) = forward_ack {
-            trace!(
+            debug!(
                 "Sending ack from packet for {} to {}",
                 client_address,
                 forward_ack.next_hop()
@@ -131,6 +131,7 @@ impl<St: Storage> ConnectionHandler<St> {
     }
 
     async fn handle_processed_packet(&mut self, processed_final_hop: ProcessedFinalHop) {
+        log::debug!("Handle processed packet");
         let client_address = processed_final_hop.destination;
         let message = processed_final_hop.message;
         let forward_ack = processed_final_hop.forward_ack;
@@ -168,6 +169,8 @@ impl<St: Storage> ConnectionHandler<St> {
         // packet processor for vpn packets,
         // question: can it also be per connection vs global?
         //
+
+        log::debug!("Handle received packet");
 
         let processed_final_hop = match self.packet_processor.process_received(framed_sphinx_packet)
         {

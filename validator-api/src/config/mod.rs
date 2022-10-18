@@ -262,7 +262,7 @@ impl Default for Rewarding {
     }
 }
 
-#[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 pub struct CoconutSigner {
     /// Specifies whether rewarding service is enabled in this process.
@@ -271,10 +271,39 @@ pub struct CoconutSigner {
     /// Path to the signing keypair
     keypair_path: PathBuf,
 
+    /// Path to the dkg dealer decryption key.
+    decryption_key_path: PathBuf,
+
+    /// Path to the dkg dealer public key with proof.
+    public_key_with_proof_path: PathBuf,
+
     /// Specifies list of all validators on the network issuing coconut credentials.
     /// A special care must be taken to ensure they are in correct order.
     /// The list must also contain THIS validator that is running the test
     all_validator_apis: Vec<Url>,
+}
+
+impl CoconutSigner {
+    pub const DKG_DECRYPTION_KEY_FILE: &'static str = "dkg_decryption_key.pem";
+    pub const DKG_PUBLIC_KEY_WITH_PROOF_FILE: &'static str = "dkg_public_key_with_proof.pem";
+
+    fn default_dkg_decryption_key_path() -> PathBuf {
+        Config::default_data_directory(None).join(Self::DKG_DECRYPTION_KEY_FILE)
+    }
+
+    fn default_dkg_public_key_with_proof_path() -> PathBuf {
+        Config::default_data_directory(None).join(Self::DKG_PUBLIC_KEY_WITH_PROOF_FILE)
+    }
+}
+
+impl Default for CoconutSigner {
+    fn default() -> Self {
+        Self {
+            decryption_key_path: CoconutSigner::default_dkg_decryption_key_path(),
+            public_key_with_proof_path: CoconutSigner::default_dkg_public_key_with_proof_path(),
+            ..Default::default()
+        }
+    }
 }
 
 impl Config {
@@ -288,12 +317,11 @@ impl Config {
             Config::default_data_directory(Some(id)).join(NodeStatusAPI::DB_FILE);
         self.network_monitor.credentials_database_path =
             Config::default_data_directory(Some(id)).join(NetworkMonitor::DB_FILE);
+        self.coconut_signer.decryption_key_path =
+            Config::default_data_directory(Some(id)).join(CoconutSigner::DKG_DECRYPTION_KEY_FILE);
+        self.coconut_signer.public_key_with_proof_path = Config::default_data_directory(Some(id))
+            .join(CoconutSigner::DKG_PUBLIC_KEY_WITH_PROOF_FILE);
         self
-    }
-
-    #[cfg(feature = "coconut")]
-    pub fn keypair_path(&self) -> PathBuf {
-        self.coconut_signer.keypair_path.clone()
     }
 
     pub fn with_network_monitor_enabled(mut self, enabled: bool) -> Self {
@@ -448,6 +476,11 @@ impl Config {
 
     pub fn get_node_status_api_database_path(&self) -> PathBuf {
         self.node_status_api.database_path.clone()
+    }
+
+    #[cfg(feature = "coconut")]
+    pub fn keypair_path(&self) -> PathBuf {
+        self.coconut_signer.keypair_path.clone()
     }
 
     // fix dead code warnings as this method is only ever used with coconut feature

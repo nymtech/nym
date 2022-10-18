@@ -81,6 +81,7 @@ contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common
 multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
 nymcoconut = { path = "../common/nymcoconut", optional = true }
 nymsphinx = { path = "../common/nymsphinx" }
+pemstore = { path = "../common/pemstore", optional = true }
 task = { path = "../common/task" }
 topology = { path = "../common/topology" }
 validator-api-requests = { path = "validator-api-requests" }
@@ -101,6 +102,7 @@ coconut = [
     "contracts-common",
     "dkg",
     "bs58",
+    "pemstore",
 ]
 no-reward = []
 generate-ts = ["ts-rs"]

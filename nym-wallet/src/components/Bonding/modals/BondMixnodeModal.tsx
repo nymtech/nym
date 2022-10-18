@@ -71,8 +71,7 @@ export const BondMixnodeModal = ({
   };
 
   const handleUpdateAmountData = async (data: MixnodeAmount) => {
-    const pm = toPercentFloatString(data.profitMargin);
-    setAmountData({ ...data, profitMargin: pm });
+    setAmountData({ ...data });
 
     const payload = {
       pledge: data.amount,
@@ -86,9 +85,9 @@ export const BondMixnodeModal = ({
         identity_key: mixnodeData.identityKey,
       },
       costParams: {
-        profit_margin_percent: pm,
+        profit_margin_percent: toPercentFloatString(data.profitMargin),
         interval_operating_cost: {
-          amount: data.operatorCost.amount,
+          amount: data.operatorCost.amount.toString(),
           denom: data.operatorCost.denom,
         },
       },

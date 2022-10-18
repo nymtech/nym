@@ -29,8 +29,7 @@ const Bonding = () => {
 
   const navigate = useNavigate();
 
-  const { bondedNode, bondMixnode, bondGateway, unbond, redeemRewards, isLoading, checkOwnership } =
-    useBondingContext();
+  const { bondedNode, bondMixnode, bondGateway, redeemRewards, isLoading, checkOwnership } = useBondingContext();
 
   const handleCloseModal = async () => {
     setShowModal(undefined);

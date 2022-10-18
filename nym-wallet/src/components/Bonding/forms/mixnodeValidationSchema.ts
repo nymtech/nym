@@ -35,6 +35,21 @@ export const mixnodeValidationSchema = Yup.object().shape({
     .test('valid-http', 'A valid http-api port is required', (value) => (value ? validateRawPort(value) : false)),
 });
 
+const operatingCostAndPmValidation = {
+  profitMargin: Yup.number().required('Profit Percentage is required').min(0).max(100),
+  operatorCost: Yup.object().shape({
+    amount: Yup.string()
+      .required('An operating cost is required')
+      .test('valid-operating-cost', 'A valid amount is required (min 40)', async function isValidAmount(this, value) {
+        if (value && (!Number(value) || isLessThan(+value, 40))) {
+          return false;
+        }
+
+        return true;
+      }),
+  }),
+};
+
 export const amountSchema = Yup.object().shape({
   amount: Yup.object().shape({
     amount: Yup.string()
@@ -47,19 +62,7 @@ export const amountSchema = Yup.object().shape({
         return true;
       }),
   }),
-  profitMargin: Yup.number().required('Profit Percentage is required').min(0).max(100),
-  operatorCost: Yup.object().shape({
-    amount: Yup.number()
-      .required('An operating cost is required')
-      .test('valid-operating-cost', 'Operating cost must be at least 40', async function isValidAmount(this, value) {
-        if (value && isLessThan(+value, 40)) {
-          this.createError({ message: 'A valid amount is required (min 40)' });
-          return false;
-        }
-
-        return true;
-      }),
-  }),
+  ...operatingCostAndPmValidation,
 });
 
 export const bondedInfoParametersValidationSchema = Yup.object().shape({
@@ -85,7 +88,5 @@ export const bondedInfoParametersValidationSchema = Yup.object().shape({
 });
 
 export const bondedNodeParametersValidationSchema = Yup.object().shape({
-  profitMargin: Yup.number().required('Profit Percentage is required').min(0).max(100),
-
-  operatorCost: Yup.number().required('Operator cost is required'),
+  ...operatingCostAndPmValidation,
 });

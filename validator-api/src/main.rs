@@ -39,7 +39,11 @@ use validator_client::nymd::SigningNymdClient;
 
 use crate::epoch_operations::RewardedSetUpdater;
 #[cfg(feature = "coconut")]
-use coconut::{comm::QueryCommunicationChannel, dkg::DkgController, InternalSignRequest};
+use coconut::{
+    comm::QueryCommunicationChannel,
+    dkg::{init_keypair, DkgController},
+    InternalSignRequest,
+};
 #[cfg(feature = "coconut")]
 use coconut_interface::{Base58, KeyPair};
 use logging::setup_logging;
@@ -522,6 +526,12 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
     };
 
     let config = override_config(config, &matches);
+
+    #[cfg(feature = "coconut")]
+    if !_already_inited {
+        init_keypair(&config)?;
+    }
+
     // if we just wanted to write data to the config, exit
     if matches.is_present(WRITE_CONFIG_ARG) {
         return Ok(());
@@ -549,8 +559,7 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
 
     #[cfg(feature = "coconut")]
     {
-        let dkg_controller =
-            DkgController::new(&config, _already_inited, signing_nymd_client.clone())?;
+        let dkg_controller = DkgController::new(&config, signing_nymd_client.clone())?;
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(async move { dkg_controller.run(shutdown_listener).await });
     }

@@ -3,6 +3,7 @@
 
 use crate::coconut::client::Client;
 use crate::coconut::error::CoconutError;
+use coconut_dkg_common::dealer::DealerDetailsResponse;
 use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, NodeIndex};
 use contracts_common::commitment::ContractSafeCommitment;
 use validator_client::nymd::cosmwasm_client::logs::{find_attribute, NODE_INDEX};
@@ -23,6 +24,12 @@ impl Publisher {
 
     pub(crate) async fn _get_address(&self) -> AccountId {
         self.client.address().await
+    }
+
+    pub(crate) async fn get_self_registered_dealer_details(
+        &self,
+    ) -> Result<DealerDetailsResponse, CoconutError> {
+        self.client.get_self_registered_dealer_details().await
     }
 
     pub(crate) async fn register_dealer(

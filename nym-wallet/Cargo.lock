@@ -596,6 +596,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "coconut-dkg-common"
+version = "0.1.0"
+dependencies = [
+ "contracts-common",
+ "cosmwasm-std",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "coconut-interface"
 version = "0.1.0"
 dependencies = [
@@ -5328,6 +5338,7 @@ dependencies = [
  "base64",
  "bip39",
  "coconut-bandwidth-contract-common",
+ "coconut-dkg-common",
  "coconut-interface",
  "colored 2.0.0",
  "config",

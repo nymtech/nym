@@ -311,7 +311,7 @@ impl MixNodeRewarding {
     pub fn determine_delegation_reward(&self, delegation: &Delegation) -> Decimal {
         let starting_ratio = delegation.cumulative_reward_ratio;
         let ending_ratio = self.full_reward_ratio();
-        let adjust = starting_ratio + UNIT_DELEGATION_BASE;
+        let adjust = starting_ratio + self.unit_delegation;
 
         (ending_ratio - starting_ratio) * delegation.dec_amount() / adjust
     }

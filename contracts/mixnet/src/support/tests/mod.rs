@@ -271,6 +271,7 @@ pub mod test_helpers {
             .unwrap();
         }
 
+        #[allow(unused)]
         pub fn add_delegation(
             &mut self,
             delegator: &str,
@@ -448,11 +449,12 @@ pub mod test_helpers {
         None
     }
 
-    pub fn find_attribute(
-        event_type: Option<String>,
+    pub fn find_attribute<S: Into<String>>(
+        event_type: Option<S>,
         attribute: &str,
         response: &Response,
     ) -> String {
+        let event_type = event_type.map(Into::into);
         for event in &response.events {
             if let Some(typ) = &event_type {
                 if &event.ty != typ {

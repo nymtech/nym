@@ -9,7 +9,7 @@ import { MixnodeAmount, MixnodeData } from 'src/pages/bonding/types';
 import { simulateBondMixnode, simulateVestingBondMixnode } from 'src/requests';
 import { TBondMixNodeArgs } from 'src/types';
 import { BondMixnodeForm } from '../forms/BondMixnodeForm';
-import { attachDefaultOperatingCost, toPercentFloatString } from '../../../utils';
+import { toPercentFloatString } from '../../../utils';
 
 const defaultMixnodeValues: MixnodeData = {
   identityKey: '',
@@ -114,7 +114,7 @@ export const BondMixnodeModal = ({
           identity_key: mixnodeData.identityKey,
         },
         costParams: {
-          profit_margin_percent: amountData.profitMargin,
+          profit_margin_percent: toPercentFloatString(amountData.profitMargin),
           interval_operating_cost: {
             amount: amountData.operatorCost.amount,
             denom: amountData.operatorCost.denom,

@@ -4,7 +4,7 @@
 use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
-use futures::channel::mpsc::{self, TrySendError};
+use futures::channel::mpsc::{self};
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
@@ -20,6 +20,7 @@ use std::collections::VecDeque;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::mpsc::error::TrySendError;
 use tokio::time::sleep;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -221,43 +222,53 @@ where
                 )
                 .expect("Somehow failed to generate a loop cover message with a valid topology");
 
+                log::info!("capacity: {}", self.mix_tx.capacity());
+                if self.mix_tx.max_capacity() - self.mix_tx.capacity() > 4 && self.number_of_consectivive_successful_sends > 10 {
+                    self.current_average_message_sending_delay =
+                        self.current_average_message_sending_delay.mul_f64(1.2);
+                    log::error!(
+                        "new average_message_sending_delay: {:?}",
+                        self.current_average_message_sending_delay
+                    );
+                    self.number_of_consectivive_successful_sends = 0;
+                }
+
                 match self.mix_tx.try_send(vec![next_message]) {
                     Ok(_) => {
                         self.number_of_consectivive_successful_sends += 1;
-                        if self.number_of_consectivive_successful_sends > REDUCE_DELAY_THRESHOLD {
-                            self.number_of_consectivive_successful_sends = 0;
-                            log::error!(
-                                "old average_message_sending_delay: {:?}",
-                                self.current_average_message_sending_delay
-                            );
-                            self.current_average_message_sending_delay =
-                                self.current_average_message_sending_delay.mul_f64(0.9);
-                            log::error!(
-                                "new average_message_sending_delay: {:?}",
-                                self.current_average_message_sending_delay
-                            );
-                        }
+                        //if self.number_of_consectivive_successful_sends > REDUCE_DELAY_THRESHOLD {
+                        //    self.number_of_consectivive_successful_sends = 0;
+                        //    log::error!(
+                        //        "old average_message_sending_delay: {:?}",
+                        //        self.current_average_message_sending_delay
+                        //    );
+                        //    self.current_average_message_sending_delay =
+                        //        self.current_average_message_sending_delay.mul_f64(0.9);
+                        //    log::error!(
+                        //        "new average_message_sending_delay: {:?}",
+                        //        self.current_average_message_sending_delay
+                        //    );
+                        //}
                     }
-                    Err(err) => {
-                        if err.is_full() {
-                            self.number_of_consectivive_successful_sends = 0;
-                            // Increase average send delay
-                            log::error!(
-                                "old average_message_sending_delay: {:?}",
-                                self.current_average_message_sending_delay
-                            );
-                            //self.current_average_message_sending_delay *= 2;
-                            self.current_average_message_sending_delay =
-                                self.current_average_message_sending_delay.mul_f64(1.2);
-                            log::error!(
-                                "new average_message_sending_delay: {:?}",
-                                self.current_average_message_sending_delay
-                            );
-                            sleep(Duration::from_millis(100)).await;
-                        } else if err.is_disconnected() {
-                            log::warn!("should not happen during normal operation!");
-                        } else {
-                        }
+                    Err(TrySendError::Full(err)) => {
+                        log::error!("Failed to send");
+                        //self.number_of_consectivive_successful_sends = 0;
+                        //// Increase average send delay
+                        //log::error!(
+                        //    "old average_message_sending_delay: {:?}",
+                        //    self.current_average_message_sending_delay
+                        //);
+                        ////self.current_average_message_sending_delay *= 2;
+                        //self.current_average_message_sending_delay =
+                        //    self.current_average_message_sending_delay.mul_f64(1.2);
+                        //log::error!(
+                        //    "new average_message_sending_delay: {:?}",
+                        //    self.current_average_message_sending_delay
+                        //);
+                        sleep(Duration::from_millis(100)).await;
+                    }
+                    Err(TrySendError::Closed(err)) => {
+                        log::warn!("should not happen during normal operation!");
                     }
                 };
             }
@@ -266,55 +277,61 @@ where
                     mix_packet: next_message,
                     fragment_id,
                 } = *real_message;
+                log::info!("capacity: {}", self.mix_tx.capacity());
+                if self.mix_tx.max_capacity() - self.mix_tx.capacity() > 4 && self.number_of_consectivive_successful_sends > 10 {
+                    self.current_average_message_sending_delay =
+                        self.current_average_message_sending_delay.mul_f64(1.2);
+                    log::error!(
+                        "new average_message_sending_delay: {:?}",
+                        self.current_average_message_sending_delay
+                    );
+                    self.number_of_consectivive_successful_sends = 0;
+                }
+
                 match self.mix_tx.try_send(vec![next_message]) {
                     Ok(_) => {
                         self.sent_notify(fragment_id);
                         self.number_of_consectivive_successful_sends += 1;
-                        if self.number_of_consectivive_successful_sends > REDUCE_DELAY_THRESHOLD {
-                            self.number_of_consectivive_successful_sends = 0;
-                            log::error!(
-                                "old average_message_sending_delay: {:?}",
-                                self.current_average_message_sending_delay
-                            );
-                            self.current_average_message_sending_delay =
-                                self.current_average_message_sending_delay.mul_f64(0.9);
-                            log::error!(
-                                "new average_message_sending_delay: {:?}",
-                                self.current_average_message_sending_delay
-                            );
-                        }
+                        //if self.number_of_consectivive_successful_sends > REDUCE_DELAY_THRESHOLD {
+                        //    self.number_of_consectivive_successful_sends = 0;
+                        //    log::error!(
+                        //        "old average_message_sending_delay: {:?}",
+                        //        self.current_average_message_sending_delay
+                        //    );
+                        //    self.current_average_message_sending_delay =
+                        //        self.current_average_message_sending_delay.mul_f64(0.9);
+                        //    log::error!(
+                        //        "new average_message_sending_delay: {:?}",
+                        //        self.current_average_message_sending_delay
+                        //    );
+                        //}
                     }
-                    Err(err) => {
-                        if err.is_full() {
-                            log::error!(
-                                "Failed to send, channel full, will retry: {}",
-                                fragment_id
-                            );
-                            self.number_of_consectivive_successful_sends = 0;
-                            // Re-queue at the front
-                            let mut msg = err.into_inner();
-                            assert!(msg.len() == 1);
-                            let msg = msg.pop().unwrap();
-                            let new_real_message = RealMessage::new(msg, real_message.fragment_id);
-                            self.received_buffer.push_front(new_real_message);
+                    Err(TrySendError::Full(err)) => {
+                        log::error!("Failed to send, channel full, will retry: {}", fragment_id);
+                        //self.number_of_consectivive_successful_sends = 0;
+                        // Re-queue at the front
+                        let mut msg = err;
+                        assert!(msg.len() == 1);
+                        let msg = msg.pop().unwrap();
+                        let new_real_message = RealMessage::new(msg, real_message.fragment_id);
+                        self.received_buffer.push_front(new_real_message);
 
-                            // Increase average send delay
-                            log::error!(
-                                "old average_message_sending_delay: {:?}",
-                                self.current_average_message_sending_delay
-                            );
-                            //self.current_average_message_sending_delay *= 2;
-                            self.current_average_message_sending_delay =
-                                self.current_average_message_sending_delay.mul_f64(1.2);
-                            log::error!(
-                                "new average_message_sending_delay: {:?}",
-                                self.current_average_message_sending_delay
-                            );
-                            sleep(Duration::from_millis(100)).await;
-                        } else if err.is_disconnected() {
-                            log::warn!("should not happen during normal operation!");
-                        } else {
-                        }
+                        // Increase average send delay
+                        //log::error!(
+                        //    "old average_message_sending_delay: {:?}",
+                        //    self.current_average_message_sending_delay
+                        //);
+                        ////self.current_average_message_sending_delay *= 2;
+                        //self.current_average_message_sending_delay =
+                        //    self.current_average_message_sending_delay.mul_f64(1.2);
+                        //log::error!(
+                        //    "new average_message_sending_delay: {:?}",
+                        //    self.current_average_message_sending_delay
+                        //);
+                        sleep(Duration::from_millis(100)).await;
+                    }
+                    Err(TrySendError::Closed(err)) => {
+                        log::warn!("should not happen during normal operation!");
                     }
                 };
             }

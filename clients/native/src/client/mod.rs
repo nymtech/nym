@@ -360,7 +360,8 @@ impl NymClient {
         // they are used by cover traffic stream and real traffic stream
         // sphinx_message_receiver is the receiver used by MixTrafficController that sends the actual traffic
         //let (sphinx_message_sender, sphinx_message_receiver) = mpsc::unbounded();
-        let (sphinx_message_sender, sphinx_message_receiver) = mpsc::channel(4);
+        //let (sphinx_message_sender, sphinx_message_receiver) = mpsc::channel(4);
+        let (sphinx_message_sender, sphinx_message_receiver) = tokio::sync::mpsc::channel(16);
 
         // unwrapped_sphinx_sender is the transmitter of mixnet messages received from the gateway
         // unwrapped_sphinx_receiver is the receiver for said messages - used by ReceivedMessagesBuffer

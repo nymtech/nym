@@ -49,6 +49,7 @@ pub mod test_helpers {
     use mixnet_contract_common::mixnode::{MixNodeRewarding, UnbondedMixnode};
     use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
     use mixnet_contract_common::reward_params::{Performance, RewardingParams};
+    use mixnet_contract_common::rewarding::simulator::simulated_node::SimulatedNode;
     use mixnet_contract_common::rewarding::simulator::Simulator;
     use mixnet_contract_common::rewarding::RewardDistribution;
     use mixnet_contract_common::{
@@ -337,7 +338,7 @@ pub mod test_helpers {
         }
 
         pub fn instantiate_simulator(&self, node: MixId) -> Simulator {
-            simulator_from_state(self.deps(), node)
+            simulator_from_single_node_state(self.deps(), node)
         }
 
         pub fn execute_all_pending_events(&mut self) {
@@ -416,7 +417,7 @@ pub mod test_helpers {
         }
     }
 
-    pub fn simulator_from_state(deps: Deps<'_>, node: MixId) -> Simulator {
+    pub fn simulator_from_single_node_state(deps: Deps<'_>, node: MixId) -> Simulator {
         let mix_rewarding = rewards_storage::MIXNODE_REWARDING
             .load(deps.storage, node)
             .unwrap();
@@ -432,12 +433,21 @@ pub mod test_helpers {
             .load(deps.storage)
             .unwrap();
         let interval = interval_storage::current_interval(deps.storage).unwrap();
-        Simulator {
-            node_rewarding_details: mix_rewarding,
-            node_delegations: delegations.delegations,
-            system_rewarding_params: rewarding_params,
-            interval,
-        }
+        let mut simulator = Simulator::new(rewarding_params, interval);
+        simulator.nodes.insert(
+            0,
+            SimulatedNode {
+                mix_id: 0,
+                rewarding_details: mix_rewarding,
+                delegations: delegations
+                    .delegations
+                    .into_iter()
+                    .map(|d| (d.owner.to_string(), d))
+                    .collect(),
+            },
+        );
+
+        simulator
     }
 
     pub fn get_bank_send_msg(response: &Response) -> Option<(String, Vec<Coin>)> {

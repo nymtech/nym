@@ -21,6 +21,7 @@ import { TBondedMixnode, TBondedGateway } from 'src/context/bonding';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { bondedNodeParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
 import { Console } from 'src/utils/console';
+import { decimalToFloatApproximation, decimalToPercentage } from '@nymproject/types';
 
 export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }): JSX.Element => {
   const [open, setOpen] = useState(true);
@@ -37,7 +38,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
     mode: 'onChange',
     defaultValues: isMixnode(bondedNode)
       ? {
-          operatorCost: bondedNode.bond.amount,
+          operatorCost: bondedNode.operatorCost,
           profitMargin: bondedNode.profitMargin,
         }
       : {},
@@ -46,7 +47,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
   const onSubmit = async (data: { operatorCost?: string; profitMargin?: string }) => {
     if (data.operatorCost && data.profitMargin) {
       const MixNodeCostParams = {
-        profit_margin_percent: data.profitMargin.toString(),
+        profit_margin_percent: (+data.profitMargin / 100).toString(),
         interval_operating_cost: {
           denom: bondedNode.bond.denom,
           amount: data.operatorCost.toString(),
@@ -106,7 +107,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
                 color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
               }}
             >
-              Profit margin can be changed once a month
+		    Changes to PM will be applied in the next interval.
             </Typography>
           </Grid>
           <Grid spacing={3} container item alignItems="center" sm={12} md={6}>
@@ -135,7 +136,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
         <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3} spacing={1}>
           <Grid item>
             <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
-              Operator cost
+              Operating cost
             </Typography>
             <Typography
               variant="body1"
@@ -145,15 +146,15 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
                 color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
               }}
             >
-              Lock Wallet after a certain time
-            </Typography>
+            Changes to cost will be applied in the next interval.
+	    </Typography>
           </Grid>
           <Grid spacing={3} container item alignItems="center" xs={12} md={6}>
             <Grid item width={1}>
               <TextField
                 {...register('operatorCost')}
                 name="operatorCost"
-                label="Operator cost"
+                label="Operating cost"
                 fullWidth
                 error={!!errors.operatorCost}
                 helperText={errors?.operatorCost?.message}

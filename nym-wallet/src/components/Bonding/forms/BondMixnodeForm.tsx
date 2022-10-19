@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Box, Checkbox, FormControlLabel, Stack, TextField } from '@mui/material';
+import { Box, Checkbox, FormControlLabel, FormHelperText, Stack, TextField } from '@mui/material';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyDenom, TNodeType } from '@nymproject/types';
@@ -172,13 +172,37 @@ const AmountFormData = ({
           initialValue={amountData.amount.amount}
         />
       </Box>
-      <TextField
-        {...register('profitMargin')}
-        name="profitMargin"
-        label="Profit margin"
-        error={Boolean(errors.profitMargin)}
-        helperText={errors.profitMargin?.message}
-      />
+      <Box>
+        <CurrencyFormField
+          required
+          fullWidth
+          label="Operating cost"
+          onChanged={(newValue) => {
+            setValue('operatorCost', newValue, { shouldValidate: true });
+          }}
+          validationError={errors.operatorCost?.amount?.message}
+          denom={denom}
+          initialValue={amountData.operatorCost.amount}
+        />
+        <FormHelperText>
+          Monthly operational costs of running your node. If your node is in the active set the amount will be paid back
+          to you from the rewards.
+        </FormHelperText>
+      </Box>
+      <Box>
+        <TextField
+          {...register('profitMargin')}
+          name="profitMargin"
+          label="Profit margin"
+          error={Boolean(errors.profitMargin)}
+          helperText={errors.profitMargin?.message}
+          fullWidth
+        />
+        <FormHelperText>
+          The percentage of node rewards that you as the node operator take before rewards are distributed to operator
+          and delegators.
+        </FormHelperText>
+      </Box>
     </Stack>
   );
 };

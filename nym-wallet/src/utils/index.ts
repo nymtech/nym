@@ -65,6 +65,8 @@ export const truncate = (text: string, trim: number) => `${text.substring(0, tri
 
 export const isGreaterThan = (a: number, b: number) => a > b;
 
+export const isLessThan = (a: number, b: number) => a < b;
+
 export const checkHasEnoughFunds = async (allocationValue: string): Promise<boolean> => {
   try {
     const walletValue = await userBalance();

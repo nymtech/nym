@@ -16,7 +16,6 @@ import {
   claimOperatorReward,
   getGatewayBondDetails,
   getMixnodeBondDetails,
-  getMixnodeRewardEstimation,
   unbondGateway as unbondGatewayRequest,
   unbondMixNode as unbondMixnodeRequest,
   vestingBondGateway,
@@ -32,6 +31,7 @@ import {
   vestingClaimOperatorReward,
   getInclusionProbability,
   getMixnodeAvgUptime,
+  getMixnodeRewardEstimation,
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';

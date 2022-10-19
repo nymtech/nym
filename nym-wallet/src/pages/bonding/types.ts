@@ -35,6 +35,7 @@ export type MixnodeData = NodeIdentity & {
 
 export type Amount = {
   amount: DecCoin;
+  operatorCost: DecCoin;
   tokenPool: string;
 };
 

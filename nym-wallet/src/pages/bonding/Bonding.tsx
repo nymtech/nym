@@ -1,6 +1,7 @@
 import React, { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FeeDetails } from '@nymproject/types';
+import { Box } from '@mui/material';
 import { TPoolOption } from 'src/components';
 import { Bond } from 'src/components/Bonding/Bond';
 import { BondedMixnode } from 'src/components/Bonding/BondedMixnode';
@@ -14,8 +15,7 @@ import { AppContext, urls } from 'src/context/main';
 import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
 import { BondedGateway } from 'src/components/Bonding/BondedGateway';
 import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsModal';
-import { BondingContextProvider, useBondingContext, TBondedMixnode } from '../../context';
-import { Box } from '@mui/material';
+import { BondingContextProvider, useBondingContext } from '../../context';
 
 const Bonding = () => {
   const [showModal, setShowModal] = useState<'bond-mixnode' | 'bond-gateway' | 'bond-more' | 'unbond' | 'redeem'>();
@@ -29,8 +29,7 @@ const Bonding = () => {
 
   const navigate = useNavigate();
 
-  const { bondedNode, bondMixnode, bondGateway, unbond, redeemRewards, isLoading, checkOwnership } =
-    useBondingContext();
+  const { bondedNode, bondMixnode, bondGateway, redeemRewards, isLoading, checkOwnership } = useBondingContext();
 
   const handleCloseModal = async () => {
     setShowModal(undefined);
@@ -63,16 +62,6 @@ const Bonding = () => {
     setConfirmationDetails({
       status: 'success',
       title: 'Bond successful',
-      txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
-    });
-  };
-
-  const handleUnbond = async (fee?: FeeDetails) => {
-    setShowModal(undefined);
-    const tx = await unbond(fee);
-    setConfirmationDetails({
-      status: 'success',
-      title: 'Unbond successful',
       txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
     });
   };

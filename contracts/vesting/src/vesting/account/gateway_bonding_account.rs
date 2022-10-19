@@ -21,7 +21,8 @@ impl GatewayBondingAccount for Account {
         storage: &mut dyn Storage,
     ) -> Result<Response, ContractError> {
         let current_balance = self.load_balance(storage)?;
-        let total_pledged_after = self.total_pledged_locked(storage, env)? + pledge.amount;
+        let total_pledged_locked = self.total_pledged_locked(storage, env)?;
+        let total_pledged_after = total_pledged_locked + pledge.amount;
         let locked_pledge_cap = self.absolute_pledge_cap()?;
 
         if locked_pledge_cap < total_pledged_after {

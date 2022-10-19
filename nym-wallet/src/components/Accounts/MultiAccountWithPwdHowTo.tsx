@@ -5,15 +5,14 @@ import { SimpleModal } from '../Modals/SimpleModal';
 import { Warning } from '../Warning';
 
 const passwordCreationSteps = [
-  'Log out of your wallet',
-  'Sign in using “Sign in with mnemonic” button',
-  'On the next screen select “Create a password for your account”',
-  'Sign in to the wallet with your new password',
-  'Then come back here to import or create new accounts',
+  'Log out',
+  'Click on “Forgot password?” ',
+  'On the next screen select “Create new password” ',
+  'Create a new password and use it to sign in to your wallet and create multiple accounts',
 ];
 
 // TODO add the link href value
-export const MultiAccountHowTo = ({ show, handleClose }: { show: boolean; handleClose: () => void }) => (
+export const MultiAccountWithPwdHowTo = ({ show, handleClose }: { show: boolean; handleClose: () => void }) => (
   <SimpleModal
     open={show}
     onClose={handleClose}
@@ -23,11 +22,16 @@ export const MultiAccountHowTo = ({ show, handleClose }: { show: boolean; handle
   >
     <Stack spacing={2}>
       <Warning sx={{ textAlign: 'center' }}>
-        <Typography fontWeight={600}>
-          In order to import or create account(s) you first need to create a password
+        <Typography fontWeight={600} sx={{ mb: 1 }}>
+          This machine already has a password set on it
+        </Typography>
+        <Typography>
+          In order to import or create account(s) you need to log in with your password or create a new one. Creating a
+          new password will overwrite any old one. Make sure your menonics are all wirtten down before creating a new
+          password.
         </Typography>
       </Warning>
-      <Typography fontWeight={600}>How to create a password for your account</Typography>
+      <Typography fontWeight={600}>How to create a new password for this account</Typography>
       {passwordCreationSteps.map((step, index) => (
         <Stack key={step} direction="row" spacing={1}>
           <Typography fontWeight={600}>{`${index + 1}.`}</Typography>

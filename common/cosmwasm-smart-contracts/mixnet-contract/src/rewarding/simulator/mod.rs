@@ -101,6 +101,15 @@ impl Simulator {
         node.undelegate(delegator)
     }
 
+    pub fn simulate_epoch_single_node(&mut self, params: NodeRewardParams) -> RewardDistribution {
+        assert_eq!(self.nodes.len(), 1);
+
+        let id = *self.nodes.keys().next().unwrap();
+        let mut params_map = BTreeMap::new();
+        params_map.insert(id, params);
+        self.simulate_epoch(&params_map).remove(&id).unwrap()
+    }
+
     pub fn simulate_epoch(
         &mut self,
         node_params: &BTreeMap<MixId, NodeRewardParams>,
@@ -247,21 +256,13 @@ mod tests {
             }
         }
 
-        fn single_node_params(params: NodeRewardParams) -> BTreeMap<MixId, NodeRewardParams> {
-            let mut map = BTreeMap::new();
-            map.insert(0, params);
-            map
-        }
-
         #[test]
         fn simulator_returns_expected_values_for_base_case() {
             let mut simulator = base_simulator(10000_000000);
 
-            let epoch_params = single_node_params(NodeRewardParams::new(
-                Percent::from_percentage_value(100).unwrap(),
-                true,
-            ));
-            let rewards = simulator.simulate_epoch(&epoch_params)[&0];
+            let epoch_params =
+                NodeRewardParams::new(Percent::from_percentage_value(100).unwrap(), true);
+            let rewards = simulator.simulate_epoch_single_node(epoch_params);
 
             assert_eq!(rewards.delegates, Decimal::zero());
             compare_decimals(
@@ -276,11 +277,9 @@ mod tests {
             let mut simulator = base_simulator(10000_000000);
             simulator.delegate("alice", Coin::new(18000_000000, "unym"), 0);
 
-            let node_params = single_node_params(NodeRewardParams::new(
-                Percent::from_percentage_value(100).unwrap(),
-                true,
-            ));
-            let rewards = simulator.simulate_epoch(&node_params)[&0];
+            let node_params =
+                NodeRewardParams::new(Percent::from_percentage_value(100).unwrap(), true);
+            let rewards = simulator.simulate_epoch_single_node(node_params);
 
             compare_decimals(
                 rewards.delegates,
@@ -308,25 +307,23 @@ mod tests {
         #[test]
         fn delegation_and_undelegation() {
             let mut simulator = base_simulator(10000_000000);
-            let node_params = single_node_params(NodeRewardParams::new(
-                Percent::from_percentage_value(100).unwrap(),
-                true,
-            ));
+            let node_params =
+                NodeRewardParams::new(Percent::from_percentage_value(100).unwrap(), true);
 
-            let rewards1 = simulator.simulate_epoch(&node_params)[&0];
+            let rewards1 = simulator.simulate_epoch_single_node(node_params);
             let expected_operator1 = "1128452.5416104363".parse().unwrap();
             assert_eq!(rewards1.delegates, Decimal::zero());
             compare_decimals(rewards1.operator, expected_operator1, None);
 
             simulator.delegate("alice", Coin::new(18000_000000, "unym"), 0);
 
-            let rewards2 = simulator.simulate_epoch(&node_params)[&0];
+            let rewards2 = simulator.simulate_epoch_single_node(node_params);
             let expected_operator2 = "1363843.413584609".parse().unwrap();
             let expected_delegator_reward1 = "1795952.25874404".parse().unwrap();
             compare_decimals(rewards2.delegates, expected_delegator_reward1, None);
             compare_decimals(rewards2.operator, expected_operator2, None);
 
-            let rewards3 = simulator.simulate_epoch(&node_params)[&0];
+            let rewards3 = simulator.simulate_epoch_single_node(node_params);
             let expected_operator3 = "1364017.7824440491".parse().unwrap();
             let expected_delegator_reward2 = "1796135.9269468693".parse().unwrap();
             compare_decimals(rewards3.delegates, expected_delegator_reward2, None);
@@ -355,10 +352,8 @@ mod tests {
             // essentially all delegators' rewards (and the operator itself) are still correctly computed
             let original_pledge = coin(10000_000000, "unym");
             let mut simulator = base_simulator(original_pledge.amount.u128());
-            let node_params = single_node_params(NodeRewardParams::new(
-                Percent::from_percentage_value(100).unwrap(),
-                true,
-            ));
+            let node_params =
+                NodeRewardParams::new(Percent::from_percentage_value(100).unwrap(), true);
 
             // add 2 delegations at genesis (because it makes things easier and as shown with previous tests
             // delegating at different times still work)
@@ -366,7 +361,7 @@ mod tests {
             simulator.delegate("bob", Coin::new(4000_000000, "unym"), 0);
 
             // "normal", sanity check rewarding
-            let rewards1 = simulator.simulate_epoch(&node_params)[&0];
+            let rewards1 = simulator.simulate_epoch_single_node(node_params);
             let expected_operator1 = "1411087.1007647323".parse().unwrap();
             let expected_delegator_reward1 = "2199961.032388664".parse().unwrap();
             compare_decimals(rewards1.delegates, expected_delegator_reward1, None);
@@ -383,7 +378,7 @@ mod tests {
                 Decimal::from_atomics(original_pledge.amount, 0).unwrap()
             );
 
-            let rewards2 = simulator.simulate_epoch(&node_params)[&0];
+            let rewards2 = simulator.simulate_epoch_single_node(node_params);
             let expected_operator2 = "1411113.0004067947".parse().unwrap();
             let expected_delegator_reward2 = "2200183.3879084454".parse().unwrap();
             compare_decimals(rewards2.delegates, expected_delegator_reward2, None);
@@ -395,10 +390,8 @@ mod tests {
         fn withdrawing_delegator_reward() {
             // essentially all delegators' rewards (and the operator itself) are still correctly computed
             let mut simulator = base_simulator(10000_000000);
-            let node_params = single_node_params(NodeRewardParams::new(
-                Percent::from_percentage_value(100).unwrap(),
-                true,
-            ));
+            let node_params =
+                NodeRewardParams::new(Percent::from_percentage_value(100).unwrap(), true);
 
             // add 2 delegations at genesis (because it makes things easier and as shown with previous tests
             // delegating at different times still work)
@@ -406,7 +399,7 @@ mod tests {
             simulator.delegate("bob", Coin::new(4000_000000, "unym"), 0);
 
             // "normal", sanity check rewarding
-            let rewards1 = simulator.simulate_epoch(&node_params)[&0];
+            let rewards1 = simulator.simulate_epoch_single_node(node_params);
             let expected_operator1 = "1411087.1007647323".parse().unwrap();
             let expected_delegator_reward1 = "2199961.032388664".parse().unwrap();
             compare_decimals(rewards1.delegates, expected_delegator_reward1, None);
@@ -424,7 +417,7 @@ mod tests {
             assert_eq!(reward.amount, truncate_reward_amount(expected_del1_reward));
 
             // new reward after withdrawal
-            let rewards2 = simulator.simulate_epoch(&node_params)[&0];
+            let rewards2 = simulator.simulate_epoch_single_node(node_params);
             let expected_operator2 = "1411250.1907492676".parse().unwrap();
             let expected_delegator_reward2 = "2200004.051009689".parse().unwrap();
             compare_decimals(rewards2.delegates, expected_delegator_reward2, None);
@@ -508,8 +501,8 @@ mod tests {
 
                 // this has to always hold
                 check_rewarding_invariant(&simulator);
-                let node_params = single_node_params(NodeRewardParams::new(performance, is_active));
-                simulator.simulate_epoch(&node_params);
+                let node_params = NodeRewardParams::new(performance, is_active);
+                simulator.simulate_epoch_single_node(node_params);
             }
 
             // after everyone undelegates, there should be nothing left in the delegates pool

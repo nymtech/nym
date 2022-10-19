@@ -739,7 +739,7 @@ pub mod tests {
                         performance,
                         in_active_set: true,
                     };
-                    let sim_res = sim.simulate_epoch(node_params);
+                    let sim_res = sim.simulate_epoch_single_node(node_params);
                     assert_eq!(sim_res, dist);
                 }
                 test.skip_to_next_epoch_end();
@@ -763,7 +763,7 @@ pub mod tests {
                         performance,
                         in_active_set: true,
                     };
-                    let sim_res = sim.simulate_epoch(node_params);
+                    let sim_res = sim.simulate_epoch_single_node(node_params);
                     assert_eq!(sim_res, dist);
                 }
                 test.skip_to_next_epoch_end();
@@ -804,8 +804,8 @@ pub mod tests {
                     in_active_set: true,
                 };
 
-                let dist1 = sim1.simulate_epoch(node_params);
-                let dist2 = sim2.simulate_epoch(node_params);
+                let dist1 = sim1.simulate_epoch_single_node(node_params);
+                let dist2 = sim2.simulate_epoch_single_node(node_params);
 
                 let env = test.env();
 
@@ -871,6 +871,7 @@ pub mod tests {
                 compare_decimals(
                     computed_del11_reward + computed_del12_reward,
                     delegates_reward1,
+                    None,
                 );
 
                 let res2 = try_reward_mixnode(
@@ -943,8 +944,8 @@ pub mod tests {
                     in_active_set: true,
                 };
 
-                let dist1 = sim1.simulate_epoch(node_params);
-                let dist2 = sim2.simulate_epoch(node_params);
+                let dist1 = sim1.simulate_epoch_single_node(node_params);
+                let dist2 = sim2.simulate_epoch_single_node(node_params);
 
                 let env = test.env();
 
@@ -1017,6 +1018,7 @@ pub mod tests {
                 compare_decimals(
                     computed_del11_reward + computed_del12_reward + computed_del13_reward,
                     delegates_reward1,
+                    None,
                 );
 
                 let res2 = try_reward_mixnode(
@@ -1077,6 +1079,7 @@ pub mod tests {
                 compare_decimals(
                     computed_del21_reward + computed_del23_reward,
                     delegates_reward2,
+                    None,
                 );
 
                 test.skip_to_next_epoch_end();

@@ -668,7 +668,9 @@ mod tests {
             simulator.simulate_full_interval(&node_params);
         }
 
-        // we allow the delta to be within 0.1unym
+        // we allow the delta to be within 0.1unym,
+        // because the expected values, especially for the reward pool,
+        // do not provide us with any higher precision
         let epsilon = Some(Decimal::from_ratio(1u32, 10u32));
 
         let expected_reward_pool = "184876811322111.7".parse().unwrap();

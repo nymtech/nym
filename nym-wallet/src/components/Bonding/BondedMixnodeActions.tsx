@@ -8,9 +8,11 @@ export type TBondedMixnodeActions = 'nodeSettings' | 'bondMore' | 'unbond' | 're
 export const BondedMixnodeActions = ({
   onActionSelect,
   disabledRedeemAndCompound,
+  disabledBondMore,
 }: {
   onActionSelect: (action: TBondedMixnodeActions) => void;
   disabledRedeemAndCompound: boolean;
+  disabledBondMore?: boolean;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -24,11 +26,13 @@ export const BondedMixnodeActions = ({
 
   return (
     <ActionsMenu open={isOpen} onOpen={handleOpen} onClose={handleClose}>
-      <ActionsMenuItem
-        title="Bond More"
-        Icon={<BondIcon fontSize="inherit" />}
-        onClick={() => handleActionClick('bondMore')}
-      />
+      {!disabledBondMore && (
+        <ActionsMenuItem
+          title="Bond More"
+          Icon={<BondIcon fontSize="inherit" />}
+          onClick={() => handleActionClick('bondMore')}
+        />
+      )}
       <ActionsMenuItem
         title="Redeem rewards"
         Icon={<Typography sx={{ pl: 1, fontWeight: 700 }}>R</Typography>}

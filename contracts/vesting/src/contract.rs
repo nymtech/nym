@@ -14,7 +14,7 @@ use cosmwasm_std::{
 };
 use cw_storage_plus::Bound;
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
-use mixnet_contract_common::{Gateway, MixNode, NodeId};
+use mixnet_contract_common::{Gateway, MixId, MixNode};
 use vesting_contract_common::events::{
     new_ownership_transfer_event, new_periodic_vesting_account_event,
     new_staking_address_update_event, new_track_gateway_unbond_event,
@@ -363,7 +363,7 @@ fn try_track_reward(
 /// Track undelegation, invoked by the mixnet contract after sucessful undelegation, message contains coins returned with any accrued rewards.
 fn try_track_undelegation(
     address: &str,
-    mix_id: NodeId,
+    mix_id: MixId,
     amount: Coin,
     info: MessageInfo,
     deps: DepsMut<'_>,
@@ -379,7 +379,7 @@ fn try_track_undelegation(
 
 /// Delegate to mixnode, sends [mixnet_contract_common::ExecuteMsg::DelegateToMixnodeOnBehalf] to [crate::storage::MIXNET_CONTRACT_ADDRESS]..
 fn try_delegate_to_mixnode(
-    mix_id: NodeId,
+    mix_id: MixId,
     amount: Coin,
     info: MessageInfo,
     env: Env,
@@ -405,7 +405,7 @@ fn try_claim_operator_reward(
 fn try_claim_delegator_reward(
     deps: DepsMut<'_>,
     info: MessageInfo,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Result<Response, ContractError> {
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
 
@@ -414,7 +414,7 @@ fn try_claim_delegator_reward(
 
 /// Undelegates from a mixnode, sends [mixnet_contract_common::ExecuteMsg::UndelegateFromMixnodeOnBehalf] to [crate::storage::MIXNET_CONTRACT_ADDRESS].
 fn try_undelegate_from_mixnode(
-    mix_id: NodeId,
+    mix_id: MixId,
     info: MessageInfo,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
@@ -695,7 +695,7 @@ pub fn try_get_delegated_vesting(
 pub fn try_get_delegation_times(
     deps: Deps<'_>,
     vesting_account_address: &str,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Result<DelegationTimesResponse, ContractError> {
     let owner = deps.api.addr_validate(vesting_account_address)?;
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
@@ -715,7 +715,7 @@ pub fn try_get_delegation_times(
 
 pub fn try_get_all_delegations(
     deps: Deps<'_>,
-    start_after: Option<(u32, NodeId, BlockTimestampSecs)>,
+    start_after: Option<(u32, MixId, BlockTimestampSecs)>,
     limit: Option<u32>,
 ) -> Result<AllDelegationsResponse, ContractError> {
     let limit = limit.unwrap_or(100).min(200) as usize;

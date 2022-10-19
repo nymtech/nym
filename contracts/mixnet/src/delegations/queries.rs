@@ -12,13 +12,13 @@ use cosmwasm_std::StdResult;
 use cw_storage_plus::Bound;
 use mixnet_contract_common::delegation::{MixNodeDelegationResponse, OwnerProxySubKey};
 use mixnet_contract_common::{
-    delegation, Delegation, NodeId, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
+    delegation, Delegation, MixId, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
     PagedMixNodeDelegationsResponse,
 };
 
 pub(crate) fn query_mixnode_delegations_paged(
     deps: Deps<'_>,
-    mix_id: NodeId,
+    mix_id: MixId,
     start_after: Option<String>,
     limit: Option<u32>,
 ) -> StdResult<PagedMixNodeDelegationsResponse> {
@@ -50,7 +50,7 @@ pub(crate) fn query_mixnode_delegations_paged(
 pub(crate) fn query_delegator_delegations_paged(
     deps: Deps<'_>,
     delegation_owner: String,
-    start_after: Option<(NodeId, OwnerProxySubKey)>,
+    start_after: Option<(MixId, OwnerProxySubKey)>,
     limit: Option<u32>,
 ) -> StdResult<PagedDelegatorDelegationsResponse> {
     let validated_owner = deps.api.addr_validate(&delegation_owner)?;
@@ -85,7 +85,7 @@ pub(crate) fn query_delegator_delegations_paged(
 // queries for delegation value of given address for particular node
 pub(crate) fn query_mixnode_delegation(
     deps: Deps<'_>,
-    mix_id: NodeId,
+    mix_id: MixId,
     delegation_owner: String,
     proxy: Option<String>,
 ) -> StdResult<MixNodeDelegationResponse> {

@@ -3,7 +3,7 @@ use crate::deprecated::DelegationEvent;
 use crate::error::TypesError;
 use crate::mixnode::MixNodeCostParams;
 use cosmwasm_std::Decimal;
-use mixnet_contract_common::{Delegation as MixnetContractDelegation, NodeId};
+use mixnet_contract_common::{Delegation as MixnetContractDelegation, MixId};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub struct Delegation {
     pub owner: String,
-    pub mix_id: NodeId,
+    pub mix_id: MixId,
     pub amount: DecCoin,
     pub height: u64,
     pub proxy: Option<String>, // proxy address used to delegate the funds on behalf of another address
@@ -44,7 +44,7 @@ impl Delegation {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub struct DelegationWithEverything {
     pub owner: String,
-    pub mix_id: NodeId,
+    pub mix_id: MixId,
     pub node_identity: String,
     pub amount: DecCoin,
     pub accumulated_by_delegates: Option<DecCoin>,

@@ -4,7 +4,7 @@
 use crate::contract_cache::ValidatorCache;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::RewardingParams;
-use mixnet_contract_common::{GatewayBond, Interval, NodeId};
+use mixnet_contract_common::{GatewayBond, Interval, MixId};
 use rocket::serde::json::Json;
 use rocket::State;
 use rocket_okapi::openapi;
@@ -63,7 +63,7 @@ pub async fn get_active_set_detailed(
 #[get("/mixnodes/blacklisted")]
 pub async fn get_blacklisted_mixnodes(
     cache: &State<ValidatorCache>,
-) -> Json<Option<HashSet<NodeId>>> {
+) -> Json<Option<HashSet<MixId>>> {
     Json(cache.mixnodes_blacklist().await.map(|c| c.value))
 }
 

@@ -242,7 +242,7 @@ pub fn nym_topology_from_detailed(
             );
             continue;
         }
-        let mix_id = bond.id;
+        let mix_id = bond.mix_id;
         let mix_identity = bond.mix_node.identity_key.clone();
 
         let layer_entry = mixes.entry(layer).or_insert_with(Vec::new);

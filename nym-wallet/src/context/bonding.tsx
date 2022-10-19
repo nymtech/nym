@@ -3,10 +3,11 @@ import {
   DecCoin,
   MixnodeStatus,
   TransactionExecuteResult,
-  decimalToFloatApproximation,
   decimalToPercentage,
+  SelectionChance,
 } from '@nymproject/types';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import Big from 'big.js';
 import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
 import { Console } from 'src/utils/console';
 import {
@@ -23,17 +24,25 @@ import {
   vestingUnbondMixnode,
   updateMixnodeCostParams as updateMixnodeCostParamsRequest,
   vestingUpdateMixnodeCostParams as updateMixnodeVestingCostParamsRequest,
-  getNodeDescription as getNodeDescriptioRequest,
+  getNodeDescription as getNodeDescriptionRequest,
   getMixnodeStatus,
   getPendingOperatorRewards,
   getMixnodeStakeSaturation,
   vestingClaimOperatorReward,
+  getInclusionProbability,
+  getMixnodeAvgUptime,
+  getMixnodeRewardEstimation,
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
-import { attachDefaultOperatingCost, toPercentFloatString, toPercentIntegerString } from '../utils';
+import {
+  attachDefaultOperatingCost,
+  toDisplay,
+  toPercentFloatString,
+  toPercentIntegerString,
+  unymToNym,
+} from '../utils';
 
-// TODO add relevant data
 export type TBondedMixnode = {
   name?: string;
   identityKey: string;
@@ -45,12 +54,16 @@ export type TBondedMixnode = {
   delegators: number;
   status: MixnodeStatus;
   proxy?: string;
+  operatorCost?: string;
   host: string;
+  estimatedRewards?: DecCoin;
+  activeSetProbability?: SelectionChance;
+  standbySetProbability?: SelectionChance;
+  routingScore: number;
   httpApiPort: number;
   mixPort: number;
   verlocPort: number;
   version: string;
-  operatorCost?: string;
 };
 
 export interface TBondedGateway {
@@ -82,9 +95,6 @@ export type TBondingContext = {
   updateMixnode: (pm: string, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   checkOwnership: () => Promise<void>;
 };
-
-const calculateStake = (pledge: string, delegations: string): number =>
-  decimalToFloatApproximation(pledge) + decimalToFloatApproximation(delegations);
 
 export const BondingContext = createContext<TBondingContext>({
   isLoading: true,
@@ -128,7 +138,12 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
   };
 
   const getAdditionalMixnodeDetails = async (mixId: number) => {
-    const additionalDetails: { status: MixnodeStatus; stakeSaturation: string } = {
+    const additionalDetails: {
+      status: MixnodeStatus;
+      stakeSaturation: string;
+      operatorCost?: string;
+      estimatedRewards?: DecCoin;
+    } = {
       status: 'not_found',
       stakeSaturation: '0',
     };
@@ -137,26 +152,69 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
       const statusResponse = await getMixnodeStatus(mixId);
       additionalDetails.status = statusResponse.status;
     } catch (e) {
-      Console.log(e);
+      Console.log('getMixnodeStatus fails', e);
     }
 
     try {
       const stakeSaturationResponse = await getMixnodeStakeSaturation(mixId);
       additionalDetails.stakeSaturation = decimalToPercentage(stakeSaturationResponse.saturation);
     } catch (e) {
-      Console.log(e);
+      Console.log('getMixnodeStakeSaturation fails', e);
     }
-
+    try {
+      const rewardEstimation = await getMixnodeRewardEstimation(mixId);
+      additionalDetails.operatorCost = unymToNym(rewardEstimation.estimation.operating_cost);
+      const estimatedRewards = unymToNym(rewardEstimation.estimation.total_node_reward);
+      if (estimatedRewards) {
+        additionalDetails.estimatedRewards = {
+          amount: estimatedRewards,
+          denom: 'nym',
+        };
+      }
+    } catch (e) {
+      Console.log('getMixnodeRewardEstimation fails', e);
+    }
     return additionalDetails;
   };
 
   const getNodeDescription = async (host: string, port: number) => {
+    let result;
     try {
-      return await getNodeDescriptioRequest(host, port);
+      result = await getNodeDescriptionRequest(host, port);
     } catch (e) {
-      Console.log(e);
+      Console.log('getNodeDescriptionRequest fails', e);
     }
-    return undefined;
+    return result;
+  };
+
+  const getSetProbabilities = async (mixId: number) => {
+    let result;
+    try {
+      result = await getInclusionProbability(mixId);
+    } catch (e: any) {
+      Console.log('getInclusionProbability fails', e);
+    }
+    return result;
+  };
+
+  const getAvgUptime = async () => {
+    let result;
+    try {
+      result = await getMixnodeAvgUptime();
+    } catch (e: any) {
+      Console.log('getMixnodeAvgUptime fails', e);
+    }
+    return result;
+  };
+
+  const calculateStake = (pledge: string, delegations: string) => {
+    let stake;
+    try {
+      stake = unymToNym(Big(pledge).plus(delegations));
+    } catch (e: any) {
+      Console.warn(`not a valid decimal number: ${e}`);
+    }
+    return stake;
   };
 
   const refresh = useCallback(async () => {
@@ -168,22 +226,32 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
         let operatorRewards;
         try {
           operatorRewards = await getPendingOperatorRewards(clientDetails?.client_address);
+          const opRewards = toDisplay(operatorRewards.amount);
+          if (opRewards) {
+            operatorRewards.amount = opRewards;
+          }
         } catch (e) {
           Console.warn(`get_operator_rewards request failed: ${e}`);
         }
         if (data) {
-          const { bond_information, rewarding_details } = data;
-          const { status, stakeSaturation } = await getAdditionalMixnodeDetails(data.bond_information.id);
+          const {
+            bond_information,
+            rewarding_details,
+            bond_information: { mix_id },
+          } = data;
+
+          const { status, stakeSaturation, operatorCost, estimatedRewards } = await getAdditionalMixnodeDetails(mix_id);
+          const setProbabilities = await getSetProbabilities(mix_id);
           const nodeDescription = await getNodeDescription(
             bond_information.mix_node.host,
             bond_information.mix_node.http_api_port,
           );
+          const routingScore = await getAvgUptime();
           setBondedNode({
             name: nodeDescription?.name,
             identityKey: bond_information.mix_node.identity_key,
-            ip: bond_information.id,
             stake: {
-              amount: calculateStake(rewarding_details.operator, data.rewarding_details.delegates).toString(),
+              amount: calculateStake(rewarding_details.operator, rewarding_details.delegates),
               denom: bond_information.original_pledge.denom,
             },
             bond: bond_information.original_pledge,
@@ -193,12 +261,16 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             operatorRewards,
             status,
             stakeSaturation,
+            operatorCost,
             host: bond_information.mix_node.host.replace(/\s/g, ''),
+            routingScore,
+            activeSetProbability: setProbabilities?.in_active,
+            standbySetProbability: setProbabilities?.in_reserve,
+            estimatedRewards,
             httpApiPort: bond_information.mix_node.http_api_port,
             mixPort: bond_information.mix_node.mix_port,
             verlocPort: bond_information.mix_node.verloc_port,
             version: bond_information.mix_node.version,
-            operatorCost: rewarding_details.cost_params.interval_operating_cost.amount,
           } as TBondedMixnode);
         }
       } catch (e: any) {

@@ -44,7 +44,7 @@ pub use cosmrs::Coin as CosmosCoin;
 pub use cosmrs::{bip32, AccountId, Decimal, Denom};
 pub use cosmwasm_std::Coin as CosmWasmCoin;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
-use mixnet_contract_common::NodeId;
+use mixnet_contract_common::MixId;
 pub use signing_client::Client as SigningNymdClient;
 pub use traits::{VestingQueryClient, VestingSigningClient};
 
@@ -725,7 +725,7 @@ impl<C> NymdClient<C> {
     #[execute("vesting")]
     fn _vesting_withdraw_delegator_reward(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
         fee: Option<Fee>,
     ) -> (VestingExecuteMsg, Option<Fee>)
     where

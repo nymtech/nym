@@ -6,15 +6,15 @@ use crate::constants::{
 };
 use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex};
 use mixnet_contract_common::delegation::OwnerProxySubKey;
-use mixnet_contract_common::{Addr, Delegation, NodeId};
+use mixnet_contract_common::{Addr, Delegation, MixId};
 
 // It's a composite key on node's id and delegator address
-type PrimaryKey = (NodeId, OwnerProxySubKey);
+type PrimaryKey = (MixId, OwnerProxySubKey);
 
 pub(crate) struct DelegationIndex<'a> {
     pub(crate) owner: MultiIndex<'a, Addr, Delegation, PrimaryKey>,
 
-    pub(crate) mixnode: MultiIndex<'a, NodeId, Delegation, PrimaryKey>,
+    pub(crate) mixnode: MultiIndex<'a, MixId, Delegation, PrimaryKey>,
 }
 
 impl<'a> IndexList<Delegation> for DelegationIndex<'a> {

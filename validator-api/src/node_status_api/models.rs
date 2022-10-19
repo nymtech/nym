@@ -4,7 +4,7 @@
 use crate::node_status_api::utils::NodeUptimes;
 use crate::storage::models::NodeStatus;
 use mixnet_contract_common::reward_params::Performance;
-use mixnet_contract_common::{IdentityKey, NodeId};
+use mixnet_contract_common::{IdentityKey, MixId};
 use okapi::openapi3::{Responses, SchemaObject};
 use rocket::http::{ContentType, Status};
 use rocket::response::{self, Responder, Response};
@@ -115,7 +115,7 @@ impl From<Uptime> for Performance {
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct MixnodeStatusReport {
-    pub(crate) mix_id: NodeId,
+    pub(crate) mix_id: MixId,
     pub(crate) identity: IdentityKey,
     pub(crate) owner: String,
 
@@ -128,7 +128,7 @@ pub struct MixnodeStatusReport {
 impl MixnodeStatusReport {
     pub(crate) fn construct_from_last_day_reports(
         report_time: OffsetDateTime,
-        mix_id: NodeId,
+        mix_id: MixId,
         identity: IdentityKey,
         owner: String,
         last_day: Vec<NodeStatus>,
@@ -192,7 +192,7 @@ impl GatewayStatusReport {
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct MixnodeUptimeHistory {
-    pub(crate) mix_id: NodeId,
+    pub(crate) mix_id: MixId,
     pub(crate) identity: String,
     pub(crate) owner: String,
 
@@ -201,7 +201,7 @@ pub struct MixnodeUptimeHistory {
 
 impl MixnodeUptimeHistory {
     pub(crate) fn new(
-        mix_id: NodeId,
+        mix_id: MixId,
         identity: String,
         owner: String,
         history: Vec<HistoricalUptime>,
@@ -305,9 +305,9 @@ impl OpenApiResponderInner for ErrorResponse {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ValidatorApiStorageError {
-    MixnodeReportNotFound(NodeId),
+    MixnodeReportNotFound(MixId),
     GatewayReportNotFound(String),
-    MixnodeUptimeHistoryNotFound(NodeId),
+    MixnodeUptimeHistoryNotFound(MixId),
     GatewayUptimeHistoryNotFound(String),
 
     // I don't think we want to expose errors to the user about what really happened

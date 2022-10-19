@@ -4,7 +4,7 @@
 use crate::api_client;
 use crate::error::BackendError;
 use crate::state::WalletState;
-use mixnet_contract_common::{IdentityKeyRef, NodeId};
+use mixnet_contract_common::{IdentityKeyRef, MixId};
 use validator_client::models::{
     GatewayCoreStatusResponse, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
     MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse,
@@ -12,7 +12,7 @@ use validator_client::models::{
 
 #[tauri::command]
 pub async fn mixnode_core_node_status(
-    mix_id: NodeId,
+    mix_id: MixId,
     since: Option<i64>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<MixnodeCoreStatusResponse, BackendError> {
@@ -34,7 +34,7 @@ pub async fn gateway_core_node_status(
 
 #[tauri::command]
 pub async fn mixnode_status(
-    mix_id: NodeId,
+    mix_id: MixId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<MixnodeStatusResponse, BackendError> {
     Ok(api_client!(state).get_mixnode_status(mix_id).await?)
@@ -42,7 +42,7 @@ pub async fn mixnode_status(
 
 #[tauri::command]
 pub async fn mixnode_reward_estimation(
-    mix_id: NodeId,
+    mix_id: MixId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<RewardEstimationResponse, BackendError> {
     Ok(api_client!(state)
@@ -52,7 +52,7 @@ pub async fn mixnode_reward_estimation(
 
 #[tauri::command]
 pub async fn mixnode_stake_saturation(
-    mix_id: NodeId,
+    mix_id: MixId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<StakeSaturationResponse, BackendError> {
     Ok(api_client!(state)
@@ -62,7 +62,7 @@ pub async fn mixnode_stake_saturation(
 
 #[tauri::command]
 pub async fn mixnode_inclusion_probability(
-    mix_id: NodeId,
+    mix_id: MixId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<InclusionProbabilityResponse, BackendError> {
     Ok(api_client!(state)

@@ -5,10 +5,10 @@ use crate::currency::{DecCoin, RegisteredCoins};
 use crate::error::TypesError;
 use cosmwasm_std::Decimal;
 use mixnet_contract_common::{
-    EpochId, MixNode, MixNodeBond as MixnetContractMixNodeBond,
+    EpochId, MixId, MixNode, MixNodeBond as MixnetContractMixNodeBond,
     MixNodeCostParams as MixnetContractMixNodeCostParams,
     MixNodeDetails as MixnetContractMixNodeDetails,
-    MixNodeRewarding as MixnetContractMixNodeRewarding, NodeId, Percent,
+    MixNodeRewarding as MixnetContractMixNodeRewarding, Percent,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -49,7 +49,7 @@ impl MixNodeDetails {
 )]
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct MixNodeBond {
-    pub id: NodeId,
+    pub mix_id: MixId,
     pub owner: String,
     pub original_pledge: DecCoin,
     pub layer: String,
@@ -65,7 +65,7 @@ impl MixNodeBond {
         reg: &RegisteredCoins,
     ) -> Result<MixNodeBond, TypesError> {
         Ok(MixNodeBond {
-            id: bond.id,
+            mix_id: bond.mix_id,
             owner: bond.owner.into_string(),
             original_pledge: reg
                 .attempt_convert_to_display_dec_coin(bond.original_pledge.into())?,

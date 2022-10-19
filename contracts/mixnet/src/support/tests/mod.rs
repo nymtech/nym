@@ -52,7 +52,7 @@ pub mod test_helpers {
     use mixnet_contract_common::rewarding::simulator::Simulator;
     use mixnet_contract_common::rewarding::RewardDistribution;
     use mixnet_contract_common::{
-        Delegation, Gateway, InitialRewardingParams, InstantiateMsg, Interval, MixNode, NodeId,
+        Delegation, Gateway, InitialRewardingParams, InstantiateMsg, Interval, MixId, MixNode,
         Percent, RewardedSetNodeStatus,
     };
     use rand_chacha::rand_core::{CryptoRng, RngCore, SeedableRng};
@@ -141,14 +141,14 @@ pub mod test_helpers {
             interval_storage::current_interval(self.deps().storage).unwrap()
         }
 
-        pub fn rewarded_set(&self) -> Vec<(NodeId, RewardedSetNodeStatus)> {
+        pub fn rewarded_set(&self) -> Vec<(MixId, RewardedSetNodeStatus)> {
             interval_storage::REWARDED_SET
                 .range(self.deps().storage, None, None, Order::Ascending)
                 .map(|res| res.unwrap())
                 .collect::<Vec<_>>()
         }
 
-        pub fn add_dummy_mixnode(&mut self, owner: &str, stake: Option<Uint128>) -> NodeId {
+        pub fn add_dummy_mixnode(&mut self, owner: &str, stake: Option<Uint128>) -> MixId {
             let stake = match stake {
                 Some(amount) => {
                     let denom = rewarding_denom(self.deps().storage).unwrap();
@@ -166,7 +166,7 @@ pub mod test_helpers {
             owner: &str,
             stake: Option<Uint128>,
             proxy: Addr,
-        ) -> NodeId {
+        ) -> MixId {
             let stake = match stake {
                 Some(amount) => {
                     let denom = rewarding_denom(self.deps().storage).unwrap();
@@ -210,7 +210,7 @@ pub mod test_helpers {
             current_id_counter + 1
         }
 
-        pub fn start_unbonding_mixnode(&mut self, mix_id: NodeId) {
+        pub fn start_unbonding_mixnode(&mut self, mix_id: MixId) {
             let bond_details = mixnodes_storage::mixnode_bonds()
                 .load(self.deps().storage, mix_id)
                 .unwrap();
@@ -219,7 +219,7 @@ pub mod test_helpers {
                 .unwrap();
         }
 
-        pub fn immediately_unbond_mixnode(&mut self, mix_id: NodeId) {
+        pub fn immediately_unbond_mixnode(&mut self, mix_id: MixId) {
             let env = self.env();
             pending_events::unbond_mixnode(self.deps_mut(), &env, mix_id).unwrap();
         }
@@ -228,7 +228,7 @@ pub mod test_helpers {
             &mut self,
             delegator: &str,
             amount: impl Into<Uint128>,
-            target: NodeId,
+            target: MixId,
         ) {
             let denom = rewarding_denom(self.deps().storage).unwrap();
             let amount = Coin {
@@ -251,7 +251,7 @@ pub mod test_helpers {
             &mut self,
             delegator: &str,
             amount: impl Into<Uint128>,
-            target: NodeId,
+            target: MixId,
             proxy: Addr,
         ) {
             let denom = rewarding_denom(self.deps().storage).unwrap();
@@ -271,11 +271,12 @@ pub mod test_helpers {
             .unwrap();
         }
 
+        #[allow(unused)]
         pub fn add_delegation(
             &mut self,
             delegator: &str,
             amount: impl Into<Uint128>,
-            target: NodeId,
+            target: MixId,
         ) {
             let denom = rewarding_denom(self.deps().storage).unwrap();
             let amount = Coin {
@@ -285,7 +286,7 @@ pub mod test_helpers {
             delegate(self.deps_mut(), delegator, vec![amount], target)
         }
 
-        pub fn remove_immediate_delegation(&mut self, delegator: &str, target: NodeId) {
+        pub fn remove_immediate_delegation(&mut self, delegator: &str, target: MixId) {
             pending_events::undelegate(self.deps_mut(), Addr::unchecked(delegator), target, None)
                 .unwrap();
         }
@@ -326,7 +327,7 @@ pub mod test_helpers {
             interval_storage::save_interval(self.deps_mut().storage, &advanced).unwrap()
         }
 
-        pub fn update_rewarded_set(&mut self, nodes: Vec<NodeId>) {
+        pub fn update_rewarded_set(&mut self, nodes: Vec<MixId>) {
             let active_set_size = rewards_storage::REWARDING_PARAMS
                 .load(self.deps().storage)
                 .unwrap()
@@ -335,7 +336,7 @@ pub mod test_helpers {
                 .unwrap();
         }
 
-        pub fn instantiate_simulator(&self, node: NodeId) -> Simulator {
+        pub fn instantiate_simulator(&self, node: MixId) -> Simulator {
             simulator_from_state(self.deps(), node)
         }
 
@@ -360,7 +361,7 @@ pub mod test_helpers {
 
         pub fn reward_with_distribution(
             &mut self,
-            mix_id: NodeId,
+            mix_id: MixId,
             performance: Performance,
         ) -> RewardDistribution {
             let env = self.env();
@@ -391,7 +392,7 @@ pub mod test_helpers {
 
         pub fn read_delegation(
             &mut self,
-            mix: NodeId,
+            mix: MixId,
             owner: &str,
             proxy: Option<&str>,
         ) -> Delegation {
@@ -404,18 +405,18 @@ pub mod test_helpers {
             .unwrap()
         }
 
-        pub fn mix_rewarding(&self, node: NodeId) -> MixNodeRewarding {
+        pub fn mix_rewarding(&self, node: MixId) -> MixNodeRewarding {
             rewards_storage::MIXNODE_REWARDING
                 .load(self.deps().storage, node)
                 .unwrap()
         }
 
-        pub fn delegation(&self, mix: NodeId, owner: &str, proxy: &Option<Addr>) -> Delegation {
+        pub fn delegation(&self, mix: MixId, owner: &str, proxy: &Option<Addr>) -> Delegation {
             read_delegation(self.deps().storage, mix, &Addr::unchecked(owner), proxy).unwrap()
         }
     }
 
-    pub fn simulator_from_state(deps: Deps<'_>, node: NodeId) -> Simulator {
+    pub fn simulator_from_state(deps: Deps<'_>, node: MixId) -> Simulator {
         let mix_rewarding = rewards_storage::MIXNODE_REWARDING
             .load(deps.storage, node)
             .unwrap();
@@ -448,11 +449,12 @@ pub mod test_helpers {
         None
     }
 
-    pub fn find_attribute(
-        event_type: Option<String>,
+    pub fn find_attribute<S: Into<String>>(
+        event_type: Option<S>,
         attribute: &str,
         response: &Response,
     ) -> String {
+        let event_type = event_type.map(Into::into);
         for event in &response.events {
             if let Some(typ) = &event_type {
                 if &event.ty != typ {
@@ -539,7 +541,7 @@ pub mod test_helpers {
         )
     }
 
-    pub fn add_dummy_delegations(mut deps: DepsMut<'_>, env: Env, mix_id: NodeId, n: usize) {
+    pub fn add_dummy_delegations(mut deps: DepsMut<'_>, env: Env, mix_id: MixId, n: usize) {
         for i in 0..n {
             pending_events::delegate(
                 deps.branch(),
@@ -630,7 +632,7 @@ pub mod test_helpers {
         deps: DepsMut<'_>,
         identity_key: Option<&str>,
         owner: &str,
-    ) -> NodeId {
+    ) -> MixId {
         let id = loop {
             let candidate = rng.next_u32();
             if !mixnodes_storage::unbonded_mixnodes().has(deps.storage, candidate) {
@@ -668,7 +670,7 @@ pub mod test_helpers {
         env: Env,
         sender: &str,
         stake: Vec<Coin>,
-    ) -> NodeId {
+    ) -> MixId {
         let keypair = crypto::asymmetric::identity::KeyPair::new(&mut rng);
         let owner_signature = keypair
             .private_key()
@@ -763,14 +765,14 @@ pub mod test_helpers {
         deps
     }
 
-    pub fn delegate(deps: DepsMut<'_>, sender: &str, stake: Vec<Coin>, mix_id: NodeId) {
+    pub fn delegate(deps: DepsMut<'_>, sender: &str, stake: Vec<Coin>, mix_id: MixId) {
         let info = mock_info(sender, &stake);
         try_delegate_to_mixnode(deps, info, mix_id).unwrap();
     }
 
     pub(crate) fn read_delegation(
         storage: &dyn Storage,
-        mix: NodeId,
+        mix: MixId,
         owner: &Addr,
         proxy: &Option<Addr>,
     ) -> Option<Delegation> {

@@ -3,7 +3,7 @@
 
 use crate::network_monitor::monitor::preparer::TestedNode;
 use crypto::asymmetric::identity;
-use mixnet_contract_common::NodeId;
+use mixnet_contract_common::MixId;
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -17,19 +17,19 @@ const GATEWAY_TYPE: u8 = 1;
 #[repr(u8)]
 #[derive(Eq, PartialEq, Debug, Hash, Clone, Copy)]
 pub(crate) enum NodeType {
-    Mixnode(NodeId),
+    Mixnode(MixId),
     Gateway,
 }
 
 impl NodeType {
     fn size(&self) -> usize {
         match self {
-            NodeType::Mixnode(_) => 1 + mem::size_of::<NodeId>(),
+            NodeType::Mixnode(_) => 1 + mem::size_of::<MixId>(),
             NodeType::Gateway => 1,
         }
     }
 
-    pub(crate) fn mix_id(&self) -> Option<NodeId> {
+    pub(crate) fn mix_id(&self) -> Option<MixId> {
         match self {
             NodeType::Mixnode(mix_id) => Some(*mix_id),
             NodeType::Gateway => None,
@@ -54,11 +54,11 @@ impl NodeType {
         }
         match b[0] {
             t if t == MIXNODE_TYPE => {
-                if b.len() < (1 + mem::size_of::<NodeId>()) {
+                if b.len() < (1 + mem::size_of::<MixId>()) {
                     return Err(TestPacketError::InvalidNodeType);
                 }
-                Ok(NodeType::Mixnode(NodeId::from_be_bytes(
-                    b[1..1 + mem::size_of::<NodeId>()].try_into().unwrap(),
+                Ok(NodeType::Mixnode(MixId::from_be_bytes(
+                    b[1..1 + mem::size_of::<MixId>()].try_into().unwrap(),
                 )))
             }
             t if t == GATEWAY_TYPE => Ok(NodeType::Gateway),

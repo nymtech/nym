@@ -4,7 +4,7 @@
 use crate::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use crate::reward_params::{IntervalRewardParams, IntervalRewardingParamsUpdate};
 use crate::rewarding::RewardDistribution;
-use crate::{ContractStateParams, IdentityKeyRef, Interval, Layer, NodeId};
+use crate::{ContractStateParams, IdentityKeyRef, Interval, Layer, MixId};
 pub use contracts_common::events::*;
 use cosmwasm_std::{Addr, Coin, Decimal, Event};
 
@@ -129,7 +129,7 @@ pub const APPROXIMATE_TIME_LEFT_SECS_KEY: &str = "approximate_time_left_secs";
 pub const INTERVAL_REWARDING_PARAMS_UPDATE_KEY: &str = "interval_rewarding_params_update";
 pub const UPDATED_INTERVAL_REWARDING_PARAMS_KEY: &str = "updated_interval_rewarding_params";
 pub const PRIOR_DELEGATES_KEY: &str = "prior_delegates";
-pub const PRIOR_UNIT_DELEGATION_KEY: &str = "prior_unit_delegation";
+pub const PRIOR_UNIT_REWARD: &str = "prior_unit_reward";
 
 pub const DISTRIBUTED_DELEGATION_REWARDS_KEY: &str = "distributed_delegation_rewards";
 pub const FURTHER_DELEGATIONS_TO_REWARD_KEY: &str = "further_delegations";
@@ -159,7 +159,7 @@ pub fn new_delegation_event(
     delegator: &Addr,
     proxy: &Option<Addr>,
     amount: &Coin,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Event {
     Event::new(MixnetEventType::Delegation)
         .add_attribute(DELEGATOR_KEY, delegator)
@@ -171,7 +171,7 @@ pub fn new_delegation_event(
 pub fn new_delegation_on_unbonded_node_event(
     delegator: &Addr,
     proxy: &Option<Addr>,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Event {
     Event::new(MixnetEventType::Delegation)
         .add_attribute(DELEGATOR_KEY, delegator)
@@ -183,7 +183,7 @@ pub fn new_pending_delegation_event(
     delegator: &Addr,
     proxy: &Option<Addr>,
     amount: &Coin,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Event {
     Event::new(MixnetEventType::PendingDelegation)
         .add_attribute(DELEGATOR_KEY, delegator)
@@ -196,7 +196,7 @@ pub fn new_withdraw_operator_reward_event(
     owner: &Addr,
     proxy: &Option<Addr>,
     amount: Coin,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Event {
     Event::new(MixnetEventType::WithdrawOperatorReward)
         .add_attribute(OWNER_KEY, owner.as_str())
@@ -209,7 +209,7 @@ pub fn new_withdraw_delegator_reward_event(
     delegator: &Addr,
     proxy: &Option<Addr>,
     amount: Coin,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Event {
     Event::new(MixnetEventType::WithdrawDelegatorReward)
         .add_attribute(DELEGATOR_KEY, delegator)
@@ -265,7 +265,7 @@ pub fn new_pending_rewarding_params_update_event(
         )
 }
 
-pub fn new_undelegation_event(delegator: &Addr, proxy: &Option<Addr>, mix_id: NodeId) -> Event {
+pub fn new_undelegation_event(delegator: &Addr, proxy: &Option<Addr>, mix_id: MixId) -> Event {
     Event::new(MixnetEventType::Undelegation)
         .add_attribute(DELEGATOR_KEY, delegator)
         .add_optional_attribute(PROXY_KEY, proxy.as_ref())
@@ -275,7 +275,7 @@ pub fn new_undelegation_event(delegator: &Addr, proxy: &Option<Addr>, mix_id: No
 pub fn new_pending_undelegation_event(
     delegator: &Addr,
     proxy: &Option<Addr>,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Event {
     Event::new(MixnetEventType::PendingUndelegation)
         .add_attribute(DELEGATOR_KEY, delegator)
@@ -314,7 +314,7 @@ pub fn new_mixnode_bonding_event(
     proxy: &Option<Addr>,
     amount: &Coin,
     identity: IdentityKeyRef<'_>,
-    mix_id: NodeId,
+    mix_id: MixId,
     assigned_layer: Layer,
 ) -> Event {
     // coin implements Display trait and we use that implementation here
@@ -327,7 +327,7 @@ pub fn new_mixnode_bonding_event(
         .add_attribute(AMOUNT_KEY, amount.to_string())
 }
 
-pub fn new_mixnode_unbonding_event(mix_id: NodeId) -> Event {
+pub fn new_mixnode_unbonding_event(mix_id: MixId) -> Event {
     Event::new(MixnetEventType::MixnodeUnbonding).add_attribute(MIX_ID_KEY, mix_id.to_string())
 }
 
@@ -335,7 +335,7 @@ pub fn new_pending_mixnode_unbonding_event(
     owner: &Addr,
     proxy: &Option<Addr>,
     identity: IdentityKeyRef<'_>,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Event {
     Event::new(MixnetEventType::PendingMixnodeUnbonding)
         .add_attribute(MIX_ID_KEY, mix_id.to_string())
@@ -345,7 +345,7 @@ pub fn new_pending_mixnode_unbonding_event(
 }
 
 pub fn new_mixnode_config_update_event(
-    mix_id: NodeId,
+    mix_id: MixId,
     owner: &Addr,
     proxy: &Option<Addr>,
     update: &MixNodeConfigUpdate,
@@ -358,7 +358,7 @@ pub fn new_mixnode_config_update_event(
 }
 
 pub fn new_mixnode_pending_cost_params_update_event(
-    mix_id: NodeId,
+    mix_id: MixId,
     owner: &Addr,
     proxy: &Option<Addr>,
     new_costs: &MixNodeCostParams,
@@ -370,10 +370,7 @@ pub fn new_mixnode_pending_cost_params_update_event(
         .add_attribute(UPDATED_MIXNODE_COST_PARAMS_KEY, new_costs.to_inline_json())
 }
 
-pub fn new_mixnode_cost_params_update_event(
-    mix_id: NodeId,
-    new_costs: &MixNodeCostParams,
-) -> Event {
+pub fn new_mixnode_cost_params_update_event(mix_id: MixId, new_costs: &MixNodeCostParams) -> Event {
     Event::new(MixnetEventType::MixnodeCostParamsUpdate)
         .add_attribute(MIX_ID_KEY, mix_id.to_string())
         .add_attribute(UPDATED_MIXNODE_COST_PARAMS_KEY, new_costs.to_inline_json())
@@ -431,7 +428,7 @@ pub fn new_settings_update_event(
     event
 }
 
-pub fn new_not_found_mix_operator_rewarding_event(interval: Interval, mix_id: NodeId) -> Event {
+pub fn new_not_found_mix_operator_rewarding_event(interval: Interval, mix_id: MixId) -> Event {
     Event::new(MixnetEventType::MixnodeRewarding)
         .add_attribute(
             INTERVAL_KEY,
@@ -441,7 +438,7 @@ pub fn new_not_found_mix_operator_rewarding_event(interval: Interval, mix_id: No
         .add_attribute(NO_REWARD_REASON_KEY, BOND_NOT_FOUND_VALUE)
 }
 
-pub fn new_zero_uptime_mix_operator_rewarding_event(interval: Interval, mix_id: NodeId) -> Event {
+pub fn new_zero_uptime_mix_operator_rewarding_event(interval: Interval, mix_id: MixId) -> Event {
     Event::new(MixnetEventType::MixnodeRewarding)
         .add_attribute(
             INTERVAL_KEY,
@@ -453,10 +450,10 @@ pub fn new_zero_uptime_mix_operator_rewarding_event(interval: Interval, mix_id: 
 
 pub fn new_mix_rewarding_event(
     interval: Interval,
-    mix_id: NodeId,
+    mix_id: MixId,
     reward_distribution: RewardDistribution,
     prior_delegates: Decimal,
-    prior_unit_delegation: Decimal,
+    prior_unit_reward: Decimal,
 ) -> Event {
     Event::new(MixnetEventType::MixnodeRewarding)
         .add_attribute(
@@ -464,7 +461,7 @@ pub fn new_mix_rewarding_event(
             interval.current_epoch_absolute_id().to_string(),
         )
         .add_attribute(PRIOR_DELEGATES_KEY, prior_delegates.to_string())
-        .add_attribute(PRIOR_UNIT_DELEGATION_KEY, prior_unit_delegation.to_string())
+        .add_attribute(PRIOR_UNIT_REWARD, prior_unit_reward.to_string())
         .add_attribute(MIX_ID_KEY, mix_id.to_string())
         .add_attribute(
             OPERATOR_REWARD_KEY,

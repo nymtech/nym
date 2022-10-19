@@ -1,7 +1,7 @@
 use cosmwasm_std::{Coin, Timestamp, Uint128};
 use mixnet_contract_common::{
     mixnode::{MixNodeConfigUpdate, MixNodeCostParams},
-    Gateway, MixNode, NodeId,
+    Gateway, MixId, MixNode,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -61,7 +61,7 @@ pub enum ExecuteMsg {
     },
     ClaimOperatorReward {},
     ClaimDelegatorReward {
-        mix_id: NodeId,
+        mix_id: MixId,
     },
     UpdateMixnodeCostParams {
         new_costs: MixNodeCostParams,
@@ -73,11 +73,11 @@ pub enum ExecuteMsg {
         address: String,
     },
     DelegateToMixnode {
-        mix_id: NodeId,
+        mix_id: MixId,
         amount: Coin,
     },
     UndelegateFromMixnode {
-        mix_id: NodeId,
+        mix_id: MixId,
     },
     CreateAccount {
         owner_address: String,
@@ -89,7 +89,7 @@ pub enum ExecuteMsg {
     },
     TrackUndelegation {
         owner: String,
-        mix_id: NodeId,
+        mix_id: MixId,
         amount: Coin,
     },
     BondMixnode {
@@ -204,10 +204,10 @@ pub enum QueryMsg {
     GetLockedPledgeCap {},
     GetDelegationTimes {
         address: String,
-        mix_id: NodeId,
+        mix_id: MixId,
     },
     GetAllDelegations {
-        start_after: Option<(u32, NodeId, u64)>,
+        start_after: Option<(u32, MixId, u64)>,
         limit: Option<u32>,
     },
 }

@@ -5,11 +5,11 @@ use crate::client::ThreadsafeValidatorClient;
 use crate::helpers::best_effort_small_dec_to_f64;
 use crate::mix_node::models::EconomicDynamicsStats;
 use mixnet_contract_common::rewarding::helpers::truncate_decimal;
-use mixnet_contract_common::NodeId;
+use mixnet_contract_common::MixId;
 
 pub(crate) async fn retrieve_mixnode_econ_stats(
     client: &ThreadsafeValidatorClient,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Option<EconomicDynamicsStats> {
     let stake_saturation = client
         .0

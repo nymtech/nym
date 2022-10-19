@@ -64,6 +64,7 @@ fn main() {
             mixnet::bond::update_mixnode_config,
             mixnet::bond::get_number_of_mixnode_delegators,
             mixnet::bond::get_mix_node_description,
+            mixnet::bond::get_mixnode_avg_uptime,
             mixnet::delegate::delegate_to_mixnode,
             mixnet::delegate::get_pending_delegator_rewards,
             mixnet::delegate::get_pending_delegation_events,

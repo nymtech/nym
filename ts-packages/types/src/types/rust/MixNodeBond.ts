@@ -2,7 +2,7 @@ import type { DecCoin } from './DecCoin';
 import type { MixNode } from './Mixnode';
 
 export interface MixNodeBond {
-  id: number;
+  mix_id: number;
   owner: string;
   original_pledge: DecCoin;
   layer: string;

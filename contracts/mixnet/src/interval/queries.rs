@@ -11,7 +11,7 @@ use cosmwasm_std::{Deps, Env, Order, StdResult};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
 use mixnet_contract_common::{
-    CurrentIntervalResponse, EpochEventId, IntervalEventId, NodeId, PagedRewardedSetResponse,
+    CurrentIntervalResponse, EpochEventId, IntervalEventId, MixId, PagedRewardedSetResponse,
     PendingEpochEventsResponse, PendingIntervalEventsResponse,
 };
 
@@ -26,7 +26,7 @@ pub fn query_current_interval_details(
 
 pub fn query_rewarded_set_paged(
     deps: Deps<'_>,
-    start_after: Option<NodeId>,
+    start_after: Option<MixId>,
     limit: Option<u32>,
 ) -> StdResult<PagedRewardedSetResponse> {
     let limit = limit

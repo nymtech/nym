@@ -5,7 +5,7 @@ use crate::currency::{DecCoin, RegisteredCoins};
 use crate::error::TypesError;
 use crate::mixnode::MixNodeCostParams;
 use mixnet_contract_common::{
-    EpochEventId, IntervalEventId, IntervalRewardingParamsUpdate, NodeId,
+    EpochEventId, IntervalEventId, IntervalRewardingParamsUpdate, MixId,
     PendingEpochEvent as MixnetContractPendingEpochEvent,
     PendingEpochEventData as MixnetContractPendingEpochEventData,
     PendingIntervalEvent as MixnetContractPendingIntervalEvent,
@@ -46,17 +46,17 @@ impl PendingEpochEvent {
 pub enum PendingEpochEventData {
     Delegate {
         owner: String,
-        mix_id: NodeId,
+        mix_id: MixId,
         amount: DecCoin,
         proxy: Option<String>,
     },
     Undelegate {
         owner: String,
-        mix_id: NodeId,
+        mix_id: MixId,
         proxy: Option<String>,
     },
     UnbondMixnode {
-        mix_id: NodeId,
+        mix_id: MixId,
     },
     UpdateActiveSetSize {
         new_size: u32,
@@ -130,7 +130,7 @@ impl PendingIntervalEvent {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub enum PendingIntervalEventData {
     ChangeMixCostParams {
-        mix_id: NodeId,
+        mix_id: MixId,
         new_costs: MixNodeCostParams,
     },
 

@@ -19,7 +19,7 @@ use mixnet_contract_common::events::{
 use mixnet_contract_common::mixnode::MixNodeCostParams;
 use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
 use mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
-use mixnet_contract_common::{Delegation, NodeId};
+use mixnet_contract_common::{Delegation, MixId};
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 pub(crate) trait ContractExecutableEvent {
@@ -33,7 +33,7 @@ pub(crate) fn delegate(
     deps: DepsMut<'_>,
     env: &Env,
     owner: Addr,
-    mix_id: NodeId,
+    mix_id: MixId,
     amount: Coin,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
@@ -131,7 +131,7 @@ pub(crate) fn delegate(
 pub(crate) fn undelegate(
     deps: DepsMut<'_>,
     owner: Addr,
-    mix_id: NodeId,
+    mix_id: MixId,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
     // see if the delegation still exists (in case of impatient user who decided to send multiple
@@ -177,7 +177,7 @@ pub(crate) fn undelegate(
 pub(crate) fn unbond_mixnode(
     deps: DepsMut<'_>,
     env: &Env,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Result<Response, MixnetContractError> {
     // if we're here it means user executed `_try_remove_mixnode` and as a result node was set to be
     // in unbonding state and thus nothing could have been done to it (such as attempting to double unbond it)
@@ -270,7 +270,7 @@ impl ContractExecutableEvent for PendingEpochEventData {
 
 pub(crate) fn change_mix_cost_params(
     deps: DepsMut<'_>,
-    mix_id: NodeId,
+    mix_id: MixId,
     new_costs: MixNodeCostParams,
 ) -> Result<Response, MixnetContractError> {
     // almost an entire interval might have passed since the request was issued -> check if the

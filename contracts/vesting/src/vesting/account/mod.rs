@@ -7,7 +7,7 @@ use crate::storage::{
 };
 use cosmwasm_std::{Addr, Coin, Order, Storage, Timestamp, Uint128};
 use cw_storage_plus::Bound;
-use mixnet_contract_common::NodeId;
+use mixnet_contract_common::MixId;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use vesting_contract_common::{Period, PledgeData};
@@ -198,7 +198,7 @@ impl Account {
         remove_gateway_pledge(self.storage_key(), storage)
     }
 
-    pub fn any_delegation_for_mix(&self, mix_id: NodeId, storage: &dyn Storage) -> bool {
+    pub fn any_delegation_for_mix(&self, mix_id: MixId, storage: &dyn Storage) -> bool {
         DELEGATIONS
             .prefix((self.storage_key(), mix_id))
             .range(storage, None, None, Order::Ascending)
@@ -208,7 +208,7 @@ impl Account {
 
     pub fn remove_delegations_for_mix(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
         let limit = 50;
@@ -245,7 +245,7 @@ impl Account {
 
     pub fn total_delegations_for_mix(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
         storage: &dyn Storage,
     ) -> Result<Uint128, ContractError> {
         Ok(DELEGATIONS

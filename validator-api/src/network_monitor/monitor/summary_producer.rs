@@ -4,7 +4,7 @@
 use crate::network_monitor::monitor::preparer::{InvalidNode, TestedNode};
 use crate::network_monitor::test_packet::{NodeType, TestPacket};
 use crate::network_monitor::test_route::TestRoute;
-use mixnet_contract_common::NodeId;
+use mixnet_contract_common::MixId;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 
@@ -23,14 +23,14 @@ const UNRELIABLE_THRESHOLD: u8 = 1; // 1 - 60
 
 #[derive(Debug)]
 pub(crate) struct MixnodeResult {
-    pub(crate) mix_id: NodeId,
+    pub(crate) mix_id: MixId,
     pub(crate) identity: String,
     pub(crate) owner: String,
     pub(crate) reliability: u8,
 }
 
 impl MixnodeResult {
-    pub(crate) fn new(mix_id: NodeId, identity: String, owner: String, reliability: u8) -> Self {
+    pub(crate) fn new(mix_id: MixId, identity: String, owner: String, reliability: u8) -> Self {
         MixnodeResult {
             mix_id,
             identity,

@@ -67,6 +67,7 @@ const darkMode: NymPaletteVariant = {
   modal: {
     border: '#484d53',
   },
+  chart: { grey: '#3D4249' },
 };
 
 const lightMode: NymPaletteVariant = {
@@ -98,6 +99,7 @@ const lightMode: NymPaletteVariant = {
   modal: {
     border: 'transparent',
   },
+  chart: { grey: '#E6E6E6' },
 };
 
 /**

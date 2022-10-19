@@ -234,9 +234,7 @@ pub struct Params {
 pub fn setup() -> Params {
     let f0 = hash_g2(b"f0", SETUP_DOMAIN);
 
-    let fs = (1..=1)
-        .map(|i| hash_g2(format!("f{}", i), SETUP_DOMAIN))
-        .collect();
+    let fs = vec![hash_g2("f1", SETUP_DOMAIN)];
 
     let fh = (0..HASH_SECURITY_PARAM)
         .map(|i| hash_g2(format!("fh{}", i), SETUP_DOMAIN))

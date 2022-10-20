@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::{Addr, StdError, VerificationError};
+use cw_controllers::AdminError;
 use thiserror::Error;
 
 /// Custom errors for contract failure conditions.
@@ -9,6 +10,9 @@ use thiserror::Error;
 pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
+
+    #[error("{0}")]
+    Admin(#[from] AdminError),
 
     #[error("Group contract invalid address '{addr}'")]
     InvalidGroup { addr: String },

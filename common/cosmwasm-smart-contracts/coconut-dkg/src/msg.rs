@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 pub struct InstantiateMsg {
     pub group_addr: String,
     pub mix_denom: String,
+    pub admin: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
@@ -22,12 +23,13 @@ pub enum ExecuteMsg {
         commitment: ContractSafeCommitment,
     },
 
+    AdvanceEpochState {},
+
     // DEBUG ONLY TXs. THEY SHALL BE REMOVED BEFORE FINALISING THE CODE
     // only exists for debugging purposes on local network to reset the entire state of the contract
     DebugUnsafeResetAll {
         init_msg: InstantiateMsg,
     },
-    DebugAdvanceEpochState {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]

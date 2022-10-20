@@ -8,7 +8,7 @@ use crate::dealers::queries::{
 use crate::dealings::queries::query_epoch_dealings_commitments_paged;
 use crate::epoch_state::queries::query_current_epoch_state;
 use crate::error::ContractError;
-use crate::state::{State, STATE};
+use crate::state::{State, ADMIN, STATE};
 use coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use coconut_dkg_common::types::{EpochState, MinimumDepositResponse};
 use cosmwasm_std::{
@@ -31,11 +31,14 @@ mod state;
 /// `msg` is the contract initialization message, sort of like a constructor call.
 #[entry_point]
 pub fn instantiate(
-    deps: DepsMut<'_>,
+    mut deps: DepsMut<'_>,
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    let admin_addr = deps.api.addr_validate(&msg.admin)?;
+    ADMIN.set(deps.branch(), Some(admin_addr))?;
+
     let group_addr = Cw4Contract(deps.api.addr_validate(&msg.group_addr).map_err(|_| {
         ContractError::InvalidGroup {
             addr: msg.group_addr.clone(),
@@ -46,8 +49,9 @@ pub fn instantiate(
         group_addr,
         mix_denom: msg.mix_denom,
     };
-    CURRENT_EPOCH_STATE.save(deps.storage, &EpochState::default())?;
     STATE.save(deps.storage, &state)?;
+
+    CURRENT_EPOCH_STATE.save(deps.storage, &EpochState::default())?;
 
     Ok(Response::default())
 }
@@ -70,7 +74,7 @@ pub fn execute(
         ExecuteMsg::DebugUnsafeResetAll { init_msg } => {
             reset_contract_state(deps, env, info, init_msg)
         }
-        ExecuteMsg::DebugAdvanceEpochState {} => advance_epoch_state(deps),
+        ExecuteMsg::AdvanceEpochState {} => advance_epoch_state(deps, info),
     }
 }
 
@@ -80,6 +84,7 @@ fn reset_contract_state(
     info: MessageInfo,
     init_msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
     // this resets the epoch
     instantiate(deps.branch(), env, info, init_msg)?;
 
@@ -153,6 +158,7 @@ mod tests {
         let msg = InstantiateMsg {
             group_addr: "group_addr".to_string(),
             mix_denom: "nym".to_string(),
+            admin: "admin".to_string(),
         };
         let info = mock_info("creator", &[]);
 

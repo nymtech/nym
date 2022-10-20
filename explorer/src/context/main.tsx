@@ -109,6 +109,7 @@ export const MainContextProvider: React.FC = ({ children }) => {
   };
 
   const fetchGateways = async () => {
+    setGateways((d) => ({ ...d, isLoading: true }));
     try {
       const data = await Api.fetchGateways();
       setGateways({ data, isLoading: false });

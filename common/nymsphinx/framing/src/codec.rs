@@ -217,6 +217,8 @@ mod packet_encoding {
             let packet_sizes = vec![
                 PacketSize::AckPacket,
                 PacketSize::RegularPacket,
+                PacketSize::ExtendedPacket8,
+                PacketSize::ExtendedPacket16,
                 PacketSize::ExtendedPacket32,
             ];
             for packet_size in packet_sizes {
@@ -255,6 +257,8 @@ mod packet_encoding {
             let packet_sizes = vec![
                 PacketSize::AckPacket,
                 PacketSize::RegularPacket,
+                PacketSize::ExtendedPacket8,
+                PacketSize::ExtendedPacket16,
                 PacketSize::ExtendedPacket32,
             ];
 

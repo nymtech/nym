@@ -3,6 +3,7 @@ import { Box, Button, Divider, Grid } from '@mui/material';
 import { TBondedMixnode, TBondedGateway } from '../../../../../context/bonding';
 import { InfoSettings } from './InfoSettings';
 import { ParametersSettings } from './ParametersSettings';
+import { isMixnode } from 'src/types';
 
 const nodeGeneralNav = ['Info', 'Parameters'];
 
@@ -34,7 +35,7 @@ export const NodeGeneralSettings = ({ bondedNode }: { bondedNode: TBondedMixnode
         </Grid>
         <Divider orientation="vertical" flexItem />
         {settingsCard === nodeGeneralNav[0] && <InfoSettings bondedNode={bondedNode} />}
-        {settingsCard === nodeGeneralNav[1] && <ParametersSettings bondedNode={bondedNode} />}
+        {settingsCard === nodeGeneralNav[1] && isMixnode(bondedNode) && <ParametersSettings bondedNode={bondedNode} />}
       </Grid>
     </Box>
   );

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import {
@@ -13,38 +13,42 @@ import {
   FormHelperText,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
+import { CurrencyDenom, MixNodeCostParams } from '@nymproject/types';
+import { add, format, fromUnixTime } from 'date-fns';
 import { isMixnode } from 'src/types';
 import { getCurrentInterval, getPendingIntervalEvents, updateMixnodeCostParams } from 'src/requests';
 import { TBondedMixnode, TBondedGateway } from 'src/context/bonding';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { bondedNodeParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
 import { Console } from 'src/utils/console';
-import { add, format, fromUnixTime } from 'date-fns';
 import { Alert } from 'src/components/Alert';
 import { ChangeMixCostParams } from 'src/pages/bonding/types';
-import { MixNodeCostParams } from '@nymproject/types';
+import { AppContext } from 'src/context';
+import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 
-export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }): JSX.Element => {
+export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode }): JSX.Element => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
   const [intervalTime, setIntervalTime] = useState<string>();
   const [nextEpoch, setNextEpoch] = useState<string>();
   const [pendingUpdates, setPendingUpdates] = useState<MixNodeCostParams>();
+  const { clientDetails } = useContext(AppContext);
   const theme = useTheme();
+
+  const defaultValues = {
+    operatorCost: bondedNode.operatorCost,
+    profitMargin: bondedNode.profitMargin,
+  };
 
   const {
     register,
     handleSubmit,
     reset,
+    setValue,
     formState: { errors, isSubmitting, isDirty, isValid },
   } = useForm({
     resolver: yupResolver(bondedNodeParametersValidationSchema),
     mode: 'onChange',
-    defaultValues: isMixnode(bondedNode)
-      ? {
-          operatorCost: bondedNode.operatorCost,
-          profitMargin: bondedNode.profitMargin,
-        }
-      : {},
+    defaultValues,
   });
 
   const getIntervalAsDate = async () => {
@@ -91,13 +95,13 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
     getPendingEvents();
   }, []);
 
-  const onSubmit = async (data: { operatorCost?: string; profitMargin?: string }) => {
+  const onSubmit = async (data: { operatorCost: { amount: string; denom: CurrencyDenom }; profitMargin: string }) => {
     if (data.operatorCost && data.profitMargin) {
       const MixNodeCostParams = {
         profit_margin_percent: (+data.profitMargin / 100).toString(),
         interval_operating_cost: {
-          denom: bondedNode.bond.denom,
-          amount: data.operatorCost.toString(),
+          amount: data.operatorCost.amount,
+          denom: data.operatorCost.denom,
         },
       };
       try {
@@ -188,20 +192,16 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
           </Grid>
           <Grid spacing={3} container item alignItems="center" xs={12} md={6}>
             <Grid item width={1}>
-              <TextField
-                {...register('operatorCost')}
-                name="operatorCost"
-                label="Operating cost"
+              <CurrencyFormField
+                required
                 fullWidth
-                error={!!errors.operatorCost}
-                helperText={errors?.operatorCost?.message}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <Box>{bondedNode.bond.denom.toUpperCase()}</Box>
-                    </InputAdornment>
-                  ),
+                label="Operating cost"
+                onChanged={(newValue) => {
+                  setValue('operatorCost', newValue, { shouldValidate: true, shouldDirty: true });
                 }}
+                validationError={errors.operatorCost?.amount?.message}
+                denom={clientDetails?.display_mix_denom || 'nym'}
+                initialValue={defaultValues.operatorCost.amount}
               />
               {pendingUpdates && (
                 <FormHelperText>
@@ -222,7 +222,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
             size="large"
             variant="contained"
             disabled={isSubmitting || !isDirty || !isValid}
-            onClick={handleSubmit((d) => onSubmit(d))}
+            onClick={handleSubmit(onSubmit)}
             type="submit"
             sx={{ m: 3, width: '320px' }}
             endIcon={isSubmitting && <CircularProgress size={20} />}

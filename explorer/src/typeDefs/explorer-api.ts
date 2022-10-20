@@ -1,7 +1,5 @@
 /* eslint-disable camelcase */
 
-import { UseButtonParameters } from "@mui/base";
-
 export interface ClientConfig {
   url: string;
   version: string;

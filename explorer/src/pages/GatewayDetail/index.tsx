@@ -3,7 +3,7 @@ import { Alert, AlertTitle, Box, CircularProgress, Grid, Typography } from '@mui
 import { useParams } from 'react-router-dom';
 import { GatewayResponseItem } from '../../typeDefs/explorer-api';
 import { ColumnsType, DetailTable } from '../../components/DetailTable';
-import { gatewayEnrichedToGridRow, GatewayEnridedRowType } from '../../components/Gateways';
+import { gatewayEnrichedToGridRow, GatewayEnrichedRowType } from '../../components/Gateways';
 import { ComponentError } from '../../components/ComponentError';
 import { ContentCard } from '../../components/ContentCard';
 import { TwoColSmallTable } from '../../components/TwoColSmallTable';
@@ -31,14 +31,15 @@ const columns: ColumnsType[] = [
     title: 'Routing Score',
     flex: 1,
     headerAlign: 'left',
-    tooltipInfo: 'Estimated reward per epoch for this profit margin if your node is selected in the active set.',
+    tooltipInfo:
+      'Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test.',
   },
   {
     field: 'avg_uptime',
     title: 'Avg. Score',
     flex: 1,
     headerAlign: 'left',
-    tooltipInfo: 'Estimated reward per epoch for this profit margin if your node is selected in the active set.',
+    tooltipInfo: 'Is the average routing score in the last 24 hours',
   },
   {
     field: 'host',
@@ -66,7 +67,7 @@ const columns: ColumnsType[] = [
 const PageGatewayDetailsWithState: React.FC<{ selectedGateway: GatewayResponseItem | undefined }> = ({
   selectedGateway,
 }) => {
-  const [enrichGateway, setEnrichGateway] = React.useState<GatewayEnridedRowType>();
+  const [enrichGateway, setEnrichGateway] = React.useState<GatewayEnrichedRowType>();
   const [status, setStatus] = React.useState<number[] | undefined>();
   const { uptimeReport, uptimeStory } = useGatewayContext();
 

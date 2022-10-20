@@ -94,17 +94,6 @@ export class Api {
     return res.json();
   };
 
-  // static fetchGatewayByID = async (id: string): Promise<GatewayResponseItem | undefined> => {
-  //   const response = await fetch(`${GATEWAYS_API}/${id}`);
-
-  //   // when the mixnode is not found, returned undefined
-  //   if (response.status === 404) {
-  //     return undefined;
-  //   }
-
-  //   return response.json();
-  // };
-
   static fetchGatewayUptimeStoryById = async (id: string): Promise<UptimeStoryResponse> =>
     (await fetch(`${UPTIME_STORY_API_GATEWAY}/${id}/history`)).json();
 

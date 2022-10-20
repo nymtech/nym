@@ -9,7 +9,7 @@ export type GatewayRowType = {
   location: string;
 };
 
-export type GatewayEnridedRowType = GatewayRowType & {
+export type GatewayEnrichedRowType = GatewayRowType & {
   routing_score: string;
   avg_uptime: string;
   clients_port: number;
@@ -32,7 +32,7 @@ export function gatewayToGridRow(arrayOfGateways: GatewayResponse): GatewayRowTy
 export function gatewayEnrichedToGridRow(
   gateway: GatewayResponseItem,
   report: GatewayReportResponse,
-): GatewayEnridedRowType {
+): GatewayEnrichedRowType {
   return {
     id: gateway.owner,
     owner: gateway.owner,

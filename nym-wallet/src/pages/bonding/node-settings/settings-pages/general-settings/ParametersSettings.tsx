@@ -19,7 +19,6 @@ import { TBondedMixnode, TBondedGateway } from 'src/context/bonding';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { bondedNodeParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
 import { Console } from 'src/utils/console';
-import { decimalToFloatApproximation, decimalToPercentage } from '@nymproject/types';
 import { add, format, fromUnixTime } from 'date-fns';
 import { Alert } from 'src/components/Alert';
 import { ChangeMixCostParams } from 'src/pages/bonding/types';

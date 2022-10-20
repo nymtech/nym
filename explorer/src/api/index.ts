@@ -2,6 +2,7 @@ import {
   BLOCK_API,
   COUNTRY_DATA_API,
   GATEWAYS_API,
+  UPTIME_STORY_API_GATEWAY,
   MIXNODE_API,
   MIXNODE_PING,
   MIXNODES_API,
@@ -15,6 +16,8 @@ import {
   DelegationsResponse,
   UniqDelegationsResponse,
   GatewayResponse,
+  GatewayReportResponse,
+  UptimeStoryResponse,
   MixNodeDescriptionResponse,
   MixNodeResponse,
   MixNodeResponseItem,
@@ -23,7 +26,6 @@ import {
   StatsResponse,
   StatusResponse,
   SummaryOverviewResponse,
-  UptimeStoryResponse,
   ValidatorsResponse,
 } from '../typeDefs/explorer-api';
 
@@ -91,6 +93,23 @@ export class Api {
     const res = await fetch(GATEWAYS_API);
     return res.json();
   };
+
+  // static fetchGatewayByID = async (id: string): Promise<GatewayResponseItem | undefined> => {
+  //   const response = await fetch(`${GATEWAYS_API}/${id}`);
+
+  //   // when the mixnode is not found, returned undefined
+  //   if (response.status === 404) {
+  //     return undefined;
+  //   }
+
+  //   return response.json();
+  // };
+
+  static fetchGatewayUptimeStoryById = async (id: string): Promise<UptimeStoryResponse> =>
+    (await fetch(`${UPTIME_STORY_API_GATEWAY}/${id}/history`)).json();
+
+  static fetchGatewayReportById = async (id: string): Promise<GatewayReportResponse> =>
+    (await fetch(`${UPTIME_STORY_API_GATEWAY}/${id}/report`)).json();
 
   static fetchValidators = async (): Promise<ValidatorsResponse> => {
     const res = await fetch(VALIDATORS_API);

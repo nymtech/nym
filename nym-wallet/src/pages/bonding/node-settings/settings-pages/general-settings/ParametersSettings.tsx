@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import {
@@ -8,30 +8,33 @@ import {
   TextField,
   InputAdornment,
   Grid,
-  Alert,
-  IconButton,
   CircularProgress,
   Box,
+  FormHelperText,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import CloseIcon from '@mui/icons-material/Close';
 import { isMixnode } from 'src/types';
-import { updateMixnodeCostParams } from 'src/requests';
+import { getCurrentInterval, getPendingIntervalEvents, updateMixnodeCostParams } from 'src/requests';
 import { TBondedMixnode, TBondedGateway } from 'src/context/bonding';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { bondedNodeParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
 import { Console } from 'src/utils/console';
-import { decimalToFloatApproximation, decimalToPercentage } from '@nymproject/types';
+import { add, format, fromUnixTime } from 'date-fns';
+import { Alert } from 'src/components/Alert';
+import { ChangeMixCostParams } from 'src/pages/bonding/types';
+import { MixNodeCostParams } from '@nymproject/types';
 
 export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }): JSX.Element => {
-  const [open, setOpen] = useState(true);
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
-
+  const [intervalTime, setIntervalTime] = useState<string>();
+  const [nextEpoch, setNextEpoch] = useState<string>();
+  const [pendingUpdates, setPendingUpdates] = useState<MixNodeCostParams>();
   const theme = useTheme();
 
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting, isDirty, isValid },
   } = useForm({
     resolver: yupResolver(bondedNodeParametersValidationSchema),
@@ -44,6 +47,50 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
       : {},
   });
 
+  const getIntervalAsDate = async () => {
+    const interval = await getCurrentInterval();
+    const secondsToNextInterval =
+      Number(interval.epochs_in_interval - interval.current_epoch_id) * Number(interval.epoch_length_seconds);
+
+    setIntervalTime(
+      format(
+        add(new Date(), {
+          seconds: secondsToNextInterval,
+        }),
+        'MM/dd/yyyy HH:mm',
+      ),
+    );
+    setNextEpoch(
+      format(
+        add(fromUnixTime(Number(interval.current_epoch_start_unix)), {
+          seconds: Number(interval.epoch_length_seconds),
+        }),
+        'HH:mm',
+      ),
+    );
+  };
+
+  const getPendingEvents = async () => {
+    const events = await getPendingIntervalEvents();
+    const latestEvent = events.reverse().find((evt) => 'ChangeMixCostParams' in evt.event) as unknown as
+      | {
+          id: number;
+          event: {
+            ChangeMixCostParams: ChangeMixCostParams;
+          };
+        }
+      | undefined;
+
+    if (latestEvent) {
+      setPendingUpdates(latestEvent.event.ChangeMixCostParams.new_costs);
+    }
+  };
+
+  useEffect(() => {
+    getIntervalAsDate();
+    getPendingEvents();
+  }, []);
+
   const onSubmit = async (data: { operatorCost?: string; profitMargin?: string }) => {
     if (data.operatorCost && data.profitMargin) {
       const MixNodeCostParams = {
@@ -55,6 +102,8 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
       };
       try {
         await updateMixnodeCostParams(MixNodeCostParams);
+        await getPendingEvents();
+        reset();
         setOpenConfirmationModal(true);
       } catch (error) {
         Console.error(error);
@@ -64,37 +113,18 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
 
   return (
     <Grid container xs item>
-      {open && (
-        <Alert
-          severity="info"
-          action={
-            <IconButton
-              aria-label="close"
-              color="inherit"
-              size="small"
-              onClick={() => {
-                setOpen(false);
-              }}
-            >
-              <CloseIcon fontSize="inherit" />
-            </IconButton>
-          }
-          sx={{
-            width: 1,
-            px: 2,
-            borderRadius: 0,
-            bgcolor: 'background.default',
-            color: (theme) => theme.palette.nym.nymWallet.text.blue,
-            '& .MuiAlert-icon': { color: (theme) => theme.palette.nym.nymWallet.text.blue, mr: 1 },
-          }}
-        >
-          <Box sx={{ fontWeight: 600 }}>
-            Profit margin can be changed once a month, your changes will be applied in the next interval
-          </Box>
-        </Alert>
-      )}
+      <Alert
+        title={
+          <>
+            <Box component="span" sx={{ fontWeight: 600, mr: 2 }}>
+              {`Next epoch ${nextEpoch}`}
+            </Box>
+            <Box component="span" sx={{ fontWeight: 600 }}>{`Next interval: ${intervalTime}`}</Box>
+          </>
+        }
+      />
       <Grid container direction="column">
-        <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3} spacing={1}>
+        <Grid item container alignItems="left" justifyContent="space-between" padding={3} spacing={1}>
           <Grid item>
             <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
               Profit Margin
@@ -107,30 +137,37 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
                 color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
               }}
             >
-		    Changes to PM will be applied in the next interval.
+              Changes to PM will be applied in the next interval.
             </Typography>
           </Grid>
-          <Grid spacing={3} container item alignItems="center" sm={12} md={6}>
-            {isMixnode(bondedNode) && (
-              <Grid item width={1}>
-                <TextField
-                  {...register('profitMargin')}
-                  name="profitMargin"
-                  label="Profit margin"
-                  fullWidth
-                  error={!!errors.profitMargin}
-                  helperText={errors.profitMargin?.message}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <Box>%</Box>
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              </Grid>
-            )}
-          </Grid>
+          {isMixnode(bondedNode) && (
+            <Grid item xs={12} xl={6}>
+              <TextField
+                {...register('profitMargin')}
+                name="profitMargin"
+                label="Profit margin"
+                fullWidth
+                error={!!errors.profitMargin}
+                helperText={errors.profitMargin?.message}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <Box>%</Box>
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              {pendingUpdates && (
+                <FormHelperText>
+                  Your last change to{' '}
+                  <Typography variant="caption" fontWeight="bold">
+                    {(+pendingUpdates.profit_margin_percent * 100).toFixed(2)}%{' '}
+                  </Typography>
+                  will be applied in the next interval
+                </FormHelperText>
+              )}
+            </Grid>
+          )}
         </Grid>
         <Divider flexItem />
         <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3} spacing={1}>
@@ -146,8 +183,8 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
                 color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
               }}
             >
-            Changes to cost will be applied in the next interval.
-	    </Typography>
+              Changes to cost will be applied in the next interval.
+            </Typography>
           </Grid>
           <Grid spacing={3} container item alignItems="center" xs={12} md={6}>
             <Grid item width={1}>
@@ -166,6 +203,16 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
                   ),
                 }}
               />
+              {pendingUpdates && (
+                <FormHelperText>
+                  Your last change to{' '}
+                  <Typography variant="caption" fontWeight="bold">
+                    {pendingUpdates.interval_operating_cost.amount}{' '}
+                    {pendingUpdates?.interval_operating_cost.denom.toUpperCase()}{' '}
+                  </Typography>
+                  will be applied in the next interval
+                </FormHelperText>
+              )}
             </Grid>
           </Grid>
         </Grid>

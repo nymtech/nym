@@ -1,18 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Button, Divider, Typography, TextField, Grid, Alert, IconButton, CircularProgress, Box } from '@mui/material';
+import { Button, Divider, Typography, TextField, Grid, CircularProgress, Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import CloseIcon from '@mui/icons-material/Close';
 import { isMixnode } from 'src/types';
 import { updateMixnodeConfig } from 'src/requests';
 import { TBondedMixnode, TBondedGateway } from 'src/context/bonding';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { bondedInfoParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
 import { Console } from 'src/utils/console';
+import { Alert } from 'src/components/Alert';
 
 export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
-  const [open, setOpen] = useState(true);
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
 
   const theme = useTheme();
@@ -54,33 +53,14 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
 
   return (
     <Grid container xs item>
-      {open && (
-        <Alert
-          severity="info"
-          action={
-            <IconButton
-              aria-label="close"
-              color="inherit"
-              size="small"
-              onClick={() => {
-                setOpen(false);
-              }}
-            >
-              <CloseIcon fontSize="inherit" />
-            </IconButton>
-          }
-          sx={{
-            px: 2,
-            borderRadius: 0,
-            bgcolor: 'background.default',
-            color: (theme) => theme.palette.nym.nymWallet.text.blue,
-            '& .MuiAlert-icon': { color: (theme) => theme.palette.nym.nymWallet.text.blue, mr: 1 },
-          }}
-        >
-          <Box sx={{ fontWeight: 600 }}>Your changes will be ONLY saved on the display.</Box> Remember to change the
-          values on your node’s config file too.
-        </Alert>
-      )}
+      <Alert
+        title={
+          <Box sx={{ fontWeight: 600 }}>
+            Your changes will be ONLY saved on the display. Remember to change the values on your node’s config file too
+          </Box>
+        }
+        dismissable
+      />
       <Grid container>
         <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3}>
           <Grid item>

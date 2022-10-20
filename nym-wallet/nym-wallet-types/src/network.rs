@@ -160,9 +160,9 @@ mod qa {
     pub(crate) const STAKE_DENOM: DenomDetails = DenomDetails::new("unyx", "nyx", 6);
 
     pub(crate) const MIXNET_CONTRACT_ADDRESS: &str =
-        "n1rjzps6qrmdqmf0xz4cn4x4rcmqeqzq6hnzqg4wcvd0r2lyasdq5sepn5s8";
+        "n1frq2hzkjtatsupc6jtyaz67ytydk9nya437q92qg76ny3y8fcnjsw806vg";
     pub(crate) const VESTING_CONTRACT_ADDRESS: &str =
-        "n1xr3rq8yvd7qplsw5yx90ftsr2zdhg4e9z60h5duusgxpv72hud3sjkxkav";
+        "n14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sjyvg3g";
     pub(crate) const BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str =
         "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
     pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
@@ -172,13 +172,13 @@ mod qa {
         hex_literal::hex!("0000000000000000000000000000000000000000");
     pub(crate) const _ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] =
         hex_literal::hex!("0000000000000000000000000000000000000000");
-    //pub(crate) const REWARDING_VALIDATOR_ADDRESS: &str = "n1tfzd4qz3a45u8p4mr5zmzv66457uwjgcl05jdq";
+    //pub(crate) const REWARDING_VALIDATOR_ADDRESS: &str = "n17dcjwykjj9ydd8p9hk65uf2flrhhlfklju8flp";
 
     //pub(crate) const STATISTICS_SERVICE_DOMAIN_ADDRESS: &str = "http://0.0.0.0";
     pub(crate) fn validators() -> Vec<ValidatorDetails> {
         vec![ValidatorDetails::new(
-            "https://qa-validator.nymtech.net",
-            Some("https://qa-validator-api.nymtech.net/api"),
+            "https://adv-epoch-qa-validator.qa.nymte.ch/",
+            Some("https://adv-epoch-qa-val-api.qa.nymte.ch/api"),
         )]
     }
 

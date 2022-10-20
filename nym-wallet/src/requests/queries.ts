@@ -7,6 +7,7 @@ import {
   GatewayBond,
   RewardEstimationResponse,
   WrappedDelegationEvent,
+  PendingIntervalEvent,
 } from '@nymproject/types';
 import { Interval, TNodeDescription } from 'src/types';
 import { invokeWrapper } from './wrapper';
@@ -44,3 +45,6 @@ export const getNumberOfMixnodeDelegators = async (mixId: number) =>
 
 export const getNodeDescription = async (host: string, port: number) =>
   invokeWrapper<TNodeDescription>('get_mix_node_description', { host, port });
+
+export const getPendingIntervalEvents = async () =>
+  invokeWrapper<PendingIntervalEvent[]>('get_pending_interval_events');

@@ -147,17 +147,17 @@ export const toPercentFloatString = (value: string) => (Number(value) / 100).toS
 export const toPercentIntegerString = (value: string) => Math.round(Number(value) * 100).toString();
 
 /**
- * Converts a decimal number of NYM to a pretty representation
+ * Converts a decimal number to a pretty representation
  * with fixed decimal places.
  *
- * @param nym - a decimal number of NYM
+ * @param val - a decimal number of string form
  * @param dp - number of decimal places (4 by default ie. 0.0000)
  * @returns A prettyfied decimal number
  */
-export const toDisplay = (nym: string | number | Big, dp = 4) => {
+export const toDisplay = (val: string | number | Big, dp = 4) => {
   let displayValue;
   try {
-    displayValue = Big(nym).toFixed(dp);
+    displayValue = Big(val).toFixed(dp);
   } catch (e: any) {
     Console.warn(`${displayValue} not a valid decimal number: ${e}`);
   }

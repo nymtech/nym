@@ -39,9 +39,9 @@ use validator_client::validator_api::routes::{
 use crate::coconut::State;
 use crate::ValidatorApiStorage;
 use async_trait::async_trait;
-use coconut_dkg_common::dealer::DealerDetailsResponse;
+use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
 use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
-use contracts_common::commitment::ContractSafeCommitment;
+use contracts_common::dealings::ContractSafeBytes;
 use crypto::asymmetric::{encryption, identity};
 use rand_07::rngs::OsRng;
 use rocket::http::Status;
@@ -129,6 +129,14 @@ impl super::client::Client for DummyClient {
         todo!()
     }
 
+    async fn get_current_dealers(&self) -> Result<Vec<DealerDetails>> {
+        todo!()
+    }
+
+    async fn get_dealings(&self) -> Result<Vec<ContractDealing>> {
+        todo!()
+    }
+
     async fn vote_proposal(
         &self,
         proposal_id: u64,
@@ -152,10 +160,7 @@ impl super::client::Client for DummyClient {
         todo!()
     }
 
-    async fn submit_dealing_commitment(
-        &self,
-        commitment: ContractSafeCommitment,
-    ) -> Result<ExecuteResult> {
+    async fn submit_dealing(&self, dealing_bytes: ContractSafeBytes) -> Result<ExecuteResult> {
         todo!()
     }
 }

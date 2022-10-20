@@ -26,11 +26,11 @@ use async_trait::async_trait;
 #[cfg(feature = "coconut")]
 use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
 #[cfg(feature = "coconut")]
-use coconut_dkg_common::dealer::DealerDetailsResponse;
+use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
 #[cfg(feature = "coconut")]
 use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
 #[cfg(feature = "coconut")]
-use contracts_common::commitment::ContractSafeCommitment;
+use contracts_common::dealings::ContractSafeBytes;
 #[cfg(feature = "coconut")]
 use multisig_contract_common::msg::ProposalResponse;
 #[cfg(feature = "coconut")]
@@ -321,6 +321,14 @@ where
             .await?)
     }
 
+    async fn get_current_dealers(&self) -> crate::coconut::error::Result<Vec<DealerDetails>> {
+        Ok(self.0.read().await.get_all_nymd_current_dealers().await?)
+    }
+
+    async fn get_dealings(&self) -> crate::coconut::error::Result<Vec<ContractDealing>> {
+        Ok(self.0.read().await.get_all_nymd_epoch_dealings().await?)
+    }
+
     async fn vote_proposal(
         &self,
         proposal_id: u64,
@@ -349,16 +357,16 @@ where
             .await?)
     }
 
-    async fn submit_dealing_commitment(
+    async fn submit_dealing(
         &self,
-        commitment: ContractSafeCommitment,
+        dealing_bytes: ContractSafeBytes,
     ) -> Result<ExecuteResult, CoconutError> {
         Ok(self
             .0
             .write()
             .await
             .nymd
-            .submit_dealing_commitment(commitment, None)
+            .submit_dealing_bytes(dealing_bytes, None)
             .await?)
     }
 }

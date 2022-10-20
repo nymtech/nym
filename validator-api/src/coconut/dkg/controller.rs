@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::coconut::dkg::client::DkgClient;
+use crate::coconut::dkg::dealing::dealing_exchange;
 use crate::coconut::dkg::public_key::public_key_submission;
 use crate::coconut::dkg::state::State;
 use crate::{nymd_client, Config};
@@ -9,6 +10,7 @@ use anyhow::Result;
 use coconut_dkg_common::types::EpochState;
 use dkg::bte::keys::KeyPair;
 use rand::rngs::OsRng;
+use rand::RngCore;
 use std::time::Duration;
 use task::ShutdownListener;
 use tokio::time::interval;
@@ -28,16 +30,18 @@ pub(crate) fn init_keypair(config: &Config) -> Result<()> {
     Ok(())
 }
 
-pub(crate) struct DkgController {
+pub(crate) struct DkgController<R> {
     dkg_client: DkgClient,
     state: State,
+    rng: R,
     polling_rate: Duration,
 }
 
-impl DkgController {
+impl<R: RngCore> DkgController<R> {
     pub(crate) fn new(
         config: &Config,
         nymd_client: nymd_client::Client<SigningNymdClient>,
+        rng: R,
     ) -> Result<Self> {
         let keypair = pemstore::load_keypair(&pemstore::KeyPairPath::new(
             config.decryption_key_path(),
@@ -47,6 +51,7 @@ impl DkgController {
         Ok(DkgController {
             dkg_client: DkgClient::new(nymd_client),
             state: State::new(keypair),
+            rng,
             polling_rate: config.get_dkg_contract_polling_rate(),
         })
     }
@@ -58,6 +63,13 @@ impl DkgController {
                 let ret = match epoch_state {
                     EpochState::PublicKeySubmission => {
                         public_key_submission(&self.dkg_client, &mut self.state).await
+                    }
+                    EpochState::DealingExchange => {
+                        dealing_exchange(&self.dkg_client, &mut self.state, &mut self.rng).await
+                    }
+                    EpochState::ComplaintSubmission | EpochState::ComplaintVoting => {
+                        trace!("Remains to be implemented using multisig contract");
+                        Ok(())
                     }
                     _ => todo!(),
                 };

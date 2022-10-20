@@ -9,6 +9,10 @@ pub(crate) async fn public_key_submission(
     dkg_client: &DkgClient,
     state: &mut State,
 ) -> Result<(), CoconutError> {
+    if state.node_index().is_some() {
+        return Ok(());
+    }
+
     let bte_key = bs58::encode(&state.keypair().public_key().to_bytes()).into_string();
     let index = if let Some(details) = dkg_client
         .get_self_registered_dealer_details()

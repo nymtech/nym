@@ -3,10 +3,11 @@
 
 use crate::coconut::client::Client;
 use crate::coconut::error::CoconutError;
-use coconut_dkg_common::dealer::DealerDetailsResponse;
+use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
 use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState, NodeIndex};
-use contracts_common::commitment::ContractSafeCommitment;
+use contracts_common::dealings::ContractSafeBytes;
 use validator_client::nymd::cosmwasm_client::logs::{find_attribute, NODE_INDEX};
+use validator_client::nymd::AccountId;
 
 pub(crate) struct DkgClient {
     inner: Box<dyn Client + Send + Sync>,
@@ -22,6 +23,10 @@ impl DkgClient {
         }
     }
 
+    pub(crate) async fn _get_address(&self) -> AccountId {
+        self.inner.address().await
+    }
+
     pub(crate) async fn get_current_epoch_state(&self) -> Result<EpochState, CoconutError> {
         self.inner.get_current_epoch_state().await
     }
@@ -30,6 +35,14 @@ impl DkgClient {
         &self,
     ) -> Result<DealerDetailsResponse, CoconutError> {
         self.inner.get_self_registered_dealer_details().await
+    }
+
+    pub(crate) async fn get_current_dealers(&self) -> Result<Vec<DealerDetails>, CoconutError> {
+        self.inner.get_current_dealers().await
+    }
+
+    pub(crate) async fn get_dealings(&self) -> Result<Vec<ContractDealing>, CoconutError> {
+        self.inner.get_dealings().await
     }
 
     pub(crate) async fn register_dealer(
@@ -50,11 +63,11 @@ impl DkgClient {
         Ok(node_index)
     }
 
-    pub(crate) async fn _submit_dealing_commitment(
+    pub(crate) async fn submit_dealing(
         &self,
-        commitment: ContractSafeCommitment,
+        dealing_bytes: ContractSafeBytes,
     ) -> Result<(), CoconutError> {
-        self.inner.submit_dealing_commitment(commitment).await?;
+        self.inner.submit_dealing(dealing_bytes).await?;
         Ok(())
     }
 }

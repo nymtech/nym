@@ -47,6 +47,8 @@ use coconut::{
 #[cfg(feature = "coconut")]
 use coconut_interface::{Base58, KeyPair};
 use logging::setup_logging;
+#[cfg(feature = "coconut")]
+use validator_client::nymd::bip32::secp256k1::elliptic_curve::rand_core::OsRng;
 
 pub(crate) mod config;
 pub(crate) mod contract_cache;
@@ -559,7 +561,7 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
 
     #[cfg(feature = "coconut")]
     {
-        let dkg_controller = DkgController::new(&config, signing_nymd_client.clone())?;
+        let dkg_controller = DkgController::new(&config, signing_nymd_client.clone(), OsRng)?;
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(async move { dkg_controller.run(shutdown_listener).await });
     }

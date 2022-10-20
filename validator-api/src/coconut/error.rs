@@ -31,6 +31,9 @@ pub enum CoconutError {
     #[error("Nymd error - {0}")]
     NymdError(#[from] NymdError),
 
+    #[error("Validator client error - {0}")]
+    ValidatorClientError(#[from] validator_client::ValidatorClientError),
+
     #[error("Coconut internal error - {0}")]
     CoconutInternalError(#[from] nymcoconut::CoconutError),
 

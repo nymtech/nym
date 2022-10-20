@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub(crate) mod client;
+pub(crate) mod complaints;
 pub(crate) mod controller;
+pub(crate) mod dealing;
 pub(crate) mod public_key;
 pub(crate) mod state;

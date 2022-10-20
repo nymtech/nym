@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
 pub use crate::dealer::{DealerDetails, PagedDealerResponse};
-pub use contracts_common::commitment::ContractSafeCommitment;
+pub use contracts_common::dealings::ContractSafeBytes;
 pub use cosmwasm_std::{Addr, Coin};
 
 pub type EncodedBTEPublicKeyWithProof = String;

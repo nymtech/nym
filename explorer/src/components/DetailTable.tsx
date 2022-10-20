@@ -6,7 +6,7 @@ import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { Box } from '@mui/system';
 import { cellStyles } from './Universal-DataGrid';
 import { currencyToString } from '../utils/currency';
-import { GatewayEnridedRowType } from './Gateways';
+import { GatewayEnrichedRowType } from './Gateways';
 import { MixnodeRowType } from './MixNodes';
 
 export type ColumnsType = {
@@ -46,7 +46,7 @@ function formatCellValues(val: string | number, field: string) {
 export const DetailTable: React.FC<{
   tableName: string;
   columnsData: ColumnsType[];
-  rows: MixnodeRowType[] | GatewayEnridedRowType[];
+  rows: MixnodeRowType[] | GatewayEnrichedRowType[];
 }> = ({ tableName, columnsData, rows }: UniversalTableProps) => {
   const theme = useTheme();
   return (

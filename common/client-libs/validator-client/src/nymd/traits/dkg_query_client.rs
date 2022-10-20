@@ -8,11 +8,12 @@ use coconut_dkg_common::dealer::{
     DealerDetailsResponse, PagedCommitmentsResponse, PagedDealerResponse,
 };
 use coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
-use coconut_dkg_common::types::MinimumDepositResponse;
+use coconut_dkg_common::types::{EpochState, MinimumDepositResponse};
 use cosmrs::AccountId;
 
 #[async_trait]
 pub trait DkgQueryClient {
+    async fn get_current_epoch_state(&self) -> Result<EpochState, NymdError>;
     async fn get_dealer_details(
         &self,
         address: &AccountId,
@@ -41,6 +42,12 @@ impl<C> DkgQueryClient for NymdClient<C>
 where
     C: CosmWasmClient + Send + Sync,
 {
+    async fn get_current_epoch_state(&self) -> Result<EpochState, NymdError> {
+        let request = DkgQueryMsg::GetCurrentEpochState {};
+        self.client
+            .query_contract_smart(self.coconut_dkg_contract_address(), &request)
+            .await
+    }
     async fn get_dealer_details(
         &self,
         address: &AccountId,

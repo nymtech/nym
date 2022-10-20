@@ -27,11 +27,13 @@ pub enum ExecuteMsg {
     DebugUnsafeResetAll {
         init_msg: InstantiateMsg,
     },
+    DebugAdvanceEpochState {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    GetCurrentEpochState {},
     GetDealerDetails {
         dealer_address: String,
     },

@@ -6,18 +6,21 @@ use crate::dealers::queries::{
     query_current_dealers_paged, query_dealer_details, query_past_dealers_paged,
 };
 use crate::dealings::queries::query_epoch_dealings_commitments_paged;
+use crate::epoch_state::queries::query_current_epoch_state;
 use crate::error::ContractError;
 use crate::state::{State, STATE};
 use coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use coconut_dkg_common::types::MinimumDepositResponse;
+use coconut_dkg_common::types::{EpochState, MinimumDepositResponse};
 use cosmwasm_std::{
     entry_point, to_binary, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
 };
 use cw4::Cw4Contract;
+use epoch_state::storage::{advance_epoch_state, CURRENT_EPOCH_STATE};
 
 mod constants;
 mod dealers;
 mod dealings;
+mod epoch_state;
 mod error;
 mod state;
 
@@ -43,6 +46,7 @@ pub fn instantiate(
         group_addr,
         mix_denom: msg.mix_denom,
     };
+    CURRENT_EPOCH_STATE.save(deps.storage, &EpochState::default())?;
     STATE.save(deps.storage, &state)?;
 
     Ok(Response::default())
@@ -66,6 +70,7 @@ pub fn execute(
         ExecuteMsg::DebugUnsafeResetAll { init_msg } => {
             reset_contract_state(deps, env, info, init_msg)
         }
+        ExecuteMsg::DebugAdvanceEpochState {} => advance_epoch_state(deps),
     }
 }
 
@@ -109,6 +114,7 @@ fn reset_contract_state(
 #[entry_point]
 pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let response = match msg {
+        QueryMsg::GetCurrentEpochState {} => to_binary(&query_current_epoch_state(deps.storage)?)?,
         QueryMsg::GetDealerDetails { dealer_address } => {
             to_binary(&query_dealer_details(deps, dealer_address)?)?
         }

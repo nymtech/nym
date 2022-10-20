@@ -37,6 +37,12 @@ pub enum EpochState {
     InProgress,
 }
 
+impl Default for EpochState {
+    fn default() -> Self {
+        Self::PublicKeySubmission
+    }
+}
+
 impl Display for EpochState {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {

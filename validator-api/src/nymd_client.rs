@@ -28,7 +28,7 @@ use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse
 #[cfg(feature = "coconut")]
 use coconut_dkg_common::dealer::DealerDetailsResponse;
 #[cfg(feature = "coconut")]
-use coconut_dkg_common::types::EncodedBTEPublicKeyWithProof;
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
 #[cfg(feature = "coconut")]
 use contracts_common::commitment::ContractSafeCommitment;
 #[cfg(feature = "coconut")]
@@ -302,6 +302,10 @@ where
             .nymd
             .get_spent_credential(blinded_serial_number)
             .await?)
+    }
+
+    async fn get_current_epoch_state(&self) -> crate::coconut::error::Result<EpochState> {
+        Ok(self.0.read().await.nymd.get_current_epoch_state().await?)
     }
 
     async fn get_self_registered_dealer_details(

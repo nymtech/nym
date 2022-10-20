@@ -3,8 +3,9 @@
 
 use crate::constants::MINIMUM_DEPOSIT;
 use crate::dealers::storage as dealers_storage;
+use crate::epoch_state::utils::check_epoch_state;
 use crate::{ContractError, State, STATE};
-use coconut_dkg_common::types::{DealerDetails, EncodedBTEPublicKeyWithProof};
+use coconut_dkg_common::types::{DealerDetails, EncodedBTEPublicKeyWithProof, EpochState};
 use cosmwasm_std::{Addr, Coin, DepsMut, MessageInfo, Response};
 
 // currently we only require that
@@ -65,6 +66,7 @@ pub fn try_add_dealer(
     info: MessageInfo,
     bte_key_with_proof: EncodedBTEPublicKeyWithProof,
 ) -> Result<Response, ContractError> {
+    check_epoch_state(deps.storage, EpochState::PublicKeySubmission)?;
     let state = STATE.load(deps.storage)?;
 
     verify_dealer(deps.branch(), &state, &info.sender)?;

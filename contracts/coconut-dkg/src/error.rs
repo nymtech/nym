@@ -40,6 +40,14 @@ pub enum ContractError {
     #[error("Epoch hasn't been correctly initialised!")]
     EpochNotInitialised,
 
+    #[error(
+        "Requested action needs state to be {expected_state}, currently in state {current_state}, "
+    )]
+    IncorrectEpochState {
+        current_state: String,
+        expected_state: String,
+    },
+
     // we should never ever see this error (famous last words in programming), therefore, I'd want to
     // explicitly declare it so that when we ultimate do see it, it's gonna be more informative over "normal" panic
     #[error("Somehow our validated address {address} is not using correct bech32 encoding")]

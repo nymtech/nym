@@ -40,7 +40,7 @@ use crate::coconut::State;
 use crate::ValidatorApiStorage;
 use async_trait::async_trait;
 use coconut_dkg_common::dealer::DealerDetailsResponse;
-use coconut_dkg_common::types::EncodedBTEPublicKeyWithProof;
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
 use contracts_common::commitment::ContractSafeCommitment;
 use crypto::asymmetric::{encryption, identity};
 use rand_07::rngs::OsRng;
@@ -119,6 +119,10 @@ impl super::client::Client for DummyClient {
             .ok_or(CoconutError::InvalidCredentialStatus {
                 status: String::from("spent credential not found"),
             })
+    }
+
+    async fn get_current_epoch_state(&self) -> Result<EpochState> {
+        todo!()
     }
 
     async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse> {

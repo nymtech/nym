@@ -21,8 +21,8 @@ use rocket::State;
 use rocket_okapi::openapi;
 use validator_api_requests::models::{
     AllInclusionProbabilitiesResponse, ComputeRewardEstParam, GatewayCoreStatusResponse,
-    InclusionProbabilityResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
-    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    GatewayStatusReportResponse, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
+    MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
 };
 
 #[openapi(tag = "status")]
@@ -30,10 +30,11 @@ use validator_api_requests::models::{
 pub(crate) async fn gateway_report(
     storage: &State<ValidatorApiStorage>,
     identity: &str,
-) -> Result<Json<GatewayStatusReport>, ErrorResponse> {
+) -> Result<Json<GatewayStatusReportResponse>, ErrorResponse> {
     storage
         .construct_gateway_report(identity)
         .await
+        .map(GatewayStatusReportResponse::from)
         .map(Json)
         .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
 }

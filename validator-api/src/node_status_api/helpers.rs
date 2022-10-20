@@ -8,7 +8,7 @@ use crate::storage::ValidatorApiStorage;
 use crate::{NodeStatusCache, ValidatorCache};
 use cosmwasm_std::Decimal;
 use mixnet_contract_common::reward_params::Performance;
-use mixnet_contract_common::{Interval, MixId, RewardedSetNodeStatus};
+use mixnet_contract_common::{IdentityKey, Interval, MixId, RewardedSetNodeStatus};
 use rocket::http::Status;
 use rocket::State;
 use validator_api_requests::models::{
@@ -263,3 +263,10 @@ pub(crate) async fn _get_mixnode_avg_uptime(
         avg_uptime: performance.round_to_integer(),
     })
 }
+
+//pub(crate) async fn _gateway_report(
+//    storage: &ValidatorApiStorage,
+//    identity: IdentityKey,
+//) -> Result<MixnodeStatusReport, ErrorResponse> {
+//    storage.construct_gateway_report(&identity).await
+//}

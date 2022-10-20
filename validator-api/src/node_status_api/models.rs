@@ -17,6 +17,7 @@ use schemars::schema::{InstanceType, Schema};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::Error;
+use validator_api_requests::models::GatewayStatusReportResponse;
 use std::convert::TryFrom;
 use std::fmt::{self, Display, Formatter};
 use std::io::Cursor;
@@ -186,6 +187,18 @@ impl GatewayStatusReport {
             most_recent: node_uptimes.most_recent,
             last_hour: node_uptimes.last_hour,
             last_day: node_uptimes.last_day,
+        }
+    }
+}
+
+impl From<GatewayStatusReport> for GatewayStatusReportResponse {
+    fn from(status: GatewayStatusReport) -> Self {
+        validator_api_requests::models::GatewayStatusReportResponse {
+            identity: status.identity,
+            owner: status.owner,
+            most_recent: status.most_recent.0,
+            last_hour: status.last_hour.0,
+            last_day: status.last_day.0,
         }
     }
 }

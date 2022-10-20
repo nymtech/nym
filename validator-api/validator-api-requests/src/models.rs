@@ -219,3 +219,14 @@ pub struct InclusionProbability {
     pub in_active: f64,
     pub in_reserve: f64,
 }
+
+type Uptime = u8;
+
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct GatewayStatusReportResponse {
+    pub identity: String,
+    pub owner: String,
+    pub most_recent: Uptime,
+    pub last_hour: Uptime,
+    pub last_day: Uptime,
+}

@@ -10,6 +10,7 @@ pub const GATEWAYS: &str = "gateways";
 pub const DETAILED: &str = "detailed";
 pub const ACTIVE: &str = "active";
 pub const REWARDED: &str = "rewarded";
+pub const REPORT: &str = "report";
 
 pub const COCONUT_ROUTES: &str = "coconut";
 pub const BANDWIDTH: &str = "bandwidth";

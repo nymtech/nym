@@ -12,9 +12,9 @@ use validator_api_requests::coconut::{
     VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_api_requests::models::{
-    GatewayCoreStatusResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,
-    MixnodeCoreStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
-    StakeSaturationResponse, UptimeResponse,
+    GatewayCoreStatusResponse, GatewayStatusReportResponse, InclusionProbabilityResponse,
+    MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusResponse,
+    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
 };
 
 pub mod error;
@@ -130,6 +130,22 @@ impl Client {
     pub async fn get_rewarded_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorAPIError> {
         self.query_validator_api(
             &[routes::API_VERSION, routes::MIXNODES, routes::REWARDED],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_gateway_report(
+        &self,
+        identity: IdentityKeyRef<'_>,
+    ) -> Result<GatewayStatusReportResponse, ValidatorAPIError> {
+        self.query_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::GATEWAY,
+                identity,
+                routes::REPORT,
+            ],
             NO_PARAMS,
         )
         .await

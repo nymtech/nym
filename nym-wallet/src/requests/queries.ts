@@ -48,3 +48,6 @@ export const getNodeDescription = async (host: string, port: number) =>
 
 export const getPendingIntervalEvents = async () =>
   invokeWrapper<PendingIntervalEvent[]>('get_pending_interval_events');
+
+export const getGatewayReport = async (identity: string) =>
+  invokeWrapper<TNodeDescription>('gateway_report', { identity });

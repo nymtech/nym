@@ -8,7 +8,7 @@ import { Api } from '../api';
 
 interface GatewayState {
   uptimeReport?: ApiState<GatewayReportResponse>;
-  //   uptimeStory?: ApiState<UptimeStoryResponse>;
+  uptimeStory?: ApiState<UptimeStoryResponse>;
 }
 
 export const GatewayContext = React.createContext<GatewayState>({});
@@ -31,27 +31,28 @@ export const GatewayContextProvider: React.FC<GatewayContextProviderProps> = ({ 
     'Failed to fetch gateway uptime report by id',
   );
 
-  //   const [uptimeStory, fetchUptimeHistory, clearUptimeHistory] = useApiState<UptimeStoryResponse>(
-  //     gatewayIdentityKey,
-  //     Api.fetchUptimeStoryById,
-  //     'Failed to fetch gateway uptime history',
-  //   );
+  const [uptimeStory, fetchUptimeHistory, clearUptimeHistory] = useApiState<UptimeStoryResponse>(
+    gatewayIdentityKey,
+    Api.fetchGatewayUptimeStoryById,
+    'Failed to fetch gateway uptime history',
+  );
 
   React.useEffect(() => {
     // when the identity key changes, remove all previous data
     clearUptimeReportById();
-    Promise.all([fetchUptimeReportById()]);
+    clearUptimeHistory();
+    Promise.all([fetchUptimeReportById(), fetchUptimeHistory()]);
   }, [gatewayIdentityKey]);
 
   const state = React.useMemo<GatewayState>(
     () => ({
       uptimeReport,
-      //   uptimeStory,
+      uptimeStory,
     }),
     [
       {
         uptimeReport,
-        // uptimeStory,
+        uptimeStory,
       },
     ],
   );

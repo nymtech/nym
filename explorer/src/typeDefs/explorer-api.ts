@@ -202,14 +202,6 @@ export type StatusResponse = {
   };
 };
 
-// export type UptimeReportResponse = {
-//   identity: string;
-//   owner: string;
-//   most_recent: number;
-//   last_hour: number;
-//   last_day: UseButtonParameters;
-// };
-
 export type UptimeTime = {
   date: string;
   uptime: number;

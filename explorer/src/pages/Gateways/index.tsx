@@ -23,7 +23,6 @@ export const PageGateways: React.FC = () => {
   };
 
   React.useEffect(() => {
-    console.log({ gateways });
     if (searchTerm === '' && gateways?.data) {
       setFilteredGateways(gateways?.data);
     } else {
@@ -139,7 +138,12 @@ export const PageGateways: React.FC = () => {
                 pageSize={pageSize}
                 searchTerm={searchTerm}
               />
-              <UniversalDataGrid rows={gatewayToGridRow(filteredGateways)} columns={columns} pageSize={pageSize} />
+              <UniversalDataGrid
+                pagination
+                rows={gatewayToGridRow(filteredGateways)}
+                columns={columns}
+                pageSize={pageSize}
+              />
             </Card>
           </Grid>
         </Grid>

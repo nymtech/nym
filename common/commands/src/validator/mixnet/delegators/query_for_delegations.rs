@@ -9,7 +9,7 @@ use crate::utils::{pretty_cosmwasm_coin, show_error_passthrough};
 
 use comfy_table::Table;
 use cosmwasm_std::Addr;
-use mixnet_contract_common::{Delegation, PendingEpochEvent, PendingEpochEventData};
+use mixnet_contract_common::{Delegation, PendingEpochEvent, PendingEpochEventKind};
 
 #[derive(Debug, Parser)]
 pub struct Args {}
@@ -90,8 +90,8 @@ async fn print_delegation_events(
     ]);
 
     for event in events {
-        match event.event {
-            PendingEpochEventData::Delegate {
+        match event.event.kind {
+            PendingEpochEventKind::Delegate {
                 owner,
                 mix_id,
                 amount,
@@ -107,7 +107,7 @@ async fn print_delegation_events(
                     ]);
                 }
             }
-            PendingEpochEventData::Undelegate {
+            PendingEpochEventKind::Undelegate {
                 owner,
                 mix_id,
                 proxy,

@@ -96,6 +96,7 @@ pub const PROXY_KEY: &str = "proxy";
 // delegation/undelegation
 pub const DELEGATOR_KEY: &str = "delegator";
 pub const DELEGATION_TARGET_KEY: &str = "delegation_target";
+pub const UNIT_REWARD_KEY: &str = "unit_reward";
 
 // bonding/unbonding
 pub const MIX_ID_KEY: &str = "mix_id";
@@ -125,7 +126,7 @@ pub const APPROXIMATE_TIME_LEFT_SECS_KEY: &str = "approximate_time_left_secs";
 pub const INTERVAL_REWARDING_PARAMS_UPDATE_KEY: &str = "interval_rewarding_params_update";
 pub const UPDATED_INTERVAL_REWARDING_PARAMS_KEY: &str = "updated_interval_rewarding_params";
 pub const PRIOR_DELEGATES_KEY: &str = "prior_delegates";
-pub const PRIOR_UNIT_REWARD: &str = "prior_unit_reward";
+pub const PRIOR_UNIT_REWARD_KEY: &str = "prior_unit_reward";
 
 pub const NO_REWARD_REASON_KEY: &str = "no_reward_reason";
 pub const BOND_NOT_FOUND_VALUE: &str = "bond_not_found";
@@ -149,6 +150,7 @@ pub fn new_delegation_event(
     proxy: &Option<Addr>,
     amount: &Coin,
     mix_id: MixId,
+    unit_reward: Decimal,
 ) -> Event {
     Event::new(MixnetEventType::Delegation)
         .add_attribute(EVENT_CREATION_HEIGHT_KEY, created_at.to_string())
@@ -156,6 +158,7 @@ pub fn new_delegation_event(
         .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(AMOUNT_KEY, amount.to_string())
         .add_attribute(DELEGATION_TARGET_KEY, mix_id.to_string())
+        .add_attribute(UNIT_REWARD_KEY, unit_reward.to_string())
 }
 
 pub fn new_delegation_on_unbonded_node_event(
@@ -468,7 +471,7 @@ pub fn new_mix_rewarding_event(
             interval.current_epoch_absolute_id().to_string(),
         )
         .add_attribute(PRIOR_DELEGATES_KEY, prior_delegates.to_string())
-        .add_attribute(PRIOR_UNIT_REWARD, prior_unit_reward.to_string())
+        .add_attribute(PRIOR_UNIT_REWARD_KEY, prior_unit_reward.to_string())
         .add_attribute(MIX_ID_KEY, mix_id.to_string())
         .add_attribute(
             OPERATOR_REWARD_KEY,

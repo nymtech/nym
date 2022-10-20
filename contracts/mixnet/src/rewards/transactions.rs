@@ -362,7 +362,8 @@ pub mod tests {
         use cosmwasm_std::{Decimal, Uint128};
         use mixnet_contract_common::events::{
             MixnetEventType, BOND_NOT_FOUND_VALUE, DELEGATES_REWARD_KEY, NO_REWARD_REASON_KEY,
-            OPERATOR_REWARD_KEY, PRIOR_DELEGATES_KEY, PRIOR_UNIT_REWARD, ZERO_PERFORMANCE_VALUE,
+            OPERATOR_REWARD_KEY, PRIOR_DELEGATES_KEY, PRIOR_UNIT_REWARD_KEY,
+            ZERO_PERFORMANCE_VALUE,
         };
         use mixnet_contract_common::helpers::compare_decimals;
         use mixnet_contract_common::RewardedSetNodeStatus;
@@ -845,7 +846,7 @@ pub mod tests {
 
                 let prior_unit_reward: Decimal = find_attribute(
                     Some(MixnetEventType::MixnodeRewarding),
-                    PRIOR_UNIT_REWARD,
+                    PRIOR_UNIT_REWARD_KEY,
                     &res1,
                 )
                 .parse()
@@ -907,7 +908,7 @@ pub mod tests {
 
                 let prior_unit_reward: Decimal = find_attribute(
                     Some(MixnetEventType::MixnodeRewarding),
-                    PRIOR_UNIT_REWARD,
+                    PRIOR_UNIT_REWARD_KEY,
                     &res2,
                 )
                 .parse()
@@ -985,7 +986,7 @@ pub mod tests {
 
                 let prior_unit_reward: Decimal = find_attribute(
                     Some(MixnetEventType::MixnodeRewarding),
-                    PRIOR_UNIT_REWARD,
+                    PRIOR_UNIT_REWARD_KEY,
                     &res1,
                 )
                 .parse()
@@ -1054,7 +1055,7 @@ pub mod tests {
 
                 let prior_unit_reward: Decimal = find_attribute(
                     Some(MixnetEventType::MixnodeRewarding),
-                    PRIOR_UNIT_REWARD,
+                    PRIOR_UNIT_REWARD_KEY,
                     &res2,
                 )
                 .parse()

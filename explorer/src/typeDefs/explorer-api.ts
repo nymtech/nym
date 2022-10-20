@@ -1,5 +1,7 @@
 /* eslint-disable camelcase */
 
+import { UseButtonParameters } from "@mui/base";
+
 export interface ClientConfig {
   url: string;
   version: string;
@@ -126,12 +128,9 @@ export type GatewayResponse = GatewayResponseItem[];
 export interface GatewayReportResponse {
   identity: string;
   owner: string;
-  most_recent_ipv4: boolean;
-  most_recent_ipv6: boolean;
-  last_hour_ipv4: number;
-  last_hour_ipv6: number;
-  last_day_ipv4: number;
-  last_day_ipv6: number;
+  most_recent: number;
+  last_hour: number;
+  last_day: number;
 }
 
 export type GatewayHistoryResponse = StatsResponse;
@@ -201,6 +200,14 @@ export type StatusResponse = {
     8000: boolean;
   };
 };
+
+// export type UptimeReportResponse = {
+//   identity: string;
+//   owner: string;
+//   most_recent: number;
+//   last_hour: number;
+//   last_day: UseButtonParameters;
+// };
 
 export type UptimeTime = {
   date: string;

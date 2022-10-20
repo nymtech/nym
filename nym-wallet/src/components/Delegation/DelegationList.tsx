@@ -57,6 +57,7 @@ function descendingComparator(a: any, b: any, orderBy: string) {
   }
   return 0;
 }
+// Sorting function needs fixing
 
 function sortPendingDelegation(a: DelegationWithEvent, b: DelegationWithEvent) {
   if (isPendingDelegation(a) && isPendingDelegation(b)) return 0;
@@ -154,7 +155,7 @@ export const DelegationList: React.FC<{
         <EnhancedTableHead order={order} orderBy={orderBy} onRequestSort={handleRequestSort} />
         <TableBody>
           {items?.length ? (
-            items.sort(getComparator(order, orderBy)).map((item) => (
+            items.map((item) => (
               <TableRow key={item.node_identity}>
                 <TableCell>
                   <Link

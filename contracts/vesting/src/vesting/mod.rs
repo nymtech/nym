@@ -410,7 +410,20 @@ mod tests {
         let mut deps = init_contract();
         let env = mock_env();
 
-        let account = vesting_account_new_fixture(&mut deps.storage, &env);
+        // let account = vesting_account_new_fixture(&mut deps.storage, &env);
+
+        let msg = ExecuteMsg::CreateAccount {
+            owner_address: "owner".to_string(),
+            staking_address: Some("staking".to_string()),
+            vesting_spec: None,
+            cap: Some(PledgeCap::Absolute(Uint128::from(100_000_000_000u128))),
+        };
+        let info = mock_info("admin", &coins(1_000_000_000_000, TEST_COIN_DENOM));
+
+        let _response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
+        let account = load_account(&Addr::unchecked("owner"), &deps.storage)
+            .unwrap()
+            .unwrap();
 
         // Try delegating too much
         let err = account.try_delegate_to_mixnode(
@@ -450,7 +463,7 @@ mod tests {
         let balance = account.load_balance(&deps.storage).unwrap();
         assert_eq!(balance, Uint128::new(910000000000));
 
-        // Try delegating too much again
+        // Try delegating too much againcalca
         let err = account.try_delegate_to_mixnode(
             1,
             Coin {
@@ -464,6 +477,10 @@ mod tests {
 
         let total_delegations = account.total_delegations_for_mix(1, &deps.storage).unwrap();
         assert_eq!(Uint128::new(90_000_000_000), total_delegations);
+
+        let account = load_account(&Addr::unchecked("owner"), &deps.storage)
+            .unwrap()
+            .unwrap();
 
         // Current period -> block_time: None
         let delegated_free = account

@@ -460,6 +460,11 @@ fn try_create_periodic_vesting_account(
 
     let owner_address = deps.api.addr_validate(owner_address)?;
     let staking_address = if let Some(staking_address) = staking_address {
+        let staking_account_exists =
+            account_from_address(&staking_address, deps.storage, deps.api).is_ok();
+        if staking_account_exists {
+            return Err(ContractError::StakingAccountAlreadyExists(staking_address));
+        }
         Some(deps.api.addr_validate(&staking_address)?)
     } else {
         None

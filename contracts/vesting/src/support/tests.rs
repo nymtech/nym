@@ -5,6 +5,7 @@ pub mod helpers {
     use contracts_common::Percent;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier};
     use cosmwasm_std::{Addr, Coin, Empty, Env, MemoryStorage, OwnedDeps, Storage, Uint128};
+    use std::str::FromStr;
     use vesting_contract_common::messages::{InitMsg, VestingSpecification};
     use vesting_contract_common::PledgeCap;
 
@@ -59,7 +60,7 @@ pub mod helpers {
             },
             start_time,
             periods,
-            None,
+            Some(PledgeCap::from_str("0.1").unwrap()),
             storage,
         )
         .unwrap()

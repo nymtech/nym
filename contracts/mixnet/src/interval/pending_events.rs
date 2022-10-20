@@ -17,7 +17,10 @@ use mixnet_contract_common::events::{
     new_rewarding_params_update_event, new_undelegation_event,
 };
 use mixnet_contract_common::mixnode::MixNodeCostParams;
-use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
+use mixnet_contract_common::pending_events::{
+    PendingEpochEventData, PendingEpochEventKind, PendingIntervalEventData,
+    PendingIntervalEventKind,
+};
 use mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
 use mixnet_contract_common::{Delegation, MixId};
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
@@ -248,20 +251,20 @@ impl ContractExecutableEvent for PendingEpochEventData {
     fn execute(self, deps: DepsMut<'_>, env: &Env) -> Result<Response, MixnetContractError> {
         // note that the basic validation on all those events was already performed before
         // they were pushed onto the queue
-        match self {
-            PendingEpochEventData::Delegate {
+        match self.kind {
+            PendingEpochEventKind::Delegate {
                 owner,
                 mix_id,
                 amount,
                 proxy,
             } => delegate(deps, env, owner, mix_id, amount, proxy),
-            PendingEpochEventData::Undelegate {
+            PendingEpochEventKind::Undelegate {
                 owner,
                 mix_id,
                 proxy,
             } => undelegate(deps, owner, mix_id, proxy),
-            PendingEpochEventData::UnbondMixnode { mix_id } => unbond_mixnode(deps, env, mix_id),
-            PendingEpochEventData::UpdateActiveSetSize { new_size } => {
+            PendingEpochEventKind::UnbondMixnode { mix_id } => unbond_mixnode(deps, env, mix_id),
+            PendingEpochEventKind::UpdateActiveSetSize { new_size } => {
                 update_active_set_size(deps, new_size)
             }
         }
@@ -338,15 +341,15 @@ impl ContractExecutableEvent for PendingIntervalEventData {
     fn execute(self, deps: DepsMut<'_>, _env: &Env) -> Result<Response, MixnetContractError> {
         // note that the basic validation on all those events was already performed before
         // they were pushed onto the queue
-        match self {
-            PendingIntervalEventData::ChangeMixCostParams {
+        match self.kind {
+            PendingIntervalEventKind::ChangeMixCostParams {
                 mix_id: mix,
                 new_costs,
             } => change_mix_cost_params(deps, mix, new_costs),
-            PendingIntervalEventData::UpdateRewardingParams { update } => {
+            PendingIntervalEventKind::UpdateRewardingParams { update } => {
                 update_rewarding_params(deps, update)
             }
-            PendingIntervalEventData::UpdateIntervalConfig {
+            PendingIntervalEventKind::UpdateIntervalConfig {
                 epochs_in_interval,
                 epoch_duration_secs,
             } => update_interval_config(deps, epochs_in_interval, epoch_duration_secs),
@@ -453,7 +456,7 @@ mod tests {
             test.add_immediate_delegation(owner1, delegation, mix_id);
 
             let env = test.env();
-            try_remove_mixnode(test.deps_mut(), mock_info("mix-owner", &[])).unwrap();
+            try_remove_mixnode(test.deps_mut(), &env, mock_info("mix-owner", &[])).unwrap();
 
             let res_increase = delegate(
                 test.deps_mut(),

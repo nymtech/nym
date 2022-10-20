@@ -14,7 +14,13 @@ pub struct PendingEpochEvent {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum PendingEpochEventData {
+pub struct PendingEpochEventData {
+    pub source_height: u64,
+    pub kind: PendingEpochEventKind,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum PendingEpochEventKind {
     // can't just pass the `Delegation` struct here as it's impossible to determine
     // `cumulative_reward_ratio` ahead of time
     Delegate {
@@ -36,6 +42,15 @@ pub enum PendingEpochEventData {
     },
 }
 
+impl PendingEpochEventKind {
+    pub fn attach_source_height(self, source_height: u64) -> PendingEpochEventData {
+        PendingEpochEventData {
+            source_height,
+            kind: self,
+        }
+    }
+}
+
 impl From<(EpochEventId, PendingEpochEventData)> for PendingEpochEvent {
     fn from(data: (EpochEventId, PendingEpochEventData)) -> Self {
         PendingEpochEvent {
@@ -52,7 +67,13 @@ pub struct PendingIntervalEvent {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum PendingIntervalEventData {
+pub struct PendingIntervalEventData {
+    pub source_height: u64,
+    pub kind: PendingIntervalEventKind,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum PendingIntervalEventKind {
     ChangeMixCostParams {
         mix_id: MixId,
         new_costs: MixNodeCostParams,
@@ -65,6 +86,15 @@ pub enum PendingIntervalEventData {
         epochs_in_interval: u32,
         epoch_duration_secs: u64,
     },
+}
+
+impl PendingIntervalEventKind {
+    pub fn attach_source_height(self, source_height: u64) -> PendingIntervalEventData {
+        PendingIntervalEventData {
+            source_height,
+            kind: self,
+        }
+    }
 }
 
 impl From<(IntervalEventId, PendingIntervalEventData)> for PendingIntervalEvent {

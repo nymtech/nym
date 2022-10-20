@@ -22,7 +22,7 @@ use mixnet_contract_common::events::{
     new_withdraw_delegator_reward_event, new_withdraw_operator_reward_event,
     new_zero_uptime_mix_operator_rewarding_event,
 };
-use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
+use mixnet_contract_common::pending_events::{PendingEpochEventKind, PendingIntervalEventKind};
 use mixnet_contract_common::reward_params::{
     IntervalRewardingParamsUpdate, NodeRewardParams, Performance,
 };
@@ -291,10 +291,10 @@ pub(crate) fn try_update_active_set_size(
         Ok(Response::new().add_event(new_active_set_update_event(active_set_size)))
     } else {
         // push the epoch event
-        let epoch_event = PendingEpochEventData::UpdateActiveSetSize {
+        let epoch_event = PendingEpochEventKind::UpdateActiveSetSize {
             new_size: active_set_size,
         };
-        push_new_epoch_event(deps.storage, &epoch_event)?;
+        push_new_epoch_event(deps.storage, &env, epoch_event)?;
         let time_left = interval.secs_until_current_interval_end(&env);
         Ok(
             Response::new().add_event(new_pending_active_set_update_event(
@@ -329,10 +329,10 @@ pub(crate) fn try_update_rewarding_params(
         )))
     } else {
         // push the interval event
-        let interval_event = PendingIntervalEventData::UpdateRewardingParams {
+        let interval_event = PendingIntervalEventKind::UpdateRewardingParams {
             update: updated_params,
         };
-        push_new_interval_event(deps.storage, &interval_event)?;
+        push_new_interval_event(deps.storage, &env, interval_event)?;
         let time_left = interval.secs_until_current_interval_end(&env);
         Ok(
             Response::new().add_event(new_pending_rewarding_params_update_event(
@@ -1675,7 +1675,7 @@ pub mod tests {
             // make sure it's actually saved to pending events
             let events = test.pending_epoch_events();
             assert!(
-                matches!(events[0], PendingEpochEventData::UpdateActiveSetSize { new_size } if new_size == 42)
+                matches!(events[0], PendingEpochEventKind::UpdateActiveSetSize { new_size } if new_size == 42)
             );
 
             test.execute_all_pending_events();
@@ -1830,7 +1830,7 @@ pub mod tests {
             // make sure it's actually saved to pending events
             let events = test.pending_interval_events();
             assert!(
-                matches!(events[0],PendingIntervalEventData::UpdateRewardingParams { update } if update.rewarded_set_size == Some(123))
+                matches!(events[0],PendingIntervalEventKind::UpdateRewardingParams { update } if update.rewarded_set_size == Some(123))
             );
 
             test.execute_all_pending_events();

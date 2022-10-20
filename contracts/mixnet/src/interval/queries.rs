@@ -379,7 +379,7 @@ mod tests {
     mod pending_interval_events {
         use super::*;
         use crate::support::tests::fixtures;
-        use mixnet_contract_common::pending_events::PendingIntervalEventData;
+        use mixnet_contract_common::pending_events::PendingIntervalEventKind;
         use rand_chacha::rand_core::RngCore;
 
         fn push_n_dummy_interval_actions(test: &mut TestSetup, n: usize) {
@@ -389,7 +389,7 @@ mod tests {
         }
 
         fn push_dummy_interval_action(test: &mut TestSetup) {
-            let dummy_action = PendingIntervalEventData::ChangeMixCostParams {
+            let dummy_action = PendingIntervalEventKind::ChangeMixCostParams {
                 mix_id: test.rng.next_u32(),
                 new_costs: fixtures::mix_node_cost_params_fixture(),
             };

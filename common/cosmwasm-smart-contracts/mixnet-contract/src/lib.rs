@@ -34,7 +34,7 @@ pub use mixnode::{
 };
 pub use msg::*;
 pub use pending_events::{
-    PendingEpochEvent, PendingEpochEventData, PendingIntervalEvent, PendingIntervalEventData,
+    PendingEpochEvent, PendingEpochEventData, PendingIntervalEvent, PendingIntervalEventKind,
 };
 pub use reward_params::{IntervalRewardParams, IntervalRewardingParamsUpdate, RewardingParams};
 pub use types::*;

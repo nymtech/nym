@@ -15,7 +15,7 @@ use mixnet_contract_common::events::{
     new_pending_interval_config_update_event, new_pending_interval_events_execution_event,
     new_reconcile_pending_events,
 };
-use mixnet_contract_common::pending_events::PendingIntervalEventData;
+use mixnet_contract_common::pending_events::PendingIntervalEventKind;
 use mixnet_contract_common::MixId;
 use std::collections::BTreeSet;
 
@@ -276,11 +276,11 @@ pub(crate) fn try_update_interval_config(
         )
     } else {
         // push the interval event
-        let interval_event = PendingIntervalEventData::UpdateIntervalConfig {
+        let interval_event = PendingIntervalEventKind::UpdateIntervalConfig {
             epochs_in_interval,
             epoch_duration_secs,
         };
-        push_new_interval_event(deps.storage, &interval_event)?;
+        push_new_interval_event(deps.storage, &env, interval_event)?;
         let time_left = interval.secs_until_current_interval_end(&env);
         Ok(
             Response::new().add_event(new_pending_interval_config_update_event(
@@ -318,7 +318,7 @@ mod tests {
         // if you attempt to update cost parameters of an unbonded mixnode,
         // it will return an empty response, but will not fail
         for i in 0..n {
-            let dummy_action = PendingIntervalEventData::ChangeMixCostParams {
+            let dummy_action = PendingIntervalEventKind::ChangeMixCostParams {
                 mix_id: i as MixId,
                 new_costs: fixtures::mix_node_cost_params_fixture(),
             };
@@ -640,7 +640,7 @@ mod tests {
                 rewarded_set_size: Some(500),
                 ..Default::default()
             };
-            let action_with_event = PendingIntervalEventData::UpdateRewardingParams { update };
+            let action_with_event = PendingIntervalEventKind::UpdateRewardingParams { update };
             storage::push_new_interval_event(test.deps_mut().storage, &action_with_event).unwrap();
             push_n_dummy_interval_actions(&mut test, 10);
             let (res, executed) =
@@ -673,7 +673,7 @@ mod tests {
                 profit_margin_percent: Percent::from_percentage_value(12).unwrap(),
                 interval_operating_cost: coin(123_000, TEST_COIN_DENOM),
             };
-            let cost_change = PendingIntervalEventData::ChangeMixCostParams {
+            let cost_change = PendingIntervalEventKind::ChangeMixCostParams {
                 mix_id: legit_mix,
                 new_costs: new_costs.clone(),
             };
@@ -685,7 +685,7 @@ mod tests {
                 rewarded_set_size: Some(500),
                 ..Default::default()
             };
-            let change_params = PendingIntervalEventData::UpdateRewardingParams { update };
+            let change_params = PendingIntervalEventKind::UpdateRewardingParams { update };
             storage::push_new_interval_event(test.deps_mut().storage, &change_params).unwrap();
             let interval = test.current_interval();
             let mut expected_updated = test.rewarding_params();
@@ -697,7 +697,7 @@ mod tests {
                 expected_updated.interval,
             ));
 
-            let change_interval = PendingIntervalEventData::UpdateIntervalConfig {
+            let change_interval = PendingIntervalEventKind::UpdateIntervalConfig {
                 epochs_in_interval: 123,
                 epoch_duration_secs: 1000,
             };
@@ -996,7 +996,7 @@ mod tests {
                 rewarded_set_size: Some(500),
                 ..Default::default()
             };
-            let change_params = PendingIntervalEventData::UpdateRewardingParams { update };
+            let change_params = PendingIntervalEventKind::UpdateRewardingParams { update };
             storage::push_new_interval_event(test.deps_mut().storage, &change_params).unwrap();
             let interval = test.current_interval();
             let mut expected_updated = test.rewarding_params();
@@ -1267,7 +1267,7 @@ mod tests {
                 rewarded_set_size: Some(500),
                 ..Default::default()
             };
-            let change_params = PendingIntervalEventData::UpdateRewardingParams { update };
+            let change_params = PendingIntervalEventKind::UpdateRewardingParams { update };
             storage::push_new_interval_event(test.deps_mut().storage, &change_params).unwrap();
             let interval = test.current_interval();
             let mut expected_updated = test.rewarding_params();
@@ -1510,7 +1510,7 @@ mod tests {
             // make sure it's actually saved to pending events
             let events = test.pending_interval_events();
             assert!(matches!(events[0],
-                PendingIntervalEventData::UpdateIntervalConfig { epochs_in_interval, epoch_duration_secs } if epochs_in_interval == 100 && epoch_duration_secs == 1000
+                PendingIntervalEventKind::UpdateIntervalConfig { epochs_in_interval, epoch_duration_secs } if epochs_in_interval == 100 && epoch_duration_secs == 1000
             ));
 
             test.execute_all_pending_events();

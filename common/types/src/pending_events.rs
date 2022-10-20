@@ -9,7 +9,7 @@ use mixnet_contract_common::{
     PendingEpochEvent as MixnetContractPendingEpochEvent,
     PendingEpochEventData as MixnetContractPendingEpochEventData,
     PendingIntervalEvent as MixnetContractPendingIntervalEvent,
-    PendingIntervalEventData as MixnetContractPendingIntervalEventData,
+    PendingIntervalEventKind as MixnetContractPendingIntervalEventData,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

@@ -47,7 +47,9 @@ pub mod test_helpers {
         may_find_attribute, MixnetEventType, DELEGATES_REWARD_KEY, OPERATOR_REWARD_KEY,
     };
     use mixnet_contract_common::mixnode::{MixNodeRewarding, UnbondedMixnode};
-    use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
+    use mixnet_contract_common::pending_events::{
+        PendingEpochEventData, PendingIntervalEventData, PendingIntervalEventKind,
+    };
     use mixnet_contract_common::reward_params::{Performance, RewardingParams};
     use mixnet_contract_common::rewarding::simulator::simulated_node::SimulatedNode;
     use mixnet_contract_common::rewarding::simulator::Simulator;
@@ -775,9 +777,9 @@ pub mod test_helpers {
         deps
     }
 
-    pub fn delegate(deps: DepsMut<'_>, sender: &str, stake: Vec<Coin>, mix_id: MixId) {
+    pub fn delegate(deps: DepsMut<'_>, env: Env, sender: &str, stake: Vec<Coin>, mix_id: MixId) {
         let info = mock_info(sender, &stake);
-        try_delegate_to_mixnode(deps, info, mix_id).unwrap();
+        try_delegate_to_mixnode(deps, env, info, mix_id).unwrap();
     }
 
     pub(crate) fn read_delegation(

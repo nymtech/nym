@@ -17,7 +17,7 @@ use mixnet_contract_common::events::{
     new_mixnode_pending_cost_params_update_event, new_pending_mixnode_unbonding_event,
 };
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
-use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
+use mixnet_contract_common::pending_events::{PendingEpochEventKind, PendingIntervalEventKind};
 use mixnet_contract_common::MixNode;
 
 pub fn try_add_mixnode(
@@ -119,23 +119,26 @@ fn _try_add_mixnode(
 
 pub fn try_remove_mixnode_on_behalf(
     deps: DepsMut<'_>,
+    env: Env,
     info: MessageInfo,
     owner: String,
 ) -> Result<Response, MixnetContractError> {
     let proxy = info.sender;
     let owner = deps.api.addr_validate(&owner)?;
-    _try_remove_mixnode(deps, owner, Some(proxy))
+    _try_remove_mixnode(deps, env, owner, Some(proxy))
 }
 
 pub fn try_remove_mixnode(
     deps: DepsMut<'_>,
+    env: Env,
     info: MessageInfo,
 ) -> Result<Response, MixnetContractError> {
-    _try_remove_mixnode(deps, info.sender, None)
+    _try_remove_mixnode(deps, env, info.sender, None)
 }
 
 pub(crate) fn _try_remove_mixnode(
     deps: DepsMut<'_>,
+    env: Env,
     owner: Addr,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
@@ -161,10 +164,10 @@ pub(crate) fn _try_remove_mixnode(
     )?;
 
     // push the event to execute it at the end of the epoch
-    let epoch_event = PendingEpochEventData::UnbondMixnode {
+    let epoch_event = PendingEpochEventKind::UnbondMixnode {
         mix_id: existing_bond.mix_id,
     };
-    interval_storage::push_new_epoch_event(deps.storage, &epoch_event)?;
+    interval_storage::push_new_epoch_event(deps.storage, &env, epoch_event)?;
 
     Ok(
         Response::new().add_event(new_pending_mixnode_unbonding_event(
@@ -229,26 +232,29 @@ pub(crate) fn _try_update_mixnode_config(
 
 pub(crate) fn try_update_mixnode_cost_params(
     deps: DepsMut<'_>,
+    env: Env,
     info: MessageInfo,
     new_costs: MixNodeCostParams,
 ) -> Result<Response, MixnetContractError> {
     let owner = info.sender;
-    _try_update_mixnode_cost_params(deps, new_costs, owner, None)
+    _try_update_mixnode_cost_params(deps, env, new_costs, owner, None)
 }
 
 pub(crate) fn try_update_mixnode_cost_params_on_behalf(
     deps: DepsMut,
+    env: Env,
     info: MessageInfo,
     new_costs: MixNodeCostParams,
     owner: String,
 ) -> Result<Response, MixnetContractError> {
     let owner = deps.api.addr_validate(&owner)?;
     let proxy = info.sender;
-    _try_update_mixnode_cost_params(deps, new_costs, owner, Some(proxy))
+    _try_update_mixnode_cost_params(deps, env, new_costs, owner, Some(proxy))
 }
 
 pub(crate) fn _try_update_mixnode_cost_params(
     deps: DepsMut,
+    env: Env,
     new_costs: MixNodeCostParams,
     owner: Addr,
     proxy: Option<Addr>,
@@ -267,11 +273,11 @@ pub(crate) fn _try_update_mixnode_cost_params(
     );
 
     // push the interval event
-    let interval_event = PendingIntervalEventData::ChangeMixCostParams {
+    let interval_event = PendingIntervalEventKind::ChangeMixCostParams {
         mix_id: existing_bond.mix_id,
         new_costs,
     };
-    push_new_interval_event(deps.storage, &interval_event)?;
+    push_new_interval_event(deps.storage, &env, interval_event)?;
 
     Ok(Response::new().add_event(cosmos_event))
 }
@@ -583,7 +589,7 @@ pub mod tests {
         let event = pending_events.pop().unwrap();
         assert_eq!(1, event.0);
         assert_eq!(
-            PendingIntervalEventData::ChangeMixCostParams {
+            PendingIntervalEventKind::ChangeMixCostParams {
                 mix_id,
                 new_costs: update.clone()
             },

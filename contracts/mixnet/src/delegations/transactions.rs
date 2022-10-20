@@ -6,34 +6,37 @@ use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::support::helpers::validate_delegation_stake;
-use cosmwasm_std::{Addr, Coin, DepsMut, MessageInfo, Response};
+use cosmwasm_std::{Addr, Coin, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_pending_delegation_event, new_pending_undelegation_event,
 };
-use mixnet_contract_common::pending_events::PendingEpochEventData;
+use mixnet_contract_common::pending_events::PendingEpochEventKind;
 use mixnet_contract_common::{Delegation, MixId};
 
 pub(crate) fn try_delegate_to_mixnode(
     deps: DepsMut<'_>,
+    env: Env,
     info: MessageInfo,
     mix_id: MixId,
 ) -> Result<Response, MixnetContractError> {
-    _try_delegate_to_mixnode(deps, mix_id, info.sender, info.funds, None)
+    _try_delegate_to_mixnode(deps, env, mix_id, info.sender, info.funds, None)
 }
 
 pub(crate) fn try_delegate_to_mixnode_on_behalf(
     deps: DepsMut<'_>,
+    env: Env,
     info: MessageInfo,
     mix_id: MixId,
     delegate: String,
 ) -> Result<Response, MixnetContractError> {
     let delegate = deps.api.addr_validate(&delegate)?;
-    _try_delegate_to_mixnode(deps, mix_id, delegate, info.funds, Some(info.sender))
+    _try_delegate_to_mixnode(deps, env, mix_id, delegate, info.funds, Some(info.sender))
 }
 
 pub(crate) fn _try_delegate_to_mixnode(
     deps: DepsMut<'_>,
+    env: Env,
     mix_id: MixId,
     delegate: Addr,
     amount: Vec<Coin>,
@@ -59,37 +62,40 @@ pub(crate) fn _try_delegate_to_mixnode(
     // push the event onto the queue and wait for it to be picked up at the end of the epoch
     let cosmos_event = new_pending_delegation_event(&delegate, &proxy, &delegation, mix_id);
 
-    let epoch_event = PendingEpochEventData::Delegate {
+    let epoch_event = PendingEpochEventKind::Delegate {
         owner: delegate,
         mix_id,
         amount: delegation,
         proxy,
     };
-    interval_storage::push_new_epoch_event(deps.storage, &epoch_event)?;
+    interval_storage::push_new_epoch_event(deps.storage, &env, epoch_event)?;
 
     Ok(Response::new().add_event(cosmos_event))
 }
 
 pub(crate) fn try_remove_delegation_from_mixnode(
     deps: DepsMut<'_>,
+    env: Env,
     info: MessageInfo,
     mix_id: MixId,
 ) -> Result<Response, MixnetContractError> {
-    _try_remove_delegation_from_mixnode(deps, mix_id, info.sender, None)
+    _try_remove_delegation_from_mixnode(deps, env, mix_id, info.sender, None)
 }
 
 pub(crate) fn try_remove_delegation_from_mixnode_on_behalf(
     deps: DepsMut<'_>,
+    env: Env,
     info: MessageInfo,
     mix_id: MixId,
     delegate: String,
 ) -> Result<Response, MixnetContractError> {
     let delegate = deps.api.addr_validate(&delegate)?;
-    _try_remove_delegation_from_mixnode(deps, mix_id, delegate, Some(info.sender))
+    _try_remove_delegation_from_mixnode(deps, env, mix_id, delegate, Some(info.sender))
 }
 
 pub(crate) fn _try_remove_delegation_from_mixnode(
     deps: DepsMut<'_>,
+    env: Env,
     mix_id: MixId,
     delegate: Addr,
     proxy: Option<Addr>,
@@ -111,12 +117,12 @@ pub(crate) fn _try_remove_delegation_from_mixnode(
     // push the event onto the queue and wait for it to be picked up at the end of the epoch
     let cosmos_event = new_pending_undelegation_event(&delegate, &proxy, mix_id);
 
-    let epoch_event = PendingEpochEventData::Undelegate {
+    let epoch_event = PendingEpochEventKind::Undelegate {
         owner: delegate,
         mix_id,
         proxy,
     };
-    interval_storage::push_new_epoch_event(deps.storage, &epoch_event)?;
+    interval_storage::push_new_epoch_event(deps.storage, &env, epoch_event)?;
 
     Ok(Response::new().add_event(cosmos_event))
 }
@@ -297,7 +303,7 @@ mod tests {
 
             assert_eq!(
                 events[0],
-                PendingEpochEventData::Delegate {
+                PendingEpochEventKind::Delegate {
                     owner: Addr::unchecked(owner),
                     mix_id,
                     amount: amount1,
@@ -307,7 +313,7 @@ mod tests {
 
             assert_eq!(
                 events[1],
-                PendingEpochEventData::Delegate {
+                PendingEpochEventKind::Delegate {
                     owner: Addr::unchecked(owner),
                     mix_id,
                     amount: amount2,

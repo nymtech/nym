@@ -41,7 +41,7 @@ use crate::epoch_operations::RewardedSetUpdater;
 #[cfg(feature = "coconut")]
 use coconut::{
     comm::QueryCommunicationChannel,
-    dkg::{init_keypair, DkgController},
+    dkg::controller::{init_keypair, DkgController},
     InternalSignRequest,
 };
 #[cfg(feature = "coconut")]

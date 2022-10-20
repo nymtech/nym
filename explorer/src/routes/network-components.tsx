@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Routes as ReactRouterRoutes, Route, useNavigate } from 'react-router-dom';
 import { BIG_DIPPER } from '../api/constants';
 import { PageGateways } from '../pages/Gateways';
-import { PageGatewayDetail } from '../pages/GateDetail';
+import { PageGatewayDetail } from '../pages/GatewayDetail';
 import { PageMixnodeDetail } from '../pages/MixnodeDetail';
 import { PageMixnodes } from '../pages/Mixnodes';
 

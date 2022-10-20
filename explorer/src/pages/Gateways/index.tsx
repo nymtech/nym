@@ -44,19 +44,6 @@ export const PageGateways: React.FC = () => {
   }, [searchTerm, gateways?.data]);
 
   const columns: GridColDef[] = [
-    // {
-    //   field: 'owner',
-    //   headerName: 'Owner',
-    //   renderHeader: () => <CustomColumnHeading headingTitle="Owner" />,
-    //   width: 380,
-    //   headerAlign: 'left',
-    //   headerClassName: 'MuiDataGrid-header-override',
-    //   renderCell: (params: GridRenderCellParams) => (
-    //     <Typography sx={cellStyles} data-testid="owner">
-    //       {params.value}
-    //     </Typography>
-    //   ),
-    // },
     {
       field: 'identity_key',
       headerName: 'Identity Key',
@@ -65,10 +52,11 @@ export const PageGateways: React.FC = () => {
       width: 380,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
-        // <Typography sx={cellStyles} data-testid="identity-key">
-        //   {params.value}
-        // </Typography>
-        <MuiLink component={RRDLink} to={`/network-components/gateway/${params.row.identity_key}`}>
+        <MuiLink
+          sx={{ ...cellStyles }}
+          component={RRDLink}
+          to={`/network-components/gateway/${params.row.identity_key}`}
+        >
           {params.value}
         </MuiLink>
       ),
@@ -83,32 +71,6 @@ export const PageGateways: React.FC = () => {
       renderCell: (params: GridRenderCellParams) => (
         <Typography sx={cellStyles} data-testid="pledge-amount">
           {currencyToString(params.value)}
-        </Typography>
-      ),
-    },
-    {
-      field: 'routing_score',
-      headerName: 'Routing Score',
-      renderHeader: () => <CustomColumnHeading headingTitle="Routing Score" />,
-      headerClassName: 'MuiDataGrid-header-override',
-      width: 200,
-      headerAlign: 'left',
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles} data-testid="routing-score">
-          {params.value}
-        </Typography>
-      ),
-    },
-    {
-      field: 'avg_score',
-      headerName: 'Avg. Score',
-      renderHeader: () => <CustomColumnHeading headingTitle="Avg. Score" />,
-      headerClassName: 'MuiDataGrid-header-override',
-      width: 200,
-      headerAlign: 'left',
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles} data-testid="avg-score">
-          {params.value}
         </Typography>
       ),
     },
@@ -148,6 +110,19 @@ export const PageGateways: React.FC = () => {
             </Box>
           </Tooltip>
         </Button>
+      ),
+    },
+    {
+      field: 'owner',
+      headerName: 'Owner',
+      renderHeader: () => <CustomColumnHeading headingTitle="Owner" />,
+      width: 380,
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      renderCell: (params: GridRenderCellParams) => (
+        <Typography sx={cellStyles} data-testid="owner">
+          {params.value}
+        </Typography>
       ),
     },
   ];

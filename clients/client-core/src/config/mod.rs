@@ -247,8 +247,8 @@ impl<T: NymConfig> Config<T> {
         self.debug.disable_main_poisson_packet_distribution
     }
 
-    pub fn get_use_extended_packet_size(&self) -> bool {
-        self.debug.use_extended_packet_size
+    pub fn get_use_extended_packet_size(&self) -> Option<String> {
+        self.debug.use_extended_packet_size.clone()
     }
 
     pub fn get_version(&self) -> &str {
@@ -470,8 +470,8 @@ pub struct Debug {
     /// poisson distribution.
     pub disable_main_poisson_packet_distribution: bool,
 
-    /// Controls whether the sent sphinx packet use the NON-DEFAULT bigger size.
-    pub use_extended_packet_size: bool,
+    /// Controls whether the sent sphinx packet use a NON-DEFAULT bigger size.
+    pub use_extended_packet_size: Option<String>,
 }
 
 impl Default for Debug {
@@ -488,7 +488,7 @@ impl Default for Debug {
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
             disable_loop_cover_traffic_stream: false,
             disable_main_poisson_packet_distribution: false,
-            use_extended_packet_size: false,
+            use_extended_packet_size: None,
         }
     }
 }

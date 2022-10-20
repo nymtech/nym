@@ -36,7 +36,6 @@ use gateway_client::{
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
-use nymsphinx::params::PacketSize;
 use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
 
 pub mod config;
@@ -103,8 +102,13 @@ impl NymClient {
             topology_accessor,
         );
 
-        if self.config.get_base().get_use_extended_packet_size() {
-            stream.set_custom_packet_size(PacketSize::ExtendedPacket32)
+        if let Some(size) = self.config.get_base().get_use_extended_packet_size() {
+            if !stream.try_set_extended_packet_size(&size) {
+                log::warn!(
+                    "Unable to determine extended packet size in config: {}",
+                    size
+                );
+            }
         }
 
         stream.start_with_shutdown(shutdown);
@@ -132,8 +136,13 @@ impl NymClient {
             self.as_mix_recipient(),
         );
 
-        if self.config.get_base().get_use_extended_packet_size() {
-            controller_config.set_custom_packet_size(PacketSize::ExtendedPacket32)
+        if let Some(size) = self.config.get_base().get_use_extended_packet_size() {
+            if !controller_config.try_set_extended_packet_size(&size) {
+                log::warn!(
+                    "Unable to determine extended packet size in config: {}",
+                    size
+                );
+            }
         }
 
         info!("Starting real traffic stream...");

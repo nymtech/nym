@@ -5,6 +5,7 @@ use crate::FRAG_ID_LEN;
 use nymsphinx_types::header::HEADER_SIZE;
 use nymsphinx_types::PAYLOAD_OVERHEAD_SIZE;
 use std::convert::TryFrom;
+use std::str::FromStr;
 
 // it's up to the smart people to figure those values out : )
 const REGULAR_PACKET_SIZE: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 2 * 1024;
@@ -21,6 +22,9 @@ const EXTENDED_PACKET_SIZE_32: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 32 
 
 #[derive(Debug)]
 pub struct InvalidPacketSize;
+
+#[derive(Debug)]
+pub struct InvalidExtendedPacketSize;
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -41,8 +45,19 @@ pub enum PacketSize {
     ExtendedPacket16 = 5,
 }
 
-    // for example for streaming fast and furious in uncompressed 10bit 4K HDR quality
-    ExtendedPacket32 = 5,
+impl FromStr for PacketSize {
+    type Err = InvalidPacketSize;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "regular" => Ok(Self::RegularPacket),
+            "ack" => Ok(Self::AckPacket),
+            "extended8" => Ok(Self::ExtendedPacket8),
+            "extended16" => Ok(Self::ExtendedPacket16),
+            "extended32" => Ok(Self::ExtendedPacket32),
+            _ => Err(InvalidPacketSize),
+        }
+    }
 }
 
 impl TryFrom<u8> for PacketSize {
@@ -92,6 +107,23 @@ impl PacketSize {
             Ok(PacketSize::ExtendedPacket32)
         } else {
             Err(InvalidPacketSize)
+        }
+    }
+
+    pub fn is_extended_size(&self) -> bool {
+        match self {
+            PacketSize::RegularPacket | PacketSize::AckPacket => false,
+            PacketSize::ExtendedPacket8
+            | PacketSize::ExtendedPacket16
+            | PacketSize::ExtendedPacket32 => true,
+        }
+    }
+
+    pub fn as_extended_size(self) -> Option<Self> {
+        if self.is_extended_size() {
+            Some(self)
+        } else {
+            None
         }
     }
 }

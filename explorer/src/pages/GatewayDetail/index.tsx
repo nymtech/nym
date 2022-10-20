@@ -86,15 +86,6 @@ const PageGatewayDetailsWithState: React.FC<{ selectedGateway: GatewayResponseIt
     <Box component="main">
       <Title text="Gateway Detail" />
 
-      <Grid container spacing={2} mt={1} mb={6}>
-        <Grid item xs={12}>
-          Gateway name & description
-          {/* {gatewayRow && description?.data && (
-            <GatewayDetailSection gatewayRow={gatewayRow} mixnodeDescription={description.data} />
-          )} */}
-        </Grid>
-      </Grid>
-
       <Grid container>
         <Grid item xs={12}>
           <DetailTable

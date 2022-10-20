@@ -96,7 +96,6 @@ pub const PROXY_KEY: &str = "proxy";
 // delegation/undelegation
 pub const DELEGATOR_KEY: &str = "delegator";
 pub const DELEGATION_TARGET_KEY: &str = "delegation_target";
-pub const DELEGATION_HEIGHT_KEY: &str = "delegation_latest_block_height";
 
 // bonding/unbonding
 pub const MIX_ID_KEY: &str = "mix_id";
@@ -120,9 +119,6 @@ pub const UPDATED_MIXNODE_COST_PARAMS_KEY: &str = "updated_mixnode_cost_params";
 
 // rewarding
 pub const INTERVAL_KEY: &str = "interval_details";
-pub const TOTAL_MIXNODE_REWARD_KEY: &str = "total_node_reward";
-pub const TOTAL_PLEDGE_KEY: &str = "pledge";
-pub const TOTAL_DELEGATIONS_KEY: &str = "delegated";
 pub const OPERATOR_REWARD_KEY: &str = "operator_reward";
 pub const DELEGATES_REWARD_KEY: &str = "delegates_reward";
 pub const APPROXIMATE_TIME_LEFT_SECS_KEY: &str = "approximate_time_left_secs";
@@ -131,23 +127,14 @@ pub const UPDATED_INTERVAL_REWARDING_PARAMS_KEY: &str = "updated_interval_reward
 pub const PRIOR_DELEGATES_KEY: &str = "prior_delegates";
 pub const PRIOR_UNIT_REWARD: &str = "prior_unit_reward";
 
-pub const DISTRIBUTED_DELEGATION_REWARDS_KEY: &str = "distributed_delegation_rewards";
-pub const FURTHER_DELEGATIONS_TO_REWARD_KEY: &str = "further_delegations";
 pub const NO_REWARD_REASON_KEY: &str = "no_reward_reason";
 pub const BOND_NOT_FOUND_VALUE: &str = "bond_not_found";
-pub const BOND_TOO_FRESH_VALUE: &str = "bond_too_fresh";
 pub const ZERO_PERFORMANCE_VALUE: &str = "zero_performance";
 
 // rewarded set update
 pub const ACTIVE_SET_SIZE_KEY: &str = "active_set_size";
-pub const REWARDED_SET_SIZE_KEY: &str = "rewarded_set_size";
-pub const NODES_IN_REWARDED_SET_KEY: &str = "nodes_in_rewarded_set";
-pub const CURRENT_INTERVAL_ID_KEY: &str = "current_interval";
 
-pub const NEW_CURRENT_INTERVAL_KEY: &str = "new_current_interval";
 pub const NEW_CURRENT_EPOCH_KEY: &str = "new_current_epoch";
-pub const BLOCK_HEIGHT_KEY: &str = "block_height";
-pub const RECONCILIATION_ERROR_EVENT: &str = "reconciliation_error";
 
 // interval
 pub const EVENTS_EXECUTED_KEY: &str = "number_of_events_executed";

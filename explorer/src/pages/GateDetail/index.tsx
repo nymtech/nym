@@ -68,7 +68,7 @@ const PageGatewayDetailsWithState: React.FC<{ selectedGateway: GatewayResponseIt
 }) => {
   const [enrichGateway, setEnrichGateway] = React.useState<GatewayEnridedRowType>();
   const [status, setStatus] = React.useState<number[] | undefined>();
-  const { uptimeReport } = useGatewayContext();
+  const { uptimeReport, uptimeStory } = useGatewayContext();
 
   React.useEffect(() => {
     if (uptimeReport?.data && selectedGateway) {
@@ -119,12 +119,12 @@ const PageGatewayDetailsWithState: React.FC<{ selectedGateway: GatewayResponseIt
           )}
         </Grid>
         <Grid item xs={12} md={8}>
-          {/* {uptimeStory && (
+          {uptimeStory && (
             <ContentCard title="Routing Score">
               {uptimeStory.error && <ComponentError text="There was a problem retrieving routing score." />}
               <UptimeChart loading={uptimeStory.isLoading} xLabel="date" uptimeStory={uptimeStory} />
             </ContentCard>
-          )} */}
+          )}
         </Grid>
       </Grid>
     </Box>

@@ -43,6 +43,6 @@ export function gatewayEnrichedToGridRow(
     clients_port: gateway.gateway.clients_port || 0,
     mix_port: gateway.gateway.mix_port || 0,
     routing_score: `${report.most_recent}%`,
-    avg_uptime: `${report.last_day}%`,
+    avg_uptime: `${report.last_day || report.last_hour}%`,
   };
 }

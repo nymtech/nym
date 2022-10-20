@@ -288,7 +288,10 @@ pub(crate) fn try_update_active_set_size(
     if force_immediately || interval.is_current_epoch_over(&env) {
         rewarding_params.try_change_active_set_size(active_set_size)?;
         storage::REWARDING_PARAMS.save(deps.storage, &rewarding_params)?;
-        Ok(Response::new().add_event(new_active_set_update_event(active_set_size)))
+        Ok(Response::new().add_event(new_active_set_update_event(
+            env.block.height,
+            active_set_size,
+        )))
     } else {
         // push the epoch event
         let epoch_event = PendingEpochEventKind::UpdateActiveSetSize {
@@ -324,6 +327,7 @@ pub(crate) fn try_update_rewarding_params(
         rewarding_params.try_apply_updates(updated_params, interval.epochs_in_interval())?;
         storage::REWARDING_PARAMS.save(deps.storage, &rewarding_params)?;
         Ok(Response::new().add_event(new_rewarding_params_update_event(
+            env.block.height,
             updated_params,
             rewarding_params.interval,
         )))
@@ -418,9 +422,9 @@ pub mod tests {
                     &rewarding_details,
                 )
                 .unwrap();
-            pending_events::unbond_mixnode(test.deps_mut(), &env, mix_id_unbonded).unwrap();
+            pending_events::unbond_mixnode(test.deps_mut(), &env, 123, mix_id_unbonded).unwrap();
 
-            pending_events::unbond_mixnode(test.deps_mut(), &env, mix_id_unbonded_leftover)
+            pending_events::unbond_mixnode(test.deps_mut(), &env, 123, mix_id_unbonded_leftover)
                 .unwrap();
 
             let env = test.env();
@@ -1223,7 +1227,7 @@ pub mod tests {
                 .unwrap();
 
             let env = test.env();
-            pending_events::unbond_mixnode(test.deps_mut(), &env, mix_id_unbonded_leftover)
+            pending_events::unbond_mixnode(test.deps_mut(), &env, 123, mix_id_unbonded_leftover)
                 .unwrap();
 
             let res =
@@ -1505,7 +1509,7 @@ pub mod tests {
                 .unwrap();
 
             let env = test.env();
-            pending_events::unbond_mixnode(test.deps_mut(), &env, mix_id_unbonded_leftover)
+            pending_events::unbond_mixnode(test.deps_mut(), &env, 123, mix_id_unbonded_leftover)
                 .unwrap();
 
             let res = try_withdraw_operator_reward(test.deps_mut(), sender1);

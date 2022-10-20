@@ -1174,7 +1174,7 @@ pub(crate) mod tests {
             .save(deps.as_mut().storage, id, &rewarding_details)
             .unwrap();
 
-        pending_events::unbond_mixnode(deps.as_mut(), &mock_env(), id).unwrap();
+        pending_events::unbond_mixnode(deps.as_mut(), &mock_env(), 123, id).unwrap();
         let res = query_owned_mixnode(deps.as_ref(), address.clone()).unwrap();
         assert!(res.mixnode_details.is_none());
         assert_eq!(address, res.address);
@@ -1263,7 +1263,7 @@ pub(crate) mod tests {
         // add and unbond the mixnode
         let mix_id =
             test_helpers::add_mixnode(&mut rng, deps.as_mut(), env, sender, good_mixnode_pledge());
-        pending_events::unbond_mixnode(deps.as_mut(), &mock_env(), mix_id).unwrap();
+        pending_events::unbond_mixnode(deps.as_mut(), &mock_env(), 123, mix_id).unwrap();
 
         let res = query_unbonded_mixnode(deps.as_ref(), mix_id).unwrap();
         assert_eq!(res.unbonded_info.unwrap().owner, sender);

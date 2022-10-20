@@ -20,6 +20,7 @@ pub type SphinxKeyRef<'a> = &'a str;
 pub type EpochId = u32;
 pub type IntervalId = u32;
 pub type MixId = u32;
+pub type BlockHeight = u64;
 pub type EpochEventId = u32;
 pub type IntervalEventId = u32;
 

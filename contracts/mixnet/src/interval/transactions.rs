@@ -270,6 +270,7 @@ pub(crate) fn try_update_interval_config(
     if force_immediately || interval.is_current_interval_over(&env) {
         change_interval_config(
             deps.storage,
+            env.block.height,
             interval,
             epochs_in_interval,
             epoch_duration_secs,
@@ -408,7 +409,7 @@ mod tests {
                 perform_pending_epoch_actions(test.deps_mut(), &env, None).unwrap();
             assert_eq!(
                 res,
-                Response::new().add_event(new_active_set_update_event(50))
+                Response::new().add_event(new_active_set_update_event(env.block.height, 50))
             );
             assert_eq!(executed, 21);
             assert_eq!(
@@ -485,7 +486,7 @@ mod tests {
             let action_with_event = PendingEpochEventKind::UpdateActiveSetSize { new_size: 50 };
             storage::push_new_epoch_event(test.deps_mut().storage, &env, action_with_event)
                 .unwrap();
-            expected_events.push(new_active_set_update_event(50));
+            expected_events.push(new_active_set_update_event(env.block.height, 50));
 
             // undelegation just returns tokens and emits event
             let legit_undelegate = PendingEpochEventKind::Undelegate {
@@ -494,7 +495,12 @@ mod tests {
                 proxy: None,
             };
             storage::push_new_epoch_event(test.deps_mut().storage, &env, legit_undelegate).unwrap();
-            expected_events.push(new_undelegation_event(&delegator, &None, legit_mix));
+            expected_events.push(new_undelegation_event(
+                env.block.height,
+                &delegator,
+                &None,
+                legit_mix,
+            ));
             expected_messages.push(SubMsg::new(BankMsg::Send {
                 to_address: delegator.into_string(),
                 amount: coins(amount, TEST_COIN_DENOM),
@@ -653,8 +659,11 @@ mod tests {
             let updated_params = test.rewarding_params().interval;
             assert_eq!(
                 res,
-                Response::new()
-                    .add_event(new_rewarding_params_update_event(update, updated_params))
+                Response::new().add_event(new_rewarding_params_update_event(
+                    env.block.height,
+                    update,
+                    updated_params
+                ))
             );
             assert_eq!(executed, 21);
             assert_eq!(
@@ -684,7 +693,11 @@ mod tests {
             };
 
             storage::push_new_interval_event(test.deps_mut().storage, &env, cost_change).unwrap();
-            expected_events.push(new_mixnode_cost_params_update_event(legit_mix, &new_costs));
+            expected_events.push(new_mixnode_cost_params_update_event(
+                env.block.height,
+                legit_mix,
+                &new_costs,
+            ));
 
             let update = IntervalRewardingParamsUpdate {
                 rewarded_set_size: Some(500),
@@ -698,6 +711,7 @@ mod tests {
                 .try_apply_updates(update, interval.epochs_in_interval())
                 .unwrap();
             expected_events.push(new_rewarding_params_update_event(
+                env.block.height,
                 update,
                 expected_updated.interval,
             ));
@@ -711,6 +725,7 @@ mod tests {
             storage::push_new_interval_event(test.deps_mut().storage, &env, change_interval)
                 .unwrap();
             expected_events.push(new_interval_config_update_event(
+                env.block.height,
                 123,
                 1000,
                 expected_updated2.interval,
@@ -1011,6 +1026,7 @@ mod tests {
                 .try_apply_updates(update, interval.epochs_in_interval())
                 .unwrap();
             expected_events.push(new_rewarding_params_update_event(
+                env.block.height,
                 update,
                 expected_updated.interval,
             ));
@@ -1283,6 +1299,7 @@ mod tests {
                 .try_apply_updates(update, interval.epochs_in_interval())
                 .unwrap();
             expected_events.push(new_rewarding_params_update_event(
+                env.block.height,
                 update,
                 expected_updated.interval,
             ));

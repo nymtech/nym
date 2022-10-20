@@ -227,7 +227,8 @@ pub mod test_helpers {
 
         pub fn immediately_unbond_mixnode(&mut self, mix_id: MixId) {
             let env = self.env();
-            pending_events::unbond_mixnode(self.deps_mut(), &env, mix_id).unwrap();
+            pending_events::unbond_mixnode(self.deps_mut(), &env, env.block.height, mix_id)
+                .unwrap();
         }
 
         pub fn add_immediate_delegation(
@@ -245,6 +246,7 @@ pub mod test_helpers {
             pending_events::delegate(
                 self.deps_mut(),
                 &env,
+                env.block.height,
                 Addr::unchecked(delegator),
                 target,
                 amount,
@@ -269,6 +271,7 @@ pub mod test_helpers {
             pending_events::delegate(
                 self.deps_mut(),
                 &env,
+                env.block.height,
                 Addr::unchecked(delegator),
                 target,
                 amount,
@@ -294,8 +297,15 @@ pub mod test_helpers {
         }
 
         pub fn remove_immediate_delegation(&mut self, delegator: &str, target: MixId) {
-            pending_events::undelegate(self.deps_mut(), Addr::unchecked(delegator), target, None)
-                .unwrap();
+            let height = self.env.block.height;
+            pending_events::undelegate(
+                self.deps_mut(),
+                height,
+                Addr::unchecked(delegator),
+                target,
+                None,
+            )
+            .unwrap();
         }
 
         pub fn skip_to_next_epoch_end(&mut self) {
@@ -562,6 +572,7 @@ pub mod test_helpers {
             pending_events::delegate(
                 deps.branch(),
                 &env,
+                env.block.height,
                 Addr::unchecked(&format!("owner{}", i)),
                 mix_id,
                 tests::fixtures::good_mixnode_pledge().pop().unwrap(),

@@ -3,7 +3,7 @@
 
 use crate::mixnode::MixNodeCostParams;
 use crate::reward_params::IntervalRewardingParamsUpdate;
-use crate::{EpochEventId, IntervalEventId, MixId};
+use crate::{BlockHeight, EpochEventId, IntervalEventId, MixId};
 use cosmwasm_std::{Addr, Coin};
 use serde::{Deserialize, Serialize};
 
@@ -15,7 +15,7 @@ pub struct PendingEpochEvent {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PendingEpochEventData {
-    pub source_height: u64,
+    pub created_at: BlockHeight,
     pub kind: PendingEpochEventKind,
 }
 
@@ -43,9 +43,9 @@ pub enum PendingEpochEventKind {
 }
 
 impl PendingEpochEventKind {
-    pub fn attach_source_height(self, source_height: u64) -> PendingEpochEventData {
+    pub fn attach_source_height(self, created_at: BlockHeight) -> PendingEpochEventData {
         PendingEpochEventData {
-            source_height,
+            created_at,
             kind: self,
         }
     }
@@ -68,7 +68,7 @@ pub struct PendingIntervalEvent {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PendingIntervalEventData {
-    pub source_height: u64,
+    pub created_at: BlockHeight,
     pub kind: PendingIntervalEventKind,
 }
 
@@ -89,9 +89,9 @@ pub enum PendingIntervalEventKind {
 }
 
 impl PendingIntervalEventKind {
-    pub fn attach_source_height(self, source_height: u64) -> PendingIntervalEventData {
+    pub fn attach_source_height(self, created_at: BlockHeight) -> PendingIntervalEventData {
         PendingIntervalEventData {
-            source_height,
+            created_at,
             kind: self,
         }
     }

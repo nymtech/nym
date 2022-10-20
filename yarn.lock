@@ -6124,6 +6124,11 @@
   resolved "https://registry.yarnpkg.com/@webpack-cli/serve/-/serve-1.6.1.tgz#0de2875ac31b46b6c5bb1ae0a7d7f0ba5678dffe"
   integrity sha512-gNGTiTrjEVQ0OcVnzsRSqTxaBSr+dmTfm+qJsCDluky8uhdLWep7Gcr62QsAKHTMxjCS/8nEITsmFAhfIx+QSw==
 
+"@withfig/autocomplete-types@^1.23.0":
+  version "1.23.0"
+  resolved "https://registry.yarnpkg.com/@withfig/autocomplete-types/-/autocomplete-types-1.23.0.tgz#50d9fb3ae0c0660b5863ba7a3e827ca7fcf1cda4"
+  integrity sha512-dB9gccfRmkARPadT0hPZwzl4seAjeX6ILj9X3ClWeZ/FExJicRGYGTT8B+iF/gW+7EoPbmdY+C5Akl+NQSCEQQ==
+
 "@xtuc/ieee754@^1.2.0":
   version "1.2.0"
   resolved "https://registry.yarnpkg.com/@xtuc/ieee754/-/ieee754-1.2.0.tgz#eef014a3145ae477a1cbc00cd1e552336dceb790"

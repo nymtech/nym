@@ -217,7 +217,7 @@ mod packet_encoding {
             let packet_sizes = vec![
                 PacketSize::AckPacket,
                 PacketSize::RegularPacket,
-                PacketSize::ExtendedPacket,
+                PacketSize::ExtendedPacket32,
             ];
             for packet_size in packet_sizes {
                 let header = Header {
@@ -255,7 +255,7 @@ mod packet_encoding {
             let packet_sizes = vec![
                 PacketSize::AckPacket,
                 PacketSize::RegularPacket,
-                PacketSize::ExtendedPacket,
+                PacketSize::ExtendedPacket32,
             ];
 
             for packet_size in packet_sizes {

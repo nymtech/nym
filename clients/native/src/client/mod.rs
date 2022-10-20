@@ -104,7 +104,7 @@ impl NymClient {
         );
 
         if self.config.get_base().get_use_extended_packet_size() {
-            stream.set_custom_packet_size(PacketSize::ExtendedPacket)
+            stream.set_custom_packet_size(PacketSize::ExtendedPacket32)
         }
 
         stream.start_with_shutdown(shutdown);
@@ -133,7 +133,7 @@ impl NymClient {
         );
 
         if self.config.get_base().get_use_extended_packet_size() {
-            controller_config.set_custom_packet_size(PacketSize::ExtendedPacket)
+            controller_config.set_custom_packet_size(PacketSize::ExtendedPacket32)
         }
 
         info!("Starting real traffic stream...");

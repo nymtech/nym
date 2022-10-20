@@ -15,7 +15,7 @@ const REGULAR_PACKET_SIZE: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 2 * 102
 const ACK_IV_SIZE: usize = 16;
 
 const ACK_PACKET_SIZE: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + ACK_IV_SIZE + FRAG_ID_LEN;
-const EXTENDED_PACKET_SIZE: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 32 * 1024;
+const EXTENDED_PACKET_SIZE_32: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 32 * 1024;
 
 #[derive(Debug)]
 pub struct InvalidPacketSize;
@@ -30,7 +30,7 @@ pub enum PacketSize {
     AckPacket = 2,
 
     // for example for streaming fast and furious in uncompressed 10bit 4K HDR quality
-    ExtendedPacket = 3,
+    ExtendedPacket32 = 3,
 }
 
 impl TryFrom<u8> for PacketSize {
@@ -40,7 +40,7 @@ impl TryFrom<u8> for PacketSize {
         match value {
             _ if value == (PacketSize::RegularPacket as u8) => Ok(Self::RegularPacket),
             _ if value == (PacketSize::AckPacket as u8) => Ok(Self::AckPacket),
-            _ if value == (PacketSize::ExtendedPacket as u8) => Ok(Self::ExtendedPacket),
+            _ if value == (PacketSize::ExtendedPacket32 as u8) => Ok(Self::ExtendedPacket32),
             _ => Err(InvalidPacketSize),
         }
     }
@@ -51,7 +51,7 @@ impl PacketSize {
         match self {
             PacketSize::RegularPacket => REGULAR_PACKET_SIZE,
             PacketSize::AckPacket => ACK_PACKET_SIZE,
-            PacketSize::ExtendedPacket => EXTENDED_PACKET_SIZE,
+            PacketSize::ExtendedPacket32 => EXTENDED_PACKET_SIZE_32,
         }
     }
 
@@ -68,8 +68,8 @@ impl PacketSize {
             Ok(PacketSize::RegularPacket)
         } else if PacketSize::AckPacket.size() == size {
             Ok(PacketSize::AckPacket)
-        } else if PacketSize::ExtendedPacket.size() == size {
-            Ok(PacketSize::ExtendedPacket)
+        } else if PacketSize::ExtendedPacket32.size() == size {
+            Ok(PacketSize::ExtendedPacket32)
         } else {
             Err(InvalidPacketSize)
         }

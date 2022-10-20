@@ -62,7 +62,7 @@ impl PacketRouter {
                 trace!("routing regular packet");
                 received_messages.push(received_packet);
             } else if received_packet.len()
-                == PacketSize::ExtendedPacket.plaintext_size() - ack_overhead
+                == PacketSize::ExtendedPacket32.plaintext_size() - ack_overhead
             {
                 trace!("routing extended packet");
                 received_messages.push(received_packet);

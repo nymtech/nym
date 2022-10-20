@@ -83,7 +83,7 @@ impl fmt::Display for GatewayRequestsError {
                 write!(
                 f,
                 "received request had invalid size. (actual: {}, but expected one of: {} (ACK), {} (REGULAR), {} (EXTENDED))",
-                actual, PacketSize::AckPacket.size(), PacketSize::RegularPacket.size(), PacketSize::ExtendedPacket.size()
+                actual, PacketSize::AckPacket.size(), PacketSize::RegularPacket.size(), PacketSize::ExtendedPacket32.size()
             ),
             MalformedSphinxPacket => write!(f, "received sphinx packet was malformed"),
             MalformedEncryption => write!(f, "the received encrypted data was malformed"),

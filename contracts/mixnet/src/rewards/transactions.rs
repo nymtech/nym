@@ -1675,7 +1675,7 @@ pub mod tests {
             // make sure it's actually saved to pending events
             let events = test.pending_epoch_events();
             assert!(
-                matches!(events[0], PendingEpochEventKind::UpdateActiveSetSize { new_size } if new_size == 42)
+                matches!(events[0].kind, PendingEpochEventKind::UpdateActiveSetSize { new_size } if new_size == 42)
             );
 
             test.execute_all_pending_events();
@@ -1830,7 +1830,7 @@ pub mod tests {
             // make sure it's actually saved to pending events
             let events = test.pending_interval_events();
             assert!(
-                matches!(events[0],PendingIntervalEventKind::UpdateRewardingParams { update } if update.rewarded_set_size == Some(123))
+                matches!(events[0].kind,PendingIntervalEventKind::UpdateRewardingParams { update } if update.rewarded_set_size == Some(123))
             );
 
             test.execute_all_pending_events();

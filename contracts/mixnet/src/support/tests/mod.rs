@@ -47,9 +47,7 @@ pub mod test_helpers {
         may_find_attribute, MixnetEventType, DELEGATES_REWARD_KEY, OPERATOR_REWARD_KEY,
     };
     use mixnet_contract_common::mixnode::{MixNodeRewarding, UnbondedMixnode};
-    use mixnet_contract_common::pending_events::{
-        PendingEpochEventData, PendingIntervalEventData, PendingIntervalEventKind,
-    };
+    use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
     use mixnet_contract_common::reward_params::{Performance, RewardingParams};
     use mixnet_contract_common::rewarding::simulator::simulated_node::SimulatedNode;
     use mixnet_contract_common::rewarding::simulator::Simulator;
@@ -218,8 +216,13 @@ pub mod test_helpers {
                 .load(self.deps().storage, mix_id)
                 .unwrap();
 
-            try_remove_mixnode(self.deps_mut(), mock_info(bond_details.owner.as_str(), &[]))
-                .unwrap();
+            let env = self.env();
+            try_remove_mixnode(
+                self.deps_mut(),
+                env,
+                mock_info(bond_details.owner.as_str(), &[]),
+            )
+            .unwrap();
         }
 
         pub fn immediately_unbond_mixnode(&mut self, mix_id: MixId) {
@@ -286,7 +289,8 @@ pub mod test_helpers {
                 denom,
                 amount: amount.into(),
             };
-            delegate(self.deps_mut(), delegator, vec![amount], target)
+            let env = self.env();
+            delegate(self.deps_mut(), env, delegator, vec![amount], target)
         }
 
         pub fn remove_immediate_delegation(&mut self, delegator: &str, target: MixId) {

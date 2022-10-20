@@ -144,10 +144,11 @@ mod tests {
         #[test]
         fn can_only_be_done_towards_an_existing_mixnode() {
             let mut test = TestSetup::new();
+            let env = test.env();
             let owner = "delegator";
             let sender = mock_info(owner, &[coin(100_000_000, TEST_COIN_DENOM)]);
 
-            let res = try_delegate_to_mixnode(test.deps_mut(), sender, 42);
+            let res = try_delegate_to_mixnode(test.deps_mut(), env, sender, 42);
             assert_eq!(
                 res,
                 Err(MixnetContractError::MixNodeBondNotFound { mix_id: 42 })
@@ -157,17 +158,19 @@ mod tests {
         #[test]
         fn must_contain_non_zero_amount_of_coins() {
             let mut test = TestSetup::new();
+            let env = test.env();
+
             let owner = "delegator";
             let mix_id = test.add_dummy_mixnode("mix-owner", None);
             let sender1 = mock_info(owner, &[coin(0, TEST_COIN_DENOM)]);
             let sender2 = mock_info(owner, &[]);
             let sender3 = mock_info(owner, &[coin(1000, "some-weird-coin")]);
 
-            let res = try_delegate_to_mixnode(test.deps_mut(), sender1, mix_id);
+            let res = try_delegate_to_mixnode(test.deps_mut(), env.clone(), sender1, mix_id);
             assert_eq!(res, Err(MixnetContractError::EmptyDelegation));
-            let res = try_delegate_to_mixnode(test.deps_mut(), sender2, mix_id);
+            let res = try_delegate_to_mixnode(test.deps_mut(), env.clone(), sender2, mix_id);
             assert_eq!(res, Err(MixnetContractError::EmptyDelegation));
-            let res = try_delegate_to_mixnode(test.deps_mut(), sender3, mix_id);
+            let res = try_delegate_to_mixnode(test.deps_mut(), env, sender3, mix_id);
             assert_eq!(
                 res,
                 Err(MixnetContractError::WrongDenom {
@@ -180,6 +183,8 @@ mod tests {
         #[test]
         fn if_applicable_must_contain_at_least_the_minimum_pledge() {
             let mut test = TestSetup::new();
+            let env = test.env();
+
             let owner = "delegator";
             let mix_id = test.add_dummy_mixnode("mix-owner", None);
             let sender1 = mock_info(owner, &[coin(100_000_000, TEST_COIN_DENOM)]);
@@ -194,7 +199,7 @@ mod tests {
                 .save(test.deps_mut().storage, &contract_state)
                 .unwrap();
 
-            let res = try_delegate_to_mixnode(test.deps_mut(), sender1, mix_id);
+            let res = try_delegate_to_mixnode(test.deps_mut(), env.clone(), sender1, mix_id);
             assert_eq!(
                 res,
                 Err(MixnetContractError::InsufficientDelegation {
@@ -203,13 +208,14 @@ mod tests {
                 })
             );
 
-            let res = try_delegate_to_mixnode(test.deps_mut(), sender2, mix_id);
+            let res = try_delegate_to_mixnode(test.deps_mut(), env, sender2, mix_id);
             assert!(res.is_ok())
         }
 
         #[test]
         fn can_only_be_done_towards_fully_bonded_mixnode() {
             let mut test = TestSetup::new();
+            let env = test.env();
             let owner = "delegator";
             let sender = mock_info(owner, &[coin(100_000_000, TEST_COIN_DENOM)]);
 
@@ -232,17 +238,33 @@ mod tests {
                 )
                 .unwrap();
 
-            try_remove_mixnode(test.deps_mut(), mock_info("mix-owner-unbonded", &[])).unwrap();
             try_remove_mixnode(
                 test.deps_mut(),
+                env.clone(),
+                mock_info("mix-owner-unbonded", &[]),
+            )
+            .unwrap();
+            try_remove_mixnode(
+                test.deps_mut(),
+                env.clone(),
                 mock_info("mix-owner-unbonded-leftover", &[]),
             )
             .unwrap();
 
             test.execute_all_pending_events();
-            try_remove_mixnode(test.deps_mut(), mock_info("mix-owner-unbonding", &[])).unwrap();
+            try_remove_mixnode(
+                test.deps_mut(),
+                env.clone(),
+                mock_info("mix-owner-unbonding", &[]),
+            )
+            .unwrap();
 
-            let res = try_delegate_to_mixnode(test.deps_mut(), sender.clone(), mix_id_unbonding);
+            let res = try_delegate_to_mixnode(
+                test.deps_mut(),
+                env.clone(),
+                sender.clone(),
+                mix_id_unbonding,
+            );
             assert_eq!(
                 res,
                 Err(MixnetContractError::MixnodeIsUnbonding {
@@ -250,7 +272,12 @@ mod tests {
                 })
             );
 
-            let res = try_delegate_to_mixnode(test.deps_mut(), sender.clone(), mix_id_unbonded);
+            let res = try_delegate_to_mixnode(
+                test.deps_mut(),
+                env.clone(),
+                sender.clone(),
+                mix_id_unbonded,
+            );
             assert_eq!(
                 res,
                 Err(MixnetContractError::MixNodeBondNotFound {
@@ -258,7 +285,8 @@ mod tests {
                 })
             );
 
-            let res = try_delegate_to_mixnode(test.deps_mut(), sender, mix_id_unbonded_leftover);
+            let res =
+                try_delegate_to_mixnode(test.deps_mut(), env, sender, mix_id_unbonded_leftover);
             assert_eq!(
                 res,
                 Err(MixnetContractError::MixNodeBondNotFound {
@@ -270,22 +298,26 @@ mod tests {
         #[test]
         fn can_still_be_done_if_prior_delegation_exists() {
             let mut test = TestSetup::new();
+            let env = test.env();
+
             let owner = "delegator";
             let mix_id = test.add_dummy_mixnode("mix-owner", None);
             let sender1 = mock_info(owner, &[coin(100_000_000, TEST_COIN_DENOM)]);
             let sender2 = mock_info(owner, &[coin(50_000_000, TEST_COIN_DENOM)]);
 
-            let res = try_delegate_to_mixnode(test.deps_mut(), sender1, mix_id);
+            let res = try_delegate_to_mixnode(test.deps_mut(), env.clone(), sender1, mix_id);
             assert!(res.is_ok());
 
             // still OK
-            let res = try_delegate_to_mixnode(test.deps_mut(), sender2, mix_id);
+            let res = try_delegate_to_mixnode(test.deps_mut(), env, sender2, mix_id);
             assert!(res.is_ok())
         }
 
         #[test]
         fn correctly_pushes_appropriate_epoch_event() {
             let mut test = TestSetup::new();
+            let env = test.env();
+
             let owner = "delegator";
             let mix_id = test.add_dummy_mixnode("mix-owner", None);
 
@@ -295,14 +327,14 @@ mod tests {
             let sender1 = mock_info(owner, &[amount1.clone()]);
             let sender2 = mock_info(test.vesting_contract().as_str(), &[amount2.clone()]);
 
-            try_delegate_to_mixnode(test.deps_mut(), sender1, mix_id).unwrap();
-            try_delegate_to_mixnode_on_behalf(test.deps_mut(), sender2, mix_id, owner.into())
+            try_delegate_to_mixnode(test.deps_mut(), env.clone(), sender1, mix_id).unwrap();
+            try_delegate_to_mixnode_on_behalf(test.deps_mut(), env, sender2, mix_id, owner.into())
                 .unwrap();
 
             let events = test.pending_epoch_events();
 
             assert_eq!(
-                events[0],
+                events[0].kind,
                 PendingEpochEventKind::Delegate {
                     owner: Addr::unchecked(owner),
                     mix_id,
@@ -312,7 +344,7 @@ mod tests {
             );
 
             assert_eq!(
-                events[1],
+                events[1].kind,
                 PendingEpochEventKind::Delegate {
                     owner: Addr::unchecked(owner),
                     mix_id,
@@ -335,11 +367,12 @@ mod tests {
         #[test]
         fn cannot_be_performed_if_delegation_never_existed() {
             let mut test = TestSetup::new();
+            let env = test.env();
             let owner = "delegator";
             let sender = mock_info(owner, &[]);
             let mix_id = test.add_dummy_mixnode("mix-owner", None);
 
-            let res = try_remove_delegation_from_mixnode(test.deps_mut(), sender, mix_id);
+            let res = try_remove_delegation_from_mixnode(test.deps_mut(), env, sender, mix_id);
             assert_eq!(
                 res,
                 Err(MixnetContractError::NoMixnodeDelegationFound {
@@ -353,14 +386,16 @@ mod tests {
         #[test]
         fn cannot_be_performed_if_the_delegation_is_still_pending() {
             let mut test = TestSetup::new();
+            let env = test.env();
+
             let owner = "delegator";
             let mix_id = test.add_dummy_mixnode("mix-owner", None);
             let sender1 = mock_info(owner, &[coin(100_000_000, TEST_COIN_DENOM)]);
             let sender2 = mock_info(owner, &[]);
 
-            try_delegate_to_mixnode(test.deps_mut(), sender1, mix_id).unwrap();
+            try_delegate_to_mixnode(test.deps_mut(), env.clone(), sender1, mix_id).unwrap();
 
-            let res = try_remove_delegation_from_mixnode(test.deps_mut(), sender2, mix_id);
+            let res = try_remove_delegation_from_mixnode(test.deps_mut(), env, sender2, mix_id);
             assert_eq!(
                 res,
                 Err(MixnetContractError::NoMixnodeDelegationFound {
@@ -374,6 +409,8 @@ mod tests {
         #[test]
         fn as_long_as_delegation_exists_can_always_be_performed() {
             let mut test = TestSetup::new();
+            let env = test.env();
+
             let owner = "delegator";
             let sender = mock_info(owner, &[]);
 
@@ -388,19 +425,30 @@ mod tests {
 
             try_remove_mixnode(
                 test.deps_mut(),
+                env.clone(),
                 mock_info("mix-owner-unbonded-leftover", &[]),
             )
             .unwrap();
 
             test.execute_all_pending_events();
-            try_remove_mixnode(test.deps_mut(), mock_info("mix-owner-unbonding", &[])).unwrap();
+            try_remove_mixnode(
+                test.deps_mut(),
+                env.clone(),
+                mock_info("mix-owner-unbonding", &[]),
+            )
+            .unwrap();
 
-            let res =
-                try_remove_delegation_from_mixnode(test.deps_mut(), sender.clone(), normal_mix_id);
+            let res = try_remove_delegation_from_mixnode(
+                test.deps_mut(),
+                env.clone(),
+                sender.clone(),
+                normal_mix_id,
+            );
             assert!(res.is_ok());
 
             let res = try_remove_delegation_from_mixnode(
                 test.deps_mut(),
+                env.clone(),
                 sender.clone(),
                 mix_id_unbonding,
             );
@@ -408,6 +456,7 @@ mod tests {
 
             let res = try_remove_delegation_from_mixnode(
                 test.deps_mut(),
+                env,
                 sender,
                 mix_id_unbonded_leftover,
             );

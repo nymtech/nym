@@ -456,7 +456,7 @@ mod tests {
             test.add_immediate_delegation(owner1, delegation, mix_id);
 
             let env = test.env();
-            try_remove_mixnode(test.deps_mut(), &env, mock_info("mix-owner", &[])).unwrap();
+            try_remove_mixnode(test.deps_mut(), env.clone(), mock_info("mix-owner", &[])).unwrap();
 
             let res_increase = delegate(
                 test.deps_mut(),

@@ -70,6 +70,90 @@ impl Config {
     }
 }
 
+struct SendingDelayController {
+    /// Multiply the average sending delay.
+    /// This is normally set to unity, but if we detect backpressure we increase this
+    /// multiplier. We use discrete steps.
+    current_multiplier: u32,
+
+    /// Maximum delay multiplier
+    upper_bound: u32,
+
+    /// Minimum delay multiplier
+    lower_bound: u32,
+
+    /// To make sure we don't change the multiplier to fast, we limit a change to some duration
+    time_when_changed: Instant,
+
+    /// If we have a long enough time without any backpressure detected we try reducing the sending
+    /// delay multiplier
+    time_when_backpressure_detected: Instant,
+}
+
+impl SendingDelayController {
+    fn new(lower_bound: u32, upper_bound: u32) -> Self {
+        assert!(lower_bound <= upper_bound);
+        SendingDelayController {
+            current_multiplier: 1,
+            upper_bound,
+            lower_bound,
+            time_when_changed: Instant::now(),
+            time_when_backpressure_detected: Instant::now(),
+        }
+    }
+
+    fn increase_delay_multiplier(&mut self) {
+        self.current_multiplier =
+            (self.current_multiplier + 1).clamp(self.lower_bound, self.upper_bound);
+        log::debug!(
+            "Increasing sending delay multiplier to: {}",
+            self.current_multiplier
+        );
+    }
+
+    fn decrease_delay_multiplier(&mut self) {
+        self.current_multiplier =
+            (self.current_multiplier - 1).clamp(self.lower_bound, self.upper_bound);
+        log::debug!(
+            "Decreasing sending delay multiplier to: {}",
+            self.current_multiplier
+        );
+    }
+
+    fn current_multiplier(&self) -> u32 {
+        self.current_multiplier
+    }
+
+    // A very basic heuristic to determine the sending rate, using some parameters that potentially
+    // might need tweaking.
+    fn adjust_multiplier(&mut self, used_slots: usize) {
+        log::trace!("used_slots: {used_slots}");
+        let now = Instant::now();
+
+        // Whenever we detect that the channel is non-empty we flag for backpressure. This mostly
+        // affects how quickly we decrease the delay (increase speeds).
+        if used_slots > 0 {
+            self.time_when_backpressure_detected = now;
+        }
+
+        // As soon as we're above a basic threshold, increase multiplier. But not too often as we
+        // need to give time to give the channel a chance to clear.
+        if used_slots > 4 && now - self.time_when_changed > Duration::from_millis(500) {
+            self.increase_delay_multiplier();
+            self.time_when_changed = now;
+        }
+
+        // If running smoothly without any backpressure detected, lower the delay multiplier, but
+        // not too fast!
+        if now - self.time_when_backpressure_detected > Duration::from_secs(2)
+            && now - self.time_when_changed > Duration::from_secs(2)
+        {
+            self.decrease_delay_multiplier();
+            self.time_when_changed = now;
+        }
+    }
+}
+
 pub(crate) struct OutQueueControl<R>
 where
     R: CryptoRng + Rng,
@@ -91,13 +175,9 @@ where
     #[cfg(target_arch = "wasm32")]
     next_delay: Option<Pin<Box<wasm_timer::Delay>>>,
 
-    /// This is normally set to unity, but if we detect backpressure in `mix_tx` we increase this
-    /// multiplier. We use discrete steps.
-    current_multiplier_for_average_message_sending_delay: u32,
-
-    /// If we have a long enough time without any backpressure detected we try reducing the sending
-    /// delay multiplier
-    time_when_last_backpressure_detected: Instant,
+    // To make sure we don't overload the mix_tx channel, we limit the rate we are pushing
+    // messages.
+    sending_rate_controller: SendingDelayController,
 
     /// Channel used for sending prepared sphinx packets to `MixTrafficController` that sends them
     /// out to the network without any further delays.
@@ -166,8 +246,7 @@ where
             ack_key,
             sent_notifier,
             next_delay: None,
-            current_multiplier_for_average_message_sending_delay: 1,
-            time_when_last_backpressure_detected: Instant::now(),
+            sending_rate_controller: SendingDelayController::new(1, 5),
             mix_tx,
             real_receiver,
             our_full_destination,
@@ -253,39 +332,12 @@ where
 
     fn current_average_message_sending_delay(&self) -> Duration {
         self.config.average_message_sending_delay
-            * self.current_multiplier_for_average_message_sending_delay
-    }
-
-    fn increase_sending_delay_multiplier(&mut self) {
-        self.current_multiplier_for_average_message_sending_delay +=
-            (self.current_multiplier_for_average_message_sending_delay + 1).clamp(1, 5);
-        log::debug!(
-            "Increasing sending delay multiplier to: {}",
-            self.current_multiplier_for_average_message_sending_delay
-        );
-    }
-
-    fn decrease_sending_delay_multiplier(&mut self) {
-        self.current_multiplier_for_average_message_sending_delay +=
-            (self.current_multiplier_for_average_message_sending_delay - 1).clamp(1, 5);
-        log::debug!(
-            "Decreasing sending delay multiplier to: {}",
-            self.current_multiplier_for_average_message_sending_delay
-        );
+            * self.sending_rate_controller.current_multiplier()
     }
 
     fn adjust_current_average_message_sending_delay(&mut self) {
         let used_slots = self.mix_tx.max_capacity() - self.mix_tx.capacity();
-        let now = Instant::now();
-        if used_slots > 0 {
-            self.time_when_last_backpressure_detected = now;
-        }
-        if used_slots > 4 {
-            self.increase_sending_delay_multiplier();
-        }
-        if now - self.time_when_last_backpressure_detected > Duration::from_secs(5) {
-            self.decrease_sending_delay_multiplier();
-        }
+        self.sending_rate_controller.adjust_multiplier(used_slots);
     }
 
     fn poll_poisson(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {

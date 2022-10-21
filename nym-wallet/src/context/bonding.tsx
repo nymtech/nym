@@ -54,7 +54,7 @@ export type TBondedMixnode = {
   delegators: number;
   status: MixnodeStatus;
   proxy?: string;
-  operatorCost?: string;
+  operatorCost: DecCoin;
   host: string;
   estimatedRewards?: DecCoin;
   activeSetProbability?: SelectionChance;
@@ -141,7 +141,6 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     const additionalDetails: {
       status: MixnodeStatus;
       stakeSaturation: string;
-      operatorCost?: string;
       estimatedRewards?: DecCoin;
     } = {
       status: 'not_found',
@@ -163,7 +162,6 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     }
     try {
       const rewardEstimation = await getMixnodeRewardEstimation(mixId);
-      additionalDetails.operatorCost = unymToNym(rewardEstimation.estimation.operating_cost);
       const estimatedRewards = unymToNym(rewardEstimation.estimation.total_node_reward);
       if (estimatedRewards) {
         additionalDetails.estimatedRewards = {
@@ -240,7 +238,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             bond_information: { mix_id },
           } = data;
 
-          const { status, stakeSaturation, operatorCost, estimatedRewards } = await getAdditionalMixnodeDetails(mix_id);
+          const { status, stakeSaturation, estimatedRewards } = await getAdditionalMixnodeDetails(mix_id);
           const setProbabilities = await getSetProbabilities(mix_id);
           const nodeDescription = await getNodeDescription(
             bond_information.mix_node.host,
@@ -261,7 +259,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             operatorRewards,
             status,
             stakeSaturation,
-            operatorCost,
+            operatorCost: rewarding_details.cost_params.interval_operating_cost,
             host: bond_information.mix_node.host.replace(/\s/g, ''),
             routingScore,
             activeSetProbability: setProbabilities?.in_active,

@@ -16,7 +16,7 @@ const bondedMixnodeMock: TBondedMixnode = {
   operatorRewards: { denom: 'nym', amount: '1234' },
   delegators: 5423,
   status: 'active',
-  operatorCost: '0.22',
+  operatorCost: { denom: 'nym', amount: '1234' },
   host: '1.2.3.4',
   routingScore: 75,
   activeSetProbability: 'High',

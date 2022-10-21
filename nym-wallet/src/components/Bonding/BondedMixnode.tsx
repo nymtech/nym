@@ -33,7 +33,7 @@ const headers: Header[] = [
       'The percentage of the node rewards that you as the node operator will take before the rest of the reward is shared between you and the delegators.',
   },
   {
-    header: 'Operator cost',
+    header: 'Operating cost',
     id: 'operator-cost',
     // tooltipText: 'TODO', // TODO
   },
@@ -94,7 +94,7 @@ export const BondedMixnode = ({
       id: 'pm-cell',
     },
     {
-      cell: operatorCost ? `${operatorCost} NYM` : '-',
+      cell: operatorCost ? `${operatorCost.amount} ${operatorCost.denom}` : '-',
       id: 'operator-cost-cell',
     },
     {

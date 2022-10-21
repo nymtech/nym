@@ -21,6 +21,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::error::TrySendError;
+use tokio::time::Instant;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time;
@@ -90,6 +91,14 @@ where
     #[cfg(target_arch = "wasm32")]
     next_delay: Option<Pin<Box<wasm_timer::Delay>>>,
 
+    /// This is normally set to unity, but if we detect backpressure in `mix_tx` we increase this
+    /// multiplier. We use discrete steps.
+    current_multiplier_for_average_message_sending_delay: u32,
+
+    /// If we have a long enough time without any backpressure detected we try reducing the sending
+    /// delay multiplier
+    time_when_last_backpressure_detected: Instant,
+
     /// Channel used for sending prepared sphinx packets to `MixTrafficController` that sends them
     /// out to the network without any further delays.
     mix_tx: BatchMixMessageSender,
@@ -157,6 +166,8 @@ where
             ack_key,
             sent_notifier,
             next_delay: None,
+            current_multiplier_for_average_message_sending_delay: 1,
+            time_when_last_backpressure_detected: Instant::now(),
             mix_tx,
             real_receiver,
             our_full_destination,
@@ -240,7 +251,49 @@ where
         tokio::task::yield_now().await;
     }
 
+    fn current_average_message_sending_delay(&self) -> Duration {
+        self.config.average_message_sending_delay
+            * self.current_multiplier_for_average_message_sending_delay
+    }
+
+    fn increase_sending_delay_multiplier(&mut self) {
+        self.current_multiplier_for_average_message_sending_delay +=
+            (self.current_multiplier_for_average_message_sending_delay + 1).clamp(1, 5);
+        log::debug!(
+            "Increasing sending delay multiplier to: {}",
+            self.current_multiplier_for_average_message_sending_delay
+        );
+    }
+
+    fn decrease_sending_delay_multiplier(&mut self) {
+        self.current_multiplier_for_average_message_sending_delay +=
+            (self.current_multiplier_for_average_message_sending_delay - 1).clamp(1, 5);
+        log::debug!(
+            "Decreasing sending delay multiplier to: {}",
+            self.current_multiplier_for_average_message_sending_delay
+        );
+    }
+
+    fn adjust_current_average_message_sending_delay(&mut self) {
+        let used_slots = self.mix_tx.max_capacity() - self.mix_tx.capacity();
+        let now = Instant::now();
+        if used_slots > 0 {
+            self.time_when_last_backpressure_detected = now;
+        }
+        if used_slots > 4 {
+            self.increase_sending_delay_multiplier();
+        }
+        if now - self.time_when_last_backpressure_detected > Duration::from_secs(5) {
+            self.decrease_sending_delay_multiplier();
+        }
+    }
+
     fn poll_poisson(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
+        // The average delay could change depending on if backpressure in the downstream channel
+        // (mix_tx) was detected.
+        self.adjust_current_average_message_sending_delay();
+        let avg_delay = self.current_average_message_sending_delay();
+
         if let Some(ref mut next_delay) = &mut self.next_delay {
             // it is not yet time to return a message
             if next_delay.as_mut().poll(cx).is_pending() {
@@ -249,7 +302,6 @@ where
 
             // we know it's time to send a message, so let's prepare delay for the next one
             // Get the `now` by looking at the current `delay` deadline
-            let avg_delay = self.config.average_message_sending_delay;
             let next_poisson_delay = sample_poisson_duration(&mut self.rng, avg_delay);
 
             // The next interval value is `next_poisson_delay` after the one that just

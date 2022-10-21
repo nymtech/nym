@@ -55,8 +55,7 @@ export const NodeSettings = () => {
   };
 
   if (!bondedNode) {
-    navigate('/bond');
-    return <></>;
+    return null;
   }
 
   return (

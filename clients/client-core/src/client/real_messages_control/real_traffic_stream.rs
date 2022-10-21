@@ -138,15 +138,15 @@ impl SendingDelayController {
 
         // As soon as we're above a basic threshold, increase multiplier. But not too often as we
         // need to give time to give the channel a chance to clear.
-        if used_slots > 4 && now - self.time_when_changed > Duration::from_millis(500) {
+        if used_slots > 3 && now - self.time_when_changed > Duration::from_millis(300) {
             self.increase_delay_multiplier();
             self.time_when_changed = now;
         }
 
         // If running smoothly without any backpressure detected, lower the delay multiplier, but
         // not too fast!
-        if now - self.time_when_backpressure_detected > Duration::from_secs(2)
-            && now - self.time_when_changed > Duration::from_secs(2)
+        if now - self.time_when_backpressure_detected > Duration::from_secs(1)
+            && now - self.time_when_changed > Duration::from_secs(1)
         {
             self.decrease_delay_multiplier();
             self.time_when_changed = now;
@@ -246,7 +246,7 @@ where
             ack_key,
             sent_notifier,
             next_delay: None,
-            sending_rate_controller: SendingDelayController::new(1, 5),
+            sending_rate_controller: SendingDelayController::new(1, 6),
             mix_tx,
             real_receiver,
             our_full_destination,

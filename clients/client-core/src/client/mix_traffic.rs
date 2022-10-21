@@ -2,15 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::spawn_future;
-use futures::channel::mpsc;
-use futures::StreamExt;
 use gateway_client::GatewayClient;
 use log::*;
 use nymsphinx::forwarding::packet::MixPacket;
 
-pub type BatchMixMessageSender = mpsc::UnboundedSender<Vec<MixPacket>>;
-pub type BatchMixMessageReceiver = mpsc::UnboundedReceiver<Vec<MixPacket>>;
+pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
+pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
 
+pub const MIX_MESSAGE_RECEIVER_BUFFER_SIZE: usize = 16;
 const MAX_FAILURE_COUNT: usize = 100;
 
 pub struct MixTrafficController {
@@ -72,7 +71,7 @@ impl MixTrafficController {
 
             while !shutdown.is_shutdown() {
                 tokio::select! {
-                    mix_packets = self.mix_rx.next() => match mix_packets {
+                    mix_packets = self.mix_rx.recv() => match mix_packets {
                         Some(mix_packets) => {
                             self.on_messages(mix_packets).await;
                         },

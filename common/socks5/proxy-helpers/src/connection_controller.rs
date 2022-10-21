@@ -58,7 +58,7 @@ impl ActiveConnection {
         self.ordered_buffer.write(ordered_message);
     }
 
-    fn fn read_from_buf(&mut self) -> (Option<Vec<u8>>, u64) {
+    fn read_from_buf(&mut self) -> (Option<Vec<u8>>, u64) {
         self.ordered_buffer.read()
     }
 }

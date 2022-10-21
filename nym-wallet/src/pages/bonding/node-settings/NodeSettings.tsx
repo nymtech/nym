@@ -15,7 +15,8 @@ import { AppContext, urls } from 'src/context/main';
 
 import { NodeGeneralSettings } from './settings-pages/general-settings';
 import { NodeUnbondPage } from './settings-pages/NodeUnbondPage';
-import { navItems, NodeSettingsNav } from './node-settings.constant';
+import { createNavItems } from './node-settings.constant';
+import { isMixnode } from 'src/types';
 
 export const NodeSettings = () => {
   const theme = useTheme();
@@ -25,9 +26,9 @@ export const NodeSettings = () => {
   const location = useLocation();
 
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
-  const [value, setValue] = React.useState<NodeSettingsNav>('General');
+  const [value, setValue] = React.useState('General');
   const handleChange = (event: React.SyntheticEvent, tab: string) => {
-    setValue(tab as NodeSettingsNav);
+    setValue(tab);
   };
 
   useEffect(() => {
@@ -53,6 +54,11 @@ export const NodeSettings = () => {
     });
   };
 
+  if (!bondedNode) {
+    navigate('/bond');
+    return <></>;
+  }
+
   return (
     <PageLayout>
       <NymCard
@@ -76,7 +82,7 @@ export const NodeSettings = () => {
             </Box>
             <Box sx={{ width: '100%' }}>
               <Tabs
-                tabs={navItems}
+                tabs={createNavItems(isMixnode(bondedNode))}
                 selectedTab={value}
                 onChange={handleChange}
                 tabSx={{

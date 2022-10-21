@@ -1,3 +1,5 @@
-export const navItems = ['General', 'Unbond'] as const;
-
-export type NodeSettingsNav = typeof navItems[number]; // type NodeSettingsNav = 'General' | 'Unbond';
+export const createNavItems = (isMixnode: boolean) => {
+  const navItems = ['Unbond'];
+  if (isMixnode) return ['General', ...navItems];
+  return navItems;
+};

@@ -110,7 +110,7 @@ impl NymClient {
         );
 
         if let Some(ref size) = self.config.debug.use_extended_packet_size {
-            if !stream.try_set_extended_packet_size(&size) {
+            if !stream.try_set_extended_packet_size(size) {
                 console_log!(
                     "Unable to determine extended packet size in config: {}",
                     size
@@ -140,7 +140,7 @@ impl NymClient {
         );
 
         if let Some(ref size) = self.config.debug.use_extended_packet_size {
-            if !controller_config.try_set_extended_packet_size(&size) {
+            if !controller_config.try_set_extended_packet_size(size) {
                 console_log!(
                     "Unable to determine extended packet size in config: {}",
                     size

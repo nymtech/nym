@@ -16,6 +16,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - wasm-client: uses updated wasm-compatible `client-core` so that it's now capable of packet retransmission, cover traffic and poisson delay (among other things!) ([#1673])
 - validator-api: add `interval_operating_cost` and `profit_margin_percent` to cmpute reward estimation endpoint
 - vesting-contract: optional locked token pledge cap per account ([#1687]), defaults to 100_000 NYM
+- clients: add testing-only support for two more extended packet sizes (8kb and 16kb).
 
 ### Fixed
 

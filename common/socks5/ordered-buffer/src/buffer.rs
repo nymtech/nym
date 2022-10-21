@@ -102,14 +102,14 @@ mod test_chunking_and_reassembling {
                 };
 
                 buffer.write(first_message);
-                let first_read = buffer.read().unwrap();
+                let first_read = buffer.read().0.unwrap();
                 assert_eq!(vec![1, 2, 3, 4], first_read);
 
                 buffer.write(second_message);
-                let second_read = buffer.read().unwrap();
+                let second_read = buffer.read().0.unwrap();
                 assert_eq!(vec![5, 6, 7, 8], second_read);
 
-                assert_eq!(None, buffer.read()); // second read on fully ordered result set is empty
+                assert_eq!(None, buffer.read().0); // second read on fully ordered result set is empty
             }
 
             #[test]
@@ -128,8 +128,8 @@ mod test_chunking_and_reassembling {
                 buffer.write(first_message);
                 buffer.write(second_message);
                 let second_read = buffer.read();
-                assert_eq!(vec![1, 2, 3, 4, 5, 6, 7, 8], second_read.unwrap());
-                assert_eq!(None, buffer.read()); // second read on fully ordered result set is empty
+                assert_eq!(vec![1, 2, 3, 4, 5, 6, 7, 8], second_read.0.unwrap());
+                assert_eq!(None, buffer.read().0); // second read on fully ordered result set is empty
             }
 
             #[test]
@@ -147,9 +147,9 @@ mod test_chunking_and_reassembling {
 
                 buffer.write(second_message);
                 buffer.write(first_message);
-                let read = buffer.read();
+                let read = buffer.read().0;
                 assert_eq!(vec![1, 2, 3, 4, 5, 6, 7, 8], read.unwrap());
-                assert_eq!(None, buffer.read()); // second read on fully ordered result set is empty
+                assert_eq!(None, buffer.read().0); // second read on fully ordered result set is empty
             }
         }
 
@@ -182,11 +182,11 @@ mod test_chunking_and_reassembling {
             #[test]
             fn everything_up_to_the_indexing_gap_is_returned() {
                 let mut buffer = setup();
-                let ordered_bytes = buffer.read().unwrap();
+                let ordered_bytes = buffer.read().0.unwrap();
                 assert_eq!([0, 0, 0, 0, 1, 1, 1, 1].to_vec(), ordered_bytes);
 
                 // we shouldn't get any more from a second attempt if nothing is added
-                assert_eq!(None, buffer.read());
+                assert_eq!(None, buffer.read().0);
 
                 // let's add another message, leaving a gap in place at index 2
                 let five_message = OrderedMessage {
@@ -194,7 +194,7 @@ mod test_chunking_and_reassembling {
                     index: 5,
                 };
                 buffer.write(five_message);
-                assert_eq!(None, buffer.read());
+                assert_eq!(None, buffer.read().0);
             }
 
             #[test]
@@ -208,7 +208,7 @@ mod test_chunking_and_reassembling {
                 };
                 buffer.write(two_message);
 
-                let more_ordered_bytes = buffer.read().unwrap();
+                let more_ordered_bytes = buffer.read().0.unwrap();
                 assert_eq!([2, 2, 2, 2, 3, 3, 3, 3].to_vec(), more_ordered_bytes);
 
                 // let's add another message
@@ -218,7 +218,7 @@ mod test_chunking_and_reassembling {
                 };
                 buffer.write(five_message);
 
-                assert_eq!(None, buffer.read());
+                assert_eq!(None, buffer.read().0);
 
                 // let's fill in the gap of 4s now and read again
                 let four_message = OrderedMessage {
@@ -227,10 +227,10 @@ mod test_chunking_and_reassembling {
                 };
                 buffer.write(four_message);
 
-                assert_eq!([4, 4, 4, 4, 5, 5, 5, 5].to_vec(), buffer.read().unwrap());
+                assert_eq!([4, 4, 4, 4, 5, 5, 5, 5].to_vec(), buffer.read().0.unwrap());
 
                 // at this point we should again get back nothing if we try a read
-                assert_eq!(None, buffer.read());
+                assert_eq!(None, buffer.read().0);
             }
 
             #[test]
@@ -250,11 +250,11 @@ mod test_chunking_and_reassembling {
                 };
 
                 buffer.write(zero_message);
-                assert!(buffer.read().is_some()); // burn the buffer
+                assert!(buffer.read().0.is_some()); // burn the buffer
 
                 buffer.write(two_message);
                 buffer.write(one_message);
-                assert!(buffer.read().is_some());
+                assert!(buffer.read().0.is_some());
                 assert_eq!(buffer.next_index, 3);
             }
 
@@ -282,23 +282,23 @@ mod test_chunking_and_reassembling {
                     index: 4,
                 };
                 buffer.write(zero_message);
-                assert!(buffer.read().is_some());
+                assert!(buffer.read().0.is_some());
                 assert_eq!(buffer.next_index, 1);
 
                 buffer.write(four_message);
-                assert!(buffer.read().is_none());
+                assert!(buffer.read().0.is_none());
                 assert_eq!(buffer.next_index, 1);
 
                 buffer.write(three_message);
-                assert!(buffer.read().is_none());
+                assert!(buffer.read().0.is_none());
                 assert_eq!(buffer.next_index, 1);
 
                 buffer.write(two_message);
-                assert!(buffer.read().is_none());
+                assert!(buffer.read().0.is_none());
                 assert_eq!(buffer.next_index, 1);
 
                 buffer.write(one_message);
-                assert!(buffer.read().is_some());
+                assert!(buffer.read().0.is_some());
                 assert_eq!(buffer.next_index, 5)
             }
         }

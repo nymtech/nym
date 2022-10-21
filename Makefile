@@ -111,7 +111,7 @@ fmt-connect:
 	cargo fmt --manifest-path nym-connect/Cargo.toml --all
 
 fmt-wasm-client:
-	cargo fmt --manifest-path nym-connect/Cargo.toml --all
+	cargo fmt --manifest-path clients/webassembly/Cargo.toml --all
 
 wasm:
 	RUSTFLAGS='-C link-arg=-s' cargo build --manifest-path contracts/Cargo.toml --release --target wasm32-unknown-unknown

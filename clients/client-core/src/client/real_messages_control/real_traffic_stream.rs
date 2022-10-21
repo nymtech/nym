@@ -20,6 +20,7 @@ use std::collections::VecDeque;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::mpsc::error::TrySendError;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time;
@@ -216,11 +217,16 @@ where
         // - we run out of memory
         // - the receiver channel is closed
         // in either case there's no recovery and we can only panic
-        if let Err(err) = self.mix_tx.unbounded_send(vec![next_message]) {
-            log::warn!(
-                "Failed to send {} packets (possible process shutdown?)",
-                err.into_inner().len()
-            );
+        if let Err(err) = self.mix_tx.try_send(vec![next_message]) {
+            match err {
+                TrySendError::Full(p) => {
+                    // Just ignore and drop, it will be resent once the ack timer expires
+                    log::warn!("Failed to send {} packets  - channel full)", p.len());
+                }
+                TrySendError::Closed(p) => {
+                    log::warn!("Failed to send {} packets  - channel closed)", p.len());
+                }
+            }
         }
 
         // JS: Not entirely sure why or how it fixes stuff, but without the yield call,

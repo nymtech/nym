@@ -13,6 +13,7 @@ use nymsphinx::cover::generate_loop_cover_packet;
 use nymsphinx::params::PacketSize;
 use nymsphinx::utils::sample_poisson_duration;
 use rand::{rngs::OsRng, CryptoRng, Rng};
+use tokio::sync::mpsc::error::TrySendError;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
@@ -175,7 +176,16 @@ impl LoopCoverTrafficStream<OsRng> {
         // - we run out of memory
         // - the receiver channel is closed
         // in either case there's no recovery and we can only panic
-        self.mix_tx.unbounded_send(vec![cover_message]).unwrap();
+        if let Err(err) =  self.mix_tx.try_send(vec![cover_message]) {
+            match err {
+                TrySendError::Full(_) => {
+                    log::warn!("Failed to send cover message - channel full");
+                },
+                TrySendError::Closed(_) => {
+                    log::warn!("Failed to send cover message - channel closed");
+                },
+            }
+        }
 
         // TODO: I'm not entirely sure whether this is really required, because I'm not 100%
         // sure how `yield_now()` works - whether it just notifies the scheduler or whether it

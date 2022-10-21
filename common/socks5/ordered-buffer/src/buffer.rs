@@ -42,9 +42,9 @@ impl OrderedMessageBuffer {
     /// a read will return the bytes of messages 0, 1, 2. Subsequent reads will
     /// return `None` until message 3 comes in, at which point 3, 4, and any
     /// further contiguous messages which have arrived will be returned.
-    pub fn read(&mut self) -> Option<Vec<u8>> {
+    pub fn read(&mut self) -> (Option<Vec<u8>>, u64) {
         if !self.messages.contains_key(&self.next_index) {
-            return None;
+            return (None, self.next_index);
         }
 
         let mut contiguous_messages = Vec::new();
@@ -66,7 +66,7 @@ impl OrderedMessageBuffer {
             .collect();
 
         trace!("Returning {} bytes from ordered message buffer", data.len());
-        Some(data)
+        (Some(data), index)
     }
 }
 

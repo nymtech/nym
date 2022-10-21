@@ -38,12 +38,13 @@ pub enum ControllerCommand {
 
 struct ActiveConnection {
     is_closed: bool,
+    closed_at: u64,
     connection_sender: Option<ConnectionSender>,
     ordered_buffer: OrderedMessageBuffer,
 }
 
 impl ActiveConnection {
-    fn write_to_buf(&mut self, payload: Vec<u8>) {
+    fn write_to_buf(&mut self, payload: Vec<u8>, is_closed: bool) {
         let ordered_message = match OrderedMessage::try_from_bytes(payload) {
             Ok(msg) => msg,
             Err(err) => {
@@ -51,10 +52,13 @@ impl ActiveConnection {
                 return;
             }
         };
+        if is_closed{
+            self.closed_at = ordered_message.index;
+        }
         self.ordered_buffer.write(ordered_message);
     }
 
-    fn read_from_buf(&mut self) -> Option<Vec<u8>> {
+    fn fn read_from_buf(&mut self) -> (Option<Vec<u8>>, u64) {
         self.ordered_buffer.read()
     }
 }
@@ -99,6 +103,7 @@ impl Controller {
             is_closed: false,
             connection_sender: Some(connection_sender),
             ordered_buffer: OrderedMessageBuffer::new(),
+            closed_at: u64::MAX,
         };
         if let Some(_active_conn) = self.active_connections.insert(conn_id, active_connection) {
             error!("Received a duplicate 'Connect'!")
@@ -127,15 +132,17 @@ impl Controller {
     fn send_to_connection(&mut self, conn_id: ConnectionId, payload: Vec<u8>, is_closed: bool) {
         if let Some(active_connection) = self.active_connections.get_mut(&conn_id) {
             if !payload.is_empty() {
-                active_connection.write_to_buf(payload);
+                active_connection.write_to_buf(payload, is_closed);
             } else if !is_closed {
                 error!("Tried to write an empty message to a not-closing connection. Please let us know if you see this message");
             }
             // if messages get unordered, make sure we don't lose information about
             // remote socket getting closed!
-            active_connection.is_closed |= is_closed;
 
-            if let Some(payload) = active_connection.read_from_buf() {
+            if let (Some(payload), last_index) = active_connection.read_from_buf() {
+                if last_index > active_connection.closed_at {
+                    active_connection.is_closed = true;
+                }
                 if let Err(err) = active_connection
                     .connection_sender
                     .as_mut()

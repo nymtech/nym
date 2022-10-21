@@ -13,10 +13,10 @@ use nymsphinx::cover::generate_loop_cover_packet;
 use nymsphinx::params::PacketSize;
 use nymsphinx::utils::sample_poisson_duration;
 use rand::{rngs::OsRng, CryptoRng, Rng};
-use tokio::sync::mpsc::error::TrySendError;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
+use tokio::sync::mpsc::error::TrySendError;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time;
@@ -176,14 +176,14 @@ impl LoopCoverTrafficStream<OsRng> {
         // - we run out of memory
         // - the receiver channel is closed
         // in either case there's no recovery and we can only panic
-        if let Err(err) =  self.mix_tx.try_send(vec![cover_message]) {
+        if let Err(err) = self.mix_tx.try_send(vec![cover_message]) {
             match err {
                 TrySendError::Full(_) => {
                     log::warn!("Failed to send cover message - channel full");
-                },
+                }
                 TrySendError::Closed(_) => {
                     log::warn!("Failed to send cover message - channel closed");
-                },
+                }
             }
         }
 

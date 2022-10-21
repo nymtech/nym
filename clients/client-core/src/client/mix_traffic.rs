@@ -9,7 +9,7 @@ use nymsphinx::forwarding::packet::MixPacket;
 pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
 pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
 
-pub const MIX_MESSAGE_RECEIVER_BUFFER_SIZE: usize = 16;
+pub const MIX_MESSAGE_RECEIVER_BUFFER_SIZE: usize = 32;
 const MAX_FAILURE_COUNT: usize = 100;
 
 pub struct MixTrafficController {

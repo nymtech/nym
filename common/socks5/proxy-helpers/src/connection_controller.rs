@@ -52,7 +52,7 @@ impl ActiveConnection {
                 return;
             }
         };
-        if is_closed{
+        if is_closed {
             self.closed_at = ordered_message.index;
         }
         self.ordered_buffer.write(ordered_message);

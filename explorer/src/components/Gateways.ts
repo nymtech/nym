@@ -20,13 +20,13 @@ export function gatewayToGridRow(arrayOfGateways: GatewayResponse): GatewayRowTy
   return !arrayOfGateways
     ? []
     : arrayOfGateways.map((gw) => ({
-      id: gw.owner,
-      owner: gw.owner,
-      identity_key: gw.gateway.identity_key || '',
-      location: gw?.gateway?.location || '',
-      bond: gw.pledge_amount.amount || 0,
-      host: gw.gateway.host || '',
-    }));
+        id: gw.owner,
+        owner: gw.owner,
+        identity_key: gw.gateway.identity_key || '',
+        location: gw?.gateway?.location || '',
+        bond: gw.pledge_amount.amount || 0,
+        host: gw.gateway.host || '',
+      }));
 }
 
 export function gatewayEnrichedToGridRow(

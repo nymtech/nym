@@ -4,7 +4,7 @@
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
-use ordered_buffer::{OrderedMessage, OrderedMessageBuffer};
+use ordered_buffer::{OrderedMessage, OrderedMessageBuffer, ReadContiguousData};
 use socks5_requests::ConnectionId;
 use std::collections::{HashMap, HashSet};
 use task::ShutdownListener;
@@ -38,7 +38,7 @@ pub enum ControllerCommand {
 
 struct ActiveConnection {
     is_closed: bool,
-    closed_at: u64,
+    closed_at_index: u64,
     connection_sender: Option<ConnectionSender>,
     ordered_buffer: OrderedMessageBuffer,
 }
@@ -53,12 +53,12 @@ impl ActiveConnection {
             }
         };
         if is_closed {
-            self.closed_at = ordered_message.index;
+            self.closed_at_index = ordered_message.index;
         }
         self.ordered_buffer.write(ordered_message);
     }
 
-    fn read_from_buf(&mut self) -> (Option<Vec<u8>>, u64) {
+    fn read_from_buf(&mut self) -> Option<ReadContiguousData> {
         self.ordered_buffer.read()
     }
 }
@@ -103,7 +103,7 @@ impl Controller {
             is_closed: false,
             connection_sender: Some(connection_sender),
             ordered_buffer: OrderedMessageBuffer::new(),
-            closed_at: u64::MAX,
+            closed_at_index: u64::MAX,
         };
         if let Some(_active_conn) = self.active_connections.insert(conn_id, active_connection) {
             error!("Received a duplicate 'Connect'!")
@@ -136,11 +136,9 @@ impl Controller {
             } else if !is_closed {
                 error!("Tried to write an empty message to a not-closing connection. Please let us know if you see this message");
             }
-            // if messages get unordered, make sure we don't lose information about
-            // remote socket getting closed!
 
-            if let (Some(payload), last_index) = active_connection.read_from_buf() {
-                if last_index > active_connection.closed_at {
+            if let Some(payload) = active_connection.read_from_buf() {
+                if payload.last_index > active_connection.closed_at_index {
                     active_connection.is_closed = true;
                 }
                 if let Err(err) = active_connection
@@ -148,7 +146,7 @@ impl Controller {
                     .as_mut()
                     .unwrap()
                     .unbounded_send(ConnectionMessage {
-                        payload,
+                        payload: payload.data,
                         socket_closed: active_connection.is_closed,
                     })
                 {

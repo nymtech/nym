@@ -38,7 +38,7 @@ pub enum ControllerCommand {
 
 struct ActiveConnection {
     is_closed: bool,
-    closed_at_index: u64,
+    closed_at_index: Option<u64>,
     connection_sender: Option<ConnectionSender>,
     ordered_buffer: OrderedMessageBuffer,
 }
@@ -53,7 +53,7 @@ impl ActiveConnection {
             }
         };
         if is_closed {
-            self.closed_at_index = ordered_message.index;
+            self.closed_at_index = Some(ordered_message.index);
         }
         self.ordered_buffer.write(ordered_message);
     }
@@ -103,7 +103,7 @@ impl Controller {
             is_closed: false,
             connection_sender: Some(connection_sender),
             ordered_buffer: OrderedMessageBuffer::new(),
-            closed_at_index: u64::MAX,
+            closed_at_index: None,
         };
         if let Some(_active_conn) = self.active_connections.insert(conn_id, active_connection) {
             error!("Received a duplicate 'Connect'!")
@@ -138,8 +138,10 @@ impl Controller {
             }
 
             if let Some(payload) = active_connection.read_from_buf() {
-                if payload.last_index > active_connection.closed_at_index {
-                    active_connection.is_closed = true;
+                if let Some(closed_at_index) = active_connection.closed_at_index {
+                    if payload.last_index > closed_at_index {
+                        active_connection.is_closed = true;
+                    }
                 }
                 if let Err(err) = active_connection
                     .connection_sender

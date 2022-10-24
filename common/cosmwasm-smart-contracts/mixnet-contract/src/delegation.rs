@@ -34,13 +34,11 @@ pub struct Delegation {
     pub owner: Addr,
 
     /// Id of the MixNode that this delegation was performed against.
-    #[serde(alias = "node_id")]
     pub mix_id: MixId,
 
     // Note to UI/UX devs: there's absolutely no point in displaying this value to the users,
     // it would serve them no purpose. It's only used for calculating rewards
     /// Value of the "unit delegation" associated with the mixnode at the time of delegation.
-    #[serde(alias = "crr")]
     pub cumulative_reward_ratio: Decimal,
 
     /// Original delegation amount. Note that it is never mutated as delegation accumulates rewards.

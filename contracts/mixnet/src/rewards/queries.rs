@@ -345,7 +345,8 @@ mod tests {
             total_earned += dist.operator;
 
             let sender = mock_info(owner, &[]);
-            try_remove_mixnode(test.deps_mut(), sender).unwrap();
+            let env = test.env();
+            try_remove_mixnode(test.deps_mut(), env, sender).unwrap();
 
             let res = query_pending_operator_reward(test.deps(), owner.into()).unwrap();
             let res2 = query_pending_mixnode_operator_reward(test.deps(), mix_id).unwrap();
@@ -371,7 +372,8 @@ mod tests {
             test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
 
             let sender = mock_info(owner, &[]);
-            try_remove_mixnode(test.deps_mut(), sender).unwrap();
+            let env = test.env();
+            try_remove_mixnode(test.deps_mut(), env, sender).unwrap();
             test.execute_all_pending_events();
 
             let res = query_pending_operator_reward(test.deps(), owner.into()).unwrap();
@@ -493,7 +495,8 @@ mod tests {
             total_earned += dist.delegates;
 
             let sender = mock_info("mix-owner", &[]);
-            try_remove_mixnode(test.deps_mut(), sender).unwrap();
+            let env = test.env();
+            try_remove_mixnode(test.deps_mut(), env, sender).unwrap();
 
             let res =
                 query_pending_delegator_reward(test.deps(), owner.into(), mix_id, None).unwrap();
@@ -522,7 +525,8 @@ mod tests {
             total_earned += dist.delegates;
 
             let sender = mock_info("mix-owner", &[]);
-            try_remove_mixnode(test.deps_mut(), sender).unwrap();
+            let env = test.env();
+            try_remove_mixnode(test.deps_mut(), env, sender).unwrap();
             test.execute_all_pending_events();
 
             let res =
@@ -657,7 +661,8 @@ mod tests {
             test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
 
             let sender = mock_info(owner, &[]);
-            try_remove_mixnode(test.deps_mut(), sender).unwrap();
+            let env = test.env();
+            try_remove_mixnode(test.deps_mut(), env, sender).unwrap();
 
             let res = query_estimated_current_epoch_operator_reward(
                 test.deps(),
@@ -682,7 +687,8 @@ mod tests {
             test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
 
             let sender = mock_info(owner, &[]);
-            try_remove_mixnode(test.deps_mut(), sender).unwrap();
+            let env = test.env();
+            try_remove_mixnode(test.deps_mut(), env, sender).unwrap();
             test.execute_all_pending_events();
 
             let res = query_estimated_current_epoch_operator_reward(
@@ -833,7 +839,8 @@ mod tests {
             test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
 
             let sender = mock_info("mix-owner", &[]);
-            try_remove_mixnode(test.deps_mut(), sender).unwrap();
+            let env = test.env();
+            try_remove_mixnode(test.deps_mut(), env, sender).unwrap();
 
             let res = query_estimated_current_epoch_delegator_reward(
                 test.deps(),
@@ -862,7 +869,8 @@ mod tests {
             test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
 
             let sender = mock_info("mix-owner", &[]);
-            try_remove_mixnode(test.deps_mut(), sender).unwrap();
+            let env = test.env();
+            try_remove_mixnode(test.deps_mut(), env, sender).unwrap();
             test.execute_all_pending_events();
 
             let res = query_estimated_current_epoch_delegator_reward(

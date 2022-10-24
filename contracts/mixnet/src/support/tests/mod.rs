@@ -216,13 +216,19 @@ pub mod test_helpers {
                 .load(self.deps().storage, mix_id)
                 .unwrap();
 
-            try_remove_mixnode(self.deps_mut(), mock_info(bond_details.owner.as_str(), &[]))
-                .unwrap();
+            let env = self.env();
+            try_remove_mixnode(
+                self.deps_mut(),
+                env,
+                mock_info(bond_details.owner.as_str(), &[]),
+            )
+            .unwrap();
         }
 
         pub fn immediately_unbond_mixnode(&mut self, mix_id: MixId) {
             let env = self.env();
-            pending_events::unbond_mixnode(self.deps_mut(), &env, mix_id).unwrap();
+            pending_events::unbond_mixnode(self.deps_mut(), &env, env.block.height, mix_id)
+                .unwrap();
         }
 
         pub fn add_immediate_delegation(
@@ -240,6 +246,7 @@ pub mod test_helpers {
             pending_events::delegate(
                 self.deps_mut(),
                 &env,
+                env.block.height,
                 Addr::unchecked(delegator),
                 target,
                 amount,
@@ -264,6 +271,7 @@ pub mod test_helpers {
             pending_events::delegate(
                 self.deps_mut(),
                 &env,
+                env.block.height,
                 Addr::unchecked(delegator),
                 target,
                 amount,
@@ -284,12 +292,20 @@ pub mod test_helpers {
                 denom,
                 amount: amount.into(),
             };
-            delegate(self.deps_mut(), delegator, vec![amount], target)
+            let env = self.env();
+            delegate(self.deps_mut(), env, delegator, vec![amount], target)
         }
 
         pub fn remove_immediate_delegation(&mut self, delegator: &str, target: MixId) {
-            pending_events::undelegate(self.deps_mut(), Addr::unchecked(delegator), target, None)
-                .unwrap();
+            let height = self.env.block.height;
+            pending_events::undelegate(
+                self.deps_mut(),
+                height,
+                Addr::unchecked(delegator),
+                target,
+                None,
+            )
+            .unwrap();
         }
 
         pub fn skip_to_next_epoch_end(&mut self) {
@@ -556,6 +572,7 @@ pub mod test_helpers {
             pending_events::delegate(
                 deps.branch(),
                 &env,
+                env.block.height,
                 Addr::unchecked(&format!("owner{}", i)),
                 mix_id,
                 tests::fixtures::good_mixnode_pledge().pop().unwrap(),
@@ -775,9 +792,9 @@ pub mod test_helpers {
         deps
     }
 
-    pub fn delegate(deps: DepsMut<'_>, sender: &str, stake: Vec<Coin>, mix_id: MixId) {
+    pub fn delegate(deps: DepsMut<'_>, env: Env, sender: &str, stake: Vec<Coin>, mix_id: MixId) {
         let info = mock_info(sender, &stake);
-        try_delegate_to_mixnode(deps, info, mix_id).unwrap();
+        try_delegate_to_mixnode(deps, env, info, mix_id).unwrap();
     }
 
     pub(crate) fn read_delegation(

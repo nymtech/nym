@@ -22,7 +22,7 @@ use mixnet_contract_common::events::{
     new_withdraw_delegator_reward_event, new_withdraw_operator_reward_event,
     new_zero_uptime_mix_operator_rewarding_event,
 };
-use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
+use mixnet_contract_common::pending_events::{PendingEpochEventKind, PendingIntervalEventKind};
 use mixnet_contract_common::reward_params::{
     IntervalRewardingParamsUpdate, NodeRewardParams, Performance,
 };
@@ -288,13 +288,16 @@ pub(crate) fn try_update_active_set_size(
     if force_immediately || interval.is_current_epoch_over(&env) {
         rewarding_params.try_change_active_set_size(active_set_size)?;
         storage::REWARDING_PARAMS.save(deps.storage, &rewarding_params)?;
-        Ok(Response::new().add_event(new_active_set_update_event(active_set_size)))
+        Ok(Response::new().add_event(new_active_set_update_event(
+            env.block.height,
+            active_set_size,
+        )))
     } else {
         // push the epoch event
-        let epoch_event = PendingEpochEventData::UpdateActiveSetSize {
+        let epoch_event = PendingEpochEventKind::UpdateActiveSetSize {
             new_size: active_set_size,
         };
-        push_new_epoch_event(deps.storage, &epoch_event)?;
+        push_new_epoch_event(deps.storage, &env, epoch_event)?;
         let time_left = interval.secs_until_current_interval_end(&env);
         Ok(
             Response::new().add_event(new_pending_active_set_update_event(
@@ -324,15 +327,16 @@ pub(crate) fn try_update_rewarding_params(
         rewarding_params.try_apply_updates(updated_params, interval.epochs_in_interval())?;
         storage::REWARDING_PARAMS.save(deps.storage, &rewarding_params)?;
         Ok(Response::new().add_event(new_rewarding_params_update_event(
+            env.block.height,
             updated_params,
             rewarding_params.interval,
         )))
     } else {
         // push the interval event
-        let interval_event = PendingIntervalEventData::UpdateRewardingParams {
+        let interval_event = PendingIntervalEventKind::UpdateRewardingParams {
             update: updated_params,
         };
-        push_new_interval_event(deps.storage, &interval_event)?;
+        push_new_interval_event(deps.storage, &env, interval_event)?;
         let time_left = interval.secs_until_current_interval_end(&env);
         Ok(
             Response::new().add_event(new_pending_rewarding_params_update_event(
@@ -358,7 +362,8 @@ pub mod tests {
         use cosmwasm_std::{Decimal, Uint128};
         use mixnet_contract_common::events::{
             MixnetEventType, BOND_NOT_FOUND_VALUE, DELEGATES_REWARD_KEY, NO_REWARD_REASON_KEY,
-            OPERATOR_REWARD_KEY, PRIOR_DELEGATES_KEY, PRIOR_UNIT_REWARD, ZERO_PERFORMANCE_VALUE,
+            OPERATOR_REWARD_KEY, PRIOR_DELEGATES_KEY, PRIOR_UNIT_REWARD_KEY,
+            ZERO_PERFORMANCE_VALUE,
         };
         use mixnet_contract_common::helpers::compare_decimals;
         use mixnet_contract_common::RewardedSetNodeStatus;
@@ -418,9 +423,9 @@ pub mod tests {
                     &rewarding_details,
                 )
                 .unwrap();
-            pending_events::unbond_mixnode(test.deps_mut(), &env, mix_id_unbonded).unwrap();
+            pending_events::unbond_mixnode(test.deps_mut(), &env, 123, mix_id_unbonded).unwrap();
 
-            pending_events::unbond_mixnode(test.deps_mut(), &env, mix_id_unbonded_leftover)
+            pending_events::unbond_mixnode(test.deps_mut(), &env, 123, mix_id_unbonded_leftover)
                 .unwrap();
 
             let env = test.env();
@@ -841,7 +846,7 @@ pub mod tests {
 
                 let prior_unit_reward: Decimal = find_attribute(
                     Some(MixnetEventType::MixnodeRewarding),
-                    PRIOR_UNIT_REWARD,
+                    PRIOR_UNIT_REWARD_KEY,
                     &res1,
                 )
                 .parse()
@@ -903,7 +908,7 @@ pub mod tests {
 
                 let prior_unit_reward: Decimal = find_attribute(
                     Some(MixnetEventType::MixnodeRewarding),
-                    PRIOR_UNIT_REWARD,
+                    PRIOR_UNIT_REWARD_KEY,
                     &res2,
                 )
                 .parse()
@@ -981,7 +986,7 @@ pub mod tests {
 
                 let prior_unit_reward: Decimal = find_attribute(
                     Some(MixnetEventType::MixnodeRewarding),
-                    PRIOR_UNIT_REWARD,
+                    PRIOR_UNIT_REWARD_KEY,
                     &res1,
                 )
                 .parse()
@@ -1050,7 +1055,7 @@ pub mod tests {
 
                 let prior_unit_reward: Decimal = find_attribute(
                     Some(MixnetEventType::MixnodeRewarding),
-                    PRIOR_UNIT_REWARD,
+                    PRIOR_UNIT_REWARD_KEY,
                     &res2,
                 )
                 .parse()
@@ -1223,7 +1228,7 @@ pub mod tests {
                 .unwrap();
 
             let env = test.env();
-            pending_events::unbond_mixnode(test.deps_mut(), &env, mix_id_unbonded_leftover)
+            pending_events::unbond_mixnode(test.deps_mut(), &env, 123, mix_id_unbonded_leftover)
                 .unwrap();
 
             let res =
@@ -1505,7 +1510,7 @@ pub mod tests {
                 .unwrap();
 
             let env = test.env();
-            pending_events::unbond_mixnode(test.deps_mut(), &env, mix_id_unbonded_leftover)
+            pending_events::unbond_mixnode(test.deps_mut(), &env, 123, mix_id_unbonded_leftover)
                 .unwrap();
 
             let res = try_withdraw_operator_reward(test.deps_mut(), sender1);
@@ -1675,7 +1680,7 @@ pub mod tests {
             // make sure it's actually saved to pending events
             let events = test.pending_epoch_events();
             assert!(
-                matches!(events[0], PendingEpochEventData::UpdateActiveSetSize { new_size } if new_size == 42)
+                matches!(events[0].kind, PendingEpochEventKind::UpdateActiveSetSize { new_size } if new_size == 42)
             );
 
             test.execute_all_pending_events();
@@ -1830,7 +1835,7 @@ pub mod tests {
             // make sure it's actually saved to pending events
             let events = test.pending_interval_events();
             assert!(
-                matches!(events[0],PendingIntervalEventData::UpdateRewardingParams { update } if update.rewarded_set_size == Some(123))
+                matches!(events[0].kind,PendingIntervalEventKind::UpdateRewardingParams { update } if update.rewarded_set_size == Some(123))
             );
 
             test.execute_all_pending_events();

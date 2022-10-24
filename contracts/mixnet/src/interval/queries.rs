@@ -238,7 +238,7 @@ mod tests {
     mod pending_epoch_events {
         use super::*;
         use cosmwasm_std::Addr;
-        use mixnet_contract_common::pending_events::PendingEpochEventData;
+        use mixnet_contract_common::pending_events::PendingEpochEventKind;
         use rand_chacha::rand_core::RngCore;
 
         fn push_n_dummy_epoch_actions(test: &mut TestSetup, n: usize) {
@@ -248,12 +248,13 @@ mod tests {
         }
 
         fn push_dummy_epoch_action(test: &mut TestSetup) {
-            let dummy_action = PendingEpochEventData::Undelegate {
+            let dummy_action = PendingEpochEventKind::Undelegate {
                 owner: Addr::unchecked("foomp"),
                 mix_id: test.rng.next_u32(),
                 proxy: None,
             };
-            storage::push_new_epoch_event(test.deps_mut().storage, &dummy_action).unwrap();
+            let env = test.env();
+            storage::push_new_epoch_event(test.deps_mut().storage, &env, dummy_action).unwrap();
         }
 
         #[test]
@@ -379,7 +380,7 @@ mod tests {
     mod pending_interval_events {
         use super::*;
         use crate::support::tests::fixtures;
-        use mixnet_contract_common::pending_events::PendingIntervalEventData;
+        use mixnet_contract_common::pending_events::PendingIntervalEventKind;
         use rand_chacha::rand_core::RngCore;
 
         fn push_n_dummy_interval_actions(test: &mut TestSetup, n: usize) {
@@ -389,11 +390,12 @@ mod tests {
         }
 
         fn push_dummy_interval_action(test: &mut TestSetup) {
-            let dummy_action = PendingIntervalEventData::ChangeMixCostParams {
+            let dummy_action = PendingIntervalEventKind::ChangeMixCostParams {
                 mix_id: test.rng.next_u32(),
                 new_costs: fixtures::mix_node_cost_params_fixture(),
             };
-            storage::push_new_interval_event(test.deps_mut().storage, &dummy_action).unwrap();
+            let env = test.env();
+            storage::push_new_interval_event(test.deps_mut().storage, &env, dummy_action).unwrap();
         }
 
         #[test]

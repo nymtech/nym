@@ -15,7 +15,7 @@ use mixnet_contract_common::events::{
     new_pending_interval_config_update_event, new_pending_interval_events_execution_event,
     new_reconcile_pending_events,
 };
-use mixnet_contract_common::pending_events::PendingIntervalEventData;
+use mixnet_contract_common::pending_events::PendingIntervalEventKind;
 use mixnet_contract_common::MixId;
 use std::collections::BTreeSet;
 
@@ -270,17 +270,18 @@ pub(crate) fn try_update_interval_config(
     if force_immediately || interval.is_current_interval_over(&env) {
         change_interval_config(
             deps.storage,
+            env.block.height,
             interval,
             epochs_in_interval,
             epoch_duration_secs,
         )
     } else {
         // push the interval event
-        let interval_event = PendingIntervalEventData::UpdateIntervalConfig {
+        let interval_event = PendingIntervalEventKind::UpdateIntervalConfig {
             epochs_in_interval,
             epoch_duration_secs,
         };
-        push_new_interval_event(deps.storage, &interval_event)?;
+        push_new_interval_event(deps.storage, &env, interval_event)?;
         let time_left = interval.secs_until_current_interval_end(&env);
         Ok(
             Response::new().add_event(new_pending_interval_config_update_event(
@@ -298,31 +299,33 @@ mod tests {
     use crate::support::tests::fixtures;
     use crate::support::tests::test_helpers::TestSetup;
     use cosmwasm_std::Addr;
-    use mixnet_contract_common::pending_events::PendingEpochEventData;
+    use mixnet_contract_common::pending_events::PendingEpochEventKind;
     use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
     fn push_n_dummy_epoch_actions(test: &mut TestSetup, n: usize) {
         // if you attempt to undelegate non-existent delegation,
         // it will return an empty response, but will not fail
+        let env = test.env();
         for i in 0..n {
-            let dummy_action = PendingEpochEventData::Undelegate {
+            let dummy_action = PendingEpochEventKind::Undelegate {
                 owner: Addr::unchecked("foomp"),
                 mix_id: i as MixId,
                 proxy: None,
             };
-            storage::push_new_epoch_event(test.deps_mut().storage, &dummy_action).unwrap();
+            storage::push_new_epoch_event(test.deps_mut().storage, &env, dummy_action).unwrap();
         }
     }
 
     fn push_n_dummy_interval_actions(test: &mut TestSetup, n: usize) {
         // if you attempt to update cost parameters of an unbonded mixnode,
         // it will return an empty response, but will not fail
+        let env = test.env();
         for i in 0..n {
-            let dummy_action = PendingIntervalEventData::ChangeMixCostParams {
+            let dummy_action = PendingIntervalEventKind::ChangeMixCostParams {
                 mix_id: i as MixId,
                 new_costs: fixtures::mix_node_cost_params_fixture(),
             };
-            storage::push_new_interval_event(test.deps_mut().storage, &dummy_action).unwrap();
+            storage::push_new_interval_event(test.deps_mut().storage, &env, dummy_action).unwrap();
         }
     }
 
@@ -335,7 +338,7 @@ mod tests {
             new_active_set_update_event, new_delegation_on_unbonded_node_event,
             new_undelegation_event,
         };
-        use mixnet_contract_common::pending_events::PendingEpochEventData;
+        use mixnet_contract_common::pending_events::PendingEpochEventKind;
 
         #[test]
         fn without_limit_executes_all_actions() {
@@ -398,14 +401,15 @@ mod tests {
             );
 
             push_n_dummy_epoch_actions(&mut test, 10);
-            let action_with_event = PendingEpochEventData::UpdateActiveSetSize { new_size: 50 };
-            storage::push_new_epoch_event(test.deps_mut().storage, &action_with_event).unwrap();
+            let action_with_event = PendingEpochEventKind::UpdateActiveSetSize { new_size: 50 };
+            storage::push_new_epoch_event(test.deps_mut().storage, &env, action_with_event)
+                .unwrap();
             push_n_dummy_epoch_actions(&mut test, 10);
             let (res, executed) =
                 perform_pending_epoch_actions(test.deps_mut(), &env, None).unwrap();
             assert_eq!(
                 res,
-                Response::new().add_event(new_active_set_update_event(50))
+                Response::new().add_event(new_active_set_update_event(env.block.height, 50))
             );
             assert_eq!(executed, 21);
             assert_eq!(
@@ -433,13 +437,13 @@ mod tests {
             // delegate to node that doesn't exist,
             // we expect to receive BankMsg with tokens being returned,
             // and event regarding delegation
-            let non_existent_delegation = PendingEpochEventData::Delegate {
+            let non_existent_delegation = PendingEpochEventKind::Delegate {
                 owner: Addr::unchecked("foomp"),
                 mix_id: 123,
                 amount: coin(123, TEST_COIN_DENOM),
                 proxy: None,
             };
-            storage::push_new_epoch_event(test.deps_mut().storage, &non_existent_delegation)
+            storage::push_new_epoch_event(test.deps_mut().storage, &env, non_existent_delegation)
                 .unwrap();
             expected_events.push(new_delegation_on_unbonded_node_event(
                 &Addr::unchecked("foomp"),
@@ -453,13 +457,13 @@ mod tests {
 
             // delegation to node that doesn't exist with vesting contract
             // we expect the same as above PLUS TrackUndelegation message
-            let non_existent_delegation = PendingEpochEventData::Delegate {
+            let non_existent_delegation = PendingEpochEventKind::Delegate {
                 owner: Addr::unchecked("foomp2"),
                 mix_id: 123,
                 amount: coin(123, TEST_COIN_DENOM),
                 proxy: Some(vesting_contract.clone()),
             };
-            storage::push_new_epoch_event(test.deps_mut().storage, &non_existent_delegation)
+            storage::push_new_epoch_event(test.deps_mut().storage, &env, non_existent_delegation)
                 .unwrap();
             expected_events.push(new_delegation_on_unbonded_node_event(
                 &Addr::unchecked("foomp2"),
@@ -479,18 +483,24 @@ mod tests {
             expected_messages.push(SubMsg::new(track_undelegate_message));
 
             // updating active set should only emit events and no cosmos messages
-            let action_with_event = PendingEpochEventData::UpdateActiveSetSize { new_size: 50 };
-            storage::push_new_epoch_event(test.deps_mut().storage, &action_with_event).unwrap();
-            expected_events.push(new_active_set_update_event(50));
+            let action_with_event = PendingEpochEventKind::UpdateActiveSetSize { new_size: 50 };
+            storage::push_new_epoch_event(test.deps_mut().storage, &env, action_with_event)
+                .unwrap();
+            expected_events.push(new_active_set_update_event(env.block.height, 50));
 
             // undelegation just returns tokens and emits event
-            let legit_undelegate = PendingEpochEventData::Undelegate {
+            let legit_undelegate = PendingEpochEventKind::Undelegate {
                 owner: delegator.clone(),
                 mix_id: legit_mix,
                 proxy: None,
             };
-            storage::push_new_epoch_event(test.deps_mut().storage, &legit_undelegate).unwrap();
-            expected_events.push(new_undelegation_event(&delegator, &None, legit_mix));
+            storage::push_new_epoch_event(test.deps_mut().storage, &env, legit_undelegate).unwrap();
+            expected_events.push(new_undelegation_event(
+                env.block.height,
+                &delegator,
+                &None,
+                legit_mix,
+            ));
             expected_messages.push(SubMsg::new(BankMsg::Send {
                 to_address: delegator.into_string(),
                 amount: coins(amount, TEST_COIN_DENOM),
@@ -640,16 +650,20 @@ mod tests {
                 rewarded_set_size: Some(500),
                 ..Default::default()
             };
-            let action_with_event = PendingIntervalEventData::UpdateRewardingParams { update };
-            storage::push_new_interval_event(test.deps_mut().storage, &action_with_event).unwrap();
+            let action_with_event = PendingIntervalEventKind::UpdateRewardingParams { update };
+            storage::push_new_interval_event(test.deps_mut().storage, &env, action_with_event)
+                .unwrap();
             push_n_dummy_interval_actions(&mut test, 10);
             let (res, executed) =
                 perform_pending_interval_actions(test.deps_mut(), &env, None).unwrap();
             let updated_params = test.rewarding_params().interval;
             assert_eq!(
                 res,
-                Response::new()
-                    .add_event(new_rewarding_params_update_event(update, updated_params))
+                Response::new().add_event(new_rewarding_params_update_event(
+                    env.block.height,
+                    update,
+                    updated_params
+                ))
             );
             assert_eq!(executed, 21);
             assert_eq!(
@@ -673,38 +687,45 @@ mod tests {
                 profit_margin_percent: Percent::from_percentage_value(12).unwrap(),
                 interval_operating_cost: coin(123_000, TEST_COIN_DENOM),
             };
-            let cost_change = PendingIntervalEventData::ChangeMixCostParams {
+            let cost_change = PendingIntervalEventKind::ChangeMixCostParams {
                 mix_id: legit_mix,
                 new_costs: new_costs.clone(),
             };
 
-            storage::push_new_interval_event(test.deps_mut().storage, &cost_change).unwrap();
-            expected_events.push(new_mixnode_cost_params_update_event(legit_mix, &new_costs));
+            storage::push_new_interval_event(test.deps_mut().storage, &env, cost_change).unwrap();
+            expected_events.push(new_mixnode_cost_params_update_event(
+                env.block.height,
+                legit_mix,
+                &new_costs,
+            ));
 
             let update = IntervalRewardingParamsUpdate {
                 rewarded_set_size: Some(500),
                 ..Default::default()
             };
-            let change_params = PendingIntervalEventData::UpdateRewardingParams { update };
-            storage::push_new_interval_event(test.deps_mut().storage, &change_params).unwrap();
+            let change_params = PendingIntervalEventKind::UpdateRewardingParams { update };
+            storage::push_new_interval_event(test.deps_mut().storage, &env, change_params).unwrap();
             let interval = test.current_interval();
             let mut expected_updated = test.rewarding_params();
             expected_updated
                 .try_apply_updates(update, interval.epochs_in_interval())
                 .unwrap();
             expected_events.push(new_rewarding_params_update_event(
+                env.block.height,
                 update,
                 expected_updated.interval,
             ));
 
-            let change_interval = PendingIntervalEventData::UpdateIntervalConfig {
+            let change_interval = PendingIntervalEventKind::UpdateIntervalConfig {
                 epochs_in_interval: 123,
                 epoch_duration_secs: 1000,
             };
             let mut expected_updated2 = expected_updated;
             expected_updated2.apply_epochs_in_interval_change(123);
-            storage::push_new_interval_event(test.deps_mut().storage, &change_interval).unwrap();
+            storage::push_new_interval_event(test.deps_mut().storage, &env, change_interval)
+                .unwrap();
             expected_events.push(new_interval_config_update_event(
+                env.block.height,
                 123,
                 1000,
                 expected_updated2.interval,
@@ -785,7 +806,7 @@ mod tests {
         use mixnet_contract_common::events::{
             new_delegation_on_unbonded_node_event, new_rewarding_params_update_event,
         };
-        use mixnet_contract_common::pending_events::PendingEpochEventData;
+        use mixnet_contract_common::pending_events::PendingEpochEventKind;
         use mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
 
         #[test]
@@ -967,18 +988,19 @@ mod tests {
         #[test]
         fn catches_all_emitted_cosmos_events_and_messages() {
             let mut test = TestSetup::new();
+            let env = test.env();
 
             let mut expected_events = vec![new_reconcile_pending_events()];
             let mut expected_messages: Vec<SubMsg<Empty>> = Vec::new();
 
             // epoch event
-            let non_existent_delegation = PendingEpochEventData::Delegate {
+            let non_existent_delegation = PendingEpochEventKind::Delegate {
                 owner: Addr::unchecked("foomp"),
                 mix_id: 123,
                 amount: coin(123, TEST_COIN_DENOM),
                 proxy: None,
             };
-            storage::push_new_epoch_event(test.deps_mut().storage, &non_existent_delegation)
+            storage::push_new_epoch_event(test.deps_mut().storage, &env, non_existent_delegation)
                 .unwrap();
             expected_events.push(new_delegation_on_unbonded_node_event(
                 &Addr::unchecked("foomp"),
@@ -996,14 +1018,15 @@ mod tests {
                 rewarded_set_size: Some(500),
                 ..Default::default()
             };
-            let change_params = PendingIntervalEventData::UpdateRewardingParams { update };
-            storage::push_new_interval_event(test.deps_mut().storage, &change_params).unwrap();
+            let change_params = PendingIntervalEventKind::UpdateRewardingParams { update };
+            storage::push_new_interval_event(test.deps_mut().storage, &env, change_params).unwrap();
             let interval = test.current_interval();
             let mut expected_updated = test.rewarding_params();
             expected_updated
                 .try_apply_updates(update, interval.epochs_in_interval())
                 .unwrap();
             expected_events.push(new_rewarding_params_update_event(
+                env.block.height,
                 update,
                 expected_updated.interval,
             ));
@@ -1238,18 +1261,19 @@ mod tests {
         #[test]
         fn if_executes_any_events_it_propagates_responses() {
             let mut test = TestSetup::new();
+            let env = test.env();
             let current_active_set = test.rewarding_params().active_set_size;
 
             let mut expected_events = Vec::new();
             let mut expected_messages: Vec<SubMsg<Empty>> = Vec::new();
 
-            let non_existent_delegation = PendingEpochEventData::Delegate {
+            let non_existent_delegation = PendingEpochEventKind::Delegate {
                 owner: Addr::unchecked("foomp"),
                 mix_id: 123,
                 amount: coin(123, TEST_COIN_DENOM),
                 proxy: None,
             };
-            storage::push_new_epoch_event(test.deps_mut().storage, &non_existent_delegation)
+            storage::push_new_epoch_event(test.deps_mut().storage, &env, non_existent_delegation)
                 .unwrap();
             expected_events.push(new_delegation_on_unbonded_node_event(
                 &Addr::unchecked("foomp"),
@@ -1267,14 +1291,15 @@ mod tests {
                 rewarded_set_size: Some(500),
                 ..Default::default()
             };
-            let change_params = PendingIntervalEventData::UpdateRewardingParams { update };
-            storage::push_new_interval_event(test.deps_mut().storage, &change_params).unwrap();
+            let change_params = PendingIntervalEventKind::UpdateRewardingParams { update };
+            storage::push_new_interval_event(test.deps_mut().storage, &env, change_params).unwrap();
             let interval = test.current_interval();
             let mut expected_updated = test.rewarding_params();
             expected_updated
                 .try_apply_updates(update, interval.epochs_in_interval())
                 .unwrap();
             expected_events.push(new_rewarding_params_update_event(
+                env.block.height,
                 update,
                 expected_updated.interval,
             ));
@@ -1509,8 +1534,8 @@ mod tests {
 
             // make sure it's actually saved to pending events
             let events = test.pending_interval_events();
-            assert!(matches!(events[0],
-                PendingIntervalEventData::UpdateIntervalConfig { epochs_in_interval, epoch_duration_secs } if epochs_in_interval == 100 && epoch_duration_secs == 1000
+            assert!(matches!(events[0].kind,
+                PendingIntervalEventKind::UpdateIntervalConfig { epochs_in_interval, epoch_duration_secs } if epochs_in_interval == 100 && epoch_duration_secs == 1000
             ));
 
             test.execute_all_pending_events();

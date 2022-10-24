@@ -6,11 +6,13 @@ use crate::constants::{
     LAST_EPOCH_EVENT_ID_KEY, LAST_INTERVAL_EVENT_ID_KEY, PENDING_EPOCH_EVENTS_NAMESPACE,
     PENDING_INTERVAL_EVENTS_NAMESPACE, REWARDED_SET_KEY,
 };
-use cosmwasm_std::{Order, StdResult, Storage};
+use cosmwasm_std::{Env, Order, StdResult, Storage};
 use cw_storage_plus::{Item, Map};
-use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
+use mixnet_contract_common::pending_events::{
+    PendingEpochEventData, PendingEpochEventKind, PendingIntervalEventData,
+};
 use mixnet_contract_common::{
-    EpochEventId, Interval, IntervalEventId, MixId, RewardedSetNodeStatus,
+    EpochEventId, Interval, IntervalEventId, MixId, PendingIntervalEventKind, RewardedSetNodeStatus,
 };
 use std::collections::HashMap;
 
@@ -64,18 +66,22 @@ pub(crate) fn next_interval_event_id_counter(
 
 pub(crate) fn push_new_epoch_event(
     storage: &mut dyn Storage,
-    event: &PendingEpochEventData,
+    env: &Env,
+    event: PendingEpochEventKind,
 ) -> StdResult<()> {
     let event_id = next_epoch_event_id_counter(storage)?;
-    PENDING_EPOCH_EVENTS.save(storage, event_id, event)
+    let event_data = event.attach_source_height(env.block.height);
+    PENDING_EPOCH_EVENTS.save(storage, event_id, &event_data)
 }
 
 pub(crate) fn push_new_interval_event(
     storage: &mut dyn Storage,
-    event: &PendingIntervalEventData,
+    env: &Env,
+    event: PendingIntervalEventKind,
 ) -> StdResult<()> {
     let event_id = next_interval_event_id_counter(storage)?;
-    PENDING_INTERVAL_EVENTS.save(storage, event_id, event)
+    let event_data = event.attach_source_height(env.block.height);
+    PENDING_INTERVAL_EVENTS.save(storage, event_id, &event_data)
 }
 
 pub(crate) fn update_rewarded_set(

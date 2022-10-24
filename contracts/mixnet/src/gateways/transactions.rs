@@ -274,7 +274,7 @@ pub mod tests {
         assert_eq!(Err(MixnetContractError::AlreadyOwnsMixnode), result);
 
         // but after he unbonds it, it's all fine again
-        pending_events::unbond_mixnode(deps.as_mut(), &env, mix_id).unwrap();
+        pending_events::unbond_mixnode(deps.as_mut(), &env, 123, mix_id).unwrap();
 
         let result = try_add_gateway(deps.as_mut(), env, info, gateway, sig);
         assert!(result.is_ok());

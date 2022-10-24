@@ -17,7 +17,7 @@ use mixnet_contract_common::events::{
     new_mixnode_pending_cost_params_update_event, new_pending_mixnode_unbonding_event,
 };
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
-use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
+use mixnet_contract_common::pending_events::{PendingEpochEventKind, PendingIntervalEventKind};
 use mixnet_contract_common::MixNode;
 
 pub fn try_add_mixnode(
@@ -119,23 +119,26 @@ fn _try_add_mixnode(
 
 pub fn try_remove_mixnode_on_behalf(
     deps: DepsMut<'_>,
+    env: Env,
     info: MessageInfo,
     owner: String,
 ) -> Result<Response, MixnetContractError> {
     let proxy = info.sender;
     let owner = deps.api.addr_validate(&owner)?;
-    _try_remove_mixnode(deps, owner, Some(proxy))
+    _try_remove_mixnode(deps, env, owner, Some(proxy))
 }
 
 pub fn try_remove_mixnode(
     deps: DepsMut<'_>,
+    env: Env,
     info: MessageInfo,
 ) -> Result<Response, MixnetContractError> {
-    _try_remove_mixnode(deps, info.sender, None)
+    _try_remove_mixnode(deps, env, info.sender, None)
 }
 
 pub(crate) fn _try_remove_mixnode(
     deps: DepsMut<'_>,
+    env: Env,
     owner: Addr,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
@@ -161,10 +164,10 @@ pub(crate) fn _try_remove_mixnode(
     )?;
 
     // push the event to execute it at the end of the epoch
-    let epoch_event = PendingEpochEventData::UnbondMixnode {
+    let epoch_event = PendingEpochEventKind::UnbondMixnode {
         mix_id: existing_bond.mix_id,
     };
-    interval_storage::push_new_epoch_event(deps.storage, &epoch_event)?;
+    interval_storage::push_new_epoch_event(deps.storage, &env, epoch_event)?;
 
     Ok(
         Response::new().add_event(new_pending_mixnode_unbonding_event(
@@ -229,26 +232,29 @@ pub(crate) fn _try_update_mixnode_config(
 
 pub(crate) fn try_update_mixnode_cost_params(
     deps: DepsMut<'_>,
+    env: Env,
     info: MessageInfo,
     new_costs: MixNodeCostParams,
 ) -> Result<Response, MixnetContractError> {
     let owner = info.sender;
-    _try_update_mixnode_cost_params(deps, new_costs, owner, None)
+    _try_update_mixnode_cost_params(deps, env, new_costs, owner, None)
 }
 
 pub(crate) fn try_update_mixnode_cost_params_on_behalf(
     deps: DepsMut,
+    env: Env,
     info: MessageInfo,
     new_costs: MixNodeCostParams,
     owner: String,
 ) -> Result<Response, MixnetContractError> {
     let owner = deps.api.addr_validate(&owner)?;
     let proxy = info.sender;
-    _try_update_mixnode_cost_params(deps, new_costs, owner, Some(proxy))
+    _try_update_mixnode_cost_params(deps, env, new_costs, owner, Some(proxy))
 }
 
 pub(crate) fn _try_update_mixnode_cost_params(
     deps: DepsMut,
+    env: Env,
     new_costs: MixNodeCostParams,
     owner: Addr,
     proxy: Option<Addr>,
@@ -267,11 +273,11 @@ pub(crate) fn _try_update_mixnode_cost_params(
     );
 
     // push the interval event
-    let interval_event = PendingIntervalEventData::ChangeMixCostParams {
+    let interval_event = PendingIntervalEventKind::ChangeMixCostParams {
         mix_id: existing_bond.mix_id,
         new_costs,
     };
-    push_new_interval_event(deps.storage, &interval_event)?;
+    push_new_interval_event(deps.storage, &env, interval_event)?;
 
     Ok(Response::new().add_event(cosmos_event))
 }
@@ -418,7 +424,7 @@ pub mod tests {
         let info = mock_info(sender, &[]);
 
         // trying to remove your mixnode fails if you never had one in the first place
-        let res = try_remove_mixnode(deps.as_mut(), info.clone());
+        let res = try_remove_mixnode(deps.as_mut(), env.clone(), info.clone());
         assert_eq!(
             res,
             Err(MixnetContractError::NoAssociatedMixNodeBond {
@@ -426,12 +432,18 @@ pub mod tests {
             })
         );
 
-        let mix_id =
-            test_helpers::add_mixnode(&mut rng, deps.as_mut(), env, sender, good_mixnode_pledge());
+        let mix_id = test_helpers::add_mixnode(
+            &mut rng,
+            deps.as_mut(),
+            env.clone(),
+            sender,
+            good_mixnode_pledge(),
+        );
 
         // attempted to remove on behalf with invalid proxy (current is `None`)
         let res = try_remove_mixnode_on_behalf(
             deps.as_mut(),
+            env.clone(),
             mock_info("proxy", &[]),
             sender.to_string(),
         );
@@ -444,7 +456,7 @@ pub mod tests {
         );
 
         // "normal" unbonding succeeds and unbonding event is pushed to the pending epoch events
-        let res = try_remove_mixnode(deps.as_mut(), info.clone());
+        let res = try_remove_mixnode(deps.as_mut(), env.clone(), info.clone());
         assert!(res.is_ok());
         let mut pending_events = interval_storage::PENDING_EPOCH_EVENTS
             .range(deps.as_ref().storage, None, None, Order::Ascending)
@@ -453,10 +465,13 @@ pub mod tests {
         assert_eq!(pending_events.len(), 1);
         let event = pending_events.pop().unwrap();
         assert_eq!(1, event.0);
-        assert_eq!(PendingEpochEventData::UnbondMixnode { mix_id }, event.1);
+        assert_eq!(
+            PendingEpochEventKind::UnbondMixnode { mix_id },
+            event.1.kind
+        );
 
         // but fails if repeated (since the node is already in the "unbonding" state)(
-        let res = try_remove_mixnode(deps.as_mut(), info);
+        let res = try_remove_mixnode(deps.as_mut(), env, info);
         assert_eq!(res, Err(MixnetContractError::MixnodeIsUnbonding { mix_id }))
     }
 
@@ -488,7 +503,7 @@ pub mod tests {
         let mix_id = test_helpers::add_mixnode(
             &mut rng,
             deps.as_mut(),
-            env,
+            env.clone(),
             sender,
             tests::fixtures::good_mixnode_pledge(),
         );
@@ -521,7 +536,7 @@ pub mod tests {
         assert_eq!(mix.mix_node.version, update.version);
 
         // but we cannot perform any updates whilst the mixnode is already unbonding
-        try_remove_mixnode(deps.as_mut(), info.clone()).unwrap();
+        try_remove_mixnode(deps.as_mut(), env, info.clone()).unwrap();
         let res = try_update_mixnode_config(deps.as_mut(), info, update);
         assert_eq!(res, Err(MixnetContractError::MixnodeIsUnbonding { mix_id }))
     }
@@ -540,7 +555,12 @@ pub mod tests {
         };
 
         // try updating a non existing mixnode bond
-        let res = try_update_mixnode_cost_params(deps.as_mut(), info.clone(), update.clone());
+        let res = try_update_mixnode_cost_params(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            update.clone(),
+        );
         assert_eq!(
             res,
             Err(MixnetContractError::NoAssociatedMixNodeBond {
@@ -559,6 +579,7 @@ pub mod tests {
         // attempted to remove on behalf with invalid proxy (current is `None`)
         let res = try_update_mixnode_cost_params_on_behalf(
             deps.as_mut(),
+            env.clone(),
             mock_info("proxy", &[]),
             update.clone(),
             sender.to_string(),
@@ -571,7 +592,12 @@ pub mod tests {
             })
         );
         // "normal" update succeeds
-        let res = try_update_mixnode_cost_params(deps.as_mut(), info.clone(), update.clone());
+        let res = try_update_mixnode_cost_params(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            update.clone(),
+        );
         assert!(res.is_ok());
 
         // see if the event has been pushed onto the queue
@@ -583,15 +609,15 @@ pub mod tests {
         let event = pending_events.pop().unwrap();
         assert_eq!(1, event.0);
         assert_eq!(
-            PendingIntervalEventData::ChangeMixCostParams {
+            PendingIntervalEventKind::ChangeMixCostParams {
                 mix_id,
                 new_costs: update.clone()
             },
-            event.1
+            event.1.kind
         );
 
         // execute the event
-        test_helpers::execute_all_pending_events(deps.as_mut(), env);
+        test_helpers::execute_all_pending_events(deps.as_mut(), env.clone());
 
         // and see if the config has actually been updated
         let mix = get_mixnode_details_by_id(deps.as_ref().storage, mix_id)
@@ -600,8 +626,8 @@ pub mod tests {
         assert_eq!(mix.rewarding_details.cost_params, update);
 
         // but we cannot perform any updates whilst the mixnode is already unbonding
-        try_remove_mixnode(deps.as_mut(), info.clone()).unwrap();
-        let res = try_update_mixnode_cost_params(deps.as_mut(), info, update);
+        try_remove_mixnode(deps.as_mut(), env.clone(), info.clone()).unwrap();
+        let res = try_update_mixnode_cost_params(deps.as_mut(), env, info, update);
         assert_eq!(res, Err(MixnetContractError::MixnodeIsUnbonding { mix_id }))
     }
 

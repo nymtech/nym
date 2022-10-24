@@ -453,6 +453,7 @@ mod tests {
         #[test]
         fn all_retrieved_delegations_are_from_the_specified_delegator() {
             let mut test = TestSetup::new();
+            let env = test.env();
             // it means we have, for example, delegation from "delegator1" towards mix1, mix2, ...., from "delegator2" towards mix1, mix2, ...., etc
             add_dummy_mixes_with_delegations(&mut test, 50, 100);
 
@@ -462,6 +463,7 @@ mod tests {
             for mix_id in 1..=25 {
                 try_delegate_to_mixnode_on_behalf(
                     test.deps_mut(),
+                    env.clone(),
                     mock_info(vesting_contract.as_ref(), &[coin(100_000, TEST_COIN_DENOM)]),
                     mix_id,
                     with_proxy.into(),

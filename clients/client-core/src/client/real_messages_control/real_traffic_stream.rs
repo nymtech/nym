@@ -21,13 +21,15 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::error::TrySendError;
-use tokio::time::Instant;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
+
+const MIN_RATE_CHANGE_INTERAL_SECS: u64 = 30;
+const ACCEPTABLE_TIME_WITHOUT_BACKPRESSURE_SECS: u64 = 30;
 
 /// Configurable parameters of the `OutQueueControl`
 pub(crate) struct Config {
@@ -83,28 +85,52 @@ struct SendingDelayController {
     lower_bound: u32,
 
     /// To make sure we don't change the multiplier to fast, we limit a change to some duration
-    time_when_changed: Instant,
+    #[cfg(not(target_arch = "wasm32"))]
+    time_when_changed: time::Instant,
+
+    #[cfg(target_arch = "wasm32")]
+    time_when_changed: wasm_timer::Instant,
 
     /// If we have a long enough time without any backpressure detected we try reducing the sending
     /// delay multiplier
-    time_when_backpressure_detected: Instant,
+    #[cfg(not(target_arch = "wasm32"))]
+    time_when_backpressure_detected: time::Instant,
+
+    #[cfg(target_arch = "wasm32")]
+    time_when_backpressure_detected: wasm_timer::Instant,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn get_time_now() -> time::Instant {
+    time::Instant::now()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn get_time_now() -> wasm_timer::Instant {
+    wasm_timer::Instant::now()
 }
 
 impl SendingDelayController {
     fn new(lower_bound: u32, upper_bound: u32) -> Self {
         assert!(lower_bound <= upper_bound);
+        let now = get_time_now();
         SendingDelayController {
             current_multiplier: 1,
             upper_bound,
             lower_bound,
-            time_when_changed: Instant::now(),
-            time_when_backpressure_detected: Instant::now(),
+            time_when_changed: now,
+            time_when_backpressure_detected: now,
         }
+    }
+
+    fn current_multiplier(&self) -> u32 {
+        self.current_multiplier
     }
 
     fn increase_delay_multiplier(&mut self) {
         self.current_multiplier =
             (self.current_multiplier + 1).clamp(self.lower_bound, self.upper_bound);
+        self.time_when_changed = get_time_now();
         log::debug!(
             "Increasing sending delay multiplier to: {}",
             self.current_multiplier
@@ -114,43 +140,25 @@ impl SendingDelayController {
     fn decrease_delay_multiplier(&mut self) {
         self.current_multiplier =
             (self.current_multiplier - 1).clamp(self.lower_bound, self.upper_bound);
+        self.time_when_changed = get_time_now();
         log::debug!(
             "Decreasing sending delay multiplier to: {}",
             self.current_multiplier
         );
     }
 
-    fn current_multiplier(&self) -> u32 {
-        self.current_multiplier
+    fn record_backpressure_detected(&mut self) {
+        self.time_when_backpressure_detected = get_time_now();
     }
 
-    // A very basic heuristic to determine the sending rate, using some parameters that potentially
-    // might need tweaking.
-    fn adjust_multiplier(&mut self, used_slots: usize) {
-        log::trace!("used_slots: {used_slots}");
-        let now = Instant::now();
+    fn is_sending_reliable(&self) -> bool {
+        let now = get_time_now();
+        let rate_change_interval = Duration::from_secs(MIN_RATE_CHANGE_INTERAL_SECS);
+        let acceptable_time_without_backpressure =
+            Duration::from_secs(ACCEPTABLE_TIME_WITHOUT_BACKPRESSURE_SECS);
 
-        // Whenever we detect that the channel is non-empty we flag for backpressure. This mostly
-        // affects how quickly we decrease the delay (increase speeds).
-        if used_slots > 0 {
-            self.time_when_backpressure_detected = now;
-        }
-
-        // As soon as we're above a basic threshold, increase multiplier. But not too often as we
-        // need to give time to give the channel a chance to clear.
-        if used_slots > 3 && now - self.time_when_changed > Duration::from_millis(300) {
-            self.increase_delay_multiplier();
-            self.time_when_changed = now;
-        }
-
-        // If running smoothly without any backpressure detected, lower the delay multiplier, but
-        // not too fast!
-        if now - self.time_when_backpressure_detected > Duration::from_secs(1)
-            && now - self.time_when_changed > Duration::from_secs(1)
-        {
-            self.decrease_delay_multiplier();
-            self.time_when_changed = now;
-        }
+        now > self.time_when_backpressure_detected + acceptable_time_without_backpressure
+            && now > self.time_when_changed + rate_change_interval
     }
 }
 
@@ -264,6 +272,36 @@ where
         self.sent_notifier.unbounded_send(frag_id).unwrap();
     }
 
+    fn handle_send_fail(&mut self) {
+        // Because we are outpacing the receiever, this will be less than it takes to
+        // clear the queue. That's ok, and probably preferable, it's just to give the
+        // receiver some breathing space and see if it can catch up.
+        let delay_to_clear_most_of_queue = self
+            .current_average_message_sending_delay()
+            .saturating_mul(self.mix_tx.max_capacity().try_into().unwrap());
+
+        // Override the delay set by the Poisson process, if that's what we're using
+        if !self.config.disable_poisson_packet_distribution {
+            if let Some(ref mut next_delay) = self.next_delay {
+                #[cfg(not(target_arch = "wasm32"))]
+                {
+                    let now = get_time_now();
+                    let next = now + delay_to_clear_most_of_queue;
+                    next_delay.as_mut().reset(next);
+                }
+
+                #[cfg(target_arch = "wasm32")]
+                {
+                    next_delay.as_mut().reset(delay_to_clear_most_of_queue);
+                }
+            }
+
+            // Lower the sending rate by increasing the delay multiplier to see if the receiver can
+            // keep up
+            self.sending_rate_controller.increase_delay_multiplier();
+        }
+    }
+
     async fn on_message(&mut self, next_message: StreamMessage) {
         trace!("created new message");
 
@@ -303,15 +341,13 @@ where
             }
         };
 
-        // if this one fails, there's no retrying because it means that either:
-        // - we run out of memory
-        // - the receiver channel is closed
-        // in either case there's no recovery and we can only panic
         if let Err(err) = self.mix_tx.try_send(vec![next_message]) {
             match err {
                 TrySendError::Full(p) => {
-                    // Just ignore and drop, it will be resent once the ack timer expires
+                    // Just drop the message, if it was a real message it will be resent once the
+                    // ack timer expires
                     log::warn!("Failed to send {} packets  - channel full)", p.len());
+                    self.handle_send_fail();
                 }
                 TrySendError::Closed(p) => {
                     log::warn!("Failed to send {} packets  - channel closed)", p.len());
@@ -337,7 +373,22 @@ where
 
     fn adjust_current_average_message_sending_delay(&mut self) {
         let used_slots = self.mix_tx.max_capacity() - self.mix_tx.capacity();
-        self.sending_rate_controller.adjust_multiplier(used_slots);
+        log::trace!(
+            "used_slots: {used_slots}, current_multiplier: {}",
+            self.sending_rate_controller.current_multiplier()
+        );
+
+        // Even just a single used slot is enough to signal backpressure
+        if used_slots > 0 {
+            log::trace!("Backpressure detected");
+            self.sending_rate_controller.record_backpressure_detected();
+        }
+
+        // Very carefully step up the sending rate in case it seems like we can solidly handle the
+        // current rate.
+        if self.sending_rate_controller.is_sending_reliable() {
+            self.sending_rate_controller.decrease_delay_multiplier();
+        }
     }
 
     fn poll_poisson(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {

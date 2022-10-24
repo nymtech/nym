@@ -63,7 +63,7 @@ pub fn instantiate(
         Interval::init_interval(msg.epochs_in_interval, msg.epoch_duration, &env);
     let reward_params = msg
         .initial_rewarding_params
-        .into_rewarding_params(msg.epochs_in_interval);
+        .into_rewarding_params(msg.epochs_in_interval)?;
 
     interval_storage::initialise_storage(deps.storage, starting_interval)?;
     mixnet_params_storage::initialise_storage(deps.storage, state)?;

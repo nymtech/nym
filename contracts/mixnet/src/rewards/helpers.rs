@@ -45,7 +45,7 @@ pub(crate) fn withdraw_operator_reward(
     let mix_id = mix_details.mix_id();
     let mut mix_rewarding = mix_details.rewarding_details;
     let original_pledge = mix_details.bond_information.original_pledge;
-    let reward = mix_rewarding.withdraw_operator_reward(&original_pledge);
+    let reward = mix_rewarding.withdraw_operator_reward(&original_pledge)?;
 
     // save updated rewarding info
     storage::MIXNODE_REWARDING.save(store, mix_id, &mix_rewarding)?;

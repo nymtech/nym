@@ -13,13 +13,14 @@ export const useApiState = <T>(
   errorMessage: string,
 ): [ApiState<T> | undefined, () => Promise<ApiState<T>>, () => void] => {
   // stores the state
-  const [value, setValue] = React.useState<ApiState<T> | undefined>();
+  const [value, setValue] = React.useState<ApiState<T>>();
 
   // clear the value
   const clearValueFn = () => setValue(undefined);
 
   // this provides a method to trigger the delegate to fetch data
   const wrappedFetchFn = React.useCallback(async () => {
+    setValue({ isLoading: true });
     try {
       // keep previous state and set to loading
       setValue((prevState) => ({ ...prevState, isLoading: true }));
@@ -42,5 +43,5 @@ export const useApiState = <T>(
       return newValue;
     }
   }, [setValue, fn]);
-  return [value || { isLoading: true }, wrappedFetchFn, clearValueFn];
+  return [value, wrappedFetchFn, clearValueFn];
 };

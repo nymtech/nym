@@ -129,7 +129,14 @@ impl VestingAccount for Account {
             .amount
             .saturating_sub(withdrawn);
 
-        let coin = self.total_delegations_at_timestamp(storage, block_time.seconds())?;
+        let period = self.get_current_vesting_period(block_time);
+        let start_time = match period {
+            Period::Before => 0,
+            Period::After => u64::MAX,
+            Period::In(idx) => self.periods[idx as usize].start_time,
+        };
+
+        let coin = self.total_delegations_at_timestamp(storage, start_time)?;
 
         let amount = Uint128::new(coin.u128().min(max_available.u128()));
 

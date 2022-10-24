@@ -7,6 +7,7 @@ use crate::interval::storage as interval_storage;
 use crate::mixnodes;
 use crate::mixnodes::storage as mixnodes_storage;
 use cosmwasm_std::{coin, Coin, Decimal, Deps, StdResult};
+use mixnet_contract_common::helpers::into_base_decimal;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::{NodeRewardParams, Performance, RewardingParams};
 use mixnet_contract_common::rewarding::helpers::truncate_reward;
@@ -177,7 +178,7 @@ pub(crate) fn query_estimated_current_epoch_delegator_reward(
         None => return Ok(EstimatedCurrentEpochRewardResponse::empty_response()),
     };
 
-    let staked_dec = Decimal::from_atomics(delegation.amount.amount, 0).unwrap();
+    let staked_dec = into_base_decimal(delegation.amount.amount)?;
     let current_value = staked_dec + mix_rewarding.determine_delegation_reward(&delegation);
     let amount_staked = delegation.amount;
 

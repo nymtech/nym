@@ -19,6 +19,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 ### Fixed
 
 - validator-api, mixnode, gateway should now prefer values in config.toml over mainnet defaults ([#1645])
+- socks5-client: fix bug where in some cases packet reordering could trigger a connection being closed too early ([#1702])
 
 ### Changed
 
@@ -39,6 +40,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1669]: https://github.com/nymtech/nym/pull/1669
 [#1671]: https://github.com/nymtech/nym/pull/1671
 [#1673]: https://github.com/nymtech/nym/pull/1673
+[#1702]: https://github.com/nymtech/nym/pull/1702
 
 
 ## [nym-binaries-1.0.2](https://github.com/nymtech/nym/tree/nym-binaries-1.0.2)

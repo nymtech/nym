@@ -17,11 +17,14 @@ use schemars::schema::{InstanceType, Schema};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::Error;
-use validator_api_requests::models::GatewayStatusReportResponse;
 use std::convert::TryFrom;
 use std::fmt::{self, Display, Formatter};
 use std::io::Cursor;
 use time::OffsetDateTime;
+use validator_api_requests::models::{
+    GatewayStatusReportResponse, GatewayUptimeHistoryResponse, HistoricalUptimeResponse,
+    MixnodeStatusReportResponse, MixnodeUptimeHistoryResponse,
+};
 
 // todo: put into some error enum
 #[derive(Debug)]
@@ -154,6 +157,19 @@ impl MixnodeStatusReport {
     }
 }
 
+impl From<MixnodeStatusReport> for MixnodeStatusReportResponse {
+    fn from(status: MixnodeStatusReport) -> Self {
+        MixnodeStatusReportResponse {
+            mix_id: status.mix_id,
+            identity: status.identity,
+            owner: status.owner,
+            most_recent: status.most_recent.0,
+            last_hour: status.last_hour.0,
+            last_day: status.last_day.0,
+        }
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct GatewayStatusReport {
     pub(crate) identity: String,
@@ -193,7 +209,7 @@ impl GatewayStatusReport {
 
 impl From<GatewayStatusReport> for GatewayStatusReportResponse {
     fn from(status: GatewayStatusReport) -> Self {
-        validator_api_requests::models::GatewayStatusReportResponse {
+        GatewayStatusReportResponse {
             identity: status.identity,
             owner: status.owner,
             most_recent: status.most_recent.0,
@@ -228,6 +244,17 @@ impl MixnodeUptimeHistory {
     }
 }
 
+impl From<MixnodeUptimeHistory> for MixnodeUptimeHistoryResponse {
+    fn from(history: MixnodeUptimeHistory) -> Self {
+        MixnodeUptimeHistoryResponse {
+            mix_id: history.mix_id,
+            identity: history.identity,
+            owner: history.owner,
+            history: history.history.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct GatewayUptimeHistory {
     pub(crate) identity: String,
@@ -246,6 +273,16 @@ impl GatewayUptimeHistory {
     }
 }
 
+impl From<GatewayUptimeHistory> for GatewayUptimeHistoryResponse {
+    fn from(history: GatewayUptimeHistory) -> Self {
+        GatewayUptimeHistoryResponse {
+            identity: history.identity,
+            owner: history.owner,
+            history: history.history.into_iter().map(Into::into).collect(),
+        }
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct HistoricalUptime {
     // ISO 8601 date string
@@ -253,6 +290,15 @@ pub struct HistoricalUptime {
     pub(crate) date: String,
 
     pub(crate) uptime: Uptime,
+}
+
+impl From<HistoricalUptime> for HistoricalUptimeResponse {
+    fn from(uptime: HistoricalUptime) -> Self {
+        HistoricalUptimeResponse {
+            date: uptime.date,
+            uptime: uptime.uptime.0,
+        }
+    }
 }
 
 pub(crate) struct ErrorResponse {

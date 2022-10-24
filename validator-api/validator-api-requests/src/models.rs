@@ -5,7 +5,9 @@ use cosmwasm_std::{Coin, Decimal};
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use mixnet_contract_common::rewarding::RewardEstimate;
-use mixnet_contract_common::{Interval, MixId, MixNode, Percent, RewardedSetNodeStatus};
+use mixnet_contract_common::{
+    IdentityKey, Interval, MixId, MixNode, Percent, RewardedSetNodeStatus,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{fmt, time::Duration};
@@ -223,10 +225,41 @@ pub struct InclusionProbability {
 type Uptime = u8;
 
 #[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct MixnodeStatusReportResponse {
+    pub mix_id: MixId,
+    pub identity: IdentityKey,
+    pub owner: String,
+    pub most_recent: Uptime,
+    pub last_hour: Uptime,
+    pub last_day: Uptime,
+}
+
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct GatewayStatusReportResponse {
     pub identity: String,
     pub owner: String,
     pub most_recent: Uptime,
     pub last_hour: Uptime,
     pub last_day: Uptime,
+}
+
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct HistoricalUptimeResponse {
+    pub date: String,
+    pub uptime: Uptime,
+}
+
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct MixnodeUptimeHistoryResponse {
+    pub mix_id: MixId,
+    pub identity: String,
+    pub owner: String,
+    pub history: Vec<HistoricalUptimeResponse>,
+}
+
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct GatewayUptimeHistoryResponse {
+    pub identity: String,
+    pub owner: String,
+    pub history: Vec<HistoricalUptimeResponse>,
 }

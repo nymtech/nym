@@ -180,12 +180,14 @@ mod tests {
 
         assert_eq!(account.periods().len(), num_vesting_periods as usize);
 
-        let current_period = account.get_current_vesting_period(Timestamp::from_seconds(0));
+        let current_period = account
+            .get_current_vesting_period(Timestamp::from_seconds(0))
+            .unwrap();
         assert_eq!(Period::Before, current_period);
 
         let block_time =
             Timestamp::from_seconds(account.start_time().seconds() + vesting_period + 1);
-        let current_period = account.get_current_vesting_period(block_time);
+        let current_period = account.get_current_vesting_period(block_time).unwrap();
         assert_eq!(current_period, Period::In(1));
         let vested_coins = account
             .get_vested_coins(Some(block_time), &env, &deps.storage)
@@ -196,21 +198,37 @@ mod tests {
         assert_eq!(
             vested_coins.amount,
             Uint128::new(
-                account.get_original_vesting().amount().amount.u128() / num_vesting_periods as u128
+                account
+                    .get_original_vesting()
+                    .unwrap()
+                    .amount()
+                    .amount
+                    .u128()
+                    / num_vesting_periods as u128
             )
         );
         assert_eq!(
             vesting_coins.amount,
             Uint128::new(
-                account.get_original_vesting().amount().amount.u128()
-                    - account.get_original_vesting().amount().amount.u128()
+                account
+                    .get_original_vesting()
+                    .unwrap()
+                    .amount()
+                    .amount
+                    .u128()
+                    - account
+                        .get_original_vesting()
+                        .unwrap()
+                        .amount()
+                        .amount
+                        .u128()
                         / num_vesting_periods as u128
             )
         );
 
         let block_time =
             Timestamp::from_seconds(account.start_time().seconds() + 5 * vesting_period + 1);
-        let current_period = account.get_current_vesting_period(block_time);
+        let current_period = account.get_current_vesting_period(block_time).unwrap();
         assert_eq!(current_period, Period::In(5));
         let vested_coins = account
             .get_vested_coins(Some(block_time), &env, &deps.storage)
@@ -221,15 +239,30 @@ mod tests {
         assert_eq!(
             vested_coins.amount,
             Uint128::new(
-                5 * account.get_original_vesting().amount().amount.u128()
+                5 * account
+                    .get_original_vesting()
+                    .unwrap()
+                    .amount()
+                    .amount
+                    .u128()
                     / num_vesting_periods as u128
             )
         );
         assert_eq!(
             vesting_coins.amount,
             Uint128::new(
-                account.get_original_vesting().amount().amount.u128()
-                    - 5 * account.get_original_vesting().amount().amount.u128()
+                account
+                    .get_original_vesting()
+                    .unwrap()
+                    .amount()
+                    .amount
+                    .u128()
+                    - 5 * account
+                        .get_original_vesting()
+                        .unwrap()
+                        .amount()
+                        .amount
+                        .u128()
                         / num_vesting_periods as u128
             )
         );
@@ -237,7 +270,7 @@ mod tests {
         let block_time = Timestamp::from_seconds(
             account.start_time().seconds() + vesting_over_period * vesting_period + 1,
         );
-        let current_period = account.get_current_vesting_period(block_time);
+        let current_period = account.get_current_vesting_period(block_time).unwrap();
         assert_eq!(current_period, Period::After);
         let vested_coins = account
             .get_vested_coins(Some(block_time), &env, &deps.storage)
@@ -247,7 +280,14 @@ mod tests {
             .unwrap();
         assert_eq!(
             vested_coins.amount,
-            Uint128::new(account.get_original_vesting().amount().amount.u128())
+            Uint128::new(
+                account
+                    .get_original_vesting()
+                    .unwrap()
+                    .amount()
+                    .amount
+                    .u128()
+            )
         );
         assert_eq!(vesting_coins.amount, Uint128::zero());
     }

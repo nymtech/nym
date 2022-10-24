@@ -795,7 +795,10 @@ mod tests {
             let delegation = test.delegation(mix_id, owner, &None);
 
             let staked_dec = Decimal::from_atomics(delegation.amount.amount, 0).unwrap();
-            let current_value = staked_dec + mix_rewarding.determine_delegation_reward(&delegation);
+            let current_value = staked_dec
+                + mix_rewarding
+                    .determine_delegation_reward(&delegation)
+                    .unwrap();
             let amount_staked = delegation.amount;
 
             EstimatedCurrentEpochRewardResponse {

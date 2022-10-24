@@ -744,7 +744,7 @@ pub mod tests {
                         performance,
                         in_active_set: true,
                     };
-                    let sim_res = sim.simulate_epoch_single_node(node_params);
+                    let sim_res = sim.simulate_epoch_single_node(node_params).unwrap();
                     assert_eq!(sim_res, dist);
                 }
                 test.skip_to_next_epoch_end();
@@ -768,7 +768,7 @@ pub mod tests {
                         performance,
                         in_active_set: true,
                     };
-                    let sim_res = sim.simulate_epoch_single_node(node_params);
+                    let sim_res = sim.simulate_epoch_single_node(node_params).unwrap();
                     assert_eq!(sim_res, dist);
                 }
                 test.skip_to_next_epoch_end();
@@ -809,8 +809,8 @@ pub mod tests {
                     in_active_set: true,
                 };
 
-                let dist1 = sim1.simulate_epoch_single_node(node_params);
-                let dist2 = sim2.simulate_epoch_single_node(node_params);
+                let dist1 = sim1.simulate_epoch_single_node(node_params).unwrap();
+                let dist2 = sim2.simulate_epoch_single_node(node_params).unwrap();
 
                 let env = test.env();
 
@@ -858,15 +858,17 @@ pub mod tests {
                 let unit_delegation_base = actual_prior1.unit_delegation;
 
                 // recompute the state of fully compounded delegation from before this rewarding was distributed
-                let pre_rewarding_del11 = del11.dec_amount()
-                    + (prior_unit_reward - del11.cumulative_reward_ratio) * del11.dec_amount()
+                let pre_rewarding_del11 = del11.dec_amount().unwrap()
+                    + (prior_unit_reward - del11.cumulative_reward_ratio)
+                        * del11.dec_amount().unwrap()
                         / (del11.cumulative_reward_ratio + unit_delegation_base);
 
                 let computed_del11_reward =
                     pre_rewarding_del11 / prior_delegates1 * delegates_reward1;
 
-                let pre_rewarding_del12 = del12.dec_amount()
-                    + (prior_unit_reward - del12.cumulative_reward_ratio) * del12.dec_amount()
+                let pre_rewarding_del12 = del12.dec_amount().unwrap()
+                    + (prior_unit_reward - del12.cumulative_reward_ratio)
+                        * del12.dec_amount().unwrap()
                         / (del12.cumulative_reward_ratio + unit_delegation_base);
 
                 let computed_del12_reward =
@@ -920,8 +922,9 @@ pub mod tests {
                 let unit_delegation_base = actual_prior2.unit_delegation;
 
                 // recompute the state of fully compounded delegation from before this rewarding was distributed
-                let pre_rewarding_del21 = del21.dec_amount()
-                    + (prior_unit_reward - del21.cumulative_reward_ratio) * del21.dec_amount()
+                let pre_rewarding_del21 = del21.dec_amount().unwrap()
+                    + (prior_unit_reward - del21.cumulative_reward_ratio)
+                        * del21.dec_amount().unwrap()
                         / (del21.cumulative_reward_ratio + unit_delegation_base);
 
                 let computed_del21_reward =
@@ -949,8 +952,8 @@ pub mod tests {
                     in_active_set: true,
                 };
 
-                let dist1 = sim1.simulate_epoch_single_node(node_params);
-                let dist2 = sim2.simulate_epoch_single_node(node_params);
+                let dist1 = sim1.simulate_epoch_single_node(node_params).unwrap();
+                let dist2 = sim2.simulate_epoch_single_node(node_params).unwrap();
 
                 let env = test.env();
 
@@ -998,22 +1001,25 @@ pub mod tests {
                 let unit_delegation_base = actual_prior1.unit_delegation;
 
                 // recompute the state of fully compounded delegation from before this rewarding was distributed
-                let pre_rewarding_del11 = del11.dec_amount()
-                    + (prior_unit_reward - del11.cumulative_reward_ratio) * del11.dec_amount()
+                let pre_rewarding_del11 = del11.dec_amount().unwrap()
+                    + (prior_unit_reward - del11.cumulative_reward_ratio)
+                        * del11.dec_amount().unwrap()
                         / (del11.cumulative_reward_ratio + unit_delegation_base);
 
                 let computed_del11_reward =
                     pre_rewarding_del11 / prior_delegates1 * delegates_reward1;
 
-                let pre_rewarding_del12 = del12.dec_amount()
-                    + (prior_unit_reward - del12.cumulative_reward_ratio) * del12.dec_amount()
+                let pre_rewarding_del12 = del12.dec_amount().unwrap()
+                    + (prior_unit_reward - del12.cumulative_reward_ratio)
+                        * del12.dec_amount().unwrap()
                         / (del12.cumulative_reward_ratio + unit_delegation_base);
 
                 let computed_del12_reward =
                     pre_rewarding_del12 / prior_delegates1 * delegates_reward1;
 
-                let pre_rewarding_del13 = del13.dec_amount()
-                    + (prior_unit_reward - del13.cumulative_reward_ratio) * del13.dec_amount()
+                let pre_rewarding_del13 = del13.dec_amount().unwrap()
+                    + (prior_unit_reward - del13.cumulative_reward_ratio)
+                        * del13.dec_amount().unwrap()
                         / (del13.cumulative_reward_ratio + unit_delegation_base);
 
                 let computed_del13_reward =
@@ -1067,15 +1073,17 @@ pub mod tests {
                 let unit_delegation_base = actual_prior2.unit_delegation;
 
                 // recompute the state of fully compounded delegation from before this rewarding was distributed
-                let pre_rewarding_del21 = del21.dec_amount()
-                    + (prior_unit_reward - del21.cumulative_reward_ratio) * del21.dec_amount()
+                let pre_rewarding_del21 = del21.dec_amount().unwrap()
+                    + (prior_unit_reward - del21.cumulative_reward_ratio)
+                        * del21.dec_amount().unwrap()
                         / (del21.cumulative_reward_ratio + unit_delegation_base);
 
                 let computed_del21_reward =
                     pre_rewarding_del21 / prior_delegates2 * delegates_reward2;
 
-                let pre_rewarding_del23 = del23.dec_amount()
-                    + (prior_unit_reward - del23.cumulative_reward_ratio) * del23.dec_amount()
+                let pre_rewarding_del23 = del23.dec_amount().unwrap()
+                    + (prior_unit_reward - del23.cumulative_reward_ratio)
+                        * del23.dec_amount().unwrap()
                         / (del23.cumulative_reward_ratio + unit_delegation_base);
 
                 let computed_del23_reward =

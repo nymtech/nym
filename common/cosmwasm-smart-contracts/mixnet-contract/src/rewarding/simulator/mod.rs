@@ -268,7 +268,7 @@ mod tests {
                 profit_margin_percent: profit_margin,
                 interval_operating_cost,
             };
-            simulator.bond(initial_pledge, cost_params);
+            simulator.bond(initial_pledge, cost_params).unwrap();
             simulator
         }
 
@@ -306,7 +306,7 @@ mod tests {
 
             let epoch_params =
                 NodeRewardParams::new(Percent::from_percentage_value(100).unwrap(), true);
-            let rewards = simulator.simulate_epoch_single_node(epoch_params);
+            let rewards = simulator.simulate_epoch_single_node(epoch_params).unwrap();
 
             assert_eq!(rewards.delegates, Decimal::zero());
             compare_decimals(
@@ -325,7 +325,7 @@ mod tests {
 
             let node_params =
                 NodeRewardParams::new(Percent::from_percentage_value(100).unwrap(), true);
-            let rewards = simulator.simulate_epoch_single_node(node_params);
+            let rewards = simulator.simulate_epoch_single_node(node_params).unwrap();
 
             compare_decimals(
                 rewards.delegates,
@@ -356,7 +356,7 @@ mod tests {
             let node_params =
                 NodeRewardParams::new(Percent::from_percentage_value(100).unwrap(), true);
 
-            let rewards1 = simulator.simulate_epoch_single_node(node_params);
+            let rewards1 = simulator.simulate_epoch_single_node(node_params).unwrap();
             let expected_operator1 = "1128452.5416104363".parse().unwrap();
             assert_eq!(rewards1.delegates, Decimal::zero());
             compare_decimals(rewards1.operator, expected_operator1, None);
@@ -365,13 +365,13 @@ mod tests {
                 .delegate("alice", Coin::new(18000_000000, "unym"), 0)
                 .unwrap();
 
-            let rewards2 = simulator.simulate_epoch_single_node(node_params);
+            let rewards2 = simulator.simulate_epoch_single_node(node_params).unwrap();
             let expected_operator2 = "1363843.413584609".parse().unwrap();
             let expected_delegator_reward1 = "1795952.25874404".parse().unwrap();
             compare_decimals(rewards2.delegates, expected_delegator_reward1, None);
             compare_decimals(rewards2.operator, expected_operator2, None);
 
-            let rewards3 = simulator.simulate_epoch_single_node(node_params);
+            let rewards3 = simulator.simulate_epoch_single_node(node_params).unwrap();
             let expected_operator3 = "1364017.7824440491".parse().unwrap();
             let expected_delegator_reward2 = "1796135.9269468693".parse().unwrap();
             compare_decimals(rewards3.delegates, expected_delegator_reward2, None);
@@ -413,7 +413,7 @@ mod tests {
                 .unwrap();
 
             // "normal", sanity check rewarding
-            let rewards1 = simulator.simulate_epoch_single_node(node_params);
+            let rewards1 = simulator.simulate_epoch_single_node(node_params).unwrap();
             let expected_operator1 = "1411087.1007647323".parse().unwrap();
             let expected_delegator_reward1 = "2199961.032388664".parse().unwrap();
             compare_decimals(rewards1.delegates, expected_delegator_reward1, None);
@@ -423,14 +423,15 @@ mod tests {
             let node = simulator.nodes.get_mut(&0).unwrap();
             let reward = node
                 .rewarding_details
-                .withdraw_operator_reward(&original_pledge);
+                .withdraw_operator_reward(&original_pledge)
+                .unwrap();
             assert_eq!(reward.amount, truncate_reward_amount(expected_operator1));
             assert_eq!(
                 node.rewarding_details.operator,
                 Decimal::from_atomics(original_pledge.amount, 0).unwrap()
             );
 
-            let rewards2 = simulator.simulate_epoch_single_node(node_params);
+            let rewards2 = simulator.simulate_epoch_single_node(node_params).unwrap();
             let expected_operator2 = "1411113.0004067947".parse().unwrap();
             let expected_delegator_reward2 = "2200183.3879084454".parse().unwrap();
             compare_decimals(rewards2.delegates, expected_delegator_reward2, None);
@@ -455,7 +456,7 @@ mod tests {
                 .unwrap();
 
             // "normal", sanity check rewarding
-            let rewards1 = simulator.simulate_epoch_single_node(node_params);
+            let rewards1 = simulator.simulate_epoch_single_node(node_params).unwrap();
             let expected_operator1 = "1411087.1007647323".parse().unwrap();
             let expected_delegator_reward1 = "2199961.032388664".parse().unwrap();
             compare_decimals(rewards1.delegates, expected_delegator_reward1, None);
@@ -473,7 +474,7 @@ mod tests {
             assert_eq!(reward.amount, truncate_reward_amount(expected_del1_reward));
 
             // new reward after withdrawal
-            let rewards2 = simulator.simulate_epoch_single_node(node_params);
+            let rewards2 = simulator.simulate_epoch_single_node(node_params).unwrap();
             let expected_operator2 = "1411250.1907492676".parse().unwrap();
             let expected_delegator_reward2 = "2200004.051009689".parse().unwrap();
             compare_decimals(rewards2.delegates, expected_delegator_reward2, None);
@@ -568,7 +569,7 @@ mod tests {
                 // this has to always hold
                 check_rewarding_invariant(&simulator);
                 let node_params = NodeRewardParams::new(performance, is_active);
-                simulator.simulate_epoch_single_node(node_params);
+                simulator.simulate_epoch_single_node(node_params).unwrap();
             }
 
             // after everyone undelegates, there should be nothing left in the delegates pool
@@ -621,112 +622,132 @@ mod tests {
 
         let mut simulator = Simulator::new(rewarding_params, interval);
 
-        let n0 = simulator.bond(
-            Coin::new(11_000_000_000000, "unym"),
-            MixNodeCostParams {
-                profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                interval_operating_cost: Coin::new(40_000_000, "unym"),
-            },
-        );
+        let n0 = simulator
+            .bond(
+                Coin::new(11_000_000_000000, "unym"),
+                MixNodeCostParams {
+                    profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
+                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                },
+            )
+            .unwrap();
         simulator
             .delegate("delegator", Coin::new(1_000_000_000000, "unym"), n0)
             .unwrap();
 
-        let n1 = simulator.bond(
-            Coin::new(1_000_000_000000, "unym"),
-            MixNodeCostParams {
-                profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                interval_operating_cost: Coin::new(40_000_000, "unym"),
-            },
-        );
+        let n1 = simulator
+            .bond(
+                Coin::new(1_000_000_000000, "unym"),
+                MixNodeCostParams {
+                    profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
+                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                },
+            )
+            .unwrap();
         simulator
             .delegate("delegator", Coin::new(11_000_000_000000, "unym"), n1)
             .unwrap();
 
-        let n2 = simulator.bond(
-            Coin::new(1_000_000_000000, "unym"),
-            MixNodeCostParams {
-                profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                interval_operating_cost: Coin::new(40_000_000, "unym"),
-            },
-        );
+        let n2 = simulator
+            .bond(
+                Coin::new(1_000_000_000000, "unym"),
+                MixNodeCostParams {
+                    profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
+                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                },
+            )
+            .unwrap();
         simulator
             .delegate("delegator", Coin::new(9_000_000_000000, "unym"), n2)
             .unwrap();
 
-        let n3 = simulator.bond(
-            Coin::new(1_000_000_000000, "unym"),
-            MixNodeCostParams {
-                profit_margin_percent: Percent::from_percentage_value(0).unwrap(),
-                interval_operating_cost: Coin::new(500_000_000, "unym"),
-            },
-        );
+        let n3 = simulator
+            .bond(
+                Coin::new(1_000_000_000000, "unym"),
+                MixNodeCostParams {
+                    profit_margin_percent: Percent::from_percentage_value(0).unwrap(),
+                    interval_operating_cost: Coin::new(500_000_000, "unym"),
+                },
+            )
+            .unwrap();
         simulator
             .delegate("delegator", Coin::new(7_000_000_000000, "unym"), n3)
             .unwrap();
 
-        let n4 = simulator.bond(
-            Coin::new(1000_000000, "unym"),
-            MixNodeCostParams {
-                profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                interval_operating_cost: Coin::new(40_000_000, "unym"),
-            },
-        );
+        let n4 = simulator
+            .bond(
+                Coin::new(1000_000000, "unym"),
+                MixNodeCostParams {
+                    profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
+                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                },
+            )
+            .unwrap();
         simulator
             .delegate("delegator", Coin::new(7_999_000_000000, "unym"), n4)
             .unwrap();
 
-        let n5 = simulator.bond(
-            Coin::new(1_000_000_000000, "unym"),
-            MixNodeCostParams {
-                profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                interval_operating_cost: Coin::new(40_000_000, "unym"),
-            },
-        );
+        let n5 = simulator
+            .bond(
+                Coin::new(1_000_000_000000, "unym"),
+                MixNodeCostParams {
+                    profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
+                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                },
+            )
+            .unwrap();
         simulator
             .delegate("delegator", Coin::new(7_000_000_000000, "unym"), n5)
             .unwrap();
 
-        let n6 = simulator.bond(
-            Coin::new(11_000_000_000000, "unym"),
-            MixNodeCostParams {
-                profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                interval_operating_cost: Coin::new(40_000_000, "unym"),
-            },
-        );
+        let n6 = simulator
+            .bond(
+                Coin::new(11_000_000_000000, "unym"),
+                MixNodeCostParams {
+                    profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
+                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                },
+            )
+            .unwrap();
         simulator
             .delegate("delegator", Coin::new(1_000_000_000000, "unym"), n6)
             .unwrap();
 
-        let n7 = simulator.bond(
-            Coin::new(1_000_000_000000, "unym"),
-            MixNodeCostParams {
-                profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                interval_operating_cost: Coin::new(40_000_000, "unym"),
-            },
-        );
+        let n7 = simulator
+            .bond(
+                Coin::new(1_000_000_000000, "unym"),
+                MixNodeCostParams {
+                    profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
+                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                },
+            )
+            .unwrap();
         simulator
             .delegate("delegator", Coin::new(9_000_000_000000, "unym"), n7)
             .unwrap();
 
-        let n8 = simulator.bond(
-            Coin::new(1_000_000_000000, "unym"),
-            MixNodeCostParams {
-                profit_margin_percent: Percent::from_percentage_value(0).unwrap(),
-                interval_operating_cost: Coin::new(500_000_000, "unym"),
-            },
-        );
+        let n8 = simulator
+            .bond(
+                Coin::new(1_000_000_000000, "unym"),
+                MixNodeCostParams {
+                    profit_margin_percent: Percent::from_percentage_value(0).unwrap(),
+                    interval_operating_cost: Coin::new(500_000_000, "unym"),
+                },
+            )
+            .unwrap();
         simulator
             .delegate("delegator", Coin::new(7_000_000_000000, "unym"), n8)
             .unwrap();
 
-        let n9 = simulator.bond(
-            Coin::new(1_000_000_000000, "unym"),
-            MixNodeCostParams {
-                profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                interval_operating_cost: Coin::new(40_000_000, "unym"),
-            },
-        );
+        let n9 = simulator
+            .bond(
+                Coin::new(1_000_000_000000, "unym"),
+                MixNodeCostParams {
+                    profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
+                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                },
+            )
+            .unwrap();
         simulator
             .delegate("delegator", Coin::new(7_000_000_000000, "unym"), n9)
             .unwrap();
@@ -751,7 +772,7 @@ mod tests {
         .collect::<BTreeMap<_, _>>();
 
         for _ in 0..23 {
-            simulator.simulate_full_interval(&node_params);
+            simulator.simulate_full_interval(&node_params).unwrap();
         }
 
         // we allow the delta to be within 0.1unym,

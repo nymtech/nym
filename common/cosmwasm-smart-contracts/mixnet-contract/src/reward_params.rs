@@ -26,6 +26,11 @@ pub struct IntervalRewardParams {
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub staking_supply: Decimal,
 
+    /// Defines the percentage of stake needed to reach saturation for all of the nodes in the rewarded set.
+    /// Also known as `beta`.
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
+    pub staking_supply_scale_factor: Percent,
+
     // computed values
     /// Current value of the computed reward budget per epoch, per node.
     /// It is expected to be constant throughout the interval.

@@ -103,12 +103,8 @@ impl NymClient {
         );
 
         if let Some(size) = self.config.get_base().get_use_extended_packet_size() {
-            if !stream.try_set_extended_packet_size(&size) {
-                log::warn!(
-                    "Unable to determine extended packet size in config: {}",
-                    size
-                );
-            }
+            log::debug!("Setting extended packet size: {:?}", size);
+            stream.set_custom_packet_size(size.into());
         }
 
         stream.start_with_shutdown(shutdown);
@@ -137,12 +133,8 @@ impl NymClient {
         );
 
         if let Some(size) = self.config.get_base().get_use_extended_packet_size() {
-            if !controller_config.try_set_extended_packet_size(&size) {
-                log::warn!(
-                    "Unable to determine extended packet size in config: {}",
-                    size
-                );
-            }
+            log::debug!("Setting extended packet size: {:?}", size);
+            controller_config.set_custom_packet_size(size.into());
         }
 
         info!("Starting real traffic stream...");

@@ -4,7 +4,7 @@
 // due to expansion of #[wasm_bindgen] macro on `Debug` Config struct
 #![allow(clippy::drop_non_drop)]
 
-use client_core::config::{Debug as ConfigDebug, GatewayEndpoint};
+use client_core::config::{Debug as ConfigDebug, ExtendedPacketSize, GatewayEndpoint};
 use std::time::Duration;
 use url::Url;
 use wasm_bindgen::prelude::*;
@@ -110,7 +110,7 @@ impl From<Debug> for ConfigDebug {
         // For now we just always use the (older) 32kb extended size
         let use_extended_packet_size = debug
             .use_extended_packet_size
-            .then(|| String::from("extended32"));
+            .then(|| ExtendedPacketSize::Extended32);
 
         ConfigDebug {
             average_packet_delay: Duration::from_millis(debug.average_packet_delay_ms),

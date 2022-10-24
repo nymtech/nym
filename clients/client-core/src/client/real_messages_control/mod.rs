@@ -21,7 +21,6 @@ use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::params::PacketSize;
 use rand::{rngs::OsRng, CryptoRng, Rng};
-use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -90,19 +89,6 @@ impl Config {
 
     pub fn set_custom_packet_size(&mut self, packet_size: PacketSize) {
         self.packet_size = packet_size;
-    }
-
-    pub fn try_set_extended_packet_size(&mut self, size: &str) -> bool {
-        if let Some(packet_size) = PacketSize::from_str(size)
-            .ok()
-            .and_then(PacketSize::as_extended_size)
-        {
-            log::debug!("Setting extended packet size: {:?}", packet_size);
-            self.set_custom_packet_size(packet_size);
-            true
-        } else {
-            false
-        }
     }
 }
 

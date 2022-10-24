@@ -109,13 +109,8 @@ impl NymClient {
             topology_accessor,
         );
 
-        if let Some(ref size) = self.config.debug.use_extended_packet_size {
-            if !stream.try_set_extended_packet_size(size) {
-                console_log!(
-                    "Unable to determine extended packet size in config: {}",
-                    size
-                );
-            }
+        if let Some(size) = &self.config.debug.use_extended_packet_size {
+            stream.set_custom_packet_size(size.clone().into());
         }
 
         stream.start();
@@ -139,13 +134,8 @@ impl NymClient {
             self.as_mix_recipient(),
         );
 
-        if let Some(ref size) = self.config.debug.use_extended_packet_size {
-            if !controller_config.try_set_extended_packet_size(size) {
-                console_log!(
-                    "Unable to determine extended packet size in config: {}",
-                    size
-                );
-            }
+        if let Some(size) = &self.config.debug.use_extended_packet_size {
+            controller_config.set_custom_packet_size(size.clone().into());
         }
 
         console_log!("Starting real traffic stream...");

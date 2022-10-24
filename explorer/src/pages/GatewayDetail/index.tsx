@@ -15,7 +15,7 @@ import { Title } from '../../components/Title';
 
 const columns: ColumnsType[] = [
   {
-    field: 'identity_key',
+    field: 'identityKey',
     title: 'Identity Key',
     headerAlign: 'left',
     width: 230,
@@ -27,7 +27,7 @@ const columns: ColumnsType[] = [
     headerAlign: 'left',
   },
   {
-    field: 'routing_score',
+    field: 'routingScore',
     title: 'Routing Score',
     flex: 1,
     headerAlign: 'left',
@@ -35,7 +35,7 @@ const columns: ColumnsType[] = [
       'Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test.',
   },
   {
-    field: 'avg_uptime',
+    field: 'avgUptime',
     title: 'Avg. Score',
     flex: 1,
     headerAlign: 'left',
@@ -79,7 +79,7 @@ const PageGatewayDetailsWithState: React.FC<{ selectedGateway: GatewayResponseIt
 
   React.useEffect(() => {
     if (enrichGateway) {
-      setStatus([enrichGateway?.mix_port, enrichGateway?.clients_port]);
+      setStatus([enrichGateway.mixPort, enrichGateway.clientsPort]);
     }
   }, [enrichGateway]);
 

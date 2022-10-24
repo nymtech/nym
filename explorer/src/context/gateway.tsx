@@ -17,15 +17,17 @@ export const GatewayContext = React.createContext<GatewayState>({});
 export const useGatewayContext = (): React.ContextType<typeof GatewayContext> =>
   React.useContext<GatewayState>(GatewayContext);
 
-interface GatewayContextProviderProps {
-  gatewayIdentityKey: string;
-}
-
 /**
  * Provides a state context for a gateway by identity
  * @param gatewayIdentityKey   The identity key of the gateway
  */
-export const GatewayContextProvider: React.FC<GatewayContextProviderProps> = ({ gatewayIdentityKey, children }) => {
+export const GatewayContextProvider = ({
+  gatewayIdentityKey,
+  children,
+}: {
+  gatewayIdentityKey: string;
+  children: JSX.Element;
+}) => {
   const [uptimeReport, fetchUptimeReportById, clearUptimeReportById] = useApiState<GatewayReportResponse>(
     gatewayIdentityKey,
     Api.fetchGatewayReportById,
@@ -50,12 +52,7 @@ export const GatewayContextProvider: React.FC<GatewayContextProviderProps> = ({ 
       uptimeReport,
       uptimeStory,
     }),
-    [
-      {
-        uptimeReport,
-        uptimeStory,
-      },
-    ],
+    [uptimeReport, uptimeStory],
   );
 
   return <GatewayContext.Provider value={state}>{children}</GatewayContext.Provider>;

@@ -79,9 +79,9 @@ export const DetailTable: React.FC<{
         <TableBody>
           {rows.map((eachRow) => (
             <TableRow key={eachRow.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-              {columnsData?.map((_, index) => (
+              {columnsData?.map((data, index) => (
                 <TableCell
-                  key={_.title}
+                  key={data.title}
                   component="th"
                   scope="row"
                   variant="body"
@@ -91,7 +91,7 @@ export const DetailTable: React.FC<{
                     width: 200,
                     fontSize: 14,
                   }}
-                  data-testid={`${_.title.replace(/ /g, '-')}-value`}
+                  data-testid={`${data.title.replace(/ /g, '-')}-value`}
                 >
                   {formatCellValues(eachRow[columnsData[index].field], columnsData[index].field)}
                 </TableCell>

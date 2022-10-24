@@ -44,7 +44,7 @@ export const PageGateways: React.FC = () => {
 
   const columns: GridColDef[] = [
     {
-      field: 'identity_key',
+      field: 'identityKey',
       headerName: 'Identity Key',
       renderHeader: () => <CustomColumnHeading headingTitle="Identity Key" />,
       headerClassName: 'MuiDataGrid-header-override',
@@ -54,7 +54,7 @@ export const PageGateways: React.FC = () => {
         <MuiLink
           sx={{ ...cellStyles }}
           component={RRDLink}
-          to={`/network-components/gateway/${params.row.identity_key}`}
+          to={`/network-components/gateway/${params.row.identityKey}`}
         >
           {params.value}
         </MuiLink>

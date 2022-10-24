@@ -12,8 +12,9 @@ use validator_api_requests::coconut::{
     VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_api_requests::models::{
-    GatewayCoreStatusResponse, GatewayStatusReportResponse, InclusionProbabilityResponse,
-    MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusResponse,
+    GatewayCoreStatusResponse, GatewayStatusReportResponse, GatewayUptimeHistoryResponse,
+    InclusionProbabilityResponse, MixNodeBondAnnotated, MixnodeCoreStatusResponse,
+    MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse,
     RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
 };
 
@@ -135,6 +136,22 @@ impl Client {
         .await
     }
 
+    pub async fn get_mixnode_report(
+        &self,
+        mix_id: MixId,
+    ) -> Result<MixnodeStatusReportResponse, ValidatorAPIError> {
+        self.query_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::MIXNODE,
+                &mix_id.to_string(),
+                routes::REPORT,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
     pub async fn get_gateway_report(
         &self,
         identity: IdentityKeyRef<'_>,
@@ -145,6 +162,38 @@ impl Client {
                 routes::GATEWAY,
                 identity,
                 routes::REPORT,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_mixnode_history(
+        &self,
+        mix_id: MixId,
+    ) -> Result<MixnodeUptimeHistoryResponse, ValidatorAPIError> {
+        self.query_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::MIXNODE,
+                &mix_id.to_string(),
+                routes::HISTORY,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_gateway_history(
+        &self,
+        identity: IdentityKeyRef<'_>,
+    ) -> Result<GatewayUptimeHistoryResponse, ValidatorAPIError> {
+        self.query_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::GATEWAY,
+                identity,
+                routes::HISTORY,
             ],
             NO_PARAMS,
         )

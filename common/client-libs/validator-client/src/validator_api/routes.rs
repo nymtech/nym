@@ -10,8 +10,6 @@ pub const GATEWAYS: &str = "gateways";
 pub const DETAILED: &str = "detailed";
 pub const ACTIVE: &str = "active";
 pub const REWARDED: &str = "rewarded";
-pub const REPORT: &str = "report";
-
 pub const COCONUT_ROUTES: &str = "coconut";
 pub const BANDWIDTH: &str = "bandwidth";
 
@@ -29,6 +27,8 @@ pub const CORE_STATUS_COUNT: &str = "core-status-count";
 pub const SINCE_ARG: &str = "since";
 
 pub const STATUS: &str = "status";
+pub const REPORT: &str = "report";
+pub const HISTORY: &str = "history";
 pub const REWARD_ESTIMATION: &str = "reward-estimation";
 pub const AVG_UPTIME: &str = "avg_uptime";
 pub const STAKE_SATURATION: &str = "stake-saturation";

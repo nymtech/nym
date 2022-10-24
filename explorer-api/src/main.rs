@@ -4,6 +4,7 @@ extern crate rocket;
 extern crate rocket_okapi;
 
 use clap::Parser;
+use dotenv::dotenv;
 use log::info;
 use network_defaults::setup_env;
 use task::ShutdownNotifier;
@@ -30,6 +31,7 @@ const COUNTRY_DATA_REFRESH_INTERVAL: u64 = 60 * 15; // every 15 minutes
 
 #[tokio::main]
 async fn main() {
+    dotenv().ok();
     setup_logging();
     let args = commands::Cli::parse();
     setup_env(args.config_env_file);

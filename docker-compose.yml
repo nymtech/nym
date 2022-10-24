@@ -1,4 +1,4 @@
-version: '3.7'
+version: "3.7"
 
 x-network: &NETWORK
   BECH32_PREFIX: nymt
@@ -23,7 +23,7 @@ services:
     networks:
       localnet:
         ipv4_address: 172.168.10.2
-    command: [ "genesis" ]
+    command: ["genesis"]
   secondary_validator:
     build:
       context: docker/validator
@@ -41,7 +41,7 @@ services:
         ipv4_address: 172.168.10.3
     depends_on:
       - "genesis_validator"
-    command: [ "secondary" ]
+    command: ["secondary"]
   #        mixnet_contract:
   #                build: docker/mixnet_contract
   #                image: contract:latest
@@ -74,34 +74,49 @@ services:
       - "genesis_validator"
       - "secondary_validator"
 
-#        mongo:
-#                image: mongo:latest
-#                command:
-#                        - --storageEngine=wiredTiger
-#                volumes:
-#                        - mongo_data:/data/db
-#        block_explorer:
-#                build:
-#                        context: https://github.com/forbole/big-dipper.git#v0.41.x-7
-#                image: block_explorer:v0.41.x-7
-#                ports:
-#                        - "3080:3000"
-#                depends_on:
-#                        - "mongo"
-#                environment:
-#                        ROOT_URL: ${APP_ROOT_URL:-http://localhost}
-#                        MONGO_URL: mongodb://mongo:27017/meteor
-#                        PORT: 3000
-#                        METEOR_SETTINGS: ${METEOR_SETTINGS}
-#        explorer:
-#                build:
-#                        context: docker/explorer
-#                image: explorer:latest
-#                ports:
-#                        - "3040:3000"
-#                depends_on:
-#                        - "genesis_validator"
-#                        - "block_explorer"
+  #        mongo:
+  #                image: mongo:latest
+  #                command:
+  #                        - --storageEngine=wiredTiger
+  #                volumes:
+  #                        - mongo_data:/data/db
+  #        block_explorer:
+  #                build:
+  #                        context: https://github.com/forbole/big-dipper.git#v0.41.x-7
+  #                image: block_explorer:v0.41.x-7
+  #                ports:
+  #                        - "3080:3000"
+  #                depends_on:
+  #                        - "mongo"
+  #                environment:
+  #                        ROOT_URL: ${APP_ROOT_URL:-http://localhost}
+  #                        MONGO_URL: mongodb://mongo:27017/meteor
+  #                        PORT: 3000
+  #                        METEOR_SETTINGS: ${METEOR_SETTINGS}
+  #        explorer:
+  #                build:
+  #                        context: docker/explorer
+  #                image: explorer:latest
+  #                ports:
+  #                        - "3040:3000"
+  #                depends_on:
+  #                        - "genesis_validator"
+  #                        - "block_explorer"
+
+  # service to update geoip binary database, for explorer-api
+  geoipupdate:
+    container_name: geoipupdate
+    image: maxmindinc/geoipupdate
+    restart: unless-stopped
+    environment:
+      GEOIPUPDATE_ACCOUNT_ID: ${GEOIPUPDATE_ACCOUNT_ID}
+      GEOIPUPDATE_LICENSE_KEY: ${GEOIPUPDATE_LICENSE_KEY}
+      GEOIPUPDATE_EDITION_IDS: ${GEOIPUPDATE_EDITION_IDS}
+      GEOIPUPDATE_FREQUENCY: ${GEOIPUPDATE_FREQUENCY}
+    networks:
+      - geoipupdate
+    volumes:
+      - ${GEOIP_DB_DIRECTORY}:/usr/share/GeoIP
 
 volumes:
   genesis_volume:
@@ -111,8 +126,8 @@ volumes:
 #        contract_volume:
 #        mongo_data:
 
-
 networks:
+  geoipupdate:
   localnet:
     driver: bridge
     ipam:

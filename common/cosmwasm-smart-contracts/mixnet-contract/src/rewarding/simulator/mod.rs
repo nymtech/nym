@@ -40,7 +40,12 @@ impl Simulator {
         if self.interval.current_interval_id() + 1 == updated.current_interval_id() {
             let old = self.system_rewarding_params.interval;
             let reward_pool = old.reward_pool - self.pending_reward_pool_emission;
-            let staking_supply = old.staking_supply + self.pending_reward_pool_emission;
+            let staking_supply = old.staking_supply
+                + self
+                    .system_rewarding_params
+                    .interval
+                    .staking_supply_scale_factor
+                    * self.pending_reward_pool_emission;
             let epoch_reward_budget = reward_pool
                 / Decimal::from_atomics(self.interval.epochs_in_interval(), 0).unwrap()
                 * old.interval_pool_emission.value();

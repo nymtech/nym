@@ -2,8 +2,10 @@ use futures::channel::mpsc;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::ReplySurb;
 
-pub type InputMessageSender = mpsc::UnboundedSender<InputMessage>;
-pub type InputMessageReceiver = mpsc::UnboundedReceiver<InputMessage>;
+//pub type InputMessageSender = mpsc::Sender<InputMessage>;
+//pub type InputMessageReceiver = mpsc::UnboundedReceiver<InputMessage>;
+pub type InputMessageSender = tokio::sync::mpsc::Sender<InputMessage>;
+pub type InputMessageReceiver = tokio::sync::mpsc::Receiver<InputMessage>;
 
 #[derive(Debug)]
 pub enum InputMessage {

@@ -231,7 +231,12 @@ impl SocksClient {
         let msg = Message::Request(req);
 
         let input_message = InputMessage::new_fresh(self.service_provider, msg.into_bytes(), false);
-        self.input_sender.unbounded_send(input_message).unwrap();
+        //self.input_sender.unbounded_send(input_message).unwrap();
+        log::info!("input_sender capacity: {}", self.input_sender.capacity());
+        if let Err(err) = self.input_sender.send(input_message).await {
+            log::info!("failed to send");
+            panic!();
+        }
     }
 
     async fn run_proxy(&mut self, conn_receiver: ConnectionReceiver, remote_proxy_target: String) {

@@ -15,6 +15,7 @@ use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{acknowledgements::AckKey, addressing::clients::Recipient};
 use rand::{CryptoRng, Rng};
 use std::sync::Arc;
+use std::thread::panicking;
 
 #[cfg(feature = "reply-surb")]
 use crate::client::reply_key_storage::ReplyKeyStorage;
@@ -182,9 +183,13 @@ where
         // there's no point in trying to send nothing
         if let Some(real_messages) = real_messages {
             // tells real message sender (with the poisson timer) to send this to the mix network
-            self.real_message_sender
-                .unbounded_send(real_messages)
-                .unwrap();
+            log::info!("real_message_sender capacity: {}", self.real_message_sender.capacity());
+            if let Err(err) = self.real_message_sender
+                .send(real_messages)
+                .await {
+                    log::error!("Failed to send");
+                    panic!();
+            }
         }
     }
 
@@ -194,7 +199,7 @@ where
 
         while !shutdown.is_shutdown() {
             tokio::select! {
-                input_msg = self.input_receiver.next() => match input_msg {
+                input_msg = self.input_receiver.recv() => match input_msg {
                     Some(input_msg) => {
                         self.on_input_message(input_msg).await;
                     },

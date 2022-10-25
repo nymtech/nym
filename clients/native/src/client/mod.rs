@@ -283,31 +283,41 @@ impl NymClient {
         websocket::Listener::new(self.config.get_listening_port()).start(websocket_handler);
     }
 
-    /// EXPERIMENTAL DIRECT RUST API
-    /// It's untested and there are absolutely no guarantees about it (but seems to have worked
-    /// well enough in local tests)
-    pub fn send_message(&mut self, recipient: Recipient, message: Vec<u8>, with_reply_surb: bool) {
-        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb);
+    // EXPERIMENTAL DIRECT RUST API
+    // It's untested and there are absolutely no guarantees about it (but seems to have worked
+    // well enough in local tests)
+    //pub async fn send_message(&mut self, recipient: Recipient, message: Vec<u8>, with_reply_surb: bool) {
+    //    let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb);
 
-        self.input_tx
-            .as_ref()
-            .expect("start method was not called before!")
-            .unbounded_send(input_msg)
-            .unwrap();
-    }
+    //    //self.input_tx
+    //    //    .as_ref()
+    //    //    .expect("start method was not called before!")
+    //    //    .unbounded_send(input_msg)
+    //    //    .unwrap();
+    //    log::info!("input_tx capacity: {}", self.input_tx.capacity());
+    //    if let Err(err) = self
+    //        .input_tx
+    //        .as_ref()
+    //        .expect("start method was not called before!")
+    //        .send(input_msg).await
+    //    {
+    //        log::error!("failed to send");
+    //        panic!();
+    //    }
+    //}
 
-    /// EXPERIMENTAL DIRECT RUST API
-    /// It's untested and there are absolutely no guarantees about it (but seems to have worked
-    /// well enough in local tests)
-    pub fn send_reply(&mut self, reply_surb: ReplySurb, message: Vec<u8>) {
-        let input_msg = InputMessage::new_reply(reply_surb, message);
+    // EXPERIMENTAL DIRECT RUST API
+    // It's untested and there are absolutely no guarantees about it (but seems to have worked
+    // well enough in local tests)
+    //pub fn send_reply(&mut self, reply_surb: ReplySurb, message: Vec<u8>) {
+    //    let input_msg = InputMessage::new_reply(reply_surb, message);
 
-        self.input_tx
-            .as_ref()
-            .expect("start method was not called before!")
-            .unbounded_send(input_msg)
-            .unwrap();
-    }
+    //    self.input_tx
+    //        .as_ref()
+    //        .expect("start method was not called before!")
+    //        .unbounded_send(input_msg)
+    //        .unwrap();
+    //}
 
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
@@ -362,7 +372,8 @@ impl NymClient {
         let (received_buffer_request_sender, received_buffer_request_receiver) = mpsc::unbounded();
 
         // channels responsible for controlling real messages
-        let (input_sender, input_receiver) = mpsc::unbounded::<InputMessage>();
+        //let (input_sender, input_receiver) = mpsc::unbounded::<InputMessage>();
+        let (input_sender, input_receiver) = tokio::sync::mpsc::channel::<InputMessage>(16);
 
         // channels responsible for controlling ack messages
         let (ack_sender, ack_receiver) = mpsc::unbounded();

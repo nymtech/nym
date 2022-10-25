@@ -40,7 +40,8 @@ impl Connection {
     pub(crate) async fn run_proxy(
         &mut self,
         mix_receiver: ConnectionReceiver,
-        mix_sender: mpsc::UnboundedSender<(Socks5Message, Recipient)>,
+        //mix_sender: mpsc::UnboundedSender<(Socks5Message, Recipient)>,
+        mix_sender: tokio::sync::mpsc::Sender<(Socks5Message, Recipient)>,
         shutdown: ShutdownListener,
     ) {
         let stream = self.conn.take().unwrap();

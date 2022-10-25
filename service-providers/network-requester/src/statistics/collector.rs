@@ -77,13 +77,15 @@ pub struct ServiceStatisticsCollector {
     pub(crate) response_stats_data: Arc<RwLock<StatsData>>,
     pub(crate) connected_services: Arc<RwLock<HashMap<ConnectionId, RemoteAddress>>>,
     stats_provider_addr: Recipient,
-    mix_input_sender: mpsc::UnboundedSender<(Socks5Message, Recipient)>,
+    //mix_input_sender: mpsc::UnboundedSender<(Socks5Message, Recipient)>,
+    mix_input_sender: tokio::sync::mpsc::Sender<(Socks5Message, Recipient)>,
 }
 
 impl ServiceStatisticsCollector {
     pub async fn new(
         stats_provider_addr: Option<Recipient>,
-        mix_input_sender: mpsc::UnboundedSender<(Socks5Message, Recipient)>,
+        mix_input_sender: tokio::sync::mpsc::Sender<(Socks5Message, Recipient)>,
+        //mix_input_sender: mpsc::UnboundedSender<(Socks5Message, Recipient)>,
     ) -> Result<Self, StatsError> {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(3))
@@ -175,20 +177,50 @@ impl StatisticsCollector for ServiceStatisticsCollector {
             ),
             self.stats_provider_addr,
         );
-        self.mix_input_sender
-            .unbounded_send((
+        //self.mix_input_sender
+        //    .unbounded_send((
+        //        Socks5Message::Request(connect_req),
+        //        self.stats_provider_addr,
+        //    ))
+        //    .unwrap();
+        log::info!(
+            "mix_input_sender capacity: {}",
+            self.mix_input_sender.capacity()
+        );
+        if let Err(err) = self
+            .mix_input_sender
+            .send((
                 Socks5Message::Request(connect_req),
                 self.stats_provider_addr,
             ))
-            .unwrap();
+            .await
+        {
+            log::error!("failed to send");
+            panic!();
+        }
 
         trace!("Sending data to statistics service");
         let mut message_sender = OrderedMessageSender::new();
         let ordered_msg = message_sender.wrap_message(msg).into_bytes();
         let send_req = Request::new_send(conn_id, ordered_msg, true);
-        self.mix_input_sender
-            .unbounded_send((Socks5Message::Request(send_req), self.stats_provider_addr))
-            .unwrap();
+        //self.mix_input_sender
+        //    .unbounded_send((Socks5Message::Request(send_req), self.stats_provider_addr))
+        //    .unwrap();
+        log::info!(
+            "mix_input_sender capacity: {}",
+            self.mix_input_sender.capacity()
+        );
+        if let Err(err) = self
+            .mix_input_sender
+            .send((
+                Socks5Message::Request(send_req),
+                self.stats_provider_addr,
+            ))
+            .await
+        {
+            log::error!("failed to send");
+            panic!();
+        }
 
         Ok(())
     }

@@ -112,12 +112,17 @@ where
             .unwrap();
 
         // send to `OutQueueControl` to eventually send to the mix network
-        self.real_message_sender
-            .unbounded_send(vec![RealMessage::new(
+        if let Err(err) = self
+            .real_message_sender
+            .send(vec![RealMessage::new(
                 prepared_fragment.mix_packet,
                 frag_id,
             )])
-            .unwrap();
+            .await
+        {
+            log::error!("Failed to send");
+            panic!();
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]

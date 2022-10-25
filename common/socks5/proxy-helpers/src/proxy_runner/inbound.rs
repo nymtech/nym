@@ -15,7 +15,7 @@ use task::ShutdownListener;
 use tokio::select;
 use tokio::{net::tcp::OwnedReadHalf, sync::Notify, time::sleep};
 
-fn send_empty_close<F, S>(
+async fn send_empty_close<F, S>(
     connection_id: ConnectionId,
     message_sender: &mut OrderedMessageSender,
     mix_sender: &MixProxySender<S>,
@@ -24,12 +24,20 @@ fn send_empty_close<F, S>(
     F: Fn(ConnectionId, Vec<u8>, bool) -> S,
 {
     let ordered_msg = message_sender.wrap_message(Vec::new()).into_bytes();
-    mix_sender
-        .unbounded_send(adapter_fn(connection_id, ordered_msg, true))
-        .unwrap();
+    //mix_sender
+    //    .unbounded_send(adapter_fn(connection_id, ordered_msg, true))
+    //    .unwrap();
+    log::info!("mix_sender capacity: {}", mix_sender.capacity());
+    if let Err(err) = mix_sender
+        .send(adapter_fn(connection_id, ordered_msg, true))
+        .await
+    {
+        log::error!("failed to send");
+        panic!();
+    }
 }
 
-fn deal_with_data<F, S>(
+async fn deal_with_data<F, S>(
     read_data: Option<io::Result<Bytes>>,
     local_destination_address: &str,
     remote_source_address: &str,
@@ -63,9 +71,17 @@ where
 
     // if we're sending through the mixnet increase the sequence number...
     let ordered_msg = message_sender.wrap_message(read_data.to_vec()).into_bytes();
-    mix_sender
-        .unbounded_send(adapter_fn(connection_id, ordered_msg, is_finished))
-        .unwrap();
+    //mix_sender
+    //    .unbounded_send(adapter_fn(connection_id, ordered_msg, is_finished))
+    //    .unwrap();
+    log::info!("mix_sender capacity: {}", mix_sender.capacity());
+    if let Err(err) = mix_sender
+        .send(adapter_fn(connection_id, ordered_msg, is_finished))
+        .await
+    {
+        log::error!("failed to send");
+        panic!();
+    }
 
     if is_finished {
         // technically we already informed it when we sent the message to mixnet above
@@ -98,7 +114,7 @@ where
     loop {
         select! {
             read_data = &mut available_reader.next() => {
-                if deal_with_data(read_data, &local_destination_address, &remote_source_address, connection_id, &mut message_sender, &mix_sender, &adapter_fn) {
+                if deal_with_data(read_data, &local_destination_address, &remote_source_address, connection_id, &mut message_sender, &mix_sender, &adapter_fn).await {
                     break
                 }
             }

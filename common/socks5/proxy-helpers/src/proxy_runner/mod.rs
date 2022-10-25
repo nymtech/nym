@@ -29,7 +29,8 @@ impl From<(Vec<u8>, bool)> for ProxyMessage {
     }
 }
 
-pub type MixProxySender<S> = mpsc::UnboundedSender<S>;
+//pub type MixProxySender<S> = mpsc::UnboundedSender<S>;
+pub type MixProxySender<S> = tokio::sync::mpsc::Sender<S>;
 
 // TODO: when we finally get to implementing graceful shutdown,
 // on Drop this guy should tell the remote that it's closed now
@@ -78,7 +79,7 @@ where
     // request/response as required by entity running particular side of the proxy.
     pub async fn run<F>(mut self, adapter_fn: F) -> Self
     where
-        F: Fn(ConnectionId, Vec<u8>, bool) -> S + Send + 'static,
+        F: Fn(ConnectionId, Vec<u8>, bool) -> S + Send + 'static + std::marker::Sync,
     {
         let (read_half, write_half) = self.socket.take().unwrap().into_split();
         let shutdown_notify = Arc::new(Notify::new());

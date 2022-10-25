@@ -30,6 +30,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - wasm-client: fixed build errors on MacOS and changed example JS code to use mainnet ([#1585])
 - gateway-client: will attempt to read now as many as 8 websocket messages at once, assuming they're already available on the socket ([#1669])
 - moved `Percent` struct to to `contracts-common`, change affects explorer-api
+- clients: bound the sphinx packet channel and reduce sending rate if gateway can't keep up ([#1703], [#1725])
 
 [#1541]: https://github.com/nymtech/nym/pull/1541
 [#1558]: https://github.com/nymtech/nym/pull/1558
@@ -45,7 +46,10 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1673]: https://github.com/nymtech/nym/pull/1673
 [#1687]: https://github.com/nymtech/nym/pull/1687
 [#1702]: https://github.com/nymtech/nym/pull/1702
+[#1703]: https://github.com/nymtech/nym/pull/1703
 [#1724]: https://github.com/nymtech/nym/pull/1724
+[#1725]: https://github.com/nymtech/nym/pull/1725
+
 
 
 ## [nym-binaries-1.0.2](https://github.com/nymtech/nym/tree/nym-binaries-1.0.2)

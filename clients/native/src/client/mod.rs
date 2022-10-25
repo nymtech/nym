@@ -360,7 +360,6 @@ impl NymClient {
         // sphinx_message_sender is the transmitter for any component generating sphinx packets that are to be sent to the mixnet
         // they are used by cover traffic stream and real traffic stream
         // sphinx_message_receiver is the receiver used by MixTrafficController that sends the actual traffic
-        // WIP(JON): move creating this to the mix traffic controller
         let (sphinx_message_sender, sphinx_message_receiver) =
             tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
 

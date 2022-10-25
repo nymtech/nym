@@ -33,7 +33,7 @@ impl AcknowledgementListener {
     }
 
     async fn on_ack(&mut self, ack_content: Vec<u8>) {
-        trace!("Received an ack");
+        debug!("Received an ack");
         let frag_id = match recover_identifier(&self.ack_key, &ack_content)
             .map(FragmentIdentifier::try_from_bytes)
         {

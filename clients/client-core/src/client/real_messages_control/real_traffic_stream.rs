@@ -20,7 +20,6 @@ use std::collections::VecDeque;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
-use tokio::sync::mpsc::error::TrySendError;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time;
@@ -28,7 +27,8 @@ use tokio::time;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
 
-const MIN_RATE_CHANGE_INTERAL_SECS: u64 = 30;
+const DECREASE_DELAY_MIN_CHANGE_INTERVAL_SECS: u64 = 30;
+const INCREASE_DELAY_MIN_CHANGE_INTERVAL_SECS: u64 = 1;
 const ACCEPTABLE_TIME_WITHOUT_BACKPRESSURE_SECS: u64 = 30;
 
 /// Configurable parameters of the `OutQueueControl`
@@ -151,14 +151,19 @@ impl SendingDelayController {
         self.time_when_backpressure_detected = get_time_now();
     }
 
+    fn not_increased_delay_recently(&self) -> bool {
+        get_time_now()
+            > self.time_when_changed + Duration::from_secs(INCREASE_DELAY_MIN_CHANGE_INTERVAL_SECS)
+    }
+
     fn is_sending_reliable(&self) -> bool {
         let now = get_time_now();
-        let rate_change_interval = Duration::from_secs(MIN_RATE_CHANGE_INTERAL_SECS);
+        let delay_change_interval = Duration::from_secs(DECREASE_DELAY_MIN_CHANGE_INTERVAL_SECS);
         let acceptable_time_without_backpressure =
             Duration::from_secs(ACCEPTABLE_TIME_WITHOUT_BACKPRESSURE_SECS);
 
         now > self.time_when_backpressure_detected + acceptable_time_without_backpressure
-            && now > self.time_when_changed + rate_change_interval
+            && now > self.time_when_changed + delay_change_interval
     }
 }
 
@@ -272,36 +277,6 @@ where
         self.sent_notifier.unbounded_send(frag_id).unwrap();
     }
 
-    fn handle_send_fail(&mut self) {
-        // Because we are outpacing the receiever, this will be less than it takes to
-        // clear the queue. That's ok, and probably preferable, it's just to give the
-        // receiver some breathing space and see if it can catch up.
-        let delay_to_clear_most_of_queue = self
-            .current_average_message_sending_delay()
-            .saturating_mul(self.mix_tx.max_capacity().try_into().unwrap());
-
-        // Override the delay set by the Poisson process, if that's what we're using
-        if !self.config.disable_poisson_packet_distribution {
-            if let Some(ref mut next_delay) = self.next_delay {
-                #[cfg(not(target_arch = "wasm32"))]
-                {
-                    let now = get_time_now();
-                    let next = now + delay_to_clear_most_of_queue;
-                    next_delay.as_mut().reset(next);
-                }
-
-                #[cfg(target_arch = "wasm32")]
-                {
-                    next_delay.as_mut().reset(delay_to_clear_most_of_queue);
-                }
-            }
-
-            // Lower the sending rate by increasing the delay multiplier to see if the receiver can
-            // keep up
-            self.sending_rate_controller.increase_delay_multiplier();
-        }
-    }
-
     async fn on_message(&mut self, next_message: StreamMessage) {
         trace!("created new message");
 
@@ -341,18 +316,8 @@ where
             }
         };
 
-        if let Err(err) = self.mix_tx.try_send(vec![next_message]) {
-            match err {
-                TrySendError::Full(p) => {
-                    // Just drop the message, if it was a real message it will be resent once the
-                    // ack timer expires
-                    log::warn!("Failed to send {} packets  - channel full)", p.len());
-                    self.handle_send_fail();
-                }
-                TrySendError::Closed(p) => {
-                    log::warn!("Failed to send {} packets  - channel closed)", p.len());
-                }
-            }
+        if let Err(err) = self.mix_tx.send(vec![next_message]).await {
+            log::error!("Failed to send - channel closed: {}", err);
         }
 
         // JS: Not entirely sure why or how it fixes stuff, but without the yield call,
@@ -382,6 +347,13 @@ where
         if used_slots > 0 {
             log::trace!("Backpressure detected");
             self.sending_rate_controller.record_backpressure_detected();
+        }
+
+        // If the buffer is running out, slow down the sending rate
+        if self.mix_tx.capacity() == 0
+            && self.sending_rate_controller.not_increased_delay_recently()
+        {
+            self.sending_rate_controller.increase_delay_multiplier();
         }
 
         // Very carefully step up the sending rate in case it seems like we can solidly handle the

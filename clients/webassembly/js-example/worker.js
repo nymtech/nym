@@ -17,7 +17,7 @@ importScripts('nym_client_wasm.js');
 console.log('Initializing worker');
 
 // wasm_bindgen creates a global variable (with the exports attached) that is in scope after `importScripts`
-const { default_debug, get_gateway, NymClient, set_panic_hook, Config } = wasm_bindgen;
+const { default_debug, get_gateway, NymClient, set_panic_hook, Config, GatewayEndpoint } = wasm_bindgen;
 
 class ClientWrapper {
   constructor(config, onMessageHandler) {
@@ -65,7 +65,8 @@ async function main() {
   const validator = 'https://validator.nymtech.net/api'; //"http://localhost:8081";
   const preferredGateway = 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM';
 
-  const gatewayEndpoint = await get_gateway(validator, preferredGateway);
+  var gatewayEndpoint = await get_gateway(validator, preferredGateway);
+  gatewayEndpoint.gateway_listener = "wss://gateway1.nymtech.net:443";
 
   // only really useful if you want to adjust some settings like traffic rate
   // (if not needed you can just pass a null)

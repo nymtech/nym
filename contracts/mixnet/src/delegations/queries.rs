@@ -12,13 +12,13 @@ use cosmwasm_std::StdResult;
 use cw_storage_plus::Bound;
 use mixnet_contract_common::delegation::{MixNodeDelegationResponse, OwnerProxySubKey};
 use mixnet_contract_common::{
-    delegation, Delegation, NodeId, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
+    delegation, Delegation, MixId, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
     PagedMixNodeDelegationsResponse,
 };
 
 pub(crate) fn query_mixnode_delegations_paged(
     deps: Deps<'_>,
-    mix_id: NodeId,
+    mix_id: MixId,
     start_after: Option<String>,
     limit: Option<u32>,
 ) -> StdResult<PagedMixNodeDelegationsResponse> {
@@ -50,7 +50,7 @@ pub(crate) fn query_mixnode_delegations_paged(
 pub(crate) fn query_delegator_delegations_paged(
     deps: Deps<'_>,
     delegation_owner: String,
-    start_after: Option<(NodeId, OwnerProxySubKey)>,
+    start_after: Option<(MixId, OwnerProxySubKey)>,
     limit: Option<u32>,
 ) -> StdResult<PagedDelegatorDelegationsResponse> {
     let validated_owner = deps.api.addr_validate(&delegation_owner)?;
@@ -74,7 +74,7 @@ pub(crate) fn query_delegator_delegations_paged(
 
     let start_next_after = delegations
         .last()
-        .map(|del| (del.node_id, del.proxy_storage_key()));
+        .map(|del| (del.mix_id, del.proxy_storage_key()));
 
     Ok(PagedDelegatorDelegationsResponse::new(
         delegations,
@@ -85,7 +85,7 @@ pub(crate) fn query_delegator_delegations_paged(
 // queries for delegation value of given address for particular node
 pub(crate) fn query_mixnode_delegation(
     deps: Deps<'_>,
-    mix_id: NodeId,
+    mix_id: MixId,
     delegation_owner: String,
     proxy: Option<String>,
 ) -> StdResult<MixNodeDelegationResponse> {
@@ -284,19 +284,19 @@ mod tests {
 
             let res1 = query_mixnode_delegations_paged(test.deps(), mix_id1, None, None).unwrap();
             assert_eq!(res1.delegations.len(), 10);
-            assert!(res1.delegations.into_iter().all(|d| d.node_id == mix_id1));
+            assert!(res1.delegations.into_iter().all(|d| d.mix_id == mix_id1));
 
             let res2 = query_mixnode_delegations_paged(test.deps(), mix_id2, None, None).unwrap();
             assert_eq!(res2.delegations.len(), 14);
-            assert!(res2.delegations.into_iter().all(|d| d.node_id == mix_id2));
+            assert!(res2.delegations.into_iter().all(|d| d.mix_id == mix_id2));
 
             let res3 = query_mixnode_delegations_paged(test.deps(), mix_id3, None, None).unwrap();
             assert_eq!(res3.delegations.len(), 10);
-            assert!(res3.delegations.into_iter().all(|d| d.node_id == mix_id3));
+            assert!(res3.delegations.into_iter().all(|d| d.mix_id == mix_id3));
 
             let res4 = query_mixnode_delegations_paged(test.deps(), mix_id4, None, None).unwrap();
             assert_eq!(res4.delegations.len(), 10);
-            assert!(res4.delegations.into_iter().all(|d| d.node_id == mix_id4));
+            assert!(res4.delegations.into_iter().all(|d| d.mix_id == mix_id4));
         }
     }
 
@@ -453,6 +453,7 @@ mod tests {
         #[test]
         fn all_retrieved_delegations_are_from_the_specified_delegator() {
             let mut test = TestSetup::new();
+            let env = test.env();
             // it means we have, for example, delegation from "delegator1" towards mix1, mix2, ...., from "delegator2" towards mix1, mix2, ...., etc
             add_dummy_mixes_with_delegations(&mut test, 50, 100);
 
@@ -462,6 +463,7 @@ mod tests {
             for mix_id in 1..=25 {
                 try_delegate_to_mixnode_on_behalf(
                     test.deps_mut(),
+                    env.clone(),
                     mock_info(vesting_contract.as_ref(), &[coin(100_000, TEST_COIN_DENOM)]),
                     mix_id,
                     with_proxy.into(),
@@ -610,7 +612,7 @@ mod tests {
             assert_eq!(1, page1.delegations.len());
             assert!(
                 page1.delegations[0].owner.as_str() == delegator1
-                    && page1.delegations[0].node_id == mix_id1
+                    && page1.delegations[0].mix_id == mix_id1
             );
 
             test.add_immediate_delegation(delegator1, 1000u32, mix_id2);
@@ -621,11 +623,11 @@ mod tests {
             assert_eq!(2, page1.delegations.len());
             assert!(
                 page1.delegations[0].owner.as_str() == delegator1
-                    && page1.delegations[0].node_id == mix_id1
+                    && page1.delegations[0].mix_id == mix_id1
             );
             assert!(
                 page1.delegations[1].owner.as_str() == delegator1
-                    && page1.delegations[1].node_id == mix_id2
+                    && page1.delegations[1].mix_id == mix_id2
             );
 
             test.add_immediate_delegation(delegator2, 1000u32, mix_id1);
@@ -636,11 +638,11 @@ mod tests {
             assert_eq!(2, another_page1.delegations.len());
             assert!(
                 another_page1.delegations[0].owner.as_str() == delegator1
-                    && another_page1.delegations[0].node_id == mix_id1
+                    && another_page1.delegations[0].mix_id == mix_id1
             );
             assert!(
                 another_page1.delegations[1].owner.as_str() == delegator2
-                    && another_page1.delegations[1].node_id == mix_id1
+                    && another_page1.delegations[1].mix_id == mix_id1
             );
 
             // retrieving the next page should start after the last key on this page
@@ -652,7 +654,7 @@ mod tests {
             assert_eq!(1, page2.delegations.len());
             assert!(
                 page2.delegations[0].owner.as_str() == delegator1
-                    && page2.delegations[0].node_id == mix_id2
+                    && page2.delegations[0].mix_id == mix_id2
             );
 
             // save another one
@@ -665,11 +667,11 @@ mod tests {
             assert_eq!(2, page2.delegations.len());
             assert!(
                 page2.delegations[0].owner.as_str() == delegator1
-                    && page2.delegations[0].node_id == mix_id2
+                    && page2.delegations[0].mix_id == mix_id2
             );
             assert!(
                 page2.delegations[1].owner.as_str() == delegator2
-                    && page2.delegations[1].node_id == mix_id2
+                    && page2.delegations[1].mix_id == mix_id2
             );
         }
     }

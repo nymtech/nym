@@ -24,6 +24,7 @@ const defaultGatewayValues: GatewayData = {
 
 const defaultAmountValues = (denom: CurrencyDenom) => ({
   amount: { amount: '100', denom },
+  operatorCost: { amount: '40', denom },
   tokenPool: 'balance',
 });
 

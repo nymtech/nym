@@ -5,11 +5,11 @@ use crate::currency::{DecCoin, RegisteredCoins};
 use crate::error::TypesError;
 use crate::mixnode::MixNodeCostParams;
 use mixnet_contract_common::{
-    EpochEventId, IntervalEventId, IntervalRewardingParamsUpdate, NodeId,
+    BlockHeight, EpochEventId, IntervalEventId, IntervalRewardingParamsUpdate, MixId,
     PendingEpochEvent as MixnetContractPendingEpochEvent,
-    PendingEpochEventData as MixnetContractPendingEpochEventData,
+    PendingEpochEventKind as MixnetContractPendingEpochEventKind,
     PendingIntervalEvent as MixnetContractPendingIntervalEvent,
-    PendingIntervalEventData as MixnetContractPendingIntervalEventData,
+    PendingIntervalEventKind as MixnetContractPendingIntervalEventKind,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -22,6 +22,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub struct PendingEpochEvent {
     pub id: EpochEventId,
+    pub created_at: BlockHeight,
     pub event: PendingEpochEventData,
 }
 
@@ -32,7 +33,8 @@ impl PendingEpochEvent {
     ) -> Result<Self, TypesError> {
         Ok(PendingEpochEvent {
             id: pending_event.id,
-            event: PendingEpochEventData::try_from_mixnet_contract(pending_event.event, reg)?,
+            created_at: pending_event.event.created_at,
+            event: PendingEpochEventData::try_from_mixnet_contract(pending_event.event.kind, reg)?,
         })
     }
 }
@@ -46,17 +48,17 @@ impl PendingEpochEvent {
 pub enum PendingEpochEventData {
     Delegate {
         owner: String,
-        mix_id: NodeId,
+        mix_id: MixId,
         amount: DecCoin,
         proxy: Option<String>,
     },
     Undelegate {
         owner: String,
-        mix_id: NodeId,
+        mix_id: MixId,
         proxy: Option<String>,
     },
     UnbondMixnode {
-        mix_id: NodeId,
+        mix_id: MixId,
     },
     UpdateActiveSetSize {
         new_size: u32,
@@ -65,11 +67,11 @@ pub enum PendingEpochEventData {
 
 impl PendingEpochEventData {
     pub fn try_from_mixnet_contract(
-        pending_event: MixnetContractPendingEpochEventData,
+        pending_event: MixnetContractPendingEpochEventKind,
         reg: &RegisteredCoins,
     ) -> Result<Self, TypesError> {
         match pending_event {
-            MixnetContractPendingEpochEventData::Delegate {
+            MixnetContractPendingEpochEventKind::Delegate {
                 owner,
                 mix_id,
                 amount,
@@ -80,7 +82,7 @@ impl PendingEpochEventData {
                 amount: reg.attempt_convert_to_display_dec_coin(amount.into())?,
                 proxy: proxy.map(|p| p.into_string()),
             }),
-            MixnetContractPendingEpochEventData::Undelegate {
+            MixnetContractPendingEpochEventKind::Undelegate {
                 owner,
                 mix_id,
                 proxy,
@@ -89,10 +91,10 @@ impl PendingEpochEventData {
                 mix_id,
                 proxy: proxy.map(|p| p.into_string()),
             }),
-            MixnetContractPendingEpochEventData::UnbondMixnode { mix_id } => {
+            MixnetContractPendingEpochEventKind::UnbondMixnode { mix_id } => {
                 Ok(PendingEpochEventData::UnbondMixnode { mix_id })
             }
-            MixnetContractPendingEpochEventData::UpdateActiveSetSize { new_size } => {
+            MixnetContractPendingEpochEventKind::UpdateActiveSetSize { new_size } => {
                 Ok(PendingEpochEventData::UpdateActiveSetSize { new_size })
             }
         }
@@ -107,6 +109,7 @@ impl PendingEpochEventData {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub struct PendingIntervalEvent {
     pub id: IntervalEventId,
+    pub created_at: BlockHeight,
     pub event: PendingIntervalEventData,
 }
 
@@ -117,7 +120,11 @@ impl PendingIntervalEvent {
     ) -> Result<Self, TypesError> {
         Ok(PendingIntervalEvent {
             id: pending_event.id,
-            event: PendingIntervalEventData::try_from_mixnet_contract(pending_event.event, reg)?,
+            created_at: pending_event.event.created_at,
+            event: PendingIntervalEventData::try_from_mixnet_contract(
+                pending_event.event.kind,
+                reg,
+            )?,
         })
     }
 }
@@ -130,7 +137,7 @@ impl PendingIntervalEvent {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub enum PendingIntervalEventData {
     ChangeMixCostParams {
-        mix_id: NodeId,
+        mix_id: MixId,
         new_costs: MixNodeCostParams,
     },
 
@@ -145,11 +152,11 @@ pub enum PendingIntervalEventData {
 
 impl PendingIntervalEventData {
     pub fn try_from_mixnet_contract(
-        pending_event: MixnetContractPendingIntervalEventData,
+        pending_event: MixnetContractPendingIntervalEventKind,
         reg: &RegisteredCoins,
     ) -> Result<Self, TypesError> {
         match pending_event {
-            MixnetContractPendingIntervalEventData::ChangeMixCostParams { mix_id, new_costs } => {
+            MixnetContractPendingIntervalEventKind::ChangeMixCostParams { mix_id, new_costs } => {
                 Ok(PendingIntervalEventData::ChangeMixCostParams {
                     mix_id,
                     new_costs: MixNodeCostParams::from_mixnet_contract_mixnode_cost_params(
@@ -157,10 +164,10 @@ impl PendingIntervalEventData {
                     )?,
                 })
             }
-            MixnetContractPendingIntervalEventData::UpdateRewardingParams { update } => {
+            MixnetContractPendingIntervalEventKind::UpdateRewardingParams { update } => {
                 Ok(PendingIntervalEventData::UpdateRewardingParams { update })
             }
-            MixnetContractPendingIntervalEventData::UpdateIntervalConfig {
+            MixnetContractPendingIntervalEventKind::UpdateIntervalConfig {
                 epochs_in_interval,
                 epoch_duration_secs,
             } => Ok(PendingIntervalEventData::UpdateIntervalConfig {

@@ -3,10 +3,12 @@
 ### Added
 
 - vesting-contract: added queries for delegation timestamps and paged query for all vesting delegations in the contract ([#1569])
+- all binaries: added shell completion and [Fig](fig.io) spec generation ([#1638])
 
 ### Changed
 
 - mixnet-contract: compounding delegator rewards now happens instantaneously as opposed to having to wait for the current epoch to finish ([#1571])
+- network-requester: updated CLI to use `clap` macros ([#1638])
 
 ### Fixed
 
@@ -18,6 +20,7 @@
 [#1569]: https://github.com/nymtech/nym/pull/1569
 [#1569]: https://github.com/nymtech/nym/pull/1571
 [#1613]: https://github.com/nymtech/nym/pull/1613
+[#1638]: https://github.com/nymtech/nym/pull/1638
 
 ## [nym-contracts-v1.0.1](https://github.com/nymtech/nym/tree/nym-contracts-v1.0.1) (2022-06-22)
 

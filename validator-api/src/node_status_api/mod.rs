@@ -7,7 +7,6 @@ use rocket::Route;
 use rocket_okapi::{openapi_get_routes_spec, settings::OpenApiSettings};
 use std::time::Duration;
 pub(crate) mod cache;
-pub(crate) mod deprecated_routes;
 pub(crate) mod helpers;
 pub(crate) mod local_guard;
 pub(crate) mod models;
@@ -38,19 +37,6 @@ pub(crate) fn node_status_routes(
             routes::get_mixnode_inclusion_probability,
             routes::get_mixnode_avg_uptime,
             routes::get_mixnode_inclusion_probabilities,
-            // =================================================
-            // TO REMOVE ONCE OTHER PARTS OF THE SYSTEM MIGRATED
-            // =================================================
-            deprecated_routes::mixnode_report_by_identity,
-            deprecated_routes::mixnode_uptime_history_by_identity,
-            deprecated_routes::mixnode_core_status_count_by_identity,
-            deprecated_routes::get_mixnode_status_by_identity,
-            deprecated_routes::get_mixnode_reward_estimation_by_identity,
-            deprecated_routes::compute_mixnode_reward_estimation_by_identity,
-            deprecated_routes::get_mixnode_stake_saturation_by_identity,
-            deprecated_routes::get_mixnode_inclusion_probability_by_identity,
-            deprecated_routes::get_mixnode_avg_uptime_by_identity,
-            deprecated_routes::get_mixnode_avg_uptimes_by_identity,
         ]
     } else {
         // in the minimal variant we would not have access to endpoints relying on existence
@@ -60,12 +46,6 @@ pub(crate) fn node_status_routes(
             routes::get_mixnode_stake_saturation,
             routes::get_mixnode_inclusion_probability,
             routes::get_mixnode_inclusion_probabilities,
-            // =================================================
-            // TO REMOVE ONCE OTHER PARTS OF THE SYSTEM MIGRATED
-            // =================================================
-            deprecated_routes::get_mixnode_status_by_identity,
-            deprecated_routes::get_mixnode_stake_saturation_by_identity,
-            deprecated_routes::get_mixnode_inclusion_probability_by_identity,
         ]
     }
 }

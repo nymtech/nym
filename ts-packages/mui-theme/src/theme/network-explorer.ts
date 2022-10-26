@@ -1,4 +1,4 @@
-import { PaletteMode } from '@mui/material';
+import { Color, PaletteMode } from '@mui/material';
 import { createTheme, ThemeOptions } from '@mui/material/styles';
 import { darkMode, nymPalette, NymPaletteVariant } from './common';
 import { createDarkModePalette, createLightModePalette } from './theme';
@@ -49,6 +49,11 @@ export interface NetworkExplorerPalette {
       background: string;
       color: string;
     };
+    scroll: {
+      backgroud: string;
+      color: string;
+      border: string;
+    }
   };
 }
 
@@ -101,6 +106,11 @@ export const networkExplorerPalette = (variant: NymPaletteVariant): NetworkExplo
     tooltip: {
       background: '#A0AED1',
       color: '#111826',
+    },
+    scroll: {
+      backgroud: variant.mode === 'light' ? '#FAFAFA' : '#C7C9CD',
+      color: variant.mode === 'light' ? '#7D7D7D' : '#636466',
+      border: variant.mode === 'light' ? '#DFDEDE' : '#DDDDDD',
     }
   },
 });

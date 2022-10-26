@@ -23,16 +23,21 @@ Nym signature verification example
 
 
 public key: {"@type":"/cosmos.crypto.secp256k1.PubKey","key":"A4FdhUMasPmNhRZjtpKlmjNbq7EEUgPxfdI+E3vSajvc"}
+account id: n1lntkptzz8grf2w4yht4szxktzwsucgv4s7vv9g
 signature:  E3AA5AC0DA1B7DEBB7808000F719D8ACB9A0BE10AFA2756A788516268EB246A1257EC1097C5E364EF916145B01641DEDFE955994CB340BDAFA99A65BCA3F6F28
 message:    test 1234
 
 
 Verify the correct message:
-
 SUCCESS ✅ signature is valid
 
 
-Verify another message:
+Verify the correct message with the wrong address:
+FAILURE ❌ signature is not valid: account id does not match
 
-FAILURE ❌ signature is not valid: signature error
+Verify the correct message with the wrong account and public key:
+FAILURE ❌ signature is not valid: account id does not match
+
+Verify another message:
+FAILURE ❌ signature is not valid: signature error - signature error
 ```

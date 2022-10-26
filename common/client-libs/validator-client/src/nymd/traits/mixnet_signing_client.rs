@@ -11,7 +11,7 @@ use cosmrs::AccountId;
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use mixnet_contract_common::reward_params::{IntervalRewardingParamsUpdate, Performance};
 use mixnet_contract_common::{
-    ContractStateParams, ExecuteMsg as MixnetExecuteMsg, Gateway, MixNode, NodeId,
+    ContractStateParams, ExecuteMsg as MixnetExecuteMsg, Gateway, MixId, MixNode,
 };
 
 #[async_trait]
@@ -108,7 +108,7 @@ pub trait MixnetSigningClient {
 
     async fn advance_current_epoch(
         &self,
-        new_rewarded_set: Vec<NodeId>,
+        new_rewarded_set: Vec<MixId>,
         expected_active_set_size: u32,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError> {
@@ -324,7 +324,7 @@ pub trait MixnetSigningClient {
 
     async fn delegate_to_mixnode(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
         amount: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError> {
@@ -339,7 +339,7 @@ pub trait MixnetSigningClient {
     async fn delegate_to_mixnode_on_behalf(
         &self,
         delegate: AccountId,
-        mix_id: NodeId,
+        mix_id: MixId,
         amount: Coin,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError> {
@@ -356,7 +356,7 @@ pub trait MixnetSigningClient {
 
     async fn undelegate_from_mixnode(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError> {
         self.execute_mixnet_contract(
@@ -370,7 +370,7 @@ pub trait MixnetSigningClient {
     async fn undelegate_to_mixnode_on_behalf(
         &self,
         delegate: AccountId,
-        mix_id: NodeId,
+        mix_id: MixId,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError> {
         self.execute_mixnet_contract(
@@ -388,7 +388,7 @@ pub trait MixnetSigningClient {
 
     async fn reward_mixnode(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
         performance: Performance,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError> {
@@ -425,7 +425,7 @@ pub trait MixnetSigningClient {
 
     async fn withdraw_delegator_reward(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError> {
         self.execute_mixnet_contract(
@@ -439,7 +439,7 @@ pub trait MixnetSigningClient {
     async fn withdraw_delegator_reward_on_behalf(
         &self,
         owner: AccountId,
-        mix_id: NodeId,
+        mix_id: MixId,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError> {
         self.execute_mixnet_contract(

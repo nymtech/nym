@@ -1,7 +1,7 @@
 use crate::error::BackendError;
 use crate::state::WalletState;
 use crate::vesting::rewards::vesting_claim_delegator_reward;
-use mixnet_contract_common::NodeId;
+use mixnet_contract_common::MixId;
 use nym_types::transaction::TransactionExecuteResult;
 use validator_client::nymd::traits::{MixnetQueryClient, MixnetSigningClient};
 use validator_client::nymd::Fee;
@@ -29,7 +29,7 @@ pub async fn claim_operator_reward(
 
 #[tauri::command]
 pub async fn claim_delegator_reward(
-    mix_id: NodeId,
+    mix_id: MixId,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
@@ -50,7 +50,7 @@ pub async fn claim_delegator_reward(
 
 #[tauri::command]
 pub async fn claim_locked_and_unlocked_delegator_reward(
-    mix_id: NodeId,
+    mix_id: MixId,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<Vec<TransactionExecuteResult>, BackendError> {

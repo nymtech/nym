@@ -4,7 +4,7 @@
 use crate::cache::Cache;
 use crate::mix_nodes::location::Location;
 use mixnet_contract_common::Delegation;
-use mixnet_contract_common::{Addr, Coin, Layer, MixNode, NodeId};
+use mixnet_contract_common::{Addr, Coin, Layer, MixId, MixNode};
 use serde::Deserialize;
 use serde::Serialize;
 use std::sync::Arc;
@@ -40,7 +40,7 @@ pub(crate) struct PrettyDetailedMixNodeBond {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 pub struct SummedDelegations {
     pub owner: Addr,
-    pub mix_id: NodeId,
+    pub mix_id: MixId,
     pub amount: Coin,
 }
 
@@ -66,9 +66,9 @@ impl SummedDelegations {
 }
 
 pub(crate) struct MixNodeCache {
-    pub(crate) descriptions: Cache<NodeId, NodeDescription>,
-    pub(crate) node_stats: Cache<NodeId, NodeStats>,
-    pub(crate) econ_stats: Cache<NodeId, EconomicDynamicsStats>,
+    pub(crate) descriptions: Cache<MixId, NodeDescription>,
+    pub(crate) node_stats: Cache<MixId, NodeStats>,
+    pub(crate) econ_stats: Cache<MixId, EconomicDynamicsStats>,
 }
 
 #[derive(Clone)]
@@ -87,19 +87,19 @@ impl ThreadsafeMixNodeCache {
         }
     }
 
-    pub(crate) async fn get_description(&self, mix_id: NodeId) -> Option<NodeDescription> {
+    pub(crate) async fn get_description(&self, mix_id: MixId) -> Option<NodeDescription> {
         self.inner.read().await.descriptions.get(&mix_id)
     }
 
-    pub(crate) async fn get_node_stats(&self, mix_id: NodeId) -> Option<NodeStats> {
+    pub(crate) async fn get_node_stats(&self, mix_id: MixId) -> Option<NodeStats> {
         self.inner.read().await.node_stats.get(&mix_id)
     }
 
-    pub(crate) async fn get_econ_stats(&self, mix_id: NodeId) -> Option<EconomicDynamicsStats> {
+    pub(crate) async fn get_econ_stats(&self, mix_id: MixId) -> Option<EconomicDynamicsStats> {
         self.inner.read().await.econ_stats.get(&mix_id)
     }
 
-    pub(crate) async fn set_description(&self, mix_id: NodeId, description: NodeDescription) {
+    pub(crate) async fn set_description(&self, mix_id: MixId, description: NodeDescription) {
         self.inner
             .write()
             .await
@@ -107,11 +107,11 @@ impl ThreadsafeMixNodeCache {
             .set(mix_id, description);
     }
 
-    pub(crate) async fn set_node_stats(&self, mix_id: NodeId, node_stats: NodeStats) {
+    pub(crate) async fn set_node_stats(&self, mix_id: MixId, node_stats: NodeStats) {
         self.inner.write().await.node_stats.set(mix_id, node_stats);
     }
 
-    pub(crate) async fn set_econ_stats(&self, mix_id: NodeId, econ_stats: EconomicDynamicsStats) {
+    pub(crate) async fn set_econ_stats(&self, mix_id: MixId, econ_stats: EconomicDynamicsStats) {
         self.inner.write().await.econ_stats.set(mix_id, econ_stats);
     }
 }
@@ -172,11 +172,11 @@ fn get_common_owner(delegations: &[Delegation]) -> Option<Addr> {
     Some(owner)
 }
 
-fn get_common_mix_id(delegations: &[Delegation]) -> Option<NodeId> {
-    let mix_id = delegations.iter().next()?.node_id;
+fn get_common_mix_id(delegations: &[Delegation]) -> Option<MixId> {
+    let mix_id = delegations.iter().next()?.mix_id;
     if delegations
         .iter()
-        .any(|delegation| delegation.node_id != mix_id)
+        .any(|delegation| delegation.mix_id != mix_id)
     {
         log::warn!("Unexpected different node identities when summing delegations");
         return None;

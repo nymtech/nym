@@ -4,7 +4,7 @@
 use crate::validator_api::error::ValidatorAPIError;
 use crate::validator_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
 use mixnet_contract_common::mixnode::MixNodeDetails;
-use mixnet_contract_common::{GatewayBond, IdentityKeyRef, NodeId};
+use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use serde::{Deserialize, Serialize};
 use url::Url;
 use validator_api_requests::coconut::{
@@ -12,11 +12,10 @@ use validator_api_requests::coconut::{
     VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_api_requests::models::{
-    DeprecatedRewardEstimationResponse, DeprecatedUptimeResponse, GatewayCoreStatusResponse,
-    InclusionProbabilityResponse, MixNodeBondAnnotated, MixnodeCoreStatusResponse,
-    MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    GatewayCoreStatusResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,
+    MixnodeCoreStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
+    StakeSaturationResponse, UptimeResponse,
 };
-use validator_api_requests::Deprecated;
 
 pub mod error;
 pub mod routes;
@@ -59,7 +58,6 @@ impl Client {
         V: AsRef<str>,
     {
         let url = create_api_url(&self.url, path, params);
-        log::trace!("url: {:?}", url.as_str());
         Ok(self.reqwest_client.get(url).send().await?.json().await?)
     }
 
@@ -185,7 +183,7 @@ impl Client {
 
     pub async fn get_mixnode_core_status_count(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
         since: Option<i64>,
     ) -> Result<MixnodeCoreStatusResponse, ValidatorAPIError> {
         if let Some(since) = since {
@@ -217,7 +215,7 @@ impl Client {
 
     pub async fn get_mixnode_status(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<MixnodeStatusResponse, ValidatorAPIError> {
         self.query_validator_api(
             &[
@@ -234,7 +232,7 @@ impl Client {
 
     pub async fn get_mixnode_reward_estimation(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<RewardEstimationResponse, ValidatorAPIError> {
         self.query_validator_api(
             &[
@@ -251,7 +249,7 @@ impl Client {
 
     pub async fn get_mixnode_stake_saturation(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<StakeSaturationResponse, ValidatorAPIError> {
         self.query_validator_api(
             &[
@@ -268,7 +266,7 @@ impl Client {
 
     pub async fn get_mixnode_inclusion_probability(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<InclusionProbabilityResponse, ValidatorAPIError> {
         self.query_validator_api(
             &[
@@ -285,7 +283,7 @@ impl Client {
 
     pub async fn get_mixnode_avg_uptime(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<UptimeResponse, ValidatorAPIError> {
         self.query_validator_api(
             &[
@@ -375,151 +373,6 @@ impl Client {
             ],
             NO_PARAMS,
             request_body,
-        )
-        .await
-    }
-
-    // =================================================
-    // DEPRECATED ROUTES
-    // TO REMOVE ONCE OTHER PARTS OF THE SYSTEM MIGRATED
-    // =================================================
-
-    pub async fn deprecated_get_mixnode_core_status_count_by_identity(
-        &self,
-        identity: IdentityKeyRef<'_>,
-        since: Option<i64>,
-    ) -> Result<Deprecated<MixnodeCoreStatusResponse>, ValidatorAPIError> {
-        if let Some(since) = since {
-            self.query_validator_api(
-                &[
-                    routes::API_VERSION,
-                    routes::STATUS_ROUTES,
-                    routes::MIXNODE,
-                    routes::DEPRECATED,
-                    identity,
-                    CORE_STATUS_COUNT,
-                ],
-                &[(SINCE_ARG, since.to_string())],
-            )
-            .await
-        } else {
-            self.query_validator_api(
-                &[
-                    routes::API_VERSION,
-                    routes::STATUS_ROUTES,
-                    routes::MIXNODE,
-                    routes::DEPRECATED,
-                    identity,
-                    CORE_STATUS_COUNT,
-                ],
-                NO_PARAMS,
-            )
-            .await
-        }
-    }
-
-    pub async fn deprecated_get_mixnode_status_by_identity(
-        &self,
-        identity: IdentityKeyRef<'_>,
-    ) -> Result<Deprecated<MixnodeStatusResponse>, ValidatorAPIError> {
-        self.query_validator_api(
-            &[
-                routes::API_VERSION,
-                routes::STATUS_ROUTES,
-                routes::MIXNODE,
-                routes::DEPRECATED,
-                identity,
-                routes::STATUS,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    pub async fn deprecated_get_mixnode_reward_estimation_by_identity(
-        &self,
-        identity: IdentityKeyRef<'_>,
-    ) -> Result<DeprecatedRewardEstimationResponse, ValidatorAPIError> {
-        self.query_validator_api(
-            &[
-                routes::API_VERSION,
-                routes::STATUS_ROUTES,
-                routes::MIXNODE,
-                routes::DEPRECATED,
-                identity,
-                routes::REWARD_ESTIMATION,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    pub async fn deprecated_get_mixnode_stake_saturation_by_identity(
-        &self,
-        identity: IdentityKeyRef<'_>,
-    ) -> Result<Deprecated<StakeSaturationResponse>, ValidatorAPIError> {
-        self.query_validator_api(
-            &[
-                routes::API_VERSION,
-                routes::STATUS_ROUTES,
-                routes::MIXNODE,
-                routes::DEPRECATED,
-                identity,
-                routes::STAKE_SATURATION,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    pub async fn deprecated_get_mixnode_inclusion_probability_by_identity(
-        &self,
-        identity: IdentityKeyRef<'_>,
-    ) -> Result<Deprecated<InclusionProbabilityResponse>, ValidatorAPIError> {
-        self.query_validator_api(
-            &[
-                routes::API_VERSION,
-                routes::STATUS_ROUTES,
-                routes::MIXNODE,
-                routes::DEPRECATED,
-                identity,
-                routes::INCLUSION_CHANCE,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    pub async fn deprecated_get_mixnode_avg_uptime_by_identity(
-        &self,
-        identity: IdentityKeyRef<'_>,
-    ) -> Result<DeprecatedUptimeResponse, ValidatorAPIError> {
-        self.query_validator_api(
-            &[
-                routes::API_VERSION,
-                routes::STATUS_ROUTES,
-                routes::MIXNODE,
-                routes::DEPRECATED,
-                identity,
-                routes::AVG_UPTIME,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    pub async fn deprecated_get_mixnode_avg_uptimes_by_identity(
-        &self,
-    ) -> Result<Vec<DeprecatedUptimeResponse>, ValidatorAPIError> {
-        self.query_validator_api(
-            &[
-                routes::API_VERSION,
-                routes::STATUS_ROUTES,
-                routes::MIXNODES,
-                routes::DEPRECATED,
-                routes::AVG_UPTIME,
-            ],
-            NO_PARAMS,
         )
         .await
     }

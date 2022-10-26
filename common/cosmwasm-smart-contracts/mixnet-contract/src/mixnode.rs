@@ -9,7 +9,7 @@ use crate::error::MixnetContractError;
 use crate::reward_params::{NodeRewardParams, RewardingParams};
 use crate::rewarding::helpers::truncate_reward;
 use crate::rewarding::RewardDistribution;
-use crate::{Delegation, EpochId, IdentityKey, NodeId, Percent, SphinxKey};
+use crate::{Delegation, EpochId, IdentityKey, MixId, Percent, SphinxKey};
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -47,8 +47,8 @@ impl MixNodeDetails {
         }
     }
 
-    pub fn mix_id(&self) -> NodeId {
-        self.bond_information.id
+    pub fn mix_id(&self) -> MixId {
+        self.bond_information.mix_id
     }
 
     pub fn is_unbonding(&self) -> bool {
@@ -78,34 +78,27 @@ impl MixNodeDetails {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeRewarding {
     /// Information provided by the operator that influence the cost function.    
-    #[serde(rename = "cp")]
     pub cost_params: MixNodeCostParams,
 
     /// Total pledge and compounded reward earned by the node operator.
-    #[serde(rename = "op")]
     pub operator: Decimal,
 
     /// Total delegation and compounded reward earned by all node delegators.
-    #[serde(rename = "dg")]
     pub delegates: Decimal,
 
     /// Cumulative reward earned by the "unit delegation" since the block 0.
-    #[serde(rename = "tur")]
     pub total_unit_reward: Decimal,
 
     /// Value of the theoretical "unit delegation" that has delegated to this mixnode at block 0.
-    #[serde(rename = "ud")]
     pub unit_delegation: Decimal,
 
     /// Marks the epoch when this node was last rewarded so that we wouldn't accidentally attempt
     /// to reward it multiple times in the same epoch.
-    #[serde(rename = "le")]
     pub last_rewarded_epoch: EpochId,
 
     // technically we don't need that field to determine reward magnitude or anything
     // but it saves on extra queries to determine if we're removing the final delegation
     // (so that we could zero the field correctly)
-    #[serde(rename = "uqd")]
     pub unique_delegations: u32,
 }
 
@@ -311,7 +304,7 @@ impl MixNodeRewarding {
     pub fn determine_delegation_reward(&self, delegation: &Delegation) -> Decimal {
         let starting_ratio = delegation.cumulative_reward_ratio;
         let ending_ratio = self.full_reward_ratio();
-        let adjust = starting_ratio + UNIT_DELEGATION_BASE;
+        let adjust = starting_ratio + self.unit_delegation;
 
         (ending_ratio - starting_ratio) * delegation.dec_amount() / adjust
     }
@@ -428,7 +421,7 @@ impl MixNodeRewarding {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeBond {
     /// Unique id assigned to the bonded mixnode.
-    pub id: NodeId,
+    pub mix_id: MixId,
 
     /// Address of the owner of this mixnode.
     pub owner: Addr,
@@ -456,7 +449,7 @@ pub struct MixNodeBond {
 
 impl MixNodeBond {
     pub fn new(
-        id: NodeId,
+        mix_id: MixId,
         owner: Addr,
         original_pledge: Coin,
         layer: Layer,
@@ -465,7 +458,7 @@ impl MixNodeBond {
         bonding_height: u64,
     ) -> Self {
         MixNodeBond {
-            id,
+            mix_id,
             owner,
             original_pledge,
             layer,
@@ -580,6 +573,7 @@ pub struct UnbondedMixnode {
     #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
     pub proxy: Option<Addr>,
 
+    #[cfg_attr(feature = "generate-ts", ts(type = "number"))]
     pub unbonding_height: u64,
 }
 
@@ -607,11 +601,11 @@ impl MixNodeConfigUpdate {
 pub struct PagedMixnodeBondsResponse {
     pub nodes: Vec<MixNodeBond>,
     pub per_page: usize,
-    pub start_next_after: Option<NodeId>,
+    pub start_next_after: Option<MixId>,
 }
 
 impl PagedMixnodeBondsResponse {
-    pub fn new(nodes: Vec<MixNodeBond>, per_page: usize, start_next_after: Option<NodeId>) -> Self {
+    pub fn new(nodes: Vec<MixNodeBond>, per_page: usize, start_next_after: Option<MixId>) -> Self {
         PagedMixnodeBondsResponse {
             nodes,
             per_page,
@@ -624,14 +618,14 @@ impl PagedMixnodeBondsResponse {
 pub struct PagedMixnodesDetailsResponse {
     pub nodes: Vec<MixNodeDetails>,
     pub per_page: usize,
-    pub start_next_after: Option<NodeId>,
+    pub start_next_after: Option<MixId>,
 }
 
 impl PagedMixnodesDetailsResponse {
     pub fn new(
         nodes: Vec<MixNodeDetails>,
         per_page: usize,
-        start_next_after: Option<NodeId>,
+        start_next_after: Option<MixId>,
     ) -> Self {
         PagedMixnodesDetailsResponse {
             nodes,
@@ -643,16 +637,16 @@ impl PagedMixnodesDetailsResponse {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct PagedUnbondedMixnodesResponse {
-    pub nodes: Vec<(NodeId, UnbondedMixnode)>,
+    pub nodes: Vec<(MixId, UnbondedMixnode)>,
     pub per_page: usize,
-    pub start_next_after: Option<NodeId>,
+    pub start_next_after: Option<MixId>,
 }
 
 impl PagedUnbondedMixnodesResponse {
     pub fn new(
-        nodes: Vec<(NodeId, UnbondedMixnode)>,
+        nodes: Vec<(MixId, UnbondedMixnode)>,
         per_page: usize,
-        start_next_after: Option<NodeId>,
+        start_next_after: Option<MixId>,
     ) -> Self {
         PagedUnbondedMixnodesResponse {
             nodes,
@@ -670,25 +664,25 @@ pub struct MixOwnershipResponse {
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixnodeDetailsResponse {
-    pub mix_id: NodeId,
+    pub mix_id: MixId,
     pub mixnode_details: Option<MixNodeDetails>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixnodeRewardingDetailsResponse {
-    pub mix_id: NodeId,
+    pub mix_id: MixId,
     pub rewarding_details: Option<MixNodeRewarding>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct UnbondedMixnodeResponse {
-    pub mix_id: NodeId,
+    pub mix_id: MixId,
     pub unbonded_info: Option<UnbondedMixnode>,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct StakeSaturationResponse {
-    pub mix_id: NodeId,
+    pub mix_id: MixId,
     pub current_saturation: Option<Decimal>,
     pub uncapped_saturation: Option<Decimal>,
 }

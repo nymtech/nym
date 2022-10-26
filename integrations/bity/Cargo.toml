@@ -1,0 +1,22 @@
+[package]
+name = "nym-bity-integration"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.56"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1.0"
+k256 = { version = "0.10", features = ["ecdsa", "sha256"] }
+eyre = "0.6.5"
+
+cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support" }
+
+nym-cli-commands = { path = "../../common/commands" }
+validator-client = { path = "../../common/client-libs/validator-client", features = [
+    "nymd-client",
+] }
+
+[dev-dependencies]
+anyhow = "1"

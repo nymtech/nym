@@ -152,7 +152,9 @@ pub(crate) fn ensure_proxy_match(
 
 pub(crate) fn ensure_bonded(bond: &MixNodeBond) -> Result<(), MixnetContractError> {
     if bond.is_unbonding {
-        return Err(MixnetContractError::MixnodeIsUnbonding { node_id: bond.id });
+        return Err(MixnetContractError::MixnodeIsUnbonding {
+            mix_id: bond.mix_id,
+        });
     }
     Ok(())
 }

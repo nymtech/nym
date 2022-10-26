@@ -11,7 +11,10 @@ export const ErrorModal: React.FC<{
   onClose: () => void;
 }> = ({ children, open, title, message, sx, backdropProps, onClose }) => (
   <Modal open={open} onClose={onClose} BackdropProps={backdropProps}>
-    <Box sx={{ ...modalStyle, ...sx }} textAlign="center">
+    <Box
+      sx={{ border: (t) => `1px solid ${t.palette.nym.nymWallet.modal.border}`, ...modalStyle, ...sx }}
+      textAlign="center"
+    >
       <Typography color={(theme) => theme.palette.error.main} mb={1}>
         {title || 'Oh no! Something went wrong...'}
       </Typography>

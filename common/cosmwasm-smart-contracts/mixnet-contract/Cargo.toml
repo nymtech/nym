@@ -16,6 +16,7 @@ schemars = "0.8"
 thiserror = "1.0"
 contracts-common = { path = "../contracts-common" }
 serde_json = "1.0.0"
+humantime-serde = "1.1.1"
 
 # TO CHECK WHETHER STILL NEEDED:
 log = "0.4.14"
@@ -28,4 +29,5 @@ time = { version = "0.3.5", features = ["serde", "macros"] }
 
 [features]
 default = []
+contract-testing = []
 generate-ts = ['ts-rs']

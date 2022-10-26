@@ -5,11 +5,11 @@ import { EconomicsInfoRowWithIndex } from './types';
 
 const selectionChance = (economicDynamicsStats: ApiState<MixNodeEconomicDynamicsStatsResponse> | undefined) => {
   const inclusionProbability = economicDynamicsStats?.data?.active_set_inclusion_probability;
+  // TODO: when v2 will be deployed, remove cases: VeryHigh, Moderate and VeryLow
   switch (inclusionProbability) {
     case 'High':
     case 'Good':
     case 'Low':
-      return inclusionProbability;
     default:
       return '-';
   }

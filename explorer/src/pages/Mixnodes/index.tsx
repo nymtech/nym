@@ -82,29 +82,11 @@ export const PageMixnodes: React.FC = () => {
 
   const columns: GridColDef[] = [
     {
-      field: 'owner',
-      headerName: 'Owner',
-      renderHeader: () => <CustomColumnHeading headingTitle="Owner" />,
-      width: 200,
-      headerAlign: 'left',
-      headerClassName: 'MuiDataGrid-header-override',
-      renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          href={`${BIG_DIPPER}/account/${params.value}`}
-          target="_blank"
-          sx={getCellStyles(theme, params.row)}
-          data-testid="big-dipper-link"
-        >
-          {splice(7, 29, params.value)}
-        </MuiLink>
-      ),
-    },
-    {
       field: 'identity_key',
       headerName: 'Identity Key',
       renderHeader: () => <CustomColumnHeading headingTitle="Identity Key" />,
       headerClassName: 'MuiDataGrid-header-override',
-      width: 180,
+      width: 170,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <>
@@ -125,48 +107,12 @@ export const PageMixnodes: React.FC = () => {
       ),
     },
     {
-      field: 'location',
-      headerName: 'Location',
-      renderHeader: () => <CustomColumnHeading headingTitle="Location" />,
-      width: 150,
-      headerAlign: 'left',
-      headerClassName: 'MuiDataGrid-header-override',
-      renderCell: (params: GridRenderCellParams) => (
-        <Button
-          onClick={() => handleSearch(params.value as string)}
-          sx={{
-            ...getCellStyles(theme, params.row),
-            justifyContent: 'flex-start',
-          }}
-        >
-          {params.value}
-        </Button>
-      ),
-    },
-    {
-      field: 'host',
-      headerName: 'Host',
-      renderHeader: () => <CustomColumnHeading headingTitle="Host" />,
-      headerClassName: 'MuiDataGrid-header-override',
-      width: 130,
-      headerAlign: 'left',
-      renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={getCellStyles(theme, params.row)}
-          component={RRDLink}
-          to={`/network-components/mixnode/${params.row.identity_key}`}
-        >
-          {params.value}
-        </MuiLink>
-      ),
-    },
-    {
       field: 'bond',
       headerName: 'Stake',
       renderHeader: () => <CustomColumnHeading headingTitle="Stake" />,
       type: 'number',
       headerClassName: 'MuiDataGrid-header-override',
-      width: 200,
+      width: 170,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
@@ -206,7 +152,7 @@ export const PageMixnodes: React.FC = () => {
     {
       field: 'pledge_amount',
       headerName: 'Bond',
-      width: 200,
+      width: 175,
       headerClassName: 'MuiDataGrid-header-override',
       renderHeader: () => <CustomColumnHeading headingTitle="Bond" tooltipInfo="Node operator's share of stake." />,
       type: 'number',
@@ -258,6 +204,60 @@ export const PageMixnodes: React.FC = () => {
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
           sx={{ ...getCellStyles(theme, params.row), textAlign: 'left' }}
+          component={RRDLink}
+          to={`/network-components/mixnode/${params.row.identity_key}`}
+        >
+          {params.value}
+        </MuiLink>
+      ),
+    },
+    {
+      field: 'owner',
+      headerName: 'Owner',
+      renderHeader: () => <CustomColumnHeading headingTitle="Owner" />,
+      width: 120,
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          href={`${BIG_DIPPER}/account/${params.value}`}
+          target="_blank"
+          sx={getCellStyles(theme, params.row)}
+          data-testid="big-dipper-link"
+        >
+          {splice(7, 29, params.value)}
+        </MuiLink>
+      ),
+    },
+    {
+      field: 'location',
+      headerName: 'Location',
+      renderHeader: () => <CustomColumnHeading headingTitle="Location" />,
+      width: 120,
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      renderCell: (params: GridRenderCellParams) => (
+        <Button
+          onClick={() => handleSearch(params.value as string)}
+          sx={{
+            ...getCellStyles(theme, params.row),
+            justifyContent: 'flex-start',
+          }}
+        >
+          {params.value}
+        </Button>
+      ),
+    },
+    {
+      field: 'host',
+      headerName: 'Host',
+      renderHeader: () => <CustomColumnHeading headingTitle="Host" />,
+      headerClassName: 'MuiDataGrid-header-override',
+      width: 130,
+      headerAlign: 'left',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={getCellStyles(theme, params.row)}
           component={RRDLink}
           to={`/network-components/mixnode/${params.row.identity_key}`}
         >

@@ -3,7 +3,7 @@
 
 use clap::Parser;
 use log::info;
-use mixnet_contract_common::NodeId;
+use mixnet_contract_common::MixId;
 use validator_client::nymd::traits::MixnetQueryClient;
 use validator_client::nymd::VestingSigningClient;
 
@@ -12,7 +12,7 @@ use crate::context::SigningClient;
 #[derive(Debug, Parser)]
 pub struct Args {
     #[clap(long)]
-    pub mix_id: Option<NodeId>,
+    pub mix_id: Option<MixId>,
 
     #[clap(long)]
     pub identity_key: Option<String>,

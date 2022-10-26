@@ -13,7 +13,7 @@ use mixnet_contract_common::rewarding::helpers::truncate_reward;
 use mixnet_contract_common::rewarding::{
     EstimatedCurrentEpochRewardResponse, PendingRewardResponse,
 };
-use mixnet_contract_common::{Delegation, NodeId};
+use mixnet_contract_common::{Delegation, MixId};
 
 pub(crate) fn query_rewarding_params(deps: Deps<'_>) -> StdResult<RewardingParams> {
     storage::REWARDING_PARAMS.load(deps.storage)
@@ -44,7 +44,7 @@ pub fn query_pending_operator_reward(
 
 pub fn query_pending_mixnode_operator_reward(
     deps: Deps,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> StdResult<PendingRewardResponse> {
     // in order to determine operator's reward we need to know its original pledge and thus
     // we have to load the entire thing
@@ -55,7 +55,7 @@ pub fn query_pending_mixnode_operator_reward(
 pub fn query_pending_delegator_reward(
     deps: Deps,
     owner: String,
-    mix_id: NodeId,
+    mix_id: MixId,
     proxy: Option<String>,
 ) -> StdResult<PendingRewardResponse> {
     let owner_address = deps.api.addr_validate(&owner)?;
@@ -103,7 +103,7 @@ fn zero_reward(
 
 pub(crate) fn query_estimated_current_epoch_operator_reward(
     deps: Deps<'_>,
-    mix_id: NodeId,
+    mix_id: MixId,
     estimated_performance: Performance,
 ) -> StdResult<EstimatedCurrentEpochRewardResponse> {
     let mix_details = match mixnodes::helpers::get_mixnode_details_by_id(deps.storage, mix_id)? {
@@ -157,7 +157,7 @@ pub(crate) fn query_estimated_current_epoch_operator_reward(
 pub(crate) fn query_estimated_current_epoch_delegator_reward(
     deps: Deps<'_>,
     owner: String,
-    mix_id: NodeId,
+    mix_id: MixId,
     proxy: Option<String>,
     estimated_performance: Performance,
 ) -> StdResult<EstimatedCurrentEpochRewardResponse> {
@@ -345,7 +345,8 @@ mod tests {
             total_earned += dist.operator;
 
             let sender = mock_info(owner, &[]);
-            try_remove_mixnode(test.deps_mut(), sender).unwrap();
+            let env = test.env();
+            try_remove_mixnode(test.deps_mut(), env, sender).unwrap();
 
             let res = query_pending_operator_reward(test.deps(), owner.into()).unwrap();
             let res2 = query_pending_mixnode_operator_reward(test.deps(), mix_id).unwrap();
@@ -371,7 +372,8 @@ mod tests {
             test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
 
             let sender = mock_info(owner, &[]);
-            try_remove_mixnode(test.deps_mut(), sender).unwrap();
+            let env = test.env();
+            try_remove_mixnode(test.deps_mut(), env, sender).unwrap();
             test.execute_all_pending_events();
 
             let res = query_pending_operator_reward(test.deps(), owner.into()).unwrap();
@@ -493,7 +495,8 @@ mod tests {
             total_earned += dist.delegates;
 
             let sender = mock_info("mix-owner", &[]);
-            try_remove_mixnode(test.deps_mut(), sender).unwrap();
+            let env = test.env();
+            try_remove_mixnode(test.deps_mut(), env, sender).unwrap();
 
             let res =
                 query_pending_delegator_reward(test.deps(), owner.into(), mix_id, None).unwrap();
@@ -522,7 +525,8 @@ mod tests {
             total_earned += dist.delegates;
 
             let sender = mock_info("mix-owner", &[]);
-            try_remove_mixnode(test.deps_mut(), sender).unwrap();
+            let env = test.env();
+            try_remove_mixnode(test.deps_mut(), env, sender).unwrap();
             test.execute_all_pending_events();
 
             let res =
@@ -620,7 +624,7 @@ mod tests {
 
         fn expected_current_operator(
             test: &TestSetup,
-            mix_id: NodeId,
+            mix_id: MixId,
             initial_stake: Uint128,
         ) -> EstimatedCurrentEpochRewardResponse {
             let mix_rewarding = test.mix_rewarding(mix_id);
@@ -657,7 +661,8 @@ mod tests {
             test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
 
             let sender = mock_info(owner, &[]);
-            try_remove_mixnode(test.deps_mut(), sender).unwrap();
+            let env = test.env();
+            try_remove_mixnode(test.deps_mut(), env, sender).unwrap();
 
             let res = query_estimated_current_epoch_operator_reward(
                 test.deps(),
@@ -682,7 +687,8 @@ mod tests {
             test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
 
             let sender = mock_info(owner, &[]);
-            try_remove_mixnode(test.deps_mut(), sender).unwrap();
+            let env = test.env();
+            try_remove_mixnode(test.deps_mut(), env, sender).unwrap();
             test.execute_all_pending_events();
 
             let res = query_estimated_current_epoch_operator_reward(
@@ -779,7 +785,7 @@ mod tests {
 
         fn expected_current_delegator(
             test: &TestSetup,
-            mix_id: NodeId,
+            mix_id: MixId,
             owner: &str,
         ) -> EstimatedCurrentEpochRewardResponse {
             let mix_rewarding = test.mix_rewarding(mix_id);
@@ -833,7 +839,8 @@ mod tests {
             test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
 
             let sender = mock_info("mix-owner", &[]);
-            try_remove_mixnode(test.deps_mut(), sender).unwrap();
+            let env = test.env();
+            try_remove_mixnode(test.deps_mut(), env, sender).unwrap();
 
             let res = query_estimated_current_epoch_delegator_reward(
                 test.deps(),
@@ -862,7 +869,8 @@ mod tests {
             test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
 
             let sender = mock_info("mix-owner", &[]);
-            try_remove_mixnode(test.deps_mut(), sender).unwrap();
+            let env = test.env();
+            try_remove_mixnode(test.deps_mut(), env, sender).unwrap();
             test.execute_all_pending_events();
 
             let res = query_estimated_current_epoch_delegator_reward(

@@ -1,10 +1,12 @@
-use cosmwasm_std::{Coin, Timestamp, Uint128};
+use cosmwasm_std::{Coin, Timestamp};
 use mixnet_contract_common::{
     mixnode::{MixNodeConfigUpdate, MixNodeCostParams},
-    Gateway, MixNode, NodeId,
+    Gateway, MixId, MixNode,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+use crate::PledgeCap;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -61,7 +63,7 @@ pub enum ExecuteMsg {
     },
     ClaimOperatorReward {},
     ClaimDelegatorReward {
-        mix_id: NodeId,
+        mix_id: MixId,
     },
     UpdateMixnodeCostParams {
         new_costs: MixNodeCostParams,
@@ -73,23 +75,24 @@ pub enum ExecuteMsg {
         address: String,
     },
     DelegateToMixnode {
-        mix_id: NodeId,
+        mix_id: MixId,
         amount: Coin,
     },
     UndelegateFromMixnode {
-        mix_id: NodeId,
+        mix_id: MixId,
     },
     CreateAccount {
         owner_address: String,
         staking_address: Option<String>,
         vesting_spec: Option<VestingSpecification>,
+        cap: Option<PledgeCap>,
     },
     WithdrawVestedCoins {
         amount: Coin,
     },
     TrackUndelegation {
         owner: String,
-        mix_id: NodeId,
+        mix_id: MixId,
         amount: Coin,
     },
     BondMixnode {
@@ -120,7 +123,8 @@ pub enum ExecuteMsg {
         to_address: Option<String>,
     },
     UpdateLockedPledgeCap {
-        amount: Uint128,
+        address: String,
+        cap: PledgeCap,
     },
 }
 
@@ -201,13 +205,12 @@ pub enum QueryMsg {
     GetCurrentVestingPeriod {
         address: String,
     },
-    GetLockedPledgeCap {},
     GetDelegationTimes {
         address: String,
-        mix_id: NodeId,
+        mix_id: MixId,
     },
     GetAllDelegations {
-        start_after: Option<(u32, NodeId, u64)>,
+        start_after: Option<(u32, MixId, u64)>,
         limit: Option<u32>,
     },
 }

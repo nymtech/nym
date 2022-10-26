@@ -3,7 +3,7 @@
 
 use crate::{validator_api, ValidatorClientError};
 use mixnet_contract_common::mixnode::MixNodeDetails;
-use mixnet_contract_common::NodeId;
+use mixnet_contract_common::MixId;
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef};
 use url::Url;
 use validator_api_requests::coconut::{
@@ -11,11 +11,9 @@ use validator_api_requests::coconut::{
     VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_api_requests::models::{
-    DeprecatedRewardEstimationResponse, DeprecatedUptimeResponse, GatewayCoreStatusResponse,
-    MixnodeCoreStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
-    StakeSaturationResponse,
+    GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
+    RewardEstimationResponse, StakeSaturationResponse,
 };
-use validator_api_requests::Deprecated;
 
 #[cfg(feature = "nymd-client")]
 use crate::nymd::traits::MixnetQueryClient;
@@ -208,7 +206,7 @@ impl<C> Client<C> {
     // basically handles paging for us
     pub async fn get_all_nymd_rewarded_set_mixnodes(
         &self,
-    ) -> Result<Vec<(NodeId, RewardedSetNodeStatus)>, ValidatorClientError>
+    ) -> Result<Vec<(MixId, RewardedSetNodeStatus)>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync + Send,
     {
@@ -282,7 +280,7 @@ impl<C> Client<C> {
 
     pub async fn get_all_nymd_unbonded_mixnodes(
         &self,
-    ) -> Result<Vec<(NodeId, UnbondedMixnode)>, ValidatorClientError>
+    ) -> Result<Vec<(MixId, UnbondedMixnode)>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync + Send,
     {
@@ -308,7 +306,7 @@ impl<C> Client<C> {
     pub async fn get_all_nymd_unbonded_mixnodes_by_owner(
         &self,
         owner: &cosmrs::AccountId,
-    ) -> Result<Vec<(NodeId, UnbondedMixnode)>, ValidatorClientError>
+    ) -> Result<Vec<(MixId, UnbondedMixnode)>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync + Send,
     {
@@ -334,7 +332,7 @@ impl<C> Client<C> {
     pub async fn get_all_nymd_unbonded_mixnodes_by_identity(
         &self,
         identity_key: String,
-    ) -> Result<Vec<(NodeId, UnbondedMixnode)>, ValidatorClientError>
+    ) -> Result<Vec<(MixId, UnbondedMixnode)>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync + Send,
     {
@@ -386,7 +384,7 @@ impl<C> Client<C> {
 
     pub async fn get_all_nymd_single_mixnode_delegations(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<Vec<Delegation>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync + Send,
@@ -634,7 +632,7 @@ impl ApiClient {
 
     pub async fn get_mixnode_core_status_count(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
         since: Option<i64>,
     ) -> Result<MixnodeCoreStatusResponse, ValidatorClientError> {
         Ok(self
@@ -645,14 +643,14 @@ impl ApiClient {
 
     pub async fn get_mixnode_status(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<MixnodeStatusResponse, ValidatorClientError> {
         Ok(self.validator_api.get_mixnode_status(mix_id).await?)
     }
 
     pub async fn get_mixnode_reward_estimation(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<RewardEstimationResponse, ValidatorClientError> {
         Ok(self
             .validator_api
@@ -662,7 +660,7 @@ impl ApiClient {
 
     pub async fn get_mixnode_stake_saturation(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<StakeSaturationResponse, ValidatorClientError> {
         Ok(self
             .validator_api
@@ -704,71 +702,6 @@ impl ApiClient {
         Ok(self
             .validator_api
             .verify_bandwidth_credential(request_body)
-            .await?)
-    }
-
-    // =================================================
-    // DEPRECATED ROUTES
-    // TO REMOVE ONCE OTHER PARTS OF THE SYSTEM MIGRATED
-    // =================================================
-
-    pub async fn deprecated_get_mixnode_core_status_count_by_identity(
-        &self,
-        identity: IdentityKeyRef<'_>,
-        since: Option<i64>,
-    ) -> Result<Deprecated<MixnodeCoreStatusResponse>, ValidatorClientError> {
-        Ok(self
-            .validator_api
-            .deprecated_get_mixnode_core_status_count_by_identity(identity, since)
-            .await?)
-    }
-
-    pub async fn deprecated_get_mixnode_status_by_identity(
-        &self,
-        identity: IdentityKeyRef<'_>,
-    ) -> Result<Deprecated<MixnodeStatusResponse>, ValidatorClientError> {
-        Ok(self
-            .validator_api
-            .deprecated_get_mixnode_status_by_identity(identity)
-            .await?)
-    }
-
-    pub async fn deprecated_get_mixnode_reward_estimation_by_identity(
-        &self,
-        identity: IdentityKeyRef<'_>,
-    ) -> Result<DeprecatedRewardEstimationResponse, ValidatorClientError> {
-        Ok(self
-            .validator_api
-            .deprecated_get_mixnode_reward_estimation_by_identity(identity)
-            .await?)
-    }
-
-    pub async fn deprecated_get_mixnode_stake_saturation_by_identity(
-        &self,
-        identity: IdentityKeyRef<'_>,
-    ) -> Result<Deprecated<StakeSaturationResponse>, ValidatorClientError> {
-        Ok(self
-            .validator_api
-            .deprecated_get_mixnode_stake_saturation_by_identity(identity)
-            .await?)
-    }
-
-    pub async fn deprecated_get_mixnode_avg_uptime_by_identity(
-        &self,
-        identity: IdentityKeyRef<'_>,
-    ) -> Result<DeprecatedUptimeResponse, ValidatorClientError> {
-        Ok(self
-            .validator_api
-            .deprecated_get_mixnode_avg_uptime_by_identity(identity)
-            .await?)
-    }
-
-    pub async fn deprecated_get_mixnode_avg_uptimes_by_identity(
-        &self,
-    ) -> Result<Vec<DeprecatedUptimeResponse>, ValidatorClientError> {
-        Ok(self
-            .validator_api
-            .deprecated_get_mixnode_avg_uptimes_by_identity()
             .await?)
     }
 }

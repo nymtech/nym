@@ -3,7 +3,7 @@
 
 use crate::mixnode::MixNodeCostParams;
 use crate::reward_params::IntervalRewardingParamsUpdate;
-use crate::{EpochEventId, IntervalEventId, NodeId};
+use crate::{BlockHeight, EpochEventId, IntervalEventId, MixId};
 use cosmwasm_std::{Addr, Coin};
 use serde::{Deserialize, Serialize};
 
@@ -14,26 +14,41 @@ pub struct PendingEpochEvent {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum PendingEpochEventData {
+pub struct PendingEpochEventData {
+    pub created_at: BlockHeight,
+    pub kind: PendingEpochEventKind,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum PendingEpochEventKind {
     // can't just pass the `Delegation` struct here as it's impossible to determine
     // `cumulative_reward_ratio` ahead of time
     Delegate {
         owner: Addr,
-        mix_id: NodeId,
+        mix_id: MixId,
         amount: Coin,
         proxy: Option<Addr>,
     },
     Undelegate {
         owner: Addr,
-        mix_id: NodeId,
+        mix_id: MixId,
         proxy: Option<Addr>,
     },
     UnbondMixnode {
-        mix_id: NodeId,
+        mix_id: MixId,
     },
     UpdateActiveSetSize {
         new_size: u32,
     },
+}
+
+impl PendingEpochEventKind {
+    pub fn attach_source_height(self, created_at: BlockHeight) -> PendingEpochEventData {
+        PendingEpochEventData {
+            created_at,
+            kind: self,
+        }
+    }
 }
 
 impl From<(EpochEventId, PendingEpochEventData)> for PendingEpochEvent {
@@ -52,9 +67,15 @@ pub struct PendingIntervalEvent {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
-pub enum PendingIntervalEventData {
+pub struct PendingIntervalEventData {
+    pub created_at: BlockHeight,
+    pub kind: PendingIntervalEventKind,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum PendingIntervalEventKind {
     ChangeMixCostParams {
-        mix_id: NodeId,
+        mix_id: MixId,
         new_costs: MixNodeCostParams,
     },
 
@@ -65,6 +86,15 @@ pub enum PendingIntervalEventData {
         epochs_in_interval: u32,
         epoch_duration_secs: u64,
     },
+}
+
+impl PendingIntervalEventKind {
+    pub fn attach_source_height(self, created_at: BlockHeight) -> PendingIntervalEventData {
+        PendingIntervalEventData {
+            created_at,
+            kind: self,
+        }
+    }
 }
 
 impl From<(IntervalEventId, PendingIntervalEventData)> for PendingIntervalEvent {

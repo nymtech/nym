@@ -40,7 +40,7 @@ interface HeadCell {
 
 const headCells: HeadCell[] = [
   { id: 'node_identity', label: 'Node ID', sortable: true, align: 'left' },
-  { id: 'avg_uptime_percent', label: 'Uptime', sortable: true, align: 'left' },
+  { id: 'avg_uptime_percent', label: 'Routing score', sortable: true, align: 'left' },
   { id: 'profit_margin_percent', label: 'Profit margin', sortable: true, align: 'left' },
   { id: 'stake_saturation', label: 'Stake saturation', sortable: true, align: 'left' },
   { id: 'delegated_on_iso_datetime', label: 'Delegated on', sortable: true, align: 'left' },
@@ -57,6 +57,7 @@ function descendingComparator(a: any, b: any, orderBy: string) {
   }
   return 0;
 }
+// Sorting function needs fixing
 
 function sortPendingDelegation(a: DelegationWithEvent, b: DelegationWithEvent) {
   if (isPendingDelegation(a) && isPendingDelegation(b)) return 0;
@@ -154,7 +155,7 @@ export const DelegationList: React.FC<{
         <EnhancedTableHead order={order} orderBy={orderBy} onRequestSort={handleRequestSort} />
         <TableBody>
           {items?.length ? (
-            items.sort(getComparator(order, orderBy)).map((item) => (
+            items.map((item) => (
               <TableRow key={item.node_identity}>
                 <TableCell>
                   <Link

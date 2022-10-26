@@ -2,12 +2,12 @@ test: clippy-all cargo-test wasm fmt
 test-all: test cargo-test-expensive
 no-clippy: build cargo-test wasm fmt
 happy: fmt clippy-happy test
-clippy-all: clippy-main clippy-coconut clippy-all-contracts clippy-all-wallet clippy-all-connect
+clippy-all: clippy-main clippy-coconut clippy-all-contracts clippy-all-wallet clippy-all-connect clippy-all-wasm-client
 clippy-happy: clippy-happy-main clippy-happy-contracts clippy-happy-wallet clippy-happy-connect
-cargo-test: test-main test-contracts test-wallet test-connect test-coconut
+cargo-test: test-main test-contracts test-wallet test-connect test-coconut test-wasm-client
 cargo-test-expensive: test-main-expensive test-contracts-expensive test-wallet-expensive test-connect-expensive test-coconut-expensive
-build: build-contracts build-wallet build-main build-connect
-fmt: fmt-main fmt-contracts fmt-wallet fmt-connect
+build: build-contracts build-wallet build-main build-connect build-wasm-client
+fmt: fmt-main fmt-contracts fmt-wallet fmt-connect fmt-wasm-client
 
 clippy-happy-main:
 	cargo clippy
@@ -40,6 +40,9 @@ clippy-all-wallet:
 clippy-all-connect:
 	cargo clippy --workspace --manifest-path nym-connect/Cargo.toml --all-features -- -D warnings
 
+clippy-all-wasm-client:
+	cargo clippy --workspace --manifest-path clients/webassembly/Cargo.toml --all-features --target wasm32-unknown-unknown -- -D warnings
+
 test-main:
 	cargo test --workspace
 
@@ -68,6 +71,9 @@ test-wallet:
 test-wallet-expensive:
 	cargo test --manifest-path nym-wallet/Cargo.toml --all-features -- --ignored
 
+test-wasm-client:
+	cargo test --workspace --manifest-path clients/webassembly/Cargo.toml --all-features
+
 test-connect:
 	cargo test --manifest-path nym-connect/Cargo.toml --all-features
 
@@ -86,6 +92,9 @@ build-wallet:
 build-connect:
 	cargo build --manifest-path nym-connect/Cargo.toml --workspace
 
+build-wasm-client:
+	cargo build --manifest-path clients/webassembly/Cargo.toml --workspace --target wasm32-unknown-unknown
+
 build-nym-cli:
 	cargo build --release --manifest-path tools/nym-cli/Cargo.toml
 
@@ -101,8 +110,14 @@ fmt-wallet:
 fmt-connect:
 	cargo fmt --manifest-path nym-connect/Cargo.toml --all
 
+fmt-wasm-client:
+	cargo fmt --manifest-path clients/webassembly/Cargo.toml --all
+
 wasm:
 	RUSTFLAGS='-C link-arg=-s' cargo build --manifest-path contracts/Cargo.toml --release --target wasm32-unknown-unknown
+
+mixnet-opt: wasm
+	cd contracts/mixnet && make opt
 
 generate-typescript:
 	cd tools/ts-rs-cli && cargo run && cd ../..

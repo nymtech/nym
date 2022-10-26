@@ -5,7 +5,7 @@ use crate::error::BackendError;
 use crate::nymd_client;
 use crate::state::WalletState;
 use cosmwasm_std::Decimal;
-use mixnet_contract_common::{IdentityKey, NodeId, Percent};
+use mixnet_contract_common::{IdentityKey, MixId, Percent};
 use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
 use nym_wallet_types::app::AppEnv;
@@ -51,7 +51,7 @@ pub async fn owns_gateway(state: tauri::State<'_, WalletState>) -> Result<bool, 
 pub async fn try_convert_pubkey_to_mix_id(
     state: tauri::State<'_, WalletState>,
     mix_identity: IdentityKey,
-) -> Result<Option<NodeId>, BackendError> {
+) -> Result<Option<MixId>, BackendError> {
     let res = nymd_client!(state)
         .get_mixnode_details_by_identity(mix_identity)
         .await?;

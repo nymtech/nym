@@ -10,6 +10,7 @@ use crate::network_monitor::NetworkMonitorBuilder;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::nymd_client::Client;
 use crate::storage::ValidatorApiStorage;
+use ::config::defaults::mainnet::read_var_if_not_default;
 use ::config::defaults::setup_env;
 #[cfg(feature = "coconut")]
 use ::config::defaults::var_names::API_VALIDATOR;
@@ -294,8 +295,9 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     if let Some(raw_validators) = matches.value_of(API_VALIDATORS_ARG) {
         config = config.with_custom_validator_apis(::config::parse_validators(raw_validators));
     } else if std::env::var(CONFIGURED).is_ok() {
-        let raw_validators = std::env::var(API_VALIDATOR).expect("api validator not set");
-        config = config.with_custom_validator_apis(::config::parse_validators(&raw_validators))
+        if let Some(raw_validators) = read_var_if_not_default(API_VALIDATOR) {
+            config = config.with_custom_validator_apis(::config::parse_validators(&raw_validators))
+        }
     }
 
     if let Some(raw_validator) = matches.value_of(NYMD_VALIDATOR_ARG) {
@@ -312,9 +314,9 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     if let Some(mixnet_contract) = matches.value_of(MIXNET_CONTRACT_ARG) {
         config = config.with_custom_mixnet_contract(mixnet_contract)
     } else if std::env::var(CONFIGURED).is_ok() {
-        let mixnet_contract =
-            std::env::var(MIXNET_CONTRACT_ADDRESS).expect("mixnet contract not set");
-        config = config.with_custom_mixnet_contract(mixnet_contract)
+        if let Some(mixnet_contract) = read_var_if_not_default(MIXNET_CONTRACT_ADDRESS) {
+            config = config.with_custom_mixnet_contract(mixnet_contract)
+        }
     }
 
     if let Some(mnemonic) = matches.value_of(MNEMONIC_ARG) {

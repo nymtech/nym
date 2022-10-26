@@ -1,9 +1,9 @@
 import React from 'react';
-import { Button } from '@mui/material';
+import { Button, SxProps } from '@mui/material';
 import ArrowBackIosNewIcon from '@mui/icons-material/ArrowBackIosNew';
 
-export const StyledBackButton = ({ onBack }: { onBack: () => void }) => (
-  <Button disableFocusRipple size="large" variant="outlined" onClick={onBack}>
+export const StyledBackButton = ({ onBack, sx }: { onBack: () => void; sx?: SxProps }) => (
+  <Button disableFocusRipple size="large" variant="outlined" onClick={onBack} sx={sx}>
     <ArrowBackIosNewIcon fontSize="small" />
   </Button>
 );

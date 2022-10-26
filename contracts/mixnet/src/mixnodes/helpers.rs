@@ -10,7 +10,7 @@ use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::mixnode::{
     MixNodeCostParams, MixNodeDetails, MixNodeRewarding, UnbondedMixnode,
 };
-use mixnet_contract_common::{Layer, MixNode, MixNodeBond, NodeId};
+use mixnet_contract_common::{Layer, MixId, MixNode, MixNodeBond};
 
 pub(crate) fn must_get_mixnode_bond_by_owner(
     store: &dyn Storage,
@@ -28,12 +28,12 @@ pub(crate) fn must_get_mixnode_bond_by_owner(
 
 pub(crate) fn get_mixnode_details_by_id(
     store: &dyn Storage,
-    node_id: NodeId,
+    mix_id: MixId,
 ) -> StdResult<Option<MixNodeDetails>> {
-    if let Some(bond_information) = storage::mixnode_bonds().may_load(store, node_id)? {
+    if let Some(bond_information) = storage::mixnode_bonds().may_load(store, mix_id)? {
         // if bond exists, rewarding details MUST also exist
         let rewarding_details =
-            rewards_storage::MIXNODE_REWARDING.load(store, bond_information.id)?;
+            rewards_storage::MIXNODE_REWARDING.load(store, bond_information.mix_id)?;
         Ok(Some(MixNodeDetails::new(
             bond_information,
             rewarding_details,
@@ -55,7 +55,7 @@ pub(crate) fn get_mixnode_details_by_owner(
     {
         // if bond exists, rewarding details MUST also exist
         let rewarding_details =
-            rewards_storage::MIXNODE_REWARDING.load(store, bond_information.id)?;
+            rewards_storage::MIXNODE_REWARDING.load(store, bond_information.mix_id)?;
         Ok(Some(MixNodeDetails::new(
             bond_information,
             rewarding_details,
@@ -73,14 +73,14 @@ pub(crate) fn save_new_mixnode(
     owner: Addr,
     proxy: Option<Addr>,
     pledge: Coin,
-) -> Result<(NodeId, Layer), MixnetContractError> {
+) -> Result<(MixId, Layer), MixnetContractError> {
     let layer = assign_layer(storage)?;
-    let node_id = next_mixnode_id_counter(storage)?;
+    let mix_id = next_mixnode_id_counter(storage)?;
     let current_epoch = interval_storage::current_interval(storage)?.current_epoch_absolute_id();
 
     let mixnode_rewarding = MixNodeRewarding::initialise_new(cost_params, &pledge, current_epoch);
     let mixnode_bond = MixNodeBond::new(
-        node_id,
+        mix_id,
         owner,
         pledge,
         layer,
@@ -91,12 +91,12 @@ pub(crate) fn save_new_mixnode(
 
     // save mixnode bond data
     // note that this implicitly checks for uniqueness on identity key, sphinx key and owner
-    storage::mixnode_bonds().save(storage, node_id, &mixnode_bond)?;
+    storage::mixnode_bonds().save(storage, mix_id, &mixnode_bond)?;
 
     // save rewarding data
-    rewards_storage::MIXNODE_REWARDING.save(storage, node_id, &mixnode_rewarding)?;
+    rewards_storage::MIXNODE_REWARDING.save(storage, mix_id, &mixnode_rewarding)?;
 
-    Ok((node_id, layer))
+    Ok((mix_id, layer))
 }
 
 pub(crate) fn cleanup_post_unbond_mixnode_storage(
@@ -104,13 +104,13 @@ pub(crate) fn cleanup_post_unbond_mixnode_storage(
     env: &Env,
     current_details: &MixNodeDetails,
 ) -> Result<(), MixnetContractError> {
-    let node_id = current_details.bond_information.id;
+    let mix_id = current_details.bond_information.mix_id;
     // remove all bond information (we don't need it anymore
     // note that "normal" remove is `may_load` followed by `replace` with a `None`
     // and we have already loaded the data from the storage
     storage::mixnode_bonds().replace(
         storage,
-        node_id,
+        mix_id,
         None,
         Some(&current_details.bond_information),
     )?;
@@ -118,14 +118,14 @@ pub(crate) fn cleanup_post_unbond_mixnode_storage(
     // if there are no pending delegations to return, we can also
     // purge all information regarding rewarding parameters
     if current_details.rewarding_details.unique_delegations == 0 {
-        rewards_storage::MIXNODE_REWARDING.remove(storage, node_id);
+        rewards_storage::MIXNODE_REWARDING.remove(storage, mix_id);
     } else {
         // otherwise just set operator's tokens to zero as to indicate they have unbonded
         // and already claimed those
         let mut zeroed = current_details.rewarding_details.clone();
         zeroed.operator = Decimal::zero();
 
-        rewards_storage::MIXNODE_REWARDING.save(storage, node_id, &zeroed)?;
+        rewards_storage::MIXNODE_REWARDING.save(storage, mix_id, &zeroed)?;
     }
 
     let identity = current_details.bond_information.identity().to_owned();
@@ -135,7 +135,7 @@ pub(crate) fn cleanup_post_unbond_mixnode_storage(
     // save minimal information about this mixnode
     storage::unbonded_mixnodes().save(
         storage,
-        node_id,
+        mix_id,
         &UnbondedMixnode {
             identity_key: identity,
             owner,
@@ -161,7 +161,7 @@ mod tests {
     const OWNER_UNBONDED_LEFTOVER: &str = "mix-owner-unbonded-leftover";
 
     // create a mixnode that is bonded, unbonded, in the process of unbonding and unbonded with leftover mix rewarding details
-    fn setup_mix_combinations(test: &mut TestSetup) -> Vec<NodeId> {
+    fn setup_mix_combinations(test: &mut TestSetup) -> Vec<MixId> {
         let mix_id_exists = test.add_dummy_mixnode(OWNER_EXISTS, None);
         let mix_id_unbonding = test.add_dummy_mixnode(OWNER_UNBONDING, None);
         let mix_id_unbonded = test.add_dummy_mixnode(OWNER_UNBONDED, None);
@@ -206,11 +206,11 @@ mod tests {
 
         // if this is a normally bonded mixnode, all should be fine
         let res = must_get_mixnode_bond_by_owner(test.deps().storage, &owner_exists).unwrap();
-        assert_eq!(res.id, mix_id_exists);
+        assert_eq!(res.mix_id, mix_id_exists);
 
         // if node is in the process of unbonding, we still should be capable of retrieving its details
         let res = must_get_mixnode_bond_by_owner(test.deps().storage, &owner_unbonding).unwrap();
-        assert_eq!(res.id, mix_id_unbonding);
+        assert_eq!(res.mix_id, mix_id_unbonding);
 
         // but if node has unbonded, the information is purged and query fails
         let res = must_get_mixnode_bond_by_owner(test.deps().storage, &owner_unbonded);
@@ -243,12 +243,12 @@ mod tests {
         let res = get_mixnode_details_by_id(test.deps().storage, mix_id_exists)
             .unwrap()
             .unwrap();
-        assert_eq!(res.bond_information.id, mix_id_exists);
+        assert_eq!(res.bond_information.mix_id, mix_id_exists);
 
         let res = get_mixnode_details_by_id(test.deps().storage, mix_id_unbonding)
             .unwrap()
             .unwrap();
-        assert_eq!(res.bond_information.id, mix_id_unbonding);
+        assert_eq!(res.bond_information.mix_id, mix_id_unbonding);
 
         let res = get_mixnode_details_by_id(test.deps().storage, mix_id_unbonded).unwrap();
         assert!(res.is_none());
@@ -274,13 +274,13 @@ mod tests {
         let res = get_mixnode_details_by_owner(test.deps().storage, owner_exists)
             .unwrap()
             .unwrap();
-        assert_eq!(res.bond_information.id, mix_id_exists);
+        assert_eq!(res.bond_information.mix_id, mix_id_exists);
 
         // if node is in the process of unbonding, we still should be capable of retrieving its details
         let res = get_mixnode_details_by_owner(test.deps().storage, owner_unbonding)
             .unwrap()
             .unwrap();
-        assert_eq!(res.bond_information.id, mix_id_unbonding);
+        assert_eq!(res.bond_information.mix_id, mix_id_unbonding);
 
         // but if node has unbonded, the information is purged and query fails
         let res = get_mixnode_details_by_owner(test.deps().storage, owner_unbonded).unwrap();

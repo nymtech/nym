@@ -3,6 +3,7 @@
 
 use async_trait::async_trait;
 use clap::{Args, Subcommand};
+use completions::ArgShell;
 use pickledb::PickleDb;
 use rand::rngs::OsRng;
 use std::str::FromStr;
@@ -28,6 +29,12 @@ pub(crate) enum Commands {
     ListDeposits(ListDeposits),
     /// Get a credential for a given deposit
     GetCredential(GetCredential),
+
+    /// Generate shell completions
+    Completions(ArgShell),
+
+    /// Generate Fig specification
+    GenerateFigSpec,
 }
 
 #[async_trait]

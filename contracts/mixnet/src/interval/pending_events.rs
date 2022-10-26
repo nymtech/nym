@@ -17,9 +17,12 @@ use mixnet_contract_common::events::{
     new_rewarding_params_update_event, new_undelegation_event,
 };
 use mixnet_contract_common::mixnode::MixNodeCostParams;
-use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
+use mixnet_contract_common::pending_events::{
+    PendingEpochEventData, PendingEpochEventKind, PendingIntervalEventData,
+    PendingIntervalEventKind,
+};
 use mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
-use mixnet_contract_common::{Delegation, NodeId};
+use mixnet_contract_common::{BlockHeight, Delegation, MixId};
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 pub(crate) trait ContractExecutableEvent {
@@ -32,8 +35,9 @@ pub(crate) trait ContractExecutableEvent {
 pub(crate) fn delegate(
     deps: DepsMut<'_>,
     env: &Env,
+    created_at: BlockHeight,
     owner: Addr,
-    mix_id: NodeId,
+    mix_id: MixId,
     amount: Coin,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
@@ -105,7 +109,14 @@ pub(crate) fn delegate(
     // add the amount we're intending to delegate (whether it's fresh or we're adding to the existing one)
     mix_rewarding.add_base_delegation(stored_delegation_amount.amount);
 
-    let cosmos_event = new_delegation_event(&owner, &proxy, &new_delegation_amount, mix_id);
+    let cosmos_event = new_delegation_event(
+        created_at,
+        &owner,
+        &proxy,
+        &new_delegation_amount,
+        mix_id,
+        mix_rewarding.total_unit_reward,
+    );
 
     let delegation = Delegation::new(
         owner,
@@ -130,8 +141,9 @@ pub(crate) fn delegate(
 
 pub(crate) fn undelegate(
     deps: DepsMut<'_>,
+    created_at: BlockHeight,
     owner: Addr,
-    mix_id: NodeId,
+    mix_id: MixId,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
     // see if the delegation still exists (in case of impatient user who decided to send multiple
@@ -153,7 +165,7 @@ pub(crate) fn undelegate(
     let return_tokens = send_to_proxy_or_owner(&proxy, &owner, vec![tokens_to_return.clone()]);
     let mut response = Response::new()
         .add_message(return_tokens)
-        .add_event(new_undelegation_event(&owner, &proxy, mix_id));
+        .add_event(new_undelegation_event(created_at, &owner, &proxy, mix_id));
 
     if let Some(proxy) = &proxy {
         // we can only attempt to send the message to the vesting contract if the proxy IS the vesting contract
@@ -177,7 +189,8 @@ pub(crate) fn undelegate(
 pub(crate) fn unbond_mixnode(
     deps: DepsMut<'_>,
     env: &Env,
-    mix_id: NodeId,
+    created_at: BlockHeight,
+    mix_id: MixId,
 ) -> Result<Response, MixnetContractError> {
     // if we're here it means user executed `_try_remove_mixnode` and as a result node was set to be
     // in unbonding state and thus nothing could have been done to it (such as attempting to double unbond it)
@@ -207,7 +220,7 @@ pub(crate) fn unbond_mixnode(
 
     let mut response = Response::new()
         .add_message(return_tokens)
-        .add_event(new_mixnode_unbonding_event(mix_id));
+        .add_event(new_mixnode_unbonding_event(created_at, mix_id));
 
     if let Some(proxy) = &proxy {
         // we can only attempt to send the message to the vesting contract if the proxy IS the vesting contract
@@ -229,6 +242,7 @@ pub(crate) fn unbond_mixnode(
 
 pub(crate) fn update_active_set_size(
     deps: DepsMut<'_>,
+    created_at: BlockHeight,
     active_set_size: u32,
 ) -> Result<Response, MixnetContractError> {
     // We don't have to check for authorization as this event can only be pushed
@@ -241,28 +255,30 @@ pub(crate) fn update_active_set_size(
     rewarding_params.try_change_active_set_size(active_set_size)?;
     rewards_storage::REWARDING_PARAMS.save(deps.storage, &rewarding_params)?;
 
-    Ok(Response::new().add_event(new_active_set_update_event(active_set_size)))
+    Ok(Response::new().add_event(new_active_set_update_event(created_at, active_set_size)))
 }
 
 impl ContractExecutableEvent for PendingEpochEventData {
     fn execute(self, deps: DepsMut<'_>, env: &Env) -> Result<Response, MixnetContractError> {
         // note that the basic validation on all those events was already performed before
         // they were pushed onto the queue
-        match self {
-            PendingEpochEventData::Delegate {
+        match self.kind {
+            PendingEpochEventKind::Delegate {
                 owner,
                 mix_id,
                 amount,
                 proxy,
-            } => delegate(deps, env, owner, mix_id, amount, proxy),
-            PendingEpochEventData::Undelegate {
+            } => delegate(deps, env, self.created_at, owner, mix_id, amount, proxy),
+            PendingEpochEventKind::Undelegate {
                 owner,
                 mix_id,
                 proxy,
-            } => undelegate(deps, owner, mix_id, proxy),
-            PendingEpochEventData::UnbondMixnode { mix_id } => unbond_mixnode(deps, env, mix_id),
-            PendingEpochEventData::UpdateActiveSetSize { new_size } => {
-                update_active_set_size(deps, new_size)
+            } => undelegate(deps, self.created_at, owner, mix_id, proxy),
+            PendingEpochEventKind::UnbondMixnode { mix_id } => {
+                unbond_mixnode(deps, env, self.created_at, mix_id)
+            }
+            PendingEpochEventKind::UpdateActiveSetSize { new_size } => {
+                update_active_set_size(deps, self.created_at, new_size)
             }
         }
     }
@@ -270,7 +286,8 @@ impl ContractExecutableEvent for PendingEpochEventData {
 
 pub(crate) fn change_mix_cost_params(
     deps: DepsMut<'_>,
-    mix_id: NodeId,
+    created_at: BlockHeight,
+    mix_id: MixId,
     new_costs: MixNodeCostParams,
 ) -> Result<Response, MixnetContractError> {
     // almost an entire interval might have passed since the request was issued -> check if the
@@ -285,7 +302,7 @@ pub(crate) fn change_mix_cost_params(
             _ => return Ok(Response::default()),
         };
 
-    let cosmos_event = new_mixnode_cost_params_update_event(mix_id, &new_costs);
+    let cosmos_event = new_mixnode_cost_params_update_event(created_at, mix_id, &new_costs);
 
     // TODO: can we just change cost_params without breaking rewarding calculation?
     // (I'm almost certain we can, but well, it has to be tested)
@@ -297,6 +314,7 @@ pub(crate) fn change_mix_cost_params(
 
 pub(crate) fn update_rewarding_params(
     deps: DepsMut<'_>,
+    created_at: BlockHeight,
     updated_params: IntervalRewardingParamsUpdate,
 ) -> Result<Response, MixnetContractError> {
     // We don't have to check for authorization as this event can only be pushed
@@ -311,6 +329,7 @@ pub(crate) fn update_rewarding_params(
     rewards_storage::REWARDING_PARAMS.save(deps.storage, &rewarding_params)?;
 
     Ok(Response::new().add_event(new_rewarding_params_update_event(
+        created_at,
         updated_params,
         rewarding_params.interval,
     )))
@@ -318,6 +337,7 @@ pub(crate) fn update_rewarding_params(
 
 pub(crate) fn update_interval_config(
     deps: DepsMut,
+    created_at: BlockHeight,
     epochs_in_interval: u32,
     epoch_duration_secs: u64,
 ) -> Result<Response, MixnetContractError> {
@@ -326,8 +346,10 @@ pub(crate) fn update_interval_config(
     // Furthermore, we don't need to check whether the interval is finished as the
     // queue is only emptied upon the interval finishing.
     let interval = storage::current_interval(deps.storage)?;
+
     change_interval_config(
         deps.storage,
+        created_at,
         interval,
         epochs_in_interval,
         epoch_duration_secs,
@@ -338,18 +360,23 @@ impl ContractExecutableEvent for PendingIntervalEventData {
     fn execute(self, deps: DepsMut<'_>, _env: &Env) -> Result<Response, MixnetContractError> {
         // note that the basic validation on all those events was already performed before
         // they were pushed onto the queue
-        match self {
-            PendingIntervalEventData::ChangeMixCostParams {
+        match self.kind {
+            PendingIntervalEventKind::ChangeMixCostParams {
                 mix_id: mix,
                 new_costs,
-            } => change_mix_cost_params(deps, mix, new_costs),
-            PendingIntervalEventData::UpdateRewardingParams { update } => {
-                update_rewarding_params(deps, update)
+            } => change_mix_cost_params(deps, self.created_at, mix, new_costs),
+            PendingIntervalEventKind::UpdateRewardingParams { update } => {
+                update_rewarding_params(deps, self.created_at, update)
             }
-            PendingIntervalEventData::UpdateIntervalConfig {
+            PendingIntervalEventKind::UpdateIntervalConfig {
                 epochs_in_interval,
                 epoch_duration_secs,
-            } => update_interval_config(deps, epochs_in_interval, epoch_duration_secs),
+            } => update_interval_config(
+                deps,
+                self.created_at,
+                epochs_in_interval,
+                epoch_duration_secs,
+            ),
         }
     }
 }
@@ -390,11 +417,12 @@ mod tests {
             test.add_immediate_delegation(owner1, delegation, mix_id);
 
             let env = test.env();
-            unbond_mixnode(test.deps_mut(), &env, mix_id).unwrap();
+            unbond_mixnode(test.deps_mut(), &env, 123, mix_id).unwrap();
 
             let res_increase = delegate(
                 test.deps_mut(),
                 &env,
+                123,
                 Addr::unchecked(owner1),
                 mix_id,
                 delegation_coin.clone(),
@@ -420,6 +448,7 @@ mod tests {
             let res_fresh = delegate(
                 test.deps_mut(),
                 &env,
+                123,
                 Addr::unchecked(owner2),
                 mix_id,
                 delegation_coin.clone(),
@@ -453,11 +482,12 @@ mod tests {
             test.add_immediate_delegation(owner1, delegation, mix_id);
 
             let env = test.env();
-            try_remove_mixnode(test.deps_mut(), mock_info("mix-owner", &[])).unwrap();
+            try_remove_mixnode(test.deps_mut(), env.clone(), mock_info("mix-owner", &[])).unwrap();
 
             let res_increase = delegate(
                 test.deps_mut(),
                 &env,
+                123,
                 Addr::unchecked(owner1),
                 mix_id,
                 delegation_coin.clone(),
@@ -483,6 +513,7 @@ mod tests {
             let res_fresh = delegate(
                 test.deps_mut(),
                 &env,
+                123,
                 Addr::unchecked(owner2),
                 mix_id,
                 delegation_coin.clone(),
@@ -518,6 +549,7 @@ mod tests {
             let res = delegate(
                 test.deps_mut(),
                 &env,
+                123,
                 Addr::unchecked(owner),
                 mix_id,
                 delegation_coin_new,
@@ -580,6 +612,7 @@ mod tests {
             let res = delegate(
                 test.deps_mut(),
                 &env,
+                123,
                 Addr::unchecked(owner),
                 mix_id,
                 delegation_coin_new,
@@ -645,6 +678,7 @@ mod tests {
             let res = delegate(
                 test.deps_mut(),
                 &env,
+                123,
                 Addr::unchecked(owner),
                 mix_id,
                 delegation_coin.clone(),
@@ -679,7 +713,7 @@ mod tests {
             let owner2 = "delegator2";
 
             let env = test.env();
-            unbond_mixnode(test.deps_mut(), &env, mix_id).unwrap();
+            unbond_mixnode(test.deps_mut(), &env, 123, mix_id).unwrap();
 
             let vesting_contract = test.vesting_contract();
             let dummy_proxy = Addr::unchecked("not-vesting-contract");
@@ -688,6 +722,7 @@ mod tests {
             let res_vesting = delegate(
                 test.deps_mut(),
                 &env,
+                123,
                 Addr::unchecked(owner1),
                 mix_id,
                 delegation_coin.clone(),
@@ -734,6 +769,7 @@ mod tests {
             let res_other_proxy = delegate(
                 test.deps_mut(),
                 &env,
+                123,
                 Addr::unchecked(owner1),
                 mix_id,
                 delegation_coin.clone(),
@@ -778,7 +814,7 @@ mod tests {
 
             let owner = Addr::unchecked("delegator");
 
-            let res = undelegate(test.deps_mut(), owner, mix_id, None).unwrap();
+            let res = undelegate(test.deps_mut(), 123, owner, mix_id, None).unwrap();
             assert!(get_bank_send_msg(&res).is_none());
         }
 
@@ -793,7 +829,7 @@ mod tests {
             // this should never happen in actual code, but if we manually messed something up,
             // lets make sure this throws an error
             rewards_storage::MIXNODE_REWARDING.remove(test.deps_mut().storage, mix_id);
-            let res = undelegate(test.deps_mut(), owner, mix_id, None);
+            let res = undelegate(test.deps_mut(), 123, owner, mix_id, None);
             assert!(matches!(
                 res,
                 Err(MixnetContractError::InconsistentState { .. })
@@ -827,7 +863,8 @@ mod tests {
 
             let expected_return = delegation + truncated_reward.u128();
 
-            let res = undelegate(test.deps_mut(), Addr::unchecked(owner), mix_id, None).unwrap();
+            let res =
+                undelegate(test.deps_mut(), 123, Addr::unchecked(owner), mix_id, None).unwrap();
             let (receiver, sent_amount) = get_bank_send_msg(&res).unwrap();
             assert_eq!(receiver, owner);
             assert_eq!(sent_amount[0].amount.u128(), expected_return);
@@ -875,6 +912,7 @@ mod tests {
             // for a fresh delegation, nothing was added to the storage either
             let res_vesting = undelegate(
                 test.deps_mut(),
+                123,
                 Addr::unchecked(owner1),
                 mix_id,
                 Some(vesting_contract.clone()),
@@ -920,6 +958,7 @@ mod tests {
 
             let res_other_proxy = undelegate(
                 test.deps_mut(),
+                123,
                 Addr::unchecked(owner2),
                 mix_id,
                 Some(dummy_proxy.clone()),
@@ -964,7 +1003,7 @@ mod tests {
             let mut test = TestSetup::new();
             let env = test.env();
 
-            let res = unbond_mixnode(test.deps_mut(), &env, 1);
+            let res = unbond_mixnode(test.deps_mut(), &env, 123, 1);
             assert!(matches!(
                 res,
                 Err(MixnetContractError::InconsistentState { .. })
@@ -994,7 +1033,7 @@ mod tests {
             let expected_return = pledge + truncated_reward;
 
             let env = test.env();
-            let res = unbond_mixnode(test.deps_mut(), &env, mix_id).unwrap();
+            let res = unbond_mixnode(test.deps_mut(), &env, 123, mix_id).unwrap();
             let (receiver, sent_amount) = get_bank_send_msg(&res).unwrap();
             assert_eq!(receiver, owner);
             assert_eq!(sent_amount[0].amount, expected_return);
@@ -1042,7 +1081,7 @@ mod tests {
                 test.add_dummy_mixnode_with_proxy(owner2, Some(pledge), dummy_proxy.clone());
 
             let env = test.env();
-            let res_vesting = unbond_mixnode(test.deps_mut(), &env, mix_id_vesting).unwrap();
+            let res_vesting = unbond_mixnode(test.deps_mut(), &env, 123, mix_id_vesting).unwrap();
 
             assert!(mixnodes_storage::mixnode_bonds()
                 .may_load(test.deps().storage, mix_id_vesting)
@@ -1077,7 +1116,7 @@ mod tests {
             assert!(found_track);
 
             let res_other_proxy =
-                unbond_mixnode(test.deps_mut(), &env, mix_id_other_proxy).unwrap();
+                unbond_mixnode(test.deps_mut(), &env, 123, mix_id_other_proxy).unwrap();
             assert!(mixnodes_storage::mixnode_bonds()
                 .may_load(test.deps().storage, mix_id_other_proxy)
                 .unwrap()
@@ -1103,7 +1142,7 @@ mod tests {
             .load(test.deps().storage)
             .unwrap();
 
-        update_active_set_size(test.deps_mut(), 50).unwrap();
+        update_active_set_size(test.deps_mut(), 123, 50).unwrap();
         let updated = rewards_storage::REWARDING_PARAMS
             .load(test.deps().storage)
             .unwrap();
@@ -1124,14 +1163,14 @@ mod tests {
             let mix_id = test.add_dummy_mixnode("mix-owner", None);
 
             let env = test.env();
-            unbond_mixnode(test.deps_mut(), &env, mix_id).unwrap();
+            unbond_mixnode(test.deps_mut(), &env, 123, mix_id).unwrap();
 
             let new_params = MixNodeCostParams {
                 profit_margin_percent: Percent::from_percentage_value(42).unwrap(),
                 interval_operating_cost: coin(123_456_789, TEST_COIN_DENOM),
             };
 
-            let res = change_mix_cost_params(test.deps_mut(), mix_id, new_params);
+            let res = change_mix_cost_params(test.deps_mut(), 123, mix_id, new_params);
             assert_eq!(res, Ok(Response::default()));
         }
 
@@ -1147,11 +1186,16 @@ mod tests {
                 interval_operating_cost: coin(123_456_789, TEST_COIN_DENOM),
             };
 
-            let res = change_mix_cost_params(test.deps_mut(), mix_id, new_params.clone());
+            let res = change_mix_cost_params(test.deps_mut(), 123, mix_id, new_params.clone());
             assert_eq!(
                 res,
-                Ok(Response::new()
-                    .add_event(new_mixnode_cost_params_update_event(mix_id, &new_params)))
+                Ok(
+                    Response::new().add_event(new_mixnode_cost_params_update_event(
+                        123,
+                        mix_id,
+                        &new_params
+                    ))
+                )
             );
 
             let after = test.mix_rewarding(mix_id).cost_params;
@@ -1182,7 +1226,7 @@ mod tests {
             rewarded_set_size: None,
         };
 
-        let res = update_rewarding_params(test.deps_mut(), update);
+        let res = update_rewarding_params(test.deps_mut(), 123, update);
         assert!(res.is_ok());
         let after = rewards_storage::REWARDING_PARAMS
             .load(test.deps().storage)
@@ -1230,6 +1274,7 @@ mod tests {
         // and change epoch length
         update_interval_config(
             test.deps_mut(),
+            123,
             interval_before.epochs_in_interval() / 2,
             1234,
         )

@@ -10,7 +10,7 @@ use crate::node_status_api::models::{
 use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{NodeStatus, RewardingReport, TestingRoute};
-use mixnet_contract_common::{EpochId, NodeId};
+use mixnet_contract_common::{EpochId, MixId};
 use rocket::fairing::AdHoc;
 use sqlx::ConnectOptions;
 use std::path::PathBuf;
@@ -71,20 +71,22 @@ impl ValidatorApiStorage {
         })
     }
 
+    #[allow(unused)]
     pub(crate) async fn mix_identity_to_mix_ids(
         &self,
         identity: &str,
-    ) -> Result<Vec<NodeId>, ValidatorApiStorageError> {
+    ) -> Result<Vec<MixId>, ValidatorApiStorageError> {
         Ok(self
             .manager
             .get_mixnode_mix_ids_by_identity(identity)
             .await?)
     }
 
+    #[allow(unused)]
     pub(crate) async fn mix_identity_to_latest_mix_id(
         &self,
         identity: &str,
-    ) -> Result<Option<NodeId>, ValidatorApiStorageError> {
+    ) -> Result<Option<MixId>, ValidatorApiStorageError> {
         Ok(self
             .mix_identity_to_mix_ids(identity)
             .await?
@@ -125,7 +127,7 @@ impl ValidatorApiStorage {
     /// * `since`: unix timestamp indicating the lower bound interval of the selection.
     async fn get_mixnode_statuses(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
         since: i64,
     ) -> Result<Vec<NodeStatus>, ValidatorApiStorageError> {
         let statuses = self
@@ -163,7 +165,7 @@ impl ValidatorApiStorage {
     /// * `mix_id`: mix-id (as assigned by the smart contract) of the mixnode.
     pub(crate) async fn construct_mixnode_report(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<MixnodeStatusReport, ValidatorApiStorageError> {
         let now = OffsetDateTime::now_utc();
         let day_ago = (now - ONE_DAY).unix_timestamp();
@@ -246,7 +248,7 @@ impl ValidatorApiStorage {
 
     pub(crate) async fn get_mixnode_uptime_history(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<MixnodeUptimeHistory, ValidatorApiStorageError> {
         let history = self.manager.get_mixnode_historical_uptimes(mix_id).await?;
 
@@ -303,7 +305,7 @@ impl ValidatorApiStorage {
 
     pub(crate) async fn get_average_mixnode_uptime_in_the_last_24hrs(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
         end_ts_secs: i64,
     ) -> Result<Uptime, ValidatorApiStorageError> {
         let start = end_ts_secs - 86400;
@@ -321,7 +323,7 @@ impl ValidatorApiStorage {
     /// * `end`: unix timestamp indicating the upper bound interval of the selection.
     pub(crate) async fn get_average_mixnode_uptime_in_time_interval(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
         start: i64,
         end: i64,
     ) -> Result<Uptime, ValidatorApiStorageError> {
@@ -493,7 +495,7 @@ impl ValidatorApiStorage {
     /// * `since`: optional unix timestamp indicating the lower bound interval of the selection.
     pub(crate) async fn get_core_mixnode_status_count(
         &self,
-        mix_id: NodeId,
+        mix_id: MixId,
         since: Option<i64>,
     ) -> Result<i32, ValidatorApiStorageError> {
         let db_id = self

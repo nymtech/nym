@@ -16,13 +16,13 @@ use mixnet_contract_common::mixnode::{
     PagedUnbondedMixnodesResponse, StakeSaturationResponse, UnbondedMixnodeResponse,
 };
 use mixnet_contract_common::{
-    IdentityKey, LayerDistribution, MixOwnershipResponse, MixnodeDetailsResponse, NodeId,
+    IdentityKey, LayerDistribution, MixId, MixOwnershipResponse, MixnodeDetailsResponse,
     PagedMixnodeBondsResponse,
 };
 
 pub fn query_mixnode_bonds_paged(
     deps: Deps<'_>,
-    start_after: Option<NodeId>,
+    start_after: Option<MixId>,
     limit: Option<u32>,
 ) -> StdResult<PagedMixnodeBondsResponse> {
     let limit = limit
@@ -37,7 +37,7 @@ pub fn query_mixnode_bonds_paged(
         .map(|res| res.map(|item| item.1))
         .collect::<StdResult<Vec<MixNodeBond>>>()?;
 
-    let start_next_after = nodes.last().map(|node| node.id);
+    let start_next_after = nodes.last().map(|node| node.mix_id);
 
     Ok(PagedMixnodeBondsResponse::new(
         nodes,
@@ -48,14 +48,14 @@ pub fn query_mixnode_bonds_paged(
 
 fn attach_rewarding_info(
     storage: &dyn Storage,
-    read_bond: StdResult<(NodeId, MixNodeBond)>,
+    read_bond: StdResult<(MixId, MixNodeBond)>,
 ) -> StdResult<MixNodeDetails> {
     match read_bond {
         Ok((_, bond)) => {
             // if we managed to read the bond we MUST be able to also read rewarding information.
             // if we fail, this is a hard error and the query should definitely fail and we should investigate
             // the reasons for that.
-            let mix_rewarding = rewards_storage::MIXNODE_REWARDING.load(storage, bond.id)?;
+            let mix_rewarding = rewards_storage::MIXNODE_REWARDING.load(storage, bond.mix_id)?;
             Ok(MixNodeDetails::new(bond, mix_rewarding))
         }
         Err(err) => Err(err),
@@ -64,7 +64,7 @@ fn attach_rewarding_info(
 
 pub fn query_mixnodes_details_paged(
     deps: Deps<'_>,
-    start_after: Option<NodeId>,
+    start_after: Option<MixId>,
     limit: Option<u32>,
 ) -> StdResult<PagedMixnodesDetailsResponse> {
     let limit = limit
@@ -90,7 +90,7 @@ pub fn query_mixnodes_details_paged(
 
 pub fn query_unbonded_mixnodes_paged(
     deps: Deps<'_>,
-    start_after: Option<NodeId>,
+    start_after: Option<MixId>,
     limit: Option<u32>,
 ) -> StdResult<PagedUnbondedMixnodesResponse> {
     let limit = limit
@@ -116,7 +116,7 @@ pub fn query_unbonded_mixnodes_paged(
 pub fn query_unbonded_mixnodes_by_owner_paged(
     deps: Deps<'_>,
     owner: String,
-    start_after: Option<NodeId>,
+    start_after: Option<MixId>,
     limit: Option<u32>,
 ) -> StdResult<PagedUnbondedMixnodesResponse> {
     let owner = deps.api.addr_validate(&owner)?;
@@ -147,7 +147,7 @@ pub fn query_unbonded_mixnodes_by_owner_paged(
 pub fn query_unbonded_mixnodes_by_identity_paged(
     deps: Deps<'_>,
     identity_key: String,
-    start_after: Option<NodeId>,
+    start_after: Option<MixId>,
     limit: Option<u32>,
 ) -> StdResult<PagedUnbondedMixnodesResponse> {
     let limit = limit
@@ -183,7 +183,7 @@ pub fn query_owned_mixnode(deps: Deps<'_>, address: String) -> StdResult<MixOwne
     })
 }
 
-pub fn query_mixnode_details(deps: Deps<'_>, mix_id: NodeId) -> StdResult<MixnodeDetailsResponse> {
+pub fn query_mixnode_details(deps: Deps<'_>, mix_id: MixId) -> StdResult<MixnodeDetailsResponse> {
     let mixnode_details = get_mixnode_details_by_id(deps.storage, mix_id)?;
 
     Ok(MixnodeDetailsResponse {
@@ -204,7 +204,7 @@ pub fn query_mixnode_details_by_identity(
     {
         // if bond exists, rewarding details MUST also exist
         let rewarding_details =
-            rewards_storage::MIXNODE_REWARDING.load(deps.storage, bond_information.id)?;
+            rewards_storage::MIXNODE_REWARDING.load(deps.storage, bond_information.mix_id)?;
         Ok(Some(MixNodeDetails::new(
             bond_information,
             rewarding_details,
@@ -216,7 +216,7 @@ pub fn query_mixnode_details_by_identity(
 
 pub fn query_mixnode_rewarding_details(
     deps: Deps<'_>,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> StdResult<MixnodeRewardingDetailsResponse> {
     let rewarding_details = rewards_storage::MIXNODE_REWARDING.may_load(deps.storage, mix_id)?;
 
@@ -226,10 +226,7 @@ pub fn query_mixnode_rewarding_details(
     })
 }
 
-pub fn query_unbonded_mixnode(
-    deps: Deps<'_>,
-    mix_id: NodeId,
-) -> StdResult<UnbondedMixnodeResponse> {
+pub fn query_unbonded_mixnode(deps: Deps<'_>, mix_id: MixId) -> StdResult<UnbondedMixnodeResponse> {
     let unbonded_info = storage::unbonded_mixnodes().may_load(deps.storage, mix_id)?;
 
     Ok(UnbondedMixnodeResponse {
@@ -238,10 +235,7 @@ pub fn query_unbonded_mixnode(
     })
 }
 
-pub fn query_stake_saturation(
-    deps: Deps<'_>,
-    mix_id: NodeId,
-) -> StdResult<StakeSaturationResponse> {
+pub fn query_stake_saturation(deps: Deps<'_>, mix_id: MixId) -> StdResult<StakeSaturationResponse> {
     let mix_rewarding = match rewards_storage::MIXNODE_REWARDING.may_load(deps.storage, mix_id)? {
         Some(mix_rewarding) => mix_rewarding,
         None => {
@@ -566,7 +560,7 @@ pub(crate) mod tests {
 
         #[test]
         fn pagination_works() {
-            fn add_unbonded(storage: &mut dyn Storage, id: NodeId) {
+            fn add_unbonded(storage: &mut dyn Storage, id: MixId) {
                 storage::unbonded_mixnodes()
                     .save(
                         storage,
@@ -632,7 +626,7 @@ pub(crate) mod tests {
         use cosmwasm_std::Addr;
         use mixnet_contract_common::mixnode::UnbondedMixnode;
 
-        fn add_unbonded_with_owner(storage: &mut dyn Storage, id: NodeId, owner: &str) {
+        fn add_unbonded_with_owner(storage: &mut dyn Storage, id: MixId, owner: &str) {
             storage::unbonded_mixnodes()
                 .save(
                     storage,
@@ -879,7 +873,7 @@ pub(crate) mod tests {
         use cosmwasm_std::Addr;
         use mixnet_contract_common::mixnode::UnbondedMixnode;
 
-        fn add_unbonded_with_identity(storage: &mut dyn Storage, id: NodeId, identity: &str) {
+        fn add_unbonded_with_identity(storage: &mut dyn Storage, id: MixId, identity: &str) {
             storage::unbonded_mixnodes()
                 .save(
                     storage,
@@ -1180,7 +1174,7 @@ pub(crate) mod tests {
             .save(deps.as_mut().storage, id, &rewarding_details)
             .unwrap();
 
-        pending_events::unbond_mixnode(deps.as_mut(), &mock_env(), id).unwrap();
+        pending_events::unbond_mixnode(deps.as_mut(), &mock_env(), 123, id).unwrap();
         let res = query_owned_mixnode(deps.as_ref(), address.clone()).unwrap();
         assert!(res.mixnode_details.is_none());
         assert_eq!(address, res.address);
@@ -1202,7 +1196,7 @@ pub(crate) mod tests {
             test_helpers::add_mixnode(&mut rng, deps.as_mut(), env, "foomp", good_mixnode_pledge());
         let res = query_mixnode_details(deps.as_ref(), mix_id).unwrap();
         let details = res.mixnode_details.unwrap();
-        assert_eq!(mix_id, details.bond_information.id);
+        assert_eq!(mix_id, details.bond_information.mix_id);
         assert_eq!(
             good_mixnode_pledge()[0],
             details.bond_information.original_pledge
@@ -1269,7 +1263,7 @@ pub(crate) mod tests {
         // add and unbond the mixnode
         let mix_id =
             test_helpers::add_mixnode(&mut rng, deps.as_mut(), env, sender, good_mixnode_pledge());
-        pending_events::unbond_mixnode(deps.as_mut(), &mock_env(), mix_id).unwrap();
+        pending_events::unbond_mixnode(deps.as_mut(), &mock_env(), 123, mix_id).unwrap();
 
         let res = query_unbonded_mixnode(deps.as_ref(), mix_id).unwrap();
         assert_eq!(res.unbonded_info.unwrap().owner, sender);

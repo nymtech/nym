@@ -12,6 +12,7 @@ import { simulateUpdateMixnodeCostParams, simulateVestingUpdateMixnodeCostParams
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { FeeDetails } from '@nymproject/types';
 
+//Now we are using the node setting page instead of this modal
 export const NodeSettings = ({
   currentPm,
   isVesting,
@@ -19,13 +20,13 @@ export const NodeSettings = ({
   onClose,
   onError,
 }: {
-  currentPm: TBondedMixnode['profitMargin'];
-  isVesting: boolean;
+  currentPm?: TBondedMixnode['profitMargin'];
+  isVesting?: boolean;
   onConfirm: (profitMargin: string, fee?: FeeDetails) => Promise<void>;
   onClose: () => void;
   onError: (err: string) => void;
 }) => {
-  const [pm, setPm] = useState(currentPm.toString());
+  const [pm, setPm] = useState(currentPm?.toString());
   const [error, setError] = useState(false);
 
   const { fee, getFee, resetFeeState, isFeeLoading, feeError } = useGetFee();
@@ -52,13 +53,15 @@ export const NodeSettings = ({
       return;
     }
 
-    // TODO: this will have to be updated with allowing users to provide their operating cost in the form
-    const defaultCostParams = await attachDefaultOperatingCost(toPercentFloatString(pm));
+    if (pm) {
+      // TODO: this will have to be updated with allowing users to provide their operating cost in the form
+      const defaultCostParams = await attachDefaultOperatingCost(toPercentFloatString(pm));
 
-    if (isVesting) {
-      await getFee(simulateVestingUpdateMixnodeCostParams, defaultCostParams);
-    } else {
-      await getFee(simulateUpdateMixnodeCostParams, defaultCostParams);
+      if (isVesting) {
+        await getFee(simulateVestingUpdateMixnodeCostParams, defaultCostParams);
+      } else {
+        await getFee(simulateUpdateMixnodeCostParams, defaultCostParams);
+      }
     }
   };
 
@@ -74,7 +77,7 @@ export const NodeSettings = ({
 
   if (isFeeLoading) return <LoadingModal />;
 
-  if (fee)
+  if (fee && pm)
     return (
       <ConfirmTx
         open
@@ -105,13 +108,13 @@ export const NodeSettings = ({
       okLabel="Next"
       onClose={onClose}
     >
-      <Tabs tabs={['System variables']} selectedTab={0} disableActiveTabHighlight />
+      <Tabs tabs={['System variables']} selectedTab={'System variables'} disableActiveTabHighlight />
       <Box sx={{ p: 3 }}>
         <Typography fontWeight={600} sx={{ mb: 1 }}>
           Set profit margin
         </Typography>
         <Box sx={{ mb: 3 }}>
-          <TextField placeholder="Profit margin" value={pm} onChange={(e) => setPm(e.target.value)} fullWidth />
+          <TextField label="Profit margin" value={pm} onChange={(e) => setPm(e.target.value)} fullWidth />
           {error && (
             <FormHelperText sx={{ color: 'error.main' }}>
               Profit margin should be a number between 0 and 100

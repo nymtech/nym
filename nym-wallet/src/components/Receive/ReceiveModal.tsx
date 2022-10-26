@@ -1,35 +1,52 @@
 import React, { useContext } from 'react';
 import { AppContext } from 'src/context';
-import { Box, Stack, Typography, SxProps, Dialog, DialogTitle, DialogContent, Paper } from '@mui/material';
+import { Box, Stack, SxProps } from '@mui/material';
 import QRCode from 'qrcode.react';
 import { ClientAddress } from '../ClientAddress';
 import { ModalListItem } from '../Modals/ModalListItem';
-import { Close as CloseIcon } from '@mui/icons-material';
+import { SimpleModal } from '../Modals/SimpleModal';
 
-export const ReceiveModal = ({ onClose }: { onClose: () => void; sx?: SxProps; backdropProps?: object }) => {
-  const { clientDetails, mode } = useContext(AppContext);
+export const ReceiveModal = ({
+  onClose,
+  sx,
+  backdropProps,
+}: {
+  onClose: () => void;
+  sx?: SxProps;
+  backdropProps?: object;
+}) => {
+  const { clientDetails } = useContext(AppContext);
   return (
-    <Dialog open maxWidth="sm" fullWidth onClose={onClose} PaperComponent={Paper} PaperProps={{ elevation: 0 }}>
-      <DialogTitle>
-        <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography fontSize={20} fontWeight={600}>
-            Receive
-          </Typography>
-          <CloseIcon onClick={onClose} cursor="pointer" />
-        </Box>
-      </DialogTitle>
-      <DialogContent sx={{ p: 0 }}>
-        <Box sx={{ px: 3 }}>
-          <ModalListItem label="Your address:" value={<ClientAddress withCopy showEntireAddress />} />
-        </Box>
+    <SimpleModal
+      header="Receive"
+      subHeader="Provide your address to receive tokens"
+      open
+      onClose={onClose}
+      okLabel=""
+      sx={sx}
+      backdropProps={backdropProps}
+      subHeaderStyles={{ mb: 0 }}
+    >
+      <Stack gap={3} sx={{ position: 'relative', top: '32px' }}>
+        <ModalListItem label="Your address" value={<ClientAddress withCopy showEntireAddress />} />
         <Stack
           alignItems="center"
-          sx={{ px: 0, py: 3, mt: 3, bgcolor: mode === 'light' ? 'rgba(251, 110, 78, 5%)' : 'nym.background.dark' }}
+          sx={{
+            position: 'relative',
+            left: '-32px',
+            width: '598px',
+            py: 4,
+            bgcolor: (t) => (t.palette.mode === 'dark' ? t.palette.background.default : 'rgba(251, 110, 78, 5%)'),
+            borderRadius: '0px 0px 16px 16px',
+          }}
         >
           <Box
             sx={{
-              border: (t) => `1px solid ${mode === 'light' ? t.palette.nym.highlight : t.palette.nym.text.grey} `,
-              bgcolor: mode === 'light' ? 'white' : 'nym.background.main',
+              border: (t) =>
+                t.palette.mode === 'dark'
+                  ? `1px solid ${t.palette.nym.nymWallet.modal.border}`
+                  : `1px solid ${t.palette.nym.highlight}`,
+              bgcolor: (t) => (t.palette.mode === 'dark' ? 'transparent' : 'white'),
               borderRadius: 2,
               p: 3,
             }}
@@ -37,7 +54,7 @@ export const ReceiveModal = ({ onClose }: { onClose: () => void; sx?: SxProps; b
             {clientDetails && <QRCode data-testid="qr-code" value={clientDetails?.client_address} />}
           </Box>
         </Stack>
-      </DialogContent>
-    </Dialog>
+      </Stack>
+    </SimpleModal>
   );
 };

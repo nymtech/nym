@@ -221,7 +221,9 @@ name = "contracts-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "schemars",
  "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -779,6 +781,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "humantime"
+version = "2.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a3a5bfb195931eeb336b2a7b4d761daec841b97f947d34394601737a7bba5e4"
+
+[[package]]
+name = "humantime-serde"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57a3db5ea5923d99402c94e9feb261dc5ee9b4efa158b0315f788cf549cc200c"
+dependencies = [
+ "humantime",
+ "serde",
+]
+
+[[package]]
 name = "idna"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -937,6 +955,7 @@ dependencies = [
  "bs58",
  "contracts-common",
  "cosmwasm-std",
+ "humantime-serde",
  "log",
  "schemars",
  "serde",
@@ -1589,6 +1608,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 name = "vesting-contract"
 version = "1.1.0"
 dependencies = [
+ "contracts-common",
  "cosmwasm-std",
  "cw-storage-plus",
  "mixnet-contract-common",
@@ -1602,7 +1622,9 @@ dependencies = [
 name = "vesting-contract-common"
 version = "0.1.0"
 dependencies = [
+ "contracts-common",
  "cosmwasm-std",
+ "log",
  "mixnet-contract-common",
  "schemars",
  "serde",

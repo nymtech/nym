@@ -6,6 +6,7 @@ pub mod delegation;
 pub mod error;
 pub mod events;
 pub mod gateway;
+pub mod helpers;
 mod interval;
 pub mod mixnode;
 mod msg;
@@ -33,7 +34,8 @@ pub use mixnode::{
 };
 pub use msg::*;
 pub use pending_events::{
-    PendingEpochEvent, PendingEpochEventData, PendingIntervalEvent, PendingIntervalEventData,
+    PendingEpochEvent, PendingEpochEventData, PendingEpochEventKind, PendingIntervalEvent,
+    PendingIntervalEventData, PendingIntervalEventKind,
 };
 pub use reward_params::{IntervalRewardParams, IntervalRewardingParamsUpdate, RewardingParams};
 pub use types::*;

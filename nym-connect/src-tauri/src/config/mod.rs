@@ -90,7 +90,7 @@ impl Config {
 
     pub fn config_file_location(id: &str) -> Result<PathBuf> {
         Socks5Config::try_default_config_file_path(Some(id))
-            .ok_or(BackendError::CouldNotGetFilename)
+            .ok_or(BackendError::CouldNotGetConfigFilename)
     }
 }
 

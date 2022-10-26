@@ -75,7 +75,7 @@ export const NodeSettings = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <NodeIcon />
                 <Typography variant="h6" fontWeight={600}>
-                  Node Settings
+                  {isMixnode(bondedNode) ? 'Node' : 'Gateway'} Settings
                 </Typography>
               </Box>
             </Box>

@@ -9,7 +9,7 @@ import {
   WrappedDelegationEvent,
   PendingIntervalEvent,
 } from '@nymproject/types';
-import { Interval, TNodeDescription } from 'src/types';
+import { Interval, TGatewayReport, TNodeDescription } from 'src/types';
 import { invokeWrapper } from './wrapper';
 
 export const getAllPendingDelegations = async () =>
@@ -50,4 +50,4 @@ export const getPendingIntervalEvents = async () =>
   invokeWrapper<PendingIntervalEvent[]>('get_pending_interval_events');
 
 export const getGatewayReport = async (identity: string) =>
-  invokeWrapper<TNodeDescription>('gateway_report', { identity });
+  invokeWrapper<TGatewayReport>('gateway_report', { identity });

@@ -32,6 +32,7 @@ import {
   getInclusionProbability,
   getMixnodeAvgUptime,
   getMixnodeRewardEstimation,
+  getGatewayReport,
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
@@ -78,6 +79,10 @@ export interface TBondedGateway {
   mixPort: number;
   verlocPort: number;
   version: string;
+  routingScore: {
+    current: number;
+    average: number;
+  };
 }
 
 export type TokenPool = 'locked' | 'balance';
@@ -215,6 +220,15 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     return stake;
   };
 
+  const getGatewayReportDetails = async (identityKey: string) => {
+    try {
+      const report = await getGatewayReport(identityKey);
+      return { current: report.most_recent, average: report.last_day };
+    } catch (e) {
+      Console.error(e);
+    }
+  };
+
   const refresh = useCallback(async () => {
     setIsLoading(true);
 
@@ -282,7 +296,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
         const data = await getGatewayBondDetails();
         if (data) {
           const nodeDescription = await getNodeDescription(data.gateway.host, data.gateway.clients_port);
-
+          const routingScore = await getGatewayReportDetails(data.gateway.identity_key);
           setBondedNode({
             name: nodeDescription?.name,
             identityKey: data.gateway.identity_key,
@@ -290,6 +304,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             location: data.gateway.location,
             bond: data.pledge_amount,
             proxy: data.proxy,
+            routingScore,
           } as TBondedGateway);
         }
       } catch (e: any) {

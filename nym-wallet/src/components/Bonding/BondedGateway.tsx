@@ -44,7 +44,7 @@ export const BondedGateway = ({
   network?: Network;
   onActionSelect: (action: TBondedGatwayActions) => void;
 }) => {
-  const { name, bond, ip, identityKey } = gateway;
+  const { name, bond, ip, identityKey, routingScore } = gateway;
   const cells: Cell[] = [
     {
       cell: `${bond.amount} ${bond.denom}`,
@@ -53,11 +53,11 @@ export const BondedGateway = ({
     },
 
     {
-      cell: '100%',
+      cell: routingScore.current,
       id: 'routing-score-cell',
     },
     {
-      cell: '90%',
+      cell: routingScore.average,
       id: 'average-score-cell',
     },
     {
@@ -70,19 +70,6 @@ export const BondedGateway = ({
       align: 'right',
     },
   ];
-
-  const getGatewayReportDetails = async () => {
-    try {
-      const report = await getGatewayReport(gateway.identityKey);
-      Console.log(report);
-    } catch (e) {
-      Console.error(e);
-    }
-  };
-
-  useEffect(() => {
-    getGatewayReportDetails();
-  }, []);
 
   return (
     <NymCard
@@ -105,7 +92,7 @@ export const BondedGateway = ({
       <NodeTable headers={headers} cells={cells} />
       {network && (
         <Typography sx={{ mt: 2, fontSize: 'small' }}>
-          Check more stats of your node on the{' '}
+          Check more stats of your gateway on the{' '}
           <Link href={`${urls(network).networkExplorer}/network-components/gateways`} target="_blank">
             explorer
           </Link>

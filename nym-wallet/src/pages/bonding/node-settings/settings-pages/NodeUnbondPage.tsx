@@ -23,7 +23,7 @@ export const NodeUnbondPage = ({ bondedNode, onConfirm, onError }: Props) => {
           </Grid>
           <Grid item>
             <Typography variant="body2" sx={{ color: (theme) => theme.palette.nym.text.muted }}>
-              If you unbond your node you will loose all delegations!
+              If you unbond you will loose all delegations!
             </Typography>
           </Grid>
         </Grid>

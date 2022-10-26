@@ -29,11 +29,7 @@ pub type NodeIndex = u64;
 pub enum EpochState {
     PublicKeySubmission,
     DealingExchange,
-    ComplaintSubmission,
-    ComplaintVoting,
     VerificationKeySubmission,
-    VerificationKeyMismatchSubmission,
-    VerificationKeyMismatchVoting,
     InProgress,
 }
 
@@ -48,15 +44,7 @@ impl Display for EpochState {
         match self {
             EpochState::PublicKeySubmission => write!(f, "PublicKeySubmission"),
             EpochState::DealingExchange => write!(f, "DealingExchange"),
-            EpochState::ComplaintSubmission => write!(f, "ComplaintSubmission"),
-            EpochState::ComplaintVoting => write!(f, "ComplaintVoting"),
             EpochState::VerificationKeySubmission => write!(f, "VerificationKeySubmission"),
-            EpochState::VerificationKeyMismatchSubmission => {
-                write!(f, "VerificationKeyMismatchSubmission")
-            }
-            EpochState::VerificationKeyMismatchVoting => {
-                write!(f, "VerificationKeyMismatchVoting")
-            }
             EpochState::InProgress => write!(f, "InProgress"),
         }
     }
@@ -66,16 +54,8 @@ impl EpochState {
     pub fn next(self) -> Option<Self> {
         match self {
             EpochState::PublicKeySubmission => Some(EpochState::DealingExchange),
-            EpochState::DealingExchange => Some(EpochState::ComplaintSubmission),
-            EpochState::ComplaintSubmission => Some(EpochState::ComplaintVoting),
-            EpochState::ComplaintVoting => Some(EpochState::VerificationKeySubmission),
-            EpochState::VerificationKeySubmission => {
-                Some(EpochState::VerificationKeyMismatchSubmission)
-            }
-            EpochState::VerificationKeyMismatchSubmission => {
-                Some(EpochState::VerificationKeyMismatchVoting)
-            }
-            EpochState::VerificationKeyMismatchVoting => Some(EpochState::InProgress),
+            EpochState::DealingExchange => Some(EpochState::VerificationKeySubmission),
+            EpochState::VerificationKeySubmission => Some(EpochState::InProgress),
             EpochState::InProgress => None,
         }
     }

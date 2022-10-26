@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::coconut::dkg::client::DkgClient;
-use crate::coconut::dkg::dealing::dealing_exchange;
-use crate::coconut::dkg::public_key::public_key_submission;
 use crate::coconut::dkg::state::State;
+use crate::coconut::dkg::{
+    dealing::dealing_exchange, public_key::public_key_submission,
+    verification_key::verification_key_submission,
+};
 use crate::{nymd_client, Config};
 use anyhow::Result;
 use coconut_dkg_common::types::EpochState;
@@ -67,9 +69,8 @@ impl<R: RngCore> DkgController<R> {
                     EpochState::DealingExchange => {
                         dealing_exchange(&self.dkg_client, &mut self.state, &mut self.rng).await
                     }
-                    EpochState::ComplaintSubmission | EpochState::ComplaintVoting => {
-                        trace!("Remains to be implemented using multisig contract");
-                        Ok(())
+                    EpochState::VerificationKeySubmission => {
+                        verification_key_submission(&self.dkg_client, &mut self.state).await
                     }
                     _ => todo!(),
                 };

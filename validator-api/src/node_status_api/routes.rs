@@ -8,10 +8,7 @@ use crate::node_status_api::helpers::{
     _get_mixnode_stake_saturation, _get_mixnode_status, _mixnode_core_status_count,
     _mixnode_report, _mixnode_uptime_history,
 };
-use crate::node_status_api::models::{
-    ErrorResponse, GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport,
-    MixnodeUptimeHistory,
-};
+use crate::node_status_api::models::ErrorResponse;
 use crate::storage::ValidatorApiStorage;
 use crate::ValidatorCache;
 use mixnet_contract_common::MixId;
@@ -21,8 +18,10 @@ use rocket::State;
 use rocket_okapi::openapi;
 use validator_api_requests::models::{
     AllInclusionProbabilitiesResponse, ComputeRewardEstParam, GatewayCoreStatusResponse,
-    InclusionProbabilityResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
-    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    GatewayStatusReportResponse, GatewayUptimeHistoryResponse, InclusionProbabilityResponse,
+    MixnodeCoreStatusResponse, MixnodeStatusReportResponse, MixnodeStatusResponse,
+    MixnodeUptimeHistoryResponse, RewardEstimationResponse, StakeSaturationResponse,
+    UptimeResponse,
 };
 
 #[openapi(tag = "status")]
@@ -30,10 +29,11 @@ use validator_api_requests::models::{
 pub(crate) async fn gateway_report(
     storage: &State<ValidatorApiStorage>,
     identity: &str,
-) -> Result<Json<GatewayStatusReport>, ErrorResponse> {
+) -> Result<Json<GatewayStatusReportResponse>, ErrorResponse> {
     storage
         .construct_gateway_report(identity)
         .await
+        .map(GatewayStatusReportResponse::from)
         .map(Json)
         .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
 }
@@ -43,10 +43,11 @@ pub(crate) async fn gateway_report(
 pub(crate) async fn gateway_uptime_history(
     storage: &State<ValidatorApiStorage>,
     identity: &str,
-) -> Result<Json<GatewayUptimeHistory>, ErrorResponse> {
+) -> Result<Json<GatewayUptimeHistoryResponse>, ErrorResponse> {
     storage
         .get_gateway_uptime_history(identity)
         .await
+        .map(GatewayUptimeHistoryResponse::from)
         .map(Json)
         .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
 }
@@ -74,7 +75,7 @@ pub(crate) async fn gateway_core_status_count(
 pub(crate) async fn mixnode_report(
     storage: &State<ValidatorApiStorage>,
     mix_id: MixId,
-) -> Result<Json<MixnodeStatusReport>, ErrorResponse> {
+) -> Result<Json<MixnodeStatusReportResponse>, ErrorResponse> {
     Ok(Json(_mixnode_report(storage, mix_id).await?))
 }
 
@@ -83,7 +84,7 @@ pub(crate) async fn mixnode_report(
 pub(crate) async fn mixnode_uptime_history(
     storage: &State<ValidatorApiStorage>,
     mix_id: MixId,
-) -> Result<Json<MixnodeUptimeHistory>, ErrorResponse> {
+) -> Result<Json<MixnodeUptimeHistoryResponse>, ErrorResponse> {
     Ok(Json(_mixnode_uptime_history(storage, mix_id).await?))
 }
 

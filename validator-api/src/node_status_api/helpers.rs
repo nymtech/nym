@@ -3,7 +3,7 @@
 
 use crate::contract_cache::reward_estimate::compute_reward_estimate;
 use crate::contract_cache::Cache;
-use crate::node_status_api::models::{ErrorResponse, MixnodeStatusReport, MixnodeUptimeHistory};
+use crate::node_status_api::models::ErrorResponse;
 use crate::storage::ValidatorApiStorage;
 use crate::{NodeStatusCache, ValidatorCache};
 use cosmwasm_std::Decimal;
@@ -13,26 +13,29 @@ use rocket::http::Status;
 use rocket::State;
 use validator_api_requests::models::{
     ComputeRewardEstParam, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
-    MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse,
+    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
 };
 
 pub(crate) async fn _mixnode_report(
     storage: &ValidatorApiStorage,
     mix_id: MixId,
-) -> Result<MixnodeStatusReport, ErrorResponse> {
+) -> Result<MixnodeStatusReportResponse, ErrorResponse> {
     storage
         .construct_mixnode_report(mix_id)
         .await
+        .map(MixnodeStatusReportResponse::from)
         .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
 }
 
 pub(crate) async fn _mixnode_uptime_history(
     storage: &ValidatorApiStorage,
     mix_id: MixId,
-) -> Result<MixnodeUptimeHistory, ErrorResponse> {
+) -> Result<MixnodeUptimeHistoryResponse, ErrorResponse> {
     storage
         .get_mixnode_uptime_history(mix_id)
         .await
+        .map(MixnodeUptimeHistoryResponse::from)
         .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
 }
 

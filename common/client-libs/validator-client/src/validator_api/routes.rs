@@ -28,6 +28,8 @@ pub const CORE_STATUS_COUNT: &str = "core-status-count";
 pub const SINCE_ARG: &str = "since";
 
 pub const STATUS: &str = "status";
+pub const REPORT: &str = "report";
+pub const HISTORY: &str = "history";
 pub const REWARD_ESTIMATION: &str = "reward-estimation";
 pub const AVG_UPTIME: &str = "avg_uptime";
 pub const STAKE_SATURATION: &str = "stake-saturation";

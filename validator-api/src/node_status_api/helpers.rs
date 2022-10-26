@@ -266,10 +266,3 @@ pub(crate) async fn _get_mixnode_avg_uptime(
         avg_uptime: performance.round_to_integer(),
     })
 }
-
-//pub(crate) async fn _gateway_report(
-//    storage: &ValidatorApiStorage,
-//    identity: IdentityKey,
-//) -> Result<MixnodeStatusReport, ErrorResponse> {
-//    storage.construct_gateway_report(&identity).await
-//}

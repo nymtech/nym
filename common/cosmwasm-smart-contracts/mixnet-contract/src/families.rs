@@ -38,7 +38,7 @@ impl Family {
     pub fn new(head: FamilyHead, proxy: Option<Addr>, label: &str) -> Self {
         Family {
             head,
-            proxy: proxy.map(|p|p.to_string()),
+            proxy: proxy.map(|p| p.to_string()),
             label: label.to_string(),
             members: HashSet::new(),
         }

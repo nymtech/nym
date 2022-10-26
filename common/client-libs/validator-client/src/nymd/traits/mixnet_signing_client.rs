@@ -11,7 +11,7 @@ use cosmrs::AccountId;
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use mixnet_contract_common::reward_params::{IntervalRewardingParamsUpdate, Performance};
 use mixnet_contract_common::{
-    ContractStateParams, ExecuteMsg as MixnetExecuteMsg, Gateway, IdentityKey, MixNode, MixId,
+    ContractStateParams, ExecuteMsg as MixnetExecuteMsg, Gateway, IdentityKey, MixId, MixNode,
 };
 
 #[async_trait]

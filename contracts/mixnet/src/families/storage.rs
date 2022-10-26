@@ -1,7 +1,7 @@
 use cosmwasm_std::{StdError, Storage};
 use cw_storage_plus::{Index, IndexList, IndexedMap, UniqueIndex};
+use mixnet_contract_common::families::{family_storage_key, Family, FamilyHead};
 use mixnet_contract_common::{error::MixnetContractError, IdentityKeyRef};
-use mixnet_contract_common::families::{Family, FamilyHead, family_storage_key};
 
 use crate::constants::{FAMILIES_INDEX_NAMESPACE, FAMILIES_MAP_NAMESPACE};
 

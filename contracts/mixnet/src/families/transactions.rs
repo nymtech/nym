@@ -2,11 +2,11 @@ use crate::support::helpers::{
     ensure_bonded, validate_family_signature, validate_node_identity_signature,
 };
 
-use mixnet_contract_common::families::{Family, FamilyHead};
 use cosmwasm_std::{Addr, DepsMut, MessageInfo, Response};
+use mixnet_contract_common::families::{Family, FamilyHead};
 use mixnet_contract_common::{error::MixnetContractError, IdentityKey, IdentityKeyRef};
 
-use super::storage::{create_family, get_family, add_family_member, remove_family_member};
+use super::storage::{add_family_member, create_family, get_family, remove_family_member};
 
 /// Creates a new MixNode family with senders node as head
 pub fn try_create_family(
@@ -341,8 +341,7 @@ mod test {
         assert!(family.is_some());
         assert_eq!(family.unwrap().head_identity(), family_head.identity());
 
-        let family =
-            get_family_by_head(family_head.identity(), None, &deps.storage, ).unwrap();
+        let family = get_family_by_head(family_head.identity(), None, &deps.storage).unwrap();
         assert_eq!(family.head_identity(), family_head.identity());
 
         let join_signature = head_keypair

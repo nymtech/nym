@@ -7,6 +7,7 @@ use crate::nymd::NymdClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use mixnet_contract_common::delegation::{MixNodeDelegationResponse, OwnerProxySubKey};
+use mixnet_contract_common::families::Family;
 use mixnet_contract_common::mixnode::{
     MixNodeDetails, MixnodeRewardingDetailsResponse, PagedMixnodesDetailsResponse,
     PagedUnbondedMixnodesResponse, StakeSaturationResponse, UnbondedMixnodeResponse,
@@ -354,6 +355,30 @@ pub trait MixnetQueryClient {
     ) -> Result<Option<MixNodeDetails>, NymdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetBondedMixnodeDetailsByIdentity {
             mix_identity,
+        })
+        .await
+    }
+
+    async fn get_all_node_families(&self) -> Result<Vec<Family>, NymdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetAllFamilies {})
+            .await
+    }
+
+    async fn get_node_family_by_label(&self, label: &str) -> Result<Option<Family>, NymdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetFamilyByLabel {
+            label: label.to_string(),
+        })
+        .await
+    }
+
+    async fn get_node_family_by_head(
+        &self,
+        head: &str,
+        proxy: Option<String>,
+    ) -> Result<Option<Family>, NymdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetFamilyByHead {
+            head: head.to_string(),
+            proxy,
         })
         .await
     }

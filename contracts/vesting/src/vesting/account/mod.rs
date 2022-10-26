@@ -5,12 +5,13 @@ use crate::storage::{
     remove_delegation, remove_gateway_pledge, save_account, save_balance, save_bond_pledge,
     save_gateway_pledge, save_withdrawn, BlockTimestampSecs, DELEGATIONS, KEY,
 };
+use crate::traits::VestingAccount;
 use cosmwasm_std::{Addr, Coin, Order, Storage, Timestamp, Uint128};
 use cw_storage_plus::Bound;
 use mixnet_contract_common::MixId;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vesting_contract_common::{Period, PledgeData};
+use vesting_contract_common::{Period, PledgeCap, PledgeData};
 
 mod delegating_account;
 mod gateway_bonding_account;
@@ -31,6 +32,8 @@ pub struct Account {
     pub periods: Vec<VestingPeriod>,
     pub coin: Coin,
     storage_key: u32,
+    #[serde(default)]
+    pub pledge_cap: Option<PledgeCap>,
 }
 
 impl Account {
@@ -40,6 +43,7 @@ impl Account {
         coin: Coin,
         start_time: Timestamp,
         periods: Vec<VestingPeriod>,
+        pledge_cap: Option<PledgeCap>,
         storage: &mut dyn Storage,
     ) -> Result<Self, ContractError> {
         let storage_key = generate_storage_key(storage)?;
@@ -51,10 +55,22 @@ impl Account {
             periods,
             coin,
             storage_key,
+            pledge_cap,
         };
         save_account(&account, storage)?;
         account.save_balance(amount, storage)?;
         Ok(account)
+    }
+
+    pub fn pledge_cap(&self) -> PledgeCap {
+        self.pledge_cap.clone().unwrap_or_default()
+    }
+
+    pub fn absolute_pledge_cap(&self) -> Result<Uint128, ContractError> {
+        match self.pledge_cap() {
+            PledgeCap::Absolute(cap) => Ok(cap),
+            PledgeCap::Percent(p) => Ok(p * self.get_original_vesting().amount.amount),
+        }
     }
 
     pub fn coin(&self) -> Coin {

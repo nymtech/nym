@@ -72,6 +72,7 @@ crypto = { path = "../common/crypto" }
 gateway-client = { path = "../common/client-libs/gateway-client" }
 inclusion-probability = { path = "../common/inclusion-probability" }
 mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
+contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
 multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
 nymcoconut = { path = "../common/nymcoconut", optional = true }
 nymsphinx = { path = "../common/nymsphinx" }

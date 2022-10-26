@@ -2,15 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::MixnetContractError;
-use crate::rewarding::helpers::truncate_decimal;
 use crate::{Layer, RewardedSetNodeStatus};
-use cosmwasm_std::{Addr, Uint128};
-use cosmwasm_std::{Coin, Decimal};
+use cosmwasm_std::Addr;
+use cosmwasm_std::Coin;
 use schemars::JsonSchema;
-use serde::de::Error;
-use serde::{Deserialize, Deserializer, Serialize};
-use std::fmt::{self, Display, Formatter};
-use std::ops::{Index, Mul};
+use serde::{Deserialize, Serialize};
+use std::ops::Index;
 
 // type aliases for better reasoning about available data
 pub type IdentityKey = String;
@@ -23,87 +20,6 @@ pub type MixId = u32;
 pub type BlockHeight = u64;
 pub type EpochEventId = u32;
 pub type IntervalEventId = u32;
-
-/// Percent represents a value between 0 and 100%
-/// (i.e. between 0.0 and 1.0)
-#[derive(
-    Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Serialize, Deserialize, JsonSchema,
-)]
-pub struct Percent(#[serde(deserialize_with = "de_decimal_percent")] Decimal);
-
-impl Percent {
-    pub fn new(value: Decimal) -> Result<Self, MixnetContractError> {
-        if value > Decimal::one() {
-            Err(MixnetContractError::InvalidPercent)
-        } else {
-            Ok(Percent(value))
-        }
-    }
-
-    pub fn is_zero(&self) -> bool {
-        self.0 == Decimal::zero()
-    }
-
-    pub fn from_percentage_value(value: u64) -> Result<Self, MixnetContractError> {
-        Percent::new(Decimal::percent(value))
-    }
-
-    pub fn value(&self) -> Decimal {
-        self.0
-    }
-
-    pub fn round_to_integer(&self) -> u8 {
-        let hundred = Decimal::from_ratio(100u32, 1u32);
-        // we know the cast from u128 to u8 is a safe one since the internal value must be within 0 - 1 range
-        truncate_decimal(hundred * self.0).u128() as u8
-    }
-}
-
-impl Display for Percent {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let adjusted = Decimal::from_atomics(100u32, 0).unwrap() * self.0;
-        write!(f, "{}%", adjusted)
-    }
-}
-
-impl Mul<Decimal> for Percent {
-    type Output = Decimal;
-
-    fn mul(self, rhs: Decimal) -> Self::Output {
-        self.0 * rhs
-    }
-}
-
-impl Mul<Percent> for Decimal {
-    type Output = Decimal;
-
-    fn mul(self, rhs: Percent) -> Self::Output {
-        rhs * self
-    }
-}
-
-impl Mul<Uint128> for Percent {
-    type Output = Uint128;
-
-    fn mul(self, rhs: Uint128) -> Self::Output {
-        self.0 * rhs
-    }
-}
-
-// implement custom Deserialize because we want to validate Percent has the correct range
-fn de_decimal_percent<'de, D>(deserializer: D) -> Result<Decimal, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let v = Decimal::deserialize(deserializer)?;
-    if v > Decimal::one() {
-        Err(D::Error::custom(
-            "provided decimal percent is larger than 100%",
-        ))
-    } else {
-        Ok(v)
-    }
-}
 
 #[derive(Debug, Default, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
 pub struct LayerDistribution {
@@ -209,7 +125,7 @@ pub struct PagedRewardedSetResponse {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use contracts_common::Percent;
 
     #[test]
     fn percent_serde() {

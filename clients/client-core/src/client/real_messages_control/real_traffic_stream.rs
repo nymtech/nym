@@ -27,9 +27,22 @@ use tokio::time;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
 
-const DECREASE_DELAY_MIN_CHANGE_INTERVAL_SECS: u64 = 30;
+// The minimum time between increasing the average delay between packets. If we hit the ceiling in
+// the available buffer space we want to take somewhat swift action, but we still need to give a
+// short time to give the channel a chance reduce pressure.
 const INCREASE_DELAY_MIN_CHANGE_INTERVAL_SECS: u64 = 1;
+// The minimum time between decreasing the average delay between packets. We don't want to change
+// to quickly to keep things somewhat stable. Also there are buffers downstreams meaning we need to
+// wait a little to see the effect before we decrease further.
+const DECREASE_DELAY_MIN_CHANGE_INTERVAL_SECS: u64 = 30;
+// If we enough time passes without any sign of backpressure in the channel, we can consider
+// lowering the average delay. The goal is to keep somewhat stable, rather than maxing out
+// bandwidth at all times.
 const ACCEPTABLE_TIME_WITHOUT_BACKPRESSURE_SECS: u64 = 30;
+// The maximum multiplier we apply to the base average Poisson delay.
+const MAX_DELAY_MULTIPLIER: u32 = 6;
+// The minium multiplier we apply to the base average Poisson delay.
+const MIN_DELAY_MULTIPLIER: u32 = 1;
 
 /// Configurable parameters of the `OutQueueControl`
 pub(crate) struct Config {
@@ -115,7 +128,7 @@ impl SendingDelayController {
         assert!(lower_bound <= upper_bound);
         let now = get_time_now();
         SendingDelayController {
-            current_multiplier: 1,
+            current_multiplier: MIN_DELAY_MULTIPLIER,
             upper_bound,
             lower_bound,
             time_when_changed: now,
@@ -259,7 +272,10 @@ where
             ack_key,
             sent_notifier,
             next_delay: None,
-            sending_rate_controller: SendingDelayController::new(1, 6),
+            sending_rate_controller: SendingDelayController::new(
+                MIN_DELAY_MULTIPLIER,
+                MAX_DELAY_MULTIPLIER,
+            ),
             mix_tx,
             real_receiver,
             our_full_destination,

@@ -57,21 +57,22 @@ impl GeoIp {
         GeoIp { db: reader }
     }
 
-    pub fn query(&self, address: &str) -> Result<Option<Location>, GeoIpError> {
+    pub fn query(&self, address: &str, port: Option<u16>) -> Result<Option<Location>, GeoIpError> {
         let ip: IpAddr = FromStr::from_str(address).or_else(|_| {
             warn!(
                 "Fail to create IpAddr from {}. Trying using internal lookup...",
                 &address
             );
-            let socket_addr = (address, FAKE_PORT)
+            let p = port.unwrap_or(FAKE_PORT);
+            let socket_addr = (address, p)
                 .to_socket_addrs()
                 .map_err(|e| {
-                    error!("Fail to resolve IP address from {}: {}", &address, e);
+                    error!("Fail to resolve IP address from {}:{}: {}", &address, p, e);
                     GeoIpError::NoValidIP
                 })?
                 .next()
                 .ok_or_else(|| {
-                    error!("Fail to resolve IP address from {}", &address);
+                    error!("Fail to resolve IP address from {}:{}", &address, p);
                     GeoIpError::NoValidIP
                 })?;
             Ok(socket_addr.ip())

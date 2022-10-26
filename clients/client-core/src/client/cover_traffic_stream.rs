@@ -175,7 +175,9 @@ impl LoopCoverTrafficStream<OsRng> {
         if let Err(err) = self.mix_tx.try_send(vec![cover_message]) {
             match err {
                 TrySendError::Full(_) => {
-                    log::warn!("Failed to send cover message - channel full");
+                    // This isn't a problem, if the channel is full means we're already sending the
+                    // max amount of messages downstream can handle.
+                    log::debug!("Failed to send cover message - channel full");
                 }
                 TrySendError::Closed(_) => {
                     log::warn!("Failed to send cover message - channel closed");

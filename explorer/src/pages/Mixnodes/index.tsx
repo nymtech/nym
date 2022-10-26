@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { Button, Card, Grid, Link as MuiLink } from '@mui/material';
+import { Button, Card, Grid, Link as MuiLink, Tooltip, Box } from '@mui/material';
 import { Link as RRDLink, useParams, useNavigate } from 'react-router-dom';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { SxProps } from '@mui/system';
@@ -244,7 +244,34 @@ export const PageMixnodes: React.FC = () => {
             justifyContent: 'flex-start',
           }}
         >
-          {params.value}
+          <Tooltip
+            title={params.value}
+            id="location-long-text"
+            placement="top-start"
+            componentsProps={{
+              tooltip: {
+                sx: {
+                  maxWidth: 200,
+                  background: theme.palette.nym.networkExplorer.tooltip.background,
+                  color: theme.palette.nym.networkExplorer.tooltip.color,
+                  '& .MuiTooltip-arrow': {
+                    color: theme.palette.nym.networkExplorer.tooltip.background,
+                  },
+                },
+              },
+            }}
+            arrow
+          >
+            <Box
+              sx={{
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {params.value}
+            </Box>
+          </Tooltip>
         </Button>
       ),
     },

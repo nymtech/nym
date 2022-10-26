@@ -1,4 +1,4 @@
-import { MixNode, DecCoin, CurrencyDenom } from './rust';
+import { MixNode, DecCoin } from './rust';
 
 export type TNodeType = 'mixnode' | 'gateway';
 

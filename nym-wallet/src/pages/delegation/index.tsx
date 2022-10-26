@@ -111,7 +111,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   const handleNewDelegation = async (
     mix_id: number,
-    identityKey: string,
+    _: string,
     amount: DecCoin,
     tokenPool: TPoolOption,
     fee?: FeeDetails,
@@ -275,7 +275,8 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
           <CircularProgress />
         </Box>
       );
-    } else if (Boolean(delegations?.length)) {
+    }
+    if (delegations && Boolean(delegations?.length)) {
       return (
         <DelegationList
           explorerUrl={urls(network).networkExplorer}

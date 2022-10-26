@@ -25,15 +25,17 @@ pub struct MixTrafficController {
 }
 
 impl MixTrafficController {
-    pub fn new(
-        mix_rx: BatchMixMessageReceiver,
-        gateway_client: GatewayClient,
-    ) -> MixTrafficController {
-        MixTrafficController {
-            gateway_client,
-            mix_rx,
-            consecutive_gateway_failure_count: 0,
-        }
+    pub fn new(gateway_client: GatewayClient) -> (MixTrafficController, BatchMixMessageSender) {
+        let (sphinx_message_sender, sphinx_message_receiver) =
+            tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
+        (
+            MixTrafficController {
+                gateway_client,
+                mix_rx: sphinx_message_receiver,
+                consecutive_gateway_failure_count: 0,
+            },
+            sphinx_message_sender,
+        )
     }
 
     async fn on_messages(&mut self, mut mix_packets: Vec<MixPacket>) {

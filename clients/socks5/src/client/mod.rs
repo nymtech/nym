@@ -13,10 +13,7 @@ use client_core::client::inbound_messages::{
     InputMessage, InputMessageReceiver, InputMessageSender,
 };
 use client_core::client::key_manager::KeyManager;
-use client_core::client::mix_traffic::{
-    BatchMixMessageReceiver, BatchMixMessageSender, MixTrafficController,
-    MIX_MESSAGE_RECEIVER_BUFFER_SIZE,
-};
+use client_core::client::mix_traffic::{BatchMixMessageSender, MixTrafficController};
 use client_core::client::real_messages_control::RealMessagesController;
 use client_core::client::received_buffer::{
     ReceivedBufferRequestReceiver, ReceivedBufferRequestSender, ReceivedMessagesBufferController,
@@ -265,13 +262,13 @@ impl NymClient {
     // over it. Perhaps GatewayClient needs to be thread-shareable or have some channel for
     // requests?
     fn start_mix_traffic_controller(
-        &mut self,
-        mix_rx: BatchMixMessageReceiver,
         gateway_client: GatewayClient,
         shutdown: ShutdownListener,
-    ) {
+    ) -> BatchMixMessageSender {
         info!("Starting mix traffic controller...");
-        MixTrafficController::new(mix_rx, gateway_client).start_with_shutdown(shutdown);
+        let (mix_traffic_controller, mix_tx) = MixTrafficController::new(gateway_client);
+        mix_traffic_controller.start_with_shutdown(shutdown);
+        mix_tx
     }
 
     fn start_socks5_listener(
@@ -347,12 +344,6 @@ impl NymClient {
         // rather than creating them here, so say for example the buffer controller would create the request channels
         // and would allow anyone to clone the sender channel
 
-        // sphinx_message_sender is the transmitter for any component generating sphinx packets that are to be sent to the mixnet
-        // they are used by cover traffic stream and real traffic stream
-        // sphinx_message_receiver is the receiver used by MixTrafficController that sends the actual traffic
-        let (sphinx_message_sender, sphinx_message_receiver) =
-            tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
-
         // unwrapped_sphinx_sender is the transmitter of mixnet messages received from the gateway
         // unwrapped_sphinx_receiver is the receiver for said messages - used by ReceivedMessagesBuffer
         let (mixnet_messages_sender, mixnet_messages_receiver) = mpsc::unbounded();
@@ -389,11 +380,13 @@ impl NymClient {
             .start_gateway_client(mixnet_messages_sender, ack_sender, shutdown.subscribe())
             .await;
 
-        self.start_mix_traffic_controller(
-            sphinx_message_receiver,
-            gateway_client,
-            shutdown.subscribe(),
-        );
+        // The sphinx_message_sender is the transmitter for any component generating sphinx packets
+        // that are to be sent to the mixnet. They are used by cover traffic stream and real
+        // traffic stream.
+        // The MixTrafficController then sends the actual traffic
+        let sphinx_message_sender =
+            Self::start_mix_traffic_controller(gateway_client, shutdown.subscribe());
+
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
             reply_key_storage,

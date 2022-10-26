@@ -143,6 +143,7 @@ impl Client {
         self.query_validator_api(
             &[
                 routes::API_VERSION,
+                routes::STATUS,
                 routes::MIXNODE,
                 &mix_id.to_string(),
                 routes::REPORT,
@@ -159,6 +160,7 @@ impl Client {
         self.query_validator_api(
             &[
                 routes::API_VERSION,
+                routes::STATUS,
                 routes::GATEWAY,
                 identity,
                 routes::REPORT,
@@ -175,6 +177,7 @@ impl Client {
         self.query_validator_api(
             &[
                 routes::API_VERSION,
+                routes::STATUS,
                 routes::MIXNODE,
                 &mix_id.to_string(),
                 routes::HISTORY,
@@ -191,6 +194,7 @@ impl Client {
         self.query_validator_api(
             &[
                 routes::API_VERSION,
+                routes::STATUS,
                 routes::GATEWAY,
                 identity,
                 routes::HISTORY,

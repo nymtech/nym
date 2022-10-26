@@ -46,15 +46,8 @@ export const UndelegateModal: React.FC<{
       sx={sx}
       backdropProps={backdropProps}
     >
-      <IdentityKeyFormField
-        readOnly
-        fullWidth
-        placeholder="Node identity key"
-        initialValue={identityKey}
-        showTickOnValid={false}
-      />
-
       <Box sx={{ mt: 3 }}>
+        <ModalListItem label="Node identity" value={identityKey || '-'} divider />
         <ModalListItem label="Delegation amount" value={`${amount} ${currency.toUpperCase()}`} divider />
         <ModalFee fee={fee} isLoading={isFeeLoading} error={feeError} divider />
         <ModalListItem label=" Tokens will be transferred to account you are logged in with now" value="" divider />

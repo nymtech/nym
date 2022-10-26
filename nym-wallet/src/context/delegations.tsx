@@ -36,7 +36,8 @@ export type TDelegationTransaction = {
 };
 
 export type DelegationWithEvent = DelegationWithEverything | WrappedDelegationEvent;
-export type TDelegations = DelegationWithEvent[];
+export type TDelegation = DelegationWithEvent;
+export type TDelegations = TDelegation[];
 
 export const isPendingDelegation = (delegation: DelegationWithEvent): delegation is WrappedDelegationEvent =>
   'event' in delegation;

@@ -64,4 +64,4 @@ export const Empty = () => <DelegationList items={[]} explorerUrl={explorerUrl} 
 
 export const OneItem = () => <DelegationList items={[items[0]]} explorerUrl={explorerUrl} />;
 
-export const Loading = () => <DelegationList isLoading explorerUrl={explorerUrl} />;
+export const Loading = () => <DelegationList items={[]} isLoading explorerUrl={explorerUrl} />;

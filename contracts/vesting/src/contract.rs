@@ -579,7 +579,7 @@ pub fn try_get_current_vesting_period(
     env: Env,
 ) -> Result<Period, ContractError> {
     let account = account_from_address(address, deps.storage, deps.api)?;
-    Ok(account.get_current_vesting_period(env.block.time))
+    account.get_current_vesting_period(env.block.time)
 }
 
 /// Loads mixnode bond from vesting contract storage.
@@ -666,7 +666,7 @@ pub fn try_get_original_vesting(
     deps: Deps<'_>,
 ) -> Result<OriginalVestingResponse, ContractError> {
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
-    Ok(account.get_original_vesting())
+    account.get_original_vesting()
 }
 
 /// See [crate::traits::VestingAccount::get_delegated_free]

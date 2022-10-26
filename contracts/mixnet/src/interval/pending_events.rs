@@ -107,7 +107,7 @@ pub(crate) fn delegate(
     };
 
     // add the amount we're intending to delegate (whether it's fresh or we're adding to the existing one)
-    mix_rewarding.add_base_delegation(stored_delegation_amount.amount);
+    mix_rewarding.add_base_delegation(stored_delegation_amount.amount)?;
 
     let cosmos_event = new_delegation_event(
         created_at,

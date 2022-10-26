@@ -11,6 +11,8 @@ use cosmwasm_std::Event;
 /// * `event`: event to search through.
 /// * `key`: key associated with the particular attribute
 pub fn must_find_attribute(event: &Event, key: &str) -> String {
+    // due to how the function is supposed to work, the unwrap is fine in this instance
+    #[allow(clippy::unwrap_used)]
     may_find_attribute(event, key).unwrap()
 }
 

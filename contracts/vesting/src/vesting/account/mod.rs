@@ -65,8 +65,13 @@ impl Account {
         self.periods.len()
     }
 
-    pub fn period_duration(&self) -> u64 {
-        self.periods.get(0).unwrap().period_seconds
+    pub fn period_duration(&self) -> Result<u64, ContractError> {
+        self.periods
+            .get(0)
+            .ok_or(ContractError::UnpopulatedVestingPeriods {
+                owner: self.owner_address.clone(),
+            })
+            .map(|p| p.period_seconds)
     }
 
     pub fn storage_key(&self) -> u32 {
@@ -103,11 +108,28 @@ impl Account {
 
     /// Returns the index of the next vesting period. Unless the current time is somehow in the past or vesting has not started yet.
     /// In case vesting is over it will always return NUM_VESTING_PERIODS.
-    pub fn get_current_vesting_period(&self, block_time: Timestamp) -> Period {
-        if block_time.seconds() < self.periods.first().unwrap().start_time {
-            Period::Before
-        } else if self.periods.last().unwrap().end_time() < block_time {
-            Period::After
+    pub fn get_current_vesting_period(
+        &self,
+        block_time: Timestamp,
+    ) -> Result<Period, ContractError> {
+        let first_period =
+            self.periods
+                .first()
+                .ok_or(ContractError::UnpopulatedVestingPeriods {
+                    owner: self.owner_address.clone(),
+                })?;
+
+        let last_period = self
+            .periods
+            .last()
+            .ok_or(ContractError::UnpopulatedVestingPeriods {
+                owner: self.owner_address.clone(),
+            })?;
+
+        if block_time.seconds() < first_period.start_time {
+            Ok(Period::Before)
+        } else if last_period.end_time() < block_time {
+            Ok(Period::After)
         } else {
             let mut index = 0;
             for period in &self.periods {
@@ -116,7 +138,7 @@ impl Account {
                 }
                 index += 1;
             }
-            Period::In(index)
+            Ok(Period::In(index))
         }
     }
 

@@ -1,7 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::Decimal;
+use cosmwasm_std::{Decimal, Uint128};
+
+pub const TOKEN_SUPPLY: Uint128 = Uint128::new(1_000_000_000_000_000);
 
 // I'm still not 100% sure how to feel about existence of this file
 // This is equivalent of representing our display coin with 6 decimal places.

@@ -4,9 +4,14 @@
 use isocountry::CountryCode;
 use log::warn;
 use maxminddb::{geoip2::Country, MaxMindDBError, Reader};
-use std::{net::IpAddr, str::FromStr, sync::Arc};
+use std::{
+    net::{IpAddr, ToSocketAddrs},
+    str::FromStr,
+    sync::Arc,
+};
 
 const DEFAULT_DATABASE_PATH: &str = "./geo_ip/GeoLite2-Country.mmdb";
+const FAKE_PORT: u16 = 1234;
 
 #[derive(Debug)]
 pub enum GeoIpError {
@@ -52,10 +57,27 @@ impl GeoIp {
         GeoIp { db: reader }
     }
 
-    pub fn query(&self, address: &str) -> Result<Option<Location>, GeoIpError> {
-        let ip: IpAddr = FromStr::from_str(address).map_err(|e| {
-            error!("Fail to create IpAddr from {}: {}", &address, e);
-            GeoIpError::NoValidIP
+    pub fn query(&self, address: &str, port: Option<u16>) -> Result<Option<Location>, GeoIpError> {
+        let ip: IpAddr = FromStr::from_str(address).or_else(|_| {
+            debug!(
+                "Fail to create IpAddr from {}. Trying using internal lookup...",
+                &address
+            );
+            let p = port.unwrap_or(FAKE_PORT);
+            let socket_addr = (address, p)
+                .to_socket_addrs()
+                .map_err(|e| {
+                    error!("Fail to resolve IP address from {}:{}: {}", &address, p, e);
+                    GeoIpError::NoValidIP
+                })?
+                .next()
+                .ok_or_else(|| {
+                    error!("Fail to resolve IP address from {}:{}", &address, p);
+                    GeoIpError::NoValidIP
+                })?;
+            let ip = socket_addr.ip();
+            debug!("Internal lookup succeed, resolved ip: {}", ip);
+            Ok(ip)
         })?;
         let result = self
             .db

@@ -39,7 +39,7 @@ fn find_location(request: &Request<'_>) -> Result<Location, (Status, LocationErr
     let location = geo_ip
         .0
         .clone()
-        .query(&ip)
+        .query(&ip, None)
         .map_err(|e| match e {
             GeoIpError::NoValidIP => (Status::Forbidden, LocationError::NoIP),
             GeoIpError::InternalError => {

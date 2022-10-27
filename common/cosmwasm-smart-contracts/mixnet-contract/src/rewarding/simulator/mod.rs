@@ -228,6 +228,10 @@ mod tests {
         use cosmwasm_std::testing::mock_env;
         use std::time::Duration;
 
+        // explicitly marking this as part of #[allow(clippy::unwrap_used)] until
+        // https://github.com/rust-lang/rust-clippy/pull/9686
+        // is merged into a release
+        #[allow(clippy::unwrap_used)]
         fn base_simulator(initial_pledge: u128) -> Simulator {
             let profit_margin = Percent::from_percentage_value(10).unwrap();
             let interval_operating_cost = Coin::new(40_000_000, "unym");
@@ -273,6 +277,11 @@ mod tests {
         }
 
         // essentially our delegations + estimated rewards HAVE TO equal to what we actually determined
+        //
+        // explicitly marking this as part of #[allow(clippy::unwrap_used)] until
+        // https://github.com/rust-lang/rust-clippy/pull/9686
+        // is merged into a release
+        #[allow(clippy::unwrap_used)]
         fn check_rewarding_invariant(simulator: &Simulator) {
             for node in simulator.nodes.values() {
                 let delegation_sum: Decimal = node

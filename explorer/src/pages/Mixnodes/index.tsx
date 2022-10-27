@@ -82,6 +82,24 @@ export const PageMixnodes: React.FC = () => {
 
   const columns: GridColDef[] = [
     {
+      field: 'mix_id',
+      headerName: 'Mix ID',
+      renderHeader: () => <CustomColumnHeading headingTitle="Mix ID" />,
+      headerClassName: 'MuiDataGrid-header-override',
+      width: 100,
+      headerAlign: 'left',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={getCellStyles(theme, params.row)}
+          component={RRDLink}
+          to={`/network-components/mixnode/${params.value}`}
+          data-testid="mix-id"
+        >
+          {params.value}
+        </MuiLink>
+      ),
+    },
+    {
       field: 'identity_key',
       headerName: 'Identity Key',
       renderHeader: () => <CustomColumnHeading headingTitle="Identity Key" />,
@@ -98,7 +116,7 @@ export const PageMixnodes: React.FC = () => {
           <MuiLink
             sx={getCellStyles(theme, params.row)}
             component={RRDLink}
-            to={`/network-components/mixnode/${params.value}`}
+            to={`/network-components/mixnode/${params.row.mix_id}`}
             data-testid="identity-link"
           >
             {splice(7, 29, params.value)}

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Button, Card, Grid, Typography } from '@mui/material';
+import { Box, Button, Card, Grid, Typography } from '@mui/material';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { useMainContext } from '../../context/main';
@@ -10,6 +10,7 @@ import { CustomColumnHeading } from '../../components/CustomColumnHeading';
 import { Title } from '../../components/Title';
 import { cellStyles, UniversalDataGrid } from '../../components/Universal-DataGrid';
 import { currencyToString } from '../../utils/currency';
+import { Tooltip } from '../../components/Tooltip';
 
 export const PageGateways: React.FC = () => {
   const { gateways } = useMainContext();
@@ -105,7 +106,17 @@ export const PageGateways: React.FC = () => {
           sx={{ ...cellStyles, justifyContent: 'flex-start' }}
           data-testid="location-button"
         >
-          {params.value}
+          <Tooltip text={params.value} id="gateway-location-text">
+            <Box
+              sx={{
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {params.value}
+            </Box>
+          </Tooltip>
         </Button>
       ),
     },

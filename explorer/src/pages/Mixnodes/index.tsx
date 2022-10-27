@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { Button, Card, Grid, Link as MuiLink, Tooltip, Box } from '@mui/material';
+import { Button, Card, Grid, Link as MuiLink, Box } from '@mui/material';
 import { Link as RRDLink, useParams, useNavigate } from 'react-router-dom';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { SxProps } from '@mui/system';
@@ -18,6 +18,7 @@ import { currencyToString } from '../../utils/currency';
 import { splice } from '../../utils';
 import { getMixNodeStatusColor } from '../../components/MixNodes/Status';
 import { MixNodeStatusDropdown } from '../../components/MixNodes/StatusDropdown';
+import { Tooltip } from '../../components/Tooltip';
 
 const getCellFontStyle = (theme: Theme, row: MixnodeRowType, textColor?: string) => {
   const color = textColor || getMixNodeStatusColor(theme, row.status);
@@ -262,24 +263,7 @@ export const PageMixnodes: React.FC = () => {
             justifyContent: 'flex-start',
           }}
         >
-          <Tooltip
-            title={params.value}
-            id="location-long-text"
-            placement="top-start"
-            componentsProps={{
-              tooltip: {
-                sx: {
-                  maxWidth: 200,
-                  background: theme.palette.nym.networkExplorer.tooltip.background,
-                  color: theme.palette.nym.networkExplorer.tooltip.color,
-                  '& .MuiTooltip-arrow': {
-                    color: theme.palette.nym.networkExplorer.tooltip.background,
-                  },
-                },
-              },
-            }}
-            arrow
-          >
+          <Tooltip text={params.value} id="mixnode-location-text">
             <Box
               sx={{
                 overflow: 'hidden',

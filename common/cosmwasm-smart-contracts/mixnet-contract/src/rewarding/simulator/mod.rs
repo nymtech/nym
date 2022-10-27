@@ -40,7 +40,12 @@ impl Simulator {
         if self.interval.current_interval_id() + 1 == updated.current_interval_id() {
             let old = self.system_rewarding_params.interval;
             let reward_pool = old.reward_pool - self.pending_reward_pool_emission;
-            let staking_supply = old.staking_supply + self.pending_reward_pool_emission;
+            let staking_supply = old.staking_supply
+                + self
+                    .system_rewarding_params
+                    .interval
+                    .staking_supply_scale_factor
+                    * self.pending_reward_pool_emission;
             let epoch_reward_budget = reward_pool
                 / Decimal::from_atomics(self.interval.epochs_in_interval(), 0).unwrap()
                 * old.interval_pool_emission.value();
@@ -51,6 +56,7 @@ impl Simulator {
                 interval: IntervalRewardParams {
                     reward_pool,
                     staking_supply,
+                    staking_supply_scale_factor: old.staking_supply_scale_factor,
                     epoch_reward_budget,
                     stake_saturation_point,
                     sybil_resistance: old.sybil_resistance,
@@ -209,6 +215,7 @@ mod tests {
                 interval: IntervalRewardParams {
                     reward_pool: Decimal::from_atomics(reward_pool, 0).unwrap(), // 250M * 1M (we're expressing it all in base tokens)
                     staking_supply: Decimal::from_atomics(staking_supply, 0).unwrap(), // 100M * 1M
+                    staking_supply_scale_factor: Percent::hundred(),
                     epoch_reward_budget,
                     stake_saturation_point,
                     sybil_resistance: Percent::from_percentage_value(30).unwrap(),
@@ -537,6 +544,7 @@ mod tests {
             interval: IntervalRewardParams {
                 reward_pool: Decimal::from_atomics(reward_pool, 0).unwrap(),
                 staking_supply: Decimal::from_atomics(staking_supply, 0).unwrap(),
+                staking_supply_scale_factor: Percent::hundred(),
                 epoch_reward_budget,
                 stake_saturation_point,
                 sybil_resistance: Percent::from_percentage_value(30).unwrap(),

@@ -47,6 +47,14 @@ impl Percent {
         self.0 == Decimal::zero()
     }
 
+    pub fn zero() -> Self {
+        Self(Decimal::zero())
+    }
+
+    pub fn hundred() -> Self {
+        Self(Decimal::one())
+    }
+
     pub fn from_percentage_value(value: u64) -> Result<Self, ContractsCommonError> {
         Percent::new(Decimal::percent(value))
     }

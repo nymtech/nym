@@ -3,7 +3,8 @@
 
 use crate::{
     client::{config::Config, NymClient},
-    commands::{override_config, OverrideConfig}, error::ClientError,
+    commands::{override_config, OverrideConfig},
+    error::ClientError,
 };
 
 use clap::Args;
@@ -80,8 +81,7 @@ pub(crate) async fn execute(args: &Run) -> Result<(), ClientError> {
         Ok(cfg) => cfg,
         Err(err) => {
             error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})", id, err);
-            // WIP(JON)
-            return Ok(());
+            return Err(ClientError::FailedToLoadConfig(id.to_string()));
         }
     };
 
@@ -90,8 +90,7 @@ pub(crate) async fn execute(args: &Run) -> Result<(), ClientError> {
 
     if !version_check(&config) {
         error!("failed the local version check");
-        // WIP(JON)
-        return Ok(());
+        return Err(ClientError::FailedLocalVersionCheck);
     }
 
     NymClient::new(config).run_forever().await

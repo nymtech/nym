@@ -3304,6 +3304,7 @@ dependencies = [
  "snafu 0.6.10",
  "socks5-requests",
  "task",
+ "thiserror",
  "tokio",
  "topology",
  "url",

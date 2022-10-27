@@ -140,7 +140,9 @@ mod header_encoding {
         let packet_sizes = vec![
             PacketSize::AckPacket,
             PacketSize::RegularPacket,
-            PacketSize::ExtendedPacket,
+            PacketSize::ExtendedPacket8,
+            PacketSize::ExtendedPacket16,
+            PacketSize::ExtendedPacket32,
         ];
         for packet_size in packet_sizes {
             let header = Header {

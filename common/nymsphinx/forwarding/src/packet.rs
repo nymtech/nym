@@ -25,8 +25,10 @@ impl Display for MixPacketFormattingError {
             InvalidPacketSize(actual) =>
                 write!(
                     f,
-                    "received request had invalid size. (actual: {}, but expected one of: {} (ACK), {} (REGULAR), {} (EXTENDED))",
-                    actual, PacketSize::AckPacket.size(), PacketSize::RegularPacket.size(), PacketSize::ExtendedPacket.size()
+                    "received request had invalid size. (actual: {}, but expected one of: {} (ACK), {} (REGULAR), {}, {}, {} (EXTENDED))",
+                    actual, PacketSize::AckPacket.size(), PacketSize::RegularPacket.size(),
+                    PacketSize::ExtendedPacket8.size(), PacketSize::ExtendedPacket16.size(),
+                    PacketSize::ExtendedPacket32.size()
                 ),
             MalformedSphinxPacket => write!(f, "received sphinx packet was malformed"),
             InvalidPacketMode => write!(f, "provided packet mode is invalid")

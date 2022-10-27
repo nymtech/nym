@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use config::NymConfig;
+use nymsphinx::params::PacketSize;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::path::PathBuf;
@@ -247,8 +248,8 @@ impl<T: NymConfig> Config<T> {
         self.debug.disable_main_poisson_packet_distribution
     }
 
-    pub fn get_use_extended_packet_size(&self) -> bool {
-        self.debug.use_extended_packet_size
+    pub fn get_use_extended_packet_size(&self) -> Option<ExtendedPacketSize> {
+        self.debug.use_extended_packet_size.clone()
     }
 
     pub fn get_version(&self) -> &str {
@@ -470,8 +471,16 @@ pub struct Debug {
     /// poisson distribution.
     pub disable_main_poisson_packet_distribution: bool,
 
-    /// Controls whether the sent sphinx packet use the NON-DEFAULT bigger size.
-    pub use_extended_packet_size: bool,
+    /// Controls whether the sent sphinx packet use a NON-DEFAULT bigger size.
+    pub use_extended_packet_size: Option<ExtendedPacketSize>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ExtendedPacketSize {
+    Extended8,
+    Extended16,
+    Extended32,
 }
 
 impl Default for Debug {
@@ -488,7 +497,17 @@ impl Default for Debug {
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
             disable_loop_cover_traffic_stream: false,
             disable_main_poisson_packet_distribution: false,
-            use_extended_packet_size: false,
+            use_extended_packet_size: None,
+        }
+    }
+}
+
+impl From<ExtendedPacketSize> for PacketSize {
+    fn from(size: ExtendedPacketSize) -> PacketSize {
+        match size {
+            ExtendedPacketSize::Extended8 => PacketSize::ExtendedPacket8,
+            ExtendedPacketSize::Extended16 => PacketSize::ExtendedPacket16,
+            ExtendedPacketSize::Extended32 => PacketSize::ExtendedPacket32,
         }
     }
 }

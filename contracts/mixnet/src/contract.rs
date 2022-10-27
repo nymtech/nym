@@ -418,6 +418,7 @@ mod tests {
             initial_rewarding_params: InitialRewardingParams {
                 initial_reward_pool: Decimal::from_atomics(100_000_000_000_000u128, 0).unwrap(),
                 initial_staking_supply: Decimal::from_atomics(123_456_000_000_000u128, 0).unwrap(),
+                staking_supply_scale_factor: Percent::hundred(),
                 sybil_resistance: Percent::from_percentage_value(23).unwrap(),
                 active_set_work_factor: Decimal::from_atomics(10u32, 0).unwrap(),
                 interval_pool_emission: Percent::from_percentage_value(1).unwrap(),
@@ -456,6 +457,7 @@ mod tests {
             interval: IntervalRewardParams {
                 reward_pool: Decimal::from_atomics(100_000_000_000_000u128, 0).unwrap(),
                 staking_supply: Decimal::from_atomics(123_456_000_000_000u128, 0).unwrap(),
+                staking_supply_scale_factor: Percent::hundred(),
                 epoch_reward_budget: expected_epoch_reward_budget,
                 stake_saturation_point: expected_stake_saturation_point,
                 sybil_resistance: Percent::from_percentage_value(23).unwrap(),

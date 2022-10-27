@@ -169,6 +169,10 @@ impl RewardingParams {
             self.interval.staking_supply = staking_supply;
         }
 
+        if let Some(staking_supply_scale_factor) = updates.staking_supply_scale_factor {
+            self.interval.staking_supply_scale_factor = staking_supply_scale_factor
+        }
+
         if let Some(sybil_resistance_percent) = updates.sybil_resistance_percent {
             self.interval.sybil_resistance = sybil_resistance_percent;
         }
@@ -241,6 +245,9 @@ pub struct IntervalRewardingParamsUpdate {
     pub staking_supply: Option<Decimal>,
 
     #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
+    pub staking_supply_scale_factor: Option<Percent>,
+
+    #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
     pub sybil_resistance_percent: Option<Percent>,
 
     #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
@@ -257,6 +264,7 @@ impl IntervalRewardingParamsUpdate {
         // essentially at least a single field has to be a `Some`
         self.reward_pool.is_some()
             || self.staking_supply.is_some()
+            || self.staking_supply_scale_factor.is_some()
             || self.sybil_resistance_percent.is_some()
             || self.active_set_work_factor.is_some()
             || self.interval_pool_emission.is_some()

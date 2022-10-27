@@ -8,7 +8,6 @@ import { ComponentError } from '../../components/ComponentError';
 import { ContentCard } from '../../components/ContentCard';
 import { TwoColSmallTable } from '../../components/TwoColSmallTable';
 import { UptimeChart } from '../../components/UptimeChart';
-import { Console } from '../../utils/console';
 import { GatewayContextProvider, useGatewayContext } from '../../context/gateway';
 import { useMainContext } from '../../context/main';
 import { Title } from '../../components/Title';
@@ -141,7 +140,7 @@ const PageGatewayDetailGuard: React.FC = () => {
 
   if (gateways?.error) {
     // eslint-disable-next-line no-console
-    Console.error(gateways?.error);
+    console.error(gateways?.error);
     return (
       <Alert severity="error">
         Oh no! Could not load mixnode <code>{id || ''}</code>

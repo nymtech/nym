@@ -1710,6 +1710,7 @@ pub mod tests {
             let update = IntervalRewardingParamsUpdate {
                 reward_pool: None,
                 staking_supply: None,
+                staking_supply_scale_factor: None,
                 sybil_resistance_percent: None,
                 active_set_work_factor: None,
                 interval_pool_emission: None,
@@ -1742,6 +1743,7 @@ pub mod tests {
             let empty_update = IntervalRewardingParamsUpdate {
                 reward_pool: None,
                 staking_supply: None,
+                staking_supply_scale_factor: None,
                 sybil_resistance_percent: None,
                 active_set_work_factor: None,
                 interval_pool_emission: None,
@@ -1761,6 +1763,7 @@ pub mod tests {
             let update = IntervalRewardingParamsUpdate {
                 reward_pool: None,
                 staking_supply: None,
+                staking_supply_scale_factor: None,
                 sybil_resistance_percent: None,
                 active_set_work_factor: None,
                 interval_pool_emission: None,
@@ -1795,6 +1798,7 @@ pub mod tests {
             let update = IntervalRewardingParamsUpdate {
                 reward_pool: None,
                 staking_supply: None,
+                staking_supply_scale_factor: None,
                 sybil_resistance_percent: None,
                 active_set_work_factor: None,
                 interval_pool_emission: None,
@@ -1819,6 +1823,7 @@ pub mod tests {
             let update = IntervalRewardingParamsUpdate {
                 reward_pool: None,
                 staking_supply: None,
+                staking_supply_scale_factor: None,
                 sybil_resistance_percent: None,
                 active_set_work_factor: None,
                 interval_pool_emission: None,
@@ -1859,6 +1864,7 @@ pub mod tests {
             let update = IntervalRewardingParamsUpdate {
                 reward_pool: Some(old.interval.reward_pool / two),
                 staking_supply: Some(old.interval.staking_supply * four),
+                staking_supply_scale_factor: None,
                 sybil_resistance_percent: None,
                 active_set_work_factor: None,
                 interval_pool_emission: None,

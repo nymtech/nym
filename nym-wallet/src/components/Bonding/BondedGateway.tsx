@@ -53,11 +53,11 @@ export const BondedGateway = ({
     },
 
     {
-      cell: `${routingScore.current}%`,
+      cell: `${routingScore?.current || '- '}%`,
       id: 'routing-score-cell',
     },
     {
-      cell: `${routingScore.average}%`,
+      cell: `${routingScore?.average || '- '}%`,
       id: 'average-score-cell',
     },
     {

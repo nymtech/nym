@@ -79,7 +79,7 @@ export interface TBondedGateway {
   mixPort: number;
   verlocPort: number;
   version: string;
-  routingScore: {
+  routingScore?: {
     current: number;
     average: number;
   };
@@ -226,6 +226,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
       return { current: report.most_recent, average: report.last_day };
     } catch (e) {
       Console.error(e);
+      return undefined;
     }
   };
 

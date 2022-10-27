@@ -2,5 +2,5 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod client;
-pub mod websocket;
 pub mod error;
+pub mod websocket;

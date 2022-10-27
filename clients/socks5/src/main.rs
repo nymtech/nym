@@ -2,20 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::{crate_version, Parser};
+use error::Socks5ClientError;
 use network_defaults::setup_env;
 
 pub mod client;
 mod commands;
+pub mod error;
 pub mod socks;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Socks5ClientError> {
     setup_logging();
     println!("{}", banner());
 
     let args = commands::Cli::parse();
     setup_env(args.config_env_file.clone());
-    commands::execute(&args).await;
+    commands::execute(&args).await
 }
 
 fn banner() -> String {
@@ -45,12 +47,14 @@ fn setup_logging() {
     }
 
     log_builder
+        .filter_module("handlebars", log::LevelFilter::Warn)
         .filter_module("hyper", log::LevelFilter::Warn)
-        .filter_module("tokio_reactor", log::LevelFilter::Warn)
-        .filter_module("reqwest", log::LevelFilter::Warn)
         .filter_module("mio", log::LevelFilter::Warn)
-        .filter_module("want", log::LevelFilter::Warn)
-        .filter_module("tungstenite", log::LevelFilter::Warn)
+        .filter_module("reqwest", log::LevelFilter::Warn)
+        .filter_module("sled", log::LevelFilter::Warn)
+        .filter_module("tokio_reactor", log::LevelFilter::Warn)
         .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
+        .filter_module("tungstenite", log::LevelFilter::Warn)
+        .filter_module("want", log::LevelFilter::Warn)
         .init();
 }

@@ -11,3 +11,6 @@ cosmwasm-std = "1.0.0"
 serde = { version = "1.0", features = ["derive"] }
 schemars = "0.8"
 thiserror = "1"
+
+[dev-dependencies]
+serde_json = "1.0.0"

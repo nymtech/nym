@@ -152,3 +152,47 @@ pub struct ContractBuildInformation {
     /// Provides the rustc version that was used for the build, for example `1.52.0-nightly`.
     pub rustc_version: String,
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn percent_serde() {
+        let valid_value = Percent::from_percentage_value(80).unwrap();
+        let serialized = serde_json::to_string(&valid_value).unwrap();
+
+        let deserialized: Percent = serde_json::from_str(&serialized).unwrap();
+        assert_eq!(valid_value, deserialized);
+
+        let invalid_values = vec!["\"42\"", "\"1.1\"", "\"1.00000001\"", "\"foomp\"", "\"1a\""];
+        for invalid_value in invalid_values {
+            assert!(serde_json::from_str::<'_, Percent>(invalid_value).is_err())
+        }
+        assert_eq!(
+            serde_json::from_str::<'_, Percent>("\"0.95\"").unwrap(),
+            Percent::from_percentage_value(95).unwrap()
+        )
+    }
+
+    #[test]
+    fn percent_to_absolute_integer() {
+        let p = serde_json::from_str::<'_, Percent>("\"0.0001\"").unwrap();
+        assert_eq!(p.round_to_integer(), 0);
+
+        let p = serde_json::from_str::<'_, Percent>("\"0.0099\"").unwrap();
+        assert_eq!(p.round_to_integer(), 0);
+
+        let p = serde_json::from_str::<'_, Percent>("\"0.0199\"").unwrap();
+        assert_eq!(p.round_to_integer(), 1);
+
+        let p = serde_json::from_str::<'_, Percent>("\"0.45123\"").unwrap();
+        assert_eq!(p.round_to_integer(), 45);
+
+        let p = serde_json::from_str::<'_, Percent>("\"0.999999999\"").unwrap();
+        assert_eq!(p.round_to_integer(), 99);
+
+        let p = serde_json::from_str::<'_, Percent>("\"1.00\"").unwrap();
+        assert_eq!(p.round_to_integer(), 100);
+    }
+}

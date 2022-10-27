@@ -38,6 +38,10 @@ const bondedGatewayMock: TBondedGateway = {
   mixPort: 1789,
   verlocPort: 1790,
   version: '1.0.2',
+  routingScore: {
+    average: 100,
+    current: 100,
+  },
 };
 
 const TxResultMock: TransactionExecuteResult = {

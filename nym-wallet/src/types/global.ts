@@ -61,6 +61,14 @@ export type TAccount = {
   mnemonic: string;
 };
 
+export type TGatewayReport = {
+  identity: string;
+  owner: string;
+  last_day: number;
+  last_hour: number;
+  most_recent: number;
+};
+
 export const isMixnode = (node: TBondedMixnode | TBondedGateway): node is TBondedMixnode =>
   (node as TBondedMixnode).profitMargin !== undefined;
 

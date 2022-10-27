@@ -35,7 +35,8 @@ const headers: Header[] = [
   {
     header: 'Operating cost',
     id: 'operator-cost',
-    // tooltipText: 'TODO', // TODO
+    tooltipText:
+      'Monthly operational costs of running your node. The cost also influences how the rewards are split between you and your delegators. ',
   },
   {
     header: 'Operator rewards',

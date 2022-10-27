@@ -22,12 +22,13 @@ impl Connection {
     pub async fn connect(&self) -> Result<TSWebsocketStream, WebsocketConnectionError> {
         match connect_async(&self.uri).await {
             Ok((ws_stream, _)) => Ok(ws_stream),
-            Err(_e) => Err(WebsocketConnectionError::ConnectionNotEstablished),
+            Err(e) => Err(WebsocketConnectionError::ConnectionNotEstablished(e)),
         }
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum WebsocketConnectionError {
-    ConnectionNotEstablished,
+    #[error("Connection not established")]
+    ConnectionNotEstablished(tokio_tungstenite::tungstenite::Error),
 }

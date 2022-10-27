@@ -8,7 +8,7 @@ import { ComponentError } from '../../components/ComponentError';
 import { ContentCard } from '../../components/ContentCard';
 import { TwoColSmallTable } from '../../components/TwoColSmallTable';
 import { UptimeChart } from '../../components/UptimeChart';
-// import { GatewayDetailSection } from '../../components/Gateways/DetailSection';
+import { Console } from '../../utils/console';
 import { GatewayContextProvider, useGatewayContext } from '../../context/gateway';
 import { useMainContext } from '../../context/main';
 import { Title } from '../../components/Title';
@@ -64,9 +64,7 @@ const columns: ColumnsType[] = [
 /**
  * Shows gateway details
  */
-const PageGatewayDetailsWithState: React.FC<{ selectedGateway: GatewayResponseItem | undefined }> = ({
-  selectedGateway,
-}) => {
+const PageGatewayDetailsWithState = ({ selectedGateway }: { selectedGateway: GatewayResponseItem | undefined }) => {
   const [enrichGateway, setEnrichGateway] = React.useState<GatewayEnrichedRowType>();
   const [status, setStatus] = React.useState<number[] | undefined>();
   const { uptimeReport, uptimeStory } = useGatewayContext();
@@ -105,7 +103,7 @@ const PageGatewayDetailsWithState: React.FC<{ selectedGateway: GatewayResponseIt
                 loading={false}
                 keys={['Mix port', 'Client WS API Port']}
                 values={status.map((each) => each)}
-                icons={status.map((elem) => !!elem) || [false, false]}
+                icons={status.map((elem) => !!elem)}
               />
             </ContentCard>
           )}
@@ -135,7 +133,7 @@ const PageGatewayDetailGuard: React.FC = () => {
     if (gateways?.data) {
       setSelectedGateway(gateways.data.find((gateway) => gateway.gateway.identity_key === id));
     }
-  }, [gateways]);
+  }, [gateways, id]);
 
   if (gateways?.isLoading) {
     return <CircularProgress />;
@@ -143,7 +141,7 @@ const PageGatewayDetailGuard: React.FC = () => {
 
   if (gateways?.error) {
     // eslint-disable-next-line no-console
-    console.error(gateways?.error);
+    Console.error(gateways?.error);
     return (
       <Alert severity="error">
         Oh no! Could not load mixnode <code>{id || ''}</code>

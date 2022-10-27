@@ -42,6 +42,6 @@ export const useApiState = <T>(
       setValue(newValue);
       return newValue;
     }
-  }, [setValue, fn]);
+  }, [setValue, fn, id, errorMessage]);
   return [value, wrappedFetchFn, clearValueFn];
 };

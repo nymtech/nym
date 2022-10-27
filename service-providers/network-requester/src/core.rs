@@ -22,7 +22,6 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use task::ShutdownListener;
 use tokio_tungstenite::tungstenite::protocol::Message;
-use websocket::WebsocketConnectionError;
 use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 
 // Since it's an atomic, it's safe to be kept static and shared across threads

@@ -70,6 +70,7 @@ export const toMixnodeStatus = (status?: MixnodeStatusWithAll): MixnodeStatus | 
 };
 
 export interface MixNodeResponseItem {
+  mix_id: number;
   pledge_amount: Amount;
   total_delegation: Amount;
   owner: string;

@@ -154,6 +154,7 @@ impl ThreadsafeMixNodesCache {
         let rewarding_info = &node.mixnode_details.rewarding_details;
 
         PrettyDetailedMixNodeBond {
+            mix_id,
             location: location.and_then(|l| l.location.clone()),
             status: mixnodes_guard.determine_node_status(mix_id),
             pledge_amount: truncate_reward(rewarding_info.operator, denom),

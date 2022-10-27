@@ -118,7 +118,7 @@ export const PageMixnodes: React.FC = () => {
         <MuiLink
           sx={getCellStyles(theme, params.row)}
           component={RRDLink}
-          to={`/network-components/mixnode/${params.row.identity_key}`}
+          to={`/network-components/mixnode/${params.row.mix_id}`}
         >
           {currencyToString(params.value)}
         </MuiLink>
@@ -143,7 +143,7 @@ export const PageMixnodes: React.FC = () => {
             ...getCellStyles(theme, params.row, params.value > 100 ? 'theme.palette.warning.main' : undefined),
           }}
           component={RRDLink}
-          to={`/network-components/mixnode/${params.row.identity_key}`}
+          to={`/network-components/mixnode/${params.row.mix_id}`}
         >
           {`${params.value.toFixed(2)} %`}
         </MuiLink>
@@ -161,7 +161,7 @@ export const PageMixnodes: React.FC = () => {
         <MuiLink
           sx={getCellStyles(theme, params.row)}
           component={RRDLink}
-          to={`/network-components/mixnode/${params.row.identity_key}`}
+          to={`/network-components/mixnode/${params.row.mix_id}`}
         >
           {currencyToString(params.value)}
         </MuiLink>
@@ -183,7 +183,7 @@ export const PageMixnodes: React.FC = () => {
         <MuiLink
           sx={{ ...getCellStyles(theme, params.row), textAlign: 'left' }}
           component={RRDLink}
-          to={`/network-components/mixnode/${params.row.identity_key}`}
+          to={`/network-components/mixnode/${params.row.mix_id}`}
         >
           {params.value}
         </MuiLink>
@@ -205,7 +205,7 @@ export const PageMixnodes: React.FC = () => {
         <MuiLink
           sx={{ ...getCellStyles(theme, params.row), textAlign: 'left' }}
           component={RRDLink}
-          to={`/network-components/mixnode/${params.row.identity_key}`}
+          to={`/network-components/mixnode/${params.row.mix_id}`}
         >
           {params.value}
         </MuiLink>
@@ -286,7 +286,7 @@ export const PageMixnodes: React.FC = () => {
         <MuiLink
           sx={getCellStyles(theme, params.row)}
           component={RRDLink}
-          to={`/network-components/mixnode/${params.row.identity_key}`}
+          to={`/network-components/mixnode/${params.row.mix_id}`}
         >
           {params.value}
         </MuiLink>

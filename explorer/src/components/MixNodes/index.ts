@@ -2,6 +2,7 @@
 import { MixNodeResponse, MixNodeResponseItem, MixnodeStatus } from '../../typeDefs/explorer-api';
 
 export type MixnodeRowType = {
+  mix_id: number;
   id: string;
   status: MixnodeStatus;
   owner: string;
@@ -29,6 +30,7 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
   const profitPercentage = item.mix_node.profit_margin_percent || 0;
   const stakeSaturation = typeof item.stake_saturation === 'number' ? item.stake_saturation * 100 : 0;
   return {
+    mix_id: item.mix_id,
     id: item.owner,
     status: item.status,
     owner: item.owner,

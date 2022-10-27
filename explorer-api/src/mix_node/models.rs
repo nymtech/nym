@@ -24,6 +24,7 @@ pub(crate) enum MixnodeStatus {
 pub(crate) struct PrettyDetailedMixNodeBond {
     // I leave this to @MS to refactor this type as a lot of things here are redundant thanks to
     // the existence of `MixNodeDetails`
+    pub mix_id: MixId,
     pub location: Option<Location>,
     pub status: MixnodeStatus,
     pub pledge_amount: Coin,

@@ -15,7 +15,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - native-client/socks5-client: `use_extended_packet_size` Debug config option to make the client use 'ExtendedPacketSize' for its traffic (32kB as opposed to 2kB in 1.0.2) ([#1671])
 - wasm-client: uses updated wasm-compatible `client-core` so that it's now capable of packet retransmission, cover traffic and poisson delay (among other things!) ([#1673])
 - validator-api: add `interval_operating_cost` and `profit_margin_percent` to cmpute reward estimation endpoint
-- native-client: improve handling error cases ([#1713])
+- native-client/socks5-client/network-requester: improve handling error cases ([#1713])
 
 ### Fixed
 

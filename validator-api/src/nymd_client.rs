@@ -28,7 +28,7 @@ use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse
 #[cfg(feature = "coconut")]
 use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
 #[cfg(feature = "coconut")]
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState, TOTAL_DEALINGS};
 #[cfg(feature = "coconut")]
 use contracts_common::dealings::ContractSafeBytes;
 #[cfg(feature = "coconut")]
@@ -357,16 +357,16 @@ where
             .await?)
     }
 
-    async fn submit_dealing(
+    async fn submit_dealings(
         &self,
-        dealing_bytes: ContractSafeBytes,
+        dealing_bytes: [ContractSafeBytes; TOTAL_DEALINGS],
     ) -> Result<ExecuteResult, CoconutError> {
         Ok(self
             .0
             .write()
             .await
             .nymd
-            .submit_dealing_bytes(dealing_bytes, None)
+            .submit_dealings_bytes(dealing_bytes, None)
             .await?)
     }
 }

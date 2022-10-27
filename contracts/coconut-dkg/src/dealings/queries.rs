@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dealings::storage;
-use crate::dealings::storage::DEALING_BYTES;
+use crate::dealings::storage::DEALINGS_BYTES;
 use coconut_dkg_common::dealer::{ContractDealing, PagedDealingsResponse};
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
@@ -22,10 +22,10 @@ pub fn query_dealings_paged(
 
     let start = addr.as_ref().map(Bound::exclusive);
 
-    let dealings = DEALING_BYTES
+    let dealings = DEALINGS_BYTES
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
-        .map(|res| res.map(|(dealer, dealing)| ContractDealing::new(dealing, dealer)))
+        .map(|res| res.map(|(dealer, dealings)| ContractDealing::new(dealings, dealer)))
         .collect::<StdResult<Vec<_>>>()?;
 
     let start_next_after = dealings.last().map(|commitment| commitment.dealer.clone());

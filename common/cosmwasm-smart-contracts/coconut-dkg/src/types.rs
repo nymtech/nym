@@ -12,6 +12,9 @@ pub type EncodedBTEPublicKeyWithProof = String;
 pub type EncodedBTEPublicKeyWithProofRef<'a> = &'a str;
 pub type NodeIndex = u64;
 
+// 2 public attributes, 2 private attributes, 1 fixed for coconut credential
+pub const TOTAL_DEALINGS: usize = 2 + 2 + 1;
+
 // currently (it is still extremely likely to change, we might be able to get rid of verification key-related complaints),
 // the epoch can be in the following states (in order):
 // 1. PublicKeySubmission -> potential dealers are submitting their BTE and ed25519 public keys to participate in dealing exchange

@@ -40,7 +40,7 @@ use crate::coconut::State;
 use crate::ValidatorApiStorage;
 use async_trait::async_trait;
 use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState, TOTAL_DEALINGS};
 use contracts_common::dealings::ContractSafeBytes;
 use crypto::asymmetric::{encryption, identity};
 use rand_07::rngs::OsRng;
@@ -160,7 +160,10 @@ impl super::client::Client for DummyClient {
         todo!()
     }
 
-    async fn submit_dealing(&self, dealing_bytes: ContractSafeBytes) -> Result<ExecuteResult> {
+    async fn submit_dealings(
+        &self,
+        dealing_bytes: [ContractSafeBytes; TOTAL_DEALINGS],
+    ) -> Result<ExecuteResult> {
         todo!()
     }
 }

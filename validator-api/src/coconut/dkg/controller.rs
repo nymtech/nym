@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::coconut::dkg::client::DkgClient;
-use crate::coconut::dkg::state::State;
+use crate::coconut::dkg::state::{ConsistentState, State};
 use crate::coconut::dkg::{
     dealing::dealing_exchange, public_key::public_key_submission,
     verification_key::verification_key_submission,
@@ -39,7 +39,7 @@ pub(crate) struct DkgController<R> {
     polling_rate: Duration,
 }
 
-impl<R: RngCore> DkgController<R> {
+impl<R: RngCore + Clone> DkgController<R> {
     pub(crate) fn new(
         config: &Config,
         nymd_client: nymd_client::Client<SigningNymdClient>,
@@ -62,12 +62,18 @@ impl<R: RngCore> DkgController<R> {
         match self.dkg_client.get_current_epoch_state().await {
             Err(e) => warn!("Could not get current epoch state {}", e),
             Ok(epoch_state) => {
+                if let Err(e) = self.state.is_consistent(epoch_state) {
+                    error!(
+                        "Epoch state is corrupted - {}, the process should be terminated",
+                        e
+                    );
+                }
                 let ret = match epoch_state {
                     EpochState::PublicKeySubmission => {
                         public_key_submission(&self.dkg_client, &mut self.state).await
                     }
                     EpochState::DealingExchange => {
-                        dealing_exchange(&self.dkg_client, &mut self.state, &mut self.rng).await
+                        dealing_exchange(&self.dkg_client, &mut self.state, self.rng.clone()).await
                     }
                     EpochState::VerificationKeySubmission => {
                         verification_key_submission(&self.dkg_client, &mut self.state).await

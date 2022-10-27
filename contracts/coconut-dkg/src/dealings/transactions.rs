@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dealers::storage as dealers_storage;
-use crate::dealings::storage::DEALING_BYTES;
+use crate::dealings::storage::DEALINGS_BYTES;
 use crate::epoch_state::utils::check_epoch_state;
 use crate::ContractError;
-use coconut_dkg_common::types::{ContractSafeBytes, EpochState};
+use coconut_dkg_common::types::{ContractSafeBytes, EpochState, TOTAL_DEALINGS};
 use cosmwasm_std::{DepsMut, MessageInfo, Response};
 
-pub fn try_commit_dealing(
+pub fn try_commit_dealings(
     deps: DepsMut<'_>,
     info: MessageInfo,
-    dealing_bytes: ContractSafeBytes,
+    dealings_bytes: [ContractSafeBytes; TOTAL_DEALINGS],
 ) -> Result<Response, ContractError> {
     check_epoch_state(deps.storage, EpochState::DealingExchange)?;
     // ensure the sender is a dealer for the current epoch
@@ -24,11 +24,11 @@ pub fn try_commit_dealing(
 
     // check if this dealer has already committed to a dealing
     // (we don't want to allow overwriting it as some receivers might already be using the commitment)
-    if DEALING_BYTES.has(deps.storage, &info.sender) {
+    if DEALINGS_BYTES.has(deps.storage, &info.sender) {
         return Err(ContractError::AlreadyCommitted);
     }
 
-    DEALING_BYTES.save(deps.storage, &info.sender, &dealing_bytes)?;
+    DEALINGS_BYTES.save(deps.storage, &info.sender, &dealings_bytes)?;
 
     Ok(Response::new())
 }

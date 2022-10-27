@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::types::{ContractSafeBytes, EncodedBTEPublicKeyWithProof};
+use crate::types::{ContractSafeBytes, EncodedBTEPublicKeyWithProof, TOTAL_DEALINGS};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -20,7 +20,7 @@ pub enum ExecuteMsg {
     },
 
     CommitDealing {
-        dealing_bytes: ContractSafeBytes,
+        dealings_bytes: [ContractSafeBytes; TOTAL_DEALINGS],
     },
 
     AdvanceEpochState {},

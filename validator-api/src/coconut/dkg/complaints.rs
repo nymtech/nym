@@ -5,8 +5,9 @@ use dkg::error::DkgError;
 
 pub(crate) enum ComplaintReason {
     MalformedBTEPublicKey,
-    DealingVerificationError(DkgError),
+    MissingDealing,
     MalformedDealing(DkgError),
+    DealingVerificationError(DkgError),
 }
 
 // pub(crate) async fn complaint_period(

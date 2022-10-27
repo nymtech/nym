@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_dkg_common::types::ContractSafeBytes;
+use coconut_dkg_common::types::{ContractSafeBytes, TOTAL_DEALINGS};
 use cosmwasm_std::Addr;
 use cw_storage_plus::Map;
 
@@ -21,4 +21,5 @@ type DealingKey<'a> = &'a Addr;
 // if you don't choose your prefixes wisely.
 // I didn't have to do it here as I'm storing relatively little data and after just base58-encoding
 // my bytes, I was fine with the json overhead.
-pub(crate) const DEALING_BYTES: Map<'_, DealingKey<'_>, ContractSafeBytes> = Map::new("dbyt");
+pub(crate) const DEALINGS_BYTES: Map<'_, DealingKey<'_>, [ContractSafeBytes; TOTAL_DEALINGS]> =
+    Map::new("dbyt");

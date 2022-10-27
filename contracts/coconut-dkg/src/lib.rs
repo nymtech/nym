@@ -68,8 +68,8 @@ pub fn execute(
         ExecuteMsg::RegisterDealer { bte_key_with_proof } => {
             dealers::transactions::try_add_dealer(deps, info, bte_key_with_proof)
         }
-        ExecuteMsg::CommitDealing { dealing_bytes } => {
-            dealings::transactions::try_commit_dealing(deps, info, dealing_bytes)
+        ExecuteMsg::CommitDealing { dealings_bytes } => {
+            dealings::transactions::try_commit_dealings(deps, info, dealings_bytes)
         }
         ExecuteMsg::DebugUnsafeResetAll { init_msg } => {
             reset_contract_state(deps, env, info, init_msg)
@@ -95,7 +95,7 @@ fn reset_contract_state(
     let past = dealers::storage::past_dealers()
         .keys(deps.storage, None, None, cosmwasm_std::Order::Ascending)
         .collect::<Result<Vec<_>, _>>()?;
-    let commitments = crate::dealings::storage::DEALING_BYTES
+    let commitments = crate::dealings::storage::DEALINGS_BYTES
         .keys(deps.storage, None, None, cosmwasm_std::Order::Ascending)
         .collect::<Result<Vec<_>, _>>()?;
 
@@ -108,7 +108,7 @@ fn reset_contract_state(
     }
 
     for addr in commitments {
-        dealings::storage::DEALING_BYTES.remove(deps.storage, &addr);
+        dealings::storage::DEALINGS_BYTES.remove(deps.storage, &addr);
     }
 
     dealers::storage::NODE_INDEX_COUNTER.save(deps.storage, &0u64)?;

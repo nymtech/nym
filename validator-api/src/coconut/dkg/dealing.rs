@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::coconut::dkg::client::DkgClient;
-use crate::coconut::dkg::state::State;
+use crate::coconut::dkg::state::{ConsistentState, State};
 use crate::coconut::error::CoconutError;
 use contracts_common::dealings::ContractSafeBytes;
 use dkg::bte::setup;
@@ -12,34 +12,37 @@ use rand::RngCore;
 pub(crate) async fn dealing_exchange(
     dkg_client: &DkgClient,
     state: &mut State,
-    rng: impl RngCore,
+    rng: impl RngCore + Clone,
 ) -> Result<(), CoconutError> {
-    if state.self_share().is_some() {
+    if state.receiver_index().is_some() {
         return Ok(());
     }
 
-    if state.current_receivers().is_empty() {
-        // First initialization with the dealers from contract
-        let dealers = dkg_client.get_current_dealers().await?;
-        state.set_dealers(dealers);
-    }
-
-    let receivers = state.current_receivers();
+    let dealers = dkg_client.get_current_dealers().await?;
     // note: ceiling in integer division can be achieved via q = (x + y - 1) / y;
-    let threshold = (2 * receivers.len() as u64 + 3 - 1) / 3;
+    let threshold = (2 * dealers.len() as u64 + 3 - 1) / 3;
 
-    let (dealing, self_share) = Dealing::create(
-        rng,
-        &setup(),
-        state
-            .node_index()
-            .expect("Node index should be initialized"),
-        threshold,
-        &receivers,
-        None,
-    );
-    state.set_self_share(self_share);
+    state.set_dealers(dealers);
+    state.set_threshold(threshold);
+    let receivers = state.current_receivers();
+    let params = setup();
+    let dealer_index = state.node_index_value()?;
+    let receiver_index = receivers
+        .keys()
+        .position(|node_index| *node_index == dealer_index);
+    let dealings_bytes = core::array::from_fn(|_| {
+        let (dealing, _) = Dealing::create(
+            rng.clone(),
+            &params,
+            dealer_index,
+            threshold,
+            &receivers,
+            None,
+        );
 
-    let dealing_bytes = ContractSafeBytes::from(&dealing);
-    dkg_client.submit_dealing(dealing_bytes).await
+        ContractSafeBytes::from(&dealing)
+    });
+    state.set_receiver_index(receiver_index);
+
+    dkg_client.submit_dealings(dealings_bytes).await
 }

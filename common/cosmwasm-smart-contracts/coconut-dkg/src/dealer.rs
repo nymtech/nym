@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::types::{ContractSafeBytes, EncodedBTEPublicKeyWithProof, NodeIndex};
+use crate::types::{ContractSafeBytes, EncodedBTEPublicKeyWithProof, NodeIndex, TOTAL_DEALINGS};
 use cosmwasm_std::{Addr, Coin};
 use serde::{Deserialize, Serialize};
 
@@ -69,13 +69,13 @@ impl PagedDealerResponse {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct ContractDealing {
-    pub dealing: ContractSafeBytes,
+    pub dealings: [ContractSafeBytes; TOTAL_DEALINGS],
     pub dealer: Addr,
 }
 
 impl ContractDealing {
-    pub fn new(dealing: ContractSafeBytes, dealer: Addr) -> Self {
-        ContractDealing { dealing, dealer }
+    pub fn new(dealings: [ContractSafeBytes; TOTAL_DEALINGS], dealer: Addr) -> Self {
+        ContractDealing { dealings, dealer }
     }
 }
 

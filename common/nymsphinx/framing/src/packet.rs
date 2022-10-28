@@ -142,7 +142,16 @@ mod header_encoding {
         // make sure this is still 'unknown' for if we make changes in the future
         assert!(PacketSize::try_from(unknown_packet_size).is_err());
 
-        let mut bytes = BytesMut::from([unknown_packet_size, PacketMode::default() as u8].as_ref());
+        // unfortunately this will only work for the 'versioned' variant
+        // due to the hack used to get legacy mode compatibility
+        let mut bytes = BytesMut::from(
+            [
+                PacketVersion::new_versioned(123).as_u8().unwrap(),
+                unknown_packet_size,
+                PacketMode::default() as u8,
+            ]
+            .as_ref(),
+        );
         assert!(Header::decode(&mut bytes).is_err())
     }
 
@@ -170,23 +179,44 @@ mod header_encoding {
     }
 
     #[test]
-    fn header_encoding_reserves_enough_bytes_for_full_sphinx_packet() {
-        todo!()
-        // let packet_sizes = vec![
-        //     PacketSize::AckPacket,
-        //     PacketSize::RegularPacket,
-        //     PacketSize::ExtendedPacket8,
-        //     PacketSize::ExtendedPacket16,
-        //     PacketSize::ExtendedPacket32,
-        // ];
-        // for packet_size in packet_sizes {
-        //     let header = Header {
-        //         packet_size,
-        //         packet_mode: Default::default(),
-        //     };
-        //     let mut bytes = BytesMut::new();
-        //     header.encode(&mut bytes);
-        //     assert_eq!(bytes.capacity(), bytes.len() + packet_size.size())
-        // }
+    fn header_encoding_reserves_enough_bytes_for_full_sphinx_packet_in_legacy_mode() {
+        let packet_sizes = vec![
+            PacketSize::AckPacket,
+            PacketSize::RegularPacket,
+            PacketSize::ExtendedPacket8,
+            PacketSize::ExtendedPacket16,
+            PacketSize::ExtendedPacket32,
+        ];
+        for packet_size in packet_sizes {
+            let header = Header {
+                packet_version: PacketVersion::Legacy,
+                packet_size,
+                packet_mode: Default::default(),
+            };
+            let mut bytes = BytesMut::new();
+            header.encode(&mut bytes);
+            assert_eq!(bytes.capacity(), bytes.len() + packet_size.size())
+        }
+    }
+
+    #[test]
+    fn header_encoding_reserves_enough_bytes_for_full_sphinx_packet_in_versioned_mode() {
+        let packet_sizes = vec![
+            PacketSize::AckPacket,
+            PacketSize::RegularPacket,
+            PacketSize::ExtendedPacket8,
+            PacketSize::ExtendedPacket16,
+            PacketSize::ExtendedPacket32,
+        ];
+        for packet_size in packet_sizes {
+            let header = Header {
+                packet_version: PacketVersion::Versioned(123),
+                packet_size,
+                packet_mode: Default::default(),
+            };
+            let mut bytes = BytesMut::new();
+            header.encode(&mut bytes);
+            assert_eq!(bytes.capacity(), bytes.len() + packet_size.size())
+        }
     }
 }

@@ -1,18 +1,24 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::constants::{INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMOUNT};
+use crate::constants::{
+    INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMOUNT, REWARDING_PARAMS_KEY,
+};
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnode_storage;
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
-    entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
+    entry_point, from_slice, to_binary, Addr, Coin, Decimal, Deps, DepsMut, Env, MessageInfo,
+    QueryResponse, Response,
 };
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
-    ContractState, ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg, QueryMsg,
+    ContractState, ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, IntervalRewardParams,
+    MigrateMsg, Percent, QueryMsg, RewardingParams,
 };
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 
 fn default_initial_state(
     owner: Addr,
@@ -467,10 +473,51 @@ pub fn query(
 
 #[entry_point]
 pub fn migrate(
-    _deps: DepsMut<'_>,
+    deps: DepsMut<'_>,
     _env: Env,
     _msg: MigrateMsg,
 ) -> Result<Response, MixnetContractError> {
+    #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize, JsonSchema)]
+    pub struct OldRewardingParams {
+        pub interval: OldIntervalRewardParams,
+        pub rewarded_set_size: u32,
+        pub active_set_size: u32,
+    }
+
+    #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize, JsonSchema)]
+    pub struct OldIntervalRewardParams {
+        pub reward_pool: Decimal,
+        pub staking_supply: Decimal,
+        pub epoch_reward_budget: Decimal,
+        pub stake_saturation_point: Decimal,
+        pub sybil_resistance: Percent,
+        pub active_set_work_factor: Decimal,
+        pub interval_pool_emission: Percent,
+    }
+
+    let existing = deps
+        .storage
+        .get(REWARDING_PARAMS_KEY.as_bytes())
+        .expect("old data not found!");
+    let deserialized: OldRewardingParams = from_slice(&existing)?;
+
+    let updated = RewardingParams {
+        interval: IntervalRewardParams {
+            reward_pool: deserialized.interval.reward_pool,
+            staking_supply: deserialized.interval.staking_supply,
+            staking_supply_scale_factor: Percent::hundred(),
+            epoch_reward_budget: deserialized.interval.epoch_reward_budget,
+            stake_saturation_point: deserialized.interval.stake_saturation_point,
+            sybil_resistance: deserialized.interval.sybil_resistance,
+            active_set_work_factor: deserialized.interval.active_set_work_factor,
+            interval_pool_emission: deserialized.interval.interval_pool_emission,
+        },
+        active_set_size: deserialized.active_set_size,
+        rewarded_set_size: deserialized.rewarded_set_size,
+    };
+
+    rewards_storage::REWARDING_PARAMS.save(deps.storage, &updated)?;
+
     Ok(Default::default())
 }
 

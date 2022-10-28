@@ -485,6 +485,12 @@ struct Debug {
 
     /// Maximum number of packets that can be stored waiting to get sent to a particular connection.
     maximum_connection_buffer_size: usize,
+
+    /// Specifies whether the mixnode should be using the legacy framing for the sphinx packets.
+    // it's set to true by default. The reason for that decision is to preserve compatibility with the
+    // existing nodes whilst everyone else is upgrading and getting the code for handling the new field.
+    // It shall be disabled in the subsequent releases.
+    use_legacy_framed_packet_version: bool,
 }
 
 impl Default for Debug {
@@ -496,6 +502,7 @@ impl Default for Debug {
             packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,
             maximum_connection_buffer_size: DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
+            // use_legacy_framed_packet_version: true,
         }
     }
 }

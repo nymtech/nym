@@ -1,6 +1,5 @@
 import { printableCoin } from '@nymproject/nym-validator-client';
 import Big from 'big.js';
-import { Console } from '@nymproject/nym-wallet-app/src/utils/console';
 
 const DENOM = process.env.CURRENCY_DENOM || 'unym';
 const DENOM_STAKING = process.env.CURRENCY_STAKING_DENOM || 'unyx';
@@ -30,7 +29,7 @@ export const toDisplay = (val: string | number | Big, dp = 4) => {
   try {
     displayValue = Big(val).toFixed(dp);
   } catch (e: any) {
-    Console.warn(`${displayValue} not a valid decimal number: ${e}`);
+    console.warn(`${displayValue} not a valid decimal number: ${e}`);
   }
   return displayValue;
 };
@@ -47,7 +46,7 @@ export const unymToNym = (unym: string | number | Big, dp = 4) => {
   try {
     nym = Big(unym).div(1_000_000).toFixed(dp);
   } catch (e: any) {
-    Console.warn(`${unym} not a valid decimal number: ${e}`);
+    console.warn(`${unym} not a valid decimal number: ${e}`);
   }
   return nym;
 };

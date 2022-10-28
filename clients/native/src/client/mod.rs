@@ -292,7 +292,8 @@ impl NymClient {
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
     pub fn send_message(&mut self, recipient: Recipient, message: Vec<u8>, with_reply_surb: bool) {
-        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb);
+        // WIP(JON): replace 4 with enum
+        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb, 4);
 
         self.input_tx
             .as_ref()

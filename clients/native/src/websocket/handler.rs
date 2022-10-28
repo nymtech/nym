@@ -83,7 +83,8 @@ impl Handler {
         with_reply_surb: bool,
     ) -> Option<ServerResponse> {
         // the ack control is now responsible for chunking, etc.
-        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb);
+        // WIP(JON): replace 3 with enum
+        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb, 3);
         self.msg_input.unbounded_send(input_msg).unwrap();
 
         None

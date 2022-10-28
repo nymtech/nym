@@ -11,6 +11,8 @@ pub enum InputMessage {
         recipient: Recipient,
         data: Vec<u8>,
         with_reply_surb: bool,
+        // WIP(JON): use ConnectionId instead
+        connection_id: u64,
     },
     Reply {
         reply_surb: ReplySurb,
@@ -19,11 +21,17 @@ pub enum InputMessage {
 }
 
 impl InputMessage {
-    pub fn new_fresh(recipient: Recipient, data: Vec<u8>, with_reply_surb: bool) -> Self {
+    pub fn new_fresh(
+        recipient: Recipient,
+        data: Vec<u8>,
+        with_reply_surb: bool,
+        connection_id: u64,
+    ) -> Self {
         InputMessage::Fresh {
             recipient,
             data,
             with_reply_surb,
+            connection_id,
         }
     }
 

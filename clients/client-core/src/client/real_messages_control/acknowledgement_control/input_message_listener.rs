@@ -104,6 +104,7 @@ where
         content: Vec<u8>,
         with_reply_surb: bool,
     ) -> Option<Vec<RealMessage>> {
+        log::info!("handling msg size: {}", content.len());
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = match topology_permit
             .try_get_valid_topology_ref(&self.ack_recipient, Some(&recipient))
@@ -164,26 +165,30 @@ where
     }
 
     async fn on_input_message(&mut self, msg: InputMessage) {
-        let real_messages = match msg {
+        let (real_messages, conn_id) = match msg {
             InputMessage::Fresh {
                 recipient,
                 data,
                 with_reply_surb,
-            } => {
+                connection_id,
+            } => (
                 self.handle_fresh_message(recipient, data, with_reply_surb)
+                    .await,
+                connection_id,
+            ),
+            InputMessage::Reply { reply_surb, data } => (
+                self.handle_reply(reply_surb, data)
                     .await
-            }
-            InputMessage::Reply { reply_surb, data } => self
-                .handle_reply(reply_surb, data)
-                .await
-                .map(|message| vec![message]),
+                    .map(|message| vec![message]),
+                0, // WIP(JON): special case, fixme, use enum instead for this
+            ),
         };
 
         // there's no point in trying to send nothing
         if let Some(real_messages) = real_messages {
             // tells real message sender (with the poisson timer) to send this to the mix network
             self.real_message_sender
-                .unbounded_send(real_messages)
+                .unbounded_send((real_messages, conn_id))
                 .unwrap();
         }
     }

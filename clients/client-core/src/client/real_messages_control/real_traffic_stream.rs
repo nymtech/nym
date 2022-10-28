@@ -15,8 +15,9 @@ use nymsphinx::cover::generate_loop_cover_packet;
 use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::params::PacketSize;
 use nymsphinx::utils::sample_poisson_duration;
+use rand::seq::SliceRandom;
 use rand::{CryptoRng, Rng};
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
@@ -222,8 +223,9 @@ where
     /// Accessor to the common instance of network topology.
     topology_access: TopologyAccessor,
 
-    /// Buffer containing all real messages received. It is first exhausted before more are pulled.
-    received_buffer: VecDeque<RealMessage>,
+    /// Buffer containing all real messages keyed by connection id
+    // WIP(JON): use ConnectionId instead of u64
+    received_buffer: HashMap<u64, VecDeque<RealMessage>>,
 }
 
 pub(crate) struct RealMessage {
@@ -242,8 +244,9 @@ impl RealMessage {
 
 // messages are already prepared, etc. the real point of it is to forward it to mix_traffic
 // after sufficient delay
-pub(crate) type BatchRealMessageSender = mpsc::UnboundedSender<Vec<RealMessage>>;
-type BatchRealMessageReceiver = mpsc::UnboundedReceiver<Vec<RealMessage>>;
+// WIP(JON): use ConnectionId instead of u64
+pub(crate) type BatchRealMessageSender = mpsc::UnboundedSender<(Vec<RealMessage>, u64)>;
+type BatchRealMessageReceiver = mpsc::UnboundedReceiver<(Vec<RealMessage>, u64)>;
 
 pub(crate) enum StreamMessage {
     Cover,
@@ -281,7 +284,7 @@ where
             our_full_destination,
             rng,
             topology_access,
-            received_buffer: VecDeque::with_capacity(0), // we won't be putting any data into this guy directly
+            received_buffer: Default::default(),
         }
     }
 
@@ -389,6 +392,31 @@ where
         }
     }
 
+    fn store_real_messages(&mut self, conn_id: u64, real_messages: Vec<RealMessage>) {
+        let prev_msgs = self.received_buffer.entry(conn_id).or_default();
+        prev_msgs.append(&mut real_messages.into());
+    }
+
+    fn pop_next_message_at_random(&mut self) -> Option<RealMessage> {
+        // Pick one connection at random to return a stream message from
+        let conn_ids: Vec<_> = self.received_buffer.keys().collect();
+        if conn_ids.is_empty() {
+            return None;
+        }
+        log::info!("number of connections to choose from: {}", conn_ids.len());
+        let conn_id = **conn_ids.choose(&mut rand::thread_rng()).unwrap();
+        log::info!("picking to send from conn_id: {}", conn_id);
+
+        // Get the next real message for the connection id, and remove the connection entry
+        // if it was the last one
+        let real_msgs_queued = self.received_buffer.get_mut(&conn_id).unwrap();
+        let real_next = real_msgs_queued.pop_front().unwrap();
+        if real_msgs_queued.is_empty() {
+            self.received_buffer.remove(&conn_id);
+        }
+        Some(real_next)
+    }
+
     fn poll_poisson(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
         // The average delay could change depending on if backpressure in the downstream channel
         // (mix_tx) was detected.
@@ -419,28 +447,43 @@ where
                 next_delay.as_mut().reset(next_poisson_delay);
             }
 
-            // check if we have anything immediately available
-            if let Some(real_available) = self.received_buffer.pop_front() {
-                return Poll::Ready(Some(StreamMessage::Real(Box::new(real_available))));
-            }
+            // WIP(JON): bound the number of connections we allow to store at the same time
 
-            // decide what kind of message to send
+            // WIP(JON): prioritize connections according to:
+            // 1. small amount of data
+            // 2. large chunks of data which have been waiting for a longer time
+            // 3. large chunks of data in new connections
+
             match Pin::new(&mut self.real_receiver).poll_next(cx) {
                 // in the case our real message channel stream was closed, we should also indicate we are closed
                 // (and whoever is using the stream should panic)
                 Poll::Ready(None) => Poll::Ready(None),
 
-                // if there are more messages available, return first one and store the rest
-                Poll::Ready(Some(real_messages)) => {
-                    self.received_buffer = real_messages.into();
-                    // we MUST HAVE received at least ONE message
-                    Poll::Ready(Some(StreamMessage::Real(Box::new(
-                        self.received_buffer.pop_front().unwrap(),
-                    ))))
+                Poll::Ready(Some((real_messages, conn_id))) => {
+                    log::info!("handing real_messages: size: {}", real_messages.len());
+
+                    self.store_real_messages(conn_id, real_messages);
+                    let real_next = self
+                        .pop_next_message_at_random()
+                        .expect("we just added one");
+
+                    Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
                 }
 
-                // otherwise construct a dummy one
-                Poll::Pending => Poll::Ready(Some(StreamMessage::Cover)),
+                Poll::Pending => {
+                    if let Some(real_next) = self.pop_next_message_at_random() {
+                        // if there are more messages immediately available, notify the runtime
+                        // because we should be polled again
+                        if !self.received_buffer.is_empty() {
+                            cx.waker().wake_by_ref()
+                        }
+
+                        Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
+                    } else {
+                        // otherwise construct a dummy one
+                        Poll::Ready(Some(StreamMessage::Cover))
+                    }
+                }
             }
         } else {
             // we never set an initial delay - let's do it now
@@ -462,32 +505,49 @@ where
     }
 
     fn poll_immediate(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
-        // check if we have anything immediately available
-        if let Some(real_available) = self.received_buffer.pop_front() {
-            // if there are more messages immediately available, notify the runtime
-            // because we should be polled again
-            if !self.received_buffer.is_empty() {
-                cx.waker().wake_by_ref()
-            }
-            return Poll::Ready(Some(StreamMessage::Real(Box::new(real_available))));
-        }
+        // WIP(JON): bound the number of connections we allow to store at the same time
+
+        // WIP(JON): prioritize connections according to:
+        // 1. small amount of data
+        // 2. large chunks of data which have been waiting for a longer time
+        // 3. large chunks of data in new connections
 
         match Pin::new(&mut self.real_receiver).poll_next(cx) {
             // in the case our real message channel stream was closed, we should also indicate we are closed
             // (and whoever is using the stream should panic)
             Poll::Ready(None) => Poll::Ready(None),
 
-            // if there are more messages available, return first one and store the rest
-            Poll::Ready(Some(real_messages)) => {
-                self.received_buffer = real_messages.into();
-                // we MUST HAVE received at least ONE message
-                Poll::Ready(Some(StreamMessage::Real(Box::new(
-                    self.received_buffer.pop_front().unwrap(),
-                ))))
+            Poll::Ready(Some((real_messages, conn_id))) => {
+                log::info!("handing real_messages: size: {}", real_messages.len());
+
+                // First store what we got for the given connection id
+                self.store_real_messages(conn_id, real_messages);
+                let real_next = self
+                    .pop_next_message_at_random()
+                    .expect("we just added one");
+
+                // if there are more messages immediately available, notify the runtime
+                // because we should be polled again
+                if !self.received_buffer.is_empty() {
+                    cx.waker().wake_by_ref()
+                }
+
+                Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
             }
 
-            // if there's nothing, then there's nothing
-            Poll::Pending => Poll::Pending,
+            Poll::Pending => {
+                if let Some(real_next) = self.pop_next_message_at_random() {
+                    // if there are more messages immediately available, notify the runtime
+                    // because we should be polled again
+                    if !self.received_buffer.is_empty() {
+                        cx.waker().wake_by_ref()
+                    }
+
+                    Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
+                } else {
+                    Poll::Pending
+                }
+            }
         }
     }
 

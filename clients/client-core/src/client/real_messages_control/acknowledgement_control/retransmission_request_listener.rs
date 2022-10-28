@@ -113,10 +113,10 @@ where
 
         // send to `OutQueueControl` to eventually send to the mix network
         self.real_message_sender
-            .unbounded_send(vec![RealMessage::new(
-                prepared_fragment.mix_packet,
-                frag_id,
-            )])
+            .unbounded_send((
+                vec![RealMessage::new(prepared_fragment.mix_packet, frag_id)],
+                1, // WIP(JON): special case, fixme, use enum instead for this
+            ))
             .unwrap();
     }
 

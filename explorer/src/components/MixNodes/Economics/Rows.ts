@@ -53,7 +53,7 @@ export const EconomicsInfoRows = (): EconomicsInfoRowWithIndex => {
       value: profitMargin ? `${profitMargin} %` : '-',
     },
     operatingCost: {
-      value: opCost ? `${unymToNym(opCost.amount)} NYM` : '-',
+      value: opCost ? `${unymToNym(opCost.amount, 6)} NYM` : '-',
     },
     avgUptime: {
       value: avgUptime ? `${avgUptime} %` : '-',

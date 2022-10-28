@@ -47,6 +47,6 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
     profit_percentage: `${profitPercentage}%`,
     avg_uptime: `${item.avg_uptime}%` || '-',
     stake_saturation: stakeSaturation,
-    operating_cost: `${unymToNym(item.operating_cost.amount)} NYM`,
+    operating_cost: `${unymToNym(item.operating_cost.amount, 6)} NYM`,
   };
 }

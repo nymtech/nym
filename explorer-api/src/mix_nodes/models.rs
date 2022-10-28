@@ -166,6 +166,7 @@ impl ThreadsafeMixNodesCache {
             stake_saturation: best_effort_small_dec_to_f64(node.stake_saturation) as f32,
             estimated_operator_apy: best_effort_small_dec_to_f64(node.estimated_operator_apy),
             estimated_delegators_apy: best_effort_small_dec_to_f64(node.estimated_delegators_apy),
+            operating_cost: rewarding_info.cost_params.interval_operating_cost.clone(),
         }
     }
 

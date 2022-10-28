@@ -209,6 +209,28 @@ export const PageMixnodes: React.FC = () => {
       ),
     },
     {
+      field: 'operating_cost',
+      headerName: 'Operating cost',
+      renderHeader: () => (
+        <CustomColumnHeading
+          headingTitle="Operating cost"
+          tooltipInfo="Monthly operational cost of running this node. This cost is set by the operator and it influences how the rewards are split between the operator and delegators."
+        />
+      ),
+      headerClassName: 'MuiDataGrid-header-override',
+      width: 170,
+      headerAlign: 'left',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={{ ...getCellStyles(theme, params.row), textAlign: 'left' }}
+          component={RRDLink}
+          to={`/network-components/mixnode/${params.row.mix_id}`}
+        >
+          {params.value}
+        </MuiLink>
+      ),
+    },
+    {
       field: 'avg_uptime',
       headerName: 'Routing Score',
       renderHeader: () => (

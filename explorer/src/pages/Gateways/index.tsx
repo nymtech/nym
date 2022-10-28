@@ -85,7 +85,7 @@ export const PageGateways: React.FC = () => {
     {
       field: 'host',
       renderHeader: () => <CustomColumnHeading headingTitle="IP:Port" />,
-      width: 110,
+      width: 180,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
@@ -97,7 +97,7 @@ export const PageGateways: React.FC = () => {
     {
       field: 'location',
       renderHeader: () => <CustomColumnHeading headingTitle="Location" />,
-      width: 150,
+      width: 180,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (

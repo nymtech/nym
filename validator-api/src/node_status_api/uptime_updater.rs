@@ -70,6 +70,36 @@ impl HistoricalUptimeUpdater {
     }
 
     pub(crate) async fn run(&self, mut shutdown: ShutdownListener) {
+        // update uptimes at 23:00 UTC each day so that we'd have data from the actual [almost] whole day
+        // and so that we would avoid the edge case of starting validator API at 23:59 and having some
+        // nodes update for different days
+
+        // the unwrap is fine as 23:00:00 is a valid time
+        let update_time = Time::from_hms(23, 0, 0).unwrap();
+        let now = OffsetDateTime::now_utc();
+        // is the current time within 0:00 - 22:59:59 or 23:00 - 23:59:59 ?
+        let update_date = if now.hour() < 23 {
+            now.date()
+        } else {
+            // the unwrap is fine as (**PRESUMABLY**) we're not running this code in the year 9999
+            now.date().next_day().unwrap()
+        };
+        let update_datetime = PrimitiveDateTime::new(update_date, update_time).assume_utc();
+        // the unwrap here is fine as we're certain `update_datetime` is in the future and thus the
+        // resultant Duration is positive
+        let time_left: Duration = (update_datetime - now).try_into().unwrap();
+
+        log::info!(
+            "waiting until {update_datetime} to update the historical uptimes for the first time ({} seconds left)", time_left.as_secs()
+        );
+
+        tokio::select! {
+            biased;
+            _ = shutdown.recv() => {
+                trace!("UpdateHandler: Received shutdown");
+            }
+            _ = sleep(time_left) => {}
+        }
 
         let mut interval = interval(ONE_DAY);
         while !shutdown.is_shutdown() {

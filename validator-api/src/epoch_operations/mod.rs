@@ -30,6 +30,7 @@ pub(crate) mod error;
 mod helpers;
 
 use crate::epoch_operations::helpers::stake_to_f64;
+use crate::node_status_api::ONE_DAY;
 use error::RewardingError;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use task::ShutdownListener;
@@ -266,7 +267,7 @@ impl RewardedSetUpdater {
         }
 
         log::info!("Purging old node statuses from the storage...");
-        let cutoff = (epoch_end - Duration::from_secs(86400)).unix_timestamp();
+        let cutoff = (epoch_end - 2 * ONE_DAY).unix_timestamp();
         self.storage.purge_old_statuses(cutoff).await?;
 
         Ok(())

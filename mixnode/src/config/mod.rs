@@ -280,6 +280,10 @@ impl Config {
         self.debug.maximum_connection_buffer_size
     }
 
+    pub fn get_use_legacy_sphinx_framing(&self) -> bool {
+        self.debug.use_legacy_framed_packet_version
+    }
+
     pub fn get_version(&self) -> &str {
         &self.mixnode.version
     }
@@ -502,7 +506,8 @@ impl Default for Debug {
             packet_forwarding_maximum_backoff: DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: DEFAULT_INITIAL_CONNECTION_TIMEOUT,
             maximum_connection_buffer_size: DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
-            // use_legacy_framed_packet_version: true,
+            // TODO: remember to change it in one of future releases!!
+            use_legacy_framed_packet_version: true,
         }
     }
 }

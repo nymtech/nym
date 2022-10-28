@@ -265,7 +265,7 @@ impl RewardedSetUpdater {
             log::info!("Advanced the epoch and updated the rewarded set... SUCCESS");
         }
 
-        log::info!("Puring all node statuses from the storage...");
+        log::info!("Purging old node statuses from the storage...");
         let cutoff = (epoch_end - Duration::from_secs(86400)).unix_timestamp();
         self.storage.purge_old_statuses(cutoff).await?;
 

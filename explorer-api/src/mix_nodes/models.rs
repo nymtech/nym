@@ -11,6 +11,7 @@ use serde::Serialize;
 use tokio::sync::{RwLock, RwLockReadGuard};
 
 use crate::helpers::best_effort_small_dec_to_f64;
+use crate::utils::unym_to_nym;
 use validator_client::models::MixNodeBondAnnotated;
 
 use crate::mix_node::models::{MixnodeStatus, PrettyDetailedMixNodeBond};
@@ -153,6 +154,11 @@ impl ThreadsafeMixNodesCache {
         let denom = &node.mixnode_details.original_pledge().denom;
         let rewarding_info = &node.mixnode_details.rewarding_details;
 
+        let mut operating_cost = rewarding_info.cost_params.interval_operating_cost.clone();
+        if operating_cost.denom == "unym" {
+            operating_cost = unym_to_nym(operating_cost, None);
+        }
+
         PrettyDetailedMixNodeBond {
             mix_id,
             location: location.and_then(|l| l.location.clone()),
@@ -166,6 +172,7 @@ impl ThreadsafeMixNodesCache {
             stake_saturation: best_effort_small_dec_to_f64(node.stake_saturation) as f32,
             estimated_operator_apy: best_effort_small_dec_to_f64(node.estimated_operator_apy),
             estimated_delegators_apy: best_effort_small_dec_to_f64(node.estimated_delegators_apy),
+            operating_cost,
         }
     }
 

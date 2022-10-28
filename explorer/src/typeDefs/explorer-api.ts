@@ -86,6 +86,7 @@ export interface MixNodeResponseItem {
   mix_node: MixNode;
   avg_uptime: number;
   stake_saturation: number;
+  operating_cost: Amount; // value is expressed in NYM (not uNYM)
 }
 
 export type MixNodeResponse = MixNodeResponseItem[];

@@ -1587,6 +1587,7 @@ dependencies = [
  "chrono",
  "clap 3.2.8",
  "contracts-common",
+ "cosmwasm-std",
  "dotenv",
  "humantime-serde",
  "isocountry",

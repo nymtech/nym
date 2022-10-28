@@ -40,6 +40,14 @@ export const EconomicsInfoColumns: ColumnsType[] = [
       'Percentage of the delegates rewards that the operator takes as fee before rewards are distributed to the delegates.',
   },
   {
+    field: 'operatingCost',
+    title: 'Operating Cost',
+    flex: 1,
+    headerAlign: 'left',
+    tooltipInfo:
+      'Monthly operational cost of running this node. This cost is set by the operator and it influences how the rewards are split between the operator and delegators.',
+  },
+  {
     field: 'avgUptime',
     title: 'Routing Score',
     flex: 1,

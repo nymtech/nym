@@ -16,6 +16,7 @@ export type MixnodeRowType = {
   profit_percentage: string;
   avg_uptime: string;
   stake_saturation: number;
+  operating_cost: string;
 };
 
 export function mixnodeToGridRow(arrayOfMixnodes?: MixNodeResponse): MixnodeRowType[] {
@@ -44,5 +45,6 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
     profit_percentage: `${profitPercentage}%`,
     avg_uptime: `${item.avg_uptime}%` || '-',
     stake_saturation: stakeSaturation,
+    operating_cost: `${item.operating_cost.amount} ${item.operating_cost.denom.toUpperCase()}`,
   };
 }

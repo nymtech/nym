@@ -26,6 +26,9 @@ const row: EconomicsInfoRowWithIndex = {
   profitMargin: {
     value: '10 %',
   },
+  operatingCost: {
+    value: '11121 NYM',
+  },
   stakeSaturation: {
     value: '80 %',
     progressBarValue: 80,
@@ -62,6 +65,9 @@ const emptyRow: EconomicsInfoRowWithIndex = {
     value: '-',
   },
   profitMargin: {
+    value: '-',
+  },
+  operatingCost: {
     value: '-',
   },
   stakeSaturation: {

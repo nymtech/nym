@@ -50,9 +50,6 @@ impl From<MixnodeToReward> for ExecuteMsg {
     }
 }
 
-// // Epoch has all the same semantics as interval, but has a lower set duration
-// type Epoch = Interval;
-
 pub struct RewardedSetUpdater {
     nymd_client: Client<SigningNymdClient>,
     validator_cache: ValidatorCache,

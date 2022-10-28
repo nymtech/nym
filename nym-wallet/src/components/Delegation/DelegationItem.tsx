@@ -1,14 +1,12 @@
 import React from 'react';
-import { Chip, IconButton, TableCell, TableCellProps, TableRow, Tooltip, Typography } from '@mui/material';
+import { Chip, IconButton, TableCell, TableRow, Tooltip, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { decimalToPercentage, DelegationWithEverything } from '@nymproject/types';
-import { DelegationListItemActions, DelegationsActionsMenu } from './DelegationActions';
 import { isDelegation } from 'src/context/delegations';
 import { toPercentIntegerString } from 'src/utils';
 import { format } from 'date-fns';
 import { Undelegate } from 'src/svg-icons';
-import { Box } from '@mui/system';
-import { identity } from 'lodash';
+import { DelegationListItemActions, DelegationsActionsMenu } from './DelegationActions';
 
 const getStakeSaturation = (item: DelegationWithEverything) =>
   !item.stake_saturation ? '-' : `${decimalToPercentage(item.stake_saturation)}%`;
@@ -29,6 +27,8 @@ export const DelegationItem = ({
   nodeIsUnbonded: boolean;
   onItemActionClick?: (item: DelegationWithEverything, action: DelegationListItemActions) => void;
 }) => {
+  const operatingCost = isDelegation(item) && item.cost_params?.interval_operating_cost;
+
   return (
     <Tooltip
       arrow
@@ -38,8 +38,8 @@ export const DelegationItem = ({
           : ''
       }
     >
-      <TableRow key={item.node_identity} sx={{ color: !Boolean(item.node_identity) ? 'error.main' : 'inherit' }}>
-        <TableCell sx={{ color: 'inherit' }}>
+      <TableRow key={item.node_identity} sx={{ color: !item.node_identity ? 'error.main' : 'inherit' }}>
+        <TableCell sx={{ color: 'inherit', pr: 1 }} padding="normal">
           {nodeIsUnbonded ? (
             '-'
           ) : (
@@ -60,6 +60,11 @@ export const DelegationItem = ({
             (!item.cost_params?.profit_margin_percent
               ? '-'
               : `${toPercentIntegerString(item.cost_params.profit_margin_percent)}%`)}
+        </TableCell>
+        <TableCell sx={{ color: 'inherit' }}>
+          <Typography style={{ textTransform: 'uppercase' }}>
+            {operatingCost ? `${operatingCost.amount} ${operatingCost.denom}` : '-'}
+          </Typography>
         </TableCell>
         <TableCell sx={{ color: 'inherit' }}>{getStakeSaturation(item)}</TableCell>
         <TableCell sx={{ color: 'inherit' }}>

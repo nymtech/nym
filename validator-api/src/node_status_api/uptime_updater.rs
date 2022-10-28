@@ -7,9 +7,10 @@ use crate::node_status_api::models::{
 use crate::node_status_api::ONE_DAY;
 use crate::storage::ValidatorApiStorage;
 use log::error;
+use std::time::Duration;
 use task::ShutdownListener;
-use time::OffsetDateTime;
-use tokio::time::sleep;
+use time::{OffsetDateTime, PrimitiveDateTime, Time};
+use tokio::time::{interval, sleep};
 
 pub(crate) struct HistoricalUptimeUpdater {
     storage: ValidatorApiStorage,
@@ -69,27 +70,20 @@ impl HistoricalUptimeUpdater {
     }
 
     pub(crate) async fn run(&self, mut shutdown: ShutdownListener) {
+
+        let mut interval = interval(ONE_DAY);
         while !shutdown.is_shutdown() {
             tokio::select! {
-                _ = sleep(ONE_DAY) => {
-                    tokio::select! {
-                        biased;
-                        _ = shutdown.recv() => {
-                            trace!("UpdateHandler: Received shutdown");
-                        }
-                        Err(err) = self.update_uptimes() => {
-                            // normally that would have been a warning rather than an error,
-                            // however, in this case it implies some underlying issues with our database
-                            // that might affect the entire program
-                            error!(
-                                "We failed to update daily uptimes of active nodes - {}",
-                                err
-                            );
-                        }
-                    }
-                }
+                biased;
                 _ = shutdown.recv() => {
                     trace!("UpdateHandler: Received shutdown");
+                }
+                _ = interval.tick() => {
+                    // we don't want to have another select here; uptime update is relatively speedy
+                    // and we don't want to exit while we're in the middle of database update
+                    if let Err(err) = self.update_uptimes().await {
+                        error!("We failed to update daily uptimes of active nodes - {err}");
+                    }
                 }
             }
         }

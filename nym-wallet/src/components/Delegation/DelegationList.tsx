@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   Box,
-  Chip,
   CircularProgress,
   Table,
   TableBody,
@@ -39,43 +38,12 @@ const headCells: HeadCell[] = [
   { id: 'node_identity', label: 'Node ID', sortable: true, align: 'left' },
   { id: 'avg_uptime_percent', label: 'Routing score', sortable: true, align: 'left' },
   { id: 'profit_margin_percent', label: 'Profit margin', sortable: true, align: 'left' },
+  { id: 'operating_cost', label: 'Operating Cost', sortable: true, align: 'left' },
   { id: 'stake_saturation', label: 'Stake saturation', sortable: true, align: 'left' },
   { id: 'delegated_on_iso_datetime', label: 'Delegated on', sortable: true, align: 'left' },
   { id: 'amount', label: 'Delegation', sortable: true, align: 'left' },
   { id: 'unclaimed_rewards', label: 'Reward', sortable: true, align: 'left' },
 ];
-
-function descendingComparator(a: any, b: any, orderBy: string) {
-  if (b[orderBy] < a[orderBy]) {
-    return -1;
-  }
-  if (b[orderBy] > a[orderBy]) {
-    return 1;
-  }
-  return 0;
-}
-// Sorting function needs fixing
-
-function sortPendingDelegation(a: DelegationWithEvent, b: DelegationWithEvent) {
-  if (isPendingDelegation(a) && isPendingDelegation(b)) return 0;
-  if (isPendingDelegation(b)) return -1;
-  if (isPendingDelegation(a)) return 1;
-  return 2;
-}
-
-function getComparator(order: Order, orderBy: string): (a: DelegationWithEvent, b: DelegationWithEvent) => number {
-  return order === 'desc'
-    ? (a, b) => {
-        const pendingSort = sortPendingDelegation(a, b);
-        if (pendingSort === 2) return descendingComparator(a, b, orderBy);
-        return pendingSort;
-      }
-    : (a, b) => {
-        const pendingSort = -sortPendingDelegation(a, b);
-        if (pendingSort === 2) return -descendingComparator(a, b, orderBy);
-        return pendingSort;
-      };
-}
 
 const EnhancedTableHead: React.FC<EnhancedTableProps> = ({ order, orderBy, onRequestSort }) => {
   const createSortHandler = (property: string) => (event: React.MouseEvent<unknown>) => {
@@ -114,8 +82,8 @@ const EnhancedTableHead: React.FC<EnhancedTableProps> = ({ order, orderBy, onReq
   );
 };
 
-const sortByUnbondedMixnodeFirst = (a: DelegationWithEvent, b: DelegationWithEvent) => {
-  if (!Boolean(a.node_identity)) return -1;
+const sortByUnbondedMixnodeFirst = (a: DelegationWithEvent) => {
+  if (!a.node_identity) return -1;
   return 1;
 };
 

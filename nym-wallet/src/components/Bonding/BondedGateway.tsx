@@ -1,14 +1,12 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Stack, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { TBondedGateway, urls } from 'src/context';
 import { NymCard } from 'src/components';
 import { Network } from 'src/types';
 import { IdentityKey } from 'src/components/IdentityKey';
-import { getGatewayReport } from 'src/requests';
 import { Cell, Header, NodeTable } from './NodeTable';
 import { BondedGatewayActions, TBondedGatwayActions } from './BondedGatewayAction';
-import { Console } from 'src/utils/console';
 
 const headers: Header[] = [
   {

@@ -1,4 +1,4 @@
-import { currencyToString } from '../../../utils/currency';
+import { currencyToString, unymToNym } from '../../../utils/currency';
 import { useMixnodeContext } from '../../../context/mixnode';
 import { ApiState, MixNodeEconomicDynamicsStatsResponse } from '../../../typeDefs/explorer-api';
 import { EconomicsInfoRowWithIndex } from './types';
@@ -53,7 +53,7 @@ export const EconomicsInfoRows = (): EconomicsInfoRowWithIndex => {
       value: profitMargin ? `${profitMargin} %` : '-',
     },
     operatingCost: {
-      value: opCost ? `${opCost.amount} ${opCost.denom.toUpperCase()}` : '-',
+      value: opCost ? `${unymToNym(opCost.amount)} NYM` : '-',
     },
     avgUptime: {
       value: avgUptime ? `${avgUptime} %` : '-',

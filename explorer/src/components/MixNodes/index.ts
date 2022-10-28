@@ -1,5 +1,6 @@
 /* eslint-disable camelcase */
 import { MixNodeResponse, MixNodeResponseItem, MixnodeStatus } from '../../typeDefs/explorer-api';
+import { unymToNym } from '../../utils/currency';
 
 export type MixnodeRowType = {
   mix_id: number;
@@ -30,6 +31,7 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
   const selfPercentage = ((pledge * 100) / totalBond).toFixed(2);
   const profitPercentage = item.mix_node.profit_margin_percent || 0;
   const stakeSaturation = typeof item.stake_saturation === 'number' ? item.stake_saturation * 100 : 0;
+
   return {
     mix_id: item.mix_id,
     id: item.owner,
@@ -45,6 +47,6 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
     profit_percentage: `${profitPercentage}%`,
     avg_uptime: `${item.avg_uptime}%` || '-',
     stake_saturation: stakeSaturation,
-    operating_cost: `${item.operating_cost.amount} ${item.operating_cost.denom.toUpperCase()}`,
+    operating_cost: `${unymToNym(item.operating_cost.amount)} NYM`,
   };
 }

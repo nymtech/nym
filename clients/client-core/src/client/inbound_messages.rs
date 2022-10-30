@@ -5,14 +5,21 @@ use nymsphinx::anonymous_replies::ReplySurb;
 pub type InputMessageSender = mpsc::UnboundedSender<InputMessage>;
 pub type InputMessageReceiver = mpsc::UnboundedReceiver<InputMessage>;
 
+#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+pub enum TransmissionLane {
+    ConnectionId(u64),
+    Direct,
+    Reply,
+    Retransmission,
+}
+
 #[derive(Debug)]
 pub enum InputMessage {
     Fresh {
         recipient: Recipient,
         data: Vec<u8>,
         with_reply_surb: bool,
-        // WIP(JON): use ConnectionId instead
-        connection_id: u64,
+        lane: TransmissionLane,
     },
     Reply {
         reply_surb: ReplySurb,
@@ -25,13 +32,13 @@ impl InputMessage {
         recipient: Recipient,
         data: Vec<u8>,
         with_reply_surb: bool,
-        connection_id: u64,
+        lane: TransmissionLane,
     ) -> Self {
         InputMessage::Fresh {
             recipient,
             data,
             with_reply_surb,
-            connection_id,
+            lane,
         }
     }
 

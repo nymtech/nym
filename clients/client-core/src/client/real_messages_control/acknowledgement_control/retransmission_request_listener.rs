@@ -1,17 +1,21 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::action_controller::{Action, ActionSender};
-use super::PendingAcknowledgement;
-use super::RetransmissionRequestReceiver;
+use super::{
+    action_controller::{Action, ActionSender},
+    PendingAcknowledgement, RetransmissionRequestReceiver,
+};
 use crate::client::{
+    inbound_messages::TransmissionLane,
     real_messages_control::real_traffic_stream::{BatchRealMessageSender, RealMessage},
     topology_control::TopologyAccessor,
 };
+
 use futures::StreamExt;
 use log::*;
-use nymsphinx::preparer::MessagePreparer;
-use nymsphinx::{acknowledgements::AckKey, addressing::clients::Recipient};
+use nymsphinx::{
+    acknowledgements::AckKey, addressing::clients::Recipient, preparer::MessagePreparer,
+};
 use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
 
@@ -115,7 +119,7 @@ where
         self.real_message_sender
             .unbounded_send((
                 vec![RealMessage::new(prepared_fragment.mix_packet, frag_id)],
-                1, // WIP(JON): special case, fixme, use enum instead for this
+                TransmissionLane::Retransmission,
             ))
             .unwrap();
     }

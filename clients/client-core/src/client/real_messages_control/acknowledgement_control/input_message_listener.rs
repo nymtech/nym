@@ -4,7 +4,7 @@
 use super::action_controller::{Action, ActionSender};
 use super::PendingAcknowledgement;
 use crate::client::{
-    inbound_messages::{InputMessage, InputMessageReceiver},
+    inbound_messages::{InputMessage, InputMessageReceiver, TransmissionLane},
     real_messages_control::real_traffic_stream::{BatchRealMessageSender, RealMessage},
     topology_control::TopologyAccessor,
 };
@@ -165,22 +165,22 @@ where
     }
 
     async fn on_input_message(&mut self, msg: InputMessage) {
-        let (real_messages, conn_id) = match msg {
+        let (real_messages, lane) = match msg {
             InputMessage::Fresh {
                 recipient,
                 data,
                 with_reply_surb,
-                connection_id,
+                lane,
             } => (
                 self.handle_fresh_message(recipient, data, with_reply_surb)
                     .await,
-                connection_id,
+                lane,
             ),
             InputMessage::Reply { reply_surb, data } => (
                 self.handle_reply(reply_surb, data)
                     .await
                     .map(|message| vec![message]),
-                0, // WIP(JON): special case, fixme, use enum instead for this
+                TransmissionLane::Reply,
             ),
         };
 
@@ -188,7 +188,7 @@ where
         if let Some(real_messages) = real_messages {
             // tells real message sender (with the poisson timer) to send this to the mix network
             self.real_message_sender
-                .unbounded_send((real_messages, conn_id))
+                .unbounded_send((real_messages, lane))
                 .unwrap();
         }
     }

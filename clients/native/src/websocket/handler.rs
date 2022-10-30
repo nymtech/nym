@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use client_core::client::{
-    inbound_messages::{InputMessage, InputMessageSender},
+    inbound_messages::{InputMessage, InputMessageSender, TransmissionLane},
     received_buffer::{
         ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
     },
@@ -83,8 +83,8 @@ impl Handler {
         with_reply_surb: bool,
     ) -> Option<ServerResponse> {
         // the ack control is now responsible for chunking, etc.
-        // WIP(JON): replace 3 with enum
-        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb, 3);
+        let lane = TransmissionLane::Direct;
+        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb, lane);
         self.msg_input.unbounded_send(input_msg).unwrap();
 
         None

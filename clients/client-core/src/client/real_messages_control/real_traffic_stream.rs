@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::inbound_messages::TransmissionLane;
 use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
@@ -224,8 +225,7 @@ where
     topology_access: TopologyAccessor,
 
     /// Buffer containing all real messages keyed by connection id
-    // WIP(JON): use ConnectionId instead of u64
-    received_buffer: HashMap<u64, VecDeque<RealMessage>>,
+    received_buffer: HashMap<TransmissionLane, VecDeque<RealMessage>>,
 }
 
 pub(crate) struct RealMessage {
@@ -244,9 +244,9 @@ impl RealMessage {
 
 // messages are already prepared, etc. the real point of it is to forward it to mix_traffic
 // after sufficient delay
-// WIP(JON): use ConnectionId instead of u64
-pub(crate) type BatchRealMessageSender = mpsc::UnboundedSender<(Vec<RealMessage>, u64)>;
-type BatchRealMessageReceiver = mpsc::UnboundedReceiver<(Vec<RealMessage>, u64)>;
+pub(crate) type BatchRealMessageSender =
+    mpsc::UnboundedSender<(Vec<RealMessage>, TransmissionLane)>;
+type BatchRealMessageReceiver = mpsc::UnboundedReceiver<(Vec<RealMessage>, TransmissionLane)>;
 
 pub(crate) enum StreamMessage {
     Cover,
@@ -392,27 +392,29 @@ where
         }
     }
 
-    fn store_real_messages(&mut self, conn_id: u64, real_messages: Vec<RealMessage>) {
-        let prev_msgs = self.received_buffer.entry(conn_id).or_default();
+    fn store_real_messages(&mut self, lane: TransmissionLane, real_messages: Vec<RealMessage>) {
+        let prev_msgs = self.received_buffer.entry(lane).or_default();
         prev_msgs.append(&mut real_messages.into());
     }
 
-    fn pop_next_message_at_random(&mut self) -> Option<RealMessage> {
+    fn pick_random_lane(&self) -> Option<&TransmissionLane> {
         // Pick one connection at random to return a stream message from
-        let conn_ids: Vec<_> = self.received_buffer.keys().collect();
-        if conn_ids.is_empty() {
-            return None;
-        }
-        log::info!("number of connections to choose from: {}", conn_ids.len());
-        let conn_id = **conn_ids.choose(&mut rand::thread_rng()).unwrap();
-        log::info!("picking to send from conn_id: {}", conn_id);
+        let lanes: Vec<&TransmissionLane> = self.received_buffer.keys().collect();
+        log::info!("number of lanes to choose from: {}", lanes.len());
+        lanes.choose(&mut rand::thread_rng()).copied()
+    }
 
-        // Get the next real message for the connection id, and remove the connection entry
-        // if it was the last one
-        let real_msgs_queued = self.received_buffer.get_mut(&conn_id).unwrap();
+    // Get the next real message, and remove the transmission lane entry if it was the last one.
+    fn pop_next_message_at_random(&mut self) -> Option<RealMessage> {
+        let lane = self.pick_random_lane()?.clone();
+        log::info!("picking to send from lane: {:?}", lane);
+
+        // We just picked a valid lane, and returned early if none existed.
+        let real_msgs_queued = self.received_buffer.get_mut(&lane).unwrap();
+        // If an entry exists, it has non-zero number of messages.
         let real_next = real_msgs_queued.pop_front().unwrap();
         if real_msgs_queued.is_empty() {
-            self.received_buffer.remove(&conn_id);
+            self.received_buffer.remove(&lane);
         }
         Some(real_next)
     }

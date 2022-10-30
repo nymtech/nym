@@ -190,8 +190,6 @@ impl ActionController {
     // (as new sphinx packet was created with new expected delivery time)
     fn handle_update_delay(&mut self, frag_id: FragmentIdentifier, delay: SphinxDelay) {
         trace!("{} is updating its delay", frag_id);
-
-
         // TODO: is it possible to solve this without either locking or temporarily removing the value?
         if let Some((pending_ack_data, queue_key)) = self.pending_acks_data.remove(&frag_id) {
             // this Action is triggered by `RetransmissionRequestListener` which held the other potential

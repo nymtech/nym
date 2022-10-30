@@ -3,7 +3,7 @@
 
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
-    InputMessage, InputMessageReceiver, InputMessageSender,
+    InputMessage, InputMessageReceiver, InputMessageSender, TransmissionLane,
 };
 use client_core::client::key_manager::KeyManager;
 use client_core::client::mix_traffic::{BatchMixMessageSender, MixTrafficController};
@@ -292,8 +292,8 @@ impl NymClient {
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
     pub fn send_message(&mut self, recipient: Recipient, message: Vec<u8>, with_reply_surb: bool) {
-        // WIP(JON): replace 4 with enum
-        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb, 4);
+        let lane = TransmissionLane::Direct;
+        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb, lane);
 
         self.input_tx
             .as_ref()

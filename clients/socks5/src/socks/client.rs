@@ -4,8 +4,7 @@ use super::authentication::{AuthenticationMethods, Authenticator, User};
 use super::request::{SocksCommand, SocksRequest};
 use super::types::{ResponseCode, SocksProxyError};
 use super::{RESERVED, SOCKS_VERSION};
-use client_core::client::inbound_messages::InputMessage;
-use client_core::client::inbound_messages::InputMessageSender;
+use client_core::client::inbound_messages::{InputMessage, InputMessageSender, TransmissionLane};
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use log::*;
@@ -234,7 +233,7 @@ impl SocksClient {
             self.service_provider,
             msg.into_bytes(),
             false,
-            self.connection_id,
+            TransmissionLane::ConnectionId(self.connection_id),
         );
         self.input_sender.unbounded_send(input_message).unwrap();
     }
@@ -264,7 +263,8 @@ impl SocksClient {
         .run(move |conn_id, read_data, socket_closed| {
             let provider_request = Request::new_send(conn_id, read_data, socket_closed);
             let provider_message = Message::Request(provider_request);
-            InputMessage::new_fresh(recipient, provider_message.into_bytes(), false, conn_id)
+            let lane = TransmissionLane::ConnectionId(conn_id);
+            InputMessage::new_fresh(recipient, provider_message.into_bytes(), false, lane)
         })
         .await
         .into_inner();

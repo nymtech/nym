@@ -200,6 +200,7 @@ impl MixNode {
             self.config.get_packet_forwarding_maximum_backoff(),
             self.config.get_initial_connection_timeout(),
             self.config.get_maximum_connection_buffer_size(),
+            self.config.get_use_legacy_sphinx_framing(),
         );
 
         let mut packet_forwarder = DelayForwarder::new(

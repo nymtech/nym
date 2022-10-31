@@ -4,6 +4,7 @@
 use crate::codec::SphinxCodecError;
 use bytes::{BufMut, BytesMut};
 use nymsphinx_params::packet_sizes::PacketSize;
+use nymsphinx_params::packet_version::PacketVersion;
 use nymsphinx_params::PacketMode;
 use nymsphinx_types::SphinxPacket;
 use std::convert::TryFrom;
@@ -17,12 +18,14 @@ pub struct FramedSphinxPacket {
 }
 
 impl FramedSphinxPacket {
-    pub fn new(packet: SphinxPacket, packet_mode: PacketMode) -> Self {
+    pub fn new(packet: SphinxPacket, packet_mode: PacketMode, use_legacy_version: bool) -> Self {
         // If this fails somebody is using the library in a super incorrect way, because they
         // already managed to somehow create a sphinx packet
         let packet_size = PacketSize::get_type(packet.len()).unwrap();
+
         FramedSphinxPacket {
             header: Header {
+                packet_version: PacketVersion::new(use_legacy_version),
                 packet_size,
                 packet_mode,
             },
@@ -48,6 +51,9 @@ impl FramedSphinxPacket {
 // but would that really be worth it?
 #[derive(Debug, Default, PartialEq, Eq, Copy, Clone)]
 pub struct Header {
+    /// Represents the wire format version used to construct this packet.
+    pub(crate) packet_version: PacketVersion,
+
     /// Represents type and consequently size of the included SphinxPacket.
     pub(crate) packet_size: PacketSize,
 
@@ -64,11 +70,25 @@ pub struct Header {
 }
 
 impl Header {
-    pub(crate) const SIZE: usize = 2;
+    pub(crate) const LEGACY_SIZE: usize = 2;
+    pub(crate) const VERSIONED_SIZE: usize = 3;
+
+    pub(crate) fn size(&self) -> usize {
+        if self.packet_version.is_legacy() {
+            Self::LEGACY_SIZE
+        } else {
+            Self::VERSIONED_SIZE
+        }
+    }
 
     pub(crate) fn encode(&self, dst: &mut BytesMut) {
         // we reserve one byte for `packet_size` and the other for `mode`
-        dst.reserve(Self::SIZE);
+        dst.reserve(Self::LEGACY_SIZE);
+        if let Some(version) = self.packet_version.as_u8() {
+            dst.reserve(Self::VERSIONED_SIZE);
+            dst.put_u8(version)
+        }
+
         dst.put_u8(self.packet_size as u8);
         dst.put_u8(self.packet_mode as u8);
         // reserve bytes for the actual packet
@@ -76,16 +96,30 @@ impl Header {
     }
 
     pub(crate) fn decode(src: &mut BytesMut) -> Result<Option<Self>, SphinxCodecError> {
-        if src.len() < Self::SIZE {
+        if src.len() < Self::LEGACY_SIZE {
             // can't do anything if we don't have enough bytes - but reserve enough for the next call
-            src.reserve(Self::SIZE);
+            src.reserve(Self::LEGACY_SIZE);
             return Ok(None);
         }
 
-        Ok(Some(Header {
-            packet_size: PacketSize::try_from(src[0])?,
-            packet_mode: PacketMode::try_from(src[1])?,
-        }))
+        let packet_version = PacketVersion::from(src[0]);
+        if packet_version.is_legacy() {
+            Ok(Some(Header {
+                packet_version,
+                packet_size: PacketSize::try_from(src[0])?,
+                packet_mode: PacketMode::try_from(src[1])?,
+            }))
+        } else if src.len() < Self::VERSIONED_SIZE {
+            // we're missing that 1 byte to read the full header...
+            src.reserve(Self::VERSIONED_SIZE);
+            Ok(None)
+        } else {
+            Ok(Some(Header {
+                packet_version,
+                packet_size: PacketSize::try_from(src[1])?,
+                packet_mode: PacketMode::try_from(src[2])?,
+            }))
+        }
     }
 }
 
@@ -108,7 +142,16 @@ mod header_encoding {
         // make sure this is still 'unknown' for if we make changes in the future
         assert!(PacketSize::try_from(unknown_packet_size).is_err());
 
-        let mut bytes = BytesMut::from([unknown_packet_size, PacketMode::default() as u8].as_ref());
+        // unfortunately this will only work for the 'versioned' variant
+        // due to the hack used to get legacy mode compatibility
+        let mut bytes = BytesMut::from(
+            [
+                PacketVersion::new_versioned(123).as_u8().unwrap(),
+                unknown_packet_size,
+                PacketMode::default() as u8,
+            ]
+            .as_ref(),
+        );
         assert!(Header::decode(&mut bytes).is_err())
     }
 
@@ -127,16 +170,16 @@ mod header_encoding {
         let mut empty_bytes = BytesMut::new();
         let decode_attempt_1 = Header::decode(&mut empty_bytes).unwrap();
         assert!(decode_attempt_1.is_none());
-        assert!(empty_bytes.capacity() > Header::SIZE);
+        assert!(empty_bytes.capacity() > Header::LEGACY_SIZE);
 
         let mut empty_bytes = BytesMut::with_capacity(1);
         let decode_attempt_2 = Header::decode(&mut empty_bytes).unwrap();
         assert!(decode_attempt_2.is_none());
-        assert!(empty_bytes.capacity() > Header::SIZE);
+        assert!(empty_bytes.capacity() > Header::LEGACY_SIZE);
     }
 
     #[test]
-    fn header_encoding_reserves_enough_bytes_for_full_sphinx_packet() {
+    fn header_encoding_reserves_enough_bytes_for_full_sphinx_packet_in_legacy_mode() {
         let packet_sizes = vec![
             PacketSize::AckPacket,
             PacketSize::RegularPacket,
@@ -146,6 +189,28 @@ mod header_encoding {
         ];
         for packet_size in packet_sizes {
             let header = Header {
+                packet_version: PacketVersion::Legacy,
+                packet_size,
+                packet_mode: Default::default(),
+            };
+            let mut bytes = BytesMut::new();
+            header.encode(&mut bytes);
+            assert_eq!(bytes.capacity(), bytes.len() + packet_size.size())
+        }
+    }
+
+    #[test]
+    fn header_encoding_reserves_enough_bytes_for_full_sphinx_packet_in_versioned_mode() {
+        let packet_sizes = vec![
+            PacketSize::AckPacket,
+            PacketSize::RegularPacket,
+            PacketSize::ExtendedPacket8,
+            PacketSize::ExtendedPacket16,
+            PacketSize::ExtendedPacket32,
+        ];
+        for packet_size in packet_sizes {
+            let header = Header {
+                packet_version: PacketVersion::Versioned(123),
                 packet_size,
                 packet_mode: Default::default(),
             };

@@ -72,7 +72,7 @@ export const DelegationItem = ({
         </TableCell>
         <TableCell sx={{ color: 'inherit' }}>
           <Typography style={{ textTransform: 'uppercase' }}>
-            {isDelegation(item) && `${item.amount.amount} ${item.amount.denom}`}
+            {isDelegation(item) ? `${item.amount.amount} ${item.amount.denom}` : '-'}
           </Typography>
         </TableCell>
         <TableCell sx={{ textTransform: 'uppercase', color: 'inherit' }}>{getRewardValue(item)}</TableCell>

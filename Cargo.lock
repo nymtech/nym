@@ -6391,6 +6391,7 @@ dependencies = [
  "coconut-interface",
  "colored",
  "config",
+ "contracts-common",
  "cosmrs",
  "cosmwasm-std",
  "cw3",
@@ -6486,6 +6487,7 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
+ "vergen 5.1.17",
  "vesting-contract-common",
 ]
 

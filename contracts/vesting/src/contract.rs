@@ -8,6 +8,7 @@ use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
 };
 use crate::vesting::{populate_vesting_periods, Account};
+use contracts_common::ContractBuildInformation;
 use cosmwasm_std::{
     coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Order,
     QueryResponse, Response, StdResult, Timestamp, Uint128,
@@ -500,6 +501,7 @@ fn try_create_periodic_vesting_account(
 #[entry_point]
 pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
+        QueryMsg::GetContractVersion {} => to_binary(&get_contract_version()),
         QueryMsg::LockedCoins {
             vesting_account_address,
             block_time,
@@ -604,6 +606,21 @@ pub fn try_get_gateway(address: &str, deps: Deps<'_>) -> Result<Option<PledgeDat
 
 pub fn try_get_account(address: &str, deps: Deps<'_>) -> Result<Account, ContractError> {
     account_from_address(address, deps.storage, deps.api)
+}
+
+/// Gets build information of this contract.
+pub fn get_contract_version() -> ContractBuildInformation {
+    // as per docs
+    // env! macro will expand to the value of the named environment variable at
+    // compile time, yielding an expression of type `&'static str`
+    ContractBuildInformation {
+        build_timestamp: env!("VERGEN_BUILD_TIMESTAMP").to_string(),
+        build_version: env!("VERGEN_BUILD_SEMVER").to_string(),
+        commit_sha: env!("VERGEN_GIT_SHA").to_string(),
+        commit_timestamp: env!("VERGEN_GIT_COMMIT_TIMESTAMP").to_string(),
+        commit_branch: env!("VERGEN_GIT_BRANCH").to_string(),
+        rustc_version: env!("VERGEN_RUSTC_SEMVER").to_string(),
+    }
 }
 
 /// Gets currently locked coins, see [crate::traits::VestingAccount::locked_coins]

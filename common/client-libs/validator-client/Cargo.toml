@@ -13,6 +13,7 @@ colored = "2.0"
 cw3 = "0.13.1"
 mixnet-contract-common = { path= "../../cosmwasm-smart-contracts/mixnet-contract" }
 vesting-contract-common = { path= "../../cosmwasm-smart-contracts/vesting-contract" }
+contracts-common = { path = "../../cosmwasm-smart-contracts/contracts-common" }
 coconut-bandwidth-contract-common = { path= "../../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 multisig-contract-common = { path = "../../cosmwasm-smart-contracts/multisig-contract" }
 vesting-contract = { path = "../../../contracts/vesting" }

@@ -20,8 +20,6 @@ pub fn ping_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, Open
     openapi_get_routes_spec![settings: index]
 }
 
-// TODO: I'm not deprecating this one explicitly since we don't have
-// a decision on whether nodes should be accessed (as in using URL) by id or identity key
 #[openapi(tag = "ping")]
 #[get("/<mix_id>")]
 pub(crate) async fn index(

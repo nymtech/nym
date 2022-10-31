@@ -21,6 +21,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 ### Fixed
 
 - validator-api, mixnode, gateway should now prefer values in config.toml over mainnet defaults ([#1645])
+- validator-api should now correctly update historical uptimes for all mixnodes and gateways every 24h ([#1721])
 - socks5-client: fix bug where in some cases packet reordering could trigger a connection being closed too early ([#1702],[#1724])
 
 ### Changed
@@ -47,6 +48,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1687]: https://github.com/nymtech/nym/pull/1687
 [#1702]: https://github.com/nymtech/nym/pull/1702
 [#1703]: https://github.com/nymtech/nym/pull/1703
+[#1721]: https://github.com/nymtech/nym/pull/1721
 [#1724]: https://github.com/nymtech/nym/pull/1724
 [#1725]: https://github.com/nymtech/nym/pull/1725
 

@@ -7,10 +7,10 @@ pub type InputMessageReceiver = mpsc::UnboundedReceiver<InputMessage>;
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub enum TransmissionLane {
-    ConnectionId(u64),
-    Direct,
+    General,
     Reply,
     Retransmission,
+    ConnectionId(u64), // WIP: use the ConnectionId type alias instead of u64
 }
 
 #[derive(Debug)]

@@ -13,6 +13,7 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::receiver::ReconstructedMessage;
+use rand::RngCore;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
     accept_async,
@@ -83,7 +84,8 @@ impl Handler {
         with_reply_surb: bool,
     ) -> Option<ServerResponse> {
         // the ack control is now responsible for chunking, etc.
-        let lane = TransmissionLane::Direct;
+        //let lane = TransmissionLane::ConnectionId(self.connection_id.unwrap());
+        let lane = TransmissionLane::General;
         let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb, lane);
         self.msg_input.unbounded_send(input_msg).unwrap();
 

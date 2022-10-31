@@ -292,7 +292,7 @@ impl NymClient {
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
     pub fn send_message(&mut self, recipient: Recipient, message: Vec<u8>, with_reply_surb: bool) {
-        let lane = TransmissionLane::Direct;
+        let lane = TransmissionLane::General;
         let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb, lane);
 
         self.input_tx

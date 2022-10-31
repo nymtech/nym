@@ -85,6 +85,8 @@ impl ServiceProvider {
                         .processed(remote_addr, msg.size() as u32);
                 }
             }
+            let conn_id = msg.conn_id();
+
             // make 'request' to native-websocket client
             let response_message = ClientRequest::Send {
                 recipient: return_address,
@@ -309,10 +311,11 @@ impl ServiceProvider {
         let (mix_input_sender, mix_input_receiver) =
             mpsc::unbounded::<(Socks5Message, Recipient)>();
 
+        let shutdown = task::ShutdownNotifier::default();
+
         // Controller for managing all active connections.
         // We provide it with a ShutdownListener since it requires it, even though for the network
         // requester shutdown signalling is not yet fully implemented.
-        let shutdown = task::ShutdownNotifier::default();
         let (mut active_connections_controller, mut controller_sender) =
             Controller::new(shutdown.subscribe());
         tokio::spawn(async move {

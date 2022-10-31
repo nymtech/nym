@@ -144,7 +144,7 @@ export const BondedMixnode = ({
         }
         Action={
           isMixnode(mixnode) && (
-            <Tooltip title="You have a pending unbond event. Node settings are disabled.">
+            <Tooltip title={mixnode.isUnbonding ? 'You have a pending unbond event. Node settings are disabled.' : ''}>
               <Box>
                 <Button
                   variant="text"

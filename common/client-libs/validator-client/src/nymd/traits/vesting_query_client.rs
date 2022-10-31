@@ -6,8 +6,9 @@ pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 use crate::nymd::error::NymdError;
 use crate::nymd::NymdClient;
 use async_trait::async_trait;
+use contracts_common::ContractBuildInformation;
 use cosmwasm_std::{Coin as CosmWasmCoin, Timestamp};
-use mixnet_contract_common::{ContractBuildInformation, MixId};
+use mixnet_contract_common::MixId;
 use serde::Deserialize;
 use vesting_contract::vesting::Account;
 use vesting_contract_common::{

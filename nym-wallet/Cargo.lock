@@ -5321,6 +5321,7 @@ dependencies = [
  "coconut-interface",
  "colored 2.0.0",
  "config",
+ "contracts-common",
  "cosmrs",
  "cosmwasm-std",
  "cw3",

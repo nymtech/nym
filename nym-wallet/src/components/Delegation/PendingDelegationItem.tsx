@@ -21,6 +21,7 @@ export const PendingDelegationItem = ({ item, explorerUrl }: { item: WrappedDele
       <TableCell>-</TableCell>
       <TableCell>-</TableCell>
       <TableCell>-</TableCell>
+      <TableCell>-</TableCell>
       <TableCell align="right">
         <Tooltip
           title={`Your delegation of ${item.event.amount?.amount} ${item.event.amount?.denom} will take effect 

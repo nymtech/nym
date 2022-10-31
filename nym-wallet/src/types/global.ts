@@ -1,4 +1,12 @@
-import { Gateway, DecCoin, MixNode, PledgeData, MixNodeCostParams } from '@nymproject/types';
+import {
+  Gateway,
+  DecCoin,
+  MixNode,
+  PledgeData,
+  MixNodeCostParams,
+  PendingIntervalEventData,
+  PendingEpochEventData,
+} from '@nymproject/types';
 import { Fee } from '@nymproject/types/dist/types/rust/Fee';
 import { TBondedGateway, TBondedMixnode } from 'src/context';
 
@@ -73,3 +81,6 @@ export const isMixnode = (node: TBondedMixnode | TBondedGateway): node is TBonde
   (node as TBondedMixnode).profitMargin !== undefined;
 
 export const isGateway = (node: TBondedMixnode | TBondedGateway): node is TBondedGateway => !isMixnode(node);
+
+export const isUnbondEvent = (event: PendingEpochEventData): event is { UnbondMixnode: { mix_id: number } } =>
+  'UnbondMixnode' in event;

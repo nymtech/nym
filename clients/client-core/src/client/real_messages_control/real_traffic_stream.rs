@@ -27,6 +27,23 @@ use tokio::time;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
 
+// The minimum time between increasing the average delay between packets. If we hit the ceiling in
+// the available buffer space we want to take somewhat swift action, but we still need to give a
+// short time to give the channel a chance reduce pressure.
+const INCREASE_DELAY_MIN_CHANGE_INTERVAL_SECS: u64 = 1;
+// The minimum time between decreasing the average delay between packets. We don't want to change
+// to quickly to keep things somewhat stable. Also there are buffers downstreams meaning we need to
+// wait a little to see the effect before we decrease further.
+const DECREASE_DELAY_MIN_CHANGE_INTERVAL_SECS: u64 = 30;
+// If we enough time passes without any sign of backpressure in the channel, we can consider
+// lowering the average delay. The goal is to keep somewhat stable, rather than maxing out
+// bandwidth at all times.
+const ACCEPTABLE_TIME_WITHOUT_BACKPRESSURE_SECS: u64 = 30;
+// The maximum multiplier we apply to the base average Poisson delay.
+const MAX_DELAY_MULTIPLIER: u32 = 6;
+// The minium multiplier we apply to the base average Poisson delay.
+const MIN_DELAY_MULTIPLIER: u32 = 1;
+
 /// Configurable parameters of the `OutQueueControl`
 pub(crate) struct Config {
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
@@ -68,6 +85,101 @@ impl Config {
     }
 }
 
+struct SendingDelayController {
+    /// Multiply the average sending delay.
+    /// This is normally set to unity, but if we detect backpressure we increase this
+    /// multiplier. We use discrete steps.
+    current_multiplier: u32,
+
+    /// Maximum delay multiplier
+    upper_bound: u32,
+
+    /// Minimum delay multiplier
+    lower_bound: u32,
+
+    /// To make sure we don't change the multiplier to fast, we limit a change to some duration
+    #[cfg(not(target_arch = "wasm32"))]
+    time_when_changed: time::Instant,
+
+    #[cfg(target_arch = "wasm32")]
+    time_when_changed: wasm_timer::Instant,
+
+    /// If we have a long enough time without any backpressure detected we try reducing the sending
+    /// delay multiplier
+    #[cfg(not(target_arch = "wasm32"))]
+    time_when_backpressure_detected: time::Instant,
+
+    #[cfg(target_arch = "wasm32")]
+    time_when_backpressure_detected: wasm_timer::Instant,
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+fn get_time_now() -> time::Instant {
+    time::Instant::now()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn get_time_now() -> wasm_timer::Instant {
+    wasm_timer::Instant::now()
+}
+
+impl SendingDelayController {
+    fn new(lower_bound: u32, upper_bound: u32) -> Self {
+        assert!(lower_bound <= upper_bound);
+        let now = get_time_now();
+        SendingDelayController {
+            current_multiplier: MIN_DELAY_MULTIPLIER,
+            upper_bound,
+            lower_bound,
+            time_when_changed: now,
+            time_when_backpressure_detected: now,
+        }
+    }
+
+    fn current_multiplier(&self) -> u32 {
+        self.current_multiplier
+    }
+
+    fn increase_delay_multiplier(&mut self) {
+        self.current_multiplier =
+            (self.current_multiplier + 1).clamp(self.lower_bound, self.upper_bound);
+        self.time_when_changed = get_time_now();
+        log::debug!(
+            "Increasing sending delay multiplier to: {}",
+            self.current_multiplier
+        );
+    }
+
+    fn decrease_delay_multiplier(&mut self) {
+        self.current_multiplier =
+            (self.current_multiplier - 1).clamp(self.lower_bound, self.upper_bound);
+        self.time_when_changed = get_time_now();
+        log::debug!(
+            "Decreasing sending delay multiplier to: {}",
+            self.current_multiplier
+        );
+    }
+
+    fn record_backpressure_detected(&mut self) {
+        self.time_when_backpressure_detected = get_time_now();
+    }
+
+    fn not_increased_delay_recently(&self) -> bool {
+        get_time_now()
+            > self.time_when_changed + Duration::from_secs(INCREASE_DELAY_MIN_CHANGE_INTERVAL_SECS)
+    }
+
+    fn is_sending_reliable(&self) -> bool {
+        let now = get_time_now();
+        let delay_change_interval = Duration::from_secs(DECREASE_DELAY_MIN_CHANGE_INTERVAL_SECS);
+        let acceptable_time_without_backpressure =
+            Duration::from_secs(ACCEPTABLE_TIME_WITHOUT_BACKPRESSURE_SECS);
+
+        now > self.time_when_backpressure_detected + acceptable_time_without_backpressure
+            && now > self.time_when_changed + delay_change_interval
+    }
+}
+
 pub(crate) struct OutQueueControl<R>
 where
     R: CryptoRng + Rng,
@@ -88,6 +200,10 @@ where
 
     #[cfg(target_arch = "wasm32")]
     next_delay: Option<Pin<Box<wasm_timer::Delay>>>,
+
+    // To make sure we don't overload the mix_tx channel, we limit the rate we are pushing
+    // messages.
+    sending_rate_controller: SendingDelayController,
 
     /// Channel used for sending prepared sphinx packets to `MixTrafficController` that sends them
     /// out to the network without any further delays.
@@ -156,6 +272,10 @@ where
             ack_key,
             sent_notifier,
             next_delay: None,
+            sending_rate_controller: SendingDelayController::new(
+                MIN_DELAY_MULTIPLIER,
+                MAX_DELAY_MULTIPLIER,
+            ),
             mix_tx,
             real_receiver,
             our_full_destination,
@@ -212,15 +332,8 @@ where
             }
         };
 
-        // if this one fails, there's no retrying because it means that either:
-        // - we run out of memory
-        // - the receiver channel is closed
-        // in either case there's no recovery and we can only panic
-        if let Err(err) = self.mix_tx.unbounded_send(vec![next_message]) {
-            log::warn!(
-                "Failed to send {} packets (possible process shutdown?)",
-                err.into_inner().len()
-            );
+        if let Err(err) = self.mix_tx.send(vec![next_message]).await {
+            log::error!("Failed to send - channel closed: {}", err);
         }
 
         // JS: Not entirely sure why or how it fixes stuff, but without the yield call,
@@ -234,7 +347,44 @@ where
         tokio::task::yield_now().await;
     }
 
+    fn current_average_message_sending_delay(&self) -> Duration {
+        self.config.average_message_sending_delay
+            * self.sending_rate_controller.current_multiplier()
+    }
+
+    fn adjust_current_average_message_sending_delay(&mut self) {
+        let used_slots = self.mix_tx.max_capacity() - self.mix_tx.capacity();
+        log::trace!(
+            "used_slots: {used_slots}, current_multiplier: {}",
+            self.sending_rate_controller.current_multiplier()
+        );
+
+        // Even just a single used slot is enough to signal backpressure
+        if used_slots > 0 {
+            log::trace!("Backpressure detected");
+            self.sending_rate_controller.record_backpressure_detected();
+        }
+
+        // If the buffer is running out, slow down the sending rate
+        if self.mix_tx.capacity() == 0
+            && self.sending_rate_controller.not_increased_delay_recently()
+        {
+            self.sending_rate_controller.increase_delay_multiplier();
+        }
+
+        // Very carefully step up the sending rate in case it seems like we can solidly handle the
+        // current rate.
+        if self.sending_rate_controller.is_sending_reliable() {
+            self.sending_rate_controller.decrease_delay_multiplier();
+        }
+    }
+
     fn poll_poisson(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
+        // The average delay could change depending on if backpressure in the downstream channel
+        // (mix_tx) was detected.
+        self.adjust_current_average_message_sending_delay();
+        let avg_delay = self.current_average_message_sending_delay();
+
         if let Some(ref mut next_delay) = &mut self.next_delay {
             // it is not yet time to return a message
             if next_delay.as_mut().poll(cx).is_pending() {
@@ -243,7 +393,6 @@ where
 
             // we know it's time to send a message, so let's prepare delay for the next one
             // Get the `now` by looking at the current `delay` deadline
-            let avg_delay = self.config.average_message_sending_delay;
             let next_poisson_delay = sample_poisson_duration(&mut self.rng, avg_delay);
 
             // The next interval value is `next_poisson_delay` after the one that just

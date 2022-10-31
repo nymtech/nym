@@ -2,15 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::spawn_future;
-use futures::channel::mpsc;
-use futures::StreamExt;
 use gateway_client::GatewayClient;
 use log::*;
 use nymsphinx::forwarding::packet::MixPacket;
 
-pub type BatchMixMessageSender = mpsc::UnboundedSender<Vec<MixPacket>>;
-pub type BatchMixMessageReceiver = mpsc::UnboundedReceiver<Vec<MixPacket>>;
+pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
+pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
 
+// We remind ourselves that 32 x 32kb = 1024kb, a reasonable size for a network buffer.
+pub const MIX_MESSAGE_RECEIVER_BUFFER_SIZE: usize = 32;
 const MAX_FAILURE_COUNT: usize = 100;
 
 pub struct MixTrafficController {
@@ -25,15 +25,17 @@ pub struct MixTrafficController {
 }
 
 impl MixTrafficController {
-    pub fn new(
-        mix_rx: BatchMixMessageReceiver,
-        gateway_client: GatewayClient,
-    ) -> MixTrafficController {
-        MixTrafficController {
-            gateway_client,
-            mix_rx,
-            consecutive_gateway_failure_count: 0,
-        }
+    pub fn new(gateway_client: GatewayClient) -> (MixTrafficController, BatchMixMessageSender) {
+        let (sphinx_message_sender, sphinx_message_receiver) =
+            tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
+        (
+            MixTrafficController {
+                gateway_client,
+                mix_rx: sphinx_message_receiver,
+                consecutive_gateway_failure_count: 0,
+            },
+            sphinx_message_sender,
+        )
     }
 
     async fn on_messages(&mut self, mut mix_packets: Vec<MixPacket>) {
@@ -72,7 +74,7 @@ impl MixTrafficController {
 
             while !shutdown.is_shutdown() {
                 tokio::select! {
-                    mix_packets = self.mix_rx.next() => match mix_packets {
+                    mix_packets = self.mix_rx.recv() => match mix_packets {
                         Some(mix_packets) => {
                             self.on_messages(mix_packets).await;
                         },
@@ -96,7 +98,7 @@ impl MixTrafficController {
         spawn_future(async move {
             debug!("Started MixTrafficController without graceful shutdown support");
 
-            while let Some(mix_packets) = self.mix_rx.next().await {
+            while let Some(mix_packets) = self.mix_rx.recv().await {
                 self.on_messages(mix_packets).await;
             }
         })

@@ -81,6 +81,3 @@ export const isMixnode = (node: TBondedMixnode | TBondedGateway): node is TBonde
   (node as TBondedMixnode).profitMargin !== undefined;
 
 export const isGateway = (node: TBondedMixnode | TBondedGateway): node is TBondedGateway => !isMixnode(node);
-
-export const isUnbondEvent = (event: PendingEpochEventData): event is { UnbondMixnode: { mix_id: number } } =>
-  'UnbondMixnode' in event;

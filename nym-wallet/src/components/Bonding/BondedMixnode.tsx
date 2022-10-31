@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Button, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Chip, Stack, Tooltip, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { isMixnode, Network } from 'src/types';
 import { TBondedMixnode, urls } from 'src/context';
@@ -107,12 +107,13 @@ export const BondedMixnode = ({
       id: 'delegators-cell',
     },
     {
-      cell: (
+      cell: mixnode.isUnbonding ? (
+        <Chip label="Pending unbond" sx={{ textTransform: 'initial' }} />
+      ) : (
         <BondedMixnodeActions
           onActionSelect={onActionSelect}
           disabledRedeemAndCompound={(operatorRewards && Number(operatorRewards.amount) === 0) || false}
           disabledBondMore // TODO for now disable bond more feature until backend is ready
-          disableUnbond={mixnode.isUnbonding}
         />
       ),
       id: 'actions-cell',

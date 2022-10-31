@@ -9,12 +9,10 @@ export const BondedMixnodeActions = ({
   onActionSelect,
   disabledRedeemAndCompound,
   disabledBondMore,
-  disableUnbond,
 }: {
   onActionSelect: (action: TBondedMixnodeActions) => void;
   disabledRedeemAndCompound: boolean;
   disabledBondMore?: boolean;
-  disableUnbond: boolean;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -45,7 +43,6 @@ export const BondedMixnodeActions = ({
         title="Unbond"
         Icon={<UnbondIcon fontSize="inherit" />}
         onClick={() => handleActionClick('unbond')}
-        disabled={disableUnbond}
       />
     </ActionsMenu>
   );

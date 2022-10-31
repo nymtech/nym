@@ -1615,6 +1615,7 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
+ "vergen",
  "vesting-contract-common",
 ]
 

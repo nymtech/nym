@@ -160,6 +160,7 @@ impl ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    GetContractVersion {},
     LockedCoins {
         vesting_account_address: String,
         block_time: Option<Timestamp>,

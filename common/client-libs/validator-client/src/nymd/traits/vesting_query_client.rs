@@ -7,7 +7,8 @@ use crate::nymd::error::NymdError;
 use crate::nymd::NymdClient;
 use async_trait::async_trait;
 use cosmwasm_std::{Coin as CosmWasmCoin, Timestamp};
-use mixnet_contract_common::MixId;
+use mixnet_contract_common::{ContractBuildInformation, MixId};
+use serde::Deserialize;
 use vesting_contract::vesting::Account;
 use vesting_contract_common::{
     messages::QueryMsg as VestingQueryMsg, AllDelegationsResponse, DelegationTimesResponse,
@@ -16,6 +17,15 @@ use vesting_contract_common::{
 
 #[async_trait]
 pub trait VestingQueryClient {
+    async fn query_vesting_contract<T>(&self, query: VestingQueryMsg) -> Result<T, NymdError>
+    where
+        for<'a> T: Deserialize<'a>;
+
+    async fn get_vesting_contract_version(&self) -> Result<ContractBuildInformation, NymdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetContractVersion {})
+            .await
+    }
+
     async fn locked_coins(
         &self,
         address: &str,
@@ -107,6 +117,15 @@ pub trait VestingQueryClient {
 
 #[async_trait]
 impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
+    async fn query_vesting_contract<T>(&self, query: VestingQueryMsg) -> Result<T, NymdError>
+    where
+        for<'a> T: Deserialize<'a>,
+    {
+        self.client
+            .query_contract_smart(self.vesting_contract_address(), &query)
+            .await
+    }
+
     async fn locked_coins(
         &self,
         vesting_account_address: &str,

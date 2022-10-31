@@ -8,7 +8,7 @@ import {
 } from '@nymproject/types';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import Big from 'big.js';
-import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
+import { isGateway, isMixnode, isUnbondEvent, TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
 import { Console } from 'src/utils/console';
 import {
   bondGateway as bondGatewayRequest,
@@ -22,6 +22,7 @@ import {
   vestingBondMixNode,
   vestingUnbondGateway,
   vestingUnbondMixnode,
+  getPendingEpochEvents,
   updateMixnodeCostParams as updateMixnodeCostParamsRequest,
   vestingUpdateMixnodeCostParams as updateMixnodeVestingCostParamsRequest,
   getNodeDescription as getNodeDescriptionRequest,
@@ -65,6 +66,7 @@ export type TBondedMixnode = {
   mixPort: number;
   verlocPort: number;
   version: string;
+  isUnbonding: boolean;
 };
 
 export interface TBondedGateway {
@@ -83,6 +85,7 @@ export interface TBondedGateway {
     current: number;
     average: number;
   };
+  isUnbonding: boolean;
 }
 
 export type TokenPool = 'locked' | 'balance';
@@ -230,6 +233,17 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     }
   };
 
+  const checkPendingUnbond = async () => {
+    try {
+      const res = await getPendingEpochEvents();
+      const match = res.find((item) => isUnbondEvent(item.event));
+      return Boolean(match);
+    } catch (e) {
+      Console.error(e);
+      return false;
+    }
+  };
+
   const refresh = useCallback(async () => {
     setIsLoading(true);
 
@@ -260,6 +274,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             bond_information.mix_node.http_api_port,
           );
           const routingScore = await getAvgUptime();
+          const isUnbonding = await checkPendingUnbond();
           setBondedNode({
             name: nodeDescription?.name,
             identityKey: bond_information.mix_node.identity_key,
@@ -284,6 +299,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             mixPort: bond_information.mix_node.mix_port,
             verlocPort: bond_information.mix_node.verloc_port,
             version: bond_information.mix_node.version,
+            isUnbonding,
           } as TBondedMixnode);
         }
       } catch (e: any) {
@@ -298,6 +314,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
         if (data) {
           const nodeDescription = await getNodeDescription(data.gateway.host, data.gateway.clients_port);
           const routingScore = await getGatewayReportDetails(data.gateway.identity_key);
+          const isUnbonding = await checkPendingUnbond();
           setBondedNode({
             name: nodeDescription?.name,
             identityKey: data.gateway.identity_key,
@@ -306,6 +323,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             bond: data.pledge_amount,
             proxy: data.proxy,
             routingScore,
+            isUnbonding,
           } as TBondedGateway);
         }
       } catch (e: any) {

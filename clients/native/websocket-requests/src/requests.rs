@@ -28,6 +28,7 @@ pub enum ClientRequest {
         message: Vec<u8>,
         // Perhaps we could change it to a number to indicate how many reply_SURBs we want to include?
         with_reply_surb: bool,
+        connection_id: u64,
     },
     Reply {
         message: Vec<u8>,
@@ -39,12 +40,19 @@ pub enum ClientRequest {
 // we could have been parsing it directly TryFrom<WsMessage>, but we want to retain
 // information about whether it came from binary or text to send appropriate response back
 impl ClientRequest {
-    // SEND_REQUEST_TAG || with_surb || recipient || data_len || data
-    fn serialize_send(recipient: Recipient, data: Vec<u8>, with_reply_surb: bool) -> Vec<u8> {
+    // SEND_REQUEST_TAG || with_surb || recipient || conn_id || data_len || data
+    fn serialize_send(
+        recipient: Recipient,
+        data: Vec<u8>,
+        with_reply_surb: bool,
+        connection_id: u64,
+    ) -> Vec<u8> {
         let data_len_bytes = (data.len() as u64).to_be_bytes();
+        let conn_id_bytes = connection_id.to_be_bytes();
         std::iter::once(SEND_REQUEST_TAG)
             .chain(std::iter::once(with_reply_surb as u8))
             .chain(recipient.to_bytes().iter().cloned()) // will not be length prefixed because the length is constant
+            .chain(conn_id_bytes.iter().cloned())
             .chain(data_len_bytes.iter().cloned())
             .chain(data.into_iter())
             .collect()
@@ -86,9 +94,17 @@ impl ClientRequest {
             }
         };
 
-        let data_len_bytes = &b[2 + Recipient::LEN..2 + Recipient::LEN + size_of::<u64>()];
+        let mut connection_id_bytes = [0u8; size_of::<u64>()];
+        connection_id_bytes
+            .copy_from_slice(&b[2 + Recipient::LEN..2 + Recipient::LEN + size_of::<u64>()]);
+        let connection_id = u64::from_be_bytes(connection_id_bytes.try_into().unwrap());
+
+        //let data_len_bytes = &b[2 + Recipient::LEN..2 + Recipient::LEN + size_of::<u64>()];
+        let data_len_bytes =
+            &b[2 + Recipient::LEN + size_of::<u64>()..2 + Recipient::LEN + 2 * size_of::<u64>()];
         let data_len = u64::from_be_bytes(data_len_bytes.try_into().unwrap());
-        let data = &b[2 + Recipient::LEN + size_of::<u64>()..];
+        //let data = &b[2 + Recipient::LEN + size_of::<u64>()..];
+        let data = &b[2 + Recipient::LEN + 2 * size_of::<u64>()..];
         if data.len() as u64 != data_len {
             return Err(error::Error::new(
                 ErrorKind::MalformedRequest,
@@ -104,6 +120,7 @@ impl ClientRequest {
             with_reply_surb,
             recipient,
             message: data.to_vec(),
+            connection_id,
         })
     }
 
@@ -208,7 +225,8 @@ impl ClientRequest {
                 recipient,
                 message,
                 with_reply_surb,
-            } => Self::serialize_send(recipient, message, with_reply_surb),
+                connection_id,
+            } => Self::serialize_send(recipient, message, with_reply_surb, connection_id),
 
             ClientRequest::Reply {
                 message,
@@ -280,6 +298,7 @@ mod tests {
             recipient,
             message: b"foomp".to_vec(),
             with_reply_surb: false,
+            connection_id: 42,
         };
 
         let bytes = send_request_no_surb.serialize();
@@ -289,10 +308,12 @@ mod tests {
                 recipient,
                 message,
                 with_reply_surb,
+                connection_id,
             } => {
                 assert_eq!(recipient.to_string(), recipient_string);
                 assert_eq!(message, b"foomp".to_vec());
-                assert!(!with_reply_surb)
+                assert!(!with_reply_surb);
+                assert_eq!(connection_id, 42)
             }
             _ => unreachable!(),
         }
@@ -301,6 +322,7 @@ mod tests {
             recipient,
             message: b"foomp".to_vec(),
             with_reply_surb: true,
+            connection_id: 213,
         };
 
         let bytes = send_request_surb.serialize();
@@ -310,10 +332,12 @@ mod tests {
                 recipient,
                 message,
                 with_reply_surb,
+                connection_id,
             } => {
                 assert_eq!(recipient.to_string(), recipient_string);
                 assert_eq!(message, b"foomp".to_vec());
-                assert!(with_reply_surb)
+                assert!(with_reply_surb);
+                assert_eq!(connection_id, 213)
             }
             _ => unreachable!(),
         }

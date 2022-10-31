@@ -92,6 +92,7 @@ impl ServiceProvider {
                 recipient: return_address,
                 message: msg.into_bytes(),
                 with_reply_surb: false,
+                connection_id: conn_id,
             };
 
             let message = Message::Binary(response_message.serialize());

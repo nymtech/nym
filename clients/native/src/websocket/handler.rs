@@ -82,10 +82,12 @@ impl Handler {
         recipient: Recipient,
         message: Vec<u8>,
         with_reply_surb: bool,
+        connection_id: u64,
     ) -> Option<ServerResponse> {
         // the ack control is now responsible for chunking, etc.
-        //let lane = TransmissionLane::ConnectionId(self.connection_id.unwrap());
-        let lane = TransmissionLane::General;
+        let lane = TransmissionLane::ConnectionId(connection_id);
+        //let lane = TransmissionLane::General;
+        //let msg = Message::try_from_bytes(message);
         let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb, lane);
         self.msg_input.unbounded_send(input_msg).unwrap();
 
@@ -113,7 +115,8 @@ impl Handler {
                 recipient,
                 message,
                 with_reply_surb,
-            } => self.handle_send(recipient, message, with_reply_surb),
+                connection_id,
+            } => self.handle_send(recipient, message, with_reply_surb, connection_id),
             ClientRequest::Reply {
                 message,
                 reply_surb,

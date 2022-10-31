@@ -126,19 +126,6 @@ impl ThreadsafeMixNodesCache {
         self.mixnodes.read().await.get_mixnode(mix_id)
     }
 
-    pub(crate) async fn get_mixnode_by_identity(
-        &self,
-        pubkey: &str,
-    ) -> Option<MixNodeBondAnnotated> {
-        let all_nodes = self.get_mixnodes().await?;
-        for (_, node) in all_nodes {
-            if node.mix_node().identity_key == pubkey {
-                return Some(node);
-            }
-        }
-        None
-    }
-
     pub(crate) async fn get_mixnodes(&self) -> Option<HashMap<MixId, MixNodeBondAnnotated>> {
         self.mixnodes.read().await.get_mixnodes()
     }

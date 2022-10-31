@@ -37,6 +37,7 @@ pub(crate) struct PrettyDetailedMixNodeBond {
     pub estimated_operator_apy: f64,
     pub estimated_delegators_apy: f64,
     pub operating_cost: Coin,
+    pub profit_margin_percent: f64,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]

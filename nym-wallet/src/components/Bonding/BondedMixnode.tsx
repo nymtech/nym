@@ -112,6 +112,7 @@ export const BondedMixnode = ({
           onActionSelect={onActionSelect}
           disabledRedeemAndCompound={(operatorRewards && Number(operatorRewards.amount) === 0) || false}
           disabledBondMore // TODO for now disable bond more feature until backend is ready
+          disableUnbond={mixnode.isUnbonding}
         />
       ),
       id: 'actions-cell',
@@ -143,14 +144,19 @@ export const BondedMixnode = ({
         }
         Action={
           isMixnode(mixnode) && (
-            <Button
-              variant="text"
-              color="secondary"
-              onClick={() => navigate('/bonding/node-settings')}
-              startIcon={<NodeIcon />}
-            >
-              Node Settings
-            </Button>
+            <Tooltip title="You have a pending unbond event. Node settings are disabled.">
+              <Box>
+                <Button
+                  variant="text"
+                  color="secondary"
+                  onClick={() => navigate('/bonding/node-settings')}
+                  startIcon={<NodeIcon />}
+                  disabled={mixnode.isUnbonding}
+                >
+                  Node Settings
+                </Button>
+              </Box>
+            </Tooltip>
           )
         }
       >

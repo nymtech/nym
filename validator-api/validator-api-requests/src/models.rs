@@ -12,6 +12,23 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{fmt, time::Duration};
 
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
+pub struct RequestError {
+    message: String,
+}
+
+impl RequestError {
+    pub fn new<S: Into<String>>(msg: S) -> Self {
+        RequestError {
+            message: msg.into(),
+        }
+    }
+
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+}
+
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(

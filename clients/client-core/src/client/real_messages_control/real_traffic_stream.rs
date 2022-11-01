@@ -18,7 +18,6 @@ use nymsphinx::params::PacketSize;
 use nymsphinx::utils::sample_poisson_duration;
 use rand::seq::SliceRandom;
 use rand::{CryptoRng, Rng};
-use std::collections::hash_map::Entry;
 use std::collections::{HashMap, VecDeque};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -248,7 +247,17 @@ impl ReceivedBuffer {
     }
 
     fn total_size(&self) -> usize {
-        self.buffer.values().map(|v| v.len()).sum()
+        self.buffer.values().map(LaneBufferEntry::len).sum()
+    }
+
+    fn get_oldest_set(&self) -> Vec<TransmissionLane> {
+        let mut buffer: Vec<_> = self
+            .buffer
+            .iter()
+            .map(|(k, v)| (k, v.age_in_millis()))
+            .collect();
+        buffer.sort_by_key(|v| v.1);
+        buffer.iter().map(|(k, _)| *k).take(5).copied().collect()
     }
 
     fn store(&mut self, lane: &TransmissionLane, real_messages: Vec<RealMessage>) {
@@ -259,7 +268,7 @@ impl ReceivedBuffer {
             lane_buffer_entry.append(real_messages);
         } else {
             self.buffer
-                .insert(lane.clone(), LaneBufferEntry::new(real_messages));
+                .insert(*lane, LaneBufferEntry::new(real_messages));
         }
     }
 
@@ -282,13 +291,8 @@ impl ReceivedBuffer {
         lanes.choose(&mut rand::thread_rng()).copied()
     }
 
-    fn pick_random_old_lane(&self) -> Option<&TransmissionLane> {
-        let lanes: Vec<&TransmissionLane> = self
-            .buffer
-            .iter()
-            .filter(|(_, v)| v.is_old())
-            .map(|(k, _)| k)
-            .collect();
+    fn pick_random_old_lane(&self) -> Option<TransmissionLane> {
+        let lanes = self.get_oldest_set();
         log::info!("number of (old) lanes to choose from: {}", lanes.len());
         lanes.choose(&mut rand::thread_rng()).copied()
     }
@@ -303,28 +307,25 @@ impl ReceivedBuffer {
     }
 
     fn pop_next_message_at_random(&mut self) -> Option<RealMessage> {
-        //let values = self.received_buffer.values();
-        //let packet_backlog = values.count();
-
         if self.buffer.is_empty() {
             return None;
         }
 
         log::info!("List all received_buffers");
         for (k, v) in &self.buffer {
-            log::info!("{:?}: packets: {}", k, v.len());
+            log::info!("{:?}: packets: {}, is_old: {}", k, v.len(), v.is_old());
         }
         let total = self.total_size();
-        log::info!("Total: {}", total);
+        log::info!("Total: {} packets, {} MB", total, total as f64 / 1.5 * 1024.0);
         log::info!("sec left: {}", total as f64 / 50.0);
         log::info!("min left: {}", total as f64 / 50.0 / 60.0);
 
         let lane = if let Some(small_lane) = self.pick_random_small_lane() {
-            small_lane.clone()
+            *small_lane
         } else if let Some(old_lane) = self.pick_random_old_lane() {
-            old_lane.clone()
+            old_lane
         } else {
-            self.pick_random_lane()?.clone()
+            *self.pick_random_lane()?
         };
 
         //let lane = self.pick_random_lane()?.clone();
@@ -370,6 +371,11 @@ impl LaneBufferEntry {
 
     fn is_small(&self) -> bool {
         self.real_messages.len() < 100
+    }
+
+    fn age_in_millis(&self) -> u128 {
+        let age = time::Instant::now() - self.time_for_first_activity;
+        age.as_millis()
     }
 
     fn is_old(&self) -> bool {
@@ -552,62 +558,6 @@ where
             self.sending_rate_controller.decrease_delay_multiplier();
         }
     }
-
-    //fn store_real_messages(&mut self, lane: TransmissionLane, real_messages: Vec<RealMessage>) {
-    //    let prev_msgs = self.received_buffer.entry(lane).or_default();
-    //    prev_msgs.append(&mut real_messages.into());
-    //}
-
-    //fn pick_random_lane(&self) -> Option<&TransmissionLane> {
-    //    // Pick one connection at random to return a stream message from
-    //    let lanes: Vec<&TransmissionLane> = self.received_buffer.keys().collect();
-    //    log::info!("number of lanes to choose from: {}", lanes.len());
-    //    lanes.choose(&mut rand::thread_rng()).copied()
-    //}
-
-    //fn pick_random_small_lane(&self) -> Option<&TransmissionLane> {
-    //    // Pick one connection at random to return a stream message from
-    //    let lanes: Vec<&TransmissionLane> = self
-    //        .received_buffer
-    //        .iter()
-    //        .filter(|(_, v)| v.len() < 100)
-    //        .map(|(k, _)| k)
-    //        .collect();
-    //    log::info!("number of (small) lanes to choose from: {}", lanes.len());
-    //    lanes.choose(&mut rand::thread_rng()).copied()
-    //}
-
-    // Get the next real message, and remove the transmission lane entry if it was the last one.
-    //fn pop_next_message_at_random(&mut self) -> Option<RealMessage> {
-    //    //let values = self.received_buffer.values();
-    //    //let packet_backlog = values.count();
-    //    log::info!("List all received_buffers");
-    //    for (k, v) in &self.received_buffer {
-    //        log::info!("{:?}: packets: {}", k, v.len());
-    //    }
-    //    let total: usize = self.received_buffer.values().map(|v| v.len()).sum();
-    //    log::info!("Total: {}", total);
-    //    log::info!("sec left: {}", total as f64 / 50.0);
-    //    log::info!("min left: {}", total as f64 / 50.0 / 60.0);
-
-    //    let lane = if let Some(small_lane) = self.pick_random_small_lane() {
-    //        small_lane.clone()
-    //    } else {
-    //        self.pick_random_lane()?.clone()
-    //    };
-
-    //    //let lane = self.pick_random_lane()?.clone();
-    //    log::info!("picking to send from lane: {:?}", lane);
-
-    //    // We just picked a valid lane, and returned early if none existed.
-    //    let real_msgs_queued = self.received_buffer.get_mut(&lane).unwrap();
-    //    // If an entry exists, it has non-zero number of messages.
-    //    let real_next = real_msgs_queued.pop_front().unwrap();
-    //    if real_msgs_queued.is_empty() {
-    //        self.received_buffer.remove(&lane);
-    //    }
-    //    Some(real_next)
-    //}
 
     fn poll_poisson(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
         // The average delay could change depending on if backpressure in the downstream channel

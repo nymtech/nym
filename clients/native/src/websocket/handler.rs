@@ -13,7 +13,6 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::receiver::ReconstructedMessage;
-use rand::RngCore;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
     accept_async,

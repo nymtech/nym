@@ -5,7 +5,7 @@ use nymsphinx::anonymous_replies::ReplySurb;
 pub type InputMessageSender = mpsc::UnboundedSender<InputMessage>;
 pub type InputMessageReceiver = mpsc::UnboundedReceiver<InputMessage>;
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum TransmissionLane {
     General,
     Reply,

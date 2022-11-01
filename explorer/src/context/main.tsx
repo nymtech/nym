@@ -99,8 +99,8 @@ export const MainContextProvider: React.FC = ({ children }) => {
 
     const filtered = mxns?.filter(
       (m) =>
-        m.mix_node.profit_margin_percent >= filters.profitMargin[0] &&
-        m.mix_node.profit_margin_percent <= filters.profitMargin[1] &&
+        +m.profit_margin_percent >= filters.profitMargin[0] / 100 &&
+        +m.profit_margin_percent <= filters.profitMargin[1] / 100 &&
         m.stake_saturation >= filters.stakeSaturation[0] &&
         m.stake_saturation <= filters.stakeSaturation[1] &&
         m.avg_uptime >= filters.routingScore[0] &&

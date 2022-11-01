@@ -18,7 +18,7 @@ use nymsphinx::params::PacketSize;
 use nymsphinx::utils::sample_poisson_duration;
 use rand::seq::SliceRandom;
 use rand::{CryptoRng, Rng};
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
@@ -234,6 +234,9 @@ where
     //received_buffer: HashMap<TransmissionLane, VecDeque<RealMessage>>,
     //received_buffer: HashMap<TransmissionLane, LaneBufferEntry>,
     received_buffer: ReceivedBuffer,
+
+    //active_connections: Arc<std::sync::Mutex<HashSet<u64>>>,
+    active_connections: Arc<tokio::sync::Mutex<HashSet<u64>>>,
 }
 
 #[derive(Default)]
@@ -244,6 +247,21 @@ struct ReceivedBuffer {
 impl ReceivedBuffer {
     fn is_empty(&self) -> bool {
         self.buffer.is_empty()
+    }
+
+    fn remove(&mut self, lane: &TransmissionLane) -> Option<LaneBufferEntry> {
+        self.buffer.remove(lane)
+    }
+
+    fn connections(&self) -> HashSet<u64> {
+        self.buffer
+            .keys()
+            .filter_map(|lane| match lane {
+                TransmissionLane::ConnectionId(id) => Some(id),
+                _ => None,
+            })
+            .copied()
+            .collect()
     }
 
     fn total_size(&self) -> usize {
@@ -257,7 +275,7 @@ impl ReceivedBuffer {
             .map(|(k, v)| (k, v.age_in_millis()))
             .collect();
         buffer.sort_by_key(|v| v.1);
-        buffer.iter().map(|(k, _)| *k).take(5).copied().collect()
+        buffer.iter().rev().map(|(k, _)| *k).take(5).copied().collect()
     }
 
     fn store(&mut self, lane: &TransmissionLane, real_messages: Vec<RealMessage>) {
@@ -316,7 +334,11 @@ impl ReceivedBuffer {
             log::info!("{:?}: packets: {}, is_old: {}", k, v.len(), v.is_old());
         }
         let total = self.total_size();
-        log::info!("Total: {} packets, {} MB", total, total as f64 / 1.5 * 1024.0);
+        log::info!(
+            "Total: {} packets, {} MB",
+            total,
+            total as f64 / 1.5 / 1024.0
+        );
         log::info!("sec left: {}", total as f64 / 50.0);
         log::info!("min left: {}", total as f64 / 50.0 / 60.0);
 
@@ -341,6 +363,19 @@ impl ReceivedBuffer {
         //    self.buffer.remove(&lane);
         //}
         //Some(real_next)
+    }
+
+    async fn purge_closed_connections(&mut self, active_connections: HashSet<u64>) {
+        if active_connections.is_empty() {
+            // not supported
+            return;
+        }
+        let lane_connections = self.connections();
+        let to_remove = lane_connections.difference(&active_connections);
+        for id_to_remove in to_remove {
+            log::info!("Remove connection id: {}", id_to_remove);
+            self.remove(&TransmissionLane::ConnectionId(*id_to_remove));
+        }
     }
 }
 
@@ -436,6 +471,7 @@ where
         rng: R,
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
+        active_connections: Arc<tokio::sync::Mutex<HashSet<u64>>>,
     ) -> Self {
         OutQueueControl {
             config,
@@ -452,6 +488,7 @@ where
             rng,
             topology_access,
             received_buffer: Default::default(),
+            active_connections,
         }
     }
 
@@ -465,6 +502,14 @@ where
 
     async fn on_message(&mut self, next_message: StreamMessage) {
         trace!("created new message");
+
+        //let active_connections = self.active_connections.lock().await;
+        //log::info!("active_connections: {:?}", active_connections);
+
+        let active_connections = { self.active_connections.lock().await.clone() };
+        self.received_buffer
+            .purge_closed_connections(active_connections)
+            .await;
 
         let (next_message, fragment_id) = match next_message {
             StreamMessage::Cover => {

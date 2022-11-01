@@ -1,7 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::collections::HashSet;
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 
 use crate::client::config::Config;
 use crate::error::Socks5ClientError;
@@ -36,6 +38,8 @@ use gateway_client::{
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
+use nymsphinx::params::PacketSize;
+use proxy_helpers::connection_controller::PublishedActiveConnections;
 use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
 
 pub mod config;
@@ -118,6 +122,7 @@ impl NymClient {
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
         shutdown: ShutdownListener,
+        active_connections: PublishedActiveConnections,
     ) {
         let mut controller_config = client_core::client::real_messages_control::Config::new(
             self.key_manager.ack_key(),
@@ -146,6 +151,7 @@ impl NymClient {
             mix_sender,
             topology_accessor,
             reply_key_storage,
+            active_connections,
         )
         .start_with_shutdown(shutdown);
     }
@@ -280,6 +286,7 @@ impl NymClient {
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
         shutdown: ShutdownListener,
+        active_connections: PublishedActiveConnections,
     ) {
         info!("Starting socks5 listener...");
         let auth_methods = vec![AuthenticationMethods::NoAuth as u8];
@@ -293,7 +300,11 @@ impl NymClient {
             self.as_mix_recipient(),
             shutdown,
         );
-        tokio::spawn(async move { sphinx_socks.serve(msg_input, buffer_requester).await });
+        tokio::spawn(async move {
+            sphinx_socks
+                .serve(msg_input, buffer_requester, active_connections)
+                .await
+        });
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
@@ -396,6 +407,9 @@ impl NymClient {
         let sphinx_message_sender =
             Self::start_mix_traffic_controller(gateway_client, shutdown.subscribe());
 
+        let active_connections: PublishedActiveConnections =
+            Arc::new(tokio::sync::Mutex::new(HashSet::new()));
+
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
             reply_key_storage,
@@ -403,6 +417,7 @@ impl NymClient {
             input_receiver,
             sphinx_message_sender.clone(),
             shutdown.subscribe(),
+            active_connections.clone(),
         );
 
         if !self
@@ -421,6 +436,7 @@ impl NymClient {
             received_buffer_request_sender,
             input_sender,
             shutdown.subscribe(),
+            active_connections,
         );
 
         info!("Client startup finished!");

@@ -41,6 +41,7 @@ members = [
     "common/execute",
     "common/inclusion-probability",
     "common/ledger",
+    "common/logging",
     "common/mixnode-common",
     "common/network-defaults",
     "common/nonexhaustive-delayqueue",

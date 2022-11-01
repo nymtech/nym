@@ -69,6 +69,7 @@ cosmwasm-std = "1.0.0"
 credential-storage = { path = "../common/credential-storage" }
 credentials = { path = "../common/credentials", optional = true }
 crypto = { path = "../common/crypto" }
+logging = { path = "../common/logging"}
 gateway-client = { path = "../common/client-libs/gateway-client" }
 inclusion-probability = { path = "../common/inclusion-probability" }
 mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }

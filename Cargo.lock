@@ -1592,6 +1592,7 @@ dependencies = [
  "isocountry",
  "itertools",
  "log",
+ "logging",
  "maxminddb",
  "mixnet-contract-common",
  "network-defaults",
@@ -2731,6 +2732,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "logging"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "pretty_env_logger",
+]
+
+[[package]]
 name = "loom"
 version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3072,6 +3081,7 @@ dependencies = [
  "clap_complete_fig",
  "dotenv",
  "log",
+ "logging",
  "network-defaults",
  "nym-cli-commands",
  "pretty_env_logger",
@@ -3127,6 +3137,7 @@ dependencies = [
  "gateway-client",
  "gateway-requests",
  "log",
+ "logging",
  "network-defaults",
  "nymsphinx",
  "pemstore",
@@ -3168,6 +3179,7 @@ dependencies = [
  "gateway-requests",
  "humantime-serde",
  "log",
+ "logging",
  "mixnet-client",
  "mixnode-common",
  "network-defaults",
@@ -3210,6 +3222,7 @@ dependencies = [
  "humantime-serde",
  "lazy_static",
  "log",
+ "logging",
  "mixnet-client",
  "mixnode-common",
  "nonexhaustive-delayqueue",
@@ -3244,6 +3257,7 @@ dependencies = [
  "futures",
  "ipnetwork 0.20.0",
  "log",
+ "logging",
  "network-defaults",
  "nymsphinx",
  "ordered-buffer",
@@ -3269,6 +3283,7 @@ version = "1.0.2"
 dependencies = [
  "dirs",
  "log",
+ "logging",
  "pretty_env_logger",
  "rocket",
  "serde",
@@ -3295,6 +3310,7 @@ dependencies = [
  "gateway-client",
  "gateway-requests",
  "log",
+ "logging",
  "network-defaults",
  "nymsphinx",
  "ordered-buffer",
@@ -3368,6 +3384,7 @@ dependencies = [
  "humantime-serde",
  "inclusion-probability",
  "log",
+ "logging",
  "mixnet-contract-common",
  "multisig-contract-common",
  "nymcoconut",

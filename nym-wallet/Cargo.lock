@@ -2485,6 +2485,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "logging"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "pretty_env_logger",
+]
+
+[[package]]
 name = "loom"
 version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2842,6 +2850,7 @@ dependencies = [
  "bip39",
  "clap",
  "log",
+ "logging",
  "pretty_env_logger",
  "serde_json",
 ]

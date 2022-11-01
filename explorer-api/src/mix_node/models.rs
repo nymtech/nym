@@ -3,6 +3,7 @@
 
 use crate::cache::Cache;
 use crate::mix_nodes::location::Location;
+use contracts_common::Percent;
 use mixnet_contract_common::Delegation;
 use mixnet_contract_common::{Addr, Coin, Layer, MixId, MixNode};
 use serde::Deserialize;
@@ -37,6 +38,7 @@ pub(crate) struct PrettyDetailedMixNodeBond {
     pub estimated_operator_apy: f64,
     pub estimated_delegators_apy: f64,
     pub operating_cost: Coin,
+    pub profit_margin_percent: Percent,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]

@@ -1,5 +1,6 @@
 /* eslint-disable camelcase */
 import { MixNodeResponse, MixNodeResponseItem, MixnodeStatus } from '../../typeDefs/explorer-api';
+import { toPercentIntegerString } from '../../utils';
 import { unymToNym } from '../../utils/currency';
 
 export type MixnodeRowType = {
@@ -29,7 +30,7 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
   const delegations = Number(item.total_delegation.amount) || 0;
   const totalBond = pledge + delegations;
   const selfPercentage = ((pledge * 100) / totalBond).toFixed(2);
-  const profitPercentage = item.mix_node.profit_margin_percent || 0;
+  const profitPercentage = toPercentIntegerString(item.profit_margin_percent) || 0;
   const stakeSaturation = typeof item.stake_saturation === 'number' ? item.stake_saturation * 100 : 0;
 
   return {

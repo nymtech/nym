@@ -96,15 +96,17 @@ export const MainContextProvider: React.FC = ({ children }) => {
   const filterMixnodes = async (filters: { [key in EnumFilterKey]: number[] }, status?: MixnodeStatus) => {
     setMixnodes((d) => ({ ...d, isLoading: true }));
     const mxns = status ? await Api.fetchMixnodesActiveSetByStatus(status) : await Api.fetchMixnodes();
+
     const filtered = mxns?.filter(
       (m) =>
-        m.mix_node.profit_margin_percent >= filters.profitMargin[0] &&
-        m.mix_node.profit_margin_percent <= filters.profitMargin[1] &&
+        +m.profit_margin_percent >= filters.profitMargin[0] / 100 &&
+        +m.profit_margin_percent <= filters.profitMargin[1] / 100 &&
         m.stake_saturation >= filters.stakeSaturation[0] &&
         m.stake_saturation <= filters.stakeSaturation[1] &&
         m.avg_uptime >= filters.routingScore[0] &&
         m.avg_uptime <= filters.routingScore[1],
     );
+
     setMixnodes({ data: filtered, isLoading: false });
   };
 

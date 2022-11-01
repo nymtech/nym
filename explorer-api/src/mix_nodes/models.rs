@@ -154,6 +154,7 @@ impl ThreadsafeMixNodesCache {
             estimated_operator_apy: best_effort_small_dec_to_f64(node.estimated_operator_apy),
             estimated_delegators_apy: best_effort_small_dec_to_f64(node.estimated_delegators_apy),
             operating_cost: rewarding_info.cost_params.interval_operating_cost.clone(),
+            profit_margin_percent: rewarding_info.cost_params.profit_margin_percent,
         }
     }
 

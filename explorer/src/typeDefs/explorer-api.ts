@@ -30,7 +30,6 @@ export interface MixNode {
   sphinx_key: string;
   identity_key: string;
   version: string;
-  profit_margin_percent: number;
   location: string;
 }
 
@@ -87,6 +86,7 @@ export interface MixNodeResponseItem {
   avg_uptime: number;
   stake_saturation: number;
   operating_cost: Amount;
+  profit_margin_percent: string;
 }
 
 export type MixNodeResponse = MixNodeResponseItem[];

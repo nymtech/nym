@@ -2871,6 +2871,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "logging"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "pretty_env_logger",
+]
+
+[[package]]
 name = "loom"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3216,6 +3224,7 @@ dependencies = [
  "fix-path-env",
  "futures",
  "log",
+ "logging",
  "nym-socks5-client",
  "pretty_env_logger",
  "rand 0.8.5",
@@ -3251,6 +3260,7 @@ dependencies = [
  "gateway-client",
  "gateway-requests",
  "log",
+ "logging",
  "network-defaults",
  "nymsphinx",
  "ordered-buffer",
@@ -6078,6 +6088,7 @@ dependencies = [
  "coconut-interface",
  "colored",
  "config",
+ "contracts-common",
  "cosmrs",
  "cosmwasm-std",
  "cw3",
@@ -6167,6 +6178,7 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror",
+ "vergen",
  "vesting-contract-common",
 ]
 

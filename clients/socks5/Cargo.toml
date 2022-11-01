@@ -31,6 +31,7 @@ completions = { path = "../../common/completions" }
 credential-storage = { path = "../../common/credential-storage" }
 credentials = { path = "../../common/credentials", optional = true }
 crypto = { path = "../../common/crypto" }
+logging = { path = "../../common/logging"}
 gateway-client = { path = "../../common/client-libs/gateway-client" }
 gateway-requests = { path = "../../gateway/gateway-requests" }
 network-defaults = { path = "../../common/network-defaults" }

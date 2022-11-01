@@ -172,11 +172,12 @@ impl Controller {
             pending.push((payload, is_closed));
         } else if !is_closed {
             error!(
-                "Tried to write to closed connection ({} bytes were 'lost)",
+                "Tried to write to closed connection {} ({} bytes were 'lost)",
+                conn_id,
                 payload.len()
             );
         } else {
-            debug!("Tried to write to closed connection, but remote is already closed")
+            debug!("Tried to write to closed connection {}, but remote is already closed", conn_id)
         }
     }
 

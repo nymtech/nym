@@ -579,6 +579,29 @@ impl From<Layer> for String {
     }
 }
 
+impl TryFrom<u8> for Layer {
+    type Error = MixnetContractError;
+
+    fn try_from(i: u8) -> Result<Layer, MixnetContractError> {
+        match i {
+            1 => Ok(Layer::One),
+            2 => Ok(Layer::Two),
+            3 => Ok(Layer::Three),
+            _ => Err(MixnetContractError::InvalidLayer(i)),
+        }
+    }
+}
+
+impl From<Layer> for u8 {
+    fn from(layer: Layer) -> u8 {
+        match layer {
+            Layer::One => 1,
+            Layer::Two => 2,
+            Layer::Three => 3,
+        }
+    }
+}
+
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",

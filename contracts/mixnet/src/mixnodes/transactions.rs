@@ -10,8 +10,8 @@ use crate::mixnodes::helpers::{
     get_mixnode_details_by_owner, must_get_mixnode_bond_by_owner, save_new_mixnode,
 };
 use crate::support::helpers::{
-    ensure_bonded, ensure_no_existing_bond, ensure_proxy_match, validate_node_identity_signature,
-    validate_pledge,
+    ensure_bonded, ensure_is_authorized, ensure_no_existing_bond, ensure_proxy_match,
+    validate_node_identity_signature, validate_pledge,
 };
 use cosmwasm_std::{coin, Addr, Coin, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
@@ -22,7 +22,34 @@ use mixnet_contract_common::events::{
 };
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use mixnet_contract_common::pending_events::{PendingEpochEventKind, PendingIntervalEventKind};
-use mixnet_contract_common::MixNode;
+use mixnet_contract_common::{Layer, MixId, MixNode};
+
+pub fn assign_mixnode_layer(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    mix_id: MixId,
+    layer: u8,
+) -> Result<Response, MixnetContractError> {
+    ensure_is_authorized(info.sender, deps.storage)?;
+
+    let bond =
+        if let Some(bond_information) = storage::mixnode_bonds().may_load(deps.storage, mix_id)? {
+            bond_information
+        } else {
+            return Err(MixnetContractError::MixNodeBondNotFound { mix_id });
+        };
+    let mut updated_bond = bond.clone();
+    updated_bond.layer = Layer::try_from(layer)?;
+
+    storage::mixnode_bonds().replace(
+        deps.storage,
+        bond.mix_id,
+        Some(&updated_bond),
+        Some(&bond),
+    )?;
+
+    Ok(Response::default())
+}
 
 pub fn try_add_mixnode(
     deps: DepsMut<'_>,

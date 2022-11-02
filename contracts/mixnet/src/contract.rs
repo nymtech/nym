@@ -82,6 +82,9 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, MixnetContractError> {
     match msg {
+        ExecuteMsg::AssignNodeLayer { mix_id, layer } => {
+            crate::mixnodes::transactions::assign_mixnode_layer(deps, info, mix_id, layer)
+        }
         // families
         ExecuteMsg::CreateFamily {
             owner_signature,

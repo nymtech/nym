@@ -139,4 +139,7 @@ pub enum MixnetContractError {
 
     #[error("Family with label '{0}' already exists")]
     FamilyWithLabelExists(String),
+
+    #[error("Invalid layer expected 1, 2 or 3, got {0}")]
+    InvalidLayer(u8),
 }

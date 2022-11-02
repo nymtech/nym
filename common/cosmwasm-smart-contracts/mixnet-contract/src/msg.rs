@@ -73,6 +73,10 @@ impl InitialRewardingParams {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
+    AssignNodeLayer {
+        mix_id: MixId,
+        layer: u8,
+    },
     // Families
     /// Only owner of the node can crate the family with node as head
     CreateFamily {
@@ -235,6 +239,9 @@ pub enum ExecuteMsg {
 impl ExecuteMsg {
     pub fn default_memo(&self) -> String {
         match self {
+            ExecuteMsg::AssignNodeLayer { mix_id, layer } => {
+                format!("assigning mix {mix_id} for layer {layer}")
+            }
             ExecuteMsg::CreateFamily { .. } => "crating node family with".to_string(),
             ExecuteMsg::JoinFamily { family_head, .. } => {
                 format!("joining family {}", family_head)
@@ -410,7 +417,6 @@ pub enum QueryMsg {
         mix_identity: IdentityKey,
     },
     GetLayerDistribution {},
-
     // gateway-related:
     GetGateways {
         start_after: Option<IdentityKey>,

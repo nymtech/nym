@@ -482,6 +482,20 @@ pub trait MixnetSigningClient {
         .await
     }
 
+    async fn assign_node_layer(
+        &self,
+        mix_id: MixId,
+        layer: u8,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::AssignNodeLayer { mix_id, layer },
+            vec![],
+        )
+        .await
+    }
+
     async fn create_family(
         &self,
         owner_signature: String,

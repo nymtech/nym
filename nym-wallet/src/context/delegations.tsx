@@ -10,6 +10,7 @@ import {
 import type { Network } from 'src/types';
 import { delegateToMixnode, getAllPendingDelegations, vestingDelegateToMixnode } from 'src/requests';
 import { TPoolOption } from 'src/components';
+import { decCoinToDisplay } from 'src/utils';
 
 export type TDelegationContext = {
   isLoading: boolean;
@@ -100,9 +101,18 @@ export const DelegationContextProvider: FC<{
         const some = data.delegations.some(({ node_identity }) => node_identity === event.node_identity);
         return !some;
       });
+      const items = data.delegations.map((delegation) => ({
+        ...delegation,
+        amount: decCoinToDisplay(delegation.amount),
+        unclaimed_rewards: delegation.unclaimed_rewards && decCoinToDisplay(delegation.unclaimed_rewards),
+        cost_params: delegation.cost_params && {
+          ...delegation.cost_params,
+          interval_operating_cost: decCoinToDisplay(delegation.cost_params.interval_operating_cost),
+        },
+      }));
 
       setPendingDelegations(pending);
-      setDelegations([...data.delegations, ...pendingOnNewNodes]);
+      setDelegations([...items, ...pendingOnNewNodes]);
       setTotalDelegations(`${data.total_delegations.amount} ${data.total_delegations.denom}`);
       setTotalRewards(`${data.total_rewards.amount} ${data.total_rewards.denom}`);
     } catch (e) {

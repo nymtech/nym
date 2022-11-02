@@ -34,7 +34,12 @@ export const MultiAccountHowTo = ({ show, handleClose }: { show: boolean; handle
           <Typography>{`${step}`}</Typography>
         </Stack>
       ))}
-      <Link href="todo" target="_blank" text="Open Nym docs for this guide in a browser window" fontWeight={600} />
+      <Link
+        href="https://nymtech.net/docs/stable/wallet/#importing-or-creating-accounts-when-you-have-signed-in-with-mnemonic"
+        target="_blank"
+        text="Open Nym docs for this guide in a browser window"
+        fontWeight={600}
+      />
     </Stack>
   </SimpleModal>
 );

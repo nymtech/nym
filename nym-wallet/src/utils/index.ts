@@ -152,7 +152,7 @@ export const toPercentIntegerString = (value: string) => Math.round(Number(value
  *
  * @param val - a decimal number of string form
  * @param dp - number of decimal places (4 by default ie. 0.0000)
- * @returns A prettyfied decimal number
+ * @returns A prettified decimal number
  */
 export const toDisplay = (val: string | number | Big, dp = 4) => {
   let displayValue;
@@ -162,6 +162,24 @@ export const toDisplay = (val: string | number | Big, dp = 4) => {
     Console.warn(`${displayValue} not a valid decimal number: ${e}`);
   }
   return displayValue;
+};
+
+/**
+ * Takes a DecCoin and prettify its amount to a representation
+ * with fixed decimal places.
+ *
+ * @param coin - a DecCoin
+ * @param dp - number of decimal places to apply to amount (4 by default ie. 0.0000)
+ * @returns A DecCoin with prettified amount
+ */
+export const decCoinToDisplay = (coin: DecCoin, dp = 4) => {
+  const displayCoin = { ...coin };
+  try {
+    displayCoin.amount = Big(coin.amount).toFixed(dp);
+  } catch (e: any) {
+    Console.warn(`${coin.amount} not a valid decimal number: ${e}`);
+  }
+  return displayCoin;
 };
 
 /**

@@ -266,6 +266,13 @@ pub async fn get_all_mix_delegations(
             pending_events.len()
         );
 
+        let mixnode_is_unbonding = mixnode.as_ref().map(|m| m.is_unbonding());
+        log::trace!(
+            "  >>> mixnode with mix_id: {} is unbonding: {:?}",
+            d.mix_id,
+            mixnode_is_unbonding
+        );
+
         with_everything.push(DelegationWithEverything {
             owner: d.owner,
             mix_id: d.mix_id,
@@ -283,6 +290,7 @@ pub async fn get_all_mix_delegations(
             cost_params,
             unclaimed_rewards: accumulated_rewards,
             pending_events,
+            mixnode_is_unbonding,
         })
     }
     log::trace!("<<< {:?}", with_everything);

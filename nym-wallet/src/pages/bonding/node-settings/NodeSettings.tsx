@@ -54,6 +54,8 @@ export const NodeSettings = () => {
     });
   };
 
+  if (isLoading) return <LoadingModal />;
+
   if (!bondedNode) {
     return null;
   }
@@ -133,7 +135,6 @@ export const NodeSettings = () => {
             }}
           />
         )}
-        {isLoading && <LoadingModal />}
       </NymCard>
     </PageLayout>
   );

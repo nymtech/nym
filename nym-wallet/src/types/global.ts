@@ -1,4 +1,12 @@
-import { Gateway, DecCoin, MixNode, PledgeData, MixNodeCostParams } from '@nymproject/types';
+import {
+  Gateway,
+  DecCoin,
+  MixNode,
+  PledgeData,
+  MixNodeCostParams,
+  PendingIntervalEventData,
+  PendingEpochEventData,
+} from '@nymproject/types';
 import { Fee } from '@nymproject/types/dist/types/rust/Fee';
 import { TBondedGateway, TBondedMixnode } from 'src/context';
 

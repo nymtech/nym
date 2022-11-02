@@ -22,6 +22,7 @@ import {
   vestingBondMixNode,
   vestingUnbondGateway,
   vestingUnbondMixnode,
+  getPendingEpochEvents,
   updateMixnodeCostParams as updateMixnodeCostParamsRequest,
   vestingUpdateMixnodeCostParams as updateMixnodeVestingCostParamsRequest,
   getNodeDescription as getNodeDescriptionRequest,
@@ -65,6 +66,7 @@ export type TBondedMixnode = {
   mixPort: number;
   verlocPort: number;
   version: string;
+  isUnbonding: boolean;
 };
 
 export interface TBondedGateway {
@@ -83,6 +85,7 @@ export interface TBondedGateway {
     current: number;
     average: number;
   };
+  isUnbonding: boolean;
 }
 
 export type TokenPool = 'locked' | 'balance';
@@ -284,6 +287,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             mixPort: bond_information.mix_node.mix_port,
             verlocPort: bond_information.mix_node.verloc_port,
             version: bond_information.mix_node.version,
+            isUnbonding: bond_information.is_unbonding,
           } as TBondedMixnode);
         }
       } catch (e: any) {
@@ -306,6 +310,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             bond: data.pledge_amount,
             proxy: data.proxy,
             routingScore,
+            isUnbonding: false,
           } as TBondedGateway);
         }
       } catch (e: any) {

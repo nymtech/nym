@@ -33,6 +33,7 @@ export const items: DelegationWithEverything[] = [
     avg_uptime_percent: 0.5,
     uses_vesting_contract_tokens: false,
     pending_events: [],
+    mixnode_is_unbonding: true,
   },
   {
     mix_id: 5678,
@@ -55,6 +56,7 @@ export const items: DelegationWithEverything[] = [
     avg_uptime_percent: 0.1,
     uses_vesting_contract_tokens: true,
     pending_events: [],
+    mixnode_is_unbonding: true,
   },
 ];
 
@@ -64,4 +66,4 @@ export const Empty = () => <DelegationList items={[]} explorerUrl={explorerUrl} 
 
 export const OneItem = () => <DelegationList items={[items[0]]} explorerUrl={explorerUrl} />;
 
-export const Loading = () => <DelegationList isLoading explorerUrl={explorerUrl} />;
+export const Loading = () => <DelegationList items={[]} isLoading explorerUrl={explorerUrl} />;

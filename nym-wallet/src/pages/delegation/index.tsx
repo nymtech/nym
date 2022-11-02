@@ -268,7 +268,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     }
   };
 
-  const delegationsComponent = (delegations: TDelegations | undefined) => {
+  const delegationsComponent = (delegationItems: TDelegations | undefined) => {
     if (isLoading) {
       return (
         <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
@@ -276,12 +276,12 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
         </Box>
       );
     }
-    if (delegations && Boolean(delegations?.length)) {
+    if (delegationItems && Boolean(delegationItems?.length)) {
       return (
         <DelegationList
           explorerUrl={urls(network).networkExplorer}
           isLoading={isLoading}
-          items={delegations}
+          items={delegationItems}
           onItemActionClick={handleDelegationItemActionClick}
         />
       );

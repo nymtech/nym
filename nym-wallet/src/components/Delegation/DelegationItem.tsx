@@ -62,7 +62,7 @@ export const DelegationItem = ({
               : `${toPercentIntegerString(item.cost_params.profit_margin_percent)}%`)}
         </TableCell>
         <TableCell sx={{ color: 'inherit' }}>
-          <Typography style={{ textTransform: 'uppercase' }}>
+          <Typography style={{ textTransform: 'uppercase', fontSize: 'inherit' }}>
             {operatingCost ? `${operatingCost.amount} ${operatingCost.denom}` : '-'}
           </Typography>
         </TableCell>
@@ -71,7 +71,7 @@ export const DelegationItem = ({
           {format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}
         </TableCell>
         <TableCell sx={{ color: 'inherit' }}>
-          <Typography style={{ textTransform: 'uppercase' }}>
+          <Typography style={{ textTransform: 'uppercase', fontSize: 'inherit' }}>
             {isDelegation(item) ? `${item.amount.amount} ${item.amount.denom}` : '-'}
           </Typography>
         </TableCell>

@@ -79,7 +79,6 @@ export const DelegationItem = ({
         <TableCell align="right" sx={{ color: 'inherit' }}>
           {!item.pending_events.length && !nodeIsUnbonded && (
             <DelegationsActionsMenu
-              isPending={undefined}
               onActionClick={(action) => (onItemActionClick ? onItemActionClick(item, action) : undefined)}
               disableRedeemingRewards={!item.unclaimed_rewards || item.unclaimed_rewards.amount === '0'}
               disableDelegateMore={item.mixnode_is_unbonding}

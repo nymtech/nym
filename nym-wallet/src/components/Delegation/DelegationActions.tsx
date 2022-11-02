@@ -66,10 +66,9 @@ export const DelegationActions: React.FC<{
 
 export const DelegationsActionsMenu: React.FC<{
   onActionClick?: (action: DelegationListItemActions) => void;
-  isPending?: DelegationEventKind;
   disableRedeemingRewards?: boolean;
   disableDelegateMore?: boolean | null;
-}> = ({ disableRedeemingRewards, disableDelegateMore, onActionClick, isPending }) => {
+}> = ({ disableRedeemingRewards, disableDelegateMore, onActionClick }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleOpenMenu = () => setIsOpen(true);
@@ -80,22 +79,11 @@ export const DelegationsActionsMenu: React.FC<{
     handleOnClose();
   };
 
-  if (isPending) {
-    return (
-      <Box py={0.5} fontSize="inherit" minWidth={MIN_WIDTH} minHeight={BUTTON_SIZE}>
-        <Tooltip title="There will be a new epoch roughly every hour when your changes will take effect" arrow>
-          <Typography fontSize="inherit" color="text.disabled">
-            Pending {isPending === 'Delegate' ? 'delegation' : 'undelegation'}...
-          </Typography>
-        </Tooltip>
-      </Box>
-    );
-  }
-
   return (
     <ActionsMenu open={isOpen} onOpen={handleOpenMenu} onClose={handleOnClose}>
       <ActionsMenuItem
         title="Delegate more"
+        description={disableDelegateMore ? 'This node is unbonding, action disabled.' : undefined}
         Icon={<Delegate />}
         onClick={() => handleActionSelect('delegate')}
         disabled={Boolean(disableDelegateMore)}

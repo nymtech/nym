@@ -38,7 +38,12 @@ export const MultiAccountWithPwdHowTo = ({ show, handleClose }: { show: boolean;
           <Typography>{`${step}`}</Typography>
         </Stack>
       ))}
-      <Link href="todo" target="_blank" text="Open Nym docs for this guide in a browser window" fontWeight={600} />
+      <Link
+        href="https://nymtech.net/docs/stable/wallet#importing-or-creating-accounts-when-you-have-signed-in-with-mnemonic-but-a-password-already-exists-on-your-machine"
+        target="_blank"
+        text="Open Nym docs for this guide in a browser window"
+        fontWeight={600}
+      />
     </Stack>
   </SimpleModal>
 );

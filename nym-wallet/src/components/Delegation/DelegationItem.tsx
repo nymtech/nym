@@ -82,6 +82,7 @@ export const DelegationItem = ({
               isPending={undefined}
               onActionClick={(action) => (onItemActionClick ? onItemActionClick(item, action) : undefined)}
               disableRedeemingRewards={!item.unclaimed_rewards || item.unclaimed_rewards.amount === '0'}
+              disableDelegateMore={item.mixnode_is_unbonding}
             />
           )}
           {!item.pending_events.length && nodeIsUnbonded && (

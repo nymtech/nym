@@ -29,6 +29,7 @@ let mockDelegations: DelegationWithEverything[] = [
     accumulated_by_operator: { amount: '0', denom: 'nym' },
     uses_vesting_contract_tokens: false,
     pending_events: [],
+    mixnode_is_unbonding: false,
   },
   {
     mix_id: 5678,
@@ -51,6 +52,7 @@ let mockDelegations: DelegationWithEverything[] = [
     accumulated_by_operator: { amount: '0', denom: 'nym' },
     uses_vesting_contract_tokens: true,
     pending_events: [],
+    mixnode_is_unbonding: false,
   },
 ];
 

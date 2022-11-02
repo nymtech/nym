@@ -17,4 +17,5 @@ export interface DelegationWithEverything {
   uses_vesting_contract_tokens: boolean;
   unclaimed_rewards: DecCoin | null;
   pending_events: Array<DelegationEvent>;
+  mixnode_is_unbonding: boolean | null;
 }

@@ -68,7 +68,8 @@ export const DelegationsActionsMenu: React.FC<{
   onActionClick?: (action: DelegationListItemActions) => void;
   isPending?: DelegationEventKind;
   disableRedeemingRewards?: boolean;
-}> = ({ disableRedeemingRewards, onActionClick, isPending }) => {
+  disableDelegateMore?: boolean | null;
+}> = ({ disableRedeemingRewards, disableDelegateMore, onActionClick, isPending }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleOpenMenu = () => setIsOpen(true);
@@ -93,7 +94,12 @@ export const DelegationsActionsMenu: React.FC<{
 
   return (
     <ActionsMenu open={isOpen} onOpen={handleOpenMenu} onClose={handleOnClose}>
-      <ActionsMenuItem title="Delegate more" Icon={<Delegate />} onClick={() => handleActionSelect('delegate')} />
+      <ActionsMenuItem
+        title="Delegate more"
+        Icon={<Delegate />}
+        onClick={() => handleActionSelect('delegate')}
+        disabled={Boolean(disableDelegateMore)}
+      />
       <ActionsMenuItem title="Undelegate" Icon={<Undelegate />} onClick={() => handleActionSelect('undelegate')} />
       <ActionsMenuItem
         title="Redeem"

@@ -130,6 +130,6 @@ impl PacketSize {
 
 impl Default for PacketSize {
     fn default() -> Self {
-        PacketSize::RegularPacket
+        PacketSize::ExtendedPacket32
     }
 }

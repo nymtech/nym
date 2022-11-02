@@ -30,6 +30,7 @@ export const Mnemonic = ({
           height: '160px',
         },
       }}
+      InputLabelProps={{ shrink: true }}
       sx={{
         'input::-webkit-textfield-decoration-container': {
           alignItems: 'start',

@@ -87,6 +87,7 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
                 fullWidth
                 error={!!errors.mixPort}
                 helperText={errors.mixPort?.message}
+                InputLabelProps={{ shrink: true }}
               />
             </Grid>
             <Grid item width={1}>
@@ -97,6 +98,7 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
                 fullWidth
                 error={!!errors.verlocPort}
                 helperText={errors.verlocPort?.message}
+                InputLabelProps={{ shrink: true }}
               />
             </Grid>
             <Grid item width={1}>
@@ -107,6 +109,7 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
                 fullWidth
                 error={!!errors.httpApiPort}
                 helperText={errors.httpApiPort?.message}
+                InputLabelProps={{ shrink: true }}
               />
             </Grid>
           </Grid>
@@ -137,6 +140,7 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
                 fullWidth
                 error={!!errors.host}
                 helperText={errors.host?.message}
+                InputLabelProps={{ shrink: true }}
               />
             </Grid>
           </Grid>
@@ -167,6 +171,7 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
                 fullWidth
                 error={!!errors.version}
                 helperText={errors.version?.message}
+                InputLabelProps={{ shrink: true }}
               />
             </Grid>
           </Grid>

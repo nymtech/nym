@@ -160,6 +160,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
                     </InputAdornment>
                   ),
                 }}
+                InputLabelProps={{ shrink: true }}
               />
               {pendingUpdates && (
                 <FormHelperText>

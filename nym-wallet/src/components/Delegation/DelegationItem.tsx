@@ -39,7 +39,7 @@ export const DelegationItem = ({
       }
     >
       <TableRow key={item.node_identity} sx={{ color: !item.node_identity ? 'error.main' : 'inherit' }}>
-        <TableCell sx={{ color: 'inherit', pr: 1, fontSize: '1rem' }} padding="normal">
+        <TableCell sx={{ color: 'inherit', pr: 1 }} padding="normal">
           {nodeIsUnbonded ? (
             '-'
           ) : (
@@ -53,38 +53,29 @@ export const DelegationItem = ({
           )}
         </TableCell>
         <TableCell sx={{ color: 'inherit' }}>
-          <Typography>
-            {isDelegation(item) && (!item.avg_uptime_percent ? '-' : `${item.avg_uptime_percent}%`)}
-          </Typography>
+          {isDelegation(item) && (!item.avg_uptime_percent ? '-' : `${item.avg_uptime_percent}%`)}
         </TableCell>
         <TableCell sx={{ color: 'inherit' }}>
-          <Typography>
-            {isDelegation(item) &&
-              (!item.cost_params?.profit_margin_percent
-                ? '-'
-                : `${toPercentIntegerString(item.cost_params.profit_margin_percent)}%`)}
-          </Typography>
+          {isDelegation(item) &&
+            (!item.cost_params?.profit_margin_percent
+              ? '-'
+              : `${toPercentIntegerString(item.cost_params.profit_margin_percent)}%`)}
         </TableCell>
         <TableCell sx={{ color: 'inherit' }}>
-          <Typography style={{ textTransform: 'uppercase' }}>
+          <Typography style={{ textTransform: 'uppercase', fontSize: 'inherit' }}>
             {operatingCost ? `${operatingCost.amount} ${operatingCost.denom}` : '-'}
           </Typography>
         </TableCell>
+        <TableCell sx={{ color: 'inherit' }}>{getStakeSaturation(item)}</TableCell>
         <TableCell sx={{ color: 'inherit' }}>
-          {' '}
-          <Typography>{getStakeSaturation(item)}</Typography>
+          {format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}
         </TableCell>
         <TableCell sx={{ color: 'inherit' }}>
-          <Typography>{format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}</Typography>
-        </TableCell>
-        <TableCell sx={{ color: 'inherit' }}>
-          <Typography style={{ textTransform: 'uppercase' }}>
+          <Typography style={{ textTransform: 'uppercase', fontSize: 'inherit' }}>
             {isDelegation(item) ? `${item.amount.amount} ${item.amount.denom}` : '-'}
           </Typography>
         </TableCell>
-        <TableCell sx={{ textTransform: 'uppercase', color: 'inherit' }}>
-          <Typography>{getRewardValue(item)}</Typography>
-        </TableCell>
+        <TableCell sx={{ textTransform: 'uppercase', color: 'inherit' }}>{getRewardValue(item)}</TableCell>
         <TableCell align="right" sx={{ color: 'inherit' }}>
           {!item.pending_events.length && !nodeIsUnbonded && (
             <DelegationsActionsMenu

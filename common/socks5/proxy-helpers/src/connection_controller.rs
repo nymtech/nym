@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use futures::channel::mpsc;
+use futures::stream::SplitSink;
 use futures::StreamExt;
 use log::*;
 use ordered_buffer::{OrderedMessage, OrderedMessageBuffer, ReadContiguousData};
@@ -32,6 +33,10 @@ pub type ConnectionReceiver = mpsc::UnboundedReceiver<ConnectionMessage>;
 
 pub type ControllerSender = mpsc::UnboundedSender<ControllerCommand>;
 pub type ControllerReceiver = mpsc::UnboundedReceiver<ControllerCommand>;
+
+/// Announce connections that are closed
+pub type ClosedConnectionSender = mpsc::UnboundedSender<u64>;
+pub type ClosedConnectionReceiver = mpsc::UnboundedReceiver<u64>;
 
 pub enum ControllerCommand {
     Insert(ConnectionId, ConnectionSender),
@@ -79,6 +84,8 @@ pub struct Controller {
     // to avoid memory issues
     recently_closed: HashSet<ConnectionId>,
 
+    closed_connection_tx: ClosedConnectionSender,
+
     // TODO: this can potentially be abused to ddos and kill provider. Not sure at this point
     // how to handle it more gracefully
 
@@ -93,6 +100,7 @@ impl Controller {
     pub fn new(
         shutdown: ShutdownListener,
         active_connections: PublishedActiveConnections,
+        closed_connection_tx: ClosedConnectionSender,
     ) -> (Self, ControllerSender) {
         let (sender, receiver) = mpsc::unbounded();
         (
@@ -101,6 +109,7 @@ impl Controller {
                 published_active_connections: active_connections,
                 receiver,
                 recently_closed: HashSet::new(),
+                closed_connection_tx,
                 pending_messages: HashMap::new(),
                 shutdown,
             },
@@ -112,7 +121,11 @@ impl Controller {
     //    self.published_active_connections.clone()
     //}
 
-    async fn insert_connection(&mut self, conn_id: ConnectionId, connection_sender: ConnectionSender) {
+    async fn insert_connection(
+        &mut self,
+        conn_id: ConnectionId,
+        connection_sender: ConnectionSender,
+    ) {
         let active_connection = ActiveConnection {
             is_closed: false,
             connection_sender: Some(connection_sender),
@@ -147,6 +160,9 @@ impl Controller {
 
         let mut pub_conns = self.published_active_connections.lock().await;
         pub_conns.remove(&conn_id);
+
+        // announce closed connections for whoever is interested
+        self.closed_connection_tx.unbounded_send(conn_id).unwrap();
     }
 
     fn send_to_connection(&mut self, conn_id: ConnectionId, payload: Vec<u8>, is_closed: bool) {

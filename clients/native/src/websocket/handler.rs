@@ -32,8 +32,14 @@ impl Default for ReceivedResponseType {
     }
 }
 
+/// Announce connections that are closed
+// WIP(JON): it's not ideal that this is duplicated, fixme
+pub type ClosedConnectionSender = mpsc::UnboundedSender<u64>;
+pub type ClosedConnectionReceiver = mpsc::UnboundedReceiver<u64>;
+
 pub(crate) struct Handler {
     msg_input: InputMessageSender,
+    closed_connection_tx: ClosedConnectionSender,
     buffer_requester: ReceivedBufferRequestSender,
     self_full_address: Recipient,
     socket: Option<WebSocketStream<TcpStream>>,
@@ -45,6 +51,7 @@ impl Clone for Handler {
     fn clone(&self) -> Self {
         Handler {
             msg_input: self.msg_input.clone(),
+            closed_connection_tx: self.closed_connection_tx.clone(),
             buffer_requester: self.buffer_requester.clone(),
             self_full_address: self.self_full_address,
             socket: None,
@@ -64,11 +71,13 @@ impl Drop for Handler {
 impl Handler {
     pub(crate) fn new(
         msg_input: InputMessageSender,
+        closed_connection_tx: ClosedConnectionSender,
         buffer_requester: ReceivedBufferRequestSender,
         self_full_address: Recipient,
     ) -> Self {
         Handler {
             msg_input,
+            closed_connection_tx,
             buffer_requester,
             self_full_address,
             socket: None,
@@ -108,6 +117,11 @@ impl Handler {
         ServerResponse::SelfAddress(self.self_full_address)
     }
 
+    fn handle_closed_connection(&self, connection_id: u64) -> Option<ServerResponse> {
+        self.closed_connection_tx.unbounded_send(connection_id).unwrap();
+        None
+    }
+
     fn handle_request(&mut self, request: ClientRequest) -> Option<ServerResponse> {
         match request {
             ClientRequest::Send {
@@ -121,6 +135,7 @@ impl Handler {
                 reply_surb,
             } => self.handle_reply(reply_surb, message),
             ClientRequest::SelfAddress => Some(self.handle_self_address()),
+            ClientRequest::ClosedConnection(id) => self.handle_closed_connection(id),
         }
     }
 

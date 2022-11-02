@@ -164,6 +164,9 @@ where
         Some(real_messages)
     }
 
+    //fn handle_closed_connection(connection_id: u64) -> Option<RealMessage> {
+    //}
+
     async fn on_input_message(&mut self, msg: InputMessage) {
         let (real_messages, lane) = match msg {
             InputMessage::Fresh {
@@ -182,6 +185,10 @@ where
                     .map(|message| vec![message]),
                 TransmissionLane::Reply,
             ),
+            //InputMessage::CloseConnection(u64) => (
+                //self.handle_closed_connection(u64),
+                //TransmissionLane::Control,
+            //),
         };
 
         // there's no point in trying to send nothing

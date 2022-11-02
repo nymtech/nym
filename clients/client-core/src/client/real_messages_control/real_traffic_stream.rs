@@ -29,6 +29,8 @@ use tokio::time;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
 
+use super::ClosedConnectionReceiver;
+
 // The minimum time between increasing the average delay between packets. If we hit the ceiling in
 // the available buffer space we want to take somewhat swift action, but we still need to give a
 // short time to give the channel a chance reduce pressure.
@@ -237,6 +239,8 @@ where
 
     //active_connections: Arc<std::sync::Mutex<HashSet<u64>>>,
     active_connections: Arc<tokio::sync::Mutex<HashSet<u64>>>,
+
+    closed_connections_rx: ClosedConnectionReceiver,
 }
 
 #[derive(Default)]
@@ -275,7 +279,13 @@ impl ReceivedBuffer {
             .map(|(k, v)| (k, v.age_in_millis()))
             .collect();
         buffer.sort_by_key(|v| v.1);
-        buffer.iter().rev().map(|(k, _)| *k).take(5).copied().collect()
+        buffer
+            .iter()
+            .rev()
+            .map(|(k, _)| *k)
+            .take(5)
+            .copied()
+            .collect()
     }
 
     fn store(&mut self, lane: &TransmissionLane, real_messages: Vec<RealMessage>) {
@@ -472,6 +482,7 @@ where
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
         active_connections: Arc<tokio::sync::Mutex<HashSet<u64>>>,
+        closed_connections_rx: ClosedConnectionReceiver,
     ) -> Self {
         OutQueueControl {
             config,
@@ -489,6 +500,7 @@ where
             topology_access,
             received_buffer: Default::default(),
             active_connections,
+            closed_connections_rx,
         }
     }
 
@@ -506,10 +518,10 @@ where
         //let active_connections = self.active_connections.lock().await;
         //log::info!("active_connections: {:?}", active_connections);
 
-        let active_connections = { self.active_connections.lock().await.clone() };
-        self.received_buffer
-            .purge_closed_connections(active_connections)
-            .await;
+        //let active_connections = { self.active_connections.lock().await.clone() };
+        //self.received_buffer
+        //    .purge_closed_connections(active_connections)
+        //    .await;
 
         let (next_message, fragment_id) = match next_message {
             StreamMessage::Cover => {
@@ -572,6 +584,11 @@ where
         tokio::task::yield_now().await;
     }
 
+    fn on_close_connection(&mut self, connection_id: u64) {
+        self.received_buffer
+            .remove(&TransmissionLane::ConnectionId(connection_id));
+    }
+
     fn current_average_message_sending_delay(&self) -> Duration {
         self.config.average_message_sending_delay
             * self.sending_rate_controller.current_multiplier()
@@ -609,6 +626,11 @@ where
         // (mix_tx) was detected.
         self.adjust_current_average_message_sending_delay();
         let avg_delay = self.current_average_message_sending_delay();
+
+        // WIP(JON)
+        //if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connections_rx).poll_next(cx) {
+        //    self.on_close_connection(id);
+        //}
 
         if let Some(ref mut next_delay) = &mut self.next_delay {
             // it is not yet time to return a message
@@ -705,6 +727,10 @@ where
         // 2. large chunks of data which have been waiting for a longer time
         // 3. large chunks of data in new connections
 
+        //if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connections_rx).poll_next(cx) {
+        //    self.on_close_connection(id);
+        //}
+
         match Pin::new(&mut self.real_receiver).poll_next(cx) {
             // in the case our real message channel stream was closed, we should also indicate we are closed
             // (and whoever is using the stream should panic)
@@ -749,6 +775,9 @@ where
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<StreamMessage>> {
+        //let id = self.closed_connections_rx.poll_next_unpin(cx);
+        //return id;
+
         if self.config.disable_poisson_packet_distribution {
             self.poll_immediate(cx)
         } else {
@@ -766,6 +795,16 @@ where
                 _ = shutdown.recv() => {
                     log::trace!("OutQueueControl: Received shutdown");
                 }
+                //id = self.closed_connections_rx.next() => match id {
+                //    Some(id) => {
+                //        self.close_connection(id);
+                //    },
+                //    None => {
+                //        log::trace!("OutQueueControl: closed connection channel closed");
+                //    }
+                //}
+                //id = self.closed_connections_rx.next() => {
+                //}
                 next_message = self.next() => match next_message {
                     Some(next_message) => {
                         self.on_message(next_message).await;

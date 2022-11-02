@@ -17,7 +17,9 @@ use client_core::client::inbound_messages::{
 };
 use client_core::client::key_manager::KeyManager;
 use client_core::client::mix_traffic::{BatchMixMessageSender, MixTrafficController};
-use client_core::client::real_messages_control::RealMessagesController;
+use client_core::client::real_messages_control::{
+    ClosedConnectionReceiver, ClosedConnectionSender, RealMessagesController,
+};
 use client_core::client::received_buffer::{
     ReceivedBufferRequestReceiver, ReceivedBufferRequestSender, ReceivedMessagesBufferController,
 };
@@ -123,6 +125,7 @@ impl NymClient {
         mix_sender: BatchMixMessageSender,
         shutdown: ShutdownListener,
         active_connections: PublishedActiveConnections,
+        closed_connections_rx: ClosedConnectionReceiver,
     ) {
         let mut controller_config = client_core::client::real_messages_control::Config::new(
             self.key_manager.ack_key(),
@@ -152,6 +155,7 @@ impl NymClient {
             topology_accessor,
             reply_key_storage,
             active_connections,
+            closed_connections_rx,
         )
         .start_with_shutdown(shutdown);
     }
@@ -287,6 +291,7 @@ impl NymClient {
         msg_input: InputMessageSender,
         shutdown: ShutdownListener,
         active_connections: PublishedActiveConnections,
+        closed_connections_tx: ClosedConnectionSender,
     ) {
         info!("Starting socks5 listener...");
         let auth_methods = vec![AuthenticationMethods::NoAuth as u8];
@@ -302,7 +307,12 @@ impl NymClient {
         );
         tokio::spawn(async move {
             sphinx_socks
-                .serve(msg_input, buffer_requester, active_connections)
+                .serve(
+                    msg_input,
+                    buffer_requester,
+                    active_connections,
+                    closed_connections_tx,
+                )
                 .await
         });
     }
@@ -409,6 +419,7 @@ impl NymClient {
 
         let active_connections: PublishedActiveConnections =
             Arc::new(tokio::sync::Mutex::new(HashSet::new()));
+        let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
 
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
@@ -418,6 +429,7 @@ impl NymClient {
             sphinx_message_sender.clone(),
             shutdown.subscribe(),
             active_connections.clone(),
+            closed_connection_rx,
         );
 
         if !self
@@ -437,6 +449,7 @@ impl NymClient {
             input_sender,
             shutdown.subscribe(),
             active_connections,
+            closed_connection_tx,
         );
 
         info!("Client startup finished!");

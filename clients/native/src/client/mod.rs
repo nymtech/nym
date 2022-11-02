@@ -122,6 +122,7 @@ impl NymClient {
         mix_sender: BatchMixMessageSender,
         shutdown: ShutdownListener,
         active_connections: Arc<tokio::sync::Mutex<HashSet<u64>>>,
+        closed_connection_rx: websocket::handler::ClosedConnectionReceiver,
     ) {
         let mut controller_config = real_messages_control::Config::new(
             self.key_manager.ack_key(),
@@ -151,6 +152,7 @@ impl NymClient {
             topology_accessor,
             reply_key_storage,
             active_connections,
+            closed_connection_rx,
         )
         .start_with_shutdown(shutdown);
     }
@@ -284,11 +286,16 @@ impl NymClient {
         &self,
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
+        closed_connection_tx: websocket::handler::ClosedConnectionSender,
     ) {
         info!("Starting websocket listener...");
 
-        let websocket_handler =
-            websocket::Handler::new(msg_input, buffer_requester, self.as_mix_recipient());
+        let websocket_handler = websocket::Handler::new(
+            msg_input,
+            closed_connection_tx,
+            buffer_requester,
+            self.as_mix_recipient(),
+        );
 
         websocket::Listener::new(self.config.get_listening_port()).start(websocket_handler);
     }
@@ -410,6 +417,7 @@ impl NymClient {
             Self::start_mix_traffic_controller(gateway_client, shutdown.subscribe());
 
         let active_connections = Arc::new(tokio::sync::Mutex::new(HashSet::new()));
+        let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
 
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
@@ -419,6 +427,7 @@ impl NymClient {
             sphinx_message_sender.clone(),
             shutdown.subscribe(),
             active_connections,
+            closed_connection_rx,
         );
 
         if !self
@@ -434,9 +443,11 @@ impl NymClient {
         }
 
         match self.config.get_socket_type() {
-            SocketType::WebSocket => {
-                self.start_websocket_listener(received_buffer_request_sender, input_sender)
-            }
+            SocketType::WebSocket => self.start_websocket_listener(
+                received_buffer_request_sender,
+                input_sender,
+                closed_connection_tx,
+            ),
             SocketType::None => {
                 // if we did not start the socket, it means we're running (supposedly) in the native mode
                 // and hence we should announce 'ourselves' to the buffer

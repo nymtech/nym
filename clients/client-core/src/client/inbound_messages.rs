@@ -10,6 +10,7 @@ pub enum TransmissionLane {
     General,
     Reply,
     Retransmission,
+    Control, // control messages
     ConnectionId(u64), // WIP: use the ConnectionId type alias instead of u64
 }
 
@@ -25,6 +26,7 @@ pub enum InputMessage {
         reply_surb: ReplySurb,
         data: Vec<u8>,
     },
+    //CloseConnection(u64),
 }
 
 impl InputMessage {

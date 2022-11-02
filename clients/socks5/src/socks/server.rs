@@ -4,6 +4,7 @@ use super::{
     mixnet_responses::MixnetResponseListener,
     types::{ResponseCode, SocksProxyError},
 };
+use client_core::client::real_messages_control::ClosedConnectionSender;
 use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
 };
@@ -52,13 +53,18 @@ impl SphinxSocksServer {
         input_sender: InputMessageSender,
         buffer_requester: ReceivedBufferRequestSender,
         active_connections: PublishedActiveConnections,
+        closed_connections_tx: ClosedConnectionSender,
     ) -> Result<(), SocksProxyError> {
         let listener = TcpListener::bind(self.listening_address).await.unwrap();
         info!("Serving Connections...");
 
         // controller for managing all active connections
         let (mut active_streams_controller, controller_sender) =
-            Controller::new(self.shutdown.clone(), active_connections);
+            Controller::new(
+                self.shutdown.clone(),
+                active_connections,
+                closed_connections_tx,
+            );
         tokio::spawn(async move {
             active_streams_controller.run().await;
         });

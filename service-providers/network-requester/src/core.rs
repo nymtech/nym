@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::allowed_hosts::{HostsStore, OutboundRequestFilter};
+//use crate::closed_connection_announcer::ClosedConnectionAnnouncer;
 use crate::connection::Connection;
 use crate::error::NetworkRequesterError;
 use crate::statistics::ServiceStatisticsCollector;
@@ -14,7 +15,8 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::{
-    Controller, ControllerCommand, ControllerSender, PublishedActiveConnections,
+    ClosedConnectionReceiver, Controller, ControllerCommand, ControllerSender,
+    PublishedActiveConnections,
 };
 use socks5_requests::{
     ConnectionId, Message as Socks5Message, NetworkRequesterResponse, Request, Response,
@@ -72,36 +74,81 @@ impl ServiceProvider {
         mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
         mut mix_reader: mpsc::UnboundedReceiver<(Socks5Message, Recipient)>,
         stats_collector: Option<ServiceStatisticsCollector>,
+        mut closed_connection_rx: ClosedConnectionReceiver,
     ) {
-        // TODO: wire SURBs in here once they're available
-        while let Some((msg, return_address)) = mix_reader.next().await {
-            if let Some(stats_collector) = stats_collector.as_ref() {
-                if let Some(remote_addr) = stats_collector
-                    .connected_services
-                    .read()
-                    .await
-                    .get(&msg.conn_id())
-                {
-                    stats_collector
-                        .response_stats_data
-                        .write()
-                        .await
-                        .processed(remote_addr, msg.size() as u32);
+        loop {
+            tokio::select! {
+                m = mix_reader.next() => match m {
+                    Some((msg, return_address)) => {
+                        if let Some(stats_collector) = stats_collector.as_ref() {
+                            if let Some(remote_addr) = stats_collector
+                                .connected_services
+                                .read()
+                                .await
+                                .get(&msg.conn_id())
+                            {
+                                stats_collector
+                                    .response_stats_data
+                                    .write()
+                                    .await
+                                    .processed(remote_addr, msg.size() as u32);
+                            }
+                        }
+                        let conn_id = msg.conn_id();
+
+                        // make 'request' to native-websocket client
+                        let response_message = ClientRequest::Send {
+                            recipient: return_address,
+                            message: msg.into_bytes(),
+                            with_reply_surb: false,
+                            connection_id: conn_id,
+                        };
+
+                        let message = Message::Binary(response_message.serialize());
+                        websocket_writer.send(message).await.unwrap();
+                    },
+                    None => {
+                        log::error!("Exiting: channel closed!");
+                        break;
+                    }
+                },
+                Some(id) = closed_connection_rx.next() => {
+                    let msg = ClientRequest::ClosedConnection(id);
+                    let ws_msg = Message::Binary(msg.serialize());
+                    websocket_writer.send(ws_msg).await.unwrap();
                 }
             }
-            let conn_id = msg.conn_id();
-
-            // make 'request' to native-websocket client
-            let response_message = ClientRequest::Send {
-                recipient: return_address,
-                message: msg.into_bytes(),
-                with_reply_surb: false,
-                connection_id: conn_id,
-            };
-
-            let message = Message::Binary(response_message.serialize());
-            websocket_writer.send(message).await.unwrap();
         }
+
+        // TODO: wire SURBs in here once they're available
+        //while let Some((msg, return_address)) = mix_reader.next().await {
+        //    if let Some(stats_collector) = stats_collector.as_ref() {
+        //        if let Some(remote_addr) = stats_collector
+        //            .connected_services
+        //            .read()
+        //            .await
+        //            .get(&msg.conn_id())
+        //        {
+        //            stats_collector
+        //                .response_stats_data
+        //                .write()
+        //                .await
+        //                .processed(remote_addr, msg.size() as u32);
+        //        }
+        //    }
+        //    let conn_id = msg.conn_id();
+
+        //    // make 'request' to native-websocket client
+        //    let response_message = ClientRequest::Send {
+        //        recipient: return_address,
+        //        message: msg.into_bytes(),
+        //        with_reply_surb: false,
+        //        connection_id: conn_id,
+        //    };
+
+        //    let message = Message::Binary(response_message.serialize());
+        //    websocket_writer.send(message).await.unwrap();
+        //}
     }
 
     async fn read_websocket_message(
@@ -320,15 +367,27 @@ impl ServiceProvider {
 
         let published_active_connections: PublishedActiveConnections =
             Arc::new(tokio::sync::Mutex::new(HashSet::new()));
+        let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
 
         // Controller for managing all active connections.
         // We provide it with a ShutdownListener since it requires it, even though for the network
         // requester shutdown signalling is not yet fully implemented.
-        let (mut active_connections_controller, mut controller_sender) =
-            Controller::new(shutdown.subscribe(), published_active_connections);
+        let (mut active_connections_controller, mut controller_sender) = Controller::new(
+            shutdown.subscribe(),
+            published_active_connections,
+            closed_connection_tx,
+        );
+
         tokio::spawn(async move {
             active_connections_controller.run().await;
         });
+
+        // ClosedConnectionAnnouncer
+        //let closed_connection_announcer =
+        //ClosedConnectionAnnouncer::new(closed_connection_receiver, websocket_writer);
+        //tokio::spawn(async move {
+        //closed_connection_announcer.run().await;
+        //});
 
         let stats_collector = if self.enable_statistics {
             let stats_collector =
@@ -352,6 +411,7 @@ impl ServiceProvider {
                 websocket_writer,
                 mix_input_receiver,
                 stats_collector_clone,
+                closed_connection_rx,
             )
             .await;
         });

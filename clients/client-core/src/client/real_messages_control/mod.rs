@@ -31,6 +31,11 @@ use crate::client::reply_key_storage::ReplyKeyStorage;
 mod acknowledgement_control;
 mod real_traffic_stream;
 
+/// Announce connections that are closed
+// WIP(JON) dedup
+pub type ClosedConnectionSender = mpsc::UnboundedSender<u64>;
+pub type ClosedConnectionReceiver = mpsc::UnboundedReceiver<u64>;
+
 // TODO: ack_key and self_recipient shouldn't really be part of this config
 pub struct Config {
     /// Key used to decrypt contents of received SURBAcks
@@ -112,6 +117,7 @@ impl RealMessagesController<OsRng> {
         topology_access: TopologyAccessor,
         #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
         active_connections: Arc<tokio::sync::Mutex<HashSet<u64>>>,
+        closed_connections_rx: ClosedConnectionReceiver,
     ) -> Self {
         let rng = OsRng;
 
@@ -162,6 +168,7 @@ impl RealMessagesController<OsRng> {
             config.self_recipient,
             topology_access,
             active_connections,
+            closed_connections_rx,
         );
 
         RealMessagesController {

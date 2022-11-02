@@ -20,6 +20,9 @@ pub const REPLY_REQUEST_TAG: u8 = 0x01;
 /// Value tag representing [`SelfAddress`] variant of the [`ClientRequest`]
 pub const SELF_ADDRESS_REQUEST_TAG: u8 = 0x02;
 
+/// Value tag representing [`ClosedConnection`] variant of the [`ClientRequest`]
+pub const CLOSED_CONNECTION_REQUEST_TAG: u8 = 0x03;
+
 #[allow(non_snake_case)]
 #[derive(Debug)]
 pub enum ClientRequest {
@@ -35,6 +38,7 @@ pub enum ClientRequest {
         reply_surb: ReplySurb,
     },
     SelfAddress,
+    ClosedConnection(u64),
 }
 
 // we could have been parsing it directly TryFrom<WsMessage>, but we want to retain
@@ -219,6 +223,26 @@ impl ClientRequest {
         ClientRequest::SelfAddress
     }
 
+    // CLOSED_CONNECTION_REQUEST_TAG
+    fn serialize_closed_connection(connection_id: u64) -> Vec<u8> {
+        let conn_id_bytes = connection_id.to_be_bytes();
+        std::iter::once(CLOSED_CONNECTION_REQUEST_TAG)
+            .chain(conn_id_bytes.iter().cloned())
+            .collect()
+    }
+
+    // CLOSED_CONNECTION_REQUEST_TAG
+    fn deserialize_closed_connection(b: &[u8]) -> Result<Self, error::Error> {
+        // this MUST match because it was called by 'deserialize'
+        debug_assert_eq!(b[0], CLOSED_CONNECTION_REQUEST_TAG);
+
+        let mut connection_id_bytes = [0u8; size_of::<u64>()];
+        connection_id_bytes.copy_from_slice(&b[1..1 + size_of::<u64>()]);
+        let connection_id = u64::from_be_bytes(connection_id_bytes.try_into().unwrap());
+
+        Ok(ClientRequest::ClosedConnection(connection_id))
+    }
+
     pub fn serialize(self) -> Vec<u8> {
         match self {
             ClientRequest::Send {
@@ -234,6 +258,8 @@ impl ClientRequest {
             } => Self::serialize_reply(message, reply_surb),
 
             ClientRequest::SelfAddress => Self::serialize_self_address(),
+
+            ClientRequest::ClosedConnection(id) => Self::serialize_closed_connection(id),
         }
     }
 
@@ -263,6 +289,7 @@ impl ClientRequest {
             SEND_REQUEST_TAG => Self::deserialize_send(b),
             REPLY_REQUEST_TAG => Self::deserialize_reply(b),
             SELF_ADDRESS_REQUEST_TAG => Ok(Self::deserialize_self_address(b)),
+            CLOSED_CONNECTION_REQUEST_TAG => Self::deserialize_closed_connection(b),
             n => Err(error::Error::new(
                 ErrorKind::UnknownRequest,
                 format!("type {}", n),
@@ -373,6 +400,17 @@ mod tests {
         let recovered = ClientRequest::deserialize(&bytes).unwrap();
         match recovered {
             ClientRequest::SelfAddress => (),
+            _ => unreachable!(),
+        }
+    }
+
+    #[test]
+    fn close_connection_request_serialization_works() {
+        let close_connection_request = ClientRequest::ClosedConnection(42);
+        let bytes = close_connection_request.serialize();
+        let recovered = ClientRequest::deserialize(&bytes).unwrap();
+        match recovered {
+            ClientRequest::ClosedConnection(id) => assert_eq!(id, 42),
             _ => unreachable!(),
         }
     }

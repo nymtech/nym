@@ -131,6 +131,7 @@ export const SystemVariables = ({
             }}
             error={!!errors.profitMarginPercent}
             disabled={isSubmitting}
+            InputLabelProps={{ shrink: true }}
           />
           <DataField
             title="Estimated reward"

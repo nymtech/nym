@@ -47,6 +47,7 @@ const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNex
         label="Sphinx key"
         error={Boolean(errors.sphinxKey)}
         helperText={errors.sphinxKey?.message}
+        InputLabelProps={{ shrink: true }}
       />
       <TextField
         {...register('ownerSignature')}
@@ -54,6 +55,7 @@ const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNex
         label="Owner signature"
         error={Boolean(errors.ownerSignature)}
         helperText={errors.ownerSignature?.message}
+        InputLabelProps={{ shrink: true }}
       />
       <Stack direction="row" gap={3}>
         <TextField
@@ -63,6 +65,7 @@ const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNex
           error={Boolean(errors.host)}
           helperText={errors.host?.message}
           required
+          InputLabelProps={{ shrink: true }}
           sx={{ flexBasis: '50%' }}
         />
         <TextField
@@ -72,6 +75,7 @@ const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNex
           error={Boolean(errors.version)}
           helperText={errors.version?.message}
           required
+          InputLabelProps={{ shrink: true }}
           sx={{ flexBasis: '50%' }}
         />
       </Stack>
@@ -88,6 +92,7 @@ const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNex
             error={Boolean(errors.mixPort)}
             helperText={errors.mixPort?.message}
             fullWidth
+            InputLabelProps={{ shrink: true }}
           />
           <TextField
             {...register('verlocPort')}
@@ -96,6 +101,7 @@ const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNex
             error={Boolean(errors.verlocPort)}
             helperText={errors.verlocPort?.message}
             fullWidth
+            InputLabelProps={{ shrink: true }}
           />
           <TextField
             {...register('httpApiPort')}
@@ -104,6 +110,7 @@ const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNex
             error={Boolean(errors.httpApiPort)}
             helperText={errors.httpApiPort?.message}
             fullWidth
+            InputLabelProps={{ shrink: true }}
           />
         </Stack>
       )}

@@ -62,6 +62,7 @@ export const SendInputModal = ({
           fullWidth
           onChange={(e) => onAddressChange(e.target.value)}
           value={toAddress}
+          InputLabelProps={{ shrink: true }}
         />
         <CurrencyFormField
           label="Amount"

@@ -55,6 +55,7 @@ export const EditAccountModal = () => {
               value={accountName}
               onChange={(e) => setAccountName(e.target.value)}
               autoFocus
+              InputLabelProps={{ shrink: true }}
             />
           </Box>
         </DialogContent>

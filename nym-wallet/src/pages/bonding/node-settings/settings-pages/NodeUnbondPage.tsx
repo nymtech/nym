@@ -49,7 +49,12 @@ export const NodeUnbondPage = ({ bondedNode, onConfirm, onError }: Props) => {
             </Typography>
           </Grid>
           <Grid item>
-            <TextField fullWidth value={confirmField} onChange={(e) => setConfirmField(e.target.value)} />
+            <TextField
+              fullWidth
+              value={confirmField}
+              onChange={(e) => setConfirmField(e.target.value)}
+              InputLabelProps={{ shrink: true }}
+            />
           </Grid>
           <Grid item sx={{ mt: 2 }}>
             <Button

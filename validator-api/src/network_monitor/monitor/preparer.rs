@@ -503,7 +503,7 @@ impl PacketPreparer {
         }
 
         // convert our hashmap back into a vec
-        let packets = all_gateway_packets.into_iter().map(|(_, v)| v).collect();
+        let packets = all_gateway_packets.into_values().collect();
 
         PreparedPackets {
             packets,

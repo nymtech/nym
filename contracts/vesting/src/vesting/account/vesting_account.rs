@@ -105,7 +105,7 @@ impl VestingAccount for Account {
     }
 
     fn get_end_time(&self) -> Timestamp {
-        self.periods[(self.num_vesting_periods() - 1) as usize].end_time()
+        self.periods[(self.num_vesting_periods() - 1)].end_time()
     }
 
     fn get_original_vesting(&self) -> Result<OriginalVestingResponse, ContractError> {
@@ -132,7 +132,7 @@ impl VestingAccount for Account {
         let start_time = match period {
             Period::Before => 0,
             Period::After => u64::MAX,
-            Period::In(idx) => self.periods[idx as usize].start_time,
+            Period::In(idx) => self.periods[idx].start_time,
         };
 
         let coin = self.total_delegations_at_timestamp(storage, start_time)?;
@@ -159,7 +159,7 @@ impl VestingAccount for Account {
         let start_time = match period {
             Period::Before => 0,
             Period::After => u64::MAX,
-            Period::In(idx) => self.periods[idx as usize].start_time,
+            Period::In(idx) => self.periods[idx].start_time,
         };
 
         let delegations_before_start_time =
@@ -185,7 +185,7 @@ impl VestingAccount for Account {
         let start_time = match period {
             Period::Before => 0,
             Period::After => u64::MAX,
-            Period::In(idx) => self.periods[idx as usize].start_time,
+            Period::In(idx) => self.periods[idx].start_time,
         };
 
         let amount = if let Some(bond) = self

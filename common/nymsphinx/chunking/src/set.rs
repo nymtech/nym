@@ -94,10 +94,10 @@ fn prepare_unlinked_fragmented_set(
 
     for i in 1..(pre_casted_frags + 1) {
         // we can't use u8 directly here as upper (NON-INCLUSIVE, so it would always fit) bound could be u8::max_value() + 1
-        let lb = (i as usize - 1) * unlinked_fragment_payload_max_len(max_plaintext_size);
+        let lb = (i - 1) * unlinked_fragment_payload_max_len(max_plaintext_size);
         let ub = usize::min(
             message.len(),
-            i as usize * unlinked_fragment_payload_max_len(max_plaintext_size),
+            i * unlinked_fragment_payload_max_len(max_plaintext_size),
         );
         fragments.push(
             Fragment::try_new(

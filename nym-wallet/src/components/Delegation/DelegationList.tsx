@@ -109,7 +109,7 @@ export const DelegationList: React.FC<{
         <EnhancedTableHead order={order} orderBy={orderBy} onRequestSort={handleRequestSort} />
         <TableBody>
           {items.length ? (
-            items.map((item) => {
+            items.sort(sortByUnbondedMixnodeFirst).map((item) => {
               if (isPendingDelegation(item)) return <PendingDelegationItem item={item} explorerUrl={explorerUrl} />;
               if (isDelegation(item))
                 return (

@@ -15,7 +15,7 @@ pub struct VestingPeriod {
 
 impl VestingPeriod {
     pub fn end_time(&self) -> Timestamp {
-        Timestamp::from_seconds(self.start_time + self.period_seconds as u64)
+        Timestamp::from_seconds(self.start_time + self.period_seconds)
     }
 }
 
@@ -26,7 +26,7 @@ pub fn populate_vesting_periods(
     let mut periods = Vec::with_capacity(vesting_spec.num_periods() as usize);
     for i in 0..vesting_spec.num_periods() {
         let period = VestingPeriod {
-            start_time: start_time + i as u64 * vesting_spec.period_seconds(),
+            start_time: start_time + i * vesting_spec.period_seconds(),
             period_seconds: vesting_spec.period_seconds(),
         };
         periods.push(period);

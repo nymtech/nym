@@ -296,7 +296,7 @@ where
     async fn on_message(&mut self, next_message: StreamMessage) {
         trace!("created new message");
 
-        let next_message = match next_message {
+        let (next_message, fragment_id) = match next_message {
             StreamMessage::Cover => {
                 // TODO for way down the line: in very rare cases (during topology update) we might have
                 // to wait a really tiny bit before actually obtaining the permit hence messing with our
@@ -315,25 +315,35 @@ where
                 }
                 let topology_ref = topology_ref_option.unwrap();
 
-                generate_loop_cover_packet(
-                    &mut self.rng,
-                    topology_ref,
-                    &self.ack_key,
-                    &self.our_full_destination,
-                    self.config.average_ack_delay,
-                    self.config.average_packet_delay,
-                    self.config.cover_packet_size,
+                (
+                    generate_loop_cover_packet(
+                        &mut self.rng,
+                        topology_ref,
+                        &self.ack_key,
+                        &self.our_full_destination,
+                        self.config.average_ack_delay,
+                        self.config.average_packet_delay,
+                        self.config.cover_packet_size,
+                    )
+                    .expect(
+                        "Somehow failed to generate a loop cover message with a valid topology",
+                    ),
+                    None,
                 )
-                .expect("Somehow failed to generate a loop cover message with a valid topology")
             }
             StreamMessage::Real(real_message) => {
-                self.sent_notify(real_message.fragment_id);
-                real_message.mix_packet
+                (real_message.mix_packet, Some(real_message.fragment_id))
             }
         };
 
         if let Err(err) = self.mix_tx.send(vec![next_message]).await {
             log::error!("Failed to send - channel closed: {}", err);
+        }
+
+        // notify ack controller about sending our message only after we actually managed to push it
+        // through the channel
+        if let Some(fragment_id) = fragment_id {
+            self.sent_notify(fragment_id);
         }
 
         // JS: Not entirely sure why or how it fixes stuff, but without the yield call,

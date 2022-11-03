@@ -5,8 +5,8 @@ use coconut_dkg_common::types::{ContractSafeBytes, TOTAL_DEALINGS};
 use cosmwasm_std::Addr;
 use cw_storage_plus::Map;
 
-pub(crate) const DEALINGS_PAGE_MAX_LIMIT: u32 = 75;
-pub(crate) const DEALINGS_PAGE_DEFAULT_LIMIT: u32 = 50;
+pub(crate) const DEALINGS_PAGE_MAX_LIMIT: u32 = 2;
+pub(crate) const DEALINGS_PAGE_DEFAULT_LIMIT: u32 = 1;
 
 type DealingKey<'a> = &'a Addr;
 
@@ -21,5 +21,13 @@ type DealingKey<'a> = &'a Addr;
 // if you don't choose your prefixes wisely.
 // I didn't have to do it here as I'm storing relatively little data and after just base58-encoding
 // my bytes, I was fine with the json overhead.
-pub(crate) const DEALINGS_BYTES: Map<'_, DealingKey<'_>, [ContractSafeBytes; TOTAL_DEALINGS]> =
-    Map::new("dbyt");
+
+// if TOTAL_DEALINGS is modified to anything other then current value (5), this part will also need
+// to be modified
+pub(crate) const DEALINGS_BYTES: [Map<'_, DealingKey<'_>, ContractSafeBytes>; TOTAL_DEALINGS] = [
+    Map::new("dbyt1"),
+    Map::new("dbyt2"),
+    Map::new("dbyt3"),
+    Map::new("dbyt4"),
+    Map::new("dbyt5"),
+];

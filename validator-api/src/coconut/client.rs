@@ -4,7 +4,7 @@
 use crate::coconut::error::Result;
 use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
 use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState, TOTAL_DEALINGS};
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
 use contracts_common::dealings::ContractSafeBytes;
 use multisig_contract_common::msg::ProposalResponse;
 use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
@@ -22,13 +22,10 @@ pub trait Client {
     async fn get_current_epoch_state(&self) -> Result<EpochState>;
     async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse>;
     async fn get_current_dealers(&self) -> Result<Vec<DealerDetails>>;
-    async fn get_dealings(&self) -> Result<Vec<ContractDealing>>;
+    async fn get_dealings(&self, idx: usize) -> Result<Vec<ContractDealing>>;
     async fn vote_proposal(&self, proposal_id: u64, vote_yes: bool, fee: Option<Fee>)
         -> Result<()>;
     async fn register_dealer(&self, bte_key: EncodedBTEPublicKeyWithProof)
         -> Result<ExecuteResult>;
-    async fn submit_dealings(
-        &self,
-        dealings_bytes: [ContractSafeBytes; TOTAL_DEALINGS],
-    ) -> Result<ExecuteResult>;
+    async fn submit_dealing(&self, dealing_bytes: ContractSafeBytes) -> Result<ExecuteResult>;
 }

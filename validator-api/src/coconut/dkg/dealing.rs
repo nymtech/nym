@@ -4,6 +4,7 @@
 use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::state::{ConsistentState, State};
 use crate::coconut::error::CoconutError;
+use coconut_dkg_common::types::TOTAL_DEALINGS;
 use contracts_common::dealings::ContractSafeBytes;
 use dkg::bte::setup;
 use dkg::Dealing;
@@ -15,6 +16,7 @@ pub(crate) async fn dealing_exchange(
     rng: impl RngCore + Clone,
 ) -> Result<(), CoconutError> {
     if state.receiver_index().is_some() {
+        info!("Already have index {}", state.receiver_index().unwrap());
         return Ok(());
     }
 
@@ -24,13 +26,13 @@ pub(crate) async fn dealing_exchange(
 
     state.set_dealers(dealers);
     state.set_threshold(threshold);
-    let receivers = state.current_receivers();
+    let receivers = state.current_dealers_by_idx();
     let params = setup();
     let dealer_index = state.node_index_value()?;
     let receiver_index = receivers
         .keys()
         .position(|node_index| *node_index == dealer_index);
-    let dealings_bytes = core::array::from_fn(|_| {
+    for _ in 0..TOTAL_DEALINGS {
         let (dealing, _) = Dealing::create(
             rng.clone(),
             &params,
@@ -39,10 +41,13 @@ pub(crate) async fn dealing_exchange(
             &receivers,
             None,
         );
+        dkg_client
+            .submit_dealing(ContractSafeBytes::from(&dealing))
+            .await?;
+    }
 
-        ContractSafeBytes::from(&dealing)
-    });
+    info!("Setting index to {}", receiver_index.unwrap());
     state.set_receiver_index(receiver_index);
 
-    dkg_client.submit_dealings(dealings_bytes).await
+    Ok(())
 }

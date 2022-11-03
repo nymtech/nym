@@ -3,10 +3,11 @@
 
 use crate::coconut::dkg::complaints::ComplaintReason;
 use crate::coconut::error::CoconutError;
+use crate::coconut::keypair::KeyPair as CoconutKeyPair;
 use coconut_dkg_common::dealer::DealerDetails;
 use coconut_dkg_common::types::EpochState;
 use cosmwasm_std::Addr;
-use dkg::bte::{keys::KeyPair, PublicKey, PublicKeyWithProof};
+use dkg::bte::{keys::KeyPair as DkgKeyPair, PublicKey, PublicKeyWithProof};
 use dkg::{NodeIndex, Threshold};
 use std::collections::BTreeMap;
 
@@ -38,7 +39,7 @@ impl TryFrom<DealerDetails> for DkgParticipant {
 
 pub(crate) trait ConsistentState {
     fn node_index_value(&self) -> Result<NodeIndex, CoconutError>;
-    fn receiver_index(&self) -> Result<usize, CoconutError>;
+    fn receiver_index_value(&self) -> Result<usize, CoconutError>;
     fn threshold(&self) -> Result<Threshold, CoconutError>;
     fn is_consistent(&self, epoch_state: EpochState) -> Result<(), CoconutError> {
         match epoch_state {
@@ -48,12 +49,12 @@ pub(crate) trait ConsistentState {
             }
             EpochState::VerificationKeySubmission => {
                 self.node_index_value()?;
-                self.receiver_index()?;
+                self.receiver_index_value()?;
                 self.threshold()?;
             }
             EpochState::InProgress => {
                 self.node_index_value()?;
-                self.receiver_index()?;
+                self.receiver_index_value()?;
                 self.threshold()?;
             }
         }
@@ -62,7 +63,8 @@ pub(crate) trait ConsistentState {
 }
 
 pub(crate) struct State {
-    keypair: KeyPair,
+    dkg_keypair: DkgKeyPair,
+    coconut_keypair: CoconutKeyPair,
     node_index: Option<NodeIndex>,
     dealers: BTreeMap<Addr, Result<DkgParticipant, ComplaintReason>>,
     receiver_index: Option<usize>,
@@ -76,7 +78,7 @@ impl ConsistentState for State {
         })
     }
 
-    fn receiver_index(&self) -> Result<usize, CoconutError> {
+    fn receiver_index_value(&self) -> Result<usize, CoconutError> {
         self.receiver_index.ok_or(CoconutError::UnrecoverableState {
             reason: String::from("Receiver index should have been set"),
         })
@@ -86,7 +88,7 @@ impl ConsistentState for State {
         let threshold = self.threshold.ok_or(CoconutError::UnrecoverableState {
             reason: String::from("Threshold should have been set"),
         })?;
-        if self.current_receivers().len() < threshold as usize {
+        if self.current_dealers_by_idx().len() < threshold as usize {
             Err(CoconutError::UnrecoverableState {
                 reason: String::from(
                     "Not enough good dealers in the signer set to achieve threshold",
@@ -99,9 +101,10 @@ impl ConsistentState for State {
 }
 
 impl State {
-    pub fn new(keypair: KeyPair) -> Self {
+    pub fn new(dkg_keypair: DkgKeyPair, coconut_keypair: CoconutKeyPair) -> Self {
         State {
-            keypair,
+            dkg_keypair,
+            coconut_keypair,
             node_index: None,
             dealers: BTreeMap::new(),
             receiver_index: None,
@@ -109,8 +112,12 @@ impl State {
         }
     }
 
-    pub fn keypair(&self) -> &KeyPair {
-        &self.keypair
+    pub fn dkg_keypair(&self) -> &DkgKeyPair {
+        &self.dkg_keypair
+    }
+
+    pub async fn coconut_keypair_is_some(&self) -> bool {
+        self.coconut_keypair.get().await.is_some()
     }
 
     pub fn node_index(&self) -> Option<NodeIndex> {
@@ -121,15 +128,19 @@ impl State {
         self.receiver_index
     }
 
-    pub fn current_dealers(&self) -> Vec<Addr> {
+    pub fn current_dealers_by_addr(&self) -> BTreeMap<Addr, NodeIndex> {
         self.dealers
             .iter()
-            .filter_map(|(addr, r)| r.as_ref().ok().map(|_| addr))
-            .cloned()
+            .filter_map(|(addr, dealer)| {
+                dealer
+                    .as_ref()
+                    .ok()
+                    .map(|participant| (addr.clone(), participant.assigned_index))
+            })
             .collect()
     }
 
-    pub fn current_receivers(&self) -> BTreeMap<NodeIndex, PublicKey> {
+    pub fn current_dealers_by_idx(&self) -> BTreeMap<NodeIndex, PublicKey> {
         self.dealers
             .iter()
             .filter_map(|(_, dealer)| {
@@ -141,6 +152,10 @@ impl State {
                 })
             })
             .collect()
+    }
+
+    pub async fn set_coconut_keypair(&mut self, coconut_keypair: coconut_interface::KeyPair) {
+        self.coconut_keypair.set(coconut_keypair).await
     }
 
     pub fn set_node_index(&mut self, node_index: NodeIndex) {

@@ -11,7 +11,7 @@ use cosmwasm_std::{DepsMut, MessageInfo, Response};
 pub fn try_commit_dealings(
     deps: DepsMut<'_>,
     info: MessageInfo,
-    dealings_bytes: [ContractSafeBytes; TOTAL_DEALINGS],
+    dealing_bytes: ContractSafeBytes,
 ) -> Result<Response, ContractError> {
     check_epoch_state(deps.storage, EpochState::DealingExchange)?;
     // ensure the sender is a dealer for the current epoch
@@ -22,13 +22,14 @@ pub fn try_commit_dealings(
         return Err(ContractError::NotADealer);
     }
 
-    // check if this dealer has already committed to a dealing
-    // (we don't want to allow overwriting it as some receivers might already be using the commitment)
-    if DEALINGS_BYTES.has(deps.storage, &info.sender) {
-        return Err(ContractError::AlreadyCommitted);
+    // check if this dealer has already committed to all dealings
+    // (we don't want to allow overwriting anything)
+    for idx in 0..TOTAL_DEALINGS {
+        if !DEALINGS_BYTES[idx].has(deps.storage, &info.sender) {
+            DEALINGS_BYTES[idx].save(deps.storage, &info.sender, &dealing_bytes)?;
+            return Ok(Response::default());
+        }
     }
 
-    DEALINGS_BYTES.save(deps.storage, &info.sender, &dealings_bytes)?;
-
-    Ok(Response::new())
+    Err(ContractError::AlreadyCommitted)
 }

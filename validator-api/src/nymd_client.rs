@@ -28,7 +28,7 @@ use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse
 #[cfg(feature = "coconut")]
 use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
 #[cfg(feature = "coconut")]
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState, TOTAL_DEALINGS};
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
 #[cfg(feature = "coconut")]
 use contracts_common::dealings::ContractSafeBytes;
 #[cfg(feature = "coconut")]
@@ -325,8 +325,11 @@ where
         Ok(self.0.read().await.get_all_nymd_current_dealers().await?)
     }
 
-    async fn get_dealings(&self) -> crate::coconut::error::Result<Vec<ContractDealing>> {
-        Ok(self.0.read().await.get_all_nymd_epoch_dealings().await?)
+    async fn get_dealings(
+        &self,
+        idx: usize,
+    ) -> crate::coconut::error::Result<Vec<ContractDealing>> {
+        Ok(self.0.read().await.get_all_nymd_epoch_dealings(idx).await?)
     }
 
     async fn vote_proposal(
@@ -357,16 +360,16 @@ where
             .await?)
     }
 
-    async fn submit_dealings(
+    async fn submit_dealing(
         &self,
-        dealing_bytes: [ContractSafeBytes; TOTAL_DEALINGS],
+        dealing_bytes: ContractSafeBytes,
     ) -> Result<ExecuteResult, CoconutError> {
         Ok(self
             .0
             .write()
             .await
             .nymd
-            .submit_dealings_bytes(dealing_bytes, None)
+            .submit_dealing_bytes(dealing_bytes, None)
             .await?)
     }
 }

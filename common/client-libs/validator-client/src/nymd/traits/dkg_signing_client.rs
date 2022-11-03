@@ -7,7 +7,7 @@ use crate::nymd::traits::dkg_query_client::DkgQueryClient;
 use crate::nymd::{Fee, NymdClient, SigningCosmWasmClient};
 use async_trait::async_trait;
 use coconut_dkg_common::msg::ExecuteMsg as DkgExecuteMsg;
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, TOTAL_DEALINGS};
+use coconut_dkg_common::types::EncodedBTEPublicKeyWithProof;
 use contracts_common::dealings::ContractSafeBytes;
 
 #[async_trait]
@@ -18,9 +18,9 @@ pub trait DkgSigningClient {
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>;
 
-    async fn submit_dealings_bytes(
+    async fn submit_dealing_bytes(
         &self,
-        commitment: [ContractSafeBytes; TOTAL_DEALINGS],
+        commitment: ContractSafeBytes,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>;
 }
@@ -52,12 +52,12 @@ where
             .await
     }
 
-    async fn submit_dealings_bytes(
+    async fn submit_dealing_bytes(
         &self,
-        dealings_bytes: [ContractSafeBytes; TOTAL_DEALINGS],
+        dealing_bytes: ContractSafeBytes,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError> {
-        let req = DkgExecuteMsg::CommitDealing { dealings_bytes };
+        let req = DkgExecuteMsg::CommitDealing { dealing_bytes };
 
         self.client
             .execute(

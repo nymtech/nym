@@ -1,3 +1,7 @@
+// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::tests::helpers::tests::generate_dkg_keys;
 use crate::{
     aggregate_verification_keys, setup, tests::helpers::*, ttp_keygen, verify_credential,
     CoconutError, VerificationKey,

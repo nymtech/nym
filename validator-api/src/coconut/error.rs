@@ -90,6 +90,9 @@ pub enum CoconutError {
 
     #[error("Unrecoverable state: {reason}. Process should be restarted")]
     UnrecoverableState { reason: String },
+
+    #[error("DKG has not finished yet in order to derive the coconut key")]
+    KeyPairNotDerivedYet,
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {

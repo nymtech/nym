@@ -32,6 +32,7 @@ pub trait DkgQueryClient {
     async fn get_deposit_amount(&self) -> Result<MinimumDepositResponse, NymdError>;
     async fn get_dealings_paged(
         &self,
+        idx: usize,
         start_after: Option<String>,
         page_limit: Option<u32>,
     ) -> Result<PagedDealingsResponse, NymdError>;
@@ -97,10 +98,12 @@ where
 
     async fn get_dealings_paged(
         &self,
+        idx: usize,
         start_after: Option<String>,
         page_limit: Option<u32>,
     ) -> Result<PagedDealingsResponse, NymdError> {
-        let request = DkgQueryMsg::GetDealings {
+        let request = DkgQueryMsg::GetDealing {
+            idx: idx as u64,
             limit: page_limit,
             start_after,
         };

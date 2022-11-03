@@ -579,6 +579,7 @@ impl<C> Client<C> {
 
     pub async fn get_all_nymd_epoch_dealings(
         &self,
+        idx: usize,
     ) -> Result<Vec<ContractDealing>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync + Send,
@@ -588,7 +589,7 @@ impl<C> Client<C> {
         loop {
             let mut paged_response = self
                 .nymd
-                .get_dealings_paged(start_after.take(), self.dealers_page_limit)
+                .get_dealings_paged(idx, start_after.take(), self.dealers_page_limit)
                 .await?;
             dealings.append(&mut paged_response.dealings);
 

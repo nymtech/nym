@@ -13,9 +13,10 @@ import {
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import CallMadeIcon from '@mui/icons-material/CallMade';
+import CallReceivedIcon from '@mui/icons-material/CallReceived';
 import PersonIcon from '@mui/icons-material/Person';
+import PersonOffIcon from '@mui/icons-material/PersonOff';
 import { NymLogo } from '@nymproject/react/logo/NymLogo';
 import { NymThemeProvider } from '@nymproject/mui-theme';
 import { useTheme } from '@mui/material/styles';
@@ -182,7 +183,7 @@ export const Content: React.FC = () => {
             ) : (
               <TextField
                 id="recipientSendToSelf"
-                label="Recipient address"
+                label="Send to your address"
                 value={address}
                 onChange={() => undefined}
                 InputLabelProps={{ shrink: true }}
@@ -190,8 +191,13 @@ export const Content: React.FC = () => {
                   readOnly: true,
                   endAdornment: (
                     <InputAdornment position="end">
-                      <Tooltip title="Use your own address to send messages to yourself" arrow>
-                        <PersonIcon sx={{ cursor: 'pointer' }} onClick={() => setSendToSelf(false)} />
+                      <Tooltip title="Click to use another address" arrow>
+                        <PersonOffIcon
+                          sx={{ cursor: 'pointer' }}
+                          onClick={() => {
+                            setSendToSelf(false);
+                          }}
+                        />
                       </Tooltip>
                     </InputAdornment>
                   ),
@@ -219,9 +225,9 @@ export const Content: React.FC = () => {
             direction="row"
             spacing={2}
             alignItems="start"
-            sx={{ color: item.kind === 'tx' ? theme.palette.success.main : theme.palette.primary.main }}
+            sx={{ color: item.kind === 'tx' ? theme.palette.success.main : theme.palette.info.main }}
           >
-            {item.kind === 'tx' ? <ArrowForwardIcon /> : <ArrowBackIcon />}
+            {item.kind === 'tx' ? <CallMadeIcon /> : <CallReceivedIcon />}
             <Chip variant="outlined" label={item.timestamp.toLocaleTimeString()} />
             <Typography>{item.message}</Typography>
           </Stack>

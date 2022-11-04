@@ -5,13 +5,10 @@ jobs:
   cargo-deny:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: EmbarkStudios/cargo-deny-action@v1
-        with:
-          log-level: warn
-          command: check
-          arguments: --all-features
-          command-arguments: "advisories >> .github/workflows/support-files/deny.message"
+      - name: Checkout repository code
+        uses: actions/checkout@v2
+      - name: Run cargo deny
+        run: cargo deny check advisories --hide-inclusion-graph &> .github/workflows/support-files/deny.message
       - uses: actions/upload-artifact@v3
         with:
           name: report

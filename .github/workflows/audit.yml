@@ -14,11 +14,11 @@ jobs:
       - name: Install cargo deny
         run: cargo install --locked cargo-deny
       - name: Run cargo deny
-        run: cargo deny check advisories --hide-inclusion-graph &> .github/workflows/support-files/deny.message
+        run: cargo deny check advisories --hide-inclusion-graph &> .github/workflows/support-files/notifications/deny.message
       - uses: actions/upload-artifact@v3
         with:
           name: report
-          path: .github/workflows/support-files/deny.message
+          path: .github/workflows/support-files/notifications/deny.message
   notification:
     needs: cargo-deny
     runs-on: ubuntu-latest
@@ -29,7 +29,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: report
-          path: .github/workflows/support-files/deny.message
+          path: .github/workflows/support-files/notifications/deny.message
       - name: Keybase - Node Install
         run: npm install
         working-directory: .github/workflows/support-files

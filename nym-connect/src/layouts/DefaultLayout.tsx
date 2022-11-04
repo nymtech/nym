@@ -1,6 +1,5 @@
 import React from 'react';
 import { Typography } from '@mui/material';
-import { AppWindowFrame } from '../components/AppWindowFrame';
 import { ConnectionButton } from '../components/ConnectionButton';
 import { ConnectionStatusKind } from '../types';
 import { NeedHelp } from '../components/NeedHelp';
@@ -24,11 +23,7 @@ export const DefaultLayout: React.FC<{
   const { serviceProvider: currentSp } = useClientContext();
 
   return (
-    <AppWindowFrame>
-      <Typography fontWeight="400" fontSize="12px" textAlign="center" sx={{ opacity: 0.6 }}>
-        This is experimental software. <br />
-        Do not rely on it for strong anonymity (yet).
-      </Typography>
+    <>
       <Typography fontWeight="700" fontSize="14px" textAlign="center" pt={2}>
         Connect to the
         <br />
@@ -43,6 +38,6 @@ export const DefaultLayout: React.FC<{
         onClick={onConnectClick}
       />
       <NeedHelp />
-    </AppWindowFrame>
+    </>
   );
 };

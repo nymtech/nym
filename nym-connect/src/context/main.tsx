@@ -19,8 +19,10 @@ type TClientContext = {
   connectedSince?: DateTime;
   services?: Services;
   serviceProvider?: ServiceProvider;
+  showHelp: boolean;
 
   setMode: (mode: ModeType) => void;
+  handleShowHelp: () => void;
   setConnectionStatus: (connectionStatus: ConnectionStatusKind) => void;
   setConnectionStats: (connectionStats: ConnectionStatsItem[] | undefined) => void;
   setConnectedSince: (connectedSince: DateTime | undefined) => void;
@@ -39,6 +41,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const [connectedSince, setConnectedSince] = useState<DateTime>();
   const [services, setServices] = React.useState<Services>([]);
   const [serviceProvider, setRawServiceProvider] = React.useState<ServiceProvider>();
+  const [showHelp, setShowHelp] = useState(false);
 
   useEffect(() => {
     invoke('get_services').then((result) => {
@@ -98,6 +101,8 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     }
   };
 
+  const handleShowHelp = () => setShowHelp((show) => !show);
+
   useEffect(() => {
     const validityCheck = async () => {
       if (services.length > 0 && serviceProvider) {
@@ -133,8 +138,10 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       services,
       serviceProvider,
       setServiceProvider,
+      showHelp,
+      handleShowHelp,
     }),
-    [mode, connectedSince, connectionStatus, connectionStats, connectedSince, services, serviceProvider],
+    [mode, connectedSince, showHelp, connectionStatus, connectionStats, connectedSince, services, serviceProvider],
   );
 
   return <ClientContext.Provider value={contextValue}>{children}</ClientContext.Provider>;

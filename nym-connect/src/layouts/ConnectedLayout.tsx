@@ -1,7 +1,6 @@
 import React from 'react';
 import { Box } from '@mui/material';
 import { DateTime } from 'luxon';
-import { AppWindowFrame } from '../components/AppWindowFrame';
 import { ConnectionStatus } from '../components/ConnectionStatus';
 import { ConnectionStatusKind } from '../types';
 import { ConnectionStats, ConnectionStatsItem } from '../components/ConnectionStats';
@@ -21,7 +20,7 @@ export const ConnectedLayout: React.FC<{
   onConnectClick?: (status: ConnectionStatusKind) => void;
   serviceProvider?: ServiceProvider;
 }> = ({ status, stats, ipAddress, port, connectedSince, busy, isError, serviceProvider, onConnectClick }) => (
-  <AppWindowFrame>
+  <>
     <Box pb={4}>
       <ConnectionStatus status={status} connectedSince={connectedSince} serviceProvider={serviceProvider} />
     </Box>
@@ -31,5 +30,5 @@ export const ConnectedLayout: React.FC<{
     {/* <ConnectionStats stats={stats} /> */}
     <ConnectionButton status={status} busy={busy} onClick={onConnectClick} isError={isError} />
     <NeedHelp />
-  </AppWindowFrame>
+  </>
 );

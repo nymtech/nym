@@ -3,6 +3,7 @@ import { ConnectionStatusKind } from './types';
 import { useClientContext } from './context/main';
 import { DefaultLayout } from './layouts/DefaultLayout';
 import { ConnectedLayout } from './layouts/ConnectedLayout';
+import { HelpGuideLayout } from './layouts/HelpGuideLayout';
 
 export const App: React.FC = () => {
   const context = useClientContext();
@@ -25,6 +26,8 @@ export const App: React.FC = () => {
       setBusy(false);
     }
   }, [context.connectionStatus]);
+
+  if (context.showHelp) return <HelpGuideLayout />;
 
   if (
     context.connectionStatus === ConnectionStatusKind.disconnected ||

@@ -15,12 +15,12 @@ module.exports = mergeWithRules({
       inject: true,
       filename: 'index.html',
       template: path.resolve(__dirname, 'src/index.html'),
-      chunks: ['bootstrap'],
+      chunks: ['index'],
     },
   ]),
   {
     entry: {
-      bootstrap: path.resolve(__dirname, 'src/bootstrap.ts'),
+      index: path.resolve(__dirname, 'src/index.tsx'),
       worker: require.resolve('@nymproject/sdk/mixnet/wasm/worker.js'),
     },
     output: {

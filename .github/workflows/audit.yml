@@ -29,7 +29,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: report
-          path: .github/workflows/support-files/notifications/deny.message
+          path: .github/workflows/support-files/notifications
       - name: Keybase - Node Install
         run: npm install
         working-directory: .github/workflows/support-files

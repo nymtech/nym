@@ -77,7 +77,7 @@
     "start": "webpack serve --progress --port 3000",
     "build:dependencies": "run-p build:dependencies:nym-client-wasm build:dependencies:ts-packages",
     "build:dependencies:nym-client-wasm": "../../packages/nym-client-wasm/scripts/build.sh",
-    "build:dependencies:ts-packages": "cd ../../../.. && yarn build",
+    "build:dependencies:ts-packages": "cd ../../../.. && yarn && yarn build",
     "prebuild": "yarn build:dependencies",
     "build": "webpack build --progress --config webpack.prod.js",
     "build:dev": "webpack build --progress",

@@ -7,6 +7,12 @@ jobs:
     steps:
       - name: Checkout repository code
         uses: actions/checkout@v2
+      - name: Install rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: Install cargo deny
+        run: cargo install --locked cargo-deny
       - name: Run cargo deny
         run: cargo deny check advisories --hide-inclusion-graph &> .github/workflows/support-files/deny.message
       - uses: actions/upload-artifact@v3

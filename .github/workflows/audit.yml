@@ -2,35 +2,43 @@ name: Daily security audit
 
 on: workflow_dispatch
 jobs:
-  security_audit:
+  cargo-deny:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/audit-check@v1
+      - uses: actions/checkout@v2
+      - uses: EmbarkStudios/cargo-deny-action@v1
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
+          log-level: warn
+          command: check
+          arguments: --all-features
+          command-arguments: "advisories >> .github/workflows/support-files/deny.message"
+      - uses: actions/upload-artifact@v3
+        with:
+          name: report
+          path: .github/workflows/support-files/deny.message
   notification:
-    if: ${{ failure() }}
-    needs: security_audit
+    needs: cargo-deny
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
+      - name: Download report from previous job
+        uses: actions/download-artifact@v3
+        with:
+          name: report
+          path: .github/workflows/support-files/deny.message
       - name: Keybase - Node Install
         run: npm install
         working-directory: .github/workflows/support-files
       - name: Keybase - Send Notification
         env:
-          NYM_NOTIFICATION_KIND: nightly
-          NYM_PROJECT_NAME: "Nym daily audit"
+          NYM_NOTIFICATION_KIND: security
+          NYM_PROJECT_NAME: "Daily security report"
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
-          GIT_BRANCH: "${GITHUB_REF##*/}"
           KEYBASE_NYMBOT_USERNAME: "${{ secrets.KEYBASE_NYMBOT_USERNAME }}"
           KEYBASE_NYMBOT_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
-          KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBTECH_TEAM }}"
-          KEYBASE_NYM_CHANNEL: "test"
+          KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBOT_TEAM }}"
+          KEYBASE_NYM_CHANNEL: "security"
         uses: docker://keybaseio/client:stable-node
         with:
           args: .github/workflows/support-files/notifications/entry_point.sh

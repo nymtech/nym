@@ -37,7 +37,6 @@ export const DefaultLayout: React.FC<{
         isError={isError}
         onClick={onConnectClick}
       />
-      <NeedHelp />
     </>
   );
 };

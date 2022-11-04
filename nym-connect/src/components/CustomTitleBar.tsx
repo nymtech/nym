@@ -11,7 +11,6 @@ const customTitleBarStyles = {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: '24px',
     padding: '16px',
     paddingBottom: '0px',
     borderTopLeftRadius: '12px',

@@ -29,6 +29,5 @@ export const ConnectedLayout: React.FC<{
     </Box>
     {/* <ConnectionStats stats={stats} /> */}
     <ConnectionButton status={status} busy={busy} onClick={onConnectClick} isError={isError} />
-    <NeedHelp />
   </>
 );

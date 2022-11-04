@@ -1,6 +1,8 @@
 name: Daily security audit
 
-on: workflow_dispatch
+on:
+  schedule:
+    - cron: '5 9 * * *'
 jobs:
   cargo-deny:
     runs-on: ubuntu-latest

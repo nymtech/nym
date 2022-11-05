@@ -1,9 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::HashSet;
-use std::sync::Arc;
-
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
     InputMessage, InputMessageReceiver, InputMessageSender, TransmissionLane,
@@ -121,7 +118,6 @@ impl NymClient {
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
         shutdown: ShutdownListener,
-        active_connections: Arc<tokio::sync::Mutex<HashSet<u64>>>,
         closed_connection_rx: websocket::handler::ClosedConnectionReceiver,
     ) {
         let mut controller_config = real_messages_control::Config::new(
@@ -151,7 +147,6 @@ impl NymClient {
             mix_sender,
             topology_accessor,
             reply_key_storage,
-            active_connections,
             closed_connection_rx,
         )
         .start_with_shutdown(shutdown);
@@ -416,7 +411,6 @@ impl NymClient {
         let sphinx_message_sender =
             Self::start_mix_traffic_controller(gateway_client, shutdown.subscribe());
 
-        let active_connections = Arc::new(tokio::sync::Mutex::new(HashSet::new()));
         let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
 
         self.start_real_traffic_controller(
@@ -426,7 +420,6 @@ impl NymClient {
             input_receiver,
             sphinx_message_sender.clone(),
             shutdown.subscribe(),
-            active_connections,
             closed_connection_rx,
         );
 

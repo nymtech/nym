@@ -2,15 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use futures::channel::mpsc;
-use futures::stream::SplitSink;
 use futures::StreamExt;
 use log::*;
 use ordered_buffer::{OrderedMessage, OrderedMessageBuffer, ReadContiguousData};
 use socks5_requests::ConnectionId;
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::collections::{HashMap, HashSet};
 use task::ShutdownListener;
 
 /// A generic message produced after reading from a socket/connection. It includes data that was
@@ -71,13 +67,10 @@ impl ActiveConnection {
     }
 }
 
-pub type PublishedActiveConnections = Arc<tokio::sync::Mutex<HashSet<ConnectionId>>>;
-
 /// Controller represents a way of managing multiple open connections that are used for socks5
 /// proxy.
 pub struct Controller {
     active_connections: HashMap<ConnectionId, ActiveConnection>,
-    published_active_connections: PublishedActiveConnections,
     receiver: ControllerReceiver,
 
     // TODO: this will need to be either completely removed (from code) or periodically cleaned
@@ -99,14 +92,12 @@ pub struct Controller {
 impl Controller {
     pub fn new(
         shutdown: ShutdownListener,
-        active_connections: PublishedActiveConnections,
         closed_connection_tx: ClosedConnectionSender,
     ) -> (Self, ControllerSender) {
         let (sender, receiver) = mpsc::unbounded();
         (
             Controller {
                 active_connections: HashMap::new(),
-                published_active_connections: active_connections,
                 receiver,
                 recently_closed: HashSet::new(),
                 closed_connection_tx,
@@ -117,15 +108,7 @@ impl Controller {
         )
     }
 
-    //pub fn get_active_connections(&self) -> PublishedActiveConnections {
-    //    self.published_active_connections.clone()
-    //}
-
-    async fn insert_connection(
-        &mut self,
-        conn_id: ConnectionId,
-        connection_sender: ConnectionSender,
-    ) {
+    fn insert_connection(&mut self, conn_id: ConnectionId, connection_sender: ConnectionSender) {
         let active_connection = ActiveConnection {
             is_closed: false,
             connection_sender: Some(connection_sender),
@@ -143,12 +126,9 @@ impl Controller {
                 }
             }
         }
-
-        let mut pub_conns = self.published_active_connections.lock().await;
-        pub_conns.insert(conn_id);
     }
 
-    async fn remove_connection(&mut self, conn_id: ConnectionId) {
+    fn remove_connection(&mut self, conn_id: ConnectionId) {
         debug!("Removing {} from controller", conn_id);
         if self.active_connections.remove(&conn_id).is_none() {
             error!(
@@ -157,9 +137,6 @@ impl Controller {
             )
         }
         self.recently_closed.insert(conn_id);
-
-        let mut pub_conns = self.published_active_connections.lock().await;
-        pub_conns.remove(&conn_id);
 
         // announce closed connections for whoever is interested
         self.closed_connection_tx.unbounded_send(conn_id).unwrap();
@@ -228,9 +205,9 @@ impl Controller {
                         self.send_to_connection(conn_id, data, is_closed)
                     }
                     Some(ControllerCommand::Insert(conn_id, sender)) => {
-                        self.insert_connection(conn_id, sender).await
+                        self.insert_connection(conn_id, sender)
                     }
-                    Some(ControllerCommand::Remove(conn_id)) => self.remove_connection(conn_id).await,
+                    Some(ControllerCommand::Remove(conn_id)) => self.remove_connection(conn_id),
                     None => {
                         log::trace!("SOCKS5 Controller: Stopping since channel closed");
                         break;

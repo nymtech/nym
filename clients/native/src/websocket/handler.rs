@@ -118,7 +118,9 @@ impl Handler {
     }
 
     fn handle_closed_connection(&self, connection_id: u64) -> Option<ServerResponse> {
-        self.closed_connection_tx.unbounded_send(connection_id).unwrap();
+        self.closed_connection_tx
+            .unbounded_send(connection_id)
+            .unwrap();
         None
     }
 

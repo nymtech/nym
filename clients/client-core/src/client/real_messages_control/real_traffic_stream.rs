@@ -48,6 +48,11 @@ const MAX_DELAY_MULTIPLIER: u32 = 6;
 // The minium multiplier we apply to the base average Poisson delay.
 const MIN_DELAY_MULTIPLIER: u32 = 1;
 
+// When prioritizing traffic it can be used to divide lanes into new and old.
+const MSG_CONSIDERED_OLD_AFTER_SECS: u64 = 5;
+// As a way of prune connections we also check for timeouts.
+const MSG_CONSIDERED_STALE_AFTER_SECS: u64 = 30;
+
 /// Configurable parameters of the `OutQueueControl`
 pub(crate) struct Config {
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
@@ -232,14 +237,11 @@ where
     /// Accessor to the common instance of network topology.
     topology_access: TopologyAccessor,
 
-    /// Buffer containing all real messages keyed by connection id
-    //received_buffer: HashMap<TransmissionLane, VecDeque<RealMessage>>,
-    //received_buffer: HashMap<TransmissionLane, LaneBufferEntry>,
+    /// Buffer containing all real messages keyed by transmission lane.
     received_buffer: ReceivedBuffer,
 
-    //active_connections: Arc<std::sync::Mutex<HashSet<u64>>>,
-    active_connections: Arc<tokio::sync::Mutex<HashSet<u64>>>,
-
+    /// Incoming channel for being notified of closed connections, to avoid sending traffic
+    /// unnecessary
     closed_connections_rx: ClosedConnectionReceiver,
 }
 
@@ -289,9 +291,6 @@ impl ReceivedBuffer {
     }
 
     fn store(&mut self, lane: &TransmissionLane, real_messages: Vec<RealMessage>) {
-        //let prev_msgs = self.buffer.entry(lane).or_default();
-        //prev_msgs.append(&mut real_messages.into());
-
         if let Some(lane_buffer_entry) = self.buffer.get_mut(lane) {
             lane_buffer_entry.append(real_messages);
         } else {
@@ -301,14 +300,12 @@ impl ReceivedBuffer {
     }
 
     fn pick_random_lane(&self) -> Option<&TransmissionLane> {
-        // Pick one connection at random to return a stream message from
         let lanes: Vec<&TransmissionLane> = self.buffer.keys().collect();
         log::info!("number of lanes to choose from: {}", lanes.len());
         lanes.choose(&mut rand::thread_rng()).copied()
     }
 
     fn pick_random_small_lane(&self) -> Option<&TransmissionLane> {
-        // Pick one connection at random to return a stream message from
         let lanes: Vec<&TransmissionLane> = self
             .buffer
             .iter()
@@ -325,7 +322,7 @@ impl ReceivedBuffer {
         lanes.choose(&mut rand::thread_rng()).copied()
     }
 
-    fn pop_from_lane(&mut self, lane: &TransmissionLane) -> Option<RealMessage> {
+    fn pop_front_from_lane(&mut self, lane: &TransmissionLane) -> Option<RealMessage> {
         let real_msgs_queued = self.buffer.get_mut(lane)?;
         let real_next = real_msgs_queued.pop_front()?;
         if real_msgs_queued.is_empty() {
@@ -352,6 +349,8 @@ impl ReceivedBuffer {
         log::info!("sec left: {}", total as f64 / 50.0);
         log::info!("min left: {}", total as f64 / 50.0 / 60.0);
 
+        // Very basic heuristic where we prioritize according to small lanes first, the older lanes
+        // to try to finish lanes when possible, then the rest.
         let lane = if let Some(small_lane) = self.pick_random_small_lane() {
             *small_lane
         } else if let Some(old_lane) = self.pick_random_old_lane() {
@@ -360,32 +359,9 @@ impl ReceivedBuffer {
             *self.pick_random_lane()?
         };
 
-        //let lane = self.pick_random_lane()?.clone();
         log::info!("picking to send from lane: {:?}", lane);
 
-        self.pop_from_lane(&lane)
-
-        //// We just picked a valid lane, and returned early if none existed.
-        //let real_msgs_queued = self.buffer.get_mut(&lane).unwrap();
-        //// If an entry exists, it has non-zero number of messages.
-        //let real_next = real_msgs_queued.pop_front().unwrap();
-        //if real_msgs_queued.is_empty() {
-        //    self.buffer.remove(&lane);
-        //}
-        //Some(real_next)
-    }
-
-    async fn purge_closed_connections(&mut self, active_connections: HashSet<u64>) {
-        if active_connections.is_empty() {
-            // not supported
-            return;
-        }
-        let lane_connections = self.connections();
-        let to_remove = lane_connections.difference(&active_connections);
-        for id_to_remove in to_remove {
-            log::info!("Remove connection id: {}", id_to_remove);
-            self.remove(&TransmissionLane::ConnectionId(*id_to_remove));
-        }
+        self.pop_front_from_lane(&lane)
     }
 }
 
@@ -424,11 +400,13 @@ impl LaneBufferEntry {
     }
 
     fn is_old(&self) -> bool {
-        time::Instant::now() - self.time_for_first_activity > Duration::from_secs(5)
+        get_time_now() - self.time_for_first_activity
+            > Duration::from_secs(MSG_CONSIDERED_OLD_AFTER_SECS)
     }
 
     fn is_stale(&self) -> bool {
-        time::Instant::now() - self.time_for_last_activity > Duration::from_secs(30)
+        get_time_now() - self.time_for_last_activity
+            > Duration::from_secs(MSG_CONSIDERED_STALE_AFTER_SECS)
     }
 
     fn len(&self) -> usize {
@@ -481,7 +459,6 @@ where
         rng: R,
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
-        active_connections: Arc<tokio::sync::Mutex<HashSet<u64>>>,
         closed_connections_rx: ClosedConnectionReceiver,
     ) -> Self {
         OutQueueControl {
@@ -499,7 +476,6 @@ where
             rng,
             topology_access,
             received_buffer: Default::default(),
-            active_connections,
             closed_connections_rx,
         }
     }
@@ -517,11 +493,6 @@ where
 
         //let active_connections = self.active_connections.lock().await;
         //log::info!("active_connections: {:?}", active_connections);
-
-        //let active_connections = { self.active_connections.lock().await.clone() };
-        //self.received_buffer
-        //    .purge_closed_connections(active_connections)
-        //    .await;
 
         let (next_message, fragment_id) = match next_message {
             StreamMessage::Cover => {
@@ -656,15 +627,9 @@ where
                 next_delay.as_mut().reset(next_poisson_delay);
             }
 
-            // WIP(JON): prioritize connections according to:
-            // 1. small amount of data
-            // 2. large chunks of data which have been waiting for a longer time
-            // 3. large chunks of data in new connections
-
             // max number of connections
             //if self.received_buffer.len() > 10 {
             //    let real_next = self.pop_next_message_at_random().expect("we just checked");
-
             //    return Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))));
             //}
 
@@ -720,15 +685,14 @@ where
     }
 
     fn poll_immediate(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
-        // WIP(JON): bound the number of connections we allow to store at the same time
-
-        // WIP(JON): prioritize connections according to:
-        // 1. small amount of data
-        // 2. large chunks of data which have been waiting for a longer time
-        // 3. large chunks of data in new connections
-
         //if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connections_rx).poll_next(cx) {
         //    self.on_close_connection(id);
+        //}
+
+        // max number of connections
+        //if self.received_buffer.len() > 10 {
+        //    let real_next = self.pop_next_message_at_random().expect("we just checked");
+        //    return Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))));
         //}
 
         match Pin::new(&mut self.real_receiver).poll_next(cx) {
@@ -775,9 +739,6 @@ where
         mut self: Pin<&mut Self>,
         cx: &mut Context<'_>,
     ) -> Poll<Option<StreamMessage>> {
-        //let id = self.closed_connections_rx.poll_next_unpin(cx);
-        //return id;
-
         if self.config.disable_poisson_packet_distribution {
             self.poll_immediate(cx)
         } else {
@@ -795,16 +756,6 @@ where
                 _ = shutdown.recv() => {
                     log::trace!("OutQueueControl: Received shutdown");
                 }
-                //id = self.closed_connections_rx.next() => match id {
-                //    Some(id) => {
-                //        self.close_connection(id);
-                //    },
-                //    None => {
-                //        log::trace!("OutQueueControl: closed connection channel closed");
-                //    }
-                //}
-                //id = self.closed_connections_rx.next() => {
-                //}
                 next_message = self.next() => match next_message {
                     Some(next_message) => {
                         self.on_message(next_message).await;

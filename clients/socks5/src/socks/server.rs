@@ -10,7 +10,7 @@ use client_core::client::{
 };
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use proxy_helpers::connection_controller::{Controller, PublishedActiveConnections};
+use proxy_helpers::connection_controller::Controller;
 use std::net::SocketAddr;
 use task::ShutdownListener;
 use tokio::net::TcpListener;
@@ -52,7 +52,6 @@ impl SphinxSocksServer {
         &mut self,
         input_sender: InputMessageSender,
         buffer_requester: ReceivedBufferRequestSender,
-        active_connections: PublishedActiveConnections,
         closed_connections_tx: ClosedConnectionSender,
     ) -> Result<(), SocksProxyError> {
         let listener = TcpListener::bind(self.listening_address).await.unwrap();
@@ -60,11 +59,7 @@ impl SphinxSocksServer {
 
         // controller for managing all active connections
         let (mut active_streams_controller, controller_sender) =
-            Controller::new(
-                self.shutdown.clone(),
-                active_connections,
-                closed_connections_tx,
-            );
+            Controller::new(self.shutdown.clone(), closed_connections_tx);
         tokio::spawn(async move {
             active_streams_controller.run().await;
         });

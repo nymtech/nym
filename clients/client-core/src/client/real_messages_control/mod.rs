@@ -21,7 +21,6 @@ use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::params::PacketSize;
 use rand::{rngs::OsRng, CryptoRng, Rng};
-use std::collections::HashSet;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -116,7 +115,6 @@ impl RealMessagesController<OsRng> {
         mix_sender: BatchMixMessageSender,
         topology_access: TopologyAccessor,
         #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
-        active_connections: Arc<tokio::sync::Mutex<HashSet<u64>>>,
         closed_connections_rx: ClosedConnectionReceiver,
     ) -> Self {
         let rng = OsRng;
@@ -167,7 +165,6 @@ impl RealMessagesController<OsRng> {
             rng,
             config.self_recipient,
             topology_access,
-            active_connections,
             closed_connections_rx,
         );
 

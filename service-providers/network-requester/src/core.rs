@@ -16,16 +16,13 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::{
     ClosedConnectionReceiver, Controller, ControllerCommand, ControllerSender,
-    PublishedActiveConnections,
 };
 use socks5_requests::{
     ConnectionId, Message as Socks5Message, NetworkRequesterResponse, Request, Response,
 };
 use statistics_common::collector::StatisticsSender;
-use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
 use task::ShutdownListener;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
@@ -365,18 +362,13 @@ impl ServiceProvider {
 
         let shutdown = task::ShutdownNotifier::default();
 
-        let published_active_connections: PublishedActiveConnections =
-            Arc::new(tokio::sync::Mutex::new(HashSet::new()));
         let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
 
         // Controller for managing all active connections.
         // We provide it with a ShutdownListener since it requires it, even though for the network
         // requester shutdown signalling is not yet fully implemented.
-        let (mut active_connections_controller, mut controller_sender) = Controller::new(
-            shutdown.subscribe(),
-            published_active_connections,
-            closed_connection_tx,
-        );
+        let (mut active_connections_controller, mut controller_sender) =
+            Controller::new(shutdown.subscribe(), closed_connection_tx);
 
         tokio::spawn(async move {
             active_connections_controller.run().await;

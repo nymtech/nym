@@ -750,11 +750,19 @@ where
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
         debug!("Started OutQueueControl with graceful shutdown support");
 
+        let mut status_timer = tokio::time::interval(Duration::from_secs(1));
+
         while !shutdown.is_shutdown() {
             tokio::select! {
                 biased;
                 _ = shutdown.recv() => {
                     log::trace!("OutQueueControl: Received shutdown");
+                }
+                _ = status_timer.tick() => {
+                    let total_size = self.received_buffer.total_size();
+                    let connections = self.received_buffer.connections().len();
+                    log::error!("STATUS: size {total_size}, conns: {connections}");
+
                 }
                 next_message = self.next() => match next_message {
                     Some(next_message) => {

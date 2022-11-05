@@ -52,6 +52,8 @@ const MIN_DELAY_MULTIPLIER: u32 = 1;
 const MSG_CONSIDERED_OLD_AFTER_SECS: u64 = 5;
 // As a way of prune connections we also check for timeouts.
 const MSG_CONSIDERED_STALE_AFTER_SECS: u64 = 30;
+// The max number of concurrent connections handled.
+const MAX_NUMBER_OF_CONNECTIONS: usize = 100;
 
 /// Configurable parameters of the `OutQueueControl`
 pub(crate) struct Config {
@@ -301,7 +303,7 @@ impl ReceivedBuffer {
 
     fn pick_random_lane(&self) -> Option<&TransmissionLane> {
         let lanes: Vec<&TransmissionLane> = self.buffer.keys().collect();
-        log::info!("number of lanes to choose from: {}", lanes.len());
+        //log::info!("number of lanes to choose from: {}", lanes.len());
         lanes.choose(&mut rand::thread_rng()).copied()
     }
 
@@ -312,13 +314,13 @@ impl ReceivedBuffer {
             .filter(|(_, v)| v.is_small())
             .map(|(k, _)| k)
             .collect();
-        log::info!("number of (small) lanes to choose from: {}", lanes.len());
+        //log::info!("number of (small) lanes to choose from: {}", lanes.len());
         lanes.choose(&mut rand::thread_rng()).copied()
     }
 
     fn pick_random_old_lane(&self) -> Option<TransmissionLane> {
         let lanes = self.get_oldest_set();
-        log::info!("number of (old) lanes to choose from: {}", lanes.len());
+        //log::info!("number of (old) lanes to choose from: {}", lanes.len());
         lanes.choose(&mut rand::thread_rng()).copied()
     }
 
@@ -336,18 +338,18 @@ impl ReceivedBuffer {
             return None;
         }
 
-        log::info!("List all received_buffers");
-        for (k, v) in &self.buffer {
-            log::info!("{:?}: packets: {}, is_old: {}", k, v.len(), v.is_old());
-        }
-        let total = self.total_size();
-        log::info!(
-            "Total: {} packets, {} MB",
-            total,
-            total as f64 / 1.5 / 1024.0
-        );
-        log::info!("sec left: {}", total as f64 / 50.0);
-        log::info!("min left: {}", total as f64 / 50.0 / 60.0);
+        //log::info!("List all received_buffers");
+        //for (k, v) in &self.buffer {
+        //    log::info!("{:?}: packets: {}, is_old: {}", k, v.len(), v.is_old());
+        //}
+        //let total = self.total_size();
+        //log::info!(
+        //    "Total: {} packets, {} MB",
+        //    total,
+        //    total as f64 / 1.5 / 1024.0
+        //);
+        //log::info!("sec left: {}", total as f64 / 50.0);
+        //log::info!("min left: {}", total as f64 / 50.0 / 60.0);
 
         // Very basic heuristic where we prioritize according to small lanes first, the older lanes
         // to try to finish lanes when possible, then the rest.
@@ -359,9 +361,22 @@ impl ReceivedBuffer {
             *self.pick_random_lane()?
         };
 
-        log::info!("picking to send from lane: {:?}", lane);
+        //log::info!("picking to send from lane: {:?}", lane);
 
         self.pop_front_from_lane(&lane)
+    }
+
+    fn prune_stale_connections(&mut self) {
+        let stale_entries: Vec<_> = self
+            .buffer
+            .iter()
+            .filter_map(|(lane, entry)| if entry.is_stale() { Some(lane) } else { None })
+            .copied()
+            .collect();
+
+        for lane in stale_entries {
+            self.remove(&lane);
+        }
     }
 }
 
@@ -556,6 +571,7 @@ where
     }
 
     fn on_close_connection(&mut self, connection_id: u64) {
+        log::warn!("removing: {connection_id}");
         self.received_buffer
             .remove(&TransmissionLane::ConnectionId(connection_id));
     }
@@ -599,9 +615,9 @@ where
         let avg_delay = self.current_average_message_sending_delay();
 
         // WIP(JON)
-        //if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connections_rx).poll_next(cx) {
-        //    self.on_close_connection(id);
-        //}
+        if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connections_rx).poll_next(cx) {
+            self.on_close_connection(id);
+        }
 
         if let Some(ref mut next_delay) = &mut self.next_delay {
             // it is not yet time to return a message
@@ -627,11 +643,13 @@ where
                 next_delay.as_mut().reset(next_poisson_delay);
             }
 
+            self.received_buffer.prune_stale_connections();
+
             // max number of connections
-            //if self.received_buffer.len() > 10 {
-            //    let real_next = self.pop_next_message_at_random().expect("we just checked");
-            //    return Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))));
-            //}
+            if self.received_buffer.connections().len() > MAX_NUMBER_OF_CONNECTIONS {
+                let real_next = self.received_buffer.pop_next_message_at_random().unwrap();
+                return Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))));
+            }
 
             match Pin::new(&mut self.real_receiver).poll_next(cx) {
                 // in the case our real message channel stream was closed, we should also indicate we are closed
@@ -639,7 +657,7 @@ where
                 Poll::Ready(None) => Poll::Ready(None),
 
                 Poll::Ready(Some((real_messages, conn_id))) => {
-                    log::info!("handing real_messages: size: {}", real_messages.len());
+                    log::info!("handling real_messages: size: {}", real_messages.len());
 
                     self.received_buffer.store(&conn_id, real_messages);
                     let real_next = self
@@ -685,15 +703,17 @@ where
     }
 
     fn poll_immediate(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
-        //if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connections_rx).poll_next(cx) {
-        //    self.on_close_connection(id);
-        //}
+        if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connections_rx).poll_next(cx) {
+            self.on_close_connection(id);
+        }
+
+        self.received_buffer.prune_stale_connections();
 
         // max number of connections
-        //if self.received_buffer.len() > 10 {
-        //    let real_next = self.pop_next_message_at_random().expect("we just checked");
-        //    return Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))));
-        //}
+        if self.received_buffer.connections().len() > MAX_NUMBER_OF_CONNECTIONS {
+            let real_next = self.received_buffer.pop_next_message_at_random().unwrap();
+            return Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))));
+        }
 
         match Pin::new(&mut self.real_receiver).poll_next(cx) {
             // in the case our real message channel stream was closed, we should also indicate we are closed
@@ -763,6 +783,18 @@ where
                     let connections = self.received_buffer.connections().len();
                     log::error!("STATUS: size {total_size}, conns: {connections}");
 
+                    log::info!("List all received_buffers");
+                    for (k, v) in &self.received_buffer.buffer {
+                        log::info!("{:?}: packets: {}, is_old: {}", k, v.len(), v.is_old());
+                    }
+                    let total = self.received_buffer.total_size();
+                    log::info!(
+                        "Total: {} packets, {} MB",
+                        total,
+                        total as f64 / 1.5 / 1024.0
+                    );
+                    log::info!("sec left: {}", total as f64 / 50.0);
+                    log::info!("min left: {}", total as f64 / 50.0 / 60.0);
                 }
                 next_message = self.next() => match next_message {
                     Some(next_message) => {

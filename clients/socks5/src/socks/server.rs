@@ -52,14 +52,14 @@ impl SphinxSocksServer {
         &mut self,
         input_sender: InputMessageSender,
         buffer_requester: ReceivedBufferRequestSender,
-        closed_connections_tx: ClosedConnectionSender,
+        closed_connection_tx: ClosedConnectionSender,
     ) -> Result<(), SocksProxyError> {
         let listener = TcpListener::bind(self.listening_address).await.unwrap();
         info!("Serving Connections...");
 
         // controller for managing all active connections
         let (mut active_streams_controller, controller_sender) =
-            Controller::new(self.shutdown.clone(), closed_connections_tx);
+            Controller::new(closed_connection_tx, self.shutdown.clone());
         tokio::spawn(async move {
             active_streams_controller.run().await;
         });

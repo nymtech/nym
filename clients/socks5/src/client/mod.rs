@@ -120,8 +120,8 @@ impl NymClient {
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
+        closed_connection_rx: ClosedConnectionReceiver,
         shutdown: ShutdownListener,
-        closed_connections_rx: ClosedConnectionReceiver,
     ) {
         let mut controller_config = client_core::client::real_messages_control::Config::new(
             self.key_manager.ack_key(),
@@ -150,7 +150,7 @@ impl NymClient {
             mix_sender,
             topology_accessor,
             reply_key_storage,
-            closed_connections_rx,
+            closed_connection_rx,
         )
         .start_with_shutdown(shutdown);
     }
@@ -284,8 +284,8 @@ impl NymClient {
         &self,
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
+        closed_connection_tx: ClosedConnectionSender,
         shutdown: ShutdownListener,
-        closed_connections_tx: ClosedConnectionSender,
     ) {
         info!("Starting socks5 listener...");
         let auth_methods = vec![AuthenticationMethods::NoAuth as u8];
@@ -301,7 +301,7 @@ impl NymClient {
         );
         tokio::spawn(async move {
             sphinx_socks
-                .serve(msg_input, buffer_requester, closed_connections_tx)
+                .serve(msg_input, buffer_requester, closed_connection_tx)
                 .await
         });
     }
@@ -406,6 +406,8 @@ impl NymClient {
         let sphinx_message_sender =
             Self::start_mix_traffic_controller(gateway_client, shutdown.subscribe());
 
+        // Channel for announcing closed (socks5) connections by the controller.
+        // This will be forwarded to ...
         let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
 
         self.start_real_traffic_controller(
@@ -414,8 +416,8 @@ impl NymClient {
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
-            shutdown.subscribe(),
             closed_connection_rx,
+            shutdown.subscribe(),
         );
 
         if !self
@@ -433,8 +435,8 @@ impl NymClient {
         self.start_socks5_listener(
             received_buffer_request_sender,
             input_sender,
-            shutdown.subscribe(),
             closed_connection_tx,
+            shutdown.subscribe(),
         );
 
         info!("Client startup finished!");

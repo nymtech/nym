@@ -7,8 +7,10 @@ use client_core::client::inbound_messages::{
 };
 use client_core::client::key_manager::KeyManager;
 use client_core::client::mix_traffic::{BatchMixMessageSender, MixTrafficController};
-use client_core::client::real_messages_control;
 use client_core::client::real_messages_control::RealMessagesController;
+use client_core::client::real_messages_control::{
+    self, ClosedConnectionReceiver, ClosedConnectionSender,
+};
 use client_core::client::received_buffer::{
     ReceivedBufferMessage, ReceivedBufferRequestReceiver, ReceivedBufferRequestSender,
     ReceivedMessagesBufferController, ReconstructedMessagesReceiver,
@@ -118,8 +120,8 @@ impl NymClient {
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
+        closed_connection_rx: ClosedConnectionReceiver,
         shutdown: ShutdownListener,
-        closed_connection_rx: websocket::handler::ClosedConnectionReceiver,
     ) {
         let mut controller_config = real_messages_control::Config::new(
             self.key_manager.ack_key(),
@@ -282,7 +284,7 @@ impl NymClient {
         &self,
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
-        closed_connection_tx: websocket::handler::ClosedConnectionSender,
+        closed_connection_tx: ClosedConnectionSender,
     ) {
         info!("Starting websocket listener...");
 
@@ -420,8 +422,8 @@ impl NymClient {
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
-            shutdown.subscribe(),
             closed_connection_rx,
+            shutdown.subscribe(),
         );
 
         if !self

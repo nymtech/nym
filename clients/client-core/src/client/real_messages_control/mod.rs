@@ -30,8 +30,11 @@ use crate::client::reply_key_storage::ReplyKeyStorage;
 mod acknowledgement_control;
 mod real_traffic_stream;
 
-/// Announce connections that are closed
-// WIP(JON) dedup
+/// The `RealMessagesController` through the `OutQueueControl` listens to closed connections.
+// WIP(JON) This guy is used across 1) native client, 2) socks5 client, 3) network-requester 4)
+// client-core. Currently the definition is duplicated, and the type sent is `ConnectionId` in the
+// socks5 common code, but u64 elsewhere.
+// Need to figure out a better way to share this.
 pub type ClosedConnectionSender = mpsc::UnboundedSender<u64>;
 pub type ClosedConnectionReceiver = mpsc::UnboundedReceiver<u64>;
 
@@ -115,7 +118,7 @@ impl RealMessagesController<OsRng> {
         mix_sender: BatchMixMessageSender,
         topology_access: TopologyAccessor,
         #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
-        closed_connections_rx: ClosedConnectionReceiver,
+        closed_connection_rx: ClosedConnectionReceiver,
     ) -> Self {
         let rng = OsRng;
 
@@ -165,7 +168,7 @@ impl RealMessagesController<OsRng> {
             rng,
             config.self_recipient,
             topology_access,
-            closed_connections_rx,
+            closed_connection_rx,
         );
 
         RealMessagesController {

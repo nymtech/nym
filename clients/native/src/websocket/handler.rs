@@ -3,6 +3,7 @@
 
 use client_core::client::{
     inbound_messages::{InputMessage, InputMessageSender, TransmissionLane},
+    real_messages_control::ClosedConnectionSender,
     received_buffer::{
         ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
     },
@@ -31,11 +32,6 @@ impl Default for ReceivedResponseType {
         ReceivedResponseType::Binary
     }
 }
-
-/// Announce connections that are closed
-// WIP(JON): it's not ideal that this is duplicated, fixme
-pub type ClosedConnectionSender = mpsc::UnboundedSender<u64>;
-pub type ClosedConnectionReceiver = mpsc::UnboundedReceiver<u64>;
 
 pub(crate) struct Handler {
     msg_input: InputMessageSender,

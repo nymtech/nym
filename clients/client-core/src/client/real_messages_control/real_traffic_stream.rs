@@ -246,7 +246,7 @@ where
 
     /// Incoming channel for being notified of closed connections, to avoid sending traffic
     /// unnecessary
-    closed_connections_rx: ClosedConnectionReceiver,
+    closed_connection_rx: ClosedConnectionReceiver,
 }
 
 #[derive(Default)]
@@ -464,7 +464,7 @@ where
         rng: R,
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
-        closed_connections_rx: ClosedConnectionReceiver,
+        closed_connection_rx: ClosedConnectionReceiver,
     ) -> Self {
         OutQueueControl {
             config,
@@ -481,7 +481,7 @@ where
             rng,
             topology_access,
             received_buffer: Default::default(),
-            closed_connections_rx,
+            closed_connection_rx,
         }
     }
 
@@ -602,7 +602,7 @@ where
         let avg_delay = self.current_average_message_sending_delay();
 
         // Start by checking if we have any incoming messages about closed connections
-        if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connections_rx).poll_next(cx) {
+        if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connection_rx).poll_next(cx) {
             self.on_close_connection(id);
         }
 
@@ -692,7 +692,7 @@ where
     }
 
     fn poll_immediate(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
-        if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connections_rx).poll_next(cx) {
+        if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connection_rx).poll_next(cx) {
             self.on_close_connection(id);
         }
 

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::allowed_hosts::{HostsStore, OutboundRequestFilter};
-//use crate::closed_connection_announcer::ClosedConnectionAnnouncer;
 use crate::connection::Connection;
 use crate::error::NetworkRequesterError;
 use crate::statistics::ServiceStatisticsCollector;
@@ -15,7 +14,7 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::{
-    ClosedConnectionReceiver, Controller, ControllerCommand, ControllerSender,
+    Controller, ControllerCommand, ControllerSender, Socks5ClosedConnectionReceiver,
 };
 use socks5_requests::{
     ConnectionId, Message as Socks5Message, NetworkRequesterResponse, Request, Response,
@@ -71,7 +70,7 @@ impl ServiceProvider {
         mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
         mut mix_reader: mpsc::UnboundedReceiver<(Socks5Message, Recipient)>,
         stats_collector: Option<ServiceStatisticsCollector>,
-        mut closed_connection_rx: ClosedConnectionReceiver,
+        mut closed_connection_rx: Socks5ClosedConnectionReceiver,
     ) {
         loop {
             tokio::select! {
@@ -110,6 +109,7 @@ impl ServiceProvider {
                     }
                 },
                 Some(id) = closed_connection_rx.next() => {
+                    // WIP(JON): here is an implicit conversion from ConnectionId to u64
                     let msg = ClientRequest::ClosedConnection(id);
                     let ws_msg = Message::Binary(msg.serialize());
                     websocket_writer.send(ws_msg).await.unwrap();
@@ -333,14 +333,16 @@ impl ServiceProvider {
         // Used to notify tasks to shutdown
         let shutdown = task::ShutdownNotifier::default();
 
-        // Channel for announcing closed connections by the controller
+        // Channel for announcing closed (socks5) connections by the controller.
+        // The `mixnet_response_listener` will forward this info to the client using a
+        // `ClientRequest`.
         let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
 
         // Controller for managing all active connections.
         // We provide it with a ShutdownListener since it requires it, even though for the network
         // requester shutdown signalling is not yet fully implemented.
         let (mut active_connections_controller, mut controller_sender) =
-            Controller::new(shutdown.subscribe(), closed_connection_tx);
+            Controller::new(closed_connection_tx, shutdown.subscribe());
 
         tokio::spawn(async move {
             active_connections_controller.run().await;

@@ -104,7 +104,7 @@ where
         content: Vec<u8>,
         with_reply_surb: bool,
     ) -> Option<Vec<RealMessage>> {
-        log::info!("handling msg size: {}", content.len());
+        log::trace!("handling msg size: {}", content.len());
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = match topology_permit
             .try_get_valid_topology_ref(&self.ack_recipient, Some(&recipient))

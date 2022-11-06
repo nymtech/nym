@@ -75,8 +75,9 @@ impl ServiceProvider {
     ) {
         loop {
             tokio::select! {
-                m = mix_reader.next() => match m {
-                    Some((msg, return_address)) => {
+                // TODO: wire SURBs in here once they're available
+                socks5_msg = mix_reader.next() => {
+                    if let Some((msg, return_address)) = socks5_msg {
                         if let Some(stats_collector) = stats_collector.as_ref() {
                             if let Some(remote_addr) = stats_collector
                                 .connected_services
@@ -103,8 +104,7 @@ impl ServiceProvider {
 
                         let message = Message::Binary(response_message.serialize());
                         websocket_writer.send(message).await.unwrap();
-                    },
-                    None => {
+                    } else {
                         log::error!("Exiting: channel closed!");
                         break;
                     }
@@ -116,36 +116,6 @@ impl ServiceProvider {
                 }
             }
         }
-
-        // TODO: wire SURBs in here once they're available
-        //while let Some((msg, return_address)) = mix_reader.next().await {
-        //    if let Some(stats_collector) = stats_collector.as_ref() {
-        //        if let Some(remote_addr) = stats_collector
-        //            .connected_services
-        //            .read()
-        //            .await
-        //            .get(&msg.conn_id())
-        //        {
-        //            stats_collector
-        //                .response_stats_data
-        //                .write()
-        //                .await
-        //                .processed(remote_addr, msg.size() as u32);
-        //        }
-        //    }
-        //    let conn_id = msg.conn_id();
-
-        //    // make 'request' to native-websocket client
-        //    let response_message = ClientRequest::Send {
-        //        recipient: return_address,
-        //        message: msg.into_bytes(),
-        //        with_reply_surb: false,
-        //        connection_id: conn_id,
-        //    };
-
-        //    let message = Message::Binary(response_message.serialize());
-        //    websocket_writer.send(message).await.unwrap();
-        //}
     }
 
     async fn read_websocket_message(
@@ -360,8 +330,10 @@ impl ServiceProvider {
         let (mix_input_sender, mix_input_receiver) =
             mpsc::unbounded::<(Socks5Message, Recipient)>();
 
+        // Used to notify tasks to shutdown
         let shutdown = task::ShutdownNotifier::default();
 
+        // Channel for announcing closed connections by the controller
         let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
 
         // Controller for managing all active connections.
@@ -373,13 +345,6 @@ impl ServiceProvider {
         tokio::spawn(async move {
             active_connections_controller.run().await;
         });
-
-        // ClosedConnectionAnnouncer
-        //let closed_connection_announcer =
-        //ClosedConnectionAnnouncer::new(closed_connection_receiver, websocket_writer);
-        //tokio::spawn(async move {
-        //closed_connection_announcer.run().await;
-        //});
 
         let stats_collector = if self.enable_statistics {
             let stats_collector =

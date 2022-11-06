@@ -63,7 +63,7 @@ where
 
     // if we're sending through the mixnet increase the sequence number...
     let ordered_msg = message_sender.wrap_message(read_data.to_vec()).into_bytes();
-    log::info!(
+    log::trace!(
         "pushing data down the input sender: size: {}",
         ordered_msg.len()
     );

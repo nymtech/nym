@@ -558,7 +558,7 @@ where
     }
 
     fn on_close_connection(&mut self, connection_id: u64) {
-        log::warn!("removing: {connection_id}");
+        log::warn!("Removing lane for connection: {connection_id}");
         self.received_buffer
             .remove(&TransmissionLane::ConnectionId(connection_id));
     }
@@ -710,7 +710,7 @@ where
             Poll::Ready(None) => Poll::Ready(None),
 
             Poll::Ready(Some((real_messages, conn_id))) => {
-                log::info!("handing real_messages: size: {}", real_messages.len());
+                log::trace!("handling real_messages: size: {}", real_messages.len());
 
                 // First store what we got for the given connection id
                 self.received_buffer.store(&conn_id, real_messages);
@@ -770,7 +770,7 @@ where
                 _ = status_timer.tick() => {
                     let total_packets = self.received_buffer.total_size();
                     let lanes = self.received_buffer.num_lanes();
-                    log::info!("Sending: lanes: {lanes}, backlog: {total_packets}");
+                    log::info!("Status: lanes: {lanes}, backlog: {total_packets}");
 
                     //log::info!("List all received_buffers");
                     //for (k, v) in &self.received_buffer.buffer {

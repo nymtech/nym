@@ -54,6 +54,8 @@ const MSG_CONSIDERED_OLD_AFTER_SECS: u64 = 5;
 const MSG_CONSIDERED_STALE_AFTER_SECS: u64 = 30;
 // The max number of concurrent connections handled.
 const MAX_NUMBER_OF_CONNECTIONS: usize = 100;
+// The number of lanes included in the oldest set.
+const OLDEST_LANE_SET_SIZE: usize = 5;
 
 /// Configurable parameters of the `OutQueueControl`
 pub(crate) struct Config {
@@ -261,6 +263,10 @@ impl ReceivedBuffer {
         self.buffer.remove(lane)
     }
 
+    fn num_lanes(&self) -> usize {
+        self.buffer.keys().count()
+    }
+
     fn connections(&self) -> HashSet<u64> {
         self.buffer
             .keys()
@@ -287,7 +293,7 @@ impl ReceivedBuffer {
             .iter()
             .rev()
             .map(|(k, _)| *k)
-            .take(5)
+            .take(OLDEST_LANE_SET_SIZE)
             .copied()
             .collect()
     }
@@ -303,7 +309,6 @@ impl ReceivedBuffer {
 
     fn pick_random_lane(&self) -> Option<&TransmissionLane> {
         let lanes: Vec<&TransmissionLane> = self.buffer.keys().collect();
-        //log::info!("number of lanes to choose from: {}", lanes.len());
         lanes.choose(&mut rand::thread_rng()).copied()
     }
 
@@ -314,13 +319,11 @@ impl ReceivedBuffer {
             .filter(|(_, v)| v.is_small())
             .map(|(k, _)| k)
             .collect();
-        //log::info!("number of (small) lanes to choose from: {}", lanes.len());
         lanes.choose(&mut rand::thread_rng()).copied()
     }
 
     fn pick_random_old_lane(&self) -> Option<TransmissionLane> {
         let lanes = self.get_oldest_set();
-        //log::info!("number of (old) lanes to choose from: {}", lanes.len());
         lanes.choose(&mut rand::thread_rng()).copied()
     }
 
@@ -338,19 +341,6 @@ impl ReceivedBuffer {
             return None;
         }
 
-        //log::info!("List all received_buffers");
-        //for (k, v) in &self.buffer {
-        //    log::info!("{:?}: packets: {}, is_old: {}", k, v.len(), v.is_old());
-        //}
-        //let total = self.total_size();
-        //log::info!(
-        //    "Total: {} packets, {} MB",
-        //    total,
-        //    total as f64 / 1.5 / 1024.0
-        //);
-        //log::info!("sec left: {}", total as f64 / 50.0);
-        //log::info!("min left: {}", total as f64 / 50.0 / 60.0);
-
         // Very basic heuristic where we prioritize according to small lanes first, the older lanes
         // to try to finish lanes when possible, then the rest.
         let lane = if let Some(small_lane) = self.pick_random_small_lane() {
@@ -361,8 +351,7 @@ impl ReceivedBuffer {
             *self.pick_random_lane()?
         };
 
-        //log::info!("picking to send from lane: {:?}", lane);
-
+        log::trace!("picking to send from lane: {:?}", lane);
         self.pop_front_from_lane(&lane)
     }
 
@@ -414,6 +403,7 @@ impl LaneBufferEntry {
         age.as_millis()
     }
 
+    #[allow(unused)]
     fn is_old(&self) -> bool {
         get_time_now() - self.time_for_first_activity
             > Duration::from_secs(MSG_CONSIDERED_OLD_AFTER_SECS)
@@ -505,9 +495,6 @@ where
 
     async fn on_message(&mut self, next_message: StreamMessage) {
         trace!("created new message");
-
-        //let active_connections = self.active_connections.lock().await;
-        //log::info!("active_connections: {:?}", active_connections);
 
         let (next_message, fragment_id) = match next_message {
             StreamMessage::Cover => {
@@ -614,7 +601,7 @@ where
         self.adjust_current_average_message_sending_delay();
         let avg_delay = self.current_average_message_sending_delay();
 
-        // WIP(JON)
+        // Start by checking if we have any incoming messages about closed connections
         if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connections_rx).poll_next(cx) {
             self.on_close_connection(id);
         }
@@ -643,6 +630,8 @@ where
                 next_delay.as_mut().reset(next_poisson_delay);
             }
 
+            // In addition to closing connections on receiving such messages, also close
+            // connections when sufficiently stale.
             self.received_buffer.prune_stale_connections();
 
             // max number of connections
@@ -657,7 +646,7 @@ where
                 Poll::Ready(None) => Poll::Ready(None),
 
                 Poll::Ready(Some((real_messages, conn_id))) => {
-                    log::info!("handling real_messages: size: {}", real_messages.len());
+                    log::trace!("handling real_messages: size: {}", real_messages.len());
 
                     self.received_buffer.store(&conn_id, real_messages);
                     let real_next = self
@@ -779,31 +768,28 @@ where
                     log::trace!("OutQueueControl: Received shutdown");
                 }
                 _ = status_timer.tick() => {
-                    let total_size = self.received_buffer.total_size();
-                    let connections = self.received_buffer.connections().len();
-                    log::error!("STATUS: size {total_size}, conns: {connections}");
+                    let total_packets = self.received_buffer.total_size();
+                    let lanes = self.received_buffer.num_lanes();
+                    log::info!("Sending: lanes: {lanes}, backlog: {total_packets}");
 
-                    log::info!("List all received_buffers");
-                    for (k, v) in &self.received_buffer.buffer {
-                        log::info!("{:?}: packets: {}, is_old: {}", k, v.len(), v.is_old());
-                    }
-                    let total = self.received_buffer.total_size();
-                    log::info!(
-                        "Total: {} packets, {} MB",
-                        total,
-                        total as f64 / 1.5 / 1024.0
-                    );
-                    log::info!("sec left: {}", total as f64 / 50.0);
-                    log::info!("min left: {}", total as f64 / 50.0 / 60.0);
+                    //log::info!("List all received_buffers");
+                    //for (k, v) in &self.received_buffer.buffer {
+                    //    log::info!("{:?}: packets: {}, is_old: {}", k, v.len(), v.is_old());
+                    //}
+                    //let total = self.received_buffer.total_size();
+                    //log::info!(
+                    //    "Total: {} packets, {} MB",
+                    //    total,
+                    //    total as f64 / 1.5 / 1024.0
+                    //);
+                    //log::info!("sec left: {}", total as f64 / 50.0);
+                    //log::info!("min left: {}", total as f64 / 50.0 / 60.0);
                 }
-                next_message = self.next() => match next_message {
-                    Some(next_message) => {
-                        self.on_message(next_message).await;
-                    },
-                    None => {
-                        log::trace!("OutQueueControl: Stopping since channel closed");
-                        break;
-                    }
+                next_message = self.next() => if let Some(next_message) = next_message {
+                    self.on_message(next_message).await;
+                } else {
+                    log::trace!("OutQueueControl: Stopping since channel closed");
+                    break;
                 }
             }
         }

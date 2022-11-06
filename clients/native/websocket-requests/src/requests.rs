@@ -101,7 +101,7 @@ impl ClientRequest {
         let mut connection_id_bytes = [0u8; size_of::<u64>()];
         connection_id_bytes
             .copy_from_slice(&b[2 + Recipient::LEN..2 + Recipient::LEN + size_of::<u64>()]);
-        let connection_id = u64::from_be_bytes(connection_id_bytes.try_into().unwrap());
+        let connection_id = u64::from_be_bytes(connection_id_bytes);
 
         //let data_len_bytes = &b[2 + Recipient::LEN..2 + Recipient::LEN + size_of::<u64>()];
         let data_len_bytes =
@@ -232,15 +232,15 @@ impl ClientRequest {
     }
 
     // CLOSED_CONNECTION_REQUEST_TAG
-    fn deserialize_closed_connection(b: &[u8]) -> Result<Self, error::Error> {
+    fn deserialize_closed_connection(b: &[u8]) -> Self {
         // this MUST match because it was called by 'deserialize'
         debug_assert_eq!(b[0], CLOSED_CONNECTION_REQUEST_TAG);
 
         let mut connection_id_bytes = [0u8; size_of::<u64>()];
-        connection_id_bytes.copy_from_slice(&b[1..1 + size_of::<u64>()]);
-        let connection_id = u64::from_be_bytes(connection_id_bytes.try_into().unwrap());
+        connection_id_bytes.copy_from_slice(&b[1..=size_of::<u64>()]);
+        let connection_id = u64::from_be_bytes(connection_id_bytes);
 
-        Ok(ClientRequest::ClosedConnection(connection_id))
+        ClientRequest::ClosedConnection(connection_id)
     }
 
     pub fn serialize(self) -> Vec<u8> {
@@ -289,7 +289,7 @@ impl ClientRequest {
             SEND_REQUEST_TAG => Self::deserialize_send(b),
             REPLY_REQUEST_TAG => Self::deserialize_reply(b),
             SELF_ADDRESS_REQUEST_TAG => Ok(Self::deserialize_self_address(b)),
-            CLOSED_CONNECTION_REQUEST_TAG => Self::deserialize_closed_connection(b),
+            CLOSED_CONNECTION_REQUEST_TAG => Ok(Self::deserialize_closed_connection(b)),
             n => Err(error::Error::new(
                 ErrorKind::UnknownRequest,
                 format!("type {}", n),

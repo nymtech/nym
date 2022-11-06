@@ -110,6 +110,7 @@ impl NymClient {
         stream.start_with_shutdown(shutdown);
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn start_real_traffic_controller(
         &self,
         topology_accessor: TopologyAccessor,

@@ -51,7 +51,7 @@ const MIN_DELAY_MULTIPLIER: u32 = 1;
 // When prioritizing traffic it can be used to divide lanes into new and old.
 const MSG_CONSIDERED_OLD_AFTER_SECS: u64 = 5;
 // As a way of prune connections we also check for timeouts.
-const MSG_CONSIDERED_STALE_AFTER_SECS: u64 = 30;
+const MSG_CONSIDERED_STALE_AFTER_SECS: u64 = 300;
 // The max number of concurrent connections handled.
 const MAX_NUMBER_OF_CONNECTIONS: usize = 100;
 // The number of lanes included in the oldest set.
@@ -222,7 +222,7 @@ where
 
     // To make sure we don't overload the mix_tx channel, we limit the rate we are pushing
     // messages.
-    sending_rate_controller: SendingDelayController,
+    sending_delay_controller: SendingDelayController,
 
     /// Channel used for sending prepared sphinx packets to `MixTrafficController` that sends them
     /// out to the network without any further delays.
@@ -280,6 +280,19 @@ impl ReceivedBuffer {
 
     fn total_size(&self) -> usize {
         self.buffer.values().map(LaneBufferEntry::len).sum()
+    }
+
+    fn total_size_in_bytes(&self) -> usize {
+        self.buffer
+            .values()
+            .map(|lane_buffer_entry| {
+                lane_buffer_entry
+                    .real_messages
+                    .iter()
+                    .map(|real_message| real_message.mix_packet.sphinx_packet().len())
+                    .sum::<usize>()
+            })
+            .sum()
     }
 
     fn get_oldest_set(&self) -> Vec<TransmissionLane> {
@@ -471,7 +484,7 @@ where
             ack_key,
             sent_notifier,
             next_delay: None,
-            sending_rate_controller: SendingDelayController::new(
+            sending_delay_controller: SendingDelayController::new(
                 MIN_DELAY_MULTIPLIER,
                 MAX_DELAY_MULTIPLIER,
             ),
@@ -558,40 +571,40 @@ where
     }
 
     fn on_close_connection(&mut self, connection_id: u64) {
-        log::warn!("Removing lane for connection: {connection_id}");
+        log::debug!("Removing lane for connection: {connection_id}");
         self.received_buffer
             .remove(&TransmissionLane::ConnectionId(connection_id));
     }
 
     fn current_average_message_sending_delay(&self) -> Duration {
         self.config.average_message_sending_delay
-            * self.sending_rate_controller.current_multiplier()
+            * self.sending_delay_controller.current_multiplier()
     }
 
     fn adjust_current_average_message_sending_delay(&mut self) {
         let used_slots = self.mix_tx.max_capacity() - self.mix_tx.capacity();
         log::trace!(
             "used_slots: {used_slots}, current_multiplier: {}",
-            self.sending_rate_controller.current_multiplier()
+            self.sending_delay_controller.current_multiplier()
         );
 
         // Even just a single used slot is enough to signal backpressure
         if used_slots > 0 {
             log::trace!("Backpressure detected");
-            self.sending_rate_controller.record_backpressure_detected();
+            self.sending_delay_controller.record_backpressure_detected();
         }
 
         // If the buffer is running out, slow down the sending rate
         if self.mix_tx.capacity() == 0
-            && self.sending_rate_controller.not_increased_delay_recently()
+            && self.sending_delay_controller.not_increased_delay_recently()
         {
-            self.sending_rate_controller.increase_delay_multiplier();
+            self.sending_delay_controller.increase_delay_multiplier();
         }
 
         // Very carefully step up the sending rate in case it seems like we can solidly handle the
         // current rate.
-        if self.sending_rate_controller.is_sending_reliable() {
-            self.sending_rate_controller.decrease_delay_multiplier();
+        if self.sending_delay_controller.is_sending_reliable() {
+            self.sending_delay_controller.decrease_delay_multiplier();
         }
     }
 
@@ -755,6 +768,26 @@ where
         }
     }
 
+    fn log_status(&self) {
+        let packets = self.received_buffer.total_size();
+        let backlog = self.received_buffer.total_size_in_bytes() as f64 / 1024.0;
+        let lanes = self.received_buffer.num_lanes();
+        let mult = self.sending_delay_controller.current_multiplier();
+        let delay = self.current_average_message_sending_delay().as_millis();
+        if self.config.disable_poisson_packet_distribution {
+            log::info!(
+                "Status: {lanes} lanes, backlog: {:.2} kiB ({packets}), no delay",
+                backlog
+            );
+        } else {
+            log::info!(
+                "Status: {lanes} lanes, backlog: {:.2} kiB ({packets}), avg delay: {}ms ({mult})",
+                backlog,
+                delay
+            );
+        }
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
         debug!("Started OutQueueControl with graceful shutdown support");
@@ -768,22 +801,7 @@ where
                     log::trace!("OutQueueControl: Received shutdown");
                 }
                 _ = status_timer.tick() => {
-                    let total_packets = self.received_buffer.total_size();
-                    let lanes = self.received_buffer.num_lanes();
-                    log::info!("Status: lanes: {lanes}, backlog: {total_packets}");
-
-                    //log::info!("List all received_buffers");
-                    //for (k, v) in &self.received_buffer.buffer {
-                    //    log::info!("{:?}: packets: {}, is_old: {}", k, v.len(), v.is_old());
-                    //}
-                    //let total = self.received_buffer.total_size();
-                    //log::info!(
-                    //    "Total: {} packets, {} MB",
-                    //    total,
-                    //    total as f64 / 1.5 / 1024.0
-                    //);
-                    //log::info!("sec left: {}", total as f64 / 50.0);
-                    //log::info!("min left: {}", total as f64 / 50.0 / 60.0);
+                    self.log_status();
                 }
                 next_message = self.next() => if let Some(next_message) = next_message {
                     self.on_message(next_message).await;

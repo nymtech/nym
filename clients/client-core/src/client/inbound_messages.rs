@@ -10,8 +10,8 @@ pub enum TransmissionLane {
     General,
     Reply,
     Retransmission,
-    Control,           // control messages
-    ConnectionId(u64), // WIP: use the ConnectionId type alias instead of u64
+    Control,
+    ConnectionId(u64),
 }
 
 #[derive(Debug)]

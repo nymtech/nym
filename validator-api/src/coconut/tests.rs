@@ -752,7 +752,13 @@ async fn verification_of_bandwidth_credential() {
         hash_to_scalar(voucher_value.to_string()),
         hash_to_scalar(voucher_info),
     ];
-    let theta = theta_from_keys_and_attributes(&params, &key_pairs, &public_attributes).unwrap();
+    let indices: Vec<u64> = coconut_keypairs
+        .iter()
+        .enumerate()
+        .map(|(idx, _)| (idx + 1) as u64)
+        .collect();
+    let theta =
+        theta_from_keys_and_attributes(&params, &key_pairs, &indices, &public_attributes).unwrap();
     let key_pair = key_pairs.remove(0);
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage1 = ValidatorApiStorage::init(db_dir).await.unwrap();

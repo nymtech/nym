@@ -28,6 +28,8 @@ default-features = false
 [dev-dependencies]
 criterion = { version="0.3", features=["html_reports"] }
 doc-comment = "0.3"
+dkg = { path = "../crypto/dkg" }
+rand_chacha = "0.3"
 
 [dev-dependencies.bincode]
 version = "1"

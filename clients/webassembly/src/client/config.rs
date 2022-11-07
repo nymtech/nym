@@ -4,7 +4,7 @@
 // due to expansion of #[wasm_bindgen] macro on `Debug` Config struct
 #![allow(clippy::drop_non_drop)]
 
-use client_core::config::{Debug as ConfigDebug, GatewayEndpoint};
+use client_core::config::{Debug as ConfigDebug, ExtendedPacketSize, GatewayEndpoint};
 use std::time::Duration;
 use url::Url;
 use wasm_bindgen::prelude::*;
@@ -107,6 +107,11 @@ pub struct Debug {
 
 impl From<Debug> for ConfigDebug {
     fn from(debug: Debug) -> Self {
+        // For now we just always use the (older) 32kb extended size
+        let use_extended_packet_size = debug
+            .use_extended_packet_size
+            .then(|| ExtendedPacketSize::Extended32);
+
         ConfigDebug {
             average_packet_delay: Duration::from_millis(debug.average_packet_delay_ms),
             average_ack_delay: Duration::from_millis(debug.average_ack_delay_ms),
@@ -126,7 +131,7 @@ impl From<Debug> for ConfigDebug {
             disable_loop_cover_traffic_stream: debug.disable_loop_cover_traffic_stream,
             disable_main_poisson_packet_distribution: debug
                 .disable_main_poisson_packet_distribution,
-            use_extended_packet_size: debug.use_extended_packet_size,
+            use_extended_packet_size,
         }
     }
 }
@@ -148,7 +153,7 @@ impl From<ConfigDebug> for Debug {
             disable_loop_cover_traffic_stream: debug.disable_loop_cover_traffic_stream,
             disable_main_poisson_packet_distribution: debug
                 .disable_main_poisson_packet_distribution,
-            use_extended_packet_size: debug.use_extended_packet_size,
+            use_extended_packet_size: debug.use_extended_packet_size.is_some(),
         }
     }
 }

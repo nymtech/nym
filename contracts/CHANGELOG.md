@@ -1,3 +1,11 @@
+## Unreleased
+
+### Added
+- vesting-contract: added query for obtaining contract build information ([#1726])
+
+[#1726]: https://github.com/nymtech/nym/pull/1726
+
+
 ## [nym-contracts-v1.0.2](https://github.com/nymtech/nym/tree/nym-contracts-v1.0.2) (2022-09-13)
 
 ### Added

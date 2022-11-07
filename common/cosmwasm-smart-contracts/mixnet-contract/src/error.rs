@@ -13,9 +13,6 @@ pub enum MixnetContractError {
         source: cosmwasm_std::StdError,
     },
 
-    #[error("Provided percent value is greater than 100%")]
-    InvalidPercent,
-
     #[error("Attempted to subtract decimals with overflow ({minuend}.sub({subtrahend}))")]
     OverflowDecimalSubtraction {
         minuend: Decimal,

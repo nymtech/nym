@@ -1,7 +1,8 @@
-import { currencyToString } from '../../../utils/currency';
+import { currencyToString, unymToNym } from '../../../utils/currency';
 import { useMixnodeContext } from '../../../context/mixnode';
 import { ApiState, MixNodeEconomicDynamicsStatsResponse } from '../../../typeDefs/explorer-api';
 import { EconomicsInfoRowWithIndex } from './types';
+import { toPercentIntegerString } from '../../../utils';
 
 const selectionChance = (economicDynamicsStats: ApiState<MixNodeEconomicDynamicsStatsResponse> | undefined) => {
   const inclusionProbability = economicDynamicsStats?.data?.active_set_inclusion_probability;
@@ -29,8 +30,12 @@ export const EconomicsInfoRows = (): EconomicsInfoRowWithIndex => {
   const estimatedOperatorRewards =
     currencyToString((economicDynamicsStats?.data?.estimated_operator_reward || '').toString()) || '-';
   const stakeSaturation = economicDynamicsStats?.data?.stake_saturation || '-';
-  const profitMargin = mixNode?.data?.mix_node.profit_margin_percent || '-';
+  const profitMargin = mixNode?.data?.profit_margin_percent
+    ? toPercentIntegerString(mixNode?.data?.profit_margin_percent)
+    : '-';
   const avgUptime = economicDynamicsStats?.data?.current_interval_uptime;
+
+  const opCost = mixNode?.data?.operating_cost;
 
   return {
     id: 1,
@@ -49,6 +54,9 @@ export const EconomicsInfoRows = (): EconomicsInfoRowWithIndex => {
     },
     profitMargin: {
       value: profitMargin ? `${profitMargin} %` : '-',
+    },
+    operatingCost: {
+      value: opCost ? `${unymToNym(opCost.amount, 6)} NYM` : '-',
     },
     avgUptime: {
       value: avgUptime ? `${avgUptime} %` : '-',

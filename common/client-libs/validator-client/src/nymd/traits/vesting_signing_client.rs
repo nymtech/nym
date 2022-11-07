@@ -9,6 +9,7 @@ use async_trait::async_trait;
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use mixnet_contract_common::{Gateway, MixId, MixNode};
 use vesting_contract_common::messages::{ExecuteMsg as VestingExecuteMsg, VestingSpecification};
+use vesting_contract_common::PledgeCap;
 
 #[async_trait]
 pub trait VestingSigningClient {
@@ -105,6 +106,7 @@ pub trait VestingSigningClient {
         staking_address: Option<String>,
         vesting_spec: Option<VestingSpecification>,
         amount: Coin,
+        cap: Option<PledgeCap>,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>;
 }
@@ -382,6 +384,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         staking_address: Option<String>,
         vesting_spec: Option<VestingSpecification>,
         amount: Coin,
+        cap: Option<PledgeCap>,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
@@ -389,6 +392,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
             owner_address: owner_address.to_string(),
             staking_address,
             vesting_spec,
+            cap,
         };
         self.client
             .execute(

@@ -1,4 +1,12 @@
-import { Gateway, DecCoin, MixNode, PledgeData, MixNodeCostParams } from '@nymproject/types';
+import {
+  Gateway,
+  DecCoin,
+  MixNode,
+  PledgeData,
+  MixNodeCostParams,
+  PendingIntervalEventData,
+  PendingEpochEventData,
+} from '@nymproject/types';
 import { Fee } from '@nymproject/types/dist/types/rust/Fee';
 import { TBondedGateway, TBondedMixnode } from 'src/context';
 
@@ -59,6 +67,14 @@ export type TAccount = {
   name: string;
   address: string;
   mnemonic: string;
+};
+
+export type TGatewayReport = {
+  identity: string;
+  owner: string;
+  last_day: number;
+  last_hour: number;
+  most_recent: number;
 };
 
 export const isMixnode = (node: TBondedMixnode | TBondedGateway): node is TBondedMixnode =>

@@ -122,6 +122,7 @@ const NameAccount = ({ onNext, onBack }: { onNext: (value: string) => void; onBa
             setError(undefined);
           }}
           fullWidth
+          InputLabelProps={{ shrink: true }}
         />
       </DialogContent>
       <DialogActions sx={{ p: 3, pt: 0, gap: 2 }}>

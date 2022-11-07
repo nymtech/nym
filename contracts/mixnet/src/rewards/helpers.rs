@@ -21,7 +21,8 @@ pub(crate) fn apply_reward_pool_changes(
 
     let reward_pool = rewarding_params.interval.reward_pool - pending_pool_change.removed
         + pending_pool_change.added;
-    let staking_supply = rewarding_params.interval.staking_supply + pending_pool_change.removed;
+    let staking_supply = rewarding_params.interval.staking_supply
+        + rewarding_params.interval.staking_supply_scale_factor * pending_pool_change.removed;
     let epoch_reward_budget = reward_pool / interval.epochs_in_interval().into_base_decimal()?
         * rewarding_params.interval.interval_pool_emission;
     let stake_saturation_point =

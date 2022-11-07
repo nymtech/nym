@@ -1,5 +1,4 @@
 use crate::errors::ContractError;
-use crate::storage::locked_pledge_cap;
 use crate::storage::save_delegation;
 use crate::storage::MIXNET_CONTRACT_ADDRESS;
 use crate::traits::DelegatingAccount;
@@ -38,8 +37,9 @@ impl DelegatingAccount for Account {
         storage: &mut dyn Storage,
     ) -> Result<Response, ContractError> {
         let current_balance = self.load_balance(storage)?;
-        let total_pledged_after = self.total_pledged_locked(storage, env)? + coin.amount;
-        let locked_pledge_cap = locked_pledge_cap(storage);
+        let total_pledged_locked = self.total_pledged_locked(storage, env)?;
+        let total_pledged_after = total_pledged_locked + coin.amount;
+        let locked_pledge_cap = self.absolute_pledge_cap()?;
 
         if locked_pledge_cap < total_pledged_after {
             return Err(ContractError::LockedPledgeCapReached {

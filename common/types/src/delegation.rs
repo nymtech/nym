@@ -62,6 +62,7 @@ pub struct DelegationWithEverything {
 
     // DEPRECATED, IF POSSIBLE TRY TO DISCONTINUE USE OF IT!
     pub pending_events: Vec<DelegationEvent>,
+    pub mixnode_is_unbonding: Option<bool>,
 }
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]

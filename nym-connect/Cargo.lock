@@ -752,7 +752,9 @@ name = "contracts-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "schemars",
  "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -2869,6 +2871,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "logging"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "pretty_env_logger",
+]
+
+[[package]]
 name = "loom"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3214,6 +3224,7 @@ dependencies = [
  "fix-path-env",
  "futures",
  "log",
+ "logging",
  "nym-socks5-client",
  "pretty_env_logger",
  "rand 0.8.5",
@@ -3249,6 +3260,7 @@ dependencies = [
  "gateway-client",
  "gateway-requests",
  "log",
+ "logging",
  "network-defaults",
  "nymsphinx",
  "ordered-buffer",
@@ -6077,6 +6089,7 @@ dependencies = [
  "coconut-interface",
  "colored",
  "config",
+ "contracts-common",
  "cosmrs",
  "cosmwasm-std",
  "cw3",
@@ -6159,12 +6172,14 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 name = "vesting-contract"
 version = "1.1.0"
 dependencies = [
+ "contracts-common",
  "cosmwasm-std",
  "cw-storage-plus",
  "mixnet-contract-common",
  "schemars",
  "serde",
  "thiserror",
+ "vergen",
  "vesting-contract-common",
 ]
 
@@ -6172,7 +6187,9 @@ dependencies = [
 name = "vesting-contract-common"
 version = "0.1.0"
 dependencies = [
+ "contracts-common",
  "cosmwasm-std",
+ "log",
  "mixnet-contract-common",
  "schemars",
  "serde",

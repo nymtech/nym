@@ -54,6 +54,8 @@ export const NodeSettings = () => {
     });
   };
 
+  if (isLoading) return <LoadingModal />;
+
   if (!bondedNode) {
     return null;
   }
@@ -75,7 +77,7 @@ export const NodeSettings = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <NodeIcon />
                 <Typography variant="h6" fontWeight={600}>
-                  Node Settings
+                  {isMixnode(bondedNode) ? 'Node' : 'Gateway'} Settings
                 </Typography>
               </Box>
             </Box>
@@ -133,7 +135,6 @@ export const NodeSettings = () => {
             }}
           />
         )}
-        {isLoading && <LoadingModal />}
       </NymCard>
     </PageLayout>
   );

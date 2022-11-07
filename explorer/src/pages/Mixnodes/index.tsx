@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { Button, Card, Grid, Link as MuiLink } from '@mui/material';
+import { Button, Card, Grid, Link as MuiLink, Box } from '@mui/material';
 import { Link as RRDLink, useParams, useNavigate } from 'react-router-dom';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { SxProps } from '@mui/system';
@@ -18,6 +18,7 @@ import { currencyToString } from '../../utils/currency';
 import { splice } from '../../utils';
 import { getMixNodeStatusColor } from '../../components/MixNodes/Status';
 import { MixNodeStatusDropdown } from '../../components/MixNodes/StatusDropdown';
+import { Tooltip } from '../../components/Tooltip';
 
 const getCellFontStyle = (theme: Theme, row: MixnodeRowType, textColor?: string) => {
   const color = textColor || getMixNodeStatusColor(theme, row.status);
@@ -82,6 +83,24 @@ export const PageMixnodes: React.FC = () => {
 
   const columns: GridColDef[] = [
     {
+      field: 'mix_id',
+      headerName: 'Mix ID',
+      renderHeader: () => <CustomColumnHeading headingTitle="Mix ID" />,
+      headerClassName: 'MuiDataGrid-header-override',
+      width: 100,
+      headerAlign: 'left',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={getCellStyles(theme, params.row)}
+          component={RRDLink}
+          to={`/network-components/mixnode/${params.value}`}
+          data-testid="mix-id"
+        >
+          {params.value}
+        </MuiLink>
+      ),
+    },
+    {
       field: 'identity_key',
       headerName: 'Identity Key',
       renderHeader: () => <CustomColumnHeading headingTitle="Identity Key" />,
@@ -98,7 +117,7 @@ export const PageMixnodes: React.FC = () => {
           <MuiLink
             sx={getCellStyles(theme, params.row)}
             component={RRDLink}
-            to={`/network-components/mixnode/${params.value}`}
+            to={`/network-components/mixnode/${params.row.mix_id}`}
             data-testid="identity-link"
           >
             {splice(7, 29, params.value)}
@@ -118,7 +137,7 @@ export const PageMixnodes: React.FC = () => {
         <MuiLink
           sx={getCellStyles(theme, params.row)}
           component={RRDLink}
-          to={`/network-components/mixnode/${params.row.identity_key}`}
+          to={`/network-components/mixnode/${params.row.mix_id}`}
         >
           {currencyToString(params.value)}
         </MuiLink>
@@ -143,7 +162,7 @@ export const PageMixnodes: React.FC = () => {
             ...getCellStyles(theme, params.row, params.value > 100 ? 'theme.palette.warning.main' : undefined),
           }}
           component={RRDLink}
-          to={`/network-components/mixnode/${params.row.identity_key}`}
+          to={`/network-components/mixnode/${params.row.mix_id}`}
         >
           {`${params.value.toFixed(2)} %`}
         </MuiLink>
@@ -161,7 +180,7 @@ export const PageMixnodes: React.FC = () => {
         <MuiLink
           sx={getCellStyles(theme, params.row)}
           component={RRDLink}
-          to={`/network-components/mixnode/${params.row.identity_key}`}
+          to={`/network-components/mixnode/${params.row.mix_id}`}
         >
           {currencyToString(params.value)}
         </MuiLink>
@@ -183,7 +202,29 @@ export const PageMixnodes: React.FC = () => {
         <MuiLink
           sx={{ ...getCellStyles(theme, params.row), textAlign: 'left' }}
           component={RRDLink}
-          to={`/network-components/mixnode/${params.row.identity_key}`}
+          to={`/network-components/mixnode/${params.row.mix_id}`}
+        >
+          {params.value}
+        </MuiLink>
+      ),
+    },
+    {
+      field: 'operating_cost',
+      headerName: 'Operating cost',
+      renderHeader: () => (
+        <CustomColumnHeading
+          headingTitle="Operating cost"
+          tooltipInfo="Monthly operational cost of running this node. This cost is set by the operator and it influences how the rewards are split between the operator and delegators."
+        />
+      ),
+      headerClassName: 'MuiDataGrid-header-override',
+      width: 170,
+      headerAlign: 'left',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={{ ...getCellStyles(theme, params.row), textAlign: 'left' }}
+          component={RRDLink}
+          to={`/network-components/mixnode/${params.row.mix_id}`}
         >
           {params.value}
         </MuiLink>
@@ -205,7 +246,7 @@ export const PageMixnodes: React.FC = () => {
         <MuiLink
           sx={{ ...getCellStyles(theme, params.row), textAlign: 'left' }}
           component={RRDLink}
-          to={`/network-components/mixnode/${params.row.identity_key}`}
+          to={`/network-components/mixnode/${params.row.mix_id}`}
         >
           {params.value}
         </MuiLink>
@@ -244,7 +285,17 @@ export const PageMixnodes: React.FC = () => {
             justifyContent: 'flex-start',
           }}
         >
-          {params.value}
+          <Tooltip text={params.value} id="mixnode-location-text">
+            <Box
+              sx={{
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {params.value}
+            </Box>
+          </Tooltip>
         </Button>
       ),
     },
@@ -259,7 +310,7 @@ export const PageMixnodes: React.FC = () => {
         <MuiLink
           sx={getCellStyles(theme, params.row)}
           component={RRDLink}
-          to={`/network-components/mixnode/${params.row.identity_key}`}
+          to={`/network-components/mixnode/${params.row.mix_id}`}
         >
           {params.value}
         </MuiLink>

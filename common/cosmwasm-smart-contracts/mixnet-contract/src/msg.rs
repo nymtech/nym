@@ -33,6 +33,7 @@ pub struct InitialRewardingParams {
     pub initial_reward_pool: Decimal,
     pub initial_staking_supply: Decimal,
 
+    pub staking_supply_scale_factor: Percent,
     pub sybil_resistance: Percent,
     pub active_set_work_factor: Decimal,
     pub interval_pool_emission: Percent,
@@ -56,6 +57,7 @@ impl InitialRewardingParams {
             interval: IntervalRewardParams {
                 reward_pool: self.initial_reward_pool,
                 staking_supply: self.initial_staking_supply,
+                staking_supply_scale_factor: self.staking_supply_scale_factor,
                 epoch_reward_budget,
                 stake_saturation_point,
                 sybil_resistance: self.sybil_resistance,

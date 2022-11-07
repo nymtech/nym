@@ -10,3 +10,4 @@ export * from './signature';
 export * from './simulate';
 export * from './utils';
 export * from './vesting';
+export * from './pendingEvents';

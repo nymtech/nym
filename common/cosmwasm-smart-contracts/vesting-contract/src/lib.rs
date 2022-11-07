@@ -82,7 +82,7 @@ impl FromStr for PledgeCap {
 
 impl Default for PledgeCap {
     fn default() -> Self {
-        PledgeCap::Absolute(Uint128::from(100_000_000_000u128))
+        PledgeCap::Percent(Percent::from_percentage_value(10).expect("This can never fail!"))
     }
 }
 

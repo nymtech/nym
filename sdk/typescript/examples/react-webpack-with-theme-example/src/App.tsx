@@ -80,7 +80,7 @@ export const Content: React.FC = () => {
         log.current.push({
           kind: 'rx',
           timestamp: new Date(),
-          message: e.args.message,
+          message: e.args.payload,
         });
         setLogTrigger(Date.now());
       });
@@ -109,7 +109,7 @@ export const Content: React.FC = () => {
       message,
     });
     setLogTrigger(Date.now());
-    await sendTextMessage({ message, recipient });
+    await sendTextMessage({ payload: message, recipient });
   };
 
   return (

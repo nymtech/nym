@@ -6,7 +6,7 @@ import {
   IWebWorkerEvents,
   ConnectedEvent,
   LoadedEvent,
-  TextMessageReceivedEvent,
+  StringMessageReceivedEvent,
   BinaryMessageReceivedEvent,
 } from './types';
 
@@ -73,9 +73,9 @@ export const createNymMixnetClient = async (): Promise<NymMixnetClient> => {
       };
     },
     subscribeToTextMessageReceivedEvent: (handler) => {
-      getSubscriptions<TextMessageReceivedEvent>(EventKinds.TextMessageReceived).push(handler);
+      getSubscriptions<StringMessageReceivedEvent>(EventKinds.StringMessageReceived).push(handler);
       return () => {
-        getSubscriptions<TextMessageReceivedEvent>(EventKinds.TextMessageReceived).unshift(handler);
+        getSubscriptions<StringMessageReceivedEvent>(EventKinds.StringMessageReceived).unshift(handler);
       };
     },
     subscribeToBinaryMessageReceivedEvent: (handler) => {

@@ -7,12 +7,12 @@ import { NymMixnetClient } from '@nymproject/sdk';
  *
  * @param {Client} nymClient the nym client to use for message sending
  */
-export async function sendMessageTo(client: NymMixnetClient) {
-  const message = (document.getElementById('message') as HTMLFormElement).value;
+export async function sendMessageTo(nym: NymMixnetClient) {
+  const payload = (document.getElementById('message') as HTMLFormElement).value;
   const recipient = (document.getElementById('recipient') as HTMLFormElement).value;
 
-  await client.client.sendMessage({ message, recipient });
-  displaySend(message);
+  await nym.client.sendMessage({ payload, recipient });
+  displaySend(payload);
 }
 
 /**

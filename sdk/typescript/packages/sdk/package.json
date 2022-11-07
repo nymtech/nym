@@ -22,7 +22,12 @@
     "typecheck": "tsc --noEmit true",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
+    "build:dependencies": "run-s build:dependencies:nym-client-wasm build:dependencies:ts-packages",
+    "build:dependencies:ts-packages": "cd ../../../.. && yarn && yarn build",
+    "build:dependencies:nym-client-wasm": "../nym-client-wasm/scripts/build.sh",
+    "prebuild": "yarn build:dependencies",
     "build": "tsc",
+    "build:only-this": "tsc",
     "postbuild": "cp ../nym-client-wasm/nym_client_wasm* dist/mixnet/wasm"
   },
   "dependencies": {

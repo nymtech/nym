@@ -31,7 +31,7 @@ async function main() {
 
   // subscribe to message received events and show any string messages received
   nym.events.subscribeToTextMessageReceivedEvent((e) => {
-    displayReceived(e.args.message);
+    displayReceived(e.args.payload);
   });
 
   const sendButton: HTMLButtonElement = document.querySelector('#send-button') as HTMLButtonElement;

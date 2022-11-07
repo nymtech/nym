@@ -1,6 +1,8 @@
 /// <reference path="../../../../nym-client-wasm/nym_client_wasm.d.ts" />
 
-export type OnMessageFn = (message: string) => void;
+export type OnStringMessageFn = (message: string) => void;
+
+export type OnBinaryMessageFn = (message: Uint8Array) => void;
 
 export type OnConnectFn = (address?: string) => void;
 
@@ -35,14 +37,14 @@ export interface NymClientConfig {
 export interface IWebWorker {
   start: (config: NymClientConfig) => void;
   selfAddress: () => string | undefined;
-  sendMessage: (args: { message: string; recipient: string }) => void;
-  sendBinaryMessage: (args: { message: Uint8Array; recipient: string }) => void;
+  sendMessage: (args: { payload: string; recipient: string }) => void;
+  sendBinaryMessage: (args: { payload: Uint8Array; recipient: string }) => void;
 }
 
 export enum EventKinds {
   Loaded = 'Loaded',
   Connected = 'Connected',
-  TextMessageReceived = 'TextMessageReceived',
+  StringMessageReceived = 'StringMessageReceived',
   BinaryMessageReceived = 'BinaryMessageReceived',
 }
 
@@ -60,23 +62,25 @@ export interface ConnectedEvent {
   };
 }
 
-export interface TextMessageReceivedEvent {
-  kind: EventKinds.TextMessageReceived;
+export interface StringMessageReceivedEvent {
+  kind: EventKinds.StringMessageReceived;
   args: {
-    message: string;
+    kind: number;
+    payload: string;
   };
 }
 
 export interface BinaryMessageReceivedEvent {
-  kind: EventKinds.TextMessageReceived;
+  kind: EventKinds.BinaryMessageReceived;
   args: {
-    message: Uint8Array;
+    kind: number;
+    payload: Uint8Array;
   };
 }
 
 export interface IWebWorkerEvents {
   subscribeToLoaded: EventHandlerSubscribeFn<LoadedEvent>;
   subscribeToConnected: EventHandlerSubscribeFn<ConnectedEvent>;
-  subscribeToTextMessageReceivedEvent: EventHandlerSubscribeFn<TextMessageReceivedEvent>;
+  subscribeToTextMessageReceivedEvent: EventHandlerSubscribeFn<StringMessageReceivedEvent>;
   subscribeToBinaryMessageReceivedEvent: EventHandlerSubscribeFn<BinaryMessageReceivedEvent>;
 }

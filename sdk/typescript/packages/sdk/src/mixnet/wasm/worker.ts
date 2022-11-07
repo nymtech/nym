@@ -10,9 +10,11 @@ import type {
   ConnectedEvent,
   IWebWorker,
   LoadedEvent,
-  OnMessageFn,
+  OnStringMessageFn,
+  OnBinaryMessageFn,
   OnConnectFn,
-  TextMessageReceivedEvent,
+  StringMessageReceivedEvent,
+  BinaryMessageReceivedEvent,
   NymClientConfig,
 } from './types';
 import { EventKinds } from './types';
@@ -31,6 +33,10 @@ const wasmUrl = new URL('./nym_client_wasm_bg.wasm', import.meta.url);
  */
 const postMessageWithType = <E>(event: E) => self.postMessage(event);
 
+// ------------ the 1st byte of messages is the kind from the list below ------------
+const PAYLOAD_KIND_TEXT = 0;
+const PAYLOAD_KIND_BINARY = 1;
+
 /**
  * This class holds the state of the Nym WASM client and provides any interop needed.
  */
@@ -40,9 +46,22 @@ class ClientWrapper {
   /**
    * Creates the WASM client and initialises it.
    */
-  init = (config: wasm_bindgen.Config, onConnectHandler: OnConnectFn, onMessageHandler: OnMessageFn) => {
+  init = (
+    config: wasm_bindgen.Config,
+    onConnectHandler: OnConnectFn,
+    onStringMessageHandler?: OnStringMessageFn,
+    onBinaryMessageHandler?: OnBinaryMessageFn,
+  ) => {
     this.client = new wasm_bindgen.NymClient(config);
-    this.client.set_on_message(onMessageHandler);
+    if (onBinaryMessageHandler) {
+      this.client.set_on_binary_message(onBinaryMessageHandler);
+    }
+
+    // NB: because we set the `kind` byte in the message payload first, we don't need to bother to try to parse
+    // all messages as string
+    // if (onStringMessageHandler) {
+    //   this.client.set_on_message(onStringMessageHandler);
+    // }
   };
 
   /**
@@ -72,21 +91,21 @@ class ClientWrapper {
     this.client = await this.client.start();
   };
 
-  sendMessage = async ({ message, recipient }: { recipient: string; message: string }) => {
+  sendMessage = async ({ payload, recipient }: { recipient: string; payload: string }) => {
     if (!this.client) {
       console.error('Client has not been initialised. Please call `init` first.');
       return;
     }
-
-    this.client = await this.client.send_message(message, recipient);
+    const message = wasm_bindgen.create_binary_message_from_string(PAYLOAD_KIND_TEXT, payload);
+    this.client = await this.client.send_binary_message(message, recipient);
   };
 
-  sendBinaryMessage = async ({ message, recipient }: { recipient: string; message: Uint8Array }) => {
+  sendBinaryMessage = async ({ payload, recipient }: { recipient: string; payload: Uint8Array }) => {
     if (!this.client) {
       console.error('Client has not been initialised. Please call `init` first.');
       return;
     }
-
+    const message = wasm_bindgen.create_binary_message(PAYLOAD_KIND_BINARY, payload);
     this.client = await this.client.send_binary_message(message, recipient);
   };
 }
@@ -118,8 +137,31 @@ wasm_bindgen(wasmUrl)
         () => {
           console.log();
         },
-        (message) => {
-          postMessageWithType<TextMessageReceivedEvent>({ kind: EventKinds.TextMessageReceived, args: { message } });
+        undefined,
+        async (message) => {
+          try {
+            const { kind, payload } = await wasm_bindgen.parse_binary_message(message);
+            switch (kind) {
+              case PAYLOAD_KIND_TEXT: {
+                const stringMessage = await wasm_bindgen.parse_string_message(message);
+                postMessageWithType<StringMessageReceivedEvent>({
+                  kind: EventKinds.StringMessageReceived,
+                  args: { kind, payload: stringMessage.payload },
+                });
+                break;
+              }
+              case PAYLOAD_KIND_BINARY:
+                postMessageWithType<BinaryMessageReceivedEvent>({
+                  kind: EventKinds.BinaryMessageReceived,
+                  args: { kind, payload },
+                });
+                break;
+              default:
+                console.error('Could not determine message kind from 1st byte of message', { message, kind, payload });
+            }
+          } catch (e) {
+            console.error('Failed to parse binary message', e);
+          }
         },
       );
 

@@ -9,7 +9,7 @@ interface State {
 
   // methods
   connect: (config: NymClientConfig) => Promise<void>;
-  sendTextMessage: (args: { message: string; recipient: string }) => Promise<void>;
+  sendTextMessage: (args: { payload: string; recipient: string }) => Promise<void>;
 }
 
 const MixnetContext = React.createContext<State | undefined>(undefined);
@@ -53,7 +53,7 @@ export const MixnetContextProvider: React.FC = ({ children }) => {
     await nym.current.client.start(config);
   };
 
-  const sendTextMessage = async (args: { message: string; recipient: string }) => {
+  const sendTextMessage = async (args: { payload: string; recipient: string }) => {
     if (!nym.current?.client) {
       console.error('Nym client has not initialised. Please wrap in useEffect on `isReady` prop of this context.');
       return;

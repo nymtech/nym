@@ -22,7 +22,7 @@ class ConfigHandler {
 
   private constructor() {
     this.setCommonConfig();
-    this.setEnvironmentConfig(process.env.TEST_ENV || "prod");
+    this.setEnvironmentConfig(process.env.TEST_ENV || "qa");
   }
 
   public static getInstance(): ConfigHandler {

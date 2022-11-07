@@ -2,7 +2,9 @@ import {
   ActiveStatus,
   AvgUptime,
   CoreCount,
+  GatewayCoreCount,
   EstimatedReward,
+  RewardEstimation,
   InclusionProbability,
   NodeHistory,
   Report,
@@ -65,7 +67,7 @@ export default class Status extends APIClient {
     return response.data;
   }
 
-  public async getGatewayCoreCount(identity_key: string): Promise<CoreCount> {
+  public async getGatewayCoreCount(identity_key: string): Promise<GatewayCoreCount> {
     const response = await this.restClient.sendGet({
       route: `/gateway/${identity_key}/core-status-count`,
     });
@@ -75,7 +77,7 @@ export default class Status extends APIClient {
 
   public async getMixnodeRewardComputation(
     identity_key: string
-  ): Promise<EstimatedReward> {
+  ): Promise<RewardEstimation> {
     const response = await this.restClient.sendGet({
       route: `/mixnode/${identity_key}/reward-estimation`,
     });
@@ -85,14 +87,19 @@ export default class Status extends APIClient {
 
   public async getMixnodeRewardEstimatedComputation(
     identity_key: string
-  ): Promise<EstimatedReward> {
+  ): Promise<RewardEstimation> {
     const response = await this.restClient.sendPost({
       route: `/mixnode/${identity_key}/compute-reward-estimation`,
       data: {
-        "uptime": 0,
-        "is_active": true,
+        "performance": "", // TO-DO add a value to this 
+        "active_in_rewarded_set": true,
         "pledge_amount": 0,
-        "total_delegation": 0 // TO-DO grab the values from the mixnode endpoint on explorer-api and use them in this request
+        "total_delegation": 0, // TO-DO grab the values from the mixnode endpoint on explorer-api and use them in this request
+        "interval_operating_cost": {
+          "denom": "unym",
+          "amount": "3000000"
+        },
+        "profit_margin_percent": "" // TO-DO add a value to this 
       }
     });
 

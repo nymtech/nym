@@ -2,14 +2,14 @@ common:
   request_headers:
     Accept: application/json
     Content-Type: application/json
-qa:
-  api_base_url: https://qa-validator-api.nymtech.net/api/v1
-  mixnode_identity: DLdMKLPywEy1vnu3yPrtXvzY7fw1puiiHpA9n9UQatiQ
-  gateway_identity: CgQrYP8etksSBf4nALNqp93SHPpgFwEUyTsjBNNLj5WM
-  log_level: debug
+qwerty:
+  api_base_url: https://qwerty-validator-api.qa.nymte.ch/v1
+  mixnode_identity: 7
+  gateway_identity: 336yuXAeGEgedRfqTJZsG2YV7P13QH1bHv1SjCZYarc9
+  log_level: error
 prod:
   api_base_url: https://qa-validator-api.nymtech.net/api/v1
   mixnode_identity: DLdMKLPywEy1vnu3yPrtXvzY7fw1puiiHpA9n9UQatiQ
   gateway_identity: CgQrYP8etksSBf4nALNqp93SHPpgFwEUyTsjBNNLj5WM
-  log_level: debug
+  log_level: error
   time_zone: utc

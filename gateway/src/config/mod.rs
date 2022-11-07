@@ -66,6 +66,10 @@ impl NymConfig for Config {
             .join("gateways")
     }
 
+    fn try_default_root_directory() -> Option<PathBuf> {
+        dirs::home_dir().map(|path| path.join(".nym").join("gateways"))
+    }
+
     fn root_directory(&self) -> PathBuf {
         self.gateway.nym_root_directory.clone()
     }
@@ -123,6 +127,7 @@ impl Config {
         self
     }
 
+    #[cfg(feature = "coconut")]
     pub fn with_disabled_credentials_mode(mut self, disabled_credentials_mode: bool) -> Self {
         self.gateway.disabled_credentials_mode = disabled_credentials_mode;
         self
@@ -150,12 +155,6 @@ impl Config {
 
     pub fn with_cosmos_mnemonic(mut self, cosmos_mnemonic: bip39::Mnemonic) -> Self {
         self.gateway.cosmos_mnemonic = cosmos_mnemonic;
-        self
-    }
-
-    #[cfg(not(feature = "coconut"))]
-    pub fn with_eth_endpoint(mut self, eth_endpoint: String) -> Self {
-        self.gateway.eth_endpoint = eth_endpoint;
         self
     }
 
@@ -232,11 +231,6 @@ impl Config {
         self.gateway.public_sphinx_key_file.clone()
     }
 
-    #[cfg(not(feature = "coconut"))]
-    pub fn get_eth_endpoint(&self) -> String {
-        self.gateway.eth_endpoint.clone()
-    }
-
     pub fn get_enabled_statistics(&self) -> bool {
         self.gateway.enabled_statistics
     }
@@ -249,10 +243,12 @@ impl Config {
         self.gateway.validator_api_urls.clone()
     }
 
+    #[cfg(feature = "coconut")]
     pub fn get_validator_nymd_endpoints(&self) -> Vec<Url> {
         self.gateway.validator_nymd_urls.clone()
     }
 
+    #[cfg(feature = "coconut")]
     pub fn get_cosmos_mnemonic(&self) -> bip39::Mnemonic {
         self.gateway.cosmos_mnemonic.clone()
     }
@@ -291,6 +287,10 @@ impl Config {
 
     pub fn get_maximum_connection_buffer_size(&self) -> usize {
         self.debug.maximum_connection_buffer_size
+    }
+
+    pub fn get_use_legacy_sphinx_framing(&self) -> bool {
+        self.debug.use_legacy_framed_packet_version
     }
 
     pub fn get_message_retrieval_limit(&self) -> i64 {
@@ -351,10 +351,6 @@ pub struct Gateway {
 
     /// Path to file containing public sphinx key.
     public_sphinx_key_file: PathBuf,
-
-    /// Address to an Ethereum full node.
-    #[cfg(not(feature = "coconut"))]
-    eth_endpoint: String,
 
     /// Wheather gateway collects and sends anonymized statistics
     enabled_statistics: bool,
@@ -419,8 +415,6 @@ impl Default for Gateway {
             public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
-            #[cfg(not(feature = "coconut"))]
-            eth_endpoint: "".to_string(),
             enabled_statistics: false,
             statistics_service_url: Url::from_str("http://127.0.0.1").unwrap(),
             validator_api_urls: vec![],
@@ -466,6 +460,12 @@ struct Debug {
 
     /// Number of messages from offline client that can be pulled at once from the storage.
     message_retrieval_limit: i64,
+
+    /// Specifies whether the mixnode should be using the legacy framing for the sphinx packets.
+    // it's set to true by default. The reason for that decision is to preserve compatibility with the
+    // existing nodes whilst everyone else is upgrading and getting the code for handling the new field.
+    // It shall be disabled in the subsequent releases.
+    use_legacy_framed_packet_version: bool,
 }
 
 impl Default for Debug {
@@ -478,6 +478,8 @@ impl Default for Debug {
             maximum_connection_buffer_size: DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
             stored_messages_filename_length: DEFAULT_STORED_MESSAGE_FILENAME_LENGTH,
             message_retrieval_limit: DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
+            // TODO: remember to change it in one of future releases!!
+            use_legacy_framed_packet_version: true,
         }
     }
 }

@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Box } from '@mui/material';
 import { CurrencyDenom, TNodeType } from '@nymproject/types';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
@@ -10,6 +9,7 @@ import { MixnodeAmount, MixnodeData } from 'src/pages/bonding/types';
 import { simulateBondMixnode, simulateVestingBondMixnode } from 'src/requests';
 import { TBondMixNodeArgs } from 'src/types';
 import { BondMixnodeForm } from '../forms/BondMixnodeForm';
+import { toPercentFloatString } from '../../../utils';
 
 const defaultMixnodeValues: MixnodeData = {
   identityKey: '',
@@ -24,7 +24,8 @@ const defaultMixnodeValues: MixnodeData = {
 
 const defaultAmountValues = (denom: CurrencyDenom) => ({
   amount: { amount: '100', denom },
-  profitMargin: 10,
+  operatorCost: { amount: '40', denom },
+  profitMargin: '10',
   tokenPool: 'balance',
 });
 
@@ -70,7 +71,8 @@ export const BondMixnodeModal = ({
   };
 
   const handleUpdateAmountData = async (data: MixnodeAmount) => {
-    setAmountData(data);
+    setAmountData({ ...data });
+
     const payload = {
       pledge: data.amount,
       ownerSignature: mixnodeData.ownerSignature,
@@ -81,7 +83,13 @@ export const BondMixnodeModal = ({
         verloc_port: mixnodeData.verlocPort,
         sphinx_key: mixnodeData.sphinxKey,
         identity_key: mixnodeData.identityKey,
-        profit_margin_percent: data.profitMargin,
+      },
+      costParams: {
+        profit_margin_percent: toPercentFloatString(data.profitMargin),
+        interval_operating_cost: {
+          amount: data.operatorCost.amount.toString(),
+          denom: data.operatorCost.denom,
+        },
       },
     };
 
@@ -104,7 +112,13 @@ export const BondMixnodeModal = ({
           verloc_port: mixnodeData.verlocPort,
           sphinx_key: mixnodeData.sphinxKey,
           identity_key: mixnodeData.identityKey,
-          profit_margin_percent: amountData.profitMargin,
+        },
+        costParams: {
+          profit_margin_percent: toPercentFloatString(amountData.profitMargin),
+          interval_operating_cost: {
+            amount: amountData.operatorCost.amount,
+            denom: amountData.operatorCost.denom,
+          },
         },
       },
       amountData.tokenPool as TPoolOption,
@@ -143,18 +157,16 @@ export const BondMixnodeModal = ({
       subHeader={`Step ${step}/2`}
       okLabel="Next"
     >
-      <Box sx={{ mb: 2 }}>
-        <BondMixnodeForm
-          step={step}
-          denom={denom}
-          mixnodeData={mixnodeData}
-          amountData={amountData}
-          hasVestingTokens={hasVestingTokens}
-          onValidateMixnodeData={handleUpdateMixnodeData}
-          onValidateAmountData={handleUpdateAmountData}
-          onSelectNodeType={onSelectNodeType}
-        />
-      </Box>
+      <BondMixnodeForm
+        step={step}
+        denom={denom}
+        mixnodeData={mixnodeData}
+        amountData={amountData}
+        hasVestingTokens={hasVestingTokens}
+        onValidateMixnodeData={handleUpdateMixnodeData}
+        onValidateAmountData={handleUpdateAmountData}
+        onSelectNodeType={onSelectNodeType}
+      />
     </SimpleModal>
   );
 };

@@ -1,56 +1,51 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
-use crate::error::ContractError;
-use cosmwasm_std::Addr;
 use cosmwasm_std::DepsMut;
 use cosmwasm_std::MessageInfo;
 use cosmwasm_std::Response;
-use mixnet_contract_common::events::new_settings_update_event;
+use mixnet_contract_common::error::MixnetContractError;
+use mixnet_contract_common::events::{
+    new_rewarding_validator_address_update_event, new_settings_update_event,
+};
 use mixnet_contract_common::ContractStateParams;
 
 pub fn try_update_rewarding_validator_address(
     deps: DepsMut<'_>,
     info: MessageInfo,
     address: String,
-) -> Result<Response, ContractError> {
+) -> Result<Response, MixnetContractError> {
     let mut state = storage::CONTRACT_STATE.load(deps.storage)?;
 
     if info.sender != state.owner {
-        return Err(ContractError::Unauthorized);
+        return Err(MixnetContractError::Unauthorized);
     }
 
-    state.rewarding_validator_address = Addr::unchecked(address);
+    let new_address = deps.api.addr_validate(&address)?;
+    let old_address = state.rewarding_validator_address;
+
+    state.rewarding_validator_address = new_address.clone();
     storage::CONTRACT_STATE.save(deps.storage, &state)?;
 
-    Ok(Response::default())
+    Ok(
+        Response::new().add_event(new_rewarding_validator_address_update_event(
+            old_address,
+            new_address,
+        )),
+    )
 }
 
 pub(crate) fn try_update_contract_settings(
     deps: DepsMut<'_>,
     info: MessageInfo,
     params: ContractStateParams,
-) -> Result<Response, ContractError> {
+) -> Result<Response, MixnetContractError> {
     let mut state = storage::CONTRACT_STATE.load(deps.storage)?;
 
     // check if this is executed by the owner, if not reject the transaction
     if info.sender != state.owner {
-        return Err(ContractError::Unauthorized);
-    }
-
-    if params.mixnode_rewarded_set_size == 0 {
-        return Err(ContractError::ZeroRewardedSet);
-    }
-
-    if params.mixnode_active_set_size == 0 {
-        return Err(ContractError::ZeroActiveSet);
-    }
-
-    // note: rewarded_set = active_set + idle_set
-    // hence rewarded set must always be bigger than (or equal to) the active set
-    if params.mixnode_rewarded_set_size < params.mixnode_active_set_size {
-        return Err(ContractError::InvalidActiveSetSize);
+        return Err(MixnetContractError::Unauthorized);
     }
 
     let response = Response::new().add_event(new_settings_update_event(&state.params, &params));
@@ -64,13 +59,14 @@ pub(crate) fn try_update_contract_settings(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::contract::{INITIAL_GATEWAY_PLEDGE, INITIAL_MIXNODE_PLEDGE, INITIAL_STAKING_SUPPLY};
-    use crate::error::ContractError;
+    use crate::constants::{INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMOUNT};
     use crate::mixnet_contract_settings::queries::query_rewarding_validator_address;
+    use crate::mixnet_contract_settings::storage::rewarding_denom;
     use crate::mixnet_contract_settings::transactions::try_update_contract_settings;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::mock_info;
-    use cosmwasm_std::Response;
+    use cosmwasm_std::{Addr, Coin, Response, Uint128};
+    use mixnet_contract_common::error::MixnetContractError;
     use mixnet_contract_common::ContractStateParams;
 
     #[test]
@@ -83,7 +79,7 @@ pub mod tests {
             info,
             "not-the-creator".to_string(),
         );
-        assert_eq!(res, Err(ContractError::Unauthorized));
+        assert_eq!(res, Err(MixnetContractError::Unauthorized));
 
         let info = mock_info("creator", &[]);
         let res = try_update_rewarding_validator_address(
@@ -91,7 +87,15 @@ pub mod tests {
             info,
             "new-good-address".to_string(),
         );
-        assert_eq!(res, Ok(Response::default()));
+        assert_eq!(
+            res,
+            Ok(
+                Response::default().add_event(new_rewarding_validator_address_update_event(
+                    Addr::unchecked("rewarder"),
+                    Addr::unchecked("new-good-address")
+                ))
+            )
+        );
 
         let state = storage::CONTRACT_STATE.load(&deps.storage).unwrap();
         assert_eq!(
@@ -108,13 +112,18 @@ pub mod tests {
     #[test]
     fn updating_contract_settings() {
         let mut deps = test_helpers::init_contract();
+        let denom = rewarding_denom(deps.as_ref().storage).unwrap();
 
         let new_params = ContractStateParams {
-            minimum_mixnode_pledge: INITIAL_MIXNODE_PLEDGE,
-            minimum_gateway_pledge: INITIAL_GATEWAY_PLEDGE,
-            mixnode_rewarded_set_size: 100,
-            mixnode_active_set_size: 50,
-            staking_supply: INITIAL_STAKING_SUPPLY,
+            minimum_mixnode_delegation: None,
+            minimum_mixnode_pledge: Coin {
+                denom: denom.clone(),
+                amount: INITIAL_MIXNODE_PLEDGE_AMOUNT,
+            },
+            minimum_gateway_pledge: Coin {
+                denom,
+                amount: INITIAL_GATEWAY_PLEDGE_AMOUNT + Uint128::new(1234),
+            },
         };
 
         let initial_params = storage::CONTRACT_STATE
@@ -128,7 +137,7 @@ pub mod tests {
         // cannot be updated from non-owner account
         let info = mock_info("not-the-creator", &[]);
         let res = try_update_contract_settings(deps.as_mut(), info, new_params.clone());
-        assert_eq!(res, Err(ContractError::Unauthorized));
+        assert_eq!(res, Err(MixnetContractError::Unauthorized));
 
         // but works fine from the creator account
         let info = mock_info("creator", &[]);
@@ -142,25 +151,25 @@ pub mod tests {
         let current_state = storage::CONTRACT_STATE.load(deps.as_ref().storage).unwrap();
         assert_eq!(current_state.params, new_params);
 
-        // error is thrown if rewarded set is smaller than the active set
-        let info = mock_info("creator", &[]);
-        let mut new_params = current_state.params.clone();
-        new_params.mixnode_rewarded_set_size = new_params.mixnode_active_set_size - 1;
-        let res = try_update_contract_settings(deps.as_mut(), info, new_params);
-        assert_eq!(Err(ContractError::InvalidActiveSetSize), res);
-
-        // error is thrown for 0 size rewarded set
-        let info = mock_info("creator", &[]);
-        let mut new_params = current_state.params.clone();
-        new_params.mixnode_rewarded_set_size = 0;
-        let res = try_update_contract_settings(deps.as_mut(), info, new_params);
-        assert_eq!(Err(ContractError::ZeroRewardedSet), res);
-
-        // error is thrown for 0 size active set
-        let info = mock_info("creator", &[]);
-        let mut new_params = current_state.params;
-        new_params.mixnode_active_set_size = 0;
-        let res = try_update_contract_settings(deps.as_mut(), info, new_params);
-        assert_eq!(Err(ContractError::ZeroActiveSet), res);
+        // // error is thrown if rewarded set is smaller than the active set
+        // let info = mock_info("creator", &[]);
+        // let mut new_params = current_state.params.clone();
+        // new_params.mixnode_rewarded_set_size = new_params.mixnode_active_set_size - 1;
+        // let res = try_update_contract_settings(deps.as_mut(), info, new_params);
+        // assert_eq!(Err(MixnetContractError::InvalidActiveSetSize), res);
+        //
+        // // error is thrown for 0 size rewarded set
+        // let info = mock_info("creator", &[]);
+        // let mut new_params = current_state.params.clone();
+        // new_params.mixnode_rewarded_set_size = 0;
+        // let res = try_update_contract_settings(deps.as_mut(), info, new_params);
+        // assert_eq!(Err(MixnetContractError::ZeroRewardedSet), res);
+        //
+        // // error is thrown for 0 size active set
+        // let info = mock_info("creator", &[]);
+        // let mut new_params = current_state.params;
+        // new_params.mixnode_active_set_size = 0;
+        // let res = try_update_contract_settings(deps.as_mut(), info, new_params);
+        // assert_eq!(Err(MixnetContractError::ZeroActiveSet), res);
     }
 }

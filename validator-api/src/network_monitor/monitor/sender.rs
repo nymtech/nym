@@ -24,6 +24,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
+use task::ShutdownListener;
 
 use gateway_client::bandwidth::BandwidthController;
 
@@ -176,7 +177,11 @@ impl PacketSender {
         }
     }
 
-    pub(crate) fn spawn_gateways_pinger(&self, pinging_interval: Duration) {
+    pub(crate) fn spawn_gateways_pinger(
+        &self,
+        pinging_interval: Duration,
+        shutdown: ShutdownListener,
+    ) {
         let gateway_pinger = GatewayPinger::new(
             self.active_gateway_clients.clone(),
             self.fresh_gateway_client_data
@@ -185,7 +190,7 @@ impl PacketSender {
             pinging_interval,
         );
 
-        tokio::spawn(async move { gateway_pinger.run().await });
+        tokio::spawn(async move { gateway_pinger.run(shutdown).await });
     }
 
     fn new_gateway_client_handle(
@@ -204,6 +209,7 @@ impl PacketSender {
         // currently we do not care about acks at all, but we must keep the channel alive
         // so that the gateway client would not crash
         let (ack_sender, ack_receiver) = mpsc::unbounded();
+
         let mut gateway_client = GatewayClient::new(
             address,
             Arc::clone(&fresh_gateway_client_data.local_identity),
@@ -214,11 +220,11 @@ impl PacketSender {
             ack_sender,
             fresh_gateway_client_data.gateway_response_timeout,
             Some(fresh_gateway_client_data.bandwidth_controller.clone()),
+            None,
         );
 
-        if fresh_gateway_client_data.disabled_credentials_mode {
-            gateway_client.set_disabled_credentials_mode(true)
-        }
+        gateway_client
+            .set_disabled_credentials_mode(fresh_gateway_client_data.disabled_credentials_mode);
 
         (
             GatewayClientHandle::new(gateway_client),

@@ -42,11 +42,36 @@ impl SentNotificationListener {
             .unwrap();
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+        debug!("Started SentNotificationListener with graceful shutdown support");
+
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                frag_id = self.sent_notifier.next() => match frag_id {
+                    Some(frag_id) => {
+                        self.on_sent_message(frag_id).await;
+                    }
+                    None => {
+                        log::trace!("SentNotificationListener: Stopping since channel closed");
+                        break;
+                    }
+                },
+                _ = shutdown.recv() => {
+                    log::trace!("SentNotificationListener: Received shutdown");
+                }
+            }
+        }
+        assert!(shutdown.is_shutdown_poll());
+        log::debug!("SentNotificationListener: Exiting");
+    }
+
+    #[cfg(target_arch = "wasm32")]
     pub(super) async fn run(&mut self) {
-        debug!("Started SentNotificationListener");
+        debug!("Started SentNotificationListener without graceful shutdown support");
+
         while let Some(frag_id) = self.sent_notifier.next().await {
             self.on_sent_message(frag_id).await;
         }
-        error!("TODO: error msg. Or maybe panic?")
     }
 }

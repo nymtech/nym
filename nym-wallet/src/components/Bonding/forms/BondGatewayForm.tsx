@@ -32,7 +32,7 @@ const NodeFormData = ({ gatewayData, onNext }: { gatewayData: GatewayData; onNex
   }, []);
 
   return (
-    <Stack gap={2}>
+    <Stack gap={3}>
       <IdentityKeyFormField
         required
         fullWidth
@@ -47,6 +47,7 @@ const NodeFormData = ({ gatewayData, onNext }: { gatewayData: GatewayData; onNex
         label="Sphinx key"
         error={Boolean(errors.sphinxKey)}
         helperText={errors.sphinxKey?.message}
+        InputLabelProps={{ shrink: true }}
       />
       <TextField
         {...register('ownerSignature')}
@@ -54,6 +55,7 @@ const NodeFormData = ({ gatewayData, onNext }: { gatewayData: GatewayData; onNex
         label="Owner signature"
         error={Boolean(errors.ownerSignature)}
         helperText={errors.ownerSignature?.message}
+        InputLabelProps={{ shrink: true }}
       />
       <TextField
         {...register('location')}
@@ -62,9 +64,10 @@ const NodeFormData = ({ gatewayData, onNext }: { gatewayData: GatewayData; onNex
         error={Boolean(errors.location)}
         helperText={errors.location?.message}
         required
+        InputLabelProps={{ shrink: true }}
         sx={{ flexBasis: '50%' }}
       />
-      <Stack direction="row" gap={2}>
+      <Stack direction="row" gap={3}>
         <TextField
           {...register('host')}
           name="host"
@@ -72,6 +75,7 @@ const NodeFormData = ({ gatewayData, onNext }: { gatewayData: GatewayData; onNex
           error={Boolean(errors.host)}
           helperText={errors.host?.message}
           required
+          InputLabelProps={{ shrink: true }}
           sx={{ flexBasis: '50%' }}
         />
         <TextField
@@ -81,6 +85,7 @@ const NodeFormData = ({ gatewayData, onNext }: { gatewayData: GatewayData; onNex
           error={Boolean(errors.version)}
           helperText={errors.version?.message}
           required
+          InputLabelProps={{ shrink: true }}
           sx={{ flexBasis: '50%' }}
         />
       </Stack>
@@ -89,7 +94,7 @@ const NodeFormData = ({ gatewayData, onNext }: { gatewayData: GatewayData; onNex
         label="Show advanced options"
       />
       {showAdvancedOptions && (
-        <Stack direction="row" gap={2} sx={{ mb: 2 }}>
+        <Stack direction="row" gap={3} sx={{ mb: 2 }}>
           <TextField
             {...register('mixPort')}
             name="mixPort"
@@ -97,6 +102,7 @@ const NodeFormData = ({ gatewayData, onNext }: { gatewayData: GatewayData; onNex
             error={Boolean(errors.mixPort)}
             helperText={errors.mixPort?.message}
             fullWidth
+            InputLabelProps={{ shrink: true }}
           />
           <TextField
             {...register('clientsPort')}
@@ -105,6 +111,7 @@ const NodeFormData = ({ gatewayData, onNext }: { gatewayData: GatewayData; onNex
             error={Boolean(errors.clientsPort)}
             helperText={errors.clientsPort?.message}
             fullWidth
+            InputLabelProps={{ shrink: true }}
           />
         </Stack>
       )}
@@ -156,8 +163,8 @@ const AmountFormData = ({
   }, []);
 
   return (
-    <Stack gap={2}>
-      <Box display="flex" gap={2} justifyContent="center" sx={{ mt: 2 }}>
+    <Stack gap={3}>
+      <Box display="flex" gap={3} justifyContent="center" sx={{ mt: 2 }}>
         {hasVestingTokens && <TokenPoolSelector disabled={false} onSelect={(pool) => setValue('tokenPool', pool)} />}
         <CurrencyFormField
           required
@@ -168,6 +175,16 @@ const AmountFormData = ({
           validationError={errors.amount?.amount?.message}
           denom={denom}
           initialValue={amountData.amount.amount}
+        />
+        <CurrencyFormField
+          required
+          fullWidth
+          label="Operator cost"
+          autoFocus
+          onChanged={(newValue) => setValue('operatorCost', newValue, { shouldValidate: true })}
+          validationError={errors.operatorCost?.amount?.message}
+          denom={denom}
+          initialValue={amountData.operatorCost.amount}
         />
       </Box>
     </Stack>

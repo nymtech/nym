@@ -99,6 +99,7 @@ export const IdentityKeyFormField: React.FC<{
       helperText={validationError}
       defaultValue={initialValue}
       onChange={handleChange}
+      InputLabelProps={{ shrink: true }}
     />
   );
 };

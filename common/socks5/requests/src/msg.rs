@@ -1,36 +1,40 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use thiserror::Error;
+
+use crate::network_requester_response::{Error as NrError, NetworkRequesterResponse};
 use crate::request::{Request, RequestError};
 use crate::response::{Response, ResponseError};
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum MessageError {
+    #[error("{0}")]
     Request(RequestError),
-    Response(ResponseError),
-    NoData,
-    UnknownMessageType,
-}
 
-impl std::fmt::Display for MessageError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            MessageError::Request(r) => write!(f, "{}", r),
-            MessageError::Response(r) => write!(f, "{:?}", r),
-            MessageError::NoData => write!(f, "no data provided"),
-            MessageError::UnknownMessageType => write!(f, "unknown message type received"),
-        }
-    }
+    #[error("{0:?}")]
+    Response(ResponseError),
+
+    #[error("{0}")]
+    NetworkRequesterResponseError(NrError),
+
+    #[error("no data")]
+    NoData,
+
+    #[error("unknown message type received")]
+    UnknownMessageType,
 }
 
 pub enum Message {
     Request(Request),
     Response(Response),
+    NetworkRequesterResponse(NetworkRequesterResponse),
 }
 
 impl Message {
     const REQUEST_FLAG: u8 = 0;
     const RESPONSE_FLAG: u8 = 1;
+    const NR_RESPONSE_FLAG: u8 = 2;
 
     pub fn conn_id(&self) -> u64 {
         match self {
@@ -39,6 +43,7 @@ impl Message {
                 Request::Send(conn_id, _, _) => *conn_id,
             },
             Message::Response(resp) => resp.connection_id,
+            Message::NetworkRequesterResponse(resp) => resp.connection_id,
         }
     }
 
@@ -49,6 +54,7 @@ impl Message {
                 Request::Send(_, data, _) => data.len(),
             },
             Message::Response(resp) => resp.data.len(),
+            Message::NetworkRequesterResponse(_) => 0,
         }
     }
 
@@ -65,6 +71,10 @@ impl Message {
             Response::try_from_bytes(&b[1..])
                 .map(Message::Response)
                 .map_err(MessageError::Response)
+        } else if b[0] == Self::NR_RESPONSE_FLAG {
+            NetworkRequesterResponse::try_from_bytes(&b[1..])
+                .map(Message::NetworkRequesterResponse)
+                .map_err(MessageError::NetworkRequesterResponseError)
         } else {
             Err(MessageError::UnknownMessageType)
         }
@@ -76,6 +86,9 @@ impl Message {
                 .chain(r.into_bytes().iter().cloned())
                 .collect(),
             Self::Response(r) => std::iter::once(Self::RESPONSE_FLAG)
+                .chain(r.into_bytes().iter().cloned())
+                .collect(),
+            Self::NetworkRequesterResponse(r) => std::iter::once(Self::NR_RESPONSE_FLAG)
                 .chain(r.into_bytes().iter().cloned())
                 .collect(),
         }

@@ -4,8 +4,7 @@ use crate::network_config;
 use crate::state::{WalletAccountIds, WalletState};
 use crate::wallet_storage::{self, DEFAULT_LOGIN_ID};
 use bip39::{Language, Mnemonic};
-use config::defaults::all::Network;
-use config::defaults::COSMOS_DERIVATION_PATH;
+use config::defaults::{NymNetworkDetails, COSMOS_DERIVATION_PATH};
 use cosmrs::bip32::DerivationPath;
 use itertools::Itertools;
 use nym_types::account::{Account, AccountEntry, Balance};
@@ -104,10 +103,12 @@ async fn _connect_with_mnemonic(
 
         // Take the oppertunity to list all the known validators while we have the state.
         for network in WalletNetwork::iter() {
-            log::debug!(
-                "List of validators for {network}: [\n{}\n]",
+            // fern really wants us to not evaluate this inside the debug macro argument
+            let f = format!(
+                "{}",
                 state.get_config_validator_entries(network).format(",\n")
             );
+            log::debug!("List of validators for {network}: [\n{}\n]", f,);
         }
 
         state.config().clone()
@@ -173,8 +174,8 @@ async fn run_connection_test(
     untested_api_urls: HashMap<WalletNetwork, Vec<Url>>,
     config: &Config,
 ) -> (
-    HashMap<Network, Vec<(Url, bool)>>,
-    HashMap<Network, Vec<(Url, bool)>>,
+    HashMap<NymNetworkDetails, Vec<(Url, bool)>>,
+    HashMap<NymNetworkDetails, Vec<(Url, bool)>>,
 ) {
     let mixnet_contract_address = WalletNetwork::iter()
         .map(|network| (network.into(), config.get_mixnet_contract_address(network)))
@@ -197,8 +198,8 @@ async fn run_connection_test(
 }
 
 fn create_clients(
-    nymd_urls: &HashMap<Network, Vec<(Url, bool)>>,
-    api_urls: &HashMap<Network, Vec<(Url, bool)>>,
+    nymd_urls: &HashMap<NymNetworkDetails, Vec<(Url, bool)>>,
+    api_urls: &HashMap<NymNetworkDetails, Vec<(Url, bool)>>,
     default_nymd_urls: &HashMap<WalletNetwork, Url>,
     default_api_urls: &HashMap<WalletNetwork, Url>,
     config: &Config,
@@ -237,8 +238,8 @@ fn create_clients(
         log::info!("Connecting to: nymd_url: {nymd_url} for {network}");
         log::info!("Connecting to: api_url: {api_url} for {network}");
 
-        let network_details = Network::from(network)
-            .details()
+        let network_details = NymNetworkDetails::from(network)
+            .clone()
             .with_mixnet_contract(Some(config.get_mixnet_contract_address(network).as_ref()))
             .with_vesting_contract(Some(config.get_vesting_contract_address(network).as_ref()))
             .with_bandwidth_claim_contract(Some(
@@ -258,7 +259,7 @@ fn create_clients(
 }
 
 fn select_random_responding_url(
-    urls: &HashMap<Network, Vec<(Url, bool)>>,
+    urls: &HashMap<NymNetworkDetails, Vec<(Url, bool)>>,
     network: WalletNetwork,
 ) -> Option<Url> {
     urls.get(&network.into()).and_then(|urls| {
@@ -271,7 +272,7 @@ fn select_random_responding_url(
 }
 
 fn select_first_responding_url(
-    urls: &HashMap<Network, Vec<(Url, bool)>>,
+    urls: &HashMap<NymNetworkDetails, Vec<(Url, bool)>>,
     network: WalletNetwork,
     //config: &Config,
 ) -> Option<Url> {
@@ -424,8 +425,8 @@ pub async fn add_account_for_password(
 
     let address = {
         let state = state.read().await;
-        let network: Network = state.current_network().into();
-        derive_address(mnemonic, &network.bech32_prefix())?.to_string()
+        let network: NymNetworkDetails = state.current_network().into();
+        derive_address(mnemonic, &network.chain_details.bech32_account_prefix)?.to_string()
     };
 
     // Re-read all the acccounts from the  wallet to reset the state, rather than updating it
@@ -464,10 +465,14 @@ async fn set_state_with_all_accounts(
             let mnemonic = account.mnemonic();
             let addresses: HashMap<WalletNetwork, cosmrs::AccountId> = WalletNetwork::iter()
                 .map(|network| {
-                    let config_network: Network = network.into();
+                    let config_network: NymNetworkDetails = network.into();
                     (
                         network,
-                        derive_address(mnemonic.clone(), &config_network.bech32_prefix()).unwrap(),
+                        derive_address(
+                            mnemonic.clone(),
+                            &config_network.chain_details.bech32_account_prefix,
+                        )
+                        .unwrap(),
                     )
                 })
                 .collect();
@@ -560,16 +565,11 @@ fn _show_mnemonic_for_account_in_password(
     let stored_account = wallet_storage::load_existing_login(login_id, password)?;
     let mnemonic = match stored_account {
         wallet_storage::StoredLogin::Mnemonic(ref account) => account.mnemonic().clone(),
-        wallet_storage::StoredLogin::Multiple(ref accounts) => {
-            for account in accounts.get_accounts() {
-                log::debug!("{:?}", account);
-            }
-            accounts
-                .get_account(account_id)
-                .ok_or(BackendError::WalletNoSuchAccountIdInWalletLogin)?
-                .mnemonic()
-                .clone()
-        }
+        wallet_storage::StoredLogin::Multiple(ref accounts) => accounts
+            .get_account(account_id)
+            .ok_or(BackendError::WalletNoSuchAccountIdInWalletLogin)?
+            .mnemonic()
+            .clone(),
     };
     Ok(mnemonic)
 }

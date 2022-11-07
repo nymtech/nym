@@ -1,7 +1,7 @@
 [package]
 name = "nym-client-wasm"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jedrzej Stuczynski <andrew@nymtech.net>"]
-version = "1.0.1"
+version = "1.0.0"
 edition = "2021"
 keywords = ["nym", "sphinx", "wasm", "webassembly", "privacy", "client"]
 license = "Apache-2.0"
@@ -20,19 +20,21 @@ coconut = ["coconut-interface", "credentials", "gateway-client/coconut"]
 [dependencies]
 futures = "0.3"
 serde = { version = "1.0", features = ["derive"] }
-wasm-bindgen = { version = "=0.2.78", features = ["serde-serialize"]  }
+serde-wasm-bindgen = "0.4"
+wasm-bindgen = { version = "=0.2.83", features = ["serde-serialize"]  }
 wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 url = "2.2"
 
 # internal
+client-core = { path = "../client-core", default-features = false, features = ["wasm"] }
 coconut-interface = { path = "../../common/coconut-interface", optional = true }
 credentials = { path = "../../common/credentials", optional = true }
 crypto = { path = "../../common/crypto" }
 nymsphinx = { path = "../../common/nymsphinx" }
 topology = { path = "../../common/topology" }
-gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm"] }
+gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm", "coconut"] }
 validator-client = { path = "../../common/client-libs/validator-client", default-features = false }
 wasm-utils = { path = "../../common/wasm-utils" }
 

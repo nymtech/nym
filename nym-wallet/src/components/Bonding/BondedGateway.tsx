@@ -10,17 +10,26 @@ import { BondedGatewayActions, TBondedGatwayActions } from './BondedGatewayActio
 
 const headers: Header[] = [
   {
-    header: 'IP',
-    id: 'ip',
-    sx: { pl: 0 },
-  },
-  {
     header: 'Bond',
     id: 'bond',
   },
+
+  {
+    header: 'Routing score',
+    id: 'routing-score',
+    tooltipText: 'Routing score',
+  },
+  {
+    header: 'Average score',
+    id: 'average-score',
+    tooltipText: 'Average score',
+  },
+  {
+    header: 'IP',
+    id: 'ip',
+  },
   {
     id: 'menu-button',
-    sx: { width: 34, maxWidth: 34 },
   },
 ];
 
@@ -33,18 +42,26 @@ export const BondedGateway = ({
   network?: Network;
   onActionSelect: (action: TBondedGatwayActions) => void;
 }) => {
-  const { name, bond, ip, identityKey } = gateway;
+  const { name, bond, ip, identityKey, routingScore } = gateway;
   const cells: Cell[] = [
     {
-      cell: ip,
-      id: 'stake-saturation-cell',
-    },
-    {
       cell: `${bond.amount} ${bond.denom}`,
-      id: 'stake-cell',
+      id: 'bond-cell',
       sx: { pl: 0 },
     },
 
+    {
+      cell: `${routingScore?.current || '- '}%`,
+      id: 'routing-score-cell',
+    },
+    {
+      cell: `${routingScore?.average || '- '}%`,
+      id: 'average-score-cell',
+    },
+    {
+      cell: ip,
+      id: 'ip-cell',
+    },
     {
       cell: <BondedGatewayActions onActionSelect={onActionSelect} />,
       id: 'actions-cell',
@@ -56,7 +73,7 @@ export const BondedGateway = ({
     <NymCard
       borderless
       title={
-        <Stack gap={2}>
+        <Stack gap={3}>
           <Typography variant="h5" fontWeight={600}>
             Gateway
           </Typography>
@@ -73,7 +90,7 @@ export const BondedGateway = ({
       <NodeTable headers={headers} cells={cells} />
       {network && (
         <Typography sx={{ mt: 2, fontSize: 'small' }}>
-          Check more stats of your node on the{' '}
+          Check more stats of your gateway on the{' '}
           <Link href={`${urls(network).networkExplorer}/network-components/gateways`} target="_blank">
             explorer
           </Link>

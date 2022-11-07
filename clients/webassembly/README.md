@@ -11,6 +11,7 @@ This client is part of the [Nym](https://nymtech.net/docs) project. It's written
 ## Security Status 
 
 From a security point of view, this module is not yet complete. Key missing features include, but are not limited to: cover traffic, sending packets with delay according to Poisson distribution. 
+
 They should be implemented soon. You can build your applications, but don't rely on it for strong anonymity yet if your application needs cover traffic.
 
 ## Using it
@@ -37,6 +38,6 @@ To be clear, this is not something that most JS developers need to worry about, 
 
 If you're a Nym platform developer who's made changes to the Rust (or JS) files and wants to re-publish the package to NPM, here's how you do it: 
 
-1. `wasm-pack build --scope nymproject` builds the wasm binaries into the `pkg` directory (not in source control)
-2. bump version numbers as necessary for SemVer
-3. `wasm-pack publish --access=public` will publish your changed package to NPM
+1. bump version numbers as necessary for SemVer
+2. `wasm-pack build --scope nymproject` builds the wasm binaries into the `pkg` directory (not in source control)
+3. `cd pkg && npm publish --access=public` will publish your changed package to NPM

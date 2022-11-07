@@ -4,67 +4,77 @@
 use crate::api_client;
 use crate::error::BackendError;
 use crate::state::WalletState;
+use mixnet_contract_common::{IdentityKeyRef, MixId};
 use validator_client::models::{
-    CoreNodeStatusResponse, InclusionProbabilityResponse, MixnodeStatusResponse,
-    RewardEstimationResponse, StakeSaturationResponse,
+    GatewayCoreStatusResponse, GatewayStatusReportResponse, InclusionProbabilityResponse,
+    MixnodeCoreStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
+    StakeSaturationResponse,
 };
 
 #[tauri::command]
 pub async fn mixnode_core_node_status(
-    identity: &str,
+    mix_id: MixId,
     since: Option<i64>,
     state: tauri::State<'_, WalletState>,
-) -> Result<CoreNodeStatusResponse, BackendError> {
+) -> Result<MixnodeCoreStatusResponse, BackendError> {
     Ok(api_client!(state)
-        .get_mixnode_core_status_count(identity, since)
+        .get_mixnode_core_status_count(mix_id, since)
         .await?)
 }
 
 #[tauri::command]
 pub async fn gateway_core_node_status(
-    identity: &str,
+    identity: IdentityKeyRef<'_>,
     since: Option<i64>,
     state: tauri::State<'_, WalletState>,
-) -> Result<CoreNodeStatusResponse, BackendError> {
+) -> Result<GatewayCoreStatusResponse, BackendError> {
     Ok(api_client!(state)
         .get_gateway_core_status_count(identity, since)
         .await?)
 }
 
 #[tauri::command]
+pub async fn gateway_report(
+    identity: IdentityKeyRef<'_>,
+    state: tauri::State<'_, WalletState>,
+) -> Result<GatewayStatusReportResponse, BackendError> {
+    Ok(api_client!(state).get_gateway_report(identity).await?)
+}
+
+#[tauri::command]
 pub async fn mixnode_status(
-    identity: &str,
+    mix_id: MixId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<MixnodeStatusResponse, BackendError> {
-    Ok(api_client!(state).get_mixnode_status(identity).await?)
+    Ok(api_client!(state).get_mixnode_status(mix_id).await?)
 }
 
 #[tauri::command]
 pub async fn mixnode_reward_estimation(
-    identity: &str,
+    mix_id: MixId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<RewardEstimationResponse, BackendError> {
     Ok(api_client!(state)
-        .get_mixnode_reward_estimation(identity)
+        .get_mixnode_reward_estimation(mix_id)
         .await?)
 }
 
 #[tauri::command]
 pub async fn mixnode_stake_saturation(
-    identity: &str,
+    mix_id: MixId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<StakeSaturationResponse, BackendError> {
     Ok(api_client!(state)
-        .get_mixnode_stake_saturation(identity)
+        .get_mixnode_stake_saturation(mix_id)
         .await?)
 }
 
 #[tauri::command]
 pub async fn mixnode_inclusion_probability(
-    identity: &str,
+    mix_id: MixId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<InclusionProbabilityResponse, BackendError> {
     Ok(api_client!(state)
-        .get_mixnode_inclusion_probability(identity)
+        .get_mixnode_inclusion_probability(mix_id)
         .await?)
 }

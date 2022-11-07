@@ -1,15 +1,27 @@
-const CopyWebpackPlugin = require("copy-webpack-plugin");
+const CopyWebpackPlugin = require('copy-webpack-plugin');
 const path = require('path');
 
 module.exports = {
-  entry: "./bootstrap.js",
-  output: {
-    path: path.resolve(__dirname, "dist"),
-    filename: "bootstrap.js",
+  entry: {
+    bootstrap: './bootstrap.js',
+    worker: './worker.js',
   },
-  mode: "development",
+  output: {
+    path: path.resolve(__dirname, 'dist'),
+    filename: '[name].js',
+  },
+  // mode: 'development',
+  mode: 'production',
   plugins: [
-    new CopyWebpackPlugin({patterns: ['index.html']})
+    new CopyWebpackPlugin({
+      patterns: [
+        'index.html',
+        {
+          from: 'node_modules/@nymproject/nym-client-wasm/*.(js|wasm)',
+          to: '[name][ext]',
+        },
+      ],
+    }),
   ],
-  experiments: { asyncWebAssembly: true }
+  experiments: { syncWebAssembly: true },
 };

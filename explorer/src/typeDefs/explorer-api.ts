@@ -30,7 +30,6 @@ export interface MixNode {
   sphinx_key: string;
   identity_key: string;
   version: string;
-  profit_margin_percent: number;
   location: string;
 }
 
@@ -70,6 +69,7 @@ export const toMixnodeStatus = (status?: MixnodeStatusWithAll): MixnodeStatus | 
 };
 
 export interface MixNodeResponseItem {
+  mix_id: number;
   pledge_amount: Amount;
   total_delegation: Amount;
   owner: string;
@@ -85,6 +85,8 @@ export interface MixNodeResponseItem {
   mix_node: MixNode;
   avg_uptime: number;
   stake_saturation: number;
+  operating_cost: Amount;
+  profit_margin_percent: string;
 }
 
 export type MixNodeResponse = MixNodeResponseItem[];
@@ -126,12 +128,9 @@ export type GatewayResponse = GatewayResponseItem[];
 export interface GatewayReportResponse {
   identity: string;
   owner: string;
-  most_recent_ipv4: boolean;
-  most_recent_ipv6: boolean;
-  last_hour_ipv4: number;
-  last_hour_ipv6: number;
-  last_day_ipv4: number;
-  last_day_ipv6: number;
+  most_recent: number;
+  last_hour: number;
+  last_day: number;
 }
 
 export type GatewayHistoryResponse = StatsResponse;
@@ -215,8 +214,9 @@ export type UptimeStoryResponse = {
 
 export type MixNodeEconomicDynamicsStatsResponse = {
   stake_saturation: number;
-  active_set_inclusion_probability: 'VeryHigh' | 'High' | 'Moderate' | 'Low' | 'VeryLow';
-  reserve_set_inclusion_probability: 'VeryHigh' | 'High' | 'Moderate' | 'Low' | 'VeryLow';
+  // TODO: when v2 will be deployed, remove cases: VeryHigh, Moderate and VeryLow
+  active_set_inclusion_probability: 'High' | 'Good' | 'Low' | 'VeryLow' | 'Moderate' | 'VeryHigh';
+  reserve_set_inclusion_probability: 'High' | 'Good' | 'Low';
   estimated_total_node_reward: number;
   estimated_operator_reward: number;
   estimated_delegators_reward: number;

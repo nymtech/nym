@@ -1,60 +1,75 @@
-import { FeeDetails, DecCoin, MixnodeStatus, TransactionExecuteResult } from '@nymproject/types';
+import {
+  FeeDetails,
+  DecCoin,
+  MixnodeStatus,
+  TransactionExecuteResult,
+  decimalToPercentage,
+  SelectionChance,
+} from '@nymproject/types';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { isGateway, isMixnode, Network, TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
+import Big from 'big.js';
+import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
 import { Console } from 'src/utils/console';
 import {
   bondGateway as bondGatewayRequest,
   bondMixNode as bondMixNodeRequest,
   claimOperatorReward,
-  compoundOperatorReward,
+  getGatewayBondDetails,
+  getMixnodeBondDetails,
   unbondGateway as unbondGatewayRequest,
   unbondMixNode as unbondMixnodeRequest,
   vestingBondGateway,
   vestingBondMixNode,
   vestingUnbondGateway,
   vestingUnbondMixnode,
-  updateMixnode as updateMixnodeRequest,
-  vestingUpdateMixnode as updateMixnodeVestingRequest,
-  getNodeDescription as getNodeDescriptioRequest,
-  getGatewayBondDetails,
-  getMixnodeBondDetails,
+  getPendingEpochEvents,
+  updateMixnodeCostParams as updateMixnodeCostParamsRequest,
+  vestingUpdateMixnodeCostParams as updateMixnodeVestingCostParamsRequest,
+  getNodeDescription as getNodeDescriptionRequest,
   getMixnodeStatus,
-  getOperatorRewards,
+  getPendingOperatorRewards,
   getMixnodeStakeSaturation,
-  getNumberOfMixnodeDelegators,
   vestingClaimOperatorReward,
-  vestingCompoundOperatorReward,
+  getInclusionProbability,
+  getMixnodeAvgUptime,
+  getMixnodeRewardEstimation,
+  getGatewayReport,
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
+import {
+  attachDefaultOperatingCost,
+  decCoinToDisplay,
+  toDisplay,
+  toPercentFloatString,
+  toPercentIntegerString,
+  unymToNym,
+} from '../utils';
 
-const bonded: TBondedMixnode = {
-  name: 'Monster node',
-  identityKey: 'B2Xx4haarLWMajX8w259oHjtRZsC7nHwagbWrJNiA3QC',
-  bond: { denom: 'nym', amount: '1234' },
-  delegators: 123,
-  operatorRewards: { denom: 'nym', amount: '12' },
-  profitMargin: 10,
-  stake: { denom: 'nym', amount: '99' },
-  stakeSaturation: 99,
-  status: 'active',
-};
-
-// TODO add relevant data
 export type TBondedMixnode = {
   name?: string;
   identityKey: string;
   stake: DecCoin;
   bond: DecCoin;
-  stakeSaturation: number;
-  profitMargin: number;
-  operatorRewards: DecCoin;
+  stakeSaturation: string;
+  profitMargin: string;
+  operatorRewards?: DecCoin;
   delegators: number;
   status: MixnodeStatus;
   proxy?: string;
+  operatorCost: DecCoin;
+  host: string;
+  estimatedRewards?: DecCoin;
+  activeSetProbability?: SelectionChance;
+  standbySetProbability?: SelectionChance;
+  routingScore: number;
+  httpApiPort: number;
+  mixPort: number;
+  verlocPort: number;
+  version: string;
+  isUnbonding: boolean;
 };
 
-// TODO add relevant data
 export interface TBondedGateway {
   name: string;
   identityKey: string;
@@ -62,6 +77,16 @@ export interface TBondedGateway {
   bond: DecCoin;
   location?: string; // TODO not yet available, only available in Network Explorer API
   proxy?: string;
+  host: string;
+  httpApiPort: number;
+  mixPort: number;
+  verlocPort: number;
+  version: string;
+  routingScore?: {
+    current: number;
+    average: number;
+  };
+  isUnbonding: boolean;
 }
 
 export type TokenPool = 'locked' | 'balance';
@@ -74,15 +99,10 @@ export type TBondingContext = {
   bondMixnode: (data: TBondMixNodeArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   bondGateway: (data: TBondGatewayArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   unbond: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
+  bondMore: (signature: string, amount: DecCoin, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   redeemRewards: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
-  compoundRewards: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
-  updateMixnode: (pm: number, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
+  updateMixnode: (pm: string, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   checkOwnership: () => Promise<void>;
-};
-
-const calculateStake = (pledge: DecCoin, delegations: DecCoin) => {
-  const total = Number(pledge.amount) + Number(delegations.amount);
-  return { amount: total.toString(), denom: pledge.denom };
 };
 
 export const BondingContext = createContext<TBondingContext>({
@@ -97,10 +117,10 @@ export const BondingContext = createContext<TBondingContext>({
   unbond: async () => {
     throw new Error('Not implemented');
   },
-  redeemRewards: async () => {
+  bondMore: async () => {
     throw new Error('Not implemented');
   },
-  compoundRewards: async () => {
+  redeemRewards: async () => {
     throw new Error('Not implemented');
   },
   updateMixnode: async () => {
@@ -126,96 +146,176 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     setBondedNode(undefined);
   };
 
-  const getAdditionalMixnodeDetails = async (identityKey: string) => {
-    const additionalDetails: { status: MixnodeStatus; stakeSaturation: number; numberOfDelegators: number } = {
+  const getAdditionalMixnodeDetails = async (mixId: number) => {
+    const additionalDetails: {
+      status: MixnodeStatus;
+      stakeSaturation: string;
+      estimatedRewards?: DecCoin;
+    } = {
       status: 'not_found',
-      stakeSaturation: 0,
-      numberOfDelegators: 0,
+      stakeSaturation: '0',
     };
 
     try {
-      const statusResponse = await getMixnodeStatus(identityKey);
+      const statusResponse = await getMixnodeStatus(mixId);
       additionalDetails.status = statusResponse.status;
     } catch (e) {
-      Console.log(e);
+      Console.log('getMixnodeStatus fails', e);
     }
 
     try {
-      const stakeSaturationResponse = await getMixnodeStakeSaturation(identityKey);
-      additionalDetails.stakeSaturation = Math.round(stakeSaturationResponse.saturation * 100);
+      const stakeSaturationResponse = await getMixnodeStakeSaturation(mixId);
+      additionalDetails.stakeSaturation = decimalToPercentage(stakeSaturationResponse.saturation);
     } catch (e) {
-      Console.log(e);
+      Console.log('getMixnodeStakeSaturation fails', e);
     }
-
     try {
-      const numberOfDelegators = await getNumberOfMixnodeDelegators(identityKey);
-      additionalDetails.numberOfDelegators = numberOfDelegators;
+      const rewardEstimation = await getMixnodeRewardEstimation(mixId);
+      const estimatedRewards = unymToNym(rewardEstimation.estimation.total_node_reward);
+      if (estimatedRewards) {
+        additionalDetails.estimatedRewards = {
+          amount: estimatedRewards,
+          denom: 'nym',
+        };
+      }
     } catch (e) {
-      Console.log(e);
+      Console.log('getMixnodeRewardEstimation fails', e);
     }
-
     return additionalDetails;
   };
 
   const getNodeDescription = async (host: string, port: number) => {
+    let result;
     try {
-      const nodeDescription = await getNodeDescriptioRequest(host, port);
-      return nodeDescription;
+      result = await getNodeDescriptionRequest(host, port);
     } catch (e) {
-      Console.log(e);
+      Console.log('getNodeDescriptionRequest fails', e);
     }
-    return undefined;
+    return result;
+  };
+
+  const getSetProbabilities = async (mixId: number) => {
+    let result;
+    try {
+      result = await getInclusionProbability(mixId);
+    } catch (e: any) {
+      Console.log('getInclusionProbability fails', e);
+    }
+    return result;
+  };
+
+  const getAvgUptime = async () => {
+    let result;
+    try {
+      result = await getMixnodeAvgUptime();
+    } catch (e: any) {
+      Console.log('getMixnodeAvgUptime fails', e);
+    }
+    return result;
+  };
+
+  const calculateStake = (pledge: string, delegations: string) => {
+    let stake;
+    try {
+      stake = unymToNym(Big(pledge).plus(delegations));
+    } catch (e: any) {
+      Console.warn(`not a valid decimal number: ${e}`);
+    }
+    return stake;
+  };
+
+  const getGatewayReportDetails = async (identityKey: string) => {
+    try {
+      const report = await getGatewayReport(identityKey);
+      return { current: report.most_recent, average: report.last_day };
+    } catch (e) {
+      Console.error(e);
+      return undefined;
+    }
   };
 
   const refresh = useCallback(async () => {
     setIsLoading(true);
 
-    if (ownership.hasOwnership && ownership.nodeType === 'mixnode' && clientDetails) {
+    if (ownership.hasOwnership && clientDetails) {
       try {
         const data = await getMixnodeBondDetails();
-        const operatorRewards = await getOperatorRewards(clientDetails?.client_address);
+        let operatorRewards;
+        try {
+          operatorRewards = await getPendingOperatorRewards(clientDetails?.client_address);
+          const opRewards = toDisplay(operatorRewards.amount);
+          if (opRewards) {
+            operatorRewards.amount = opRewards;
+          }
+        } catch (e) {
+          Console.warn(`get_operator_rewards request failed: ${e}`);
+        }
         if (data) {
-          const { status, stakeSaturation, numberOfDelegators } = await getAdditionalMixnodeDetails(
-            data.mix_node.identity_key,
+          const {
+            bond_information,
+            rewarding_details,
+            bond_information: { mix_id },
+          } = data;
+
+          const { status, stakeSaturation, estimatedRewards } = await getAdditionalMixnodeDetails(mix_id);
+          const setProbabilities = await getSetProbabilities(mix_id);
+          const nodeDescription = await getNodeDescription(
+            bond_information.mix_node.host,
+            bond_information.mix_node.http_api_port,
           );
-          const nodeDescription = await getNodeDescription(data.mix_node.host, data.mix_node.http_api_port);
+          const routingScore = await getAvgUptime();
           setBondedNode({
             name: nodeDescription?.name,
-            identityKey: data.mix_node.identity_key,
-            ip: '',
-            stake: calculateStake(data.pledge_amount, data.total_delegation),
-            bond: data.pledge_amount,
-            profitMargin: data.mix_node.profit_margin_percent,
-            nodeRewards: data.accumulated_rewards,
-            delegators: numberOfDelegators,
-            proxy: data.proxy,
+            identityKey: bond_information.mix_node.identity_key,
+            stake: {
+              amount: calculateStake(rewarding_details.operator, rewarding_details.delegates),
+              denom: bond_information.original_pledge.denom,
+            },
+            bond: decCoinToDisplay(bond_information.original_pledge),
+            profitMargin: toPercentIntegerString(rewarding_details.cost_params.profit_margin_percent),
+            delegators: rewarding_details.unique_delegations,
+            proxy: bond_information.proxy,
             operatorRewards,
             status,
             stakeSaturation,
+            operatorCost: decCoinToDisplay(rewarding_details.cost_params.interval_operating_cost),
+            host: bond_information.mix_node.host.replace(/\s/g, ''),
+            routingScore,
+            activeSetProbability: setProbabilities?.in_active,
+            standbySetProbability: setProbabilities?.in_reserve,
+            estimatedRewards,
+            httpApiPort: bond_information.mix_node.http_api_port,
+            mixPort: bond_information.mix_node.mix_port,
+            verlocPort: bond_information.mix_node.verloc_port,
+            version: bond_information.mix_node.version,
+            isUnbonding: bond_information.is_unbonding,
           } as TBondedMixnode);
         }
       } catch (e: any) {
+        Console.warn(e);
         setError(`While fetching current bond state, an error occurred: ${e}`);
       }
     }
 
-    if (ownership.hasOwnership && ownership.nodeType === 'gateway') {
+    if (ownership.hasOwnership) {
       try {
         const data = await getGatewayBondDetails();
         if (data) {
           const nodeDescription = await getNodeDescription(data.gateway.host, data.gateway.clients_port);
-
+          const routingScore = await getGatewayReportDetails(data.gateway.identity_key);
           setBondedNode({
             name: nodeDescription?.name,
             identityKey: data.gateway.identity_key,
             ip: data.gateway.host,
             location: data.gateway.location,
-            bond: data.pledge_amount,
-            delegators: bonded.delegators,
+            bond: decCoinToDisplay(data.pledge_amount),
             proxy: data.proxy,
+            routingScore,
+            isUnbonding: false,
           } as TBondedGateway);
         }
       } catch (e: any) {
+        Console.warn(e);
         setError(`While fetching current bond state, an error occurred: ${e}`);
       }
     }
@@ -244,6 +344,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
       }
       return tx;
     } catch (e: any) {
+      Console.warn(e);
       setError(`an error occurred: ${e}`);
     } finally {
       setIsLoading(false);
@@ -265,6 +366,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
       }
       return tx;
     } catch (e: any) {
+      Console.warn(e);
       setError(`an error occurred: ${e}`);
     } finally {
       setIsLoading(false);
@@ -281,6 +383,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
       if (bondedNode && isGateway(bondedNode) && bondedNode.proxy) tx = await vestingUnbondGateway(fee?.fee);
       if (bondedNode && isGateway(bondedNode) && !bondedNode.proxy) tx = await unbondGatewayRequest(fee?.fee);
     } catch (e) {
+      Console.warn(e);
       setError(`an error occurred: ${e as string}`);
     } finally {
       setIsLoading(false);
@@ -288,13 +391,23 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     return tx;
   };
 
-  const updateMixnode = async (pm: number, fee?: FeeDetails) => {
+  const updateMixnode = async (pm: string, fee?: FeeDetails) => {
     let tx;
     setIsLoading(true);
+
+    // TODO: this will have to be updated with allowing users to provide their operating cost in the form
+    const defaultCostParams = await attachDefaultOperatingCost(toPercentFloatString(pm));
+
     try {
-      if (bondedNode?.proxy) tx = await updateMixnodeVestingRequest(pm, fee?.fee);
-      else tx = await updateMixnodeRequest(pm, fee?.fee);
+      // JS: this check is not entirely valid. you can have proxy field set whilst not using the vesting contract,
+      // you have to check if proxy exists AND if it matches the known vesting contract address!
+      if (bondedNode?.proxy) {
+        tx = await updateMixnodeVestingCostParamsRequest(defaultCostParams, fee?.fee);
+      } else {
+        tx = await updateMixnodeCostParamsRequest(defaultCostParams, fee?.fee);
+      }
     } catch (e: any) {
+      Console.warn(e);
       setError(`an error occurred: ${e}`);
     } finally {
       setIsLoading(false);
@@ -308,20 +421,6 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     try {
       if (bondedNode?.proxy) tx = await vestingClaimOperatorReward(fee?.fee);
       else tx = await claimOperatorReward(fee?.fee);
-    } catch (e: any) {
-      setError(`an error occurred: ${e}`);
-    } finally {
-      setIsLoading(false);
-    }
-    return tx;
-  };
-
-  const compoundRewards = async (fee?: FeeDetails) => {
-    let tx;
-    setIsLoading(true);
-    try {
-      if (bondedNode?.proxy) tx = await vestingCompoundOperatorReward(fee?.fee);
-      else tx = await compoundOperatorReward(fee?.fee);
     } catch (e: any) {
       setError(`an error occurred: ${e}`);
     } finally {
@@ -345,7 +444,6 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
       updateMixnode,
       refresh,
       redeemRewards,
-      compoundRewards,
       bondMore,
       checkOwnership,
     }),

@@ -53,7 +53,8 @@ impl From<NymTopologyError> for PreparationError {
 /// Prepares the message that is to be sent through the mix network by attaching
 /// an optional reply-SURB, padding it to appropriate length, encrypting its content,
 /// and chunking into appropriate size [`Fragment`]s.
-#[cfg_attr(not(target_arch = "wasm32"), derive(Clone))]
+// #[cfg_attr(not(target_arch = "wasm32"), derive(Clone))]
+#[derive(Clone)]
 #[must_use]
 pub struct MessagePreparer<R: CryptoRng + Rng> {
     /// Instance of a cryptographically secure random number generator.
@@ -104,7 +105,7 @@ where
     }
 
     /// Allows setting non-default size of the sphinx packets sent out.
-    pub fn with_packet_size(mut self, packet_size: PacketSize) -> Self {
+    pub fn with_custom_real_message_packet_size(mut self, packet_size: PacketSize) -> Self {
         self.packet_size = packet_size;
         self
     }
@@ -213,7 +214,7 @@ where
     /// - compute vk_b = g^x || v_b
     /// - compute sphinx_plaintext = SURB_ACK || g^x || v_b
     /// - compute sphinx_packet = Sphinx(recipient, sphinx_plaintext)
-    pub async fn prepare_chunk_for_sending(
+    pub fn prepare_chunk_for_sending(
         &mut self,
         fragment: Fragment,
         topology: &NymTopology,
@@ -222,8 +223,7 @@ where
     ) -> Result<PreparedFragment, NymTopologyError> {
         // create an ack
         let (ack_delay, surb_ack_bytes) = self
-            .generate_surb_ack(fragment.fragment_identifier(), topology, ack_key)
-            .await?
+            .generate_surb_ack(fragment.fragment_identifier(), topology, ack_key)?
             .prepare_for_sending();
 
         // TODO:
@@ -294,7 +294,7 @@ where
     }
 
     /// Construct an acknowledgement SURB for the given [`FragmentIdentifier`]
-    async fn generate_surb_ack(
+    fn generate_surb_ack(
         &mut self,
         fragment_id: FragmentIdentifier,
         topology: &NymTopology,
@@ -357,8 +357,7 @@ where
         // gateways could not distinguish reply packets from normal messages due to lack of said acks
         // note: the ack delay is irrelevant since we do not know the delay of actual surb
         let (_, surb_ack_bytes) = self
-            .generate_surb_ack(reply_id, topology, ack_key)
-            .await?
+            .generate_surb_ack(reply_id, topology, ack_key)?
             .prepare_for_sending();
 
         let zero_pad_len = self.packet_size.plaintext_size()

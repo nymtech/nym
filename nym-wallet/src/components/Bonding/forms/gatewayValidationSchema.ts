@@ -1,5 +1,6 @@
 import * as Yup from 'yup';
 import {
+  isLessThan,
   isValidHostname,
   validateAmount,
   validateKey,
@@ -53,6 +54,17 @@ export const amountSchema = Yup.object().shape({
         if (!isValid) {
           return this.createError({ message: 'A valid amount is required (min 100)' });
         }
+        return true;
+      }),
+  }),
+  operatorCost: Yup.object().shape({
+    amount: Yup.string()
+      .required('An operating cost is required')
+      .test('valid-operating-cost', 'A valid amount is required (min 40)', async function isValidAmount(this, value) {
+        if (value && (!Number(value) || isLessThan(+value, 40))) {
+          return false;
+        }
+
         return true;
       }),
   }),

@@ -3,9 +3,11 @@ use std::path::Path;
 
 use chrono::{DateTime, Utc};
 use log::info;
+use mixnet_contract_common::MixId;
 use serde::{Deserialize, Serialize};
 
 use crate::client::ThreadsafeValidatorClient;
+use crate::geo_ip::location::ThreadsafeGeoIp;
 use validator_client::models::MixNodeBondAnnotated;
 
 use crate::country_statistics::country_nodes_distribution::{
@@ -29,14 +31,15 @@ pub struct ExplorerApiState {
     pub(crate) mixnodes: ThreadsafeMixNodesCache,
     pub(crate) ping: ThreadsafePingCache,
     pub(crate) validators: ThreadsafeValidatorCache,
+    pub(crate) geo_ip: ThreadsafeGeoIp,
 
     // TODO: discuss with @MS whether this is an appropriate spot for it
     pub(crate) validator_client: ThreadsafeValidatorClient,
 }
 
 impl ExplorerApiState {
-    pub(crate) async fn get_mix_node(&self, pubkey: &str) -> Option<MixNodeBondAnnotated> {
-        self.mixnodes.get_mixnode(pubkey).await
+    pub(crate) async fn get_mix_node(&self, mix_id: MixId) -> Option<MixNodeBondAnnotated> {
+        self.mixnodes.get_mixnode(mix_id).await
     }
 }
 
@@ -79,6 +82,7 @@ impl ExplorerApiStateContext {
                 ping: ThreadsafePingCache::new(),
                 validators: ThreadsafeValidatorCache::new(),
                 validator_client: ThreadsafeValidatorClient::new(),
+                geo_ip: ThreadsafeGeoIp::new(),
             }
         } else {
             warn!(
@@ -94,6 +98,7 @@ impl ExplorerApiStateContext {
                 ping: ThreadsafePingCache::new(),
                 validators: ThreadsafeValidatorCache::new(),
                 validator_client: ThreadsafeValidatorClient::new(),
+                geo_ip: ThreadsafeGeoIp::new(),
             }
         }
     }

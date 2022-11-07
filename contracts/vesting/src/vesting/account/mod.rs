@@ -3,14 +3,15 @@ use crate::errors::ContractError;
 use crate::storage::{
     load_balance, load_bond_pledge, load_gateway_pledge, load_withdrawn, remove_bond_pledge,
     remove_delegation, remove_gateway_pledge, save_account, save_balance, save_bond_pledge,
-    save_gateway_pledge, save_withdrawn, DELEGATIONS, KEY,
+    save_gateway_pledge, save_withdrawn, BlockTimestampSecs, DELEGATIONS, KEY,
 };
+use crate::traits::VestingAccount;
 use cosmwasm_std::{Addr, Coin, Order, Storage, Timestamp, Uint128};
 use cw_storage_plus::Bound;
-use mixnet_contract_common::IdentityKey;
+use mixnet_contract_common::MixId;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use vesting_contract_common::{Period, PledgeData};
+use vesting_contract_common::{Period, PledgeCap, PledgeData};
 
 mod delegating_account;
 mod gateway_bonding_account;
@@ -31,6 +32,8 @@ pub struct Account {
     pub periods: Vec<VestingPeriod>,
     pub coin: Coin,
     storage_key: u32,
+    #[serde(default)]
+    pub pledge_cap: Option<PledgeCap>,
 }
 
 impl Account {
@@ -40,6 +43,7 @@ impl Account {
         coin: Coin,
         start_time: Timestamp,
         periods: Vec<VestingPeriod>,
+        pledge_cap: Option<PledgeCap>,
         storage: &mut dyn Storage,
     ) -> Result<Self, ContractError> {
         let storage_key = generate_storage_key(storage)?;
@@ -51,10 +55,22 @@ impl Account {
             periods,
             coin,
             storage_key,
+            pledge_cap,
         };
         save_account(&account, storage)?;
         account.save_balance(amount, storage)?;
         Ok(account)
+    }
+
+    pub fn pledge_cap(&self) -> PledgeCap {
+        self.pledge_cap.clone().unwrap_or_default()
+    }
+
+    pub fn absolute_pledge_cap(&self) -> Result<Uint128, ContractError> {
+        match self.pledge_cap() {
+            PledgeCap::Absolute(cap) => Ok(cap),
+            PledgeCap::Percent(p) => Ok(p * self.get_original_vesting().amount.amount),
+        }
     }
 
     pub fn coin(&self) -> Coin {
@@ -101,10 +117,9 @@ impl Account {
         }
     }
 
+    /// Returns the index of the next vesting period. Unless the current time is somehow in the past or vesting has not started yet.
+    /// In case vesting is over it will always return NUM_VESTING_PERIODS.
     pub fn get_current_vesting_period(&self, block_time: Timestamp) -> Period {
-        // Returns the index of the next vesting period. Unless the current time is somehow in the past or vesting has not started yet.
-        // In case vesting is over it will always return NUM_VESTING_PERIODS.
-
         if block_time.seconds() < self.periods.first().unwrap().start_time {
             Period::Before
         } else if self.periods.last().unwrap().end_time() < block_time {
@@ -198,9 +213,9 @@ impl Account {
         remove_gateway_pledge(self.storage_key(), storage)
     }
 
-    pub fn any_delegation_for_mix(&self, mix: &str, storage: &dyn Storage) -> bool {
+    pub fn any_delegation_for_mix(&self, mix_id: MixId, storage: &dyn Storage) -> bool {
         DELEGATIONS
-            .prefix((self.storage_key(), mix.to_string()))
+            .prefix((self.storage_key(), mix_id))
             .range(storage, None, None, Order::Ascending)
             .next()
             .is_some()
@@ -208,7 +223,7 @@ impl Account {
 
     pub fn remove_delegations_for_mix(
         &self,
-        mix: &str,
+        mix_id: MixId,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
         let limit = 50;
@@ -219,7 +234,7 @@ impl Account {
         loop {
             block_heights.extend(
                 DELEGATIONS
-                    .prefix((self.storage_key(), mix.to_string()))
+                    .prefix((self.storage_key(), mix_id))
                     .keys(storage, start_after, None, Order::Ascending)
                     .take(limit)
                     .filter_map(|key| key.ok()),
@@ -238,18 +253,18 @@ impl Account {
         }
 
         for block_height in block_heights {
-            remove_delegation((self.storage_key(), mix.to_string(), block_height), storage)?;
+            remove_delegation((self.storage_key(), mix_id, block_height), storage)?;
         }
         Ok(())
     }
 
     pub fn total_delegations_for_mix(
         &self,
-        mix: IdentityKey,
+        mix_id: MixId,
         storage: &dyn Storage,
     ) -> Result<Uint128, ContractError> {
         Ok(DELEGATIONS
-            .prefix((self.storage_key(), mix))
+            .prefix((self.storage_key(), mix_id))
             .range(storage, None, None, Order::Ascending)
             .filter_map(|x| x.ok())
             .fold(Uint128::zero(), |acc, (_key, val)| acc + val))
@@ -261,5 +276,20 @@ impl Account {
             .range(storage, None, None, Order::Ascending)
             .filter_map(|x| x.ok())
             .fold(Uint128::zero(), |acc, (_key, val)| acc + val))
+    }
+
+    pub fn total_delegations_at_timestamp(
+        &self,
+        storage: &dyn Storage,
+        start_time: BlockTimestampSecs,
+    ) -> Result<Uint128, ContractError> {
+        Ok(DELEGATIONS
+            .sub_prefix(self.storage_key())
+            .range(storage, None, None, Order::Ascending)
+            .filter_map(|x| x.ok())
+            .filter(|((_mix, block_time), _amount)| *block_time <= start_time)
+            .fold(Uint128::zero(), |acc, ((_mix, _block_time), amount)| {
+                acc + amount
+            }))
     }
 }

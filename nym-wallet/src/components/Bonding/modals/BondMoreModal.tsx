@@ -83,7 +83,7 @@ export const BondMoreModal = ({
       okDisabled={errorAmount || errorSignature}
       onClose={onClose}
     >
-      <Stack gap={2}>
+      <Stack gap={3}>
         <Box display="flex" gap={1}>
           {hasVestingTokens && <TokenPoolSelector disabled={false} onSelect={(pool) => setTokenPool(pool)} />}
           <CurrencyFormField
@@ -100,7 +100,13 @@ export const BondMoreModal = ({
         </Box>
 
         <Box>
-          <TextField fullWidth label="Signature" value={signature} onChange={(e) => setSignature(e.target.value)} />
+          <TextField
+            fullWidth
+            label="Signature"
+            value={signature}
+            onChange={(e) => setSignature(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+          />
           {errorSignature && <FormHelperText sx={{ color: 'error.main' }}>Invalid signature</FormHelperText>}
         </Box>
 

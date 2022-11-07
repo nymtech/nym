@@ -1,9 +1,6 @@
 import React from 'react';
 import { Box, Stack, Typography, TypographyProps } from '@mui/material';
 import { ModalDivider } from './ModalDivider';
-import { fontWeight } from '@mui/system';
-
-type TFontWeight = 'strong' | 'light';
 
 export const ModalListItem: React.FC<{
   label: string;
@@ -15,11 +12,11 @@ export const ModalListItem: React.FC<{
 }> = ({ label, value, hidden, fontWeight, divider }) => (
   <Box sx={{ display: hidden ? 'none' : 'block' }}>
     <Stack direction="row" justifyContent="space-between">
-      <Typography fontSize="smaller" fontWeight={fontWeight} sx={{ color: 'text.primary' }}>
+      <Typography fontSize="smaller" fontWeight={fontWeight} sx={{ color: 'text.primary', fontSize: 14 }}>
         {label}
       </Typography>
       {value && (
-        <Typography fontSize="smaller" fontWeight={fontWeight} sx={{ color: 'text.primary' }}>
+        <Typography fontSize="smaller" fontWeight={fontWeight} sx={{ color: 'text.primary', fontSize: 14 }}>
           {value}
         </Typography>
       )}

@@ -3,10 +3,10 @@
 
 use async_trait::async_trait;
 use clap::{Args, Subcommand};
+use completions::ArgShell;
 use pickledb::PickleDb;
 use rand::rngs::OsRng;
 use std::str::FromStr;
-use url::Url;
 
 use coconut_interface::{Attribute, Base58, BlindSignRequest, Bytable, Parameters};
 use credential_storage::storage::Storage;
@@ -20,7 +20,6 @@ use validator_client::nymd::tx::Hash;
 use crate::client::Client;
 use crate::error::{CredentialClientError, Result};
 use crate::state::{KeyPair, RequestData, State};
-use crate::SIGNER_AUTHORITIES;
 
 #[derive(Subcommand)]
 pub(crate) enum Commands {
@@ -30,6 +29,12 @@ pub(crate) enum Commands {
     ListDeposits(ListDeposits),
     /// Get a credential for a given deposit
     GetCredential(GetCredential),
+
+    /// Generate shell completions
+    Completions(ArgShell),
+
+    /// Generate Fig specification
+    GenerateFigSpec,
 }
 
 #[async_trait]
@@ -39,6 +44,12 @@ pub(crate) trait Execute {
 
 #[derive(Args, Clone)]
 pub(crate) struct Deposit {
+    /// The nymd URL that should be used
+    #[clap(long)]
+    nymd_url: String,
+    /// A mnemonic for the account that does the deposit
+    #[clap(long)]
+    mnemonic: String,
     /// The amount that needs to be deposited
     #[clap(long)]
     amount: u64,
@@ -51,7 +62,7 @@ impl Execute for Deposit {
         let signing_keypair = KeyPair::from(identity::KeyPair::new(&mut rng));
         let encryption_keypair = KeyPair::from(encryption::KeyPair::new(&mut rng));
 
-        let client = Client::new();
+        let client = Client::new(&self.nymd_url, &self.mnemonic);
         let tx_hash = client
             .deposit(
                 self.amount,
@@ -96,6 +107,10 @@ pub(crate) struct GetCredential {
     /// The hash of a successful deposit transaction
     #[clap(long)]
     tx_hash: String,
+    /// The URLs to the validator-api endpoints the are run as coconut signer authorities, separated
+    /// by comma (,)
+    #[clap(long)]
+    signer_authorities: String,
     /// If we want to get the signature without attaching a blind sign request; it is expected that
     /// there is already a signature stored on the signer
     #[clap(long, parse(from_flag))]
@@ -108,7 +123,8 @@ impl Execute for GetCredential {
         let mut state = db
             .get::<State>(&self.tx_hash)
             .ok_or(CredentialClientError::NoDeposit)?;
-        let urls = SIGNER_AUTHORITIES.map(|addr| Url::from_str(addr).unwrap());
+
+        let urls = config::parse_validators(&self.signer_authorities);
 
         let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
         let bandwidth_credential_attributes = if self.__no_request {

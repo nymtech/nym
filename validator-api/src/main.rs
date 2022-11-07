@@ -10,6 +10,7 @@ use crate::network_monitor::NetworkMonitorBuilder;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::nymd_client::Client;
 use crate::storage::ValidatorApiStorage;
+use ::config::defaults::mainnet::read_var_if_not_default;
 use ::config::defaults::setup_env;
 #[cfg(feature = "coconut")]
 use ::config::defaults::var_names::API_VALIDATOR;
@@ -19,6 +20,7 @@ use anyhow::Result;
 use clap::{crate_version, App, Arg, ArgMatches};
 use contract_cache::ValidatorCache;
 use log::{info, warn};
+use node_status_api::NodeStatusCache;
 use okapi::openapi3::OpenApi;
 use rocket::fairing::AdHoc;
 use rocket::http::Method;
@@ -33,22 +35,21 @@ use std::time::Duration;
 use std::{fs, process};
 use task::ShutdownNotifier;
 use tokio::sync::Notify;
-// use validator_client::nymd::SigningNymdClient;
-// use validator_client::ValidatorClientError;
+use validator_client::nymd::SigningNymdClient;
 
-use crate::rewarded_set_updater::RewardedSetUpdater;
+use crate::epoch_operations::RewardedSetUpdater;
 #[cfg(feature = "coconut")]
 use coconut::{comm::QueryCommunicationChannel, InternalSignRequest};
 #[cfg(feature = "coconut")]
 use coconut_interface::{Base58, KeyPair};
-use validator_client::nymd::SigningNymdClient;
+use logging::setup_logging;
 
 pub(crate) mod config;
 pub(crate) mod contract_cache;
+mod epoch_operations;
 mod network_monitor;
 mod node_status_api;
 pub(crate) mod nymd_client;
-mod rewarded_set_updater;
 pub(crate) mod storage;
 mod swagger;
 
@@ -71,11 +72,6 @@ const API_VALIDATORS_ARG: &str = "api-validators";
 const KEYPAIR_ARG: &str = "keypair";
 #[cfg(feature = "coconut")]
 const COCONUT_ENABLED: &str = "enable-coconut";
-
-#[cfg(not(feature = "coconut"))]
-const ETH_ENDPOINT: &str = "eth_endpoint";
-#[cfg(not(feature = "coconut"))]
-const ETH_PRIVATE_KEY: &str = "eth_private_key";
 
 const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
 
@@ -113,7 +109,7 @@ fn long_version() -> String {
     )
 }
 
-fn parse_args<'a>() -> ArgMatches<'a> {
+fn parse_args() -> ArgMatches {
     let build_details = long_version();
     let base_app = App::new("Nym Validator API")
         .version(crate_version!())
@@ -135,13 +131,13 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             Arg::with_name(MONITORING_ENABLED)
                 .help("specifies whether a network monitoring is enabled on this API")
                 .long(MONITORING_ENABLED)
-                .short("m")
+                .short('m')
         )
         .arg(
             Arg::with_name(REWARDING_ENABLED)
                 .help("specifies whether a network rewarding is enabled on this API")
                 .long(REWARDING_ENABLED)
-                .short("r")
+                .short('r')
                 .requires_all(&[MONITORING_ENABLED, MNEMONIC_ARG])
         )
         .arg(
@@ -164,13 +160,25 @@ fn parse_args<'a>() -> ArgMatches<'a> {
             Arg::with_name(WRITE_CONFIG_ARG)
                 .help("specifies whether a config file based on provided arguments should be saved to a file")
                 .long(WRITE_CONFIG_ARG)
-                .short("w")
+                .short('w')
         )
         .arg(
             Arg::with_name(REWARDING_MONITOR_THRESHOLD_ARG)
                 .help("Specifies the minimum percentage of monitor test run data present in order to distribute rewards for given interval.")
                 .takes_value(true)
                 .long(REWARDING_MONITOR_THRESHOLD_ARG)
+        )
+        .arg(
+            Arg::with_name(MIN_MIXNODE_RELIABILITY_ARG)
+                .long(MIN_MIXNODE_RELIABILITY_ARG)
+                .help("Mixnodes with relialability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.")
+                .takes_value(true)
+        )
+        .arg(
+            Arg::with_name(MIN_GATEWAY_RELIABILITY_ARG)
+                .long(MIN_GATEWAY_RELIABILITY_ARG)
+                .help("Gateways with relialability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.")
+                .takes_value(true)
         )
         .arg(
             Arg::with_name(ENABLED_CREDENTIALS_MODE_ARG_NAME)
@@ -198,20 +206,6 @@ fn parse_args<'a>() -> ArgMatches<'a> {
                 .requires_all(&[KEYPAIR_ARG, MNEMONIC_ARG, API_VALIDATORS_ARG])
                 .long(COCONUT_ENABLED),
         );
-
-    #[cfg(not(feature = "coconut"))]
-        let base_app = base_app.arg(
-        Arg::with_name(ETH_ENDPOINT)
-            .help("URL of an Ethereum full node that we want to use for getting bandwidth tokens from ERC20 tokens")
-            .takes_value(true)
-            .long(ETH_ENDPOINT),
-    ).arg(
-        Arg::with_name(ETH_PRIVATE_KEY)
-            .help("Ethereum private key used for obtaining bandwidth tokens from ERC20 tokens")
-            .takes_value(true)
-            .long(ETH_PRIVATE_KEY),
-    );
-
     base_app.get_matches()
 }
 
@@ -255,28 +249,7 @@ async fn wait_for_signal() {
     }
 }
 
-fn setup_logging() {
-    let mut log_builder = pretty_env_logger::formatted_timed_builder();
-    if let Ok(s) = ::std::env::var("RUST_LOG") {
-        log_builder.parse_filters(&s);
-    } else {
-        // default to 'Info'
-        log_builder.filter(None, log::LevelFilter::Info);
-    }
-
-    log_builder
-        .filter_module("hyper", log::LevelFilter::Warn)
-        .filter_module("tokio_reactor", log::LevelFilter::Warn)
-        .filter_module("reqwest", log::LevelFilter::Warn)
-        .filter_module("mio", log::LevelFilter::Warn)
-        .filter_module("want", log::LevelFilter::Warn)
-        .filter_module("sled", log::LevelFilter::Warn)
-        .filter_module("tungstenite", log::LevelFilter::Warn)
-        .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
-        .init();
-}
-
-fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
+fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     if let Some(id) = matches.value_of(ID) {
         fs::create_dir_all(Config::default_config_directory(Some(id)))
             .expect("Could not create config directory");
@@ -302,8 +275,9 @@ fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
     if let Some(raw_validators) = matches.value_of(API_VALIDATORS_ARG) {
         config = config.with_custom_validator_apis(::config::parse_validators(raw_validators));
     } else if std::env::var(CONFIGURED).is_ok() {
-        let raw_validators = std::env::var(API_VALIDATOR).expect("api validator not set");
-        config = config.with_custom_validator_apis(::config::parse_validators(&raw_validators))
+        if let Some(raw_validators) = read_var_if_not_default(API_VALIDATOR) {
+            config = config.with_custom_validator_apis(::config::parse_validators(&raw_validators))
+        }
     }
 
     if let Some(raw_validator) = matches.value_of(NYMD_VALIDATOR_ARG) {
@@ -320,9 +294,9 @@ fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
     if let Some(mixnet_contract) = matches.value_of(MIXNET_CONTRACT_ARG) {
         config = config.with_custom_mixnet_contract(mixnet_contract)
     } else if std::env::var(CONFIGURED).is_ok() {
-        let mixnet_contract =
-            std::env::var(MIXNET_CONTRACT_ADDRESS).expect("mixnet contract not set");
-        config = config.with_custom_mixnet_contract(mixnet_contract)
+        if let Some(mixnet_contract) = read_var_if_not_default(MIXNET_CONTRACT_ADDRESS) {
+            config = config.with_custom_mixnet_contract(mixnet_contract)
+        }
     }
 
     if let Some(mnemonic) = matches.value_of(MNEMONIC_ARG) {
@@ -363,16 +337,6 @@ fn override_config(mut config: Config, matches: &ArgMatches<'_>) -> Config {
     #[cfg(feature = "coconut")]
     if let Some(keypair_path) = matches.value_of(KEYPAIR_ARG) {
         config = config.with_keypair_path(keypair_path.into())
-    }
-
-    #[cfg(not(feature = "coconut"))]
-    if let Some(eth_private_key) = matches.value_of("eth_private_key") {
-        config = config.with_eth_private_key(String::from(eth_private_key));
-    }
-
-    #[cfg(not(feature = "coconut"))]
-    if let Some(eth_endpoint) = matches.value_of("eth_endpoint") {
-        config = config.with_eth_endpoint(String::from(eth_endpoint));
     }
 
     if matches.is_present(ENABLED_CREDENTIALS_MODE_ARG_NAME) {
@@ -470,7 +434,8 @@ async fn setup_rocket(
         .mount("/swagger", make_swagger_ui(&swagger::get_docs()))
         .attach(setup_cors()?)
         .attach(setup_liftoff_notify(liftoff_notify))
-        .attach(ValidatorCache::stage());
+        .attach(ValidatorCache::stage())
+        .attach(NodeStatusCache::stage());
 
     // This is not a very nice approach. A lazy value would be more suitable, but that's still
     // a nightly feature: https://github.com/rust-lang/rust/issues/74465
@@ -536,7 +501,7 @@ fn get_servers() -> Vec<rocket_okapi::okapi::openapi3::Server> {
     }]
 }
 
-async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
+async fn run_validator_api(matches: ArgMatches) -> Result<()> {
     let system_version = env!("CARGO_PKG_VERSION");
 
     // try to load config from the file, if it doesn't exist, use default values
@@ -566,7 +531,8 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     let signing_nymd_client = Client::new_signing(&config);
 
     let liftoff_notify = Arc::new(Notify::new());
-    let shutdown = ShutdownNotifier::default();
+    // We need a bigger timeout
+    let shutdown = ShutdownNotifier::new(10);
 
     // let's build our rocket!
     let rocket = setup_rocket(
@@ -579,10 +545,11 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
     let monitor_builder = setup_network_monitor(&config, system_version, &rocket);
 
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
+    let node_status_cache = rocket.state::<NodeStatusCache>().unwrap().clone();
 
     // if network monitor is disabled, we're not going to be sending any rewarding hence
     // we're not starting signing client
-    if config.get_network_monitor_enabled() {
+    let validator_cache_listener = if config.get_network_monitor_enabled() {
         // Main storage
         let storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
 
@@ -592,33 +559,53 @@ async fn run_validator_api(matches: ArgMatches<'static>) -> Result<()> {
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(async move { uptime_updater.run(shutdown_listener).await });
 
-        // spawn the cache refresher
+        // spawn the validator cache refresher
         let validator_cache_refresher = ValidatorCacheRefresher::new(
             signing_nymd_client.clone(),
             config.get_caching_interval(),
             validator_cache.clone(),
             Some(storage.clone()),
         );
+        let validator_cache_listener = validator_cache_refresher.subscribe();
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(async move { validator_cache_refresher.run(shutdown_listener).await });
 
         // spawn rewarded set updater
         let mut rewarded_set_updater =
             RewardedSetUpdater::new(signing_nymd_client, validator_cache.clone(), storage).await?;
-        tokio::spawn(async move { rewarded_set_updater.run().await.unwrap() });
+        let shutdown_listener = shutdown.subscribe();
+        tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await.unwrap() });
+
+        validator_cache_listener
     } else {
+        // Spawn the validator cache refresher.
+        // When the network monitor is not enabled, we spawn the validator cache refresher task
+        // with just a nymd client, in contrast to a signing client.
         let nymd_client = Client::new_query(&config);
         let validator_cache_refresher = ValidatorCacheRefresher::new(
             nymd_client,
             config.get_caching_interval(),
-            validator_cache,
+            validator_cache.clone(),
             None,
         );
-
+        let validator_cache_listener = validator_cache_refresher.subscribe();
         let shutdown_listener = shutdown.subscribe();
-        // spawn our cacher
         tokio::spawn(async move { validator_cache_refresher.run(shutdown_listener).await });
-    }
+
+        validator_cache_listener
+    };
+
+    // Spawn the node status cache refresher.
+    // It is primarily refreshed in-sync with the validator cache, however provide a fallback
+    // caching interval that is twice the validator cache
+    let mut validator_api_cache_refresher = node_status_api::NodeStatusCacheRefresher::new(
+        node_status_cache,
+        validator_cache,
+        validator_cache_listener,
+        config.get_caching_interval().saturating_mul(2),
+    );
+    let shutdown_listener = shutdown.subscribe();
+    tokio::spawn(async move { validator_api_cache_refresher.run(shutdown_listener).await });
 
     // launch the rocket!
     // Rocket handles shutdown on it's own, but its shutdown handling should be incorporated

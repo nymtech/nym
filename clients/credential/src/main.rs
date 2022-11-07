@@ -11,20 +11,26 @@ cfg_if::cfg_if! {
 
         use commands::{Commands, Execute};
         use error::Result;
+        use network_defaults::setup_env;
+        use clap::CommandFactory;
+        use completions::fig_generate;
 
         use clap::Parser;
         use pickledb::{PickleDb, PickleDbDumpPolicy, SerializationMethod};
 
-        pub const MNEMONIC: &str = "jazz fatigue diagram account outer wrist slide cherry mother grid network pause wolf pig round answer mail junior better hair dismiss toward access end";
-        pub const NYMD_URL: &str = "http://127.0.0.1:26657";
-        pub const CONTRACT_ADDRESS: &str = "nymt1nc5tatafv6eyq7llkr2gv50ff9e22mnfp9pc5s";
-        pub const SIGNER_AUTHORITIES: [&str; 1] = [
-            "http://127.0.0.1:8080",
-        ];
-
         #[derive(Parser)]
         #[clap(author = "Nymtech", version, about)]
         struct Cli {
+            /// Path pointing to an env file that configures the client.
+            #[clap(long)]
+            pub(crate) config_env_file: Option<std::path::PathBuf>,
+
+            /// Path where the sqlite credental database will be located.
+            /// It should point to a $HOME/$CLIENT_ID/data/db.sqlite file of
+            /// the client that is supposed to use the credential.
+            #[clap(long)]
+            pub(crate) credential_db_path: std::path::PathBuf,
+
             #[clap(subcommand)]
             command: Commands,
         }
@@ -32,8 +38,9 @@ cfg_if::cfg_if! {
         #[tokio::main]
         async fn main() -> Result<()> {
             let args = Cli::parse();
+            setup_env(args.config_env_file.clone());
 
-            let shared_storage = credential_storage::initialise_storage(std::path::PathBuf::from("/tmp/credential.db")).await;
+            let shared_storage = credential_storage::initialise_storage(args.credential_db_path.clone()).await;
             let mut db = match PickleDb::load(
                 "credential.db",
                 PickleDbDumpPolicy::AutoDump,
@@ -47,10 +54,14 @@ cfg_if::cfg_if! {
                 ),
             };
 
+            let bin_name = "nym-credential-client";
+
             match &args.command {
                 Commands::Deposit(m) => m.execute(&mut db, shared_storage).await?,
                 Commands::ListDeposits(m) => m.execute(&mut db, shared_storage).await?,
                 Commands::GetCredential(m) => m.execute(&mut db, shared_storage).await?,
+                Commands::Completions(s) => s.generate(&mut crate::Cli::into_app(), bin_name),
+                Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::into_app(), bin_name)
             }
 
             Ok(())

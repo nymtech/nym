@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Box,
-  Chip,
   CircularProgress,
   Table,
   TableBody,
@@ -10,41 +9,25 @@ import {
   TableHead,
   TableRow,
   TableSortLabel,
-  Tooltip,
-  Typography,
 } from '@mui/material';
-import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { visuallyHidden } from '@mui/utils';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { DelegationWithEverything } from '@nymproject/types';
-import { Link } from '@nymproject/react/link/Link';
-import { format, formatDistanceToNow, parseISO } from 'date-fns';
-import { styled } from '@mui/material/styles';
-import { tableCellClasses } from '@mui/material/TableCell';
-import { DelegationListItemActions, DelegationsActionsMenu } from './DelegationActions';
-
-const StyledTooltipTableCell = styled(TableCell)(({ theme }) => ({
-  [`&.${tableCellClasses.head}`]: {
-    color: theme.palette.common.white,
-    opacity: 0.5,
-    fontSize: 12,
-  },
-  [`&.${tableCellClasses.body}`]: {
-    color: theme.palette.common.white,
-    fontSize: 12,
-  },
-}));
+import { DelegationListItemActions } from './DelegationActions';
+import { DelegationWithEvent, isDelegation, isPendingDelegation, TDelegations } from '../../context/delegations';
+import { DelegationItem } from './DelegationItem';
+import { PendingDelegationItem } from './PendingDelegationItem';
 
 type Order = 'asc' | 'desc';
 
 interface EnhancedTableProps {
-  onRequestSort: (event: React.MouseEvent<unknown>, property: keyof DelegationWithEverything) => void;
+  onRequestSort: (event: React.MouseEvent<unknown>, property: string) => void;
   order: Order;
   orderBy: string;
 }
 
 interface HeadCell {
-  id: keyof DelegationWithEverything;
+  id: string;
   label: string;
   sortable: boolean;
   disablePadding?: boolean;
@@ -53,35 +36,17 @@ interface HeadCell {
 
 const headCells: HeadCell[] = [
   { id: 'node_identity', label: 'Node ID', sortable: true, align: 'left' },
-  { id: 'avg_uptime_percent', label: 'Uptime', sortable: true, align: 'left' },
+  { id: 'avg_uptime_percent', label: 'Routing score', sortable: true, align: 'left' },
   { id: 'profit_margin_percent', label: 'Profit margin', sortable: true, align: 'left' },
+  { id: 'operating_cost', label: 'Operating Cost', sortable: true, align: 'left' },
   { id: 'stake_saturation', label: 'Stake saturation', sortable: true, align: 'left' },
   { id: 'delegated_on_iso_datetime', label: 'Delegated on', sortable: true, align: 'left' },
   { id: 'amount', label: 'Delegation', sortable: true, align: 'left' },
-  { id: 'accumulated_rewards', label: 'Reward', sortable: true, align: 'left' },
+  { id: 'unclaimed_rewards', label: 'Reward', sortable: true, align: 'left' },
 ];
 
-function descendingComparator<T>(a: T, b: T, orderBy: keyof T) {
-  if (b[orderBy] < a[orderBy]) {
-    return -1;
-  }
-  if (b[orderBy] > a[orderBy]) {
-    return 1;
-  }
-  return 0;
-}
-
-function getComparator<Key extends keyof DelegationWithEverything>(
-  order: Order,
-  orderBy: Key,
-): (a: DelegationWithEverything, b: DelegationWithEverything) => number {
-  return order === 'desc'
-    ? (a, b) => descendingComparator(a, b, orderBy)
-    : (a, b) => -descendingComparator(a, b, orderBy);
-}
-
 const EnhancedTableHead: React.FC<EnhancedTableProps> = ({ order, orderBy, onRequestSort }) => {
-  const createSortHandler = (property: keyof DelegationWithEverything) => (event: React.MouseEvent<unknown>) => {
+  const createSortHandler = (property: string) => (event: React.MouseEvent<unknown>) => {
     onRequestSort(event, property);
   };
 
@@ -117,16 +82,22 @@ const EnhancedTableHead: React.FC<EnhancedTableProps> = ({ order, orderBy, onReq
   );
 };
 
+const sortByUnbondedMixnodeFirst = (a: DelegationWithEvent) => {
+  if (!a.node_identity) return -1;
+  return 1;
+};
+
 export const DelegationList: React.FC<{
   isLoading?: boolean;
-  items?: DelegationWithEverything[];
+  items: TDelegations;
   onItemActionClick?: (item: DelegationWithEverything, action: DelegationListItemActions) => void;
   explorerUrl: string;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
 }> = ({ isLoading, items, onItemActionClick, explorerUrl }) => {
   const [order, setOrder] = React.useState<Order>('asc');
-  const [orderBy, setOrderBy] = React.useState<keyof DelegationWithEverything>('delegated_on_iso_datetime');
+  const [orderBy, setOrderBy] = React.useState<string>('delegated_on_iso_datetime');
 
-  const handleRequestSort = (event: React.MouseEvent<unknown>, property: keyof DelegationWithEverything) => {
+  const handleRequestSort = (event: React.MouseEvent<unknown>, property: string) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
     setOrderBy(property);
@@ -137,92 +108,20 @@ export const DelegationList: React.FC<{
       <Table sx={{ width: '100%' }}>
         <EnhancedTableHead order={order} orderBy={orderBy} onRequestSort={handleRequestSort} />
         <TableBody>
-          {items?.length ? (
-            items.sort(getComparator(order, orderBy)).map((item) => (
-              <TableRow key={item.node_identity}>
-                <TableCell>
-                  <Link
-                    target="_blank"
-                    href={`${explorerUrl}/network-components/mixnode/${item.node_identity}`}
-                    text={`${item.node_identity.slice(0, 6)}...${item.node_identity.slice(-6)}`}
-                    color="text.primary"
-                    noIcon
+          {items.length ? (
+            items.sort(sortByUnbondedMixnodeFirst).map((item) => {
+              if (isPendingDelegation(item)) return <PendingDelegationItem item={item} explorerUrl={explorerUrl} />;
+              if (isDelegation(item))
+                return (
+                  <DelegationItem
+                    item={item}
+                    explorerUrl={explorerUrl}
+                    nodeIsUnbonded={Boolean(!item.node_identity)}
+                    onItemActionClick={onItemActionClick}
                   />
-                </TableCell>
-                <TableCell>{!item.avg_uptime_percent ? '-' : `${item.avg_uptime_percent}%`}</TableCell>
-                <TableCell>{!item.profit_margin_percent ? '-' : `${item.profit_margin_percent}%`}</TableCell>
-                <TableCell>
-                  {!item.stake_saturation ? '-' : `${Math.round(item.stake_saturation * 100000) / 1000}%`}
-                </TableCell>
-                <TableCell>{format(new Date(item.delegated_on_iso_datetime), 'dd/MM/yyyy')}</TableCell>
-                <TableCell>
-                  <Tooltip
-                    placement="right"
-                    title={
-                      <TableContainer component={Box} color="white">
-                        <Table size="small">
-                          <TableHead>
-                            <TableRow>
-                              <StyledTooltipTableCell>Date</StyledTooltipTableCell>
-                              <StyledTooltipTableCell>Amount</StyledTooltipTableCell>
-                              <StyledTooltipTableCell>Block Height</StyledTooltipTableCell>
-                            </TableRow>
-                          </TableHead>
-                          <TableBody>
-                            {item.history.map((historyItem) => (
-                              <TableRow key={`${historyItem.block_height}`}>
-                                <StyledTooltipTableCell>
-                                  {formatDistanceToNow(parseISO(historyItem.delegated_on_iso_datetime), {
-                                    addSuffix: true,
-                                  })}
-                                </StyledTooltipTableCell>
-                                <StyledTooltipTableCell>
-                                  <Typography fontSize="inherit" noWrap>
-                                    {`${historyItem.amount.amount} ${historyItem.amount.denom}`}
-                                    {historyItem.uses_vesting_contract_tokens && (
-                                      <LockOutlinedIcon fontSize="inherit" sx={{ ml: 0.5 }} />
-                                    )}
-                                  </Typography>
-                                </StyledTooltipTableCell>
-                                <StyledTooltipTableCell>{historyItem.block_height}</StyledTooltipTableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </TableContainer>
-                    }
-                    arrow
-                  >
-                    <span
-                      style={{ cursor: 'pointer', textTransform: 'uppercase' }}
-                    >{`${item.amount.amount} ${item.amount.denom}`}</span>
-                  </Tooltip>
-                </TableCell>
-                <TableCell sx={{ textTransform: 'uppercase' }}>
-                  {!item.accumulated_rewards
-                    ? '-'
-                    : `${item.accumulated_rewards.amount} ${item.accumulated_rewards.denom}`}
-                </TableCell>
-
-                <TableCell align="right">
-                  {!item.pending_events.length ? (
-                    <DelegationsActionsMenu
-                      isPending={undefined}
-                      onActionClick={(action) => (onItemActionClick ? onItemActionClick(item, action) : undefined)}
-                      disableRedeemingRewards={!item.accumulated_rewards || item.accumulated_rewards.amount === '0'}
-                      disableCompoundRewards={!item.accumulated_rewards || item.accumulated_rewards.amount === '0'}
-                    />
-                  ) : (
-                    <Tooltip
-                      title="There will be a new epoch roughly every hour when your changes will take effect"
-                      arrow
-                    >
-                      <Chip label="Pending events" />
-                    </Tooltip>
-                  )}
-                </TableCell>
-              </TableRow>
-            ))
+                );
+              return null;
+            })
           ) : (
             <TableRow>
               <TableCell colSpan={7}>

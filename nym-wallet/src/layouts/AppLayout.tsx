@@ -1,6 +1,6 @@
 import React, { useContext } from 'react';
 import { NymWordmark } from '@nymproject/react/logo/NymWordmark';
-import { Box, Container } from '@mui/material';
+import { Box, Container, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { AppContext } from 'src/context';
 import { AppBar, LoadingPage, Nav } from '../components';
@@ -39,9 +39,7 @@ export const ApplicationLayout: React.FC = ({ children }) => {
             <Nav />
           </Box>
           {appVersion && (
-            <Box color="#888" ml={5} mt={8}>
-              Version {appVersion}
-            </Box>
+            <Typography sx={{ color: 'grey.500', fontSize: 14, ml: 5, mt: 8 }}>Version {appVersion}</Typography>
           )}
         </Box>
         <Container maxWidth="xl">

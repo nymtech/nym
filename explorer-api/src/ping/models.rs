@@ -2,11 +2,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
 
+use mixnet_contract_common::MixId;
 use serde::Deserialize;
 use serde::Serialize;
 use tokio::sync::RwLock;
 
-pub(crate) type PingCache = HashMap<String, PingCacheItem>;
+pub(crate) type PingCache = HashMap<MixId, PingCacheItem>;
 
 const PING_TTL: Duration = Duration::from_secs(60 * 5); // 5 mins, before port check will be re-tried (only while pending)
 const CACHE_TTL: Duration = Duration::from_secs(60 * 60); // 1 hour, to cache result from port check
@@ -23,11 +24,11 @@ impl ThreadsafePingCache {
         }
     }
 
-    pub(crate) async fn get(&self, identity_key: &str) -> Option<PingResponse> {
+    pub(crate) async fn get(&self, mix_id: MixId) -> Option<PingResponse> {
         self.inner
             .read()
             .await
-            .get(identity_key)
+            .get(&mix_id)
             .filter(|cache_item| cache_item.valid_until > SystemTime::now())
             .map(|cache_item| {
                 if cache_item.pending {
@@ -43,9 +44,9 @@ impl ThreadsafePingCache {
             })
     }
 
-    pub(crate) async fn set_pending(&self, identity_key: &str) {
+    pub(crate) async fn set_pending(&self, mix_id: MixId) {
         self.inner.write().await.insert(
-            identity_key.to_string(),
+            mix_id,
             PingCacheItem {
                 pending: true,
                 valid_until: SystemTime::now() + PING_TTL,
@@ -54,9 +55,9 @@ impl ThreadsafePingCache {
         );
     }
 
-    pub(crate) async fn set(&self, identity_key: &str, item: PingResponse) {
+    pub(crate) async fn set(&self, mix_id: MixId, item: PingResponse) {
         self.inner.write().await.insert(
-            identity_key.to_string(),
+            mix_id,
             PingCacheItem {
                 pending: false,
                 valid_until: SystemTime::now() + CACHE_TTL,

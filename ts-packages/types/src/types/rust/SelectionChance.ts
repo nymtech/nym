@@ -1,1 +1,1 @@
-export type SelectionChance = 'VeryHigh' | 'Moderate' | 'Low';
+export type SelectionChance = 'High' | 'Good' | 'Low';

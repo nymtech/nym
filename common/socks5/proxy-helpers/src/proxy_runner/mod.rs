@@ -5,6 +5,7 @@ use crate::connection_controller::ConnectionReceiver;
 use futures::channel::mpsc;
 use socks5_requests::ConnectionId;
 use std::{sync::Arc, time::Duration};
+use task::ShutdownListener;
 use tokio::{net::TcpStream, sync::Notify};
 
 mod inbound;
@@ -44,6 +45,9 @@ pub struct ProxyRunner<S> {
     local_destination_address: String,
     remote_source_address: String,
     connection_id: ConnectionId,
+
+    // Listens to shutdown commands from higher up
+    shutdown_listener: ShutdownListener,
 }
 
 impl<S> ProxyRunner<S>
@@ -57,6 +61,7 @@ where
         mix_receiver: ConnectionReceiver,
         mix_sender: MixProxySender<S>,
         connection_id: ConnectionId,
+        shutdown_listener: ShutdownListener,
     ) -> Self {
         ProxyRunner {
             mix_receiver: Some(mix_receiver),
@@ -65,6 +70,7 @@ where
             local_destination_address,
             remote_source_address,
             connection_id,
+            shutdown_listener,
         }
     }
 
@@ -86,6 +92,7 @@ where
             self.mix_sender.clone(),
             adapter_fn,
             Arc::clone(&shutdown_notify),
+            self.shutdown_listener.clone(),
         );
 
         let outbound_future = outbound::run_outbound(
@@ -95,6 +102,7 @@ where
             self.mix_receiver.take().unwrap(),
             self.connection_id,
             shutdown_notify,
+            self.shutdown_listener.clone(),
         );
 
         // TODO: this shouldn't really have to spawn tasks inside "library" code, but

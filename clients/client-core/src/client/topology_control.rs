@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::spawn_future;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
@@ -11,8 +12,7 @@ use std::sync::Arc;
 use std::time;
 use std::time::Duration;
 use tokio::sync::{RwLock, RwLockReadGuard};
-use tokio::task::JoinHandle;
-use topology::{nym_topology_from_bonds, NymTopology};
+use topology::{nym_topology_from_detailed, NymTopology};
 use url::Url;
 
 // I'm extremely curious why compiler NEVER complained about lack of Debug here before
@@ -265,8 +265,8 @@ impl TopologyRefresher {
         };
 
         let mixnodes_count = mixnodes.len();
-        let topology =
-            nym_topology_from_bonds(mixnodes, gateways).filter_system_version(&self.client_version);
+        let topology = nym_topology_from_detailed(mixnodes, gateways)
+            .filter_system_version(&self.client_version);
 
         if !self.check_layer_distribution(&topology, mixnodes_count) {
             warn!("The current filtered active topology has extremely skewed layer distribution. It cannot be used.");
@@ -303,10 +303,34 @@ impl TopologyRefresher {
         self.topology_accessor.is_routable().await
     }
 
-    pub fn start(mut self) -> JoinHandle<()> {
-        tokio::spawn(async move {
-            loop {
-                tokio::time::sleep(self.refresh_rate).await;
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn start_with_shutdown(mut self, mut shutdown: task::ShutdownListener) {
+        spawn_future(async move {
+            debug!("Started TopologyRefresher with graceful shutdown support");
+
+            while !shutdown.is_shutdown() {
+                tokio::select! {
+                    _ = tokio::time::sleep(self.refresh_rate) => {
+                        self.refresh().await;
+                    },
+                    _ = shutdown.recv() => {
+                        log::trace!("TopologyRefresher: Received shutdown");
+                    },
+                }
+            }
+            assert!(shutdown.is_shutdown_poll());
+            log::debug!("TopologyRefresher: Exiting");
+        })
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub fn start(mut self) {
+        use futures::StreamExt;
+
+        spawn_future(async move {
+            let mut interval =
+                gloo_timers::future::IntervalStream::new(self.refresh_rate.as_millis() as u32);
+            while let Some(_) = interval.next().await {
                 self.refresh().await;
             }
         })

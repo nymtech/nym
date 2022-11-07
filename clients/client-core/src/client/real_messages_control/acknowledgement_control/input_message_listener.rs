@@ -3,7 +3,6 @@
 
 use super::action_controller::{Action, ActionSender};
 use super::PendingAcknowledgement;
-use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::{
     inbound_messages::{InputMessage, InputMessageReceiver},
     real_messages_control::real_traffic_stream::{BatchRealMessageSender, RealMessage},
@@ -16,6 +15,9 @@ use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{acknowledgements::AckKey, addressing::clients::Recipient};
 use rand::{CryptoRng, Rng};
 use std::sync::Arc;
+
+#[cfg(feature = "reply-surb")]
+use crate::client::reply_key_storage::ReplyKeyStorage;
 
 /// Module responsible for dealing with the received messages: splitting them, creating acknowledgements,
 /// putting everything into sphinx packets, etc.
@@ -31,6 +33,7 @@ where
     action_sender: ActionSender,
     real_message_sender: BatchRealMessageSender,
     topology_access: TopologyAccessor,
+    #[cfg(feature = "reply-surb")]
     reply_key_storage: ReplyKeyStorage,
 }
 
@@ -49,7 +52,7 @@ where
         action_sender: ActionSender,
         real_message_sender: BatchRealMessageSender,
         topology_access: TopologyAccessor,
-        reply_key_storage: ReplyKeyStorage,
+        #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
     ) -> Self {
         InputMessageListener {
             ack_key,
@@ -59,6 +62,7 @@ where
             action_sender,
             real_message_sender,
             topology_access,
+            #[cfg(feature = "reply-surb")]
             reply_key_storage,
         }
     }
@@ -117,11 +121,15 @@ where
             .prepare_and_split_message(content, with_reply_surb, topology)
             .expect("somehow the topology was invalid after all!");
 
+        #[cfg(feature = "reply-surb")]
         if let Some(reply_key) = reply_key {
             self.reply_key_storage
                 .insert_encryption_key(reply_key)
                 .expect("Failed to insert surb reply key to the store!")
         }
+
+        #[cfg(not(feature = "reply-surb"))]
+        let _reply_key = reply_key;
 
         // encrypt chunks, put them inside sphinx packets and generate acks
         let mut pending_acks = Vec::with_capacity(split_message.len());
@@ -133,7 +141,6 @@ where
             let prepared_fragment = self
                 .message_preparer
                 .prepare_chunk_for_sending(chunk_clone, topology, &self.ack_key, &recipient)
-                .await
                 .unwrap();
 
             real_messages.push(RealMessage::new(
@@ -181,11 +188,35 @@ where
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+        debug!("Started InputMessageListener with graceful shutdown support");
+
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                input_msg = self.input_receiver.next() => match input_msg {
+                    Some(input_msg) => {
+                        self.on_input_message(input_msg).await;
+                    },
+                    None => {
+                        log::trace!("InputMessageListener: Stopping since channel closed");
+                        break;
+                    }
+                },
+                _ = shutdown.recv() => {
+                    log::trace!("InputMessageListener: Received shutdown");
+                }
+            }
+        }
+        assert!(shutdown.is_shutdown_poll());
+        log::debug!("InputMessageListener: Exiting");
+    }
+
+    #[cfg(target_arch = "wasm32")]
     pub(super) async fn run(&mut self) {
-        debug!("Started InputMessageListener");
+        debug!("Started InputMessageListener without graceful shutdown support");
         while let Some(input_msg) = self.input_receiver.next().await {
             self.on_input_message(input_msg).await;
         }
-        error!("TODO: error msg. Or maybe panic?")
     }
 }

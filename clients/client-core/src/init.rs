@@ -14,25 +14,27 @@ use nymsphinx::addressing::nodes::NodeIdentity;
 use rand::rngs::OsRng;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use tap::TapFallible;
 use topology::{filter::VersionFilterable, gateway};
 use url::Url;
 
 use crate::{
     client::key_manager::KeyManager,
     config::{persistence::key_pathfinder::ClientKeyPathfinder, Config},
+    error::ClientCoreError,
 };
 
 pub async fn query_gateway_details(
     validator_servers: Vec<Url>,
     chosen_gateway_id: Option<&str>,
-) -> gateway::Node {
+) -> Result<gateway::Node, ClientCoreError> {
     let validator_api = validator_servers
         .choose(&mut thread_rng())
-        .expect("The list of validator apis is empty");
+        .ok_or(ClientCoreError::ListOfValidatorApisIsEmpty)?;
     let validator_client = validator_client::ApiClient::new(validator_api.clone());
 
     log::trace!("Fetching list of gateways from: {}", validator_api);
-    let gateways = validator_client.get_cached_gateways().await.unwrap();
+    let gateways = validator_client.get_cached_gateways().await?;
     let valid_gateways = gateways
         .into_iter()
         .filter_map(|gateway| gateway.try_into().ok())
@@ -47,38 +49,40 @@ pub async fn query_gateway_details(
         filtered_gateways
             .iter()
             .find(|gateway| gateway.identity_key.to_base58_string() == gateway_id)
-            .expect(&*format!("no gateway with id {} exists!", gateway_id))
-            .clone()
+            .ok_or_else(|| ClientCoreError::NoGatewayWithId(gateway_id.to_string()))
+            .cloned()
     } else {
         filtered_gateways
             .choose(&mut rand::thread_rng())
-            .expect("there are no gateways on the network!")
-            .clone()
+            .ok_or(ClientCoreError::NoGatewaysOnNetwork)
+            .cloned()
     }
 }
 
 pub async fn register_with_gateway_and_store_keys<T>(
     gateway_details: gateway::Node,
     config: &Config<T>,
-) where
+) -> Result<(), ClientCoreError>
+where
     T: NymConfig,
 {
     let mut rng = OsRng;
     let mut key_manager = KeyManager::new(&mut rng);
 
-    let shared_keys = register_with_gateway(&gateway_details, key_manager.identity_keypair()).await;
+    let shared_keys =
+        register_with_gateway(&gateway_details, key_manager.identity_keypair()).await?;
     key_manager.insert_gateway_shared_key(shared_keys);
 
     let pathfinder = ClientKeyPathfinder::new_from_config(config);
-    key_manager
+    Ok(key_manager
         .store_keys(&pathfinder)
-        .expect("Failed to generated keys");
+        .tap_err(|err| log::error!("Failed to generate keys: {err}"))?)
 }
 
 async fn register_with_gateway(
     gateway: &gateway::Node,
     our_identity: Arc<identity::KeyPair>,
-) -> Arc<SharedKeys> {
+) -> Result<Arc<SharedKeys>, ClientCoreError> {
     let timeout = Duration::from_millis(1500);
     let mut gateway_client = GatewayClient::new_init(
         gateway.clients_address(),
@@ -86,52 +90,60 @@ async fn register_with_gateway(
         gateway.owner.clone(),
         our_identity.clone(),
         timeout,
+        #[cfg(not(target_arch = "wasm32"))]
+        None,
     );
     gateway_client
         .establish_connection()
         .await
-        .expect("failed to establish connection with the gateway!");
-    gateway_client
+        .tap_err(|_| log::warn!("Failed to establish connection with gateway!"))?;
+    let shared_keys = gateway_client
         .perform_initial_authentication()
         .await
-        .expect("failed to register with the gateway!")
+        .tap_err(|_| log::warn!("Failed to register with the gateway!"))?;
+    Ok(shared_keys)
 }
 
-pub fn show_address<T>(config: &Config<T>)
+pub fn show_address<T>(config: &Config<T>) -> Result<(), ClientCoreError>
 where
     T: config::NymConfig,
 {
-    fn load_identity_keys(pathfinder: &ClientKeyPathfinder) -> identity::KeyPair {
+    fn load_identity_keys(
+        pathfinder: &ClientKeyPathfinder,
+    ) -> Result<identity::KeyPair, ClientCoreError> {
         let identity_keypair: identity::KeyPair =
             pemstore::load_keypair(&pemstore::KeyPairPath::new(
                 pathfinder.private_identity_key().to_owned(),
                 pathfinder.public_identity_key().to_owned(),
             ))
-            .expect("Failed to read stored identity key files");
-        identity_keypair
+            .tap_err(|_| log::error!("Failed to read stored identity key files"))?;
+        Ok(identity_keypair)
     }
 
-    fn load_sphinx_keys(pathfinder: &ClientKeyPathfinder) -> encryption::KeyPair {
+    fn load_sphinx_keys(
+        pathfinder: &ClientKeyPathfinder,
+    ) -> Result<encryption::KeyPair, ClientCoreError> {
         let sphinx_keypair: encryption::KeyPair =
             pemstore::load_keypair(&pemstore::KeyPairPath::new(
                 pathfinder.private_encryption_key().to_owned(),
                 pathfinder.public_encryption_key().to_owned(),
             ))
-            .expect("Failed to read stored sphinx key files");
-        sphinx_keypair
+            .tap_err(|_| log::error!("Failed to read stored sphinx key files"))?;
+        Ok(sphinx_keypair)
     }
 
     let pathfinder = ClientKeyPathfinder::new_from_config(config);
-    let identity_keypair = load_identity_keys(&pathfinder);
-    let sphinx_keypair = load_sphinx_keys(&pathfinder);
+    let identity_keypair = load_identity_keys(&pathfinder)?;
+    let sphinx_keypair = load_sphinx_keys(&pathfinder)?;
 
     let client_recipient = Recipient::new(
         *identity_keypair.public_key(),
         *sphinx_keypair.public_key(),
         // TODO: below only works under assumption that gateway address == gateway id
         // (which currently is true)
-        NodeIdentity::from_base58_string(config.get_gateway_id()).unwrap(),
+        NodeIdentity::from_base58_string(config.get_gateway_id())?,
     );
 
     println!("\nThe address of this client is: {}", client_recipient);
+    Ok(())
 }

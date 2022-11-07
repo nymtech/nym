@@ -1,5 +1,5 @@
 import * as Yup from 'yup';
-import { isValidHostname, validateAmount, validateKey, validateRawPort, validateVersion } from 'src/utils';
+import { isLessThan, isValidHostname, validateAmount, validateKey, validateRawPort, validateVersion } from 'src/utils';
 
 export const mixnodeValidationSchema = Yup.object().shape({
   identityKey: Yup.string()
@@ -35,6 +35,21 @@ export const mixnodeValidationSchema = Yup.object().shape({
     .test('valid-http', 'A valid http-api port is required', (value) => (value ? validateRawPort(value) : false)),
 });
 
+const operatingCostAndPmValidation = {
+  profitMargin: Yup.number().required('Profit Percentage is required').min(0).max(100),
+  operatorCost: Yup.object().shape({
+    amount: Yup.string()
+      .required('An operating cost is required')
+      .test('valid-operating-cost', 'A valid amount is required (min 40)', async function isValidAmount(this, value) {
+        if (value && (!Number(value) || isLessThan(+value, 40))) {
+          return false;
+        }
+
+        return true;
+      }),
+  }),
+};
+
 export const amountSchema = Yup.object().shape({
   amount: Yup.object().shape({
     amount: Yup.string()
@@ -47,5 +62,31 @@ export const amountSchema = Yup.object().shape({
         return true;
       }),
   }),
-  profitMargin: Yup.number().required('Profit Percentage is required').min(0).max(100),
+  ...operatingCostAndPmValidation,
+});
+
+export const bondedInfoParametersValidationSchema = Yup.object().shape({
+  host: Yup.string()
+    .required('A host is required')
+    .test('valid-host', 'A valid host is required', (value) => (value ? isValidHostname(value) : false)),
+
+  version: Yup.string()
+    .required('A version is required')
+    .test('valid-version', 'A valid version is required', (value) => (value ? validateVersion(value) : false)),
+
+  mixPort: Yup.number()
+    .required('A mixport is required')
+    .test('valid-mixport', 'A valid mixport is required', (value) => (value ? validateRawPort(value) : false)),
+
+  verlocPort: Yup.number()
+    .required('A verloc port is required')
+    .test('valid-verloc', 'A valid verloc port is required', (value) => (value ? validateRawPort(value) : false)),
+
+  httpApiPort: Yup.number()
+    .required('A http-api port is required')
+    .test('valid-http', 'A valid http-api port is required', (value) => (value ? validateRawPort(value) : false)),
+});
+
+export const bondedNodeParametersValidationSchema = Yup.object().shape({
+  ...operatingCostAndPmValidation,
 });

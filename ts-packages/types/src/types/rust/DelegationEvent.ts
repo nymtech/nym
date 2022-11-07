@@ -3,9 +3,8 @@ import type { DelegationEventKind } from './DelegationEventKind';
 
 export interface DelegationEvent {
   kind: DelegationEventKind;
-  node_identity: string;
+  mix_id: number;
   address: string;
   amount: DecCoin | null;
-  block_height: bigint;
   proxy: string | null;
 }

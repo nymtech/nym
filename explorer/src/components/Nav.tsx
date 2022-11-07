@@ -23,7 +23,7 @@ import { Footer } from './Footer';
 import { DarkLightSwitchDesktop } from './Switch';
 import { NavOptionType } from '../context/nav';
 
-const drawerWidth = 300;
+const drawerWidth = 255;
 
 const openedMixin = (theme: Theme): CSSObject => ({
   width: drawerWidth,
@@ -182,7 +182,7 @@ export const ExpandableButton: React.FC<ExpandableButtonType> = ({
             background: isChild ? palette.nym.networkExplorer.nav.selected.nested : 'none',
           }}
         >
-          <ListItemIcon>{Icon}</ListItemIcon>
+          <ListItemIcon sx={{ minWidth: '39px' }}>{Icon}</ListItemIcon>
           <ListItemText
             primary={title}
             sx={{

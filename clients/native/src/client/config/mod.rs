@@ -50,6 +50,10 @@ impl NymConfig for Config {
             .join("clients")
     }
 
+    fn try_default_root_directory() -> Option<PathBuf> {
+        dirs::home_dir().map(|path| path.join(".nym").join("clients"))
+    }
+
     fn root_directory(&self) -> PathBuf {
         self.base.get_nym_root_directory()
     }

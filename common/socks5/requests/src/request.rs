@@ -1,6 +1,9 @@
+// Copyright 2020-2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use nymsphinx_addressing::clients::{Recipient, RecipientFormattingError};
 use std::convert::TryFrom;
-use std::fmt::{self};
+use thiserror::Error;
 
 pub type ConnectionId = u64;
 pub type RemoteAddress = String;
@@ -12,38 +15,29 @@ pub enum RequestFlag {
     Send = 1,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum RequestError {
+    #[error("not enough bytes to recover the length of the address")]
     AddressLengthTooShort,
+
+    #[error("not enough bytes to recover the address")]
     AddressTooShort,
+
+    #[error("not enough bytes to recover the connection id")]
     ConnectionIdTooShort,
+
+    #[error("no data provided")]
     NoData,
+
+    #[error("request of unknown type")]
     UnknownRequestFlag,
+
+    #[error("too short return address")]
     ReturnAddressTooShort,
+
+    #[error("malformed return address - {0}")]
     MalformedReturnAddress(RecipientFormattingError),
 }
-
-impl fmt::Display for RequestError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RequestError::AddressLengthTooShort => {
-                write!(f, "not enough bytes to recover the length of the address")
-            }
-            RequestError::AddressTooShort => write!(f, "not enough bytes to recover the address"),
-            RequestError::ConnectionIdTooShort => {
-                write!(f, "not enough bytes to recover the connection id")
-            }
-            RequestError::NoData => write!(f, "no data provided"),
-            RequestError::UnknownRequestFlag => write!(f, "request of unknown type"),
-            RequestError::ReturnAddressTooShort => write!(f, "too short return address"),
-            RequestError::MalformedReturnAddress(recipient_err) => {
-                write!(f, "malformed return address - {}", recipient_err)
-            }
-        }
-    }
-}
-
-impl std::error::Error for RequestError {}
 
 impl RequestError {
     pub fn is_malformed_return(&self) -> bool {

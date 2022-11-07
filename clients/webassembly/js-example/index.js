@@ -1,4 +1,4 @@
-// Copyright 2020 Nym Technologies SA
+// Copyright 2020-2022 Nym Technologies SA
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,55 +12,67 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {
-   NymClient,
-   set_panic_hook
-} from "@nymproject/nym-client-wasm"
+class WebWorkerClient {
+  worker = null;
 
-// current limitation of rust-wasm for async stuff : (
-let client = null
+  constructor() {
+    this.worker = new Worker('./worker.js');
+
+    this.worker.onmessage = (ev) => {
+      if (ev.data && ev.data.kind) {
+        switch (ev.data.kind) {
+          case 'Ready':
+            const { selfAddress } = ev.data.args;
+            displaySenderAddress(selfAddress);
+            break;
+          case 'ReceiveMessage':
+            const { message } = ev.data.args;
+            displayReceived(message);
+            break;
+        }
+      }
+    };
+  }
+
+  sendMessage = (message, recipient) => {
+    if (!this.worker) {
+      console.error('Could not send message because worker does not exist');
+      return;
+    }
+
+    this.worker.postMessage({
+      kind: 'SendMessage',
+      args: {
+        message, recipient,
+      },
+    });
+  };
+}
+
+let client = null;
 
 async function main() {
-    // sets up better stack traces in case of in-rust panics
-    set_panic_hook();
+  client = new WebWorkerClient();
 
-    // validator server we will use to get topology from
-    const validator = "https://sandbox-validator.nymtech.net/api"; //"http://localhost:8081";
-
-    client = new NymClient(validator);
-
-    const on_message = (msg) => displayReceived(msg);
-    const on_connect = () => console.log("Established (and authenticated) gateway connection!");
-
-    client.set_on_message(on_message);
-    client.set_on_gateway_connect(on_connect);
-
-    // this is current limitation of wasm in rust - for async methods you can't take self my reference...
-    // I'm trying to figure out if I can somehow hack my way around it, but for time being you have to re-assign
-    // the object (it's the same one)
-    client = await client.initial_setup();
-
-    const self_address = client.self_address();
-    displaySenderAddress(self_address);
-
-    const sendButton = document.querySelector('#send-button');
-    sendButton.onclick = function () {
-        sendMessageTo();
-    }
+  const sendButton = document.querySelector('#send-button');
+  sendButton.onclick = function() {
+    sendMessageTo();
+  };
 }
 
 /**
  * Create a Sphinx packet and send it to the mixnet through the gateway node.
- * 
+ *
  * Message and recipient are taken from the values in the user interface.
  *
  * @param {Client} nymClient the nym client to use for message sending
  */
 async function sendMessageTo() {
-    const message = document.getElementById("message").value;
-    const recipient = document.getElementById("recipient").value;
-    client = await client.send_message(message, recipient);
-    displaySend(message);
+  const message = document.getElementById('message').value;
+  const recipient = document.getElementById('recipient').value;
+
+  await client.sendMessage(message, recipient);
+  displaySend(message);
 }
 
 /**
@@ -69,16 +81,16 @@ async function sendMessageTo() {
  * @param {string} message
  */
 function displaySend(message) {
-    let timestamp = new Date().toISOString().substr(11, 12);
+  let timestamp = new Date().toISOString().substr(11, 12);
 
-    let sendDiv = document.createElement("div")
-    let paragraph = document.createElement("p")
-    paragraph.setAttribute('style', 'color: blue')
-    let paragraphContent = document.createTextNode(timestamp + " sent >>> " + message)
-    paragraph.appendChild(paragraphContent)
+  let sendDiv = document.createElement('div');
+  let paragraph = document.createElement('p');
+  paragraph.setAttribute('style', 'color: blue');
+  let paragraphContent = document.createTextNode(timestamp + ' sent >>> ' + message);
+  paragraph.appendChild(paragraphContent);
 
-    sendDiv.appendChild(paragraph)
-    document.getElementById("output").appendChild(sendDiv)
+  sendDiv.appendChild(paragraph);
+  document.getElementById('output').appendChild(sendDiv);
 }
 
 /**
@@ -87,17 +99,17 @@ function displaySend(message) {
  * @param {string} message
  */
 function displayReceived(message) {
-    const content = message.message
-    const replySurb = message.replySurb
+  const content = message;
 
-    let timestamp = new Date().toISOString().substr(11, 12);
-    let receivedDiv = document.createElement("div")
-    let paragraph = document.createElement("p")
-    paragraph.setAttribute('style', 'color: green')
-    let paragraphContent = document.createTextNode(timestamp + " received >>> " + content + ((replySurb != null) ? "Reply SURB was attached here (but we can't do anything with it yet" : " (NO REPLY-SURB AVAILABLE)"))
-    paragraph.appendChild(paragraphContent)
-    receivedDiv.appendChild(paragraph)
-    document.getElementById("output").appendChild(receivedDiv)
+  let timestamp = new Date().toISOString().substr(11, 12);
+  let receivedDiv = document.createElement('div');
+  let paragraph = document.createElement('p');
+  paragraph.setAttribute('style', 'color: green');
+  let paragraphContent = document.createTextNode(timestamp + ' received >>> ' + content);
+  // let paragraphContent = document.createTextNode(timestamp + " received >>> " + content + ((replySurb != null) ? "Reply SURB was attached here (but we can't do anything with it yet" : " (NO REPLY-SURB AVAILABLE)"))
+  paragraph.appendChild(paragraphContent);
+  receivedDiv.appendChild(paragraph);
+  document.getElementById('output').appendChild(receivedDiv);
 }
 
 
@@ -107,7 +119,7 @@ function displayReceived(message) {
  * @param {Client} nymClient
  */
 function displaySenderAddress(address) {
-    document.getElementById("sender").value = address;
+  document.getElementById('sender').value = address;
 }
 
 // Let's get started!

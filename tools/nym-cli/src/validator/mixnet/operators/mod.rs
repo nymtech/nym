@@ -1,0 +1,24 @@
+// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use network_defaults::NymNetworkDetails;
+use nym_cli_commands::context::ClientArgs;
+
+pub(crate) mod gateways;
+pub(crate) mod mixnodes;
+
+pub(crate) async fn execute(
+    global_args: ClientArgs,
+    operators: nym_cli_commands::validator::mixnet::operators::MixnetOperators,
+    network_details: &NymNetworkDetails,
+) -> anyhow::Result<()> {
+    match operators.command {
+        nym_cli_commands::validator::mixnet::operators::MixnetOperatorsCommands::Gateway(
+            gateway,
+        ) => gateways::execute(global_args, gateway, network_details).await?,
+        nym_cli_commands::validator::mixnet::operators::MixnetOperatorsCommands::Mixnode(
+            mixnode,
+        ) => mixnodes::execute(global_args, mixnode, network_details).await?,
+    }
+    Ok(())
+}

@@ -26,7 +26,7 @@ use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
-use task::{ShutdownListener, ShutdownNotifier};
+use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
 use version_checker::parse_version;
 
 mod http;
@@ -200,6 +200,7 @@ impl MixNode {
             self.config.get_packet_forwarding_maximum_backoff(),
             self.config.get_initial_connection_timeout(),
             self.config.get_maximum_connection_buffer_size(),
+            self.config.get_use_legacy_sphinx_framing(),
         );
 
         let mut packet_forwarder = DelayForwarder::new(
@@ -265,6 +266,8 @@ impl MixNode {
 
     // TODO: ask DH whether this function still makes sense in ^0.10
     async fn check_if_same_ip_node_exists(&mut self) -> Option<String> {
+        // TODO: if anything, this should be getting data directly from the contract
+        // as opposed to the validator API
         let validator_client = self.random_api_client();
         let existing_nodes = match validator_client.get_cached_mixnodes().await {
             Ok(nodes) => nodes,
@@ -281,8 +284,8 @@ impl MixNode {
 
         existing_nodes
             .iter()
-            .find(|node| node.mix_node.host == our_host)
-            .map(|node| node.mix_node.identity_key.clone())
+            .find(|node| node.bond_information.mix_node.host == our_host)
+            .map(|node| node.bond_information.mix_node.identity_key.clone())
     }
 
     async fn wait_for_interrupt(&self, mut shutdown: ShutdownNotifier) {
@@ -332,33 +335,5 @@ impl MixNode {
 
         info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
         self.wait_for_interrupt(shutdown).await
-    }
-}
-
-#[cfg(unix)]
-async fn wait_for_signal() {
-    use tokio::signal::unix::{signal, SignalKind};
-    let mut sigterm = signal(SignalKind::terminate()).expect("Failed to setup SIGTERM channel");
-    let mut sigquit = signal(SignalKind::quit()).expect("Failed to setup SIGQUIT channel");
-
-    tokio::select! {
-        _ = tokio::signal::ctrl_c() => {
-            log::info!("Received SIGINT");
-        },
-        _ = sigterm.recv() => {
-            log::info!("Received SIGTERM");
-        }
-        _ = sigquit.recv() => {
-            log::info!("Received SIGQUIT");
-        }
-    }
-}
-
-#[cfg(not(unix))]
-async fn wait_for_signal() {
-    tokio::select! {
-        _ = tokio::signal::ctrl_c() => {
-            log::info!("Received SIGINT");
-        },
     }
 }

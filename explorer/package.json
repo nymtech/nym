@@ -26,7 +26,8 @@
     "react-router-dom": "6",
     "react-simple-maps": "^2.3.0",
     "react-tooltip": "^4.2.21",
-    "use-clipboard-copy": "^0.2.0"
+    "use-clipboard-copy": "^0.2.0",
+    "big.js": "^6.2.1"
   },
   "devDependencies": {
     "@babel/core": "^7.15.0",

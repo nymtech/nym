@@ -41,6 +41,30 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
         Self::default_config_directory(id).join(Self::config_file_name())
     }
 
+    // We provide a second set of functions that tries to not panic.
+
+    fn try_default_root_directory() -> Option<PathBuf>;
+
+    fn try_default_config_directory(id: Option<&str>) -> Option<PathBuf> {
+        if let Some(id) = id {
+            Self::try_default_root_directory().map(|d| d.join(id).join("config"))
+        } else {
+            Self::try_default_root_directory().map(|d| d.join("config"))
+        }
+    }
+
+    fn try_default_data_directory(id: Option<&str>) -> Option<PathBuf> {
+        if let Some(id) = id {
+            Self::try_default_root_directory().map(|d| d.join(id).join("data"))
+        } else {
+            Self::try_default_root_directory().map(|d| d.join("data"))
+        }
+    }
+
+    fn try_default_config_file_path(id: Option<&str>) -> Option<PathBuf> {
+        Self::try_default_config_directory(id).map(|d| d.join(Self::config_file_name()))
+    }
+
     fn root_directory(&self) -> PathBuf;
     fn config_directory(&self) -> PathBuf;
     fn data_directory(&self) -> PathBuf;
@@ -64,6 +88,7 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
 
         let location = custom_location
             .unwrap_or_else(|| self.config_directory().join(Self::config_file_name()));
+        log::info!("Configuration file will be saved to {:?}", location);
 
         cfg_if::cfg_if! {
             if #[cfg(unix)] {

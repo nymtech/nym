@@ -1,7 +1,10 @@
 /* eslint-disable camelcase */
 import { MixNodeResponse, MixNodeResponseItem, MixnodeStatus } from '../../typeDefs/explorer-api';
+import { toPercentIntegerString } from '../../utils';
+import { unymToNym } from '../../utils/currency';
 
 export type MixnodeRowType = {
+  mix_id: number;
   id: string;
   status: MixnodeStatus;
   owner: string;
@@ -9,11 +12,13 @@ export type MixnodeRowType = {
   identity_key: string;
   bond: number;
   self_percentage: string;
+  pledge_amount: number;
   host: string;
   layer: string;
   profit_percentage: string;
   avg_uptime: string;
   stake_saturation: number;
+  operating_cost: string;
 };
 
 export function mixnodeToGridRow(arrayOfMixnodes?: MixNodeResponse): MixnodeRowType[] {
@@ -25,9 +30,11 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
   const delegations = Number(item.total_delegation.amount) || 0;
   const totalBond = pledge + delegations;
   const selfPercentage = ((pledge * 100) / totalBond).toFixed(2);
-  const profitPercentage = item.mix_node.profit_margin_percent || 0;
+  const profitPercentage = toPercentIntegerString(item.profit_margin_percent) || 0;
   const stakeSaturation = typeof item.stake_saturation === 'number' ? item.stake_saturation * 100 : 0;
+
   return {
+    mix_id: item.mix_id,
     id: item.owner,
     status: item.status,
     owner: item.owner,
@@ -35,10 +42,12 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
     bond: totalBond || 0,
     location: item?.location?.country_name || '',
     self_percentage: selfPercentage,
+    pledge_amount: pledge,
     host: item?.mix_node?.host || '',
     layer: item?.layer || '',
     profit_percentage: `${profitPercentage}%`,
     avg_uptime: `${item.avg_uptime}%` || '-',
     stake_saturation: stakeSaturation,
+    operating_cost: `${unymToNym(item.operating_cost.amount, 6)} NYM`,
   };
 }

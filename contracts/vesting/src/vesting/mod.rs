@@ -36,19 +36,23 @@ pub fn populate_vesting_periods(
 
 #[cfg(test)]
 mod tests {
-    use crate::contract::execute;
-    use crate::storage::load_account;
+    use crate::contract::*;
+    use crate::storage::*;
+    use crate::support::tests::helpers::vesting_account_percent_fixture;
     use crate::support::tests::helpers::{
         init_contract, vesting_account_mid_fixture, vesting_account_new_fixture, TEST_COIN_DENOM,
     };
     use crate::traits::DelegatingAccount;
     use crate::traits::VestingAccount;
     use crate::traits::{GatewayBondingAccount, MixnodeBondingAccount};
+    use crate::vesting::{populate_vesting_periods, Account};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coins, Addr, Coin, Timestamp, Uint128};
-    use mixnet_contract_common::{Gateway, MixNode};
-    use vesting_contract_common::messages::ExecuteMsg;
+    use mixnet_contract_common::mixnode::MixNodeCostParams;
+    use mixnet_contract_common::{Gateway, MixNode, Percent};
+    use vesting_contract_common::messages::{ExecuteMsg, VestingSpecification};
     use vesting_contract_common::Period;
+    use vesting_contract_common::PledgeCap;
 
     #[test]
     fn test_account_creation() {
@@ -59,6 +63,7 @@ mod tests {
             owner_address: "owner".to_string(),
             staking_address: Some("staking".to_string()),
             vesting_spec: None,
+            cap: Some(PledgeCap::Absolute(Uint128::from(100_000_000_000u128))),
         };
         // Try creating an account when not admin
         let response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
@@ -271,19 +276,15 @@ mod tests {
         let withdrawn = account.load_withdrawn(&deps.storage).unwrap();
         assert_eq!(withdrawn, Uint128::zero());
 
-        let mix_identity = "alice".to_string();
+        let mix_id = 1;
 
         let delegation = Coin {
             amount: Uint128::new(90_000_000_000),
             denom: TEST_COIN_DENOM.to_string(),
         };
 
-        let ok = account.try_delegate_to_mixnode(
-            mix_identity.clone(),
-            delegation.clone(),
-            &env,
-            &mut deps.storage,
-        );
+        let ok =
+            account.try_delegate_to_mixnode(mix_id, delegation.clone(), &env, &mut deps.storage);
         assert!(ok.is_ok());
 
         let vested_coins = account.get_vested_coins(None, &env, &deps.storage).unwrap();
@@ -311,11 +312,11 @@ mod tests {
             .unwrap();
         assert_eq!(spendable.amount, Uint128::new(160_000_000_000));
 
-        let ok = account.try_undelegate_from_mixnode(mix_identity.clone(), &mut deps.storage);
+        let ok = account.try_undelegate_from_mixnode(mix_id, &mut deps.storage);
         assert!(ok.is_ok());
 
         account
-            .track_undelegation(mix_identity.clone(), delegation.clone(), &mut deps.storage)
+            .track_undelegation(mix_id, delegation.clone(), &mut deps.storage)
             .unwrap();
 
         let delegated_free = account
@@ -361,12 +362,8 @@ mod tests {
             .unwrap();
         assert_eq!(spendable.amount, Uint128::zero());
 
-        let ok = account.try_delegate_to_mixnode(
-            mix_identity.clone(),
-            delegation.clone(),
-            &env,
-            &mut deps.storage,
-        );
+        let ok =
+            account.try_delegate_to_mixnode(mix_id, delegation.clone(), &env, &mut deps.storage);
         assert!(ok.is_ok());
 
         let vested_coins = account.get_vested_coins(None, &env, &deps.storage).unwrap();
@@ -396,15 +393,41 @@ mod tests {
     }
 
     #[test]
+    fn test_percent_cap() {
+        let mut deps = init_contract();
+        let env = mock_env();
+
+        let account = vesting_account_percent_fixture(&mut deps.storage, &env);
+
+        assert_eq!(
+            account.absolute_pledge_cap().unwrap(),
+            Uint128::new(100_000_000_000)
+        )
+    }
+
+    #[test]
     fn test_delegations() {
         let mut deps = init_contract();
         let env = mock_env();
 
-        let account = vesting_account_new_fixture(&mut deps.storage, &env);
+        // let account = vesting_account_new_fixture(&mut deps.storage, &env);
+
+        let msg = ExecuteMsg::CreateAccount {
+            owner_address: "owner".to_string(),
+            staking_address: Some("staking".to_string()),
+            vesting_spec: None,
+            cap: Some(PledgeCap::Absolute(Uint128::from(100_000_000_000u128))),
+        };
+        let info = mock_info("admin", &coins(1_000_000_000_000, TEST_COIN_DENOM));
+
+        let _response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
+        let account = load_account(&Addr::unchecked("owner"), &deps.storage)
+            .unwrap()
+            .unwrap();
 
         // Try delegating too much
         let err = account.try_delegate_to_mixnode(
-            "alice".to_string(),
+            1,
             Coin {
                 amount: Uint128::new(1_000_000_000_001),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -415,7 +438,7 @@ mod tests {
         assert!(err.is_err());
 
         let ok = account.try_delegate_to_mixnode(
-            "alice".to_string(),
+            1,
             Coin {
                 amount: Uint128::new(90_000_000_000),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -427,7 +450,7 @@ mod tests {
 
         // Fails due to delegation locked delegation cap
         let ok = account.try_delegate_to_mixnode(
-            "alice".to_string(),
+            1,
             Coin {
                 amount: Uint128::new(20_000_000_000),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -440,9 +463,9 @@ mod tests {
         let balance = account.load_balance(&deps.storage).unwrap();
         assert_eq!(balance, Uint128::new(910000000000));
 
-        // Try delegating too much again
+        // Try delegating too much againcalca
         let err = account.try_delegate_to_mixnode(
-            "alice".to_string(),
+            1,
             Coin {
                 amount: Uint128::new(500_000_000_001),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -452,10 +475,12 @@ mod tests {
         );
         assert!(err.is_err());
 
-        let total_delegations = account
-            .total_delegations_for_mix("alice".to_string(), &deps.storage)
-            .unwrap();
+        let total_delegations = account.total_delegations_for_mix(1, &deps.storage).unwrap();
         assert_eq!(Uint128::new(90_000_000_000), total_delegations);
+
+        let account = load_account(&Addr::unchecked("owner"), &deps.storage)
+            .unwrap()
+            .unwrap();
 
         // Current period -> block_time: None
         let delegated_free = account
@@ -533,11 +558,19 @@ mod tests {
             sphinx_key: "sphinx".to_string(),
             identity_key: "identity".to_string(),
             version: "0.10.0".to_string(),
-            profit_margin_percent: 10,
+        };
+
+        let cost_params = MixNodeCostParams {
+            profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
+            interval_operating_cost: Coin {
+                denom: "NYM".to_string(),
+                amount: Uint128::new(40),
+            },
         };
         // Try delegating too much
         let err = account.try_bond_mixnode(
             mix_node.clone(),
+            cost_params.clone(),
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(1_000_000_000_001),
@@ -550,6 +583,7 @@ mod tests {
 
         let ok = account.try_bond_mixnode(
             mix_node.clone(),
+            cost_params.clone(),
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(90_000_000_000),
@@ -566,6 +600,7 @@ mod tests {
         // Try delegating too much again
         let err = account.try_bond_mixnode(
             mix_node,
+            cost_params,
             "alice".to_string(),
             Coin {
                 amount: Uint128::new(10_000_000_001),
@@ -756,5 +791,173 @@ mod tests {
             )
             .unwrap();
         assert_eq!(Uint128::zero(), bonded_vesting.amount);
+    }
+
+    #[test]
+    fn delegated_free() {
+        let mut deps = init_contract();
+        let mut env = mock_env();
+
+        let vesting_period_length_secs = 3600;
+
+        let account_creation_timestamp = 1650000000;
+        let account_creation_blockheight = 12345;
+
+        // this value is completely arbitrary, I just wanted to keep consistent
+        // (and make sure that if block timestamp increases so does the block height)
+        let blocks_per_period = 100;
+
+        env.block.height = account_creation_blockheight;
+        env.block.time = Timestamp::from_seconds(account_creation_timestamp);
+
+        // lets define some helper timestamps
+
+        // our account is set to be created after 2 vesting periods already passed
+        let vesting_start_blockheight = account_creation_blockheight - 2 * blocks_per_period;
+        let vesting_start_timestamp = account_creation_timestamp - 2 * vesting_period_length_secs;
+
+        let vesting_period2_start_blockheight = vesting_start_blockheight + blocks_per_period;
+        let vesting_period2_start_timestamp = vesting_start_timestamp + vesting_period_length_secs;
+
+        // this vesting period is currently in progress!
+        let vesting_period3_start_blockheight =
+            vesting_period2_start_blockheight + blocks_per_period;
+        let vesting_period3_start_timestamp =
+            vesting_period2_start_timestamp + vesting_period_length_secs;
+
+        // and this one is in the future! (in relation to account creation)
+        let vesting_period4_start_blockheight =
+            vesting_period3_start_blockheight + blocks_per_period;
+        let vesting_period4_start_timestamp =
+            vesting_period3_start_timestamp + vesting_period_length_secs;
+
+        // lets create our vesting account
+        let periods = populate_vesting_periods(
+            vesting_start_timestamp,
+            VestingSpecification::new(None, Some(vesting_period_length_secs), None),
+        );
+
+        let vesting_account = Account::new(
+            Addr::unchecked("owner"),
+            Some(Addr::unchecked("staking")),
+            Coin {
+                amount: Uint128::new(1_000_000_000_000),
+                denom: TEST_COIN_DENOM.to_string(),
+            },
+            Timestamp::from_seconds(account_creation_timestamp),
+            periods,
+            Some(PledgeCap::Absolute(Uint128::from(100_000_000_000u128))),
+            deps.as_mut().storage,
+        )
+        .unwrap();
+
+        // time for some delegations
+
+        let mix_id = 42;
+
+        let delegation = Coin {
+            amount: Uint128::new(90_000_000_000),
+            denom: TEST_COIN_DENOM.to_string(),
+        };
+
+        // delegate explicitly at the time the account was created
+        // (i.e. after 2 vesting periods already elapsed)
+        env.block.height = account_creation_blockheight;
+        env.block.time = Timestamp::from_seconds(account_creation_timestamp);
+        let ok = vesting_account.try_delegate_to_mixnode(
+            mix_id,
+            delegation.clone(),
+            &env,
+            &mut deps.storage,
+        );
+        assert!(ok.is_ok());
+
+        let vested_coins = vesting_account
+            .get_vested_coins(None, &env, &deps.storage)
+            .unwrap();
+        let vesting_coins = vesting_account
+            .get_vesting_coins(None, &env, &deps.storage)
+            .unwrap();
+        assert_eq!(vested_coins.amount, Uint128::new(250_000_000_000));
+        assert_eq!(vesting_coins.amount, Uint128::new(750_000_000_000));
+        let delegated_free = vesting_account
+            .get_delegated_free(None, &env, &deps.storage)
+            .unwrap();
+        let delegated_vesting = vesting_account
+            .get_delegated_vesting(None, &env, &deps.storage)
+            .unwrap();
+
+        // all good so far
+        assert_eq!(delegated_free.amount, Uint128::new(90_000_000_000));
+        assert_eq!(delegated_vesting.amount, Uint128::zero());
+
+        // some time passes, and we're now into the next vesting period, more of our coins got unlocked!
+        env.block.height = vesting_period4_start_blockheight;
+        env.block.time = Timestamp::from_seconds(vesting_period4_start_timestamp);
+
+        let vested_coins = vesting_account
+            .get_vested_coins(None, &env, &deps.storage)
+            .unwrap();
+        let vesting_coins = vesting_account
+            .get_vesting_coins(None, &env, &deps.storage)
+            .unwrap();
+        assert_eq!(vested_coins.amount, Uint128::new(375_000_000_000));
+        assert_eq!(vesting_coins.amount, Uint128::new(625_000_000_000));
+
+        // and nothing about our existing delegation changed
+        let delegated_free = vesting_account
+            .get_delegated_free(None, &env, &deps.storage)
+            .unwrap();
+        let delegated_vesting = vesting_account
+            .get_delegated_vesting(None, &env, &deps.storage)
+            .unwrap();
+        assert_eq!(delegated_free.amount, Uint128::new(90_000_000_000));
+        assert_eq!(delegated_vesting.amount, Uint128::zero());
+
+        // however, create a new delegation now in this brand new vesting period
+        let delegation = Coin {
+            amount: Uint128::new(50_000_000_000),
+            denom: TEST_COIN_DENOM.to_string(),
+        };
+        let ok = vesting_account.try_delegate_to_mixnode(
+            mix_id,
+            delegation.clone(),
+            &env,
+            &mut deps.storage,
+        );
+        assert!(ok.is_ok());
+
+        // we're still good here, we have delegated in total 140M from our vested tokens!
+        let delegated_free = vesting_account
+            .get_delegated_free(None, &env, &deps.storage)
+            .unwrap();
+        let delegated_vesting = vesting_account
+            .get_delegated_vesting(None, &env, &deps.storage)
+            .unwrap();
+        assert_eq!(delegated_free.amount, Uint128::new(140_000_000_000));
+        assert_eq!(delegated_vesting.amount, Uint128::zero());
+
+        // but let's ask now a different question:
+        // how many vested tokens have I had delegated during vesting period3? (i.e. after account creation)
+        let delegated_free = vesting_account
+            .get_delegated_free(
+                Some(Timestamp::from_seconds(vesting_period3_start_timestamp)),
+                &env,
+                &deps.storage,
+            )
+            .unwrap();
+        let delegated_vesting = vesting_account
+            .get_delegated_vesting(
+                Some(Timestamp::from_seconds(vesting_period3_start_timestamp)),
+                &env,
+                &deps.storage,
+            )
+            .unwrap();
+
+        // returns 90M as the 50M delegation didn't exist at this point of time
+        assert_eq!(delegated_free.amount, Uint128::new(90_000_000_000));
+
+        // the 50M delegation wasn't a thing here for VESTING tokens either
+        assert_eq!(delegated_vesting.amount, Uint128::zero());
     }
 }

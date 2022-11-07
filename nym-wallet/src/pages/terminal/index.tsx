@@ -8,12 +8,7 @@ import ArrowDropUpIcon from '@mui/icons-material/ArrowDropUp';
 import { Console } from 'src/utils/console';
 import { AppContext } from '../../context/main';
 import { NymCard } from '../../components';
-import {
-  getCurrentEpoch,
-  getPendingDelegations,
-  getPendingVestingDelegations,
-  getReverseMixDelegations,
-} from '../../requests';
+import { getCurrentInterval, getAllPendingDelegations, getMixNodeDelegationsForCurrentAccount } from '../../requests';
 
 const TerminalSection: React.FC<{
   heading: React.ReactNode;
@@ -59,21 +54,17 @@ const TerminalInner: React.FC = () => {
   const refresh = async () => {
     setError(undefined);
     setIsBusy(true);
-    setStatus('Getting reverse mix delegations...');
+    setStatus('Getting all mixnode delegations for this account...');
     await withErrorCatch(async () => {
-      setMixnodeDelegations(await getReverseMixDelegations());
+      setMixnodeDelegations(await getMixNodeDelegationsForCurrentAccount());
     });
     setStatus('Getting pending delegations...');
     await withErrorCatch(async () => {
-      setPendingEvents(await getPendingDelegations());
-    });
-    setStatus('Getting pending vesting delegations...');
-    await withErrorCatch(async () => {
-      setPendingEvents(await getPendingVestingDelegations());
+      setPendingEvents(await getAllPendingDelegations());
     });
     setStatus('Getting current epoch...');
     await withErrorCatch(async () => {
-      setEpoch(await getCurrentEpoch());
+      setEpoch(await getCurrentInterval());
     });
     setStatus('Fetching balance...');
     await withErrorCatch(async () => {
@@ -92,98 +83,103 @@ const TerminalInner: React.FC = () => {
   }, [network]);
 
   return (
-    <Dialog open onClose={handleShowTerminal} maxWidth="md" fullWidth>
-      <Paper>
-        <NymCard
-          title={
-            <Box width="100%" display="flex" justifyContent="space-between">
-              <Box display="flex" alignItems="center">
-                <TerminalIcon sx={{ mr: 1 }} />
-                <Typography mr={4}>Terminal</Typography>
-                {!isBusy && <RefreshIcon onClick={refresh} cursor="pointer" />}
-              </Box>
-              <CloseIcon onClick={handleShowTerminal} cursor="pointer" />
+    <Dialog
+      open
+      onClose={handleShowTerminal}
+      maxWidth="md"
+      fullWidth
+      PaperComponent={Paper}
+      PaperProps={{ elevation: 0 }}
+    >
+      <NymCard
+        title={
+          <Box width="100%" display="flex" justifyContent="space-between">
+            <Box display="flex" alignItems="center">
+              <TerminalIcon sx={{ mr: 1 }} />
+              <Typography mr={4}>Terminal</Typography>
+              {!isBusy && <RefreshIcon onClick={refresh} cursor="pointer" />}
             </Box>
+            <CloseIcon onClick={handleShowTerminal} cursor="pointer" />
+          </Box>
+        }
+        dataTestid="terminal-page"
+      >
+        <h2>State Viewer</h2>
+
+        {error && <Alert color="error">{error}</Alert>}
+
+        {status ? (
+          <Alert color="info" icon={<RefreshIcon />} sx={{ mb: 2 }}>
+            <Box sx={{ fontWeight: 600 }}>{status}</Box>
+          </Alert>
+        ) : (
+          <Alert color="success" sx={{ mb: 2 }}>
+            <Box sx={{ fontWeight: 600 }}>Data loading complete</Box>
+          </Alert>
+        )}
+
+        <TerminalSection heading="App Environment">
+          <pre>{JSON.stringify(appEnv, null, 2)}</pre>
+        </TerminalSection>
+
+        <TerminalSection heading="Client Details">
+          <pre>{JSON.stringify(clientDetails, null, 2)}</pre>
+        </TerminalSection>
+
+        <TerminalSection heading="User Balance">
+          <pre>{JSON.stringify(userBalance, null, 2)}</pre>
+        </TerminalSection>
+
+        <TerminalSection
+          heading={
+            <>
+              <code>useGetBalance</code> Balance
+            </>
           }
-          dataTestid="terminal-page"
         >
-          <h2>State Viewer</h2>
+          <pre>{JSON.stringify(userBalance.balance, null, 2)}</pre>
+        </TerminalSection>
 
-          {error && <Alert color="error">{error}</Alert>}
+        <TerminalSection
+          heading={
+            <>
+              <code>useGetBalance</code> Vesting Account Info
+            </>
+          }
+        >
+          <pre>{JSON.stringify(userBalance.vestingAccountInfo, null, 2)}</pre>
+        </TerminalSection>
 
-          {status ? (
-            <Alert color="info" icon={<RefreshIcon />} sx={{ mb: 2 }}>
-              <strong>{status}</strong>
-            </Alert>
-          ) : (
-            <Alert color="success" sx={{ mb: 2 }}>
-              <strong>Data loading complete</strong>
-            </Alert>
-          )}
+        <TerminalSection
+          heading={
+            <>
+              <code>useGetBalance</code> Current Vest Period
+            </>
+          }
+        >
+          <pre>{JSON.stringify(userBalance.currentVestingPeriod, null, 2)}</pre>
+        </TerminalSection>
 
-          <TerminalSection heading="App Environment">
-            <pre>{JSON.stringify(appEnv, null, 2)}</pre>
-          </TerminalSection>
+        <TerminalSection heading="Original Vesting">
+          <pre>{JSON.stringify(userBalance.originalVesting, null, 2)}</pre>
+        </TerminalSection>
 
-          <TerminalSection heading="Client Details">
-            <pre>{JSON.stringify(clientDetails, null, 2)}</pre>
-          </TerminalSection>
+        <TerminalSection heading="Mixnode Delegations">
+          <pre>{JSON.stringify(mixnodeDelegations, null, 2)}</pre>
+        </TerminalSection>
 
-          <TerminalSection heading="User Balance">
-            <pre>{JSON.stringify(userBalance, null, 2)}</pre>
-          </TerminalSection>
+        <TerminalSection heading="Pending Delegation Events">
+          <pre>{JSON.stringify(pendingEvents, null, 2)}</pre>
+        </TerminalSection>
 
-          <TerminalSection
-            heading={
-              <>
-                <code>useGetBalance</code> Balance
-              </>
-            }
-          >
-            <pre>{JSON.stringify(userBalance.balance, null, 2)}</pre>
-          </TerminalSection>
+        <TerminalSection heading="Pending Vesting Delegation Events">
+          <pre>{JSON.stringify(pendingVestingEvents, null, 2)}</pre>
+        </TerminalSection>
 
-          <TerminalSection
-            heading={
-              <>
-                <code>useGetBalance</code> Vesting Account Info
-              </>
-            }
-          >
-            <pre>{JSON.stringify(userBalance.vestingAccountInfo, null, 2)}</pre>
-          </TerminalSection>
-
-          <TerminalSection
-            heading={
-              <>
-                <code>useGetBalance</code> Current Vest Period
-              </>
-            }
-          >
-            <pre>{JSON.stringify(userBalance.currentVestingPeriod, null, 2)}</pre>
-          </TerminalSection>
-
-          <TerminalSection heading="Original Vesting">
-            <pre>{JSON.stringify(userBalance.originalVesting, null, 2)}</pre>
-          </TerminalSection>
-
-          <TerminalSection heading="Mixnode Delegations">
-            <pre>{JSON.stringify(mixnodeDelegations, null, 2)}</pre>
-          </TerminalSection>
-
-          <TerminalSection heading="Pending Delegation Events">
-            <pre>{JSON.stringify(pendingEvents, null, 2)}</pre>
-          </TerminalSection>
-
-          <TerminalSection heading="Pending Vesting Delegation Events">
-            <pre>{JSON.stringify(pendingVestingEvents, null, 2)}</pre>
-          </TerminalSection>
-
-          <TerminalSection heading="Epoch">
-            <pre>{JSON.stringify(epoch, null, 2)}</pre>
-          </TerminalSection>
-        </NymCard>
-      </Paper>
+        <TerminalSection heading="Epoch">
+          <pre>{JSON.stringify(epoch, null, 2)}</pre>
+        </TerminalSection>
+      </NymCard>
     </Dialog>
   );
 };

@@ -37,7 +37,7 @@ impl SpendCredentialData {
     }
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub enum SpendCredentialStatus {
     InProgress,
     Spent,

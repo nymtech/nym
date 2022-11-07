@@ -1,6 +1,56 @@
 import React from 'react';
 import { ConnectionStatusKind } from '../types';
 
+const getBusyFillColor = (color: string): string => {
+  if (color === '#60D6EF') {
+    return '#21D072';
+  }
+  return '#60D6EF';
+};
+
+const getStatusFillColor = (status: ConnectionStatusKind, hover: boolean, isError: boolean): string => {
+  if (isError && hover) {
+    return '#21D072';
+  }
+  if (isError) {
+    return '#40475C';
+  }
+
+  switch (status) {
+    case ConnectionStatusKind.disconnected:
+      if (hover) {
+        return '#21D072';
+      }
+      return '#60D6EF';
+    case ConnectionStatusKind.connecting:
+    case ConnectionStatusKind.disconnecting:
+      return '#60D6EF';
+    default:
+      // connected
+      if (hover) {
+        return '#DA465B';
+      }
+      return '#21D072';
+  }
+};
+
+const getStatusText = (status: ConnectionStatusKind, hover: boolean): string => {
+  switch (status) {
+    case ConnectionStatusKind.disconnected:
+      return 'Connect';
+    case ConnectionStatusKind.connecting:
+      return 'Connecting';
+    case ConnectionStatusKind.disconnecting:
+      return 'Connected';
+    default:
+      // connected
+      if (hover) {
+        return 'Disconnect';
+      }
+      return 'Connected';
+  }
+};
+
 export const ConnectionButton: React.FC<{
   status: ConnectionStatusKind;
   disabled?: boolean;
@@ -129,54 +179,4 @@ export const ConnectionButton: React.FC<{
       </g>
     </svg>
   );
-};
-
-const getBusyFillColor = (color: string): string => {
-  if (color === '#60D6EF') {
-    return '#21D072';
-  }
-  return '#60D6EF';
-};
-
-const getStatusFillColor = (status: ConnectionStatusKind, hover: boolean, isError: boolean): string => {
-  if (isError && hover) {
-    return '#21D072';
-  }
-  if (isError) {
-    return '#40475C';
-  }
-
-  switch (status) {
-    case ConnectionStatusKind.disconnected:
-      if (hover) {
-        return '#21D072';
-      }
-      return '#60D6EF';
-    case ConnectionStatusKind.connecting:
-    case ConnectionStatusKind.disconnecting:
-      return '#60D6EF';
-    default:
-      // connected
-      if (hover) {
-        return '#DA465B';
-      }
-      return '#21D072';
-  }
-};
-
-const getStatusText = (status: ConnectionStatusKind, hover: boolean): string => {
-  switch (status) {
-    case ConnectionStatusKind.disconnected:
-      return 'Connect';
-    case ConnectionStatusKind.connecting:
-      return 'Connecting';
-    case ConnectionStatusKind.disconnecting:
-      return 'Connected';
-    default:
-      // connected
-      if (hover) {
-        return 'Disconnect';
-      }
-      return 'Connected';
-  }
 };

@@ -63,14 +63,41 @@ impl AcknowledgementListener {
             .unwrap();
     }
 
-    pub(super) async fn run(&mut self) {
-        debug!("Started AcknowledgementListener");
-        while let Some(acks) = self.ack_receiver.next().await {
-            // realistically we would only be getting one ack at the time
-            for ack in acks {
-                self.on_ack(ack).await;
+    async fn handle_ack_receiver_item(&mut self, item: Vec<Vec<u8>>) {
+        // realistically we would only be getting one ack at the time
+        for ack in item {
+            self.on_ack(ack).await;
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+        debug!("Started AcknowledgementListener with graceful shutdown support");
+
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                acks = self.ack_receiver.next() => match acks {
+                    Some(acks) => self.handle_ack_receiver_item(acks).await,
+                    None => {
+                        log::trace!("AcknowledgementListener: Stopping since channel closed");
+                        break;
+                    }
+                },
+                _ = shutdown.recv() => {
+                    log::trace!("AcknowledgementListener: Received shutdown");
+                }
             }
         }
-        error!("TODO: error msg. Or maybe panic?")
+        assert!(shutdown.is_shutdown_poll());
+        log::debug!("AcknowledgementListener: Exiting");
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(super) async fn run(&mut self) {
+        debug!("Started AcknowledgementListener without graceful shutdown support");
+
+        while let Some(acks) = self.ack_receiver.next().await {
+            self.handle_ack_receiver_item(acks).await
+        }
     }
 }

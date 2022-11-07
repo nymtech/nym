@@ -33,6 +33,7 @@ impl<R> RetransmissionRequestListener<R>
 where
     R: CryptoRng + Rng,
 {
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         ack_key: Arc<AckKey>,
         ack_recipient: Recipient,
@@ -83,7 +84,6 @@ where
         let prepared_fragment = self
             .message_preparer
             .prepare_chunk_for_sending(chunk_clone, topology_ref, &self.ack_key, packet_recipient)
-            .await
             .unwrap();
 
         // if we have the ONLY strong reference to the ack data, it means it was removed from the
@@ -120,11 +120,34 @@ where
             .unwrap();
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+        debug!("Started RetransmissionRequestListener with graceful shutdown support");
+
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                timed_out_ack = self.request_receiver.next() => match timed_out_ack {
+                    Some(timed_out_ack) => self.on_retransmission_request(timed_out_ack).await,
+                    None => {
+                        log::trace!("RetransmissionRequestListener: Stopping since channel closed");
+                        break;
+                    }
+                },
+                _ = shutdown.recv() => {
+                    log::trace!("RetransmissionRequestListener: Received shutdown");
+                }
+            }
+        }
+        assert!(shutdown.is_shutdown_poll());
+        log::debug!("RetransmissionRequestListener: Exiting");
+    }
+
+    #[cfg(target_arch = "wasm32")]
     pub(super) async fn run(&mut self) {
-        debug!("Started RetransmissionRequestListener");
+        debug!("Started RetransmissionRequestListener without graceful shutdown support");
+
         while let Some(timed_out_ack) = self.request_receiver.next().await {
             self.on_retransmission_request(timed_out_ack).await;
         }
-        error!("TODO: error msg. Or maybe panic?")
     }
 }

@@ -7,6 +7,7 @@ use crypto::asymmetric::identity;
 use crypto::asymmetric::identity::PUBLIC_KEY_LENGTH;
 use log::{debug, info, trace, warn};
 use std::time::Duration;
+use task::ShutdownListener;
 use tokio::time::{sleep, Instant};
 
 // TODO: should it perhaps be moved to config along other timeout values?
@@ -143,10 +144,22 @@ impl GatewayPinger {
         info!("Pinging all active gateways took {:?}", time_taken);
     }
 
-    pub(crate) async fn run(&self) {
-        loop {
-            sleep(self.pinging_interval).await;
-            self.ping_and_cleanup_all_gateways().await
+    pub(crate) async fn run(&self, mut shutdown: ShutdownListener) {
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                _ = sleep(self.pinging_interval) => {
+                    tokio::select! {
+                        biased;
+                        _ = shutdown.recv() => {
+                            trace!("GatewaysPinger: Received shutdown");
+                        }
+                        _ = self.ping_and_cleanup_all_gateways() => (),
+                    }
+                }
+                _ = shutdown.recv() => {
+                    trace!("GatewaysPinger: Received shutdown");
+                }
+            }
         }
     }
 }

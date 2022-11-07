@@ -26,23 +26,19 @@ const row: EconomicsInfoRowWithIndex = {
   profitMargin: {
     value: '10 %',
   },
+  operatingCost: {
+    value: '11121 NYM',
+  },
   stakeSaturation: {
     value: '80 %',
     progressBarValue: 80,
   },
 };
 
-const rowVeryHighProbabilitySelection: EconomicsInfoRowWithIndex = {
+const rowGoodProbabilitySelection: EconomicsInfoRowWithIndex = {
   ...row,
   selectionChance: {
-    value: 'Very High',
-  },
-};
-
-const rowModerateProbabilitySelection: EconomicsInfoRowWithIndex = {
-  ...row,
-  selectionChance: {
-    value: 'Moderate',
+    value: 'Good',
   },
 };
 
@@ -50,13 +46,6 @@ const rowLowProbabilitySelection: EconomicsInfoRowWithIndex = {
   ...row,
   selectionChance: {
     value: 'Low',
-  },
-};
-
-const rowVeryLowProbabilitySelection: EconomicsInfoRowWithIndex = {
-  ...row,
-  selectionChance: {
-    value: 'Very Low',
   },
 };
 
@@ -78,6 +67,9 @@ const emptyRow: EconomicsInfoRowWithIndex = {
   profitMargin: {
     value: '-',
   },
+  operatingCost: {
+    value: '-',
+  },
   stakeSaturation: {
     value: '-',
     progressBarValue: 0,
@@ -93,13 +85,6 @@ Empty.args = {
   tableName: 'storybook',
 };
 
-export const selectionChanceVeryHigh = Template.bind({});
-selectionChanceVeryHigh.args = {
-  rows: [rowVeryHighProbabilitySelection],
-  columnsData: EconomicsInfoColumns,
-  tableName: 'storybook',
-};
-
 export const selectionChanceHigh = Template.bind({});
 selectionChanceHigh.args = {
   rows: [row],
@@ -107,9 +92,9 @@ selectionChanceHigh.args = {
   tableName: 'storybook',
 };
 
-export const selectionChanceModerate = Template.bind({});
-selectionChanceModerate.args = {
-  rows: [rowModerateProbabilitySelection],
+export const selectionChanceGood = Template.bind({});
+selectionChanceGood.args = {
+  rows: [rowGoodProbabilitySelection],
   columnsData: EconomicsInfoColumns,
   tableName: 'storybook',
 };
@@ -117,13 +102,6 @@ selectionChanceModerate.args = {
 export const selectionChanceLow = Template.bind({});
 selectionChanceLow.args = {
   rows: [rowLowProbabilitySelection],
-  columnsData: EconomicsInfoColumns,
-  tableName: 'storybook',
-};
-
-export const selectionChanceVeryLow = Template.bind({});
-selectionChanceVeryLow.args = {
-  rows: [rowVeryLowProbabilitySelection],
   columnsData: EconomicsInfoColumns,
   tableName: 'storybook',
 };

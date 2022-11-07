@@ -1,45 +1,45 @@
 import React from 'react';
-import { Alert, Box, Paper, Dialog, DialogContent, DialogTitle, IconButton, Stack, Typography } from '@mui/material';
-import { Close } from '@mui/icons-material';
+import { Stack, Typography } from '@mui/material';
+import { Link } from '@nymproject/react/link/Link';
+import { SimpleModal } from '../Modals/SimpleModal';
+import { Warning } from '../Warning';
 
 const passwordCreationSteps = [
-  'Log out',
-  'When signing in, select “Sign in with mnemonic”',
-  'On the next screen click “Create a password for your account”',
-  'Sign in to wallet with your new password',
-  'Now you can create multiple accounts',
+  'Log out of your wallet',
+  'Sign in using “Sign in with mnemonic” button',
+  'On the next screen select “Create a password for your account”',
+  'Sign in to the wallet with your new password',
+  'Then come back here to import or create new accounts',
 ];
 
+// TODO add the link href value
 export const MultiAccountHowTo = ({ show, handleClose }: { show: boolean; handleClose: () => void }) => (
-  <Dialog open={show} onClose={handleClose} fullWidth>
-    <Paper>
-      <DialogTitle>
-        <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">Multi accounts</Typography>
-          <IconButton onClick={handleClose}>
-            <Close />
-          </IconButton>
-        </Box>
-        <Typography variant="body1" sx={{ color: (theme) => theme.palette.nym.text.muted }}>
-          How to set up multiple accounts
+  <SimpleModal
+    open={show}
+    onClose={handleClose}
+    header="Create account"
+    okLabel="Ok"
+    onOk={handleClose as () => Promise<void>}
+  >
+    <Stack spacing={2}>
+      <Warning sx={{ textAlign: 'center' }}>
+        <Typography fontWeight={600}>
+          In order to import or create account(s) you first need to create a password
         </Typography>
-      </DialogTitle>
-      <DialogContent>
-        <Stack spacing={2}>
-          <Alert
-            severity="warning"
-            icon={false}
-            sx={(t) => (t.palette.mode === 'dark' ? { bgcolor: (theme) => theme.palette.background.paper } : {})}
-          >
-            <Typography>In order to create multiple accounts your wallet needs a password.</Typography>
-            <Typography>Follow steps below to create password.</Typography>
-          </Alert>
-          <Typography>How to create a password for your account</Typography>
-          {passwordCreationSteps.map((step, index) => (
-            <Typography key={step}>{`${index + 1}. ${step}`}</Typography>
-          ))}
+      </Warning>
+      <Typography fontWeight={600}>How to create a password for your account</Typography>
+      {passwordCreationSteps.map((step, index) => (
+        <Stack key={step} direction="row" spacing={1}>
+          <Typography fontWeight={600}>{`${index + 1}.`}</Typography>
+          <Typography>{`${step}`}</Typography>
         </Stack>
-      </DialogContent>
-    </Paper>
-  </Dialog>
+      ))}
+      <Link
+        href="https://nymtech.net/docs/stable/wallet/#importing-or-creating-accounts-when-you-have-signed-in-with-mnemonic"
+        target="_blank"
+        text="Open Nym docs for this guide in a browser window"
+        fontWeight={600}
+      />
+    </Stack>
+  </SimpleModal>
 );

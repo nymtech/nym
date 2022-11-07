@@ -13,10 +13,13 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::{Controller, ControllerCommand, ControllerSender};
-use socks5_requests::{ConnectionId, Message as Socks5Message, Request, Response};
+use socks5_requests::{
+    ConnectionId, Message as Socks5Message, NetworkRequesterResponse, Request, Response,
+};
 use statistics_common::collector::StatisticsSender;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use task::ShutdownListener;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use websocket::WebsocketConnectionError;
 use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
@@ -132,6 +135,7 @@ impl ServiceProvider {
         return_address: Recipient,
         controller_sender: ControllerSender,
         mix_input_sender: mpsc::UnboundedSender<(Socks5Message, Recipient)>,
+        shutdown: ShutdownListener,
     ) {
         let mut conn = match Connection::new(conn_id, remote_addr.clone(), return_address).await {
             Ok(conn) => conn,
@@ -168,7 +172,8 @@ impl ServiceProvider {
         );
 
         // run the proxy on the connection
-        conn.run_proxy(mix_receiver, mix_input_sender).await;
+        conn.run_proxy(mix_receiver, mix_input_sender, shutdown)
+            .await;
 
         // proxy is done - remove the access channel from the controller
         controller_sender
@@ -190,9 +195,19 @@ impl ServiceProvider {
         conn_id: ConnectionId,
         remote_addr: String,
         return_address: Recipient,
+        shutdown: ShutdownListener,
     ) {
         if !self.open_proxy && !self.outbound_request_filter.check(&remote_addr) {
-            log::info!("Domain {:?} failed filter check", remote_addr);
+            let log_msg = format!("Domain {:?} failed filter check", remote_addr);
+            log::info!("{}", log_msg);
+            mix_input_sender
+                .unbounded_send((
+                    Socks5Message::NetworkRequesterResponse(NetworkRequesterResponse::new(
+                        conn_id, log_msg,
+                    )),
+                    return_address,
+                ))
+                .unwrap();
             return;
         }
 
@@ -207,6 +222,7 @@ impl ServiceProvider {
                 return_address,
                 controller_sender_clone,
                 mix_input_sender_clone,
+                shutdown,
             )
             .await
         });
@@ -230,6 +246,7 @@ impl ServiceProvider {
         controller_sender: &mut ControllerSender,
         mix_input_sender: &mpsc::UnboundedSender<(Socks5Message, Recipient)>,
         stats_collector: Option<ServiceStatisticsCollector>,
+        shutdown: ShutdownListener,
     ) {
         let deserialized_msg = match Socks5Message::try_from_bytes(raw_request) {
             Ok(msg) => msg,
@@ -254,6 +271,7 @@ impl ServiceProvider {
                         req.conn_id,
                         req.remote_addr,
                         req.return_address,
+                        shutdown,
                     )
                 }
 
@@ -275,7 +293,7 @@ impl ServiceProvider {
                     self.handle_proxy_send(controller_sender, conn_id, data, closed)
                 }
             },
-            Socks5Message::Response(_) => {}
+            Socks5Message::Response(_) | Socks5Message::NetworkRequesterResponse(_) => {}
         }
     }
 
@@ -291,8 +309,12 @@ impl ServiceProvider {
         let (mix_input_sender, mix_input_receiver) =
             mpsc::unbounded::<(Socks5Message, Recipient)>();
 
-        // controller for managing all active connections
-        let (mut active_connections_controller, mut controller_sender) = Controller::new();
+        // Controller for managing all active connections.
+        // We provide it with a ShutdownListener since it requires it, even though for the network
+        // requester shutdown signalling is not yet fully implemented.
+        let shutdown = task::ShutdownNotifier::default();
+        let (mut active_connections_controller, mut controller_sender) =
+            Controller::new(shutdown.subscribe());
         tokio::spawn(async move {
             active_connections_controller.run().await;
         });
@@ -342,6 +364,7 @@ impl ServiceProvider {
                 &mut controller_sender,
                 &mix_input_sender,
                 stats_collector.clone(),
+                shutdown.subscribe(),
             )
             .await;
         }

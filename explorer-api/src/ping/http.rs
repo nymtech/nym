@@ -1,14 +1,15 @@
-use std::collections::HashMap;
-use std::net::{SocketAddr, ToSocketAddrs};
-use std::time::Duration;
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
+use mixnet_contract_common::{MixId, MixNode};
 use rocket::serde::json::Json;
 use rocket::{Route, State};
 use rocket_okapi::okapi::openapi3::OpenApi;
 use rocket_okapi::openapi_get_routes_spec;
 use rocket_okapi::settings::OpenApiSettings;
-
-use mixnet_contract_common::MixNodeBond;
+use std::collections::HashMap;
+use std::net::{SocketAddr, ToSocketAddrs};
+use std::time::Duration;
 
 use crate::ping::models::PingResponse;
 use crate::state::ExplorerApiStateContext;
@@ -20,38 +21,38 @@ pub fn ping_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, Open
 }
 
 #[openapi(tag = "ping")]
-#[get("/<pubkey>")]
+#[get("/<mix_id>")]
 pub(crate) async fn index(
-    pubkey: &str,
+    mix_id: MixId,
     state: &State<ExplorerApiStateContext>,
 ) -> Option<Json<PingResponse>> {
-    match state.inner.ping.clone().get(pubkey).await {
+    match state.inner.ping.clone().get(mix_id).await {
         Some(cache_value) => {
-            trace!("Returning cached value for {}", pubkey);
+            trace!("Returning cached value for {}", mix_id);
             Some(Json(PingResponse {
                 pending: cache_value.pending,
                 ports: cache_value.ports,
             }))
         }
         None => {
-            trace!("No cache value for {}", pubkey);
+            trace!("No cache value for {}", mix_id);
 
-            match state.inner.get_mix_node(pubkey).await {
-                Some(bond) => {
+            match state.inner.get_mix_node(mix_id).await {
+                Some(node) => {
                     // set status to pending, so that any HTTP requests are pending
-                    state.inner.ping.set_pending(pubkey).await;
+                    state.inner.ping.set_pending(mix_id).await;
 
                     // do the check
-                    let ports = Some(port_check(&bond.mixnode_bond).await);
-                    trace!("Tested mix node {}: {:?}", pubkey, ports);
+                    let ports = Some(port_check(node.mix_node()).await);
+                    trace!("Tested mix node {}: {:?}", mix_id, ports);
                     let response = PingResponse {
                         ports,
                         pending: false,
                     };
 
                     // cache for 1 min
-                    trace!("Caching value for {}", pubkey);
-                    state.inner.ping.set(pubkey, response.clone()).await;
+                    trace!("Caching value for {}", mix_id);
+                    state.inner.ping.set(mix_id, response.clone()).await;
 
                     // return response
                     Some(Json(response))
@@ -62,23 +63,23 @@ pub(crate) async fn index(
     }
 }
 
-async fn port_check(bond: &MixNodeBond) -> HashMap<u16, bool> {
+async fn port_check(mix_node: &MixNode) -> HashMap<u16, bool> {
     let mut ports: HashMap<u16, bool> = HashMap::new();
 
     let ports_to_test = vec![
-        bond.mix_node.http_api_port,
-        bond.mix_node.mix_port,
-        bond.mix_node.verloc_port,
+        mix_node.http_api_port,
+        mix_node.mix_port,
+        mix_node.verloc_port,
     ];
 
     trace!(
         "Testing mix node {} on ports {:?}...",
-        bond.mix_node.identity_key,
+        mix_node.identity_key,
         ports_to_test
     );
 
     for port in ports_to_test {
-        ports.insert(port, do_port_check(&bond.mix_node.host, port).await);
+        ports.insert(port, do_port_check(&mix_node.host, port).await);
     }
 
     ports

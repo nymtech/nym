@@ -72,11 +72,7 @@ impl Percent {
 
 impl Display for Percent {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        // Adding this as part of resolving release -> develop merge conflict.
-        // At the time, unwraps were forbidden in develop, but not (yet) in release.
-        // Clearly we should fix this.
-        #[allow(clippy::unwrap_used)]
-        let adjusted = Decimal::from_atomics(100u32, 0).unwrap() * self.0;
+        let adjusted = Decimal::from_ratio(100u32, 1u32) * self.0;
         write!(f, "{}%", adjusted)
     }
 }

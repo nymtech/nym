@@ -17,9 +17,9 @@ export default class Status extends APIClient {
     super("/status");
   }
 
-  public async getMixnodeStatusReport(identity_key: string): Promise<Report> {
+  public async getMixnodeStatusReport(mix_id: number): Promise<Report> {
     const response = await this.restClient.sendGet({
-      route: `/mixnode/${identity_key}/report`,
+      route: `/mixnode/${mix_id}/report`,
     });
 
     return response.data;
@@ -41,27 +41,27 @@ export default class Status extends APIClient {
     return response.data;
   }
 
-  public async getMixnodeHistory(identity_key: string): Promise<NodeHistory> {
+  public async getMixnodeHistory(mix_id: number): Promise<NodeHistory> {
     const response = await this.restClient.sendGet({
-      route: `/mixnode/${identity_key}/history`,
+      route: `/mixnode/${mix_id}/history`,
     });
 
     return response.data;
   }
 
   public async getMixnodeStakeSaturation(
-    identity_key: string
+    mix_id: number
   ): Promise<StakeSaturation> {
     const response = await this.restClient.sendGet({
-      route: `/mixnode/${identity_key}/stake-saturation`,
+      route: `/mixnode/${mix_id}/stake-saturation`,
     });
 
     return response.data;
   }
 
-  public async getMixnodeCoreCount(identity_key: string): Promise<CoreCount> {
+  public async getMixnodeCoreCount(mix_id: number): Promise<CoreCount> {
     const response = await this.restClient.sendGet({
-      route: `/mixnode/${identity_key}/core-status-count`,
+      route: `/mixnode/${mix_id}/core-status-count`,
     });
 
     return response.data;
@@ -76,20 +76,20 @@ export default class Status extends APIClient {
   }
 
   public async getMixnodeRewardComputation(
-    identity_key: string
+    mix_id: number
   ): Promise<RewardEstimation> {
     const response = await this.restClient.sendGet({
-      route: `/mixnode/${identity_key}/reward-estimation`,
+      route: `/mixnode/${mix_id}/reward-estimation`,
     });
 
     return response.data;
   }
 
   public async getMixnodeRewardEstimatedComputation(
-    identity_key: string
+    mix_id: number
   ): Promise<RewardEstimation> {
     const response = await this.restClient.sendPost({
-      route: `/mixnode/${identity_key}/compute-reward-estimation`,
+      route: `/mixnode/${mix_id}/compute-reward-estimation`,
       data: {
         "performance": "", // TO-DO add a value to this 
         "active_in_rewarded_set": true,
@@ -107,38 +107,28 @@ export default class Status extends APIClient {
   }
 
   public async getMixnodeAverageUptime(
-    identity_key: string
+    mix_id: number
   ): Promise<AvgUptime> {
     const response = await this.restClient.sendGet({
-      route: `/mixnode/${identity_key}/avg_uptime`,
-    });
-
-    return response.data;
-  }
-
-  public async getAllMixnodeAverageUptime(
-    identity_key: string
-  ): Promise<AvgUptime[]> {
-    const response = await this.restClient.sendGet({
-      route: `/mixnodes/avg_uptime`,
+      route: `/mixnode/${mix_id}/avg_uptime`,
     });
 
     return response.data;
   }
 
   public async getMixnodeInclusionProbability(
-    identity_key: string
+    mix_id: number
   ): Promise<InclusionProbability> {
     const response = await this.restClient.sendGet({
-      route: `/mixnode/${identity_key}/inclusion-probability`,
+      route: `/mixnode/${mix_id}/inclusion-probability`,
     });
 
     return response.data;
   }
 
-  public async getMixnodeStatus(identity_key: string): Promise<ActiveStatus> {
+  public async getMixnodeStatus(mix_id: number): Promise<ActiveStatus> {
     const response = await this.restClient.sendGet({
-      route: `/mixnode/${identity_key}/status`,
+      route: `/mixnode/${mix_id}/status`,
     });
 
     return response.data;

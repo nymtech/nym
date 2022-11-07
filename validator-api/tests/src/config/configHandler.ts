@@ -16,7 +16,7 @@ class ConfigHandler {
     log_level: TLogLevelName;
     time_zone: string;
     api_base_url: string;
-    mixnode_identity: string;
+    mixnode_identity: number;
     gateway_identity: string;
   };
 

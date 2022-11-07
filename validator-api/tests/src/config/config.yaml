@@ -2,8 +2,8 @@ common:
   request_headers:
     Accept: application/json
     Content-Type: application/json
-qwerty:
-  api_base_url: https://qwerty-validator-api.qa.nymte.ch/v1
+qa:
+  api_base_url: https://qwerty-validator-api.qa.nymte.ch/api/v1
   mixnode_identity: 7
   gateway_identity: 336yuXAeGEgedRfqTJZsG2YV7P13QH1bHv1SjCZYarc9
   log_level: error

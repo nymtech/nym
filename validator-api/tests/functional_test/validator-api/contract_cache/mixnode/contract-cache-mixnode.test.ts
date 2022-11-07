@@ -20,7 +20,7 @@ describe("Get mixnode data", (): void => {
       expect(typeof mixnode.bond_information.owner).toBe('string');
       expect(typeof mixnode.bond_information.original_pledge.amount).toBe('string');
       expect(typeof mixnode.bond_information.original_pledge.denom).toBe('string');
-      expect(typeof mixnode.bond_information.layer).toBe('string');
+      expect(typeof mixnode.bond_information.layer).toBe('number');
       expect(typeof mixnode.bond_information.bonding_height).toBe('number');
       expect(typeof mixnode.bond_information.is_unbonding).toBe('boolean');
 
@@ -33,12 +33,11 @@ describe("Get mixnode data", (): void => {
 
       //mixnode
       expect(typeof mixnode.bond_information.mix_node.host).toBe('string')
-      expect(typeof mixnode.bond_information.mix_node.http_api_port).toStrictEqual(8000);
+      expect(mixnode.bond_information.mix_node.http_api_port).toStrictEqual(8000);
       expect(typeof mixnode.bond_information.mix_node.verloc_port).toBe('number')
       expect(typeof mixnode.bond_information.mix_node.mix_port).toBe('number')
-      expect(typeof mixnode.bond_information.mix_node.sphinx_key).toBe('number')
-      expect(typeof mixnode.bond_information.mix_node.mix_port).toStrictEqual(1789);
-      expect(typeof mixnode.bond_information.mix_node.verloc_port).toStrictEqual(1790)
+      expect(mixnode.bond_information.mix_node.mix_port).toStrictEqual(1789);
+      expect(mixnode.bond_information.mix_node.verloc_port).toStrictEqual(1790)
 
       let identitykey = mixnode.bond_information.mix_node.identity_key
       if (typeof identitykey === 'string') {
@@ -81,11 +80,11 @@ describe("Get mixnode data", (): void => {
       expect(typeof mixnode.stake_saturation).toBe('string');
 
       //mixnode details bond info
-      expect(typeof mixnode.mixnode_details.bond_information.mix_id).toBe('string')
+      expect(typeof mixnode.mixnode_details.bond_information.mix_id).toBe('number')
       expect(typeof mixnode.mixnode_details.bond_information.owner).toBe('string');
       expect(typeof mixnode.mixnode_details.bond_information.original_pledge.amount).toBe('string');
       expect(typeof mixnode.mixnode_details.bond_information.original_pledge.denom).toBe('string');
-      expect(typeof mixnode.mixnode_details.bond_information.layer).toBe('string');
+      expect(typeof mixnode.mixnode_details.bond_information.layer).toBe('number');
       expect(typeof mixnode.mixnode_details.bond_information.bonding_height).toBe('number');
       expect(typeof mixnode.mixnode_details.bond_information.is_unbonding).toBe('boolean');
 
@@ -98,12 +97,11 @@ describe("Get mixnode data", (): void => {
 
       //mixnode
       expect(typeof mixnode.mixnode_details.bond_information.mix_node.host).toBe('string')
-      expect(typeof mixnode.mixnode_details.bond_information.mix_node.http_api_port).toStrictEqual(8000);
+      expect(mixnode.mixnode_details.bond_information.mix_node.http_api_port).toStrictEqual(8000);
       expect(typeof mixnode.mixnode_details.bond_information.mix_node.verloc_port).toBe('number')
       expect(typeof mixnode.mixnode_details.bond_information.mix_node.mix_port).toBe('number')
-      expect(typeof mixnode.mixnode_details.bond_information.mix_node.sphinx_key).toBe('number')
-      expect(typeof mixnode.mixnode_details.bond_information.mix_node.mix_port).toStrictEqual(1789);
-      expect(typeof mixnode.mixnode_details.bond_information.mix_node.verloc_port).toStrictEqual(1790)
+      expect(mixnode.mixnode_details.bond_information.mix_node.mix_port).toStrictEqual(1789);
+      expect(mixnode.mixnode_details.bond_information.mix_node.verloc_port).toStrictEqual(1790)
 
       let identitykey2 = mixnode.mixnode_details.bond_information.mix_node.identity_key
       if (typeof identitykey2 === 'string') {

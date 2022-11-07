@@ -18,6 +18,13 @@ pub(crate) async fn retrieve_mixnode_econ_stats(
         .await
         .ok()?;
 
+    let uncapped_saturation = client
+        .0
+        .validator_api
+        .get_mixnode_stake_saturation(mix_id)
+        .await
+        .ok()?;
+
     let inclusion_probability = client
         .0
         .validator_api
@@ -41,6 +48,8 @@ pub(crate) async fn retrieve_mixnode_econ_stats(
 
     Some(EconomicDynamicsStats {
         stake_saturation: best_effort_small_dec_to_f64(stake_saturation.saturation) as f32,
+        uncapped_saturation: best_effort_small_dec_to_f64(stake_saturation.uncapped_saturation)
+            as f32,
         active_set_inclusion_probability: inclusion_probability.in_active,
         reserve_set_inclusion_probability: inclusion_probability.in_reserve,
         // drop precision for compatibility sake

@@ -26,7 +26,7 @@ use nymsphinx::params::PacketSize;
 use rand::rngs::OsRng;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
-use wasm_utils::{console_log, console_warn};
+use wasm_utils::console_log;
 
 pub mod config;
 
@@ -45,6 +45,7 @@ pub struct NymClient {
 
     // callbacks
     on_message: Option<js_sys::Function>,
+    on_binary_message: Option<js_sys::Function>,
     on_gateway_connect: Option<js_sys::Function>,
 }
 
@@ -56,6 +57,7 @@ impl NymClient {
             config,
             key_manager: Self::setup_key_manager(),
             on_message: None,
+            on_binary_message: None,
             on_gateway_connect: None,
             input_tx: None,
         }
@@ -73,8 +75,11 @@ impl NymClient {
         self.on_message = Some(on_message);
     }
 
+    pub fn set_on_binary_message(&mut self, on_binary_message: js_sys::Function) {
+        self.on_binary_message = Some(on_binary_message);
+    }
+
     pub fn set_on_gateway_connect(&mut self, on_connect: js_sys::Function) {
-        console_log!("setting on connect...");
         self.on_gateway_connect = Some(on_connect)
     }
 
@@ -267,6 +272,7 @@ impl NymClient {
         received_buffer_request_sender: ReceivedBufferRequestSender,
     ) {
         let on_message = self.on_message.take();
+        let on_binary_message = self.on_binary_message.take();
 
         spawn_local(async move {
             let (reconstructed_sender, mut reconstructed_receiver) = mpsc::unbounded();
@@ -281,8 +287,14 @@ impl NymClient {
             let this = JsValue::null();
 
             while let Some(reconstructed) = reconstructed_receiver.next().await {
-                if let Some(ref callback) = on_message {
-                    for msg in reconstructed {
+                for msg in reconstructed {
+                    if let Some(ref callback_binary) = on_binary_message {
+                        let arg1 = serde_wasm_bindgen::to_value(&msg.message).unwrap();
+                        callback_binary
+                            .call1(&this, &arg1)
+                            .expect("on binary message failed!");
+                    }
+                    if let Some(ref callback) = on_message {
                         if msg.reply_surb.is_some() {
                             console_log!("the received message contained a reply-surb that we do not know how to handle (yet)")
                         }
@@ -290,9 +302,6 @@ impl NymClient {
                         let arg1 = serde_wasm_bindgen::to_value(&stringified).unwrap();
                         callback.call1(&this, &arg1).expect("on message failed!");
                     }
-                } else {
-                    console_warn!("no on_message callback was specified. the received message content is getting dropped");
-                    console_log!("the raw messages: {:?}", reconstructed)
                 }
             }
         });

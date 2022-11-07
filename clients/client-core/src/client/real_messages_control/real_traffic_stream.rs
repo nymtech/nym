@@ -661,12 +661,6 @@ where
 
                 Poll::Pending => {
                     if let Some(real_next) = self.transmission_buffer.pop_next_message_at_random() {
-                        // if there are more messages immediately available, notify the runtime
-                        // because we should be polled again
-                        if !self.transmission_buffer.is_empty() {
-                            cx.waker().wake_by_ref()
-                        }
-
                         Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
                     } else {
                         // otherwise construct a dummy one
@@ -724,23 +718,11 @@ where
                     .pop_next_message_at_random()
                     .expect("we just added one");
 
-                // if there are more messages immediately available, notify the runtime
-                // because we should be polled again
-                //if !self.received_buffer.is_empty() {
-                //    cx.waker().wake_by_ref()
-                //}
-
                 Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
             }
 
             Poll::Pending => {
                 if let Some(real_next) = self.transmission_buffer.pop_next_message_at_random() {
-                    // if there are more messages immediately available, notify the runtime
-                    // because we should be polled again
-                    //if !self.received_buffer.is_empty() {
-                    //    cx.waker().wake_by_ref()
-                    //}
-
                     Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
                 } else {
                     Poll::Pending

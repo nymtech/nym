@@ -27,8 +27,8 @@ use std::{
     time::Duration,
 };
 
-#[cfg(feature = "reply-surb")]
-use crate::client::reply_key_storage::ReplyKeyStorage;
+// #[cfg(feature = "reply-surb")]
+// use crate::client::reply_key_storage::ReplyKeyStorage;
 
 mod acknowledgement_listener;
 mod action_controller;
@@ -172,7 +172,7 @@ where
         ack_key: Arc<AckKey>,
         ack_recipient: Recipient,
         connectors: AcknowledgementControllerConnectors,
-        #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
+        // #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
     ) -> Self {
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
 
@@ -205,8 +205,8 @@ where
             action_sender.clone(),
             connectors.real_message_sender.clone(),
             topology_access.clone(),
-            #[cfg(feature = "reply-surb")]
-            reply_key_storage,
+            // #[cfg(feature = "reply-surb")]
+            // reply_key_storage,
         );
 
         // will listen for any ack timeouts and trigger retransmission

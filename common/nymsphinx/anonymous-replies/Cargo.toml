@@ -10,6 +10,7 @@ edition = "2021"
 rand = {version = "0.7.3", features = ["wasm-bindgen"]}
 bs58 = "0.4"
 serde = "1.0"
+thiserror = "1"
 
 crypto = { path = "../../crypto" }
 nymsphinx-addressing = { path = "../addressing" }

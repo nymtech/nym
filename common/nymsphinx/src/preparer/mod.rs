@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::chunking;
+use crate::message::NymMessage;
 use crypto::asymmetric::encryption;
 use crypto::shared_key::new_ephemeral_shared_key;
 use crypto::symmetric::stream_cipher;
@@ -12,6 +13,7 @@ use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
 use nymsphinx_anonymous_replies::encryption_key::SurbEncryptionKey;
 use nymsphinx_anonymous_replies::reply_surb::ReplySurb;
+use nymsphinx_anonymous_replies::requests::RepliableMessage;
 use nymsphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nymsphinx_forwarding::packet::MixPacket;
 use nymsphinx_params::packet_sizes::PacketSize;
@@ -149,43 +151,40 @@ where
             .collect()
     }
 
-    /// Attaches reply-SURB to the message alongside the reply key.
-    /// Results in:
-    /// new_message = 0 || message
-    /// OR
-    /// new_message = 1 || REPLY_KEY || REPLY_SURB || message
-    fn optionally_attach_reply_surb(
+    // /// Attaches reply-SURB to the message alongside the reply key.
+    // /// Results in:
+    // /// new_message = 0 || message
+    // /// OR
+    // /// new_message = 1 || REPLY_KEY || REPLY_SURB || message
+    fn optionally_attach_reply_surbs(
         &mut self,
         message: Vec<u8>,
-        should_attach: bool,
+        num_reply_surbs: u32,
         topology: &NymTopology,
-    ) -> Result<(Vec<u8>, Option<SurbEncryptionKey>), PreparationError> {
-        if should_attach {
+    ) -> Result<(NymMessage, Vec<SurbEncryptionKey>), PreparationError> {
+        let mut reply_surbs = Vec::with_capacity(num_reply_surbs as usize);
+        let mut reply_keys = Vec::with_capacity(num_reply_surbs as usize);
+
+        for _ in 0..num_reply_surbs as usize {
             let reply_surb = ReplySurb::construct(
                 &mut self.rng,
                 &self.sender_address,
                 self.average_packet_delay,
                 topology,
             )?;
-
-            let reply_key = reply_surb.encryption_key();
-            // if there's a reply surb, the message takes form of `1 || REPLY_KEY || REPLY_SURB || MSG`
-            Ok((
-                std::iter::once(true as u8)
-                    .chain(reply_surb.to_bytes().iter().cloned())
-                    .chain(message.into_iter())
-                    .collect(),
-                Some(reply_key.clone()),
-            ))
-        } else {
-            // but if there's no reply surb, the message takes form of `0 || MSG`
-            Ok((
-                std::iter::once(false as u8)
-                    .chain(message.into_iter())
-                    .collect(),
-                None,
-            ))
+            reply_keys.push(*reply_surb.encryption_key());
+            reply_surbs.push(reply_surb)
         }
+
+        // temporary:
+        let msg = if num_reply_surbs > 0 {
+            let repliable = RepliableMessage::temp_new_data(message, reply_surbs);
+            NymMessage::new_repliable(repliable)
+        } else {
+            NymMessage::new_plain(message)
+        };
+
+        Ok((msg, reply_keys))
     }
 
     /// Splits the message into [`Fragment`] that are going to be put later put into sphinx packets.
@@ -225,16 +224,6 @@ where
         let (ack_delay, surb_ack_bytes) = self
             .generate_surb_ack(fragment.fragment_identifier(), topology, ack_key)?
             .prepare_for_sending();
-
-        // TODO:
-        // TODO:
-        // TODO:
-        // TODO:
-        // TODO: ASK @AP AND @DH WHETHER THOSE KEYS CAN/SHOULD ALSO BE REUSED IN VPN MODE!!
-        // TODO:
-        // TODO:
-        // TODO:
-        // TODO:
 
         // create keys for 'payload' encryption
         let (ephemeral_keypair, shared_key) =
@@ -316,15 +305,18 @@ where
     pub fn prepare_and_split_message(
         &mut self,
         message: Vec<u8>,
-        with_reply_surb: bool,
+        reply_surbs: u32,
         topology: &NymTopology,
-    ) -> Result<(Vec<Fragment>, Option<SurbEncryptionKey>), PreparationError> {
-        let (message, reply_key) =
-            self.optionally_attach_reply_surb(message, with_reply_surb, topology)?;
+    ) -> Result<(Vec<Fragment>, Vec<SurbEncryptionKey>), PreparationError> {
+        let (message, reply_keys) =
+            self.optionally_attach_reply_surbs(message, reply_surbs, topology)?;
 
-        let message = self.pad_message(message);
+        let plaintext_per_packet = self.available_plaintext_per_packet();
+        let fragments = message
+            .pad_to_full_packet_lengths(plaintext_per_packet)
+            .split_into_fragments(&mut self.rng, plaintext_per_packet);
 
-        Ok((self.split_message(message), reply_key))
+        Ok((fragments, reply_keys))
     }
 
     // TODO: perhaps the return type could somehow be combined with [`PreparedFragment`] ?

@@ -291,7 +291,7 @@ impl NymClient {
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
     pub fn send_message(&mut self, recipient: Recipient, message: Vec<u8>, with_reply_surb: bool) {
-        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb);
+        let input_msg = InputMessage::new_regular(recipient, message, with_reply_surb);
 
         self.input_tx
             .as_ref()
@@ -304,7 +304,7 @@ impl NymClient {
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
     pub fn send_reply(&mut self, reply_surb: ReplySurb, message: Vec<u8>) {
-        let input_msg = InputMessage::new_reply(reply_surb, message);
+        let input_msg = InputMessage::new_reply_with_surb(reply_surb, message);
 
         self.input_tx
             .as_ref()

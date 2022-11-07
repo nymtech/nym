@@ -24,11 +24,11 @@ use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 use std::time::Duration;
 
-#[cfg(feature = "reply-surb")]
-use crate::client::reply_key_storage::ReplyKeyStorage;
+// #[cfg(feature = "reply-surb")]
+// use crate::client::reply_key_storage::ReplyKeyStorage;
 
-mod acknowledgement_control;
-mod real_traffic_stream;
+pub(crate) mod acknowledgement_control;
+pub(crate) mod real_traffic_stream;
 
 // TODO: ack_key and self_recipient shouldn't really be part of this config
 pub struct Config {
@@ -109,7 +109,7 @@ impl RealMessagesController<OsRng> {
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
         topology_access: TopologyAccessor,
-        #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
+        // #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
     ) -> Self {
         let rng = OsRng;
 
@@ -138,8 +138,8 @@ impl RealMessagesController<OsRng> {
             Arc::clone(&config.ack_key),
             config.self_recipient,
             ack_controller_connectors,
-            #[cfg(feature = "reply-surb")]
-            reply_key_storage,
+            // #[cfg(feature = "reply-surb")]
+            // reply_key_storage,
         );
 
         let out_queue_config = real_traffic_stream::Config::new(

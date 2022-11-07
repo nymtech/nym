@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::message::{NymMessage, PaddedMessage};
 use crypto::asymmetric::encryption;
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
@@ -14,9 +15,8 @@ use nymsphinx_params::{PacketEncryptionAlgorithm, PacketHkdfAlgorithm, DEFAULT_N
 pub struct ReconstructedMessage {
     /// The actual plaintext message that was received.
     pub message: Vec<u8>,
-
-    /// Optional ReplySURB to allow for an anonymous reply to the sender.
-    pub reply_surb: Option<ReplySurb>,
+    // /// Optional ReplySURB to allow for an anonymous reply to the sender.
+    // pub reply_surbs: Vec<ReplySurb>,
 }
 
 #[derive(Debug)]
@@ -65,26 +65,27 @@ impl MessageReceiver {
     }
 
     /// Parses the message to strip and optionally recover reply SURB.
-    fn recover_reply_surb_from_message(
+    fn recover_reply_surbs_from_message(
         &self,
         message: &mut Vec<u8>,
     ) -> Result<Option<ReplySurb>, MessageRecoveryError> {
-        match message[0] {
-            n if n == false as u8 => {
-                message.remove(0);
-                Ok(None)
-            }
-            n if n == true as u8 => {
-                let surb_len: usize = ReplySurb::serialized_len(self.num_mix_hops);
-                // note the extra +1 (due to 0/1 message prefix)
-                let surb_bytes = &message[1..1 + surb_len];
-                let reply_surb = ReplySurb::from_bytes(surb_bytes)?;
-
-                *message = message.drain(1 + surb_len..).collect();
-                Ok(Some(reply_surb))
-            }
-            _ => Err(MessageRecoveryError::InvalidSurbPrefixError),
-        }
+        todo!()
+        // match message[0] {
+        //     n if n == false as u8 => {
+        //         message.remove(0);
+        //         Ok(None)
+        //     }
+        //     n if n == true as u8 => {
+        //         let surb_len: usize = ReplySurb::serialized_len(self.num_mix_hops);
+        //         // note the extra +1 (due to 0/1 message prefix)
+        //         let surb_bytes = &message[1..1 + surb_len];
+        //         let reply_surb = ReplySurb::from_bytes(surb_bytes)?;
+        //
+        //         *message = message.drain(1 + surb_len..).collect();
+        //         Ok(Some(reply_surb))
+        //     }
+        //     _ => Err(MessageRecoveryError::InvalidSurbPrefixError),
+        // }
     }
 
     /// Given raw fragment data, recovers the remote ephemeral key, recomputes shared secret,
@@ -144,30 +145,13 @@ impl MessageReceiver {
     pub fn insert_new_fragment(
         &mut self,
         fragment: Fragment,
-    ) -> Result<Option<(ReconstructedMessage, Vec<i32>)>, MessageRecoveryError> {
-        if let Some((mut message, used_sets)) = self.reconstructor.insert_new_fragment(fragment) {
-            // Split message into plaintext and reply-SURB
-            let reply_surb = match self.recover_reply_surb_from_message(&mut message) {
-                Ok(reply_surb) => reply_surb,
-                Err(_) => {
-                    return Err(MessageRecoveryError::MalformedReconstructedMessage(
-                        used_sets,
-                    ));
-                }
-            };
+    ) -> Result<Option<(NymMessage, Vec<i32>)>, MessageRecoveryError> {
+        if let Some((message, used_sets)) = self.reconstructor.insert_new_fragment(fragment) {
+            let message = PaddedMessage::new_reconstructed(message)
+                .remove_padding(self.num_mix_hops)
+                .unwrap_or_else(|_| todo!("handle this error"));
 
-            // Finally, remove the zero padding from the message
-            Self::remove_padding(&mut message).map_err(|_| {
-                MessageRecoveryError::MalformedReconstructedMessage(used_sets.clone())
-            })?;
-
-            Ok(Some((
-                ReconstructedMessage {
-                    message,
-                    reply_surb,
-                },
-                used_sets,
-            )))
+            Ok(Some((message, used_sets)))
         } else {
             Ok(None)
         }
@@ -304,7 +288,7 @@ mod message_receiver {
             std::iter::once(0).chain(message.iter().cloned()).collect();
 
         let reply_surb = message_receiver
-            .recover_reply_surb_from_message(&mut received_without_surb)
+            .recover_reply_surbs_from_message(&mut received_without_surb)
             .unwrap();
         assert_eq!(received_without_surb, message);
         assert!(reply_surb.is_none());
@@ -314,7 +298,7 @@ mod message_receiver {
             .chain(message.iter().cloned())
             .collect();
         let reply_surb = message_receiver
-            .recover_reply_surb_from_message(&mut received_with_surb)
+            .recover_reply_surbs_from_message(&mut received_with_surb)
             .unwrap();
         assert_eq!(received_with_surb, message);
         assert_eq!(reply_surb_bytes, reply_surb.unwrap().to_bytes());

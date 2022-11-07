@@ -83,7 +83,7 @@ impl Handler {
         with_reply_surb: bool,
     ) -> Option<ServerResponse> {
         // the ack control is now responsible for chunking, etc.
-        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb);
+        let input_msg = InputMessage::new_regular(recipient, message, with_reply_surb);
         self.msg_input.unbounded_send(input_msg).unwrap();
 
         None
@@ -94,7 +94,7 @@ impl Handler {
             return Some(ServerResponse::new_error(format!("too long message to put inside a reply SURB. Received: {} bytes and maximum is {} bytes", message.len(), ReplySurb::max_msg_len(Default::default()))));
         }
 
-        let input_msg = InputMessage::new_reply(reply_surb, message);
+        let input_msg = InputMessage::new_reply_with_surb(reply_surb, message);
         self.msg_input.unbounded_send(input_msg).unwrap();
 
         None

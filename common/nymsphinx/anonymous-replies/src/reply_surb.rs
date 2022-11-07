@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::encryption_key::{SurbEncryptionKey, SurbEncryptionKeyError, SurbEncryptionKeySize};
@@ -14,44 +14,19 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::convert::TryFrom;
 use std::fmt::{self, Formatter};
 use std::time;
+use thiserror::Error;
 use topology::{NymTopology, NymTopologyError};
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum ReplySurbError {
+    #[error("tried to use reply SURB with an unpadded message")]
     UnpaddedMessageError,
-    MalformedStringError(bs58::decode::Error),
-    RecoveryError(SphinxError),
-    InvalidEncryptionKeyData(SurbEncryptionKeyError),
-}
-
-impl fmt::Display for ReplySurbError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ReplySurbError::UnpaddedMessageError => {
-                write!(f, "tried to use reply SURB with an unpadded message")
-            }
-            ReplySurbError::MalformedStringError(decode_err) => {
-                write!(f, "reply SURB is incorrectly formatted: {}", decode_err)
-            }
-            ReplySurbError::RecoveryError(sphinx_err) => {
-                write!(f, "failed to recover reply SURB from bytes: {}", sphinx_err)
-            }
-            ReplySurbError::InvalidEncryptionKeyData(surb_key_err) => write!(
-                f,
-                "failed to recover reply SURB encryption key from bytes: {}",
-                surb_key_err
-            ),
-        }
-    }
-}
-
-// since we have Debug and Display might as well slap Error on top of it too
-impl std::error::Error for ReplySurbError {}
-
-impl From<SurbEncryptionKeyError> for ReplySurbError {
-    fn from(err: SurbEncryptionKeyError) -> Self {
-        ReplySurbError::InvalidEncryptionKeyData(err)
-    }
+    #[error("reply SURB is incorrectly formatted: {0}")]
+    MalformedStringError(#[from] bs58::decode::Error),
+    #[error("failed to recover reply SURB from bytes: {0}")]
+    RecoveryError(#[from] SphinxError),
+    #[error("failed to recover reply SURB encryption key from bytes: {0}")]
+    InvalidEncryptionKeyData(#[from] SurbEncryptionKeyError),
 }
 
 #[derive(Debug)]
@@ -157,6 +132,8 @@ impl ReplySurb {
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ReplySurbError> {
+        // TODO: introduce bound checks to guard us against out of bound reads
+
         let encryption_key =
             SurbEncryptionKey::try_from_bytes(&bytes[..SurbEncryptionKeySize::USIZE])?;
 

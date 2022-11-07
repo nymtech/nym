@@ -3,6 +3,7 @@
 
 use super::action_controller::{Action, ActionSender};
 use super::PendingAcknowledgement;
+use crate::client::replies::reply_storage::ReceivedReplySurbsMap;
 use crate::client::{
     inbound_messages::{InputMessage, InputMessageReceiver},
     real_messages_control::real_traffic_stream::{BatchRealMessageSender, RealMessage},
@@ -10,14 +11,15 @@ use crate::client::{
 };
 use futures::StreamExt;
 use log::*;
+use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{acknowledgements::AckKey, addressing::clients::Recipient};
 use rand::{CryptoRng, Rng};
 use std::sync::Arc;
 
-#[cfg(feature = "reply-surb")]
-use crate::client::reply_key_storage::ReplyKeyStorage;
+// #[cfg(feature = "reply-surb")]
+// use crate::client::reply_key_storage::ReplyKeyStorage;
 
 /// Module responsible for dealing with the received messages: splitting them, creating acknowledgements,
 /// putting everything into sphinx packets, etc.
@@ -33,8 +35,13 @@ where
     action_sender: ActionSender,
     real_message_sender: BatchRealMessageSender,
     topology_access: TopologyAccessor,
-    #[cfg(feature = "reply-surb")]
-    reply_key_storage: ReplyKeyStorage,
+    // #[cfg(feature = "reply-surb")]
+    // reply_key_storage: ReplyKeyStorage,
+    received_surbs: ReceivedReplySurbsMap,
+}
+
+pub(super) struct Config {
+    max_per_sender_buffer_size: usize,
 }
 
 impl<R> InputMessageListener<R>
@@ -52,23 +59,34 @@ where
         action_sender: ActionSender,
         real_message_sender: BatchRealMessageSender,
         topology_access: TopologyAccessor,
-        #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
+        // #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
     ) -> Self {
-        InputMessageListener {
-            ack_key,
-            ack_recipient,
-            input_receiver,
-            message_preparer,
-            action_sender,
-            real_message_sender,
-            topology_access,
-            #[cfg(feature = "reply-surb")]
-            reply_key_storage,
+        todo!()
+        // InputMessageListener {
+        //     ack_key,
+        //     ack_recipient,
+        //     input_receiver,
+        //     message_preparer,
+        //     action_sender,
+        //     real_message_sender,
+        //     topology_access,
+        //     // #[cfg(feature = "reply-surb")]
+        //     // reply_key_storage,
+        // }
+    }
+
+    async fn handle_reply(&mut self, recipient_tag: AnonymousSenderTag, data: Vec<u8>) {
+        if !self.received_surbs.contains_surbs_for(&recipient_tag) {
+            todo!("can't do anything")
         }
     }
 
     // we require topology for replies to generate surb_acks
-    async fn handle_reply(&mut self, reply_surb: ReplySurb, data: Vec<u8>) -> Option<RealMessage> {
+    async fn handle_reply_with_surb(
+        &mut self,
+        reply_surb: ReplySurb,
+        data: Vec<u8>,
+    ) -> Option<RealMessage> {
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = match topology_permit.try_get_valid_topology_ref(&self.ack_recipient, None) {
             Some(topology_ref) => topology_ref,
@@ -98,11 +116,34 @@ where
         }
     }
 
+    // async fn split_raw_message_into_fragments(
+    //     &mut self,
+    //     raw_message: Vec<u8>,
+    //     reply_surbs: u32,
+    // ) -> Option<()> {
+    //     let topology_permit = self.topology_access.get_read_permit().await;
+    //     let topology = match topology_permit
+    //         .try_get_valid_topology_ref(&self.ack_recipient, Some(&recipient))
+    //     {
+    //         Some(topology_ref) => topology_ref,
+    //         None => {
+    //             warn!("Could not process the message - the network topology is invalid");
+    //             return None;
+    //         }
+    //     };
+    //
+    //     // split the message, attach optional reply surb
+    //     let (split_message, reply_keys) = self
+    //         .message_preparer
+    //         .prepare_and_split_message(content, reply_surbs, topology)
+    //         .expect("somehow the topology was invalid after all!");
+    // }
+
     async fn handle_fresh_message(
         &mut self,
         recipient: Recipient,
         content: Vec<u8>,
-        with_reply_surb: bool,
+        reply_surbs: u32,
     ) -> Option<Vec<RealMessage>> {
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = match topology_permit
@@ -116,20 +157,24 @@ where
         };
 
         // split the message, attach optional reply surb
-        let (split_message, reply_key) = self
+        let (split_message, reply_keys) = self
             .message_preparer
-            .prepare_and_split_message(content, with_reply_surb, topology)
+            .prepare_and_split_message(content, reply_surbs, topology)
             .expect("somehow the topology was invalid after all!");
 
-        #[cfg(feature = "reply-surb")]
-        if let Some(reply_key) = reply_key {
-            self.reply_key_storage
-                .insert_encryption_key(reply_key)
-                .expect("Failed to insert surb reply key to the store!")
-        }
+        log::error!("here we need to store {} reply keys", reply_keys.len());
 
-        #[cfg(not(feature = "reply-surb"))]
-        let _reply_key = reply_key;
+        // todo!("handle reply keys: either have storage on THIS struct or move it with a channel or something");
+
+        // #[cfg(feature = "reply-surb")]
+        // if let Some(reply_key) = reply_key {
+        //     self.reply_key_storage
+        //         .insert_encryption_key(reply_key)
+        //         .expect("Failed to insert surb reply key to the store!")
+        // }
+        //
+        // #[cfg(not(feature = "reply-surb"))]
+        // let _reply_key = reply_key;
 
         // encrypt chunks, put them inside sphinx packets and generate acks
         let mut pending_acks = Vec::with_capacity(split_message.len());
@@ -165,18 +210,19 @@ where
 
     async fn on_input_message(&mut self, msg: InputMessage) {
         let real_messages = match msg {
-            InputMessage::Fresh {
+            InputMessage::Regular {
                 recipient,
                 data,
-                with_reply_surb,
+                reply_surbs,
             } => {
-                self.handle_fresh_message(recipient, data, with_reply_surb)
+                self.handle_fresh_message(recipient, data, reply_surbs)
                     .await
             }
-            InputMessage::Reply { reply_surb, data } => self
-                .handle_reply(reply_surb, data)
+            InputMessage::ReplyWithSurb { reply_surb, data } => self
+                .handle_reply_with_surb(reply_surb, data)
                 .await
                 .map(|message| vec![message]),
+            _ => todo!(),
         };
 
         // there's no point in trying to send nothing

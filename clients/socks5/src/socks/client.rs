@@ -230,7 +230,8 @@ impl SocksClient {
         let req = Request::new_connect(self.connection_id, remote_address, self.self_address);
         let msg = Message::Request(req);
 
-        let input_message = InputMessage::new_fresh(self.service_provider, msg.into_bytes(), false);
+        let input_message =
+            InputMessage::new_regular(self.service_provider, msg.into_bytes(), false);
         self.input_sender.unbounded_send(input_message).unwrap();
     }
 
@@ -259,7 +260,7 @@ impl SocksClient {
         .run(move |conn_id, read_data, socket_closed| {
             let provider_request = Request::new_send(conn_id, read_data, socket_closed);
             let provider_message = Message::Request(provider_request);
-            InputMessage::new_fresh(recipient, provider_message.into_bytes(), false)
+            InputMessage::new_regular(recipient, provider_message.into_bytes(), false)
         })
         .await
         .into_inner();

@@ -35,7 +35,7 @@ const columns: ColumnsType[] = [
   },
   {
     field: 'self_percentage',
-    title: 'Self %',
+    title: 'Bond %',
     headerAlign: 'left',
     width: 99,
   },

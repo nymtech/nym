@@ -18,13 +18,6 @@ pub(crate) async fn retrieve_mixnode_econ_stats(
         .await
         .ok()?;
 
-    let uncapped_saturation = client
-        .0
-        .validator_api
-        .get_mixnode_stake_saturation(mix_id)
-        .await
-        .ok()?;
-
     let inclusion_probability = client
         .0
         .validator_api

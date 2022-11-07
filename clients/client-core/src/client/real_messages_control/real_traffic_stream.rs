@@ -242,7 +242,7 @@ where
     topology_access: TopologyAccessor,
 
     /// Buffer containing all real messages keyed by transmission lane.
-    received_buffer: ReceivedBuffer,
+    transmission_buffer: TransmissionBuffer,
 
     /// Incoming channel for being notified of closed connections, to avoid sending traffic
     /// unnecessary
@@ -250,11 +250,11 @@ where
 }
 
 #[derive(Default)]
-struct ReceivedBuffer {
+struct TransmissionBuffer {
     buffer: HashMap<TransmissionLane, LaneBufferEntry>,
 }
 
-impl ReceivedBuffer {
+impl TransmissionBuffer {
     fn is_empty(&self) -> bool {
         self.buffer.is_empty()
     }
@@ -493,7 +493,7 @@ where
             our_full_destination,
             rng,
             topology_access,
-            received_buffer: Default::default(),
+            transmission_buffer: Default::default(),
             closed_connection_rx,
         }
     }
@@ -572,7 +572,7 @@ where
 
     fn on_close_connection(&mut self, connection_id: u64) {
         log::debug!("Removing lane for connection: {connection_id}");
-        self.received_buffer
+        self.transmission_buffer
             .remove(&TransmissionLane::ConnectionId(connection_id));
     }
 
@@ -645,11 +645,14 @@ where
 
             // In addition to closing connections on receiving such messages, also close
             // connections when sufficiently stale.
-            self.received_buffer.prune_stale_connections();
+            self.transmission_buffer.prune_stale_connections();
 
             // max number of connections
-            if self.received_buffer.connections().len() > MAX_NUMBER_OF_CONNECTIONS {
-                let real_next = self.received_buffer.pop_next_message_at_random().unwrap();
+            if self.transmission_buffer.connections().len() > MAX_NUMBER_OF_CONNECTIONS {
+                let real_next = self
+                    .transmission_buffer
+                    .pop_next_message_at_random()
+                    .unwrap();
                 return Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))));
             }
 
@@ -661,9 +664,9 @@ where
                 Poll::Ready(Some((real_messages, conn_id))) => {
                     log::trace!("handling real_messages: size: {}", real_messages.len());
 
-                    self.received_buffer.store(&conn_id, real_messages);
+                    self.transmission_buffer.store(&conn_id, real_messages);
                     let real_next = self
-                        .received_buffer
+                        .transmission_buffer
                         .pop_next_message_at_random()
                         .expect("we just added one");
 
@@ -671,10 +674,10 @@ where
                 }
 
                 Poll::Pending => {
-                    if let Some(real_next) = self.received_buffer.pop_next_message_at_random() {
+                    if let Some(real_next) = self.transmission_buffer.pop_next_message_at_random() {
                         // if there are more messages immediately available, notify the runtime
                         // because we should be polled again
-                        if !self.received_buffer.is_empty() {
+                        if !self.transmission_buffer.is_empty() {
                             cx.waker().wake_by_ref()
                         }
 
@@ -709,11 +712,14 @@ where
             self.on_close_connection(id);
         }
 
-        self.received_buffer.prune_stale_connections();
+        self.transmission_buffer.prune_stale_connections();
 
         // max number of connections
-        if self.received_buffer.connections().len() > MAX_NUMBER_OF_CONNECTIONS {
-            let real_next = self.received_buffer.pop_next_message_at_random().unwrap();
+        if self.transmission_buffer.connections().len() > MAX_NUMBER_OF_CONNECTIONS {
+            let real_next = self
+                .transmission_buffer
+                .pop_next_message_at_random()
+                .unwrap();
             return Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))));
         }
 
@@ -726,9 +732,9 @@ where
                 log::trace!("handling real_messages: size: {}", real_messages.len());
 
                 // First store what we got for the given connection id
-                self.received_buffer.store(&conn_id, real_messages);
+                self.transmission_buffer.store(&conn_id, real_messages);
                 let real_next = self
-                    .received_buffer
+                    .transmission_buffer
                     .pop_next_message_at_random()
                     .expect("we just added one");
 
@@ -742,7 +748,7 @@ where
             }
 
             Poll::Pending => {
-                if let Some(real_next) = self.received_buffer.pop_next_message_at_random() {
+                if let Some(real_next) = self.transmission_buffer.pop_next_message_at_random() {
                     // if there are more messages immediately available, notify the runtime
                     // because we should be polled again
                     //if !self.received_buffer.is_empty() {
@@ -769,9 +775,9 @@ where
     }
 
     fn log_status(&self) {
-        let packets = self.received_buffer.total_size();
-        let backlog = self.received_buffer.total_size_in_bytes() as f64 / 1024.0;
-        let lanes = self.received_buffer.num_lanes();
+        let packets = self.transmission_buffer.total_size();
+        let backlog = self.transmission_buffer.total_size_in_bytes() as f64 / 1024.0;
+        let lanes = self.transmission_buffer.num_lanes();
         let mult = self.sending_delay_controller.current_multiplier();
         let delay = self.current_average_message_sending_delay().as_millis();
         if self.config.disable_poisson_packet_distribution {

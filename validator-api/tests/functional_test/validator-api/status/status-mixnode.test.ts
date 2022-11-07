@@ -37,9 +37,9 @@ describe("Get mixnode data", (): void => {
     const response = await status.getMixnodeAverageUptime(identity_key);
 
     console.log(response.avg_uptime);
-    console.log(response.identity);
+    console.log(response.mix_id);
 
-    expect(identity_key).toStrictEqual(response.identity);
+    expect(identity_key).toStrictEqual(response.mix_id);
     expect(typeof response.avg_uptime).toBe("number");
   });
 
@@ -49,7 +49,7 @@ describe("Get mixnode data", (): void => {
 
     response.forEach((mixnode) => {
       expect(typeof mixnode.avg_uptime).toBe("number");
-      expect(typeof mixnode.identity).toBe("string");
+      expect(typeof mixnode.mix_id).toBe("string");
     });
   });
 
@@ -76,9 +76,9 @@ describe("Get mixnode data", (): void => {
     const response = await status.getMixnodeCoreCount(identity_key);
 
     console.log(response.count);
-    console.log(response.identity);
+    console.log(response.mix_id);
 
-    expect(identity_key).toStrictEqual(response.identity);
+    expect(identity_key).toStrictEqual(response.mix_id);
     expect(typeof response.count).toBe("number");
   });
 
@@ -95,33 +95,35 @@ describe("Get mixnode data", (): void => {
     const identity_key = config.environmnetConfig.mixnode_identity;
     const response = await status.getMixnodeRewardComputation(identity_key);
 
-    console.log(response.estimated_delegators_reward);
-    console.log(response.estimated_node_profit);
-    console.log(response.estimated_operator_cost);
-    console.log(response.estimated_operator_reward);
-    console.log(response.estimated_total_node_reward);
-    console.log(response.reward_params);
-    console.log(response.as_at);
-    console.log(response);
+    //estimation
+    expect(typeof response.estimation.total_node_reward).toBe("string");
+    expect(typeof response.estimation.operator).toBe("string");
+    expect(typeof response.estimation.delegates).toBe("string");
+    expect(typeof response.estimation.operating_cost).toBe("string");
 
-    //overview
-    expect(typeof response.estimated_total_node_reward).toBe("number");
-    expect(typeof response.estimated_operator_reward).toBe("number");
-    expect(typeof response.estimated_delegators_reward).toBe("number");
-    expect(typeof response.estimated_node_profit).toBe("number");
-    expect(typeof response.estimated_operator_cost).toBe("number");
-    expect(typeof response.as_at).toBe("number");
     //reward_params
-    expect(typeof response.reward_params.epoch.epoch_reward_pool).toBe("string");
-    expect(typeof response.reward_params.epoch.rewarded_set_size).toBe("string");
-    expect(typeof response.reward_params.epoch.active_set_size).toBe("string");
-    expect(typeof response.reward_params.epoch.staking_supply).toBe("string");
-    expect(typeof response.reward_params.epoch.sybil_resistance_percent).toBe("number");
-    expect(typeof response.reward_params.epoch.active_set_work_factor).toBe("number");
-    //node
-    expect(typeof response.reward_params.node.reward_blockstamp).toBe("number");
-    expect(typeof response.reward_params.node.uptime).toBe("string");
-    expect(typeof response.reward_params.node.in_active_set).toBe("boolean");
+    expect(typeof response.reward_params.interval.reward_pool).toBe("string");
+    expect(typeof response.reward_params.interval.staking_supply).toBe("string");
+    expect(typeof response.reward_params.interval.staking_supply_scale_factor).toBe("string");
+    expect(typeof response.reward_params.interval.epoch_reward_budget).toBe("string");
+    expect(typeof response.reward_params.interval.stake_saturation_point).toBe("string");
+    expect(typeof response.reward_params.interval.sybil_resistance).toBe("string");
+    expect(typeof response.reward_params.interval.active_set_work_factor).toBe("string");
+    expect(typeof response.reward_params.interval.interval_pool_emission).toBe("string");
+    expect(typeof response.reward_params.rewarded_set_size).toBe("string");
+    expect(typeof response.reward_params.active_set_size).toBe("string");
+
+    //epoch
+    expect(typeof response.epoch.id).toBe("number");
+    expect(typeof response.epoch.epochs_in_interval).toBe("number");
+    expect(typeof response.epoch.current_epoch_start).toBe("string");
+    expect(typeof response.epoch.current_epoch_id).toBe("number");
+    expect(typeof response.epoch.epoch_length.secs).toBe("number");
+    expect(typeof response.epoch.epoch_length.nanos).toBe("number");
+    expect(typeof response.epoch.total_elapsed_epochs).toBe("number");
+
+    expect(typeof response.as_at).toBe("number");
+
 
   });
 
@@ -140,23 +142,33 @@ describe("Get mixnode data", (): void => {
     const identity_key = config.environmnetConfig.mixnode_identity;
     const response = await status.getMixnodeRewardEstimatedComputation(identity_key);
 
-        //overview
-        expect(typeof response.estimated_total_node_reward).toBe("number");
-        expect(typeof response.estimated_operator_reward).toBe("number");
-        expect(typeof response.estimated_delegators_reward).toBe("number");
-        expect(typeof response.estimated_node_profit).toBe("number");
-        expect(typeof response.estimated_operator_cost).toBe("number");
-        expect(typeof response.as_at).toBe("number");
-        //reward_params
-        expect(typeof response.reward_params.epoch.epoch_reward_pool).toBe("string");
-        expect(typeof response.reward_params.epoch.rewarded_set_size).toBe("string");
-        expect(typeof response.reward_params.epoch.active_set_size).toBe("string");
-        expect(typeof response.reward_params.epoch.staking_supply).toBe("string");
-        expect(typeof response.reward_params.epoch.sybil_resistance_percent).toBe("number");
-        expect(typeof response.reward_params.epoch.active_set_work_factor).toBe("number");
-        //node
-        expect(typeof response.reward_params.node.reward_blockstamp).toBe("number");
-        expect(typeof response.reward_params.node.uptime).toBe("string");
-        expect(typeof response.reward_params.node.in_active_set).toBe("boolean");
+    //estimation
+    expect(typeof response.estimation.total_node_reward).toBe("string");
+    expect(typeof response.estimation.operator).toBe("string");
+    expect(typeof response.estimation.delegates).toBe("string");
+    expect(typeof response.estimation.operating_cost).toBe("string");
+
+    //reward_params
+    expect(typeof response.reward_params.interval.reward_pool).toBe("string");
+    expect(typeof response.reward_params.interval.staking_supply).toBe("string");
+    expect(typeof response.reward_params.interval.staking_supply_scale_factor).toBe("string");
+    expect(typeof response.reward_params.interval.epoch_reward_budget).toBe("string");
+    expect(typeof response.reward_params.interval.stake_saturation_point).toBe("string");
+    expect(typeof response.reward_params.interval.sybil_resistance).toBe("string");
+    expect(typeof response.reward_params.interval.active_set_work_factor).toBe("string");
+    expect(typeof response.reward_params.interval.interval_pool_emission).toBe("string");
+    expect(typeof response.reward_params.rewarded_set_size).toBe("string");
+    expect(typeof response.reward_params.active_set_size).toBe("string");
+
+    //epoch
+    expect(typeof response.epoch.id).toBe("number");
+    expect(typeof response.epoch.epochs_in_interval).toBe("number");
+    expect(typeof response.epoch.current_epoch_start).toBe("string");
+    expect(typeof response.epoch.current_epoch_id).toBe("number");
+    expect(typeof response.epoch.epoch_length.secs).toBe("number");
+    expect(typeof response.epoch.epoch_length.nanos).toBe("number");
+    expect(typeof response.epoch.total_elapsed_epochs).toBe("number");
+
+    expect(typeof response.as_at).toBe("number");
   })
 });

@@ -26,6 +26,7 @@ members = [
     "common/client-libs/gateway-client",
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",
+    "common/client-connections",
     "common/coconut-interface",
     "common/commands",
     "common/config",

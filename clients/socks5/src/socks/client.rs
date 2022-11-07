@@ -4,7 +4,8 @@ use super::authentication::{AuthenticationMethods, Authenticator, User};
 use super::request::{SocksCommand, SocksRequest};
 use super::types::{ResponseCode, SocksProxyError};
 use super::{RESERVED, SOCKS_VERSION};
-use client_core::client::inbound_messages::{InputMessage, InputMessageSender, TransmissionLane};
+use client_connections::TransmissionLane;
+use client_core::client::inbound_messages::{InputMessage, InputMessageSender};
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use log::*;
@@ -225,7 +226,7 @@ impl SocksClient {
         }
     }
 
-    async fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
+    fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
         let req = Request::new_connect(self.connection_id, remote_address, self.self_address);
         let msg = Message::Request(req);
 
@@ -239,8 +240,7 @@ impl SocksClient {
     }
 
     async fn run_proxy(&mut self, conn_receiver: ConnectionReceiver, remote_proxy_target: String) {
-        self.send_connect_to_mixnet(remote_proxy_target.clone())
-            .await;
+        self.send_connect_to_mixnet(remote_proxy_target.clone());
 
         let stream = self.stream.run_proxy();
         let local_stream_remote = stream

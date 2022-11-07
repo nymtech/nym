@@ -7,15 +7,14 @@ use crate::error::NetworkRequesterError;
 use crate::statistics::ServiceStatisticsCollector;
 use crate::websocket;
 use crate::websocket::TSWebsocketStream;
+use client_connections::ClosedConnectionReceiver;
 use futures::channel::mpsc;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::receiver::ReconstructedMessage;
-use proxy_helpers::connection_controller::{
-    Controller, ControllerCommand, ControllerSender, Socks5ClosedConnectionReceiver,
-};
+use proxy_helpers::connection_controller::{Controller, ControllerCommand, ControllerSender};
 use socks5_requests::{
     ConnectionId, Message as Socks5Message, NetworkRequesterResponse, Request, Response,
 };
@@ -70,7 +69,7 @@ impl ServiceProvider {
         mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
         mut mix_reader: mpsc::UnboundedReceiver<(Socks5Message, Recipient)>,
         stats_collector: Option<ServiceStatisticsCollector>,
-        mut closed_connection_rx: Socks5ClosedConnectionReceiver,
+        mut closed_connection_rx: ClosedConnectionReceiver,
     ) {
         loop {
             tokio::select! {

@@ -4,10 +4,11 @@
 use super::action_controller::{Action, ActionSender};
 use super::PendingAcknowledgement;
 use crate::client::{
-    inbound_messages::{InputMessage, InputMessageReceiver, TransmissionLane},
+    inbound_messages::{InputMessage, InputMessageReceiver},
     real_messages_control::real_traffic_stream::{BatchRealMessageSender, RealMessage},
     topology_control::TopologyAccessor,
 };
+use client_connections::TransmissionLane;
 use futures::StreamExt;
 use log::*;
 use nymsphinx::anonymous_replies::ReplySurb;

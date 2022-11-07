@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use client_connections::ClosedConnectionSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
@@ -29,12 +30,6 @@ pub type ConnectionReceiver = mpsc::UnboundedReceiver<ConnectionMessage>;
 
 pub type ControllerSender = mpsc::UnboundedSender<ControllerCommand>;
 pub type ControllerReceiver = mpsc::UnboundedReceiver<ControllerCommand>;
-
-/// Announce connections that are closed, for whoever is interested.
-/// One usecase is that the network-requester and socks5-client wants to know about this, so that
-/// they can forward this to the `OutQueueControl` (via `ClientRequest` for the network-requester)
-pub type Socks5ClosedConnectionSender = mpsc::UnboundedSender<ConnectionId>;
-pub type Socks5ClosedConnectionReceiver = mpsc::UnboundedReceiver<ConnectionId>;
 
 pub enum ControllerCommand {
     Insert(ConnectionId, ConnectionSender),
@@ -80,7 +75,7 @@ pub struct Controller {
     recently_closed: HashSet<ConnectionId>,
 
     // Broadcast closed connections
-    closed_connection_tx: Socks5ClosedConnectionSender,
+    closed_connection_tx: ClosedConnectionSender,
 
     // TODO: this can potentially be abused to ddos and kill provider. Not sure at this point
     // how to handle it more gracefully
@@ -94,7 +89,7 @@ pub struct Controller {
 
 impl Controller {
     pub fn new(
-        closed_connection_tx: Socks5ClosedConnectionSender,
+        closed_connection_tx: ClosedConnectionSender,
         shutdown: ShutdownListener,
     ) -> (Self, ControllerSender) {
         let (sender, receiver) = mpsc::unbounded();

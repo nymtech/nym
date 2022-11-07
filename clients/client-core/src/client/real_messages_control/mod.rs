@@ -14,6 +14,7 @@ use crate::client::{
     topology_control::TopologyAccessor,
 };
 use crate::spawn_future;
+use client_connections::ClosedConnectionReceiver;
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
@@ -29,14 +30,6 @@ use crate::client::reply_key_storage::ReplyKeyStorage;
 
 mod acknowledgement_control;
 mod real_traffic_stream;
-
-/// The `RealMessagesController` through the `OutQueueControl` listens to closed connections.
-// WIP(JON) This guy is used across 1) native client, 2) socks5 client, 3) network-requester 4)
-// client-core. Currently the definition is duplicated, and the type sent is `ConnectionId` in the
-// socks5 common code, but u64 elsewhere.
-// Need to figure out a better way to share this.
-pub type ClosedConnectionSender = mpsc::UnboundedSender<u64>;
-pub type ClosedConnectionReceiver = mpsc::UnboundedReceiver<u64>;
 
 // TODO: ack_key and self_recipient shouldn't really be part of this config
 pub struct Config {

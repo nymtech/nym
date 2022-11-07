@@ -1,18 +1,10 @@
+use client_connections::TransmissionLane;
 use futures::channel::mpsc;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::ReplySurb;
 
 pub type InputMessageSender = mpsc::UnboundedSender<InputMessage>;
 pub type InputMessageReceiver = mpsc::UnboundedReceiver<InputMessage>;
-
-#[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
-pub enum TransmissionLane {
-    General,
-    Reply,
-    Retransmission,
-    Control,
-    ConnectionId(u64),
-}
 
 #[derive(Debug)]
 pub enum InputMessage {

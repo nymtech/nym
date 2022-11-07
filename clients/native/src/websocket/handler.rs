@@ -1,9 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use client_connections::{ClosedConnectionSender, TransmissionLane};
 use client_core::client::{
-    inbound_messages::{InputMessage, InputMessageSender, TransmissionLane},
-    real_messages_control::ClosedConnectionSender,
+    inbound_messages::{InputMessage, InputMessageSender},
     received_buffer::{
         ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
     },
@@ -90,8 +90,6 @@ impl Handler {
     ) -> Option<ServerResponse> {
         // the ack control is now responsible for chunking, etc.
         let lane = TransmissionLane::ConnectionId(connection_id);
-        //let lane = TransmissionLane::General;
-        //let msg = Message::try_from_bytes(message);
         let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb, lane);
         self.msg_input.unbounded_send(input_msg).unwrap();
 

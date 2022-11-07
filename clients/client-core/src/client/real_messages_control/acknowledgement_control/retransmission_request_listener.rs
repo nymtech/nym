@@ -6,11 +6,11 @@ use super::{
     PendingAcknowledgement, RetransmissionRequestReceiver,
 };
 use crate::client::{
-    inbound_messages::TransmissionLane,
     real_messages_control::real_traffic_stream::{BatchRealMessageSender, RealMessage},
     topology_control::TopologyAccessor,
 };
 
+use client_connections::TransmissionLane;
 use futures::StreamExt;
 use log::*;
 use nymsphinx::{

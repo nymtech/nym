@@ -9,15 +9,14 @@ use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
     server::SphinxSocksServer,
 };
+use client_connections::{ClosedConnectionReceiver, ClosedConnectionSender};
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
     InputMessage, InputMessageReceiver, InputMessageSender,
 };
 use client_core::client::key_manager::KeyManager;
 use client_core::client::mix_traffic::{BatchMixMessageSender, MixTrafficController};
-use client_core::client::real_messages_control::{
-    ClosedConnectionReceiver, ClosedConnectionSender, RealMessagesController,
-};
+use client_core::client::real_messages_control::RealMessagesController;
 use client_core::client::received_buffer::{
     ReceivedBufferRequestReceiver, ReceivedBufferRequestSender, ReceivedMessagesBufferController,
 };

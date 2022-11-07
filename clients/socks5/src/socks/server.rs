@@ -4,7 +4,7 @@ use super::{
     mixnet_responses::MixnetResponseListener,
     types::{ResponseCode, SocksProxyError},
 };
-use client_core::client::real_messages_control::ClosedConnectionSender;
+use client_connections::ClosedConnectionSender;
 use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
 };

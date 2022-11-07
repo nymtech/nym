@@ -1,10 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::inbound_messages::TransmissionLane;
 use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
+use client_connections::{ClosedConnectionReceiver, TransmissionLane};
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
@@ -28,8 +28,6 @@ use tokio::time;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
-
-use super::ClosedConnectionReceiver;
 
 // The minimum time between increasing the average delay between packets. If we hit the ceiling in
 // the available buffer space we want to take somewhat swift action, but we still need to give a

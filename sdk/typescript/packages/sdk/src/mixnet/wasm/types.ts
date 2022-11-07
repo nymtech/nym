@@ -38,7 +38,7 @@ export interface IWebWorker {
   start: (config: NymClientConfig) => void;
   selfAddress: () => string | undefined;
   sendMessage: (args: { payload: string; recipient: string }) => void;
-  sendBinaryMessage: (args: { payload: Uint8Array; recipient: string }) => void;
+  sendBinaryMessage: (args: { payload: Uint8Array; recipient: string; headers?: string }) => void;
 }
 
 export enum EventKinds {
@@ -75,6 +75,7 @@ export interface BinaryMessageReceivedEvent {
   args: {
     kind: number;
     payload: Uint8Array;
+    headers: string;
   };
 }
 

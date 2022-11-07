@@ -27,8 +27,9 @@
     "build:dependencies:nym-client-wasm": "../nym-client-wasm/scripts/build.sh",
     "prebuild": "yarn build:dependencies",
     "build": "tsc",
+    "postbuild": "cp ../nym-client-wasm/nym_client_wasm* dist/mixnet/wasm",
     "build:only-this": "tsc",
-    "postbuild": "cp ../nym-client-wasm/nym_client_wasm* dist/mixnet/wasm"
+    "postbuild:only-this": "cp ../nym-client-wasm/nym_client_wasm* dist/mixnet/wasm"
   },
   "dependencies": {
     "comlink": "^4.3.1"

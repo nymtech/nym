@@ -100,12 +100,20 @@ class ClientWrapper {
     this.client = await this.client.send_binary_message(message, recipient);
   };
 
-  sendBinaryMessage = async ({ payload, recipient }: { recipient: string; payload: Uint8Array }) => {
+  sendBinaryMessage = async ({
+    payload,
+    recipient,
+    headers,
+  }: {
+    recipient: string;
+    payload: Uint8Array;
+    headers?: string;
+  }) => {
     if (!this.client) {
       console.error('Client has not been initialised. Please call `init` first.');
       return;
     }
-    const message = wasm_bindgen.create_binary_message(PAYLOAD_KIND_BINARY, payload);
+    const message = wasm_bindgen.create_binary_message_with_headers(PAYLOAD_KIND_BINARY, payload, headers || '');
     this.client = await this.client.send_binary_message(message, recipient);
   };
 }
@@ -140,10 +148,10 @@ wasm_bindgen(wasmUrl)
         undefined,
         async (message) => {
           try {
-            const { kind, payload } = await wasm_bindgen.parse_binary_message(message);
+            const { kind, payload, headers } = await wasm_bindgen.parse_binary_message_with_headers(message);
             switch (kind) {
               case PAYLOAD_KIND_TEXT: {
-                const stringMessage = await wasm_bindgen.parse_string_message(message);
+                const stringMessage = await wasm_bindgen.parse_string_message_with_headers(message);
                 postMessageWithType<StringMessageReceivedEvent>({
                   kind: EventKinds.StringMessageReceived,
                   args: { kind, payload: stringMessage.payload },
@@ -153,7 +161,7 @@ wasm_bindgen(wasmUrl)
               case PAYLOAD_KIND_BINARY:
                 postMessageWithType<BinaryMessageReceivedEvent>({
                   kind: EventKinds.BinaryMessageReceived,
-                  args: { kind, payload },
+                  args: { kind, payload, headers: headers || '' },
                 });
                 break;
               default:

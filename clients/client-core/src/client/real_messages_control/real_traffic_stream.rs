@@ -48,10 +48,8 @@ const MAX_DELAY_MULTIPLIER: u32 = 6;
 // The minium multiplier we apply to the base average Poisson delay.
 const MIN_DELAY_MULTIPLIER: u32 = 1;
 
-// When prioritizing traffic it can be used to divide lanes into new and old.
-const MSG_CONSIDERED_OLD_AFTER_SECS: u64 = 5;
 // As a way of prune connections we also check for timeouts.
-const MSG_CONSIDERED_STALE_AFTER_SECS: u64 = 300;
+const MSG_CONSIDERED_STALE_AFTER_SECS: u64 = 10 * 60;
 // The max number of concurrent connections handled.
 const MAX_NUMBER_OF_CONNECTIONS: usize = 100;
 // The number of lanes included in the oldest set.
@@ -299,7 +297,7 @@ impl TransmissionBuffer {
         let mut buffer: Vec<_> = self
             .buffer
             .iter()
-            .map(|(k, v)| (k, v.age_in_millis()))
+            .map(|(k, v)| (k, v.messages_transmitted))
             .collect();
         buffer.sort_by_key(|v| v.1);
         buffer
@@ -343,6 +341,7 @@ impl TransmissionBuffer {
     fn pop_front_from_lane(&mut self, lane: &TransmissionLane) -> Option<RealMessage> {
         let real_msgs_queued = self.buffer.get_mut(lane)?;
         let real_next = real_msgs_queued.pop_front()?;
+        real_msgs_queued.messages_transmitted += 1;
         if real_msgs_queued.is_empty() {
             self.buffer.remove(lane);
         }
@@ -384,7 +383,7 @@ impl TransmissionBuffer {
 
 struct LaneBufferEntry {
     pub real_messages: VecDeque<RealMessage>,
-    pub time_for_first_activity: time::Instant,
+    pub messages_transmitted: usize,
     pub time_for_last_activity: time::Instant,
 }
 
@@ -393,7 +392,7 @@ impl LaneBufferEntry {
         let now = time::Instant::now();
         LaneBufferEntry {
             real_messages: real_messages.into(),
-            time_for_first_activity: now,
+            messages_transmitted: 0,
             time_for_last_activity: now,
         }
     }
@@ -409,17 +408,6 @@ impl LaneBufferEntry {
 
     fn is_small(&self) -> bool {
         self.real_messages.len() < 100
-    }
-
-    fn age_in_millis(&self) -> u128 {
-        let age = time::Instant::now() - self.time_for_first_activity;
-        age.as_millis()
-    }
-
-    #[allow(unused)]
-    fn is_old(&self) -> bool {
-        get_time_now() - self.time_for_first_activity
-            > Duration::from_secs(MSG_CONSIDERED_OLD_AFTER_SECS)
     }
 
     fn is_stale(&self) -> bool {

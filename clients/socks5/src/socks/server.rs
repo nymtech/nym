@@ -4,7 +4,7 @@ use super::{
     mixnet_responses::MixnetResponseListener,
     types::{ResponseCode, SocksProxyError},
 };
-use client_connections::ClosedConnectionSender;
+use client_connections::{ClosedConnectionSender, LaneQueueLength};
 use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
 };
@@ -12,6 +12,7 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use proxy_helpers::connection_controller::Controller;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use task::ShutdownListener;
 use tokio::net::TcpListener;
 
@@ -21,6 +22,7 @@ pub struct SphinxSocksServer {
     listening_address: SocketAddr,
     service_provider: Recipient,
     self_address: Recipient,
+    lane_queue_length: LaneQueueLength,
     shutdown: ShutdownListener,
 }
 
@@ -31,6 +33,7 @@ impl SphinxSocksServer {
         authenticator: Authenticator,
         service_provider: Recipient,
         self_address: Recipient,
+        lane_queue_length: LaneQueueLength,
         shutdown: ShutdownListener,
     ) -> Self {
         // hardcode ip as we (presumably) ONLY want to listen locally. If we change it, we can
@@ -42,6 +45,7 @@ impl SphinxSocksServer {
             listening_address: format!("{}:{}", ip, port).parse().unwrap(),
             service_provider,
             self_address,
+            lane_queue_length,
             shutdown,
         }
     }
@@ -74,10 +78,16 @@ impl SphinxSocksServer {
             mixnet_response_listener.run().await;
         });
 
+        let active_connections = Arc::new(std::sync::Mutex::new(0));
+
         loop {
             tokio::select! {
                 Ok((stream, _remote)) = listener.accept() => {
                     // TODO Optimize this
+                    {
+                        let mut g = active_connections.lock().unwrap();
+                        *g += 1;
+                    }
                     let mut client = SocksClient::new(
                         stream,
                         self.authenticator.clone(),
@@ -85,9 +95,12 @@ impl SphinxSocksServer {
                         self.service_provider,
                         controller_sender.clone(),
                         self.self_address,
+                        self.lane_queue_length.clone(),
                         self.shutdown.clone(),
+                        active_connections.clone(),
                     );
 
+                    let active_connections = active_connections.clone();
                     tokio::spawn(async move {
                         {
                             match client.run().await {
@@ -117,6 +130,10 @@ impl SphinxSocksServer {
                                 }
                             };
                             // client gets dropped here
+                        }
+                        {
+                            let mut g = active_connections.lock().unwrap();
+                            *g -= 1;
                         }
                     });
                 },

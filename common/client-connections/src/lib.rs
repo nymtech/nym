@@ -24,7 +24,7 @@ pub type ClosedConnectionReceiver = mpsc::UnboundedReceiver<ConnectionId>;
 
 // The `OutQueueControl` publishes the backlog per lane, primarily so that upstream can slow down
 // if needed.
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct LaneQueueLengths(std::sync::Arc<std::sync::Mutex<LaneQueueLengthsInner>>);
 
 impl LaneQueueLengths {
@@ -52,6 +52,16 @@ impl LaneQueueLengths {
             Err(err) => log::warn!("Failed to set lane queue length: {err}"),
         }
     }
+
+    pub fn get(&self, lane: &TransmissionLane) -> Option<usize> {
+        match self.0.lock() {
+            Ok(inner) => inner.get(lane),
+            Err(err) => {
+                log::warn!("Failed to get lane queue length: {err}");
+                None
+            }
+        }
+    }
 }
 
 impl Default for LaneQueueLengths {
@@ -68,6 +78,24 @@ impl std::ops::Deref for LaneQueueLengths {
     }
 }
 
+#[derive(Debug)]
 pub struct LaneQueueLengthsInner {
     map: HashMap<TransmissionLane, usize>,
+}
+
+impl LaneQueueLengthsInner {
+    pub fn get(&self, lane: &TransmissionLane) -> Option<usize> {
+        self.map.get(lane).copied()
+    }
+
+    pub fn values(&self) -> impl Iterator<Item = &usize> {
+        self.map.values()
+    }
+
+    pub fn modify<F>(&mut self, lane: &TransmissionLane, f: F)
+    where
+        F: FnOnce(&mut usize),
+    {
+        self.map.entry(*lane).and_modify(f);
+    }
 }

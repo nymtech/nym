@@ -286,6 +286,7 @@ impl NymClient {
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
         closed_connection_tx: ClosedConnectionSender,
+        lane_queue_length: LaneQueueLength,
         shutdown: ShutdownListener,
     ) {
         info!("Starting socks5 listener...");
@@ -298,6 +299,7 @@ impl NymClient {
             authenticator,
             self.config.get_provider_mix_address(),
             self.as_mix_recipient(),
+            lane_queue_length,
             shutdown,
         );
         tokio::spawn(async move {
@@ -442,6 +444,7 @@ impl NymClient {
             received_buffer_request_sender,
             input_sender,
             closed_connection_tx,
+            shared_lane_queue_length,
             shutdown.subscribe(),
         );
 

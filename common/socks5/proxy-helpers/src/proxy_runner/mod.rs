@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::connection_controller::ConnectionReceiver;
+use client_connections::LaneQueueLength;
 use futures::channel::mpsc;
 use socks5_requests::ConnectionId;
 use std::{sync::Arc, time::Duration};
@@ -12,7 +13,7 @@ mod inbound;
 mod outbound;
 
 // TODO: make this configurable
-const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(30);
+const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(300);
 
 #[derive(Debug)]
 pub struct ProxyMessage {
@@ -45,6 +46,7 @@ pub struct ProxyRunner<S> {
     local_destination_address: String,
     remote_source_address: String,
     connection_id: ConnectionId,
+    lane_queue_length: LaneQueueLength,
 
     // Listens to shutdown commands from higher up
     shutdown_listener: ShutdownListener,
@@ -61,6 +63,7 @@ where
         mix_receiver: ConnectionReceiver,
         mix_sender: MixProxySender<S>,
         connection_id: ConnectionId,
+        lane_queue_length: LaneQueueLength,
         shutdown_listener: ShutdownListener,
     ) -> Self {
         ProxyRunner {
@@ -70,6 +73,7 @@ where
             local_destination_address,
             remote_source_address,
             connection_id,
+            lane_queue_length,
             shutdown_listener,
         }
     }
@@ -78,7 +82,7 @@ where
     // request/response as required by entity running particular side of the proxy.
     pub async fn run<F>(mut self, adapter_fn: F) -> Self
     where
-        F: Fn(ConnectionId, Vec<u8>, bool) -> S + Send + 'static,
+        F: Fn(ConnectionId, Vec<u8>, bool) -> S + Send + Sync + 'static,
     {
         let (read_half, write_half) = self.socket.take().unwrap().into_split();
         let shutdown_notify = Arc::new(Notify::new());
@@ -92,6 +96,7 @@ where
             self.mix_sender.clone(),
             adapter_fn,
             Arc::clone(&shutdown_notify),
+            self.lane_queue_length.clone(),
             self.shutdown_listener.clone(),
         );
 

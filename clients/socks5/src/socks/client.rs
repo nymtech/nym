@@ -4,7 +4,7 @@ use super::authentication::{AuthenticationMethods, Authenticator, User};
 use super::request::{SocksCommand, SocksRequest};
 use super::types::{ResponseCode, SocksProxyError};
 use super::{RESERVED, SOCKS_VERSION};
-use client_connections::TransmissionLane;
+use client_connections::{LaneQueueLength, TransmissionLane};
 use client_core::client::inbound_messages::{InputMessage, InputMessageSender};
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
@@ -20,6 +20,7 @@ use socks5_requests::{ConnectionId, Message, RemoteAddress, Request};
 use std::io;
 use std::net::SocketAddr;
 use std::pin::Pin;
+use std::sync::Arc;
 use task::ShutdownListener;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::{self, net::TcpStream};
@@ -141,7 +142,9 @@ pub(crate) struct SocksClient {
     service_provider: Recipient,
     self_address: Recipient,
     started_proxy: bool,
+    lane_queue_length: LaneQueueLength,
     shutdown_listener: ShutdownListener,
+    active_connections: Arc<std::sync::Mutex<u64>>,
 }
 
 impl Drop for SocksClient {
@@ -165,9 +168,17 @@ impl SocksClient {
         service_provider: Recipient,
         controller_sender: ControllerSender,
         self_address: Recipient,
+        lane_queue_length: LaneQueueLength,
         shutdown_listener: ShutdownListener,
+        active_connections: Arc<std::sync::Mutex<u64>>,
     ) -> Self {
         let connection_id = Self::generate_random();
+        let u_active_connections = {
+            let g = active_connections.lock().unwrap();
+            *g
+        };
+        error!("client active_connections: {}", u_active_connections);
+
         SocksClient {
             controller_sender,
             connection_id,
@@ -179,7 +190,9 @@ impl SocksClient {
             service_provider,
             self_address,
             started_proxy: false,
+            lane_queue_length,
             shutdown_listener,
+            active_connections,
         }
     }
 
@@ -205,6 +218,8 @@ impl SocksClient {
     /// is in use and that the client is authenticated, then runs the request.
     pub async fn run(&mut self) -> Result<(), SocksProxyError> {
         debug!("New connection from: {}", self.stream.peer_addr()?.ip());
+        //dbg!(&self.stream.peer_addr());
+
         let mut header = [0u8; 2];
         // Read a byte from the stream and determine the version being requested
         self.stream.read_exact(&mut header).await?;
@@ -258,6 +273,7 @@ impl SocksClient {
             conn_receiver,
             input_sender,
             connection_id,
+            self.lane_queue_length.clone(),
             self.shutdown_listener.clone(),
         )
         .run(move |conn_id, read_data, socket_closed| {
@@ -275,9 +291,21 @@ impl SocksClient {
     /// Handles a client request.
     async fn handle_request(&mut self) -> Result<(), SocksProxyError> {
         debug!("Handling CONNECT Command");
+        let active_connections = {
+            let g = self.active_connections.lock().unwrap();
+            *g
+        };
+        error!("active_connections: {}", active_connections);
 
         let request = SocksRequest::from_stream(&mut self.stream).await?;
         let remote_address = request.to_string();
+
+
+        if active_connections > 50 {
+            log::warn!("Refusing SOCKS5: too many connections: {}", active_connections);
+            self.refuse_connection_socks5().await;
+            return Ok(());
+        }
 
         // setup for receiving from the mixnet
         let (mix_sender, mix_receiver) = mpsc::unbounded();
@@ -319,6 +347,24 @@ impl SocksClient {
             .write_all(&[
                 SOCKS_VERSION,
                 ResponseCode::Success as u8,
+                RESERVED,
+                1,
+                127,
+                0,
+                0,
+                1,
+                0,
+                0,
+            ])
+            .await
+            .unwrap();
+    }
+
+    async fn refuse_connection_socks5(&mut self) {
+        self.stream
+            .write_all(&[
+                SOCKS_VERSION,
+                ResponseCode::RuleFailure as u8,
                 RESERVED,
                 1,
                 127,

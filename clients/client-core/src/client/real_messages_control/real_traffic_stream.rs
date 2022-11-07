@@ -202,6 +202,10 @@ where
         }
     }
 
+    //pub fn get_lane_queue_length(&self) -> &LaneQueueLength {
+    //    &self.lane_queue_length
+    //}
+
     fn sent_notify(&self, frag_id: FragmentIdentifier) {
         // well technically the message was not sent just yet, but now it's up to internal
         // queues and client load rather than the required delay. So realistically we can treat
@@ -279,9 +283,9 @@ where
     }
 
     fn on_close_connection(&mut self, connection_id: ConnectionId) {
-        log::debug!("Removing lane for connection: {connection_id}");
-        self.transmission_buffer
-            .remove(&TransmissionLane::ConnectionId(connection_id));
+        //log::debug!("Removing lane for connection: {connection_id}");
+        //self.transmission_buffer
+            //.remove(&TransmissionLane::ConnectionId(connection_id));
     }
 
     fn current_average_message_sending_delay(&self) -> Duration {

@@ -14,6 +14,7 @@ use tokio::select;
 use tokio::{net::tcp::OwnedWriteHalf, sync::Notify, time::sleep, time::Instant};
 
 const MIX_TTL: Duration = Duration::from_secs(5 * 60);
+//const MIX_TTL: Duration = Duration::from_secs(15 * 60);
 
 async fn deal_with_message(
     connection_message: ConnectionMessage,

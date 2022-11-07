@@ -287,6 +287,7 @@ impl NymClient {
         &self,
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
+        lane_queue_length: LaneQueueLength,
         closed_connection_tx: ClosedConnectionSender,
     ) {
         info!("Starting websocket listener...");
@@ -296,6 +297,7 @@ impl NymClient {
             closed_connection_tx,
             buffer_requester,
             &self.as_mix_recipient(),
+            lane_queue_length,
         );
 
         websocket::Listener::new(self.config.get_listening_port()).start(websocket_handler);
@@ -452,6 +454,7 @@ impl NymClient {
             SocketType::WebSocket => self.start_websocket_listener(
                 received_buffer_request_sender,
                 input_sender,
+                shared_lane_queue_length,
                 closed_connection_tx,
             ),
             SocketType::None => {

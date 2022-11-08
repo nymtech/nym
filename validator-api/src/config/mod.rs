@@ -487,7 +487,7 @@ impl Config {
     }
 
     #[cfg(feature = "coconut")]
-    pub fn keypair_path(&self) -> PathBuf {
+    pub fn _keypair_path(&self) -> PathBuf {
         self.coconut_signer.keypair_path.clone()
     }
 

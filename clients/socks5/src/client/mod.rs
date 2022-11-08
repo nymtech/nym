@@ -1,7 +1,8 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021 - Nym Technologies SA <contat@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use std::sync::atomic::Ordering;
+use std::sync::Arc;
 
 use crate::client::config::Config;
 use crate::error::Socks5ClientError;
@@ -15,6 +16,16 @@ use client_core::client::inbound_messages::{
 };
 use client_core::client::key_manager::KeyManager;
 use client_core::client::mix_traffic::{BatchMixMessageSender, MixTrafficController};
+use client_core::client::real_messages_control::acknowledgement_control::action_controller::{
+    Action, ActionSender,
+};
+use client_core::client::real_messages_control::acknowledgement_control::input_message_listener::FreshInputMessageChunker;
+use client_core::client::real_messages_control::acknowledgement_control::{
+    self, PendingAcknowledgement,
+};
+use client_core::client::real_messages_control::real_traffic_stream::{
+    BatchRealMessageSender, RealMessage,
+};
 use client_core::client::real_messages_control::RealMessagesController;
 use client_core::client::received_buffer::{
     ReceivedBufferRequestReceiver, ReceivedBufferRequestSender, ReceivedMessagesBufferController,
@@ -34,8 +45,13 @@ use gateway_client::{
     MixnetMessageSender,
 };
 use log::*;
+use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
+use nymsphinx::params::PacketSize;
+use nymsphinx::preparer::MessagePreparer;
+use rand::rngs::OsRng;
+use rand::{CryptoRng, Rng};
 use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
 
 pub mod config;
@@ -118,7 +134,7 @@ impl NymClient {
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
         shutdown: ShutdownListener,
-    ) {
+    ) -> FreshInputMessageChunker<OsRng> {
         let mut controller_config = client_core::client::real_messages_control::Config::new(
             self.key_manager.ack_key(),
             self.config.get_base().get_ack_wait_multiplier(),
@@ -139,15 +155,20 @@ impl NymClient {
 
         info!("Starting real traffic stream...");
 
-        RealMessagesController::new(
+        let real_message_controller = RealMessagesController::new(
             controller_config,
             ack_receiver,
             input_receiver,
             mix_sender,
             topology_accessor,
             reply_key_storage,
-        )
-        .start_with_shutdown(shutdown);
+        );
+
+        let fresh_input_msg_chunker = real_message_controller.get_fresh_input_message_chunker();
+
+        real_message_controller.start_with_shutdown(shutdown);
+
+        fresh_input_msg_chunker
     }
 
     // buffer controlling all messages fetched from provider
@@ -280,18 +301,67 @@ impl NymClient {
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
         shutdown: ShutdownListener,
+        fresh_input_msg_chunker: FreshInputMessageChunker<OsRng>,
     ) {
         info!("Starting socks5 listener...");
         let auth_methods = vec![AuthenticationMethods::NoAuth as u8];
         let allowed_users: Vec<User> = Vec::new();
 
         let authenticator = Authenticator::new(auth_methods, allowed_users);
+
+        // WIP(JON)
+        //let mut controller_config = client_core::client::real_messages_control::Config::new(
+        //    self.key_manager.ack_key(),
+        //    self.config.get_base().get_ack_wait_multiplier(),
+        //    self.config.get_base().get_ack_wait_addition(),
+        //    self.config.get_base().get_average_ack_delay(),
+        //    self.config.get_base().get_message_sending_average_delay(),
+        //    self.config.get_base().get_average_packet_delay(),
+        //    self.config
+        //        .get_base()
+        //        .get_disabled_main_poisson_packet_distribution(),
+        //    self.as_mix_recipient(),
+        //);
+        //if self.config.get_base().get_use_extended_packet_size() {
+        //    controller_config.set_custom_packet_size(PacketSize::ExtendedPacket)
+        //}
+        //let ack_control_config = acknowledgement_control::Config::new(
+        //    controller_config.ack_wait_addition,
+        //    controller_config.ack_wait_multiplier,
+        //    controller_config.average_ack_delay_duration,
+        //    controller_config.average_packet_delay_duration,
+        //)
+        //.with_custom_packet_size(controller_config.packet_size);
+
+        //let ack_key = self.key_manager.ack_key();
+        //let ack_recipient = self.as_mix_recipient();
+        //let rng = OsRng;
+        //let message_preparer = MessagePreparer::new(
+        //    rng,
+        //    ack_recipient,
+        //    ack_control_config.average_packet_delay,
+        //    ack_control_config.average_ack_delay,
+        //)
+        //.with_custom_real_message_packet_size(ack_control_config.packet_size);
+
+        //let fresh_input_msg_chunker = FreshInputMessageChunker::new(
+        //    ack_key,
+        //    ack_recipient,
+        //    message_preparer,
+        //    action_sender,
+        //    real_message_sender: BatchRealMessageSender,
+        //    topology_access: TopologyAccessor,
+        //);
+
         let mut sphinx_socks = SphinxSocksServer::new(
             self.config.get_listening_port(),
             authenticator,
             self.config.get_provider_mix_address(),
             self.as_mix_recipient(),
             shutdown,
+            //self.key_manager.ack_key(),
+            //self.as_mix_recipient(),
+            fresh_input_msg_chunker,
         );
         tokio::spawn(async move { sphinx_socks.serve(msg_input, buffer_requester).await });
     }
@@ -396,7 +466,7 @@ impl NymClient {
         let sphinx_message_sender =
             Self::start_mix_traffic_controller(gateway_client, shutdown.subscribe());
 
-        self.start_real_traffic_controller(
+        let fresh_input_msg_chunker = self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
             reply_key_storage,
             ack_receiver,
@@ -421,6 +491,7 @@ impl NymClient {
             received_buffer_request_sender,
             input_sender,
             shutdown.subscribe(),
+            fresh_input_msg_chunker,
         );
 
         info!("Client startup finished!");

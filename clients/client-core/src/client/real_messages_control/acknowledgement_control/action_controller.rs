@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-pub(crate) type ActionSender = UnboundedSender<Action>;
+pub type ActionSender = UnboundedSender<Action>;
 
 // The actual data being sent off as well as potential key to the delay queue
 type PendingAckEntry = (Arc<PendingAcknowledgement>, Option<QueueKey>);
@@ -23,7 +23,7 @@ type PendingAckEntry = (Arc<PendingAcknowledgement>, Option<QueueKey>);
 // - received an ack so we want to remove an entry
 // - start a retransmission timer for sending the packet into the network (on either first try or retransmission)
 // - update the internal sphinx delay of an expired packet
-pub(crate) enum Action {
+pub enum Action {
     /// Inserts new `PendingAcknowledgement`s into the 'shared' state.
     /// Initiated by `InputMessageListener`
     InsertPending(Vec<PendingAcknowledgement>),
@@ -44,7 +44,7 @@ pub(crate) enum Action {
 }
 
 impl Action {
-    pub(crate) fn new_insert(pending_acks: Vec<PendingAcknowledgement>) -> Self {
+    pub fn new_insert(pending_acks: Vec<PendingAcknowledgement>) -> Self {
         Action::InsertPending(pending_acks)
     }
 

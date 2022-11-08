@@ -63,6 +63,9 @@ where
 
     // if we're sending through the mixnet increase the sequence number...
     let ordered_msg = message_sender.wrap_message(read_data.to_vec()).into_bytes();
+
+    // WIP(JON): here we do the chunking, and send to real_message_sender instead
+
     mix_sender
         .unbounded_send(adapter_fn(connection_id, ordered_msg, is_finished))
         .unwrap();

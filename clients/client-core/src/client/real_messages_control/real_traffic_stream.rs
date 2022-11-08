@@ -226,13 +226,13 @@ where
     received_buffer: VecDeque<RealMessage>,
 }
 
-pub(crate) struct RealMessage {
+pub struct RealMessage {
     mix_packet: MixPacket,
     fragment_id: FragmentIdentifier,
 }
 
 impl RealMessage {
-    pub(crate) fn new(mix_packet: MixPacket, fragment_id: FragmentIdentifier) -> Self {
+    pub fn new(mix_packet: MixPacket, fragment_id: FragmentIdentifier) -> Self {
         RealMessage {
             mix_packet,
             fragment_id,
@@ -242,7 +242,7 @@ impl RealMessage {
 
 // messages are already prepared, etc. the real point of it is to forward it to mix_traffic
 // after sufficient delay
-pub(crate) type BatchRealMessageSender = mpsc::UnboundedSender<Vec<RealMessage>>;
+pub type BatchRealMessageSender = mpsc::UnboundedSender<Vec<RealMessage>>;
 type BatchRealMessageReceiver = mpsc::UnboundedReceiver<Vec<RealMessage>>;
 
 pub(crate) enum StreamMessage {

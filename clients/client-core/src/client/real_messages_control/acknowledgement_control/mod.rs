@@ -1,6 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use self::action_controller::ActionSender;
+use self::input_message_listener::FreshInputMessageChunker;
 use self::{
     acknowledgement_listener::AcknowledgementListener, action_controller::ActionController,
     input_message_listener::InputMessageListener,
@@ -31,8 +33,8 @@ use std::{
 use crate::client::reply_key_storage::ReplyKeyStorage;
 
 mod acknowledgement_listener;
-mod action_controller;
-mod input_message_listener;
+pub mod action_controller;
+pub mod input_message_listener;
 mod retransmission_request_listener;
 mod sent_notification_listener;
 
@@ -52,7 +54,7 @@ type SentPacketNotificationReceiver = mpsc::UnboundedReceiver<FragmentIdentifier
 
 /// Structure representing a data `Fragment` that is on-route to the specified `Recipient`
 #[derive(Debug)]
-pub(crate) struct PendingAcknowledgement {
+pub struct PendingAcknowledgement {
     message_chunk: Fragment,
     delay: SphinxDelay,
     recipient: Recipient,
@@ -60,7 +62,7 @@ pub(crate) struct PendingAcknowledgement {
 
 impl PendingAcknowledgement {
     /// Creates new instance of `PendingAcknowledgement` using the provided data.
-    fn new(message_chunk: Fragment, delay: SphinxDelay, recipient: Recipient) -> Self {
+    pub fn new(message_chunk: Fragment, delay: SphinxDelay, recipient: Recipient) -> Self {
         PendingAcknowledgement {
             message_chunk,
             delay,
@@ -110,7 +112,7 @@ impl AcknowledgementControllerConnectors {
 }
 
 /// Configurable parameters of the `AcknowledgementController`
-pub(super) struct Config {
+pub struct Config {
     /// Given ack timeout in the form a * BASE_DELAY + b, it specifies the additive part `b`
     ack_wait_addition: Duration,
 
@@ -118,17 +120,17 @@ pub(super) struct Config {
     ack_wait_multiplier: f64,
 
     /// Average delay an acknowledgement packet is going to get delayed at a single mixnode.
-    average_ack_delay: Duration,
+    pub average_ack_delay: Duration,
 
     /// Average delay a data packet is going to get delayed at a single mixnode.
-    average_packet_delay: Duration,
+    pub average_packet_delay: Duration,
 
     /// Predefined packet size used for the encapsulated messages.
-    packet_size: PacketSize,
+    pub packet_size: PacketSize,
 }
 
 impl Config {
-    pub(super) fn new(
+    pub fn new(
         ack_wait_addition: Duration,
         ack_wait_multiplier: f64,
         average_ack_delay: Duration,
@@ -155,6 +157,7 @@ where
 {
     acknowledgement_listener: AcknowledgementListener,
     input_message_listener: InputMessageListener<R>,
+    pub fresh_input_msg_chunker: FreshInputMessageChunker<R>,
     retransmission_request_listener: RetransmissionRequestListener<R>,
     sent_notification_listener: SentNotificationListener,
     action_controller: ActionController,
@@ -164,6 +167,14 @@ impl<R> AcknowledgementController<R>
 where
     R: 'static + CryptoRng + Rng + Clone + Send,
 {
+    pub fn get_action_sender(&self) -> ActionSender {
+        self.input_message_listener.get_action_sender()
+    }
+
+    //pub fn get_real_message_sender(&self) -> BatchRealMessageSender {
+        //self.input_message_listener.get_real_message_sender()
+    //}
+
     #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         config: Config,
@@ -209,6 +220,15 @@ where
             reply_key_storage,
         );
 
+        let fresh_input_msg_chunker = FreshInputMessageChunker::new(
+            Arc::clone(&ack_key),
+            ack_recipient,
+            message_preparer.clone(),
+            action_sender.clone(),
+            connectors.real_message_sender.clone(),
+            topology_access.clone(),
+        );
+
         // will listen for any ack timeouts and trigger retransmission
         let retransmission_request_listener = RetransmissionRequestListener::new(
             Arc::clone(&ack_key),
@@ -228,6 +248,7 @@ where
         AcknowledgementController {
             acknowledgement_listener,
             input_message_listener,
+            fresh_input_msg_chunker,
             retransmission_request_listener,
             sent_notification_listener,
             action_controller,

@@ -4,13 +4,17 @@ use super::{
     mixnet_responses::MixnetResponseListener,
     types::{ResponseCode, SocksProxyError},
 };
+use client_core::client::real_messages_control::acknowledgement_control::input_message_listener::FreshInputMessageChunker;
 use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
 };
 use log::*;
+use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use proxy_helpers::connection_controller::Controller;
+use rand::rngs::OsRng;
 use std::net::SocketAddr;
+use std::sync::Arc;
 use task::ShutdownListener;
 use tokio::net::TcpListener;
 
@@ -21,6 +25,9 @@ pub struct SphinxSocksServer {
     service_provider: Recipient,
     self_address: Recipient,
     shutdown: ShutdownListener,
+    //ack_key: Arc<AckKey>,
+    //ack_recipient: Recipient,
+    fresh_input_msg_chunker: FreshInputMessageChunker<OsRng>,
 }
 
 impl SphinxSocksServer {
@@ -31,6 +38,9 @@ impl SphinxSocksServer {
         service_provider: Recipient,
         self_address: Recipient,
         shutdown: ShutdownListener,
+        //ack_key: Arc<AckKey>,
+        //ack_recipient: Recipient,
+        fresh_input_msg_chunker: FreshInputMessageChunker<OsRng>,
     ) -> Self {
         // hardcode ip as we (presumably) ONLY want to listen locally. If we change it, we can
         // just modify the config
@@ -42,6 +52,9 @@ impl SphinxSocksServer {
             service_provider,
             self_address,
             shutdown,
+            //ack_key,
+            //ack_recipient,
+            fresh_input_msg_chunker,
         }
     }
 
@@ -84,6 +97,9 @@ impl SphinxSocksServer {
                         controller_sender.clone(),
                         self.self_address,
                         self.shutdown.clone(),
+                        //self.ack_key.clone(),
+                        //self.ack_recipient.clone(),
+                        self.fresh_input_msg_chunker.clone(),
                     );
 
                     tokio::spawn(async move {

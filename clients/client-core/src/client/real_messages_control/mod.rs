@@ -5,6 +5,8 @@
 // INPUT2: Acks from mix
 // OUTPUT: MixMessage to mix traffic
 
+use self::acknowledgement_control::action_controller::ActionSender;
+use self::acknowledgement_control::input_message_listener::FreshInputMessageChunker;
 use self::{
     acknowledgement_control::AcknowledgementController, real_traffic_stream::OutQueueControl,
 };
@@ -27,8 +29,8 @@ use std::time::Duration;
 #[cfg(feature = "reply-surb")]
 use crate::client::reply_key_storage::ReplyKeyStorage;
 
-mod acknowledgement_control;
-mod real_traffic_stream;
+pub mod acknowledgement_control;
+pub mod real_traffic_stream;
 
 // TODO: ack_key and self_recipient shouldn't really be part of this config
 pub struct Config {
@@ -36,10 +38,10 @@ pub struct Config {
     ack_key: Arc<AckKey>,
 
     /// Given ack timeout in the form a * BASE_DELAY + b, it specifies the additive part `b`
-    ack_wait_addition: Duration,
+    pub ack_wait_addition: Duration,
 
     /// Given ack timeout in the form a * BASE_DELAY + b, it specifies the multiplier `a`
-    ack_wait_multiplier: f64,
+    pub ack_wait_multiplier: f64,
 
     /// Address of `this` client.
     self_recipient: Recipient,
@@ -48,17 +50,17 @@ pub struct Config {
     average_message_sending_delay: Duration,
 
     /// Average delay a data packet is going to get delayed at a single mixnode.
-    average_packet_delay_duration: Duration,
+    pub average_packet_delay_duration: Duration,
 
     /// Average delay an acknowledgement packet is going to get delayed at a single mixnode.
-    average_ack_delay_duration: Duration,
+    pub average_ack_delay_duration: Duration,
 
     /// Controls whether the main packet stream constantly produces packets according to the predefined
     /// poisson distribution.
     disable_main_poisson_packet_distribution: bool,
 
     /// Predefined packet size used for the encapsulated messages.
-    packet_size: PacketSize,
+    pub packet_size: PacketSize,
 }
 
 impl Config {
@@ -103,6 +105,14 @@ where
 // obviously when we finally make shared rng that is on 'higher' level, this should become
 // generic `R`
 impl RealMessagesController<OsRng> {
+    pub fn get_action_sender(&self) -> ActionSender {
+        self.ack_control.get_action_sender()
+    }
+
+    pub fn get_fresh_input_message_chunker(&self) -> FreshInputMessageChunker<OsRng> {
+        self.ack_control.fresh_input_msg_chunker.clone()
+    }
+
     pub fn new(
         config: Config,
         ack_receiver: AcknowledgementReceiver,

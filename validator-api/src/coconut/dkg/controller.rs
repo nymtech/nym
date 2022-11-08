@@ -60,7 +60,7 @@ impl<R: RngCore + Clone> DkgController<R> {
         })
     }
 
-    async fn handle_epoch_state(&mut self) {
+    async fn handle_epoch_state(&mut self) -> bool {
         match self.dkg_client.get_current_epoch_state().await {
             Err(e) => warn!("Could not get current epoch state {}", e),
             Ok(epoch_state) => {
@@ -80,20 +80,26 @@ impl<R: RngCore + Clone> DkgController<R> {
                     EpochState::VerificationKeySubmission => {
                         verification_key_submission(&self.dkg_client, &mut self.state).await
                     }
-                    EpochState::InProgress => Ok(()),
+                    EpochState::InProgress => return true,
                 };
                 if let Err(e) = ret {
                     warn!("Could not handle this iteration for the epoch state: {}", e);
                 }
             }
         }
+        false
     }
 
     pub(crate) async fn run(mut self, mut shutdown: ShutdownListener) {
         let mut interval = interval(self.polling_rate);
         while !shutdown.is_shutdown() {
             tokio::select! {
-                _ = interval.tick() => self.handle_epoch_state().await,
+                _ = interval.tick() => {
+                    if self.handle_epoch_state().await {
+                        // If dkg finished, we can finish this task
+                        break;
+                    }
+                }
                 _ = shutdown.recv() => {
                     trace!("DkgController: Received shutdown");
                 }

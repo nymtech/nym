@@ -131,20 +131,20 @@ struct ReceivedMessagesBuffer {
 impl ReceivedMessagesBuffer {
     fn new(
         local_encryption_keypair: Arc<encryption::KeyPair>,
+        received_surbs: ReceivedReplySurbsMap,
         // #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
     ) -> Self {
-        todo!()
-        // ReceivedMessagesBuffer {
-        //     inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
-        //         messages: Vec::new(),
-        //         local_encryption_keypair,
-        //         message_receiver: MessageReceiver::new(),
-        //         message_sender: None,
-        //         recently_reconstructed: HashSet::new(),
-        //     })),
-        //     // #[cfg(feature = "reply-surb")]
-        //     // reply_key_storage,
-        // }
+        ReceivedMessagesBuffer {
+            inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
+                messages: Vec::new(),
+                local_encryption_keypair,
+                message_receiver: MessageReceiver::new(),
+                message_sender: None,
+                recently_reconstructed: HashSet::new(),
+            })),
+            received_surbs, // #[cfg(feature = "reply-surb")]
+                            // reply_key_storage,
+        }
     }
 
     async fn disconnect_sender(&mut self) {
@@ -193,7 +193,7 @@ impl ReceivedMessagesBuffer {
             match msg {
                 NymMessage::Plain(plain) => {
                     println!("received a plain data message");
-                    data_msgs.push(plain);
+                    data_msgs.push((plain, None));
                 }
                 NymMessage::Repliable(repliable) => {
                     println!("received 'repliable' message!");
@@ -202,7 +202,7 @@ impl ReceivedMessagesBuffer {
                             message,
                             reply_surbs,
                         } => {
-                            data_msgs.push(message);
+                            data_msgs.push((message, Some(repliable.sender_tag)));
                             // SUPER TEMP
                             self.received_surbs
                                 .insert_surbs(&repliable.sender_tag, reply_surbs)
@@ -219,7 +219,7 @@ impl ReceivedMessagesBuffer {
                 NymMessage::Reply(reply) => {
                     println!("received 'reply' message");
                     match reply.content {
-                        ReplyMessageContent::Data { message } => data_msgs.push(message),
+                        ReplyMessageContent::Data { message } => data_msgs.push((message, None)),
                         ReplyMessageContent::SurbRequest { amount } => {
                             println!("REQUEST FOR {} SURBS", amount)
                         }
@@ -231,7 +231,10 @@ impl ReceivedMessagesBuffer {
         // another temp loop
         let completed_messages = data_msgs
             .into_iter()
-            .map(|message| ReconstructedMessage { message })
+            .map(|(message, sender_tag)| ReconstructedMessage {
+                message,
+                sender_tag,
+            })
             .collect::<Vec<_>>();
 
         let mut inner_guard = self.inner.lock().await;
@@ -470,11 +473,12 @@ impl ReceivedMessagesBufferController {
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_packet_receiver: MixnetMessageReceiver,
         // #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
+        received_surbs: ReceivedReplySurbsMap,
     ) -> Self {
         let received_buffer = ReceivedMessagesBuffer::new(
             local_encryption_keypair,
-            // #[cfg(feature = "reply-surb")]
-            // reply_key_storage,
+            received_surbs, // #[cfg(feature = "reply-surb")]
+                            // reply_key_storage,
         );
 
         ReceivedMessagesBufferController {

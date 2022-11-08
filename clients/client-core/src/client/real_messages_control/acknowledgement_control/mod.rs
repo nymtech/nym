@@ -8,11 +8,13 @@ use self::{
     sent_notification_listener::SentNotificationListener,
 };
 use super::real_traffic_stream::BatchRealMessageSender;
+use crate::client::replies::reply_storage::ReceivedReplySurbsMap;
 use crate::client::{inbound_messages::InputMessageReceiver, topology_control::TopologyAccessor};
 use crate::spawn_future;
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
+use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::params::PacketSize;
 use nymsphinx::{
     acknowledgements::AckKey,
@@ -49,6 +51,11 @@ pub(super) type SentPacketNotificationSender = mpsc::UnboundedSender<FragmentIde
 /// Channel used for receiving signals about the particular `Fragment` (associated with the `FragmentIdentifier`)
 /// that it is about to be sent to the mix network and its timeout timer should be started.
 type SentPacketNotificationReceiver = mpsc::UnboundedReceiver<FragmentIdentifier>;
+
+pub(crate) enum PendingAckType {
+    Anonymous(AnonymousSenderTag),
+    KnownRecipient(Recipient),
+}
 
 /// Structure representing a data `Fragment` that is on-route to the specified `Recipient`
 #[derive(Debug)]
@@ -172,6 +179,7 @@ where
         ack_key: Arc<AckKey>,
         ack_recipient: Recipient,
         connectors: AcknowledgementControllerConnectors,
+        received_surbs: ReceivedReplySurbsMap,
         // #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
     ) -> Self {
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
@@ -207,6 +215,7 @@ where
             topology_access.clone(),
             // #[cfg(feature = "reply-surb")]
             // reply_key_storage,
+            received_surbs,
         );
 
         // will listen for any ack timeouts and trigger retransmission

@@ -36,10 +36,6 @@ pub(crate) struct PendingReplyHandler {
 }
 
 impl PendingReplyHandler {
-    fn estimate_required_surbs(&self, message_len: usize) -> usize {
-        todo!()
-    }
-
     fn request_more_surbs(&self) {
         //
     }

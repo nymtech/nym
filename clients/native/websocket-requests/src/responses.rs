@@ -1,10 +1,8 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 // all variable size data is always prefixed with u64 length
 // tags are u8
-
-#![allow(unknown_lints)] // due to using `clippy::branches_sharing_code` which does not exist on `stable` just yet
 
 use crate::error::{self, ErrorKind};
 use crate::text::ServerResponseText;
@@ -14,14 +12,33 @@ use nymsphinx::receiver::ReconstructedMessage;
 use std::convert::TryInto;
 use std::mem::size_of;
 
-/// Value tag representing [`Error`] variant of the [`ServerResponse`]
-pub const ERROR_RESPONSE_TAG: u8 = 0x00;
+#[repr(u8)]
+enum ServerResponseTag {
+    /// Value tag representing [`Error`] variant of the [`ServerResponse`]
+    Error = 0x00,
 
-/// Value tag representing [`Received`] variant of the [`ServerResponse`]
-pub const RECEIVED_RESPONSE_TAG: u8 = 0x01;
+    /// Value tag representing [`Received`] variant of the [`ServerResponse`]
+    Received = 0x01,
 
-/// Value tag representing [`SelfAddress`] variant of the [`ServerResponse`]
-pub const SELF_ADDRESS_RESPONSE_TAG: u8 = 0x02;
+    /// Value tag representing [`SelfAddress`] variant of the [`ServerResponse`]
+    SelfAddress = 0x02,
+}
+
+impl TryFrom<u8> for ServerResponseTag {
+    type Error = error::Error;
+
+    fn try_from(value: u8) -> Result<Self, error::Error> {
+        match value {
+            _ if value == (Self::Error as u8) => Ok(Self::Error),
+            _ if value == (Self::Received as u8) => Ok(Self::Received),
+            _ if value == (Self::SelfAddress as u8) => Ok(Self::SelfAddress),
+            n => Err(error::Error::new(
+                ErrorKind::UnknownResponse,
+                format!("{n} does not correspond to any valid response tag"),
+            )),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum ServerResponse {
@@ -38,24 +55,19 @@ impl ServerResponse {
         })
     }
 
-    // RECEIVED_RESPONSE_TAG || with_reply || (surb_len || surb) || msg_len || msg
+    // RECEIVED_RESPONSE_TAG || 1 | 0 indicating sender_tag || Option<sender_tag> || msg_len || msg
     fn serialize_received(reconstructed_message: ReconstructedMessage) -> Vec<u8> {
         let message_len_bytes = (reconstructed_message.message.len() as u64).to_be_bytes();
-        if let Some(reply_surb) = reconstructed_message.reply_surb {
-            let reply_surb_bytes = reply_surb.to_bytes();
-            let surb_len_bytes = (reply_surb_bytes.len() as u64).to_be_bytes();
 
-            // with_reply || surb_len || surb || msg_len || msg
-            std::iter::once(RECEIVED_RESPONSE_TAG)
+        if let Some(sender_tag) = reconstructed_message.sender_tag {
+            std::iter::once(ServerResponseTag::Received as u8)
                 .chain(std::iter::once(true as u8))
-                .chain(surb_len_bytes.iter().cloned())
-                .chain(reply_surb_bytes.iter().cloned())
+                .chain(sender_tag.into_iter())
                 .chain(message_len_bytes.iter().cloned())
                 .chain(reconstructed_message.message.into_iter())
                 .collect()
         } else {
-            // without_reply || msg_len || msg
-            std::iter::once(RECEIVED_RESPONSE_TAG)
+            std::iter::once(ServerResponseTag::Received as u8)
                 .chain(std::iter::once(false as u8))
                 .chain(message_len_bytes.iter().cloned())
                 .chain(reconstructed_message.message.into_iter())
@@ -63,10 +75,9 @@ impl ServerResponse {
         }
     }
 
-    // RECEIVED_RESPONSE_TAG || with_reply || (surb_len || surb) || msg_len || msg
+    // RECEIVED_RESPONSE_TAG || 1 | 0 indicating sender_tag || Option<sender_tag> || msg_len || msg
     fn deserialize_received(b: &[u8]) -> Result<Self, error::Error> {
         // this MUST match because it was called by 'deserialize'
-        debug_assert_eq!(b[0], RECEIVED_RESPONSE_TAG);
 
         // we must be able to read at the very least if it has a reply_surb and length of some field
         if b.len() < 2 + size_of::<u64>() {
@@ -75,107 +86,77 @@ impl ServerResponse {
                 "not enough data provided to recover 'received'".to_string(),
             ));
         }
+        debug_assert_eq!(b[0], ServerResponseTag::Received as u8);
 
-        let with_reply_surb = match b[1] {
+        let has_sender_tag = match b[1] {
             0 => false,
             1 => true,
             n => {
                 return Err(error::Error::new(
                     ErrorKind::MalformedResponse,
-                    format!("invalid reply flag {}", n),
+                    format!("invalid sender tag flag {n}"),
                 ))
             }
         };
 
-        // this is a false positive as even though the code is the same, it refers to different things
-        #[allow(clippy::branches_sharing_code)]
-        if with_reply_surb {
-            let reply_surb_len =
-                u64::from_be_bytes(b[2..2 + size_of::<u64>()].as_ref().try_into().unwrap());
-
-            // make sure we won't go out of bounds here
-            if reply_surb_len > (b.len() - 2 + 2 * size_of::<u64>()) as u64 {
+        let mut i = 2;
+        let sender_tag = if has_sender_tag {
+            if b[2..].len() < 32 {
                 return Err(error::Error::new(
-                    ErrorKind::MalformedResponse,
-                    "not enough bytes to read reply_surb bytes!".to_string(),
+                    ErrorKind::TooShortResponse,
+                    "not enough data provided to recover 'received'".to_string(),
                 ));
             }
-
-            let surb_bound = 2 + size_of::<u64>() + reply_surb_len as usize;
-
-            let reply_surb_bytes = &b[2 + size_of::<u64>()..surb_bound];
-            let reply_surb = match ReplySurb::from_bytes(reply_surb_bytes) {
-                Ok(reply_surb) => reply_surb,
-                Err(err) => {
-                    return Err(error::Error::new(
-                        ErrorKind::MalformedResponse,
-                        format!("malformed reply SURB: {:?}", err),
-                    ))
-                }
-            };
-
-            let message_len = u64::from_be_bytes(
-                b[surb_bound..surb_bound + size_of::<u64>()]
-                    .as_ref()
-                    .try_into()
-                    .unwrap(),
-            );
-            let message = &b[surb_bound + size_of::<u64>()..];
-            if message.len() as u64 != message_len {
-                return Err(error::Error::new(
-                    ErrorKind::MalformedResponse,
-                    format!(
-                        "message len has inconsistent length. specified: {} got: {}",
-                        message_len,
-                        message.len()
-                    ),
-                ));
-            }
-
-            Ok(ServerResponse::Received(ReconstructedMessage {
-                message: message.to_vec(),
-                reply_surb: Some(reply_surb),
-            }))
+            i += 32;
+            Some(b[2..34].try_into().unwrap())
         } else {
-            let message_len =
-                u64::from_be_bytes(b[2..2 + size_of::<u64>()].as_ref().try_into().unwrap());
-            let message = &b[2 + size_of::<u64>()..];
-            if message.len() as u64 != message_len {
-                return Err(error::Error::new(
-                    ErrorKind::MalformedResponse,
-                    format!(
-                        "message len has inconsistent length. specified: {} got: {}",
-                        message_len,
-                        message.len()
-                    ),
-                ));
-            }
+            None
+        };
 
-            Ok(ServerResponse::Received(ReconstructedMessage {
-                message: message.to_vec(),
-                reply_surb: None,
-            }))
+        if b[i..].len() < size_of::<u64>() {
+            return Err(error::Error::new(
+                ErrorKind::TooShortResponse,
+                "not enough data provided to recover 'received'".to_string(),
+            ));
         }
+
+        let message_len = u64::from_be_bytes(b[i..i + size_of::<u64>()].try_into().unwrap());
+        let message = &b[i + size_of::<u64>()..];
+        if message.len() as u64 != message_len {
+            return Err(error::Error::new(
+                ErrorKind::MalformedResponse,
+                format!(
+                    "message len has inconsistent length. specified: {} got: {}",
+                    message_len,
+                    message.len()
+                ),
+            ));
+        }
+
+        Ok(ServerResponse::Received(ReconstructedMessage {
+            message: message.to_vec(),
+            sender_tag,
+        }))
     }
 
     // SELF_ADDRESS_RESPONSE_TAG || self_address
     fn serialize_self_address(address: Recipient) -> Vec<u8> {
-        std::iter::once(SELF_ADDRESS_RESPONSE_TAG)
+        std::iter::once(ServerResponseTag::SelfAddress as u8)
             .chain(address.to_bytes().iter().cloned())
             .collect()
     }
 
     // SELF_ADDRESS_RESPONSE_TAG || self_address
     fn deserialize_self_address(b: &[u8]) -> Result<Self, error::Error> {
-        // this MUST match because it was called by 'deserialize'
-        debug_assert_eq!(b[0], SELF_ADDRESS_RESPONSE_TAG);
-
         if b.len() != 1 + Recipient::LEN {
             return Err(error::Error::new(
                 ErrorKind::TooShortResponse,
                 "not enough data provided to recover 'self_address'".to_string(),
             ));
         }
+
+        // this MUST match because it was called by 'deserialize'
+        debug_assert_eq!(b[0], ServerResponseTag::SelfAddress as u8);
 
         let mut recipient_bytes = [0u8; Recipient::LEN];
         recipient_bytes.copy_from_slice(&b[1..1 + Recipient::LEN]);
@@ -196,9 +177,9 @@ impl ServerResponse {
     // ERROR_RESPONSE_TAG || err_code || msg_len || msg
     fn serialize_error(error: error::Error) -> Vec<u8> {
         let message_len_bytes = (error.message.len() as u64).to_be_bytes();
-        std::iter::once(ERROR_RESPONSE_TAG)
+        std::iter::once(ServerResponseTag::Error as u8)
             .chain(std::iter::once(error.kind as u8))
-            .chain(message_len_bytes.iter().cloned())
+            .chain(message_len_bytes.into_iter())
             .chain(error.message.into_bytes().into_iter())
             .collect()
     }
@@ -206,7 +187,7 @@ impl ServerResponse {
     // ERROR_RESPONSE_TAG || err_code || msg_len || msg
     fn deserialize_error(b: &[u8]) -> Result<Self, error::Error> {
         // this MUST match because it was called by 'deserialize'
-        debug_assert_eq!(b[0], ERROR_RESPONSE_TAG);
+        debug_assert_eq!(b[0], ServerResponseTag::Error as u8);
 
         if b.len() < size_of::<u8>() + size_of::<u64>() {
             return Err(error::Error::new(
@@ -215,26 +196,7 @@ impl ServerResponse {
             ));
         }
 
-        let error_kind = match b[1] {
-            _ if b[1] == (ErrorKind::EmptyRequest as u8) => ErrorKind::EmptyRequest,
-            _ if b[1] == (ErrorKind::TooShortRequest as u8) => ErrorKind::TooShortRequest,
-            _ if b[1] == (ErrorKind::UnknownRequest as u8) => ErrorKind::UnknownRequest,
-            _ if b[1] == (ErrorKind::MalformedRequest as u8) => ErrorKind::MalformedRequest,
-
-            _ if b[1] == (ErrorKind::EmptyResponse as u8) => ErrorKind::EmptyResponse,
-            _ if b[1] == (ErrorKind::TooShortResponse as u8) => ErrorKind::TooShortResponse,
-            _ if b[1] == (ErrorKind::UnknownResponse as u8) => ErrorKind::UnknownResponse,
-            _ if b[1] == (ErrorKind::MalformedResponse as u8) => ErrorKind::MalformedResponse,
-
-            _ if b[1] == (ErrorKind::Other as u8) => ErrorKind::Other,
-
-            n => {
-                return Err(error::Error::new(
-                    ErrorKind::MalformedResponse,
-                    format!("invalid error code {}", n),
-                ))
-            }
-        };
+        let error_kind = ErrorKind::try_from(b[1])?;
 
         let message_len =
             u64::from_be_bytes(b[2..2 + size_of::<u64>()].as_ref().try_into().unwrap());
@@ -296,17 +258,13 @@ impl ServerResponse {
             ));
         }
 
-        let response_tag = b[0];
+        let response_tag = ServerResponseTag::try_from(b[0])?;
 
         // determine what kind of response that is and try to deserialize it
         match response_tag {
-            RECEIVED_RESPONSE_TAG => Self::deserialize_received(b),
-            SELF_ADDRESS_RESPONSE_TAG => Self::deserialize_self_address(b),
-            ERROR_RESPONSE_TAG => Self::deserialize_error(b),
-            n => Err(error::Error::new(
-                ErrorKind::UnknownResponse,
-                format!("type {}", n),
-            )),
+            ServerResponseTag::Received => Self::deserialize_received(b),
+            ServerResponseTag::SelfAddress => Self::deserialize_self_address(b),
+            ServerResponseTag::Error => Self::deserialize_error(b),
         }
     }
 

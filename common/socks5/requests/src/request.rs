@@ -15,6 +15,18 @@ pub enum RequestFlag {
     Send = 1,
 }
 
+impl TryFrom<u8> for RequestFlag {
+    type Error = RequestError;
+
+    fn try_from(value: u8) -> Result<RequestFlag, RequestError> {
+        match value {
+            _ if value == (RequestFlag::Connect as u8) => Ok(Self::Connect),
+            _ if value == (RequestFlag::Send as u8) => Ok(Self::Send),
+            _ => Err(RequestError::UnknownRequestFlag),
+        }
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum RequestError {
     #[error("not enough bytes to recover the length of the address")]
@@ -45,23 +57,12 @@ impl RequestError {
     }
 }
 
-impl TryFrom<u8> for RequestFlag {
-    type Error = RequestError;
-
-    fn try_from(value: u8) -> Result<RequestFlag, RequestError> {
-        match value {
-            _ if value == (RequestFlag::Connect as u8) => Ok(Self::Connect),
-            _ if value == (RequestFlag::Send as u8) => Ok(Self::Send),
-            _ => Err(RequestError::UnknownRequestFlag),
-        }
-    }
-}
-
 #[derive(Debug)]
 pub struct ConnectRequest {
+    // TODO: is connection_id redundant now?
     pub conn_id: ConnectionId,
     pub remote_addr: RemoteAddress,
-    pub return_address: Recipient,
+    pub return_address: Option<Recipient>,
 }
 
 /// A request from a SOCKS5 client that a Nym Socks5 service provider should
@@ -82,7 +83,7 @@ impl Request {
     pub fn new_connect(
         conn_id: ConnectionId,
         remote_addr: RemoteAddress,
-        return_address: Recipient,
+        return_address: Option<Recipient>,
     ) -> Request {
         Request::Connect(Box::new(ConnectRequest {
             conn_id,
@@ -99,12 +100,13 @@ impl Request {
     /// Deserialize the request type, connection id, destination address and port,
     /// and the request body from bytes.
     ///
-    /// Serialized bytes looks like this:
-    ///
-    /// --------------------------------------------------------------------------------------
-    ///  request_flag | connection_id | address_length | remote_address_bytes | request_data |
-    ///        1      |       8       |      2         |    address_length    |    ...       |
-    /// --------------------------------------------------------------------------------------
+    // TODO: this was already inaccurate
+    // /// Serialized bytes looks like this:
+    // ///
+    // /// --------------------------------------------------------------------------------------
+    // ///  request_flag | connection_id | address_length | remote_address_bytes | request_data |
+    // ///        1      |       8       |      2         |    address_length    |    ...       |
+    // /// --------------------------------------------------------------------------------------
     ///
     /// The request_flag tells us whether this is a new connection request (`new_connect`),
     /// an already-established connection we should send up (`new_send`), or
@@ -144,14 +146,20 @@ impl Request {
                 // just a temporary reference to mid-slice for ease of use
                 let recipient_data_bytes = &connect_request_bytes[address_end..];
 
-                if recipient_data_bytes.len() != Recipient::LEN {
-                    return Err(RequestError::ReturnAddressTooShort);
-                }
+                let return_address = if recipient_data_bytes.is_empty() {
+                    None
+                } else {
+                    if recipient_data_bytes.len() != Recipient::LEN {
+                        return Err(RequestError::ReturnAddressTooShort);
+                    }
 
-                let mut return_bytes = [0u8; Recipient::LEN];
-                return_bytes.copy_from_slice(&recipient_data_bytes[..Recipient::LEN]);
-                let return_address = Recipient::try_from_bytes(return_bytes)
-                    .map_err(RequestError::MalformedReturnAddress)?;
+                    let mut return_bytes = [0u8; Recipient::LEN];
+                    return_bytes.copy_from_slice(&recipient_data_bytes[..Recipient::LEN]);
+                    Some(
+                        Recipient::try_from_bytes(return_bytes)
+                            .map_err(RequestError::MalformedReturnAddress)?,
+                    )
+                };
 
                 Ok(Request::new_connect(
                     connection_id,
@@ -178,15 +186,19 @@ impl Request {
                 let remote_address_bytes = req.remote_addr.into_bytes();
                 let remote_address_bytes_len = remote_address_bytes.len() as u16;
 
-                std::iter::once(RequestFlag::Connect as u8)
-                    .chain(req.conn_id.to_be_bytes().iter().cloned())
-                    .chain(remote_address_bytes_len.to_be_bytes().iter().cloned())
-                    .chain(remote_address_bytes.into_iter())
-                    .chain(req.return_address.to_bytes().iter().cloned())
-                    .collect()
+                let iter = std::iter::once(RequestFlag::Connect as u8)
+                    .chain(req.conn_id.to_be_bytes().into_iter())
+                    .chain(remote_address_bytes_len.to_be_bytes().into_iter())
+                    .chain(remote_address_bytes.into_iter());
+
+                if let Some(return_address) = req.return_address {
+                    iter.chain(return_address.to_bytes().into_iter()).collect()
+                } else {
+                    iter.collect()
+                }
             }
             Request::Send(conn_id, data, local_closed) => std::iter::once(RequestFlag::Send as u8)
-                .chain(conn_id.to_be_bytes().iter().cloned())
+                .chain(conn_id.to_be_bytes().into_iter())
                 .chain(std::iter::once(local_closed as u8))
                 .chain(data.into_iter())
                 .collect(),
@@ -324,7 +336,7 @@ mod request_deserialization_tests {
             let request_bytes: Vec<_> = request_bytes_prefix
                 .iter()
                 .cloned()
-                .chain(recipient_bytes.iter().cloned())
+                .chain(recipient_bytes.into_iter())
                 .collect();
             assert!(Request::try_from_bytes(&request_bytes)
                 .unwrap_err()
@@ -361,7 +373,7 @@ mod request_deserialization_tests {
 
             let request_bytes: Vec<_> = request_bytes
                 .into_iter()
-                .chain(recipient_bytes.iter().cloned())
+                .chain(recipient_bytes.into_iter())
                 .collect();
 
             let request = Request::try_from_bytes(&request_bytes).unwrap();
@@ -370,7 +382,7 @@ mod request_deserialization_tests {
                     assert_eq!("foo.com".to_string(), req.remote_addr);
                     assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), req.conn_id);
                     assert_eq!(
-                        req.return_address.to_bytes().to_vec(),
+                        req.return_address.unwrap().to_bytes().to_vec(),
                         recipient.to_bytes().to_vec()
                     );
                 }
@@ -408,7 +420,7 @@ mod request_deserialization_tests {
 
             let request_bytes: Vec<_> = request_bytes
                 .into_iter()
-                .chain(recipient_bytes.iter().cloned())
+                .chain(recipient_bytes.into_iter())
                 .collect();
 
             let request = Request::try_from_bytes(&request_bytes).unwrap();
@@ -417,7 +429,7 @@ mod request_deserialization_tests {
                     assert_eq!("foo.com".to_string(), req.remote_addr);
                     assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), req.conn_id);
                     assert_eq!(
-                        req.return_address.to_bytes().to_vec(),
+                        req.return_address.unwrap().to_bytes().to_vec(),
                         recipient.to_bytes().to_vec()
                     );
                 }

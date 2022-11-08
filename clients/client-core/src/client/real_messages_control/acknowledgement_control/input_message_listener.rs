@@ -59,20 +59,21 @@ where
         action_sender: ActionSender,
         real_message_sender: BatchRealMessageSender,
         topology_access: TopologyAccessor,
+        received_surbs: ReceivedReplySurbsMap,
         // #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
     ) -> Self {
-        todo!()
-        // InputMessageListener {
-        //     ack_key,
-        //     ack_recipient,
-        //     input_receiver,
-        //     message_preparer,
-        //     action_sender,
-        //     real_message_sender,
-        //     topology_access,
-        //     // #[cfg(feature = "reply-surb")]
-        //     // reply_key_storage,
-        // }
+        InputMessageListener {
+            ack_key,
+            ack_recipient,
+            input_receiver,
+            message_preparer,
+            action_sender,
+            real_message_sender,
+            topology_access,
+            // #[cfg(feature = "reply-surb")]
+            // reply_key_storage,
+            received_surbs,
+        }
     }
 
     async fn handle_reply(&mut self, recipient_tag: AnonymousSenderTag, data: Vec<u8>) {

@@ -1,5 +1,5 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-mod pending_handler;
-pub(crate) mod reply_storage;
+pub mod pending_handler;
+pub mod reply_storage;

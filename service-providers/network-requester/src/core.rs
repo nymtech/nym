@@ -12,10 +12,12 @@ use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::{Controller, ControllerCommand, ControllerSender};
 use socks5_requests::{
-    ConnectionId, Message as Socks5Message, NetworkRequesterResponse, Request, Response,
+    ConnectRequest, ConnectionId, Message as Socks5Message, NetworkRequesterResponse, Request,
+    Response,
 };
 use statistics_common::collector::StatisticsSender;
 use std::path::PathBuf;
@@ -33,6 +35,43 @@ pub struct ServiceProvider {
     open_proxy: bool,
     enable_statistics: bool,
     stats_provider_addr: Option<Recipient>,
+}
+
+// TODO: move elsewhere after things settle
+#[derive(Debug, Copy, Clone)]
+pub(crate) enum ReturnAddress {
+    Known(Recipient),
+    Anonymous(AnonymousSenderTag),
+}
+
+impl ReturnAddress {
+    fn new(
+        explicit_return_address: Option<Recipient>,
+        implicit_tag: Option<AnonymousSenderTag>,
+    ) -> Option<Self> {
+        // if somehow we received both, always prefer the explicit address since it's way easier to use
+        if let Some(recipient) = explicit_return_address {
+            return Some(ReturnAddress::Known(recipient));
+        }
+        if let Some(sender_tag) = implicit_tag {
+            return Some(ReturnAddress::Anonymous(sender_tag));
+        }
+        None
+    }
+
+    fn send_back_to(self, message: Vec<u8>) -> ClientRequest {
+        match self {
+            ReturnAddress::Known(recipient) => ClientRequest::Send {
+                recipient,
+                message,
+                reply_surbs: 0,
+            },
+            ReturnAddress::Anonymous(sender_tag) => ClientRequest::Reply {
+                message,
+                sender_tag,
+            },
+        }
+    }
 }
 
 impl ServiceProvider {
@@ -66,7 +105,7 @@ impl ServiceProvider {
     /// via the `websocket_writer`.
     async fn mixnet_response_listener(
         mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
-        mut mix_reader: mpsc::UnboundedReceiver<(Socks5Message, Recipient)>,
+        mut mix_reader: mpsc::UnboundedReceiver<(Socks5Message, ReturnAddress)>,
         stats_collector: Option<ServiceStatisticsCollector>,
     ) {
         // TODO: wire SURBs in here once they're available
@@ -86,11 +125,7 @@ impl ServiceProvider {
                 }
             }
             // make 'request' to native-websocket client
-            let response_message = ClientRequest::Send {
-                recipient: return_address,
-                message: msg.into_bytes(),
-                with_reply_surb: false,
-            };
+            let response_message = return_address.send_back_to(msg.into_bytes());
 
             let message = Message::Binary(response_message.serialize());
             websocket_writer.send(message).await.unwrap();
@@ -132,9 +167,9 @@ impl ServiceProvider {
     async fn start_proxy(
         conn_id: ConnectionId,
         remote_addr: String,
-        return_address: Recipient,
+        return_address: ReturnAddress,
         controller_sender: ControllerSender,
-        mix_input_sender: mpsc::UnboundedSender<(Socks5Message, Recipient)>,
+        mix_input_sender: mpsc::UnboundedSender<(Socks5Message, ReturnAddress)>,
         shutdown: ShutdownListener,
     ) {
         let mut conn = match Connection::new(conn_id, remote_addr.clone(), return_address).await {
@@ -191,12 +226,21 @@ impl ServiceProvider {
     fn handle_proxy_connect(
         &mut self,
         controller_sender: &mut ControllerSender,
-        mix_input_sender: &mpsc::UnboundedSender<(Socks5Message, Recipient)>,
-        conn_id: ConnectionId,
-        remote_addr: String,
-        return_address: Recipient,
+        mix_input_sender: &mpsc::UnboundedSender<(Socks5Message, ReturnAddress)>,
+        sender_tag: Option<AnonymousSenderTag>,
+        connect_req: ConnectRequest,
         shutdown: ShutdownListener,
     ) {
+        let return_address = match ReturnAddress::new(connect_req.return_address, sender_tag) {
+            Some(address) => address,
+            None => {
+                log::warn!(
+                "attempted to start connection with no way of returning data back to the sender"
+            );
+                return;
+            }
+        };
+
         if !self.open_proxy && !self.outbound_request_filter.check(&remote_addr) {
             let log_msg = format!("Domain {:?} failed filter check", remote_addr);
             log::info!("{}", log_msg);
@@ -242,22 +286,23 @@ impl ServiceProvider {
 
     async fn handle_proxy_message(
         &mut self,
-        raw_request: &[u8],
+        message: ReconstructedMessage,
         controller_sender: &mut ControllerSender,
-        mix_input_sender: &mpsc::UnboundedSender<(Socks5Message, Recipient)>,
+        mix_input_sender: &mpsc::UnboundedSender<(Socks5Message, ReturnAddress)>,
         stats_collector: Option<ServiceStatisticsCollector>,
         shutdown: ShutdownListener,
     ) {
-        let deserialized_msg = match Socks5Message::try_from_bytes(raw_request) {
+        let deserialized_msg = match Socks5Message::try_from_bytes(&message.message) {
             Ok(msg) => msg,
             Err(err) => {
-                error!("Failed to deserialized received message! - {}", err);
+                error!("Failed to deserialized received message! - {err}");
                 return;
             }
         };
         match deserialized_msg {
             Socks5Message::Request(deserialized_request) => match deserialized_request {
                 Request::Connect(req) => {
+                    // TODO: stats might be invalid if connection fails to start
                     if let Some(stats_collector) = stats_collector {
                         stats_collector
                             .connected_services
@@ -268,9 +313,8 @@ impl ServiceProvider {
                     self.handle_proxy_connect(
                         controller_sender,
                         mix_input_sender,
-                        req.conn_id,
-                        req.remote_addr,
-                        req.return_address,
+                        message.sender_tag,
+                        req.into(),
                         shutdown,
                     )
                 }
@@ -307,7 +351,7 @@ impl ServiceProvider {
         // channels responsible for managing messages that are to be sent to the mix network. The receiver is
         // going to be used by `mixnet_response_listener`
         let (mix_input_sender, mix_input_receiver) =
-            mpsc::unbounded::<(Socks5Message, Recipient)>();
+            mpsc::unbounded::<(Socks5Message, ReturnAddress)>();
 
         // Controller for managing all active connections.
         // We provide it with a ShutdownListener since it requires it, even though for the network
@@ -356,11 +400,8 @@ impl ServiceProvider {
                 }
             };
 
-            let raw_message = received.message;
-            // TODO: here be potential SURB (i.e. received.reply_SURB)
-
             self.handle_proxy_message(
-                &raw_message,
+                received,
                 &mut controller_sender,
                 &mix_input_sender,
                 stats_collector.clone(),

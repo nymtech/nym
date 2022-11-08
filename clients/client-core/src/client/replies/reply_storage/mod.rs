@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub(crate) use crate::client::replies::reply_storage::key_storage::SentReplyKeys;
-pub(crate) use crate::client::replies::reply_storage::surb_storage::ReceivedReplySurbsMap;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey};
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::{Arc, RwLock};
+
+// TEMP
+pub use crate::client::replies::reply_storage::surb_storage::ReceivedReplySurbsMap;
 
 mod backend;
 mod key_storage;

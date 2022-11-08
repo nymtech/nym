@@ -11,6 +11,7 @@ use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::receiver::ReconstructedMessage;
 use tokio::net::TcpStream;
@@ -80,16 +81,33 @@ impl Handler {
         &mut self,
         recipient: Recipient,
         message: Vec<u8>,
-        with_reply_surb: bool,
+        reply_surbs: u32,
     ) -> Option<ServerResponse> {
         // the ack control is now responsible for chunking, etc.
-        let input_msg = InputMessage::new_regular(recipient, message, with_reply_surb);
+        // TODO: SURB CHANGE
+
+        let input_msg = InputMessage::new_anonymous(recipient, message, reply_surbs);
         self.msg_input.unbounded_send(input_msg).unwrap();
 
         None
     }
 
-    fn handle_reply(&mut self, reply_surb: ReplySurb, message: Vec<u8>) -> Option<ServerResponse> {
+    fn handle_reply(
+        &mut self,
+        recipient_tag: AnonymousSenderTag,
+        message: Vec<u8>,
+    ) -> Option<ServerResponse> {
+        let input_msg = InputMessage::new_reply(recipient_tag, message);
+        self.msg_input.unbounded_send(input_msg).unwrap();
+
+        None
+    }
+
+    fn handle_reply_with_surb(
+        &mut self,
+        reply_surb: ReplySurb,
+        message: Vec<u8>,
+    ) -> Option<ServerResponse> {
         if message.len() > ReplySurb::max_msg_len(Default::default()) {
             return Some(ServerResponse::new_error(format!("too long message to put inside a reply SURB. Received: {} bytes and maximum is {} bytes", message.len(), ReplySurb::max_msg_len(Default::default()))));
         }
@@ -109,12 +127,16 @@ impl Handler {
             ClientRequest::Send {
                 recipient,
                 message,
-                with_reply_surb,
-            } => self.handle_send(recipient, message, with_reply_surb),
+                reply_surbs,
+            } => self.handle_send(recipient, message, reply_surbs),
             ClientRequest::Reply {
                 message,
+                sender_tag,
+            } => self.handle_reply(sender_tag, message),
+            ClientRequest::ReplyWithSurb {
+                message,
                 reply_surb,
-            } => self.handle_reply(reply_surb, message),
+            } => self.handle_reply_with_surb(reply_surb, message),
             ClientRequest::SelfAddress => Some(self.handle_self_address()),
         }
     }
@@ -247,8 +269,7 @@ impl Handler {
                     if let Some(response) = self.handle_ws_request(socket_msg) {
                         if let Err(err) = self.send_websocket_response(response).await {
                             warn!(
-                                "Failed to send message over websocket: {}. Assuming the connection is dead.",
-                                err
+                                "Failed to send message over websocket: {err}. Assuming the connection is dead.",
                             );
                             break;
                         }

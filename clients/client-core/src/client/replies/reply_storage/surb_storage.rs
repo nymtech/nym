@@ -10,8 +10,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
 
-#[derive(Debug, Clone)]
-pub(crate) struct ReceivedReplySurbsMap {
+#[derive(Debug, Clone, Default)]
+pub struct ReceivedReplySurbsMap {
     // data: Arc<RwLock<HashMap<AnonymousSenderTag, ReceivedReplySurbs>>>,
     data: Arc<DashMap<AnonymousSenderTag, ReceivedReplySurbs>>,
 }

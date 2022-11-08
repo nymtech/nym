@@ -6,6 +6,7 @@ use crypto::asymmetric::encryption;
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
 use nymsphinx_anonymous_replies::reply_surb::{ReplySurb, ReplySurbError};
+use nymsphinx_anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx_chunking::fragment::Fragment;
 use nymsphinx_chunking::reconstruction::MessageReconstructor;
 use nymsphinx_params::{PacketEncryptionAlgorithm, PacketHkdfAlgorithm, DEFAULT_NUM_MIX_HOPS};
@@ -17,6 +18,7 @@ pub struct ReconstructedMessage {
     pub message: Vec<u8>,
     // /// Optional ReplySURB to allow for an anonymous reply to the sender.
     // pub reply_surbs: Vec<ReplySurb>,
+    pub sender_tag: Option<AnonymousSenderTag>,
 }
 
 #[derive(Debug)]

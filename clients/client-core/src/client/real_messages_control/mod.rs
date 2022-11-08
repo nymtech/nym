@@ -9,6 +9,7 @@ use self::{
     acknowledgement_control::AcknowledgementController, real_traffic_stream::OutQueueControl,
 };
 use crate::client::real_messages_control::acknowledgement_control::AcknowledgementControllerConnectors;
+use crate::client::replies::reply_storage::ReceivedReplySurbsMap;
 use crate::client::{
     inbound_messages::InputMessageReceiver, mix_traffic::BatchMixMessageSender,
     topology_control::TopologyAccessor,
@@ -109,6 +110,7 @@ impl RealMessagesController<OsRng> {
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
         topology_access: TopologyAccessor,
+        received_surbs: ReceivedReplySurbsMap,
         // #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
     ) -> Self {
         let rng = OsRng;
@@ -140,6 +142,7 @@ impl RealMessagesController<OsRng> {
             ack_controller_connectors,
             // #[cfg(feature = "reply-surb")]
             // reply_key_storage,
+            received_surbs,
         );
 
         let out_queue_config = real_traffic_stream::Config::new(

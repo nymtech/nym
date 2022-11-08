@@ -53,6 +53,12 @@ pub enum NymMessage {
 }
 
 impl NymMessage {
+    pub fn new_additional_surbs_request(amount: u32) -> Self {
+        NymMessage::Reply(ReplyMessage {
+            content: ReplyMessageContent::SurbRequest { amount },
+        })
+    }
+
     pub fn new_plain(msg: Vec<u8>) -> Self {
         NymMessage::Plain(msg)
     }
@@ -67,10 +73,9 @@ impl NymMessage {
 
     pub fn is_reply_surb_request(&self) -> bool {
         match self {
-            NymMessage::Reply(reply_msg) => match reply_msg.content {
-                ReplyMessageContent::SurbRequest { .. } => true,
-                _ => false,
-            },
+            NymMessage::Reply(reply_msg) => {
+                matches!(reply_msg.content, ReplyMessageContent::SurbRequest { .. })
+            }
             _ => false,
         }
     }
@@ -245,7 +250,7 @@ impl PaddedMessage {
             // and now we only take bytes until that point (but not including it)
             NymMessage::try_from_bytes(&self.0[..padding_end], num_mix_hops)
         } else {
-            return Err(UnnamedError);
+            Err(UnnamedError)
         }
     }
 }

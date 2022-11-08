@@ -13,7 +13,7 @@ use client_core::client::received_buffer::{
     ReceivedBufferMessage, ReceivedBufferRequestReceiver, ReceivedBufferRequestSender,
     ReceivedMessagesBufferController, ReconstructedMessagesReceiver,
 };
-use client_core::client::reply_key_storage::ReplyKeyStorage;
+use client_core::client::replies::reply_storage::ReceivedReplySurbsMap;
 use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
@@ -113,10 +113,11 @@ impl NymClient {
     fn start_real_traffic_controller(
         &self,
         topology_accessor: TopologyAccessor,
-        reply_key_storage: ReplyKeyStorage,
+        // reply_key_storage: ReplyKeyStorage,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
+        received_surbs: ReceivedReplySurbsMap,
         shutdown: ShutdownListener,
     ) {
         let mut controller_config = real_messages_control::Config::new(
@@ -144,7 +145,7 @@ impl NymClient {
             input_receiver,
             mix_sender,
             topology_accessor,
-            reply_key_storage,
+            received_surbs,
         )
         .start_with_shutdown(shutdown);
     }
@@ -155,7 +156,8 @@ impl NymClient {
         &self,
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_receiver: MixnetMessageReceiver,
-        reply_key_storage: ReplyKeyStorage,
+        // reply_key_storage: ReplyKeyStorage
+        received_surbs: ReceivedReplySurbsMap,
         shutdown: ShutdownListener,
     ) {
         info!("Starting received messages buffer controller...");
@@ -163,7 +165,8 @@ impl NymClient {
             self.key_manager.encryption_keypair(),
             query_receiver,
             mixnet_receiver,
-            reply_key_storage,
+            // reply_key_storage,
+            received_surbs,
         )
         .start_with_shutdown(shutdown)
     }
@@ -291,26 +294,28 @@ impl NymClient {
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
     pub fn send_message(&mut self, recipient: Recipient, message: Vec<u8>, with_reply_surb: bool) {
-        let input_msg = InputMessage::new_regular(recipient, message, with_reply_surb);
-
-        self.input_tx
-            .as_ref()
-            .expect("start method was not called before!")
-            .unbounded_send(input_msg)
-            .unwrap();
+        todo!()
+        // let input_msg = InputMessage::new_regular(recipient, message, with_reply_surb);
+        //
+        // self.input_tx
+        //     .as_ref()
+        //     .expect("start method was not called before!")
+        //     .unbounded_send(input_msg)
+        //     .unwrap();
     }
 
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
     pub fn send_reply(&mut self, reply_surb: ReplySurb, message: Vec<u8>) {
-        let input_msg = InputMessage::new_reply_with_surb(reply_surb, message);
-
-        self.input_tx
-            .as_ref()
-            .expect("start method was not called before!")
-            .unbounded_send(input_msg)
-            .unwrap();
+        todo!()
+        // let input_msg = InputMessage::new_reply_with_surb(reply_surb, message);
+        //
+        // self.input_tx
+        //     .as_ref()
+        //     .expect("start method was not called before!")
+        //     .unbounded_send(input_msg)
+        //     .unwrap();
     }
 
     /// EXPERIMENTAL DIRECT RUST API
@@ -320,14 +325,15 @@ impl NymClient {
     /// messages, you might have to call this function repeatedly.
     // TODO: I guess this should really return something that `impl Stream<Item=ReconstructedMessage>`
     pub async fn wait_for_messages(&mut self) -> Vec<ReconstructedMessage> {
-        use futures::StreamExt;
-
-        self.receive_tx
-            .as_mut()
-            .expect("start method was not called before!")
-            .next()
-            .await
-            .expect("buffer controller seems to have somehow died!")
+        todo!()
+        // use futures::StreamExt;
+        //
+        // self.receive_tx
+        //     .as_mut()
+        //     .expect("start method was not called before!")
+        //     .next()
+        //     .await
+        //     .expect("buffer controller seems to have somehow died!")
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
@@ -373,12 +379,19 @@ impl NymClient {
         let (ack_sender, ack_receiver) = mpsc::unbounded();
         let shared_topology_accessor = TopologyAccessor::new();
 
-        let reply_key_storage =
-            ReplyKeyStorage::load(self.config.get_base().get_reply_encryption_key_store_path())
-                .expect("Failed to load reply key storage!");
+        // let reply_key_storage =
+        //     ReplyKeyStorage::load(self.config.get_base().get_reply_encryption_key_store_path())
+        //         .expect("Failed to load reply key storage!");
 
         // Shutdown notifier for signalling tasks to stop
         let shutdown = ShutdownNotifier::default();
+
+        // =====================
+        // =====================
+        // ======TEMPORARY======
+        // =====================
+        // =====================
+        let received_surbs = ReceivedReplySurbsMap::default();
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
@@ -387,7 +400,8 @@ impl NymClient {
         self.start_received_messages_buffer_controller(
             received_buffer_request_receiver,
             mixnet_messages_receiver,
-            reply_key_storage.clone(),
+            // reply_key_storage.clone(),
+            received_surbs.clone(),
             shutdown.subscribe(),
         );
 
@@ -404,10 +418,11 @@ impl NymClient {
 
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
-            reply_key_storage,
+            // reply_key_storage,
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
+            received_surbs,
             shutdown.subscribe(),
         );
 

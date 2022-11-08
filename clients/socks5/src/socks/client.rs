@@ -6,6 +6,7 @@ use super::types::{ResponseCode, SocksProxyError};
 use super::{RESERVED, SOCKS_VERSION};
 use client_core::client::inbound_messages::InputMessage;
 use client_core::client::inbound_messages::InputMessageSender;
+use client_core::temp::DEFAULT_SURBS_PER_MESSAGE;
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use log::*;
@@ -226,13 +227,27 @@ impl SocksClient {
         }
     }
 
-    async fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
-        let req = Request::new_connect(self.connection_id, remote_address, self.self_address);
+    async fn send_connect_anonymous_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
+        let req = Request::new_connect(self.connection_id, remote_address, None);
         let msg = Message::Request(req);
 
-        let input_message =
-            InputMessage::new_regular(self.service_provider, msg.into_bytes(), false);
+        let input_message = InputMessage::new_anonymous(
+            self.service_provider,
+            msg.into_bytes(),
+            DEFAULT_SURBS_PER_MESSAGE,
+        );
         self.input_sender.unbounded_send(input_message).unwrap();
+    }
+
+    async fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
+        const USE_ANONYMOUS: bool = true;
+
+        if USE_ANONYMOUS {
+            self.send_connect_anonymous_connect_to_mixnet(remote_address)
+                .await
+        } else {
+            unimplemented!()
+        }
     }
 
     async fn run_proxy(&mut self, conn_receiver: ConnectionReceiver, remote_proxy_target: String) {
@@ -260,7 +275,12 @@ impl SocksClient {
         .run(move |conn_id, read_data, socket_closed| {
             let provider_request = Request::new_send(conn_id, read_data, socket_closed);
             let provider_message = Message::Request(provider_request);
-            InputMessage::new_regular(recipient, provider_message.into_bytes(), false)
+            // TODO: SURB CHANGE
+            InputMessage::new_anonymous(
+                recipient,
+                provider_message.into_bytes(),
+                DEFAULT_SURBS_PER_MESSAGE,
+            )
         })
         .await
         .into_inner();

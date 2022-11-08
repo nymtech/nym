@@ -1,98 +1,26 @@
-# Example with React + Typescript + Webpack 5 + MUI
+# HTML Nym Mixnet Chat App
 
-An example of using default Webpack and Typescript settings with React and MUI, including theming.
+This is an example of using the Nym Mixnet to send text chat messages, with optional binary file attachments.
 
 You can use this example as a seed for a new project.
 
-Remember to build the dependency packages from the root of this repo by running:
+Try out the chat app by running:
 
 ```
 yarn
-yarn build
+yarn start
 ```
 
-If you need to make changes to the dependency packages, you can run `yarn watch` in that package to watch for chagnes and build them. This project will pick up the changes in the built package and hot-reload / recompile.
+## How does it work?
 
-## Features
+The Nym Mixnet Client runs a [Web Worker](https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API) that wraps
+a WASM library that builds and encrypts Sphinx packets in the browser to send over the Nym mixnet:
 
-### Yarn workspaces
+![Sphinx packet](../docs/worker.svg)
 
-Packages from `ts-packages` are shared using Yarn workspaces. Make sure you add you new project to [package.json](../../package.json) to use the shared packages.
+The WASM code encrypts each layer of the Sphinx packet in the browser, before sending the Sphinx packet over a websocket to the ingress gateway:
 
-> ⚠️ **Warning**: Yarn workspaces will share all dependencies between projects and works by falling back to parent directories until a `node_modules` directory is found. So be careful when messing around with `node_modules` and resolution, because unexpected things could happen - for example, if you do not run `yarn` from the root and you have a `node_modules` in a directory that is a parent of the directory where you checkout out this repository, that `node_modules` will be used for resolving packages 🙀.
+![Sphinx packet](../docs/sphinx2.svg)
 
-### Typescript
 
-Shared Typescript config is in [tsconfig.json](./tsconfig.json), with specific production settings in [tsconfig.prod.json](./tsconfig.prod.json) that:
 
-- exclude Storybook stories and Jest tests
-- do not output typing `*.d.ts` files
-
-### Webpack
-
-Inherit config for Webpack 5 with additional tweaks including:
-
-- favicon generation from [favicon asset files](../../../../assets/favicon/favicon.png)
-- asset handling (svg, png, fonts, css, etc)
-- minification
-
-The development settings include:
-
-- `ts-loader` for quick transpilation
-- threaded type checking using `tsc`
-- hot reloading using `react-refresh`
-
-### Storybook
-
-Storybook is available in [@nymproject/react](../../../../ts-packages/react-components/src/stories/Introduction.stories.mdx) and can be run using `yarn storybook`.
-
-### MUI and theming
-
-The [Nym theme](../mui-theme/src/theme/theme.ts) provides a theme provider that you can add as follows:
-
-```typescript jsx
-export const App: React.FC = () => (
-  <AppContextProvider>
-    <AppTheme>
-      <Content />
-    </AppTheme>
-  </AppContextProvider>
-);
-
-export const AppTheme: React.FC = ({ children }) => {
-  const { mode } = useAppContext();
-
-  return <NymThemeProvider mode={mode}>{children}</NymThemeProvider>;
-};
-
-export const Content: React.FC = () => {
-...
-}
-```
-
-And augment typings for the Theme by adding [mui-theme.d.ts](./src/theme/mui-theme.d.ts):
-
-```typescript
-import { Theme, ThemeOptions, Palette, PaletteOptions } from '@mui/material/styles';
-import { NymTheme, NymPaletteWithExtensions, NymPaletteWithExtensionsOptions } from '@nymproject/mui-theme';
-
-declare module '@mui/material/styles' {
-  interface Theme extends NymTheme {}
-  interface ThemeOptions extends Partial<NymTheme> {}
-  interface Palette extends NymPaletteWithExtensions {}
-  interface PaletteOptions extends NymPaletteWithExtensionsOptions {}
-}
-```
-
-Adding the above, means that any component now has the correct typings, for example, below the Nym palette interface is available for all MUI `Theme` instances with code completion for VSCode and IntelliJ:
-
-```typescript jsx
-import { Typography } from '@mui/material';
-
-...
-
-<Typography sx={{ color: (theme) => theme.palette.nym.networkExplorer.mixnodes.status.active }}>
-  The quick brown fox jumps over the white fence
-</Typography>
-
-```

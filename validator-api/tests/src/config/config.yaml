@@ -4,7 +4,8 @@ common:
     Content-Type: application/json
 qa:
   api_base_url: https://qwerty-validator-api.qa.nymte.ch/api/v1
-  mixnode_identity: 7
+  mix_id: 7
+  identity_key: 4Yr4qmEHd9sgsuQ83191FR2hD88RfsbMmB4tzhhZWriz
   gateway_identity: 336yuXAeGEgedRfqTJZsG2YV7P13QH1bHv1SjCZYarc9
   log_level: error
 prod:

@@ -135,13 +135,31 @@ describe("Get mixnode data", (): void => {
 
   it("Get active mixnodes", async (): Promise<void> => {
     const response = await contract.getActiveMixnodes();
-    //TO-DO this test should focus more on checking that the response actually contains active nodes
+    response.forEach(function (mixnode) {
+      expect(mixnode.rewarding_details.cost_params.profit_margin_percent).toBeTruthy()
+    });
   });
 
-  //TO-DO figure out a similar type of test solution as above for the following: 
-  // getActiveMixnodesDetailed
-  // getRewardedMixnodes
-  // getRewardedMixnodesDetailed
+  it("Get active mixnodes detailed", async (): Promise<void> => {
+    const response = await contract.getActiveMixnodesDetailed();
+    response.forEach(function (mixnode) {
+      expect(mixnode.mixnode_details.rewarding_details.cost_params.profit_margin_percent).toBeTruthy()
+    });
+  });
+
+  it("Get rewarded mixnodes", async (): Promise<void> => {
+    const response = await contract.getRewardedMixnodes();
+    response.forEach(function (mixnode) {
+      expect(mixnode.rewarding_details.last_rewarded_epoch).toBeTruthy()
+    });
+  });
+
+  it("Get rewarded mixnodes detailed", async (): Promise<void> => {
+    const response = await contract.getRewardedMixnodesDetailed();
+    response.forEach(function (mixnode) {
+      expect(mixnode.mixnode_details.rewarding_details.last_rewarded_epoch).toBeTruthy()
+    });
+  });
 
   it("Get blacklisted mixnodes", async (): Promise<void> => {
     const response = await contract.getBlacklistedMixnodes();

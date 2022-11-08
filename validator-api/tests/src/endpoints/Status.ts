@@ -117,6 +117,15 @@ export default class Status extends APIClient {
     return response.data;
   }
 
+  public async getMixnodeHistoryWrong(
+    identity_key: string
+  ): Promise<NodeHistory> {
+    const response = await this.restClient.sendGet({
+      route: `/status/mixnode/${identity_key}/history`,
+    });
+    return response.status;
+  }
+
   public async getMixnodeStatus(mix_id: number): Promise<ActiveStatus> {
     const response = await this.restClient.sendGet({
       route: `/mixnode/${mix_id}/status`,

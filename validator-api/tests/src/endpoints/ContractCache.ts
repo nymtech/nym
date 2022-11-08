@@ -5,7 +5,8 @@ import {
   EpochRewardParams,
   BlacklistedGateways,
   BlacklistedMixnodes,
-  CurrentEpoch
+  CurrentEpoch,
+  Mixnode
 } from "../types/ContractCacheTypes";
 import { APIClient } from "./abstracts/APIClient";
 
@@ -39,6 +40,27 @@ export default class ContractCache extends APIClient {
   public async getActiveMixnodes(): Promise<AllMixnodes[]> {
     const response = await this.restClient.sendGet({
       route: `mixnodes/active`,
+    });
+    return response.data;
+  }
+
+  public async getActiveMixnodesDetailed(): Promise<MixnodesDetailed[]> {
+    const response = await this.restClient.sendGet({
+      route: `mixnodes/active/detailed`,
+    });
+    return response.data;
+  }
+
+  public async getRewardedMixnodes(): Promise<AllMixnodes[]> {
+    const response = await this.restClient.sendGet({
+      route: `mixnodes/rewarded`,
+    });
+    return response.data;
+  }
+
+  public async getRewardedMixnodesDetailed(): Promise<MixnodesDetailed[]> {
+    const response = await this.restClient.sendGet({
+      route: `mixnodes/rewarded/detailed`,
     });
     return response.data;
   }

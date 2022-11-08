@@ -15,14 +15,9 @@ describe("Get gateway data", (): void => {
     const response = await status.getGatewayHistory(identity_key);
 
     response.history.forEach((x) => {
-      console.log(x.date);
-      console.log(x.uptime);
-
       expect(typeof x.date).toBe("string");
       expect(typeof x.uptime).toBe("number");
     });
-    console.log(response.identity);
-    console.log(response.owner);
 
     expect(identity_key).toStrictEqual(response.identity);
     expect(typeof response.owner).toBe("string");
@@ -31,9 +26,6 @@ describe("Get gateway data", (): void => {
   it("Get gateway core status count", async (): Promise<void> => {
     const identity_key = config.environmnetConfig.gateway_identity;
     const response = await status.getGatewayCoreCount(identity_key);
-
-    console.log(response.count);
-    console.log(response.identity);
 
     expect(identity_key).toStrictEqual(response.identity);
     expect(typeof response.count).toBe("number");

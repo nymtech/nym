@@ -53,7 +53,7 @@ impl RepliableMessage {
         let content_tag = RepliableMessageContentTag::try_from(bytes[96])?;
 
         let content =
-            RepliableMessageContent::try_from_bytes(&bytes[96..], num_mix_hops, content_tag)?;
+            RepliableMessageContent::try_from_bytes(&bytes[97..], num_mix_hops, content_tag)?;
 
         Ok(RepliableMessage {
             sender_tag,
@@ -73,7 +73,6 @@ fn recover_reply_surbs(
         return Err(UnnamedRepliesError);
     }
     let num_surbs = u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
-    let mut consumed = 0;
     let surb_size = ReplySurb::serialized_len(num_mix_hops);
     if bytes[consumed..].len() < num_surbs as usize * surb_size {
         return Err(UnnamedRepliesError);

@@ -244,7 +244,7 @@ impl PaddedMessage {
     }
 
     // reverse of NymMessage::pad_to_full_packet_lengths
-    pub fn remove_padding(mut self, num_mix_hops: u8) -> Result<NymMessage, UnnamedError> {
+    pub fn remove_padding(self, num_mix_hops: u8) -> Result<NymMessage, UnnamedError> {
         // we are looking for first occurrence of 1 in the tail and we get its index
         if let Some(padding_end) = self.0.iter().rposition(|b| *b == 1) {
             // and now we only take bytes until that point (but not including it)

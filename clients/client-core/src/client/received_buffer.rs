@@ -202,6 +202,8 @@ impl ReceivedMessagesBuffer {
                             message,
                             reply_surbs,
                         } => {
+                            println!("data: {:?}", message.len());
+                            println!("surbs: {:?}", reply_surbs.len());
                             data_msgs.push((message, Some(repliable.sender_tag)));
                             // SUPER TEMP
                             self.received_surbs

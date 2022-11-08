@@ -90,7 +90,7 @@ async fn send_file_without_reply() {
     let send_request = ClientRequest::Send {
         recipient,
         message: read_data,
-        reply_surbs: 0,
+        reply_surbs: 4,
     };
 
     println!("sending content of 'dummy_file' over the mix network...");

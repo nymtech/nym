@@ -1,0 +1,32 @@
+name: Tests for validator API
+
+on:
+  push:
+    paths:
+      - "validator-api/tests/**"
+
+defaults:
+  run:
+    working-directory: validator-api/tests
+
+jobs:
+  test:
+    name: validator api tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Node v18
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18.1.0
+
+      - name: Install yarn
+        run: yarn install
+
+      - name: Run yarn
+        run: yarn
+
+      - name: Launch tests
+        run: yarn test
+        working-directory: validator-api/tests

@@ -130,9 +130,10 @@ describe("Get mixnode data", (): void => {
     expect(typeof response.in_reserve).toBe("string");
   });
 
-  it.skip("Post to compute mixnode reward estimation", async ():Promise<void> => {
+  it("Post to compute mixnode reward estimation", async ():Promise<void> => {
     const mix_id = config.environmnetConfig.mixnode_identity;
-    const response = await status.getMixnodeRewardEstimatedComputation(mix_id);
+    const payload = {"performance": "0.2"}
+    const response = await status.getMixnodeRewardEstimatedComputation(mix_id, payload);
 
     //estimation
     expect(typeof response.estimation.total_node_reward).toBe("string");
@@ -162,5 +163,16 @@ describe("Get mixnode data", (): void => {
     expect(typeof response.epoch.total_elapsed_epochs).toBe("number");
 
     expect(typeof response.as_at).toBe("number");
+  })
+
+
+  it.skip("Post to compute mixnode reward estimation", async ():Promise<void> => {
+    const mix_id = config.environmnetConfig.mixnode_identity;
+    const payload = {"performance": "0.7"}
+    const response = await status.getMixnodeRewardEstimatedComputation(mix_id, payload);
+
+    // TO-DO this test needs calculations to ensure than when passing through different performance values, the reward is also changing as expected
+    expect(response.estimation.total_node_reward).toContain("986360");
+
   })
 });

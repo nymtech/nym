@@ -122,3 +122,6 @@ mixnet-opt: wasm
 generate-typescript:
 	cd tools/ts-rs-cli && cargo run && cd ../..
 	yarn types:lint:fix
+
+run-validator-tests:
+	cd validator-api/tests/functional_test && yarn test

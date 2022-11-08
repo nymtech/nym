@@ -86,21 +86,12 @@ export default class Status extends APIClient {
   }
 
   public async getMixnodeRewardEstimatedComputation(
-    mix_id: number
+    mix_id: number,
+    payload: object
   ): Promise<RewardEstimation> {
     const response = await this.restClient.sendPost({
       route: `/mixnode/${mix_id}/compute-reward-estimation`,
-      data: {
-        "performance": "", // TO-DO add a value to this 
-        "active_in_rewarded_set": true,
-        "pledge_amount": 0,
-        "total_delegation": 0, // TO-DO grab the values from the mixnode endpoint on explorer-api and use them in this request
-        "interval_operating_cost": {
-          "denom": "unym",
-          "amount": "3000000"
-        },
-        "profit_margin_percent": "" // TO-DO add a value to this 
-      }
+      data: payload
     });
 
     return response.data;

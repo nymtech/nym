@@ -26,6 +26,7 @@ export const MnemonicInput: React.FC<{
             height: '160px',
           },
         }}
+        InputLabelProps={{ shrink: true }}
         sx={{
           'input::-webkit-textfield-decoration-container': {
             alignItems: 'start',
@@ -71,6 +72,7 @@ export const PasswordInput: React.FC<{
               </IconButton>
             ),
           }}
+          InputLabelProps={{ shrink: true }}
         />
       </Box>
       {error && <Error message={error} />}

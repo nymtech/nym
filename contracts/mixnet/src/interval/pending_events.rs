@@ -1220,6 +1220,7 @@ mod tests {
         let update = IntervalRewardingParamsUpdate {
             reward_pool: Some(before.interval.reward_pool / two),
             staking_supply: Some(before.interval.staking_supply * four),
+            staking_supply_scale_factor: None,
             sybil_resistance_percent: Some(Percent::from_percentage_value(42).unwrap()),
             active_set_work_factor: None,
             interval_pool_emission: None,

@@ -22,7 +22,6 @@ use gateway_client::{
     MixnetMessageSender,
 };
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::params::PacketSize;
 use rand::rngs::OsRng;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
@@ -110,8 +109,8 @@ impl NymClient {
             topology_accessor,
         );
 
-        if self.config.debug.use_extended_packet_size {
-            stream.set_custom_packet_size(PacketSize::ExtendedPacket)
+        if let Some(size) = &self.config.debug.use_extended_packet_size {
+            stream.set_custom_packet_size(size.clone().into());
         }
 
         stream.start();
@@ -135,8 +134,8 @@ impl NymClient {
             self.as_mix_recipient(),
         );
 
-        if self.config.debug.use_extended_packet_size {
-            controller_config.set_custom_packet_size(PacketSize::ExtendedPacket)
+        if let Some(size) = &self.config.debug.use_extended_packet_size {
+            controller_config.set_custom_packet_size(size.clone().into());
         }
 
         console_log!("Starting real traffic stream...");

@@ -289,6 +289,10 @@ impl Config {
         self.debug.maximum_connection_buffer_size
     }
 
+    pub fn get_use_legacy_sphinx_framing(&self) -> bool {
+        self.debug.use_legacy_framed_packet_version
+    }
+
     pub fn get_message_retrieval_limit(&self) -> i64 {
         self.debug.message_retrieval_limit
     }
@@ -456,6 +460,12 @@ struct Debug {
 
     /// Number of messages from offline client that can be pulled at once from the storage.
     message_retrieval_limit: i64,
+
+    /// Specifies whether the mixnode should be using the legacy framing for the sphinx packets.
+    // it's set to true by default. The reason for that decision is to preserve compatibility with the
+    // existing nodes whilst everyone else is upgrading and getting the code for handling the new field.
+    // It shall be disabled in the subsequent releases.
+    use_legacy_framed_packet_version: bool,
 }
 
 impl Default for Debug {
@@ -468,6 +478,8 @@ impl Default for Debug {
             maximum_connection_buffer_size: DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE,
             stored_messages_filename_length: DEFAULT_STORED_MESSAGE_FILENAME_LENGTH,
             message_retrieval_limit: DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
+            // TODO: remember to change it in one of future releases!!
+            use_legacy_framed_packet_version: true,
         }
     }
 }

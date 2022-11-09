@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Button, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, Button, Chip, Stack, Tooltip, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { isMixnode, Network } from 'src/types';
 import { TBondedMixnode, urls } from 'src/context';
@@ -35,7 +35,8 @@ const headers: Header[] = [
   {
     header: 'Operating cost',
     id: 'operator-cost',
-    // tooltipText: 'TODO', // TODO
+    tooltipText:
+      'Monthly operational costs of running your node. The cost also influences how the rewards are split between you and your delegators. ',
   },
   {
     header: 'Operator rewards',
@@ -106,7 +107,9 @@ export const BondedMixnode = ({
       id: 'delegators-cell',
     },
     {
-      cell: (
+      cell: mixnode.isUnbonding ? (
+        <Chip label="Pending unbond" sx={{ textTransform: 'initial' }} />
+      ) : (
         <BondedMixnodeActions
           onActionSelect={onActionSelect}
           disabledRedeemAndCompound={(operatorRewards && Number(operatorRewards.amount) === 0) || false}
@@ -142,14 +145,19 @@ export const BondedMixnode = ({
         }
         Action={
           isMixnode(mixnode) && (
-            <Button
-              variant="text"
-              color="secondary"
-              onClick={() => navigate('/bonding/node-settings')}
-              startIcon={<NodeIcon />}
-            >
-              Node Settings
-            </Button>
+            <Tooltip title={mixnode.isUnbonding ? 'You have a pending unbond event. Node settings are disabled.' : ''}>
+              <Box>
+                <Button
+                  variant="text"
+                  color="secondary"
+                  onClick={() => navigate('/bonding/node-settings')}
+                  startIcon={<NodeIcon />}
+                  disabled={mixnode.isUnbonding}
+                >
+                  Node Settings
+                </Button>
+              </Box>
+            </Tooltip>
           )
         }
       >

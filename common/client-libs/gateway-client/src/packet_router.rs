@@ -62,9 +62,19 @@ impl PacketRouter {
                 trace!("routing regular packet");
                 received_messages.push(received_packet);
             } else if received_packet.len()
-                == PacketSize::ExtendedPacket.plaintext_size() - ack_overhead
+                == PacketSize::ExtendedPacket8.plaintext_size() - ack_overhead
             {
-                trace!("routing extended packet");
+                trace!("routing extended8 packet");
+                received_messages.push(received_packet);
+            } else if received_packet.len()
+                == PacketSize::ExtendedPacket16.plaintext_size() - ack_overhead
+            {
+                trace!("routing extended16 packet");
+                received_messages.push(received_packet);
+            } else if received_packet.len()
+                == PacketSize::ExtendedPacket32.plaintext_size() - ack_overhead
+            {
+                trace!("routing extended32 packet");
                 received_messages.push(received_packet);
             } else {
                 // this can happen if other clients are not padding their messages

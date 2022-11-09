@@ -10,6 +10,7 @@ export interface EconomicsInfoRow {
   stakeSaturation: EconomicsRowsType;
   profitMargin: EconomicsRowsType;
   avgUptime: EconomicsRowsType;
+  operatingCost: EconomicsRowsType;
 }
 
 export type EconomicsInfoRowWithIndex = EconomicsInfoRow & { id: number };

@@ -155,15 +155,8 @@ impl VestingAccount for Account {
         let block_time = block_time.unwrap_or(env.block.time);
         let delegated_free = self.get_delegated_free(Some(block_time), env, storage)?;
 
-        let period = self.get_current_vesting_period(block_time)?;
-        let start_time = match period {
-            Period::Before => 0,
-            Period::After => u64::MAX,
-            Period::In(idx) => self.periods[idx].start_time,
-        };
-
         let delegations_before_start_time =
-            self.total_delegations_at_timestamp(storage, start_time)?;
+            self.total_delegations_at_timestamp(storage, block_time.seconds())?;
 
         let amount = delegations_before_start_time - delegated_free.amount;
 

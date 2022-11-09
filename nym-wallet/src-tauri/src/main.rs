@@ -100,6 +100,7 @@ fn main() {
             validator_api::status::mixnode_reward_estimation,
             validator_api::status::mixnode_stake_saturation,
             validator_api::status::mixnode_status,
+            validator_api::status::gateway_report,
             vesting::rewards::vesting_claim_delegator_reward,
             vesting::rewards::vesting_claim_operator_reward,
             vesting::bond::vesting_bond_gateway,

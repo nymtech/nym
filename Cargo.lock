@@ -737,7 +737,10 @@ name = "contracts-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "schemars",
  "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]
@@ -1583,11 +1586,13 @@ version = "1.0.1"
 dependencies = [
  "chrono",
  "clap 3.2.8",
+ "contracts-common",
  "dotenv",
  "humantime-serde",
  "isocountry",
  "itertools",
  "log",
+ "logging",
  "maxminddb",
  "mixnet-contract-common",
  "network-defaults",
@@ -2727,6 +2732,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "logging"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "pretty_env_logger",
+]
+
+[[package]]
 name = "loom"
 version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3068,6 +3081,7 @@ dependencies = [
  "clap_complete_fig",
  "dotenv",
  "log",
+ "logging",
  "network-defaults",
  "nym-cli-commands",
  "pretty_env_logger",
@@ -3123,6 +3137,7 @@ dependencies = [
  "gateway-client",
  "gateway-requests",
  "log",
+ "logging",
  "network-defaults",
  "nymsphinx",
  "pemstore",
@@ -3165,6 +3180,7 @@ dependencies = [
  "gateway-requests",
  "humantime-serde",
  "log",
+ "logging",
  "mixnet-client",
  "mixnode-common",
  "network-defaults",
@@ -3207,6 +3223,7 @@ dependencies = [
  "humantime-serde",
  "lazy_static",
  "log",
+ "logging",
  "mixnet-client",
  "mixnode-common",
  "nonexhaustive-delayqueue",
@@ -3241,6 +3258,7 @@ dependencies = [
  "futures",
  "ipnetwork 0.20.0",
  "log",
+ "logging",
  "network-defaults",
  "nymsphinx",
  "ordered-buffer",
@@ -3266,6 +3284,7 @@ version = "1.0.2"
 dependencies = [
  "dirs",
  "log",
+ "logging",
  "pretty_env_logger",
  "rocket",
  "serde",
@@ -3292,6 +3311,7 @@ dependencies = [
  "gateway-client",
  "gateway-requests",
  "log",
+ "logging",
  "network-defaults",
  "nymsphinx",
  "ordered-buffer",
@@ -3351,6 +3371,7 @@ dependencies = [
  "coconut-interface",
  "config",
  "console-subscriber",
+ "contracts-common",
  "cosmwasm-std",
  "credential-storage",
  "credentials",
@@ -3365,6 +3386,7 @@ dependencies = [
  "humantime-serde",
  "inclusion-probability",
  "log",
+ "logging",
  "mixnet-contract-common",
  "multisig-contract-common",
  "nymcoconut",
@@ -6388,6 +6410,7 @@ dependencies = [
  "coconut-interface",
  "colored",
  "config",
+ "contracts-common",
  "cosmrs",
  "cosmwasm-std",
  "cw3",
@@ -6476,12 +6499,14 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 name = "vesting-contract"
 version = "1.1.0"
 dependencies = [
+ "contracts-common",
  "cosmwasm-std",
  "cw-storage-plus",
  "mixnet-contract-common",
  "schemars",
  "serde",
  "thiserror",
+ "vergen 5.1.17",
  "vesting-contract-common",
 ]
 
@@ -6489,7 +6514,9 @@ dependencies = [
 name = "vesting-contract-common"
 version = "0.1.0"
 dependencies = [
+ "contracts-common",
  "cosmwasm-std",
+ "log",
  "mixnet-contract-common",
  "schemars",
  "serde",

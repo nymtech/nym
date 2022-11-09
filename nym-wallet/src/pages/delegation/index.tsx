@@ -111,7 +111,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   const handleNewDelegation = async (
     mix_id: number,
-    identityKey: string,
+    _: string,
     amount: DecCoin,
     tokenPool: TPoolOption,
     fee?: FeeDetails,
@@ -268,19 +268,20 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     }
   };
 
-  const delegationsComponent = (delegations: TDelegations | undefined) => {
+  const delegationsComponent = (delegationItems: TDelegations | undefined) => {
     if (isLoading) {
       return (
         <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
           <CircularProgress />
         </Box>
       );
-    } else if (Boolean(delegations?.length)) {
+    }
+    if (delegationItems && Boolean(delegationItems?.length)) {
       return (
         <DelegationList
           explorerUrl={urls(network).networkExplorer}
           isLoading={isLoading}
-          items={delegations}
+          items={delegationItems}
           onItemActionClick={handleDelegationItemActionClick}
         />
       );

@@ -5,6 +5,7 @@ use crate::validator_api::error::ValidatorAPIError;
 use crate::validator_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
+use reqwest::Response;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use validator_api_requests::coconut::{
@@ -12,9 +13,10 @@ use validator_api_requests::coconut::{
     VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_api_requests::models::{
-    GatewayCoreStatusResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,
-    MixnodeCoreStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
-    StakeSaturationResponse, UptimeResponse,
+    GatewayCoreStatusResponse, GatewayStatusReportResponse, GatewayUptimeHistoryResponse,
+    InclusionProbabilityResponse, MixNodeBondAnnotated, MixnodeCoreStatusResponse,
+    MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RequestError,
+    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
 };
 
 pub mod error;
@@ -47,6 +49,19 @@ impl Client {
         &self.url
     }
 
+    async fn send_get_request<K, V>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+    ) -> Result<Response, ValidatorAPIError>
+    where
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
+        let url = create_api_url(&self.url, path, params);
+        Ok(self.reqwest_client.get(url).send().await?)
+    }
+
     async fn query_validator_api<T, K, V>(
         &self,
         path: PathSegments<'_>,
@@ -57,8 +72,36 @@ impl Client {
         K: AsRef<str>,
         V: AsRef<str>,
     {
-        let url = create_api_url(&self.url, path, params);
-        Ok(self.reqwest_client.get(url).send().await?.json().await?)
+        let res = self.send_get_request(path, params).await?;
+        if res.status().is_success() {
+            Ok(res.json().await?)
+        } else {
+            Err(ValidatorAPIError::GenericRequestFailure(res.text().await?))
+        }
+    }
+
+    // This works for endpoints returning Result<Json<T>, ErrorResponse>
+    async fn query_validator_api_fallible<T, K, V>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+    ) -> Result<T, ValidatorAPIError>
+    where
+        for<'a> T: Deserialize<'a>,
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
+        let res = self.send_get_request(path, params).await?;
+        let status = res.status();
+        if res.status().is_success() {
+            Ok(res.json().await?)
+        } else {
+            let request_error: RequestError = res.json().await?;
+            Err(ValidatorAPIError::ApiRequestFailure {
+                status: status.as_u16(),
+                error: request_error,
+            })
+        }
     }
 
     async fn post_validator_api<B, T, K, V>(
@@ -130,6 +173,74 @@ impl Client {
     pub async fn get_rewarded_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorAPIError> {
         self.query_validator_api(
             &[routes::API_VERSION, routes::MIXNODES, routes::REWARDED],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_mixnode_report(
+        &self,
+        mix_id: MixId,
+    ) -> Result<MixnodeStatusReportResponse, ValidatorAPIError> {
+        self.query_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::STATUS,
+                routes::MIXNODE,
+                &mix_id.to_string(),
+                routes::REPORT,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_gateway_report(
+        &self,
+        identity: IdentityKeyRef<'_>,
+    ) -> Result<GatewayStatusReportResponse, ValidatorAPIError> {
+        self.query_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::STATUS,
+                routes::GATEWAY,
+                identity,
+                routes::REPORT,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_mixnode_history(
+        &self,
+        mix_id: MixId,
+    ) -> Result<MixnodeUptimeHistoryResponse, ValidatorAPIError> {
+        self.query_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::STATUS,
+                routes::MIXNODE,
+                &mix_id.to_string(),
+                routes::HISTORY,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn get_gateway_history(
+        &self,
+        identity: IdentityKeyRef<'_>,
+    ) -> Result<GatewayUptimeHistoryResponse, ValidatorAPIError> {
+        self.query_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::STATUS,
+                routes::GATEWAY,
+                identity,
+                routes::HISTORY,
+            ],
             NO_PARAMS,
         )
         .await
@@ -234,7 +345,7 @@ impl Client {
         &self,
         mix_id: MixId,
     ) -> Result<RewardEstimationResponse, ValidatorAPIError> {
-        self.query_validator_api(
+        self.query_validator_api_fallible(
             &[
                 routes::API_VERSION,
                 routes::STATUS_ROUTES,
@@ -251,7 +362,7 @@ impl Client {
         &self,
         mix_id: MixId,
     ) -> Result<StakeSaturationResponse, ValidatorAPIError> {
-        self.query_validator_api(
+        self.query_validator_api_fallible(
             &[
                 routes::API_VERSION,
                 routes::STATUS_ROUTES,
@@ -268,7 +379,7 @@ impl Client {
         &self,
         mix_id: MixId,
     ) -> Result<InclusionProbabilityResponse, ValidatorAPIError> {
-        self.query_validator_api(
+        self.query_validator_api_fallible(
             &[
                 routes::API_VERSION,
                 routes::STATUS_ROUTES,
@@ -285,7 +396,7 @@ impl Client {
         &self,
         mix_id: MixId,
     ) -> Result<UptimeResponse, ValidatorAPIError> {
-        self.query_validator_api(
+        self.query_validator_api_fallible(
             &[
                 routes::API_VERSION,
                 routes::STATUS_ROUTES,

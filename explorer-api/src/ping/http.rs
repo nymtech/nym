@@ -1,7 +1,7 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use mixnet_contract_common::MixNode;
+use mixnet_contract_common::{MixId, MixNode};
 use rocket::serde::json::Json;
 use rocket::{Route, State};
 use rocket_okapi::okapi::openapi3::OpenApi;
@@ -20,41 +20,39 @@ pub fn ping_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, Open
     openapi_get_routes_spec![settings: index]
 }
 
-// TODO: I'm not deprecating this one explicitly since we don't have
-// a decision on whether nodes should be accessed (as in using URL) by id or identity key
 #[openapi(tag = "ping")]
-#[get("/<pubkey>")]
+#[get("/<mix_id>")]
 pub(crate) async fn index(
-    pubkey: &str,
+    mix_id: MixId,
     state: &State<ExplorerApiStateContext>,
 ) -> Option<Json<PingResponse>> {
-    match state.inner.ping.clone().get(pubkey).await {
+    match state.inner.ping.clone().get(mix_id).await {
         Some(cache_value) => {
-            trace!("Returning cached value for {}", pubkey);
+            trace!("Returning cached value for {}", mix_id);
             Some(Json(PingResponse {
                 pending: cache_value.pending,
                 ports: cache_value.ports,
             }))
         }
         None => {
-            trace!("No cache value for {}", pubkey);
+            trace!("No cache value for {}", mix_id);
 
-            match state.inner.get_mix_node_by_pubkey(pubkey).await {
+            match state.inner.get_mix_node(mix_id).await {
                 Some(node) => {
                     // set status to pending, so that any HTTP requests are pending
-                    state.inner.ping.set_pending(pubkey).await;
+                    state.inner.ping.set_pending(mix_id).await;
 
                     // do the check
                     let ports = Some(port_check(node.mix_node()).await);
-                    trace!("Tested mix node {}: {:?}", pubkey, ports);
+                    trace!("Tested mix node {}: {:?}", mix_id, ports);
                     let response = PingResponse {
                         ports,
                         pending: false,
                     };
 
                     // cache for 1 min
-                    trace!("Caching value for {}", pubkey);
-                    state.inner.ping.set(pubkey, response.clone()).await;
+                    trace!("Caching value for {}", mix_id);
+                    state.inner.ping.set(mix_id, response.clone()).await;
 
                     // return response
                     Some(Json(response))

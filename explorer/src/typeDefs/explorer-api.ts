@@ -30,7 +30,6 @@ export interface MixNode {
   sphinx_key: string;
   identity_key: string;
   version: string;
-  profit_margin_percent: number;
   location: string;
 }
 
@@ -70,6 +69,7 @@ export const toMixnodeStatus = (status?: MixnodeStatusWithAll): MixnodeStatus | 
 };
 
 export interface MixNodeResponseItem {
+  mix_id: number;
   pledge_amount: Amount;
   total_delegation: Amount;
   owner: string;
@@ -85,6 +85,8 @@ export interface MixNodeResponseItem {
   mix_node: MixNode;
   avg_uptime: number;
   stake_saturation: number;
+  operating_cost: Amount;
+  profit_margin_percent: string;
 }
 
 export type MixNodeResponse = MixNodeResponseItem[];
@@ -126,12 +128,9 @@ export type GatewayResponse = GatewayResponseItem[];
 export interface GatewayReportResponse {
   identity: string;
   owner: string;
-  most_recent_ipv4: boolean;
-  most_recent_ipv6: boolean;
-  last_hour_ipv4: number;
-  last_hour_ipv6: number;
-  last_day_ipv4: number;
-  last_day_ipv6: number;
+  most_recent: number;
+  last_hour: number;
+  last_day: number;
 }
 
 export type GatewayHistoryResponse = StatsResponse;

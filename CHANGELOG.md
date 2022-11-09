@@ -16,11 +16,14 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - wasm-client: uses updated wasm-compatible `client-core` so that it's now capable of packet retransmission, cover traffic and poisson delay (among other things!) ([#1673])
 - validator-api: add `interval_operating_cost` and `profit_margin_percent` to cmpute reward estimation endpoint
 - native-client/socks5-client/network-requester: improve handling error cases ([#1713])
+- vesting-contract: optional locked token pledge cap per account ([#1687]), defaults to 100_000 NYM
+- clients: add testing-only support for two more extended packet sizes (8kb and 16kb).
 
 ### Fixed
 
 - validator-api, mixnode, gateway should now prefer values in config.toml over mainnet defaults ([#1645])
-- socks5-client: fix bug where in some cases packet reordering could trigger a connection being closed too early ([#1702])
+- validator-api should now correctly update historical uptimes for all mixnodes and gateways every 24h ([#1721])
+- socks5-client: fix bug where in some cases packet reordering could trigger a connection being closed too early ([#1702],[#1724])
 
 ### Changed
 
@@ -28,7 +31,9 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - socks5 client: graceful shutdown should fix error on disconnect in nym-connect ([#1591])
 - wasm-client: fixed build errors on MacOS and changed example JS code to use mainnet ([#1585])
 - gateway-client: will attempt to read now as many as 8 websocket messages at once, assuming they're already available on the socket ([#1669])
-- clients: bound the sphinx packet channel and reduce sending rate if gateway can't keep up ([#1703])
+- validator-api: changed error serialization on `inclusion_probability`, `stake-saturation` and `reward-estimation` endpoints to provide more accurate information ([#1681]) 
+- moved `Percent` struct to to `contracts-common`, change affects explorer-api
+- clients: bound the sphinx packet channel and reduce sending rate if gateway can't keep up ([#1703],[#1725])
 
 [#1541]: https://github.com/nymtech/nym/pull/1541
 [#1558]: https://github.com/nymtech/nym/pull/1558
@@ -42,9 +47,14 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1669]: https://github.com/nymtech/nym/pull/1669
 [#1671]: https://github.com/nymtech/nym/pull/1671
 [#1673]: https://github.com/nymtech/nym/pull/1673
+[#1681]: https://github.com/nymtech/nym/pull/1681
+[#1687]: https://github.com/nymtech/nym/pull/1687
 [#1702]: https://github.com/nymtech/nym/pull/1702
 [#1703]: https://github.com/nymtech/nym/pull/1703
 [#1713]: https://github.com/nymtech/nym/pull/1713
+[#1721]: https://github.com/nymtech/nym/pull/1721
+[#1724]: https://github.com/nymtech/nym/pull/1724
+[#1725]: https://github.com/nymtech/nym/pull/1725
 
 
 ## [nym-binaries-1.0.2](https://github.com/nymtech/nym/tree/nym-binaries-1.0.2)

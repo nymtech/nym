@@ -6,8 +6,10 @@ edition = "2021"
 [dependencies]
 cosmwasm-std = "1.0.0"
 mixnet-contract-common = { path = "../mixnet-contract" }
+contracts-common = { path = "../contracts-common" }
 serde = { version = "1.0", features = ["derive"] }
 schemars = "0.8"
+log = "0.4"
 ts-rs = {version = "6.1.2", optional = true}
 
 [features]

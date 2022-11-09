@@ -930,7 +930,7 @@ checksum = "a3e378b66a060d48947b590737b30a1be76706c8dd7b8ba0f2fe3989c68a853f"
 
 [[package]]
 name = "mixnet-contract"
-version = "1.0.2"
+version = "1.1.0"
 dependencies = [
  "bs58",
  "cosmwasm-schema",
@@ -1625,7 +1625,6 @@ version = "0.1.0"
 dependencies = [
  "contracts-common",
  "cosmwasm-std",
- "log",
  "mixnet-contract-common",
  "schemars",
  "serde",

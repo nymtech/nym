@@ -6,7 +6,6 @@
 
 use contracts_common::Percent;
 use cosmwasm_std::{Addr, Coin, Timestamp, Uint128};
-use log::warn;
 use mixnet_contract_common::MixId;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -62,23 +61,11 @@ impl FromStr for PledgeCap {
     fn from_str(cap: &str) -> Result<Self, Self::Err> {
         let cap = cap.replace('_', "").replace(',', ".");
         match Percent::from_str(&cap) {
-            Ok(p) => {
-                if p.is_zero() {
-                    warn!("Pledge cap set to 0%, are you sure this is right?")
-                }
-                Ok(PledgeCap::Percent(p))
-            }
-            Err(_) => {
-                match cap.parse::<u128>() {
-                    Ok(i) => {
-                        if i < 100_000_000_000 {
-                            warn!("PledgeCap set to less then 100_000 NYM, are you sure this is right?");
-                        }
-                        Ok(PledgeCap::Absolute(Uint128::from(i)))
-                    }
-                    Err(_e) => Err(format!("Could not parse {} as Percent or Uint128", cap)),
-                }
-            }
+            Ok(p) => Ok(PledgeCap::Percent(p)),
+            Err(_) => match cap.parse::<u128>() {
+                Ok(i) => Ok(PledgeCap::Absolute(Uint128::from(i))),
+                Err(_e) => Err(format!("Could not parse {} as Percent or Uint128", cap)),
+            },
         }
     }
 }

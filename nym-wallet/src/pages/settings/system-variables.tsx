@@ -152,7 +152,7 @@ export const SystemVariables = ({
 
           <DataField
             title="Node stake saturation"
-            info="Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is: 1 million NYM, computed as S/K where S is the total amount of tokens available to stakeholders and K is the number of nodes in the reward set."
+            info="Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is: 750k NYM, computed as S/K where S is the total amount of tokens available to stakeholders and K is the number of nodes in the reward set."
             Indicator={<PercentIndicator value={saturation} warning={saturation >= 100} />}
           />
         </Stack>

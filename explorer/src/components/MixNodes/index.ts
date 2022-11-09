@@ -31,7 +31,7 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
   const totalBond = pledge + delegations;
   const selfPercentage = ((pledge * 100) / totalBond).toFixed(2);
   const profitPercentage = toPercentIntegerString(item.profit_margin_percent) || 0;
-  const stakeSaturation = typeof item.stake_saturation === 'number' ? item.stake_saturation * 100 : 0;
+  const uncappedSaturation = typeof item.uncapped_saturation === 'number' ? item.uncapped_saturation * 100 : 0;
 
   return {
     mix_id: item.mix_id,
@@ -47,7 +47,7 @@ export function mixNodeResponseItemToMixnodeRowType(item: MixNodeResponseItem): 
     layer: item?.layer || '',
     profit_percentage: `${profitPercentage}%`,
     avg_uptime: `${item.avg_uptime}%` || '-',
-    stake_saturation: stakeSaturation,
-    operating_cost: `${unymToNym(item.operating_cost.amount, 6)} NYM`,
+    stake_saturation: uncappedSaturation,
+    operating_cost: `${unymToNym(item.operating_cost?.amount, 6)} NYM`,
   };
 }

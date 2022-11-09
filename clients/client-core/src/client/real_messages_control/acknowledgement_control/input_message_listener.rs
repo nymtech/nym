@@ -357,6 +357,7 @@ where
     }
 
     pub async fn on_input_message(&mut self, msg: InputMessage) {
+        log::info!("Using new chunker!");
         let real_messages = match msg {
             InputMessage::Fresh {
                 recipient,

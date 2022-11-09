@@ -13,6 +13,7 @@
 - wallet: New bond settings area
 - wallet: Display pending unbonds
 - wallet: Display routing score and average score for gateways
+- wallet: Improve dialogs for account creation
 
 [#1472]: https://github.com/nymtech/nym/pull/1472
 

@@ -13,12 +13,13 @@ use log::*;
 use ordered_buffer::OrderedMessageSender;
 use rand::rngs::OsRng;
 use socks5_requests::ConnectionId;
+use std::time::Duration;
 use std::{io, sync::Arc};
 use task::ShutdownListener;
 use tokio::select;
 use tokio::{net::tcp::OwnedReadHalf, sync::Notify, time::sleep};
 
-fn send_empty_close<F, S>(
+async fn send_empty_close<F, S>(
     connection_id: ConnectionId,
     message_sender: &mut OrderedMessageSender,
     mix_sender: &MixProxySender<S>,
@@ -27,9 +28,13 @@ fn send_empty_close<F, S>(
     F: Fn(ConnectionId, Vec<u8>, bool) -> S,
 {
     let ordered_msg = message_sender.wrap_message(Vec::new()).into_bytes();
-    mix_sender
-        .unbounded_send(adapter_fn(connection_id, ordered_msg, true))
-        .unwrap();
+    if mix_sender
+        .send(adapter_fn(connection_id, ordered_msg, true))
+        .await
+        .is_err()
+    {
+        panic!();
+    };
 }
 
 async fn deal_with_data<F, S>(
@@ -75,9 +80,33 @@ where
         chunker.chunk(msg).await;
         log::info!("({connection_id}): chunking and sending done");
     } else {
-        mix_sender
-            .unbounded_send(adapter_fn(connection_id, ordered_msg, is_finished))
-            .unwrap();
+        log::info!("ordered_msg.len: {}", ordered_msg.len());
+        if ordered_msg.len() > 10000 {
+            log::info!("Sending large");
+            log::info!("capacity: {}", mix_sender.capacity());
+            loop {
+                if mix_sender.capacity() > 2 {
+                    if mix_sender
+                        .send(adapter_fn(connection_id, ordered_msg, is_finished))
+                        .await
+                        .is_err()
+                    {
+                        panic!();
+                    }
+                    break;
+                }
+                sleep(Duration::from_millis(100)).await;
+            }
+        } else {
+            log::info!("Sending smaller");
+            if mix_sender
+                .send(adapter_fn(connection_id, ordered_msg, is_finished))
+                .await
+                .is_err()
+            {
+                panic!();
+            }
+        }
     }
 
     if is_finished {
@@ -120,7 +149,7 @@ where
                 debug!("closing inbound proxy after outbound was closed {:?} ago", SHUTDOWN_TIMEOUT);
                 // inform remote just in case it was closed because of lack of heartbeat.
                 // worst case the remote will just have couple of false negatives
-                send_empty_close(connection_id, &mut message_sender, &mix_sender, &adapter_fn);
+                send_empty_close(connection_id, &mut message_sender, &mix_sender, &adapter_fn).await;
                 break;
             }
             _ = shutdown_listener.recv() => {

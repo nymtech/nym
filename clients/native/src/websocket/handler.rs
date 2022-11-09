@@ -92,21 +92,24 @@ impl Handler {
         let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb);
 
         // WIP(JON): here we should chunk the message, and send it to the sphinx_message_sender
-        self.fresh_input_msg_chunker.on_input_message(input_msg).await;
-
+        self.fresh_input_msg_chunker
+            .on_input_message(input_msg)
+            .await;
 
         //self.msg_input.unbounded_send(input_msg).unwrap();
 
         None
     }
 
-    fn handle_reply(&mut self, reply_surb: ReplySurb, message: Vec<u8>) -> Option<ServerResponse> {
+    async fn handle_reply(&mut self, reply_surb: ReplySurb, message: Vec<u8>) -> Option<ServerResponse> {
         if message.len() > ReplySurb::max_msg_len(Default::default()) {
             return Some(ServerResponse::new_error(format!("too long message to put inside a reply SURB. Received: {} bytes and maximum is {} bytes", message.len(), ReplySurb::max_msg_len(Default::default()))));
         }
 
         let input_msg = InputMessage::new_reply(reply_surb, message);
-        self.msg_input.unbounded_send(input_msg).unwrap();
+        if self.msg_input.send(input_msg).await.is_err() {
+            panic!();
+        }
 
         None
     }
@@ -125,7 +128,7 @@ impl Handler {
             ClientRequest::Reply {
                 message,
                 reply_surb,
-            } => self.handle_reply(reply_surb, message),
+            } => self.handle_reply(reply_surb, message).await,
             ClientRequest::SelfAddress => Some(self.handle_self_address()),
         }
     }

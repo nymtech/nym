@@ -199,7 +199,7 @@ where
 
         while !shutdown.is_shutdown() {
             tokio::select! {
-                input_msg = self.input_receiver.next() => match input_msg {
+                input_msg = self.input_receiver.recv() => match input_msg {
                     Some(input_msg) => {
                         self.on_input_message(input_msg).await;
                     },
@@ -386,19 +386,19 @@ where
             if real_messages.len() > 10 {
                 // only send if there is nothing in queue
                 log::info!("sending large message(s)");
-                let grouped: Vec<Vec<RealMessage>> = real_messages
-                    .into_iter()
-                    .chunks(10)
-                    .into_iter()
-                    .map(|c| c.collect())
-                    .collect();
+                //let grouped: Vec<Vec<RealMessage>> = real_messages
+                //    .into_iter()
+                //    .chunks(10)
+                //    .into_iter()
+                //    .map(|c| c.collect())
+                //    .collect();
 
-                for msg in grouped {
-                    //let msgs = vec![msg];
+                for msg in real_messages {
+                    let msgs = vec![msg];
                     //let msgs = msg.to_vec();
                     loop {
                         if self.real_message_sender.capacity() > 2 {
-                            if self.real_message_sender.send(msg).await.is_err() {
+                            if self.real_message_sender.send(msgs).await.is_err() {
                                 panic!();
                             }
                             break;
@@ -408,6 +408,7 @@ where
                 }
                 log::error!("finished sending large message(s)");
             } else {
+                log::info!("sending small message(s)");
                 if self.real_message_sender.send(real_messages).await.is_err() {
                     panic!();
                 }

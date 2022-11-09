@@ -3,7 +3,16 @@
 ## [nym-wallet-v1.1.0](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.0) (2022-11-09)
 
 - wallet: Add window for showing logs for when the terminal is not available.
-- wallet: rework of rewarding ([#1472])
+- wallet: Rework of rewarding ([#1472])
+- wallet: Highlight delegations on an unbonded node
+- wallet: Group delegations on unbonded nodes at top of list
+- wallet: Simplified delegation screen when user has no delegations
+- wallet: Update "create password" howto guide
+- wallet: Allow setting of operator cost when node bonded
+- wallet: Allow update of operator cost on bonded node
+- wallet: New bond settings area
+- wallet: Display pending unbonds
+- wallet: Display routing score and average score for gateways
 
 [#1472]: https://github.com/nymtech/nym/pull/1472
 

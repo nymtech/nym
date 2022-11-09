@@ -379,16 +379,26 @@ where
         if let Some(real_messages) = real_messages {
             // tells real message sender (with the poisson timer) to send this to the mix network
 
+            use itertools::Itertools;
+
             log::info!("chunked into {} messages", real_messages.len());
             log::info!("current capacity: {}", self.real_message_sender.capacity());
             if real_messages.len() > 10 {
                 // only send if there is nothing in queue
                 log::info!("sending large message(s)");
-                for msg in real_messages {
-                    let msgs = vec![msg];
+                let grouped: Vec<Vec<RealMessage>> = real_messages
+                    .into_iter()
+                    .chunks(10)
+                    .into_iter()
+                    .map(|c| c.collect())
+                    .collect();
+
+                for msg in grouped {
+                    //let msgs = vec![msg];
+                    //let msgs = msg.to_vec();
                     loop {
                         if self.real_message_sender.capacity() > 2 {
-                            if self.real_message_sender.send(msgs).await.is_err() {
+                            if self.real_message_sender.send(msg).await.is_err() {
                                 panic!();
                             }
                             break;

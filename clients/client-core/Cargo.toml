@@ -31,6 +31,7 @@ validator-client = { path = "../../common/client-libs/validator-client", default
 tap = "1.0.1"
 
 tokio = { version = "1.21.2", features = ["time", "macros"]}
+itertools = "0.10.5"
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen-futures]
 version = "0.4"

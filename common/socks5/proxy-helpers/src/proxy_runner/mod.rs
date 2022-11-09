@@ -19,7 +19,8 @@ mod inbound;
 mod outbound;
 
 // TODO: make this configurable
-const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(30);
+//const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(30);
+const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(60 * 10);
 
 #[derive(Debug)]
 pub struct ProxyMessage {

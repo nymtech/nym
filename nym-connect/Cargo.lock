@@ -595,9 +595,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "client-connections"
+version = "0.1.0"
+dependencies = [
+ "futures",
+]
+
+[[package]]
 name = "client-core"
 version = "1.0.1"
 dependencies = [
+ "client-connections",
  "config",
  "crypto",
  "dirs",
@@ -3250,6 +3258,7 @@ name = "nym-socks5-client"
 version = "1.1.0"
 dependencies = [
  "clap",
+ "client-connections",
  "client-core",
  "completions",
  "config",
@@ -4034,6 +4043,7 @@ name = "proxy-helpers"
 version = "0.1.0"
 dependencies = [
  "bytes",
+ "client-connections",
  "futures",
  "log",
  "ordered-buffer",

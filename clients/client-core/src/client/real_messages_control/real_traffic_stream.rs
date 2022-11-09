@@ -16,9 +16,7 @@ use nymsphinx::cover::generate_loop_cover_packet;
 use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::params::PacketSize;
 use nymsphinx::utils::sample_poisson_duration;
-use rand::seq::SliceRandom;
 use rand::{CryptoRng, Rng};
-use std::collections::{HashMap, HashSet, VecDeque};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
@@ -29,29 +27,21 @@ use tokio::time;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
 
-// The minimum time between increasing the average delay between packets. If we hit the ceiling in
-// the available buffer space we want to take somewhat swift action, but we still need to give a
-// short time to give the channel a chance reduce pressure.
-const INCREASE_DELAY_MIN_CHANGE_INTERVAL_SECS: u64 = 1;
-// The minimum time between decreasing the average delay between packets. We don't want to change
-// to quickly to keep things somewhat stable. Also there are buffers downstreams meaning we need to
-// wait a little to see the effect before we decrease further.
-const DECREASE_DELAY_MIN_CHANGE_INTERVAL_SECS: u64 = 30;
-// If we enough time passes without any sign of backpressure in the channel, we can consider
-// lowering the average delay. The goal is to keep somewhat stable, rather than maxing out
-// bandwidth at all times.
-const ACCEPTABLE_TIME_WITHOUT_BACKPRESSURE_SECS: u64 = 30;
-// The maximum multiplier we apply to the base average Poisson delay.
-const MAX_DELAY_MULTIPLIER: u32 = 6;
-// The minium multiplier we apply to the base average Poisson delay.
-const MIN_DELAY_MULTIPLIER: u32 = 1;
+use self::sending_delay_controller::SendingDelayController;
+use self::transmission_buffer::TransmissionBuffer;
 
-// As a way of prune connections we also check for timeouts.
-const MSG_CONSIDERED_STALE_AFTER_SECS: u64 = 10 * 60;
-// The max number of concurrent connections handled.
-const MAX_NUMBER_OF_CONNECTIONS: usize = 100;
-// The number of lanes included in the oldest set.
-const OLDEST_LANE_SET_SIZE: usize = 5;
+mod sending_delay_controller;
+mod transmission_buffer;
+
+#[cfg(not(target_arch = "wasm32"))]
+fn get_time_now() -> time::Instant {
+    time::Instant::now()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn get_time_now() -> wasm_timer::Instant {
+    wasm_timer::Instant::now()
+}
 
 /// Configurable parameters of the `OutQueueControl`
 pub(crate) struct Config {
@@ -91,107 +81,6 @@ impl Config {
     pub fn with_custom_cover_packet_size(mut self, packet_size: PacketSize) -> Self {
         self.cover_packet_size = packet_size;
         self
-    }
-}
-
-struct SendingDelayController {
-    /// Multiply the average sending delay.
-    /// This is normally set to unity, but if we detect backpressure we increase this
-    /// multiplier. We use discrete steps.
-    current_multiplier: u32,
-
-    /// Maximum delay multiplier
-    upper_bound: u32,
-
-    /// Minimum delay multiplier
-    lower_bound: u32,
-
-    /// To make sure we don't change the multiplier to fast, we limit a change to some duration
-    #[cfg(not(target_arch = "wasm32"))]
-    time_when_changed: time::Instant,
-
-    #[cfg(target_arch = "wasm32")]
-    time_when_changed: wasm_timer::Instant,
-
-    /// If we have a long enough time without any backpressure detected we try reducing the sending
-    /// delay multiplier
-    #[cfg(not(target_arch = "wasm32"))]
-    time_when_backpressure_detected: time::Instant,
-
-    #[cfg(target_arch = "wasm32")]
-    time_when_backpressure_detected: wasm_timer::Instant,
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn get_time_now() -> time::Instant {
-    time::Instant::now()
-}
-
-#[cfg(target_arch = "wasm32")]
-fn get_time_now() -> wasm_timer::Instant {
-    wasm_timer::Instant::now()
-}
-
-impl SendingDelayController {
-    fn new(lower_bound: u32, upper_bound: u32) -> Self {
-        assert!(lower_bound <= upper_bound);
-        let now = get_time_now();
-        SendingDelayController {
-            current_multiplier: MIN_DELAY_MULTIPLIER,
-            upper_bound,
-            lower_bound,
-            time_when_changed: now,
-            time_when_backpressure_detected: now,
-        }
-    }
-
-    fn current_multiplier(&self) -> u32 {
-        self.current_multiplier
-    }
-
-    fn increase_delay_multiplier(&mut self) {
-        if self.current_multiplier < self.upper_bound {
-            self.current_multiplier =
-                (self.current_multiplier + 1).clamp(self.lower_bound, self.upper_bound);
-            self.time_when_changed = get_time_now();
-            log::debug!(
-                "Increasing sending delay multiplier to: {}",
-                self.current_multiplier
-            );
-        } else {
-            log::warn!("Trying to increase delay multipler higher than allowed");
-        }
-    }
-
-    fn decrease_delay_multiplier(&mut self) {
-        if self.current_multiplier > self.lower_bound {
-            self.current_multiplier =
-                (self.current_multiplier - 1).clamp(self.lower_bound, self.upper_bound);
-            self.time_when_changed = get_time_now();
-            log::debug!(
-                "Decreasing sending delay multiplier to: {}",
-                self.current_multiplier
-            );
-        }
-    }
-
-    fn record_backpressure_detected(&mut self) {
-        self.time_when_backpressure_detected = get_time_now();
-    }
-
-    fn not_increased_delay_recently(&self) -> bool {
-        get_time_now()
-            > self.time_when_changed + Duration::from_secs(INCREASE_DELAY_MIN_CHANGE_INTERVAL_SECS)
-    }
-
-    fn is_sending_reliable(&self) -> bool {
-        let now = get_time_now();
-        let delay_change_interval = Duration::from_secs(DECREASE_DELAY_MIN_CHANGE_INTERVAL_SECS);
-        let acceptable_time_without_backpressure =
-            Duration::from_secs(ACCEPTABLE_TIME_WITHOUT_BACKPRESSURE_SECS);
-
-        now > self.time_when_backpressure_detected + acceptable_time_without_backpressure
-            && now > self.time_when_changed + delay_change_interval
     }
 }
 
@@ -245,183 +134,6 @@ where
     closed_connection_rx: ClosedConnectionReceiver,
 }
 
-#[derive(Default)]
-struct TransmissionBuffer {
-    buffer: HashMap<TransmissionLane, LaneBufferEntry>,
-}
-
-impl TransmissionBuffer {
-    fn is_empty(&self) -> bool {
-        self.buffer.is_empty()
-    }
-
-    fn remove(&mut self, lane: &TransmissionLane) -> Option<LaneBufferEntry> {
-        self.buffer.remove(lane)
-    }
-
-    fn num_lanes(&self) -> usize {
-        self.buffer.keys().count()
-    }
-
-    fn connections(&self) -> HashSet<u64> {
-        self.buffer
-            .keys()
-            .filter_map(|lane| match lane {
-                TransmissionLane::ConnectionId(id) => Some(id),
-                _ => None,
-            })
-            .copied()
-            .collect()
-    }
-
-    fn total_size(&self) -> usize {
-        self.buffer.values().map(LaneBufferEntry::len).sum()
-    }
-
-    fn total_size_in_bytes(&self) -> usize {
-        self.buffer
-            .values()
-            .map(|lane_buffer_entry| {
-                lane_buffer_entry
-                    .real_messages
-                    .iter()
-                    .map(|real_message| real_message.mix_packet.sphinx_packet().len())
-                    .sum::<usize>()
-            })
-            .sum()
-    }
-
-    fn get_oldest_set(&self) -> Vec<TransmissionLane> {
-        let mut buffer: Vec<_> = self
-            .buffer
-            .iter()
-            .map(|(k, v)| (k, v.messages_transmitted))
-            .collect();
-        buffer.sort_by_key(|v| v.1);
-        buffer
-            .iter()
-            .rev()
-            .map(|(k, _)| *k)
-            .take(OLDEST_LANE_SET_SIZE)
-            .copied()
-            .collect()
-    }
-
-    fn store(&mut self, lane: &TransmissionLane, real_messages: Vec<RealMessage>) {
-        if let Some(lane_buffer_entry) = self.buffer.get_mut(lane) {
-            lane_buffer_entry.append(real_messages);
-        } else {
-            self.buffer
-                .insert(*lane, LaneBufferEntry::new(real_messages));
-        }
-    }
-
-    fn pick_random_lane(&self) -> Option<&TransmissionLane> {
-        let lanes: Vec<&TransmissionLane> = self.buffer.keys().collect();
-        lanes.choose(&mut rand::thread_rng()).copied()
-    }
-
-    fn pick_random_small_lane(&self) -> Option<&TransmissionLane> {
-        let lanes: Vec<&TransmissionLane> = self
-            .buffer
-            .iter()
-            .filter(|(_, v)| v.is_small())
-            .map(|(k, _)| k)
-            .collect();
-        lanes.choose(&mut rand::thread_rng()).copied()
-    }
-
-    fn pick_random_old_lane(&self) -> Option<TransmissionLane> {
-        let lanes = self.get_oldest_set();
-        lanes.choose(&mut rand::thread_rng()).copied()
-    }
-
-    fn pop_front_from_lane(&mut self, lane: &TransmissionLane) -> Option<RealMessage> {
-        let real_msgs_queued = self.buffer.get_mut(lane)?;
-        let real_next = real_msgs_queued.pop_front()?;
-        real_msgs_queued.messages_transmitted += 1;
-        if real_msgs_queued.is_empty() {
-            self.buffer.remove(lane);
-        }
-        Some(real_next)
-    }
-
-    fn pop_next_message_at_random(&mut self) -> Option<RealMessage> {
-        if self.buffer.is_empty() {
-            return None;
-        }
-
-        // Very basic heuristic where we prioritize according to small lanes first, the older lanes
-        // to try to finish lanes when possible, then the rest.
-        let lane = if let Some(small_lane) = self.pick_random_small_lane() {
-            *small_lane
-        } else if let Some(old_lane) = self.pick_random_old_lane() {
-            old_lane
-        } else {
-            *self.pick_random_lane()?
-        };
-
-        log::trace!("picking to send from lane: {:?}", lane);
-        self.pop_front_from_lane(&lane)
-    }
-
-    fn prune_stale_connections(&mut self) {
-        let stale_entries: Vec<_> = self
-            .buffer
-            .iter()
-            .filter_map(|(lane, entry)| if entry.is_stale() { Some(lane) } else { None })
-            .copied()
-            .collect();
-
-        for lane in stale_entries {
-            self.remove(&lane);
-        }
-    }
-}
-
-struct LaneBufferEntry {
-    pub real_messages: VecDeque<RealMessage>,
-    pub messages_transmitted: usize,
-    pub time_for_last_activity: time::Instant,
-}
-
-impl LaneBufferEntry {
-    fn new(real_messages: Vec<RealMessage>) -> Self {
-        let now = time::Instant::now();
-        LaneBufferEntry {
-            real_messages: real_messages.into(),
-            messages_transmitted: 0,
-            time_for_last_activity: now,
-        }
-    }
-
-    fn append(&mut self, real_messages: Vec<RealMessage>) {
-        self.real_messages.append(&mut real_messages.into());
-        self.time_for_last_activity = time::Instant::now();
-    }
-
-    fn pop_front(&mut self) -> Option<RealMessage> {
-        self.real_messages.pop_front()
-    }
-
-    fn is_small(&self) -> bool {
-        self.real_messages.len() < 100
-    }
-
-    fn is_stale(&self) -> bool {
-        get_time_now() - self.time_for_last_activity
-            > Duration::from_secs(MSG_CONSIDERED_STALE_AFTER_SECS)
-    }
-
-    fn len(&self) -> usize {
-        self.real_messages.len()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.real_messages.is_empty()
-    }
-}
-
 pub(crate) struct RealMessage {
     mix_packet: MixPacket,
     fragment_id: FragmentIdentifier,
@@ -470,10 +182,7 @@ where
             ack_key,
             sent_notifier,
             next_delay: None,
-            sending_delay_controller: SendingDelayController::new(
-                MIN_DELAY_MULTIPLIER,
-                MAX_DELAY_MULTIPLIER,
-            ),
+            sending_delay_controller: Default::default(),
             mix_tx,
             real_receiver,
             our_full_destination,
@@ -544,6 +253,10 @@ where
         if let Some(fragment_id) = fragment_id {
             self.sent_notify(fragment_id);
         }
+
+        // In addition to closing connections on receiving such messages, also close
+        // connections when sufficiently stale.
+        self.transmission_buffer.prune_stale_connections();
 
         // JS: Not entirely sure why or how it fixes stuff, but without the yield call,
         // the UnboundedReceiver [of mix_rx] will not get a chance to read anything
@@ -629,19 +342,6 @@ where
                 next_delay.as_mut().reset(next_poisson_delay);
             }
 
-            // In addition to closing connections on receiving such messages, also close
-            // connections when sufficiently stale.
-            self.transmission_buffer.prune_stale_connections();
-
-            // max number of connections
-            if self.transmission_buffer.connections().len() > MAX_NUMBER_OF_CONNECTIONS {
-                let real_next = self
-                    .transmission_buffer
-                    .pop_next_message_at_random()
-                    .unwrap();
-                return Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))));
-            }
-
             match Pin::new(&mut self.real_receiver).poll_next(cx) {
                 // in the case our real message channel stream was closed, we should also indicate we are closed
                 // (and whoever is using the stream should panic)
@@ -688,19 +388,9 @@ where
     }
 
     fn poll_immediate(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
+        // Start by checking if we have any incoming messages about closed connections
         if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connection_rx).poll_next(cx) {
             self.on_close_connection(id);
-        }
-
-        self.transmission_buffer.prune_stale_connections();
-
-        // max number of connections
-        if self.transmission_buffer.connections().len() > MAX_NUMBER_OF_CONNECTIONS {
-            let real_next = self
-                .transmission_buffer
-                .pop_next_message_at_random()
-                .unwrap();
-            return Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))));
         }
 
         match Pin::new(&mut self.real_receiver).poll_next(cx) {

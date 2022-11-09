@@ -55,6 +55,16 @@ pub struct ProxyRunner<S> {
     msg_chunker: Option<FreshInputMessageChunker<OsRng>>,
 }
 
+trait Chunker<S> {
+    fn chunk(&mut self, msg: S);
+}
+
+impl<S> Chunker<S> for FreshInputMessageChunker<OsRng> {
+    fn chunk(&mut self, msg: S) {
+        self.on_input_message(msg);
+    }
+}
+
 impl<S> ProxyRunner<S>
 where
     S: Send + 'static,

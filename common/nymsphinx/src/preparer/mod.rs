@@ -1,8 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::chunking;
 use crate::message::NymMessage;
+use crate::{chunking, NymsphinxPayloadBuilder};
 use crypto::asymmetric::encryption;
 use crypto::shared_key::new_ephemeral_shared_key;
 use crypto::symmetric::stream_cipher;
@@ -27,6 +27,8 @@ use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
 use std::time::Duration;
 use topology::{NymTopology, NymTopologyError};
+
+pub(crate) mod payload;
 
 /// Represents fully packed and prepared [`Fragment`] that can be sent through the mix network.
 pub struct PreparedFragment {
@@ -63,7 +65,6 @@ pub struct MessagePreparer<R: CryptoRng + Rng> {
     rng: R,
 
     /// Size of the target [`SphinxPacket`] into which the underlying is going to get split.
-    // TODO: MAKE IT PRIVATE AGAIN DURING CLEANUP
     pub packet_size: PacketSize,
 
     /// Address of this client which also represent an address to which all acknowledgements
@@ -120,7 +121,7 @@ where
 
     /// Length of plaintext (from the sphinx point of view) data that is available per sphinx
     /// packet.
-    fn available_plaintext_per_packet(&self) -> usize {
+    fn available_plaintext_per_regular_packet(&self) -> usize {
         // we need to put first hop's destination alongside the actual ack data
         // TODO: a possible optimization way down the line: currently we're always assuming that
         // the addresses will have `MAX_NODE_ADDRESS_UNPADDED_LEN`, i.e. be ipv6. In most cases
@@ -135,22 +136,37 @@ where
         self.packet_size.plaintext_size() - ack_overhead - ephemeral_public_key_overhead
     }
 
-    /// Pads the message so that after it gets chunked, it will occupy exactly N sphinx packets.
-    /// Produces new_message = message || 1 || 0000....
-    fn pad_message(&self, message: Vec<u8>) -> Vec<u8> {
-        // 1 is added as there will always have to be at least a single byte of padding (1) added
-        // to be able to later distinguish the actual padding from the underlying message
-        let (_, space_left) = chunking::number_of_required_fragments(
-            message.len() + 1,
-            self.available_plaintext_per_packet(),
-        );
+    fn available_plaintext_per_reply_packet(&self) -> usize {
+        // we need to put first hop's destination alongside the actual ack data
+        // TODO: a possible optimization way down the line: currently we're always assuming that
+        // the addresses will have `MAX_NODE_ADDRESS_UNPADDED_LEN`, i.e. be ipv6. In most cases
+        // they're actually going to be ipv4 hence wasting few bytes every packet.
+        // To fully utilise all available space, I guess first we'd need to generate routes for ACKs
+        // and only then perform the chunking with `available_plaintext_size` being called per chunk.
+        // However this will probably introduce bunch of complexity
+        // for relatively not a lot of gain, so it shouldn't be done just yet.
+        let ack_overhead = MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::AckPacket.size();
+        let key_digest_overhead = ReplySurbKeyDigestAlgorithm::output_size();
 
-        message
-            .into_iter()
-            .chain(std::iter::once(1u8))
-            .chain(std::iter::repeat(0u8).take(space_left))
-            .collect()
+        self.packet_size.plaintext_size() - ack_overhead - key_digest_overhead
     }
+
+    // /// Pads the message so that after it gets chunked, it will occupy exactly N sphinx packets.
+    // /// Produces new_message = message || 1 || 0000....
+    // fn pad_message(&self, message: Vec<u8>) -> Vec<u8> {
+    //     // 1 is added as there will always have to be at least a single byte of padding (1) added
+    //     // to be able to later distinguish the actual padding from the underlying message
+    //     let (_, space_left) = chunking::number_of_required_fragments(
+    //         message.len() + 1,
+    //         self.available_plaintext_per_packet(),
+    //     );
+    //
+    //     message
+    //         .into_iter()
+    //         .chain(std::iter::once(1u8))
+    //         .chain(std::iter::repeat(0u8).take(space_left))
+    //         .collect()
+    // }
 
     // /// Attaches reply-SURB to the message alongside the reply key.
     // /// Results in:
@@ -188,14 +204,14 @@ where
         Ok((msg, reply_keys))
     }
 
-    /// Splits the message into [`Fragment`] that are going to be put later put into sphinx packets.
-    fn split_message(&mut self, message: Vec<u8>) -> Vec<Fragment> {
-        let plaintext_per_packet = self.available_plaintext_per_packet();
-        chunking::split_into_sets(&mut self.rng, &message, plaintext_per_packet)
-            .into_iter()
-            .flat_map(|fragment_set| fragment_set.into_iter())
-            .collect()
-    }
+    // /// Splits the message into [`Fragment`] that are going to be put later put into sphinx packets.
+    // fn split_message(&mut self, message: Vec<u8>) -> Vec<Fragment> {
+    //     let plaintext_per_packet = self.available_plaintext_per_packet();
+    //     chunking::split_into_sets(&mut self.rng, &message, plaintext_per_packet)
+    //         .into_iter()
+    //         .flat_map(|fragment_set| fragment_set.into_iter())
+    //         .collect()
+    // }
 
     /// Tries to convert this [`Fragment`] into a [`SphinxPacket`] that can be sent through the Nym mix-network,
     /// such that it contains required SURB-ACK and public component of the ephemeral key used to
@@ -222,37 +238,11 @@ where
         packet_recipient: &Recipient,
     ) -> Result<PreparedFragment, NymTopologyError> {
         // create an ack
-        let (ack_delay, surb_ack_bytes) = self
-            .generate_surb_ack(fragment.fragment_identifier(), topology, ack_key)?
-            .prepare_for_sending();
+        let surb_ack = self.generate_surb_ack(fragment.fragment_identifier(), topology, ack_key)?;
+        let ack_delay = surb_ack.expected_total_delay();
 
-        // create keys for 'payload' encryption
-        let (ephemeral_keypair, shared_key) =
-            new_ephemeral_shared_key::<PacketEncryptionAlgorithm, PacketHkdfAlgorithm, _>(
-                &mut self.rng,
-                packet_recipient.encryption_key(),
-            );
-
-        // serialize fragment and encrypt its content
-        let mut chunk_data = fragment.into_bytes();
-
-        // TODO: add it (i.e. encryption, ading ack, key, etc) as a method on `Fragment`
-
-        let zero_iv = stream_cipher::zero_iv::<PacketEncryptionAlgorithm>();
-        stream_cipher::encrypt_in_place::<PacketEncryptionAlgorithm>(
-            &shared_key,
-            &zero_iv,
-            &mut chunk_data,
-        );
-
-        // combine it together as follows:
-        // SURB_ACK_FIRST_HOP || SURB_ACK_DATA || EPHEMERAL_KEY || CHUNK_DATA
-        // (note: surb_ack_bytes contains SURB_ACK_FIRST_HOP || SURB_ACK_DATA )
-        let packet_payload: Vec<_> = surb_ack_bytes
-            .into_iter()
-            .chain(ephemeral_keypair.public_key().to_bytes().iter().cloned())
-            .chain(chunk_data.into_iter())
-            .collect();
+        let packet_payload = NymsphinxPayloadBuilder::new(fragment, surb_ack)
+            .build_regular(&mut self.rng, packet_recipient.encryption_key());
 
         // generate pseudorandom route for the packet
         let route = topology.random_route_to_gateway(
@@ -269,7 +259,7 @@ where
         // there's absolutely no reason for this call to fail.
         let sphinx_packet = SphinxPacketBuilder::new()
             .with_payload_size(self.packet_size.payload_size())
-            .build_packet(packet_payload, &route, &destination, &delays)
+            .build_packet(packet_payload.0, &route, &destination, &delays)
             .unwrap();
 
         // from the previously constructed route extract the first hop
@@ -304,7 +294,7 @@ where
     }
 
     pub fn prepare_and_split_reply(&mut self, message: Vec<u8>) -> Vec<Fragment> {
-        let plaintext_per_packet = self.available_plaintext_per_packet();
+        let plaintext_per_packet = self.available_plaintext_per_reply_packet();
 
         NymMessage::new_reply(ReplyMessage::new_data_message(message))
             .pad_to_full_packet_lengths(plaintext_per_packet)
@@ -323,7 +313,7 @@ where
         let (message, reply_keys) =
             self.optionally_attach_reply_surbs(message, reply_surbs, topology)?;
 
-        let plaintext_per_packet = self.available_plaintext_per_packet();
+        let plaintext_per_packet = self.available_plaintext_per_regular_packet();
         let fragments = message
             .pad_to_full_packet_lengths(plaintext_per_packet)
             .split_into_fragments(&mut self.rng, plaintext_per_packet);

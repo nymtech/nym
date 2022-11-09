@@ -17,3 +17,6 @@ pub use nymsphinx_forwarding as forwarding;
 pub use nymsphinx_framing as framing;
 pub use nymsphinx_params as params;
 pub use nymsphinx_types::*;
+
+// TEMP UNTIL FURTHER REFACTORING
+pub use preparer::payload::NymsphinxPayloadBuilder;

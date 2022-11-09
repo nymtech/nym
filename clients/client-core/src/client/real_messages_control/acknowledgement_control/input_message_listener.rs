@@ -17,12 +17,11 @@ use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::params::{PacketEncryptionAlgorithm, ReplySurbEncryptionAlgorithm};
 use nymsphinx::preparer::MessagePreparer;
-use nymsphinx::{acknowledgements::AckKey, addressing::clients::Recipient};
+use nymsphinx::{
+    acknowledgements::AckKey, addressing::clients::Recipient, NymsphinxPayloadBuilder,
+};
 use rand::{CryptoRng, Rng};
 use std::sync::Arc;
-
-// #[cfg(feature = "reply-surb")]
-// use crate::client::reply_key_storage::ReplyKeyStorage;
 
 /// Module responsible for dealing with the received messages: splitting them, creating acknowledgements,
 /// putting everything into sphinx packets, etc.
@@ -38,8 +37,6 @@ where
     action_sender: ActionSender,
     real_message_sender: BatchRealMessageSender,
     topology_access: TopologyAccessor,
-    // #[cfg(feature = "reply-surb")]
-    // reply_key_storage: ReplyKeyStorage,
     reply_storage: CombinedReplyStorage,
 }
 
@@ -115,34 +112,19 @@ where
             for (fragment, reply_surb) in fragments.into_iter().zip(reply_surbs.into_iter()) {
                 // TODO: this should be happening inside message_preparer!!!
                 let fragment_id = fragment.fragment_identifier();
-                let (ack_delay, surb_ack_bytes) = self
+                let surb_ack = self
                     .message_preparer
                     .generate_surb_ack(fragment_id, topology, &self.ack_key)
-                    .expect("TODO: handle this error")
-                    .prepare_for_sending();
+                    .expect("TODO: handle this error");
+                let ack_delay = surb_ack.expected_total_delay();
 
-                let mut fragment_data = fragment.into_bytes();
-
-                stream_cipher::encrypt_in_place::<ReplySurbEncryptionAlgorithm>(
-                    reply_surb.encryption_key().inner(),
-                    &stream_cipher::zero_iv::<ReplySurbEncryptionAlgorithm>(),
-                    &mut fragment_data,
-                );
-
-                // TODO: extract it to different method
-                // combine it together as follows:
-                // SURB_ACK_FIRST_HOP || SURB_ACK_DATA || KEY_DIGEST || E (REPLY_MESSAGE || 1 || 0*)
-                // (note: surb_ack_bytes contains SURB_ACK_FIRST_HOP || SURB_ACK_DATA )
-                let packet_payload: Vec<_> = surb_ack_bytes
-                    .into_iter()
-                    .chain(reply_surb.encryption_key().compute_digest().iter().copied())
-                    .chain(fragment_data.into_iter())
-                    .collect();
+                let packet_payload = NymsphinxPayloadBuilder::new(fragment, surb_ack)
+                    .build_reply(reply_surb.encryption_key());
 
                 // the unwrap here is fine as the failures can only originate from attempting to use invalid payload lenghts
                 // and we just very carefully constructed a (presumably) valid one
                 let (sphinx_packet, first_hop) = reply_surb
-                    .apply_surb(&packet_payload, Some(self.message_preparer.packet_size))
+                    .apply_surb(&packet_payload.0, Some(self.message_preparer.packet_size))
                     .unwrap();
 
                 let mix_packet = MixPacket::new(first_hop, sphinx_packet, Default::default());

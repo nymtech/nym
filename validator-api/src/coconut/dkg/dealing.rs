@@ -16,7 +16,6 @@ pub(crate) async fn dealing_exchange(
     rng: impl RngCore + Clone,
 ) -> Result<(), CoconutError> {
     if state.receiver_index().is_some() {
-        info!("Already have index {}", state.receiver_index().unwrap());
         return Ok(());
     }
 
@@ -46,7 +45,7 @@ pub(crate) async fn dealing_exchange(
             .await?;
     }
 
-    info!("Setting index to {}", receiver_index.unwrap());
+    info!("Finished submitting DKG dealing");
     state.set_receiver_index(receiver_index);
 
     Ok(())

@@ -93,8 +93,11 @@ minimum_interval_monitor_threshold = {{ rewarding.minimum_interval_monitor_thres
 # Specifies whether rewarding service is enabled in this process.
 enabled = {{ coconut_signer.enabled }}
 
-# Path to the signing keypair
-keypair_path = '{{ coconut_signer.keypair_path }}'
+# Path to the coconut verification key
+verification_key_path = '{{ coconut_signer.verification_key_path }}'
+
+# Path to the coconut verification key
+secret_key_path = '{{ coconut_signer.secret_key_path }}'
 
 # Path to the dkg dealer decryption key
 decryption_key_path = '{{ coconut_signer.decryption_key_path }}'

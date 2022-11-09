@@ -37,11 +37,13 @@ impl TryFrom<DealerDetails> for DkgParticipant {
     }
 }
 
+#[async_trait]
 pub(crate) trait ConsistentState {
     fn node_index_value(&self) -> Result<NodeIndex, CoconutError>;
     fn receiver_index_value(&self) -> Result<usize, CoconutError>;
     fn threshold(&self) -> Result<Threshold, CoconutError>;
-    fn is_consistent(&self, epoch_state: EpochState) -> Result<(), CoconutError> {
+    async fn coconut_keypair_is_some(&self) -> Result<(), CoconutError>;
+    async fn is_consistent(&self, epoch_state: EpochState) -> Result<(), CoconutError> {
         match epoch_state {
             EpochState::PublicKeySubmission => {}
             EpochState::DealingExchange => {
@@ -53,9 +55,7 @@ pub(crate) trait ConsistentState {
                 self.threshold()?;
             }
             EpochState::InProgress => {
-                self.node_index_value()?;
-                self.receiver_index_value()?;
-                self.threshold()?;
+                self.coconut_keypair_is_some().await?;
             }
         }
         Ok(())
@@ -71,6 +71,7 @@ pub(crate) struct State {
     threshold: Option<Threshold>,
 }
 
+#[async_trait]
 impl ConsistentState for State {
     fn node_index_value(&self) -> Result<NodeIndex, CoconutError> {
         self.node_index.ok_or(CoconutError::UnrecoverableState {
@@ -96,6 +97,16 @@ impl ConsistentState for State {
             })
         } else {
             Ok(threshold)
+        }
+    }
+
+    async fn coconut_keypair_is_some(&self) -> Result<(), CoconutError> {
+        if self.coconut_keypair_is_some().await {
+            Ok(())
+        } else {
+            Err(CoconutError::UnrecoverableState {
+                reason: String::from("Coconut keypair should have been set"),
+            })
         }
     }
 }

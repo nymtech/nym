@@ -270,8 +270,11 @@ pub struct CoconutSigner {
     /// Specifies whether rewarding service is enabled in this process.
     enabled: bool,
 
-    /// Path to the signing keypair
-    keypair_path: PathBuf,
+    /// Path to the coconut verification key.
+    verification_key_path: PathBuf,
+
+    /// Path to the coconut secret key.
+    secret_key_path: PathBuf,
 
     /// Path to the dkg dealer decryption key.
     decryption_key_path: PathBuf,
@@ -291,6 +294,16 @@ pub struct CoconutSigner {
 impl CoconutSigner {
     pub const DKG_DECRYPTION_KEY_FILE: &'static str = "dkg_decryption_key.pem";
     pub const DKG_PUBLIC_KEY_WITH_PROOF_FILE: &'static str = "dkg_public_key_with_proof.pem";
+    pub const COCONUT_VERIFICATION_KEY_FILE: &'static str = "coconut_verification_key.pem";
+    pub const COCONUT_SECRET_KEY_FILE: &'static str = "coconut_secret_key.pem";
+
+    fn default_coconut_verification_key_path() -> PathBuf {
+        Config::default_data_directory(None).join(Self::COCONUT_VERIFICATION_KEY_FILE)
+    }
+
+    fn default_coconut_secret_key_path() -> PathBuf {
+        Config::default_data_directory(None).join(Self::COCONUT_SECRET_KEY_FILE)
+    }
 
     fn default_dkg_decryption_key_path() -> PathBuf {
         Config::default_data_directory(None).join(Self::DKG_DECRYPTION_KEY_FILE)
@@ -305,7 +318,8 @@ impl Default for CoconutSigner {
     fn default() -> Self {
         Self {
             enabled: Default::default(),
-            keypair_path: Default::default(),
+            verification_key_path: CoconutSigner::default_coconut_verification_key_path(),
+            secret_key_path: CoconutSigner::default_coconut_secret_key_path(),
             decryption_key_path: CoconutSigner::default_dkg_decryption_key_path(),
             public_key_with_proof_path: CoconutSigner::default_dkg_public_key_with_proof_path(),
             dkg_contract_polling_rate: DEFAULT_DKG_CONTRACT_POLLING_RATE,
@@ -325,6 +339,10 @@ impl Config {
             Config::default_data_directory(Some(id)).join(NodeStatusAPI::DB_FILE);
         self.network_monitor.credentials_database_path =
             Config::default_data_directory(Some(id)).join(NetworkMonitor::DB_FILE);
+        self.coconut_signer.verification_key_path = Config::default_data_directory(Some(id))
+            .join(CoconutSigner::COCONUT_VERIFICATION_KEY_FILE);
+        self.coconut_signer.secret_key_path =
+            Config::default_data_directory(Some(id)).join(CoconutSigner::COCONUT_SECRET_KEY_FILE);
         self.coconut_signer.decryption_key_path =
             Config::default_data_directory(Some(id)).join(CoconutSigner::DKG_DECRYPTION_KEY_FILE);
         self.coconut_signer.public_key_with_proof_path = Config::default_data_directory(Some(id))
@@ -365,12 +383,6 @@ impl Config {
 
     pub fn with_mnemonic<S: Into<String>>(mut self, mnemonic: S) -> Self {
         self.base.mnemonic = mnemonic.into();
-        self
-    }
-
-    #[cfg(feature = "coconut")]
-    pub fn with_keypair_path(mut self, keypair_path: PathBuf) -> Self {
-        self.coconut_signer.keypair_path = keypair_path;
         self
     }
 
@@ -487,8 +499,13 @@ impl Config {
     }
 
     #[cfg(feature = "coconut")]
-    pub fn _keypair_path(&self) -> PathBuf {
-        self.coconut_signer.keypair_path.clone()
+    pub fn verification_key_path(&self) -> PathBuf {
+        self.coconut_signer.verification_key_path.clone()
+    }
+
+    #[cfg(feature = "coconut")]
+    pub fn secret_key_path(&self) -> PathBuf {
+        self.coconut_signer.secret_key_path.clone()
     }
 
     #[cfg(feature = "coconut")]

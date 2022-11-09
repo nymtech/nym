@@ -20,6 +20,9 @@ pub type Result<T> = std::result::Result<T, CoconutError>;
 
 #[derive(Debug, Error)]
 pub enum CoconutError {
+    #[error("{0}")]
+    IOError(#[from] std::io::Error),
+
     #[error("Could not parse Ed25519 data")]
     Ed25519ParseError(#[from] Ed25519RecoveryError),
 

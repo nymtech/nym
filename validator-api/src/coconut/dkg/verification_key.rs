@@ -12,6 +12,7 @@ use credentials::coconut::bandwidth::{PRIVATE_ATTRIBUTES, PUBLIC_ATTRIBUTES};
 use dkg::bte::{decrypt_share, setup};
 use dkg::{combine_shares, Dealing};
 use nymcoconut::{KeyPair, Parameters, SecretKey};
+use pemstore::KeyPairPath;
 use std::collections::BTreeMap;
 
 // Filter the dealers based on what dealing they posted (or not) in the contract
@@ -128,6 +129,7 @@ fn derive_partial_keypair(
 pub(crate) async fn verification_key_submission(
     dkg_client: &DkgClient,
     state: &mut State,
+    keypair_path: &KeyPairPath,
 ) -> Result<(), CoconutError> {
     if state.coconut_keypair_is_some().await {
         return Ok(());
@@ -135,7 +137,9 @@ pub(crate) async fn verification_key_submission(
 
     let dealings_maps = deterministic_filter_dealers(dkg_client, state).await?;
     let coconut_keypair = derive_partial_keypair(state, dealings_maps)?;
+    pemstore::store_keypair(&coconut_keypair, keypair_path)?;
     state.set_coconut_keypair(coconut_keypair).await;
+    info!("DKG finished, keys are saved to disk");
 
     Ok(())
 }

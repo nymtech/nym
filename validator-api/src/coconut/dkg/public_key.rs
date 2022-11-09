@@ -24,7 +24,7 @@ pub(crate) async fn public_key_submission(
         dkg_client.register_dealer(bte_key).await?
     };
     state.set_node_index(index);
-    info!("Starting dkg protocol with index {}", index);
+    info!("Starting DKG protocol with index {}", index);
 
     Ok(())
 }

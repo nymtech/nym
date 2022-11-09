@@ -73,8 +73,6 @@ const ENABLED_CREDENTIALS_MODE_ARG_NAME: &str = "enabled-credentials-mode";
 #[cfg(feature = "coconut")]
 const API_VALIDATORS_ARG: &str = "api-validators";
 #[cfg(feature = "coconut")]
-const KEYPAIR_ARG: &str = "keypair";
-#[cfg(feature = "coconut")]
 const COCONUT_ENABLED: &str = "enable-coconut";
 
 const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
@@ -193,12 +191,6 @@ fn parse_args() -> ArgMatches {
     #[cfg(feature = "coconut")]
     let base_app = base_app
         .arg(
-            Arg::with_name(KEYPAIR_ARG)
-                .help("Path to the secret key file")
-                .takes_value(true)
-                .long(KEYPAIR_ARG),
-        )
-        .arg(
             Arg::with_name(API_VALIDATORS_ARG)
                 .help("specifies list of all validators on the network issuing coconut credentials. Ensure they are properly ordered")
                 .long(API_VALIDATORS_ARG)
@@ -207,7 +199,7 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::with_name(COCONUT_ENABLED)
                 .help("Flag to indicate whether coconut signer authority is enabled on this API")
-                .requires_all(&[KEYPAIR_ARG, MNEMONIC_ARG, API_VALIDATORS_ARG])
+                .requires_all(&[MNEMONIC_ARG, API_VALIDATORS_ARG])
                 .long(COCONUT_ENABLED),
         );
     base_app.get_matches()
@@ -336,11 +328,6 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         config = config.with_min_gateway_reliability(
             reliability.expect("Provided reliability is not a u8 number!"),
         )
-    }
-
-    #[cfg(feature = "coconut")]
-    if let Some(keypair_path) = matches.value_of(KEYPAIR_ARG) {
-        config = config.with_keypair_path(keypair_path.into())
     }
 
     if matches.is_present(ENABLED_CREDENTIALS_MODE_ARG_NAME) {
@@ -562,7 +549,8 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
     #[cfg(feature = "coconut")]
     {
         let dkg_controller =
-            DkgController::new(&config, signing_nymd_client.clone(), coconut_keypair, OsRng)?;
+            DkgController::new(&config, signing_nymd_client.clone(), coconut_keypair, OsRng)
+                .await?;
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(async move { dkg_controller.run(shutdown_listener).await });
     }

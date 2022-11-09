@@ -17,6 +17,8 @@ serde_derive = "1.0"
 bs58 = "0.4.0"
 sha2 = "0.9"
 
+pemstore = { path = "../pemstore" }
+
 [dependencies.ff]
 version = "0.11"
 default-features = false

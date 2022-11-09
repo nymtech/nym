@@ -111,7 +111,8 @@ where
     {
         let (read_half, write_half) = self.socket.take().unwrap().into_split();
         let shutdown_notify = Arc::new(Notify::new());
-        let chunker = Some(self.msg_chunker.as_ref().unwrap().clone_box());
+        //let chunker = Some(self.msg_chunker.as_ref().unwrap().clone_box());
+        let chunker = self.msg_chunker.as_ref().map(|c| c.clone_box());
 
         // should run until either inbound closes or is notified from outbound
         let inbound_future = inbound::run_inbound(

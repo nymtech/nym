@@ -35,6 +35,10 @@ impl LayerDistribution {
             (Layer::Two, self.layer2),
             (Layer::Three, self.layer3),
         ];
+
+        // we explicitly put 3 elements into the iterator, so the iterator is DEFINITELY
+        // not empty and thus the unwrap cannot fail
+        #[allow(clippy::unwrap_used)]
         layers.iter().min_by_key(|x| x.1).unwrap().0
     }
 

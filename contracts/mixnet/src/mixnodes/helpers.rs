@@ -78,7 +78,7 @@ pub(crate) fn save_new_mixnode(
     let mix_id = next_mixnode_id_counter(storage)?;
     let current_epoch = interval_storage::current_interval(storage)?.current_epoch_absolute_id();
 
-    let mixnode_rewarding = MixNodeRewarding::initialise_new(cost_params, &pledge, current_epoch);
+    let mixnode_rewarding = MixNodeRewarding::initialise_new(cost_params, &pledge, current_epoch)?;
     let mixnode_bond = MixNodeBond::new(
         mix_id,
         owner,

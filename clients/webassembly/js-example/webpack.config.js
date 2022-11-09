@@ -2,6 +2,11 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 const path = require('path');
 
 module.exports = {
+  performance: {
+    hints: false,
+    maxEntrypointSize: 512000,
+    maxAssetSize: 512000
+  },
   entry: {
     bootstrap: './bootstrap.js',
     worker: './worker.js',
@@ -22,6 +27,7 @@ module.exports = {
         },
       ],
     }),
+
   ],
   experiments: { syncWebAssembly: true },
 };

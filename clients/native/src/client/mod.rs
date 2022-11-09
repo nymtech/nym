@@ -18,6 +18,7 @@ use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use client_core::error::ClientCoreError;
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
@@ -33,6 +34,7 @@ use nymsphinx::receiver::ReconstructedMessage;
 use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
 
 use crate::client::config::{Config, SocketType};
+use crate::error::ClientError;
 use crate::websocket;
 
 pub(crate) mod config;
@@ -232,7 +234,7 @@ impl NymClient {
         &mut self,
         topology_accessor: TopologyAccessor,
         shutdown: ShutdownListener,
-    ) {
+    ) -> Result<(), ClientError> {
         let topology_refresher_config = TopologyRefresherConfig::new(
             self.config.get_base().get_validator_api_endpoints(),
             self.config.get_base().get_topology_refresh_rate(),
@@ -247,14 +249,16 @@ impl NymClient {
 
         // TODO: a slightly more graceful termination here
         if !topology_refresher.is_topology_routable().await {
-            panic!(
-                "The current network topology seem to be insufficient to route any packets through\
+            log::error!(
+                "The current network topology seem to be insufficient to route any packets through \
                 - check if enough nodes and a gateway are online"
             );
+            return Err(ClientCoreError::InsufficientNetworkTopology.into());
         }
 
         info!("Starting topology refresher...");
         topology_refresher.start_with_shutdown(shutdown);
+        Ok(())
     }
 
     // controller for sending sphinx packets to mixnet (either real traffic or cover traffic)
@@ -328,8 +332,8 @@ impl NymClient {
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
-    pub async fn run_forever(&mut self) {
-        let shutdown = self.start().await;
+    pub async fn run_forever(&mut self) -> Result<(), ClientError> {
+        let shutdown = self.start().await?;
         wait_for_signal().await;
 
         println!(
@@ -346,9 +350,10 @@ impl NymClient {
         //shutdown.wait_for_shutdown().await;
 
         log::info!("Stopping nym-client");
+        Ok(())
     }
 
-    pub async fn start(&mut self) -> ShutdownNotifier {
+    pub async fn start(&mut self) -> Result<ShutdownNotifier, ClientError> {
         info!("Starting nym client");
         // channels for inter-component communication
         // TODO: make the channels be internally created by the relevant components
@@ -379,7 +384,7 @@ impl NymClient {
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
         self.start_topology_refresher(shared_topology_accessor.clone(), shutdown.subscribe())
-            .await;
+            .await?;
         self.start_received_messages_buffer_controller(
             received_buffer_request_receiver,
             mixnet_messages_receiver,
@@ -443,6 +448,6 @@ impl NymClient {
         info!("Client startup finished!");
         info!("The address of this client is: {}", self.as_mix_recipient());
 
-        shutdown
+        Ok(shutdown)
     }
 }

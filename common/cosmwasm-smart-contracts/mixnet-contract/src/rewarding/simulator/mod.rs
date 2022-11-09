@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::MixnetContractError;
+use crate::helpers::IntoBaseDecimal;
 use crate::reward_params::NodeRewardParams;
 use crate::rewarding::simulator::simulated_node::SimulatedNode;
 use crate::rewarding::RewardDistribution;
@@ -33,7 +34,7 @@ impl Simulator {
         }
     }
 
-    fn advance_epoch(&mut self) {
+    fn advance_epoch(&mut self) -> Result<(), MixnetContractError> {
         let updated = self.interval.advance_epoch();
 
         // we rolled over an interval
@@ -47,10 +48,13 @@ impl Simulator {
                     .staking_supply_scale_factor
                     * self.pending_reward_pool_emission;
             let epoch_reward_budget = reward_pool
-                / Decimal::from_atomics(self.interval.epochs_in_interval(), 0).unwrap()
+                / self.interval.epochs_in_interval().into_base_decimal()?
                 * old.interval_pool_emission.value();
             let stake_saturation_point = staking_supply
-                / Decimal::from_atomics(self.system_rewarding_params.rewarded_set_size, 0).unwrap();
+                / self
+                    .system_rewarding_params
+                    .rewarded_set_size
+                    .into_base_decimal()?;
 
             let updated_params = RewardingParams {
                 interval: IntervalRewardParams {
@@ -71,9 +75,15 @@ impl Simulator {
             self.pending_reward_pool_emission = Decimal::zero();
         }
         self.interval = updated;
+
+        Ok(())
     }
 
-    pub fn bond(&mut self, pledge: Coin, cost_params: MixNodeCostParams) -> MixId {
+    pub fn bond(
+        &mut self,
+        pledge: Coin,
+        cost_params: MixNodeCostParams,
+    ) -> Result<MixId, MixnetContractError> {
         let mix_id = self.next_mix_id;
 
         self.nodes.insert(
@@ -83,16 +93,24 @@ impl Simulator {
                 cost_params,
                 &pledge,
                 self.interval.current_epoch_absolute_id(),
-            ),
+            )?,
         );
 
         self.next_mix_id += 1;
 
-        mix_id
+        Ok(mix_id)
     }
 
-    pub fn delegate<S: Into<String>>(&mut self, delegator: S, delegation: Coin, mix_id: MixId) {
-        let node = self.nodes.get_mut(&mix_id).expect("node doesn't exist");
+    pub fn delegate<S: Into<String>>(
+        &mut self,
+        delegator: S,
+        delegation: Coin,
+        mix_id: MixId,
+    ) -> Result<(), MixnetContractError> {
+        let node = self
+            .nodes
+            .get_mut(&mix_id)
+            .ok_or(MixnetContractError::MixNodeBondNotFound { mix_id })?;
         node.delegate(delegator, delegation)
     }
 
@@ -103,23 +121,35 @@ impl Simulator {
         delegator: S,
         mix_id: MixId,
     ) -> Result<(Coin, Coin), MixnetContractError> {
-        let node = self.nodes.get_mut(&mix_id).expect("node not found");
+        let node = self
+            .nodes
+            .get_mut(&mix_id)
+            .ok_or(MixnetContractError::MixNodeBondNotFound { mix_id })?;
         node.undelegate(delegator)
     }
 
-    pub fn simulate_epoch_single_node(&mut self, params: NodeRewardParams) -> RewardDistribution {
+    pub fn simulate_epoch_single_node(
+        &mut self,
+        params: NodeRewardParams,
+    ) -> Result<RewardDistribution, MixnetContractError> {
         assert_eq!(self.nodes.len(), 1);
 
-        let id = *self.nodes.keys().next().unwrap();
-        let mut params_map = BTreeMap::new();
-        params_map.insert(id, params);
-        self.simulate_epoch(&params_map).remove(&id).unwrap()
+        if let Some(&id) = self.nodes.keys().next() {
+            let mut params_map = BTreeMap::new();
+            params_map.insert(id, params);
+            Ok(self
+                .simulate_epoch(&params_map)?
+                .remove(&id)
+                .unwrap_or_default())
+        } else {
+            Ok(RewardDistribution::default())
+        }
     }
 
     pub fn simulate_epoch(
         &mut self,
         node_params: &BTreeMap<MixId, NodeRewardParams>,
-    ) -> BTreeMap<MixId, RewardDistribution> {
+    ) -> Result<BTreeMap<MixId, RewardDistribution>, MixnetContractError> {
         let mut params_keys = node_params.keys().copied().collect::<Vec<_>>();
         params_keys.sort_unstable();
         let mut node_keys = self.nodes.keys().copied().collect::<Vec<_>>();
@@ -147,34 +177,41 @@ impl Simulator {
             dist.insert(*mix_id, reward_distribution);
         }
 
-        self.advance_epoch();
-        dist
+        self.advance_epoch()?;
+        Ok(dist)
     }
 
-    pub fn determine_delegation_reward(&self, delegation: &Delegation) -> Decimal {
-        self.nodes[&delegation.mix_id]
+    pub fn determine_delegation_reward(
+        &self,
+        delegation: &Delegation,
+    ) -> Result<Decimal, MixnetContractError> {
+        Ok(self.nodes[&delegation.mix_id]
             .rewarding_details
-            .determine_delegation_reward(delegation)
+            .determine_delegation_reward(delegation)?)
     }
 
-    pub fn determine_total_delegation_reward(&self) -> Decimal {
+    pub fn determine_total_delegation_reward(&self) -> Result<Decimal, MixnetContractError> {
         let mut total = Decimal::zero();
 
         for node in self.nodes.values() {
             for delegation in node.delegations.values() {
                 total += node
                     .rewarding_details
-                    .determine_delegation_reward(delegation)
+                    .determine_delegation_reward(delegation)?
             }
         }
-        total
+        Ok(total)
     }
 
     // assume node state doesn't change in the interval (kinda unrealistic)
-    pub fn simulate_full_interval(&mut self, node_params: &BTreeMap<MixId, NodeRewardParams>) {
+    pub fn simulate_full_interval(
+        &mut self,
+        node_params: &BTreeMap<MixId, NodeRewardParams>,
+    ) -> Result<(), MixnetContractError> {
         for _ in 0..self.interval.epochs_in_interval() {
-            self.simulate_epoch(node_params);
+            self.simulate_epoch(node_params)?;
         }
+        Ok(())
     }
 }
 
@@ -197,6 +234,10 @@ mod tests {
         use cosmwasm_std::testing::mock_env;
         use std::time::Duration;
 
+        // explicitly marking this as part of #[allow(clippy::unwrap_used)] until
+        // https://github.com/rust-lang/rust-clippy/pull/9686
+        // is merged into a release
+        #[allow(clippy::unwrap_used)]
         fn base_simulator(initial_pledge: u128) -> Simulator {
             let profit_margin = Percent::from_percentage_value(10).unwrap();
             let interval_operating_cost = Coin::new(40_000_000, "unym");
@@ -238,20 +279,32 @@ mod tests {
                 profit_margin_percent: profit_margin,
                 interval_operating_cost,
             };
-            simulator.bond(initial_pledge, cost_params);
+            simulator.bond(initial_pledge, cost_params).unwrap();
             simulator
         }
 
         // essentially our delegations + estimated rewards HAVE TO equal to what we actually determined
+        //
+        // explicitly marking this as part of #[allow(clippy::unwrap_used)] until
+        // https://github.com/rust-lang/rust-clippy/pull/9686
+        // is merged into a release
+        #[allow(clippy::unwrap_used)]
         fn check_rewarding_invariant(simulator: &Simulator) {
             for node in simulator.nodes.values() {
-                let delegation_sum: Decimal =
-                    node.delegations.values().map(|d| d.dec_amount()).sum();
+                let delegation_sum: Decimal = node
+                    .delegations
+                    .values()
+                    .map(|d| d.dec_amount().unwrap())
+                    .sum();
 
                 let reward_sum: Decimal = node
                     .delegations
                     .values()
-                    .map(|d| node.rewarding_details.determine_delegation_reward(d))
+                    .map(|d| {
+                        node.rewarding_details
+                            .determine_delegation_reward(d)
+                            .unwrap()
+                    })
                     .sum();
 
                 // let reward_sum = simulator.determine_total_delegation_reward();
@@ -269,7 +322,7 @@ mod tests {
 
             let epoch_params =
                 NodeRewardParams::new(Percent::from_percentage_value(100).unwrap(), true);
-            let rewards = simulator.simulate_epoch_single_node(epoch_params);
+            let rewards = simulator.simulate_epoch_single_node(epoch_params).unwrap();
 
             assert_eq!(rewards.delegates, Decimal::zero());
             compare_decimals(
@@ -282,11 +335,13 @@ mod tests {
         #[test]
         fn single_delegation_at_genesis() {
             let mut simulator = base_simulator(10000_000000);
-            simulator.delegate("alice", Coin::new(18000_000000, "unym"), 0);
+            simulator
+                .delegate("alice", Coin::new(18000_000000, "unym"), 0)
+                .unwrap();
 
             let node_params =
                 NodeRewardParams::new(Percent::from_percentage_value(100).unwrap(), true);
-            let rewards = simulator.simulate_epoch_single_node(node_params);
+            let rewards = simulator.simulate_epoch_single_node(node_params).unwrap();
 
             compare_decimals(
                 rewards.delegates,
@@ -297,7 +352,7 @@ mod tests {
 
             compare_decimals(
                 rewards.delegates,
-                simulator.determine_total_delegation_reward(),
+                simulator.determine_total_delegation_reward().unwrap(),
                 None,
             );
             let node = &simulator.nodes[&0];
@@ -317,20 +372,22 @@ mod tests {
             let node_params =
                 NodeRewardParams::new(Percent::from_percentage_value(100).unwrap(), true);
 
-            let rewards1 = simulator.simulate_epoch_single_node(node_params);
+            let rewards1 = simulator.simulate_epoch_single_node(node_params).unwrap();
             let expected_operator1 = "1128452.5416104363".parse().unwrap();
             assert_eq!(rewards1.delegates, Decimal::zero());
             compare_decimals(rewards1.operator, expected_operator1, None);
 
-            simulator.delegate("alice", Coin::new(18000_000000, "unym"), 0);
+            simulator
+                .delegate("alice", Coin::new(18000_000000, "unym"), 0)
+                .unwrap();
 
-            let rewards2 = simulator.simulate_epoch_single_node(node_params);
+            let rewards2 = simulator.simulate_epoch_single_node(node_params).unwrap();
             let expected_operator2 = "1363843.413584609".parse().unwrap();
             let expected_delegator_reward1 = "1795952.25874404".parse().unwrap();
             compare_decimals(rewards2.delegates, expected_delegator_reward1, None);
             compare_decimals(rewards2.operator, expected_operator2, None);
 
-            let rewards3 = simulator.simulate_epoch_single_node(node_params);
+            let rewards3 = simulator.simulate_epoch_single_node(node_params).unwrap();
             let expected_operator3 = "1364017.7824440491".parse().unwrap();
             let expected_delegator_reward2 = "1796135.9269468693".parse().unwrap();
             compare_decimals(rewards3.delegates, expected_delegator_reward2, None);
@@ -364,11 +421,15 @@ mod tests {
 
             // add 2 delegations at genesis (because it makes things easier and as shown with previous tests
             // delegating at different times still work)
-            simulator.delegate("alice", Coin::new(18000_000000, "unym"), 0);
-            simulator.delegate("bob", Coin::new(4000_000000, "unym"), 0);
+            simulator
+                .delegate("alice", Coin::new(18000_000000, "unym"), 0)
+                .unwrap();
+            simulator
+                .delegate("bob", Coin::new(4000_000000, "unym"), 0)
+                .unwrap();
 
             // "normal", sanity check rewarding
-            let rewards1 = simulator.simulate_epoch_single_node(node_params);
+            let rewards1 = simulator.simulate_epoch_single_node(node_params).unwrap();
             let expected_operator1 = "1411087.1007647323".parse().unwrap();
             let expected_delegator_reward1 = "2199961.032388664".parse().unwrap();
             compare_decimals(rewards1.delegates, expected_delegator_reward1, None);
@@ -378,14 +439,15 @@ mod tests {
             let node = simulator.nodes.get_mut(&0).unwrap();
             let reward = node
                 .rewarding_details
-                .withdraw_operator_reward(&original_pledge);
+                .withdraw_operator_reward(&original_pledge)
+                .unwrap();
             assert_eq!(reward.amount, truncate_reward_amount(expected_operator1));
             assert_eq!(
                 node.rewarding_details.operator,
                 Decimal::from_atomics(original_pledge.amount, 0).unwrap()
             );
 
-            let rewards2 = simulator.simulate_epoch_single_node(node_params);
+            let rewards2 = simulator.simulate_epoch_single_node(node_params).unwrap();
             let expected_operator2 = "1411113.0004067947".parse().unwrap();
             let expected_delegator_reward2 = "2200183.3879084454".parse().unwrap();
             compare_decimals(rewards2.delegates, expected_delegator_reward2, None);
@@ -402,11 +464,15 @@ mod tests {
 
             // add 2 delegations at genesis (because it makes things easier and as shown with previous tests
             // delegating at different times still work)
-            simulator.delegate("alice", Coin::new(18000_000000, "unym"), 0);
-            simulator.delegate("bob", Coin::new(4000_000000, "unym"), 0);
+            simulator
+                .delegate("alice", Coin::new(18000_000000, "unym"), 0)
+                .unwrap();
+            simulator
+                .delegate("bob", Coin::new(4000_000000, "unym"), 0)
+                .unwrap();
 
             // "normal", sanity check rewarding
-            let rewards1 = simulator.simulate_epoch_single_node(node_params);
+            let rewards1 = simulator.simulate_epoch_single_node(node_params).unwrap();
             let expected_operator1 = "1411087.1007647323".parse().unwrap();
             let expected_delegator_reward1 = "2199961.032388664".parse().unwrap();
             compare_decimals(rewards1.delegates, expected_delegator_reward1, None);
@@ -424,7 +490,7 @@ mod tests {
             assert_eq!(reward.amount, truncate_reward_amount(expected_del1_reward));
 
             // new reward after withdrawal
-            let rewards2 = simulator.simulate_epoch_single_node(node_params);
+            let rewards2 = simulator.simulate_epoch_single_node(node_params).unwrap();
             let expected_operator2 = "1411250.1907492676".parse().unwrap();
             let expected_delegator_reward2 = "2200004.051009689".parse().unwrap();
             compare_decimals(rewards2.delegates, expected_delegator_reward2, None);
@@ -467,22 +533,30 @@ mod tests {
             let mut performance = Percent::from_percentage_value(100).unwrap();
             for epoch in 0..720 {
                 if epoch == 0 {
-                    simulator.delegate("a", Coin::new(18000_000000, "unym"), 0)
+                    simulator
+                        .delegate("a", Coin::new(18000_000000, "unym"), 0)
+                        .unwrap()
                 }
                 if epoch == 42 {
-                    simulator.delegate("b", Coin::new(2000_000000, "unym"), 0)
+                    simulator
+                        .delegate("b", Coin::new(2000_000000, "unym"), 0)
+                        .unwrap()
                 }
                 if epoch == 89 {
                     is_active = false;
                 }
                 if epoch == 123 {
-                    simulator.delegate("c", Coin::new(6666_000000, "unym"), 0)
+                    simulator
+                        .delegate("c", Coin::new(6666_000000, "unym"), 0)
+                        .unwrap()
                 }
                 if epoch == 167 {
                     performance = Percent::from_percentage_value(90).unwrap();
                 }
                 if epoch == 245 {
-                    simulator.delegate("d", Coin::new(2050_000000, "unym"), 0)
+                    simulator
+                        .delegate("d", Coin::new(2050_000000, "unym"), 0)
+                        .unwrap()
                 }
                 if epoch == 264 {
                     let (delegation, _reward) = simulator.undelegate("b", 0).unwrap();
@@ -503,13 +577,15 @@ mod tests {
                     // TODO: figure out if there's a good way to verify whether `reward` is what we expect it to be
                 }
                 if epoch == 545 {
-                    simulator.delegate("e", Coin::new(5000_000000, "unym"), 0)
+                    simulator
+                        .delegate("e", Coin::new(5000_000000, "unym"), 0)
+                        .unwrap()
                 }
 
                 // this has to always hold
                 check_rewarding_invariant(&simulator);
                 let node_params = NodeRewardParams::new(performance, is_active);
-                simulator.simulate_epoch_single_node(node_params);
+                simulator.simulate_epoch_single_node(node_params).unwrap();
             }
 
             // after everyone undelegates, there should be nothing left in the delegates pool
@@ -563,95 +639,135 @@ mod tests {
 
         let mut simulator = Simulator::new(rewarding_params, interval);
 
-        let n0 = simulator.bond(
-            Coin::new(11_000_000_000000, "unym"),
-            MixNodeCostParams {
-                profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                interval_operating_cost: Coin::new(40_000_000, "unym"),
-            },
-        );
-        simulator.delegate("delegator", Coin::new(1_000_000_000000, "unym"), n0);
+        let n0 = simulator
+            .bond(
+                Coin::new(11_000_000_000000, "unym"),
+                MixNodeCostParams {
+                    profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
+                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                },
+            )
+            .unwrap();
+        simulator
+            .delegate("delegator", Coin::new(1_000_000_000000, "unym"), n0)
+            .unwrap();
 
-        let n1 = simulator.bond(
-            Coin::new(1_000_000_000000, "unym"),
-            MixNodeCostParams {
-                profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                interval_operating_cost: Coin::new(40_000_000, "unym"),
-            },
-        );
-        simulator.delegate("delegator", Coin::new(11_000_000_000000, "unym"), n1);
+        let n1 = simulator
+            .bond(
+                Coin::new(1_000_000_000000, "unym"),
+                MixNodeCostParams {
+                    profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
+                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                },
+            )
+            .unwrap();
+        simulator
+            .delegate("delegator", Coin::new(11_000_000_000000, "unym"), n1)
+            .unwrap();
 
-        let n2 = simulator.bond(
-            Coin::new(1_000_000_000000, "unym"),
-            MixNodeCostParams {
-                profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                interval_operating_cost: Coin::new(40_000_000, "unym"),
-            },
-        );
-        simulator.delegate("delegator", Coin::new(9_000_000_000000, "unym"), n2);
+        let n2 = simulator
+            .bond(
+                Coin::new(1_000_000_000000, "unym"),
+                MixNodeCostParams {
+                    profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
+                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                },
+            )
+            .unwrap();
+        simulator
+            .delegate("delegator", Coin::new(9_000_000_000000, "unym"), n2)
+            .unwrap();
 
-        let n3 = simulator.bond(
-            Coin::new(1_000_000_000000, "unym"),
-            MixNodeCostParams {
-                profit_margin_percent: Percent::from_percentage_value(0).unwrap(),
-                interval_operating_cost: Coin::new(500_000_000, "unym"),
-            },
-        );
-        simulator.delegate("delegator", Coin::new(7_000_000_000000, "unym"), n3);
+        let n3 = simulator
+            .bond(
+                Coin::new(1_000_000_000000, "unym"),
+                MixNodeCostParams {
+                    profit_margin_percent: Percent::from_percentage_value(0).unwrap(),
+                    interval_operating_cost: Coin::new(500_000_000, "unym"),
+                },
+            )
+            .unwrap();
+        simulator
+            .delegate("delegator", Coin::new(7_000_000_000000, "unym"), n3)
+            .unwrap();
 
-        let n4 = simulator.bond(
-            Coin::new(1000_000000, "unym"),
-            MixNodeCostParams {
-                profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                interval_operating_cost: Coin::new(40_000_000, "unym"),
-            },
-        );
-        simulator.delegate("delegator", Coin::new(7_999_000_000000, "unym"), n4);
+        let n4 = simulator
+            .bond(
+                Coin::new(1000_000000, "unym"),
+                MixNodeCostParams {
+                    profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
+                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                },
+            )
+            .unwrap();
+        simulator
+            .delegate("delegator", Coin::new(7_999_000_000000, "unym"), n4)
+            .unwrap();
 
-        let n5 = simulator.bond(
-            Coin::new(1_000_000_000000, "unym"),
-            MixNodeCostParams {
-                profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                interval_operating_cost: Coin::new(40_000_000, "unym"),
-            },
-        );
-        simulator.delegate("delegator", Coin::new(7_000_000_000000, "unym"), n5);
+        let n5 = simulator
+            .bond(
+                Coin::new(1_000_000_000000, "unym"),
+                MixNodeCostParams {
+                    profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
+                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                },
+            )
+            .unwrap();
+        simulator
+            .delegate("delegator", Coin::new(7_000_000_000000, "unym"), n5)
+            .unwrap();
 
-        let n6 = simulator.bond(
-            Coin::new(11_000_000_000000, "unym"),
-            MixNodeCostParams {
-                profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                interval_operating_cost: Coin::new(40_000_000, "unym"),
-            },
-        );
-        simulator.delegate("delegator", Coin::new(1_000_000_000000, "unym"), n6);
+        let n6 = simulator
+            .bond(
+                Coin::new(11_000_000_000000, "unym"),
+                MixNodeCostParams {
+                    profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
+                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                },
+            )
+            .unwrap();
+        simulator
+            .delegate("delegator", Coin::new(1_000_000_000000, "unym"), n6)
+            .unwrap();
 
-        let n7 = simulator.bond(
-            Coin::new(1_000_000_000000, "unym"),
-            MixNodeCostParams {
-                profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                interval_operating_cost: Coin::new(40_000_000, "unym"),
-            },
-        );
-        simulator.delegate("delegator", Coin::new(9_000_000_000000, "unym"), n7);
+        let n7 = simulator
+            .bond(
+                Coin::new(1_000_000_000000, "unym"),
+                MixNodeCostParams {
+                    profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
+                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                },
+            )
+            .unwrap();
+        simulator
+            .delegate("delegator", Coin::new(9_000_000_000000, "unym"), n7)
+            .unwrap();
 
-        let n8 = simulator.bond(
-            Coin::new(1_000_000_000000, "unym"),
-            MixNodeCostParams {
-                profit_margin_percent: Percent::from_percentage_value(0).unwrap(),
-                interval_operating_cost: Coin::new(500_000_000, "unym"),
-            },
-        );
-        simulator.delegate("delegator", Coin::new(7_000_000_000000, "unym"), n8);
+        let n8 = simulator
+            .bond(
+                Coin::new(1_000_000_000000, "unym"),
+                MixNodeCostParams {
+                    profit_margin_percent: Percent::from_percentage_value(0).unwrap(),
+                    interval_operating_cost: Coin::new(500_000_000, "unym"),
+                },
+            )
+            .unwrap();
+        simulator
+            .delegate("delegator", Coin::new(7_000_000_000000, "unym"), n8)
+            .unwrap();
 
-        let n9 = simulator.bond(
-            Coin::new(1_000_000_000000, "unym"),
-            MixNodeCostParams {
-                profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
-                interval_operating_cost: Coin::new(40_000_000, "unym"),
-            },
-        );
-        simulator.delegate("delegator", Coin::new(7_000_000_000000, "unym"), n9);
+        let n9 = simulator
+            .bond(
+                Coin::new(1_000_000_000000, "unym"),
+                MixNodeCostParams {
+                    profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
+                    interval_operating_cost: Coin::new(40_000_000, "unym"),
+                },
+            )
+            .unwrap();
+        simulator
+            .delegate("delegator", Coin::new(7_000_000_000000, "unym"), n9)
+            .unwrap();
 
         let uptime_1 = Percent::from_percentage_value(100).unwrap();
         let uptime_09 = Percent::from_percentage_value(90).unwrap();
@@ -673,7 +789,7 @@ mod tests {
         .collect::<BTreeMap<_, _>>();
 
         for _ in 0..23 {
-            simulator.simulate_full_interval(&node_params);
+            simulator.simulate_full_interval(&node_params).unwrap();
         }
 
         // we allow the delta to be within 0.1unym,

@@ -24,4 +24,6 @@ pub enum ClientCoreError {
     ListOfValidatorApisIsEmpty,
     #[error("Could not load existing gateway configuration: {0}")]
     CouldNotLoadExistingGatewayConfiguration(std::io::Error),
+    #[error("The current network topology seem to be insufficient to route any packets through")]
+    InsufficientNetworkTopology,
 }

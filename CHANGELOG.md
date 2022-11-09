@@ -15,6 +15,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - native-client/socks5-client: `use_extended_packet_size` Debug config option to make the client use 'ExtendedPacketSize' for its traffic (32kB as opposed to 2kB in 1.0.2) ([#1671])
 - wasm-client: uses updated wasm-compatible `client-core` so that it's now capable of packet retransmission, cover traffic and poisson delay (among other things!) ([#1673])
 - validator-api: add `interval_operating_cost` and `profit_margin_percent` to cmpute reward estimation endpoint
+- native-client/socks5-client/network-requester: improve handling error cases ([#1713])
 - vesting-contract: optional locked token pledge cap per account ([#1687]), defaults to 100_000 NYM
 - clients: add testing-only support for two more extended packet sizes (8kb and 16kb).
 
@@ -50,6 +51,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1687]: https://github.com/nymtech/nym/pull/1687
 [#1702]: https://github.com/nymtech/nym/pull/1702
 [#1703]: https://github.com/nymtech/nym/pull/1703
+[#1713]: https://github.com/nymtech/nym/pull/1713
 [#1721]: https://github.com/nymtech/nym/pull/1721
 [#1724]: https://github.com/nymtech/nym/pull/1724
 [#1725]: https://github.com/nymtech/nym/pull/1725

@@ -1,7 +1,7 @@
 [package]
 name = "nym-client-wasm"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jedrzej Stuczynski <andrew@nymtech.net>"]
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 keywords = ["nym", "sphinx", "wasm", "webassembly", "privacy", "client"]
 license = "Apache-2.0"
@@ -55,6 +55,8 @@ wee_alloc = { version = "0.4", optional = true }
 wasm-bindgen-test = "0.3"
 
 [package.metadata.wasm-pack.profile.release]
-wasm-opt = false
+wasm-opt = true
 
-
+[profile.release]
+lto = true
+opt-level = 'z'

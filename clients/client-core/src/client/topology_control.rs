@@ -57,24 +57,15 @@ impl<'a> TopologyReadPermit<'a> {
     ) -> Option<&'a NymTopology> {
         // Note: implicit deref with Deref for TopologyReadPermit is happening here
         let topology_ref_option = self.permit.as_ref();
-        match topology_ref_option {
-            None => None,
-            Some(topology_ref) => {
-                // see if it's possible to route the packet to both gateways
-                if !topology_ref.can_construct_path_through(DEFAULT_NUM_MIX_HOPS)
-                    || !topology_ref.gateway_exists(ack_recipient.gateway())
-                    || if let Some(packet_recipient) = packet_recipient {
-                        !topology_ref.gateway_exists(packet_recipient.gateway())
-                    } else {
-                        false
-                    }
-                {
-                    None
+        topology_ref_option.as_ref().filter(|topology_ref| {
+            !(!topology_ref.can_construct_path_through(DEFAULT_NUM_MIX_HOPS)
+                || !topology_ref.gateway_exists(ack_recipient.gateway())
+                || if let Some(packet_recipient) = packet_recipient {
+                    !topology_ref.gateway_exists(packet_recipient.gateway())
                 } else {
-                    Some(topology_ref)
-                }
-            }
-        }
+                    false
+                })
+        })
     }
 }
 

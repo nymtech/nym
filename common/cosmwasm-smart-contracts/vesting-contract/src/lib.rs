@@ -1,13 +1,16 @@
-use std::str::FromStr;
-
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
+
+#![warn(clippy::expect_used)]
+#![warn(clippy::unwrap_used)]
+
 use contracts_common::Percent;
 use cosmwasm_std::{Addr, Coin, Timestamp, Uint128};
 use log::warn;
 use mixnet_contract_common::MixId;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 pub use messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
 

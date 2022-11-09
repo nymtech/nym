@@ -73,6 +73,7 @@ async function main() {
   // const preferredGateway = 'CgQrYP8etksSBf4nALNqp93SHPpgFwEUyTsjBNNLj5WM';
 
   const gatewayEndpoint = await get_gateway(validator, preferredGateway);
+  gatewayEndpoint.gateway_listener = "wss://gateway1.nymtech.net:443"; // this is needed if we want it to work on the web. However this gateway is a v1 gateway, we will need to change for v2 once we get there
 
   // only really useful if you want to adjust some settings like traffic rate
   // (if not needed you can just pass a null)

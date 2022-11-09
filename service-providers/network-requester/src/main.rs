@@ -7,12 +7,14 @@ use clap::{Args, Parser};
 use completions::{fig_generate, ArgShell};
 use logging::setup_logging;
 
+use error::NetworkRequesterError;
 use network_defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use nymsphinx::addressing::clients::Recipient;
 
 mod allowed_hosts;
 mod connection;
 mod core;
+mod error;
 mod statistics;
 mod websocket;
 
@@ -34,7 +36,7 @@ struct Run {
 }
 
 impl Run {
-    async fn execute(&self) {
+    async fn execute(&self) -> Result<(), NetworkRequesterError> {
         if self.open_proxy {
             println!("\n\nYOU HAVE STARTED IN 'OPEN PROXY' MODE. ANYONE WITH YOUR CLIENT ADDRESS CAN MAKE REQUESTS FROM YOUR MACHINE. PLEASE QUIT IF YOU DON'T UNDERSTAND WHAT YOU'RE DOING.\n\n");
         }
@@ -64,7 +66,7 @@ impl Run {
             self.enable_statistics,
             stats_provider_addr,
         );
-        server.run().await;
+        server.run().await
     }
 }
 
@@ -87,20 +89,21 @@ struct Cli {
     command: Commands,
 }
 
-pub(crate) async fn execute(args: Cli) {
+pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {
     let bin_name = "nym-network-requester";
 
     match &args.command {
-        Commands::Run(r) => r.execute().await,
+        Commands::Run(r) => r.execute().await?,
         Commands::Completions(s) => s.generate(&mut crate::Cli::into_app(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::into_app(), bin_name),
     }
+    Ok(())
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), NetworkRequesterError> {
     setup_logging();
     let args = Cli::parse();
 
-    execute(args).await;
+    execute(args).await
 }

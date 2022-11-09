@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::{Config, SocketType};
+use crate::error::ClientError;
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
 use completions::{fig_generate, ArgShell};
@@ -83,16 +84,17 @@ pub(crate) struct OverrideConfig {
     enabled_credentials_mode: bool,
 }
 
-pub(crate) async fn execute(args: &Cli) {
+pub(crate) async fn execute(args: &Cli) -> Result<(), ClientError> {
     let bin_name = "nym-native-client";
 
     match &args.command {
         Commands::Init(m) => init::execute(m).await,
-        Commands::Run(m) => run::execute(m).await,
+        Commands::Run(m) => run::execute(m).await?,
         Commands::Upgrade(m) => upgrade::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::into_app(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut Cli::into_app(), bin_name),
     }
+    Ok(())
 }
 
 pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {

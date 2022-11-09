@@ -55,7 +55,7 @@ pub trait VestingAccount {
 
     /// Returns amount of coins set at account creation
     /// See [/vesting-contract/struct.Account.html/method.get_original_vesting] for impl
-    fn get_original_vesting(&self) -> OriginalVestingResponse;
+    fn get_original_vesting(&self) -> Result<OriginalVestingResponse, ContractError>;
 
     /// See [/vesting-contract/struct.Account.html/method.get_delegated_free] for impl
     fn get_delegated_free(

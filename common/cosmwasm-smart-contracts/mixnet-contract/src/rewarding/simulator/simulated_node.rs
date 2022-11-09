@@ -20,21 +20,25 @@ impl SimulatedNode {
         cost_params: MixNodeCostParams,
         initial_pledge: &Coin,
         current_epoch: EpochId,
-    ) -> Self {
-        SimulatedNode {
+    ) -> Result<Self, MixnetContractError> {
+        Ok(SimulatedNode {
             mix_id,
             rewarding_details: MixNodeRewarding::initialise_new(
                 cost_params,
                 initial_pledge,
                 current_epoch,
-            ),
+            )?,
             delegations: HashMap::new(),
-        }
+        })
     }
 
-    pub fn delegate<S: Into<String>>(&mut self, delegator: S, delegation: Coin) {
+    pub fn delegate<S: Into<String>>(
+        &mut self,
+        delegator: S,
+        delegation: Coin,
+    ) -> Result<(), MixnetContractError> {
         self.rewarding_details
-            .add_base_delegation(delegation.amount);
+            .add_base_delegation(delegation.amount)?;
 
         let delegator = delegator.into();
         let delegation = Delegation::new(
@@ -47,6 +51,7 @@ impl SimulatedNode {
         );
 
         self.delegations.insert(delegator, delegation);
+        Ok(())
     }
 
     pub fn undelegate<S: Into<String>>(
@@ -54,16 +59,19 @@ impl SimulatedNode {
         delegator: S,
     ) -> Result<(Coin, Coin), MixnetContractError> {
         let delegator = delegator.into();
-        let delegation = self
-            .delegations
-            .remove(&delegator)
-            .expect("delegation not found");
+        let delegation = self.delegations.remove(&delegator).ok_or(
+            MixnetContractError::NoMixnodeDelegationFound {
+                mix_id: MixId::MAX,
+                address: delegator,
+                proxy: None,
+            },
+        )?;
 
         let reward = self
             .rewarding_details
-            .determine_delegation_reward(&delegation);
+            .determine_delegation_reward(&delegation)?;
         self.rewarding_details
-            .remove_delegation_decimal(delegation.dec_amount() + reward)?;
+            .remove_delegation_decimal(delegation.dec_amount()? + reward)?;
 
         let reward_denom = &delegation.amount.denom;
         let truncated_reward = truncate_reward(reward, reward_denom);

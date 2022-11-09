@@ -7,6 +7,7 @@ use crate::interval::storage as interval_storage;
 use crate::mixnodes;
 use crate::mixnodes::storage as mixnodes_storage;
 use cosmwasm_std::{coin, Coin, Decimal, Deps, StdResult};
+use mixnet_contract_common::helpers::into_base_decimal;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::{NodeRewardParams, Performance, RewardingParams};
 use mixnet_contract_common::rewarding::helpers::truncate_reward;
@@ -19,16 +20,18 @@ pub(crate) fn query_rewarding_params(deps: Deps<'_>) -> StdResult<RewardingParam
     storage::REWARDING_PARAMS.load(deps.storage)
 }
 
-fn pending_operator_reward(mix_details: Option<MixNodeDetails>) -> PendingRewardResponse {
-    match mix_details {
+fn pending_operator_reward(
+    mix_details: Option<MixNodeDetails>,
+) -> StdResult<PendingRewardResponse> {
+    Ok(match mix_details {
         Some(mix_details) => PendingRewardResponse {
             amount_staked: Some(mix_details.original_pledge().clone()),
             amount_earned: Some(mix_details.pending_operator_reward()),
-            amount_earned_detailed: Some(mix_details.pending_detailed_operator_reward()),
+            amount_earned_detailed: Some(mix_details.pending_detailed_operator_reward()?),
             mixnode_still_fully_bonded: !mix_details.is_unbonding(),
         },
         None => PendingRewardResponse::default(),
-    }
+    })
 }
 
 pub fn query_pending_operator_reward(
@@ -39,7 +42,7 @@ pub fn query_pending_operator_reward(
     // in order to determine operator's reward we need to know its original pledge and thus
     // we have to load the entire thing
     let mix_details = mixnodes::helpers::get_mixnode_details_by_owner(deps.storage, owner_address)?;
-    Ok(pending_operator_reward(mix_details))
+    pending_operator_reward(mix_details)
 }
 
 pub fn query_pending_mixnode_operator_reward(
@@ -49,7 +52,7 @@ pub fn query_pending_mixnode_operator_reward(
     // in order to determine operator's reward we need to know its original pledge and thus
     // we have to load the entire thing
     let mix_details = mixnodes::helpers::get_mixnode_details_by_id(deps.storage, mix_id)?;
-    Ok(pending_operator_reward(mix_details))
+    pending_operator_reward(mix_details)
 }
 
 pub fn query_pending_delegator_reward(
@@ -74,8 +77,8 @@ pub fn query_pending_delegator_reward(
         None => return Ok(PendingRewardResponse::default()),
     };
 
-    let detailed_reward = mix_rewarding.determine_delegation_reward(&delegation);
-    let delegator_reward = mix_rewarding.pending_delegator_reward(&delegation);
+    let detailed_reward = mix_rewarding.determine_delegation_reward(&delegation)?;
+    let delegator_reward = mix_rewarding.pending_delegator_reward(&delegation)?;
 
     // check if the mixnode isnt in the process of unbonding (or has already unbonded)
     let is_bonded = matches!(mixnodes_storage::mixnode_bonds().may_load(deps.storage, mix_id)?, Some(mix_bond) if !mix_bond.is_unbonding);
@@ -177,8 +180,8 @@ pub(crate) fn query_estimated_current_epoch_delegator_reward(
         None => return Ok(EstimatedCurrentEpochRewardResponse::empty_response()),
     };
 
-    let staked_dec = Decimal::from_atomics(delegation.amount.amount, 0).unwrap();
-    let current_value = staked_dec + mix_rewarding.determine_delegation_reward(&delegation);
+    let staked_dec = into_base_decimal(delegation.amount.amount)?;
+    let current_value = staked_dec + mix_rewarding.determine_delegation_reward(&delegation)?;
     let amount_staked = delegation.amount;
 
     // check if the mixnode isnt in the process of unbonding (or has already unbonded)
@@ -792,7 +795,10 @@ mod tests {
             let delegation = test.delegation(mix_id, owner, &None);
 
             let staked_dec = Decimal::from_atomics(delegation.amount.amount, 0).unwrap();
-            let current_value = staked_dec + mix_rewarding.determine_delegation_reward(&delegation);
+            let current_value = staked_dec
+                + mix_rewarding
+                    .determine_delegation_reward(&delegation)
+                    .unwrap();
             let amount_staked = delegation.amount;
 
             EstimatedCurrentEpochRewardResponse {

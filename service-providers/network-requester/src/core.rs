@@ -3,6 +3,7 @@
 
 use crate::allowed_hosts::{HostsStore, OutboundRequestFilter};
 use crate::connection::Connection;
+use crate::error::NetworkRequesterError;
 use crate::statistics::ServiceStatisticsCollector;
 use crate::websocket;
 use crate::websocket::TSWebsocketStream;
@@ -21,7 +22,6 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use task::ShutdownListener;
 use tokio_tungstenite::tungstenite::protocol::Message;
-use websocket::WebsocketConnectionError;
 use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 
 // Since it's an atomic, it's safe to be kept static and shared across threads
@@ -298,8 +298,8 @@ impl ServiceProvider {
     }
 
     /// Start all subsystems
-    pub async fn run(&mut self) {
-        let websocket_stream = self.connect_websocket(&self.listening_address).await;
+    pub async fn run(&mut self) -> Result<(), NetworkRequesterError> {
+        let websocket_stream = self.connect_websocket(&self.listening_address).await?;
 
         // split the websocket so that we could read and write from separate threads
         let (websocket_writer, mut websocket_reader) = websocket_stream.split();
@@ -352,7 +352,7 @@ impl ServiceProvider {
                 Some(msg) => msg,
                 None => {
                     error!("The websocket stream has finished!");
-                    return;
+                    return Ok(());
                 }
             };
 
@@ -371,14 +371,20 @@ impl ServiceProvider {
     }
 
     // Make the websocket connection so we can receive incoming Mixnet messages.
-    async fn connect_websocket(&self, uri: &str) -> TSWebsocketStream {
+    async fn connect_websocket(
+        &self,
+        uri: &str,
+    ) -> Result<TSWebsocketStream, NetworkRequesterError> {
         match websocket::Connection::new(uri).connect().await {
             Ok(ws_stream) => {
                 info!("* connected to local websocket server at {}", uri);
-                ws_stream
+                Ok(ws_stream)
             }
-            Err(WebsocketConnectionError::ConnectionNotEstablished) => {
-                panic!("Error: websocket connection attempt failed, is the Nym client running?")
+            Err(err) => {
+                log::error!(
+                    "Error: websocket connection attempt failed, is the Nym client running?"
+                );
+                Err(err.into())
             }
         }
     }

@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::delegation::OwnerProxySubKey;
+use crate::error::MixnetContractError;
+use crate::helpers::IntoBaseDecimal;
 use crate::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use crate::reward_params::{
     IntervalRewardParams, IntervalRewardingParamsUpdate, Performance, RewardingParams,
@@ -41,14 +43,17 @@ pub struct InitialRewardingParams {
 }
 
 impl InitialRewardingParams {
-    pub fn into_rewarding_params(self, epochs_in_interval: u32) -> RewardingParams {
+    pub fn into_rewarding_params(
+        self,
+        epochs_in_interval: u32,
+    ) -> Result<RewardingParams, MixnetContractError> {
         let epoch_reward_budget = self.initial_reward_pool
-            / Decimal::from_atomics(epochs_in_interval, 0).unwrap()
+            / epochs_in_interval.into_base_decimal()?
             * self.interval_pool_emission;
         let stake_saturation_point =
-            self.initial_staking_supply / Decimal::from_atomics(self.rewarded_set_size, 0).unwrap();
+            self.initial_staking_supply / self.rewarded_set_size.into_base_decimal()?;
 
-        RewardingParams {
+        Ok(RewardingParams {
             interval: IntervalRewardParams {
                 reward_pool: self.initial_reward_pool,
                 staking_supply: self.initial_staking_supply,
@@ -61,7 +66,7 @@ impl InitialRewardingParams {
             },
             rewarded_set_size: self.rewarded_set_size,
             active_set_size: self.active_set_size,
-        }
+        })
     }
 }
 

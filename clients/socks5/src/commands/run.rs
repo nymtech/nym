@@ -4,6 +4,7 @@
 use crate::{
     client::{config::Config, NymClient},
     commands::{override_config, OverrideConfig},
+    error::Socks5ClientError,
 };
 
 use clap::Args;
@@ -80,14 +81,14 @@ fn version_check(cfg: &Config) -> bool {
     }
 }
 
-pub(crate) async fn execute(args: &Run) {
+pub(crate) async fn execute(args: &Run) -> Result<(), Socks5ClientError> {
     let id = &args.id;
 
     let mut config = match Config::load_from_file(Some(id)) {
         Ok(cfg) => cfg,
         Err(err) => {
             error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})", id, err);
-            return;
+            return Err(Socks5ClientError::FailedToLoadConfig(id.to_string()));
         }
     };
 
@@ -96,8 +97,8 @@ pub(crate) async fn execute(args: &Run) {
 
     if !version_check(&config) {
         error!("failed the local version check");
-        return;
+        return Err(Socks5ClientError::FailedLocalVersionCheck);
     }
 
-    NymClient::new(config).run_forever().await;
+    NymClient::new(config).run_forever().await
 }

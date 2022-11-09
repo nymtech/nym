@@ -18,6 +18,8 @@ pub type StatusReceiver = futures::channel::oneshot::Receiver<Socks5StatusMessag
 pub enum Socks5StatusMessage {
     /// The SOCKS5 task successfully stopped
     Stopped,
+    /// The SOCKS5 task failed to start
+    FailedToStart,
 }
 
 /// The main SOCKS5 client task. It loads the configuration from file determined by the `id`.
@@ -43,9 +45,17 @@ pub fn start_nym_socks5_client(
     // The status channel is used to both get the state of the task, and if it's closed, to check
     // for panic.
     std::thread::spawn(|| {
-        tokio::runtime::Runtime::new()
+        let result = tokio::runtime::Runtime::new()
             .expect("Failed to create runtime for SOCKS5 client")
             .block_on(async move { socks5_client.run_and_listen(socks5_ctrl_rx).await });
+
+        if let Err(err) = result {
+            log::error!("SOCKS5 proxy failed to start: {err}");
+            socks5_status_tx
+                .send(Socks5StatusMessage::FailedToStart)
+                .expect("Failed to send status message back to main task");
+            return;
+        }
 
         log::info!("SOCKS5 task finished");
         socks5_status_tx
@@ -68,6 +78,9 @@ pub fn start_disconnect_listener(
         match status_receiver.await {
             Ok(Socks5StatusMessage::Stopped) => {
                 log::info!("SOCKS5 task reported it has finished");
+            }
+            Ok(Socks5StatusMessage::FailedToStart) => {
+                log::info!("SOCKS5 task reported it failed to start");
             }
             Err(_) => {
                 log::info!("SOCKS5 task appears to have stopped abruptly");

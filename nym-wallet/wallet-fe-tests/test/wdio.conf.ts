@@ -17,24 +17,24 @@ exports.config = {
   specs: ['./test/specs/**/*.ts'],
 
   suites: {
-//     signup: [
-//       './test/specs/signup/*.ts',
-//     ],
+    //     signup: [
+    //       './test/specs/signup/*.ts',
+    //     ],
     login: [
       './test/specs/login/*.ts',
     ],
-//     balance: [
-//       './test/specs/balance/*.ts',
-//     ],
-//     nav: [
-//       './test/specs/general/*.ts',
-//     ],
-//     send: [
-//       './test/specs/send/*.ts',
-//     ],
-//     delegation: [
-//       './test/specs/delegation/*.ts',
-//     ],
+    //     balance: [
+    //       './test/specs/balance/*.ts',
+    //     ],
+    //     nav: [
+    //       './test/specs/general/*.ts',
+    //     ],
+    //     send: [
+    //       './test/specs/send/*.ts',
+    //     ],
+    //     delegation: [
+    //       './test/specs/delegation/*.ts',
+    //     ],
   },
   // Patterns to exclude.
   exclude: [
@@ -59,7 +59,7 @@ exports.config = {
   logLevel: 'info',
   bail: 0,
   framework: 'mocha',
-//   reporters: ['spec'],
+  //   reporters: ['spec'],
   mochaOpts: {
     ui: 'bdd',
     timeout: 60000,
@@ -80,16 +80,23 @@ exports.config = {
 
   // this is documentented in the readme - you will need to build the project first
   // ensure the rust project is built since we expect this binary to exist for the webdriver sessions
-  //onPrepare: () => spawnSync("cargo", ["build", "--release"]),
-
 
   // ensure we are running `tauri-driver` before the session starts so that we can proxy the webdriver requests
-  beforeSession: () =>
+
+
+  beforeSession: () => {
+
+    let scriptpath = process.cwd() + "/scripts/killprocess.sh";
+    spawn('bash', [scriptpath]);
+    
     (tauriDriver = spawn(
       path.resolve(os.homedir(), '.cargo', 'bin', 'tauri-driver'),
       [],
       { stdio: [null, process.stdout, process.stderr] }
-    )),
+    ))
+
+  },
+
 
   // clean up the `tauri-driver` process we spawned at the start of the session
   afterSession: () => tauriDriver.kill(),

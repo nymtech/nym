@@ -8,7 +8,7 @@ const Helper = require('../../../common/helper');
 
 
 
-describe('Wallet sign in functionality with mnemonic', () => {
+describe.skip('Wallet sign in functionality with mnemonic', () => {
 
   it('get to the sign in with mnemonic screen', async () => {
 

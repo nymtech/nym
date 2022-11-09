@@ -162,7 +162,7 @@ describe("Get mixnode data", (): void => {
   it("Get mixnode history using identity key", async (): Promise<void> => {
     const identity_key = config.environmnetConfig.identity_key;
     const response = await status.getMixnodeHistoryWrong(identity_key);
-    expect(response).toEqual(404)    
+    expect(response).toStrictEqual(404)    
   });
   
 });

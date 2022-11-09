@@ -8,11 +8,11 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 - clients: add testing-only support for two more extended packet sizes (8kb and 16kb).
 - common/ledger: new library for communicating with a Ledger device ([#1640])
-- native-client/socks5-client: `disable_loop_cover_traffic_stream` Debug config option to disable the separate loop cover traffic stream ([#1666])
-- native-client/socks5-client: `disable_main_poisson_packet_distribution` Debug config option to make the client ignore poisson distribution in the main packet stream and ONLY send real message (and as fast as they come) ([#1664])
-- native-client/socks5-client: `use_extended_packet_size` Debug config option to make the client use 'ExtendedPacketSize' for its traffic (32kB as opposed to 2kB in 1.0.2) ([#1671])
+- native-client/socks5-client/wasm-client: `disable_loop_cover_traffic_stream` Debug config option to disable the separate loop cover traffic stream ([#1666])
+- native-client/socks5-client/wasm-client: `disable_main_poisson_packet_distribution` Debug config option to make the client ignore poisson distribution in the main packet stream and ONLY send real message (and as fast as they come) ([#1664])
+- native-client/socks5-client/wasm-client: `use_extended_packet_size` Debug config option to make the client use 'ExtendedPacketSize' for its traffic (32kB as opposed to 2kB in 1.0.2) ([#1671])
 - network-requester: added additional Blockstream Green wallet endpoint to `example.allowed.list` ([#1611])
-- validator-api: add `interval_operating_cost` and `profit_margin_percent` to cmpute reward estimation endpoint
+- validator-api: add `interval_operating_cost` and `profit_margin_percent` to compute reward estimation endpoint
 - validator-client: added `query_contract_smart` and `query_contract_raw` on `NymdClient` ([#1558])
 - wasm-client: uses updated wasm-compatible `client-core` so that it's now capable of packet retransmission, cover traffic and poisson delay (among other things!) ([#1673])
 
@@ -31,7 +31,11 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - validator-api: changed error serialization on `inclusion_probability`, `stake-saturation` and `reward-estimation` endpoints to provide more accurate information ([#1681]) 
 - validator-client: made `fee` argument optional for `execute` and `execute_multiple` ([#1541])
 - wasm-client: fixed build errors on MacOS and changed example JS code to use mainnet ([#1585])
+- validator-api: changes to internal SQL schema due to the mixnet contract revamp ([#1472])
+- validator-api: changes to internal data structures due to the mixnet contract revamp ([#1472])
+- validator-api: split epoch-operations into multiple separate transactions ([#1472])
 
+[#1472]: https://github.com/nymtech/nym/pull/1472
 [#1541]: https://github.com/nymtech/nym/pull/1541
 [#1558]: https://github.com/nymtech/nym/pull/1558
 [#1577]: https://github.com/nymtech/nym/pull/1577

@@ -1,8 +1,28 @@
 ## [nym-contracts-v1.1.0](https://github.com/nymtech/nym/tree/nym-contracts-v1.1.0) (2022-11-09)
 
 ### Changed
-- mixnet-contract: rework of rewarding ([#1472])
-- vesting-contract: optional locked token pledge cap per account ([#1687]), defaults to 100_000 NYM
+- mixnet-contract: rework of rewarding ([#1472]), which includes, but is not limited to:
+  - internal reward accounting was modified to be similar to the ideas presented in Cosmos' F1 paper, which results in throughput gains and no storage or gas cost bloat over time,
+  - introduced internal queues for pending epoch and interval events that only get resolved once relevant epoch/interval rolls over
+  - the contract no longer stores any historical information regarding past epochs/parameters/stake state for the purposes of rewarding
+  - a lot of queries got renamed to keep naming more consistent,
+  - introduced new utility-based queries such as a query for reward estimation for the current epoch,
+  - mixnodes are now identified by a monotonously increasing `mix_id`
+  - bonding now results in getting fresh `mix_id` and thus if given node decides to unbond and rebond, it will lose all its delegations,
+  - mixnode operators are now allowed to set their operating costs as opposed to having fixed value of 40nym/interval
+  - rewarding parameters are now correctly updated at an **interval** end
+  - rewarding parameters now include a staking supply scale factor attribute (beta in the tokenomics paper)
+  - node performance can now be more granular with internal `Decimal` representation as opposed to an `u8`
+  - node profit margin can now be more granular with internal `Decimal` representation as opposed to an `u8`
+  - mixnode operators are now allowed to change their configuration options, such as port information, without having to unbond
+  - mixnode unbonding is no longer instantaneous, instead it happens once an epoch rolls over
+  - it is now possible to query for operator and node history to see how often (and with what parameters) they rebonded
+  - other minor bugfixes and changes
+  - ...
+  - new exciting bugs to find and squash
+
+- vesting-contract: optional locked token pledge cap per account ([#1687]), defaults to 10%
+- vesting-contract: updated internal delegation storage due to mixnet contract revamp ([#1472])
 
 ### Added
 - vesting-contract: added query for obtaining contract build information ([#1726])
@@ -10,6 +30,7 @@
 [#1472]: https://github.com/nymtech/nym/pull/1472
 [#1687]: https://github.com/nymtech/nym/pull/1687
 [#1726]: https://github.com/nymtech/nym/pull/1726
+
 
 ## [nym-contracts-v1.0.2](https://github.com/nymtech/nym/tree/nym-contracts-v1.0.2) (2022-09-13)
 

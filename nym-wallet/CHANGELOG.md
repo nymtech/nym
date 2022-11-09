@@ -4,12 +4,12 @@
 
 - wallet: Add window for showing logs for when the terminal is not available.
 - wallet: Rework of rewarding ([#1472])
-- wallet: Highlight delegations on an unbonded node
-- wallet: Group delegations on unbonded nodes at top of list
+- wallet: Highlight delegations on an unbonded node to notify the delegator to undelegate stake
+- wallet: Group delegations on unbonded nodes at the top of the list 
 - wallet: Simplified delegation screen when user has no delegations
 - wallet: Update "create password" howto guide
-- wallet: Allow setting of operator cost when node bonded
-- wallet: Allow update of operator cost on bonded node
+- wallet: Allow setting of operatoring cost when node is bonded
+- wallet: Allow update of operatoring cost on bonded node
 - wallet: New bond settings area
 - wallet: Display pending unbonds
 - wallet: Display routing score and average score for gateways

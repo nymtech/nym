@@ -1,5 +1,5 @@
-import Balance from '../tests/pageobjects/balanceScreen'
-import Auth from '../tests/pageobjects/authScreens'
+import Balance from '../test/pageobjects/balanceScreen'
+import Auth from '../test/pageobjects/authScreens'
 const userData = require("../common/user-data.json");
 const deleteScript = require("../scripts/deletesavedwallet")
 const savedWalletScript = require("../scripts/savedwalletexists")

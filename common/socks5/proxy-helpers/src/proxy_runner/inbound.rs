@@ -70,8 +70,10 @@ where
 
     // WIP(JON): here we do the chunking, and send to real_message_sender instead
     if let Some(chunker) = msg_chunker {
+        log::info!("({connection_id}): chunking and sending");
         let msg = adapter_fn(connection_id, ordered_msg, is_finished);
         chunker.chunk(msg).await;
+        log::info!("({connection_id}): chunking and sending done");
     } else {
         mix_sender
             .unbounded_send(adapter_fn(connection_id, ordered_msg, is_finished))

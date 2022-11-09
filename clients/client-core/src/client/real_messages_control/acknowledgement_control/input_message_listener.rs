@@ -15,6 +15,7 @@ use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{acknowledgements::AckKey, addressing::clients::Recipient};
 use rand::{CryptoRng, Rng};
 use std::sync::Arc;
+use std::time::Duration;
 
 #[cfg(feature = "reply-surb")]
 use crate::client::reply_key_storage::ReplyKeyStorage;
@@ -186,9 +187,9 @@ where
         // there's no point in trying to send nothing
         if let Some(real_messages) = real_messages {
             // tells real message sender (with the poisson timer) to send this to the mix network
-            self.real_message_sender
-                .unbounded_send(real_messages)
-                .unwrap();
+            if self.real_message_sender.send(real_messages).await.is_err() {
+                panic!();
+            }
         }
     }
 
@@ -377,9 +378,30 @@ where
         // there's no point in trying to send nothing
         if let Some(real_messages) = real_messages {
             // tells real message sender (with the poisson timer) to send this to the mix network
-            self.real_message_sender
-                .unbounded_send(real_messages)
-                .unwrap();
+
+            log::info!("chunked into {} messages", real_messages.len());
+            log::info!("current capacity: {}", self.real_message_sender.capacity());
+            if real_messages.len() > 10 {
+                // only send if there is nothing in queue
+                log::info!("sending large message(s)");
+                for msg in real_messages {
+                    let msgs = vec![msg];
+                    loop {
+                        if self.real_message_sender.capacity() > 2 {
+                            if self.real_message_sender.send(msgs).await.is_err() {
+                                panic!();
+                            }
+                            break;
+                        }
+                        tokio::time::sleep(Duration::from_millis(50)).await;
+                    }
+                }
+                log::error!("finished sending large message(s)");
+            } else {
+                if self.real_message_sender.send(real_messages).await.is_err() {
+                    panic!();
+                }
+            }
         }
     }
 }

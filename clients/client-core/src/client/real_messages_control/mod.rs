@@ -123,7 +123,7 @@ impl RealMessagesController<OsRng> {
     ) -> Self {
         let rng = OsRng;
 
-        let (real_message_sender, real_message_receiver) = mpsc::unbounded();
+        let (real_message_sender, real_message_receiver) = tokio::sync::mpsc::channel(3);
         let (sent_notifier_tx, sent_notifier_rx) = mpsc::unbounded();
 
         let ack_controller_connectors = AcknowledgementControllerConnectors::new(

@@ -242,8 +242,8 @@ impl RealMessage {
 
 // messages are already prepared, etc. the real point of it is to forward it to mix_traffic
 // after sufficient delay
-pub type BatchRealMessageSender = mpsc::UnboundedSender<Vec<RealMessage>>;
-type BatchRealMessageReceiver = mpsc::UnboundedReceiver<Vec<RealMessage>>;
+pub type BatchRealMessageSender = tokio::sync::mpsc::Sender<Vec<RealMessage>>;
+type BatchRealMessageReceiver = tokio::sync::mpsc::Receiver<Vec<RealMessage>>;
 
 pub(crate) enum StreamMessage {
     Cover,
@@ -425,7 +425,7 @@ where
             }
 
             // decide what kind of message to send
-            match Pin::new(&mut self.real_receiver).poll_next(cx) {
+            match Pin::new(&mut self.real_receiver).poll_recv(cx) {
                 // in the case our real message channel stream was closed, we should also indicate we are closed
                 // (and whoever is using the stream should panic)
                 Poll::Ready(None) => Poll::Ready(None),
@@ -472,7 +472,7 @@ where
             return Poll::Ready(Some(StreamMessage::Real(Box::new(real_available))));
         }
 
-        match Pin::new(&mut self.real_receiver).poll_next(cx) {
+        match Pin::new(&mut self.real_receiver).poll_recv(cx) {
             // in the case our real message channel stream was closed, we should also indicate we are closed
             // (and whoever is using the stream should panic)
             Poll::Ready(None) => Poll::Ready(None),

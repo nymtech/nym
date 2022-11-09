@@ -1,8 +1,8 @@
 use crate::errors::ContractError;
 use crate::queued_migrations::migrate_to_v2_mixnet_contract;
 use crate::storage::{
-    account_from_address, BlockTimestampSecs, ADMIN, DELEGATIONS, MIXNET_CONTRACT_ADDRESS,
-    MIX_DENOM, save_account,
+    account_from_address, save_account, BlockTimestampSecs, ADMIN, DELEGATIONS,
+    MIXNET_CONTRACT_ADDRESS, MIX_DENOM,
 };
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,

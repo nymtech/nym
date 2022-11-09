@@ -58,17 +58,11 @@ impl FromStr for PledgeCap {
     fn from_str(cap: &str) -> Result<Self, Self::Err> {
         let cap = cap.replace('_', "").replace(',', ".");
         match Percent::from_str(&cap) {
-            Ok(p) => {
-                Ok(PledgeCap::Percent(p))
-            }
-            Err(_) => {
-                match cap.parse::<u128>() {
-                    Ok(i) => {
-                        Ok(PledgeCap::Absolute(Uint128::from(i)))
-                    }
-                    Err(_e) => Err(format!("Could not parse {} as Percent or Uint128", cap)),
-                }
-            }
+            Ok(p) => Ok(PledgeCap::Percent(p)),
+            Err(_) => match cap.parse::<u128>() {
+                Ok(i) => Ok(PledgeCap::Absolute(Uint128::from(i))),
+                Err(_e) => Err(format!("Could not parse {} as Percent or Uint128", cap)),
+            },
         }
     }
 }

@@ -84,6 +84,9 @@ impl Handler {
     ) -> Option<ServerResponse> {
         // the ack control is now responsible for chunking, etc.
         let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb);
+
+        // WIP(JON): here we should chunk the message, and send it to the sphinx_message_sender
+
         self.msg_input.unbounded_send(input_msg).unwrap();
 
         None

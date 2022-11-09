@@ -2,7 +2,7 @@ use crate::errors::ContractError;
 use crate::queued_migrations::migrate_to_v2_mixnet_contract;
 use crate::storage::{
     account_from_address, BlockTimestampSecs, ADMIN, DELEGATIONS, MIXNET_CONTRACT_ADDRESS,
-    MIX_DENOM,
+    MIX_DENOM, save_account,
 };
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
@@ -158,7 +158,7 @@ pub fn try_update_locked_pledge_cap(
     let mut account = account_from_address(&address, deps.storage, deps.api)?;
 
     account.pledge_cap = Some(cap);
-    // update_locked_pledge_cap(amount, deps.storage)?;
+    save_account(&account, deps.storage)?;
     Ok(Response::default())
 }
 

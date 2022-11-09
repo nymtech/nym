@@ -101,7 +101,15 @@ async fn send_file_without_reply() {
         res => panic!("received an unexpected response! - {:?}", res),
     };
 
-    println!("received: {:?}", received);
+    let sender_tag = received.sender_tag.unwrap();
+
+    let send_reply_req = ClientRequest::Reply {
+        message: vec![5, 6, 7, 8],
+        sender_tag,
+    };
+    let response = send_message_and_get_response(&mut ws_stream, send_reply_req.serialize()).await;
+
+    println!("received: {:?}", response);
 
     // println!("writing the file back to the disk!");
     // std::fs::write("examples/received_file_noreply", received.message).unwrap();

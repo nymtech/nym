@@ -229,6 +229,7 @@ where
 pub(crate) struct RealMessage {
     mix_packet: MixPacket,
     fragment_id: FragmentIdentifier,
+    // TODO: add info about it being constructed with reply-surb
 }
 
 impl RealMessage {

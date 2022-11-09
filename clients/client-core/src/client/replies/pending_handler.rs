@@ -4,7 +4,7 @@
 use crate::client::real_messages_control::real_traffic_stream::{
     BatchRealMessageSender, RealMessage,
 };
-use crate::client::replies::reply_storage::ReceivedReplySurbsMap;
+use crate::client::replies::reply_storage::CombinedReplyStorage;
 use log::debug;
 use nymsphinx::acknowledgements::surb_ack::SurbAck;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
@@ -29,7 +29,7 @@ struct PendingReply {
 pub(crate) struct PendingReplyHandler {
     expected_reliability: f32,
     packet_size_used: PacketSize,
-    available_reply_surbs: ReceivedReplySurbsMap,
+    reply_storage: CombinedReplyStorage,
 
     pending_replies: HashMap<AnonymousSenderTag, PendingReply>,
     real_message_sender: BatchRealMessageSender,

@@ -13,7 +13,7 @@ use client_core::client::received_buffer::{
     ReceivedBufferMessage, ReceivedBufferRequestReceiver, ReceivedBufferRequestSender,
     ReceivedMessagesBufferController, ReconstructedMessagesReceiver,
 };
-use client_core::client::replies::reply_storage::ReceivedReplySurbsMap;
+use client_core::client::replies::reply_storage::CombinedReplyStorage;
 use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
@@ -117,7 +117,7 @@ impl NymClient {
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
-        received_surbs: ReceivedReplySurbsMap,
+        reply_storage: CombinedReplyStorage,
         shutdown: ShutdownListener,
     ) {
         let mut controller_config = real_messages_control::Config::new(
@@ -145,7 +145,7 @@ impl NymClient {
             input_receiver,
             mix_sender,
             topology_accessor,
-            received_surbs,
+            reply_storage,
         )
         .start_with_shutdown(shutdown);
     }
@@ -157,7 +157,7 @@ impl NymClient {
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_receiver: MixnetMessageReceiver,
         // reply_key_storage: ReplyKeyStorage
-        received_surbs: ReceivedReplySurbsMap,
+        reply_storage: CombinedReplyStorage,
         shutdown: ShutdownListener,
     ) {
         info!("Starting received messages buffer controller...");
@@ -166,7 +166,7 @@ impl NymClient {
             query_receiver,
             mixnet_receiver,
             // reply_key_storage,
-            received_surbs,
+            reply_storage,
         )
         .start_with_shutdown(shutdown)
     }
@@ -391,7 +391,7 @@ impl NymClient {
         // ======TEMPORARY======
         // =====================
         // =====================
-        let received_surbs = ReceivedReplySurbsMap::default();
+        let reply_storage = CombinedReplyStorage::new(2);
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
@@ -401,7 +401,7 @@ impl NymClient {
             received_buffer_request_receiver,
             mixnet_messages_receiver,
             // reply_key_storage.clone(),
-            received_surbs.clone(),
+            reply_storage.clone(),
             shutdown.subscribe(),
         );
 
@@ -422,7 +422,7 @@ impl NymClient {
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
-            received_surbs,
+            reply_storage,
             shutdown.subscribe(),
         );
 

@@ -3,16 +3,19 @@
 
 use super::action_controller::{Action, ActionSender};
 use super::PendingAcknowledgement;
-use crate::client::replies::reply_storage::ReceivedReplySurbsMap;
+use crate::client::replies::reply_storage::CombinedReplyStorage;
 use crate::client::{
     inbound_messages::{InputMessage, InputMessageReceiver},
     real_messages_control::real_traffic_stream::{BatchRealMessageSender, RealMessage},
     topology_control::TopologyAccessor,
 };
+use crypto::symmetric::stream_cipher;
 use futures::StreamExt;
 use log::*;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::anonymous_replies::ReplySurb;
+use nymsphinx::forwarding::packet::MixPacket;
+use nymsphinx::params::{PacketEncryptionAlgorithm, ReplySurbEncryptionAlgorithm};
 use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{acknowledgements::AckKey, addressing::clients::Recipient};
 use rand::{CryptoRng, Rng};
@@ -37,7 +40,7 @@ where
     topology_access: TopologyAccessor,
     // #[cfg(feature = "reply-surb")]
     // reply_key_storage: ReplyKeyStorage,
-    received_surbs: ReceivedReplySurbsMap,
+    reply_storage: CombinedReplyStorage,
 }
 
 pub(super) struct Config {
@@ -59,7 +62,7 @@ where
         action_sender: ActionSender,
         real_message_sender: BatchRealMessageSender,
         topology_access: TopologyAccessor,
-        received_surbs: ReceivedReplySurbsMap,
+        reply_storage: CombinedReplyStorage,
         // #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
     ) -> Self {
         InputMessageListener {
@@ -72,13 +75,88 @@ where
             topology_access,
             // #[cfg(feature = "reply-surb")]
             // reply_key_storage,
-            received_surbs,
+            reply_storage,
         }
     }
 
-    async fn handle_reply(&mut self, recipient_tag: AnonymousSenderTag, data: Vec<u8>) {
-        if !self.received_surbs.contains_surbs_for(&recipient_tag) {
-            todo!("can't do anything")
+    async fn handle_reply(
+        &mut self,
+        recipient_tag: AnonymousSenderTag,
+        data: Vec<u8>,
+    ) -> Option<Vec<RealMessage>> {
+        if !self.reply_storage.contains_surbs_for(&recipient_tag) {
+            warn!("received reply request for {:?} but we don't have any surbs stored for that recipient!", recipient_tag);
+            return None;
+        }
+
+        // TODO: lower to debug/trace
+        info!("handling reply to {:?}", recipient_tag);
+        let fragments = self.message_preparer.prepare_and_split_reply(data);
+
+        info!("This reply requires {:?} SURBs", fragments.len());
+
+        let (surbs, surbs_left) = self
+            .reply_storage
+            .get_reply_surbs(&recipient_tag, fragments.len());
+
+        if let Some(reply_surbs) = surbs {
+            // TODO: simplify, tidy up and move elsewhere
+            let topology_permit = self.topology_access.get_read_permit().await;
+            let topology =
+                match topology_permit.try_get_valid_topology_ref(&self.ack_recipient, None) {
+                    Some(topology_ref) => topology_ref,
+                    None => {
+                        warn!("Could not process the message - the network topology is invalid");
+                        return None;
+                    }
+                };
+
+            let mut packets = Vec::with_capacity(reply_surbs.len());
+            for (fragment, reply_surb) in fragments.into_iter().zip(reply_surbs.into_iter()) {
+                // TODO: this should be happening inside message_preparer!!!
+                let fragment_id = fragment.fragment_identifier();
+                let (ack_delay, surb_ack_bytes) = self
+                    .message_preparer
+                    .generate_surb_ack(fragment_id, topology, &self.ack_key)
+                    .expect("TODO: handle this error")
+                    .prepare_for_sending();
+
+                let mut fragment_data = fragment.into_bytes();
+
+                stream_cipher::encrypt_in_place::<ReplySurbEncryptionAlgorithm>(
+                    reply_surb.encryption_key().inner(),
+                    &stream_cipher::zero_iv::<ReplySurbEncryptionAlgorithm>(),
+                    &mut fragment_data,
+                );
+
+                // TODO: extract it to different method
+                // combine it together as follows:
+                // SURB_ACK_FIRST_HOP || SURB_ACK_DATA || KEY_DIGEST || E (REPLY_MESSAGE || 1 || 0*)
+                // (note: surb_ack_bytes contains SURB_ACK_FIRST_HOP || SURB_ACK_DATA )
+                let packet_payload: Vec<_> = surb_ack_bytes
+                    .into_iter()
+                    .chain(reply_surb.encryption_key().compute_digest().iter().copied())
+                    .chain(fragment_data.into_iter())
+                    .collect();
+
+                // the unwrap here is fine as the failures can only originate from attempting to use invalid payload lenghts
+                // and we just very carefully constructed a (presumably) valid one
+                let (sphinx_packet, first_hop) = reply_surb
+                    .apply_surb(&packet_payload, Some(self.message_preparer.packet_size))
+                    .unwrap();
+
+                let mix_packet = MixPacket::new(first_hop, sphinx_packet, Default::default());
+                let real_message = RealMessage::new(mix_packet, fragment_id);
+                packets.push(real_message);
+            }
+
+            Some(packets)
+        } else {
+            // TODO: here be the logic for surb requests and I guess delegation to the surbs handler
+            panic!(
+                "we don't have enough surbs : (  we only have {} left",
+                surbs_left
+            )
         }
     }
 
@@ -164,6 +242,7 @@ where
             .expect("somehow the topology was invalid after all!");
 
         log::error!("here we need to store {} reply keys", reply_keys.len());
+        self.reply_storage.insert_multiple_surb_keys(reply_keys);
 
         // todo!("handle reply keys: either have storage on THIS struct or move it with a channel or something");
 
@@ -223,7 +302,10 @@ where
                 .handle_reply_with_surb(reply_surb, data)
                 .await
                 .map(|message| vec![message]),
-            _ => todo!(),
+            InputMessage::Reply {
+                recipient_tag,
+                data,
+            } => self.handle_reply(recipient_tag, data).await,
         };
 
         // there's no point in trying to send nothing

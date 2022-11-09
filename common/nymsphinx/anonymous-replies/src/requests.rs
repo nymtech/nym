@@ -211,6 +211,18 @@ pub struct ReplyMessage {
 }
 
 impl ReplyMessage {
+    pub fn new_data_message(message: Vec<u8>) -> Self {
+        ReplyMessage {
+            content: ReplyMessageContent::Data { message },
+        }
+    }
+
+    pub fn new_surb_request_message(amount: u32) -> Self {
+        ReplyMessage {
+            content: ReplyMessageContent::SurbRequest { amount },
+        }
+    }
+
     pub fn into_bytes(self) -> Vec<u8> {
         let content_tag = self.content.tag();
 

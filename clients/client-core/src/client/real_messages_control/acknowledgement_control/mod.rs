@@ -8,7 +8,7 @@ use self::{
     sent_notification_listener::SentNotificationListener,
 };
 use super::real_traffic_stream::BatchRealMessageSender;
-use crate::client::replies::reply_storage::ReceivedReplySurbsMap;
+use crate::client::replies::reply_storage::CombinedReplyStorage;
 use crate::client::{inbound_messages::InputMessageReceiver, topology_control::TopologyAccessor};
 use crate::spawn_future;
 use futures::channel::mpsc;
@@ -63,6 +63,7 @@ pub(crate) struct PendingAcknowledgement {
     message_chunk: Fragment,
     delay: SphinxDelay,
     recipient: Recipient,
+    // TODO: another field to indicate it was sent via surb
 }
 
 impl PendingAcknowledgement {
@@ -179,7 +180,7 @@ where
         ack_key: Arc<AckKey>,
         ack_recipient: Recipient,
         connectors: AcknowledgementControllerConnectors,
-        received_surbs: ReceivedReplySurbsMap,
+        reply_storage: CombinedReplyStorage,
         // #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
     ) -> Self {
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
@@ -215,7 +216,7 @@ where
             topology_access.clone(),
             // #[cfg(feature = "reply-surb")]
             // reply_key_storage,
-            received_surbs,
+            reply_storage,
         );
 
         // will listen for any ack timeouts and trigger retransmission

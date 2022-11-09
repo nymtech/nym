@@ -13,7 +13,7 @@ use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
 use nymsphinx_anonymous_replies::encryption_key::SurbEncryptionKey;
 use nymsphinx_anonymous_replies::reply_surb::ReplySurb;
-use nymsphinx_anonymous_replies::requests::RepliableMessage;
+use nymsphinx_anonymous_replies::requests::{RepliableMessage, ReplyMessage};
 use nymsphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nymsphinx_forwarding::packet::MixPacket;
 use nymsphinx_params::packet_sizes::PacketSize;
@@ -63,7 +63,8 @@ pub struct MessagePreparer<R: CryptoRng + Rng> {
     rng: R,
 
     /// Size of the target [`SphinxPacket`] into which the underlying is going to get split.
-    packet_size: PacketSize,
+    // TODO: MAKE IT PRIVATE AGAIN DURING CLEANUP
+    pub packet_size: PacketSize,
 
     /// Address of this client which also represent an address to which all acknowledgements
     /// and surb-based are going to be sent.
@@ -235,6 +236,8 @@ where
         // serialize fragment and encrypt its content
         let mut chunk_data = fragment.into_bytes();
 
+        // TODO: add it (i.e. encryption, ading ack, key, etc) as a method on `Fragment`
+
         let zero_iv = stream_cipher::zero_iv::<PacketEncryptionAlgorithm>();
         stream_cipher::encrypt_in_place::<PacketEncryptionAlgorithm>(
             &shared_key,
@@ -283,7 +286,8 @@ where
     }
 
     /// Construct an acknowledgement SURB for the given [`FragmentIdentifier`]
-    fn generate_surb_ack(
+    // TODO: MAKE IT PRIVATE AGAIN
+    pub fn generate_surb_ack(
         &mut self,
         fragment_id: FragmentIdentifier,
         topology: &NymTopology,
@@ -297,6 +301,14 @@ where
             self.average_ack_delay,
             topology,
         )
+    }
+
+    pub fn prepare_and_split_reply(&mut self, message: Vec<u8>) -> Vec<Fragment> {
+        let plaintext_per_packet = self.available_plaintext_per_packet();
+
+        NymMessage::new_reply(ReplyMessage::new_data_message(message))
+            .pad_to_full_packet_lengths(plaintext_per_packet)
+            .split_into_fragments(&mut self.rng, plaintext_per_packet)
     }
 
     /// Attaches an optional reply-surb and correct padding to the underlying message

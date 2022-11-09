@@ -14,7 +14,7 @@ use std::sync::Arc;
 
 // #[cfg(feature = "reply-surb")]
 // use crate::client::reply_key_storage::ReplyKeyStorage;
-use crate::client::replies::reply_storage::ReceivedReplySurbsMap;
+use crate::client::replies::reply_storage::CombinedReplyStorage;
 #[cfg(feature = "reply-surb")]
 use crypto::{symmetric::stream_cipher, Digest};
 use nymsphinx::anonymous_replies::requests::{
@@ -51,6 +51,64 @@ struct ReceivedMessagesBufferInner {
 }
 
 impl ReceivedMessagesBufferInner {
+    fn process_received_reply(
+        &mut self,
+        reply_ciphertext: &[u8],
+        reply_key: SurbEncryptionKey,
+    ) -> Option<NymMessage> {
+        let zero_iv = stream_cipher::zero_iv::<ReplySurbEncryptionAlgorithm>();
+
+        let mut reply_msg = stream_cipher::decrypt::<ReplySurbEncryptionAlgorithm>(
+            reply_key.inner(),
+            &zero_iv,
+            reply_ciphertext,
+        );
+
+        let fragment = match self.message_receiver.recover_fragment(&reply_msg) {
+            Err(e) => {
+                warn!("failed to recover fragment from raw data: {:?}. The whole underlying message might be corrupted and unrecoverable!", e);
+                return None;
+            }
+            Ok(frag) => frag,
+        };
+
+        if self.recently_reconstructed.contains(&fragment.id()) {
+            debug!("Received a chunk of already re-assembled message ({:?})! It probably got here because the ack got lost", fragment.id());
+            return None;
+        }
+
+        // if we returned an error the underlying message is malformed in some way
+        match self.message_receiver.insert_new_fragment(fragment) {
+            Err(err) => match err {
+                MessageRecoveryError::MalformedReconstructedMessage(message_sets) => {
+                    // TODO: should we really insert reconstructed sets? could this be abused for some attack?
+                    for set_id in message_sets {
+                        if !self.recently_reconstructed.insert(set_id) {
+                            // or perhaps we should even panic at this point?
+                            error!("Reconstructed another message containing already used set id!")
+                        }
+                    }
+                    None
+                }
+                _ => unreachable!(
+                    "no other error kind should have been returned here! If so, it's a bug!"
+                ),
+            },
+            Ok(reconstruction_result) => match reconstruction_result {
+                Some((reconstructed_message, used_sets)) => {
+                    for set_id in used_sets {
+                        if !self.recently_reconstructed.insert(set_id) {
+                            // or perhaps we should even panic at this point?
+                            error!("Reconstructed another message containing already used set id!")
+                        }
+                    }
+                    Some(reconstructed_message)
+                }
+                None => None,
+            },
+        }
+    }
+
     fn process_received_fragment(&mut self, raw_fragment: Vec<u8>) -> Option<NymMessage> {
         let fragment_data = match self
             .message_receiver
@@ -125,13 +183,13 @@ struct ReceivedMessagesBuffer {
     // reply_key_storage: ReplyKeyStorage,
 
     //
-    received_surbs: ReceivedReplySurbsMap,
+    reply_storage: CombinedReplyStorage,
 }
 
 impl ReceivedMessagesBuffer {
     fn new(
         local_encryption_keypair: Arc<encryption::KeyPair>,
-        received_surbs: ReceivedReplySurbsMap,
+        reply_storage: CombinedReplyStorage,
         // #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
     ) -> Self {
         ReceivedMessagesBuffer {
@@ -142,8 +200,8 @@ impl ReceivedMessagesBuffer {
                 message_sender: None,
                 recently_reconstructed: HashSet::new(),
             })),
-            received_surbs, // #[cfg(feature = "reply-surb")]
-                            // reply_key_storage,
+            reply_storage, // #[cfg(feature = "reply-surb")]
+                           // reply_key_storage,
         }
     }
 
@@ -206,15 +264,12 @@ impl ReceivedMessagesBuffer {
                             println!("surbs: {:?}", reply_surbs.len());
                             data_msgs.push((message, Some(repliable.sender_tag)));
                             // SUPER TEMP
-                            self.received_surbs
+                            self.reply_storage
                                 .insert_surbs(&repliable.sender_tag, reply_surbs)
-                                .await;
                         }
-                        RepliableMessageContent::AdditionalSurbs { reply_surbs } => {
-                            self.received_surbs
-                                .insert_surbs(&repliable.sender_tag, reply_surbs)
-                                .await;
-                        }
+                        RepliableMessageContent::AdditionalSurbs { reply_surbs } => self
+                            .reply_storage
+                            .insert_surbs(&repliable.sender_tag, reply_surbs),
                         RepliableMessageContent::Heartbeat { .. } => {}
                     }
                 }
@@ -258,27 +313,6 @@ impl ReceivedMessagesBuffer {
         }
     }
 
-    #[cfg(feature = "reply-surb")]
-    fn process_received_reply(
-        reply_ciphertext: &[u8],
-        reply_key: SurbEncryptionKey,
-    ) -> Option<Vec<u8>> {
-        let zero_iv = stream_cipher::zero_iv::<ReplySurbEncryptionAlgorithm>();
-
-        let mut reply_msg = stream_cipher::decrypt::<ReplySurbEncryptionAlgorithm>(
-            reply_key.inner(),
-            &zero_iv,
-            reply_ciphertext,
-        );
-        if let Err(err) = MessageReceiver::remove_padding(&mut reply_msg) {
-            warn!("Received reply had malformed padding! - {:?}", err);
-            None
-        } else {
-            // TODO: perhaps having to say it doesn't have a surb an indication the type should be changed?
-            Some(reply_msg)
-        }
-    }
-
     async fn handle_new_received(&mut self, msgs: Vec<Vec<u8>>) {
         debug!(
             "Processing {:?} new message that might get added to the buffer!",
@@ -289,50 +323,33 @@ impl ReceivedMessagesBuffer {
         let mut inner_guard = self.inner.lock().await;
 
         // first check if this is a reply or a chunked message
-        // TODO: verify with @AP if this way of doing it is safe or whether it could
-        // cause some attacks due to, I don't know, stupid edge case collisions?
-        // Update: this DOES introduce a possible leakage: https://github.com/nymtech/nym/issues/296
+        // note: there's a possible information leakage associated with this check https://github.com/nymtech/nym/issues/296
         for msg in msgs {
             // TODO:
             // 1. make it nicer
             // 2. make it not feature-locked
 
-            // todo!()
+            let reply_surb_digest_size = ReplySurbKeyDigestAlgorithm::output_size();
 
-            // #[cfg(feature = "reply-surb")]
-            // {
-            //     let reply_surb_digest_size = ReplySurbKeyDigestAlgorithm::output_size();
-            //
-            //     let possible_key_digest =
-            //         EncryptionKeyDigest::clone_from_slice(&msg[..reply_surb_digest_size]);
-            //
-            //     // check first `HasherOutputSize` bytes if they correspond to known encryption key
-            //     // if yes - this is a reply message
-            //
-            //     // TODO: this might be a bottleneck - since the keys are stored on disk we, presumably,
-            //     // are doing a disk operation every single received fragment
-            //     if let Some(reply_encryption_key) = self
-            //         .reply_key_storage
-            //         .get_and_remove_encryption_key(possible_key_digest)
-            //         .expect("storage operation failed!")
-            //     {
-            //         if let Some(completed_message) = Self::process_received_reply(
-            //             &msg[reply_surb_digest_size..],
-            //             reply_encryption_key,
-            //         ) {
-            //             completed_messages.push(completed_message)
-            //         }
-            //     } else {
-            //         // otherwise - it's a 'normal' message
-            //         if let Some(completed_message) = inner_guard.process_received_fragment(msg) {
-            //             completed_messages.push(completed_message)
-            //         }
-            //     }
-            // }
-            //
-            // #[cfg(not(feature = "reply-surb"))]
-            if let Some(completed_message) = inner_guard.process_received_fragment(msg) {
-                completed_messages.push(completed_message)
+            let possible_key_digest =
+                EncryptionKeyDigest::clone_from_slice(&msg[..reply_surb_digest_size]);
+
+            // check first `HasherOutputSize` bytes if they correspond to known encryption key
+            // if yes - this is a reply message
+
+            if let Some(reply_encryption_key) =
+                self.reply_storage.try_pop_surb_key(possible_key_digest)
+            {
+                if let Some(completed_message) = inner_guard
+                    .process_received_reply(&msg[reply_surb_digest_size..], reply_encryption_key)
+                {
+                    completed_messages.push(completed_message)
+                }
+            } else {
+                // otherwise - it's a 'normal' message
+                if let Some(completed_message) = inner_guard.process_received_fragment(msg) {
+                    completed_messages.push(completed_message)
+                }
             }
         }
 
@@ -475,12 +492,12 @@ impl ReceivedMessagesBufferController {
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_packet_receiver: MixnetMessageReceiver,
         // #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
-        received_surbs: ReceivedReplySurbsMap,
+        reply_storage: CombinedReplyStorage,
     ) -> Self {
         let received_buffer = ReceivedMessagesBuffer::new(
             local_encryption_keypair,
-            received_surbs, // #[cfg(feature = "reply-surb")]
-                            // reply_key_storage,
+            reply_storage, // #[cfg(feature = "reply-surb")]
+                           // reply_key_storage,
         );
 
         ReceivedMessagesBufferController {

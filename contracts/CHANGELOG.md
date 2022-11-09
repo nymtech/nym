@@ -1,22 +1,25 @@
-## Unreleased
+## [nym-contracts-v1.1.0](https://github.com/nymtech/nym/tree/nym-contracts-v1.1.0) (2022-11-09)
+
+### Changed
+- mixnet-contract: rework of rewarding ([#1472])
+- vesting-contract: optional locked token pledge cap per account ([#1687]), defaults to 100_000 NYM
 
 ### Added
 - vesting-contract: added query for obtaining contract build information ([#1726])
 
+[#1472]: https://github.com/nymtech/nym/pull/1472
+[#1687]: https://github.com/nymtech/nym/pull/1687
 [#1726]: https://github.com/nymtech/nym/pull/1726
-
 
 ## [nym-contracts-v1.0.2](https://github.com/nymtech/nym/tree/nym-contracts-v1.0.2) (2022-09-13)
 
 ### Added
 
 - vesting-contract: added queries for delegation timestamps and paged query for all vesting delegations in the contract ([#1569])
-- all binaries: added shell completion and [Fig](fig.io) spec generation ([#1638])
 
 ### Changed
 
 - mixnet-contract: compounding delegator rewards now happens instantaneously as opposed to having to wait for the current epoch to finish ([#1571])
-- network-requester: updated CLI to use `clap` macros ([#1638])
 
 ### Fixed
 
@@ -26,9 +29,8 @@
 
 [#1544]: https://github.com/nymtech/nym/pull/1544
 [#1569]: https://github.com/nymtech/nym/pull/1569
-[#1569]: https://github.com/nymtech/nym/pull/1571
+[#1571]: https://github.com/nymtech/nym/pull/1571
 [#1613]: https://github.com/nymtech/nym/pull/1613
-[#1638]: https://github.com/nymtech/nym/pull/1638
 
 ## [nym-contracts-v1.0.1](https://github.com/nymtech/nym/tree/nym-contracts-v1.0.1) (2022-06-22)
 

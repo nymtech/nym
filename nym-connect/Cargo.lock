@@ -3214,7 +3214,7 @@ dependencies = [
 
 [[package]]
 name = "nym-connect"
-version = "1.0.2"
+version = "1.1.0"
 dependencies = [
  "bip39",
  "client-core",
@@ -3247,7 +3247,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.0.2"
+version = "1.1.0"
 dependencies = [
  "clap",
  "client-core",
@@ -6188,7 +6188,6 @@ version = "0.1.0"
 dependencies = [
  "contracts-common",
  "cosmwasm-std",
- "log",
  "mixnet-contract-common",
  "schemars",
  "serde",

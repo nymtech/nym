@@ -1625,7 +1625,6 @@ version = "0.1.0"
 dependencies = [
  "contracts-common",
  "cosmwasm-std",
- "log",
  "mixnet-contract-common",
  "schemars",
  "serde",

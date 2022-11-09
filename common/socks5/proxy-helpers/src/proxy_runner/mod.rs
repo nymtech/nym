@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::connection_controller::ConnectionReceiver;
+use async_trait::async_trait;
 use futures::channel::mpsc;
 use rand::rngs::OsRng;
 use socks5_requests::ConnectionId;
@@ -9,7 +10,10 @@ use std::{sync::Arc, time::Duration};
 use task::ShutdownListener;
 use tokio::{net::TcpStream, sync::Notify};
 
-use client_core::client::real_messages_control::acknowledgement_control::input_message_listener::FreshInputMessageChunker;
+use client_core::client::{
+    inbound_messages::InputMessage,
+    real_messages_control::acknowledgement_control::input_message_listener::FreshInputMessageChunker,
+};
 
 mod inbound;
 mod outbound;
@@ -52,16 +56,24 @@ pub struct ProxyRunner<S> {
     // Listens to shutdown commands from higher up
     shutdown_listener: ShutdownListener,
 
-    msg_chunker: Option<FreshInputMessageChunker<OsRng>>,
+    msg_chunker: Option<Box<dyn Chunker<S>>>,
 }
 
-trait Chunker<S> {
-    fn chunk(&mut self, msg: S);
+#[async_trait]
+pub trait Chunker<S>: Send {
+    async fn chunk(&mut self, msg: S);
+
+    fn clone_box(&self) -> Box<dyn Chunker<S>>;
 }
 
-impl<S> Chunker<S> for FreshInputMessageChunker<OsRng> {
-    fn chunk(&mut self, msg: S) {
-        self.on_input_message(msg);
+#[async_trait]
+impl Chunker<InputMessage> for FreshInputMessageChunker<OsRng> {
+    async fn chunk(&mut self, msg: InputMessage) {
+        self.on_input_message(msg).await;
+    }
+
+    fn clone_box(&self) -> Box<dyn Chunker<InputMessage>> {
+        Box::new(self.clone())
     }
 }
 
@@ -77,7 +89,7 @@ where
         mix_sender: MixProxySender<S>,
         connection_id: ConnectionId,
         shutdown_listener: ShutdownListener,
-        msg_chunker: Option<FreshInputMessageChunker<OsRng>>,
+        msg_chunker: Option<Box<dyn Chunker<S>>>,
     ) -> Self {
         ProxyRunner {
             mix_receiver: Some(mix_receiver),
@@ -95,10 +107,11 @@ where
     // request/response as required by entity running particular side of the proxy.
     pub async fn run<F>(mut self, adapter_fn: F) -> Self
     where
-        F: Fn(ConnectionId, Vec<u8>, bool) -> S + Send + 'static,
+        F: Fn(ConnectionId, Vec<u8>, bool) -> S + Send + Sync + 'static,
     {
         let (read_half, write_half) = self.socket.take().unwrap().into_split();
         let shutdown_notify = Arc::new(Notify::new());
+        let chunker = Some(self.msg_chunker.as_ref().unwrap().clone_box());
 
         // should run until either inbound closes or is notified from outbound
         let inbound_future = inbound::run_inbound(
@@ -110,7 +123,7 @@ where
             adapter_fn,
             Arc::clone(&shutdown_notify),
             self.shutdown_listener.clone(),
-            self.msg_chunker.clone(),
+            chunker,
         );
 
         let outbound_future = outbound::run_outbound(

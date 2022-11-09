@@ -20,6 +20,7 @@ task = { path = "../../task" }
 
 client-core = { path = "../../../clients/client-core" }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+async-trait = "0.1.58"
 
 [dev-dependencies]
 tokio-test = "0.4.2"

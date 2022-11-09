@@ -295,7 +295,7 @@ impl SocksClient {
             input_sender,
             connection_id,
             self.shutdown_listener.clone(),
-            Some(msg_chunker),
+            Some(Box::new(msg_chunker)),
         )
         .run(move |conn_id, read_data, socket_closed| {
             let provider_request = Request::new_send(conn_id, read_data, socket_closed);

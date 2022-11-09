@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use super::Chunker;
 use super::MixProxySender;
 use super::SHUTDOWN_TIMEOUT;
 use crate::available_reader::AvailableReader;
@@ -31,7 +32,7 @@ fn send_empty_close<F, S>(
         .unwrap();
 }
 
-fn deal_with_data<F, S>(
+async fn deal_with_data<F, S>(
     read_data: Option<io::Result<Bytes>>,
     local_destination_address: &str,
     remote_source_address: &str,
@@ -39,7 +40,7 @@ fn deal_with_data<F, S>(
     message_sender: &mut OrderedMessageSender,
     mix_sender: &MixProxySender<S>,
     adapter_fn: F,
-    msg_chunker: &Option<FreshInputMessageChunker<OsRng>>,
+    msg_chunker: &mut Option<Box<dyn Chunker<S>>>,
 ) -> bool
 where
     F: Fn(ConnectionId, Vec<u8>, bool) -> S,
@@ -69,7 +70,8 @@ where
 
     // WIP(JON): here we do the chunking, and send to real_message_sender instead
     if let Some(chunker) = msg_chunker {
-        chunker.on_input_message(adapter_fn(connection_id, ordered_msg, is_finished));
+        let msg = adapter_fn(connection_id, ordered_msg, is_finished);
+        chunker.chunk(msg).await;
     } else {
         mix_sender
             .unbounded_send(adapter_fn(connection_id, ordered_msg, is_finished))
@@ -94,7 +96,7 @@ pub(super) async fn run_inbound<F, S>(
     adapter_fn: F,
     shutdown_notify: Arc<Notify>,
     mut shutdown_listener: ShutdownListener,
-    msg_chunker: Option<FreshInputMessageChunker<OsRng>>,
+    mut msg_chunker: Option<Box<dyn Chunker<S>>>,
 ) -> OwnedReadHalf
 where
     F: Fn(ConnectionId, Vec<u8>, bool) -> S + Send + 'static,
@@ -108,7 +110,7 @@ where
     loop {
         select! {
             read_data = &mut available_reader.next() => {
-                if deal_with_data(read_data, &local_destination_address, &remote_source_address, connection_id, &mut message_sender, &mix_sender, &adapter_fn, &msg_chunker) {
+                if deal_with_data(read_data, &local_destination_address, &remote_source_address, connection_id, &mut message_sender, &mix_sender, &adapter_fn, &mut msg_chunker).await {
                     break
                 }
             }

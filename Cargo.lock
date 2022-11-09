@@ -4123,9 +4123,11 @@ name = "proxy-helpers"
 version = "0.1.0"
 dependencies = [
  "bytes",
+ "client-core",
  "futures",
  "log",
  "ordered-buffer",
+ "rand 0.7.3",
  "socks5-requests",
  "task",
  "tokio",

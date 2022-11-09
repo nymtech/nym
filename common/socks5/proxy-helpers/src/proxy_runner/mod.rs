@@ -3,10 +3,13 @@
 
 use crate::connection_controller::ConnectionReceiver;
 use futures::channel::mpsc;
+use rand::rngs::OsRng;
 use socks5_requests::ConnectionId;
 use std::{sync::Arc, time::Duration};
 use task::ShutdownListener;
 use tokio::{net::TcpStream, sync::Notify};
+
+use client_core::client::real_messages_control::acknowledgement_control::input_message_listener::FreshInputMessageChunker;
 
 mod inbound;
 mod outbound;
@@ -33,7 +36,7 @@ pub type MixProxySender<S> = mpsc::UnboundedSender<S>;
 
 // TODO: when we finally get to implementing graceful shutdown,
 // on Drop this guy should tell the remote that it's closed now
-#[derive(Debug)]
+//#[derive(Debug)]
 pub struct ProxyRunner<S> {
     /// receives data from the mix network and sends that into the socket
     mix_receiver: Option<ConnectionReceiver>,
@@ -48,6 +51,8 @@ pub struct ProxyRunner<S> {
 
     // Listens to shutdown commands from higher up
     shutdown_listener: ShutdownListener,
+
+    msg_chunker: Option<FreshInputMessageChunker<OsRng>>,
 }
 
 impl<S> ProxyRunner<S>
@@ -62,6 +67,7 @@ where
         mix_sender: MixProxySender<S>,
         connection_id: ConnectionId,
         shutdown_listener: ShutdownListener,
+        msg_chunker: Option<FreshInputMessageChunker<OsRng>>,
     ) -> Self {
         ProxyRunner {
             mix_receiver: Some(mix_receiver),
@@ -71,6 +77,7 @@ where
             remote_source_address,
             connection_id,
             shutdown_listener,
+            msg_chunker,
         }
     }
 
@@ -93,6 +100,7 @@ where
             adapter_fn,
             Arc::clone(&shutdown_notify),
             self.shutdown_listener.clone(),
+            self.msg_chunker.clone(),
         );
 
         let outbound_future = outbound::run_outbound(

@@ -55,6 +55,7 @@ impl Connection {
             mix_sender,
             connection_id,
             shutdown,
+            None,
         )
         .run(move |conn_id, read_data, socket_closed| {
             (

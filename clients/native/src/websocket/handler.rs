@@ -3,6 +3,7 @@
 
 use client_core::client::{
     inbound_messages::{InputMessage, InputMessageSender},
+    real_messages_control::acknowledgement_control::input_message_listener::FreshInputMessageChunker,
     received_buffer::{
         ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
     },
@@ -13,6 +14,7 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::receiver::ReconstructedMessage;
+use rand::rngs::OsRng;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
     accept_async,
@@ -38,6 +40,7 @@ pub(crate) struct Handler {
     self_full_address: Recipient,
     socket: Option<WebSocketStream<TcpStream>>,
     received_response_type: ReceivedResponseType,
+    fresh_input_msg_chunker: FreshInputMessageChunker<OsRng>,
 }
 
 // clone is used to use handler on a new connection, which initially is `None`
@@ -49,6 +52,7 @@ impl Clone for Handler {
             self_full_address: self.self_full_address,
             socket: None,
             received_response_type: Default::default(),
+            fresh_input_msg_chunker: self.fresh_input_msg_chunker.clone(),
         }
     }
 }
@@ -66,6 +70,7 @@ impl Handler {
         msg_input: InputMessageSender,
         buffer_requester: ReceivedBufferRequestSender,
         self_full_address: Recipient,
+        fresh_input_msg_chunker: FreshInputMessageChunker<OsRng>,
     ) -> Self {
         Handler {
             msg_input,
@@ -73,10 +78,11 @@ impl Handler {
             self_full_address,
             socket: None,
             received_response_type: Default::default(),
+            fresh_input_msg_chunker,
         }
     }
 
-    fn handle_send(
+    async fn handle_send(
         &mut self,
         recipient: Recipient,
         message: Vec<u8>,
@@ -86,8 +92,10 @@ impl Handler {
         let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb);
 
         // WIP(JON): here we should chunk the message, and send it to the sphinx_message_sender
+        self.fresh_input_msg_chunker.on_input_message(input_msg).await;
 
-        self.msg_input.unbounded_send(input_msg).unwrap();
+
+        //self.msg_input.unbounded_send(input_msg).unwrap();
 
         None
     }
@@ -107,13 +115,13 @@ impl Handler {
         ServerResponse::SelfAddress(self.self_full_address)
     }
 
-    fn handle_request(&mut self, request: ClientRequest) -> Option<ServerResponse> {
+    async fn handle_request(&mut self, request: ClientRequest) -> Option<ServerResponse> {
         match request {
             ClientRequest::Send {
                 recipient,
                 message,
                 with_reply_surb,
-            } => self.handle_send(recipient, message, with_reply_surb),
+            } => self.handle_send(recipient, message, with_reply_surb).await,
             ClientRequest::Reply {
                 message,
                 reply_surb,
@@ -122,7 +130,7 @@ impl Handler {
         }
     }
 
-    fn handle_text_message(&mut self, msg: String) -> Option<WsMessage> {
+    async fn handle_text_message(&mut self, msg: String) -> Option<WsMessage> {
         debug!("Handling text message request");
         trace!("Content: {:?}", msg);
 
@@ -131,13 +139,13 @@ impl Handler {
 
         let response = match client_request {
             Err(err) => Some(ServerResponse::Error(err)),
-            Ok(req) => self.handle_request(req),
+            Ok(req) => self.handle_request(req).await,
         };
 
         response.map(|resp| WsMessage::text(resp.into_text()))
     }
 
-    fn handle_binary_message(&mut self, msg: Vec<u8>) -> Option<WsMessage> {
+    async fn handle_binary_message(&mut self, msg: Vec<u8>) -> Option<WsMessage> {
         debug!("Handling binary message request");
 
         self.received_response_type = ReceivedResponseType::Binary;
@@ -145,19 +153,19 @@ impl Handler {
 
         let response = match client_request {
             Err(err) => Some(ServerResponse::Error(err)),
-            Ok(req) => self.handle_request(req),
+            Ok(req) => self.handle_request(req).await,
         };
 
         response.map(|resp| WsMessage::Binary(resp.into_binary()))
     }
 
-    fn handle_ws_request(&mut self, raw_request: WsMessage) -> Option<WsMessage> {
+    async fn handle_ws_request(&mut self, raw_request: WsMessage) -> Option<WsMessage> {
         // apparently tungstenite auto-handles ping/pong/close messages so for now let's ignore
         // them and let's test that claim. If that's not the case, just copy code from
         // old version of this file.
         match raw_request {
-            WsMessage::Text(text_message) => self.handle_text_message(text_message),
-            WsMessage::Binary(binary_message) => self.handle_binary_message(binary_message),
+            WsMessage::Text(text_message) => self.handle_text_message(text_message).await,
+            WsMessage::Binary(binary_message) => self.handle_binary_message(binary_message).await,
             _ => None,
         }
     }
@@ -247,7 +255,7 @@ impl Handler {
                         break;
                     }
 
-                    if let Some(response) = self.handle_ws_request(socket_msg) {
+                    if let Some(response) = self.handle_ws_request(socket_msg).await {
                         if let Err(err) = self.send_websocket_response(response).await {
                             warn!(
                                 "Failed to send message over websocket: {}. Assuming the connection is dead.",

@@ -276,6 +276,17 @@ impl SocksClient {
         //self.fresh_input_msg_chunker;
 
         let recipient = self.service_provider;
+
+        //let mut fresh_input_msg_chunker = self.fresh_input_msg_chunker.clone();
+        //let fn_fresh_input_msg_chunker = move |conn_id, read_data, socket_closed| {
+        //    let provider_request = Request::new_send(conn_id, read_data, socket_closed);
+        //    let provider_message = Message::Request(provider_request);
+        //    let msg = InputMessage::new_fresh(recipient, provider_message.into_bytes(), false);
+        //    fresh_input_msg_chunker.on_input_message(msg)
+        //};
+        //let msg_chunker = Box::new(MsgChunker::new(self.fresh_input_msg_chunker.clone()));
+        let msg_chunker = self.fresh_input_msg_chunker.clone();
+
         let (stream, _) = ProxyRunner::new(
             stream,
             local_stream_remote,
@@ -284,7 +295,7 @@ impl SocksClient {
             input_sender,
             connection_id,
             self.shutdown_listener.clone(),
-            //self.fresh_input_msg_chunker.clone(),
+            Some(msg_chunker),
         )
         .run(move |conn_id, read_data, socket_closed| {
             let provider_request = Request::new_send(conn_id, read_data, socket_closed);
@@ -460,6 +471,30 @@ impl SocksClient {
         Ok(methods)
     }
 }
+
+//pub struct MsgChunker {
+//    fresh_input_msg_chunker: FreshInputMessageChunker<OsRng>,
+//}
+//
+//impl MsgChunker {
+//    fn new(fresh_input_msg_chunker: FreshInputMessageChunker<OsRng>) -> Self {
+//        Self {
+//            fresh_input_msg_chunker,
+//        }
+//    }
+//
+//    pub async fn on_input_message(&mut self, msg: InputMessage) {
+//        self.fresh_input_msg_chunker.on_input_message(msg);
+//    }
+//}
+
+//let mut fresh_input_msg_chunker = self.fresh_input_msg_chunker.clone();
+//let fn_fresh_input_msg_chunker = move |conn_id, read_data, socket_closed| {
+//    let provider_request = Request::new_send(conn_id, read_data, socket_closed);
+//    let provider_message = Message::Request(provider_request);
+//    let msg = InputMessage::new_fresh(recipient, provider_message.into_bytes(), false);
+//    fresh_input_msg_chunker.on_input_message(msg)
+//};
 
 //struct FreshInputMessageChunker<R>
 //where

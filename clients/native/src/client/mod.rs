@@ -8,6 +8,7 @@ use client_core::client::inbound_messages::{
 use client_core::client::key_manager::KeyManager;
 use client_core::client::mix_traffic::{BatchMixMessageSender, MixTrafficController};
 use client_core::client::real_messages_control;
+use client_core::client::real_messages_control::acknowledgement_control::input_message_listener::FreshInputMessageChunker;
 use client_core::client::real_messages_control::RealMessagesController;
 use client_core::client::received_buffer::{
     ReceivedBufferMessage, ReceivedBufferRequestReceiver, ReceivedBufferRequestSender,
@@ -31,6 +32,7 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::receiver::ReconstructedMessage;
+use rand::rngs::OsRng;
 use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
 
 use crate::client::config::{Config, SocketType};
@@ -118,7 +120,7 @@ impl NymClient {
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
         shutdown: ShutdownListener,
-    ) {
+    ) -> FreshInputMessageChunker<OsRng> {
         let mut controller_config = real_messages_control::Config::new(
             self.key_manager.ack_key(),
             self.config.get_base().get_ack_wait_multiplier(),
@@ -139,15 +141,20 @@ impl NymClient {
 
         info!("Starting real traffic stream...");
 
-        RealMessagesController::new(
+        let real_message_controller = RealMessagesController::new(
             controller_config,
             ack_receiver,
             input_receiver,
             mix_sender,
             topology_accessor,
             reply_key_storage,
-        )
-        .start_with_shutdown(shutdown);
+        );
+
+        let fresh_input_msg_chunker = real_message_controller.get_fresh_input_message_chunker();
+
+        real_message_controller.start_with_shutdown(shutdown);
+
+        fresh_input_msg_chunker
     }
 
     // buffer controlling all messages fetched from provider
@@ -279,11 +286,16 @@ impl NymClient {
         &self,
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
+        fresh_input_msg_chunker: FreshInputMessageChunker<OsRng>,
     ) {
         info!("Starting websocket listener...");
 
-        let websocket_handler =
-            websocket::Handler::new(msg_input, buffer_requester, self.as_mix_recipient());
+        let websocket_handler = websocket::Handler::new(
+            msg_input,
+            buffer_requester,
+            self.as_mix_recipient(),
+            fresh_input_msg_chunker,
+        );
 
         websocket::Listener::new(self.config.get_listening_port()).start(websocket_handler);
     }
@@ -403,7 +415,7 @@ impl NymClient {
         let sphinx_message_sender =
             Self::start_mix_traffic_controller(gateway_client, shutdown.subscribe());
 
-        self.start_real_traffic_controller(
+        let fresh_input_msg_chunker = self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
             reply_key_storage,
             ack_receiver,
@@ -425,9 +437,11 @@ impl NymClient {
         }
 
         match self.config.get_socket_type() {
-            SocketType::WebSocket => {
-                self.start_websocket_listener(received_buffer_request_sender, input_sender)
-            }
+            SocketType::WebSocket => self.start_websocket_listener(
+                received_buffer_request_sender,
+                input_sender,
+                fresh_input_msg_chunker,
+            ),
             SocketType::None => {
                 // if we did not start the socket, it means we're running (supposedly) in the native mode
                 // and hence we should announce 'ourselves' to the buffer

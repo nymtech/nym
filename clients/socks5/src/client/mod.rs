@@ -309,50 +309,6 @@ impl NymClient {
 
         let authenticator = Authenticator::new(auth_methods, allowed_users);
 
-        // WIP(JON)
-        //let mut controller_config = client_core::client::real_messages_control::Config::new(
-        //    self.key_manager.ack_key(),
-        //    self.config.get_base().get_ack_wait_multiplier(),
-        //    self.config.get_base().get_ack_wait_addition(),
-        //    self.config.get_base().get_average_ack_delay(),
-        //    self.config.get_base().get_message_sending_average_delay(),
-        //    self.config.get_base().get_average_packet_delay(),
-        //    self.config
-        //        .get_base()
-        //        .get_disabled_main_poisson_packet_distribution(),
-        //    self.as_mix_recipient(),
-        //);
-        //if self.config.get_base().get_use_extended_packet_size() {
-        //    controller_config.set_custom_packet_size(PacketSize::ExtendedPacket)
-        //}
-        //let ack_control_config = acknowledgement_control::Config::new(
-        //    controller_config.ack_wait_addition,
-        //    controller_config.ack_wait_multiplier,
-        //    controller_config.average_ack_delay_duration,
-        //    controller_config.average_packet_delay_duration,
-        //)
-        //.with_custom_packet_size(controller_config.packet_size);
-
-        //let ack_key = self.key_manager.ack_key();
-        //let ack_recipient = self.as_mix_recipient();
-        //let rng = OsRng;
-        //let message_preparer = MessagePreparer::new(
-        //    rng,
-        //    ack_recipient,
-        //    ack_control_config.average_packet_delay,
-        //    ack_control_config.average_ack_delay,
-        //)
-        //.with_custom_real_message_packet_size(ack_control_config.packet_size);
-
-        //let fresh_input_msg_chunker = FreshInputMessageChunker::new(
-        //    ack_key,
-        //    ack_recipient,
-        //    message_preparer,
-        //    action_sender,
-        //    real_message_sender: BatchRealMessageSender,
-        //    topology_access: TopologyAccessor,
-        //);
-
         let mut sphinx_socks = SphinxSocksServer::new(
             self.config.get_listening_port(),
             authenticator,

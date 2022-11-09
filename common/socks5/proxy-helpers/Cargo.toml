@@ -18,5 +18,8 @@ socks5-requests = { path = "../requests" }
 ordered-buffer = { path = "../ordered-buffer" }
 task = { path = "../../task" }
 
+client-core = { path = "../../../clients/client-core" }
+rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+
 [dev-dependencies]
 tokio-test = "0.4.2"

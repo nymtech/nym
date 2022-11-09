@@ -12,9 +12,9 @@ class Auth {
   get forgotPassword(): Promise<WebdriverIO.Element> { return $("[data-testid='forgotPassword']") }
 
   // Sign in with mnemonic page 
-  get mnemonicLoginScreenHeader(): Promise<WebdriverIO.Element> { return $("[data-testid='Enter a mnemonic to sign in']") }
-  get mnemonicInput(): Promise<WebdriverIO.Element> { return $("[data-testid='mnemonicInput']") }
-  get signIn(): Promise<WebdriverIO.Element> { return $("[data-testid='signInSubmitButton']") }
+  get mnemonicLoginScreenHeader(): Promise<WebdriverIO.Element> { return $("[data-testid='Enter a mnemonic to sign in']") } //check
+  get mnemonicInput(): Promise<WebdriverIO.Element> { return $("[data-testid='mnemonicInput']") } //check
+  get signIn(): Promise<WebdriverIO.Element> { return $("[data-testid='signInWithMnemonicButton']") }
   get backToSignInOptions(): Promise<WebdriverIO.Element> { return $("[data-testid='backToSignInOptions']") }
   get createPassword(): Promise<WebdriverIO.Element> { return $("[data-testid='goToCreatePassword']") }
 
@@ -29,8 +29,8 @@ class Auth {
   get backToStep1PasswordCreation(): Promise<WebdriverIO.Element> { return $("[data-testid='backToStep1PasswordCreation']") }
 
   // Create account step 1/3
-  get copyMnemonic(): Promise<WebdriverIO.Element> { return $("[data-testid='copyMnemonic']") }
-  get iSavedMnemonic(): Promise<WebdriverIO.Element> { return $("[data-testid='iSavedMnemonic']") }
+  get copyMnemonic(): Promise<WebdriverIO.Element> { return $("[data-testid='copyMnemonic']") } //check
+  get iSavedMnemonic(): Promise<WebdriverIO.Element> { return $("[data-testid='iSavedMnemonic']") } //check
   get mnemonicPhrase(): Promise<WebdriverIO.Element> { return $("[data-testid='mnemonicPhrase']") }
   get backToWelcomePageFromCreate(): Promise<WebdriverIO.Element> { return $("[data-testid='backToWelcome']") }
 
@@ -48,11 +48,11 @@ class Auth {
   get passwordLoginScreenHeader(): Promise<WebdriverIO.Element> { return $("[data-testid='Enter a password to sign in']") }
   get enterPassword(): Promise<WebdriverIO.Element> { return $("[data-testid='Enter password']") }
   get signInPasswordButton(): Promise<WebdriverIO.Element> { return $("[data-testid='signInPasswordButton']") }
-  get backToSignInOptionsFromPassword(): Promise<WebdriverIO.Element> { return $("[data-testid='backToSignInOptionsFromPassword']") }
+  get backToSignInOptionsFromPassword(): Promise<WebdriverIO.Element> { return $("[data-testid='skipAndSignInWithMnemonic']") }
   get forgotPasswordButton(): Promise<WebdriverIO.Element> { return $("[data-testid='forgotPasswordButton']") }
 
   // Errors
-  get error(): Promise<WebdriverIO.Element> { return $("[data-testid='error']") }
+  get error(): Promise<WebdriverIO.Element> { return $("[data-testid='error']") } //check
   //TO-DO get this bit below working 
   getErrorMessage = async () => {
     await (await this.error).waitForDisplayed({ timeout: 1500 })

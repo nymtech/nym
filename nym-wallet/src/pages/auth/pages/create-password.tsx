@@ -57,13 +57,14 @@ export const CreatePassword = () => {
           />
           <Button
             size="large"
+            data-testid="nextStorePassword"
             variant="contained"
             disabled={password !== confirmedPassword || password.length === 0 || !isStrongPassword || isLoading}
             onClick={storePassword}
           >
             Next
           </Button>
-          <Button size="large" color="info" onClick={handleSkip}>
+          <Button data-testid="skipPasswordAndSignInWithMnemonic" size="large" color="info" onClick={handleSkip}>
             Skip and sign in with mnemonic
           </Button>
         </Stack>

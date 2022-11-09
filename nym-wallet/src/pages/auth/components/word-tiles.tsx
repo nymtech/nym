@@ -53,7 +53,7 @@ export const WordTiles = ({
     return (
       <Grid container spacing={3} justifyContent="center">
         {mnemonicWords.map(({ name, index, disabled }) => (
-          <Grid item xs={2} key={index} onClick={() => onClick?.({ name, index })}>
+          <Grid item xs={2} key={index} onClick={() => onClick?.({ name, index })} data-testid="mnemonicWordTile">
             <WordTile
               mnemonicWord={name}
               index={showIndex ? index : undefined}
@@ -79,7 +79,7 @@ const HiddenWord = ({ mnemonicWord }: { mnemonicWord: THiddenMnemonicWord }) => 
         </Box>
       </Fade>
     </Box>
-    <Typography>{mnemonicWord.index}.</Typography>
+    <Typography data-testid="wordIndex">{mnemonicWord.index}.</Typography>
   </Stack>
 );
 

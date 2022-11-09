@@ -48,6 +48,7 @@ export const ConnectPassword = () => {
               onUpdatePassword={(pswd) => setPassword(pswd)}
               label="Password"
               autoFocus
+              data-testid="Password"
             />
             <PasswordStrength password={password} onChange={(isStrong) => setIsStrongPassword(isStrong)} />
           </>
@@ -55,8 +56,10 @@ export const ConnectPassword = () => {
             password={confirmedPassword}
             onUpdatePassword={(pswd) => setConfirmedPassword(pswd)}
             label="Confirm password"
+            data-testid="Confirm Password"
           />
           <Button
+            data-testid="createPasswordButton"
             size="large"
             variant="contained"
             disabled={password !== confirmedPassword || password.length === 0 || !isStrongPassword || isLoading}
@@ -65,6 +68,7 @@ export const ConnectPassword = () => {
             {isLoading ? <CircularProgress size={25} /> : 'Create password'}
           </Button>
           <Button
+            data-testid="backToStep1PasswordCreation"
             size="large"
             color="inherit"
             onClick={() => {

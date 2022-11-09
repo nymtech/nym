@@ -1,14 +1,14 @@
 import Auth from '../../pageobjects/authScreens'
 import Balance from '../../pageobjects/balanceScreen'
-import ValidatorClient from '@nymproject/nym-validator-client';
-const deleteScript = require("../../../scripts/deletesavedwallet")
+import ValidatorClient from '@nymproject/nym-validator-client'
+const deleteScript = require("../../../scripts/deletesavedwallet");
 const textConstants = require("../../../common/text-constants");
 const userData = require("../../../common/user-data.json");
 const deleteWallet = require("../../../scripts/deletesavedwallet");
-const walletExists = require("../../../scripts/savedwalletexists")
+const walletExists = require("../../../scripts/savedwalletexists");
 const Helper = require('../../../common/helper');
 
-describe('Create password for existing account and use it to sign in', () => {
+describe.skip('Create password for existing account and use it to sign in', () => {
 
     it('enter incorrect mnemonic', async () => {
 

@@ -16,13 +16,13 @@ exports.config = {
   },
   specs: ['./test/specs/**/*.ts'],
 
-//   suites: {
+  suites: {
 //     signup: [
 //       './test/specs/signup/*.ts',
 //     ],
-//     login: [
-//       './test/specs/login/*.ts',
-//     ],
+    login: [
+      './test/specs/login/*.ts',
+    ],
 //     balance: [
 //       './test/specs/balance/*.ts',
 //     ],
@@ -35,7 +35,7 @@ exports.config = {
 //     delegation: [
 //       './test/specs/delegation/*.ts',
 //     ],
-//   },
+  },
   // Patterns to exclude.
   exclude: [
     // 'path/to/excluded/files'

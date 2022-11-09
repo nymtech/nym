@@ -11,18 +11,18 @@ export const ExistingAccount = () => {
       <Title title="Welcome to Nym" />
       <SubtitleSlick subtitle="NEXT GENERATION OF PRIVACY" />
       <Stack spacing={2} sx={{ width: 300 }}>
-        <Button variant="contained" size="large" onClick={() => navigate('/sign-in-mnemonic')} fullWidth>
+        <Button variant="contained" size="large" onClick={() => navigate('/sign-in-mnemonic')} fullWidth data-testid="signInWithMnemonic">
           Sign in with mnemonic
         </Button>
         <Typography sx={{ textAlign: 'center', fontWeight: 600 }}>or</Typography>
-        <Button variant="contained" size="large" fullWidth onClick={() => navigate('/sign-in-password')}>
+        <Button variant="contained" size="large" fullWidth onClick={() => navigate('/sign-in-password')} data-testid="signInWithPassword">
           Sign in with password
         </Button>
         <Box display="flex" justifyContent="space-between">
-          <Button color="inherit" onClick={() => navigate('/')}>
+          <Button color="inherit" onClick={() => navigate('/')} data-testid="backToWelcomePage">
             Back
           </Button>
-          <Button color="info" onClick={() => navigate('/forgot-password')}>
+          <Button color="info" onClick={() => navigate('/forgot-password')} data-testid="forgotPassword">
             Forgot password?
           </Button>
         </Box>

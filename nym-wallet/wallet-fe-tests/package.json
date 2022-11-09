@@ -12,9 +12,11 @@
         "@wdio/mocha-framework": "^7.16.15",
         "@types/mocha": "^9.1.1",
         "prettier": "2.5.1",
-        "typescript": "^4.6.2"
+        "typescript": "^4.6.2",
+        "@nymproject/nym-validator-client": "0.18.0"
     },
     "scripts": {
-        "wdio": "wdio run test/wdio.conf.ts"
+        "test": "wdio run test/wdio.conf.ts",
+        "test-login": "wdio run test/wdio.conf.ts --suite login"
     }
 }

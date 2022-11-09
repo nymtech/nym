@@ -56,10 +56,11 @@ export const VerifyMnemonic = () => {
             size="large"
             disabled={currentSelection !== numberOfRandomWords}
             onClick={() => navigate('/create-password')}
+            data-testid="nextToStep3"
           >
             Next
           </Button>
-          <Button color="inherit" fullWidth size="large" onClick={() => navigate(-1)}>
+          <Button color="inherit" fullWidth size="large" onClick={() => navigate(-1)} data-testid="backToStep1">
             Back
           </Button>
         </Stack>

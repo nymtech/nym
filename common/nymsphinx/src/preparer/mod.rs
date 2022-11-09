@@ -65,7 +65,7 @@ pub struct MessagePreparer<R: CryptoRng + Rng> {
     rng: R,
 
     /// Size of the target [`SphinxPacket`] into which the underlying is going to get split.
-    pub packet_size: PacketSize,
+    packet_size: PacketSize,
 
     /// Address of this client which also represent an address to which all acknowledgements
     /// and surb-based are going to be sent.
@@ -151,23 +151,6 @@ where
         self.packet_size.plaintext_size() - ack_overhead - key_digest_overhead
     }
 
-    // /// Pads the message so that after it gets chunked, it will occupy exactly N sphinx packets.
-    // /// Produces new_message = message || 1 || 0000....
-    // fn pad_message(&self, message: Vec<u8>) -> Vec<u8> {
-    //     // 1 is added as there will always have to be at least a single byte of padding (1) added
-    //     // to be able to later distinguish the actual padding from the underlying message
-    //     let (_, space_left) = chunking::number_of_required_fragments(
-    //         message.len() + 1,
-    //         self.available_plaintext_per_packet(),
-    //     );
-    //
-    //     message
-    //         .into_iter()
-    //         .chain(std::iter::once(1u8))
-    //         .chain(std::iter::repeat(0u8).take(space_left))
-    //         .collect()
-    // }
-
     // /// Attaches reply-SURB to the message alongside the reply key.
     // /// Results in:
     // /// new_message = 0 || message
@@ -204,14 +187,47 @@ where
         Ok((msg, reply_keys))
     }
 
-    // /// Splits the message into [`Fragment`] that are going to be put later put into sphinx packets.
-    // fn split_message(&mut self, message: Vec<u8>) -> Vec<Fragment> {
-    //     let plaintext_per_packet = self.available_plaintext_per_packet();
-    //     chunking::split_into_sets(&mut self.rng, &message, plaintext_per_packet)
-    //         .into_iter()
-    //         .flat_map(|fragment_set| fragment_set.into_iter())
-    //         .collect()
-    // }
+    /// The procedure is as follows:
+    /// For each fragment:
+    /// - compute SURB_ACK
+    /// - generate (x, g^x)
+    /// - obtain key k from the reply-surb which was computed as follows:
+    ///     k = KDF(remote encryption key ^ x) this is equivalent to KDF( dh(remote, x) )
+    /// - compute v_b = AES-128-CTR(k, serialized_fragment)
+    /// - compute vk_b = H(k) || v_b
+    /// - compute sphinx_plaintext = SURB_ACK || H(k) || v_b
+    /// - compute sphinx_packet by applying the reply surb on the sphinx_plaintext
+    pub fn prepare_reply_chunk_for_sending(
+        &mut self,
+        fragment: Fragment,
+        topology: &NymTopology,
+        reply_surb: ReplySurb,
+        ack_key: &AckKey,
+    ) -> Result<PreparedFragment, NymTopologyError> {
+        // TODO: pass that as an argument derived from the config
+        let expected_forward_delay = Delay::new_from_millis(300);
+
+        // create an ack
+        let surb_ack = self.generate_surb_ack(fragment.fragment_identifier(), topology, ack_key)?;
+        let ack_delay = surb_ack.expected_total_delay();
+
+        let packet_payload = NymsphinxPayloadBuilder::new(fragment, surb_ack)
+            .build_reply(reply_surb.encryption_key());
+
+        // the unwrap here is fine as the failures can only originate from attempting to use invalid payload lenghts
+        // and we just very carefully constructed a (presumably) valid one
+        let (sphinx_packet, first_hop_address) = reply_surb
+            .apply_surb(packet_payload, Some(self.packet_size))
+            .unwrap();
+
+        Ok(PreparedFragment {
+            // the round-trip delay is the sum of delays of all hops on the forward route as
+            // well as the total delay of the ack packet.
+            // we don't know the delays inside the reply surbs so we use best-effort estimation from our poisson distribution
+            total_delay: expected_forward_delay + ack_delay,
+            mix_packet: MixPacket::new(first_hop_address, sphinx_packet, Default::default()),
+        })
+    }
 
     /// Tries to convert this [`Fragment`] into a [`SphinxPacket`] that can be sent through the Nym mix-network,
     /// such that it contains required SURB-ACK and public component of the ephemeral key used to
@@ -259,7 +275,7 @@ where
         // there's absolutely no reason for this call to fail.
         let sphinx_packet = SphinxPacketBuilder::new()
             .with_payload_size(self.packet_size.payload_size())
-            .build_packet(packet_payload.0, &route, &destination, &delays)
+            .build_packet(packet_payload, &route, &destination, &delays)
             .unwrap();
 
         // from the previously constructed route extract the first hop
@@ -276,8 +292,7 @@ where
     }
 
     /// Construct an acknowledgement SURB for the given [`FragmentIdentifier`]
-    // TODO: MAKE IT PRIVATE AGAIN
-    pub fn generate_surb_ack(
+    fn generate_surb_ack(
         &mut self,
         fragment_id: FragmentIdentifier,
         topology: &NymTopology,
@@ -322,7 +337,10 @@ where
     }
 
     // TODO: perhaps the return type could somehow be combined with [`PreparedFragment`] ?
-    pub async fn prepare_reply_for_use(
+    // TODO: see if this is still needed (I've deprecated it so that i'd known if it's still used
+    // once I'm done with the rest of the changes)
+    #[deprecated]
+    pub fn prepare_reply_for_use(
         &mut self,
         message: Vec<u8>,
         reply_surb: ReplySurb,

@@ -73,8 +73,7 @@ impl SurbAck {
     }
 
     pub fn expected_total_delay(&self) -> Delay {
-        // `Delay` should have really had a `Copy` trait on it...
-        self.expected_total_delay.clone()
+        self.expected_total_delay
     }
 
     pub fn prepare_for_sending(self) -> (Delay, Vec<u8>) {

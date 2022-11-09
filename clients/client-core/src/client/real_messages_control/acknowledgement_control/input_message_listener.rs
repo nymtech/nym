@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use super::action_controller::{Action, ActionSender};
@@ -60,7 +60,6 @@ where
         real_message_sender: BatchRealMessageSender,
         topology_access: TopologyAccessor,
         reply_storage: CombinedReplyStorage,
-        // #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
     ) -> Self {
         InputMessageListener {
             ack_key,
@@ -70,8 +69,6 @@ where
             action_sender,
             real_message_sender,
             topology_access,
-            // #[cfg(feature = "reply-surb")]
-            // reply_key_storage,
             reply_storage,
         }
     }
@@ -108,31 +105,30 @@ where
                     }
                 };
 
-            let mut packets = Vec::with_capacity(reply_surbs.len());
+            let mut real_messages = Vec::with_capacity(reply_surbs.len());
             for (fragment, reply_surb) in fragments.into_iter().zip(reply_surbs.into_iter()) {
-                // TODO: this should be happening inside message_preparer!!!
-                let fragment_id = fragment.fragment_identifier();
-                let surb_ack = self
+                // we need to clone it because we need to keep it in memory in case we had to retransmit
+                // it. And then we'd need to recreate entire ACK again.
+                let chunk_clone = fragment.clone();
+                let prepared_fragment = self
                     .message_preparer
-                    .generate_surb_ack(fragment_id, topology, &self.ack_key)
-                    .expect("TODO: handle this error");
-                let ack_delay = surb_ack.expected_total_delay();
-
-                let packet_payload = NymsphinxPayloadBuilder::new(fragment, surb_ack)
-                    .build_reply(reply_surb.encryption_key());
-
-                // the unwrap here is fine as the failures can only originate from attempting to use invalid payload lenghts
-                // and we just very carefully constructed a (presumably) valid one
-                let (sphinx_packet, first_hop) = reply_surb
-                    .apply_surb(&packet_payload.0, Some(self.message_preparer.packet_size))
+                    .prepare_reply_chunk_for_sending(
+                        chunk_clone,
+                        topology,
+                        reply_surb,
+                        &self.ack_key,
+                    )
                     .unwrap();
 
-                let mix_packet = MixPacket::new(first_hop, sphinx_packet, Default::default());
-                let real_message = RealMessage::new(mix_packet, fragment_id);
-                packets.push(real_message);
+                real_messages.push(RealMessage::new(
+                    prepared_fragment.mix_packet,
+                    fragment.fragment_identifier(),
+                ));
+
+                // TODO: deal with retransmission and acks here
             }
 
-            Some(packets)
+            Some(real_messages)
         } else {
             // TODO: here be the logic for surb requests and I guess delegation to the surbs handler
             panic!(
@@ -160,7 +156,6 @@ where
         match self
             .message_preparer
             .prepare_reply_for_use(data, reply_surb, topology, &self.ack_key)
-            .await
         {
             Ok((mix_packet, reply_id)) => {
                 // TODO: later probably write pending ack here
@@ -176,29 +171,6 @@ where
             }
         }
     }
-
-    // async fn split_raw_message_into_fragments(
-    //     &mut self,
-    //     raw_message: Vec<u8>,
-    //     reply_surbs: u32,
-    // ) -> Option<()> {
-    //     let topology_permit = self.topology_access.get_read_permit().await;
-    //     let topology = match topology_permit
-    //         .try_get_valid_topology_ref(&self.ack_recipient, Some(&recipient))
-    //     {
-    //         Some(topology_ref) => topology_ref,
-    //         None => {
-    //             warn!("Could not process the message - the network topology is invalid");
-    //             return None;
-    //         }
-    //     };
-    //
-    //     // split the message, attach optional reply surb
-    //     let (split_message, reply_keys) = self
-    //         .message_preparer
-    //         .prepare_and_split_message(content, reply_surbs, topology)
-    //         .expect("somehow the topology was invalid after all!");
-    // }
 
     async fn handle_fresh_message(
         &mut self,
@@ -223,20 +195,8 @@ where
             .prepare_and_split_message(content, reply_surbs, topology)
             .expect("somehow the topology was invalid after all!");
 
-        log::error!("here we need to store {} reply keys", reply_keys.len());
+        log::info!("storing {} reply keys", reply_keys.len());
         self.reply_storage.insert_multiple_surb_keys(reply_keys);
-
-        // todo!("handle reply keys: either have storage on THIS struct or move it with a channel or something");
-
-        // #[cfg(feature = "reply-surb")]
-        // if let Some(reply_key) = reply_key {
-        //     self.reply_key_storage
-        //         .insert_encryption_key(reply_key)
-        //         .expect("Failed to insert surb reply key to the store!")
-        // }
-        //
-        // #[cfg(not(feature = "reply-surb"))]
-        // let _reply_key = reply_key;
 
         // encrypt chunks, put them inside sphinx packets and generate acks
         let mut pending_acks = Vec::with_capacity(split_message.len());

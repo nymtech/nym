@@ -5217,7 +5217,7 @@ dependencies = [
 [[package]]
 name = "sphinx"
 version = "0.1.0"
-source = "git+https://github.com/nymtech/sphinx?rev=c494250f2a78bed33a618d470792418eee932859#c494250f2a78bed33a618d470792418eee932859"
+source = "git+https://github.com/nymtech/sphinx?rev=e05a1992522ed0afd3c6fcac160313ffc9bb306a#e05a1992522ed0afd3c6fcac160313ffc9bb306a"
 dependencies = [
  "aes 0.7.5",
  "arrayref",

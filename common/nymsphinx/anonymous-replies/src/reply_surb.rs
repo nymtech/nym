@@ -166,21 +166,22 @@ impl ReplySurb {
     // - surb-ack
     // - key digest
     // - encrypted plaintext with padding to constant length
-    pub fn apply_surb(
+    pub fn apply_surb<M: AsRef<[u8]>>(
         self,
-        message: &[u8],
+        message: M,
         packet_size: Option<PacketSize>,
     ) -> Result<(SphinxPacket, NymNodeRoutingAddress), ReplySurbError> {
         let packet_size = packet_size.unwrap_or_default();
 
-        if message.len() != packet_size.plaintext_size() {
+        let message_bytes = message.as_ref();
+        if message_bytes.len() != packet_size.plaintext_size() {
             return Err(ReplySurbError::UnpaddedMessageError);
         }
 
         // this can realistically only fail on too long messages and we just checked for that
         let (packet, first_hop) = self
             .surb
-            .use_surb(message, packet_size.payload_size())
+            .use_surb(message_bytes, packet_size.payload_size())
             .expect("this error indicates inconsistent message length checking - it shouldn't have happened!");
 
         let first_hop_address = NymNodeRoutingAddress::try_from(first_hop).unwrap();

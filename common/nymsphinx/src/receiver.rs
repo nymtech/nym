@@ -1,15 +1,21 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::message::{NymMessage, PaddedMessage};
+use crate::message::{NymMessage, PaddedMessage, PlainMessage};
+use crypto::aes::cipher::{KeyIvInit, StreamCipher};
 use crypto::asymmetric::encryption;
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
+use crypto::symmetric::stream_cipher::CipherKey;
 use nymsphinx_anonymous_replies::reply_surb::{ReplySurb, ReplySurbError};
 use nymsphinx_anonymous_replies::requests::AnonymousSenderTag;
+use nymsphinx_anonymous_replies::SurbEncryptionKey;
 use nymsphinx_chunking::fragment::Fragment;
 use nymsphinx_chunking::reconstruction::MessageReconstructor;
-use nymsphinx_params::{PacketEncryptionAlgorithm, PacketHkdfAlgorithm, DEFAULT_NUM_MIX_HOPS};
+use nymsphinx_params::{
+    PacketEncryptionAlgorithm, PacketHkdfAlgorithm, ReplySurbEncryptionAlgorithm,
+    DEFAULT_NUM_MIX_HOPS,
+};
 
 // TODO: should this live in this file?
 #[derive(Debug)]
@@ -19,6 +25,24 @@ pub struct ReconstructedMessage {
     // /// Optional ReplySURB to allow for an anonymous reply to the sender.
     // pub reply_surbs: Vec<ReplySurb>,
     pub sender_tag: Option<AnonymousSenderTag>,
+}
+
+impl ReconstructedMessage {
+    pub fn new(message: Vec<u8>, sender_tag: AnonymousSenderTag) -> Self {
+        Self {
+            message,
+            sender_tag: Some(sender_tag),
+        }
+    }
+}
+
+impl From<PlainMessage> for ReconstructedMessage {
+    fn from(message: PlainMessage) -> Self {
+        ReconstructedMessage {
+            message,
+            sender_tag: None,
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -66,37 +90,58 @@ impl MessageReceiver {
         self
     }
 
-    /// Parses the message to strip and optionally recover reply SURB.
-    fn recover_reply_surbs_from_message(
+    // /// Parses the message to strip and optionally recover reply SURB.
+    // fn recover_reply_surbs_from_message(
+    //     &self,
+    //     message: &mut Vec<u8>,
+    // ) -> Result<Option<ReplySurb>, MessageRecoveryError> {
+    //     todo!()
+    //     // match message[0] {
+    //     //     n if n == false as u8 => {
+    //     //         message.remove(0);
+    //     //         Ok(None)
+    //     //     }
+    //     //     n if n == true as u8 => {
+    //     //         let surb_len: usize = ReplySurb::serialized_len(self.num_mix_hops);
+    //     //         // note the extra +1 (due to 0/1 message prefix)
+    //     //         let surb_bytes = &message[1..1 + surb_len];
+    //     //         let reply_surb = ReplySurb::from_bytes(surb_bytes)?;
+    //     //
+    //     //         *message = message.drain(1 + surb_len..).collect();
+    //     //         Ok(Some(reply_surb))
+    //     //     }
+    //     //     _ => Err(MessageRecoveryError::InvalidSurbPrefixError),
+    //     // }
+    // }
+
+    fn decrypt_raw_message<C>(&self, message: &mut [u8], key: &CipherKey<C>)
+    where
+        C: StreamCipher + KeyIvInit,
+    {
+        let zero_iv = stream_cipher::zero_iv::<C>();
+        stream_cipher::decrypt_in_place::<C>(key, &zero_iv, message)
+    }
+
+    /// Given raw fragment data, **WITH KEY DIGEST PREFIX ALREADY REMOVED!!**, uses looked up
+    /// key to decrypt fragment data
+    pub fn recover_plaintext_from_reply(
         &self,
-        message: &mut Vec<u8>,
-    ) -> Result<Option<ReplySurb>, MessageRecoveryError> {
-        todo!()
-        // match message[0] {
-        //     n if n == false as u8 => {
-        //         message.remove(0);
-        //         Ok(None)
-        //     }
-        //     n if n == true as u8 => {
-        //         let surb_len: usize = ReplySurb::serialized_len(self.num_mix_hops);
-        //         // note the extra +1 (due to 0/1 message prefix)
-        //         let surb_bytes = &message[1..1 + surb_len];
-        //         let reply_surb = ReplySurb::from_bytes(surb_bytes)?;
-        //
-        //         *message = message.drain(1 + surb_len..).collect();
-        //         Ok(Some(reply_surb))
-        //     }
-        //     _ => Err(MessageRecoveryError::InvalidSurbPrefixError),
-        // }
+        reply_ciphertext: &mut [u8],
+        reply_key: SurbEncryptionKey,
+    ) {
+        self.decrypt_raw_message::<ReplySurbEncryptionAlgorithm>(
+            reply_ciphertext,
+            reply_key.inner(),
+        )
     }
 
     /// Given raw fragment data, recovers the remote ephemeral key, recomputes shared secret,
     /// uses it to decrypt fragment data
-    pub fn recover_plaintext(
+    pub fn recover_plaintext_from_regular_packet<'a>(
         &self,
         local_key: &encryption::PrivateKey,
-        mut raw_enc_frag: Vec<u8>,
-    ) -> Result<Vec<u8>, MessageRecoveryError> {
+        raw_enc_frag: &'a mut [u8],
+    ) -> Result<&'a mut [u8], MessageRecoveryError> {
         // 1. recover remote encryption key
         let remote_key_bytes = &raw_enc_frag[..encryption::PUBLIC_KEY_SIZE];
         let remote_ephemeral_key = encryption::PublicKey::from_bytes(remote_key_bytes)?;
@@ -108,14 +153,12 @@ impl MessageReceiver {
         );
 
         // 3. decrypt fragment data
-        let fragment_bytes = &mut raw_enc_frag[encryption::PUBLIC_KEY_SIZE..];
+        let fragment_ciphertext = &mut raw_enc_frag[encryption::PUBLIC_KEY_SIZE..];
 
-        let zero_iv = stream_cipher::zero_iv::<PacketEncryptionAlgorithm>();
-        Ok(stream_cipher::decrypt::<PacketEncryptionAlgorithm>(
-            &encryption_key,
-            &zero_iv,
-            fragment_bytes,
-        ))
+        self.decrypt_raw_message::<PacketEncryptionAlgorithm>(fragment_ciphertext, &encryption_key);
+        let fragment_data = fragment_ciphertext;
+
+        Ok(fragment_data)
     }
 
     /// Given fragment data recovers [`Fragment`] itself.

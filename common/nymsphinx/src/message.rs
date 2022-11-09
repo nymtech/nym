@@ -46,8 +46,10 @@ impl TryFrom<u8> for NymMessageType {
     }
 }
 
+pub type PlainMessage = Vec<u8>;
+
 pub enum NymMessage {
-    Plain(Vec<u8>),
+    Plain(PlainMessage),
     Repliable(RepliableMessage),
     Reply(ReplyMessage),
 }

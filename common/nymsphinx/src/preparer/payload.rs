@@ -87,4 +87,11 @@ impl NymsphinxPayloadBuilder {
 
 // the actual byte data that will be put into the sphinx packet paylaod.
 // no more transformations are going to happen to it
-pub struct NymsphinxPayload(pub Vec<u8>);
+// TODO: use that fact for some better compile time assertions
+pub struct NymsphinxPayload(Vec<u8>);
+
+impl AsRef<[u8]> for NymsphinxPayload {
+    fn as_ref(&self) -> &[u8] {
+        &self.0
+    }
+}

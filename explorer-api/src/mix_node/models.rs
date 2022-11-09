@@ -34,6 +34,7 @@ pub(crate) struct PrettyDetailedMixNodeBond {
     pub layer: Layer,
     pub mix_node: MixNode,
     pub stake_saturation: f32,
+    pub uncapped_saturation: f32,
     pub avg_uptime: u8,
     pub estimated_operator_apy: f64,
     pub estimated_delegators_apy: f64,
@@ -153,6 +154,7 @@ pub(crate) struct NodeStats {
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 pub(crate) struct EconomicDynamicsStats {
     pub(crate) stake_saturation: f32,
+    pub(crate) uncapped_saturation: f32,
 
     pub(crate) active_set_inclusion_probability: SelectionChance,
     pub(crate) reserve_set_inclusion_probability: SelectionChance,

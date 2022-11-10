@@ -4,8 +4,8 @@
 [package]
 name = "gateway-requests"
 version = "0.1.0"
-authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
-edition = "2021"
+authors = ["Julius080 <julius1999.md@gmail.com>"]
+edition = "2022"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

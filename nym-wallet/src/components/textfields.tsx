@@ -35,6 +35,7 @@ export const MnemonicInput: React.FC<{
         }}
       />
       <FormControlLabel
+        data-testid="Reveal Mnemonic"
         control={<Checkbox checked={Boolean(showPassword)} onChange={() => setShowPassword((show) => !show)} />}
         label="Reveal my mnemonic"
       />
@@ -74,6 +75,9 @@ export const PasswordInput: React.FC<{
             ),
           }}
           InputLabelProps={{ shrink: true }}
+          inputProps={{
+            "data-testid": label,
+            }}
         />
       </Box>
       {error && <Error message={error} />}

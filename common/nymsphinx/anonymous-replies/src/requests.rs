@@ -7,7 +7,8 @@ use std::mem;
 
 pub struct UnnamedRepliesError;
 
-pub type AnonymousSenderTag = [u8; 16];
+pub const SENDER_TAG_SIZE: usize = 16;
+pub type AnonymousSenderTag = [u8; SENDER_TAG_SIZE];
 
 pub struct RepliableMessage {
     pub sender_tag: AnonymousSenderTag,
@@ -19,7 +20,7 @@ impl RepliableMessage {
     #[deprecated]
     pub fn temp_new_data(data: Vec<u8>, reply_surbs: Vec<ReplySurb>) -> Self {
         RepliableMessage {
-            sender_tag: [8u8; 16],
+            sender_tag: [8u8; SENDER_TAG_SIZE],
             content: RepliableMessageContent::Data {
                 message: data,
                 reply_surbs,
@@ -38,14 +39,17 @@ impl RepliableMessage {
     }
 
     pub fn try_from_bytes(bytes: &[u8], num_mix_hops: u8) -> Result<Self, UnnamedRepliesError> {
-        if bytes.len() < 16 + 1 {
+        if bytes.len() < SENDER_TAG_SIZE + 1 {
             return Err(UnnamedRepliesError);
         }
-        let sender_tag = bytes[..16].try_into().unwrap();
-        let content_tag = RepliableMessageContentTag::try_from(bytes[16])?;
+        let sender_tag = bytes[..SENDER_TAG_SIZE].try_into().unwrap();
+        let content_tag = RepliableMessageContentTag::try_from(bytes[SENDER_TAG_SIZE])?;
 
-        let content =
-            RepliableMessageContent::try_from_bytes(&bytes[17..], num_mix_hops, content_tag)?;
+        let content = RepliableMessageContent::try_from_bytes(
+            &bytes[SENDER_TAG_SIZE + 1..],
+            num_mix_hops,
+            content_tag,
+        )?;
 
         Ok(RepliableMessage {
             sender_tag,

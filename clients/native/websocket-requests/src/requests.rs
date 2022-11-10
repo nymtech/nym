@@ -7,7 +7,7 @@
 use crate::error::{self, ErrorKind};
 use crate::text::ClientRequestText;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, SENDER_TAG_SIZE};
 use nymsphinx::anonymous_replies::ReplySurb;
 use std::convert::{TryFrom, TryInto};
 use std::mem::size_of;
@@ -139,7 +139,7 @@ impl ClientRequest {
 
     // REPLY_REQUEST_TAG || SENDER_TAG || message_len || message]
     fn deserialize_reply(b: &[u8]) -> Result<Self, error::Error> {
-        if b.len() < 1 + 16 + size_of::<u64>() {
+        if b.len() < 1 + SENDER_TAG_SIZE + size_of::<u64>() {
             return Err(error::Error::new(
                 ErrorKind::TooShortRequest,
                 "not enough data provided to recover 'reply'".to_string(),
@@ -150,10 +150,14 @@ impl ClientRequest {
         debug_assert_eq!(b[0], ClientRequestTag::Reply as u8);
 
         // the unwrap here is fine as we're definitely using exactly 32 bytes
-        let sender_tag = b[1..17].try_into().unwrap();
+        let sender_tag = b[1..1 + SENDER_TAG_SIZE].try_into().unwrap();
 
-        let message_len = u64::from_be_bytes(b[17..17 + size_of::<u64>()].try_into().unwrap());
-        let message = &b[17 + size_of::<u64>()..];
+        let message_len = u64::from_be_bytes(
+            b[1 + SENDER_TAG_SIZE..1 + SENDER_TAG_SIZE + size_of::<u64>()]
+                .try_into()
+                .unwrap(),
+        );
+        let message = &b[1 + SENDER_TAG_SIZE + size_of::<u64>()..];
         if message.len() as u64 != message_len {
             return Err(error::Error::new(
                 ErrorKind::MalformedRequest,

@@ -7,6 +7,7 @@
 use crate::error::{self, ErrorKind};
 use crate::text::ServerResponseText;
 use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::anonymous_replies::requests::SENDER_TAG_SIZE;
 use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::receiver::ReconstructedMessage;
 use std::convert::TryInto;
@@ -101,14 +102,14 @@ impl ServerResponse {
 
         let mut i = 2;
         let sender_tag = if has_sender_tag {
-            if b[2..].len() < 16 {
+            if b[2..].len() < SENDER_TAG_SIZE {
                 return Err(error::Error::new(
                     ErrorKind::TooShortResponse,
                     "not enough data provided to recover 'received'".to_string(),
                 ));
             }
-            i += 16;
-            Some(b[2..18].try_into().unwrap())
+            i += SENDER_TAG_SIZE;
+            Some(b[2..2 + SENDER_TAG_SIZE].try_into().unwrap())
         } else {
             None
         };

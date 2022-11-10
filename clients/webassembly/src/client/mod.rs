@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::config::Config;
-use client_connections::{TransmissionLane, ClosedConnectionReceiver};
+use client_connections::{ClosedConnectionReceiver, TransmissionLane};
 use client_core::client::{
     cover_traffic_stream::LoopCoverTrafficStream,
     inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender},

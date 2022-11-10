@@ -92,7 +92,8 @@ where
             // while we were messing with topology, wrapping data in sphinx, etc. we actually received
             // this ack after all! no need to retransmit then
             debug!("We received an ack JUST as we were about to retransmit [2]");
-            return;
+            panic!("will we reach this?");
+            //return;
         }
         // we no longer need the reference - let's drop it so that if somehow `UpdateTimer` action
         // reached the controller before this function terminated, the controller would not panic.

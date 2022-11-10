@@ -15,6 +15,7 @@ use nymsphinx::cover::generate_loop_cover_packet;
 use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::params::PacketSize;
 use nymsphinx::utils::sample_poisson_duration;
+use rand::rngs::OsRng;
 use rand::{CryptoRng, Rng};
 use std::collections::VecDeque;
 use std::pin::Pin;
@@ -182,7 +183,7 @@ impl SendingDelayController {
 
 pub(crate) struct OutQueueControl<R>
 where
-    R: CryptoRng + Rng,
+    R: CryptoRng + Rng + Clone,
 {
     /// Configurable parameters of the `ActionController`
     config: Config,
@@ -252,7 +253,7 @@ pub(crate) enum StreamMessage {
 
 impl<R> OutQueueControl<R>
 where
-    R: CryptoRng + Rng + Unpin,
+    R: CryptoRng + Rng + Unpin + Clone,
 {
     // at this point I'm not entirely sure how to deal with this warning without
     // some considerable refactoring
@@ -535,11 +536,23 @@ where
             self.on_message(next_message).await;
         }
     }
+
+    fn poisson_stream(&mut self) -> impl futures::Stream<Item = Duration> {
+        //let avg_delay = self.current_average_message_sending_delay();
+        futures::stream::unfold((), |_| async {
+            let mut rng = OsRng;
+            //let next_poisson_delay = sample_poisson_duration(&mut rng, avg_delay);
+            //time::sleep(Duration::from(next_poisson_delay)).await;
+            let avg_delay = Duration::from_millis(10);
+            time::sleep(avg_delay).await;
+            Some((avg_delay, ()))
+        })
+    }
 }
 
 impl<R> Stream for OutQueueControl<R>
 where
-    R: CryptoRng + Rng + Unpin,
+    R: CryptoRng + Rng + Unpin + Clone,
 {
     type Item = StreamMessage;
 

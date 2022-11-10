@@ -94,7 +94,7 @@ impl Config {
 
 pub struct RealMessagesController<R>
 where
-    R: CryptoRng + Rng,
+    R: CryptoRng + Rng + Clone,
 {
     out_queue_control: OutQueueControl<R>,
     ack_control: AcknowledgementController<R>,

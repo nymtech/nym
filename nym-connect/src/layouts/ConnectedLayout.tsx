@@ -1,13 +1,14 @@
-import React from 'react';
-import { Box } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, Button, Divider, Typography } from '@mui/material';
 import { DateTime } from 'luxon';
 import { ConnectionStatus } from '../components/ConnectionStatus';
 import { ConnectionStatusKind } from '../types';
-import { ConnectionStats, ConnectionStatsItem } from '../components/ConnectionStats';
-import { NeedHelp } from '../components/NeedHelp';
+import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ConnectionButton } from '../components/ConnectionButton';
 import { IpAddressAndPort } from '../components/IpAddressAndPort';
 import { ServiceProvider } from '../types/directory';
+import { ConnectionTime } from 'src/components/ConntectionTime';
+import { IpAddressAndPortModal } from 'src/components/IpAddressAndPortModal';
 
 export const ConnectedLayout: React.FC<{
   status: ConnectionStatusKind;
@@ -19,15 +20,24 @@ export const ConnectedLayout: React.FC<{
   isError?: boolean;
   onConnectClick?: (status: ConnectionStatusKind) => void;
   serviceProvider?: ServiceProvider;
-}> = ({ status, stats, ipAddress, port, connectedSince, busy, isError, serviceProvider, onConnectClick }) => (
-  <>
-    <Box pb={4}>
-      <ConnectionStatus status={status} connectedSince={connectedSince} serviceProvider={serviceProvider} />
-    </Box>
-    <Box pb={4}>
-      <IpAddressAndPort label="SOCKS5 Proxy" ipAddress={ipAddress} port={port} />
-    </Box>
-    {/* <ConnectionStats stats={stats} /> */}
-    <ConnectionButton status={status} busy={busy} onClick={onConnectClick} isError={isError} />
-  </>
-);
+}> = ({ status, ipAddress, port, connectedSince, busy, isError, serviceProvider, onConnectClick }) => {
+  const [showInfoModal, setShowInfoModal] = useState(true);
+  return (
+    <>
+      <IpAddressAndPortModal
+        show={showInfoModal}
+        onClose={() => setShowInfoModal(false)}
+        ipAddress={ipAddress}
+        port={port}
+      />
+      <Box pb={4}>
+        <ConnectionStatus status={ConnectionStatusKind.connected} serviceProvider={serviceProvider} />
+      </Box>
+      <IpAddressAndPort label="Socks5 address" ipAddress={ipAddress} port={port} />
+      <Divider sx={{ my: 3 }} />
+      {/* <ConnectionStats stats={stats} /> */}
+      <ConnectionTime connectedSince={connectedSince} />
+      <ConnectionButton status={status} busy={busy} onClick={onConnectClick} isError={isError} />
+    </>
+  );
+};

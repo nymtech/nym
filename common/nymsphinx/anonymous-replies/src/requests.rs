@@ -7,17 +7,10 @@ use std::mem;
 
 pub struct UnnamedRepliesError;
 
-// for now completely ignore this aspect, and reuse the tags; it shall be fixed in subsequent PR
-//
-// this will be the proper ed25519 public key
-pub type AnonymousSenderTag = [u8; 32];
-//
-// this will be the proper ed25519 signature
-pub type AnonymousSenderProof = [u8; 64];
+pub type AnonymousSenderTag = [u8; 16];
 
 pub struct RepliableMessage {
     pub sender_tag: AnonymousSenderTag,
-    pub sender_proof: AnonymousSenderProof,
     pub content: RepliableMessageContent,
 }
 
@@ -26,8 +19,7 @@ impl RepliableMessage {
     #[deprecated]
     pub fn temp_new_data(data: Vec<u8>, reply_surbs: Vec<ReplySurb>) -> Self {
         RepliableMessage {
-            sender_tag: [0u8; 32],
-            sender_proof: [0u8; 64],
+            sender_tag: [8u8; 16],
             content: RepliableMessageContent::Data {
                 message: data,
                 reply_surbs,
@@ -40,26 +32,23 @@ impl RepliableMessage {
 
         self.sender_tag
             .into_iter()
-            .chain(self.sender_proof.into_iter())
             .chain(std::iter::once(content_tag as u8))
             .chain(self.content.into_bytes())
             .collect()
     }
 
     pub fn try_from_bytes(bytes: &[u8], num_mix_hops: u8) -> Result<Self, UnnamedRepliesError> {
-        if bytes.len() < 32 + 64 + 1 {
+        if bytes.len() < 16 + 1 {
             return Err(UnnamedRepliesError);
         }
-        let sender_tag = bytes[..32].try_into().unwrap();
-        let sender_proof = bytes[32..96].try_into().unwrap();
-        let content_tag = RepliableMessageContentTag::try_from(bytes[96])?;
+        let sender_tag = bytes[..16].try_into().unwrap();
+        let content_tag = RepliableMessageContentTag::try_from(bytes[16])?;
 
         let content =
-            RepliableMessageContent::try_from_bytes(&bytes[97..], num_mix_hops, content_tag)?;
+            RepliableMessageContent::try_from_bytes(&bytes[17..], num_mix_hops, content_tag)?;
 
         Ok(RepliableMessage {
             sender_tag,
-            sender_proof,
             content,
         })
     }

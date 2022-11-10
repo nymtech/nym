@@ -101,14 +101,14 @@ impl ServerResponse {
 
         let mut i = 2;
         let sender_tag = if has_sender_tag {
-            if b[2..].len() < 32 {
+            if b[2..].len() < 16 {
                 return Err(error::Error::new(
                     ErrorKind::TooShortResponse,
                     "not enough data provided to recover 'received'".to_string(),
                 ));
             }
-            i += 32;
-            Some(b[2..34].try_into().unwrap())
+            i += 16;
+            Some(b[2..18].try_into().unwrap())
         } else {
             None
         };

@@ -139,7 +139,7 @@ impl ClientRequest {
 
     // REPLY_REQUEST_TAG || SENDER_TAG || message_len || message]
     fn deserialize_reply(b: &[u8]) -> Result<Self, error::Error> {
-        if b.len() < 1 + 32 + size_of::<u64>() {
+        if b.len() < 1 + 16 + size_of::<u64>() {
             return Err(error::Error::new(
                 ErrorKind::TooShortRequest,
                 "not enough data provided to recover 'reply'".to_string(),
@@ -150,10 +150,10 @@ impl ClientRequest {
         debug_assert_eq!(b[0], ClientRequestTag::Reply as u8);
 
         // the unwrap here is fine as we're definitely using exactly 32 bytes
-        let sender_tag = b[1..33].try_into().unwrap();
+        let sender_tag = b[1..17].try_into().unwrap();
 
-        let message_len = u64::from_be_bytes(b[33..33 + size_of::<u64>()].try_into().unwrap());
-        let message = &b[33 + size_of::<u64>()..];
+        let message_len = u64::from_be_bytes(b[17..17 + size_of::<u64>()].try_into().unwrap());
+        let message = &b[17 + size_of::<u64>()..];
         if message.len() as u64 != message_len {
             return Err(error::Error::new(
                 ErrorKind::MalformedRequest,

@@ -7,6 +7,6 @@ use clap::Parser;
 #[clap(author = "Nymtech", version, about)]
 pub(crate) struct Cli {
     /// Path pointing to an env file that configures the explorer api.
-    #[clap(long)]
+    #[clap(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 }

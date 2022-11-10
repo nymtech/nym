@@ -20,7 +20,7 @@ pub(crate) struct Cli {
     )]
     pub(crate) mnemonic: Option<bip39::Mnemonic>,
 
-    #[clap(long, global = true)]
+    #[clap(short, long, global = true)]
     #[clap(
         help = "Overrides configuration as a file of environment variables. Note: individual env vars take precedence over this file."
     )]

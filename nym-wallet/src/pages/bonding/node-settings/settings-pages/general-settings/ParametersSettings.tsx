@@ -138,7 +138,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
       />
       <Grid container direction="column">
         <Grid item container alignItems="left" justifyContent="space-between" padding={3} spacing={1}>
-          <Grid item>
+          <Grid item xl={6}>
             <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
               Profit Margin
             </Typography>
@@ -237,7 +237,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
             sx={{ m: 3, width: '320px' }}
             endIcon={isSubmitting && <CircularProgress size={20} />}
           >
-            Save all display changes
+            Submit changes to the blockchain
           </Button>
         </Grid>
       </Grid>

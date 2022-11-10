@@ -61,7 +61,8 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
       <Alert
         title={
           <Box sx={{ fontWeight: 600 }}>
-            Your changes will be ONLY saved on the display. Remember to change the values on your node’s config file too
+            Changing these values will ONLY change the data about your node on the blockchain. Remember to change your
+            node’s config file with the same values too
           </Box>
         }
         dismissable
@@ -71,16 +72,6 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
           <Grid item>
             <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
               Port
-            </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                fontSize: 14,
-                mb: 2,
-                color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
-              }}
-            >
-              Change profit margin of your node
             </Typography>
           </Grid>
           <Grid spacing={3} item container alignItems="center" xs={12} md={6}>
@@ -125,16 +116,6 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
             <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
               Host
             </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                fontSize: 14,
-                mb: 2,
-                color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
-              }}
-            >
-              Lock wallet after certain time
-            </Typography>
           </Grid>
           <Grid spacing={3} item container alignItems="center" xs={12} md={6}>
             <Grid item width={1}>
@@ -155,16 +136,6 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
           <Grid item>
             <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
               Version
-            </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                fontSize: 14,
-                mb: 2,
-                color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
-              }}
-            >
-              Lock wallet after certain time
             </Typography>
           </Grid>
           <Grid spacing={3} item container alignItems="center" xs={12} md={6}>
@@ -192,13 +163,13 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
             sx={{ m: 3, width: '320px' }}
             endIcon={isSubmitting && <CircularProgress size={20} />}
           >
-            Save all display changes
+            Submit changes to the blockchain
           </Button>
         </Grid>
       </Grid>
       <SimpleModal
         open={openConfirmationModal}
-        header="Your changes were ONLY saved on the display"
+        header="Your changes are submitted to the blockchain"
         subHeader="Remember to change the values 
         on your node’s config file too."
         okLabel="close"

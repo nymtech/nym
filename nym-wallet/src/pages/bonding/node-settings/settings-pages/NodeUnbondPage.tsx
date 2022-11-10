@@ -33,10 +33,13 @@ export const NodeUnbondPage = ({ bondedNode, onConfirm, onError }: Props) => {
         </Grid>
         <Grid item container direction={'column'} spacing={2} width={0.5} padding={3}>
           <Grid item>
+            <Box sx={{ mb: 1 }}>
+              <Error message="Remember you should only unbond if you want to remove your node from the network for good." />
+            </Box>
             <Error
               message={`Unbonding is irreversible and it won’t be possible to restore the current state of your ${
                 isMixnode(bondedNode) ? 'node' : 'gateway'
-              } again`}
+              } again.`}
             />
           </Grid>
           <Grid item>

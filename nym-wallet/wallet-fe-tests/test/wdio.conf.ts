@@ -56,10 +56,10 @@ exports.config = {
   // Define all options that are relevant for the WebdriverIO instance here
   //
   // Level of logging verbosity: trace | debug | info | warn | error | silent
-  logLevel: 'info',
+  logLevel: 'error',
   bail: 0,
   framework: 'mocha',
-  //   reporters: ['spec'],
+    // reporters: ['spec'],
   mochaOpts: {
     ui: 'bdd',
     timeout: 60000,
@@ -67,28 +67,30 @@ exports.config = {
   // ===================
   // Test Reporters
   // ===================
-  // reporters: [
-  //     [
-  //         "allure",
-  //         {
-  //             outputDir: "allure-results",
-  //             disableWebdriverStepsReporting: true,
-  //             disableWebdriverScreenshotsReporting: true,
-  //         },
-  //     ],
-  // ],
+  reporters: [
+      [
+          "allure",
+          {
+              outputDir: "allure-results",
+              disableWebdriverStepsReporting: true,
+              disableWebdriverScreenshotsReporting: true,
+          },
+      ],
+  ],
 
   // this is documentented in the readme - you will need to build the project first
   // ensure the rust project is built since we expect this binary to exist for the webdriver sessions
 
   // ensure we are running `tauri-driver` before the session starts so that we can proxy the webdriver requests
 
+  onPrepare: () => {
+  let scriptpath = process.cwd() + "/scripts/killprocess.sh";
+  spawn('bash', [scriptpath]);
+  },
+
 
   beforeSession: () => {
 
-    let scriptpath = process.cwd() + "/scripts/killprocess.sh";
-    spawn('bash', [scriptpath]);
-    
     (tauriDriver = spawn(
       path.resolve(os.homedir(), '.cargo', 'bin', 'tauri-driver'),
       [],
@@ -99,5 +101,6 @@ exports.config = {
 
 
   // clean up the `tauri-driver` process we spawned at the start of the session
-  afterSession: () => tauriDriver.kill(),
+  afterSession: () =>
+    tauriDriver.kill(),
 }

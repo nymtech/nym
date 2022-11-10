@@ -8,7 +8,7 @@ const deleteWallet = require("../../../scripts/deletesavedwallet");
 const walletExists = require("../../../scripts/savedwalletexists");
 const Helper = require('../../../common/helper');
 
-describe.skip('Create password for existing account and use it to sign in', () => {
+describe('Create password for existing account and use it to sign in', () => {
 
     it('enter incorrect mnemonic', async () => {
 
@@ -39,68 +39,70 @@ describe.skip('Create password for existing account and use it to sign in', () =
     it('enter correct mnemonic', async () => {
 
         // generate random mnemonic in the backend
-        const randomMnemonic = ValidatorClient.randomMnemonic();
+        const randomMnemonic = ValidatorClient.randomMnemonic().toString;
         deleteScript
+        console.log("THGARUHGHAGJAHG " + randomMnemonic)
         // use it to continue with password creation flow
         await Helper.navigateAndClick(Auth.backToMnemonicSignIn)
         await Helper.navigateAndClick(Auth.createPassword)
         await Helper.addValueToTextField(Auth.mnemonicInput, randomMnemonic)
+        await Helper.navigateAndClick(Auth.)
         await Helper.navigateAndClick(Auth.nextToPasswordCreation)
         await Helper.elementVisible(Auth.password)
     })
 
-    it('create an invalid password', async () => {
+//     it('create an invalid password', async () => {
 
-        // type an invalid password in both fields
-        await Helper.addValueToTextField(Auth.password, textConstants.incorrectPassword)
-        await Helper.navigateAndClick(Auth.confirmPassword)
-        await Helper.addValueToTextField(Auth.confirmPassword, textConstants.incorrectPassword)
-        // ensure the button to proceed is still disabled 
-        const nextButton = await Auth.createPasswordButton
-        const isNextDisabled = await nextButton.getAttribute('disabled')
-        expect(isNextDisabled).toBe("true")
+//         // type an invalid password in both fields
+//         await Helper.addValueToTextField(Auth.password, textConstants.incorrectPassword)
+//         await Helper.navigateAndClick(Auth.confirmPassword)
+//         await Helper.addValueToTextField(Auth.confirmPassword, textConstants.incorrectPassword)
+//         // ensure the button to proceed is still disabled 
+//         const nextButton = await Auth.createPasswordButton
+//         const isNextDisabled = await nextButton.getAttribute('disabled')
+//         expect(isNextDisabled).toBe("true")
 
-    })
+//     })
 
-    it('create a valid password', async () => {
+//     it('create a valid password', async () => {
 
-        // type a valid password in both fields
-        await Helper.navigateAndClick(Auth.password)
-        await Helper.addValueToTextField(Auth.password, textConstants.password)
-        await Helper.navigateAndClick(Auth.confirmPassword)
-        await Helper.addValueToTextField(Auth.confirmPassword, textConstants.password)
-        // verify the password is created and the next screen is visible
-        await Helper.navigateAndClick(Auth.createPasswordButton)
-        await Helper.verifyStrictText(Auth.passwordLoginScreenHeader, textConstants.passwordSignIn)
+//         // type a valid password in both fields
+//         await Helper.navigateAndClick(Auth.password)
+//         await Helper.addValueToTextField(Auth.password, textConstants.password)
+//         await Helper.navigateAndClick(Auth.confirmPassword)
+//         await Helper.addValueToTextField(Auth.confirmPassword, textConstants.password)
+//         // verify the password is created and the next screen is visible
+//         await Helper.navigateAndClick(Auth.createPasswordButton)
+//         await Helper.verifyStrictText(Auth.passwordLoginScreenHeader, textConstants.passwordSignIn)
 
-    })
+//     })
 
-    it('sign in with no password throws error', async () => {
+//     it('sign in with no password throws error', async () => {
 
-        //click sign without entering a password
-        await Helper.navigateAndClick(Auth.signInPasswordButton)
-        // wait for error
-        await Helper.elementVisible(Auth.error)
-        // verify error has the correct message
-        await Helper.verifyStrictText(Auth.error, textConstants.signInWithoutPassword)
+//         //click sign without entering a password
+//         await Helper.navigateAndClick(Auth.signInPasswordButton)
+//         // wait for error
+//         await Helper.elementVisible(Auth.error)
+//         // verify error has the correct message
+//         await Helper.verifyStrictText(Auth.error, textConstants.signInWithoutPassword)
 
-    })
+//     })
 
-    it('sign in with invalid password throws error', async () => {
+//     it('sign in with invalid password throws error', async () => {
 
-        // enter invalid password
-        await Helper.addValueToTextField(Auth.enterPassword, textConstants.incorrectPassword)
-        await Helper.navigateAndClick(Auth.signInPasswordButton)
-        // wait for error
-        await Helper.elementVisible(Auth.error)
-        await Helper.verifyStrictText(Auth.error, textConstants.invalidPasswordOnSignIn)
+//         // enter invalid password
+//         await Helper.addValueToTextField(Auth.enterPassword, textConstants.incorrectPassword)
+//         await Helper.navigateAndClick(Auth.signInPasswordButton)
+//         // wait for error
+//         await Helper.elementVisible(Auth.error)
+//         await Helper.verifyStrictText(Auth.error, textConstants.invalidPasswordOnSignIn)
 
-    })
+//     })
 
 })
 
 
-describe('Wallet sign in functionality without creating password', () => {
+describe.skip('Wallet sign in functionality without creating password', () => {
 
     it('sign in with invalid password and no saved wallet.json file throws error', async () => {
 

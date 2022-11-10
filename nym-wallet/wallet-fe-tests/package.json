@@ -13,7 +13,8 @@
         "@types/mocha": "^9.1.1",
         "prettier": "2.5.1",
         "typescript": "^4.6.2",
-        "@nymproject/nym-validator-client": "0.18.0"
+        "@nymproject/nym-validator-client": "0.18.0",
+        "@wdio/allure-reporter": "^7.0.0"
     },
     "scripts": {
         "test": "wdio run test/wdio.conf.ts",

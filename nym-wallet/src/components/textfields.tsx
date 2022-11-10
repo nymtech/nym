@@ -22,6 +22,7 @@ export const MnemonicInput: React.FC<{
         autoFocus
         fullWidth
         inputProps={{
+          "data-testid": "inputMnemonic",
           style: {
             height: '160px',
           },

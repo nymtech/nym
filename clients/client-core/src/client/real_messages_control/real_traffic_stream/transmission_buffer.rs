@@ -36,6 +36,7 @@ impl TransmissionBuffer {
         self.buffer.remove(lane)
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn num_lanes(&self) -> usize {
         self.buffer.keys().count()
     }
@@ -52,10 +53,12 @@ impl TransmissionBuffer {
             .collect()
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn total_size(&self) -> usize {
         self.buffer.values().map(LaneBufferEntry::len).sum()
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn total_size_in_bytes(&self) -> usize {
         self.buffer
             .values()
@@ -160,7 +163,10 @@ impl TransmissionBuffer {
 pub(crate) struct LaneBufferEntry {
     pub real_messages: VecDeque<RealMessage>,
     pub messages_transmitted: usize,
+    #[cfg(not(target_arch = "wasm32"))]
     pub time_for_last_activity: time::Instant,
+    #[cfg(target_arch = "wasm32")]
+    pub time_for_last_activity: wasm_timer::Instant,
 }
 
 impl LaneBufferEntry {
@@ -190,6 +196,7 @@ impl LaneBufferEntry {
             > Duration::from_secs(MSG_CONSIDERED_STALE_AFTER_SECS)
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn len(&self) -> usize {
         self.real_messages.len()
     }

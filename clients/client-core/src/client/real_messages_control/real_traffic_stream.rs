@@ -440,6 +440,7 @@ where
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     fn log_status(&self) {
         let packets = self.transmission_buffer.total_size();
         let backlog = self.transmission_buffer.total_size_in_bytes() as f64 / 1024.0;

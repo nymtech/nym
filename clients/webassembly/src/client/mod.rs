@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::config::Config;
+use client_connections::{TransmissionLane, ClosedConnectionReceiver};
 use client_core::client::{
     cover_traffic_stream::LoopCoverTrafficStream,
     inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender},
@@ -127,6 +128,7 @@ impl NymClient {
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
+        closed_connection_rx: ClosedConnectionReceiver,
     ) {
         let mut controller_config = real_messages_control::Config::new(
             self.key_manager.ack_key(),
@@ -151,6 +153,7 @@ impl NymClient {
             input_receiver,
             mix_sender,
             topology_accessor,
+            closed_connection_rx,
         )
         .start();
     }
@@ -327,6 +330,10 @@ impl NymClient {
         let (ack_sender, ack_receiver) = mpsc::unbounded();
         let shared_topology_accessor = TopologyAccessor::new();
 
+        // Channel that the real traffix controller can listed to for closing connections.
+        // Currently unused in the wasm client.
+        let (_closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
+
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
         self.start_topology_refresher(shared_topology_accessor.clone())
@@ -351,6 +358,7 @@ impl NymClient {
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
+            closed_connection_rx,
         );
 
         if !self.config.debug.disable_loop_cover_traffic_stream {
@@ -376,8 +384,9 @@ impl NymClient {
         console_log!("Sending {} bytes to {}", message.len(), recipient);
 
         let recipient = Recipient::try_from_base58_string(recipient).unwrap();
+        let lane = TransmissionLane::General;
 
-        let input_msg = InputMessage::new_fresh(recipient, message, false);
+        let input_msg = InputMessage::new_fresh(recipient, message, false, lane);
 
         self.input_tx
             .as_ref()

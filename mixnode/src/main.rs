@@ -26,7 +26,7 @@ fn long_version_static() -> &'static str {
 #[clap(author = "Nymtech", version, about, long_version = long_version_static())]
 struct Cli {
     /// Path pointing to an env file that configures the mixnode.
-    #[clap(long)]
+    #[clap(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
     #[clap(subcommand)]

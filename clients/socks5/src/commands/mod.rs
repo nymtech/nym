@@ -51,7 +51,7 @@ fn long_version_static() -> &'static str {
 #[clap(author = "Nymtech", version, long_version = long_version_static(), about)]
 pub(crate) struct Cli {
     /// Path pointing to an env file that configures the client.
-    #[clap(long)]
+    #[clap(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
     #[clap(subcommand)]
@@ -62,8 +62,10 @@ pub(crate) struct Cli {
 pub(crate) enum Commands {
     /// Initialise a Nym client. Do this first!
     Init(init::Init),
+
     /// Run the Nym client with provided configuration client optionally overriding set parameters
     Run(run::Run),
+
     /// Try to upgrade the client
     Upgrade(upgrade::Upgrade),
 

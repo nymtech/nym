@@ -22,7 +22,7 @@ cfg_if::cfg_if! {
         #[clap(author = "Nymtech", version, about)]
         struct Cli {
             /// Path pointing to an env file that configures the client.
-            #[clap(long)]
+            #[clap(short, long)]
             pub(crate) config_env_file: Option<std::path::PathBuf>,
 
             /// Path where the sqlite credental database will be located.

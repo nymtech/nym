@@ -108,7 +108,6 @@ impl ServiceProvider {
                     }
                 },
                 Some(id) = closed_connection_rx.next() => {
-                    // WIP(JON): here is an implicit conversion from ConnectionId to u64
                     let msg = ClientRequest::ClosedConnection(id);
                     let ws_msg = Message::Binary(msg.serialize());
                     websocket_writer.send(ws_msg).await.unwrap();
@@ -329,7 +328,7 @@ impl ServiceProvider {
         let (mix_input_sender, mix_input_receiver) =
             mpsc::unbounded::<(Socks5Message, Recipient)>();
 
-        // Used to notify tasks to shutdown
+        // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
         let shutdown = task::ShutdownNotifier::default();
 
         // Channel for announcing closed (socks5) connections by the controller.

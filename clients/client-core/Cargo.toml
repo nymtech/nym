@@ -58,3 +58,4 @@ default = ["reply-surb"]
 wasm = ["gateway-client/wasm"]
 coconut = ["gateway-client/coconut", "gateway-requests/coconut"]
 reply-surb = ["sled"]
+

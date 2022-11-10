@@ -406,7 +406,7 @@ impl NymClient {
             Self::start_mix_traffic_controller(gateway_client, shutdown.subscribe());
 
         // Channel for announcing closed (socks5) connections by the controller.
-        // This will be forwarded to ...
+        // This will be forwarded to `OutQueueControl`
         let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
 
         self.start_real_traffic_controller(

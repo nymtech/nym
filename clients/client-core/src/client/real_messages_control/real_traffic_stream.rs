@@ -4,7 +4,7 @@
 use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
-use client_connections::{ClosedConnectionReceiver, TransmissionLane};
+use client_connections::{ClosedConnectionReceiver, ConnectionId, TransmissionLane};
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
@@ -27,8 +27,9 @@ use tokio::time;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
 
-use self::sending_delay_controller::SendingDelayController;
-use self::transmission_buffer::TransmissionBuffer;
+use self::{
+    sending_delay_controller::SendingDelayController, transmission_buffer::TransmissionBuffer,
+};
 
 mod sending_delay_controller;
 mod transmission_buffer;
@@ -126,11 +127,12 @@ where
     /// Accessor to the common instance of network topology.
     topology_access: TopologyAccessor,
 
-    /// Buffer containing all real messages keyed by transmission lane.
+    /// Buffer containing all incoming real messages keyed by transmission lane, that we will send
+    /// out to the mixnet.
     transmission_buffer: TransmissionBuffer,
 
-    /// Incoming channel for being notified of closed connections, to avoid sending traffic
-    /// unnecessary
+    /// Incoming channel for being notified of closed connections, so that we can close lanes
+    /// corresponding to connections. To avoid sending traffic unnecessary
     closed_connection_rx: ClosedConnectionReceiver,
 }
 
@@ -254,8 +256,8 @@ where
             self.sent_notify(fragment_id);
         }
 
-        // In addition to closing connections on receiving such messages, also close
-        // connections when sufficiently stale.
+        // In addition to closing connections on receiving messages throught closed_connection_rx,
+        // also close connections when sufficiently stale.
         self.transmission_buffer.prune_stale_connections();
 
         // JS: Not entirely sure why or how it fixes stuff, but without the yield call,
@@ -269,7 +271,7 @@ where
         tokio::task::yield_now().await;
     }
 
-    fn on_close_connection(&mut self, connection_id: u64) {
+    fn on_close_connection(&mut self, connection_id: ConnectionId) {
         log::debug!("Removing lane for connection: {connection_id}");
         self.transmission_buffer
             .remove(&TransmissionLane::ConnectionId(connection_id));
@@ -314,6 +316,8 @@ where
         let avg_delay = self.current_average_message_sending_delay();
 
         // Start by checking if we have any incoming messages about closed connections
+        // NOTE: this feels a bit iffy, the `OutQueueControl` is getting ripe for a rewrite to
+        // something simpler.
         if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connection_rx).poll_next(cx) {
             self.on_close_connection(id);
         }
@@ -342,6 +346,10 @@ where
                 next_delay.as_mut().reset(next_poisson_delay);
             }
 
+            // On every iteration we get new messages from upstream. Given that these come bunched
+            // in `Vec`, this ensures that on average we will fetch messages faster than we can
+            // send, which is a condition for being able to multiplex sphinx packets from multiple
+            // data streams.
             match Pin::new(&mut self.real_receiver).poll_next(cx) {
                 // in the case our real message channel stream was closed, we should also indicate we are closed
                 // (and whoever is using the stream should panic)

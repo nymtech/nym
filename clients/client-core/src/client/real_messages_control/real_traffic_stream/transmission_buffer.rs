@@ -16,7 +16,7 @@ use wasm_timer;
 
 use super::{get_time_now, RealMessage};
 
-// The number of lanes included in the oldest set.
+// The number of lanes included in the oldest set. Used when we need to prioritize traffic.
 const OLDEST_LANE_SET_SIZE: usize = 5;
 // As a way of prune connections we also check for timeouts.
 const MSG_CONSIDERED_STALE_AFTER_SECS: u64 = 10 * 60;
@@ -165,17 +165,16 @@ pub(crate) struct LaneBufferEntry {
 
 impl LaneBufferEntry {
     fn new(real_messages: Vec<RealMessage>) -> Self {
-        let now = time::Instant::now();
         LaneBufferEntry {
             real_messages: real_messages.into(),
             messages_transmitted: 0,
-            time_for_last_activity: now,
+            time_for_last_activity: get_time_now(),
         }
     }
 
     fn append(&mut self, real_messages: Vec<RealMessage>) {
         self.real_messages.append(&mut real_messages.into());
-        self.time_for_last_activity = time::Instant::now();
+        self.time_for_last_activity = get_time_now();
     }
 
     fn pop_front(&mut self) -> Option<RealMessage> {

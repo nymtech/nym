@@ -413,6 +413,8 @@ impl NymClient {
         let sphinx_message_sender =
             Self::start_mix_traffic_controller(gateway_client, shutdown.subscribe());
 
+        // Channels that the websocket listener can use to signal downstream to the real traffic
+        // controller that connections are closed.
         let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
 
         self.start_real_traffic_controller(

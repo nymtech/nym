@@ -136,7 +136,7 @@ impl Controller {
         }
         self.recently_closed.insert(conn_id);
 
-        // announce closed connections for whoever is interested
+        // Announce closed connections, currently used by the `OutQueueControl`.
         self.closed_connection_tx.unbounded_send(conn_id).unwrap();
     }
 

@@ -3,7 +3,7 @@
 
 use futures::channel::mpsc;
 
-type ConnectionId = u64;
+pub type ConnectionId = u64;
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum TransmissionLane {

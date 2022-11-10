@@ -1,0 +1,55 @@
+{
+  "name": "@nymproject/sdk",
+  "version": "1.0.0",
+  "license": "Apache-2.0",
+  "author": "Nym Technologies SA",
+  "main": "dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/worker.js",
+    "dist/nym_client_wasm.d.ts",
+    "dist/nym_client_wasm.js",
+    "dist/nym_client_wasm_bg.wasm",
+    "dist/nym_client_wasm_bg.wasm.d.ts"
+  ],
+  "exports": {
+    ".": "./dist/index.js",
+    "./mixnet/wasm/*": "./dist/mixnet/wasm/*"
+  },
+  "scripts": {
+    "start": "tsc -w",
+    "clean": "rimraf dist",
+    "typecheck": "tsc --noEmit true",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "build:dependencies": "run-s build:dependencies:nym-client-wasm build:dependencies:ts-packages",
+    "build:dependencies:ts-packages": "cd ../../../.. && yarn && yarn build",
+    "build:dependencies:nym-client-wasm": "../nym-client-wasm/scripts/build.sh",
+    "prebuild": "yarn build:dependencies",
+    "build": "tsc",
+    "postbuild": "cp ../nym-client-wasm/nym_client_wasm* dist/mixnet/wasm",
+    "build:only-this": "tsc",
+    "postbuild:only-this": "cp ../nym-client-wasm/nym_client_wasm* dist/mixnet/wasm"
+  },
+  "dependencies": {
+    "comlink": "^4.3.1"
+  },
+  "devDependencies": {
+    "@nymproject/eslint-config-react-typescript": "^1.0.0",
+    "@typescript-eslint/eslint-plugin": "^5.13.0",
+    "@typescript-eslint/parser": "^5.13.0",
+    "rimraf": "^3.0.2",
+    "typescript": "^4.8.4",
+    "eslint": "^8.10.0",
+    "eslint-config-airbnb": "^19.0.4",
+    "eslint-config-airbnb-typescript": "^16.1.0",
+    "eslint-config-prettier": "^8.5.0",
+    "eslint-import-resolver-root-import": "^1.0.4",
+    "eslint-plugin-import": "^2.25.4",
+    "eslint-plugin-jest": "^26.1.1",
+    "eslint-plugin-jsx-a11y": "^6.5.1",
+    "eslint-plugin-prettier": "^4.0.0",
+    "eslint-plugin-react": "^7.29.2",
+    "eslint-plugin-react-hooks": "^4.3.0"
+  }
+}

@@ -16,6 +16,7 @@ class Auth {
   get mnemonicInput(): Promise<WebdriverIO.Element> { return $("[data-testid='inputMnemonic']") }
   get signIn(): Promise<WebdriverIO.Element> { return $("[data-testid='signInWithMnemonicButton']") }
   get backToSignInOptions(): Promise<WebdriverIO.Element> { return $("[data-testid='backToSignInOptions']") }
+  get revealMnemonic(): Promise<WebdriverIO.Element> { return $("[data-testid='Reveal Mnemonic']") }
   get createPassword(): Promise<WebdriverIO.Element> { return $("[data-testid='goToCreatePassword']") }
 
   // Create password step 1/2

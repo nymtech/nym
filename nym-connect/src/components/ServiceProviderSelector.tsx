@@ -2,7 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import IconButton from '@mui/material/IconButton';
 import MenuItem from '@mui/material/MenuItem';
 import ArrowDropDownCircleIcon from '@mui/icons-material/ArrowDropDownCircle';
-import { Box, CircularProgress, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { Box, CircularProgress, Input, Stack, TextField, Tooltip, Typography } from '@mui/material';
 import { ServiceProvider, Service, Services } from '../types/directory';
 
 type ServiceWithRandomSp = {
@@ -74,8 +74,7 @@ export const ServiceProviderSelector: React.FC<{
   if (!service) return null;
 
   return (
-    <>
-      <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ mt: 3 }}></Box>
+    <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ my: 3 }}>
       <TextField
         variant="filled"
         select
@@ -93,7 +92,7 @@ export const ServiceProviderSelector: React.FC<{
         SelectProps={{
           MenuProps: {
             PaperProps: {
-              sx: { background: '#383C41', borderTopLeftRadius: 0, borderTopLRightRadius: 0 },
+              sx: { background: '#383C41', borderTopLeftRadius: 0, borderTopRightRadius: 0 },
             },
           },
         }}
@@ -125,6 +124,6 @@ export const ServiceProviderSelector: React.FC<{
           </MenuItem>
         ))}
       </TextField>
-    </>
+    </Box>
   );
 };

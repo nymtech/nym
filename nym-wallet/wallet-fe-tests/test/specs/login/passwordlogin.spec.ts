@@ -44,8 +44,8 @@ describe('Create password for existing account and use it to sign in', () => {
         // use it to continue with password creation flow
         await Helper.navigateAndClick(Auth.backToMnemonicSignIn)
         await Helper.navigateAndClick(Auth.createPassword)
-        await Helper.addValueToTextField(Auth.mnemonicInput, randomMnemonic)
         await Helper.navigateAndClick(Auth.revealMnemonic)
+        await Helper.addValueToTextField(Auth.mnemonicInput, randomMnemonic)
         await Helper.navigateAndClick(Auth.nextToPasswordCreation)
         await Helper.elementVisible(Auth.password)
     })

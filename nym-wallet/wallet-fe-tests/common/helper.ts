@@ -15,16 +15,18 @@ class Helpers {
     await Balance.selectQa()
   }
 
+  // login with a mnemonic
   loginMnemonic = async () => {
     await Auth.loginWithMnemonic(userData.mnemonic)
   }
 
-  //helper to decode mnemonic so plain 24 character passphrase isn't in sight albeit it is presented when ruunning the scripts
-  // TO-DO figure out what's going on with the decoding bit
+  // decode user data file
   decodeBase = async (input) => {
     var m = Buffer.from(input, "base64").toString();
     return m;
   }
+
+  // common actions
 
   navigateAndClick = async (element) => {
     await element.waitForClickable({ timeout: 6000 })
@@ -54,10 +56,15 @@ class Helpers {
     expect(error).toContain(expectedText)
   }
 
+  // wait = async () => {
+  //   await browser.pause(9000)
+
+  // }
+
+  // token calculations 
   currentBalance = async (value) => {
     return parseFloat(value.split(/\s+/)[0].toString()).toFixed(5)
   }
-
 
   calculateFees = async (beforeBalance, transactionFee, amount, isSend) => {
     let fee

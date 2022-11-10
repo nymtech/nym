@@ -18,6 +18,7 @@
     },
     "scripts": {
         "test": "wdio run test/wdio.conf.ts",
-        "test-login": "wdio run test/wdio.conf.ts --suite login"
+        "test-login": "wdio run test/wdio.conf.ts --suite login",
+        "test-general": "wdio run test/wdio.conf.ts --suite general"
     }
 }

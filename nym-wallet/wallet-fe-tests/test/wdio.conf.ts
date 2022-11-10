@@ -3,7 +3,7 @@ const path = require('path')
 const { spawn, spawnSync } = require('child_process')
 
 //insert path to binary
-const nym_path = '../target/debug/nym-wallet'
+const nym_path = '../target/release/nym-wallet'
 
 let tauriDriver: any
 
@@ -18,24 +18,24 @@ exports.config = {
   specs: ['./test/specs/**/*.ts'],
 
   suites: {
-        signup: [
-          './test/specs/signup/*.ts',
-        ],
+    signup: [
+      './test/specs/signup/*.ts',
+    ],
     login: [
       './test/specs/login/*.ts',
     ],
-        balance: [
-          './test/specs/balance/*.ts',
-        ],
-        nav: [
-          './test/specs/general/*.ts',
-        ],
-        send: [
-          './test/specs/bond/*.ts',
-        ],
-        delegation: [
-          './test/specs/delegation/*.ts',
-        ],
+    balance: [
+      './test/specs/balance/*.ts',
+    ],
+    general: [
+      './test/specs/general/*.ts',
+    ],
+    send: [
+      './test/specs/bond/*.ts',
+    ],
+    delegation: [
+      './test/specs/delegation/*.ts',
+    ],
   },
 
   exclude: [
@@ -50,16 +50,16 @@ exports.config = {
       },
     },
   ],
-  
+
   // ===================
   // Test Configurations
   // ===================
-  
+
   // Level of logging verbosity: trace | debug | info | warn | error | silent
   logLevel: 'error',
   bail: 0,
   framework: 'mocha',
-    // reporters: ['spec'],
+  // reporters: ['spec'],
   mochaOpts: {
     ui: 'bdd',
     timeout: 60000,
@@ -67,23 +67,25 @@ exports.config = {
 
   // Reporting tool and settings 
 
-  // reporters: [
-  //     [
-  //         "allure",
-  //         {
-  //             outputDir: "allure-results",
-  //             disableWebdriverStepsReporting: true,
-  //             disableWebdriverScreenshotsReporting: true,
-  //         },
-  //     ],
-  // ],
+  reporters: [
+      [
+          "allure",
+          {
+              outputDir: "allure-results",
+              disableWebdriverStepsReporting: true,
+              disableWebdriverScreenshotsReporting: true,
+              // useCucumberStepReporter: true,
+              // disableMochaHooks: true,
+          },
+      ],
+  ],
 
   // Things to run before/after each test session
 
-  // onPrepare: () => {
-  // let scriptpath = process.cwd() + "/scripts/killprocess.sh";
-  // spawn('bash', [scriptpath]);
-  // },
+  onPrepare: () => {
+  let scriptpath = process.cwd() + "/scripts/killprocess.sh";
+  spawn('bash', [scriptpath]);
+  },
 
 
   beforeSession: () => {
@@ -95,6 +97,11 @@ exports.config = {
     ))
 
   },
+
+  // afterEach: function(test) {
+  //   if (test.error !== undefined) {
+  //     browser.takeScreenshot();}
+  // },
 
   // clean up the `tauri-driver` process we spawned at the start of the session
   afterSession: () =>

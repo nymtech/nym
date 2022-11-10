@@ -1,7 +1,6 @@
 import Auth from '../../pageobjects/authScreens'
 import Balance from '../../pageobjects/balanceScreen'
 import ValidatorClient from '@nymproject/nym-validator-client';
-import { text } from 'stream/consumers';
 const textConstants = require("../../../common/text-constants");
 const userData = require("../../../common/user-data.json");
 const Helper = require('../../../common/helper');
@@ -33,6 +32,7 @@ describe('Wallet sign in functionality with mnemonic', () => {
   it('sign in with incorrect mnemonic throws error', async () => {
 
     // enter an incorrect mnemonic string
+    await Helper.navigateAndClick(Auth.revealMnemonic)
     await Helper.addValueToTextField(Auth.mnemonicInput, textConstants.incorrectMnemonic)
     await Helper.navigateAndClick(Auth.signIn)
     // verifty error message is correct
@@ -42,6 +42,7 @@ describe('Wallet sign in functionality with mnemonic', () => {
 
   it('sign in with random string throws error', async () => {
 
+    await Helper.navigateAndClick(Auth.revealMnemonic)
     // enter a random string not in mnemonic "format"
     await Helper.addValueToTextField(Auth.mnemonicInput, textConstants.randomString)
     await Helper.navigateAndClick(Auth.signIn)
@@ -55,12 +56,12 @@ describe('Wallet sign in functionality with mnemonic', () => {
     // create new mnemonic
     const randomMnemonic = ValidatorClient.randomMnemonic();
     // enter mnemonic
+    await Helper.navigateAndClick(Auth.revealMnemonic)
     await Helper.addValueToTextField(Auth.mnemonicInput, randomMnemonic)
     await Helper.navigateAndClick(Auth.signIn)
     // verify successful login, balance is visible
     await Helper.elementVisible(Balance.balance)
-    //new accounts will always default to mainnet, so 0 balance
-    // TO-DO this value sometimes returns " " instead of "0"
+    // TO-DO this value below is sometimes returning ""
     await Helper.verifyStrictText(Balance.nymBalance, textConstants.noNym)
 
   })

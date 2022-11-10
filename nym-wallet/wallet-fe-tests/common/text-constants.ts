@@ -35,7 +35,7 @@ module.exports = {
     version: "1.2.1",
     
     // user incorrect data
-    incorrectMnemonic: "giraffe note order sun cradle bottom crime humble able antique rural donkey guess parent potato tongue truly way disagree exile zebra someone else heat",
+    incorrectMnemonic: "bottom crime humble able antique rural donkey guess parent potato tongue truly way disagree exile zebra someone else heat giraffe note order sun cradle",
     randomString:"thisrandomstring",
     password:"iAmThePassword1!",
     incorrectPassword:"123notvalid",

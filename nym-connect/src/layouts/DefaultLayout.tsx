@@ -9,15 +9,19 @@ import { useClientContext } from '../context/main';
 import { ConnectionStatus } from 'src/components/ConnectionStatus';
 import { Box } from '@mui/system';
 import { ConnectionTime } from 'src/components/ConntectionTime';
+import { InfoModal } from 'src/components/InfoModal';
+import { Error } from 'src/types/error';
 
 export const DefaultLayout: React.FC<{
+  error?: Error;
   status: ConnectionStatusKind;
   services?: Services;
   busy?: boolean;
   isError?: boolean;
+  clearError: () => void;
   onConnectClick?: (status: ConnectionStatusKind) => void;
   onServiceProviderChange?: (serviceProvider: ServiceProvider) => void;
-}> = ({ status, services, busy, isError, onConnectClick, onServiceProviderChange }) => {
+}> = ({ status, error, services, busy, isError, onConnectClick, onServiceProviderChange, clearError }) => {
   const [serviceProvider, setServiceProvider] = React.useState<ServiceProvider | undefined>();
   const handleServiceProviderChange = (newServiceProvider: ServiceProvider) => {
     setServiceProvider(newServiceProvider);
@@ -27,6 +31,7 @@ export const DefaultLayout: React.FC<{
 
   return (
     <Box pt={1}>
+      {error && <InfoModal show={true} title={error.error} description={error?.description} onClose={clearError} />}
       <ConnectionStatus status={ConnectionStatusKind.disconnected} />
       <Typography fontWeight="700" fontSize="16px" textAlign="center" pt={2}>
         Connect to the Nym <br /> mixnet for privacy.
@@ -35,7 +40,7 @@ export const DefaultLayout: React.FC<{
       <ConnectionTime />
       <ConnectionButton
         status={status}
-        disabled={serviceProvider === undefined && currentSp === undefined}
+        disabled={currentSp === undefined}
         busy={busy}
         isError={isError}
         onClick={onConnectClick}

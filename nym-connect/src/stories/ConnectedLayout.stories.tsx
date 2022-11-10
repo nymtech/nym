@@ -13,6 +13,10 @@ export default {
 export const Default: ComponentStory<typeof ConnectedLayout> = () => (
   <Box p={4} sx={{ background: 'white' }}>
     <ConnectedLayout
+      showInfoModal={false}
+      handleCloseInfoModal={() => {
+        return undefined;
+      }}
       status={ConnectionStatusKind.connected}
       connectedSince={DateTime.now()}
       ipAddress="127.0.0.1"

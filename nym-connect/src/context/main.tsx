@@ -7,6 +7,7 @@ import { forage } from '@tauri-apps/tauri-forage';
 import { ConnectionStatusKind } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ServiceProvider, Services } from '../types/directory';
+import { Error } from 'src/types/error';
 
 const TAURI_EVENT_STATUS_CHANGED = 'app:connection-status-changed';
 
@@ -20,8 +21,10 @@ type TClientContext = {
   services?: Services;
   serviceProvider?: ServiceProvider;
   showHelp: boolean;
+  error?: Error;
 
   setMode: (mode: ModeType) => void;
+  clearError: () => void;
   handleShowHelp: () => void;
   setConnectionStatus: (connectionStatus: ConnectionStatusKind) => void;
   setConnectionStats: (connectionStats: ConnectionStatsItem[] | undefined) => void;
@@ -42,6 +45,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const [services, setServices] = React.useState<Services>([]);
   const [serviceProvider, setRawServiceProvider] = React.useState<ServiceProvider>();
   const [showHelp, setShowHelp] = useState(false);
+  const [error, setError] = useState<Error>();
 
   useEffect(() => {
     invoke('get_services').then((result) => {
@@ -57,9 +61,11 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       const { status } = event.payload as any;
       console.log(TAURI_EVENT_STATUS_CHANGED, { status, event });
       setConnectionStatus(status);
-    }).then((result) => {
-      unlisten = result;
-    });
+    })
+      .then((result) => {
+        unlisten = result;
+      })
+      .catch((e) => console.log(e));
 
     return () => {
       if (unlisten) {
@@ -69,11 +75,20 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   }, []);
 
   const startConnecting = useCallback(async () => {
-    await invoke('start_connecting');
+    try {
+      await invoke('start_connecting');
+    } catch (e) {
+      setError({ error: 'Could not connect', description: e as string });
+      console.log(e);
+    }
   }, []);
 
   const startDisconnecting = useCallback(async () => {
-    await invoke('start_disconnecting');
+    try {
+      await invoke('start_disconnecting');
+    } catch (e) {
+      console.log(e);
+    }
   }, []);
 
   const setSpInStorage = async (sp: ServiceProvider) => {
@@ -103,6 +118,8 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
 
   const handleShowHelp = () => setShowHelp((show) => !show);
 
+  const clearError = () => setError(undefined);
+
   useEffect(() => {
     const validityCheck = async () => {
       if (services.length > 0 && serviceProvider) {
@@ -127,6 +144,8 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     () => ({
       mode,
       setMode,
+      error,
+      clearError,
       connectionStatus,
       setConnectionStatus,
       connectionStats,
@@ -141,7 +160,17 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       showHelp,
       handleShowHelp,
     }),
-    [mode, connectedSince, showHelp, connectionStatus, connectionStats, connectedSince, services, serviceProvider],
+    [
+      mode,
+      error,
+      connectedSince,
+      showHelp,
+      connectionStatus,
+      connectionStats,
+      connectedSince,
+      services,
+      serviceProvider,
+    ],
   );
 
   return <ClientContext.Provider value={contextValue}>{children}</ClientContext.Provider>;

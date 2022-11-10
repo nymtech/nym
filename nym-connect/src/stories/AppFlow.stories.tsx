@@ -73,6 +73,7 @@ export const Mock: ComponentStory<typeof AppWindowFrame> = () => {
           busy={busy}
           onConnectClick={handleConnectClick}
           services={services}
+          clearError={() => {}}
         />
       </Box>
     );
@@ -81,6 +82,10 @@ export const Mock: ComponentStory<typeof AppWindowFrame> = () => {
   return (
     <Box p={4} sx={{ background: 'white' }}>
       <ConnectedLayout
+        showInfoModal={false}
+        handleCloseInfoModal={() => {
+          return undefined;
+        }}
         status={context.connectionStatus}
         busy={busy}
         onConnectClick={handleConnectClick}

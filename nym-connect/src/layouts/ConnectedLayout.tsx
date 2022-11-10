@@ -17,19 +17,26 @@ export const ConnectedLayout: React.FC<{
   port: number;
   connectedSince?: DateTime;
   busy?: boolean;
+  showInfoModal: boolean;
   isError?: boolean;
+  handleCloseInfoModal: () => void;
   onConnectClick?: (status: ConnectionStatusKind) => void;
   serviceProvider?: ServiceProvider;
-}> = ({ status, ipAddress, port, connectedSince, busy, isError, serviceProvider, onConnectClick }) => {
-  const [showInfoModal, setShowInfoModal] = useState(true);
+}> = ({
+  status,
+  showInfoModal,
+  handleCloseInfoModal,
+  ipAddress,
+  port,
+  connectedSince,
+  busy,
+  isError,
+  serviceProvider,
+  onConnectClick,
+}) => {
   return (
     <>
-      <IpAddressAndPortModal
-        show={showInfoModal}
-        onClose={() => setShowInfoModal(false)}
-        ipAddress={ipAddress}
-        port={port}
-      />
+      <IpAddressAndPortModal show={showInfoModal} onClose={handleCloseInfoModal} ipAddress={ipAddress} port={port} />
       <Box pb={4}>
         <ConnectionStatus status={ConnectionStatusKind.connected} serviceProvider={serviceProvider} />
       </Box>

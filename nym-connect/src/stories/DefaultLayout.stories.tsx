@@ -11,6 +11,6 @@ export default {
 
 export const Default: ComponentStory<typeof DefaultLayout> = () => (
   <Box p={4} sx={{ background: 'white' }}>
-    <DefaultLayout status={ConnectionStatusKind.disconnected} />
+    <DefaultLayout status={ConnectionStatusKind.disconnected} error={undefined} clearError={() => {}} />
   </Box>
 );

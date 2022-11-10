@@ -81,7 +81,7 @@ impl State {
         let ret = self.storage.get_blinded_signature_response(tx_hash).await?;
         if let Some(blinded_signature_reponse) = ret {
             Ok(Some(BlindedSignatureResponse::from_base58_string(
-                &blinded_signature_reponse,
+                blinded_signature_reponse,
             )?))
         } else {
             Ok(None)

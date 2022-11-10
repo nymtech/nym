@@ -130,16 +130,10 @@ const TokenTransfer = () => {
       </Grid>
       <Grid item>
         <Typography variant="subtitle2" sx={{ color: (t) => t.palette.nym.text.muted, mt: 2 }}>
-          Transferable tokens
+          Unlocked transferable tokens
         </Typography>
 
-        <Typography
-          data-testid="refresh-success"
-          sx={{ color: 'text.primary' }}
-          variant="h5"
-          fontWeight="700"
-          textTransform="uppercase"
-        >
+        <Typography data-testid="refresh-success" sx={{ color: 'text.primary' }} variant="h5" textTransform="uppercase">
           {userBalance.tokenAllocation?.spendable || 'n/a'} {clientDetails?.display_mix_denom.toUpperCase()}
         </Typography>
       </Grid>
@@ -167,7 +161,6 @@ export const VestingCard = ({ onTransfer }: { onTransfer: () => Promise<void> })
     <NymCard
       title="Vesting Schedule"
       data-testid="check-unvested-tokens"
-      Icon={<InfoOutlined />}
       Action={
         <IconButton
           onClick={async () => {

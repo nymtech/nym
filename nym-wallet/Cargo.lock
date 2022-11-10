@@ -2877,7 +2877,7 @@ dependencies = [
 
 [[package]]
 name = "nym_wallet"
-version = "1.0.9"
+version = "1.1.0"
 dependencies = [
  "aes-gcm",
  "argon2 0.3.4",
@@ -5423,7 +5423,6 @@ version = "0.1.0"
 dependencies = [
  "contracts-common",
  "cosmwasm-std",
- "log",
  "mixnet-contract-common",
  "schemars",
  "serde",

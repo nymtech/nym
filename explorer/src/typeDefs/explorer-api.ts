@@ -85,6 +85,7 @@ export interface MixNodeResponseItem {
   mix_node: MixNode;
   avg_uptime: number;
   stake_saturation: number;
+  uncapped_saturation: number;
   operating_cost: Amount;
   profit_margin_percent: string;
 }
@@ -214,8 +215,9 @@ export type UptimeStoryResponse = {
 
 export type MixNodeEconomicDynamicsStatsResponse = {
   stake_saturation: number;
+  uncapped_saturation: number;
   // TODO: when v2 will be deployed, remove cases: VeryHigh, Moderate and VeryLow
-  active_set_inclusion_probability: 'High' | 'Good' | 'Low' | 'VeryLow' | 'Moderate' | 'VeryHigh';
+  active_set_inclusion_probability: 'High' | 'Good' | 'Low';
   reserve_set_inclusion_probability: 'High' | 'Good' | 'Low';
   estimated_total_node_reward: number;
   estimated_operator_reward: number;

@@ -179,7 +179,7 @@ const AmountFormData = ({
         <CurrencyFormField
           required
           fullWidth
-          label="Operator cost"
+          label="Operator Cost"
           autoFocus
           onChanged={(newValue) => setValue('operatorCost', newValue, { shouldValidate: true })}
           validationError={errors.operatorCost?.amount?.message}

@@ -245,7 +245,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
         open={openConfirmationModal}
         header="Your changes will take place
         in the next interval"
-        okLabel="close"
+        okLabel="Close"
         hideCloseIcon
         displayInfoIcon
         onOk={async () => {
@@ -265,7 +265,6 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
           textAlign: 'center',
           color: theme.palette.nym.nymWallet.text.blue,
           fontSize: 16,
-          textTransform: 'capitalize',
         }}
         subHeaderStyles={{
           m: 0,

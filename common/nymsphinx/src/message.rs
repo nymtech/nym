@@ -3,6 +3,7 @@
 
 use crate::chunking;
 use crate::receiver::MessageRecoveryError;
+use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_anonymous_replies::requests::{
     AnonymousSenderTag, RepliableMessage, ReplyMessage, ReplyMessageContent, UnnamedRepliesError,
 };
@@ -55,9 +56,9 @@ pub enum NymMessage {
 }
 
 impl NymMessage {
-    pub fn new_additional_surbs_request(amount: u32) -> Self {
+    pub fn new_additional_surbs_request(recipient: Recipient, amount: u32) -> Self {
         NymMessage::Reply(ReplyMessage {
-            content: ReplyMessageContent::SurbRequest { amount },
+            content: ReplyMessageContent::SurbRequest { recipient, amount },
         })
     }
 

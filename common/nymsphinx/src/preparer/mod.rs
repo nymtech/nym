@@ -60,7 +60,7 @@ impl From<NymTopologyError> for PreparationError {
 // #[cfg_attr(not(target_arch = "wasm32"), derive(Clone))]
 #[derive(Clone)]
 #[must_use]
-pub struct MessagePreparer<R: CryptoRng + Rng> {
+pub struct MessagePreparer<R> {
     /// Instance of a cryptographically secure random number generator.
     rng: R,
 
@@ -308,10 +308,10 @@ where
         )
     }
 
-    pub fn prepare_and_split_reply(&mut self, message: Vec<u8>) -> Vec<Fragment> {
+    pub fn prepare_and_split_reply(&mut self, reply: ReplyMessage) -> Vec<Fragment> {
         let plaintext_per_packet = self.available_plaintext_per_reply_packet();
 
-        NymMessage::new_reply(ReplyMessage::new_data_message(message))
+        NymMessage::new_reply(reply)
             .pad_to_full_packet_lengths(plaintext_per_packet)
             .split_into_fragments(&mut self.rng, plaintext_per_packet)
     }

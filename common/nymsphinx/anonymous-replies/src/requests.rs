@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ReplySurb;
+use nymsphinx_addressing::clients::Recipient;
 use std::mem;
 
 pub struct UnnamedRepliesError;
@@ -22,6 +23,7 @@ pub struct RepliableMessage {
 
 impl RepliableMessage {
     // temporary for proof of concept re-implementation with single sender-receiver pair
+    #[deprecated]
     pub fn temp_new_data(data: Vec<u8>, reply_surbs: Vec<ReplySurb>) -> Self {
         RepliableMessage {
             sender_tag: [0u8; 32],
@@ -217,9 +219,9 @@ impl ReplyMessage {
         }
     }
 
-    pub fn new_surb_request_message(amount: u32) -> Self {
+    pub fn new_surb_request_message(recipient: Recipient, amount: u32) -> Self {
         ReplyMessage {
-            content: ReplyMessageContent::SurbRequest { amount },
+            content: ReplyMessageContent::SurbRequest { recipient, amount },
         }
     }
 
@@ -263,7 +265,7 @@ impl TryFrom<u8> for ReplyMessageContentTag {
 pub enum ReplyMessageContent {
     // TODO: later allow to request surbs whilst sending data
     Data { message: Vec<u8> },
-    SurbRequest { amount: u32 },
+    SurbRequest { recipient: Recipient, amount: u32 },
 }
 
 impl ReplyMessageContent {
@@ -271,7 +273,11 @@ impl ReplyMessageContent {
         match self {
             // TODO: a lot of unnecessary allocations
             ReplyMessageContent::Data { message } => message.into_iter().collect(),
-            ReplyMessageContent::SurbRequest { amount } => amount.to_be_bytes().to_vec(),
+            ReplyMessageContent::SurbRequest { recipient, amount } => recipient
+                .to_bytes()
+                .into_iter()
+                .chain(amount.to_be_bytes().into_iter())
+                .collect(),
         }
     }
 
@@ -288,11 +294,21 @@ impl ReplyMessageContent {
                 message: bytes.to_vec(),
             }),
             ReplyMessageContentTag::SurbRequest => {
-                if bytes.len() != std::mem::size_of::<u32>() {
+                if bytes.len() != Recipient::LEN + std::mem::size_of::<u32>() {
                     return Err(UnnamedRepliesError);
                 }
+                let mut recipient_bytes = [0u8; Recipient::LEN];
+                recipient_bytes.copy_from_slice(&bytes[..Recipient::LEN]);
+
                 Ok(ReplyMessageContent::SurbRequest {
-                    amount: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+                    recipient: Recipient::try_from_bytes(recipient_bytes)
+                        .map_err(|_| UnnamedRepliesError)?,
+                    amount: u32::from_be_bytes([
+                        bytes[Recipient::LEN],
+                        bytes[Recipient::LEN + 1],
+                        bytes[Recipient::LEN + 2],
+                        bytes[Recipient::LEN + 3],
+                    ]),
                 })
             }
         }

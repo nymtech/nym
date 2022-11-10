@@ -14,7 +14,8 @@ use std::sync::Arc;
 
 // #[cfg(feature = "reply-surb")]
 // use crate::client::reply_key_storage::ReplyKeyStorage;
-use crate::client::replies::reply_storage::CombinedReplyStorage;
+use crate::client::replies::reply_storage::{CombinedReplyStorage, SentReplyKeys};
+use crate::client::replies::temp_name_pending_handler::ToBeNamedSender;
 #[cfg(feature = "reply-surb")]
 use crypto::{symmetric::stream_cipher, Digest};
 use nymsphinx::anonymous_replies::requests::{
@@ -143,13 +144,15 @@ struct ReceivedMessagesBuffer {
     // reply_key_storage: ReplyKeyStorage,
 
     //
-    reply_storage: CombinedReplyStorage,
+    reply_key_storage: SentReplyKeys,
+    to_be_named_channel: ToBeNamedSender,
 }
 
 impl ReceivedMessagesBuffer {
     fn new(
         local_encryption_keypair: Arc<encryption::KeyPair>,
-        reply_storage: CombinedReplyStorage,
+        reply_key_storage: SentReplyKeys,
+        to_be_named_channel: ToBeNamedSender,
     ) -> Self {
         ReceivedMessagesBuffer {
             inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
@@ -159,7 +162,8 @@ impl ReceivedMessagesBuffer {
                 message_sender: None,
                 recently_reconstructed: HashSet::new(),
             })),
-            reply_storage,
+            reply_key_storage,
+            to_be_named_channel,
         }
     }
 
@@ -224,7 +228,15 @@ impl ReceivedMessagesBuffer {
                         reply_surbs.len(),
                         msg.sender_tag
                     );
-                    reconstructed.push(ReconstructedMessage::new(message, msg.sender_tag));
+
+                    // temporary workaround
+                    #[deprecated]
+                    {
+                        if !message.is_empty() {
+                            reconstructed.push(ReconstructedMessage::new(message, msg.sender_tag));
+                        }
+                    }
+
                     reply_surbs
                 }
                 RepliableMessageContent::AdditionalSurbs { reply_surbs } => {
@@ -238,12 +250,13 @@ impl ReceivedMessagesBuffer {
                 RepliableMessageContent::Heartbeat {
                     additional_reply_surbs,
                 } => {
-                    error!("received a repliable heartbet message - we don't know how to handle it yet (and we won't know until future PRs)");
+                    error!("received a repliable heartbeat message - we don't know how to handle it yet (and we won't know until future PRs)");
                     additional_reply_surbs
                 }
             };
-            self.reply_storage
-                .insert_surbs(&msg.sender_tag, reply_surbs)
+
+            self.to_be_named_channel
+                .send_additional_surbs(msg.sender_tag, reply_surbs)
         }
         reconstructed
     }
@@ -256,8 +269,11 @@ impl ReceivedMessagesBuffer {
         for msg in msgs {
             match msg.content {
                 ReplyMessageContent::Data { message } => reconstructed.push(message.into()),
-                ReplyMessageContent::SurbRequest { amount } => {
-                    error!("received request for additional {} reply SURBs! We don't know how to handle it yet : (", amount)
+                ReplyMessageContent::SurbRequest { recipient, amount } => {
+                    info!("received request for {amount} additional surbs");
+                    self.to_be_named_channel
+                        .send_additional_surbs_request(recipient, amount);
+                    // error!("received request for additional {} reply SURBs! We don't know how to handle it yet : (", amount)
                 }
             }
         }
@@ -318,8 +334,8 @@ impl ReceivedMessagesBuffer {
 
         let possible_key_digest =
             EncryptionKeyDigest::clone_from_slice(&raw_message[..reply_surb_digest_size]);
-        self.reply_storage
-            .try_pop_surb_key(possible_key_digest)
+        self.reply_key_storage
+            .try_pop(possible_key_digest)
             .map(|reply_encryption_key| {
                 (
                     reply_encryption_key,
@@ -491,13 +507,13 @@ impl ReceivedMessagesBufferController {
         local_encryption_keypair: Arc<encryption::KeyPair>,
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_packet_receiver: MixnetMessageReceiver,
-        // #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
-        reply_storage: CombinedReplyStorage,
+        reply_key_storage: SentReplyKeys,
+        to_be_named_channel: ToBeNamedSender,
     ) -> Self {
         let received_buffer = ReceivedMessagesBuffer::new(
             local_encryption_keypair,
-            reply_storage, // #[cfg(feature = "reply-surb")]
-                           // reply_key_storage,
+            reply_key_storage,
+            to_be_named_channel,
         );
 
         ReceivedMessagesBufferController {

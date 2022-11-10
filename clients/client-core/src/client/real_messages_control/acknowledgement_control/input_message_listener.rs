@@ -3,7 +3,9 @@
 
 use super::action_controller::{Action, ActionSender};
 use super::PendingAcknowledgement;
-use crate::client::replies::reply_storage::CombinedReplyStorage;
+use crate::client::replies::reply_storage::{CombinedReplyStorage, SentReplyKeys};
+use crate::client::replies::temp_name_pending_handler::ToBeNamedSender;
+use crate::client::topology_control::TopologyReadPermit;
 use crate::client::{
     inbound_messages::{InputMessage, InputMessageReceiver},
     real_messages_control::real_traffic_stream::{BatchRealMessageSender, RealMessage},
@@ -12,7 +14,7 @@ use crate::client::{
 use crypto::symmetric::stream_cipher;
 use futures::StreamExt;
 use log::*;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, ReplyMessage};
 use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::params::{PacketEncryptionAlgorithm, ReplySurbEncryptionAlgorithm};
@@ -22,6 +24,7 @@ use nymsphinx::{
 };
 use rand::{CryptoRng, Rng};
 use std::sync::Arc;
+use topology::NymTopology;
 
 /// Module responsible for dealing with the received messages: splitting them, creating acknowledgements,
 /// putting everything into sphinx packets, etc.
@@ -37,7 +40,10 @@ where
     action_sender: ActionSender,
     real_message_sender: BatchRealMessageSender,
     topology_access: TopologyAccessor,
-    reply_storage: CombinedReplyStorage,
+
+    reply_key_storage: SentReplyKeys,
+    to_be_named_channel: ToBeNamedSender,
+    // reply_storage: CombinedReplyStorage,
 }
 
 pub(super) struct Config {
@@ -59,7 +65,8 @@ where
         action_sender: ActionSender,
         real_message_sender: BatchRealMessageSender,
         topology_access: TopologyAccessor,
-        reply_storage: CombinedReplyStorage,
+        reply_key_storage: SentReplyKeys,
+        to_be_named_channel: ToBeNamedSender,
     ) -> Self {
         InputMessageListener {
             ack_key,
@@ -69,72 +76,23 @@ where
             action_sender,
             real_message_sender,
             topology_access,
-            reply_storage,
+            reply_key_storage,
+            to_be_named_channel,
         }
     }
 
-    async fn handle_reply(
-        &mut self,
-        recipient_tag: AnonymousSenderTag,
-        data: Vec<u8>,
-    ) -> Option<Vec<RealMessage>> {
-        if !self.reply_storage.contains_surbs_for(&recipient_tag) {
-            warn!("received reply request for {:?} but we don't have any surbs stored for that recipient!", recipient_tag);
-            return None;
-        }
+    async fn handle_reply(&mut self, recipient_tag: AnonymousSenderTag, data: Vec<u8>) {
+        // offload reply handling to the dedicated task
+        self.to_be_named_channel.send_reply(recipient_tag, data)
+    }
 
-        // TODO: lower to debug/trace
-        info!("handling reply to {:?}", recipient_tag);
-        let fragments = self.message_preparer.prepare_and_split_reply(data);
-
-        info!("This reply requires {:?} SURBs", fragments.len());
-
-        let (surbs, surbs_left) = self
-            .reply_storage
-            .get_reply_surbs(&recipient_tag, fragments.len());
-
-        if let Some(reply_surbs) = surbs {
-            // TODO: simplify, tidy up and move elsewhere
-            let topology_permit = self.topology_access.get_read_permit().await;
-            let topology =
-                match topology_permit.try_get_valid_topology_ref(&self.ack_recipient, None) {
-                    Some(topology_ref) => topology_ref,
-                    None => {
-                        warn!("Could not process the message - the network topology is invalid");
-                        return None;
-                    }
-                };
-
-            let mut real_messages = Vec::with_capacity(reply_surbs.len());
-            for (fragment, reply_surb) in fragments.into_iter().zip(reply_surbs.into_iter()) {
-                // we need to clone it because we need to keep it in memory in case we had to retransmit
-                // it. And then we'd need to recreate entire ACK again.
-                let chunk_clone = fragment.clone();
-                let prepared_fragment = self
-                    .message_preparer
-                    .prepare_reply_chunk_for_sending(
-                        chunk_clone,
-                        topology,
-                        reply_surb,
-                        &self.ack_key,
-                    )
-                    .unwrap();
-
-                real_messages.push(RealMessage::new(
-                    prepared_fragment.mix_packet,
-                    fragment.fragment_identifier(),
-                ));
-
-                // TODO: deal with retransmission and acks here
+    fn get_topology<'a>(&self, permit: &'a TopologyReadPermit<'a>) -> Option<&'a NymTopology> {
+        match permit.try_get_valid_topology_ref(&self.ack_recipient, None) {
+            Some(topology_ref) => Some(topology_ref),
+            None => {
+                warn!("Could not process the message - the network topology is invalid");
+                None
             }
-
-            Some(real_messages)
-        } else {
-            // TODO: here be the logic for surb requests and I guess delegation to the surbs handler
-            panic!(
-                "we don't have enough surbs : (  we only have {} left",
-                surbs_left
-            )
         }
     }
 
@@ -145,13 +103,7 @@ where
         data: Vec<u8>,
     ) -> Option<RealMessage> {
         let topology_permit = self.topology_access.get_read_permit().await;
-        let topology = match topology_permit.try_get_valid_topology_ref(&self.ack_recipient, None) {
-            Some(topology_ref) => topology_ref,
-            None => {
-                warn!("Could not process the message - the network topology is invalid");
-                return None;
-            }
-        };
+        let topology = self.get_topology(&topology_permit)?;
 
         match self
             .message_preparer
@@ -179,15 +131,7 @@ where
         reply_surbs: u32,
     ) -> Option<Vec<RealMessage>> {
         let topology_permit = self.topology_access.get_read_permit().await;
-        let topology = match topology_permit
-            .try_get_valid_topology_ref(&self.ack_recipient, Some(&recipient))
-        {
-            Some(topology_ref) => topology_ref,
-            None => {
-                warn!("Could not process the message - the network topology is invalid");
-                return None;
-            }
-        };
+        let topology = self.get_topology(&topology_permit)?;
 
         // split the message, attach optional reply surb
         let (split_message, reply_keys) = self
@@ -196,7 +140,7 @@ where
             .expect("somehow the topology was invalid after all!");
 
         log::info!("storing {} reply keys", reply_keys.len());
-        self.reply_storage.insert_multiple_surb_keys(reply_keys);
+        self.reply_key_storage.insert_multiple(reply_keys);
 
         // encrypt chunks, put them inside sphinx packets and generate acks
         let mut pending_acks = Vec::with_capacity(split_message.len());
@@ -247,7 +191,10 @@ where
             InputMessage::Reply {
                 recipient_tag,
                 data,
-            } => self.handle_reply(recipient_tag, data).await,
+            } => {
+                self.handle_reply(recipient_tag, data).await;
+                None
+            }
         };
 
         // there's no point in trying to send nothing

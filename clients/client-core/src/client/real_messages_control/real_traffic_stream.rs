@@ -21,6 +21,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
+use nymsphinx::preparer::PreparedFragment;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time;
 
@@ -230,6 +231,15 @@ pub(crate) struct RealMessage {
     mix_packet: MixPacket,
     fragment_id: FragmentIdentifier,
     // TODO: add info about it being constructed with reply-surb
+}
+
+impl From<(PreparedFragment, FragmentIdentifier)> for RealMessage {
+    fn from((fragment, fragment_id): (PreparedFragment, FragmentIdentifier)) -> Self {
+        RealMessage {
+            mix_packet: fragment.mix_packet,
+            fragment_id,
+        }
+    }
 }
 
 impl RealMessage {

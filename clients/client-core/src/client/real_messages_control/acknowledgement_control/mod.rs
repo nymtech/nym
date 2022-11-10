@@ -8,7 +8,8 @@ use self::{
     sent_notification_listener::SentNotificationListener,
 };
 use super::real_traffic_stream::BatchRealMessageSender;
-use crate::client::replies::reply_storage::CombinedReplyStorage;
+use crate::client::replies::reply_storage::{CombinedReplyStorage, SentReplyKeys};
+use crate::client::replies::temp_name_pending_handler::ToBeNamedSender;
 use crate::client::{inbound_messages::InputMessageReceiver, topology_control::TopologyAccessor};
 use crate::spawn_future;
 use futures::channel::mpsc;
@@ -35,6 +36,7 @@ use std::{
 mod acknowledgement_listener;
 mod action_controller;
 mod input_message_listener;
+mod message_constructor;
 mod retransmission_request_listener;
 mod sent_notification_listener;
 
@@ -68,7 +70,9 @@ pub(crate) struct PendingAcknowledgement {
 
 impl PendingAcknowledgement {
     /// Creates new instance of `PendingAcknowledgement` using the provided data.
-    fn new(message_chunk: Fragment, delay: SphinxDelay, recipient: Recipient) -> Self {
+    // make it private again
+    #[deprecated]
+    pub(crate) fn new(message_chunk: Fragment, delay: SphinxDelay, recipient: Recipient) -> Self {
         PendingAcknowledgement {
             message_chunk,
             delay,
@@ -180,8 +184,8 @@ where
         ack_key: Arc<AckKey>,
         ack_recipient: Recipient,
         connectors: AcknowledgementControllerConnectors,
-        reply_storage: CombinedReplyStorage,
-        // #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
+        reply_key_storage: SentReplyKeys,
+        to_be_named_channel: ToBeNamedSender,
     ) -> Self {
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
 
@@ -214,9 +218,8 @@ where
             action_sender.clone(),
             connectors.real_message_sender.clone(),
             topology_access.clone(),
-            // #[cfg(feature = "reply-surb")]
-            // reply_key_storage,
-            reply_storage,
+            reply_key_storage,
+            to_be_named_channel,
         );
 
         // will listen for any ack timeouts and trigger retransmission

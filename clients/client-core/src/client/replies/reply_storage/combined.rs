@@ -20,6 +20,19 @@ impl CombinedReplyStorage {
         }
     }
 
+    #[deprecated]
+    pub fn key_storage(&self) -> SentReplyKeys {
+        self.sent_reply_keys.clone()
+    }
+
+    pub(crate) fn min_surb_threshold(&self) -> usize {
+        self.received_reply_surbs.min_surb_threshold()
+    }
+
+    pub(crate) fn available_surbs(&self, target: &AnonymousSenderTag) -> usize {
+        self.received_reply_surbs.available_surbs(target)
+    }
+
     pub(crate) fn contains_surbs_for(&self, target: &AnonymousSenderTag) -> bool {
         self.received_reply_surbs.contains_surbs_for(target)
     }
@@ -32,14 +45,19 @@ impl CombinedReplyStorage {
         self.received_reply_surbs.get_reply_surbs(target, amount)
     }
 
-    pub(crate) fn get_reply_surb(
+    pub(crate) fn get_reply_surb_ignoring_threshold(
         &self,
         target: &AnonymousSenderTag,
     ) -> Option<(Option<ReplySurb>, usize)> {
-        self.received_reply_surbs.get_reply_surb(target)
+        self.received_reply_surbs
+            .get_reply_surb_ignoring_threshold(target)
     }
 
-    pub(crate) fn insert_surbs(&self, target: &AnonymousSenderTag, surbs: Vec<ReplySurb>) {
+    pub(crate) fn insert_surbs<I: IntoIterator<Item = ReplySurb>>(
+        &self,
+        target: &AnonymousSenderTag,
+        surbs: I,
+    ) {
         self.received_reply_surbs.insert_surbs(target, surbs)
     }
 

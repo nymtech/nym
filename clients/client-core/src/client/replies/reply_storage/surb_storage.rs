@@ -3,8 +3,9 @@
 
 use dashmap::DashMap;
 use log::error;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, ReplyMessage};
 use nymsphinx::anonymous_replies::ReplySurb;
+use nymsphinx::message::NymMessage;
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -58,6 +59,18 @@ impl ReceivedReplySurbsMap {
     //     self.data.read().await.get(target).cloned()
     // }
 
+    pub(crate) fn min_surb_threshold(&self) -> usize {
+        self.inner.min_surb_threshold.load(Ordering::Relaxed)
+    }
+
+    pub(crate) fn available_surbs(&self, target: &AnonymousSenderTag) -> usize {
+        self.inner
+            .data
+            .get(target)
+            .map(|entry| entry.items_left())
+            .unwrap_or_default()
+    }
+
     pub(crate) fn contains_surbs_for(&self, target: &AnonymousSenderTag) -> bool {
         self.inner.data.contains_key(target)
     }
@@ -69,7 +82,7 @@ impl ReceivedReplySurbsMap {
     ) -> (Option<Vec<ReplySurb>>, usize) {
         if let Some(mut entry) = self.inner.data.get_mut(target) {
             let surbs_left = entry.items_left();
-            if surbs_left < self.inner.min_surb_threshold.load(Ordering::Relaxed) + amount {
+            if surbs_left < self.min_surb_threshold() + amount {
                 (None, surbs_left)
             } else {
                 entry.get_reply_surbs(amount)
@@ -79,7 +92,7 @@ impl ReceivedReplySurbsMap {
         }
     }
 
-    pub(crate) fn get_reply_surb(
+    pub(crate) fn get_reply_surb_ignoring_threshold(
         &self,
         target: &AnonymousSenderTag,
     ) -> Option<(Option<ReplySurb>, usize)> {
@@ -89,16 +102,15 @@ impl ReceivedReplySurbsMap {
             .map(|mut s| s.get_reply_surb())
     }
 
-    pub(crate) async fn additional_surbs_request(&self, target: &AnonymousSenderTag) -> Option<()> {
-        // let (reply_surb, _)
-        None
-    }
-
-    pub(crate) fn insert_surbs(&self, target: &AnonymousSenderTag, surbs: Vec<ReplySurb>) {
+    pub(crate) fn insert_surbs<I: IntoIterator<Item = ReplySurb>>(
+        &self,
+        target: &AnonymousSenderTag,
+        surbs: I,
+    ) {
         if let Some(mut existing_data) = self.inner.data.get_mut(target) {
             existing_data.insert_reply_surbs(surbs)
         } else {
-            let new_entry = ReceivedReplySurbs::new(surbs);
+            let new_entry = ReceivedReplySurbs::new(surbs.into_iter().collect());
             self.inner.data.insert(*target, new_entry);
         }
     }
@@ -113,9 +125,9 @@ struct ReceivedReplySurbs {
 }
 
 impl ReceivedReplySurbs {
-    fn new(initial_surbs: Vec<ReplySurb>) -> Self {
+    fn new(initial_surbs: VecDeque<ReplySurb>) -> Self {
         ReceivedReplySurbs {
-            data: initial_surbs.into(),
+            data: initial_surbs,
             requesting_more_surbs: false,
         }
     }
@@ -142,7 +154,8 @@ impl ReceivedReplySurbs {
     }
 
     // realistically we're always going to be getting multiple surbs at once
-    pub(crate) fn insert_reply_surbs(&mut self, surbs: Vec<ReplySurb>) {
-        self.data.append(&mut surbs.into())
+    pub(crate) fn insert_reply_surbs<I: IntoIterator<Item = ReplySurb>>(&mut self, surbs: I) {
+        let mut v = surbs.into_iter().collect();
+        self.data.append(&mut v)
     }
 }

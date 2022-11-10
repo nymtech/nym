@@ -94,7 +94,7 @@ pub fn number_of_required_fragments(
 
             // we know for sure that all fragments in all but last set are definitely full
             // (last one has single 'linked' fragment)
-            let without_last = (n - 1) * (u8::max_value() as usize);
+            let without_last = (n - 1) * (u8::MAX as usize);
             let linked_fragments_without_last = (2 * n - 2) - 1;
             let unlinked_fragments_without_last = without_last - linked_fragments_without_last;
 

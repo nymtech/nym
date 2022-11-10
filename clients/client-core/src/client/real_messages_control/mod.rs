@@ -9,7 +9,10 @@ use self::{
     acknowledgement_control::AcknowledgementController, real_traffic_stream::OutQueueControl,
 };
 use crate::client::real_messages_control::acknowledgement_control::AcknowledgementControllerConnectors;
-use crate::client::replies::reply_storage::CombinedReplyStorage;
+use crate::client::replies::reply_storage::{CombinedReplyStorage, SentReplyKeys};
+use crate::client::replies::temp_name_pending_handler::{
+    ToBeNamedPendingReplyController, ToBeNamedReceiver, ToBeNamedSender,
+};
 use crate::client::{
     inbound_messages::InputMessageReceiver, mix_traffic::BatchMixMessageSender,
     topology_control::TopologyAccessor,
@@ -21,6 +24,7 @@ use log::*;
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::params::PacketSize;
+use nymsphinx::preparer::MessagePreparer;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 use std::time::Duration;
@@ -111,7 +115,9 @@ impl RealMessagesController<OsRng> {
         mix_sender: BatchMixMessageSender,
         topology_access: TopologyAccessor,
         reply_storage: CombinedReplyStorage,
-        // #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
+        // so much refactoring needed, but this is temporary just to test things out
+        to_be_named_channel_sender: ToBeNamedSender,
+        to_be_named_channel_receiver: ToBeNamedReceiver,
     ) -> Self {
         let rng = OsRng;
 
@@ -119,7 +125,7 @@ impl RealMessagesController<OsRng> {
         let (sent_notifier_tx, sent_notifier_rx) = mpsc::unbounded();
 
         let ack_controller_connectors = AcknowledgementControllerConnectors::new(
-            real_message_sender,
+            real_message_sender.clone(),
             input_receiver,
             sent_notifier_rx,
             ack_receiver,
@@ -140,9 +146,8 @@ impl RealMessagesController<OsRng> {
             Arc::clone(&config.ack_key),
             config.self_recipient,
             ack_controller_connectors,
-            // #[cfg(feature = "reply-surb")]
-            // reply_key_storage,
-            reply_storage,
+            reply_storage.key_storage(),
+            to_be_named_channel_sender,
         );
 
         let out_queue_config = real_traffic_stream::Config::new(
@@ -161,8 +166,31 @@ impl RealMessagesController<OsRng> {
             real_message_receiver,
             rng,
             config.self_recipient,
-            topology_access,
+            topology_access.clone(),
         );
+
+        // holy fu.... moly, that's some disgusting spaghetti
+        let message_preparer = MessagePreparer::new(
+            rng,
+            config.self_recipient,
+            config.average_packet_delay_duration,
+            config.average_ack_delay_duration,
+        )
+        .with_custom_real_message_packet_size(config.packet_size);
+
+        let mut to_be_named_reply_control = ToBeNamedPendingReplyController::new(
+            Arc::clone(&config.ack_key),
+            config.self_recipient,
+            message_preparer,
+            // ack_controller_connectors.
+            real_message_sender,
+            topology_access,
+            reply_storage,
+            to_be_named_channel_receiver,
+        );
+
+        // we'll move it in next commit so for test sake, just start it here
+        tokio::spawn(async move { to_be_named_reply_control.run().await });
 
         RealMessagesController {
             out_queue_control,

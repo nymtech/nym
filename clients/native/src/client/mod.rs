@@ -13,7 +13,8 @@ use client_core::client::received_buffer::{
     ReceivedBufferMessage, ReceivedBufferRequestReceiver, ReceivedBufferRequestSender,
     ReceivedMessagesBufferController, ReconstructedMessagesReceiver,
 };
-use client_core::client::replies::reply_storage::CombinedReplyStorage;
+use client_core::client::replies::reply_storage::{CombinedReplyStorage, SentReplyKeys};
+use client_core::client::replies::temp_name_pending_handler::{ToBeNamedReceiver, ToBeNamedSender};
 use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
@@ -113,11 +114,12 @@ impl NymClient {
     fn start_real_traffic_controller(
         &self,
         topology_accessor: TopologyAccessor,
-        // reply_key_storage: ReplyKeyStorage,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
         reply_storage: CombinedReplyStorage,
+        to_be_named_channel_sender: ToBeNamedSender,
+        to_be_named_channel_receiver: ToBeNamedReceiver,
         shutdown: ShutdownListener,
     ) {
         let mut controller_config = real_messages_control::Config::new(
@@ -146,6 +148,8 @@ impl NymClient {
             mix_sender,
             topology_accessor,
             reply_storage,
+            to_be_named_channel_sender,
+            to_be_named_channel_receiver,
         )
         .start_with_shutdown(shutdown);
     }
@@ -156,8 +160,8 @@ impl NymClient {
         &self,
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_receiver: MixnetMessageReceiver,
-        // reply_key_storage: ReplyKeyStorage
-        reply_storage: CombinedReplyStorage,
+        reply_key_storage: SentReplyKeys,
+        to_be_named_channel: ToBeNamedSender,
         shutdown: ShutdownListener,
     ) {
         info!("Starting received messages buffer controller...");
@@ -165,8 +169,8 @@ impl NymClient {
             self.key_manager.encryption_keypair(),
             query_receiver,
             mixnet_receiver,
-            // reply_key_storage,
-            reply_storage,
+            reply_key_storage,
+            to_be_named_channel,
         )
         .start_with_shutdown(shutdown)
     }
@@ -379,10 +383,6 @@ impl NymClient {
         let (ack_sender, ack_receiver) = mpsc::unbounded();
         let shared_topology_accessor = TopologyAccessor::new();
 
-        // let reply_key_storage =
-        //     ReplyKeyStorage::load(self.config.get_base().get_reply_encryption_key_store_path())
-        //         .expect("Failed to load reply key storage!");
-
         // Shutdown notifier for signalling tasks to stop
         let shutdown = ShutdownNotifier::default();
 
@@ -392,6 +392,9 @@ impl NymClient {
         // =====================
         // =====================
         let reply_storage = CombinedReplyStorage::new(2);
+        // channels responsible for controlling reply-related requests
+        let (reply_req_sender, reply_req_receiver) = mpsc::unbounded();
+        let wrapped_sender = ToBeNamedSender::from(reply_req_sender);
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
@@ -400,8 +403,8 @@ impl NymClient {
         self.start_received_messages_buffer_controller(
             received_buffer_request_receiver,
             mixnet_messages_receiver,
-            // reply_key_storage.clone(),
-            reply_storage.clone(),
+            reply_storage.key_storage(),
+            wrapped_sender.clone(),
             shutdown.subscribe(),
         );
 
@@ -418,11 +421,12 @@ impl NymClient {
 
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
-            // reply_key_storage,
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
             reply_storage,
+            wrapped_sender,
+            reply_req_receiver,
             shutdown.subscribe(),
         );
 

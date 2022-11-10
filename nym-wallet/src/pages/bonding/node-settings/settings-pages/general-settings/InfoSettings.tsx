@@ -10,6 +10,7 @@ import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { bondedInfoParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
 import { Console } from 'src/utils/console';
 import { Alert } from 'src/components/Alert';
+import { vestingUpdateMixnodeConfig } from 'src/requests/vesting';
 
 export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
@@ -43,7 +44,11 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
         version,
       };
       try {
-        await updateMixnodeConfig(MixNodeConfigParams);
+        if (bondedNode.proxy) {
+          await vestingUpdateMixnodeConfig(MixNodeConfigParams);
+        } else {
+          await updateMixnodeConfig(MixNodeConfigParams);
+        }
         setOpenConfirmationModal(true);
       } catch (error) {
         Console.error(error);

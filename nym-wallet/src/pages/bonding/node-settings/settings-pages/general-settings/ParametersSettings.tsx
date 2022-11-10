@@ -16,7 +16,12 @@ import { useTheme } from '@mui/material/styles';
 import { CurrencyDenom, MixNodeCostParams } from '@nymproject/types';
 import { add, format, fromUnixTime } from 'date-fns';
 import { isMixnode } from 'src/types';
-import { getCurrentInterval, getPendingIntervalEvents, updateMixnodeCostParams } from 'src/requests';
+import {
+  getCurrentInterval,
+  getPendingIntervalEvents,
+  updateMixnodeCostParams,
+  vestingUpdateMixnodeCostParams,
+} from 'src/requests';
 import { TBondedMixnode, TBondedGateway } from 'src/context/bonding';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { bondedNodeParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
@@ -105,7 +110,11 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
         },
       };
       try {
-        await updateMixnodeCostParams(MixNodeCostParams);
+        if (bondedNode.proxy) {
+          await vestingUpdateMixnodeCostParams(MixNodeCostParams);
+        } else {
+          await updateMixnodeCostParams(MixNodeCostParams);
+        }
         await getPendingEvents();
         reset();
         setOpenConfirmationModal(true);

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { HelpPage } from 'src/components/HelpPage';
-import { Button, Stack } from '@mui/material';
+import { Button, Link, Stack } from '@mui/material';
 import Image1 from '../assets/help-step-one.png';
 import Image2 from '../assets/help-step-two.png';
 import Image3 from '../assets/help-step-three.png';
@@ -56,7 +56,13 @@ export const HelpGuideLayout = () => {
       <Button variant="text" color="inherit" onClick={() => setStep(1)}>
         How to connect guide
       </Button>
-      <Button variant="text" color="inherit">
+      <Button
+        LinkComponent={Link}
+        variant="text"
+        color="inherit"
+        href="https://shipyard.nymtech.net/nym-connect"
+        target="_blank"
+      >
         Docs
       </Button>
     </Stack>

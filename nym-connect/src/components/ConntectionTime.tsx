@@ -15,11 +15,11 @@ export const ConnectionTime = ({ connectedSince }: { connectedSince?: DateTime }
     };
   }, [connectedSince]);
   return (
-    <Stack alignItems="center" sx={{ mt: 3 }}>
-      <Typography variant="caption" sx={{ color: 'grey.500' }}>
+    <Stack alignItems="center">
+      <Typography variant="caption" sx={{ color: 'grey.600' }}>
         Connection time
       </Typography>
-      <Typography letterSpacing="0.1em">{duration || '00:00:00'}</Typography>
+      <Typography letterSpacing="0.15em">{duration || '00:00:00'}</Typography>
     </Stack>
   );
 };

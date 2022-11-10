@@ -9,15 +9,15 @@ const styles = {
   transform: 'translate(-50%, -50%)',
   width: 200,
   bgcolor: '#292E34',
-  border: (theme: Theme) => `1px solid ${theme.palette.grey[700]}`,
   p: 1.5,
   borderRadius: 0.5,
   height: 'fit-content',
+  border: (theme: Theme) => `1px solid ${theme.palette.grey[700]}`,
 };
 
-const ModalTitle = ({ title }: { title: string }) => {
+const ModalTitle = ({ title, withCloseIcon }: { title: string; withCloseIcon: boolean }) => {
   return (
-    <Box textAlign="center" mt={-2}>
+    <Box textAlign="center" mt={withCloseIcon ? -2 : 0}>
       <ErrorOutline sx={{ color: 'warning.main' }} />
       <Typography variant="body2" textAlign="center" sx={{ color: 'warning.main' }}>
         {title}
@@ -28,8 +28,10 @@ const ModalTitle = ({ title }: { title: string }) => {
 
 const ModalBody = ({ description, children }: { description: string; children?: React.ReactElement }) => (
   <Box textAlign="center" mt={1}>
-    <Typography fontSize="small">{description}</Typography>
     {children}
+    <Typography fontSize="small" sx={{ mt: 1 }}>
+      {description}
+    </Typography>
   </Box>
 );
 
@@ -57,7 +59,7 @@ export const InfoModal = ({
           </IconButton>
         </Box>
       )}
-      <ModalTitle title={title} />
+      <ModalTitle title={title} withCloseIcon={Boolean(onClose)} />
       <ModalBody description={description}>{children}</ModalBody>
       {Action && (
         <Box mt={1} textAlign="center">

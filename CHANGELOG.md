@@ -4,7 +4,15 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## Unreleased
 
+### Added
+
 - binaries: add `-c` shortform for `--config-env-file`
+
+### Changed
+
+- clients: add concept of transmission lanes to better handle multiple data streams ([#1720])
+
+[#1720]: https://github.com/nymtech/nym/pull/1720
 
 
 ## [v1.1.0](https://github.com/nymtech/nym/tree/v1.1.0) (2022-11-09)

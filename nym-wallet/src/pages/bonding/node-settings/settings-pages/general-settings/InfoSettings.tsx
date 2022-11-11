@@ -4,15 +4,20 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import { Button, Divider, Typography, TextField, Grid, CircularProgress, Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { isMixnode } from 'src/types';
-import { updateMixnodeConfig } from 'src/requests';
+import { simulateUpdateMixnodeConfig, simulateVestingUpdateMixnodeConfig, updateMixnodeConfig } from 'src/requests';
 import { TBondedMixnode, TBondedGateway } from 'src/context/bonding';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { bondedInfoParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
 import { Console } from 'src/utils/console';
 import { Alert } from 'src/components/Alert';
+import { vestingUpdateMixnodeConfig } from 'src/requests/vesting';
+import { ConfirmTx } from 'src/components/ConfirmTX';
+import { useGetFee } from 'src/hooks/useGetFee';
+import { LoadingModal } from 'src/components/Modals/LoadingModal';
 
 export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
+  const { getFee, fee, resetFeeState } = useGetFee();
 
   const theme = useTheme();
 
@@ -33,6 +38,7 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
     verlocPort?: number;
     httpApiPort?: number;
   }) => {
+    resetFeeState();
     const { host, version, mixPort, verlocPort, httpApiPort } = data;
     if (host && version && mixPort && verlocPort && httpApiPort) {
       const MixNodeConfigParams = {
@@ -43,7 +49,11 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
         version,
       };
       try {
-        await updateMixnodeConfig(MixNodeConfigParams);
+        if (bondedNode.proxy) {
+          await vestingUpdateMixnodeConfig(MixNodeConfigParams);
+        } else {
+          await updateMixnodeConfig(MixNodeConfigParams);
+        }
         setOpenConfirmationModal(true);
       } catch (error) {
         Console.error(error);
@@ -53,10 +63,22 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
 
   return (
     <Grid container xs item>
+      {fee && (
+        <ConfirmTx
+          open
+          header="Update node settings"
+          fee={fee}
+          onConfirm={handleSubmit((d) => onSubmit(d))}
+          onPrev={resetFeeState}
+          onClose={resetFeeState}
+        />
+      )}
+      {isSubmitting && <LoadingModal />}
       <Alert
         title={
           <Box sx={{ fontWeight: 600 }}>
-            Your changes will be ONLY saved on the display. Remember to change the values on your node’s config file too
+            Changing these values will ONLY change the data about your node on the blockchain. Remember to change your
+            node’s config file with the same values too
           </Box>
         }
         dismissable
@@ -66,16 +88,6 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
           <Grid item>
             <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
               Port
-            </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                fontSize: 14,
-                mb: 2,
-                color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
-              }}
-            >
-              Change profit margin of your node
             </Typography>
           </Grid>
           <Grid spacing={3} item container alignItems="center" xs={12} md={6}>
@@ -120,16 +132,6 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
             <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
               Host
             </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                fontSize: 14,
-                mb: 2,
-                color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
-              }}
-            >
-              Lock wallet after certain time
-            </Typography>
           </Grid>
           <Grid spacing={3} item container alignItems="center" xs={12} md={6}>
             <Grid item width={1}>
@@ -150,16 +152,6 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
           <Grid item>
             <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
               Version
-            </Typography>
-            <Typography
-              variant="body1"
-              sx={{
-                fontSize: 14,
-                mb: 2,
-                color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
-              }}
-            >
-              Lock wallet after certain time
             </Typography>
           </Grid>
           <Grid spacing={3} item container alignItems="center" xs={12} md={6}>
@@ -182,18 +174,24 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
             size="large"
             variant="contained"
             disabled={isSubmitting || !isDirty || !isValid}
-            onClick={handleSubmit((d) => onSubmit(d))}
-            type="submit"
-            sx={{ m: 3, width: '320px' }}
-            endIcon={isSubmitting && <CircularProgress size={20} />}
+            onClick={handleSubmit((data) =>
+              getFee(bondedNode.proxy ? simulateVestingUpdateMixnodeConfig : simulateUpdateMixnodeConfig, {
+                host: data.host,
+                mix_port: data.mixPort,
+                verloc_port: data.verlocPort,
+                http_api_port: data.httpApiPort,
+                version: data.version,
+              }),
+            )}
+            sx={{ m: 3 }}
           >
-            Save all display changes
+            Submit changes to the blockchain
           </Button>
         </Grid>
       </Grid>
       <SimpleModal
         open={openConfirmationModal}
-        header="Your changes were ONLY saved on the display"
+        header="Your changes are submitted to the blockchain"
         subHeader="Remember to change the values 
         on your node’s config file too."
         okLabel="close"
@@ -216,7 +214,6 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
           textAlign: 'center',
           color: theme.palette.nym.nymWallet.text.blue,
           fontSize: 16,
-          textTransform: 'capitalize',
         }}
         subHeaderStyles={{
           width: '100%',
@@ -224,7 +221,6 @@ export const InfoSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBon
           textAlign: 'center',
           color: 'main',
           fontSize: 14,
-          textTransform: 'capitalize',
         }}
       />
     </Grid>

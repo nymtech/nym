@@ -59,6 +59,10 @@ impl ReceivedReplySurbsMap {
     //     self.data.read().await.get(target).cloned()
     // }
 
+    pub(crate) fn below_threshold(&self, amount: usize) -> bool {
+        amount < self.min_surb_threshold()
+    }
+
     pub(crate) fn min_surb_threshold(&self) -> usize {
         self.inner.min_surb_threshold.load(Ordering::Relaxed)
     }

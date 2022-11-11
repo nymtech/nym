@@ -17,6 +17,10 @@ use nymsphinx::preparer::PreparedFragment;
 use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
 
+// that should be moved into config
+#[deprecated]
+const SURBS_TO_REQUEST: u32 = 20;
+
 // responsible for packet retransmission upon fired timer
 pub(super) struct RetransmissionRequestListener<R> {
     action_sender: AckActionSender,
@@ -51,7 +55,7 @@ where
         packet_recipient: Recipient,
         chunk_data: Fragment,
     ) -> Option<PreparedFragment> {
-        error!("retransmitting normal packet...");
+        debug!("retransmitting normal packet...");
 
         self.message_handler
             .try_prepare_single_chunk_for_sending(packet_recipient, chunk_data)
@@ -66,16 +70,40 @@ where
     ) -> Option<PreparedFragment> {
         error!("retransmitting reply packet...");
 
+        // TODO: collapse that if monstrosity...
         let maybe_reply_surb = if extra_surb_request {
             info!("retransmitting packet requesting for additional surbs - it MUST get through...");
             self.received_reply_surbs
-                .get_reply_surb_ignoring_threshold(&recipient_tag)
+                .get_reply_surb_ignoring_threshold(&recipient_tag)?
+                .0
         } else {
-            // TODO: if we're low here, ask for more surbs!
-            error!("HERE I SHOULD HAVE IMPLEMENTED REQUESTS FOR MORE SURBS!!!!");
-            self.received_reply_surbs.get_reply_surb(&recipient_tag)
-        }?
-        .0;
+            let (maybe_surb, surbs_left) =
+                self.received_reply_surbs.get_reply_surb(&recipient_tag)?;
+            if self.received_reply_surbs.below_threshold(surbs_left) {
+                // if we're running low on surbs, we should request more
+                if let Some(another_surb) = self
+                    .received_reply_surbs
+                    .get_reply_surb_ignoring_threshold(&recipient_tag)?
+                    .0
+                {
+                    if let Err(returned_surb) = self
+                        .message_handler
+                        .try_request_additional_reply_surbs(
+                            recipient_tag,
+                            another_surb,
+                            SURBS_TO_REQUEST,
+                        )
+                        .await
+                    {
+                        warn!("we failed to ask for more surbs...");
+                        self.received_reply_surbs
+                            .insert_surb(&recipient_tag, returned_surb)
+                    }
+                }
+            }
+
+            maybe_surb
+        };
 
         let Some(reply_surb) = maybe_reply_surb else {
             warn!("we run out of reply surbs for {:?} to retransmit our dropped message...", recipient_tag);
@@ -104,14 +132,6 @@ where
                 return;
             }
         };
-        //
-        // match timed_out_ack.destination {
-        //     PacketDestination::Anonymous {
-        //         recipient_tag,
-        //         extra_surb_request,
-        //     } => {}
-        //     PacketDestination::KnownRecipient(recipient) => {}
-        // }
 
         let chunk_clone = timed_out_ack.message_chunk.clone();
         let frag_id = chunk_clone.fragment_identifier();

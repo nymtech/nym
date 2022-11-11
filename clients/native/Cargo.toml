@@ -33,6 +33,7 @@ tokio-tungstenite = "0.14" # websocket
 
 ## internal
 client-core = { path = "../client-core" }
+client-connections = { path = "../../common/client-connections" }
 coconut-interface = { path = "../../common/coconut-interface", optional = true }
 config = { path = "../../common/config" }
 completions = { path = "../../common/completions" }

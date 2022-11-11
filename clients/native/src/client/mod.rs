@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use client_connections::{ClosedConnectionReceiver, ClosedConnectionSender, TransmissionLane};
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
     InputMessage, InputMessageReceiver, InputMessageSender,
@@ -110,6 +111,7 @@ impl NymClient {
         stream.start_with_shutdown(shutdown);
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn start_real_traffic_controller(
         &self,
         topology_accessor: TopologyAccessor,
@@ -117,6 +119,7 @@ impl NymClient {
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
+        closed_connection_rx: ClosedConnectionReceiver,
         shutdown: ShutdownListener,
     ) {
         let mut controller_config = real_messages_control::Config::new(
@@ -146,6 +149,7 @@ impl NymClient {
             mix_sender,
             topology_accessor,
             reply_key_storage,
+            closed_connection_rx,
         )
         .start_with_shutdown(shutdown);
     }
@@ -279,11 +283,16 @@ impl NymClient {
         &self,
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
+        closed_connection_tx: ClosedConnectionSender,
     ) {
         info!("Starting websocket listener...");
 
-        let websocket_handler =
-            websocket::Handler::new(msg_input, buffer_requester, self.as_mix_recipient());
+        let websocket_handler = websocket::Handler::new(
+            msg_input,
+            closed_connection_tx,
+            buffer_requester,
+            self.as_mix_recipient(),
+        );
 
         websocket::Listener::new(self.config.get_listening_port()).start(websocket_handler);
     }
@@ -292,7 +301,8 @@ impl NymClient {
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
     pub fn send_message(&mut self, recipient: Recipient, message: Vec<u8>, with_reply_surb: bool) {
-        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb);
+        let lane = TransmissionLane::General;
+        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb, lane);
 
         self.input_tx
             .as_ref()
@@ -403,12 +413,17 @@ impl NymClient {
         let sphinx_message_sender =
             Self::start_mix_traffic_controller(gateway_client, shutdown.subscribe());
 
+        // Channels that the websocket listener can use to signal downstream to the real traffic
+        // controller that connections are closed.
+        let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
+
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
             reply_key_storage,
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
+            closed_connection_rx,
             shutdown.subscribe(),
         );
 
@@ -425,9 +440,11 @@ impl NymClient {
         }
 
         match self.config.get_socket_type() {
-            SocketType::WebSocket => {
-                self.start_websocket_listener(received_buffer_request_sender, input_sender)
-            }
+            SocketType::WebSocket => self.start_websocket_listener(
+                received_buffer_request_sender,
+                input_sender,
+                closed_connection_tx,
+            ),
             SocketType::None => {
                 // if we did not start the socket, it means we're running (supposedly) in the native mode
                 // and hence we should announce 'ourselves' to the buffer

@@ -1,3 +1,4 @@
+use client_connections::TransmissionLane;
 use futures::channel::mpsc;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::ReplySurb;
@@ -11,6 +12,7 @@ pub enum InputMessage {
         recipient: Recipient,
         data: Vec<u8>,
         with_reply_surb: bool,
+        lane: TransmissionLane,
     },
     Reply {
         reply_surb: ReplySurb,
@@ -19,11 +21,17 @@ pub enum InputMessage {
 }
 
 impl InputMessage {
-    pub fn new_fresh(recipient: Recipient, data: Vec<u8>, with_reply_surb: bool) -> Self {
+    pub fn new_fresh(
+        recipient: Recipient,
+        data: Vec<u8>,
+        with_reply_surb: bool,
+        lane: TransmissionLane,
+    ) -> Self {
         InputMessage::Fresh {
             recipient,
             data,
             with_reply_surb,
+            lane,
         }
     }
 

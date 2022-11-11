@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use client_connections::ClosedConnectionSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
@@ -73,6 +74,9 @@ pub struct Controller {
     // to avoid memory issues
     recently_closed: HashSet<ConnectionId>,
 
+    // Broadcast closed connections
+    closed_connection_tx: ClosedConnectionSender,
+
     // TODO: this can potentially be abused to ddos and kill provider. Not sure at this point
     // how to handle it more gracefully
 
@@ -84,13 +88,17 @@ pub struct Controller {
 }
 
 impl Controller {
-    pub fn new(shutdown: ShutdownListener) -> (Self, ControllerSender) {
+    pub fn new(
+        closed_connection_tx: ClosedConnectionSender,
+        shutdown: ShutdownListener,
+    ) -> (Self, ControllerSender) {
         let (sender, receiver) = mpsc::unbounded();
         (
             Controller {
                 active_connections: HashMap::new(),
                 receiver,
                 recently_closed: HashSet::new(),
+                closed_connection_tx,
                 pending_messages: HashMap::new(),
                 shutdown,
             },
@@ -127,6 +135,9 @@ impl Controller {
             )
         }
         self.recently_closed.insert(conn_id);
+
+        // Announce closed connections, currently used by the `OutQueueControl`.
+        self.closed_connection_tx.unbounded_send(conn_id).unwrap();
     }
 
     fn send_to_connection(&mut self, conn_id: ConnectionId, payload: Vec<u8>, is_closed: bool) {
@@ -172,11 +183,15 @@ impl Controller {
             pending.push((payload, is_closed));
         } else if !is_closed {
             error!(
-                "Tried to write to closed connection ({} bytes were 'lost)",
+                "Tried to write to closed connection {} ({} bytes were 'lost)",
+                conn_id,
                 payload.len()
             );
         } else {
-            debug!("Tried to write to closed connection, but remote is already closed")
+            debug!(
+                "Tried to write to closed connection {}, but remote is already closed",
+                conn_id
+            )
         }
     }
 

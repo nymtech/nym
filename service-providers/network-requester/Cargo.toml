@@ -28,9 +28,10 @@ tokio-tungstenite = "0.17.2"
 
 
 # internal
+client-connections = { path = "../../common/client-connections" }
+completions = { path = "../../common/completions" }
 network-defaults = { path = "../../common/network-defaults" }
 nymsphinx = { path = "../../common/nymsphinx" }
-completions = { path = "../../common/completions" }
 logging = { path = "../../common/logging"}
 ordered-buffer = {path = "../../common/socks5/ordered-buffer"}
 proxy-helpers = { path = "../../common/socks5/proxy-helpers" }

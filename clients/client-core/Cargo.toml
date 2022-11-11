@@ -14,11 +14,13 @@ log = "0.4"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { version = "1.0", features = ["derive"] }
 sled = { version = "0.34", optional = true }
+tap = "1.0.1"
 thiserror = "1.0.34"
 url = { version ="2.2", features = ["serde"] }
 
 # internal
 config = { path = "../../common/config" }
+client-connections = { path = "../../common/client-connections" }
 crypto = { path = "../../common/crypto" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }
 #gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm", "coconut"] }
@@ -28,7 +30,6 @@ nymsphinx = { path = "../../common/nymsphinx" }
 pemstore = { path = "../../common/pemstore" }
 topology = { path = "../../common/topology" }
 validator-client = { path = "../../common/client-libs/validator-client", default-features = false }
-tap = "1.0.1"
 
 tokio = { version = "1.21.2", features = ["time", "macros"]}
 
@@ -57,3 +58,4 @@ default = ["reply-surb"]
 wasm = ["gateway-client/wasm"]
 coconut = ["gateway-client/coconut", "gateway-requests/coconut"]
 reply-surb = ["sled"]
+

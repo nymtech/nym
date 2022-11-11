@@ -20,6 +20,7 @@ pub(super) enum ClientRequestText {
         message: String,
         recipient: String,
         with_reply_surb: bool,
+        connection_id: u64,
     },
     SelfAddress,
     #[serde(rename_all = "camelCase")]
@@ -46,6 +47,7 @@ impl TryInto<ClientRequest> for ClientRequestText {
                 message,
                 recipient,
                 with_reply_surb,
+                connection_id,
             } => {
                 let message_bytes = message.into_bytes();
                 let recipient = Recipient::try_from_base58_string(recipient).map_err(|err| {
@@ -56,6 +58,7 @@ impl TryInto<ClientRequest> for ClientRequestText {
                     message: message_bytes,
                     recipient,
                     with_reply_surb,
+                    connection_id,
                 })
             }
             ClientRequestText::SelfAddress => Ok(ClientRequest::SelfAddress),

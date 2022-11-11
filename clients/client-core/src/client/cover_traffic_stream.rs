@@ -178,6 +178,10 @@ impl LoopCoverTrafficStream<OsRng> {
                     // This isn't a problem, if the channel is full means we're already sending the
                     // max amount of messages downstream can handle.
                     log::debug!("Failed to send cover message - channel full");
+                    // However it's still useful to alert the user that the gateway or the link to
+                    // the gateway can't keep up. Either due to insufficient bandwidth on the
+                    // client side, or that the gateway is overloaded.
+                    log::warn!("Failed to send: gateway appears to not keep up");
                 }
                 TrySendError::Closed(_) => {
                     log::warn!("Failed to send cover message - channel closed");

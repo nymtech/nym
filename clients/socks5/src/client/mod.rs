@@ -9,6 +9,7 @@ use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
     server::SphinxSocksServer,
 };
+use client_connections::{ClosedConnectionReceiver, ClosedConnectionSender};
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
     InputMessage, InputMessageReceiver, InputMessageSender,
@@ -110,6 +111,7 @@ impl NymClient {
         stream.start_with_shutdown(shutdown);
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn start_real_traffic_controller(
         &self,
         topology_accessor: TopologyAccessor,
@@ -117,6 +119,7 @@ impl NymClient {
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
+        closed_connection_rx: ClosedConnectionReceiver,
         shutdown: ShutdownListener,
     ) {
         let mut controller_config = client_core::client::real_messages_control::Config::new(
@@ -146,6 +149,7 @@ impl NymClient {
             mix_sender,
             topology_accessor,
             reply_key_storage,
+            closed_connection_rx,
         )
         .start_with_shutdown(shutdown);
     }
@@ -279,6 +283,7 @@ impl NymClient {
         &self,
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
+        closed_connection_tx: ClosedConnectionSender,
         shutdown: ShutdownListener,
     ) {
         info!("Starting socks5 listener...");
@@ -293,7 +298,11 @@ impl NymClient {
             self.as_mix_recipient(),
             shutdown,
         );
-        tokio::spawn(async move { sphinx_socks.serve(msg_input, buffer_requester).await });
+        tokio::spawn(async move {
+            sphinx_socks
+                .serve(msg_input, buffer_requester, closed_connection_tx)
+                .await
+        });
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
@@ -396,12 +405,17 @@ impl NymClient {
         let sphinx_message_sender =
             Self::start_mix_traffic_controller(gateway_client, shutdown.subscribe());
 
+        // Channel for announcing closed (socks5) connections by the controller.
+        // This will be forwarded to `OutQueueControl`
+        let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
+
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
             reply_key_storage,
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
+            closed_connection_rx,
             shutdown.subscribe(),
         );
 
@@ -420,6 +434,7 @@ impl NymClient {
         self.start_socks5_listener(
             received_buffer_request_sender,
             input_sender,
+            closed_connection_tx,
             shutdown.subscribe(),
         );
 

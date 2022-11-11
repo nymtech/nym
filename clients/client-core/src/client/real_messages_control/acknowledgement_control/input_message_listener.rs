@@ -8,6 +8,7 @@ use crate::client::{
     real_messages_control::real_traffic_stream::{BatchRealMessageSender, RealMessage},
     topology_control::TopologyAccessor,
 };
+use client_connections::TransmissionLane;
 use futures::StreamExt;
 use log::*;
 use nymsphinx::anonymous_replies::ReplySurb;
@@ -104,6 +105,7 @@ where
         content: Vec<u8>,
         with_reply_surb: bool,
     ) -> Option<Vec<RealMessage>> {
+        log::trace!("handling msg size: {}", content.len());
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = match topology_permit
             .try_get_valid_topology_ref(&self.ack_recipient, Some(&recipient))
@@ -164,26 +166,30 @@ where
     }
 
     async fn on_input_message(&mut self, msg: InputMessage) {
-        let real_messages = match msg {
+        let (real_messages, lane) = match msg {
             InputMessage::Fresh {
                 recipient,
                 data,
                 with_reply_surb,
-            } => {
+                lane,
+            } => (
                 self.handle_fresh_message(recipient, data, with_reply_surb)
+                    .await,
+                lane,
+            ),
+            InputMessage::Reply { reply_surb, data } => (
+                self.handle_reply(reply_surb, data)
                     .await
-            }
-            InputMessage::Reply { reply_surb, data } => self
-                .handle_reply(reply_surb, data)
-                .await
-                .map(|message| vec![message]),
+                    .map(|message| vec![message]),
+                TransmissionLane::Reply,
+            ),
         };
 
         // there's no point in trying to send nothing
         if let Some(real_messages) = real_messages {
             // tells real message sender (with the poisson timer) to send this to the mix network
             self.real_message_sender
-                .unbounded_send(real_messages)
+                .unbounded_send((real_messages, lane))
                 .unwrap();
         }
     }

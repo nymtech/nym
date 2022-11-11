@@ -7,6 +7,7 @@ use crate::error::NetworkRequesterError;
 use crate::statistics::ServiceStatisticsCollector;
 use crate::websocket;
 use crate::websocket::TSWebsocketStream;
+use client_connections::ClosedConnectionReceiver;
 use futures::channel::mpsc;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
@@ -68,32 +69,50 @@ impl ServiceProvider {
         mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
         mut mix_reader: mpsc::UnboundedReceiver<(Socks5Message, Recipient)>,
         stats_collector: Option<ServiceStatisticsCollector>,
+        mut closed_connection_rx: ClosedConnectionReceiver,
     ) {
-        // TODO: wire SURBs in here once they're available
-        while let Some((msg, return_address)) = mix_reader.next().await {
-            if let Some(stats_collector) = stats_collector.as_ref() {
-                if let Some(remote_addr) = stats_collector
-                    .connected_services
-                    .read()
-                    .await
-                    .get(&msg.conn_id())
-                {
-                    stats_collector
-                        .response_stats_data
-                        .write()
-                        .await
-                        .processed(remote_addr, msg.size() as u32);
+        loop {
+            tokio::select! {
+                // TODO: wire SURBs in here once they're available
+                socks5_msg = mix_reader.next() => {
+                    if let Some((msg, return_address)) = socks5_msg {
+                        if let Some(stats_collector) = stats_collector.as_ref() {
+                            if let Some(remote_addr) = stats_collector
+                                .connected_services
+                                .read()
+                                .await
+                                .get(&msg.conn_id())
+                            {
+                                stats_collector
+                                    .response_stats_data
+                                    .write()
+                                    .await
+                                    .processed(remote_addr, msg.size() as u32);
+                            }
+                        }
+                        let conn_id = msg.conn_id();
+
+                        // make 'request' to native-websocket client
+                        let response_message = ClientRequest::Send {
+                            recipient: return_address,
+                            message: msg.into_bytes(),
+                            with_reply_surb: false,
+                            connection_id: conn_id,
+                        };
+
+                        let message = Message::Binary(response_message.serialize());
+                        websocket_writer.send(message).await.unwrap();
+                    } else {
+                        log::error!("Exiting: channel closed!");
+                        break;
+                    }
+                },
+                Some(id) = closed_connection_rx.next() => {
+                    let msg = ClientRequest::ClosedConnection(id);
+                    let ws_msg = Message::Binary(msg.serialize());
+                    websocket_writer.send(ws_msg).await.unwrap();
                 }
             }
-            // make 'request' to native-websocket client
-            let response_message = ClientRequest::Send {
-                recipient: return_address,
-                message: msg.into_bytes(),
-                with_reply_surb: false,
-            };
-
-            let message = Message::Binary(response_message.serialize());
-            websocket_writer.send(message).await.unwrap();
         }
     }
 
@@ -309,12 +328,20 @@ impl ServiceProvider {
         let (mix_input_sender, mix_input_receiver) =
             mpsc::unbounded::<(Socks5Message, Recipient)>();
 
+        // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
+        let shutdown = task::ShutdownNotifier::default();
+
+        // Channel for announcing closed (socks5) connections by the controller.
+        // The `mixnet_response_listener` will forward this info to the client using a
+        // `ClientRequest`.
+        let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
+
         // Controller for managing all active connections.
         // We provide it with a ShutdownListener since it requires it, even though for the network
         // requester shutdown signalling is not yet fully implemented.
-        let shutdown = task::ShutdownNotifier::default();
         let (mut active_connections_controller, mut controller_sender) =
-            Controller::new(shutdown.subscribe());
+            Controller::new(closed_connection_tx, shutdown.subscribe());
+
         tokio::spawn(async move {
             active_connections_controller.run().await;
         });
@@ -341,6 +368,7 @@ impl ServiceProvider {
                 websocket_writer,
                 mix_input_receiver,
                 stats_collector_clone,
+                closed_connection_rx,
             )
             .await;
         });

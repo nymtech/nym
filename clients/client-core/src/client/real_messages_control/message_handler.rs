@@ -80,18 +80,11 @@ where
             return Err(reply_surb);
         }
 
-        let topology_permit = self.topology_access.get_read_permit().await;
-        let topology = match self.get_topology(&topology_permit) {
-            Some(topology) => topology,
-            None => return Err(reply_surb),
-        };
-
         let chunk = fragment.pop().unwrap();
         let chunk_clone = chunk.clone();
         let prepared_fragment = self
-            .message_preparer
-            .prepare_reply_chunk_for_sending(chunk_clone, topology, reply_surb, &self.ack_key)
-            .unwrap();
+            .try_prepare_single_reply_chunk_for_sending(reply_surb, chunk_clone)
+            .await?;
 
         let real_messages =
             RealMessage::new(prepared_fragment.mix_packet, chunk.fragment_identifier());
@@ -233,6 +226,25 @@ where
             .unwrap();
 
         Some(prepared_fragment)
+    }
+
+    pub(crate) async fn try_prepare_single_reply_chunk_for_sending(
+        &mut self,
+        reply_surb: ReplySurb,
+        chunk: Fragment,
+    ) -> Result<PreparedFragment, ReplySurb> {
+        let topology_permit = self.topology_access.get_read_permit().await;
+        let topology = match self.get_topology(&topology_permit) {
+            Some(topology) => topology,
+            None => return Err(reply_surb),
+        };
+
+        let prepared_fragment = self
+            .message_preparer
+            .prepare_reply_chunk_for_sending(chunk, topology, reply_surb, &self.ack_key)
+            .unwrap();
+
+        Ok(prepared_fragment)
     }
 
     //

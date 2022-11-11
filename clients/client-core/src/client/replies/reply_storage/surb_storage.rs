@@ -102,6 +102,20 @@ impl ReceivedReplySurbsMap {
             .map(|mut s| s.get_reply_surb())
     }
 
+    pub(crate) fn get_reply_surb(
+        &self,
+        target: &AnonymousSenderTag,
+    ) -> Option<(Option<ReplySurb>, usize)> {
+        self.inner.data.get_mut(target).map(|mut entry| {
+            let surbs_left = entry.items_left();
+            if surbs_left < self.min_surb_threshold() + 1 {
+                (None, surbs_left)
+            } else {
+                entry.get_reply_surb()
+            }
+        })
+    }
+
     pub(crate) fn insert_surbs<I: IntoIterator<Item = ReplySurb>>(
         &self,
         target: &AnonymousSenderTag,

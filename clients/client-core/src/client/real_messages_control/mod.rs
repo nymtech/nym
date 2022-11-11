@@ -176,6 +176,7 @@ impl RealMessagesController<OsRng> {
             ack_controller_connectors,
             message_handler,
             to_be_named_channel_sender,
+            reply_storage.surbs_storage(),
         );
 
         let out_queue_config = real_traffic_stream::Config::new(

@@ -30,6 +30,7 @@ use std::{
     time::Duration,
 };
 
+use crate::client::replies::reply_storage::ReceivedReplySurbsMap;
 pub(crate) use action_controller::{AckActionSender, Action};
 
 mod acknowledgement_listener;
@@ -214,6 +215,7 @@ where
         connectors: AcknowledgementControllerConnectors,
         message_handler: MessageHandler<R>,
         to_be_named_channel: ToBeNamedSender,
+        received_reply_surbs: ReceivedReplySurbsMap,
     ) -> Self {
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
 
@@ -244,6 +246,7 @@ where
             connectors.ack_action_sender.clone(),
             message_handler,
             retransmission_rx,
+            received_reply_surbs,
         );
 
         // will listen for events indicating the packet was sent through the network so that

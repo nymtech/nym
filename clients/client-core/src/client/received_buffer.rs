@@ -9,6 +9,7 @@ use futures::StreamExt;
 use gateway_client::MixnetMessageReceiver;
 use log::*;
 use nymsphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
+use rand::Rng;
 use std::collections::HashSet;
 use std::sync::Arc;
 

@@ -7,6 +7,7 @@ use super::RetransmissionRequestReceiver;
 use crate::client::real_messages_control::acknowledgement_control::PacketDestination;
 use crate::client::real_messages_control::message_handler::MessageHandler;
 use crate::client::real_messages_control::real_traffic_stream::RealMessage;
+use crate::client::replies::reply_storage::ReceivedReplySurbsMap;
 use futures::StreamExt;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
@@ -21,6 +22,10 @@ pub(super) struct RetransmissionRequestListener<R> {
     action_sender: AckActionSender,
     message_handler: MessageHandler<R>,
     request_receiver: RetransmissionRequestReceiver,
+
+    // we're holding this for the purposes of retransmitting dropped reply message, but perhaps
+    // this work should be offloaded to the `ToBeNamedPendingReplyController`?
+    received_reply_surbs: ReceivedReplySurbsMap,
 }
 
 impl<R> RetransmissionRequestListener<R>
@@ -31,11 +36,13 @@ where
         action_sender: AckActionSender,
         message_handler: MessageHandler<R>,
         request_receiver: RetransmissionRequestReceiver,
+        received_reply_surbs: ReceivedReplySurbsMap,
     ) -> Self {
         RetransmissionRequestListener {
             action_sender,
             message_handler,
             request_receiver,
+            received_reply_surbs,
         }
     }
 
@@ -59,7 +66,34 @@ where
     ) -> Option<PreparedFragment> {
         error!("retransmitting reply packet...");
 
-        unimplemented!()
+        let maybe_reply_surb = if extra_surb_request {
+            info!("retransmitting packet requesting for additional surbs - it MUST get through...");
+            self.received_reply_surbs
+                .get_reply_surb_ignoring_threshold(&recipient_tag)
+        } else {
+            // TODO: if we're low here, ask for more surbs!
+            error!("HERE I SHOULD HAVE IMPLEMENTED REQUESTS FOR MORE SURBS!!!!");
+            self.received_reply_surbs.get_reply_surb(&recipient_tag)
+        }?
+        .0;
+
+        let Some(reply_surb) = maybe_reply_surb else {
+            warn!("we run out of reply surbs for {:?} to retransmit our dropped message...", recipient_tag);
+            return None
+        };
+
+        match self
+            .message_handler
+            .try_prepare_single_reply_chunk_for_sending(reply_surb, chunk_data)
+            .await
+        {
+            Ok(prepared_fragment) => Some(prepared_fragment),
+            Err(returned_surb) => {
+                self.received_reply_surbs
+                    .insert_surb(&recipient_tag, returned_surb);
+                None
+            }
+        }
     }
 
     async fn on_retransmission_request(&mut self, timed_out_ack: Weak<PendingAcknowledgement>) {

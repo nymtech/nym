@@ -85,7 +85,7 @@ async fn send_file_without_reply() {
     let recipient = get_self_address(&mut ws_stream).await;
     println!("our full address is: {}", recipient);
 
-    let read_data = vec![1, 2, 3, 4];
+    let read_data = vec![42u8; 100_000];
 
     let send_request = ClientRequest::Send {
         recipient,
@@ -102,15 +102,28 @@ async fn send_file_without_reply() {
     };
 
     let sender_tag = received.sender_tag.unwrap();
+    println!(
+        "received response was {} in length and contained the following sender_tag: {:?}",
+        received.message.len(),
+        sender_tag
+    );
 
     let send_reply_req = ClientRequest::Reply {
         // message: vec![5, 6, 7, 8],
-        message: vec![42u8; 1024],
+        message: vec![42u8; 10000],
         sender_tag,
     };
     let response = send_message_and_get_response(&mut ws_stream, send_reply_req.serialize()).await;
 
-    println!("received: {:?}", response);
+    let received2 = match response {
+        ServerResponse::Received(received) => received,
+        res => panic!("received an unexpected response! - {:?}", res),
+    };
+
+    println!(
+        "received reply-backed response was: {} in length",
+        received2.message.len()
+    );
 
     // println!("writing the file back to the disk!");
     // std::fs::write("examples/received_file_noreply", received.message).unwrap();

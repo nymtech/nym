@@ -5,6 +5,8 @@ use crate::spawn_future;
 use gateway_client::GatewayClient;
 use log::*;
 use nymsphinx::forwarding::packet::MixPacket;
+use rand::rngs::OsRng;
+use rand::Rng;
 
 pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
 pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
@@ -40,6 +42,14 @@ impl MixTrafficController {
 
     async fn on_messages(&mut self, mut mix_packets: Vec<MixPacket>) {
         debug_assert!(!mix_packets.is_empty());
+
+        // simulate some dropped packets
+        let mut rng = OsRng;
+        let number = rng.gen_range(0, 100);
+        if number > 95 {
+            error!("simulating dropped packet");
+            return;
+        }
 
         let result = if mix_packets.len() == 1 {
             let mix_packet = mix_packets.pop().unwrap();

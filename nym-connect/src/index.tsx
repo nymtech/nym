@@ -6,7 +6,6 @@ import { ErrorFallback } from './components/Error';
 import { NymMixnetTheme } from './theme';
 import { App } from './App';
 import { AppWindowFrame } from './components/AppWindowFrame';
-import './fonts/fonts.css';
 
 const root = document.getElementById('root');
 

@@ -33,7 +33,7 @@ export const DefaultLayout: React.FC<{
     <Box pt={1}>
       {error && <InfoModal show={true} title={error.error} description={error?.description} onClose={clearError} />}
       <ConnectionStatus status={ConnectionStatusKind.disconnected} />
-      <Typography fontWeight="700" fontSize="16px" textAlign="center" pt={2}>
+      <Typography fontWeight="400" fontSize="16px" textAlign="center" pt={2}>
         Connect to the Nym <br /> mixnet for privacy.
       </Typography>
       <ServiceProviderSelector services={services} onChange={handleServiceProviderChange} currentSp={currentSp} />

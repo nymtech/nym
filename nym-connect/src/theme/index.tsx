@@ -3,6 +3,7 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { CssBaseline } from '@mui/material';
 import { getDesignTokens } from './theme';
 import { ClientContext } from '../context/main';
+import '../../../assets/fonts/non-variable/fonts.css';
 
 /**
  * Provides the theme for the Network Explorer by reacting to the light/dark mode choice stored in the app context.

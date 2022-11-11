@@ -54,7 +54,7 @@ export const InfoModal = ({
     <Box sx={styles}>
       {onClose && (
         <Box display="flex" justifyContent="flex-end">
-          <IconButton size="small" onClick={onClose}>
+          <IconButton size="small" onClick={onClose} sx={{ padding: 0 }}>
             <Close sx={{ fontSize: 14 }} />
           </IconButton>
         </Box>

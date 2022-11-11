@@ -38,14 +38,14 @@ export const MaintenanceBanner = (props: BannerProps) => {
             <Divider orientation="vertical" flexItem sx={{ mx: '16px', borderRightWidth: 2 }} />
             <Typography variant="body2">
               On Tuesday 15th of November, 10AM GMT the migration to the new mixnet contract begins. This means all Nym
-              apps and
+              apps and{' '}
               <Box sx={{ fontWeight: 700 }} display="inline">
                 services will be temporarily on hold while the upgrade takes place.
-              </Box>
-              Bonding/unbonding, delegating/delegating
+              </Box>{' '}
+              Bonding/unbonding, delegating/delegating{' '}
               <Box sx={{ fontWeight: 700 }} display="inline">
                 will be frozen for up to 36 hours.
-              </Box>
+              </Box>{' '}
               You will still be able to transfer tokens between accounts, and use IBC.
             </Typography>
           </Box>

@@ -5,7 +5,7 @@ use crate::client::real_messages_control::message_handler::MessageHandler;
 use crate::client::replies::reply_storage::ReceivedReplySurbsMap;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use log::{debug, info, warn};
+use log::{debug, error, info, warn};
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::anonymous_replies::ReplySurb;
@@ -41,11 +41,13 @@ impl ToBeNamedSender {
         &self,
         sender_tag: AnonymousSenderTag,
         reply_surbs: Vec<ReplySurb>,
+        from_surb_request: bool,
     ) {
         self.0
             .unbounded_send(ToBeNamedMessage::AdditionalSurbs {
                 sender_tag,
                 reply_surbs,
+                from_surb_request,
             })
             .expect("ToBeNamedReceiver has died!")
     }
@@ -69,6 +71,7 @@ pub enum ToBeNamedMessage {
     AdditionalSurbs {
         sender_tag: AnonymousSenderTag,
         reply_surbs: Vec<ReplySurb>,
+        from_surb_request: bool,
     },
 
     // Should this also be handled in here? it's technically a completely different side of the pipe
@@ -149,13 +152,27 @@ where
                     .insert_surbs(&recipient_tag, returned_surbs);
             }
         } else {
-            self.insert_pending_replies(&recipient_tag, fragments);
-
             #[deprecated]
             //remove hardcoded 10
-            self.request_additional_reply_surbs(recipient_tag, 10 + required_surbs as u32)
+            let extra_surbs = 10;
+
+            info!("requesting surbs from send handler");
+            self.insert_pending_replies(&recipient_tag, fragments);
+
+            // if we're running low on surbs, we should request more (unless we've already requested them)
+            let already_requesting = self
+                .received_reply_surbs
+                .set_requesting_more_surbs(&recipient_tag)
+                .expect("error handling");
+
+            if !already_requesting {
+                self.request_additional_reply_surbs(
+                    recipient_tag,
+                    extra_surbs + required_surbs as u32,
+                )
                 .await
                 .expect("this temporary error handling HAS TO go")
+            }
         }
     }
 
@@ -193,6 +210,7 @@ where
     ) -> Option<VecDeque<Fragment>> {
         // if possible, pop all pending replies, if not, pop only entries for which we'd have a reply surb
         let total = self.pending_replies.get(from)?.len();
+        println!("pending queue has {total} elements");
         if total < amount {
             self.pending_replies.remove(from)
         } else {
@@ -240,8 +258,19 @@ where
         &mut self,
         from: AnonymousSenderTag,
         mut reply_surbs: Vec<ReplySurb>,
+        from_surb_request: bool,
     ) {
         println!("handling received surbs");
+
+        // clear the requesting flag since we should have been asking for surbs
+        if from_surb_request
+            && self
+                .received_reply_surbs
+                .clear_requesting_more_surbs(&from)
+                .is_none()
+        {
+            error!("received more surbs without asking for them! - what the hell?")
+        }
 
         // 1. make sure we have > threshold number of surbs for the given target
         let available_surbs = self.received_reply_surbs.available_surbs(&from);
@@ -288,7 +317,11 @@ where
             ToBeNamedMessage::AdditionalSurbs {
                 sender_tag,
                 reply_surbs,
-            } => self.handle_received_surbs(sender_tag, reply_surbs).await,
+                from_surb_request,
+            } => {
+                self.handle_received_surbs(sender_tag, reply_surbs, from_surb_request)
+                    .await
+            }
             ToBeNamedMessage::AdditionalSurbsRequest { recipient, amount } => {
                 self.handle_surb_request(recipient, amount).await
             }

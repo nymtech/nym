@@ -19,7 +19,7 @@ use std::sync::{Arc, Weak};
 
 // that should be moved into config
 #[deprecated]
-const SURBS_TO_REQUEST: u32 = 20;
+const SURBS_TO_REQUEST: u32 = 50;
 
 // responsible for packet retransmission upon fired timer
 pub(super) struct RetransmissionRequestListener<R> {
@@ -70,6 +70,9 @@ where
     ) -> Option<PreparedFragment> {
         error!("retransmitting reply packet...");
 
+        let surbs_left = self.received_reply_surbs.available_surbs(&recipient_tag);
+        println!("{surbs_left} surbs left");
+
         // TODO: collapse that if monstrosity...
         let maybe_reply_surb = if extra_surb_request {
             info!("retransmitting packet requesting for additional surbs - it MUST get through...");
@@ -79,25 +82,35 @@ where
         } else {
             let (maybe_surb, surbs_left) =
                 self.received_reply_surbs.get_reply_surb(&recipient_tag)?;
+
             if self.received_reply_surbs.below_threshold(surbs_left) {
-                // if we're running low on surbs, we should request more
-                if let Some(another_surb) = self
+                // if we're running low on surbs, we should request more (unless we've already requested them)
+                let already_requesting = self
                     .received_reply_surbs
-                    .get_reply_surb_ignoring_threshold(&recipient_tag)?
-                    .0
-                {
-                    if let Err(returned_surb) = self
-                        .message_handler
-                        .try_request_additional_reply_surbs(
-                            recipient_tag,
-                            another_surb,
-                            SURBS_TO_REQUEST,
-                        )
-                        .await
+                    .set_requesting_more_surbs(&recipient_tag)?;
+
+                if !already_requesting {
+                    info!("requesting surbs from retransmission handler");
+                    if let Some(another_surb) = self
+                        .received_reply_surbs
+                        .get_reply_surb_ignoring_threshold(&recipient_tag)?
+                        .0
                     {
-                        warn!("we failed to ask for more surbs...");
-                        self.received_reply_surbs
-                            .insert_surb(&recipient_tag, returned_surb)
+                        if let Err(returned_surb) = self
+                            .message_handler
+                            .try_request_additional_reply_surbs(
+                                recipient_tag,
+                                another_surb,
+                                SURBS_TO_REQUEST,
+                            )
+                            .await
+                        {
+                            warn!("we failed to ask for more surbs...");
+                            self.received_reply_surbs
+                                .insert_surb(&recipient_tag, returned_surb);
+                            self.received_reply_surbs
+                                .clear_requesting_more_surbs(&recipient_tag)?;
+                        }
                     }
                 }
             }
@@ -157,6 +170,13 @@ where
         let Some(prepared_fragment) = maybe_prepared_fragment else {
             warn!("Could not retransmit the packet - the network topology is invalid");
             // we NEED to start timer here otherwise we will have this guy permanently stuck in memory
+
+            // TODO: purge the entry from memory if it was an ack for reply packet and we're out of surbs
+            // self.action_sender
+            //     .unbounded_send(Action::new_remove(frag_id))
+            //     .unwrap();
+
+
             self.action_sender
                 .unbounded_send(Action::new_start_timer(frag_id))
                 .unwrap();

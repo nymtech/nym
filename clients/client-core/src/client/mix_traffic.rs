@@ -44,12 +44,12 @@ impl MixTrafficController {
         debug_assert!(!mix_packets.is_empty());
 
         // simulate some dropped packets
-        let mut rng = OsRng;
-        let number = rng.gen_range(0, 100);
-        if number > 95 {
-            error!("simulating dropped packet");
-            return;
-        }
+        // let mut rng = OsRng;
+        // let number = rng.gen_range(0, 100);
+        // if number > 95 {
+        //     error!("simulating dropped packet");
+        //     return;
+        // }
 
         let result = if mix_packets.len() == 1 {
             let mix_packet = mix_packets.pop().unwrap();

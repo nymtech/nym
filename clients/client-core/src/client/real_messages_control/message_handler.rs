@@ -8,7 +8,7 @@ use crate::client::real_messages_control::real_traffic_stream::{
 use crate::client::real_messages_control::{AckActionSender, Action};
 use crate::client::replies::reply_storage::SentReplyKeys;
 use crate::client::topology_control::{TopologyAccessor, TopologyReadPermit};
-use log::{error, warn};
+use log::{error, info, warn};
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, ReplyMessage};
@@ -103,6 +103,9 @@ where
         reply_surb: ReplySurb,
         amount: u32,
     ) -> Result<(), ReplySurb> {
+        info!("REQUESTING {amount} MORE SURBS!!");
+        info!("REQUESTING {amount} MORE SURBS!!");
+        info!("REQUESTING {amount} MORE SURBS!!");
         let surbs_request = ReplyMessage::new_surb_request_message(self.self_address, amount);
         self.try_send_single_surb_message(from, surbs_request, reply_surb, true)
             .await

@@ -59,6 +59,27 @@ impl ReceivedReplySurbsMap {
     //     self.data.read().await.get(target).cloned()
     // }
 
+    pub(crate) fn requesting_more_surbs(&self, target: &AnonymousSenderTag) -> Option<bool> {
+        self.inner
+            .data
+            .get(target)
+            .map(|e| e.requesting_more_surbs())
+    }
+
+    pub(crate) fn set_requesting_more_surbs(&self, target: &AnonymousSenderTag) -> Option<bool> {
+        self.inner
+            .data
+            .get_mut(target)
+            .map(|mut e| e.set_requesting_more_surbs())
+    }
+
+    pub(crate) fn clear_requesting_more_surbs(&self, target: &AnonymousSenderTag) -> Option<()> {
+        self.inner
+            .data
+            .get_mut(target)
+            .map(|mut e| e.clear_requesting_more_surbs())
+    }
+
     pub(crate) fn below_threshold(&self, amount: usize) -> bool {
         amount < self.min_surb_threshold()
     }
@@ -112,7 +133,7 @@ impl ReceivedReplySurbsMap {
     ) -> Option<(Option<ReplySurb>, usize)> {
         self.inner.data.get_mut(target).map(|mut entry| {
             let surbs_left = entry.items_left();
-            if surbs_left < self.min_surb_threshold() + 1 {
+            if surbs_left < self.min_surb_threshold() {
                 (None, surbs_left)
             } else {
                 entry.get_reply_surb()
@@ -162,6 +183,20 @@ impl ReceivedReplySurbs {
         }
     }
 
+    pub(crate) fn requesting_more_surbs(&self) -> bool {
+        self.requesting_more_surbs
+    }
+
+    pub(crate) fn set_requesting_more_surbs(&mut self) -> bool {
+        let old = self.requesting_more_surbs;
+        self.requesting_more_surbs = true;
+        old
+    }
+
+    pub(crate) fn clear_requesting_more_surbs(&mut self) {
+        self.requesting_more_surbs = false
+    }
+
     pub(crate) fn get_reply_surbs(&mut self, amount: usize) -> (Option<Vec<ReplySurb>>, usize) {
         if self.items_left() < amount {
             (None, self.items_left())
@@ -185,7 +220,8 @@ impl ReceivedReplySurbs {
 
     // realistically we're always going to be getting multiple surbs at once
     pub(crate) fn insert_reply_surbs<I: IntoIterator<Item = ReplySurb>>(&mut self, surbs: I) {
-        let mut v = surbs.into_iter().collect();
+        let mut v = surbs.into_iter().collect::<VecDeque<_>>();
+        println!("storing {} surbs in the storage", v.len());
         self.data.append(&mut v)
     }
 

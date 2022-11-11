@@ -396,7 +396,8 @@ impl NymClient {
         // ======TEMPORARY======
         // =====================
         // =====================
-        let reply_storage = CombinedReplyStorage::new(2);
+        // TODO: lower the value and improve the reliability when it's low (because it should still work in that case)
+        let reply_storage = CombinedReplyStorage::new(20);
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.

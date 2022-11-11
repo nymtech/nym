@@ -219,7 +219,7 @@ impl ReceivedMessagesBuffer {
     ) -> Vec<ReconstructedMessage> {
         let mut reconstructed = Vec::new();
         for msg in msgs {
-            let reply_surbs = match msg.content {
+            let (reply_surbs, from_surb_request) = match msg.content {
                 RepliableMessageContent::Data {
                     message,
                     reply_surbs,
@@ -230,15 +230,9 @@ impl ReceivedMessagesBuffer {
                         msg.sender_tag
                     );
 
-                    // temporary workaround
-                    #[deprecated]
-                    {
-                        if !message.is_empty() {
-                            reconstructed.push(ReconstructedMessage::new(message, msg.sender_tag));
-                        }
-                    }
+                    reconstructed.push(ReconstructedMessage::new(message, msg.sender_tag));
 
-                    reply_surbs
+                    (reply_surbs, false)
                 }
                 RepliableMessageContent::AdditionalSurbs { reply_surbs } => {
                     info!(
@@ -246,18 +240,21 @@ impl ReceivedMessagesBuffer {
                         reply_surbs.len(),
                         msg.sender_tag
                     );
-                    reply_surbs
+                    (reply_surbs, true)
                 }
                 RepliableMessageContent::Heartbeat {
                     additional_reply_surbs,
                 } => {
                     error!("received a repliable heartbeat message - we don't know how to handle it yet (and we won't know until future PRs)");
-                    additional_reply_surbs
+                    (additional_reply_surbs, false)
                 }
             };
 
-            self.to_be_named_channel
-                .send_additional_surbs(msg.sender_tag, reply_surbs)
+            self.to_be_named_channel.send_additional_surbs(
+                msg.sender_tag,
+                reply_surbs,
+                from_surb_request,
+            )
         }
         reconstructed
     }

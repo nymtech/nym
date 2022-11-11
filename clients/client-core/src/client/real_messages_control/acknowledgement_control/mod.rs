@@ -8,10 +8,9 @@ use self::{
     sent_notification_listener::SentNotificationListener,
 };
 use super::real_traffic_stream::BatchRealMessageSender;
+use crate::client::inbound_messages::InputMessageReceiver;
 use crate::client::real_messages_control::message_handler::MessageHandler;
-use crate::client::replies::reply_storage::SentReplyKeys;
 use crate::client::replies::temp_name_pending_handler::ToBeNamedSender;
-use crate::client::{inbound_messages::InputMessageReceiver, topology_control::TopologyAccessor};
 use crate::spawn_future;
 use action_controller::AckActionReceiver;
 use futures::channel::mpsc;
@@ -23,7 +22,6 @@ use nymsphinx::{
     acknowledgements::AckKey,
     addressing::clients::Recipient,
     chunking::fragment::{Fragment, FragmentIdentifier},
-    preparer::MessagePreparer,
     Delay as SphinxDelay,
 };
 use rand::{CryptoRng, Rng};
@@ -54,8 +52,15 @@ pub(super) type SentPacketNotificationSender = mpsc::UnboundedSender<FragmentIde
 /// that it is about to be sent to the mix network and its timeout timer should be started.
 type SentPacketNotificationReceiver = mpsc::UnboundedReceiver<FragmentIdentifier>;
 
-pub(crate) enum PendingAckType {
-    Anonymous(AnonymousSenderTag),
+#[derive(Debug)]
+pub(crate) enum PacketDestination {
+    Anonymous {
+        recipient_tag: AnonymousSenderTag,
+        // special flag to indicate whether this was an ack for requesting additional surbs,
+        // in that case we have to do everything we can to get it through, even if it means going
+        // below our stored reply surb threshold
+        extra_surb_request: bool,
+    },
     KnownRecipient(Recipient),
 }
 
@@ -64,19 +69,36 @@ pub(crate) enum PendingAckType {
 pub(crate) struct PendingAcknowledgement {
     message_chunk: Fragment,
     delay: SphinxDelay,
-    recipient: Recipient,
-    // TODO: another field to indicate it was sent via surb
+    destination: PacketDestination,
 }
 
 impl PendingAcknowledgement {
     /// Creates new instance of `PendingAcknowledgement` using the provided data.
-    // make it private again
-    #[deprecated]
-    pub(crate) fn new(message_chunk: Fragment, delay: SphinxDelay, recipient: Recipient) -> Self {
+    pub(crate) fn new_known(
+        message_chunk: Fragment,
+        delay: SphinxDelay,
+        recipient: Recipient,
+    ) -> Self {
         PendingAcknowledgement {
             message_chunk,
             delay,
-            recipient,
+            destination: PacketDestination::KnownRecipient(recipient.into()),
+        }
+    }
+
+    pub(crate) fn new_anonymous(
+        message_chunk: Fragment,
+        delay: SphinxDelay,
+        recipient_tag: AnonymousSenderTag,
+        extra_surb_request: bool,
+    ) -> Self {
+        PendingAcknowledgement {
+            message_chunk,
+            delay,
+            destination: PacketDestination::Anonymous {
+                recipient_tag,
+                extra_surb_request,
+            },
         }
     }
 

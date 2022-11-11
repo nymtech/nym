@@ -4,10 +4,15 @@
 use super::action_controller::{AckActionSender, Action};
 use super::PendingAcknowledgement;
 use super::RetransmissionRequestReceiver;
+use crate::client::real_messages_control::acknowledgement_control::PacketDestination;
 use crate::client::real_messages_control::message_handler::MessageHandler;
 use crate::client::real_messages_control::real_traffic_stream::RealMessage;
 use futures::StreamExt;
 use log::*;
+use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nymsphinx::chunking::fragment::Fragment;
+use nymsphinx::preparer::PreparedFragment;
 use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
 
@@ -34,6 +39,29 @@ where
         }
     }
 
+    async fn prepare_normal_retransmission_chunk(
+        &mut self,
+        packet_recipient: Recipient,
+        chunk_data: Fragment,
+    ) -> Option<PreparedFragment> {
+        error!("retransmitting normal packet...");
+
+        self.message_handler
+            .try_prepare_single_chunk_for_sending(packet_recipient, chunk_data)
+            .await
+    }
+
+    async fn prepare_reply_retransmission_chunk(
+        &mut self,
+        recipient_tag: AnonymousSenderTag,
+        extra_surb_request: bool,
+        chunk_data: Fragment,
+    ) -> Option<PreparedFragment> {
+        error!("retransmitting reply packet...");
+
+        unimplemented!()
+    }
+
     async fn on_retransmission_request(&mut self, timed_out_ack: Weak<PendingAcknowledgement>) {
         let timed_out_ack = match timed_out_ack.upgrade() {
             Some(timed_out_ack) => timed_out_ack,
@@ -42,11 +70,37 @@ where
                 return;
             }
         };
-        let packet_recipient = timed_out_ack.recipient;
+        //
+        // match timed_out_ack.destination {
+        //     PacketDestination::Anonymous {
+        //         recipient_tag,
+        //         extra_surb_request,
+        //     } => {}
+        //     PacketDestination::KnownRecipient(recipient) => {}
+        // }
+
         let chunk_clone = timed_out_ack.message_chunk.clone();
         let frag_id = chunk_clone.fragment_identifier();
 
-        let Some(mut prepared) = self.message_handler.prepare_normal_chunks_for_sending(packet_recipient, vec![chunk_clone], false).await else {
+        let maybe_prepared_fragment = match &timed_out_ack.destination {
+            PacketDestination::Anonymous {
+                recipient_tag,
+                extra_surb_request,
+            } => {
+                self.prepare_reply_retransmission_chunk(
+                    *recipient_tag,
+                    *extra_surb_request,
+                    chunk_clone,
+                )
+                .await
+            }
+            PacketDestination::KnownRecipient(recipient) => {
+                self.prepare_normal_retransmission_chunk(*recipient, chunk_clone)
+                    .await
+            }
+        };
+
+        let Some(prepared_fragment) = maybe_prepared_fragment else {
             warn!("Could not retransmit the packet - the network topology is invalid");
             // we NEED to start timer here otherwise we will have this guy permanently stuck in memory
             self.action_sender
@@ -54,14 +108,6 @@ where
                 .unwrap();
             return;
         };
-
-        // if this invariant is ever broken, we have serious issues somewhere
-        assert_eq!(
-            prepared.len(),
-            1,
-            "somehow our single chunk got transformed into multiple sphinx packets!"
-        );
-        let (prepared_fragment, _) = prepared.pop().unwrap();
 
         // if we have the ONLY strong reference to the ack data, it means it was removed from the
         // pending acks

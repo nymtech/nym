@@ -105,6 +105,7 @@ impl Handler {
 
     fn handle_reply_with_surb(
         &mut self,
+        recipient_tag: AnonymousSenderTag,
         reply_surb: ReplySurb,
         message: Vec<u8>,
     ) -> Option<ServerResponse> {
@@ -112,7 +113,7 @@ impl Handler {
             return Some(ServerResponse::new_error(format!("too long message to put inside a reply SURB. Received: {} bytes and maximum is {} bytes", message.len(), ReplySurb::max_msg_len(Default::default()))));
         }
 
-        let input_msg = InputMessage::new_reply_with_surb(reply_surb, message);
+        let input_msg = InputMessage::new_reply_with_surb(recipient_tag, reply_surb, message);
         self.msg_input.unbounded_send(input_msg).unwrap();
 
         None
@@ -134,9 +135,10 @@ impl Handler {
                 sender_tag,
             } => self.handle_reply(sender_tag, message),
             ClientRequest::ReplyWithSurb {
+                sender_tag: recipient_tag,
                 message,
                 reply_surb,
-            } => self.handle_reply_with_surb(reply_surb, message),
+            } => self.handle_reply_with_surb(recipient_tag, reply_surb, message),
             ClientRequest::SelfAddress => Some(self.handle_self_address()),
         }
     }

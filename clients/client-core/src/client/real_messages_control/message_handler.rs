@@ -11,7 +11,7 @@ use crate::client::topology_control::{TopologyAccessor, TopologyReadPermit};
 use log::{error, warn};
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::ReplyMessage;
+use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, ReplyMessage};
 use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::chunking::fragment::{Fragment, FragmentIdentifier};
 use nymsphinx::preparer::{MessagePreparer, PreparedFragment};
@@ -69,10 +69,11 @@ where
 
     pub(crate) async fn try_send_single_surb_message(
         &mut self,
+        target: AnonymousSenderTag,
         message: ReplyMessage,
         reply_surb: ReplySurb,
+        is_extra_surb_request: bool,
     ) -> Result<(), ReplySurb> {
-        // TODO: this should really be more streamlined as we use the same pattern in multiple places
         let mut fragment = self.message_preparer.prepare_and_split_reply(message);
         if fragment.len() > 1 {
             // well, it's not a single surb message
@@ -92,22 +93,25 @@ where
             .prepare_reply_chunk_for_sending(chunk_clone, topology, reply_surb, &self.ack_key)
             .unwrap();
 
-        // TODO: ack and retransmission for the sucker...
-
         let real_messages =
             RealMessage::new(prepared_fragment.mix_packet, chunk.fragment_identifier());
+        let delay = prepared_fragment.total_delay;
+        let pending_ack =
+            PendingAcknowledgement::new_anonymous(chunk, delay, target, is_extra_surb_request);
 
         self.forward_messages(vec![real_messages]);
+        self.insert_pending_acks(vec![pending_ack]);
         Ok(())
     }
 
     pub(crate) async fn try_request_additional_reply_surbs(
         &mut self,
+        from: AnonymousSenderTag,
         reply_surb: ReplySurb,
         amount: u32,
     ) -> Result<(), ReplySurb> {
         let surbs_request = ReplyMessage::new_surb_request_message(self.self_address, amount);
-        self.try_send_single_surb_message(surbs_request, reply_surb)
+        self.try_send_single_surb_message(from, surbs_request, reply_surb, true)
             .await
     }
 
@@ -124,6 +128,7 @@ where
 
     pub(crate) async fn try_send_reply_chunks(
         &mut self,
+        target: AnonymousSenderTag,
         fragments: Vec<Fragment>,
         reply_surbs: Vec<ReplySurb>,
     ) -> Result<(), Vec<ReplySurb>> {
@@ -143,7 +148,8 @@ where
             None => return Err(reply_surbs),
         };
 
-        let mut real_messages = Vec::with_capacity(reply_surbs.len());
+        let mut pending_acks = Vec::with_capacity(fragments.len());
+        let mut real_messages = Vec::with_capacity(fragments.len());
         for (fragment, reply_surb) in fragments.into_iter().zip(reply_surbs.into_iter()) {
             // we need to clone it because we need to keep it in memory in case we had to retransmit
             // it. And then we'd need to recreate entire ACK again.
@@ -153,15 +159,17 @@ where
                 .prepare_reply_chunk_for_sending(chunk_clone, topology, reply_surb, &self.ack_key)
                 .unwrap();
 
-            real_messages.push(RealMessage::new(
-                prepared_fragment.mix_packet,
-                fragment.fragment_identifier(),
-            ));
+            let real_message =
+                RealMessage::new(prepared_fragment.mix_packet, fragment.fragment_identifier());
+            let delay = prepared_fragment.total_delay;
+            let pending_ack = PendingAcknowledgement::new_anonymous(fragment, delay, target, false);
 
-            // TODO: deal with retransmission and acks here
+            real_messages.push(real_message);
+            pending_acks.push(pending_ack);
         }
 
         self.forward_messages(real_messages);
+        self.insert_pending_acks(pending_acks);
         Ok(())
     }
 
@@ -173,88 +181,78 @@ where
         message: Vec<u8>,
         reply_surbs: u32,
     ) -> Option<()> {
-        let fragments = self
-            .prepare_normal_message_for_sending(recipient, message, reply_surbs, true)
-            .await?;
-        let real_messages = fragments.into_iter().map(Into::into).collect();
-        self.forward_messages(real_messages);
-
-        Some(())
-    }
-
-    // TODO: change function signature to better accomodate for 'repliable' messages
-    // (for example where you're not sending any plaintext inside)
-    pub(crate) async fn prepare_normal_message_for_sending(
-        &mut self,
-        recipient: Recipient,
-        message: Vec<u8>,
-        reply_surbs: u32,
-        is_fresh: bool,
-    ) -> Option<Vec<(PreparedFragment, FragmentIdentifier)>> {
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = self.get_topology(&topology_permit)?;
 
         // split the message, attach optional reply surb
-        let (split_message, reply_keys) = self
+        let (fragments, reply_keys) = self
             .message_preparer
             .prepare_and_split_message(message, reply_surbs, topology)
             .expect("somehow the topology was invalid after all!");
 
-        drop(topology_permit);
-
         log::info!("storing {} reply keys", reply_keys.len());
         self.reply_key_storage.insert_multiple(reply_keys);
-        // self.pr
 
-        self.prepare_normal_chunks_for_sending(recipient, split_message, is_fresh)
-            .await
-    }
-
-    pub(crate) async fn prepare_normal_chunks_for_sending(
-        &mut self,
-        recipient: Recipient,
-        chunks: Vec<Fragment>,
-        is_fresh: bool,
-    ) -> Option<Vec<(PreparedFragment, FragmentIdentifier)>> {
-        // TODO: optimisation: if this is called from `prepare_normal_message_for_sending`,
-        // somehow try to avoid having to re-acquire the topology permit
-        let topology_permit = self.topology_access.get_read_permit().await;
-        let topology = self.get_topology(&topology_permit)?;
-
-        let mut pending_acks = Vec::with_capacity(chunks.len());
-        let mut prepared_messages = Vec::with_capacity(chunks.len());
-        for message_chunk in chunks {
+        let mut pending_acks = Vec::with_capacity(fragments.len());
+        let mut real_messages = Vec::with_capacity(fragments.len());
+        for fragment in fragments {
             // we need to clone it because we need to keep it in memory in case we had to retransmit
             // it. And then we'd need to recreate entire ACK again.
-            let chunk_clone = message_chunk.clone();
+            let chunk_clone = fragment.clone();
             let prepared_fragment = self
                 .message_preparer
                 .prepare_chunk_for_sending(chunk_clone, topology, &self.ack_key, &recipient)
                 .unwrap();
 
-            let total_delay = prepared_fragment.total_delay;
+            let real_message =
+                RealMessage::new(prepared_fragment.mix_packet, fragment.fragment_identifier());
+            let delay = prepared_fragment.total_delay;
+            let pending_ack = PendingAcknowledgement::new_known(fragment, delay, recipient);
 
-            prepared_messages.push((prepared_fragment, message_chunk.fragment_identifier()));
-
-            if is_fresh {
-                pending_acks.push(PendingAcknowledgement::new(
-                    message_chunk,
-                    total_delay,
-                    recipient,
-                ));
-            }
+            real_messages.push(real_message);
+            pending_acks.push(pending_ack);
         }
 
-        // // if it's the first time we're sending the packet, insert ack info
-        // // otherwise, we're going to update the existing delay information
-        // // (but outside of this method as we have to check for reference count first)
-        if is_fresh {
-            // tells the controller to put this into the hashmap
-            self.insert_pending_acks(pending_acks)
-        }
+        self.insert_pending_acks(pending_acks);
+        self.forward_messages(real_messages);
 
-        Some(prepared_messages)
+        Some(())
     }
+
+    pub(crate) async fn try_prepare_single_chunk_for_sending(
+        &mut self,
+        recipient: Recipient,
+        chunk: Fragment,
+    ) -> Option<PreparedFragment> {
+        let topology_permit = self.topology_access.get_read_permit().await;
+        let topology = self.get_topology(&topology_permit)?;
+
+        let prepared_fragment = self
+            .message_preparer
+            .prepare_chunk_for_sending(chunk, topology, &self.ack_key, &recipient)
+            .unwrap();
+
+        Some(prepared_fragment)
+    }
+
+    //
+    // fn insert_single_reply_ack(
+    //     &self,
+    //     message_chunk: Fragment,
+    //     delay: SphinxDelay,
+    //     recipient_tag: AnonymousSenderTag,
+    //     extra_surb_request: bool,
+    // ) {
+    //     let pending_ack = PendingAcknowledgement::new_anonymous(
+    //         message_chunk,
+    //         delay,
+    //         recipient_tag,
+    //         extra_surb_request,
+    //     );
+    //     self.action_sender
+    //         .unbounded_send(Action::new_insert(vec![pending_ack]))
+    //         .expect("action control task has died")
+    // }
 
     pub(crate) fn insert_pending_acks(&self, pending_acks: Vec<PendingAcknowledgement>) {
         self.action_sender

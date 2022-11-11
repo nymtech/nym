@@ -52,11 +52,16 @@ where
     }
 
     // we require topology for replies to generate surb_acks
-    async fn handle_reply_with_surb(&mut self, reply_surb: ReplySurb, data: Vec<u8>) {
+    async fn handle_reply_with_surb(
+        &mut self,
+        recipient_tag: AnonymousSenderTag,
+        reply_surb: ReplySurb,
+        data: Vec<u8>,
+    ) {
         let message = ReplyMessage::new_data_message(data);
         if let Err(_returned_surb) = self
             .message_handler
-            .try_send_single_surb_message(message, reply_surb)
+            .try_send_single_surb_message(recipient_tag, message, reply_surb, false)
             .await
         {
             // TODO: return concrete error instead
@@ -90,8 +95,13 @@ where
                 self.handle_fresh_message(recipient, data, reply_surbs)
                     .await
             }
-            InputMessage::ReplyWithSurb { reply_surb, data } => {
-                self.handle_reply_with_surb(reply_surb, data).await
+            InputMessage::ReplyWithSurb {
+                recipient_tag,
+                reply_surb,
+                data,
+            } => {
+                self.handle_reply_with_surb(recipient_tag, reply_surb, data)
+                    .await
             }
             InputMessage::Reply {
                 recipient_tag,

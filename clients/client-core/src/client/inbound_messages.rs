@@ -18,6 +18,7 @@ pub enum InputMessage {
         data: Vec<u8>,
     },
     ReplyWithSurb {
+        recipient_tag: AnonymousSenderTag,
         reply_surb: ReplySurb,
         data: Vec<u8>,
     },
@@ -47,7 +48,15 @@ impl InputMessage {
         }
     }
 
-    pub fn new_reply_with_surb(reply_surb: ReplySurb, data: Vec<u8>) -> Self {
-        InputMessage::ReplyWithSurb { reply_surb, data }
+    pub fn new_reply_with_surb(
+        recipient_tag: AnonymousSenderTag,
+        reply_surb: ReplySurb,
+        data: Vec<u8>,
+    ) -> Self {
+        InputMessage::ReplyWithSurb {
+            recipient_tag,
+            reply_surb,
+            data,
+        }
     }
 }

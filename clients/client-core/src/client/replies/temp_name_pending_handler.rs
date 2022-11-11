@@ -140,7 +140,7 @@ where
         if let Some(reply_surbs) = surbs {
             if let Err(returned_surbs) = self
                 .message_handler
-                .try_send_reply_chunks(fragments, reply_surbs)
+                .try_send_reply_chunks(recipient_tag, fragments, reply_surbs)
                 .await
             {
                 warn!("failed to send reply to {:?}", recipient_tag);
@@ -153,7 +153,7 @@ where
 
             #[deprecated]
             //remove hardcoded 10
-            self.request_additional_reply_surbs(&recipient_tag, 10 + required_surbs as u32)
+            self.request_additional_reply_surbs(recipient_tag, 10 + required_surbs as u32)
                 .await
                 .expect("this temporary error handling HAS TO go")
         }
@@ -161,24 +161,25 @@ where
 
     async fn request_additional_reply_surbs(
         &mut self,
-        target: &AnonymousSenderTag,
+        target: AnonymousSenderTag,
         amount: u32,
     ) -> Option<()> {
-        log::info!("requesting {} reply surbs ...", amount);
+        log::info!("requesting {amount} reply surbs ...");
 
         let (reply_surb, _) = self
             .received_reply_surbs
-            .get_reply_surb_ignoring_threshold(target)?;
+            .get_reply_surb_ignoring_threshold(&target)?;
         let reply_surb = reply_surb?;
 
         if let Err(returned_surb) = self
             .message_handler
-            .try_request_additional_reply_surbs(reply_surb, amount)
+            .try_request_additional_reply_surbs(target, reply_surb, amount)
             .await
         {
             warn!("failed to request additional surbs from {:?}", target);
             // TODO: perhaps there should be some timer here to repeat the request once topology recovers
-            self.received_reply_surbs.insert_surb(target, returned_surb);
+            self.received_reply_surbs
+                .insert_surb(&target, returned_surb);
         }
 
         // TODO: that's a really terrible return type.
@@ -206,7 +207,7 @@ where
 
     async fn try_clear_pending_queue(
         &mut self,
-        from: &AnonymousSenderTag,
+        target: AnonymousSenderTag,
         available_surbs: &mut Vec<ReplySurb>,
     ) {
         println!("trying to clear pending queue");
@@ -215,20 +216,20 @@ where
         println!("we have {} surbs on hand", surbs_left);
 
         // we're guaranteed to not get more entries than we have reply surbs for
-        if let Some(to_send) = self.pop_at_most_pending_replies(from, surbs_left) {
+        if let Some(to_send) = self.pop_at_most_pending_replies(&target, surbs_left) {
             // TODO: optimise: we're cloning the fragments every time to re-insert them into the buffer in case of failure
             let to_send_vec = to_send.into_iter().collect::<Vec<_>>();
 
             let surbs_for_reply = available_surbs.drain(..to_send_vec.len()).collect();
             if let Err(returned_surbs) = self
                 .message_handler
-                .try_send_reply_chunks(to_send_vec, surbs_for_reply)
+                .try_send_reply_chunks(target, to_send_vec, surbs_for_reply)
                 .await
             {
-                warn!("failed to clear pending queue for {:?}", from);
+                warn!("failed to clear pending queue for {:?}", target);
                 // TODO: perhaps there should be some timer here to repeat the request once topology recovers
                 self.received_reply_surbs
-                    .insert_surbs(&from, returned_surbs);
+                    .insert_surbs(&target, returned_surbs);
             }
         } else {
             println!("nothing left to clear");
@@ -253,7 +254,7 @@ where
         }
 
         // 2. if we have any pending replies, use surbs for those
-        self.try_clear_pending_queue(&from, &mut reply_surbs).await;
+        self.try_clear_pending_queue(from, &mut reply_surbs).await;
 
         // 3. buffer any leftovers
         if !reply_surbs.is_empty() {

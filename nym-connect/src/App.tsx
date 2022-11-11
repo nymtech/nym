@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { DateTime } from 'luxon';
 import { ConnectionStatusKind } from './types';
 import { useClientContext } from './context/main';
 import { DefaultLayout } from './layouts/DefaultLayout';
@@ -11,17 +12,19 @@ export const App: React.FC = () => {
   const [showInfoModal, setShowInfoModal] = React.useState(false);
 
   const handleConnectClick = React.useCallback(async () => {
-    const oldStatus = context.connectionStatus;
-    if (oldStatus === ConnectionStatusKind.connected || oldStatus === ConnectionStatusKind.disconnected) {
+    const currentStatus = context.connectionStatus;
+    if (currentStatus === ConnectionStatusKind.connected || currentStatus === ConnectionStatusKind.disconnected) {
       setBusy(true);
 
       // eslint-disable-next-line default-case
-      switch (oldStatus) {
+      switch (currentStatus) {
         case ConnectionStatusKind.disconnected:
           await context.startConnecting();
+          context.setConnectedSince(DateTime.now());
           break;
         case ConnectionStatusKind.connected:
           await context.startDisconnecting();
+          context.setConnectedSince(undefined);
           break;
       }
       setBusy(false);

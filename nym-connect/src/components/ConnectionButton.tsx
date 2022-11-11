@@ -19,16 +19,16 @@ const getStatusFillColor = (status: ConnectionStatusKind, hover: boolean, isErro
   switch (status) {
     case ConnectionStatusKind.disconnected:
       if (hover) {
-        return '#21D072';
+        return '#FFFF33';
       }
-      return '#60D6EF';
+      return '#FFE600';
     case ConnectionStatusKind.connecting:
     case ConnectionStatusKind.disconnecting:
-      return '#60D6EF';
+      return '#FFE600';
     default:
       // connected
       if (hover) {
-        return '#DA465B';
+        return '#E43E3E';
       }
       return '#21D072';
   }
@@ -81,69 +81,62 @@ export const ConnectionButton: React.FC<{
       viewBox="0 0 208 208"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      onMouseEnter={() => !disabled && setHover(true)}
-      onMouseLeave={() => !disabled && setHover(false)}
     >
-      <g transform="translate(-46 -46)">
+      <g
+        transform="translate(-27, -27)"
+        onMouseEnter={() => !disabled && setHover(true)}
+        onMouseLeave={() => !disabled && setHover(false)}
+      >
         <g onClick={handleClick} style={{ cursor: disabled ? 'not-allowed' : 'pointer' }}>
-          <g filter="url(#filter0_f_2_303)">
-            <circle cx="150" cy="150" r="70" fill="#3B445F" />
+          <g filter="url(#filter0_f_639_9730)">
+            <circle cx="131" cy="131" r="51" fill="url(#paint0_radial_639_9730)" />
           </g>
-          <g filter="url(#filter1_d_2_303)">
-            <circle cx="150" cy="150" r="65" fill="url(#paint0_radial_2_303)" />
-            <circle cx="150" cy="150" r="61.5" stroke={statusFillColor} strokeWidth="7">
-              {busy && (
-                <animate
-                  attributeName="stroke"
-                  values={`${statusFillColor};${getBusyFillColor(statusFillColor)};${statusFillColor}`}
-                  dur="1.5s"
-                  repeatCount="indefinite"
-                />
-              )}
-            </circle>
+          <circle cx="131" cy="131" r="65" fill="#1C1B1F" />
+          <g filter="url(#filter1_d_639_9730)">
+            <circle cx="131" cy="131" r="64" stroke={statusFillColor} strokeWidth="2" />
           </g>
-          <circle cx="150" cy="150" r="73.5" stroke="white" strokeOpacity="0.2" />
+          <circle cx="131" cy="131" r="73.5" stroke={statusFillColor} strokeOpacity="0.5" />
           {status === ConnectionStatusKind.connected && hover ? (
             <path
-              d="M136.264 135.833C136.264 133.838 137.92 132.217 139.957 132.217H144.723V130H139.957C136.669 130 134 132.613 134 135.833C134 139.053 136.669 141.667 139.957 141.667H144.723V139.45H139.957C137.92 139.45 136.264 137.828 136.264 135.833ZM145.234 137H154.766V134.667H145.234V137ZM160.043 130H155.277V132.217H160.043C162.08 132.217 163.736 133.838 163.736 135.833C163.736 137.828 162.08 139.45 160.043 139.45H155.277V141.667H160.043C163.331 141.667 166 139.053 166 135.833C166 132.613 163.331 130 160.043 130Z"
+              d="M120.217 119.833C120.217 117.838 121.838 116.217 123.833 116.217H128.5V114H123.833C120.613 114 118 116.613 118 119.833C118 123.053 120.613 125.667 123.833 125.667H128.5V123.45H123.833C121.838 123.45 120.217 121.828 120.217 119.833ZM127 121H136.333V118.667H127V121ZM139.5 114H134.833V116.217H139.505C141.5 116.217 143.117 117.838 143.117 119.833C143.117 121.828 141.495 123.45 139.5 123.45H134.833V125.667H139.5C142.72 125.667 145.333 123.053 145.333 119.833C145.333 116.613 142.72 114 139.5 114Z"
               fill="white"
             />
           ) : (
             <path
-              d="M140.217 135.833C140.217 133.838 141.838 132.217 143.833 132.217H148.5V130H143.833C140.613 130 138 132.613 138 135.833C138 139.053 140.613 141.667 143.833 141.667H148.5V139.45H143.833C141.838 139.45 140.217 137.828 140.217 135.833ZM145 137H154.333V134.667H145V137ZM155.5 130H150.833V132.217H155.505C157.5 132.217 159.117 133.838 159.117 135.833C159.117 137.828 157.495 139.45 155.5 139.45H150.833V141.667H155.5C158.72 141.667 161.333 139.053 161.333 135.833C161.333 132.613 158.72 130 155.5 130Z"
+              d="M122.217 119.833C122.217 117.838 123.838 116.217 125.833 116.217H130.5V114H125.833C122.613 114 120 116.613 120 119.833C120 123.053 122.613 125.667 125.833 125.667H130.5V123.45H125.833C123.838 123.45 122.217 121.828 122.217 119.833ZM127 121H136.333V118.667H127V121ZM137.5 114H132.833V116.217H137.505C139.5 116.217 141.117 117.838 141.117 119.833C141.117 121.828 139.495 123.45 137.5 123.45H132.833V125.667H137.5C140.72 125.667 143.333 123.053 143.333 119.833C143.333 116.613 140.72 114 137.5 114Z"
               fill="white"
             />
           )}
           <text
             className="button_text"
-            x={150}
-            y={160}
+            x={131}
+            y={146}
             fill={statusTextColor}
             dominantBaseline="middle"
             textAnchor="middle"
             fontWeight="700"
-            fontSize="14px"
+            fontSize="16px"
           >
             {statusText}
           </text>
           <defs>
             <filter
-              id="filter0_f_2_303"
+              id="filter0_f_639_9730"
               x="0"
               y="0"
-              width="300"
-              height="300"
+              width="262"
+              height="262"
               filterUnits="userSpaceOnUse"
               colorInterpolationFilters="sRGB"
             >
               <feFlood floodOpacity="0" result="BackgroundImageFix" />
               <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
-              <feGaussianBlur stdDeviation="20" result="effect1_foregroundBlur_2_303" />
+              <feGaussianBlur stdDeviation="25" result="effect1_foregroundBlur_639_9730" />
             </filter>
             <filter
-              id="filter1_d_2_303"
-              x="70"
-              y="76"
+              id="filter1_d_639_9730"
+              x="51"
+              y="57"
               width="160"
               height="160"
               filterUnits="userSpaceOnUse"
@@ -160,19 +153,19 @@ export const ConnectionButton: React.FC<{
               <feGaussianBlur stdDeviation="7.5" />
               <feComposite in2="hardAlpha" operator="out" />
               <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.3 0" />
-              <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_2_303" />
-              <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_2_303" result="shape" />
+              <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_639_9730" />
+              <feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_639_9730" result="shape" />
             </filter>
             <radialGradient
-              id="paint0_radial_2_303"
+              id="paint0_radial_639_9730"
               cx="0"
               cy="0"
               r="1"
               gradientUnits="userSpaceOnUse"
-              gradientTransform="translate(150 150) rotate(90) scale(65)"
+              gradientTransform="translate(131 131) rotate(90) scale(51)"
             >
-              <stop stopColor="#283046" />
-              <stop offset="1" stopColor="#121727" />
+              <stop stopColor="#1C1C1F" />
+              <stop offset="1" stopColor={statusFillColor} />
             </radialGradient>
           </defs>
         </g>

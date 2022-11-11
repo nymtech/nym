@@ -8,6 +8,7 @@ import { ConnectionStatusKind } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ServiceProvider, Services } from '../types/directory';
 import { Error } from 'src/types/error';
+import { TauriEvent } from 'src/types/event';
 
 const TAURI_EVENT_STATUS_CHANGED = 'app:connection-status-changed';
 
@@ -54,7 +55,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   }, []);
 
   useEffect(() => {
-    let unlisten: UnlistenFn | undefined;
+    const unlisten: UnlistenFn[] = [];
 
     // TODO: fix typings
     listen(TAURI_EVENT_STATUS_CHANGED, (event) => {
@@ -63,14 +64,18 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       setConnectionStatus(status);
     })
       .then((result) => {
-        unlisten = result;
+        unlisten.push(result);
       })
       .catch((e) => console.log(e));
 
+    listen('socks5-event', (e: TauriEvent) => {
+      setError(e.payload);
+    }).then((result) => {
+      unlisten.push(result);
+    });
+
     return () => {
-      if (unlisten) {
-        unlisten();
-      }
+      unlisten.forEach((unsubscribe) => unsubscribe());
     };
   }, []);
 
@@ -78,7 +83,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     try {
       await invoke('start_connecting');
     } catch (e) {
-      setError({ error: 'Could not connect', description: e as string });
+      setError({ title: 'Could not connect', message: e as string });
       console.log(e);
     }
   }, []);

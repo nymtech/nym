@@ -15,21 +15,19 @@ const styles = {
   border: (theme: Theme) => `1px solid ${theme.palette.grey[700]}`,
 };
 
-const ModalTitle = ({ title, withCloseIcon }: { title: string; withCloseIcon: boolean }) => {
-  return (
-    <Box textAlign="center" mt={withCloseIcon ? -2 : 0}>
-      <ErrorOutline sx={{ color: 'warning.main' }} />
-      <Typography variant="body2" textAlign="center" sx={{ color: 'warning.main' }}>
-        {title}
-      </Typography>
-    </Box>
-  );
-};
+const ModalTitle = ({ title, withCloseIcon }: { title: string; withCloseIcon: boolean }) => (
+  <Box textAlign="center" mt={withCloseIcon ? -2 : 0}>
+    <ErrorOutline sx={{ color: 'warning.main' }} />
+    <Typography variant="body2" textAlign="center" sx={{ color: 'warning.main' }}>
+      {title}
+    </Typography>
+  </Box>
+);
 
 const ModalBody = ({ description, children }: { description: string; children?: React.ReactElement }) => (
   <Box textAlign="center" mt={1}>
     {children}
-    <Typography fontSize="small" sx={{ mt: 1 }}>
+    <Typography fontSize="small" sx={{ mt: 1, overflowWrap: 'anywhere', color: 'grey.300' }}>
       {description}
     </Typography>
   </Box>

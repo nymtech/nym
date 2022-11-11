@@ -68,6 +68,7 @@ pub fn start_nym_socks5_client(
 
 #[derive(Clone, serde::Serialize)]
 struct Payload {
+    title: String,
     message: String,
 }
 
@@ -85,22 +86,33 @@ pub fn start_disconnect_listener(
                 log::info!("SOCKS5 task reported it has finished");
                 window
                     .emit(
-                        "event-name",
+                        "socks5-event",
                         Payload {
-                            message: "SOCKS5 finished".into(),
+                            title: "SOCKS5 finished".into(),
+                            message: "SOCKS5 task reported it has finished".into(),
                         },
                     )
                     .unwrap();
             }
             Ok(Socks5StatusMessage::FailedToStart) => {
                 log::info!("SOCKS5 task reported it failed to start");
+                window
+                    .emit(
+                        "socks5-event",
+                        Payload {
+                            title: "SOCKS5 error".into(),
+                            message: "SOCKS5 failed to start".into(),
+                        },
+                    )
+                    .unwrap();
             }
             Err(_) => {
                 log::info!("SOCKS5 task appears to have stopped abruptly");
                 window
                     .emit(
-                        "event-name",
+                        "socks5-event",
                         Payload {
+                            title: "SOCKS5 error".into(),
                             message: "SOCKS5 stopped abruptly".into(),
                         },
                     )

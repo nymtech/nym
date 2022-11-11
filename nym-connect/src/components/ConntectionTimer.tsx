@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Stack, Typography } from '@mui/material';
 import { DateTime } from 'luxon';
 
-export const ConnectionTime = ({ connectedSince }: { connectedSince?: DateTime }) => {
+export const ConnectionTimer = ({ connectedSince }: { connectedSince?: DateTime }) => {
   const [duration, setDuration] = React.useState<string>();
   useEffect(() => {
     const intervalId = setInterval(() => {
@@ -14,6 +14,7 @@ export const ConnectionTime = ({ connectedSince }: { connectedSince?: DateTime }
       clearInterval(intervalId);
     };
   }, [connectedSince]);
+
   return (
     <Stack alignItems="center">
       <Typography variant="caption" sx={{ color: 'grey.600' }}>

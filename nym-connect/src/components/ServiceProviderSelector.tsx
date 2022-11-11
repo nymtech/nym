@@ -92,7 +92,14 @@ export const ServiceProviderSelector: React.FC<{
         SelectProps={{
           MenuProps: {
             PaperProps: {
-              sx: { background: '#383C41', borderTopLeftRadius: 0, borderTopRightRadius: 0 },
+              sx: {
+                background: '#383C41',
+                borderTopLeftRadius: 0,
+                borderTopRightRadius: 0,
+                '&& .Mui-selected': {
+                  backgroundColor: '#FFFFFF33',
+                },
+              },
             },
           },
         }}

@@ -1,4 +1,4 @@
 export type Error = {
-  error: string;
-  description: string;
+  title: string;
+  message: string;
 };

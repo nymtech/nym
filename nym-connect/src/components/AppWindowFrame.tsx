@@ -8,7 +8,7 @@ export const AppWindowFrame: React.FC = ({ children }) => (
       display: 'grid',
       gridTemplateRows: '40px 1fr',
       background: '#1D2125',
-      borderRadius: '12px',
+
       height: '100vh',
     }}
   >

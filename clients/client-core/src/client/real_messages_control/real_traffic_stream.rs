@@ -507,21 +507,27 @@ where
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
         debug!("Started OutQueueControl with graceful shutdown support");
 
+        let poisson_delay = self.poisson_stream();
+        tokio::pin!(poisson_delay);
+
         while !shutdown.is_shutdown() {
             tokio::select! {
                 biased;
                 _ = shutdown.recv() => {
                     log::trace!("OutQueueControl: Received shutdown");
                 }
-                next_message = self.next() => match next_message {
-                    Some(next_message) => {
-                        self.on_message(next_message).await;
-                    },
-                    None => {
-                        log::trace!("OutQueueControl: Stopping since channel closed");
-                        break;
-                    }
+                real_messages = poisson_delay.next() => {
+
                 }
+                //match next_message {
+                //    Some(next_message) => {
+                //        self.on_message(next_message).await;
+                //    },
+                //    None => {
+                //        log::trace!("OutQueueControl: Stopping since channel closed");
+                //        break;
+                //    }
+                //}
             }
         }
         assert!(shutdown.is_shutdown_poll());
@@ -537,26 +543,35 @@ where
         }
     }
 
-    fn poisson_stream(&mut self) -> impl futures::Stream<Item = Duration> {
-        //let avg_delay = self.current_average_message_sending_delay();
-        futures::stream::unfold((), |_| async {
-            let mut rng = OsRng;
-            //let next_poisson_delay = sample_poisson_duration(&mut rng, avg_delay);
-            //time::sleep(Duration::from(next_poisson_delay)).await;
-            let avg_delay = Duration::from_millis(10);
-            time::sleep(avg_delay).await;
-            Some((avg_delay, ()))
+    fn poisson_stream<'a>(&'a mut self) -> impl futures::Stream<Item = Vec<RealMessage>> + 'a {
+        futures::stream::unfold(self, |out_queue_control| async {
+            let avg_delay = out_queue_control.current_average_message_sending_delay();
+            let next_poisson_delay = sample_poisson_duration(&mut out_queue_control.rng, avg_delay);
+            time::sleep(next_poisson_delay).await;
+
+            let next = match out_queue_control.real_receiver.try_next() {
+                Ok(Some(m)) => m,
+                Ok(None) => {
+                    log::info!("Real receveiver closed, exiting");
+                    return None;
+                }
+                Err(err) => {
+                    log::error!("Error: {}", err);
+                    return None;
+                }
+            };
+            Some((next, out_queue_control))
         })
     }
 }
 
-impl<R> Stream for OutQueueControl<R>
-where
-    R: CryptoRng + Rng + Unpin + Clone,
-{
-    type Item = StreamMessage;
-
-    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        self.poll_next_message(cx)
-    }
-}
+//impl<R> Stream for OutQueueControl<R>
+//where
+//    R: CryptoRng + Rng + Unpin + Clone,
+//{
+//    type Item = StreamMessage;
+//
+//    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+//        self.poll_next_message(cx)
+//    }
+//}

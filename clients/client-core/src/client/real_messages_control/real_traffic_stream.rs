@@ -507,7 +507,8 @@ where
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
         debug!("Started OutQueueControl with graceful shutdown support");
 
-        let poisson_delay = self.poisson_stream();
+        let poisson_delay = PoissonDelayStream::new();
+        poisson_stream();
         tokio::pin!(poisson_delay);
 
         while !shutdown.is_shutdown() {
@@ -516,8 +517,14 @@ where
                 _ = shutdown.recv() => {
                     log::trace!("OutQueueControl: Received shutdown");
                 }
-                real_messages = poisson_delay.next() => {
-
+                _ = self.real_receiver.next() => {
+                    // Get next set of messages Vec<RealMessages>
+                    // Store into self.received_buffer
+                }
+                message = poisson_delay.next() => {
+                    // Every poisson_delay this will fire
+                    // We will then pop a message and send
+                    self.on_message(message.unwrap());
                 }
                 //match next_message {
                 //    Some(next_message) => {
@@ -543,24 +550,53 @@ where
         }
     }
 
-    fn poisson_stream<'a>(&'a mut self) -> impl futures::Stream<Item = Vec<RealMessage>> + 'a {
+    //fn poisson_stream<'a>(&'a mut self) -> impl futures::Stream<Item = StreamMessage> + 'a {
+    //    futures::stream::unfold(self, |out_queue_control| async {
+    //        let avg_delay = out_queue_control.current_average_message_sending_delay();
+    //        let next_poisson_delay = sample_poisson_duration(&mut out_queue_control.rng, avg_delay);
+    //        time::sleep(next_poisson_delay).await;
+
+    //        let next = match out_queue_control.received_buffer.pop_front() {
+    //            Some(msg) => StreamMessage::Real(Box::new(msg)),
+    //            None => StreamMessage::Cover,
+    //        };
+    //        Some((next, out_queue_control))
+    //    })
+    //}
+}
+
+// Every poisson delay time, we awaken
+struct PoissonDelayStream<R> {
+    average_message_sending_delay: Duration,
+    sending_rate_controller: SendingDelayController,
+    rng: R,
+}
+
+impl<R> PoissonDelayStream<R>
+where
+    R: Rng + CryptoRng,
+{
+    fn new(average_message_sending_delay: Duration, rng: R) -> Self {
+        Self {
+            average_message_sending_delay,
+            sending_rate_controller: SendingDelayController::new(
+                MIN_DELAY_MULTIPLIER,
+                MAX_DELAY_MULTIPLIER,
+            ),
+            rng,
+        }
+    }
+
+    fn current_average_message_sending_delay(&self) -> Duration {
+        self.average_message_sending_delay * self.sending_rate_controller.current_multiplier()
+    }
+
+    fn poisson_stream<'a>(&'a mut self) -> impl futures::Stream<Item = ()> + 'a {
         futures::stream::unfold(self, |out_queue_control| async {
             let avg_delay = out_queue_control.current_average_message_sending_delay();
             let next_poisson_delay = sample_poisson_duration(&mut out_queue_control.rng, avg_delay);
             time::sleep(next_poisson_delay).await;
-
-            let next = match out_queue_control.real_receiver.try_next() {
-                Ok(Some(m)) => m,
-                Ok(None) => {
-                    log::info!("Real receveiver closed, exiting");
-                    return None;
-                }
-                Err(err) => {
-                    log::error!("Error: {}", err);
-                    return None;
-                }
-            };
-            Some((next, out_queue_control))
+            Some(((), out_queue_control))
         })
     }
 }

@@ -25,6 +25,11 @@ impl CombinedReplyStorage {
         self.sent_reply_keys.clone()
     }
 
+    #[deprecated]
+    pub(crate) fn surbs_storage(&self) -> ReceivedReplySurbsMap {
+        self.received_reply_surbs.clone()
+    }
+
     pub(crate) fn min_surb_threshold(&self) -> usize {
         self.received_reply_surbs.min_surb_threshold()
     }

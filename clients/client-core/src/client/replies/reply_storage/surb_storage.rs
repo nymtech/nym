@@ -114,6 +114,18 @@ impl ReceivedReplySurbsMap {
             self.inner.data.insert(*target, new_entry);
         }
     }
+
+    pub(crate) fn insert_surb(&self, target: &AnonymousSenderTag, reply_surb: ReplySurb) {
+        if let Some(mut existing_data) = self.inner.data.get_mut(target) {
+            existing_data.insert_reply_surb(reply_surb)
+        } else {
+            // this should never really get hit, but let's guard ourselves against it regardless...
+            let mut surbs = VecDeque::new();
+            surbs.push_back(reply_surb);
+            let new_entry = ReceivedReplySurbs::new(surbs);
+            self.inner.data.insert(*target, new_entry);
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -157,5 +169,9 @@ impl ReceivedReplySurbs {
     pub(crate) fn insert_reply_surbs<I: IntoIterator<Item = ReplySurb>>(&mut self, surbs: I) {
         let mut v = surbs.into_iter().collect();
         self.data.append(&mut v)
+    }
+
+    pub(crate) fn insert_reply_surb(&mut self, surb: ReplySurb) {
+        self.data.push_back(surb)
     }
 }

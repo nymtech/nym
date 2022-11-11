@@ -1,32 +1,25 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::inbound_messages::InputMessageReceiver;
-use crate::client::real_messages_control::acknowledgement_control::PendingAcknowledgement;
-use crate::client::real_messages_control::real_traffic_stream::{
-    BatchRealMessageSender, RealMessage,
-};
-use crate::client::replies::reply_storage::CombinedReplyStorage;
-use crate::client::topology_control::{TopologyAccessor, TopologyReadPermit};
+use crate::client::real_messages_control::message_handler::MessageHandler;
+use crate::client::replies::reply_storage::ReceivedReplySurbsMap;
 use futures::channel::mpsc;
-use futures::channel::mpsc::UnboundedSender;
 use futures::StreamExt;
 use log::{debug, info, warn};
-use nymsphinx::acknowledgements::surb_ack::SurbAck;
-use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, ReplyMessage};
+use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::chunking::fragment::Fragment;
-use nymsphinx::params::PacketSize;
-use nymsphinx::preparer::MessagePreparer;
 use rand::{CryptoRng, Rng};
 use std::cmp::min;
 use std::collections::{HashMap, VecDeque};
-use std::sync::Arc;
-use topology::NymTopology;
 
 // TODO: rename
+
+pub fn new_control_channels() -> (ToBeNamedSender, ToBeNamedReceiver) {
+    let (tx, rx) = mpsc::unbounded();
+    (tx.into(), rx)
+}
 
 #[derive(Debug, Clone)]
 pub struct ToBeNamedSender(mpsc::UnboundedSender<ToBeNamedMessage>);
@@ -94,24 +87,11 @@ pub enum ToBeNamedMessage {
 // - will reply to future heartbeats
 
 pub struct ToBeNamedPendingReplyController<R> {
-    request_receiver: ToBeNamedReceiver,
-
     // expected_reliability: f32,
-    // packet_size_used: PacketSize,
+    request_receiver: ToBeNamedReceiver,
     pending_replies: HashMap<AnonymousSenderTag, VecDeque<Fragment>>,
-
-    // I don't like the fact this exact set of fields exist on `InputMessageListener`, `RetransmissionRequestListener`
-    // and THIS struct. it should probably be refactored into some shared structure
-    // it's a huge mess of channels in here with repeated functionalities...
-    ack_key: Arc<AckKey>,
-    self_address: Recipient,
-    message_preparer: MessagePreparer<R>,
-    // action_sender: ActionSender,
-    real_message_sender: BatchRealMessageSender,
-    topology_access: TopologyAccessor,
-
-    // TODO: it doesn't really need access to the keys, surbs themselves are enough
-    reply_storage: CombinedReplyStorage,
+    message_handler: MessageHandler<R>,
+    received_reply_surbs: ReceivedReplySurbsMap,
 }
 
 impl<R> ToBeNamedPendingReplyController<R>
@@ -120,43 +100,15 @@ where
 {
     // TODO: don't make it public
     pub(crate) fn new(
-        ack_key: Arc<AckKey>,
-        ack_recipient: Recipient,
-        message_preparer: MessagePreparer<R>,
-        // action_sender: ActionSender,
-        real_message_sender: BatchRealMessageSender,
-        topology_access: TopologyAccessor,
-        reply_storage: CombinedReplyStorage,
+        message_handler: MessageHandler<R>,
+        received_reply_surbs: ReceivedReplySurbsMap,
         request_receiver: ToBeNamedReceiver,
-        // ) -> (Self, ToBeNamedSender) {
     ) -> Self {
-        // let (request_sender, request_receiver) = mpsc::unbounded();
-
-        // (
         ToBeNamedPendingReplyController {
             request_receiver,
             pending_replies: Default::default(),
-            ack_key,
-            self_address: ack_recipient,
-            // action_sender,
-            message_preparer,
-            real_message_sender,
-            topology_access,
-            reply_storage,
-        }
-        //     ToBeNamedSender(request_sender),
-        // )
-    }
-
-    // TODO: deal with code duplication later
-
-    fn get_topology<'a>(&self, permit: &'a TopologyReadPermit<'a>) -> Option<&'a NymTopology> {
-        match permit.try_get_valid_topology_ref(&self.self_address, None) {
-            Some(topology_ref) => Some(topology_ref),
-            None => {
-                warn!("Could not process the message - the network topology is invalid");
-                None
-            }
+            message_handler,
+            received_reply_surbs,
         }
     }
 
@@ -169,66 +121,33 @@ where
     }
 
     async fn handle_send_reply(&mut self, recipient_tag: AnonymousSenderTag, data: Vec<u8>) {
-        if !self.reply_storage.contains_surbs_for(&recipient_tag) {
+        if !self.received_reply_surbs.contains_surbs_for(&recipient_tag) {
             warn!("received reply request for {:?} but we don't have any surbs stored for that recipient!", recipient_tag);
             return;
         }
 
         // TODO: lower to debug/trace
         info!("handling reply to {:?}", recipient_tag);
-        let fragments = self
-            .message_preparer
-            .prepare_and_split_reply(ReplyMessage::new_data_message(data));
+        let fragments = self.message_handler.split_reply_message(data);
 
         let required_surbs = fragments.len();
         info!("This reply requires {:?} SURBs", fragments.len());
 
         let (surbs, surbs_left) = self
-            .reply_storage
+            .received_reply_surbs
             .get_reply_surbs(&recipient_tag, fragments.len());
 
         if let Some(reply_surbs) = surbs {
-            // TODO: simplify, tidy up and move elsewhere
-            let topology_permit = self.topology_access.get_read_permit().await;
-            let topology = match self.get_topology(&topology_permit) {
-                Some(topology) => topology,
-                None => {
-                    // without valid topology we can't do anything - put what we just retrieved back
-                    drop(topology_permit);
-                    self.reply_storage.insert_surbs(&recipient_tag, reply_surbs);
-                    self.insert_pending_replies(&recipient_tag, fragments);
-                    return;
-                }
-            };
-
-            // TODO: shared code with so many different other parts lol
-            let mut real_messages = Vec::with_capacity(reply_surbs.len());
-            for (fragment, reply_surb) in fragments.into_iter().zip(reply_surbs.into_iter()) {
-                // we need to clone it because we need to keep it in memory in case we had to retransmit
-                // it. And then we'd need to recreate entire ACK again.
-                let chunk_clone = fragment.clone();
-                let prepared_fragment = self
-                    .message_preparer
-                    .prepare_reply_chunk_for_sending(
-                        chunk_clone,
-                        topology,
-                        reply_surb,
-                        &self.ack_key,
-                    )
-                    .unwrap();
-
-                real_messages.push(RealMessage::new(
-                    prepared_fragment.mix_packet,
-                    fragment.fragment_identifier(),
-                ));
-
-                // TODO: deal with retransmission and acks here
+            if let Err(returned_surbs) = self
+                .message_handler
+                .try_send_reply_chunks(fragments, reply_surbs)
+                .await
+            {
+                warn!("failed to send reply to {:?}", recipient_tag);
+                // TODO: perhaps there should be some timer here to repeat the request once topology recovers
+                self.received_reply_surbs
+                    .insert_surbs(&recipient_tag, returned_surbs);
             }
-
-            // tells real message sender (with the poisson timer) to send this to the mix network
-            self.real_message_sender
-                .unbounded_send(real_messages)
-                .unwrap();
         } else {
             self.insert_pending_replies(&recipient_tag, fragments);
 
@@ -248,35 +167,21 @@ where
         log::info!("requesting {} reply surbs ...", amount);
 
         let (reply_surb, _) = self
-            .reply_storage
+            .received_reply_surbs
             .get_reply_surb_ignoring_threshold(target)?;
         let reply_surb = reply_surb?;
-        let surbs_request = ReplyMessage::new_surb_request_message(self.self_address, amount);
 
-        // TODO: this should really be more streamlined as we use the same pattern in multiple places
-        let mut fragment = self.message_preparer.prepare_and_split_reply(surbs_request);
-        assert_eq!(fragment.len(), 1, "our surbs request is tiny and should ALWAYS fit in a single sphinx packet, if it doesn't it means there's a serious issue somewhere and we should have blown up anyway");
+        if let Err(returned_surb) = self
+            .message_handler
+            .try_request_additional_reply_surbs(reply_surb, amount)
+            .await
+        {
+            warn!("failed to request additional surbs from {:?}", target);
+            // TODO: perhaps there should be some timer here to repeat the request once topology recovers
+            self.received_reply_surbs.insert_surb(target, returned_surb);
+        }
 
-        let topology_permit = self.topology_access.get_read_permit().await;
-        let topology = self.get_topology(&topology_permit)?;
-
-        let chunk = fragment.pop().unwrap();
-        let chunk_clone = chunk.clone();
-        let prepared_fragment = self
-            .message_preparer
-            .prepare_reply_chunk_for_sending(chunk_clone, topology, reply_surb, &self.ack_key)
-            .unwrap();
-
-        // TODO: ack and retransmission for the sucker...
-
-        let real_messages =
-            RealMessage::new(prepared_fragment.mix_packet, chunk.fragment_identifier());
-
-        // tells real message sender (with the poisson timer) to send this to the mix network
-        self.real_message_sender
-            .unbounded_send(vec![real_messages])
-            .unwrap();
-
+        // TODO: that's a really terrible return type.
         Some(())
     }
 
@@ -309,49 +214,22 @@ where
 
         println!("we have {} surbs on hand", surbs_left);
 
+        // we're guaranteed to not get more entries than we have reply surbs for
         if let Some(to_send) = self.pop_at_most_pending_replies(from, surbs_left) {
-            println!("{} to clear", to_send.len());
-            let topology_permit = self.topology_access.get_read_permit().await;
-            let topology = match self.get_topology(&topology_permit) {
-                Some(topology) => topology,
-                None => {
-                    // without valid topology we can't do anything - put what we just retrieved back
-                    drop(topology_permit);
-                    self.insert_pending_replies(from, to_send.into());
-                    return;
-                }
-            };
+            // TODO: optimise: we're cloning the fragments every time to re-insert them into the buffer in case of failure
+            let to_send_vec = to_send.into_iter().collect::<Vec<_>>();
 
-            let mut real_messages = Vec::with_capacity(to_send.len());
-
-            let elements = to_send.len();
-            // we know `to_send.len() <= surbs_left`
-            // (we're not zipping with `reply_surbs` directly as this would result in a move and
-            // we wouldn't be able to put leftover reply surbs into the storage)
-            for (fragment, reply_surb) in to_send.into_iter().zip(available_surbs.drain(..elements))
+            let surbs_for_reply = available_surbs.drain(..to_send_vec.len()).collect();
+            if let Err(returned_surbs) = self
+                .message_handler
+                .try_send_reply_chunks(to_send_vec, surbs_for_reply)
+                .await
             {
-                // we need to clone it because we need to keep it in memory in case we had to retransmit
-                // it. And then we'd need to recreate entire ACK again.
-                let chunk_clone = fragment.clone();
-                let prepared_fragment = self
-                    .message_preparer
-                    .prepare_reply_chunk_for_sending(
-                        chunk_clone,
-                        topology,
-                        reply_surb,
-                        &self.ack_key,
-                    )
-                    .unwrap();
-
-                real_messages.push(RealMessage::new(
-                    prepared_fragment.mix_packet,
-                    fragment.fragment_identifier(),
-                ));
+                warn!("failed to clear pending queue for {:?}", from);
+                // TODO: perhaps there should be some timer here to repeat the request once topology recovers
+                self.received_reply_surbs
+                    .insert_surbs(&from, returned_surbs);
             }
-
-            self.real_message_sender
-                .unbounded_send(real_messages)
-                .unwrap();
         } else {
             println!("nothing left to clear");
         }
@@ -365,12 +243,12 @@ where
         println!("handling received surbs");
 
         // 1. make sure we have > threshold number of surbs for the given target
-        let available_surbs = self.reply_storage.available_surbs(&from);
-        let surbs_threshold = self.reply_storage.min_surb_threshold();
+        let available_surbs = self.received_reply_surbs.available_surbs(&from);
+        let surbs_threshold = self.received_reply_surbs.min_surb_threshold();
 
         if available_surbs < surbs_threshold {
             let to_insert = min(surbs_threshold - available_surbs, reply_surbs.len());
-            self.reply_storage
+            self.received_reply_surbs
                 .insert_surbs(&from, &mut reply_surbs.drain(..to_insert))
         }
 
@@ -379,7 +257,7 @@ where
 
         // 3. buffer any leftovers
         if !reply_surbs.is_empty() {
-            self.reply_storage.insert_surbs(&from, reply_surbs)
+            self.received_reply_surbs.insert_surbs(&from, reply_surbs)
         }
     }
 
@@ -391,53 +269,14 @@ where
         // they have no business in asking for more
         // TODO:
         // 3. construct and send the surbs away
-        // TODO: a lot of shared code in input message listener (this is literally `handle_fresh_message` all over again)
-        // for now send Reply message with empty content, then refactor it to use the surb specific message
-        let topology_permit = self.topology_access.get_read_permit().await;
-        let topology = self.get_topology(&topology_permit).expect("todo");
-
-        // split the message, attach optional reply surb
-        let (split_message, reply_keys) = self
-            .message_preparer
-            .prepare_and_split_message(Vec::new(), amount, topology)
-            .expect("somehow the topology was invalid after all!");
-
-        log::info!("storing {} reply keys", reply_keys.len());
-        self.reply_storage.insert_multiple_surb_keys(reply_keys);
-
-        // encrypt chunks, put them inside sphinx packets and generate acks
-        let mut pending_acks = Vec::with_capacity(split_message.len());
-        let mut real_messages = Vec::with_capacity(split_message.len());
-        for message_chunk in split_message {
-            // we need to clone it because we need to keep it in memory in case we had to retransmit
-            // it. And then we'd need to recreate entire ACK again.
-            let chunk_clone = message_chunk.clone();
-            let prepared_fragment = self
-                .message_preparer
-                .prepare_chunk_for_sending(chunk_clone, topology, &self.ack_key, &recipient)
-                .unwrap();
-
-            real_messages.push(RealMessage::new(
-                prepared_fragment.mix_packet,
-                message_chunk.fragment_identifier(),
-            ));
-
-            pending_acks.push(PendingAcknowledgement::new(
-                message_chunk,
-                prepared_fragment.total_delay,
-                recipient,
-            ));
+        if self
+            .message_handler
+            .try_send_normal_message(recipient, Vec::new(), amount)
+            .await
+            .is_none()
+        {
+            warn!("failed to send additional surbs to {}", recipient)
         }
-
-        // welp, can't write it up easily, will do it later.
-        // // tells the controller to put this into the hashmap
-        // self.action_sender
-        //     .unbounded_send(Action::new_insert(pending_acks))
-        //     .unwrap();
-
-        self.real_message_sender
-            .unbounded_send(real_messages)
-            .unwrap();
     }
 
     async fn handle_request(&mut self, request: ToBeNamedMessage) {
@@ -455,41 +294,34 @@ where
         }
     }
 
-    // deal with shutdowns, etc, later.
-    pub async fn run(&mut self) {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+        debug!("Started ToBeNamedPendingReplyController with graceful shutdown support");
+
+        while !shutdown.is_shutdown() {
+            tokio::select! {
+                req = self.request_receiver.next() => match req {
+                    Some(req) => self.handle_request(req).await,
+                    None => {
+                        log::trace!("ToBeNamedPendingReplyController: Stopping since channel closed");
+                        break;
+                    }
+                },
+                _ = shutdown.recv() => {
+                    log::trace!("ToBeNamedPendingReplyController: Received shutdown");
+                }
+            }
+        }
+        assert!(shutdown.is_shutdown_poll());
+        log::debug!("ToBeNamedPendingReplyController: Exiting");
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(crate) async fn run(&mut self) {
+        debug!("Started ToBeNamedPendingReplyController without graceful shutdown support");
+
         while let Some(req) = self.request_receiver.next().await {
             self.handle_request(req).await
         }
     }
-
-    // #[cfg(not(target_arch = "wasm32"))]
-    // pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
-    //     debug!("Started AcknowledgementListener with graceful shutdown support");
-    //
-    //     while !shutdown.is_shutdown() {
-    //         tokio::select! {
-    //             // acks = self.ack_receiver.next() => match acks {
-    //             //     Some(acks) => self.handle_ack_receiver_item(acks).await,
-    //             //     None => {
-    //             //         log::trace!("AcknowledgementListener: Stopping since channel closed");
-    //             //         break;
-    //             //     }
-    //             // },
-    //             _ = shutdown.recv() => {
-    //                 log::trace!("AcknowledgementListener: Received shutdown");
-    //             }
-    //         }
-    //     }
-    //     assert!(shutdown.is_shutdown_poll());
-    //     log::debug!("AcknowledgementListener: Exiting");
-    // }
-    //
-    // #[cfg(target_arch = "wasm32")]
-    // pub(super) async fn run(&mut self) {
-    //     debug!("Started AcknowledgementListener without graceful shutdown support");
-    //
-    //     while let Some(acks) = self.ack_receiver.next().await {
-    //         self.handle_ack_receiver_item(acks).await
-    //     }
-    // }
 }

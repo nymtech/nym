@@ -156,6 +156,8 @@ where
     // /// new_message = 0 || message
     // /// OR
     // /// new_message = 1 || REPLY_KEY || REPLY_SURB || message
+    // deprecated so that i'd remember to fix that temporary if hack
+    #[deprecated]
     fn optionally_attach_reply_surbs(
         &mut self,
         message: Vec<u8>,
@@ -178,7 +180,11 @@ where
 
         // temporary:
         let msg = if num_reply_surbs > 0 {
-            let repliable = RepliableMessage::temp_new_data(message, reply_surbs);
+            let repliable = if message.is_empty() {
+                RepliableMessage::temp_new_additional_surbs(reply_surbs)
+            } else {
+                RepliableMessage::temp_new_data(message, reply_surbs)
+            };
             NymMessage::new_repliable(repliable)
         } else {
             NymMessage::new_plain(message)

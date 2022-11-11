@@ -13,7 +13,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-pub(crate) type ActionSender = UnboundedSender<Action>;
+pub(crate) type AckActionSender = UnboundedSender<Action>;
+pub(crate) type AckActionReceiver = UnboundedReceiver<Action>;
 
 // The actual data being sent off as well as potential key to the delay queue
 type PendingAckEntry = (Arc<PendingAcknowledgement>, Option<QueueKey>);
@@ -105,18 +106,15 @@ impl ActionController {
     pub(super) fn new(
         config: Config,
         retransmission_sender: RetransmissionRequestSender,
-    ) -> (Self, ActionSender) {
-        let (sender, receiver) = mpsc::unbounded();
-        (
-            ActionController {
-                config,
-                pending_acks_data: HashMap::new(),
-                pending_acks_timers: NonExhaustiveDelayQueue::new(),
-                incoming_actions: receiver,
-                retransmission_sender,
-            },
-            sender,
-        )
+        incoming_actions: AckActionReceiver,
+    ) -> Self {
+        ActionController {
+            config,
+            pending_acks_data: HashMap::new(),
+            pending_acks_timers: NonExhaustiveDelayQueue::new(),
+            incoming_actions,
+            retransmission_sender,
+        }
     }
 
     fn handle_insert(&mut self, pending_acks: Vec<PendingAcknowledgement>) {

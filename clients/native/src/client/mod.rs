@@ -7,17 +7,18 @@ use client_core::client::inbound_messages::{
 };
 use client_core::client::key_manager::KeyManager;
 use client_core::client::mix_traffic::{BatchMixMessageSender, MixTrafficController};
-use client_core::client::real_messages_control;
 use client_core::client::real_messages_control::RealMessagesController;
 use client_core::client::received_buffer::{
     ReceivedBufferMessage, ReceivedBufferRequestReceiver, ReceivedBufferRequestSender,
     ReceivedMessagesBufferController, ReconstructedMessagesReceiver,
 };
 use client_core::client::replies::reply_storage::{CombinedReplyStorage, SentReplyKeys};
+use client_core::client::replies::temp_name_pending_handler;
 use client_core::client::replies::temp_name_pending_handler::{ToBeNamedReceiver, ToBeNamedSender};
 use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
+use client_core::client::{real_messages_control, replies};
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use client_core::error::ClientCoreError;
 use crypto::asymmetric::identity;
@@ -383,6 +384,10 @@ impl NymClient {
         let (ack_sender, ack_receiver) = mpsc::unbounded();
         let shared_topology_accessor = TopologyAccessor::new();
 
+        // channels responsible for dealing with reply-related fun
+        let (to_be_named_channel_sender, to_be_named_channel_receiver) =
+            temp_name_pending_handler::new_control_channels();
+
         // Shutdown notifier for signalling tasks to stop
         let shutdown = ShutdownNotifier::default();
 
@@ -392,9 +397,6 @@ impl NymClient {
         // =====================
         // =====================
         let reply_storage = CombinedReplyStorage::new(2);
-        // channels responsible for controlling reply-related requests
-        let (reply_req_sender, reply_req_receiver) = mpsc::unbounded();
-        let wrapped_sender = ToBeNamedSender::from(reply_req_sender);
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
@@ -404,7 +406,7 @@ impl NymClient {
             received_buffer_request_receiver,
             mixnet_messages_receiver,
             reply_storage.key_storage(),
-            wrapped_sender.clone(),
+            to_be_named_channel_sender.clone(),
             shutdown.subscribe(),
         );
 
@@ -425,8 +427,8 @@ impl NymClient {
             input_receiver,
             sphinx_message_sender.clone(),
             reply_storage,
-            wrapped_sender,
-            reply_req_receiver,
+            to_be_named_channel_sender,
+            to_be_named_channel_receiver,
             shutdown.subscribe(),
         );
 

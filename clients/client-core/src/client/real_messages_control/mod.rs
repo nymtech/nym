@@ -9,6 +9,7 @@ use self::{
     acknowledgement_control::AcknowledgementController, real_traffic_stream::OutQueueControl,
 };
 use crate::client::real_messages_control::acknowledgement_control::AcknowledgementControllerConnectors;
+use crate::client::real_messages_control::message_handler::MessageHandler;
 use crate::client::replies::reply_storage::{CombinedReplyStorage, SentReplyKeys};
 use crate::client::replies::temp_name_pending_handler::{
     ToBeNamedPendingReplyController, ToBeNamedReceiver, ToBeNamedSender,
@@ -29,10 +30,12 @@ use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 use std::time::Duration;
 
+pub(crate) use acknowledgement_control::{AckActionSender, Action};
 // #[cfg(feature = "reply-surb")]
 // use crate::client::reply_key_storage::ReplyKeyStorage;
 
 pub(crate) mod acknowledgement_control;
+pub(crate) mod message_handler;
 pub(crate) mod real_traffic_stream;
 
 // TODO: ack_key and self_recipient shouldn't really be part of this config
@@ -103,6 +106,7 @@ where
 {
     out_queue_control: OutQueueControl<R>,
     ack_control: AcknowledgementController<R>,
+    reply_control: ToBeNamedPendingReplyController<R>,
 }
 
 // obviously when we finally make shared rng that is on 'higher' level, this should become
@@ -123,12 +127,15 @@ impl RealMessagesController<OsRng> {
 
         let (real_message_sender, real_message_receiver) = mpsc::unbounded();
         let (sent_notifier_tx, sent_notifier_rx) = mpsc::unbounded();
+        let (ack_action_tx, ack_action_rx) = mpsc::unbounded();
 
         let ack_controller_connectors = AcknowledgementControllerConnectors::new(
             real_message_sender.clone(),
             input_receiver,
             sent_notifier_rx,
             ack_receiver,
+            ack_action_tx.clone(),
+            ack_action_rx,
         );
 
         let ack_control_config = acknowledgement_control::Config::new(
@@ -139,14 +146,35 @@ impl RealMessagesController<OsRng> {
         )
         .with_custom_packet_size(config.packet_size);
 
-        let ack_control = AcknowledgementController::new(
-            ack_control_config,
+        // TODO: construct MessagePreparer itself inside the MessageHandler
+        let message_preparer = MessagePreparer::new(
             rng,
-            topology_access.clone(),
+            config.self_recipient,
+            config.average_packet_delay_duration,
+            config.average_ack_delay_duration,
+        )
+        .with_custom_real_message_packet_size(config.packet_size);
+        let message_handler = MessageHandler::new(
             Arc::clone(&config.ack_key),
             config.self_recipient,
-            ack_controller_connectors,
+            message_preparer,
+            ack_action_tx.clone(),
+            real_message_sender.clone(),
+            topology_access.clone(),
             reply_storage.key_storage(),
+        );
+
+        let reply_control = ToBeNamedPendingReplyController::new(
+            message_handler.clone(),
+            reply_storage.surbs_storage(),
+            to_be_named_channel_receiver,
+        );
+
+        let ack_control = AcknowledgementController::new(
+            ack_control_config,
+            Arc::clone(&config.ack_key),
+            ack_controller_connectors,
+            message_handler,
             to_be_named_channel_sender,
         );
 
@@ -160,7 +188,7 @@ impl RealMessagesController<OsRng> {
 
         let out_queue_control = OutQueueControl::new(
             out_queue_config,
-            Arc::clone(&config.ack_key),
+            config.ack_key,
             sent_notifier_tx,
             mix_sender,
             real_message_receiver,
@@ -169,32 +197,10 @@ impl RealMessagesController<OsRng> {
             topology_access.clone(),
         );
 
-        // holy fu.... moly, that's some disgusting spaghetti
-        let message_preparer = MessagePreparer::new(
-            rng,
-            config.self_recipient,
-            config.average_packet_delay_duration,
-            config.average_ack_delay_duration,
-        )
-        .with_custom_real_message_packet_size(config.packet_size);
-
-        let mut to_be_named_reply_control = ToBeNamedPendingReplyController::new(
-            Arc::clone(&config.ack_key),
-            config.self_recipient,
-            message_preparer,
-            // ack_controller_connectors.
-            real_message_sender,
-            topology_access,
-            reply_storage,
-            to_be_named_channel_receiver,
-        );
-
-        // we'll move it in next commit so for test sake, just start it here
-        tokio::spawn(async move { to_be_named_reply_control.run().await });
-
         RealMessagesController {
             out_queue_control,
             ack_control,
+            reply_control,
         }
     }
 
@@ -202,12 +208,19 @@ impl RealMessagesController<OsRng> {
     pub fn start_with_shutdown(self, shutdown: task::ShutdownListener) {
         let mut out_queue_control = self.out_queue_control;
         let ack_control = self.ack_control;
+        let mut reply_control = self.reply_control;
 
         let shutdown_handle = shutdown.clone();
         spawn_future(async move {
             out_queue_control.run_with_shutdown(shutdown_handle).await;
             debug!("The out queue controller has finished execution!");
         });
+        let shutdown_handle = shutdown.clone();
+        spawn_future(async move {
+            reply_control.run_with_shutdown(shutdown_handle).await;
+            debug!("The reply controller has finished execution!");
+        });
+
         ack_control.start_with_shutdown(shutdown);
     }
 
@@ -215,10 +228,15 @@ impl RealMessagesController<OsRng> {
     pub fn start(self) {
         let mut out_queue_control = self.out_queue_control;
         let ack_control = self.ack_control;
+        let mut reply_control = self.reply_control;
 
         spawn_future(async move {
             out_queue_control.run().await;
             debug!("The out queue controller has finished execution!");
+        });
+        spawn_future(async move {
+            reply_control.run().await;
+            debug!("The reply controller has finished execution!");
         });
         ack_control.start();
     }

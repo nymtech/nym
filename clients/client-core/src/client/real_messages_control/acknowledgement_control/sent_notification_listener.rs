@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::action_controller::{Action, ActionSender};
+use super::action_controller::{Action, AckActionSender};
 use super::SentPacketNotificationReceiver;
 use futures::StreamExt;
 use log::*;
@@ -13,13 +13,13 @@ use nymsphinx::chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID};
 /// accidentally fire retransmission way quicker than we should have.
 pub(super) struct SentNotificationListener {
     sent_notifier: SentPacketNotificationReceiver,
-    action_sender: ActionSender,
+    action_sender: AckActionSender,
 }
 
 impl SentNotificationListener {
     pub(super) fn new(
         sent_notifier: SentPacketNotificationReceiver,
-        action_sender: ActionSender,
+        action_sender: AckActionSender,
     ) -> Self {
         SentNotificationListener {
             sent_notifier,

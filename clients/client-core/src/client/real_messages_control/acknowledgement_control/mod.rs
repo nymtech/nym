@@ -8,10 +8,12 @@ use self::{
     sent_notification_listener::SentNotificationListener,
 };
 use super::real_traffic_stream::BatchRealMessageSender;
-use crate::client::replies::reply_storage::{CombinedReplyStorage, SentReplyKeys};
+use crate::client::real_messages_control::message_handler::MessageHandler;
+use crate::client::replies::reply_storage::SentReplyKeys;
 use crate::client::replies::temp_name_pending_handler::ToBeNamedSender;
 use crate::client::{inbound_messages::InputMessageReceiver, topology_control::TopologyAccessor};
 use crate::spawn_future;
+use action_controller::AckActionReceiver;
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
@@ -30,13 +32,11 @@ use std::{
     time::Duration,
 };
 
-// #[cfg(feature = "reply-surb")]
-// use crate::client::reply_key_storage::ReplyKeyStorage;
+pub(crate) use action_controller::{AckActionSender, Action};
 
 mod acknowledgement_listener;
 mod action_controller;
 mod input_message_listener;
-mod message_constructor;
 mod retransmission_request_listener;
 mod sent_notification_listener;
 
@@ -103,6 +103,12 @@ pub(super) struct AcknowledgementControllerConnectors {
 
     /// Channel used for receiving acknowledgements from the mix network.
     ack_receiver: AcknowledgementReceiver,
+
+    /// Channel used for sending request to `ActionController` to deal with anything ack-related,
+    ack_action_sender: AckActionSender,
+
+    /// Channel used for receiving request by `ActionController` to deal with anything ack-related,
+    ack_action_receiver: AckActionReceiver,
 }
 
 impl AcknowledgementControllerConnectors {
@@ -111,12 +117,16 @@ impl AcknowledgementControllerConnectors {
         input_receiver: InputMessageReceiver,
         sent_notifier: SentPacketNotificationReceiver,
         ack_receiver: AcknowledgementReceiver,
+        ack_action_sender: AckActionSender,
+        ack_action_receiver: AckActionReceiver,
     ) -> Self {
         AcknowledgementControllerConnectors {
             real_message_sender,
             input_receiver,
             sent_notifier,
             ack_receiver,
+            ack_action_sender,
+            ack_action_receiver,
         }
     }
 }
@@ -176,67 +186,48 @@ impl<R> AcknowledgementController<R>
 where
     R: 'static + CryptoRng + Rng + Clone + Send,
 {
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         config: Config,
-        rng: R,
-        topology_access: TopologyAccessor,
         ack_key: Arc<AckKey>,
-        ack_recipient: Recipient,
         connectors: AcknowledgementControllerConnectors,
-        reply_key_storage: SentReplyKeys,
+        message_handler: MessageHandler<R>,
         to_be_named_channel: ToBeNamedSender,
     ) -> Self {
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
 
         let action_config =
             action_controller::Config::new(config.ack_wait_addition, config.ack_wait_multiplier);
-        let (action_controller, action_sender) =
-            ActionController::new(action_config, retransmission_tx);
-
-        let message_preparer = MessagePreparer::new(
-            rng,
-            ack_recipient,
-            config.average_packet_delay,
-            config.average_ack_delay,
-        )
-        .with_custom_real_message_packet_size(config.packet_size);
+        let action_controller = ActionController::new(
+            action_config,
+            retransmission_tx,
+            connectors.ack_action_receiver,
+        );
 
         // will listen for any acks coming from the network
         let acknowledgement_listener = AcknowledgementListener::new(
             Arc::clone(&ack_key),
             connectors.ack_receiver,
-            action_sender.clone(),
+            connectors.ack_action_sender.clone(),
         );
 
         // will listen for any new messages from the client
         let input_message_listener = InputMessageListener::new(
-            Arc::clone(&ack_key),
-            ack_recipient,
             connectors.input_receiver,
-            message_preparer.clone(),
-            action_sender.clone(),
-            connectors.real_message_sender.clone(),
-            topology_access.clone(),
-            reply_key_storage,
+            message_handler.clone(),
             to_be_named_channel,
         );
 
         // will listen for any ack timeouts and trigger retransmission
         let retransmission_request_listener = RetransmissionRequestListener::new(
-            Arc::clone(&ack_key),
-            ack_recipient,
-            message_preparer,
-            action_sender.clone(),
-            connectors.real_message_sender,
+            connectors.ack_action_sender.clone(),
+            message_handler,
             retransmission_rx,
-            topology_access,
         );
 
         // will listen for events indicating the packet was sent through the network so that
         // the retransmission timer should be started.
         let sent_notification_listener =
-            SentNotificationListener::new(connectors.sent_notifier, action_sender);
+            SentNotificationListener::new(connectors.sent_notifier, connectors.ack_action_sender);
 
         AcknowledgementController {
             acknowledgement_listener,

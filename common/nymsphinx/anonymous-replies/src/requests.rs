@@ -28,6 +28,14 @@ impl RepliableMessage {
         }
     }
 
+    #[deprecated]
+    pub fn temp_new_additional_surbs(reply_surbs: Vec<ReplySurb>) -> Self {
+        RepliableMessage {
+            sender_tag: [8u8; SENDER_TAG_SIZE],
+            content: RepliableMessageContent::AdditionalSurbs { reply_surbs },
+        }
+    }
+
     pub fn into_bytes(self) -> Vec<u8> {
         let content_tag = self.content.tag();
 

@@ -1,56 +1,36 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::action_controller::{Action, ActionSender};
+use super::action_controller::{AckActionSender, Action};
 use super::PendingAcknowledgement;
 use super::RetransmissionRequestReceiver;
-use crate::client::{
-    real_messages_control::real_traffic_stream::{BatchRealMessageSender, RealMessage},
-    topology_control::TopologyAccessor,
-};
+use crate::client::real_messages_control::message_handler::MessageHandler;
+use crate::client::real_messages_control::real_traffic_stream::RealMessage;
 use futures::StreamExt;
 use log::*;
-use nymsphinx::preparer::MessagePreparer;
-use nymsphinx::{acknowledgements::AckKey, addressing::clients::Recipient};
 use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
 
 // responsible for packet retransmission upon fired timer
-pub(super) struct RetransmissionRequestListener<R>
-where
-    R: CryptoRng + Rng,
-{
-    ack_key: Arc<AckKey>,
-    ack_recipient: Recipient,
-    message_preparer: MessagePreparer<R>,
-    action_sender: ActionSender,
-    real_message_sender: BatchRealMessageSender,
+pub(super) struct RetransmissionRequestListener<R> {
+    action_sender: AckActionSender,
+    message_handler: MessageHandler<R>,
     request_receiver: RetransmissionRequestReceiver,
-    topology_access: TopologyAccessor,
 }
 
 impl<R> RetransmissionRequestListener<R>
 where
     R: CryptoRng + Rng,
 {
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
-        ack_key: Arc<AckKey>,
-        ack_recipient: Recipient,
-        message_preparer: MessagePreparer<R>,
-        action_sender: ActionSender,
-        real_message_sender: BatchRealMessageSender,
+        action_sender: AckActionSender,
+        message_handler: MessageHandler<R>,
         request_receiver: RetransmissionRequestReceiver,
-        topology_access: TopologyAccessor,
     ) -> Self {
         RetransmissionRequestListener {
-            ack_key,
-            ack_recipient,
-            message_preparer,
             action_sender,
-            real_message_sender,
+            message_handler,
             request_receiver,
-            topology_access,
         }
     }
 
@@ -62,29 +42,26 @@ where
                 return;
             }
         };
-        let packet_recipient = &timed_out_ack.recipient;
+        let packet_recipient = timed_out_ack.recipient;
         let chunk_clone = timed_out_ack.message_chunk.clone();
         let frag_id = chunk_clone.fragment_identifier();
 
-        let topology_permit = self.topology_access.get_read_permit().await;
-        let topology_ref = match topology_permit
-            .try_get_valid_topology_ref(&self.ack_recipient, Some(packet_recipient))
-        {
-            Some(topology_ref) => topology_ref,
-            None => {
-                warn!("Could not retransmit the packet - the network topology is invalid");
-                // we NEED to start timer here otherwise we will have this guy permanently stuck in memory
-                self.action_sender
-                    .unbounded_send(Action::new_start_timer(frag_id))
-                    .unwrap();
-                return;
-            }
+        let Some(mut prepared) = self.message_handler.prepare_normal_chunks_for_sending(packet_recipient, vec![chunk_clone], false).await else {
+            warn!("Could not retransmit the packet - the network topology is invalid");
+            // we NEED to start timer here otherwise we will have this guy permanently stuck in memory
+            self.action_sender
+                .unbounded_send(Action::new_start_timer(frag_id))
+                .unwrap();
+            return;
         };
 
-        let prepared_fragment = self
-            .message_preparer
-            .prepare_chunk_for_sending(chunk_clone, topology_ref, &self.ack_key, packet_recipient)
-            .unwrap();
+        // if this invariant is ever broken, we have serious issues somewhere
+        assert_eq!(
+            prepared.len(),
+            1,
+            "somehow our single chunk got transformed into multiple sphinx packets!"
+        );
+        let (prepared_fragment, _) = prepared.pop().unwrap();
 
         // if we have the ONLY strong reference to the ack data, it means it was removed from the
         // pending acks
@@ -97,7 +74,6 @@ where
         // we no longer need the reference - let's drop it so that if somehow `UpdateTimer` action
         // reached the controller before this function terminated, the controller would not panic.
         drop(timed_out_ack);
-
         let new_delay = prepared_fragment.total_delay;
 
         // We know this update will be reflected by the `StartTimer` Action performed when this
@@ -112,12 +88,10 @@ where
             .unwrap();
 
         // send to `OutQueueControl` to eventually send to the mix network
-        self.real_message_sender
-            .unbounded_send(vec![RealMessage::new(
-                prepared_fragment.mix_packet,
-                frag_id,
-            )])
-            .unwrap();
+        self.message_handler.forward_messages(vec![RealMessage::new(
+            prepared_fragment.mix_packet,
+            frag_id,
+        )])
     }
 
     #[cfg(not(target_arch = "wasm32"))]

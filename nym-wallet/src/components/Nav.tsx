@@ -90,6 +90,7 @@ export const Nav = () => {
             <ListItem
               disableGutters
               key={label}
+              data-testid={label}
               onClick={onClick}
               sx={{
                 cursor: 'pointer',

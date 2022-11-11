@@ -19,6 +19,9 @@
     "scripts": {
         "test": "wdio run test/wdio.conf.ts",
         "test-login": "wdio run test/wdio.conf.ts --suite login",
-        "test-general": "wdio run test/wdio.conf.ts --suite general"
+        "test-signup": "wdio run test/wdio.conf.ts --suite signup",
+        "test-general": "wdio run test/wdio.conf.ts --suite general",
+        "test-balance": "wdio run test/wdio.conf.ts --suite balance",
+        "test-delegation": "wdio run test/wdio.conf.ts --suite delegation"
     }
 }

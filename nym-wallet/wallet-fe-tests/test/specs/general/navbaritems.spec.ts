@@ -14,14 +14,6 @@ describe('Nav Items behave correctly', () => {
     it('switch from light to dark mode and back', async () => {
 
         //log in()
-        const test = await Helper.decodeBase(userData.mnemonic);
-        console.log("---------------------------");
-        console.log(test);
-        console.log("---------------------------");
-        console.log("---------------------------");
-
-
-
         await Helper.freshMnemonicLoginQaNetwork()
         // click on different modes
         await Helper.navigateAndClick(Nav.lightMode)

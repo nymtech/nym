@@ -37,7 +37,7 @@ module.exports = {
     // user incorrect data
     incorrectMnemonic: "bottom crime humble able antique rural donkey guess parent potato tongue truly way disagree exile zebra someone else heat giraffe note order sun cradle",
     randomString:"thisrandomstring",
-    password:"iAmThePassword1!",
+    password:"updownUPDOWN~#$2",
     incorrectPassword:"123notvalid",
   };
   

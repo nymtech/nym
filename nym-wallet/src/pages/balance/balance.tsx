@@ -27,7 +27,7 @@ export const BalanceCard = () => {
           )}
           {!userBalance.error && (
             <Typography
-              data-testid="refresh-success"
+              data-testid="nym-balance"
               sx={{
                 color: 'text.primary',
                 textTransform: 'uppercase',

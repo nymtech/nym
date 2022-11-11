@@ -3,7 +3,9 @@ const path = require('path')
 const { spawn, spawnSync } = require('child_process')
 
 //insert path to binary
-const nym_path = '../target/release/nym-wallet'
+const nym_path = '../target/debug/nym-wallet'
+// this one below will run the prod version aka without QA netwo0rk option 
+// const nym_path = '../target/release/nym-wallet'
 
 let tauriDriver: any
 
@@ -67,25 +69,25 @@ exports.config = {
 
   // Reporting tool and settings 
 
-  reporters: [
-      [
-          "allure",
-          {
-              outputDir: "allure-results",
-              disableWebdriverStepsReporting: true,
-              disableWebdriverScreenshotsReporting: true,
-              // useCucumberStepReporter: true,
-              // disableMochaHooks: true,
-          },
-      ],
-  ],
+  // reporters: [
+  //     [
+  //         "allure",
+  //         {
+  //             outputDir: "allure-results",
+  //             disableWebdriverStepsReporting: true,
+  //             disableWebdriverScreenshotsReporting: true,
+  //             // useCucumberStepReporter: true,
+  //             // disableMochaHooks: true,
+  //         },
+  //     ],
+  // ],
 
   // Things to run before/after each test session
 
-  onPrepare: () => {
-  let scriptpath = process.cwd() + "/scripts/killprocess.sh";
-  spawn('bash', [scriptpath]);
-  },
+  // onPrepare: () => {
+  // let scriptpath = process.cwd() + "/scripts/killprocess.sh";
+  // spawn('bash', [scriptpath]);
+  // },
 
 
   beforeSession: () => {

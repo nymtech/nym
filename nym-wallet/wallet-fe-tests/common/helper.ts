@@ -11,20 +11,22 @@ class Helpers {
   freshMnemonicLoginQaNetwork = async () => {
     await deleteScript
     await savedWalletScript
-    await Auth.loginWithMnemonic(userData.mnemonic)
+    // await Auth.loginWithMnemonic(userData.mnemonic)
+    await this.loginMnemonic()
     await Balance.selectQa()
   }
 
   // login with a mnemonic
   loginMnemonic = async () => {
-    await Auth.loginWithMnemonic(userData.mnemonic)
+    var decodedmnemonic =  this.decodeBase(userData.mnemonic)
+    await Auth.loginWithMnemonic(decodedmnemonic)
   }
 
   // decode user data file
-  decodeBase = async (input) => {
-    var m = Buffer.from(input, "base64").toString();
+  decodeBase = (input) => {
+    const m = Buffer.from(input, "base64").toString();
     return m;
-  }
+  } 
 
   // common actions
 

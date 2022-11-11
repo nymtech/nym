@@ -30,14 +30,17 @@ class Auth {
   get backToStep1PasswordCreation(): Promise<WebdriverIO.Element> { return $("[data-testid='backToStep1PasswordCreation']") }
 
   // Create account step 1/3
-  get copyMnemonic(): Promise<WebdriverIO.Element> { return $("[data-testid='copyMnemonic']") } //check
-  get iSavedMnemonic(): Promise<WebdriverIO.Element> { return $("[data-testid='iSavedMnemonic']") } //check
-  get mnemonicPhrase(): Promise<WebdriverIO.Element> { return $("[data-testid='mnemonicPhrase']") }
+  get copyMnemonic(): Promise<WebdriverIO.Element> { return $("[data-testid='copyMnemonic']") }
+  get iSavedMnemonic(): Promise<WebdriverIO.Element> { return $("[data-testid='iSavedMnemonic']") }
+  get mnemonicPhrase(): Promise<WebdriverIO.Element> { return $("mnemonicPhrase") }
+  // get mnemonicPhrase(): Promise<WebdriverIO.Element> { return $("[data-testid='mnemonicPhrase']") }
   get backToWelcomePageFromCreate(): Promise<WebdriverIO.Element> { return $("[data-testid='backToWelcome']") }
 
   // Create account step 2/3
-  get wordIndex(): Promise<WebdriverIO.Element> { return $("[data-testid='wordIndex']") }
-  get mnemonicWordTile(): Promise<WebdriverIO.Element> { return $("[data-testid='mnemonicWordTile']") }
+  get wordIndex(): Promise<WebdriverIO.ElementArray> { return $$("[data-testid='wordIndex']") }
+  get mnemonicWordTile(): Promise<WebdriverIO.ElementArray> { return $$("[data-testid='mnemonicWordTile']") }
+  // get wordIndex(): Promise<WebdriverIO.Element> { return $("[data-testid='wordIndex']") }
+  // get mnemonicWordTile(): Promise<WebdriverIO.Element> { return $("[data-testid='mnemonicWordTile']") }
   get nextToStep3(): Promise<WebdriverIO.Element> { return $("[data-testid='nextToStep3']") }
   get backToStep1(): Promise<WebdriverIO.Element> { return $("[data-testid='backToStep1']") }
 
@@ -65,6 +68,8 @@ class Auth {
     await (await this.signInButton).click()
     await (await this.signInMnemonic).click()
     await (await this.mnemonicInput).waitForDisplayed()
+    await (await this.revealMnemonic).click()
+    console.log("--------------- " + mnemonic)
     await (await this.mnemonicInput).addValue(mnemonic);
     await (await this.signIn).click();
     await (await Balance.nymBalance).waitForDisplayed({ timeout: 4000 });

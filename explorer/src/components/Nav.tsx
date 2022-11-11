@@ -25,7 +25,6 @@ import { DarkLightSwitchDesktop } from './Switch';
 import { NavOptionType } from '../context/nav';
 
 const drawerWidth = 255;
-const bannerHeight = 113;
 
 const openedMixin = (theme: Theme): CSSObject => ({
   width: drawerWidth,
@@ -272,7 +271,6 @@ export const Nav: React.FC = ({ children }) => {
           borderRadius: 0,
         }}
       >
-        <MaintenanceBanner open={openMaintenance} onClick={() => setOpenMaintenance(false)} height={bannerHeight} />
         <Toolbar
           disableGutters
           sx={{
@@ -337,7 +335,6 @@ export const Nav: React.FC = ({ children }) => {
           style: {
             background: theme.palette.nym.networkExplorer.nav.background,
             borderRadius: 0,
-            top: openMaintenance ? bannerHeight : 0,
           },
         }}
       >
@@ -376,8 +373,9 @@ export const Nav: React.FC = ({ children }) => {
           ))}
         </List>
       </Drawer>
-      <Box sx={{ width: '100%', py: 5, px: 6, mt: 7 }}>
-        {children}
+      <Box sx={{ width: '100%' }}>
+        <MaintenanceBanner open={openMaintenance} onClick={() => setOpenMaintenance(false)} sx={{ mt: 8 }} />
+        <Box sx={{ width: '100%', py: 5, px: 6 }}>{children}</Box>
         <Footer />
       </Box>
     </Box>

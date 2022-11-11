@@ -1,23 +1,24 @@
 import { Box, Collapse, Alert, IconButton, Typography, Divider } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
+import { SxProps } from '@mui/system';
 
 export interface BannerProps {
   open: boolean;
   onClick: () => void;
-  height?: number;
+  sx?: SxProps;
 }
 
 export const MaintenanceBanner = (props: BannerProps) => {
-  const { open, onClick, height } = props;
+  const { open, onClick, sx } = props;
 
   return (
-    <Box sx={{ width: '100%' }} id="maintenance-banner">
+    <Box sx={{ width: '100%', ...sx }}>
       <Collapse in={open}>
         <Alert
           id="maintenance-banner"
           action={
-            <IconButton aria-label="close" color="inherit" size="small" onClick={onClick}>
-              <CloseIcon fontSize="inherit" />
+            <IconButton aria-label="close" color="inherit" size="small" onClick={onClick} sx={{ paddingTop: 1 }}>
+              <CloseIcon fontSize="inherit" cursor="pointer" />
             </IconButton>
           }
           severity="success"
@@ -27,8 +28,7 @@ export const MaintenanceBanner = (props: BannerProps) => {
             backgroundColor: (t) => t.palette.nym.highlight,
             borderRadius: 0,
             color: (t) => t.palette.nym.networkExplorer.nav.text,
-            height: height || 'auto',
-            alignItems: 'center',
+            alignItems: 'flex-start',
           }}
         >
           <Box display="flex">

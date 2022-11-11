@@ -53,9 +53,9 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({ children }:
       <AppBar
         sx={{
           background: theme.palette.nym.networkExplorer.topNav.appBar,
+          borderRadius: 0,
         }}
       >
-        <MaintenanceBanner open={openMaintenance} onClick={() => setOpenMaintenance(false)} />
         <Toolbar
           disableGutters
           sx={{
@@ -155,9 +155,9 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({ children }:
           </List>
         </Box>
       </Drawer>
-
-      <Box sx={{ width: '100%', p: 4, mt: 7 }}>
-        {children}
+      <Box>
+        <MaintenanceBanner open={openMaintenance} onClick={() => setOpenMaintenance(false)} sx={{ mt: 7 }} />
+        <Box sx={{ width: '100%', p: 4 }}>{children}</Box>
         <Footer />
       </Box>
     </Box>

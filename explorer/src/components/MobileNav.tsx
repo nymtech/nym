@@ -33,6 +33,7 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({ children }:
   const theme = useTheme();
   const { navState, updateNavState } = useMainContext();
   const [drawerOpen, setDrawerOpen] = React.useState(false);
+  // Set maintenance banner to false by default to don't display it
   const [openMaintenance, setOpenMaintenance] = React.useState(true);
 
   const toggleDrawer = () => {
@@ -53,6 +54,7 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({ children }:
       <AppBar
         sx={{
           background: theme.palette.nym.networkExplorer.topNav.appBar,
+          borderRadius: 0,
         }}
       >
         <MaintenanceBanner open={openMaintenance} onClick={() => setOpenMaintenance(false)} />

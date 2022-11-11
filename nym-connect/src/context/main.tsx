@@ -110,6 +110,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       const spFromStorage = await forage.getItem({ key: 'nym-connect-sp' })();
       if (spFromStorage) {
         setRawServiceProvider(spFromStorage);
+        setServiceProvider(spFromStorage);
       }
     } catch (e) {
       console.warn(e);

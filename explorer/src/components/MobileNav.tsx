@@ -17,6 +17,7 @@ import {
 } from '@mui/material';
 import { Menu } from '@mui/icons-material';
 import { NymLogo } from '@nymproject/react/logo/NymLogo';
+import { MaintenanceBanner } from '@nymproject/react/banners/MaintenanceBanner';
 import { useMainContext } from '../context/main';
 import { MobileDrawerClose } from '../icons/MobileDrawerClose';
 import { Footer } from './Footer';
@@ -32,6 +33,8 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({ children }:
   const theme = useTheme();
   const { navState, updateNavState } = useMainContext();
   const [drawerOpen, setDrawerOpen] = React.useState(false);
+  // Set maintenance banner to false by default to don't display it
+  const [openMaintenance, setOpenMaintenance] = React.useState(true);
 
   const toggleDrawer = () => {
     setDrawerOpen(!drawerOpen);
@@ -51,8 +54,10 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({ children }:
       <AppBar
         sx={{
           background: theme.palette.nym.networkExplorer.topNav.appBar,
+          borderRadius: 0,
         }}
       >
+        <MaintenanceBanner open={openMaintenance} onClick={() => setOpenMaintenance(false)} />
         <Toolbar
           disableGutters
           sx={{

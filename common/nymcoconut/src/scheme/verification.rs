@@ -221,10 +221,12 @@ pub fn verify_credential(
     if public_attributes.len() + theta.pi_v.private_attributes_len()
         > verification_key.beta_g2.len()
     {
+        println!("Length check");
         return false;
     }
 
     if !theta.verify_proof(params, verification_key) {
+        println!("Proof check");
         return false;
     }
 
@@ -245,12 +247,18 @@ pub fn verify_credential(
         theta.blinded_message + signed_public_attributes
     };
 
-    check_bilinear_pairing(
+    let ret = check_bilinear_pairing(
         &theta.credential.0.to_affine(),
         &G2Prepared::from(kappa.to_affine()),
         &(theta.credential.1).to_affine(),
         params.prepared_miller_g2(),
-    ) && !bool::from(theta.credential.0.is_identity())
+    );
+    if !ret {
+        println!("Bilinear check");
+    } else {
+        println!("Identity check");
+    }
+    ret && !bool::from(theta.credential.0.is_identity())
 }
 
 // Used in tests only

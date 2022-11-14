@@ -3,59 +3,32 @@ import Balance from '../../pageobjects/balanceScreen'
 const textConstants = require("../../../common/text-constants");
 const userData = require("../../../common/user-data.json");
 const deleteScript = require("../../../scripts/deletesavedwallet")
+const walletExists = require("../../../scripts/savedwalletexists")
 const Helper = require('../../../common/helper');
+import { newMnemonicLogin } from '../helpers/helper.spec'
 
+// TO-DO figure out how to not repeat steps but also start a fresh test on each run 
 
-describe('Create a new account and verify it exists', () => {
+describe('Create a new account negative scenarios', () => {
 
-    it('generate new mnemonic and verify mnemonic words', async () => {
+    it('generate new mnemonic and verify mnemonic words', () => {
 
-        // delete any existing saved-wallet.json
-        deleteScript
-        // click through create account flow
-        await Helper.navigateAndClick(Auth.createAccount)
-        // await Helper.elementVisible(Auth.mnemonicPhrase)
-        // save mnemonic phrase
+        newMnemonicLogin()
 
-        let mnemonic = await browser.execute(() => {
-           return document.getElementById("mnemonicPhrase").innerHTML;
-        });
-    
-
-        let arrayMnemonic = mnemonic.split(" ")
-
-        await Helper.navigateAndClick(Auth.copyMnemonic)
-        await Helper.navigateAndClick(Auth.iSavedMnemonic)
-        // verify the mnemonic words in the correct order
-        let mnemonicWordTiles = await (await Auth.mnemonicWordTile)
-        let wordTileIndex = await (await Auth.wordIndex)
-
-
-        const wordsArray: any[] = []
-
-        for (const word of mnemonicWordTiles) {
-            const wordText = await word.getText()
-            const index = arrayMnemonic.indexOf(wordText)
-            // browser.pause(1500)
-            wordsArray.push({ word, index })
-
-            // console.log("!----------------------------")
-            // wordsArray.forEach((x, y) => {console.log(x),
-            // console.log("22222222222222" + y)})
-            // console.log("!----------------------------")
-        }
-
-        for (const index of wordTileIndex) {
-            const indexValue = await index.getText()
-            const match = wordsArray.find((word) => +word.index === +indexValue - 1)
-            if (match) {
-                await match.word.click()
-            }
-        }
-        // ensure that once the task above is complete, the 'next' button is enabled
-        const nextButton = await Auth.nextToStep3
-        const isNextDisabled = await nextButton.getAttribute('disabled')
-        expect(isNextDisabled).toBe(null)
+        // // delete an existing saved-wallet.json
+        // deleteScript
+        // // click through create account flow
+        // await Helper.navigateAndClick(Auth.createAccount)
+        // // await Helper.elementVisible(Auth.mnemonicPhrase)
+        // // save and verify mnemonic
+        // const mnemonic = await browser.execute(() => {
+        //     return document.getElementById("mnemonicPhrase").innerHTML;
+        // });
+        // await Helper.mnemonicWordTileIndex(mnemonic)
+        // // ensure that once the task above is complete, the 'next' button is enabled
+        // const nextButton = await Auth.nextToStep3
+        // const isNextDisabled = await nextButton.getAttribute('disabled')
+        // expect(isNextDisabled).toBe(null)
 
     })
 
@@ -82,13 +55,21 @@ describe('Create a new account and verify it exists', () => {
         const isNextDisabled = await nextButton.getAttribute('disabled')
         expect(isNextDisabled).toBe("true")
 
+        await browser.reloadSession()
+    })
+})
+
+
+describe.skip('Create a new account and verify login', () => {
+
+    it('generate new mnemonic and verify mnemonic words', async () => {
+        await newMnemonicLogin()
     })
 
     it('set up valid password for new account', async () => {
 
         // enter a valid password in both fields
         await Helper.navigateAndClick(Auth.password)
-        await 
         await Helper.addValueToTextField(Auth.password, textConstants.password)
         await browser.pause(3000)
         await Helper.navigateAndClick(Auth.confirmPassword)
@@ -107,14 +88,14 @@ describe('Create a new account and verify it exists', () => {
         await Helper.navigateAndClick(Auth.nextStorePassword)
         await browser.pause(3000)
         await Helper.navigateAndClick(Auth.enterPassword)
-        await Helper.addValueToTextField(Auth.enterPassword, "123notvalid" + textConstants.password)
+        await Helper.addValueToTextField(Auth.enterPassword, textConstants.password)
         await browser.pause(3000)
         await Helper.navigateAndClick(Auth.signInPasswordButton)
-        // TO-DO for some reason this is failing due to failed to decrypt the wallet etc error
         await browser.pause(3000)
         await Helper.elementVisible(Balance.balance)
         //new accounts will always default to mainnet, so 0 balance
         await Helper.verifyStrictText(Balance.nymBalance, textConstants.noNym)
 
     })
+
 })

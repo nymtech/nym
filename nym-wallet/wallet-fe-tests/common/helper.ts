@@ -18,18 +18,57 @@ class Helpers {
 
   // login with a mnemonic
   loginMnemonic = async () => {
-    var decodedmnemonic =  this.decodeBase(userData.mnemonic)
+    var decodedmnemonic = this.decodeBase(userData.mnemonic)
     await Auth.loginWithMnemonic(decodedmnemonic)
+  }
+
+  // click the mnemonic words by index position
+
+  // TO-DO find the best approach
+  mnemonicWordTileIndex = async (browser: WebdriverIO.Browser) => {
+
+    let mnemonic = await browser.execute(() => {
+      return document.getElementById("mnemonicPhrase").innerHTML;
+    });
+
+    let arrayMnemonic = mnemonic.split(" ")
+
+    await this.navigateAndClick(Auth.copyMnemonic)
+    await this.navigateAndClick(Auth.iSavedMnemonic)
+    // verify the mnemonic words in the correct order
+    let mnemonicWordTiles = await (await Auth.mnemonicWordTile)
+    let wordTileIndex = await (await Auth.wordIndex)
+
+    const wordsArray: any[] = []
+
+    for (const word of mnemonicWordTiles) {
+      const wordText = await word.getText()
+      const index = arrayMnemonic.indexOf(wordText)
+      wordsArray.push({ word, index })
+    }
+    for (const index of wordTileIndex) {
+      const indexValue = await index.getText()
+      const match = wordsArray.find((word) => +word.index === +indexValue - 1)
+      if (match) {
+        await match.word.click()
+      }
+    }
+
+    const nextButton = await Auth.nextToStep3
+    const isNextDisabled = await nextButton.getAttribute('disabled')
+    expect(isNextDisabled).toBe(null)
+    await this.navigateAndClick(Auth.nextToStep3)
+
   }
 
   // decode user data file
   decodeBase = (input) => {
     const m = Buffer.from(input, "base64").toString();
     return m;
-  } 
+  }
+
 
   // common actions
-
   navigateAndClick = async (element) => {
     await element.waitForClickable({ timeout: 6000 })
     await element.click();
@@ -58,10 +97,6 @@ class Helpers {
     expect(error).toContain(expectedText)
   }
 
-  // wait = async () => {
-  //   await browser.pause(9000)
-
-  // }
 
   // token calculations 
   currentBalance = async (value) => {

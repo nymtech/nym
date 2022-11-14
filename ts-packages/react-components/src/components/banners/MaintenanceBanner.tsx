@@ -34,14 +34,14 @@ export const MaintenanceBanner = (props: BannerProps) => {
         >
           <Box display="flex">
             <Typography variant="body1" fontWeight={700}>
-              SCHEDULED DISRUPTION
+              SCHEDULED MAINTENANCE
             </Typography>
             <Divider orientation="vertical" flexItem sx={{ mx: '16px', borderRightWidth: 2 }} />
             <Typography variant="body2">
-              On Tuesday 15th of November, 10AM GMT the migration to the new mixnet contract begins. This means all Nym
-              apps and{' '}
+              On Tuesday 15th of November 10AM GMT, the migration to the new mixnet contract begins. This means all Nym
+              apps and services{' '}
               <Box sx={{ fontWeight: 700 }} display="inline">
-                services will be temporarily on hold while the upgrade takes place.
+                will be temporarily on hold while the upgrade takes place.
               </Box>{' '}
               Bonding/unbonding, delegating/delegating{' '}
               <Box sx={{ fontWeight: 700 }} display="inline">

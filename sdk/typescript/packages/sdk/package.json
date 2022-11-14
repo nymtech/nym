@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/sdk",
-  "version": "1.0.0",
+  "version": "1.1.1",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",
   "main": "dist/index.js",
@@ -27,9 +27,10 @@
     "build:dependencies:nym-client-wasm": "../nym-client-wasm/scripts/build.sh",
     "prebuild": "yarn build:dependencies",
     "build": "tsc",
-    "postbuild": "cp ../nym-client-wasm/nym_client_wasm* dist/mixnet/wasm",
+    "postbuild": "cp ../nym-client-wasm/nym_client_wasm* dist/mixnet/wasm && yarn copy:readme",
     "build:only-this": "tsc",
-    "postbuild:only-this": "cp ../nym-client-wasm/nym_client_wasm* dist/mixnet/wasm"
+    "postbuild:only-this": "cp ../nym-client-wasm/nym_client_wasm* dist/mixnet/wasm",
+    "copy:readme": "cp README.md dist"
   },
   "dependencies": {
     "comlink": "^4.3.1"

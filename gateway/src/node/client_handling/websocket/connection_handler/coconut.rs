@@ -5,7 +5,7 @@ use std::time::{Duration, SystemTime};
 
 use log::*;
 
-use coconut_interface::{Credential, VerificationKey};
+use coconut_interface::{Base58, Credential, VerificationKey};
 use validator_client::{
     nymd::{
         cosmwasm_client::logs::find_attribute,
@@ -40,6 +40,7 @@ impl CoconutVerifier {
                 needed: 1,
             });
         }
+        println!("Using VK {}", aggregated_verification_key.to_bs58());
         Ok(CoconutVerifier {
             api_clients,
             nymd_client,

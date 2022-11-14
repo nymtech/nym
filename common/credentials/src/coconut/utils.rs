@@ -43,6 +43,7 @@ use crate::error::Error;
 pub async fn obtain_aggregate_verification_key(
     validators: &[Url],
 ) -> Result<VerificationKey, Error> {
+    println!("Aggregating from {:?}", validators);
     if validators.is_empty() {
         return Err(Error::NoValidatorsAvailable);
     }
@@ -54,6 +55,7 @@ pub async fn obtain_aggregate_verification_key(
     for (id, validator_url) in validators.iter().enumerate() {
         client.change_validator_api(validator_url.clone());
         let response = client.get_coconut_verification_key().await?;
+        println!("Validator {} with id {}", validator_url, id + 1);
         indices.push((id + 1) as u64);
         shares.push(response.key);
     }

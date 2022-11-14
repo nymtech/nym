@@ -8,6 +8,7 @@ use crate::nymd::{Fee, NymdClient, SigningCosmWasmClient};
 use async_trait::async_trait;
 use coconut_dkg_common::msg::ExecuteMsg as DkgExecuteMsg;
 use coconut_dkg_common::types::EncodedBTEPublicKeyWithProof;
+use coconut_dkg_common::verification_key::VerificationKeyShare;
 use contracts_common::dealings::ContractSafeBytes;
 
 #[async_trait]
@@ -21,6 +22,12 @@ pub trait DkgSigningClient {
     async fn submit_dealing_bytes(
         &self,
         commitment: ContractSafeBytes,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError>;
+
+    async fn submit_verification_key_share(
+        &self,
+        share: VerificationKeyShare,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>;
 }
@@ -66,6 +73,25 @@ where
                 &req,
                 fee.unwrap_or_default(),
                 "dealing commitment",
+                vec![],
+            )
+            .await
+    }
+
+    async fn submit_verification_key_share(
+        &self,
+        share: VerificationKeyShare,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        let req = DkgExecuteMsg::CommitVerificationKeyShare { share };
+
+        self.client
+            .execute(
+                self.address(),
+                self.coconut_dkg_contract_address(),
+                &req,
+                fee.unwrap_or_default(),
+                "verification key share commitment",
                 vec![],
             )
             .await

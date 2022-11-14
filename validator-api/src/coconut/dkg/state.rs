@@ -8,7 +8,7 @@ use coconut_dkg_common::dealer::DealerDetails;
 use coconut_dkg_common::types::EpochState;
 use cosmwasm_std::Addr;
 use dkg::bte::{keys::KeyPair as DkgKeyPair, PublicKey, PublicKeyWithProof};
-use dkg::{NodeIndex, Threshold};
+use dkg::{NodeIndex, RecoveredVerificationKeys, Threshold};
 use std::collections::BTreeMap;
 
 // note: each dealer is also a receiver which simplifies some logic significantly
@@ -50,13 +50,13 @@ pub(crate) trait ConsistentState {
                 self.node_index_value()?;
             }
             EpochState::VerificationKeySubmission => {
-                self.node_index_value()?;
                 self.receiver_index_value()?;
                 self.threshold()?;
             }
-            EpochState::InProgress => {
+            EpochState::VerificationKeyValidation => {
                 self.coconut_keypair_is_some().await?;
             }
+            EpochState::InProgress => {}
         }
         Ok(())
     }
@@ -69,6 +69,7 @@ pub(crate) struct State {
     dealers: BTreeMap<Addr, Result<DkgParticipant, ComplaintReason>>,
     receiver_index: Option<usize>,
     threshold: Option<Threshold>,
+    recovered_vks: Vec<RecoveredVerificationKeys>,
 }
 
 #[async_trait]
@@ -120,6 +121,7 @@ impl State {
             dealers: BTreeMap::new(),
             receiver_index: None,
             threshold: None,
+            recovered_vks: vec![],
         }
     }
 
@@ -163,6 +165,14 @@ impl State {
                 })
             })
             .collect()
+    }
+
+    pub fn recovered_vks(&self) -> &Vec<RecoveredVerificationKeys> {
+        &self.recovered_vks
+    }
+
+    pub fn set_recovered_vks(&mut self, recovered_vks: Vec<RecoveredVerificationKeys>) {
+        self.recovered_vks = recovered_vks;
     }
 
     pub async fn set_coconut_keypair(&mut self, coconut_keypair: coconut_interface::KeyPair) {

@@ -214,21 +214,24 @@ pub fn check_bilinear_pairing(p: &G1Affine, q: &G2Prepared, r: &G1Affine, s: &G2
 
 pub fn check_vk_pairing(
     params: &Parameters,
-    dkg_alpha: G2Projective,
-    dkg_beta: &[G2Projective],
+    dkg_values: &[G2Projective],
     vk: &VerificationKey,
 ) -> bool {
-    if dkg_beta.len() != vk.beta_g1.len() || dkg_beta.len() != vk.beta_g2.len() {
+    let values_len = dkg_values.len();
+    if values_len == 0 || values_len - 1 != vk.beta_g1.len() || values_len - 1 != vk.beta_g2.len() {
+        println!("First");
         return false;
     }
-    if vk.alpha != dkg_alpha {
+    if vk.alpha != *dkg_values.last().unwrap() {
+        println!("Second");
         return false;
     }
-    if dkg_beta
+    if dkg_values
         .iter()
         .zip(vk.beta_g2.iter())
         .any(|(dkg_beta, vk_beta)| dkg_beta != vk_beta)
     {
+        println!("Third");
         return false;
     }
     if vk.beta_g1.iter().zip(vk.beta_g2.iter()).any(|(g1, g2)| {
@@ -239,6 +242,7 @@ pub fn check_vk_pairing(
             params.prepared_miller_g2(),
         )
     }) {
+        println!("Fourth");
         return false;
     }
 

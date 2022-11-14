@@ -30,6 +30,8 @@ use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsRe
 #[cfg(feature = "coconut")]
 use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
 #[cfg(feature = "coconut")]
+use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
+#[cfg(feature = "coconut")]
 use contracts_common::dealings::ContractSafeBytes;
 #[cfg(feature = "coconut")]
 use multisig_contract_common::msg::ProposalResponse;
@@ -332,6 +334,17 @@ where
         Ok(self.0.read().await.get_all_nymd_epoch_dealings(idx).await?)
     }
 
+    async fn get_verification_key_shares(
+        &self,
+    ) -> crate::coconut::error::Result<Vec<ContractVKShare>> {
+        Ok(self
+            .0
+            .read()
+            .await
+            .get_all_nymd_verification_key_shares()
+            .await?)
+    }
+
     async fn vote_proposal(
         &self,
         proposal_id: u64,
@@ -370,6 +383,19 @@ where
             .await
             .nymd
             .submit_dealing_bytes(dealing_bytes, None)
+            .await?)
+    }
+
+    async fn submit_verification_key_share(
+        &self,
+        share: VerificationKeyShare,
+    ) -> crate::coconut::error::Result<ExecuteResult> {
+        Ok(self
+            .0
+            .write()
+            .await
+            .nymd
+            .submit_verification_key_share(share, None)
             .await?)
     }
 }

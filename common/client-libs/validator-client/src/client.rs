@@ -4,6 +4,7 @@
 use crate::{validator_api, ValidatorClientError};
 use coconut_dkg_common::dealer::ContractDealing;
 use coconut_dkg_common::types::DealerDetails;
+use coconut_dkg_common::verification_key::ContractVKShare;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::MixId;
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef};
@@ -46,6 +47,7 @@ pub struct Config {
     mixnode_delegations_page_limit: Option<u32>,
     rewarded_set_page_limit: Option<u32>,
     dealers_page_limit: Option<u32>,
+    verification_key_page_limit: Option<u32>,
 }
 
 #[cfg(feature = "nymd-client")]
@@ -76,6 +78,7 @@ impl Config {
             mixnode_delegations_page_limit: None,
             rewarded_set_page_limit: None,
             dealers_page_limit: None,
+            verification_key_page_limit: None,
         })
     }
 
@@ -124,6 +127,7 @@ pub struct Client<C> {
     mixnode_delegations_page_limit: Option<u32>,
     rewarded_set_page_limit: Option<u32>,
     dealers_page_limit: Option<u32>,
+    verification_key_page_limit: Option<u32>,
 
     // ideally they would have been read-only, but unfortunately rust doesn't have such features
     pub validator_api: validator_api::Client,
@@ -151,6 +155,7 @@ impl Client<SigningNymdClient> {
             mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,
             rewarded_set_page_limit: config.rewarded_set_page_limit,
             dealers_page_limit: config.dealers_page_limit,
+            verification_key_page_limit: config.verification_key_page_limit,
             validator_api: validator_api_client,
             nymd: nymd_client,
         })
@@ -185,6 +190,7 @@ impl Client<QueryNymdClient> {
             mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,
             rewarded_set_page_limit: config.rewarded_set_page_limit,
             dealers_page_limit: config.dealers_page_limit,
+            verification_key_page_limit: config.verification_key_page_limit,
             validator_api: validator_api_client,
             nymd: nymd_client,
         })
@@ -601,6 +607,31 @@ impl<C> Client<C> {
         }
 
         Ok(dealings)
+    }
+
+    pub async fn get_all_nymd_verification_key_shares(
+        &self,
+    ) -> Result<Vec<ContractVKShare>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        let mut shares = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_vk_shares_paged(start_after.take(), self.verification_key_page_limit)
+                .await?;
+            shares.append(&mut paged_response.shares);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res.into_string())
+            } else {
+                break;
+            }
+        }
+
+        Ok(shares)
     }
 }
 

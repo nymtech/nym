@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::types::{ContractSafeBytes, EncodedBTEPublicKeyWithProof};
+use crate::verification_key::VerificationKeyShare;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -21,6 +22,10 @@ pub enum ExecuteMsg {
 
     CommitDealing {
         dealing_bytes: ContractSafeBytes,
+    },
+
+    CommitVerificationKeyShare {
+        share: VerificationKeyShare,
     },
 
     AdvanceEpochState {},
@@ -50,6 +55,10 @@ pub enum QueryMsg {
     GetDepositAmount {},
     GetDealing {
         idx: u64,
+        limit: Option<u32>,
+        start_after: Option<String>,
+    },
+    GetVerificationKeys {
         limit: Option<u32>,
         start_after: Option<String>,
     },

@@ -3,6 +3,7 @@
 
 use crate::*;
 use itertools::izip;
+use std::fmt::Debug;
 
 pub fn theta_from_keys_and_attributes(
     params: &Parameters,
@@ -87,8 +88,24 @@ pub fn theta_from_keys_and_attributes(
     Ok(theta)
 }
 
+pub fn transpose_matrix<T: Debug>(matrix: Vec<Vec<T>>) -> Vec<Vec<T>> {
+    let len = matrix[0].len();
+    let mut iters: Vec<_> = matrix.into_iter().map(|d| d.into_iter()).collect();
+    (0..len)
+        .map(|_| {
+            iters
+                .iter_mut()
+                .map(|it| it.next().unwrap())
+                .collect::<Vec<_>>()
+        })
+        .collect::<Vec<_>>()
+        .try_into()
+        .unwrap()
+}
+
 #[cfg(test)]
 pub mod tests {
+    use super::*;
     use crate::{KeyPair, Parameters, SecretKey};
     use bls12_381::Scalar;
     use dkg::{bte::decrypt_share, combine_shares, Dealing, NodeIndex};
@@ -147,20 +164,5 @@ pub mod tests {
                 KeyPair::from_keys(sk, vk)
             })
             .collect()
-    }
-
-    pub(crate) fn transpose_matrix<T: Debug>(matrix: Vec<Vec<T>>) -> Vec<Vec<T>> {
-        let len = matrix[0].len();
-        let mut iters: Vec<_> = matrix.into_iter().map(|d| d.into_iter()).collect();
-        (0..len)
-            .map(|_| {
-                iters
-                    .iter_mut()
-                    .map(|it| it.next().unwrap())
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>()
-            .try_into()
-            .unwrap()
     }
 }

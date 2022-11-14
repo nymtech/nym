@@ -235,11 +235,11 @@ impl<C> ValidatorCacheRefresher<C> {
         let (rewarded_set, active_set) =
             Self::collect_rewarded_and_active_set_details(&mixnodes, &rewarded_set);
 
-        info!(
-            "Updating validator cache. There are {} mixnodes and {} gateways",
-            mixnodes.len(),
-            gateways.len(),
-        );
+        // info!(
+        //     "Updating validator cache. There are {} mixnodes and {} gateways",
+        //     mixnodes.len(),
+        //     gateways.len(),
+        // );
 
         self.cache
             .update_cache(

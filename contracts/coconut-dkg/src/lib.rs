@@ -9,6 +9,7 @@ use crate::dealings::queries::query_dealings_paged;
 use crate::epoch_state::queries::query_current_epoch_state;
 use crate::error::ContractError;
 use crate::state::{State, ADMIN, STATE};
+use crate::verification_key_shares::queries::query_vk_shares_paged;
 use coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use coconut_dkg_common::types::{EpochState, MinimumDepositResponse};
 use cosmwasm_std::{
@@ -23,6 +24,7 @@ mod dealings;
 mod epoch_state;
 mod error;
 mod state;
+mod verification_key_shares;
 
 /// Instantiate the contract.
 ///
@@ -70,6 +72,11 @@ pub fn execute(
         }
         ExecuteMsg::CommitDealing { dealing_bytes } => {
             dealings::transactions::try_commit_dealings(deps, info, dealing_bytes)
+        }
+        ExecuteMsg::CommitVerificationKeyShare { share } => {
+            verification_key_shares::transactions::try_commit_verification_key_share(
+                deps, info, share,
+            )
         }
         ExecuteMsg::DebugUnsafeResetAll { init_msg } => {
             reset_contract_state(deps, env, info, init_msg)
@@ -140,6 +147,9 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
             limit,
             start_after,
         } => to_binary(&query_dealings_paged(deps, idx, start_after, limit)?)?,
+        QueryMsg::GetVerificationKeys { limit, start_after } => {
+            to_binary(&query_vk_shares_paged(deps, start_after, limit)?)?
+        }
     };
 
     Ok(response)

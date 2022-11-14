@@ -41,6 +41,7 @@ use crate::ValidatorApiStorage;
 use async_trait::async_trait;
 use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
 use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
+use coconut_dkg_common::verification_key::VerificationKeyShare;
 use contracts_common::dealings::ContractSafeBytes;
 use crypto::asymmetric::{encryption, identity};
 use rand_07::rngs::OsRng;
@@ -137,6 +138,10 @@ impl super::client::Client for DummyClient {
         todo!()
     }
 
+    async fn get_verification_key_shares(&self) -> Result<Vec<VerificationKeyShare>> {
+        todo!()
+    }
+
     async fn vote_proposal(
         &self,
         proposal_id: u64,
@@ -161,6 +166,13 @@ impl super::client::Client for DummyClient {
     }
 
     async fn submit_dealing(&self, dealing_bytes: ContractSafeBytes) -> Result<ExecuteResult> {
+        todo!()
+    }
+
+    async fn submit_verification_key_share(
+        &self,
+        share: VerificationKeyShare,
+    ) -> Result<ExecuteResult> {
         todo!()
     }
 }

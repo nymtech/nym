@@ -9,6 +9,7 @@ use coconut_dkg_common::dealer::{
 };
 use coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
 use coconut_dkg_common::types::{EpochState, MinimumDepositResponse};
+use coconut_dkg_common::verification_key::PagedVKSharesResponse;
 use cosmrs::AccountId;
 
 #[async_trait]
@@ -36,6 +37,11 @@ pub trait DkgQueryClient {
         start_after: Option<String>,
         page_limit: Option<u32>,
     ) -> Result<PagedDealingsResponse, NymdError>;
+    async fn get_vk_shares_paged(
+        &self,
+        start_after: Option<String>,
+        page_limit: Option<u32>,
+    ) -> Result<PagedVKSharesResponse, NymdError>;
 }
 
 #[async_trait]
@@ -104,6 +110,20 @@ where
     ) -> Result<PagedDealingsResponse, NymdError> {
         let request = DkgQueryMsg::GetDealing {
             idx: idx as u64,
+            limit: page_limit,
+            start_after,
+        };
+        self.client
+            .query_contract_smart(self.coconut_dkg_contract_address(), &request)
+            .await
+    }
+
+    async fn get_vk_shares_paged(
+        &self,
+        start_after: Option<String>,
+        page_limit: Option<u32>,
+    ) -> Result<PagedVKSharesResponse, NymdError> {
+        let request = DkgQueryMsg::GetVerificationKeys {
             limit: page_limit,
             start_after,
         };

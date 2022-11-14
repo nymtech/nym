@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use dkg::error::DkgError;
+use nymcoconut::CoconutError;
 
 pub(crate) enum ComplaintReason {
     MalformedBTEPublicKey,
     MissingDealing,
     MalformedDealing(DkgError),
     DealingVerificationError(DkgError),
+    MalformedVerificationKey(CoconutError),
+    BadVerificationKey,
 }
 
 // pub(crate) async fn complaint_period(

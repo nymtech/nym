@@ -1,6 +1,6 @@
 {
   "name": "@nymproject/sdk",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",
   "main": "dist/index.js",
@@ -10,7 +10,8 @@
     "dist/nym_client_wasm.d.ts",
     "dist/nym_client_wasm.js",
     "dist/nym_client_wasm_bg.wasm",
-    "dist/nym_client_wasm_bg.wasm.d.ts"
+    "dist/nym_client_wasm_bg.wasm.d.ts",
+    "dist/**/*"
   ],
   "exports": {
     ".": "./dist/index.js",

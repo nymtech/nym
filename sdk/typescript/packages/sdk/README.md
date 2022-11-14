@@ -13,9 +13,30 @@ npm install @nymproject/sdk
 Open a connection to a Gateway on the Nym Mixnet:
 
 ```ts
-import { client } from '@nymproject/sdk';
+import { createNymMixnetClient } from '@nymproject/sdk';
 
-const session = await client.connect('<<GATEWAY>>');
+const main = async () => {
+  const nym = await createNymMixnetClient();
+
+  const validatorApiUrl = 'https://validator.nymtech.net/api';
+
+  // show message payload content when received 
+  nym.events.subscribeToTextMessageReceivedEvent((e) => {
+    console.log('Got a message: ', e.args.payload);
+  });
+
+  // start the client and connect to a gateway
+  await nym.client.start({
+    clientId: 'My awesome client',
+    validatorApiUrl,
+  });
+
+  // send a message to yourself
+  const payload = 'Hello mixnet';
+  const recipient = nym.client.selfAddress();
+  nym.client.sendMessage({ payload, recipient });
+  
+};
 ```
 
 This will start the WASM client on a worker thread, so that your code can stay nice and snappy.
@@ -23,7 +44,9 @@ This will start the WASM client on a worker thread, so that your code can stay n
 Send a message to another user (you will need to know their address at a Gateway):
 
 ```ts
-const result = await client.send('<<USER ADDRESS>>', 'Hello Timmy!');
+  const payload = 'Hello mixnet';
+  const recipient = '<< RECIPIENT ADDRESS GOES HERE >>';
+  await nym.client.sendMessage({ payload, recipient });
 ```
 
 ### Packaging

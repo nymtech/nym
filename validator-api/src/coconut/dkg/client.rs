@@ -9,6 +9,7 @@ use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare
 use contracts_common::dealings::ContractSafeBytes;
 use multisig_contract_common::msg::ProposalResponse;
 use validator_client::nymd::cosmwasm_client::logs::{find_attribute, NODE_INDEX};
+use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
 use validator_client::nymd::AccountId;
 
 pub(crate) struct DkgClient {
@@ -107,21 +108,21 @@ impl DkgClient {
     pub(crate) async fn submit_verification_key_share(
         &self,
         share: VerificationKeyShare,
-    ) -> Result<(), CoconutError> {
+    ) -> Result<ExecuteResult, CoconutError> {
         let mut ret = self
             .inner
             .submit_verification_key_share(share.clone())
             .await;
         for _ in 0..Self::RETRIES {
-            if ret.is_ok() {
-                break;
+            if let Ok(res) = ret {
+                return Ok(res);
             }
             ret = self
                 .inner
                 .submit_verification_key_share(share.clone())
                 .await;
         }
-        Ok(())
+        Ok(ret?)
     }
 
     pub(crate) async fn vote_verification_key_share(
@@ -130,5 +131,12 @@ impl DkgClient {
         vote_yes: bool,
     ) -> Result<(), CoconutError> {
         self.inner.vote_proposal(proposal_id, vote_yes, None).await
+    }
+
+    pub(crate) async fn execute_verification_key_share(
+        &self,
+        proposal_id: u64,
+    ) -> Result<(), CoconutError> {
+        self.inner.execute_proposal(proposal_id).await
     }
 }

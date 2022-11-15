@@ -5,6 +5,7 @@ use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::complaints::ComplaintReason;
 use crate::coconut::dkg::state::{ConsistentState, State};
 use crate::coconut::error::CoconutError;
+use coconut_dkg_common::event_attributes::DKG_PROPOSAL_ID;
 use coconut_dkg_common::types::{NodeIndex, TOTAL_DEALINGS};
 use coconut_dkg_common::verification_key::owner_from_cosmos_msgs;
 use coconut_interface::KeyPair as CoconutKeyPair;
@@ -17,6 +18,7 @@ use nymcoconut::tests::helpers::transpose_matrix;
 use nymcoconut::{check_vk_pairing, Base58, KeyPair, Parameters, SecretKey, VerificationKey};
 use pemstore::KeyPairPath;
 use std::collections::BTreeMap;
+use validator_client::nymd::cosmwasm_client::logs::find_attribute;
 
 // Filter the dealers based on what dealing they posted (or not) in the contract
 async fn deterministic_filter_dealers(
@@ -140,7 +142,17 @@ pub(crate) async fn verification_key_submission(
     let coconut_keypair = derive_partial_keypair(state, threshold, dealings_maps)?;
     let vk_share = coconut_keypair.verification_key().to_bs58();
     pemstore::store_keypair(&coconut_keypair, keypair_path)?;
-    dkg_client.submit_verification_key_share(vk_share).await?;
+    let res = dkg_client.submit_verification_key_share(vk_share).await?;
+    let proposal_id = find_attribute(&res.logs, "wasm", DKG_PROPOSAL_ID)
+        .ok_or(CoconutError::ProposalIdError {
+            reason: String::from("proposal id not found"),
+        })?
+        .value
+        .parse::<u64>()
+        .map_err(|_| CoconutError::ProposalIdError {
+            reason: String::from("proposal id could not be parsed to u64"),
+        })?;
+    state.set_proposal_id(proposal_id);
     state.set_coconut_keypair(coconut_keypair).await;
     info!("DKG finished, keys are saved to disk");
 
@@ -209,5 +221,22 @@ pub(crate) async fn verification_key_validation(
         }
     }
     state.set_voted_vks();
+    Ok(())
+}
+
+pub(crate) async fn verification_key_finalization(
+    dkg_client: &DkgClient,
+    state: &mut State,
+) -> Result<(), CoconutError> {
+    if state.executed_proposal() {
+        return Ok(());
+    }
+
+    let proposal_id = state.proposal_id_value()?;
+    dkg_client
+        .execute_verification_key_share(proposal_id)
+        .await?;
+    state.set_executed_proposal();
+
     Ok(())
 }

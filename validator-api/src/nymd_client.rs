@@ -364,6 +364,16 @@ where
         Ok(())
     }
 
+    async fn execute_proposal(&self, proposal_id: u64) -> crate::coconut::error::Result<()> {
+        self.0
+            .read()
+            .await
+            .nymd
+            .execute_proposal(proposal_id, None)
+            .await?;
+        Ok(())
+    }
+
     async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,

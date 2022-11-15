@@ -8,7 +8,7 @@ use log::*;
 use coconut_interface::{Credential, VerificationKey};
 use validator_client::{
     nymd::{
-        cosmwasm_client::logs::{find_attribute, PROPOSAL_ID},
+        cosmwasm_client::logs::{find_attribute, BANDWIDTH_PROPOSAL_ID},
         traits::{CoconutBandwidthSigningClient, MultisigQueryClient, MultisigSigningClient},
         Coin, Fee, NymdClient, SigningNymdClient,
     },
@@ -69,7 +69,7 @@ impl CoconutVerifier {
                 None,
             )
             .await?;
-        let proposal_id = find_attribute(&res.logs, "wasm", PROPOSAL_ID)
+        let proposal_id = find_attribute(&res.logs, "wasm", BANDWIDTH_PROPOSAL_ID)
             .ok_or(RequestHandlingError::ProposalIdError {
                 reason: String::from("proposal id not found"),
             })?

@@ -3,7 +3,9 @@
 
 use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::state::{ConsistentState, State};
-use crate::coconut::dkg::verification_key::verification_key_validation;
+use crate::coconut::dkg::verification_key::{
+    verification_key_finalization, verification_key_validation,
+};
 use crate::coconut::dkg::{
     dealing::dealing_exchange, public_key::public_key_submission,
     verification_key::verification_key_submission,
@@ -103,6 +105,9 @@ impl<R: RngCore + Clone> DkgController<R> {
                     }
                     EpochState::VerificationKeyValidation => {
                         verification_key_validation(&self.dkg_client, &mut self.state).await
+                    }
+                    EpochState::VerificationKeyFinalization => {
+                        verification_key_finalization(&self.dkg_client, &mut self.state).await
                     }
                     // Just wait, in case we need to redo dkg at some point
                     EpochState::InProgress => Ok(()),

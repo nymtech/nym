@@ -109,11 +109,7 @@ impl super::client::Client for DummyClient {
             })
     }
 
-    async fn list_proposals(
-        &self,
-        start_after: Option<u64>,
-        limit: Option<u32>,
-    ) -> Result<ProposalListResponse> {
+    async fn list_proposals(&self) -> Result<Vec<ProposalResponse>> {
         todo!()
     }
 
@@ -165,6 +161,10 @@ impl super::client::Client for DummyClient {
             }
         }
         Ok(())
+    }
+
+    async fn execute_proposal(&self, proposal_id: u64) -> Result<()> {
+        todo!()
     }
 
     async fn register_dealer(

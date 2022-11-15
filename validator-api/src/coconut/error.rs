@@ -96,6 +96,9 @@ pub enum CoconutError {
 
     #[error("DKG has not finished yet in order to derive the coconut key")]
     KeyPairNotDerivedYet,
+
+    #[error("There was a problem with the proposal id: {reason}")]
+    ProposalIdError { reason: String },
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {

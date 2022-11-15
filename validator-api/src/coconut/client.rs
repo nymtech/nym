@@ -28,6 +28,7 @@ pub trait Client {
     async fn get_verification_key_shares(&self) -> Result<Vec<ContractVKShare>>;
     async fn vote_proposal(&self, proposal_id: u64, vote_yes: bool, fee: Option<Fee>)
         -> Result<()>;
+    async fn execute_proposal(&self, proposal_id: u64) -> Result<()>;
     async fn register_dealer(&self, bte_key: EncodedBTEPublicKeyWithProof)
         -> Result<ExecuteResult>;
     async fn submit_dealing(&self, dealing_bytes: ContractSafeBytes) -> Result<ExecuteResult>;

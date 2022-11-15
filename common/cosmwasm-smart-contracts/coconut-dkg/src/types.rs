@@ -34,6 +34,7 @@ pub enum EpochState {
     DealingExchange,
     VerificationKeySubmission,
     VerificationKeyValidation,
+    VerificationKeyFinalization,
     InProgress,
 }
 
@@ -50,6 +51,7 @@ impl Display for EpochState {
             EpochState::DealingExchange => write!(f, "DealingExchange"),
             EpochState::VerificationKeySubmission => write!(f, "VerificationKeySubmission"),
             EpochState::VerificationKeyValidation => write!(f, "VerificationKeyValidation"),
+            EpochState::VerificationKeyFinalization => write!(f, "VerificationKeyFinalization"),
             EpochState::InProgress => write!(f, "InProgress"),
         }
     }
@@ -61,7 +63,8 @@ impl EpochState {
             EpochState::PublicKeySubmission => Some(EpochState::DealingExchange),
             EpochState::DealingExchange => Some(EpochState::VerificationKeySubmission),
             EpochState::VerificationKeySubmission => Some(EpochState::VerificationKeyValidation),
-            EpochState::VerificationKeyValidation => Some(EpochState::InProgress),
+            EpochState::VerificationKeyValidation => Some(EpochState::VerificationKeyFinalization),
+            EpochState::VerificationKeyFinalization => Some(EpochState::InProgress),
             EpochState::InProgress => None,
         }
     }

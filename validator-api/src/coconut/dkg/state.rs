@@ -43,6 +43,7 @@ pub(crate) trait ConsistentState {
     fn receiver_index_value(&self) -> Result<usize, CoconutError>;
     fn threshold(&self) -> Result<Threshold, CoconutError>;
     async fn coconut_keypair_is_some(&self) -> Result<(), CoconutError>;
+    fn proposal_id_value(&self) -> Result<u64, CoconutError>;
     async fn is_consistent(&self, epoch_state: EpochState) -> Result<(), CoconutError> {
         match epoch_state {
             EpochState::PublicKeySubmission => {}
@@ -55,6 +56,9 @@ pub(crate) trait ConsistentState {
             }
             EpochState::VerificationKeyValidation => {
                 self.coconut_keypair_is_some().await?;
+            }
+            EpochState::VerificationKeyFinalization => {
+                self.proposal_id_value()?;
             }
             EpochState::InProgress => {}
         }
@@ -70,7 +74,9 @@ pub(crate) struct State {
     receiver_index: Option<usize>,
     threshold: Option<Threshold>,
     recovered_vks: Vec<RecoveredVerificationKeys>,
+    proposal_id: Option<u64>,
     voted_vks: bool,
+    executed_proposal: bool,
 }
 
 #[async_trait]
@@ -111,6 +117,12 @@ impl ConsistentState for State {
             })
         }
     }
+
+    fn proposal_id_value(&self) -> Result<u64, CoconutError> {
+        self.proposal_id.ok_or(CoconutError::UnrecoverableState {
+            reason: String::from("Proposal id should have benn set"),
+        })
+    }
 }
 
 impl State {
@@ -123,7 +135,9 @@ impl State {
             receiver_index: None,
             threshold: None,
             recovered_vks: vec![],
+            proposal_id: None,
             voted_vks: false,
+            executed_proposal: false,
         }
     }
 
@@ -177,6 +191,10 @@ impl State {
         self.voted_vks
     }
 
+    pub fn executed_proposal(&self) -> bool {
+        self.executed_proposal
+    }
+
     pub fn set_recovered_vks(&mut self, recovered_vks: Vec<RecoveredVerificationKeys>) {
         self.recovered_vks = recovered_vks;
     }
@@ -215,7 +233,15 @@ impl State {
         self.threshold = Some(threshold);
     }
 
+    pub fn set_proposal_id(&mut self, proposal_id: u64) {
+        self.proposal_id = Some(proposal_id);
+    }
+
     pub fn set_voted_vks(&mut self) {
         self.voted_vks = true;
+    }
+
+    pub fn set_executed_proposal(&mut self) {
+        self.executed_proposal = true;
     }
 }

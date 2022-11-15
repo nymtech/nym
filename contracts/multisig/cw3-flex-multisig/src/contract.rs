@@ -37,11 +37,12 @@ pub fn instantiate(
             addr: msg.group_addr.clone(),
         }
     })?);
-    // This might need to be changed via a migration, due to circular dependency
+    // Those might need to be changed via a migration, due to circular dependency
     // of deploying the two contracts
     let coconut_bandwidth_addr = deps
         .api
         .addr_validate(&msg.coconut_bandwidth_contract_address)?;
+    let coconut_dkg_addr = deps.api.addr_validate(&msg.coconut_dkg_contract_address)?;
     let total_weight = group_addr.total_weight(&deps.querier)?;
     msg.threshold.validate(total_weight)?;
 
@@ -52,6 +53,7 @@ pub fn instantiate(
         max_voting_period: msg.max_voting_period,
         group_addr,
         coconut_bandwidth_addr,
+        coconut_dkg_addr,
     };
     CONFIG.save(deps.storage, &cfg)?;
 
@@ -62,6 +64,7 @@ pub fn instantiate(
 pub fn migrate(deps: DepsMut<'_>, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
     let mut cfg = CONFIG.load(deps.storage)?;
     cfg.coconut_bandwidth_addr = deps.api.addr_validate(&msg.coconut_bandwidth_address)?;
+    cfg.coconut_dkg_addr = deps.api.addr_validate(&msg.coconut_dkg_address)?;
     CONFIG.save(deps.storage, &cfg)?;
     Ok(Default::default())
 }
@@ -102,8 +105,8 @@ pub fn execute_propose(
     // only members of the multisig can create a proposal
     let cfg = CONFIG.load(deps.storage)?;
 
-    // Only the coconut bandwidth contract can create proposals
-    if info.sender != cfg.coconut_bandwidth_addr {
+    // Only the coconut bandwidth or dkg contracts can create proposals
+    if info.sender != cfg.coconut_bandwidth_addr && info.sender != cfg.coconut_dkg_addr {
         return Err(ContractError::Unauthorized {});
     }
     // The contract doesn't have any say in the voting outcome

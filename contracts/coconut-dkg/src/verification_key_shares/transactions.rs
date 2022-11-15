@@ -4,7 +4,7 @@
 use crate::dealers::storage as dealers_storage;
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
-use crate::state::{ADMIN, STATE};
+use crate::state::{MULTISIG, STATE};
 use crate::verification_key_shares::storage::VK_SHARES;
 use coconut_dkg_common::types::EpochState;
 use coconut_dkg_common::verification_key::{to_cosmos_msg, ContractVKShare, VerificationKeyShare};
@@ -49,8 +49,8 @@ pub fn try_verify_verification_key_share(
     info: MessageInfo,
     owner: Addr,
 ) -> Result<Response, ContractError> {
-    check_epoch_state(deps.storage, EpochState::VerificationKeyValidation)?;
-    ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
+    check_epoch_state(deps.storage, EpochState::VerificationKeyFinalization)?;
+    MULTISIG.assert_admin(deps.as_ref(), &info.sender)?;
     VK_SHARES.update(deps.storage, &owner, |vk_share| {
         vk_share
             .map(|mut share| {

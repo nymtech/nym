@@ -14,6 +14,7 @@ pub struct InstantiateMsg {
     // this is the group contract that contains the member list
     pub group_addr: String,
     pub coconut_bandwidth_contract_address: String,
+    pub coconut_dkg_contract_address: String,
     pub threshold: Threshold,
     pub max_voting_period: Duration,
 }
@@ -81,4 +82,5 @@ pub enum QueryMsg {
 #[serde(rename_all = "snake_case")]
 pub struct MigrateMsg {
     pub coconut_bandwidth_address: String,
+    pub coconut_dkg_address: String,
 }

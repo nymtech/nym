@@ -8,7 +8,7 @@ use crate::dealers::queries::{
 use crate::dealings::queries::query_dealings_paged;
 use crate::epoch_state::queries::query_current_epoch_state;
 use crate::error::ContractError;
-use crate::state::{State, ADMIN, STATE};
+use crate::state::{State, ADMIN, MULTISIG, STATE};
 use crate::verification_key_shares::queries::query_vk_shares_paged;
 use coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 use coconut_dkg_common::types::{EpochState, MinimumDepositResponse};
@@ -38,8 +38,10 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    let admin_addr = deps.api.addr_validate(&msg.admin)?;
     let multisig_addr = deps.api.addr_validate(&msg.multisig_addr)?;
-    ADMIN.set(deps.branch(), Some(multisig_addr.clone()))?;
+    ADMIN.set(deps.branch(), Some(admin_addr))?;
+    MULTISIG.set(deps.branch(), Some(multisig_addr.clone()))?;
 
     let group_addr = Cw4Contract(deps.api.addr_validate(&msg.group_addr).map_err(|_| {
         ContractError::InvalidGroup {

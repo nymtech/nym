@@ -8,8 +8,8 @@
 - wallet: Group delegations on unbonded nodes at the top of the list 
 - wallet: Simplified delegation screen when user has no delegations
 - wallet: Update "create password" howto guide
-- wallet: Allow setting of operatoring cost when node is bonded
-- wallet: Allow update of operatoring cost on bonded node
+- wallet: Allow setting of operating cost when node is bonded
+- wallet: Allow update of operating cost on bonded node
 - wallet: New bond settings area
 - wallet: Display pending unbonds
 - wallet: Display routing score and average score for gateways

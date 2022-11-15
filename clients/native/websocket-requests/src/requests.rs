@@ -62,10 +62,10 @@ impl ClientRequest {
             .collect()
     }
 
-    // SEND_REQUEST_TAG || with_reply || recipient || data_len || data
+    // SEND_REQUEST_TAG || with_reply || recipient || conn_id || data_len || data
     fn deserialize_send(b: &[u8]) -> Result<Self, error::Error> {
-        // we need to have at least 1 (tag) + 1 (reply flag) + Recipient::LEN + sizeof<u64> bytes
-        if b.len() < 2 + Recipient::LEN + size_of::<u64>() {
+        // we need to have at least 1 (tag) + 1 (reply flag) + Recipient::LEN + 2*sizeof<u64> bytes
+        if b.len() < 2 + Recipient::LEN + 2 * size_of::<u64>() {
             return Err(error::Error::new(
                 ErrorKind::TooShortRequest,
                 "not enough data provided to recover 'send'".to_string(),

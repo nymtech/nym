@@ -188,9 +188,6 @@ pub fn execute(
             Ok(Response::new())
         }
 
-        ExecuteMsg::UpdateMixnodeConfig { new_config } => {
-            crate::mixnodes::transactions::try_update_mixnode_config(deps, info, new_config)
-        }
         _ => Err(MixnetContractError::MigrationInProgress),
     }
 }

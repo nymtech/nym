@@ -127,7 +127,7 @@ impl ClientRequest {
     }
 
     // REPLY_REQUEST_TAG || surb_len || surb || message_len || message
-    fn serialize_reply(message: Vec<u8>, reply_surb: ReplySurb) -> Vec<u8> {
+    fn serialize_reply(message: Vec<u8>, reply_surb: &ReplySurb) -> Vec<u8> {
         let reply_surb_bytes = reply_surb.to_bytes();
         let surb_len_bytes = (reply_surb_bytes.len() as u64).to_be_bytes();
         let message_len_bytes = (message.len() as u64).to_be_bytes();
@@ -225,7 +225,7 @@ impl ClientRequest {
     fn serialize_closed_connection(connection_id: u64) -> Vec<u8> {
         let conn_id_bytes = connection_id.to_be_bytes();
         std::iter::once(CLOSED_CONNECTION_REQUEST_TAG)
-            .chain(conn_id_bytes.iter().cloned())
+            .chain(conn_id_bytes.iter().copied())
             .collect()
     }
 
@@ -253,7 +253,7 @@ impl ClientRequest {
             ClientRequest::Reply {
                 message,
                 reply_surb,
-            } => Self::serialize_reply(message, reply_surb),
+            } => Self::serialize_reply(message, &reply_surb),
 
             ClientRequest::SelfAddress => Self::serialize_self_address(),
 
@@ -290,13 +290,13 @@ impl ClientRequest {
             CLOSED_CONNECTION_REQUEST_TAG => Ok(Self::deserialize_closed_connection(b)),
             n => Err(error::Error::new(
                 ErrorKind::UnknownRequest,
-                format!("type {}", n),
+                format!("type {n}"),
             )),
         }
     }
 
-    pub fn try_from_binary(raw_req: Vec<u8>) -> Result<Self, error::Error> {
-        Self::deserialize(&raw_req)
+    pub fn try_from_binary(raw_req: &[u8]) -> Result<Self, error::Error> {
+        Self::deserialize(raw_req)
     }
 
     pub fn try_from_text(raw_req: String) -> Result<Self, error::Error> {

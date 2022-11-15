@@ -18,6 +18,7 @@ use validator_api_requests::models::{
     RewardEstimationResponse, StakeSaturationResponse,
 };
 
+use crate::nymd::traits::MultisigQueryClient;
 #[cfg(feature = "nymd-client")]
 use crate::nymd::traits::{DkgQueryClient, MixnetQueryClient};
 #[cfg(feature = "nymd-client")]
@@ -28,6 +29,8 @@ use mixnet_contract_common::{
     pending_events::{PendingEpochEvent, PendingIntervalEvent},
     Delegation, RewardedSetNodeStatus, UnbondedMixnode,
 };
+#[cfg(feature = "nymd-client")]
+use multisig_contract_common::msg::ProposalResponse;
 #[cfg(feature = "nymd-client")]
 use network_defaults::NymNetworkDetails;
 #[cfg(feature = "nymd-client")]
@@ -48,6 +51,7 @@ pub struct Config {
     rewarded_set_page_limit: Option<u32>,
     dealers_page_limit: Option<u32>,
     verification_key_page_limit: Option<u32>,
+    proposals_page_limit: Option<u32>,
 }
 
 #[cfg(feature = "nymd-client")]
@@ -79,6 +83,7 @@ impl Config {
             rewarded_set_page_limit: None,
             dealers_page_limit: None,
             verification_key_page_limit: None,
+            proposals_page_limit: None,
         })
     }
 
@@ -128,6 +133,7 @@ pub struct Client<C> {
     rewarded_set_page_limit: Option<u32>,
     dealers_page_limit: Option<u32>,
     verification_key_page_limit: Option<u32>,
+    proposals_page_limit: Option<u32>,
 
     // ideally they would have been read-only, but unfortunately rust doesn't have such features
     pub validator_api: validator_api::Client,
@@ -156,6 +162,7 @@ impl Client<SigningNymdClient> {
             rewarded_set_page_limit: config.rewarded_set_page_limit,
             dealers_page_limit: config.dealers_page_limit,
             verification_key_page_limit: config.verification_key_page_limit,
+            proposals_page_limit: config.proposals_page_limit,
             validator_api: validator_api_client,
             nymd: nymd_client,
         })
@@ -191,6 +198,7 @@ impl Client<QueryNymdClient> {
             rewarded_set_page_limit: config.rewarded_set_page_limit,
             dealers_page_limit: config.dealers_page_limit,
             verification_key_page_limit: config.verification_key_page_limit,
+            proposals_page_limit: config.proposals_page_limit,
             validator_api: validator_api_client,
             nymd: nymd_client,
         })
@@ -632,6 +640,32 @@ impl<C> Client<C> {
         }
 
         Ok(shares)
+    }
+
+    pub async fn get_all_nymd_proposals(
+        &self,
+    ) -> Result<Vec<ProposalResponse>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        let mut proposals = Vec::new();
+        let mut start_after = None;
+
+        loop {
+            let mut paged_response = self
+                .nymd
+                .list_proposals(start_after.take(), self.proposals_page_limit)
+                .await?;
+            proposals.append(&mut paged_response.proposals);
+
+            if let Some(start_after_res) = paged_response.proposals.last().map(|prop| prop.id) {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(proposals)
     }
 }
 

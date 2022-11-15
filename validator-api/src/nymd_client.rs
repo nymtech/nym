@@ -293,6 +293,10 @@ where
         Ok(self.0.read().await.nymd.get_proposal(proposal_id).await?)
     }
 
+    async fn list_proposals(&self) -> crate::coconut::error::Result<Vec<ProposalResponse>> {
+        Ok(self.0.read().await.get_all_nymd_proposals().await?)
+    }
+
     async fn get_spent_credential(
         &self,
         blinded_serial_number: String,

@@ -4,13 +4,15 @@
 use crate::dealers::storage as dealers_storage;
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
+use crate::state::{ADMIN, STATE};
 use crate::verification_key_shares::storage::VK_SHARES;
 use coconut_dkg_common::types::EpochState;
-use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
-use cosmwasm_std::{DepsMut, MessageInfo, Response};
+use coconut_dkg_common::verification_key::{to_cosmos_msg, ContractVKShare, VerificationKeyShare};
+use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Response};
 
 pub fn try_commit_verification_key_share(
     deps: DepsMut<'_>,
+    env: Env,
     info: MessageInfo,
     share: VerificationKeyShare,
 ) -> Result<Response, ContractError> {
@@ -29,8 +31,36 @@ pub fn try_commit_verification_key_share(
         share,
         node_index: details.assigned_index,
         owner: info.sender.clone(),
+        verified: false,
     };
     VK_SHARES.save(deps.storage, &info.sender, &data)?;
+
+    let msg = to_cosmos_msg(
+        info.sender.clone(),
+        env.contract.address.to_string(),
+        STATE.load(deps.storage)?.multisig_addr.to_string(),
+    )?;
+
+    Ok(Response::new().add_message(msg))
+}
+
+pub fn try_verify_verification_key_share(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    owner: Addr,
+) -> Result<Response, ContractError> {
+    check_epoch_state(deps.storage, EpochState::VerificationKeyValidation)?;
+    ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
+    VK_SHARES.update(deps.storage, &owner, |vk_share| {
+        vk_share
+            .map(|mut share| {
+                share.verified = true;
+                share
+            })
+            .ok_or(ContractError::NoCommitForOwner {
+                owner: owner.to_string(),
+            })
+    })?;
 
     Ok(Response::default())
 }

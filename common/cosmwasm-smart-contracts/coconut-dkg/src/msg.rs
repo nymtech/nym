@@ -3,14 +3,15 @@
 
 use crate::types::{ContractSafeBytes, EncodedBTEPublicKeyWithProof};
 use crate::verification_key::VerificationKeyShare;
+use cosmwasm_std::Addr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct InstantiateMsg {
     pub group_addr: String,
+    pub multisig_addr: String,
     pub mix_denom: String,
-    pub admin: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
@@ -26,6 +27,10 @@ pub enum ExecuteMsg {
 
     CommitVerificationKeyShare {
         share: VerificationKeyShare,
+    },
+
+    VerifyVerificationKeyShare {
+        owner: Addr,
     },
 
     AdvanceEpochState {},

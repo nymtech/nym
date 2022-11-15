@@ -16,6 +16,7 @@ pub trait Client {
     async fn address(&self) -> AccountId;
     async fn get_tx(&self, tx_hash: &str) -> Result<TxResponse>;
     async fn get_proposal(&self, proposal_id: u64) -> Result<ProposalResponse>;
+    async fn list_proposals(&self) -> Result<Vec<ProposalResponse>>;
     async fn get_spent_credential(
         &self,
         blinded_serial_number: String,

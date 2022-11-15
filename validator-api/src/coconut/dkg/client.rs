@@ -7,6 +7,7 @@ use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsRe
 use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState, NodeIndex};
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use contracts_common::dealings::ContractSafeBytes;
+use multisig_contract_common::msg::ProposalResponse;
 use validator_client::nymd::cosmwasm_client::logs::{find_attribute, NODE_INDEX};
 use validator_client::nymd::AccountId;
 
@@ -73,6 +74,10 @@ impl DkgClient {
         self.inner.get_verification_key_shares().await
     }
 
+    pub(crate) async fn list_proposals(&self) -> Result<Vec<ProposalResponse>, CoconutError> {
+        self.inner.list_proposals().await
+    }
+
     pub(crate) async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
@@ -117,5 +122,13 @@ impl DkgClient {
                 .await;
         }
         Ok(())
+    }
+
+    pub(crate) async fn vote_verification_key_share(
+        &self,
+        proposal_id: u64,
+        vote_yes: bool,
+    ) -> Result<(), CoconutError> {
+        self.inner.vote_proposal(proposal_id, vote_yes, None).await
     }
 }

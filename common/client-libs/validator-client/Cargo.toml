@@ -10,7 +10,6 @@ rust-version = "1.56"
 [dependencies]
 base64 = "0.13"
 colored = "2.0"
-cw3 = "0.13.1"
 
 coconut-dkg-common = { path = "../../cosmwasm-smart-contracts/coconut-dkg" }
 contracts-common = { path = "../../cosmwasm-smart-contracts/contracts-common" }

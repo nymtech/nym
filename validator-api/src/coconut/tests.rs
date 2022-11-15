@@ -44,6 +44,7 @@ use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
 use coconut_dkg_common::verification_key::VerificationKeyShare;
 use contracts_common::dealings::ContractSafeBytes;
 use crypto::asymmetric::{encryption, identity};
+use cw3::ProposalListResponse;
 use rand_07::rngs::OsRng;
 use rocket::http::Status;
 use rocket::local::asynchronous::Client;
@@ -106,6 +107,14 @@ impl super::client::Client for DummyClient {
             .ok_or(CoconutError::IncorrectProposal {
                 reason: String::from("proposal not found"),
             })
+    }
+
+    async fn list_proposals(
+        &self,
+        start_after: Option<u64>,
+        limit: Option<u32>,
+    ) -> Result<ProposalListResponse> {
+        todo!()
     }
 
     async fn get_spent_credential(

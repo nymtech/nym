@@ -642,6 +642,7 @@ version = "0.1.0"
 dependencies = [
  "contracts-common",
  "cosmwasm-std",
+ "multisig-contract-common",
  "schemars",
  "serde",
 ]
@@ -6447,7 +6448,6 @@ dependencies = [
  "contracts-common",
  "cosmrs",
  "cosmwasm-std",
- "cw3",
  "execute",
  "flate2",
  "futures",

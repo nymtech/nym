@@ -6,11 +6,13 @@ use crate::coconut::dkg::complaints::ComplaintReason;
 use crate::coconut::dkg::state::{ConsistentState, State};
 use crate::coconut::error::CoconutError;
 use coconut_dkg_common::types::{NodeIndex, TOTAL_DEALINGS};
+use coconut_dkg_common::verification_key::owner_from_cosmos_msgs;
 use coconut_interface::KeyPair as CoconutKeyPair;
 use cosmwasm_std::Addr;
 use credentials::coconut::bandwidth::{PRIVATE_ATTRIBUTES, PUBLIC_ATTRIBUTES};
 use dkg::bte::{decrypt_share, setup};
 use dkg::{combine_shares, try_recover_verification_keys, Dealing, Threshold};
+use multisig_contract_common::msg::{ProposalResponse, Status};
 use nymcoconut::tests::helpers::transpose_matrix;
 use nymcoconut::{check_vk_pairing, Base58, KeyPair, Parameters, SecretKey, VerificationKey};
 use pemstore::KeyPairPath;
@@ -145,11 +147,31 @@ pub(crate) async fn verification_key_submission(
     Ok(())
 }
 
+fn validate_proposal(proposal: &ProposalResponse) -> Option<(Addr, u64)> {
+    if proposal.status == Status::Open {
+        if let Some(owner) = owner_from_cosmos_msgs(&proposal.msgs) {
+            return Some((owner, proposal.id));
+        }
+    }
+    None
+}
+
 pub(crate) async fn verification_key_validation(
     dkg_client: &DkgClient,
     state: &mut State,
 ) -> Result<(), CoconutError> {
+    if state.voted_vks() {
+        return Ok(());
+    }
+
     let vk_shares = dkg_client.get_verification_key_shares().await?;
+    let proposal_ids = BTreeMap::from_iter(
+        dkg_client
+            .list_proposals()
+            .await?
+            .iter()
+            .filter_map(|prop| validate_proposal(prop)),
+    );
     let filtered_receivers_by_idx: Vec<_> =
         state.current_dealers_by_idx().keys().copied().collect();
     let recovered_partials: Vec<_> = state
@@ -160,36 +182,32 @@ pub(crate) async fn verification_key_validation(
     let recovered_partials = transpose_matrix(recovered_partials);
     let params = Parameters::new(PUBLIC_ATTRIBUTES + PRIVATE_ATTRIBUTES)?;
     for contract_share in vk_shares {
-        match VerificationKey::try_from_bs58(contract_share.share) {
-            Ok(vk) => {
-                if let Some(idx) = filtered_receivers_by_idx
-                    .iter()
-                    .position(|node_index| contract_share.node_index == *node_index)
-                {
-                    println!(
-                        "Checking at idx {} for vk {}",
-                        idx, contract_share.node_index
-                    );
-                    if !check_vk_pairing(&params, &recovered_partials[idx], &vk) {
-                        state.mark_bad_dealer(
-                            &contract_share.owner,
-                            ComplaintReason::BadVerificationKey,
-                        );
-                        println!("Signer {} not pairing", contract_share.node_index);
-                    } else {
-                        println!("Checked signer {}", contract_share.node_index);
+        if let Some(proposal_id) = proposal_ids.get(&contract_share.owner).copied() {
+            match VerificationKey::try_from_bs58(contract_share.share) {
+                Ok(vk) => {
+                    if let Some(idx) = filtered_receivers_by_idx
+                        .iter()
+                        .position(|node_index| contract_share.node_index == *node_index)
+                    {
+                        if !check_vk_pairing(&params, &recovered_partials[idx], &vk) {
+                            dkg_client
+                                .vote_verification_key_share(proposal_id, false)
+                                .await?;
+                        } else {
+                            dkg_client
+                                .vote_verification_key_share(proposal_id, true)
+                                .await?;
+                        }
                     }
                 }
-            }
-            Err(err) => {
-                println!("Failed deserializing {}", contract_share.node_index);
-                state.mark_bad_dealer(
-                    &contract_share.owner,
-                    ComplaintReason::MalformedVerificationKey(err),
-                )
+                Err(_) => {
+                    dkg_client
+                        .vote_verification_key_share(proposal_id, false)
+                        .await?
+                }
             }
         }
     }
-
+    state.set_voted_vks();
     Ok(())
 }

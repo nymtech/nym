@@ -70,6 +70,7 @@ pub(crate) struct State {
     receiver_index: Option<usize>,
     threshold: Option<Threshold>,
     recovered_vks: Vec<RecoveredVerificationKeys>,
+    voted_vks: bool,
 }
 
 #[async_trait]
@@ -122,6 +123,7 @@ impl State {
             receiver_index: None,
             threshold: None,
             recovered_vks: vec![],
+            voted_vks: false,
         }
     }
 
@@ -171,6 +173,10 @@ impl State {
         &self.recovered_vks
     }
 
+    pub fn voted_vks(&self) -> bool {
+        self.voted_vks
+    }
+
     pub fn set_recovered_vks(&mut self, recovered_vks: Vec<RecoveredVerificationKeys>) {
         self.recovered_vks = recovered_vks;
     }
@@ -207,5 +213,9 @@ impl State {
 
     pub fn set_threshold(&mut self, threshold: Threshold) {
         self.threshold = Some(threshold);
+    }
+
+    pub fn set_voted_vks(&mut self) {
+        self.voted_vks = true;
     }
 }

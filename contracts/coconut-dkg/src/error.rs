@@ -62,4 +62,7 @@ pub enum ContractError {
 
     #[error("This dealer has already committed {commitment}")]
     AlreadyCommitted { commitment: String },
+
+    #[error("No verification key committed for owner {owner}")]
+    NoCommitForOwner { owner: String },
 }

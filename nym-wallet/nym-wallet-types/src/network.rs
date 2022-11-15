@@ -160,9 +160,9 @@ mod qa {
     pub(crate) const STAKE_DENOM: DenomDetails = DenomDetails::new("unyx", "nyx", 6);
 
     pub(crate) const MIXNET_CONTRACT_ADDRESS: &str =
-        "n1frq2hzkjtatsupc6jtyaz67ytydk9nya437q92qg76ny3y8fcnjsw806vg";
-    pub(crate) const VESTING_CONTRACT_ADDRESS: &str =
         "n14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sjyvg3g";
+    pub(crate) const VESTING_CONTRACT_ADDRESS: &str =
+        "n1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq73f2nw";
     pub(crate) const BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str =
         "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
     pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
@@ -177,8 +177,8 @@ mod qa {
     //pub(crate) const STATISTICS_SERVICE_DOMAIN_ADDRESS: &str = "http://0.0.0.0";
     pub(crate) fn validators() -> Vec<ValidatorDetails> {
         vec![ValidatorDetails::new(
-            "https://adv-epoch-qa-validator.qa.nymte.ch/",
-            Some("https://adv-epoch-qa-val-api.qa.nymte.ch/api"),
+            "https://qwerty-validator.qa.nymte.ch/",
+            Some("https://qwerty-validator-api.qa.nymte.ch/api"),
         )]
     }
 

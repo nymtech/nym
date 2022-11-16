@@ -42,7 +42,7 @@ const headers: Header[] = [
     header: 'Operator rewards',
     id: 'operator-rewards',
     tooltipText:
-      'This is your (operator) new rewards including the PM and cost. You can compound your rewards manually every epoch or unbond your node to redeem them.',
+      'This is your (operator) rewards including the PM and cost. Rewards are automatically compounded every epoch. You can redeem your rewards at any time.',
   },
   {
     header: 'No. delegators',

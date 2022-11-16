@@ -14,8 +14,19 @@ jobs:
         with:
           inputFile: '.github/workflows/nightly_build_release_matrix.json'
           filter: '[?runOnEvent==`${{ github.event_name }}` || runOnEvent==`always`]'
-  build:
+  get_release:
     needs: matrix_prep
+    output:
+      output1: {{ steps.step2.outputs.lastest_release }}
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v2
+
+      - name: Set environnemnt variable to latest release branch
+        id: step2
+        run: echo "latest_release=$(git branch -r | grep -E 'release/v[0-9]+\.[0-9]+\.[0-9]+' | tail -n 1)" >> $GITHUB_OUTPUT
+  build:
+    needs: get_release
     strategy:
       matrix: ${{fromJson(needs.matrix_prep.outputs.matrix)}}
     runs-on: ${{ matrix.os }}
@@ -25,16 +36,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev libudev-dev squashfs-tools
         if: matrix.os == 'ubuntu-latest'
 
-      - name: Check out repository code
-        uses: actions/checkout@v2
-
-      - name: Set environnemnt variable to latest release branch
-        run: echo "LATEST_RELEASE=$(git branch -r | grep -E 'release/v[0-9]+\.[0-9]+\.[0-9]+' | tail -n 1)" >> $GITHUB_ENV
-
       - name: Check out latest release branch
         uses: actions/checkout@v2
         with:
-          ref: ${{ env.LATEST_RELEASE }}
+          ref: ${{ needs.get_release.outputs.output1 }}
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1

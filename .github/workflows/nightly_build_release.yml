@@ -7,12 +7,12 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      # creates the matrix strategy from nightly_build_matrix_includes.json
+      # creates the matrix strategy from nightly_build_release_matrix.json
       - uses: actions/checkout@v2
       - id: set-matrix
         uses: JoshuaTheMiller/conditional-build-matrix@main
         with:
-          inputFile: '.github/workflows/nightly_build_matrix_includes.json'
+          inputFile: '.github/workflows/nightly_build_release_matrix.json'
           filter: '[?runOnEvent==`${{ github.event_name }}` || runOnEvent==`always`]'
   build:
     needs: matrix_prep

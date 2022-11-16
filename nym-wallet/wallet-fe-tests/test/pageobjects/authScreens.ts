@@ -1,4 +1,6 @@
 import Balance from '../pageobjects/balanceScreen';
+import Helper from '../../common/helper';
+const deleteScript = require('../../scripts/deletesavedwallet');
 
 class Auth {
   //Welcome landing page
@@ -137,10 +139,23 @@ class Auth {
     await (await this.signInMnemonic).click();
     await (await this.mnemonicInput).waitForDisplayed();
     await (await this.revealMnemonic).click();
-    console.log('--------------- ' + mnemonic);
     await (await this.mnemonicInput).addValue(mnemonic);
     await (await this.signIn).click();
     await (await Balance.nymBalance).waitForDisplayed({ timeout: 4000 });
+  };
+
+  newMnemonicCreation = async () => {
+    deleteScript;
+
+    await Helper.navigateAndClick(this.createAccount);
+
+    await Helper.mnemonicWordTileIndex();
+
+    const nextButton = await this.nextToStep3;
+    const isNextDisabled = await nextButton.getAttribute('disabled');
+
+    expect(isNextDisabled).toBe(null);
+    await Helper.navigateAndClick(this.nextToStep3);
   };
 }
 

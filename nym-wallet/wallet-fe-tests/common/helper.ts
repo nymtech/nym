@@ -23,8 +23,9 @@ class Helpers {
   // click the mnemonic words by index position
 
   // TO-DO find the best approach
-  mnemonicWordTileIndex = async (browser: WebdriverIO.Browser) => {
+  mnemonicWordTileIndex = async () => {
     let mnemonic = await browser.execute(() => {
+      // @ts-ignore: Object is possibly 'null'.
       return document.getElementById('mnemonicPhrase').innerHTML;
     });
 
@@ -33,8 +34,8 @@ class Helpers {
     await this.navigateAndClick(Auth.copyMnemonic);
     await this.navigateAndClick(Auth.iSavedMnemonic);
     // verify the mnemonic words in the correct order
-    let mnemonicWordTiles = await await Auth.mnemonicWordTile;
-    let wordTileIndex = await await Auth.wordIndex;
+    let mnemonicWordTiles = await Auth.mnemonicWordTile;
+    let wordTileIndex = await Auth.wordIndex;
 
     const wordsArray: any[] = [];
 
@@ -52,6 +53,7 @@ class Helpers {
     }
 
     const nextButton = await Auth.nextToStep3;
+    //something needs checking over here
     const isNextDisabled = await nextButton.getAttribute('disabled');
     expect(isNextDisabled).toBe(null);
     await this.navigateAndClick(Auth.nextToStep3);
@@ -119,4 +121,4 @@ class Helpers {
   };
 }
 
-module.exports = new Helpers();
+export default new Helpers();

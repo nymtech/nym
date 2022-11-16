@@ -26,6 +26,7 @@ exports.config = {
     general: ['./test/specs/general/*.ts'],
     send: ['./test/specs/bond/*.ts'],
     delegation: ['./test/specs/delegation/*.ts'],
+    helper: ['./test/specs/helpers/*.ts'],
   },
 
   exclude: [

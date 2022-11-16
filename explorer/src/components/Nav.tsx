@@ -25,7 +25,7 @@ import { DarkLightSwitchDesktop } from './Switch';
 import { NavOptionType } from '../context/nav';
 
 const drawerWidth = 255;
-const bannerHeight = 113;
+const bannerHeight = 80;
 
 const openedMixin = (theme: Theme): CSSObject => ({
   width: drawerWidth,

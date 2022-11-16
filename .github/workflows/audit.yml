@@ -16,7 +16,10 @@ jobs:
       - name: Install cargo deny
         run: cargo install --locked cargo-deny
       - name: Run cargo deny
-        run: find . -name Cargo.toml -exec cargo deny --manifest-path {} check advisories -A advisory-not-detected  --hide-inclusion-graph \; | uniq &> .github/workflows/support-files/notifications/deny.message
+        run: |
+          find . -name Cargo.toml -exec cargo deny --manifest-path {} check \
+            advisories -A advisory-not-detected  --hide-inclusion-graph \; | \
+            uniq &> .github/workflows/support-files/notifications/deny.message
       - uses: actions/upload-artifact@v3
         with:
           name: report

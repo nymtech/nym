@@ -34,7 +34,7 @@ jobs:
       - name: Check out latest release branch
         uses: actions/checkout@v2
         with:
-          ref: $LATEST_RELEASE
+          ref: ${{ env.LATEST_RELEASE }}
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1

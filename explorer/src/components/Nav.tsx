@@ -235,7 +235,7 @@ export const Nav: React.FC = ({ children }) => {
   const [drawerIsOpen, setDrawerToOpen] = React.useState(false);
   const [fixedOpen, setFixedOpen] = React.useState(false);
   // Set maintenance banner to false by default to don't display it
-  const [openMaintenance, setOpenMaintenance] = React.useState(true);
+  const [openMaintenance, setOpenMaintenance] = React.useState(false);
   const theme = useTheme();
 
   const setToActive = (id: number) => {

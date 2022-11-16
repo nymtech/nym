@@ -23,6 +23,7 @@ pub struct Config {
     maximum_reconnection_backoff: Duration,
     initial_connection_timeout: Duration,
     maximum_connection_buffer_size: usize,
+    use_legacy_version: bool,
 }
 
 impl Config {
@@ -31,12 +32,14 @@ impl Config {
         maximum_reconnection_backoff: Duration,
         initial_connection_timeout: Duration,
         maximum_connection_buffer_size: usize,
+        use_legacy_version: bool,
     ) -> Self {
         Config {
             initial_reconnection_backoff,
             maximum_reconnection_backoff,
             initial_connection_timeout,
             maximum_connection_buffer_size,
+            use_legacy_version,
         }
     }
 }
@@ -201,7 +204,8 @@ impl SendWithoutResponse for Client {
         packet_mode: PacketMode,
     ) -> io::Result<()> {
         trace!("Sending packet to {:?}", address);
-        let framed_packet = FramedSphinxPacket::new(packet, packet_mode);
+        let framed_packet =
+            FramedSphinxPacket::new(packet, packet_mode, self.config.use_legacy_version);
 
         if let Some(sender) = self.conn_new.get_mut(&address) {
             if let Err(err) = sender.channel.try_send(framed_packet) {
@@ -259,6 +263,7 @@ mod tests {
             maximum_reconnection_backoff: Duration::from_millis(300_000),
             initial_connection_timeout: Duration::from_millis(1_500),
             maximum_connection_buffer_size: 128,
+            use_legacy_version: false,
         })
     }
 

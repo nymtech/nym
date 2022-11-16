@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::helpers::IntoBaseDecimal;
 use crate::{error::MixnetContractError, Percent};
 use cosmwasm_std::Decimal;
 use schemars::JsonSchema;
@@ -25,6 +26,11 @@ pub struct IntervalRewardParams {
     /// It is expected to be constant throughout the interval.
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub staking_supply: Decimal,
+
+    /// Defines the percentage of stake needed to reach saturation for all of the nodes in the rewarded set.
+    /// Also known as `beta`.
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
+    pub staking_supply_scale_factor: Percent,
 
     // computed values
     /// Current value of the computed reward budget per epoch, per node.
@@ -105,24 +111,33 @@ impl RewardingParams {
     pub fn dec_rewarded_set_size(&self) -> Decimal {
         // the unwrap here is fine as we're guaranteed an `u32` is going to fit in a Decimal
         // with 0 decimal places
-        Decimal::from_atomics(self.rewarded_set_size, 0).unwrap()
+        #[allow(clippy::unwrap_used)]
+        self.rewarded_set_size.into_base_decimal().unwrap()
     }
 
     pub fn dec_active_set_size(&self) -> Decimal {
         // the unwrap here is fine as we're guaranteed an `u32` is going to fit in a Decimal
         // with 0 decimal places
-        Decimal::from_atomics(self.active_set_size, 0).unwrap()
+        #[allow(clippy::unwrap_used)]
+        self.active_set_size.into_base_decimal().unwrap()
     }
 
     fn dec_standby_set_size(&self) -> Decimal {
         // the unwrap here is fine as we're guaranteed an `u32` is going to fit in a Decimal
         // with 0 decimal places
-        Decimal::from_atomics(self.rewarded_set_size - self.active_set_size, 0).unwrap()
+        #[allow(clippy::unwrap_used)]
+        (self.rewarded_set_size - self.active_set_size)
+            .into_base_decimal()
+            .unwrap()
     }
 
     pub fn apply_epochs_in_interval_change(&mut self, new_epochs_in_interval: u32) {
-        self.interval.epoch_reward_budget = self.interval.reward_pool
-            / Decimal::from_atomics(new_epochs_in_interval, 0).unwrap()
+        // the unwrap here is fine as we're guaranteed an `u32` is going to fit in a Decimal
+        // with 0 decimal places
+        #[allow(clippy::unwrap_used)]
+        let new_epochs_in_interval = new_epochs_in_interval.into_base_decimal().unwrap();
+
+        self.interval.epoch_reward_budget = self.interval.reward_pool / new_epochs_in_interval
             * self.interval.interval_pool_emission;
     }
 
@@ -164,6 +179,10 @@ impl RewardingParams {
             self.interval.staking_supply = staking_supply;
         }
 
+        if let Some(staking_supply_scale_factor) = updates.staking_supply_scale_factor {
+            self.interval.staking_supply_scale_factor = staking_supply_scale_factor
+        }
+
         if let Some(sybil_resistance_percent) = updates.sybil_resistance_percent {
             self.interval.sybil_resistance = sybil_resistance_percent;
         }
@@ -191,13 +210,13 @@ impl RewardingParams {
 
         if recompute_epoch_budget {
             self.interval.epoch_reward_budget = self.interval.reward_pool
-                / Decimal::from_atomics(epochs_in_interval, 0).unwrap()
+                / epochs_in_interval.into_base_decimal()?
                 * self.interval.interval_pool_emission;
         }
 
         if recompute_saturation_point {
-            self.interval.stake_saturation_point = self.interval.staking_supply
-                / Decimal::from_atomics(self.rewarded_set_size, 0).unwrap();
+            self.interval.stake_saturation_point =
+                self.interval.staking_supply / self.rewarded_set_size.into_base_decimal()?
         }
 
         Ok(())
@@ -236,6 +255,9 @@ pub struct IntervalRewardingParamsUpdate {
     pub staking_supply: Option<Decimal>,
 
     #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
+    pub staking_supply_scale_factor: Option<Percent>,
+
+    #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
     pub sybil_resistance_percent: Option<Percent>,
 
     #[cfg_attr(feature = "generate-ts", ts(type = "string | null"))]
@@ -252,6 +274,7 @@ impl IntervalRewardingParamsUpdate {
         // essentially at least a single field has to be a `Some`
         self.reward_pool.is_some()
             || self.staking_supply.is_some()
+            || self.staking_supply_scale_factor.is_some()
             || self.sybil_resistance_percent.is_some()
             || self.active_set_work_factor.is_some()
             || self.interval_pool_emission.is_some()

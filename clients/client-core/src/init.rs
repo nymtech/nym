@@ -90,6 +90,7 @@ async fn register_with_gateway(
         gateway.owner.clone(),
         our_identity.clone(),
         timeout,
+        #[cfg(not(target_arch = "wasm32"))]
         None,
     );
     gateway_client

@@ -13,6 +13,7 @@ colored = "2.0"
 cw3 = "0.13.1"
 mixnet-contract-common = { path= "../../cosmwasm-smart-contracts/mixnet-contract" }
 vesting-contract-common = { path= "../../cosmwasm-smart-contracts/vesting-contract" }
+contracts-common = { path = "../../cosmwasm-smart-contracts/contracts-common" }
 coconut-bandwidth-contract-common = { path= "../../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 multisig-contract-common = { path = "../../cosmwasm-smart-contracts/multisig-contract" }
 vesting-contract = { path = "../../../contracts/vesting" }
@@ -22,7 +23,7 @@ reqwest = { version = "0.11", features = ["json"] }
 thiserror = "1"
 log = "0.4"
 url = { version = "2.2", features = ["serde"] }
-tokio = { version = "1.19.1", features = ["sync", "time"] }
+tokio = { version = "1.21.2", features = ["sync", "time"] }
 futures = "0.3"
 
 coconut-interface = { path = "../../coconut-interface" }

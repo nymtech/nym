@@ -1,5 +1,5 @@
 use cosmwasm_std::{Addr, StdError, Uint128};
-use mixnet_contract_common::NodeId;
+use mixnet_contract_common::MixId;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -31,7 +31,7 @@ pub enum ContractError {
     #[error("VESTING ({}): Received multiple denoms, expected 1", line!())]
     MultipleDenoms,
     #[error("VESTING ({}): No delegations found for account {0}, mix_identity {1}", line!())]
-    NoSuchDelegation(Addr, NodeId),
+    NoSuchDelegation(Addr, MixId),
     #[error("VESTING ({}): Only mixnet contract can perform this operation, got {0}", line!())]
     NotMixnetContract(Addr),
     #[error("VESTING ({}): Calculation underflowed", line!())]
@@ -44,8 +44,12 @@ pub enum ContractError {
     InvalidAddress(String),
     #[error("VESTING ({}): Account already exists: {0}", line!())]
     AccountAlreadyExists(String),
+    #[error("VESTING ({}): Staking account already exists: {0}", line!())]
+    StakingAccountAlreadyExists(String),
     #[error("VESTING ({}): Too few coins sent for vesting account creation, sent {sent}, need at least {need}", line!())]
     MinVestingFunds { sent: u128, need: u128 },
     #[error("VESTING ({}): Maximum amount of locked coins has already been pledged: {current}, cap is {cap}", line!())]
     LockedPledgeCapReached { current: Uint128, cap: Uint128 },
+    #[error("VESTING: ({}: Account owned by {owner} has unpopulated vesting periods!", line!())]
+    UnpopulatedVestingPeriods { owner: Addr },
 }

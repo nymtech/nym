@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-network-requester"
-version = "1.0.2"
+version = "1.1.0"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2021"
 
@@ -11,7 +11,7 @@ edition = "2021"
 
 [dependencies]
 async-trait = { version = "0.1.51" }
-clap = "3.2"
+clap = {version = "3.2", features = ["derive"]}
 dirs = "4.0"
 futures = "0.3.24"
 ipnetwork = "0.20.0"
@@ -23,13 +23,16 @@ reqwest = { version = "0.11.11", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 sqlx = { version = "0.6.1", features = ["runtime-tokio-rustls", "chrono"]}
 thiserror = "1.0"
-tokio = { version = "1.19", features = [ "net", "rt-multi-thread", "macros" ] }
+tokio = { version = "1.21.2", features = [ "net", "rt-multi-thread", "macros" ] }
 tokio-tungstenite = "0.17.2"
 
 
 # internal
+client-connections = { path = "../../common/client-connections" }
+completions = { path = "../../common/completions" }
 network-defaults = { path = "../../common/network-defaults" }
 nymsphinx = { path = "../../common/nymsphinx" }
+logging = { path = "../../common/logging"}
 ordered-buffer = {path = "../../common/socks5/ordered-buffer"}
 proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
 socks5-requests = { path = "../../common/socks5/requests" }

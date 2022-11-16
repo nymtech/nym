@@ -1,5 +1,6 @@
 import { appWindow } from '@tauri-apps/api/window';
 import bs58 from 'bs58';
+import Big from 'big.js';
 import { valid } from 'semver';
 import { isValidRawCoin, DecCoin, MixNodeCostParams } from '@nymproject/types';
 import { TPoolOption } from 'src/components';
@@ -63,6 +64,8 @@ export const validateRawPort = (rawPort: number): boolean => !Number.isNaN(rawPo
 export const truncate = (text: string, trim: number) => `${text.substring(0, trim)}...`;
 
 export const isGreaterThan = (a: number, b: number) => a > b;
+
+export const isLessThan = (a: number, b: number) => a < b;
 
 export const checkHasEnoughFunds = async (allocationValue: string): Promise<boolean> => {
   try {
@@ -142,3 +145,56 @@ export const toPercentFloatString = (value: string) => (Number(value) / 100).toS
  * @returns A stringified integer
  */
 export const toPercentIntegerString = (value: string) => Math.round(Number(value) * 100).toString();
+
+/**
+ * Converts a decimal number to a pretty representation
+ * with fixed decimal places.
+ *
+ * @param val - a decimal number of string form
+ * @param dp - number of decimal places (4 by default ie. 0.0000)
+ * @returns A prettified decimal number
+ */
+export const toDisplay = (val: string | number | Big, dp = 4) => {
+  let displayValue;
+  try {
+    displayValue = Big(val).toFixed(dp);
+  } catch (e: any) {
+    Console.warn(`${displayValue} not a valid decimal number: ${e}`);
+  }
+  return displayValue;
+};
+
+/**
+ * Takes a DecCoin and prettify its amount to a representation
+ * with fixed decimal places.
+ *
+ * @param coin - a DecCoin
+ * @param dp - number of decimal places to apply to amount (4 by default ie. 0.0000)
+ * @returns A DecCoin with prettified amount
+ */
+export const decCoinToDisplay = (coin: DecCoin, dp = 4) => {
+  const displayCoin = { ...coin };
+  try {
+    displayCoin.amount = Big(coin.amount).toFixed(dp);
+  } catch (e: any) {
+    Console.warn(`${coin.amount} not a valid decimal number: ${e}`);
+  }
+  return displayCoin;
+};
+
+/**
+ * Converts a decimal number of μNYM (micro NYM) to NYM.
+ *
+ * @param unym - string representation of a decimal number of μNYM
+ * @param dp - number of decimal places (4 by default ie. 0.0000)
+ * @returns The corresponding decimal number in NYM
+ */
+export const unymToNym = (unym: string | Big, dp = 4) => {
+  let nym;
+  try {
+    nym = Big(unym).div(1_000_000).toFixed(dp);
+  } catch (e: any) {
+    Console.warn(`${unym} not a valid decimal number: ${e}`);
+  }
+  return nym;
+};

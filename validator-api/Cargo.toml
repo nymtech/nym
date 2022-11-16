@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-validator-api"
-version = "1.0.2"
+version = "1.1.0"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -36,7 +36,7 @@ serde_json = "1.0"
 tap = "1.0"
 thiserror = "1.0"
 time = { version = "0.3.14", features = ["serde-human-readable", "parsing"] }
-tokio = { version = "1.19", features = [
+tokio = { version = "1.21.2", features = [
     "rt-multi-thread",
     "macros",
     "signal",
@@ -69,9 +69,11 @@ cosmwasm-std = "1.0.0"
 credential-storage = { path = "../common/credential-storage" }
 credentials = { path = "../common/credentials", optional = true }
 crypto = { path = "../common/crypto" }
+logging = { path = "../common/logging"}
 gateway-client = { path = "../common/client-libs/gateway-client" }
 inclusion-probability = { path = "../common/inclusion-probability" }
 mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
+contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
 multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
 nymcoconut = { path = "../common/nymcoconut", optional = true }
 nymsphinx = { path = "../common/nymsphinx" }
@@ -96,7 +98,7 @@ no-reward = []
 generate-ts = ["ts-rs"]
 
 [build-dependencies]
-tokio = { version = "1.19.1", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.21.2", features = ["rt-multi-thread", "macros"] }
 sqlx = { version = "0.6.2", features = [
     "runtime-tokio-rustls",
     "sqlite",

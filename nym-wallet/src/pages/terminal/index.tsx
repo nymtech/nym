@@ -110,11 +110,11 @@ const TerminalInner: React.FC = () => {
 
         {status ? (
           <Alert color="info" icon={<RefreshIcon />} sx={{ mb: 2 }}>
-            <strong>{status}</strong>
+            <Box sx={{ fontWeight: 600 }}>{status}</Box>
           </Alert>
         ) : (
           <Alert color="success" sx={{ mb: 2 }}>
-            <strong>Data loading complete</strong>
+            <Box sx={{ fontWeight: 600 }}>Data loading complete</Box>
           </Alert>
         )}
 

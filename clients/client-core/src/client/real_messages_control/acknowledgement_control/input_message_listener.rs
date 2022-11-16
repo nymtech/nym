@@ -3,12 +3,12 @@
 
 use super::action_controller::{Action, ActionSender};
 use super::PendingAcknowledgement;
-use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::{
     inbound_messages::{InputMessage, InputMessageReceiver},
     real_messages_control::real_traffic_stream::{BatchRealMessageSender, RealMessage},
     topology_control::TopologyAccessor,
 };
+use client_connections::TransmissionLane;
 use futures::StreamExt;
 use log::*;
 use nymsphinx::anonymous_replies::ReplySurb;
@@ -16,7 +16,9 @@ use nymsphinx::preparer::MessagePreparer;
 use nymsphinx::{acknowledgements::AckKey, addressing::clients::Recipient};
 use rand::{CryptoRng, Rng};
 use std::sync::Arc;
-use task::ShutdownListener;
+
+#[cfg(feature = "reply-surb")]
+use crate::client::reply_key_storage::ReplyKeyStorage;
 
 /// Module responsible for dealing with the received messages: splitting them, creating acknowledgements,
 /// putting everything into sphinx packets, etc.
@@ -32,8 +34,8 @@ where
     action_sender: ActionSender,
     real_message_sender: BatchRealMessageSender,
     topology_access: TopologyAccessor,
+    #[cfg(feature = "reply-surb")]
     reply_key_storage: ReplyKeyStorage,
-    shutdown: ShutdownListener,
 }
 
 impl<R> InputMessageListener<R>
@@ -51,8 +53,7 @@ where
         action_sender: ActionSender,
         real_message_sender: BatchRealMessageSender,
         topology_access: TopologyAccessor,
-        reply_key_storage: ReplyKeyStorage,
-        shutdown: ShutdownListener,
+        #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
     ) -> Self {
         InputMessageListener {
             ack_key,
@@ -62,8 +63,8 @@ where
             action_sender,
             real_message_sender,
             topology_access,
+            #[cfg(feature = "reply-surb")]
             reply_key_storage,
-            shutdown,
         }
     }
 
@@ -104,6 +105,7 @@ where
         content: Vec<u8>,
         with_reply_surb: bool,
     ) -> Option<Vec<RealMessage>> {
+        log::trace!("handling msg size: {}", content.len());
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = match topology_permit
             .try_get_valid_topology_ref(&self.ack_recipient, Some(&recipient))
@@ -121,11 +123,15 @@ where
             .prepare_and_split_message(content, with_reply_surb, topology)
             .expect("somehow the topology was invalid after all!");
 
+        #[cfg(feature = "reply-surb")]
         if let Some(reply_key) = reply_key {
             self.reply_key_storage
                 .insert_encryption_key(reply_key)
                 .expect("Failed to insert surb reply key to the store!")
         }
+
+        #[cfg(not(feature = "reply-surb"))]
+        let _reply_key = reply_key;
 
         // encrypt chunks, put them inside sphinx packets and generate acks
         let mut pending_acks = Vec::with_capacity(split_message.len());
@@ -160,33 +166,39 @@ where
     }
 
     async fn on_input_message(&mut self, msg: InputMessage) {
-        let real_messages = match msg {
+        let (real_messages, lane) = match msg {
             InputMessage::Fresh {
                 recipient,
                 data,
                 with_reply_surb,
-            } => {
+                lane,
+            } => (
                 self.handle_fresh_message(recipient, data, with_reply_surb)
+                    .await,
+                lane,
+            ),
+            InputMessage::Reply { reply_surb, data } => (
+                self.handle_reply(reply_surb, data)
                     .await
-            }
-            InputMessage::Reply { reply_surb, data } => self
-                .handle_reply(reply_surb, data)
-                .await
-                .map(|message| vec![message]),
+                    .map(|message| vec![message]),
+                TransmissionLane::Reply,
+            ),
         };
 
         // there's no point in trying to send nothing
         if let Some(real_messages) = real_messages {
             // tells real message sender (with the poisson timer) to send this to the mix network
             self.real_message_sender
-                .unbounded_send(real_messages)
+                .unbounded_send((real_messages, lane))
                 .unwrap();
         }
     }
 
-    pub(super) async fn run(&mut self) {
-        debug!("Started InputMessageListener");
-        while !self.shutdown.is_shutdown() {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+        debug!("Started InputMessageListener with graceful shutdown support");
+
+        while !shutdown.is_shutdown() {
             tokio::select! {
                 input_msg = self.input_receiver.next() => match input_msg {
                     Some(input_msg) => {
@@ -197,12 +209,20 @@ where
                         break;
                     }
                 },
-                _ = self.shutdown.recv() => {
+                _ = shutdown.recv() => {
                     log::trace!("InputMessageListener: Received shutdown");
                 }
             }
         }
-        assert!(self.shutdown.is_shutdown_poll());
+        assert!(shutdown.is_shutdown_poll());
         log::debug!("InputMessageListener: Exiting");
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(super) async fn run(&mut self) {
+        debug!("Started InputMessageListener without graceful shutdown support");
+        while let Some(input_msg) = self.input_receiver.next().await {
+            self.on_input_message(input_msg).await;
+        }
     }
 }

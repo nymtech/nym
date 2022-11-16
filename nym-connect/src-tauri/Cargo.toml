@@ -1,6 +1,6 @@
 [package]
 name = "nym-connect"
-version = "1.0.2"
+version = "1.1.0"
 description = "nym-connect"
 authors = ["Nym Technologies SA"]
 license = ""
@@ -35,11 +35,12 @@ tap = "1.0.1"
 tauri = { version = "^1.1.1", features = ["clipboard-write-text", "shell-open", "system-tray", "updater"] }
 tendermint-rpc = "0.23.0"
 thiserror = "1.0"
-tokio = { version = "1.19.1", features = ["sync", "time"] }
+tokio = { version = "1.21.2", features = ["sync", "time"] }
 url = "2.2"
 
 client-core = { path = "../../clients/client-core" }
 config-common = { path = "../../common/config", package = "config" }
+logging = { path = "../../common/logging"}
 nym-socks5-client = { path = "../../clients/socks5" }
 topology = { path = "../../common/topology" }
 

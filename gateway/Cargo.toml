@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-gateway"
-version = "1.0.2"
+version = "1.1.0"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -19,7 +19,7 @@ anyhow = "1.0.53"
 async-trait = { version = "0.1.51" }
 bip39 = "1.0.1"
 bs58 = "0.4.0"
-clap = { version = "3.0.10", features = ["cargo", "derive"] }
+clap = { version = "3.2", features = ["cargo", "derive"] }
 colored = "2.0"
 dashmap = "4.0"
 dirs = "4.0"
@@ -39,7 +39,7 @@ sqlx = { version = "0.5", features = [
 ] }
 subtle-encoding = { version = "0.5", features = ["bech32-preview"] }
 thiserror = "1"
-tokio = { version = "1.19.1", features = [
+tokio = { version = "1.21.2", features = [
     "rt-multi-thread",
     "net",
     "signal",
@@ -55,6 +55,8 @@ coconut-interface = { path = "../common/coconut-interface", optional = true }
 credentials = { path = "../common/credentials" }
 config = { path = "../common/config" }
 crypto = { path = "../common/crypto" }
+completions = { path = "../common/completions" }
+logging = { path = "../common/logging"}
 gateway-requests = { path = "gateway-requests" }
 mixnet-client = { path = "../common/client-libs/mixnet-client" }
 mixnode-common = { path = "../common/mixnode-common" }
@@ -77,7 +79,7 @@ coconut = [
 ]
 
 [build-dependencies]
-tokio = { version = "1.19.1", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.21.2", features = ["rt-multi-thread", "macros"] }
 sqlx = { version = "0.5", features = [
     "runtime-tokio-rustls",
     "sqlite",

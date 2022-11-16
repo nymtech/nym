@@ -4,8 +4,9 @@
 use super::storage;
 use crate::delegations::storage as delegations_storage;
 use crate::interval::storage as interval_storage;
-use cosmwasm_std::{Coin, Decimal, Storage};
+use cosmwasm_std::{Coin, Storage};
 use mixnet_contract_common::error::MixnetContractError;
+use mixnet_contract_common::helpers::IntoBaseDecimal;
 use mixnet_contract_common::mixnode::{MixNodeDetails, MixNodeRewarding};
 use mixnet_contract_common::Delegation;
 
@@ -20,12 +21,12 @@ pub(crate) fn apply_reward_pool_changes(
 
     let reward_pool = rewarding_params.interval.reward_pool - pending_pool_change.removed
         + pending_pool_change.added;
-    let staking_supply = rewarding_params.interval.staking_supply + pending_pool_change.removed;
-    let epoch_reward_budget = reward_pool
-        / Decimal::from_atomics(interval.epochs_in_interval(), 0).unwrap()
+    let staking_supply = rewarding_params.interval.staking_supply
+        + rewarding_params.interval.staking_supply_scale_factor * pending_pool_change.removed;
+    let epoch_reward_budget = reward_pool / interval.epochs_in_interval().into_base_decimal()?
         * rewarding_params.interval.interval_pool_emission;
     let stake_saturation_point =
-        staking_supply / Decimal::from_atomics(rewarding_params.rewarded_set_size, 0).unwrap();
+        staking_supply / rewarding_params.rewarded_set_size.into_base_decimal()?;
 
     rewarding_params.interval.reward_pool = reward_pool;
     rewarding_params.interval.staking_supply = staking_supply;
@@ -45,7 +46,7 @@ pub(crate) fn withdraw_operator_reward(
     let mix_id = mix_details.mix_id();
     let mut mix_rewarding = mix_details.rewarding_details;
     let original_pledge = mix_details.bond_information.original_pledge;
-    let reward = mix_rewarding.withdraw_operator_reward(&original_pledge);
+    let reward = mix_rewarding.withdraw_operator_reward(&original_pledge)?;
 
     // save updated rewarding info
     storage::MIXNODE_REWARDING.save(store, mix_id, &mix_rewarding)?;
@@ -57,7 +58,7 @@ pub(crate) fn withdraw_delegator_reward(
     delegation: Delegation,
     mut mix_rewarding: MixNodeRewarding,
 ) -> Result<Coin, MixnetContractError> {
-    let mix_id = delegation.node_id;
+    let mix_id = delegation.mix_id;
     let mut updated_delegation = delegation.clone();
     let reward = mix_rewarding.withdraw_delegator_reward(&mut updated_delegation)?;
 
@@ -86,7 +87,7 @@ mod tests {
         let mut test = TestSetup::new();
 
         let epochs_in_interval = test.current_interval().epochs_in_interval();
-        let epochs_in_interval_dec = Decimal::from_atomics(epochs_in_interval, 0).unwrap();
+        let epochs_in_interval_dec = epochs_in_interval.into_base_decimal().unwrap();
         let start_rewarding_params = test.rewarding_params();
 
         // nothing changes if pending changes are empty
@@ -94,7 +95,7 @@ mod tests {
         assert_eq!(start_rewarding_params, test.rewarding_params());
 
         // normal case of having distributed some rewards
-        let distributed_rewards = Decimal::from_atomics(100_000_000u32, 0).unwrap();
+        let distributed_rewards = 100_000_000u32.into_base_decimal().unwrap();
         storage::PENDING_REWARD_POOL_CHANGE
             .save(
                 test.deps_mut().storage,
@@ -131,7 +132,10 @@ mod tests {
         assert_eq!(
             updated_rewarding_params.interval.stake_saturation_point,
             updated_rewarding_params.interval.staking_supply
-                / Decimal::from_atomics(updated_rewarding_params.rewarded_set_size, 0).unwrap()
+                / updated_rewarding_params
+                    .rewarded_set_size
+                    .into_base_decimal()
+                    .unwrap()
         );
 
         // resets changes back to 0
@@ -143,7 +147,7 @@ mod tests {
         );
 
         // future case of having to also increase the reward pool
-        let added_credentials = Decimal::from_atomics(50_000_000u32, 0).unwrap();
+        let added_credentials = 50_000_000u32.into_base_decimal().unwrap();
         storage::PENDING_REWARD_POOL_CHANGE
             .save(
                 test.deps_mut().storage,
@@ -180,7 +184,10 @@ mod tests {
         assert_eq!(
             updated_rewarding_params2.interval.stake_saturation_point,
             updated_rewarding_params2.interval.staking_supply
-                / Decimal::from_atomics(updated_rewarding_params2.rewarded_set_size, 0).unwrap()
+                / updated_rewarding_params2
+                    .rewarded_set_size
+                    .into_base_decimal()
+                    .unwrap()
         );
 
         // resets changes back to 0
@@ -197,7 +204,7 @@ mod tests {
         let mut test = TestSetup::new();
 
         let pledge = Uint128::new(250_000_000);
-        let pledge_dec = Decimal::from_atomics(250_000_000u32, 0).unwrap();
+        let pledge_dec = 250_000_000u32.into_base_decimal().unwrap();
         let mix_id = test.add_dummy_mixnode("mix-owner", Some(pledge));
 
         // no rewards
@@ -234,7 +241,7 @@ mod tests {
         let mut test = TestSetup::new();
 
         let delegation_amount = Uint128::new(2500_000_000);
-        let delegation_dec = Decimal::from_atomics(2500_000_000u32, 0).unwrap();
+        let delegation_dec = 2500_000_000u32.into_base_decimal().unwrap();
         let mix_id = test.add_dummy_mixnode("mix-owner", None);
         let delegator = "delegator";
         test.add_immediate_delegation(delegator, delegation_amount, mix_id);

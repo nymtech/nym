@@ -4,8 +4,8 @@ use super::authentication::{AuthenticationMethods, Authenticator, User};
 use super::request::{SocksCommand, SocksRequest};
 use super::types::{ResponseCode, SocksProxyError};
 use super::{RESERVED, SOCKS_VERSION};
-use client_core::client::inbound_messages::InputMessage;
-use client_core::client::inbound_messages::InputMessageSender;
+use client_connections::TransmissionLane;
+use client_core::client::inbound_messages::{InputMessage, InputMessageSender};
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use log::*;
@@ -226,17 +226,21 @@ impl SocksClient {
         }
     }
 
-    async fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
+    fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
         let req = Request::new_connect(self.connection_id, remote_address, self.self_address);
         let msg = Message::Request(req);
 
-        let input_message = InputMessage::new_fresh(self.service_provider, msg.into_bytes(), false);
+        let input_message = InputMessage::new_fresh(
+            self.service_provider,
+            msg.into_bytes(),
+            false,
+            TransmissionLane::ConnectionId(self.connection_id),
+        );
         self.input_sender.unbounded_send(input_message).unwrap();
     }
 
     async fn run_proxy(&mut self, conn_receiver: ConnectionReceiver, remote_proxy_target: String) {
-        self.send_connect_to_mixnet(remote_proxy_target.clone())
-            .await;
+        self.send_connect_to_mixnet(remote_proxy_target.clone());
 
         let stream = self.stream.run_proxy();
         let local_stream_remote = stream
@@ -259,7 +263,8 @@ impl SocksClient {
         .run(move |conn_id, read_data, socket_closed| {
             let provider_request = Request::new_send(conn_id, read_data, socket_closed);
             let provider_message = Message::Request(provider_request);
-            InputMessage::new_fresh(recipient, provider_message.into_bytes(), false)
+            let lane = TransmissionLane::ConnectionId(conn_id);
+            InputMessage::new_fresh(recipient, provider_message.into_bytes(), false, lane)
         })
         .await
         .into_inner();

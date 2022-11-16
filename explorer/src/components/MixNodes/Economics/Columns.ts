@@ -6,14 +6,16 @@ export const EconomicsInfoColumns: ColumnsType[] = [
     title: 'Estimated Total Reward',
     flex: 1,
     headerAlign: 'left',
-    tooltipInfo: 'Estimated reward per epoch for this profit margin if your node is selected in the active set.',
+    tooltipInfo:
+      'Estimated node reward (total for the operator and delegators) in the current epoch. There are roughly 24 epochs in a day.',
   },
   {
     field: 'estimatedOperatorReward',
     title: 'Estimated Operator Reward',
     flex: 1,
     headerAlign: 'left',
-    tooltipInfo: 'Estimated reward per epoch for this profit margin if your node is selected in the active set.',
+    tooltipInfo:
+      "Estimated operator's reward (including PM and Operating Cost) in the current epoch. There are roughly 24 epochs in a day.",
   },
   {
     field: 'selectionChance',
@@ -29,7 +31,7 @@ export const EconomicsInfoColumns: ColumnsType[] = [
     flex: 1,
     headerAlign: 'left',
     tooltipInfo:
-      'Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is: 1 million NYM, computed as S/K where S is  total amount of tokens available to stakeholders and K is the number of nodes in the reward set.',
+      'Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is: 750k NYM, computed as S/K where S is  total amount of tokens available to stakeholders and K is the number of nodes in the reward set.',
   },
   {
     field: 'profitMargin',
@@ -37,7 +39,15 @@ export const EconomicsInfoColumns: ColumnsType[] = [
     flex: 1,
     headerAlign: 'left',
     tooltipInfo:
-      'Percentage of the delegates rewards that the operator takes as fee before rewards are distributed to the delegates.',
+      'Percentage of the delegators rewards that the operator takes as fee before rewards are distributed to the delegators.',
+  },
+  {
+    field: 'operatingCost',
+    title: 'Operating Cost',
+    flex: 1,
+    headerAlign: 'left',
+    tooltipInfo:
+      'Monthly operational cost of running this node. This cost is set by the operator and it influences how the rewards are split between the operator and delegators.',
   },
   {
     field: 'avgUptime',

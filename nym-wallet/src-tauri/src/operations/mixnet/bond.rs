@@ -4,7 +4,7 @@
 use crate::error::BackendError;
 use crate::state::WalletState;
 use crate::{nymd_client, Gateway, MixNode};
-use mixnet_contract_common::{MixNodeConfigUpdate, NodeId};
+use mixnet_contract_common::{MixId, MixNodeConfigUpdate};
 use nym_types::currency::DecCoin;
 use nym_types::gateway::GatewayBond;
 use nym_types::mixnode::{MixNodeCostParams, MixNodeDetails};
@@ -171,6 +171,32 @@ pub async fn update_mixnode_config(
 }
 
 #[tauri::command]
+pub async fn get_mixnode_avg_uptime(
+    state: tauri::State<'_, WalletState>,
+) -> Result<Option<u8>, BackendError> {
+    log::info!(">>> Get mixnode bond details");
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+    let res = client.nymd.get_owned_mixnode(client.nymd.address()).await?;
+
+    match res.mixnode_details {
+        Some(details) => {
+            let id = details.mix_id();
+            log::trace!("  >>> Get average uptime percentage: mix_id = {}", id);
+            let avg_uptime_percent = client
+                .validator_api
+                .get_mixnode_avg_uptime(id)
+                .await
+                .ok()
+                .map(|r| r.avg_uptime);
+            log::trace!("  <<< {:?}", avg_uptime_percent);
+            Ok(avg_uptime_percent)
+        }
+        None => Ok(None),
+    }
+}
+
+#[tauri::command]
 pub async fn mixnode_bond_details(
     state: tauri::State<'_, WalletState>,
 ) -> Result<Option<MixNodeDetails>, BackendError> {
@@ -190,7 +216,7 @@ pub async fn mixnode_bond_details(
     log::info!(
         "<<< mix_id/identity_key = {:?}",
         details.as_ref().map(|r| (
-            r.bond_information.id,
+            r.bond_information.mix_id,
             &r.bond_information.mix_node.identity_key
         ))
     );
@@ -263,7 +289,7 @@ pub async fn get_pending_operator_rewards(
 
 #[tauri::command]
 pub async fn get_number_of_mixnode_delegators(
-    mix_id: NodeId,
+    mix_id: MixId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<usize, BackendError> {
     Ok(nymd_client!(state)

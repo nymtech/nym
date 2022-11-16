@@ -6,11 +6,12 @@ use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::new_interval_config_update_event;
-use mixnet_contract_common::Interval;
+use mixnet_contract_common::{BlockHeight, Interval};
 use std::time::Duration;
 
 pub(crate) fn change_interval_config(
     store: &mut dyn Storage,
+    request_creation: BlockHeight,
     mut current_interval: Interval,
     epochs_in_interval: u32,
     epoch_duration_secs: u64,
@@ -25,6 +26,7 @@ pub(crate) fn change_interval_config(
     storage::save_interval(store, &current_interval)?;
 
     Ok(Response::new().add_event(new_interval_config_update_event(
+        request_creation,
         epochs_in_interval,
         epoch_duration_secs,
         rewarding_params.interval,
@@ -50,6 +52,7 @@ mod tests {
         // if we half the number of epochs, the reward budget should get doubled
         change_interval_config(
             &mut deps.storage,
+            123,
             initial_interval,
             initial_interval.epochs_in_interval() / 2,
             initial_interval.epoch_length_secs(),
@@ -72,6 +75,7 @@ mod tests {
         // and similarly when we double number of epochs, the reward budget should get halved
         change_interval_config(
             &mut deps.storage,
+            123,
             initial_interval,
             initial_interval.epochs_in_interval() * 2,
             initial_interval.epoch_length_secs(),

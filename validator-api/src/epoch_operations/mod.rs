@@ -17,7 +17,7 @@ use crate::nymd_client::Client;
 use crate::storage::models::RewardingReport;
 use crate::storage::ValidatorApiStorage;
 use mixnet_contract_common::{
-    reward_params::Performance, CurrentIntervalResponse, ExecuteMsg, Interval, NodeId,
+    reward_params::Performance, CurrentIntervalResponse, ExecuteMsg, Interval, MixId,
 };
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
@@ -30,13 +30,14 @@ pub(crate) mod error;
 mod helpers;
 
 use crate::epoch_operations::helpers::stake_to_f64;
+use crate::node_status_api::ONE_DAY;
 use error::RewardingError;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use task::ShutdownListener;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct MixnodeToReward {
-    pub(crate) mix_id: NodeId,
+    pub(crate) mix_id: MixId,
 
     pub(crate) performance: Performance,
 }
@@ -49,9 +50,6 @@ impl From<MixnodeToReward> for ExecuteMsg {
         }
     }
 }
-
-// // Epoch has all the same semantics as interval, but has a lower set duration
-// type Epoch = Interval;
 
 pub struct RewardedSetUpdater {
     nymd_client: Client<SigningNymdClient>,
@@ -82,7 +80,7 @@ impl RewardedSetUpdater {
         &self,
         mixnodes: Vec<MixNodeDetails>,
         nodes_to_select: u32,
-    ) -> Vec<NodeId> {
+    ) -> Vec<MixId> {
         if mixnodes.is_empty() {
             return Vec::new();
         }
@@ -151,24 +149,34 @@ impl RewardedSetUpdater {
     }
 
     async fn nodes_to_reward(&self, interval: Interval) -> Vec<MixnodeToReward> {
-        let rewarded_set = self
-            .validator_cache
-            .rewarded_set_detailed()
-            .await
-            .into_inner();
+        // try to get current up to date view of the network bypassing the cache
+        // in case the epochs were significantly shortened for the purposes of testing
+        let rewarded_set: Vec<MixId> = match self.nymd_client.get_rewarded_set_mixnodes().await {
+            Ok(nodes) => nodes.into_iter().map(|(id, _)| id).collect::<Vec<_>>(),
+            Err(err) => {
+                warn!("failed to obtain the current rewarded set - {}. falling back to the cached version", err);
+                self.validator_cache
+                    .rewarded_set_detailed()
+                    .await
+                    .into_inner()
+                    .into_iter()
+                    .map(|node| node.mix_id())
+                    .collect::<Vec<_>>()
+            }
+        };
 
         let mut eligible_nodes = Vec::with_capacity(rewarded_set.len());
-        for mixnode in rewarded_set {
+        for mix_id in rewarded_set {
             let uptime = self
                 .storage
                 .get_average_mixnode_uptime_in_the_last_24hrs(
-                    mixnode.mix_id(),
+                    mix_id,
                     interval.current_epoch_end_unix_timestamp(),
                 )
                 .await
                 .unwrap_or_default();
             eligible_nodes.push(MixnodeToReward {
-                mix_id: mixnode.mix_id(),
+                mix_id,
                 performance: uptime.into(),
             })
         }
@@ -258,8 +266,8 @@ impl RewardedSetUpdater {
             log::info!("Advanced the epoch and updated the rewarded set... SUCCESS");
         }
 
-        log::info!("Puring all node statuses from the storage...");
-        let cutoff = (epoch_end - Duration::from_secs(86400)).unix_timestamp();
+        log::info!("Purging old node statuses from the storage...");
+        let cutoff = (epoch_end - 2 * ONE_DAY).unix_timestamp();
         self.storage.purge_old_statuses(cutoff).await?;
 
         Ok(())

@@ -13,6 +13,13 @@ pub struct OrderedMessageBuffer {
     messages: HashMap<u64, OrderedMessage>,
 }
 
+/// Data returned from `OrderedMessageBuffer` on a successful read of gapless ordered data.
+#[derive(Debug, PartialEq, Eq)]
+pub struct ReadContiguousData {
+    pub data: Vec<u8>,
+    pub last_index: u64,
+}
+
 impl OrderedMessageBuffer {
     pub fn new() -> OrderedMessageBuffer {
         OrderedMessageBuffer {
@@ -42,7 +49,7 @@ impl OrderedMessageBuffer {
     /// a read will return the bytes of messages 0, 1, 2. Subsequent reads will
     /// return `None` until message 3 comes in, at which point 3, 4, and any
     /// further contiguous messages which have arrived will be returned.
-    pub fn read(&mut self) -> Option<Vec<u8>> {
+    pub fn read(&mut self) -> Option<ReadContiguousData> {
         if !self.messages.contains_key(&self.next_index) {
             return None;
         }
@@ -66,7 +73,10 @@ impl OrderedMessageBuffer {
             .collect();
 
         trace!("Returning {} bytes from ordered message buffer", data.len());
-        Some(data)
+        Some(ReadContiguousData {
+            data,
+            last_index: index,
+        })
     }
 }
 
@@ -102,11 +112,11 @@ mod test_chunking_and_reassembling {
                 };
 
                 buffer.write(first_message);
-                let first_read = buffer.read().unwrap();
+                let first_read = buffer.read().unwrap().data;
                 assert_eq!(vec![1, 2, 3, 4], first_read);
 
                 buffer.write(second_message);
-                let second_read = buffer.read().unwrap();
+                let second_read = buffer.read().unwrap().data;
                 assert_eq!(vec![5, 6, 7, 8], second_read);
 
                 assert_eq!(None, buffer.read()); // second read on fully ordered result set is empty
@@ -128,7 +138,7 @@ mod test_chunking_and_reassembling {
                 buffer.write(first_message);
                 buffer.write(second_message);
                 let second_read = buffer.read();
-                assert_eq!(vec![1, 2, 3, 4, 5, 6, 7, 8], second_read.unwrap());
+                assert_eq!(vec![1, 2, 3, 4, 5, 6, 7, 8], second_read.unwrap().data);
                 assert_eq!(None, buffer.read()); // second read on fully ordered result set is empty
             }
 
@@ -147,8 +157,8 @@ mod test_chunking_and_reassembling {
 
                 buffer.write(second_message);
                 buffer.write(first_message);
-                let read = buffer.read();
-                assert_eq!(vec![1, 2, 3, 4, 5, 6, 7, 8], read.unwrap());
+                let read = buffer.read().unwrap().data;
+                assert_eq!(vec![1, 2, 3, 4, 5, 6, 7, 8], read);
                 assert_eq!(None, buffer.read()); // second read on fully ordered result set is empty
             }
         }
@@ -182,7 +192,7 @@ mod test_chunking_and_reassembling {
             #[test]
             fn everything_up_to_the_indexing_gap_is_returned() {
                 let mut buffer = setup();
-                let ordered_bytes = buffer.read().unwrap();
+                let ordered_bytes = buffer.read().unwrap().data;
                 assert_eq!([0, 0, 0, 0, 1, 1, 1, 1].to_vec(), ordered_bytes);
 
                 // we shouldn't get any more from a second attempt if nothing is added
@@ -208,7 +218,7 @@ mod test_chunking_and_reassembling {
                 };
                 buffer.write(two_message);
 
-                let more_ordered_bytes = buffer.read().unwrap();
+                let more_ordered_bytes = buffer.read().unwrap().data;
                 assert_eq!([2, 2, 2, 2, 3, 3, 3, 3].to_vec(), more_ordered_bytes);
 
                 // let's add another message
@@ -227,7 +237,10 @@ mod test_chunking_and_reassembling {
                 };
                 buffer.write(four_message);
 
-                assert_eq!([4, 4, 4, 4, 5, 5, 5, 5].to_vec(), buffer.read().unwrap());
+                assert_eq!(
+                    [4, 4, 4, 4, 5, 5, 5, 5].to_vec(),
+                    buffer.read().unwrap().data
+                );
 
                 // at this point we should again get back nothing if we try a read
                 assert_eq!(None, buffer.read());

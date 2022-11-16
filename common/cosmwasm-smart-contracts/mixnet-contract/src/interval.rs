@@ -60,14 +60,25 @@ pub(crate) mod string_rfc3339_offset_date_time {
     }
 }
 
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/Interval.ts")
+)]
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 pub struct Interval {
     id: IntervalId,
     epochs_in_interval: u32,
 
+    // TODO add a better TS type generation
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     #[serde(with = "string_rfc3339_offset_date_time")]
+    // note: the `ts-rs failed to parse this attribute. It will be ignored.` warning emitted during
+    // compilation is fine (I guess). `ts-rs` can't handle `with` serde attribute, but that's okay
+    // since we explicitly specified this field should correspond to typescript's string
     current_epoch_start: OffsetDateTime,
     current_epoch_id: EpochId,
+    #[cfg_attr(feature = "generate-ts", ts(type = "{ secs: number; nanos: number; }"))]
     epoch_length: Duration,
     total_elapsed_epochs: EpochId,
 }
@@ -134,14 +145,17 @@ impl JsonSchema for Interval {
 impl Interval {
     /// Initialize epoch in the contract with default values.
     pub fn init_interval(epochs_in_interval: u32, epoch_length: Duration, env: &Env) -> Self {
+        // if this fails it means the value provided from the chain itself (via cosmwasm) is invalid,
+        // so we really have to panic here as anything beyond that point would be invalid anyway
+        #[allow(clippy::expect_used)]
+        let current_epoch_start =
+            OffsetDateTime::from_unix_timestamp(env.block.time.seconds() as i64)
+                .expect("The timestamp provided via env.block.time is invalid");
+
         Interval {
             id: 0,
             epochs_in_interval,
-            // I really don't see a way for this to fail, unless the blockchain is lying to us
-            current_epoch_start: OffsetDateTime::from_unix_timestamp(
-                env.block.time.seconds() as i64
-            )
-            .expect("Invalid timestamp from env.block.time"),
+            current_epoch_start,
             current_epoch_id: 0,
             epoch_length,
             total_elapsed_epochs: 0,

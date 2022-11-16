@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { Box } from '@mui/material';
 import { CurrencyDenom, TNodeType } from '@nymproject/types';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
@@ -10,7 +9,7 @@ import { MixnodeAmount, MixnodeData } from 'src/pages/bonding/types';
 import { simulateBondMixnode, simulateVestingBondMixnode } from 'src/requests';
 import { TBondMixNodeArgs } from 'src/types';
 import { BondMixnodeForm } from '../forms/BondMixnodeForm';
-import { attachDefaultOperatingCost, toPercentFloatString } from '../../../utils';
+import { toPercentFloatString } from '../../../utils';
 
 const defaultMixnodeValues: MixnodeData = {
   identityKey: '',
@@ -25,6 +24,7 @@ const defaultMixnodeValues: MixnodeData = {
 
 const defaultAmountValues = (denom: CurrencyDenom) => ({
   amount: { amount: '100', denom },
+  operatorCost: { amount: '40', denom },
   profitMargin: '10',
   tokenPool: 'balance',
 });
@@ -71,11 +71,7 @@ export const BondMixnodeModal = ({
   };
 
   const handleUpdateAmountData = async (data: MixnodeAmount) => {
-    const pm = toPercentFloatString(data.profitMargin);
-    setAmountData({ ...data, profitMargin: pm });
-
-    // TODO: this will have to be updated with allowing users to provide their operating cost in the form
-    const defaultCostParams = await attachDefaultOperatingCost(pm);
+    setAmountData({ ...data });
 
     const payload = {
       pledge: data.amount,
@@ -88,7 +84,13 @@ export const BondMixnodeModal = ({
         sphinx_key: mixnodeData.sphinxKey,
         identity_key: mixnodeData.identityKey,
       },
-      costParams: defaultCostParams,
+      costParams: {
+        profit_margin_percent: toPercentFloatString(data.profitMargin),
+        interval_operating_cost: {
+          amount: data.operatorCost.amount.toString(),
+          denom: data.operatorCost.denom,
+        },
+      },
     };
 
     if (data.tokenPool === 'balance') {
@@ -99,12 +101,8 @@ export const BondMixnodeModal = ({
   };
 
   const handleConfirm = async () => {
-    // TODO: this will have to be updated with allowing users to provide their operating cost in the form
-    const defaultCostParams = await attachDefaultOperatingCost(amountData.profitMargin);
-
     await onBondMixnode(
       {
-        costParams: defaultCostParams,
         pledge: amountData.amount,
         ownerSignature: mixnodeData.ownerSignature,
         mixnode: {
@@ -114,6 +112,13 @@ export const BondMixnodeModal = ({
           verloc_port: mixnodeData.verlocPort,
           sphinx_key: mixnodeData.sphinxKey,
           identity_key: mixnodeData.identityKey,
+        },
+        costParams: {
+          profit_margin_percent: toPercentFloatString(amountData.profitMargin),
+          interval_operating_cost: {
+            amount: amountData.operatorCost.amount,
+            denom: amountData.operatorCost.denom,
+          },
         },
       },
       amountData.tokenPool as TPoolOption,

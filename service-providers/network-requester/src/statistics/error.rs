@@ -5,7 +5,7 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum StatsError {
-    #[error("Reqwuest error {0}")]
+    #[error("Reqwest error {0}")]
     ReqwestError(#[from] reqwest::Error),
 
     #[error("Invalid stats provider client address")]

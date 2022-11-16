@@ -35,6 +35,7 @@ const AdminForm: React.FC<{
               fullWidth
               error={!!errors.minimum_mixnode_pledge}
               helperText={`${errors?.minimum_mixnode_pledge?.amount?.message} ${errors?.minimum_mixnode_pledge?.denom?.message}`}
+              InputLabelProps={{ shrink: true }}
             />
           </Grid>
           <Grid item xs={12}>
@@ -48,6 +49,7 @@ const AdminForm: React.FC<{
               fullWidth
               error={!!errors.minimum_gateway_pledge}
               helperText={`${errors?.minimum_gateway_pledge?.amount?.message} ${errors?.minimum_gateway_pledge?.denom?.message}`}
+              InputLabelProps={{ shrink: true }}
             />
           </Grid>
         </Grid>

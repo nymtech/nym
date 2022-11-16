@@ -8,19 +8,28 @@ use serde::{Deserialize, Serialize};
 pub mod helpers;
 pub mod simulator;
 
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/RewardEstimate.ts")
+)]
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 pub struct RewardEstimate {
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub total_node_reward: Decimal,
 
     // note that operator reward includes the operating_cost,
     // i.e. say total_node_reward was `1nym` and operating_cost was `2nym`
     // in that case the operator reward would still be `1nym` as opposed to 0
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub operator: Decimal,
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub delegates: Decimal,
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub operating_cost: Decimal,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, JsonSchema, PartialEq, Eq)]
 pub struct RewardDistribution {
     pub operator: Decimal,
     pub delegates: Decimal,

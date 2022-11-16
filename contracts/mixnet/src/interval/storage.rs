@@ -6,16 +6,18 @@ use crate::constants::{
     LAST_EPOCH_EVENT_ID_KEY, LAST_INTERVAL_EVENT_ID_KEY, PENDING_EPOCH_EVENTS_NAMESPACE,
     PENDING_INTERVAL_EVENTS_NAMESPACE, REWARDED_SET_KEY,
 };
-use cosmwasm_std::{Order, StdResult, Storage};
+use cosmwasm_std::{Env, Order, StdResult, Storage};
 use cw_storage_plus::{Item, Map};
-use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
+use mixnet_contract_common::pending_events::{
+    PendingEpochEventData, PendingEpochEventKind, PendingIntervalEventData,
+};
 use mixnet_contract_common::{
-    EpochEventId, Interval, IntervalEventId, NodeId, RewardedSetNodeStatus,
+    EpochEventId, Interval, IntervalEventId, MixId, PendingIntervalEventKind, RewardedSetNodeStatus,
 };
 use std::collections::HashMap;
 
 pub(crate) const CURRENT_INTERVAL: Item<'_, Interval> = Item::new(CURRENT_INTERVAL_KEY);
-pub(crate) const REWARDED_SET: Map<NodeId, RewardedSetNodeStatus> = Map::new(REWARDED_SET_KEY);
+pub(crate) const REWARDED_SET: Map<MixId, RewardedSetNodeStatus> = Map::new(REWARDED_SET_KEY);
 
 pub(crate) const EPOCH_EVENT_ID_COUNTER: Item<EpochEventId> = Item::new(EPOCH_EVENT_ID_COUNTER_KEY);
 pub(crate) const INTERVAL_EVENT_ID_COUNTER: Item<IntervalEventId> =
@@ -64,24 +66,28 @@ pub(crate) fn next_interval_event_id_counter(
 
 pub(crate) fn push_new_epoch_event(
     storage: &mut dyn Storage,
-    event: &PendingEpochEventData,
+    env: &Env,
+    event: PendingEpochEventKind,
 ) -> StdResult<()> {
     let event_id = next_epoch_event_id_counter(storage)?;
-    PENDING_EPOCH_EVENTS.save(storage, event_id, event)
+    let event_data = event.attach_source_height(env.block.height);
+    PENDING_EPOCH_EVENTS.save(storage, event_id, &event_data)
 }
 
 pub(crate) fn push_new_interval_event(
     storage: &mut dyn Storage,
-    event: &PendingIntervalEventData,
+    env: &Env,
+    event: PendingIntervalEventKind,
 ) -> StdResult<()> {
     let event_id = next_interval_event_id_counter(storage)?;
-    PENDING_INTERVAL_EVENTS.save(storage, event_id, event)
+    let event_data = event.attach_source_height(env.block.height);
+    PENDING_INTERVAL_EVENTS.save(storage, event_id, &event_data)
 }
 
 pub(crate) fn update_rewarded_set(
     storage: &mut dyn Storage,
     active_set_size: u32,
-    new_set: Vec<NodeId>,
+    new_set: Vec<MixId>,
 ) -> StdResult<()> {
     // our goal is to reduce the number of reads and writes to the underlying storage,
     // whilst completely overwriting the current rewarded set.
@@ -138,7 +144,7 @@ mod tests {
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::Order;
 
-    fn read_entire_set(storage: &mut dyn Storage) -> HashMap<NodeId, RewardedSetNodeStatus> {
+    fn read_entire_set(storage: &mut dyn Storage) -> HashMap<MixId, RewardedSetNodeStatus> {
         REWARDED_SET
             .range(storage, None, None, Order::Ascending)
             .map(|r| r.unwrap())

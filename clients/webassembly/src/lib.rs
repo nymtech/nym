@@ -4,7 +4,11 @@
 use wasm_bindgen::prelude::*;
 
 #[cfg(target_arch = "wasm32")]
+pub mod binary_message_helper;
+#[cfg(target_arch = "wasm32")]
 mod client;
+#[cfg(target_arch = "wasm32")]
+pub mod gateway_selector;
 
 #[wasm_bindgen]
 pub fn set_panic_hook() {

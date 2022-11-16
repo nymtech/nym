@@ -15,7 +15,7 @@ pub struct VestingPeriod {
 
 impl VestingPeriod {
     pub fn end_time(&self) -> Timestamp {
-        Timestamp::from_seconds(self.start_time + self.period_seconds as u64)
+        Timestamp::from_seconds(self.start_time + self.period_seconds)
     }
 }
 
@@ -26,7 +26,7 @@ pub fn populate_vesting_periods(
     let mut periods = Vec::with_capacity(vesting_spec.num_periods() as usize);
     for i in 0..vesting_spec.num_periods() {
         let period = VestingPeriod {
-            start_time: start_time + i as u64 * vesting_spec.period_seconds(),
+            start_time: start_time + i * vesting_spec.period_seconds(),
             period_seconds: vesting_spec.period_seconds(),
         };
         periods.push(period);
@@ -38,6 +38,7 @@ pub fn populate_vesting_periods(
 mod tests {
     use crate::contract::*;
     use crate::storage::*;
+    use crate::support::tests::helpers::vesting_account_percent_fixture;
     use crate::support::tests::helpers::{
         init_contract, vesting_account_mid_fixture, vesting_account_new_fixture, TEST_COIN_DENOM,
     };
@@ -51,6 +52,7 @@ mod tests {
     use mixnet_contract_common::{Gateway, MixNode, Percent};
     use vesting_contract_common::messages::{ExecuteMsg, VestingSpecification};
     use vesting_contract_common::Period;
+    use vesting_contract_common::PledgeCap;
 
     #[test]
     fn test_account_creation() {
@@ -61,6 +63,7 @@ mod tests {
             owner_address: "owner".to_string(),
             staking_address: Some("staking".to_string()),
             vesting_spec: None,
+            cap: Some(PledgeCap::Absolute(Uint128::from(100_000_000_000u128))),
         };
         // Try creating an account when not admin
         let response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
@@ -180,12 +183,14 @@ mod tests {
 
         assert_eq!(account.periods().len(), num_vesting_periods as usize);
 
-        let current_period = account.get_current_vesting_period(Timestamp::from_seconds(0));
+        let current_period = account
+            .get_current_vesting_period(Timestamp::from_seconds(0))
+            .unwrap();
         assert_eq!(Period::Before, current_period);
 
         let block_time =
             Timestamp::from_seconds(account.start_time().seconds() + vesting_period + 1);
-        let current_period = account.get_current_vesting_period(block_time);
+        let current_period = account.get_current_vesting_period(block_time).unwrap();
         assert_eq!(current_period, Period::In(1));
         let vested_coins = account
             .get_vested_coins(Some(block_time), &env, &deps.storage)
@@ -196,21 +201,37 @@ mod tests {
         assert_eq!(
             vested_coins.amount,
             Uint128::new(
-                account.get_original_vesting().amount().amount.u128() / num_vesting_periods as u128
+                account
+                    .get_original_vesting()
+                    .unwrap()
+                    .amount()
+                    .amount
+                    .u128()
+                    / num_vesting_periods as u128
             )
         );
         assert_eq!(
             vesting_coins.amount,
             Uint128::new(
-                account.get_original_vesting().amount().amount.u128()
-                    - account.get_original_vesting().amount().amount.u128()
+                account
+                    .get_original_vesting()
+                    .unwrap()
+                    .amount()
+                    .amount
+                    .u128()
+                    - account
+                        .get_original_vesting()
+                        .unwrap()
+                        .amount()
+                        .amount
+                        .u128()
                         / num_vesting_periods as u128
             )
         );
 
         let block_time =
             Timestamp::from_seconds(account.start_time().seconds() + 5 * vesting_period + 1);
-        let current_period = account.get_current_vesting_period(block_time);
+        let current_period = account.get_current_vesting_period(block_time).unwrap();
         assert_eq!(current_period, Period::In(5));
         let vested_coins = account
             .get_vested_coins(Some(block_time), &env, &deps.storage)
@@ -221,15 +242,30 @@ mod tests {
         assert_eq!(
             vested_coins.amount,
             Uint128::new(
-                5 * account.get_original_vesting().amount().amount.u128()
+                5 * account
+                    .get_original_vesting()
+                    .unwrap()
+                    .amount()
+                    .amount
+                    .u128()
                     / num_vesting_periods as u128
             )
         );
         assert_eq!(
             vesting_coins.amount,
             Uint128::new(
-                account.get_original_vesting().amount().amount.u128()
-                    - 5 * account.get_original_vesting().amount().amount.u128()
+                account
+                    .get_original_vesting()
+                    .unwrap()
+                    .amount()
+                    .amount
+                    .u128()
+                    - 5 * account
+                        .get_original_vesting()
+                        .unwrap()
+                        .amount()
+                        .amount
+                        .u128()
                         / num_vesting_periods as u128
             )
         );
@@ -237,7 +273,7 @@ mod tests {
         let block_time = Timestamp::from_seconds(
             account.start_time().seconds() + vesting_over_period * vesting_period + 1,
         );
-        let current_period = account.get_current_vesting_period(block_time);
+        let current_period = account.get_current_vesting_period(block_time).unwrap();
         assert_eq!(current_period, Period::After);
         let vested_coins = account
             .get_vested_coins(Some(block_time), &env, &deps.storage)
@@ -247,7 +283,14 @@ mod tests {
             .unwrap();
         assert_eq!(
             vested_coins.amount,
-            Uint128::new(account.get_original_vesting().amount().amount.u128())
+            Uint128::new(
+                account
+                    .get_original_vesting()
+                    .unwrap()
+                    .amount()
+                    .amount
+                    .u128()
+            )
         );
         assert_eq!(vesting_coins.amount, Uint128::zero());
     }
@@ -390,11 +433,37 @@ mod tests {
     }
 
     #[test]
+    fn test_percent_cap() {
+        let mut deps = init_contract();
+        let env = mock_env();
+
+        let account = vesting_account_percent_fixture(&mut deps.storage, &env);
+
+        assert_eq!(
+            account.absolute_pledge_cap().unwrap(),
+            Uint128::new(100_000_000_000)
+        )
+    }
+
+    #[test]
     fn test_delegations() {
         let mut deps = init_contract();
         let env = mock_env();
 
-        let account = vesting_account_new_fixture(&mut deps.storage, &env);
+        // let account = vesting_account_new_fixture(&mut deps.storage, &env);
+
+        let msg = ExecuteMsg::CreateAccount {
+            owner_address: "owner".to_string(),
+            staking_address: Some("staking".to_string()),
+            vesting_spec: None,
+            cap: Some(PledgeCap::Absolute(Uint128::from(100_000_000_000u128))),
+        };
+        let info = mock_info("admin", &coins(1_000_000_000_000, TEST_COIN_DENOM));
+
+        let _response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
+        let account = load_account(&Addr::unchecked("owner"), &deps.storage)
+            .unwrap()
+            .unwrap();
 
         // Try delegating too much
         let err = account.try_delegate_to_mixnode(
@@ -434,7 +503,7 @@ mod tests {
         let balance = account.load_balance(&deps.storage).unwrap();
         assert_eq!(balance, Uint128::new(910000000000));
 
-        // Try delegating too much again
+        // Try delegating too much againcalca
         let err = account.try_delegate_to_mixnode(
             1,
             Coin {
@@ -448,6 +517,10 @@ mod tests {
 
         let total_delegations = account.total_delegations_for_mix(1, &deps.storage).unwrap();
         assert_eq!(Uint128::new(90_000_000_000), total_delegations);
+
+        let account = load_account(&Addr::unchecked("owner"), &deps.storage)
+            .unwrap()
+            .unwrap();
 
         // Current period -> block_time: None
         let delegated_free = account
@@ -813,6 +886,7 @@ mod tests {
             },
             Timestamp::from_seconds(account_creation_timestamp),
             periods,
+            Some(PledgeCap::Absolute(Uint128::from(100_000_000_000u128))),
             deps.as_mut().storage,
         )
         .unwrap();

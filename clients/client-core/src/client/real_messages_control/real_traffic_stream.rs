@@ -4,6 +4,7 @@
 use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
+use client_connections::{ClosedConnectionReceiver, ConnectionId, TransmissionLane};
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
@@ -13,14 +14,35 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::chunking::fragment::FragmentIdentifier;
 use nymsphinx::cover::generate_loop_cover_packet;
 use nymsphinx::forwarding::packet::MixPacket;
+use nymsphinx::params::PacketSize;
 use nymsphinx::utils::sample_poisson_duration;
 use rand::{CryptoRng, Rng};
-use std::collections::VecDeque;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
-use task::ShutdownListener;
+
+#[cfg(not(target_arch = "wasm32"))]
 use tokio::time;
+
+#[cfg(target_arch = "wasm32")]
+use wasm_timer;
+
+use self::{
+    sending_delay_controller::SendingDelayController, transmission_buffer::TransmissionBuffer,
+};
+
+mod sending_delay_controller;
+mod transmission_buffer;
+
+#[cfg(not(target_arch = "wasm32"))]
+fn get_time_now() -> time::Instant {
+    time::Instant::now()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn get_time_now() -> wasm_timer::Instant {
+    wasm_timer::Instant::now()
+}
 
 /// Configurable parameters of the `OutQueueControl`
 pub(crate) struct Config {
@@ -32,6 +54,13 @@ pub(crate) struct Config {
 
     /// Average delay between sending subsequent packets.
     average_message_sending_delay: Duration,
+
+    /// Controls whether the stream constantly produces packets according to the predefined
+    /// poisson distribution.
+    disable_poisson_packet_distribution: bool,
+
+    /// Predefined packet size used for the loop cover messages.
+    cover_packet_size: PacketSize,
 }
 
 impl Config {
@@ -39,12 +68,20 @@ impl Config {
         average_ack_delay: Duration,
         average_packet_delay: Duration,
         average_message_sending_delay: Duration,
+        disable_poisson_packet_distribution: bool,
     ) -> Self {
         Config {
             average_ack_delay,
             average_packet_delay,
             average_message_sending_delay,
+            disable_poisson_packet_distribution,
+            cover_packet_size: Default::default(),
         }
+    }
+
+    pub fn with_custom_cover_packet_size(mut self, packet_size: PacketSize) -> Self {
+        self.cover_packet_size = packet_size;
+        self
     }
 }
 
@@ -63,7 +100,15 @@ where
 
     /// Internal state, determined by `average_message_sending_delay`,
     /// used to keep track of when a next packet should be sent out.
-    next_delay: Pin<Box<time::Sleep>>,
+    #[cfg(not(target_arch = "wasm32"))]
+    next_delay: Option<Pin<Box<time::Sleep>>>,
+
+    #[cfg(target_arch = "wasm32")]
+    next_delay: Option<Pin<Box<wasm_timer::Delay>>>,
+
+    // To make sure we don't overload the mix_tx channel, we limit the rate we are pushing
+    // messages.
+    sending_delay_controller: SendingDelayController,
 
     /// Channel used for sending prepared sphinx packets to `MixTrafficController` that sends them
     /// out to the network without any further delays.
@@ -82,11 +127,13 @@ where
     /// Accessor to the common instance of network topology.
     topology_access: TopologyAccessor,
 
-    /// Buffer containing all real messages received. It is first exhausted before more are pulled.
-    received_buffer: VecDeque<RealMessage>,
+    /// Buffer containing all incoming real messages keyed by transmission lane, that we will send
+    /// out to the mixnet.
+    transmission_buffer: TransmissionBuffer,
 
-    /// Listens for shutdown signals
-    shutdown: ShutdownListener,
+    /// Incoming channel for being notified of closed connections, so that we can close lanes
+    /// corresponding to connections. To avoid sending traffic unnecessary
+    closed_connection_rx: ClosedConnectionReceiver,
 }
 
 pub(crate) struct RealMessage {
@@ -105,61 +152,13 @@ impl RealMessage {
 
 // messages are already prepared, etc. the real point of it is to forward it to mix_traffic
 // after sufficient delay
-pub(crate) type BatchRealMessageSender = mpsc::UnboundedSender<Vec<RealMessage>>;
-type BatchRealMessageReceiver = mpsc::UnboundedReceiver<Vec<RealMessage>>;
+pub(crate) type BatchRealMessageSender =
+    mpsc::UnboundedSender<(Vec<RealMessage>, TransmissionLane)>;
+type BatchRealMessageReceiver = mpsc::UnboundedReceiver<(Vec<RealMessage>, TransmissionLane)>;
 
 pub(crate) enum StreamMessage {
     Cover,
     Real(Box<RealMessage>),
-}
-
-impl<R> Stream for OutQueueControl<R>
-where
-    R: CryptoRng + Rng + Unpin,
-{
-    type Item = StreamMessage;
-
-    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
-        // it is not yet time to return a message
-        if self.next_delay.as_mut().poll(cx).is_pending() {
-            return Poll::Pending;
-        };
-
-        // we know it's time to send a message, so let's prepare delay for the next one
-        // Get the `now` by looking at the current `delay` deadline
-        let avg_delay = self.config.average_message_sending_delay;
-        let now = self.next_delay.deadline();
-        let next_poisson_delay = sample_poisson_duration(&mut self.rng, avg_delay);
-
-        // The next interval value is `next_poisson_delay` after the one that just
-        // yielded.
-        let next = now + next_poisson_delay;
-        self.next_delay.as_mut().reset(next);
-
-        // check if we have anything immediately available
-        if let Some(real_available) = self.received_buffer.pop_front() {
-            return Poll::Ready(Some(StreamMessage::Real(Box::new(real_available))));
-        }
-
-        // decide what kind of message to send
-        match Pin::new(&mut self.real_receiver).poll_next(cx) {
-            // in the case our real message channel stream was closed, we should also indicate we are closed
-            // (and whoever is using the stream should panic)
-            Poll::Ready(None) => Poll::Ready(None),
-
-            // if there are more messages available, return first one and store the rest
-            Poll::Ready(Some(real_messages)) => {
-                self.received_buffer = real_messages.into();
-                // we MUST HAVE received at least ONE message
-                Poll::Ready(Some(StreamMessage::Real(Box::new(
-                    self.received_buffer.pop_front().unwrap(),
-                ))))
-            }
-
-            // otherwise construct a dummy one
-            Poll::Pending => Poll::Ready(Some(StreamMessage::Cover)),
-        }
-    }
 }
 
 impl<R> OutQueueControl<R>
@@ -178,20 +177,21 @@ where
         rng: R,
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
-        shutdown: ShutdownListener,
+        closed_connection_rx: ClosedConnectionReceiver,
     ) -> Self {
         OutQueueControl {
             config,
             ack_key,
             sent_notifier,
-            next_delay: Box::pin(time::sleep(Default::default())),
+            next_delay: None,
+            sending_delay_controller: Default::default(),
             mix_tx,
             real_receiver,
             our_full_destination,
             rng,
             topology_access,
-            received_buffer: VecDeque::with_capacity(0), // we won't be putting any data into this guy directly
-            shutdown,
+            transmission_buffer: Default::default(),
+            closed_connection_rx,
         }
     }
 
@@ -206,7 +206,7 @@ where
     async fn on_message(&mut self, next_message: StreamMessage) {
         trace!("created new message");
 
-        let next_message = match next_message {
+        let (next_message, fragment_id) = match next_message {
             StreamMessage::Cover => {
                 // TODO for way down the line: in very rare cases (during topology update) we might have
                 // to wait a really tiny bit before actually obtaining the permit hence messing with our
@@ -225,67 +225,262 @@ where
                 }
                 let topology_ref = topology_ref_option.unwrap();
 
-                generate_loop_cover_packet(
-                    &mut self.rng,
-                    topology_ref,
-                    &self.ack_key,
-                    &self.our_full_destination,
-                    self.config.average_ack_delay,
-                    self.config.average_packet_delay,
+                (
+                    generate_loop_cover_packet(
+                        &mut self.rng,
+                        topology_ref,
+                        &self.ack_key,
+                        &self.our_full_destination,
+                        self.config.average_ack_delay,
+                        self.config.average_packet_delay,
+                        self.config.cover_packet_size,
+                    )
+                    .expect(
+                        "Somehow failed to generate a loop cover message with a valid topology",
+                    ),
+                    None,
                 )
-                .expect("Somehow failed to generate a loop cover message with a valid topology")
             }
             StreamMessage::Real(real_message) => {
-                self.sent_notify(real_message.fragment_id);
-                real_message.mix_packet
+                (real_message.mix_packet, Some(real_message.fragment_id))
             }
         };
 
-        // if this one fails, there's no retrying because it means that either:
-        // - we run out of memory
-        // - the receiver channel is closed
-        // in either case there's no recovery and we can only panic
-        if let Err(err) = self.mix_tx.unbounded_send(vec![next_message]) {
-            if self.shutdown.is_shutdown_poll() {
-                log::info!("Failed to send (shutdown detected)");
-            } else {
-                // We don't try to limp along, panic to avoid continuing in a potentially
-                // inconsistent state
-                panic!("{err}");
-            }
+        if let Err(err) = self.mix_tx.send(vec![next_message]).await {
+            log::error!("Failed to send - channel closed: {}", err);
         }
+
+        // notify ack controller about sending our message only after we actually managed to push it
+        // through the channel
+        if let Some(fragment_id) = fragment_id {
+            self.sent_notify(fragment_id);
+        }
+
+        // In addition to closing connections on receiving messages throught closed_connection_rx,
+        // also close connections when sufficiently stale.
+        self.transmission_buffer.prune_stale_connections();
 
         // JS: Not entirely sure why or how it fixes stuff, but without the yield call,
         // the UnboundedReceiver [of mix_rx] will not get a chance to read anything
         // JS2: Basically it was the case that with high enough rate, the stream had already a next value
         // ready and hence was immediately re-scheduled causing other tasks to be starved;
         // yield makes it go back the scheduling queue regardless of its value availability
+
+        // TODO: temporary and BAD workaround for wasm (we should find a way to yield here in wasm)
+        #[cfg(not(target_arch = "wasm32"))]
         tokio::task::yield_now().await;
     }
 
-    // Send messages at certain rate and if no real traffic is available, send cover message.
-    async fn run_normal_out_queue(&mut self) {
-        // we should set initial delay only when we actually start the stream
-        self.next_delay = Box::pin(time::sleep(sample_poisson_duration(
-            &mut self.rng,
-            self.config.average_message_sending_delay,
-        )));
+    fn on_close_connection(&mut self, connection_id: ConnectionId) {
+        log::debug!("Removing lane for connection: {connection_id}");
+        self.transmission_buffer
+            .remove(&TransmissionLane::ConnectionId(connection_id));
+    }
 
-        let mut shutdown = self.shutdown.clone();
+    fn current_average_message_sending_delay(&self) -> Duration {
+        self.config.average_message_sending_delay
+            * self.sending_delay_controller.current_multiplier()
+    }
+
+    fn adjust_current_average_message_sending_delay(&mut self) {
+        let used_slots = self.mix_tx.max_capacity() - self.mix_tx.capacity();
+        log::trace!(
+            "used_slots: {used_slots}, current_multiplier: {}",
+            self.sending_delay_controller.current_multiplier()
+        );
+
+        // Even just a single used slot is enough to signal backpressure
+        if used_slots > 0 {
+            log::trace!("Backpressure detected");
+            self.sending_delay_controller.record_backpressure_detected();
+        }
+
+        // If the buffer is running out, slow down the sending rate
+        if self.mix_tx.capacity() == 0
+            && self.sending_delay_controller.not_increased_delay_recently()
+        {
+            self.sending_delay_controller.increase_delay_multiplier();
+        }
+
+        // Very carefully step up the sending rate in case it seems like we can solidly handle the
+        // current rate.
+        if self.sending_delay_controller.is_sending_reliable() {
+            self.sending_delay_controller.decrease_delay_multiplier();
+        }
+    }
+
+    fn poll_poisson(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
+        // The average delay could change depending on if backpressure in the downstream channel
+        // (mix_tx) was detected.
+        self.adjust_current_average_message_sending_delay();
+        let avg_delay = self.current_average_message_sending_delay();
+
+        // Start by checking if we have any incoming messages about closed connections
+        // NOTE: this feels a bit iffy, the `OutQueueControl` is getting ripe for a rewrite to
+        // something simpler.
+        if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connection_rx).poll_next(cx) {
+            self.on_close_connection(id);
+        }
+
+        if let Some(ref mut next_delay) = &mut self.next_delay {
+            // it is not yet time to return a message
+            if next_delay.as_mut().poll(cx).is_pending() {
+                return Poll::Pending;
+            };
+
+            // we know it's time to send a message, so let's prepare delay for the next one
+            // Get the `now` by looking at the current `delay` deadline
+            let next_poisson_delay = sample_poisson_duration(&mut self.rng, avg_delay);
+
+            // The next interval value is `next_poisson_delay` after the one that just
+            // yielded.
+            #[cfg(not(target_arch = "wasm32"))]
+            {
+                let now = next_delay.deadline();
+                let next = now + next_poisson_delay;
+                next_delay.as_mut().reset(next);
+            }
+
+            #[cfg(target_arch = "wasm32")]
+            {
+                next_delay.as_mut().reset(next_poisson_delay);
+            }
+
+            // On every iteration we get new messages from upstream. Given that these come bunched
+            // in `Vec`, this ensures that on average we will fetch messages faster than we can
+            // send, which is a condition for being able to multiplex sphinx packets from multiple
+            // data streams.
+            match Pin::new(&mut self.real_receiver).poll_next(cx) {
+                // in the case our real message channel stream was closed, we should also indicate we are closed
+                // (and whoever is using the stream should panic)
+                Poll::Ready(None) => Poll::Ready(None),
+
+                Poll::Ready(Some((real_messages, conn_id))) => {
+                    log::trace!("handling real_messages: size: {}", real_messages.len());
+
+                    self.transmission_buffer.store(&conn_id, real_messages);
+                    let real_next = self
+                        .transmission_buffer
+                        .pop_next_message_at_random()
+                        .expect("we just added one");
+
+                    Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
+                }
+
+                Poll::Pending => {
+                    if let Some(real_next) = self.transmission_buffer.pop_next_message_at_random() {
+                        Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
+                    } else {
+                        // otherwise construct a dummy one
+                        Poll::Ready(Some(StreamMessage::Cover))
+                    }
+                }
+            }
+        } else {
+            // we never set an initial delay - let's do it now
+            cx.waker().wake_by_ref();
+
+            let sampled =
+                sample_poisson_duration(&mut self.rng, self.config.average_message_sending_delay);
+
+            #[cfg(not(target_arch = "wasm32"))]
+            let next_delay = Box::pin(time::sleep(sampled));
+
+            #[cfg(target_arch = "wasm32")]
+            let next_delay = Box::pin(wasm_timer::Delay::new(sampled));
+
+            self.next_delay = Some(next_delay);
+
+            Poll::Pending
+        }
+    }
+
+    fn poll_immediate(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
+        // Start by checking if we have any incoming messages about closed connections
+        if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connection_rx).poll_next(cx) {
+            self.on_close_connection(id);
+        }
+
+        match Pin::new(&mut self.real_receiver).poll_next(cx) {
+            // in the case our real message channel stream was closed, we should also indicate we are closed
+            // (and whoever is using the stream should panic)
+            Poll::Ready(None) => Poll::Ready(None),
+
+            Poll::Ready(Some((real_messages, conn_id))) => {
+                log::trace!("handling real_messages: size: {}", real_messages.len());
+
+                // First store what we got for the given connection id
+                self.transmission_buffer.store(&conn_id, real_messages);
+                let real_next = self
+                    .transmission_buffer
+                    .pop_next_message_at_random()
+                    .expect("we just added one");
+
+                Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
+            }
+
+            Poll::Pending => {
+                if let Some(real_next) = self.transmission_buffer.pop_next_message_at_random() {
+                    Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
+                } else {
+                    Poll::Pending
+                }
+            }
+        }
+    }
+
+    fn poll_next_message(
+        mut self: Pin<&mut Self>,
+        cx: &mut Context<'_>,
+    ) -> Poll<Option<StreamMessage>> {
+        if self.config.disable_poisson_packet_distribution {
+            self.poll_immediate(cx)
+        } else {
+            self.poll_poisson(cx)
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn log_status(&self) {
+        let packets = self.transmission_buffer.total_size();
+        let backlog = self.transmission_buffer.total_size_in_bytes() as f64 / 1024.0;
+        let lanes = self.transmission_buffer.num_lanes();
+        let mult = self.sending_delay_controller.current_multiplier();
+        let delay = self.current_average_message_sending_delay().as_millis();
+        if self.config.disable_poisson_packet_distribution {
+            log::info!(
+                "Status: {lanes} lanes, backlog: {:.2} kiB ({packets}), no delay",
+                backlog
+            );
+        } else {
+            log::info!(
+                "Status: {lanes} lanes, backlog: {:.2} kiB ({packets}), avg delay: {}ms ({mult})",
+                backlog,
+                delay
+            );
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+        debug!("Started OutQueueControl with graceful shutdown support");
+
+        let mut status_timer = tokio::time::interval(Duration::from_secs(1));
+
         while !shutdown.is_shutdown() {
             tokio::select! {
                 biased;
                 _ = shutdown.recv() => {
                     log::trace!("OutQueueControl: Received shutdown");
                 }
-                next_message = self.next() => match next_message {
-                    Some(next_message) => {
-                        self.on_message(next_message).await;
-                    },
-                    None => {
-                        log::trace!("OutQueueControl: Stopping since channel closed");
-                        break;
-                    }
+                _ = status_timer.tick() => {
+                    self.log_status();
+                }
+                next_message = self.next() => if let Some(next_message) = next_message {
+                    self.on_message(next_message).await;
+                } else {
+                    log::trace!("OutQueueControl: Stopping since channel closed");
+                    break;
                 }
             }
         }
@@ -293,8 +488,23 @@ where
         log::debug!("OutQueueControl: Exiting");
     }
 
-    pub(crate) async fn run_out_queue_control(&mut self) {
-        debug!("Starting out queue controller...");
-        self.run_normal_out_queue().await
+    #[cfg(target_arch = "wasm32")]
+    pub(super) async fn run(&mut self) {
+        debug!("Started OutQueueControl without graceful shutdown support");
+
+        while let Some(next_message) = self.next().await {
+            self.on_message(next_message).await;
+        }
+    }
+}
+
+impl<R> Stream for OutQueueControl<R>
+where
+    R: CryptoRng + Rng + Unpin,
+{
+    type Item = StreamMessage;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.poll_next_message(cx)
     }
 }

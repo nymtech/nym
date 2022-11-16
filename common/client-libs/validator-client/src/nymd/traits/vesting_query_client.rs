@@ -6,8 +6,10 @@ pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 use crate::nymd::error::NymdError;
 use crate::nymd::NymdClient;
 use async_trait::async_trait;
+use contracts_common::ContractBuildInformation;
 use cosmwasm_std::{Coin as CosmWasmCoin, Timestamp};
-use mixnet_contract_common::NodeId;
+use mixnet_contract_common::MixId;
+use serde::Deserialize;
 use vesting_contract::vesting::Account;
 use vesting_contract_common::{
     messages::QueryMsg as VestingQueryMsg, AllDelegationsResponse, DelegationTimesResponse,
@@ -16,6 +18,15 @@ use vesting_contract_common::{
 
 #[async_trait]
 pub trait VestingQueryClient {
+    async fn query_vesting_contract<T>(&self, query: VestingQueryMsg) -> Result<T, NymdError>
+    where
+        for<'a> T: Deserialize<'a>;
+
+    async fn get_vesting_contract_version(&self) -> Result<ContractBuildInformation, NymdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetContractVersion {})
+            .await
+    }
+
     async fn locked_coins(
         &self,
         address: &str,
@@ -76,12 +87,12 @@ pub trait VestingQueryClient {
     async fn get_delegation_timestamps(
         &self,
         address: &str,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<DelegationTimesResponse, NymdError>;
 
     async fn get_all_vesting_delegations_paged(
         &self,
-        start_after: Option<(u32, NodeId, u64)>,
+        start_after: Option<(u32, MixId, u64)>,
         limit: Option<u32>,
     ) -> Result<AllDelegationsResponse, NymdError>;
 
@@ -107,6 +118,15 @@ pub trait VestingQueryClient {
 
 #[async_trait]
 impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
+    async fn query_vesting_contract<T>(&self, query: VestingQueryMsg) -> Result<T, NymdError>
+    where
+        for<'a> T: Deserialize<'a>,
+    {
+        self.client
+            .query_contract_smart(self.vesting_contract_address(), &query)
+            .await
+    }
+
     async fn locked_coins(
         &self,
         vesting_account_address: &str,
@@ -269,7 +289,7 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
     async fn get_delegation_timestamps(
         &self,
         address: &str,
-        mix_id: NodeId,
+        mix_id: MixId,
     ) -> Result<DelegationTimesResponse, NymdError> {
         let request = VestingQueryMsg::GetDelegationTimes {
             address: address.to_string(),
@@ -282,7 +302,7 @@ impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NymdClient<C> {
 
     async fn get_all_vesting_delegations_paged(
         &self,
-        start_after: Option<(u32, NodeId, u64)>,
+        start_after: Option<(u32, MixId, u64)>,
         limit: Option<u32>,
     ) -> Result<AllDelegationsResponse, NymdError> {
         let request = VestingQueryMsg::GetAllDelegations { start_after, limit };

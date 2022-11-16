@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::contract_cache::{Cache, CacheNotification, ValidatorCache};
-use mixnet_contract_common::rewarding::helpers::truncate_decimal;
-use mixnet_contract_common::{MixNodeDetails, NodeId, RewardingParams};
+use contracts_common::truncate_decimal;
+use mixnet_contract_common::{MixId, MixNodeDetails, RewardingParams};
 use rocket::fairing::AdHoc;
 use serde::Serialize;
 use std::{sync::Arc, time::Duration};
@@ -46,8 +46,10 @@ pub(crate) struct InclusionProbabilities {
 }
 
 impl InclusionProbabilities {
-    pub fn node(&self, mix_id: NodeId) -> Option<&InclusionProbability> {
-        self.inclusion_probabilities.iter().find(|x| x.id == mix_id)
+    pub fn node(&self, mix_id: MixId) -> Option<&InclusionProbability> {
+        self.inclusion_probabilities
+            .iter()
+            .find(|x| x.mix_id == mix_id)
     }
 }
 
@@ -228,7 +230,7 @@ fn compute_inclusion_probabilities(
     })
 }
 
-fn unzip_into_mixnode_ids_and_total_bonds(mixnodes: &[MixNodeDetails]) -> (Vec<NodeId>, Vec<u128>) {
+fn unzip_into_mixnode_ids_and_total_bonds(mixnodes: &[MixNodeDetails]) -> (Vec<MixId>, Vec<u128>) {
     mixnodes
         .iter()
         .map(|m| (m.mix_id(), truncate_decimal(m.total_stake()).u128()))
@@ -236,14 +238,14 @@ fn unzip_into_mixnode_ids_and_total_bonds(mixnodes: &[MixNodeDetails]) -> (Vec<N
 }
 
 fn zip_ids_together_with_results(
-    ids: &[NodeId],
+    ids: &[MixId],
     results: &inclusion_probability::SelectionProbability,
 ) -> Vec<InclusionProbability> {
     ids.iter()
         .zip(results.active_set_probability.iter())
         .zip(results.reserve_set_probability.iter())
-        .map(|((&id, a), r)| InclusionProbability {
-            id,
+        .map(|((&mix_id, a), r)| InclusionProbability {
+            mix_id,
             in_active: *a,
             in_reserve: *r,
         })

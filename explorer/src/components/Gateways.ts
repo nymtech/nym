@@ -1,12 +1,19 @@
-import { GatewayResponse } from '../typeDefs/explorer-api';
+import { GatewayResponse, GatewayResponseItem, GatewayReportResponse } from '../typeDefs/explorer-api';
 
 export type GatewayRowType = {
   id: string;
   owner: string;
-  identity_key: string;
+  identityKey: string;
   bond: number;
   host: string;
   location: string;
+};
+
+export type GatewayEnrichedRowType = GatewayRowType & {
+  routingScore: string;
+  avgUptime: string;
+  clientsPort: number;
+  mixPort: number;
 };
 
 export function gatewayToGridRow(arrayOfGateways: GatewayResponse): GatewayRowType[] {
@@ -15,9 +22,27 @@ export function gatewayToGridRow(arrayOfGateways: GatewayResponse): GatewayRowTy
     : arrayOfGateways.map((gw) => ({
         id: gw.owner,
         owner: gw.owner,
-        identity_key: gw.gateway.identity_key || '',
+        identityKey: gw.gateway.identity_key || '',
         location: gw?.gateway?.location || '',
         bond: gw.pledge_amount.amount || 0,
         host: gw.gateway.host || '',
       }));
+}
+
+export function gatewayEnrichedToGridRow(
+  gateway: GatewayResponseItem,
+  report: GatewayReportResponse,
+): GatewayEnrichedRowType {
+  return {
+    id: gateway.owner,
+    owner: gateway.owner,
+    identityKey: gateway.gateway.identity_key || '',
+    location: gateway?.gateway?.location || '',
+    bond: gateway.pledge_amount.amount || 0,
+    host: gateway.gateway.host || '',
+    clientsPort: gateway.gateway.clients_port || 0,
+    mixPort: gateway.gateway.mix_port || 0,
+    routingScore: `${report.most_recent}%`,
+    avgUptime: `${report.last_day || report.last_hour}%`,
+  };
 }

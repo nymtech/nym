@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Box, Checkbox, FormControlLabel, Stack, TextField } from '@mui/material';
+import { Box, Checkbox, FormControlLabel, FormHelperText, Stack, TextField } from '@mui/material';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyDenom, TNodeType } from '@nymproject/types';
@@ -47,6 +47,7 @@ const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNex
         label="Sphinx key"
         error={Boolean(errors.sphinxKey)}
         helperText={errors.sphinxKey?.message}
+        InputLabelProps={{ shrink: true }}
       />
       <TextField
         {...register('ownerSignature')}
@@ -54,6 +55,7 @@ const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNex
         label="Owner signature"
         error={Boolean(errors.ownerSignature)}
         helperText={errors.ownerSignature?.message}
+        InputLabelProps={{ shrink: true }}
       />
       <Stack direction="row" gap={3}>
         <TextField
@@ -63,6 +65,7 @@ const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNex
           error={Boolean(errors.host)}
           helperText={errors.host?.message}
           required
+          InputLabelProps={{ shrink: true }}
           sx={{ flexBasis: '50%' }}
         />
         <TextField
@@ -72,6 +75,7 @@ const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNex
           error={Boolean(errors.version)}
           helperText={errors.version?.message}
           required
+          InputLabelProps={{ shrink: true }}
           sx={{ flexBasis: '50%' }}
         />
       </Stack>
@@ -88,6 +92,7 @@ const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNex
             error={Boolean(errors.mixPort)}
             helperText={errors.mixPort?.message}
             fullWidth
+            InputLabelProps={{ shrink: true }}
           />
           <TextField
             {...register('verlocPort')}
@@ -96,6 +101,7 @@ const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNex
             error={Boolean(errors.verlocPort)}
             helperText={errors.verlocPort?.message}
             fullWidth
+            InputLabelProps={{ shrink: true }}
           />
           <TextField
             {...register('httpApiPort')}
@@ -104,6 +110,7 @@ const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNex
             error={Boolean(errors.httpApiPort)}
             helperText={errors.httpApiPort?.message}
             fullWidth
+            InputLabelProps={{ shrink: true }}
           />
         </Stack>
       )}
@@ -172,13 +179,37 @@ const AmountFormData = ({
           initialValue={amountData.amount.amount}
         />
       </Box>
-      <TextField
-        {...register('profitMargin')}
-        name="profitMargin"
-        label="Profit margin"
-        error={Boolean(errors.profitMargin)}
-        helperText={errors.profitMargin?.message}
-      />
+      <Box>
+        <CurrencyFormField
+          required
+          fullWidth
+          label="Operating cost"
+          onChanged={(newValue) => {
+            setValue('operatorCost', newValue, { shouldValidate: true });
+          }}
+          validationError={errors.operatorCost?.amount?.message}
+          denom={denom}
+          initialValue={amountData.operatorCost.amount}
+        />
+        <FormHelperText>
+          Monthly operational costs of running your node. If your node is in the active set the amount will be paid back
+          to you from the rewards.
+        </FormHelperText>
+      </Box>
+      <Box>
+        <TextField
+          {...register('profitMargin')}
+          name="profitMargin"
+          label="Profit margin"
+          error={Boolean(errors.profitMargin)}
+          helperText={errors.profitMargin?.message}
+          fullWidth
+        />
+        <FormHelperText>
+          The percentage of node rewards that you as the node operator take before rewards are distributed to operator
+          and delegators.
+        </FormHelperText>
+      </Box>
     </Stack>
   );
 };

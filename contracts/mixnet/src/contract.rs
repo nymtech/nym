@@ -63,7 +63,7 @@ pub fn instantiate(
         Interval::init_interval(msg.epochs_in_interval, msg.epoch_duration, &env);
     let reward_params = msg
         .initial_rewarding_params
-        .into_rewarding_params(msg.epochs_in_interval);
+        .into_rewarding_params(msg.epochs_in_interval)?;
 
     interval_storage::initialise_storage(deps.storage, starting_interval)?;
     mixnet_params_storage::initialise_storage(deps.storage, state)?;
@@ -138,7 +138,7 @@ pub fn execute(
             expected_active_set_size,
         ),
         ExecuteMsg::ReconcileEpochEvents { limit } => {
-            crate::interval::transactions::try_reconcile_epoch_events(deps, env, limit)
+            crate::interval::transactions::try_reconcile_epoch_events(deps, env, info, limit)
         }
 
         // mixnode-related:
@@ -169,17 +169,19 @@ pub fn execute(
             owner_signature,
         ),
         ExecuteMsg::UnbondMixnode {} => {
-            crate::mixnodes::transactions::try_remove_mixnode(deps, info)
+            crate::mixnodes::transactions::try_remove_mixnode(deps, env, info)
         }
         ExecuteMsg::UnbondMixnodeOnBehalf { owner } => {
-            crate::mixnodes::transactions::try_remove_mixnode_on_behalf(deps, info, owner)
+            crate::mixnodes::transactions::try_remove_mixnode_on_behalf(deps, env, info, owner)
         }
         ExecuteMsg::UpdateMixnodeCostParams { new_costs } => {
-            crate::mixnodes::transactions::try_update_mixnode_cost_params(deps, info, new_costs)
+            crate::mixnodes::transactions::try_update_mixnode_cost_params(
+                deps, env, info, new_costs,
+            )
         }
         ExecuteMsg::UpdateMixnodeCostParamsOnBehalf { new_costs, owner } => {
             crate::mixnodes::transactions::try_update_mixnode_cost_params_on_behalf(
-                deps, info, new_costs, owner,
+                deps, env, info, new_costs, owner,
             )
         }
         ExecuteMsg::UpdateMixnodeConfig { new_config } => {
@@ -223,19 +225,21 @@ pub fn execute(
 
         // delegation-related:
         ExecuteMsg::DelegateToMixnode { mix_id } => {
-            crate::delegations::transactions::try_delegate_to_mixnode(deps, info, mix_id)
+            crate::delegations::transactions::try_delegate_to_mixnode(deps, env, info, mix_id)
         }
         ExecuteMsg::DelegateToMixnodeOnBehalf { mix_id, delegate } => {
             crate::delegations::transactions::try_delegate_to_mixnode_on_behalf(
-                deps, info, mix_id, delegate,
+                deps, env, info, mix_id, delegate,
             )
         }
         ExecuteMsg::UndelegateFromMixnode { mix_id } => {
-            crate::delegations::transactions::try_remove_delegation_from_mixnode(deps, info, mix_id)
+            crate::delegations::transactions::try_remove_delegation_from_mixnode(
+                deps, env, info, mix_id,
+            )
         }
         ExecuteMsg::UndelegateFromMixnodeOnBehalf { mix_id, delegate } => {
             crate::delegations::transactions::try_remove_delegation_from_mixnode_on_behalf(
-                deps, info, mix_id, delegate,
+                deps, env, info, mix_id, delegate,
             )
         }
 
@@ -258,6 +262,12 @@ pub fn execute(
             crate::rewards::transactions::try_withdraw_delegator_reward_on_behalf(
                 deps, info, mix_id, owner,
             )
+        }
+
+        // testing-only
+        #[cfg(feature = "contract-testing")]
+        ExecuteMsg::TestingResolveAllPendingEvents { limit } => {
+            crate::testing::transactions::try_resolve_all_pending_events(deps, env, limit)
         }
     }
 }
@@ -487,6 +497,7 @@ mod tests {
             initial_rewarding_params: InitialRewardingParams {
                 initial_reward_pool: Decimal::from_atomics(100_000_000_000_000u128, 0).unwrap(),
                 initial_staking_supply: Decimal::from_atomics(123_456_000_000_000u128, 0).unwrap(),
+                staking_supply_scale_factor: Percent::hundred(),
                 sybil_resistance: Percent::from_percentage_value(23).unwrap(),
                 active_set_work_factor: Decimal::from_atomics(10u32, 0).unwrap(),
                 interval_pool_emission: Percent::from_percentage_value(1).unwrap(),
@@ -525,6 +536,7 @@ mod tests {
             interval: IntervalRewardParams {
                 reward_pool: Decimal::from_atomics(100_000_000_000_000u128, 0).unwrap(),
                 staking_supply: Decimal::from_atomics(123_456_000_000_000u128, 0).unwrap(),
+                staking_supply_scale_factor: Percent::hundred(),
                 epoch_reward_budget: expected_epoch_reward_budget,
                 stake_saturation_point: expected_stake_saturation_point,
                 sybil_resistance: Percent::from_percentage_value(23).unwrap(),

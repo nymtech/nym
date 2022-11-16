@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Routes as ReactRouterRoutes, Route, useNavigate } from 'react-router-dom';
 import { BIG_DIPPER } from '../api/constants';
 import { PageGateways } from '../pages/Gateways';
+import { PageGatewayDetail } from '../pages/GatewayDetail';
 import { PageMixnodeDetail } from '../pages/MixnodeDetail';
 import { PageMixnodes } from '../pages/Mixnodes';
 
@@ -18,6 +19,7 @@ export const NetworkComponentsRoutes: React.FC = () => (
     <Route path="mixnodes" element={<PageMixnodes />} />
     <Route path="mixnode/:id" element={<PageMixnodeDetail />} />
     <Route path="gateways" element={<PageGateways />} />
+    <Route path="gateway/:id" element={<PageGatewayDetail />} />
     <Route path="validators" element={<ValidatorRoute />} />
     <Route path="gateways/:id" element={<h1> Specific Gateways ID</h1>} />
   </ReactRouterRoutes>

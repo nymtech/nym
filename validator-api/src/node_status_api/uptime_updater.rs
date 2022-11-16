@@ -7,9 +7,10 @@ use crate::node_status_api::models::{
 use crate::node_status_api::ONE_DAY;
 use crate::storage::ValidatorApiStorage;
 use log::error;
+use std::time::Duration;
 use task::ShutdownListener;
-use time::OffsetDateTime;
-use tokio::time::sleep;
+use time::{OffsetDateTime, PrimitiveDateTime, Time};
+use tokio::time::{interval, sleep};
 
 pub(crate) struct HistoricalUptimeUpdater {
     storage: ValidatorApiStorage,
@@ -69,27 +70,50 @@ impl HistoricalUptimeUpdater {
     }
 
     pub(crate) async fn run(&self, mut shutdown: ShutdownListener) {
+        // update uptimes at 23:00 UTC each day so that we'd have data from the actual [almost] whole day
+        // and so that we would avoid the edge case of starting validator API at 23:59 and having some
+        // nodes update for different days
+
+        // the unwrap is fine as 23:00:00 is a valid time
+        let update_time = Time::from_hms(23, 0, 0).unwrap();
+        let now = OffsetDateTime::now_utc();
+        // is the current time within 0:00 - 22:59:59 or 23:00 - 23:59:59 ?
+        let update_date = if now.hour() < 23 {
+            now.date()
+        } else {
+            // the unwrap is fine as (**PRESUMABLY**) we're not running this code in the year 9999
+            now.date().next_day().unwrap()
+        };
+        let update_datetime = PrimitiveDateTime::new(update_date, update_time).assume_utc();
+        // the unwrap here is fine as we're certain `update_datetime` is in the future and thus the
+        // resultant Duration is positive
+        let time_left: Duration = (update_datetime - now).try_into().unwrap();
+
+        log::info!(
+            "waiting until {update_datetime} to update the historical uptimes for the first time ({} seconds left)", time_left.as_secs()
+        );
+
+        tokio::select! {
+            biased;
+            _ = shutdown.recv() => {
+                trace!("UpdateHandler: Received shutdown");
+            }
+            _ = sleep(time_left) => {}
+        }
+
+        let mut interval = interval(ONE_DAY);
         while !shutdown.is_shutdown() {
             tokio::select! {
-                _ = sleep(ONE_DAY) => {
-                    tokio::select! {
-                        biased;
-                        _ = shutdown.recv() => {
-                            trace!("UpdateHandler: Received shutdown");
-                        }
-                        Err(err) = self.update_uptimes() => {
-                            // normally that would have been a warning rather than an error,
-                            // however, in this case it implies some underlying issues with our database
-                            // that might affect the entire program
-                            error!(
-                                "We failed to update daily uptimes of active nodes - {}",
-                                err
-                            );
-                        }
-                    }
-                }
+                biased;
                 _ = shutdown.recv() => {
                     trace!("UpdateHandler: Received shutdown");
+                }
+                _ = interval.tick() => {
+                    // we don't want to have another select here; uptime update is relatively speedy
+                    // and we don't want to exit while we're in the middle of database update
+                    if let Err(err) = self.update_uptimes().await {
+                        error!("We failed to update daily uptimes of active nodes - {err}");
+                    }
                 }
             }
         }

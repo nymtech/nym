@@ -1,6 +1,7 @@
+use mixnet_contract_common::rewarding::RewardEstimate;
 use mixnet_contract_common::{
-    IntervalRewardParams, IntervalRewardingParamsUpdate, MixNode, MixNodeConfigUpdate,
-    RewardedSetNodeStatus, RewardingParams, UnbondedMixnode,
+    Interval as ContractInterval, IntervalRewardParams, IntervalRewardingParamsUpdate, MixNode,
+    MixNodeConfigUpdate, RewardedSetNodeStatus, RewardingParams, UnbondedMixnode,
 };
 use nym_types::account::{Account, AccountEntry, AccountWithMnemonic, Balance};
 use nym_types::currency::{CurrencyDenom, DecCoin};
@@ -28,7 +29,8 @@ use std::path::Path;
 use ts_rs::TS;
 use validator_api_requests::models::{
     GatewayCoreStatusResponse, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
-    MixnodeStatus, MixnodeStatusResponse, SelectionChance, StakeSaturationResponse,
+    MixnodeStatus, MixnodeStatusResponse, RewardEstimationResponse, SelectionChance,
+    StakeSaturationResponse,
 };
 use vesting_contract_common::Period;
 use walkdir::WalkDir;
@@ -65,6 +67,8 @@ fn main() {
     do_export!(RewardingParams);
     do_export!(RewardedSetNodeStatus);
     do_export!(UnbondedMixnode);
+    do_export!(RewardEstimate);
+    do_export!(ContractInterval);
 
     // common/types/src
     do_export!(Account);
@@ -116,6 +120,7 @@ fn main() {
     do_export!(MixnodeStatusResponse);
     do_export!(SelectionChance);
     do_export!(StakeSaturationResponse);
+    do_export!(RewardEstimationResponse);
 
     // nym-wallet
     do_export!(AppEnv);

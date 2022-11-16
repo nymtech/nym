@@ -3,9 +3,11 @@
 
 use crate::allowed_hosts::{HostsStore, OutboundRequestFilter};
 use crate::connection::Connection;
+use crate::error::NetworkRequesterError;
 use crate::statistics::ServiceStatisticsCollector;
 use crate::websocket;
 use crate::websocket::TSWebsocketStream;
+use client_connections::ClosedConnectionReceiver;
 use futures::channel::mpsc;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
@@ -21,7 +23,6 @@ use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use task::ShutdownListener;
 use tokio_tungstenite::tungstenite::protocol::Message;
-use websocket::WebsocketConnectionError;
 use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 
 // Since it's an atomic, it's safe to be kept static and shared across threads
@@ -68,32 +69,50 @@ impl ServiceProvider {
         mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
         mut mix_reader: mpsc::UnboundedReceiver<(Socks5Message, Recipient)>,
         stats_collector: Option<ServiceStatisticsCollector>,
+        mut closed_connection_rx: ClosedConnectionReceiver,
     ) {
-        // TODO: wire SURBs in here once they're available
-        while let Some((msg, return_address)) = mix_reader.next().await {
-            if let Some(stats_collector) = stats_collector.as_ref() {
-                if let Some(remote_addr) = stats_collector
-                    .connected_services
-                    .read()
-                    .await
-                    .get(&msg.conn_id())
-                {
-                    stats_collector
-                        .response_stats_data
-                        .write()
-                        .await
-                        .processed(remote_addr, msg.size() as u32);
+        loop {
+            tokio::select! {
+                // TODO: wire SURBs in here once they're available
+                socks5_msg = mix_reader.next() => {
+                    if let Some((msg, return_address)) = socks5_msg {
+                        if let Some(stats_collector) = stats_collector.as_ref() {
+                            if let Some(remote_addr) = stats_collector
+                                .connected_services
+                                .read()
+                                .await
+                                .get(&msg.conn_id())
+                            {
+                                stats_collector
+                                    .response_stats_data
+                                    .write()
+                                    .await
+                                    .processed(remote_addr, msg.size() as u32);
+                            }
+                        }
+                        let conn_id = msg.conn_id();
+
+                        // make 'request' to native-websocket client
+                        let response_message = ClientRequest::Send {
+                            recipient: return_address,
+                            message: msg.into_bytes(),
+                            with_reply_surb: false,
+                            connection_id: conn_id,
+                        };
+
+                        let message = Message::Binary(response_message.serialize());
+                        websocket_writer.send(message).await.unwrap();
+                    } else {
+                        log::error!("Exiting: channel closed!");
+                        break;
+                    }
+                },
+                Some(id) = closed_connection_rx.next() => {
+                    let msg = ClientRequest::ClosedConnection(id);
+                    let ws_msg = Message::Binary(msg.serialize());
+                    websocket_writer.send(ws_msg).await.unwrap();
                 }
             }
-            // make 'request' to native-websocket client
-            let response_message = ClientRequest::Send {
-                recipient: return_address,
-                message: msg.into_bytes(),
-                with_reply_surb: false,
-            };
-
-            let message = Message::Binary(response_message.serialize());
-            websocket_writer.send(message).await.unwrap();
         }
     }
 
@@ -298,8 +317,8 @@ impl ServiceProvider {
     }
 
     /// Start all subsystems
-    pub async fn run(&mut self) {
-        let websocket_stream = self.connect_websocket(&self.listening_address).await;
+    pub async fn run(&mut self) -> Result<(), NetworkRequesterError> {
+        let websocket_stream = self.connect_websocket(&self.listening_address).await?;
 
         // split the websocket so that we could read and write from separate threads
         let (websocket_writer, mut websocket_reader) = websocket_stream.split();
@@ -309,12 +328,20 @@ impl ServiceProvider {
         let (mix_input_sender, mix_input_receiver) =
             mpsc::unbounded::<(Socks5Message, Recipient)>();
 
+        // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
+        let shutdown = task::ShutdownNotifier::default();
+
+        // Channel for announcing closed (socks5) connections by the controller.
+        // The `mixnet_response_listener` will forward this info to the client using a
+        // `ClientRequest`.
+        let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
+
         // Controller for managing all active connections.
         // We provide it with a ShutdownListener since it requires it, even though for the network
         // requester shutdown signalling is not yet fully implemented.
-        let shutdown = task::ShutdownNotifier::default();
         let (mut active_connections_controller, mut controller_sender) =
-            Controller::new(shutdown.subscribe());
+            Controller::new(closed_connection_tx, shutdown.subscribe());
+
         tokio::spawn(async move {
             active_connections_controller.run().await;
         });
@@ -341,6 +368,7 @@ impl ServiceProvider {
                 websocket_writer,
                 mix_input_receiver,
                 stats_collector_clone,
+                closed_connection_rx,
             )
             .await;
         });
@@ -352,7 +380,7 @@ impl ServiceProvider {
                 Some(msg) => msg,
                 None => {
                     error!("The websocket stream has finished!");
-                    return;
+                    return Ok(());
                 }
             };
 
@@ -371,14 +399,20 @@ impl ServiceProvider {
     }
 
     // Make the websocket connection so we can receive incoming Mixnet messages.
-    async fn connect_websocket(&self, uri: &str) -> TSWebsocketStream {
+    async fn connect_websocket(
+        &self,
+        uri: &str,
+    ) -> Result<TSWebsocketStream, NetworkRequesterError> {
         match websocket::Connection::new(uri).connect().await {
             Ok(ws_stream) => {
                 info!("* connected to local websocket server at {}", uri);
-                ws_stream
+                Ok(ws_stream)
             }
-            Err(WebsocketConnectionError::ConnectionNotEstablished) => {
-                panic!("Error: websocket connection attempt failed, is the Nym client running?")
+            Err(err) => {
+                log::error!(
+                    "Error: websocket connection attempt failed, is the Nym client running?"
+                );
+                Err(err.into())
             }
         }
     }

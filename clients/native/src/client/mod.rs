@@ -1,14 +1,13 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use client_connections::{ClosedConnectionReceiver, ClosedConnectionSender, TransmissionLane};
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
     InputMessage, InputMessageReceiver, InputMessageSender,
 };
 use client_core::client::key_manager::KeyManager;
-use client_core::client::mix_traffic::{
-    BatchMixMessageReceiver, BatchMixMessageSender, MixTrafficController,
-};
+use client_core::client::mix_traffic::{BatchMixMessageSender, MixTrafficController};
 use client_core::client::real_messages_control;
 use client_core::client::real_messages_control::RealMessagesController;
 use client_core::client::received_buffer::{
@@ -20,6 +19,7 @@ use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use client_core::error::ClientCoreError;
 use crypto::asymmetric::identity;
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
@@ -35,6 +35,7 @@ use nymsphinx::receiver::ReconstructedMessage;
 use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
 
 use crate::client::config::{Config, SocketType};
+use crate::error::ClientError;
 use crate::websocket;
 
 pub(crate) mod config;
@@ -90,7 +91,7 @@ impl NymClient {
     ) {
         info!("Starting loop cover traffic stream...");
 
-        LoopCoverTrafficStream::new(
+        let mut stream = LoopCoverTrafficStream::new(
             self.key_manager.ack_key(),
             self.config.get_base().get_average_ack_delay(),
             self.config.get_base().get_average_packet_delay(),
@@ -100,11 +101,17 @@ impl NymClient {
             mix_tx,
             self.as_mix_recipient(),
             topology_accessor,
-            shutdown,
-        )
-        .start();
+        );
+
+        if let Some(size) = self.config.get_base().get_use_extended_packet_size() {
+            log::debug!("Setting extended packet size: {:?}", size);
+            stream.set_custom_packet_size(size.into());
+        }
+
+        stream.start_with_shutdown(shutdown);
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn start_real_traffic_controller(
         &self,
         topology_accessor: TopologyAccessor,
@@ -112,17 +119,26 @@ impl NymClient {
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
+        closed_connection_rx: ClosedConnectionReceiver,
         shutdown: ShutdownListener,
     ) {
-        let controller_config = real_messages_control::Config::new(
+        let mut controller_config = real_messages_control::Config::new(
             self.key_manager.ack_key(),
             self.config.get_base().get_ack_wait_multiplier(),
             self.config.get_base().get_ack_wait_addition(),
             self.config.get_base().get_average_ack_delay(),
             self.config.get_base().get_message_sending_average_delay(),
             self.config.get_base().get_average_packet_delay(),
+            self.config
+                .get_base()
+                .get_disabled_main_poisson_packet_distribution(),
             self.as_mix_recipient(),
         );
+
+        if let Some(size) = self.config.get_base().get_use_extended_packet_size() {
+            log::debug!("Setting extended packet size: {:?}", size);
+            controller_config.set_custom_packet_size(size.into());
+        }
 
         info!("Starting real traffic stream...");
 
@@ -133,9 +149,9 @@ impl NymClient {
             mix_sender,
             topology_accessor,
             reply_key_storage,
-            shutdown,
+            closed_connection_rx,
         )
-        .start();
+        .start_with_shutdown(shutdown);
     }
 
     // buffer controlling all messages fetched from provider
@@ -153,9 +169,8 @@ impl NymClient {
             query_receiver,
             mixnet_receiver,
             reply_key_storage,
-            shutdown,
         )
-        .start()
+        .start_with_shutdown(shutdown)
     }
 
     async fn start_gateway_client(
@@ -223,7 +238,7 @@ impl NymClient {
         &mut self,
         topology_accessor: TopologyAccessor,
         shutdown: ShutdownListener,
-    ) {
+    ) -> Result<(), ClientError> {
         let topology_refresher_config = TopologyRefresherConfig::new(
             self.config.get_base().get_validator_api_endpoints(),
             self.config.get_base().get_topology_refresh_rate(),
@@ -238,14 +253,16 @@ impl NymClient {
 
         // TODO: a slightly more graceful termination here
         if !topology_refresher.is_topology_routable().await {
-            panic!(
-                "The current network topology seem to be insufficient to route any packets through\
+            log::error!(
+                "The current network topology seem to be insufficient to route any packets through \
                 - check if enough nodes and a gateway are online"
             );
+            return Err(ClientCoreError::InsufficientNetworkTopology.into());
         }
 
         info!("Starting topology refresher...");
-        topology_refresher.start(shutdown);
+        topology_refresher.start_with_shutdown(shutdown);
+        Ok(())
     }
 
     // controller for sending sphinx packets to mixnet (either real traffic or cover traffic)
@@ -253,24 +270,29 @@ impl NymClient {
     // over it. Perhaps GatewayClient needs to be thread-shareable or have some channel for
     // requests?
     fn start_mix_traffic_controller(
-        &mut self,
-        mix_rx: BatchMixMessageReceiver,
         gateway_client: GatewayClient,
         shutdown: ShutdownListener,
-    ) {
+    ) -> BatchMixMessageSender {
         info!("Starting mix traffic controller...");
-        MixTrafficController::new(mix_rx, gateway_client, shutdown).start();
+        let (mix_traffic_controller, mix_tx) = MixTrafficController::new(gateway_client);
+        mix_traffic_controller.start_with_shutdown(shutdown);
+        mix_tx
     }
 
     fn start_websocket_listener(
         &self,
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
+        closed_connection_tx: ClosedConnectionSender,
     ) {
         info!("Starting websocket listener...");
 
-        let websocket_handler =
-            websocket::Handler::new(msg_input, buffer_requester, self.as_mix_recipient());
+        let websocket_handler = websocket::Handler::new(
+            msg_input,
+            closed_connection_tx,
+            buffer_requester,
+            self.as_mix_recipient(),
+        );
 
         websocket::Listener::new(self.config.get_listening_port()).start(websocket_handler);
     }
@@ -279,7 +301,8 @@ impl NymClient {
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
     pub fn send_message(&mut self, recipient: Recipient, message: Vec<u8>, with_reply_surb: bool) {
-        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb);
+        let lane = TransmissionLane::General;
+        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb, lane);
 
         self.input_tx
             .as_ref()
@@ -319,8 +342,8 @@ impl NymClient {
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
-    pub async fn run_forever(&mut self) {
-        let shutdown = self.start().await;
+    pub async fn run_forever(&mut self) -> Result<(), ClientError> {
+        let shutdown = self.start().await?;
         wait_for_signal().await;
 
         println!(
@@ -337,19 +360,15 @@ impl NymClient {
         //shutdown.wait_for_shutdown().await;
 
         log::info!("Stopping nym-client");
+        Ok(())
     }
 
-    pub async fn start(&mut self) -> ShutdownNotifier {
+    pub async fn start(&mut self) -> Result<ShutdownNotifier, ClientError> {
         info!("Starting nym client");
         // channels for inter-component communication
         // TODO: make the channels be internally created by the relevant components
         // rather than creating them here, so say for example the buffer controller would create the request channels
         // and would allow anyone to clone the sender channel
-
-        // sphinx_message_sender is the transmitter for any component generating sphinx packets that are to be sent to the mixnet
-        // they are used by cover traffic stream and real traffic stream
-        // sphinx_message_receiver is the receiver used by MixTrafficController that sends the actual traffic
-        let (sphinx_message_sender, sphinx_message_receiver) = mpsc::unbounded();
 
         // unwrapped_sphinx_sender is the transmitter of mixnet messages received from the gateway
         // unwrapped_sphinx_receiver is the receiver for said messages - used by ReceivedMessagesBuffer
@@ -375,7 +394,7 @@ impl NymClient {
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
         self.start_topology_refresher(shared_topology_accessor.clone(), shutdown.subscribe())
-            .await;
+            .await?;
         self.start_received_messages_buffer_controller(
             received_buffer_request_receiver,
             mixnet_messages_receiver,
@@ -387,30 +406,45 @@ impl NymClient {
             .start_gateway_client(mixnet_messages_sender, ack_sender, shutdown.subscribe())
             .await;
 
-        self.start_mix_traffic_controller(
-            sphinx_message_receiver,
-            gateway_client,
-            shutdown.subscribe(),
-        );
+        // The sphinx_message_sender is the transmitter for any component generating sphinx packets
+        // that are to be sent to the mixnet. They are used by cover traffic stream and real
+        // traffic stream.
+        // The MixTrafficController then sends the actual traffic
+        let sphinx_message_sender =
+            Self::start_mix_traffic_controller(gateway_client, shutdown.subscribe());
+
+        // Channels that the websocket listener can use to signal downstream to the real traffic
+        // controller that connections are closed.
+        let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
+
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
             reply_key_storage,
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
+            closed_connection_rx,
             shutdown.subscribe(),
         );
 
-        self.start_cover_traffic_stream(
-            shared_topology_accessor,
-            sphinx_message_sender,
-            shutdown.subscribe(),
-        );
+        if !self
+            .config
+            .get_base()
+            .get_disabled_loop_cover_traffic_stream()
+        {
+            self.start_cover_traffic_stream(
+                shared_topology_accessor,
+                sphinx_message_sender,
+                shutdown.subscribe(),
+            );
+        }
 
         match self.config.get_socket_type() {
-            SocketType::WebSocket => {
-                self.start_websocket_listener(received_buffer_request_sender, input_sender)
-            }
+            SocketType::WebSocket => self.start_websocket_listener(
+                received_buffer_request_sender,
+                input_sender,
+                closed_connection_tx,
+            ),
             SocketType::None => {
                 // if we did not start the socket, it means we're running (supposedly) in the native mode
                 // and hence we should announce 'ourselves' to the buffer
@@ -431,6 +465,6 @@ impl NymClient {
         info!("Client startup finished!");
         info!("The address of this client is: {}", self.as_mix_recipient());
 
-        shutdown
+        Ok(shutdown)
     }
 }

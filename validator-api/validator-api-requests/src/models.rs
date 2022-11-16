@@ -1,14 +1,33 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::Decimal;
+use cosmwasm_std::{Coin, Decimal};
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use mixnet_contract_common::rewarding::RewardEstimate;
-use mixnet_contract_common::{Interval, MixNode, NodeId, RewardedSetNodeStatus};
+use mixnet_contract_common::{
+    IdentityKey, Interval, MixId, MixNode, Percent, RewardedSetNodeStatus,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{fmt, time::Duration};
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
+pub struct RequestError {
+    message: String,
+}
+
+impl RequestError {
+    pub fn new<S: Into<String>>(msg: S) -> Self {
+        RequestError {
+            message: msg.into(),
+        }
+    }
+
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+}
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
@@ -48,7 +67,7 @@ impl MixnodeStatus {
     ts(export_to = "ts-packages/types/src/types/rust/MixnodeCoreStatusResponse.ts")
 )]
 pub struct MixnodeCoreStatusResponse {
-    pub mix_id: NodeId,
+    pub mix_id: MixId,
     pub count: i32,
 }
 
@@ -88,7 +107,7 @@ impl MixNodeBondAnnotated {
         &self.mixnode_details.bond_information.mix_node
     }
 
-    pub fn mix_id(&self) -> NodeId {
+    pub fn mix_id(&self) -> MixId {
         self.mixnode_details.mix_id()
     }
 }
@@ -99,20 +118,27 @@ pub struct ComputeRewardEstParam {
     pub active_in_rewarded_set: Option<bool>,
     pub pledge_amount: Option<u64>,
     pub total_delegation: Option<u64>,
+    pub interval_operating_cost: Option<Coin>,
+    pub profit_margin_percent: Option<Percent>,
 }
 
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/RewardEstimationResponse.ts")
+)]
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct RewardEstimationResponse {
     pub estimation: RewardEstimate,
-
     pub reward_params: RewardingParams,
     pub epoch: Interval,
+    #[cfg_attr(feature = "generate-ts", ts(type = "number"))]
     pub as_at: i64,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct UptimeResponse {
-    pub mix_id: NodeId,
+    pub mix_id: MixId,
     pub avg_uptime: u8,
 }
 
@@ -208,7 +234,49 @@ pub struct AllInclusionProbabilitiesResponse {
 
 #[derive(Clone, Serialize, schemars::JsonSchema)]
 pub struct InclusionProbability {
-    pub id: NodeId,
+    pub mix_id: MixId,
     pub in_active: f64,
     pub in_reserve: f64,
+}
+
+type Uptime = u8;
+
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct MixnodeStatusReportResponse {
+    pub mix_id: MixId,
+    pub identity: IdentityKey,
+    pub owner: String,
+    pub most_recent: Uptime,
+    pub last_hour: Uptime,
+    pub last_day: Uptime,
+}
+
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct GatewayStatusReportResponse {
+    pub identity: String,
+    pub owner: String,
+    pub most_recent: Uptime,
+    pub last_hour: Uptime,
+    pub last_day: Uptime,
+}
+
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct HistoricalUptimeResponse {
+    pub date: String,
+    pub uptime: Uptime,
+}
+
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct MixnodeUptimeHistoryResponse {
+    pub mix_id: MixId,
+    pub identity: String,
+    pub owner: String,
+    pub history: Vec<HistoricalUptimeResponse>,
+}
+
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct GatewayUptimeHistoryResponse {
+    pub identity: String,
+    pub owner: String,
+    pub history: Vec<HistoricalUptimeResponse>,
 }

@@ -1,9 +1,15 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
+
+#![warn(clippy::expect_used)]
+#![warn(clippy::unwrap_used)]
+
+use contracts_common::Percent;
 use cosmwasm_std::{Addr, Coin, Timestamp, Uint128};
-use mixnet_contract_common::NodeId;
+use mixnet_contract_common::MixId;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 
 pub use messages::{ExecuteMsg, InitMsg, MigrateMsg, QueryMsg};
 
@@ -42,6 +48,35 @@ impl PledgeData {
     }
 }
 
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+pub enum PledgeCap {
+    Percent(Percent),
+    Absolute(Uint128), // This has to be in unym
+}
+
+impl FromStr for PledgeCap {
+    type Err = String;
+
+    fn from_str(cap: &str) -> Result<Self, Self::Err> {
+        let cap = cap.replace('_', "").replace(',', ".");
+        match Percent::from_str(&cap) {
+            Ok(p) => Ok(PledgeCap::Percent(p)),
+            Err(_) => match cap.parse::<u128>() {
+                Ok(i) => Ok(PledgeCap::Absolute(Uint128::from(i))),
+                Err(_e) => Err(format!("Could not parse {} as Percent or Uint128", cap)),
+            },
+        }
+    }
+}
+
+impl Default for PledgeCap {
+    fn default() -> Self {
+        #[allow(clippy::expect_used)]
+        PledgeCap::Percent(Percent::from_percentage_value(10).expect("This can never fail!"))
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct OriginalVestingResponse {
     pub amount: Coin,
@@ -74,13 +109,13 @@ impl OriginalVestingResponse {
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct VestingDelegation {
     pub account_id: u32,
-    pub mix_id: NodeId,
+    pub mix_id: MixId,
     pub block_timestamp: u64,
     pub amount: Uint128,
 }
 
 impl VestingDelegation {
-    pub fn storage_key(&self) -> (u32, NodeId, u64) {
+    pub fn storage_key(&self) -> (u32, MixId, u64) {
         (self.account_id, self.mix_id, self.block_timestamp)
     }
 }
@@ -89,12 +124,41 @@ impl VestingDelegation {
 pub struct DelegationTimesResponse {
     pub owner: Addr,
     pub account_id: u32,
-    pub mix_id: NodeId,
+    pub mix_id: MixId,
     pub delegation_timestamps: Vec<u64>,
 }
 
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone, JsonSchema)]
 pub struct AllDelegationsResponse {
     pub delegations: Vec<VestingDelegation>,
-    pub start_next_after: Option<(u32, NodeId, u64)>,
+    pub start_next_after: Option<(u32, MixId, u64)>,
+}
+
+#[cfg(test)]
+mod test {
+    use contracts_common::Percent;
+    use cosmwasm_std::Uint128;
+    use std::str::FromStr;
+
+    use crate::PledgeCap;
+
+    #[test]
+    fn test_pledge_cap_from_str() {
+        assert_eq!(
+            PledgeCap::from_str("0.1").unwrap(),
+            PledgeCap::Percent(Percent::from_percentage_value(10).unwrap())
+        );
+        assert_eq!(
+            PledgeCap::from_str("0,1").unwrap(),
+            PledgeCap::Percent(Percent::from_percentage_value(10).unwrap())
+        );
+        assert_eq!(
+            PledgeCap::from_str("100_000_000_000").unwrap(),
+            PledgeCap::Absolute(Uint128::new(100_000_000_000))
+        );
+        assert_eq!(
+            PledgeCap::from_str("100000000000").unwrap(),
+            PledgeCap::Absolute(Uint128::new(100_000_000_000))
+        );
+    }
 }

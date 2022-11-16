@@ -22,18 +22,18 @@ use mixnet_contract_common::events::{
     new_withdraw_delegator_reward_event, new_withdraw_operator_reward_event,
     new_zero_uptime_mix_operator_rewarding_event,
 };
-use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
+use mixnet_contract_common::pending_events::{PendingEpochEventKind, PendingIntervalEventKind};
 use mixnet_contract_common::reward_params::{
     IntervalRewardingParamsUpdate, NodeRewardParams, Performance,
 };
-use mixnet_contract_common::{Delegation, NodeId};
+use mixnet_contract_common::{Delegation, MixId};
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 pub(crate) fn try_reward_mixnode(
     deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
-    node_id: NodeId,
+    mix_id: MixId,
     node_performance: Performance,
 ) -> Result<Response, MixnetContractError> {
     ensure_is_authorized(info.sender, deps.storage)?;
@@ -50,17 +50,17 @@ pub(crate) fn try_reward_mixnode(
 
     // there's a chance of this failing to load the details if the mixnode unbonded before rewards
     // were distributed and all of its delegators are also gone
-    let mut mix_rewarding = match storage::MIXNODE_REWARDING.may_load(deps.storage, node_id)? {
+    let mut mix_rewarding = match storage::MIXNODE_REWARDING.may_load(deps.storage, mix_id)? {
         Some(mix_rewarding) if mix_rewarding.still_bonded() => mix_rewarding,
         // don't fail if the node has unbonded as we don't want to fail the underlying transaction
         _ => {
-            return Ok(
-                Response::new().add_event(new_not_found_mix_operator_rewarding_event(
-                    interval, node_id,
-                )),
-            );
+            return Ok(Response::new()
+                .add_event(new_not_found_mix_operator_rewarding_event(interval, mix_id)));
         }
     };
+
+    let prior_delegates = mix_rewarding.delegates;
+    let prior_unit_reward = mix_rewarding.full_reward_ratio();
 
     // check if this node has already been rewarded for the current epoch.
     // unlike the previous check, this one should be a hard error since this cannot be
@@ -68,16 +68,16 @@ pub(crate) fn try_reward_mixnode(
     let absolute_epoch_id = interval.current_epoch_absolute_id();
     if absolute_epoch_id == mix_rewarding.last_rewarded_epoch {
         return Err(MixnetContractError::MixnodeAlreadyRewarded {
-            node_id,
+            mix_id,
             absolute_epoch_id,
         });
     }
 
     // again a hard error since the rewarding validator should have known not to reward this node
     let node_status = interval_storage::REWARDED_SET
-        .load(deps.storage, node_id)
+        .load(deps.storage, mix_id)
         .map_err(|_| MixnetContractError::MixnodeNotInRewardedSet {
-            node_id,
+            mix_id,
             absolute_epoch_id,
         })?;
 
@@ -85,10 +85,10 @@ pub(crate) fn try_reward_mixnode(
     // however, we still need to update last_rewarded_epoch field
     if node_performance.is_zero() {
         mix_rewarding.last_rewarded_epoch = absolute_epoch_id;
-        storage::MIXNODE_REWARDING.save(deps.storage, node_id, &mix_rewarding)?;
+        storage::MIXNODE_REWARDING.save(deps.storage, mix_id, &mix_rewarding)?;
         return Ok(
             Response::new().add_event(new_zero_uptime_mix_operator_rewarding_event(
-                interval, node_id,
+                interval, mix_id,
             )),
         );
     }
@@ -106,13 +106,15 @@ pub(crate) fn try_reward_mixnode(
     mix_rewarding.distribute_rewards(reward_distribution, absolute_epoch_id);
 
     // persist changes happened to the storage
-    storage::MIXNODE_REWARDING.save(deps.storage, node_id, &mix_rewarding)?;
+    storage::MIXNODE_REWARDING.save(deps.storage, mix_id, &mix_rewarding)?;
     storage::reward_accounting(deps.storage, node_reward)?;
 
     Ok(Response::new().add_event(new_mix_rewarding_event(
         interval,
-        node_id,
+        mix_id,
         reward_distribution,
+        prior_delegates,
+        prior_unit_reward,
     )))
 }
 
@@ -182,7 +184,7 @@ pub(crate) fn _try_withdraw_operator_reward(
 pub(crate) fn try_withdraw_delegator_reward(
     deps: DepsMut<'_>,
     info: MessageInfo,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Result<Response, MixnetContractError> {
     _try_withdraw_delegator_reward(deps, mix_id, info.sender, None)
 }
@@ -190,7 +192,7 @@ pub(crate) fn try_withdraw_delegator_reward(
 pub(crate) fn try_withdraw_delegator_reward_on_behalf(
     deps: DepsMut<'_>,
     info: MessageInfo,
-    mix_id: NodeId,
+    mix_id: MixId,
     owner: String,
 ) -> Result<Response, MixnetContractError> {
     let proxy = info.sender;
@@ -200,7 +202,7 @@ pub(crate) fn try_withdraw_delegator_reward_on_behalf(
 
 pub(crate) fn _try_withdraw_delegator_reward(
     deps: DepsMut<'_>,
-    mix_id: NodeId,
+    mix_id: MixId,
     owner: Addr,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
@@ -228,9 +230,9 @@ pub(crate) fn _try_withdraw_delegator_reward(
     // (in that case the expected path of getting your tokens back is via undelegation)
     match mixnodes_storage::mixnode_bonds().may_load(deps.storage, mix_id)? {
         Some(mix_bond) if mix_bond.is_unbonding => {
-            return Err(MixnetContractError::MixnodeIsUnbonding { node_id: mix_id })
+            return Err(MixnetContractError::MixnodeIsUnbonding { mix_id })
         }
-        None => return Err(MixnetContractError::MixnodeHasUnbonded { node_id: mix_id }),
+        None => return Err(MixnetContractError::MixnodeHasUnbonded { mix_id }),
         _ => (),
     };
 
@@ -286,13 +288,16 @@ pub(crate) fn try_update_active_set_size(
     if force_immediately || interval.is_current_epoch_over(&env) {
         rewarding_params.try_change_active_set_size(active_set_size)?;
         storage::REWARDING_PARAMS.save(deps.storage, &rewarding_params)?;
-        Ok(Response::new().add_event(new_active_set_update_event(active_set_size)))
+        Ok(Response::new().add_event(new_active_set_update_event(
+            env.block.height,
+            active_set_size,
+        )))
     } else {
         // push the epoch event
-        let epoch_event = PendingEpochEventData::UpdateActiveSetSize {
+        let epoch_event = PendingEpochEventKind::UpdateActiveSetSize {
             new_size: active_set_size,
         };
-        push_new_epoch_event(deps.storage, &epoch_event)?;
+        push_new_epoch_event(deps.storage, &env, epoch_event)?;
         let time_left = interval.secs_until_current_interval_end(&env);
         Ok(
             Response::new().add_event(new_pending_active_set_update_event(
@@ -322,15 +327,16 @@ pub(crate) fn try_update_rewarding_params(
         rewarding_params.try_apply_updates(updated_params, interval.epochs_in_interval())?;
         storage::REWARDING_PARAMS.save(deps.storage, &rewarding_params)?;
         Ok(Response::new().add_event(new_rewarding_params_update_event(
+            env.block.height,
             updated_params,
             rewarding_params.interval,
         )))
     } else {
         // push the interval event
-        let interval_event = PendingIntervalEventData::UpdateRewardingParams {
+        let interval_event = PendingIntervalEventKind::UpdateRewardingParams {
             update: updated_params,
         };
-        push_new_interval_event(deps.storage, &interval_event)?;
+        push_new_interval_event(deps.storage, &env, interval_event)?;
         let time_left = interval.secs_until_current_interval_end(&env);
         Ok(
             Response::new().add_event(new_pending_rewarding_params_update_event(
@@ -356,8 +362,10 @@ pub mod tests {
         use cosmwasm_std::{Decimal, Uint128};
         use mixnet_contract_common::events::{
             MixnetEventType, BOND_NOT_FOUND_VALUE, DELEGATES_REWARD_KEY, NO_REWARD_REASON_KEY,
-            OPERATOR_REWARD_KEY, ZERO_PERFORMANCE_VALUE,
+            OPERATOR_REWARD_KEY, PRIOR_DELEGATES_KEY, PRIOR_UNIT_REWARD_KEY,
+            ZERO_PERFORMANCE_VALUE,
         };
+        use mixnet_contract_common::helpers::compare_decimals;
         use mixnet_contract_common::RewardedSetNodeStatus;
 
         #[test]
@@ -415,9 +423,9 @@ pub mod tests {
                     &rewarding_details,
                 )
                 .unwrap();
-            pending_events::unbond_mixnode(test.deps_mut(), &env, mix_id_unbonded).unwrap();
+            pending_events::unbond_mixnode(test.deps_mut(), &env, 123, mix_id_unbonded).unwrap();
 
-            pending_events::unbond_mixnode(test.deps_mut(), &env, mix_id_unbonded_leftover)
+            pending_events::unbond_mixnode(test.deps_mut(), &env, 123, mix_id_unbonded_leftover)
                 .unwrap();
 
             let env = test.env();
@@ -523,7 +531,7 @@ pub mod tests {
             assert!(res_standby.is_ok());
             assert!(matches!(
                 res_inactive,
-                Err(MixnetContractError::MixnodeNotInRewardedSet { node_id, .. }) if node_id == inactive_mix_id
+                Err(MixnetContractError::MixnodeNotInRewardedSet { mix_id, .. }) if mix_id == inactive_mix_id
             ));
         }
 
@@ -552,7 +560,7 @@ pub mod tests {
             let res = try_reward_mixnode(test.deps_mut(), env, sender.clone(), mix_id, performance);
             assert!(matches!(
                 res,
-                Err(MixnetContractError::MixnodeAlreadyRewarded { node_id, .. }) if node_id == mix_id
+                Err(MixnetContractError::MixnodeAlreadyRewarded { mix_id, .. }) if mix_id == mix_id
             ));
 
             // in the following epoch we're good again
@@ -601,7 +609,7 @@ pub mod tests {
             );
             assert!(matches!(
                 res,
-                Err(MixnetContractError::MixnodeAlreadyRewarded { node_id, .. }) if node_id == mix_id
+                Err(MixnetContractError::MixnodeAlreadyRewarded { mix_id, .. }) if mix_id == mix_id
             ));
 
             // but in the next epoch, as always, we're good again
@@ -639,11 +647,11 @@ pub mod tests {
             let env = test.env();
             let sender = test.rewarding_validator();
 
-            test.add_delegation("delegator1", Uint128::new(100_000_000), mix_id2);
+            test.add_immediate_delegation("delegator1", Uint128::new(100_000_000), mix_id2);
 
-            test.add_delegation("delegator1", Uint128::new(100_000_000), mix_id3);
-            test.add_delegation("delegator2", Uint128::new(123_456_000), mix_id3);
-            test.add_delegation("delegator3", Uint128::new(9_100_000_000), mix_id3);
+            test.add_immediate_delegation("delegator1", Uint128::new(100_000_000), mix_id3);
+            test.add_immediate_delegation("delegator2", Uint128::new(123_456_000), mix_id3);
+            test.add_immediate_delegation("delegator3", Uint128::new(9_100_000_000), mix_id3);
 
             let change = storage::PENDING_REWARD_POOL_CHANGE
                 .load(test.deps().storage)
@@ -721,11 +729,11 @@ pub mod tests {
             test.update_rewarded_set(vec![mix_id1, mix_id2, mix_id3]);
             let performance = test_helpers::performance(98.0);
 
-            test.add_delegation("delegator1", Uint128::new(100_000_000), mix_id2);
+            test.add_immediate_delegation("delegator1", Uint128::new(100_000_000), mix_id2);
 
-            test.add_delegation("delegator1", Uint128::new(100_000_000), mix_id3);
-            test.add_delegation("delegator2", Uint128::new(123_456_000), mix_id3);
-            test.add_delegation("delegator3", Uint128::new(9_100_000_000), mix_id3);
+            test.add_immediate_delegation("delegator1", Uint128::new(100_000_000), mix_id3);
+            test.add_immediate_delegation("delegator2", Uint128::new(123_456_000), mix_id3);
+            test.add_immediate_delegation("delegator3", Uint128::new(9_100_000_000), mix_id3);
 
             // repeat the rewarding the same set of delegates for few epochs
             for _ in 0..10 {
@@ -736,7 +744,7 @@ pub mod tests {
                         performance,
                         in_active_set: true,
                     };
-                    let sim_res = sim.simulate_epoch(node_params);
+                    let sim_res = sim.simulate_epoch_single_node(node_params).unwrap();
                     assert_eq!(sim_res, dist);
                 }
                 test.skip_to_next_epoch_end();
@@ -745,11 +753,11 @@ pub mod tests {
             // add few more delegations and repeat it
             // (note: we're not concerned about whether particular delegation owner got the correct amount,
             // this is checked in other unit tests)
-            test.add_delegation("delegator1", Uint128::new(50_000_000), mix_id1);
-            test.add_delegation("delegator1", Uint128::new(200_000_000), mix_id2);
+            test.add_immediate_delegation("delegator1", Uint128::new(50_000_000), mix_id1);
+            test.add_immediate_delegation("delegator1", Uint128::new(200_000_000), mix_id2);
 
-            test.add_delegation("delegator5", Uint128::new(123_000_000), mix_id3);
-            test.add_delegation("delegator6", Uint128::new(456_000_000), mix_id3);
+            test.add_immediate_delegation("delegator5", Uint128::new(123_000_000), mix_id3);
+            test.add_immediate_delegation("delegator6", Uint128::new(456_000_000), mix_id3);
 
             let performance = test_helpers::performance(12.3);
             for _ in 0..10 {
@@ -760,16 +768,340 @@ pub mod tests {
                         performance,
                         in_active_set: true,
                     };
-                    let sim_res = sim.simulate_epoch(node_params);
+                    let sim_res = sim.simulate_epoch_single_node(node_params).unwrap();
                     assert_eq!(sim_res, dist);
                 }
+                test.skip_to_next_epoch_end();
+            }
+        }
+
+        #[test]
+        fn emitted_event_attributes_allow_for_delegator_reward_recomputation() {
+            let operator1 = Uint128::new(1_000_000_000);
+            let operator2 = Uint128::new(12_345_000_000);
+
+            let mut test = TestSetup::new();
+            let sender = test.rewarding_validator();
+
+            let mix_id1 = test.add_dummy_mixnode("mix-owner1", Some(operator1));
+            let mix_id2 = test.add_dummy_mixnode("mix-owner2", Some(operator2));
+
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id1, mix_id2]);
+            let performance = test_helpers::performance(98.0);
+
+            test.add_immediate_delegation("delegator1", Uint128::new(100_000_000), mix_id1);
+            test.add_immediate_delegation("delegator1", Uint128::new(100_000_000), mix_id2);
+
+            test.add_immediate_delegation("delegator2", Uint128::new(123_456_000), mix_id1);
+
+            let del11 = test.delegation(mix_id1, "delegator1", &None);
+            let del12 = test.delegation(mix_id1, "delegator2", &None);
+            let del21 = test.delegation(mix_id2, "delegator1", &None);
+
+            for _ in 0..10 {
+                // we know from the previous tests that actual rewarding distribution matches the simulator
+                let mut sim1 = test.instantiate_simulator(mix_id1);
+                let mut sim2 = test.instantiate_simulator(mix_id2);
+
+                let node_params = NodeRewardParams {
+                    performance,
+                    in_active_set: true,
+                };
+
+                let dist1 = sim1.simulate_epoch_single_node(node_params).unwrap();
+                let dist2 = sim2.simulate_epoch_single_node(node_params).unwrap();
+
+                let env = test.env();
+
+                let actual_prior1 = test.mix_rewarding(mix_id1);
+                let actual_prior2 = test.mix_rewarding(mix_id2);
+
+                let res1 = try_reward_mixnode(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender.clone(),
+                    mix_id1,
+                    performance,
+                )
+                .unwrap();
+
+                let prior_delegates1: Decimal = find_attribute(
+                    Some(MixnetEventType::MixnodeRewarding),
+                    PRIOR_DELEGATES_KEY,
+                    &res1,
+                )
+                .parse()
+                .unwrap();
+                assert_eq!(prior_delegates1, actual_prior1.delegates);
+
+                let delegates_reward1: Decimal = find_attribute(
+                    Some(MixnetEventType::MixnodeRewarding),
+                    DELEGATES_REWARD_KEY,
+                    &res1,
+                )
+                .parse()
+                .unwrap();
+                assert_eq!(delegates_reward1, dist1.delegates);
+
+                let prior_unit_reward: Decimal = find_attribute(
+                    Some(MixnetEventType::MixnodeRewarding),
+                    PRIOR_UNIT_REWARD_KEY,
+                    &res1,
+                )
+                .parse()
+                .unwrap();
+                assert_eq!(actual_prior1.full_reward_ratio(), prior_unit_reward);
+
+                // either use the constant for (which for now is the same for all nodes)
+                // or query the contract for per-node value
+                let unit_delegation_base = actual_prior1.unit_delegation;
+
+                // recompute the state of fully compounded delegation from before this rewarding was distributed
+                let pre_rewarding_del11 = del11.dec_amount().unwrap()
+                    + (prior_unit_reward - del11.cumulative_reward_ratio)
+                        * del11.dec_amount().unwrap()
+                        / (del11.cumulative_reward_ratio + unit_delegation_base);
+
+                let computed_del11_reward =
+                    pre_rewarding_del11 / prior_delegates1 * delegates_reward1;
+
+                let pre_rewarding_del12 = del12.dec_amount().unwrap()
+                    + (prior_unit_reward - del12.cumulative_reward_ratio)
+                        * del12.dec_amount().unwrap()
+                        / (del12.cumulative_reward_ratio + unit_delegation_base);
+
+                let computed_del12_reward =
+                    pre_rewarding_del12 / prior_delegates1 * delegates_reward1;
+
+                // sanity check
+                compare_decimals(
+                    computed_del11_reward + computed_del12_reward,
+                    delegates_reward1,
+                    None,
+                );
+
+                let res2 = try_reward_mixnode(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender.clone(),
+                    mix_id2,
+                    performance,
+                )
+                .unwrap();
+
+                let prior_delegates2: Decimal = find_attribute(
+                    Some(MixnetEventType::MixnodeRewarding),
+                    PRIOR_DELEGATES_KEY,
+                    &res2,
+                )
+                .parse()
+                .unwrap();
+                assert_eq!(prior_delegates2, actual_prior2.delegates);
+
+                let delegates_reward2: Decimal = find_attribute(
+                    Some(MixnetEventType::MixnodeRewarding),
+                    DELEGATES_REWARD_KEY,
+                    &res2,
+                )
+                .parse()
+                .unwrap();
+                assert_eq!(delegates_reward2, dist2.delegates);
+
+                let prior_unit_reward: Decimal = find_attribute(
+                    Some(MixnetEventType::MixnodeRewarding),
+                    PRIOR_UNIT_REWARD_KEY,
+                    &res2,
+                )
+                .parse()
+                .unwrap();
+                assert_eq!(actual_prior2.full_reward_ratio(), prior_unit_reward);
+
+                // either use the constant for (which for now is the same for all nodes)
+                // or query the contract for per-node value
+                let unit_delegation_base = actual_prior2.unit_delegation;
+
+                // recompute the state of fully compounded delegation from before this rewarding was distributed
+                let pre_rewarding_del21 = del21.dec_amount().unwrap()
+                    + (prior_unit_reward - del21.cumulative_reward_ratio)
+                        * del21.dec_amount().unwrap()
+                        / (del21.cumulative_reward_ratio + unit_delegation_base);
+
+                let computed_del21_reward =
+                    pre_rewarding_del21 / prior_delegates2 * delegates_reward2;
+
+                assert_eq!(dist2.delegates, computed_del21_reward);
+
+                test.skip_to_next_epoch_end();
+            }
+
+            // add more delegations and check few more epochs (so that the delegations would start from non-default unit delegation value)
+            test.add_immediate_delegation("delegator3", Uint128::new(15_850_000_000), mix_id1);
+            test.add_immediate_delegation("delegator3", Uint128::new(15_850_000_000), mix_id2);
+
+            let del13 = test.delegation(mix_id1, "delegator3", &None);
+            let del23 = test.delegation(mix_id2, "delegator3", &None);
+
+            for _ in 0..10 {
+                // we know from the previous tests that actual rewarding distribution matches the simulator
+                let mut sim1 = test.instantiate_simulator(mix_id1);
+                let mut sim2 = test.instantiate_simulator(mix_id2);
+
+                let node_params = NodeRewardParams {
+                    performance,
+                    in_active_set: true,
+                };
+
+                let dist1 = sim1.simulate_epoch_single_node(node_params).unwrap();
+                let dist2 = sim2.simulate_epoch_single_node(node_params).unwrap();
+
+                let env = test.env();
+
+                let actual_prior1 = test.mix_rewarding(mix_id1);
+                let actual_prior2 = test.mix_rewarding(mix_id2);
+
+                let res1 = try_reward_mixnode(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender.clone(),
+                    mix_id1,
+                    performance,
+                )
+                .unwrap();
+
+                let prior_delegates1: Decimal = find_attribute(
+                    Some(MixnetEventType::MixnodeRewarding),
+                    PRIOR_DELEGATES_KEY,
+                    &res1,
+                )
+                .parse()
+                .unwrap();
+                assert_eq!(prior_delegates1, actual_prior1.delegates);
+
+                let delegates_reward1: Decimal = find_attribute(
+                    Some(MixnetEventType::MixnodeRewarding),
+                    DELEGATES_REWARD_KEY,
+                    &res1,
+                )
+                .parse()
+                .unwrap();
+                assert_eq!(delegates_reward1, dist1.delegates);
+
+                let prior_unit_reward: Decimal = find_attribute(
+                    Some(MixnetEventType::MixnodeRewarding),
+                    PRIOR_UNIT_REWARD_KEY,
+                    &res1,
+                )
+                .parse()
+                .unwrap();
+                assert_eq!(actual_prior1.full_reward_ratio(), prior_unit_reward);
+
+                // either use the constant for (which for now is the same for all nodes)
+                // or query the contract for per-node value
+                let unit_delegation_base = actual_prior1.unit_delegation;
+
+                // recompute the state of fully compounded delegation from before this rewarding was distributed
+                let pre_rewarding_del11 = del11.dec_amount().unwrap()
+                    + (prior_unit_reward - del11.cumulative_reward_ratio)
+                        * del11.dec_amount().unwrap()
+                        / (del11.cumulative_reward_ratio + unit_delegation_base);
+
+                let computed_del11_reward =
+                    pre_rewarding_del11 / prior_delegates1 * delegates_reward1;
+
+                let pre_rewarding_del12 = del12.dec_amount().unwrap()
+                    + (prior_unit_reward - del12.cumulative_reward_ratio)
+                        * del12.dec_amount().unwrap()
+                        / (del12.cumulative_reward_ratio + unit_delegation_base);
+
+                let computed_del12_reward =
+                    pre_rewarding_del12 / prior_delegates1 * delegates_reward1;
+
+                let pre_rewarding_del13 = del13.dec_amount().unwrap()
+                    + (prior_unit_reward - del13.cumulative_reward_ratio)
+                        * del13.dec_amount().unwrap()
+                        / (del13.cumulative_reward_ratio + unit_delegation_base);
+
+                let computed_del13_reward =
+                    pre_rewarding_del13 / prior_delegates1 * delegates_reward1;
+
+                // sanity check
+                compare_decimals(
+                    computed_del11_reward + computed_del12_reward + computed_del13_reward,
+                    delegates_reward1,
+                    None,
+                );
+
+                let res2 = try_reward_mixnode(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender.clone(),
+                    mix_id2,
+                    performance,
+                )
+                .unwrap();
+
+                let prior_delegates2: Decimal = find_attribute(
+                    Some(MixnetEventType::MixnodeRewarding),
+                    PRIOR_DELEGATES_KEY,
+                    &res2,
+                )
+                .parse()
+                .unwrap();
+                assert_eq!(prior_delegates2, actual_prior2.delegates);
+
+                let delegates_reward2: Decimal = find_attribute(
+                    Some(MixnetEventType::MixnodeRewarding),
+                    DELEGATES_REWARD_KEY,
+                    &res2,
+                )
+                .parse()
+                .unwrap();
+                assert_eq!(delegates_reward2, dist2.delegates);
+
+                let prior_unit_reward: Decimal = find_attribute(
+                    Some(MixnetEventType::MixnodeRewarding),
+                    PRIOR_UNIT_REWARD_KEY,
+                    &res2,
+                )
+                .parse()
+                .unwrap();
+                assert_eq!(actual_prior2.full_reward_ratio(), prior_unit_reward);
+
+                // either use the constant for (which for now is the same for all nodes)
+                // or query the contract for per-node value
+                let unit_delegation_base = actual_prior2.unit_delegation;
+
+                // recompute the state of fully compounded delegation from before this rewarding was distributed
+                let pre_rewarding_del21 = del21.dec_amount().unwrap()
+                    + (prior_unit_reward - del21.cumulative_reward_ratio)
+                        * del21.dec_amount().unwrap()
+                        / (del21.cumulative_reward_ratio + unit_delegation_base);
+
+                let computed_del21_reward =
+                    pre_rewarding_del21 / prior_delegates2 * delegates_reward2;
+
+                let pre_rewarding_del23 = del23.dec_amount().unwrap()
+                    + (prior_unit_reward - del23.cumulative_reward_ratio)
+                        * del23.dec_amount().unwrap()
+                        / (del23.cumulative_reward_ratio + unit_delegation_base);
+
+                let computed_del23_reward =
+                    pre_rewarding_del23 / prior_delegates2 * delegates_reward2;
+
+                compare_decimals(
+                    computed_del21_reward + computed_del23_reward,
+                    delegates_reward2,
+                    None,
+                );
+
                 test.skip_to_next_epoch_end();
             }
         }
     }
 
     #[cfg(test)]
-    mod withdrawing_operator_reward {
+    mod withdrawing_delegator_reward {
         use super::*;
         use crate::interval::pending_events;
         use crate::support::tests::test_helpers::{assert_eq_with_leeway, TestSetup};
@@ -904,7 +1236,7 @@ pub mod tests {
                 .unwrap();
 
             let env = test.env();
-            pending_events::unbond_mixnode(test.deps_mut(), &env, mix_id_unbonded_leftover)
+            pending_events::unbond_mixnode(test.deps_mut(), &env, 123, mix_id_unbonded_leftover)
                 .unwrap();
 
             let res =
@@ -912,7 +1244,7 @@ pub mod tests {
             assert_eq!(
                 res,
                 Err(MixnetContractError::MixnodeIsUnbonding {
-                    node_id: mix_id_unbonding
+                    mix_id: mix_id_unbonding
                 })
             );
 
@@ -921,7 +1253,7 @@ pub mod tests {
             assert_eq!(
                 res,
                 Err(MixnetContractError::MixnodeHasUnbonded {
-                    node_id: mix_id_unbonded_leftover
+                    mix_id: mix_id_unbonded_leftover
                 })
             );
         }
@@ -1093,7 +1425,7 @@ pub mod tests {
     }
 
     #[cfg(test)]
-    mod withdrawing_delegator_reward {
+    mod withdrawing_operator_reward {
         use super::*;
         use crate::interval::pending_events;
         use crate::support::tests::test_helpers::TestSetup;
@@ -1186,14 +1518,14 @@ pub mod tests {
                 .unwrap();
 
             let env = test.env();
-            pending_events::unbond_mixnode(test.deps_mut(), &env, mix_id_unbonded_leftover)
+            pending_events::unbond_mixnode(test.deps_mut(), &env, 123, mix_id_unbonded_leftover)
                 .unwrap();
 
             let res = try_withdraw_operator_reward(test.deps_mut(), sender1);
             assert_eq!(
                 res,
                 Err(MixnetContractError::MixnodeIsUnbonding {
-                    node_id: mix_id_unbonding
+                    mix_id: mix_id_unbonding
                 })
             );
 
@@ -1356,7 +1688,7 @@ pub mod tests {
             // make sure it's actually saved to pending events
             let events = test.pending_epoch_events();
             assert!(
-                matches!(events[0], PendingEpochEventData::UpdateActiveSetSize { new_size } if new_size == 42)
+                matches!(events[0].kind, PendingEpochEventKind::UpdateActiveSetSize { new_size } if new_size == 42)
             );
 
             test.execute_all_pending_events();
@@ -1386,6 +1718,7 @@ pub mod tests {
             let update = IntervalRewardingParamsUpdate {
                 reward_pool: None,
                 staking_supply: None,
+                staking_supply_scale_factor: None,
                 sybil_resistance_percent: None,
                 active_set_work_factor: None,
                 interval_pool_emission: None,
@@ -1418,6 +1751,7 @@ pub mod tests {
             let empty_update = IntervalRewardingParamsUpdate {
                 reward_pool: None,
                 staking_supply: None,
+                staking_supply_scale_factor: None,
                 sybil_resistance_percent: None,
                 active_set_work_factor: None,
                 interval_pool_emission: None,
@@ -1437,6 +1771,7 @@ pub mod tests {
             let update = IntervalRewardingParamsUpdate {
                 reward_pool: None,
                 staking_supply: None,
+                staking_supply_scale_factor: None,
                 sybil_resistance_percent: None,
                 active_set_work_factor: None,
                 interval_pool_emission: None,
@@ -1471,6 +1806,7 @@ pub mod tests {
             let update = IntervalRewardingParamsUpdate {
                 reward_pool: None,
                 staking_supply: None,
+                staking_supply_scale_factor: None,
                 sybil_resistance_percent: None,
                 active_set_work_factor: None,
                 interval_pool_emission: None,
@@ -1495,6 +1831,7 @@ pub mod tests {
             let update = IntervalRewardingParamsUpdate {
                 reward_pool: None,
                 staking_supply: None,
+                staking_supply_scale_factor: None,
                 sybil_resistance_percent: None,
                 active_set_work_factor: None,
                 interval_pool_emission: None,
@@ -1511,7 +1848,7 @@ pub mod tests {
             // make sure it's actually saved to pending events
             let events = test.pending_interval_events();
             assert!(
-                matches!(events[0],PendingIntervalEventData::UpdateRewardingParams { update } if update.rewarded_set_size == Some(123))
+                matches!(events[0].kind,PendingIntervalEventKind::UpdateRewardingParams { update } if update.rewarded_set_size == Some(123))
             );
 
             test.execute_all_pending_events();
@@ -1535,6 +1872,7 @@ pub mod tests {
             let update = IntervalRewardingParamsUpdate {
                 reward_pool: Some(old.interval.reward_pool / two),
                 staking_supply: Some(old.interval.staking_supply * four),
+                staking_supply_scale_factor: None,
                 sybil_resistance_percent: None,
                 active_set_work_factor: None,
                 interval_pool_emission: None,

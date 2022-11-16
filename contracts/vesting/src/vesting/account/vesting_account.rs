@@ -67,7 +67,7 @@ impl VestingAccount for Account {
         storage: &dyn Storage,
     ) -> Result<Coin, ContractError> {
         let block_time = block_time.unwrap_or(env.block.time);
-        let period = self.get_current_vesting_period(block_time);
+        let period = self.get_current_vesting_period(block_time)?;
         let denom = MIX_DENOM.load(storage)?;
 
         let amount = match period {
@@ -94,7 +94,7 @@ impl VestingAccount for Account {
         storage: &dyn Storage,
     ) -> Result<Coin, ContractError> {
         Ok(Coin {
-            amount: self.get_original_vesting().amount().amount
+            amount: self.get_original_vesting()?.amount().amount
                 - self.get_vested_coins(block_time, env, storage)?.amount,
             denom: MIX_DENOM.load(storage)?,
         })
@@ -105,15 +105,15 @@ impl VestingAccount for Account {
     }
 
     fn get_end_time(&self) -> Timestamp {
-        self.periods[(self.num_vesting_periods() - 1) as usize].end_time()
+        self.periods[(self.num_vesting_periods() - 1)].end_time()
     }
 
-    fn get_original_vesting(&self) -> OriginalVestingResponse {
-        OriginalVestingResponse::new(
+    fn get_original_vesting(&self) -> Result<OriginalVestingResponse, ContractError> {
+        Ok(OriginalVestingResponse::new(
             self.coin.clone(),
             self.num_vesting_periods(),
-            self.period_duration(),
-        )
+            self.period_duration()?,
+        ))
     }
 
     fn get_delegated_free(
@@ -123,7 +123,7 @@ impl VestingAccount for Account {
         storage: &dyn Storage,
     ) -> Result<Coin, ContractError> {
         let block_time = block_time.unwrap_or(env.block.time);
-        let period = self.get_current_vesting_period(block_time);
+        let period = self.get_current_vesting_period(block_time)?;
         let withdrawn = self.load_withdrawn(storage)?;
         let max_available = self
             .get_vested_coins(Some(block_time), env, storage)?
@@ -132,7 +132,7 @@ impl VestingAccount for Account {
         let start_time = match period {
             Period::Before => 0,
             Period::After => u64::MAX,
-            Period::In(idx) => self.periods[idx as usize].start_time,
+            Period::In(idx) => self.periods[idx].start_time,
         };
 
         let coin = self.total_delegations_at_timestamp(storage, start_time)?;
@@ -155,15 +155,8 @@ impl VestingAccount for Account {
         let block_time = block_time.unwrap_or(env.block.time);
         let delegated_free = self.get_delegated_free(Some(block_time), env, storage)?;
 
-        let period = self.get_current_vesting_period(block_time);
-        let start_time = match period {
-            Period::Before => 0,
-            Period::After => u64::MAX,
-            Period::In(idx) => self.periods[idx as usize].start_time,
-        };
-
         let delegations_before_start_time =
-            self.total_delegations_at_timestamp(storage, start_time)?;
+            self.total_delegations_at_timestamp(storage, block_time.seconds())?;
 
         let amount = delegations_before_start_time - delegated_free.amount;
 
@@ -180,12 +173,12 @@ impl VestingAccount for Account {
         storage: &dyn Storage,
     ) -> Result<Coin, ContractError> {
         let block_time = block_time.unwrap_or(env.block.time);
-        let period = self.get_current_vesting_period(block_time);
+        let period = self.get_current_vesting_period(block_time)?;
         let max_vested = self.get_vested_coins(Some(block_time), env, storage)?;
         let start_time = match period {
             Period::Before => 0,
             Period::After => u64::MAX,
-            Period::In(idx) => self.periods[idx as usize].start_time,
+            Period::In(idx) => self.periods[idx].start_time,
         };
 
         let amount = if let Some(bond) = self

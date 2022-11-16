@@ -53,7 +53,8 @@ impl From<NymTopologyError> for PreparationError {
 /// Prepares the message that is to be sent through the mix network by attaching
 /// an optional reply-SURB, padding it to appropriate length, encrypting its content,
 /// and chunking into appropriate size [`Fragment`]s.
-#[cfg_attr(not(target_arch = "wasm32"), derive(Clone))]
+// #[cfg_attr(not(target_arch = "wasm32"), derive(Clone))]
+#[derive(Clone)]
 #[must_use]
 pub struct MessagePreparer<R: CryptoRng + Rng> {
     /// Instance of a cryptographically secure random number generator.
@@ -104,7 +105,7 @@ where
     }
 
     /// Allows setting non-default size of the sphinx packets sent out.
-    pub fn with_packet_size(mut self, packet_size: PacketSize) -> Self {
+    pub fn with_custom_real_message_packet_size(mut self, packet_size: PacketSize) -> Self {
         self.packet_size = packet_size;
         self
     }

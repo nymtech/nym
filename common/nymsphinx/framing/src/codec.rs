@@ -6,7 +6,6 @@ use bytes::{Buf, BufMut, BytesMut};
 use nymsphinx_params::packet_modes::InvalidPacketMode;
 use nymsphinx_params::packet_sizes::{InvalidPacketSize, PacketSize};
 use nymsphinx_types::SphinxPacket;
-use std::convert::TryFrom;
 use std::io;
 use tokio_util::codec::{Decoder, Encoder};
 
@@ -75,7 +74,7 @@ impl Decoder for SphinxCodec {
         if src.is_empty() {
             // can't do anything if we have no bytes, but let's reserve enough for the most
             // conservative case, i.e. receiving an ack packet
-            src.reserve(Header::SIZE + PacketSize::AckPacket.size());
+            src.reserve(Header::LEGACY_SIZE + PacketSize::AckPacket.size());
             return Ok(None);
         }
 
@@ -87,7 +86,7 @@ impl Decoder for SphinxCodec {
         };
 
         let sphinx_packet_size = header.packet_size.size();
-        let frame_len = Header::SIZE + sphinx_packet_size;
+        let frame_len = header.size() + sphinx_packet_size;
 
         if src.len() < frame_len {
             // we don't have enough bytes to read the rest of frame
@@ -96,7 +95,7 @@ impl Decoder for SphinxCodec {
         }
 
         // advance buffer past the header - at this point we have enough bytes
-        src.advance(Header::SIZE);
+        src.advance(header.size());
         let sphinx_packet_bytes = src.split_to(sphinx_packet_size);
         let sphinx_packet = match SphinxPacket::from_bytes(&sphinx_packet_bytes) {
             Ok(sphinx_packet) => sphinx_packet,
@@ -115,21 +114,27 @@ impl Decoder for SphinxCodec {
         // has appropriate capacity in anticipation of future calls to decode.
         // Failing to do so leads to inefficiency.
 
-        // if we have at least one more byte available, we can reserve enough bytes for
+        // if we have enough bytes to decode the header of the next packet, we can reserve enough bytes for
         // the entire next frame, if not, we assume the next frame is an ack packet and
         // reserve for that.
+        // we also assume the next packet coming from the same client will use exactly the same versioning
+        // as the current packet
+        let mut allocate_for_next_packet = header.size() + PacketSize::AckPacket.size();
         if !src.is_empty() {
-            let next_packet_len = match PacketSize::try_from(src[0]) {
-                Ok(next_packet_len) => next_packet_len,
+            match Header::decode(src) {
+                Ok(Some(next_header)) => {
+                    allocate_for_next_packet = next_header.size() + next_header.packet_size.size();
+                }
+                Ok(None) => {
+                    // we don't have enough information to know how much to reserve, fallback to the ack case
+                }
+
                 // the next frame will be malformed but let's leave handling the error to the next
                 // call to 'decode', as presumably, the current sphinx packet is still valid
                 Err(_) => return Ok(Some(nymsphinx_packet)),
             };
-            let next_frame_len = next_packet_len.size() + Header::SIZE;
-            src.reserve(next_frame_len - 1);
-        } else {
-            src.reserve(Header::SIZE + PacketSize::AckPacket.size());
         }
+        src.reserve(allocate_for_next_packet);
 
         Ok(Some(nymsphinx_packet))
     }
@@ -199,6 +204,8 @@ mod packet_encoding {
     #[cfg(test)]
     mod decode_will_allocate_enough_bytes_for_next_call {
         use super::*;
+        use nymsphinx_params::packet_version::PacketVersion;
+        use nymsphinx_params::PacketMode;
 
         #[test]
         fn for_empty_bytes() {
@@ -207,20 +214,23 @@ mod packet_encoding {
             assert!(SphinxCodec.decode(&mut empty_bytes).unwrap().is_none());
             assert_eq!(
                 empty_bytes.capacity(),
-                Header::SIZE + PacketSize::AckPacket.size()
+                Header::LEGACY_SIZE + PacketSize::AckPacket.size()
             );
         }
 
         #[test]
-        fn for_bytes_with_header() {
+        fn for_bytes_with_legacy_header() {
             // if header gets decoded there should be enough bytes for the entire frame
             let packet_sizes = vec![
                 PacketSize::AckPacket,
                 PacketSize::RegularPacket,
-                PacketSize::ExtendedPacket,
+                PacketSize::ExtendedPacket8,
+                PacketSize::ExtendedPacket16,
+                PacketSize::ExtendedPacket32,
             ];
             for packet_size in packet_sizes {
                 let header = Header {
+                    packet_version: PacketVersion::Legacy,
                     packet_size,
                     packet_mode: Default::default(),
                 };
@@ -228,12 +238,60 @@ mod packet_encoding {
                 header.encode(&mut bytes);
                 assert!(SphinxCodec.decode(&mut bytes).unwrap().is_none());
 
-                assert_eq!(bytes.capacity(), Header::SIZE + packet_size.size())
+                assert_eq!(bytes.capacity(), Header::LEGACY_SIZE + packet_size.size())
             }
         }
 
         #[test]
-        fn for_full_frame() {
+        fn for_bytes_with_versioned_header() {
+            // if header gets decoded there should be enough bytes for the entire frame
+            let packet_sizes = vec![
+                PacketSize::AckPacket,
+                PacketSize::RegularPacket,
+                PacketSize::ExtendedPacket8,
+                PacketSize::ExtendedPacket16,
+                PacketSize::ExtendedPacket32,
+            ];
+            for packet_size in packet_sizes {
+                let header = Header {
+                    packet_version: PacketVersion::Versioned(123),
+                    packet_size,
+                    packet_mode: Default::default(),
+                };
+                let mut bytes = BytesMut::new();
+                header.encode(&mut bytes);
+                assert!(SphinxCodec.decode(&mut bytes).unwrap().is_none());
+
+                assert_eq!(
+                    bytes.capacity(),
+                    Header::VERSIONED_SIZE + packet_size.size()
+                )
+            }
+        }
+
+        #[test]
+        fn for_full_frame_with_legacy_header() {
+            // if full frame is used exactly, there should be enough space for header + ack packet
+            let packet = FramedSphinxPacket {
+                header: Header {
+                    packet_version: PacketVersion::Legacy,
+                    packet_size: Default::default(),
+                    packet_mode: Default::default(),
+                },
+                packet: make_valid_sphinx_packet(Default::default()),
+            };
+
+            let mut bytes = BytesMut::new();
+            SphinxCodec.encode(packet, &mut bytes).unwrap();
+            assert!(SphinxCodec.decode(&mut bytes).unwrap().is_some());
+            assert_eq!(
+                bytes.capacity(),
+                Header::LEGACY_SIZE + PacketSize::AckPacket.size()
+            );
+        }
+
+        #[test]
+        fn for_full_frame_with_versioned_header() {
             // if full frame is used exactly, there should be enough space for header + ack packet
             let packet = FramedSphinxPacket {
                 header: Header::default(),
@@ -245,17 +303,50 @@ mod packet_encoding {
             assert!(SphinxCodec.decode(&mut bytes).unwrap().is_some());
             assert_eq!(
                 bytes.capacity(),
-                Header::SIZE + PacketSize::AckPacket.size()
+                Header::VERSIONED_SIZE + PacketSize::AckPacket.size()
             );
         }
 
         #[test]
-        fn for_full_frame_with_extra_byte() {
-            // if there was at least 1 byte left, there should be enough space for entire next frame
+        fn for_full_frame_with_extra_bytes_with_legacy_header() {
+            // if there was at least 2 byte left, there should be enough space for entire next frame
             let packet_sizes = vec![
                 PacketSize::AckPacket,
                 PacketSize::RegularPacket,
-                PacketSize::ExtendedPacket,
+                PacketSize::ExtendedPacket8,
+                PacketSize::ExtendedPacket16,
+                PacketSize::ExtendedPacket32,
+            ];
+
+            for packet_size in packet_sizes {
+                let first_packet = FramedSphinxPacket {
+                    header: Header {
+                        packet_version: PacketVersion::Legacy,
+                        packet_size: Default::default(),
+                        packet_mode: Default::default(),
+                    },
+                    packet: make_valid_sphinx_packet(Default::default()),
+                };
+
+                let mut bytes = BytesMut::new();
+                SphinxCodec.encode(first_packet, &mut bytes).unwrap();
+                bytes.put_u8(packet_size as u8);
+                bytes.put_u8(PacketMode::default() as u8);
+                assert!(SphinxCodec.decode(&mut bytes).unwrap().is_some());
+
+                assert!(bytes.capacity() >= Header::LEGACY_SIZE + packet_size.size())
+            }
+        }
+
+        #[test]
+        fn for_full_frame_with_extra_bytes_with_versioned_header() {
+            // if there was at least 3 byte left, there should be enough space for entire next frame
+            let packet_sizes = vec![
+                PacketSize::AckPacket,
+                PacketSize::RegularPacket,
+                PacketSize::ExtendedPacket8,
+                PacketSize::ExtendedPacket16,
+                PacketSize::ExtendedPacket32,
             ];
 
             for packet_size in packet_sizes {
@@ -266,10 +357,12 @@ mod packet_encoding {
 
                 let mut bytes = BytesMut::new();
                 SphinxCodec.encode(first_packet, &mut bytes).unwrap();
+                bytes.put_u8(PacketVersion::new_versioned(123).as_u8().unwrap());
                 bytes.put_u8(packet_size as u8);
+                bytes.put_u8(PacketMode::default() as u8);
                 assert!(SphinxCodec.decode(&mut bytes).unwrap().is_some());
 
-                assert!(bytes.capacity() >= Header::SIZE + packet_size.size())
+                assert!(bytes.capacity() >= Header::VERSIONED_SIZE + packet_size.size())
             }
         }
     }

@@ -1,5 +1,6 @@
 import * as React from 'react';
-import { Button, Card, Grid, Typography } from '@mui/material';
+import { Link as RRDLink } from 'react-router-dom';
+import { Box, Button, Card, Grid, Link as MuiLink } from '@mui/material';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { useMainContext } from '../../context/main';
@@ -10,6 +11,9 @@ import { CustomColumnHeading } from '../../components/CustomColumnHeading';
 import { Title } from '../../components/Title';
 import { cellStyles, UniversalDataGrid } from '../../components/Universal-DataGrid';
 import { currencyToString } from '../../utils/currency';
+import { Tooltip } from '../../components/Tooltip';
+import { BIG_DIPPER } from '../../api/constants';
+import { splice } from '../../utils';
 
 export const PageGateways: React.FC = () => {
   const { gateways } = useMainContext();
@@ -43,29 +47,20 @@ export const PageGateways: React.FC = () => {
 
   const columns: GridColDef[] = [
     {
-      field: 'owner',
-      headerName: 'Owner',
-      renderHeader: () => <CustomColumnHeading headingTitle="Owner" />,
-      width: 380,
-      headerAlign: 'left',
-      headerClassName: 'MuiDataGrid-header-override',
-      renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles} data-testid="owner">
-          {params.value}
-        </Typography>
-      ),
-    },
-    {
-      field: 'identity_key',
+      field: 'identityKey',
       headerName: 'Identity Key',
       renderHeader: () => <CustomColumnHeading headingTitle="Identity Key" />,
       headerClassName: 'MuiDataGrid-header-override',
       width: 380,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles} data-testid="identity-key">
+        <MuiLink
+          sx={{ ...cellStyles }}
+          component={RRDLink}
+          to={`/network-components/gateway/${params.row.identityKey}`}
+        >
           {params.value}
-        </Typography>
+        </MuiLink>
       ),
     },
     {
@@ -76,27 +71,37 @@ export const PageGateways: React.FC = () => {
       headerClassName: 'MuiDataGrid-header-override',
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles} data-testid="pledge-amount">
+        <MuiLink
+          sx={{ ...cellStyles }}
+          component={RRDLink}
+          to={`/network-components/gateway/${params.row.identityKey}`}
+          data-testid="pledge-amount"
+        >
           {currencyToString(params.value)}
-        </Typography>
+        </MuiLink>
       ),
     },
     {
       field: 'host',
       renderHeader: () => <CustomColumnHeading headingTitle="IP:Port" />,
-      width: 110,
+      width: 180,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles} data-testid="host">
+        <MuiLink
+          sx={{ ...cellStyles }}
+          component={RRDLink}
+          to={`/network-components/gateway/${params.row.identityKey}`}
+          data-testid="host"
+        >
           {params.value}
-        </Typography>
+        </MuiLink>
       ),
     },
     {
       field: 'location',
       renderHeader: () => <CustomColumnHeading headingTitle="Location" />,
-      width: 150,
+      width: 180,
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
@@ -105,8 +110,36 @@ export const PageGateways: React.FC = () => {
           sx={{ ...cellStyles, justifyContent: 'flex-start' }}
           data-testid="location-button"
         >
-          {params.value}
+          <Tooltip text={params.value} id="gateway-location-text">
+            <Box
+              sx={{
+                overflow: 'hidden',
+                whiteSpace: 'nowrap',
+                textOverflow: 'ellipsis',
+              }}
+            >
+              {params.value}
+            </Box>
+          </Tooltip>
         </Button>
+      ),
+    },
+    {
+      field: 'owner',
+      headerName: 'Owner',
+      renderHeader: () => <CustomColumnHeading headingTitle="Owner" />,
+      width: 380,
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={{ ...cellStyles }}
+          href={`${BIG_DIPPER}/account/${params.value}`}
+          target="_blank"
+          data-testid="owner"
+        >
+          {splice(7, 29, params.value)}
+        </MuiLink>
       ),
     },
   ];
@@ -133,7 +166,12 @@ export const PageGateways: React.FC = () => {
                 pageSize={pageSize}
                 searchTerm={searchTerm}
               />
-              <UniversalDataGrid rows={gatewayToGridRow(filteredGateways)} columns={columns} pageSize={pageSize} />
+              <UniversalDataGrid
+                pagination
+                rows={gatewayToGridRow(filteredGateways)}
+                columns={columns}
+                pageSize={pageSize}
+              />
             </Card>
           </Grid>
         </Grid>

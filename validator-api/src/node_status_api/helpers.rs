@@ -3,42 +3,45 @@
 
 use crate::contract_cache::reward_estimate::compute_reward_estimate;
 use crate::contract_cache::Cache;
-use crate::node_status_api::models::{ErrorResponse, MixnodeStatusReport, MixnodeUptimeHistory};
+use crate::node_status_api::models::ErrorResponse;
 use crate::storage::ValidatorApiStorage;
 use crate::{NodeStatusCache, ValidatorCache};
 use cosmwasm_std::Decimal;
 use mixnet_contract_common::reward_params::Performance;
-use mixnet_contract_common::{Interval, NodeId, RewardedSetNodeStatus};
+use mixnet_contract_common::{Interval, MixId, RewardedSetNodeStatus};
 use rocket::http::Status;
 use rocket::State;
 use validator_api_requests::models::{
     ComputeRewardEstParam, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
-    MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse,
+    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
 };
 
 pub(crate) async fn _mixnode_report(
     storage: &ValidatorApiStorage,
-    mix_id: NodeId,
-) -> Result<MixnodeStatusReport, ErrorResponse> {
+    mix_id: MixId,
+) -> Result<MixnodeStatusReportResponse, ErrorResponse> {
     storage
         .construct_mixnode_report(mix_id)
         .await
+        .map(MixnodeStatusReportResponse::from)
         .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
 }
 
 pub(crate) async fn _mixnode_uptime_history(
     storage: &ValidatorApiStorage,
-    mix_id: NodeId,
-) -> Result<MixnodeUptimeHistory, ErrorResponse> {
+    mix_id: MixId,
+) -> Result<MixnodeUptimeHistoryResponse, ErrorResponse> {
     storage
         .get_mixnode_uptime_history(mix_id)
         .await
+        .map(MixnodeUptimeHistoryResponse::from)
         .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
 }
 
 pub(crate) async fn _mixnode_core_status_count(
     storage: &State<ValidatorApiStorage>,
-    mix_id: NodeId,
+    mix_id: MixId,
     since: Option<i64>,
 ) -> Result<MixnodeCoreStatusResponse, ErrorResponse> {
     let count = storage
@@ -51,7 +54,7 @@ pub(crate) async fn _mixnode_core_status_count(
 
 pub(crate) async fn _get_mixnode_status(
     cache: &ValidatorCache,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> MixnodeStatusResponse {
     MixnodeStatusResponse {
         status: cache.mixnode_status(mix_id).await,
@@ -60,7 +63,7 @@ pub(crate) async fn _get_mixnode_status(
 
 pub(crate) async fn _get_mixnode_reward_estimation(
     cache: &State<ValidatorCache>,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Result<RewardEstimationResponse, ErrorResponse> {
     let (mixnode, status) = cache.mixnode_details(mix_id).await;
     if let Some(mixnode) = mixnode {
@@ -98,7 +101,7 @@ pub(crate) async fn _get_mixnode_reward_estimation(
 }
 
 async fn average_mixnode_performance(
-    mix_id: NodeId,
+    mix_id: MixId,
     current_interval: Interval,
     storage: &ValidatorApiStorage,
 ) -> Result<Performance, ErrorResponse> {
@@ -115,7 +118,7 @@ async fn average_mixnode_performance(
 pub(crate) async fn _compute_mixnode_reward_estimation(
     user_reward_param: ComputeRewardEstParam,
     cache: &ValidatorCache,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Result<RewardEstimationResponse, ErrorResponse> {
     let (mixnode, actual_status) = cache.mixnode_details(mix_id).await;
     if let Some(mut mixnode) = mixnode {
@@ -146,6 +149,22 @@ pub(crate) async fn _compute_mixnode_reward_estimation(
         if let Some(total_delegation) = user_reward_param.total_delegation {
             mixnode.mixnode_details.rewarding_details.delegates =
                 Decimal::from_ratio(total_delegation, 1u64);
+        }
+
+        if let Some(profit_margin_percent) = user_reward_param.profit_margin_percent {
+            mixnode
+                .mixnode_details
+                .rewarding_details
+                .cost_params
+                .profit_margin_percent = profit_margin_percent;
+        }
+
+        if let Some(interval_operating_cost) = user_reward_param.interval_operating_cost {
+            mixnode
+                .mixnode_details
+                .rewarding_details
+                .cost_params
+                .interval_operating_cost = interval_operating_cost;
         }
 
         if mixnode.mixnode_details.rewarding_details.operator
@@ -182,7 +201,7 @@ pub(crate) async fn _compute_mixnode_reward_estimation(
 
 pub(crate) async fn _get_mixnode_stake_saturation(
     cache: &ValidatorCache,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Result<StakeSaturationResponse, ErrorResponse> {
     let (mixnode, _) = cache.mixnode_details(mix_id).await;
     if let Some(mixnode) = mixnode {
@@ -215,7 +234,7 @@ pub(crate) async fn _get_mixnode_stake_saturation(
 
 pub(crate) async fn _get_mixnode_inclusion_probability(
     cache: &NodeStatusCache,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Result<InclusionProbabilityResponse, ErrorResponse> {
     cache
         .inclusion_probabilities()
@@ -232,7 +251,7 @@ pub(crate) async fn _get_mixnode_inclusion_probability(
 pub(crate) async fn _get_mixnode_avg_uptime(
     cache: &ValidatorCache,
     storage: &ValidatorApiStorage,
-    mix_id: NodeId,
+    mix_id: MixId,
 ) -> Result<UptimeResponse, ErrorResponse> {
     let current_interval = cache
         .current_interval()

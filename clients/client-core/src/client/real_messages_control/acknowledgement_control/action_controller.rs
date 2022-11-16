@@ -12,7 +12,6 @@ use nymsphinx::Delay as SphinxDelay;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
-use task::ShutdownListener;
 
 pub(crate) type ActionSender = UnboundedSender<Action>;
 
@@ -100,16 +99,12 @@ pub(super) struct ActionController {
 
     /// Channel for notifying `RetransmissionRequestListener` about expired acknowledgements.
     retransmission_sender: RetransmissionRequestSender,
-
-    /// Listen for shutdown notifications
-    shutdown: ShutdownListener,
 }
 
 impl ActionController {
     pub(super) fn new(
         config: Config,
         retransmission_sender: RetransmissionRequestSender,
-        shutdown: ShutdownListener,
     ) -> (Self, ActionSender) {
         let (sender, receiver) = mpsc::unbounded();
         (
@@ -119,7 +114,6 @@ impl ActionController {
                 pending_acks_timers: NonExhaustiveDelayQueue::new(),
                 incoming_actions: receiver,
                 retransmission_sender,
-                shutdown,
             },
             sender,
         )
@@ -251,8 +245,11 @@ impl ActionController {
         }
     }
 
-    pub(super) async fn run(&mut self) {
-        while !self.shutdown.is_shutdown() {
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+        debug!("Started ActionController with graceful shutdown support");
+
+        while !shutdown.is_shutdown() {
             tokio::select! {
                 action = self.incoming_actions.next() => match action {
                     Some(action) => self.process_action(action),
@@ -270,12 +267,24 @@ impl ActionController {
                         break;
                     }
                 },
-                _ = self.shutdown.recv() => {
+                _ = shutdown.recv() => {
                     log::trace!("ActionController: Received shutdown");
                 }
             }
         }
-        assert!(self.shutdown.is_shutdown_poll());
+        assert!(shutdown.is_shutdown_poll());
         log::debug!("ActionController: Exiting");
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    pub(super) async fn run(&mut self) {
+        debug!("Started ActionController without graceful shutdown support");
+
+        loop {
+            tokio::select! {
+                action = self.incoming_actions.next() => self.process_action(action.unwrap()),
+                expired_ack = self.pending_acks_timers.next() => self.handle_expired_ack_timer(expired_ack.unwrap())
+            }
+        }
     }
 }

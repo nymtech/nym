@@ -1,6 +1,6 @@
 [package]
 name = "mixnet-contract"
-version = "1.0.2"
+version = "1.1.0"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2021"
 
@@ -38,3 +38,7 @@ crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
 
 [build-dependencies]
 vergen = { version = "5", default-features = false, features = ["build", "git", "rustc"] }
+
+[features]
+default = []
+contract-testing = ["mixnet-contract-common/contract-testing"]

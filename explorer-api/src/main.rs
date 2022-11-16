@@ -4,15 +4,20 @@ extern crate rocket;
 extern crate rocket_okapi;
 
 use clap::Parser;
+use dotenv::dotenv;
 use log::info;
+use logging::setup_logging;
 use network_defaults::setup_env;
 use task::ShutdownNotifier;
 
+mod buy_terms;
 pub(crate) mod cache;
 mod client;
 pub(crate) mod commands;
 mod country_statistics;
 mod gateways;
+mod geo_ip;
+mod guards;
 mod helpers;
 mod http;
 mod mix_node;
@@ -23,11 +28,11 @@ mod state;
 mod tasks;
 mod validators;
 
-const GEO_IP_SERVICE: &str = "https://api.ipbase.com/json";
 const COUNTRY_DATA_REFRESH_INTERVAL: u64 = 60 * 15; // every 15 minutes
 
 #[tokio::main]
 async fn main() {
+    dotenv().ok();
     setup_logging();
     let args = commands::Cli::parse();
     setup_env(args.config_env_file);
@@ -110,19 +115,4 @@ async fn wait_for_signal() {
             log::info!("Received SIGINT");
         },
     }
-}
-
-fn setup_logging() {
-    let mut log_builder = pretty_env_logger::formatted_timed_builder();
-    if let Ok(s) = ::std::env::var("RUST_LOG") {
-        log_builder.parse_filters(&s);
-    } else {
-        // default to 'Info'
-        log_builder.filter(None, log::LevelFilter::Info);
-    }
-
-    log_builder
-        .filter_module("tokio_reactor", log::LevelFilter::Warn)
-        .filter_module("reqwest", log::LevelFilter::Warn)
-        .init();
 }

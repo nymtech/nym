@@ -8,11 +8,12 @@ use self::{
     sent_notification_listener::SentNotificationListener,
 };
 use super::real_traffic_stream::BatchRealMessageSender;
-use crate::client::reply_key_storage::ReplyKeyStorage;
 use crate::client::{inbound_messages::InputMessageReceiver, topology_control::TopologyAccessor};
+use crate::spawn_future;
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
+use nymsphinx::params::PacketSize;
 use nymsphinx::{
     acknowledgements::AckKey,
     addressing::clients::Recipient,
@@ -25,8 +26,9 @@ use std::{
     sync::{Arc, Weak},
     time::Duration,
 };
-use task::ShutdownListener;
-use tokio::task::JoinHandle;
+
+#[cfg(feature = "reply-surb")]
+use crate::client::reply_key_storage::ReplyKeyStorage;
 
 mod acknowledgement_listener;
 mod action_controller;
@@ -120,6 +122,9 @@ pub(super) struct Config {
 
     /// Average delay a data packet is going to get delayed at a single mixnode.
     average_packet_delay: Duration,
+
+    /// Predefined packet size used for the encapsulated messages.
+    packet_size: PacketSize,
 }
 
 impl Config {
@@ -134,7 +139,13 @@ impl Config {
             ack_wait_multiplier,
             average_ack_delay,
             average_packet_delay,
+            packet_size: Default::default(),
         }
+    }
+
+    pub fn with_custom_packet_size(mut self, packet_size: PacketSize) -> Self {
+        self.packet_size = packet_size;
+        self
     }
 }
 
@@ -142,11 +153,11 @@ pub(super) struct AcknowledgementController<R>
 where
     R: CryptoRng + Rng,
 {
-    acknowledgement_listener: Option<AcknowledgementListener>,
-    input_message_listener: Option<InputMessageListener<R>>,
-    retransmission_request_listener: Option<RetransmissionRequestListener<R>>,
-    sent_notification_listener: Option<SentNotificationListener>,
-    action_controller: Option<ActionController>,
+    acknowledgement_listener: AcknowledgementListener,
+    input_message_listener: InputMessageListener<R>,
+    retransmission_request_listener: RetransmissionRequestListener<R>,
+    sent_notification_listener: SentNotificationListener,
+    action_controller: ActionController,
 }
 
 impl<R> AcknowledgementController<R>
@@ -160,30 +171,29 @@ where
         topology_access: TopologyAccessor,
         ack_key: Arc<AckKey>,
         ack_recipient: Recipient,
-        reply_key_storage: ReplyKeyStorage,
         connectors: AcknowledgementControllerConnectors,
-        shutdown: ShutdownListener,
+        #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
     ) -> Self {
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
 
         let action_config =
             action_controller::Config::new(config.ack_wait_addition, config.ack_wait_multiplier);
         let (action_controller, action_sender) =
-            ActionController::new(action_config, retransmission_tx, shutdown.clone());
+            ActionController::new(action_config, retransmission_tx);
 
         let message_preparer = MessagePreparer::new(
             rng,
             ack_recipient,
             config.average_packet_delay,
             config.average_ack_delay,
-        );
+        )
+        .with_custom_real_message_packet_size(config.packet_size);
 
         // will listen for any acks coming from the network
         let acknowledgement_listener = AcknowledgementListener::new(
             Arc::clone(&ack_key),
             connectors.ack_receiver,
             action_sender.clone(),
-            shutdown.clone(),
         );
 
         // will listen for any new messages from the client
@@ -195,8 +205,8 @@ where
             action_sender.clone(),
             connectors.real_message_sender.clone(),
             topology_access.clone(),
+            #[cfg(feature = "reply-surb")]
             reply_key_storage,
-            shutdown.clone(),
         );
 
         // will listen for any ack timeouts and trigger retransmission
@@ -208,75 +218,95 @@ where
             connectors.real_message_sender,
             retransmission_rx,
             topology_access,
-            shutdown.clone(),
         );
 
         // will listen for events indicating the packet was sent through the network so that
         // the retransmission timer should be started.
         let sent_notification_listener =
-            SentNotificationListener::new(connectors.sent_notifier, action_sender, shutdown);
+            SentNotificationListener::new(connectors.sent_notifier, action_sender);
 
         AcknowledgementController {
-            acknowledgement_listener: Some(acknowledgement_listener),
-            input_message_listener: Some(input_message_listener),
-            retransmission_request_listener: Some(retransmission_request_listener),
-            sent_notification_listener: Some(sent_notification_listener),
-            action_controller: Some(action_controller),
+            acknowledgement_listener,
+            input_message_listener,
+            retransmission_request_listener,
+            sent_notification_listener,
+            action_controller,
         }
     }
 
-    pub(super) async fn run(&mut self) {
-        let mut acknowledgement_listener = self.acknowledgement_listener.take().unwrap();
-        let mut input_message_listener = self.input_message_listener.take().unwrap();
-        let mut retransmission_request_listener =
-            self.retransmission_request_listener.take().unwrap();
-        let mut sent_notification_listener = self.sent_notification_listener.take().unwrap();
-        let mut action_controller = self.action_controller.take().unwrap();
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(super) fn start_with_shutdown(self, shutdown: task::ShutdownListener) {
+        let mut acknowledgement_listener = self.acknowledgement_listener;
+        let mut input_message_listener = self.input_message_listener;
+        let mut retransmission_request_listener = self.retransmission_request_listener;
+        let mut sent_notification_listener = self.sent_notification_listener;
+        let mut action_controller = self.action_controller;
 
-        // the below are log messages are errors as at the current stage we do not expect any of
-        // the task to ever finish. This will of course change once we introduce
-        // graceful shutdowns.
-        let ack_listener_fut = tokio::spawn(async move {
-            acknowledgement_listener.run().await;
-            debug!("The acknowledgement listener has finished execution!");
+        let shutdown_handle = shutdown.clone();
+        spawn_future(async move {
             acknowledgement_listener
-        });
-        let input_listener_fut = tokio::spawn(async move {
-            input_message_listener.run().await;
-            debug!("The input listener has finished execution!");
-            input_message_listener
-        });
-        let retransmission_req_fut = tokio::spawn(async move {
-            retransmission_request_listener.run().await;
-            debug!("The retransmission request listener has finished execution!");
-            retransmission_request_listener
-        });
-        let sent_notification_fut = tokio::spawn(async move {
-            sent_notification_listener.run().await;
-            debug!("The sent notification listener has finished execution!");
-            sent_notification_listener
-        });
-        let action_controller_fut = tokio::spawn(async move {
-            action_controller.run().await;
-            debug!("The controller has finished execution!");
-            action_controller
+                .run_with_shutdown(shutdown_handle)
+                .await;
+            debug!("The acknowledgement listener has finished execution!");
         });
 
-        // technically we don't have to bring `AcknowledgementController` back to a valid state
-        // but we can do it, so why not? Perhaps it might be useful if we wanted to allow
-        // for restarts of certain modules without killing the entire process.
-        self.acknowledgement_listener = Some(ack_listener_fut.await.unwrap());
-        self.input_message_listener = Some(input_listener_fut.await.unwrap());
-        self.retransmission_request_listener = Some(retransmission_req_fut.await.unwrap());
-        self.sent_notification_listener = Some(sent_notification_fut.await.unwrap());
-        self.action_controller = Some(action_controller_fut.await.unwrap());
+        let shutdown_handle = shutdown.clone();
+        spawn_future(async move {
+            input_message_listener
+                .run_with_shutdown(shutdown_handle)
+                .await;
+            debug!("The input listener has finished execution!");
+        });
+
+        let shutdown_handle = shutdown.clone();
+        spawn_future(async move {
+            retransmission_request_listener
+                .run_with_shutdown(shutdown_handle)
+                .await;
+            debug!("The retransmission request listener has finished execution!");
+        });
+
+        let shutdown_handle = shutdown.clone();
+        spawn_future(async move {
+            sent_notification_listener
+                .run_with_shutdown(shutdown_handle)
+                .await;
+            debug!("The sent notification listener has finished execution!");
+        });
+
+        spawn_future(async move {
+            action_controller.run_with_shutdown(shutdown).await;
+            debug!("The controller has finished execution!");
+        });
     }
 
-    #[allow(dead_code)]
-    pub(super) fn start(mut self) -> JoinHandle<Self> {
-        tokio::spawn(async move {
-            self.run().await;
-            self
-        })
+    #[cfg(target_arch = "wasm32")]
+    pub(super) fn start(self) {
+        let mut acknowledgement_listener = self.acknowledgement_listener;
+        let mut input_message_listener = self.input_message_listener;
+        let mut retransmission_request_listener = self.retransmission_request_listener;
+        let mut sent_notification_listener = self.sent_notification_listener;
+        let mut action_controller = self.action_controller;
+
+        spawn_future(async move {
+            acknowledgement_listener.run().await;
+            error!("The acknowledgement listener has finished execution!");
+        });
+        spawn_future(async move {
+            input_message_listener.run().await;
+            error!("The input listener has finished execution!");
+        });
+        spawn_future(async move {
+            retransmission_request_listener.run().await;
+            error!("The retransmission request listener has finished execution!");
+        });
+        spawn_future(async move {
+            sent_notification_listener.run().await;
+            error!("The sent notification listener has finished execution!");
+        });
+        spawn_future(async move {
+            action_controller.run().await;
+            error!("The controller has finished execution!");
+        });
     }
 }

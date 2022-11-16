@@ -15,6 +15,7 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import ListItemText from '@mui/material/ListItemText';
 import { NymLogo } from '@nymproject/react/logo/NymLogo';
+import { MaintenanceBanner } from '@nymproject/react/banners/MaintenanceBanner';
 import { NYM_WEBSITE } from '../api/constants';
 import { useMainContext } from '../context/main';
 import { MobileDrawerClose } from '../icons/MobileDrawerClose';
@@ -23,7 +24,8 @@ import { Footer } from './Footer';
 import { DarkLightSwitchDesktop } from './Switch';
 import { NavOptionType } from '../context/nav';
 
-const drawerWidth = 300;
+const drawerWidth = 255;
+const bannerHeight = 113;
 
 const openedMixin = (theme: Theme): CSSObject => ({
   width: drawerWidth,
@@ -182,7 +184,7 @@ export const ExpandableButton: React.FC<ExpandableButtonType> = ({
             background: isChild ? palette.nym.networkExplorer.nav.selected.nested : 'none',
           }}
         >
-          <ListItemIcon>{Icon}</ListItemIcon>
+          <ListItemIcon sx={{ minWidth: '39px' }}>{Icon}</ListItemIcon>
           <ListItemText
             primary={title}
             sx={{
@@ -232,6 +234,8 @@ export const Nav: React.FC = ({ children }) => {
   const { updateNavState, navState } = useMainContext();
   const [drawerIsOpen, setDrawerToOpen] = React.useState(false);
   const [fixedOpen, setFixedOpen] = React.useState(false);
+  // Set maintenance banner to false by default to don't display it
+  const [openMaintenance, setOpenMaintenance] = React.useState(true);
   const theme = useTheme();
 
   const setToActive = (id: number) => {
@@ -268,6 +272,7 @@ export const Nav: React.FC = ({ children }) => {
           borderRadius: 0,
         }}
       >
+        <MaintenanceBanner open={openMaintenance} onClick={() => setOpenMaintenance(false)} height={bannerHeight} />
         <Toolbar
           disableGutters
           sx={{
@@ -332,6 +337,7 @@ export const Nav: React.FC = ({ children }) => {
           style: {
             background: theme.palette.nym.networkExplorer.nav.background,
             borderRadius: 0,
+            top: openMaintenance ? bannerHeight : 0,
           },
         }}
       >

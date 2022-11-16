@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::NodeId;
+use crate::MixId;
 use cosmwasm_std::{Addr, Coin, Decimal};
 use thiserror::Error;
 
@@ -12,9 +12,6 @@ pub enum MixnetContractError {
         #[from]
         source: cosmwasm_std::StdError,
     },
-
-    #[error("Provided percent value is greater than 100%")]
-    InvalidPercent,
 
     #[error("Attempted to subtract decimals with overflow ({minuend}.sub({subtrahend}))")]
     OverflowDecimalSubtraction {
@@ -31,8 +28,8 @@ pub enum MixnetContractError {
     #[error("Not enough funds sent for node delegation. (received {received}, minimum {minimum})")]
     InsufficientDelegation { received: Coin, minimum: Coin },
 
-    #[error("Mixnode ({id}) does not exist")]
-    MixNodeBondNotFound { id: NodeId },
+    #[error("Mixnode ({mix_id}) does not exist")]
+    MixNodeBondNotFound { mix_id: MixId },
 
     #[error("{owner} does not seem to own any mixnodes")]
     NoAssociatedMixNodeBond { owner: Addr },
@@ -83,23 +80,23 @@ pub enum MixnetContractError {
         epoch_end: i64,
     },
 
-    #[error("Mixnode {node_id} has already been rewarded during the current rewarding epoch ({absolute_epoch_id})")]
+    #[error("Mixnode {mix_id} has already been rewarded during the current rewarding epoch ({absolute_epoch_id})")]
     MixnodeAlreadyRewarded {
-        node_id: NodeId,
+        mix_id: MixId,
         absolute_epoch_id: u32,
     },
 
-    #[error("Mixnode {node_id} hasn't been selected to the rewarding set in this epoch ({absolute_epoch_id})")]
+    #[error("Mixnode {mix_id} hasn't been selected to the rewarding set in this epoch ({absolute_epoch_id})")]
     MixnodeNotInRewardedSet {
-        node_id: NodeId,
+        mix_id: MixId,
         absolute_epoch_id: u32,
     },
 
-    #[error("Mixnode {node_id} is currently in the process of unbonding")]
-    MixnodeIsUnbonding { node_id: NodeId },
+    #[error("Mixnode {mix_id} is currently in the process of unbonding")]
+    MixnodeIsUnbonding { mix_id: MixId },
 
-    #[error("Mixnode {node_id} has already unbonded")]
-    MixnodeHasUnbonded { node_id: NodeId },
+    #[error("Mixnode {mix_id} has already unbonded")]
+    MixnodeHasUnbonded { mix_id: MixId },
 
     #[error("The contract has ended up in a state that was deemed impossible: {comment}")]
     InconsistentState { comment: String },
@@ -108,7 +105,7 @@ pub enum MixnetContractError {
         "Could not find any delegation information associated with mixnode {mix_id} for {address} (proxy: {proxy:?})"
     )]
     NoMixnodeDelegationFound {
-        mix_id: NodeId,
+        mix_id: MixId,
         address: String,
         proxy: Option<String>,
     },
@@ -134,6 +131,6 @@ pub enum MixnetContractError {
     #[error("Received unexpected value for the rewarded set. Got: {received}, expected at most: {expected}")]
     UnexpectedRewardedSetSize { received: u32, expected: u32 },
 
-    #[error("Mixnode {node_id} appears multiple times in the provided rewarded set update!")]
-    DuplicateRewardedSetNode { node_id: NodeId },
+    #[error("Mixnode {mix_id} appears multiple times in the provided rewarded set update!")]
+    DuplicateRewardedSetNode { mix_id: MixId },
 }

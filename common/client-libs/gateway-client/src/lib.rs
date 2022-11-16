@@ -25,3 +25,15 @@ pub(crate) fn cleanup_socket_message(
         None => Err(GatewayClientError::ConnectionAbruptlyClosed),
     }
 }
+
+pub(crate) fn cleanup_socket_messages(
+    msgs: Option<Vec<Result<Message, WsError>>>,
+) -> Result<Vec<Message>, GatewayClientError> {
+    match msgs {
+        Some(msgs) => msgs
+            .into_iter()
+            .map(|msg| msg.map_err(GatewayClientError::NetworkError))
+            .collect(),
+        None => Err(GatewayClientError::ConnectionAbruptlyClosed),
+    }
+}

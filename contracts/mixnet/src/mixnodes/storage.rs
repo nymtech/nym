@@ -12,16 +12,16 @@ use cw_storage_plus::{Index, IndexList, IndexedMap, Item, MultiIndex, UniqueInde
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::mixnode::UnbondedMixnode;
 use mixnet_contract_common::SphinxKey;
-use mixnet_contract_common::{Addr, IdentityKey, Layer, LayerDistribution, MixNodeBond, NodeId};
+use mixnet_contract_common::{Addr, IdentityKey, Layer, LayerDistribution, MixId, MixNodeBond};
 
 // keeps track of `node_id -> IdentityKey, Owner, unbonding_height` so we'd known a bit more about past mixnodes
 // if we ever decide it's too bloaty, we can deprecate it and start removing all data in
 // subsequent migrations
 
 pub(crate) struct UnbondedMixnodeIndex<'a> {
-    pub(crate) owner: MultiIndex<'a, Addr, UnbondedMixnode, NodeId>,
+    pub(crate) owner: MultiIndex<'a, Addr, UnbondedMixnode, MixId>,
 
-    pub(crate) identity_key: MultiIndex<'a, IdentityKey, UnbondedMixnode, NodeId>,
+    pub(crate) identity_key: MultiIndex<'a, IdentityKey, UnbondedMixnode, MixId>,
 }
 
 impl<'a> IndexList<UnbondedMixnode> for UnbondedMixnodeIndex<'a> {
@@ -32,7 +32,7 @@ impl<'a> IndexList<UnbondedMixnode> for UnbondedMixnodeIndex<'a> {
 }
 
 pub(crate) fn unbonded_mixnodes<'a>(
-) -> IndexedMap<'a, NodeId, UnbondedMixnode, UnbondedMixnodeIndex<'a>> {
+) -> IndexedMap<'a, MixId, UnbondedMixnode, UnbondedMixnodeIndex<'a>> {
     let indexes = UnbondedMixnodeIndex {
         owner: MultiIndex::new(
             |d| d.owner.clone(),
@@ -49,7 +49,7 @@ pub(crate) fn unbonded_mixnodes<'a>(
 }
 
 pub(crate) const LAYERS: Item<'_, LayerDistribution> = Item::new(LAYER_DISTRIBUTION_KEY);
-pub const MIXNODE_ID_COUNTER: Item<NodeId> = Item::new(NODE_ID_COUNTER_KEY);
+pub const MIXNODE_ID_COUNTER: Item<MixId> = Item::new(NODE_ID_COUNTER_KEY);
 
 pub(crate) struct MixnodeBondIndex<'a> {
     pub(crate) owner: UniqueIndex<'a, Addr, MixNodeBond>,
@@ -70,7 +70,7 @@ impl<'a> IndexList<MixNodeBond> for MixnodeBondIndex<'a> {
 }
 
 // mixnode_bonds() is the storage access function.
-pub(crate) fn mixnode_bonds<'a>() -> IndexedMap<'a, NodeId, MixNodeBond, MixnodeBondIndex<'a>> {
+pub(crate) fn mixnode_bonds<'a>() -> IndexedMap<'a, MixId, MixNodeBond, MixnodeBondIndex<'a>> {
     let indexes = MixnodeBondIndex {
         owner: UniqueIndex::new(|d| d.owner.clone(), MIXNODES_OWNER_IDX_NAMESPACE),
         identity_key: UniqueIndex::new(
@@ -109,8 +109,8 @@ pub(crate) fn assign_layer(store: &mut dyn Storage) -> StdResult<Layer> {
     Ok(fewest)
 }
 
-pub(crate) fn next_mixnode_id_counter(store: &mut dyn Storage) -> StdResult<NodeId> {
-    let id: NodeId = MIXNODE_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
+pub(crate) fn next_mixnode_id_counter(store: &mut dyn Storage) -> StdResult<MixId> {
+    let id: MixId = MIXNODE_ID_COUNTER.may_load(store)?.unwrap_or_default() + 1;
     MIXNODE_ID_COUNTER.save(store, &id)?;
     Ok(id)
 }

@@ -69,6 +69,10 @@ pub(crate) fn validate_pledge(
         });
     }
 
+    // throughout this function we've been using the value at `pledge[0]` without problems
+    // (plus we have even validated that the vec is not empty), so the unwrap here is absolutely fine,
+    // since it cannot possibly fail without UB
+    #[allow(clippy::unwrap_used)]
     Ok(pledge.pop().unwrap())
 }
 
@@ -106,6 +110,10 @@ pub(crate) fn validate_delegation_stake(
         return Err(MixnetContractError::EmptyDelegation);
     }
 
+    // throughout this function we've been using the value at `delegation[0]` without problems
+    // (plus we have even validated that the vec is not empty), so the unwrap here is absolutely fine,
+    // since it cannot possibly fail without UB
+    #[allow(clippy::unwrap_used)]
     Ok(delegation.pop().unwrap())
 }
 
@@ -152,7 +160,9 @@ pub(crate) fn ensure_proxy_match(
 
 pub(crate) fn ensure_bonded(bond: &MixNodeBond) -> Result<(), MixnetContractError> {
     if bond.is_unbonding {
-        return Err(MixnetContractError::MixnodeIsUnbonding { node_id: bond.id });
+        return Err(MixnetContractError::MixnodeIsUnbonding {
+            mix_id: bond.mix_id,
+        });
     }
     Ok(())
 }

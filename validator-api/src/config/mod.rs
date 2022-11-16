@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
+use config::defaults::DEFAULT_VALIDATOR_API_PORT;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -93,6 +94,11 @@ pub struct Base {
 
     local_validator: Url,
 
+    /// Address announced to the directory server for the clients to connect to.
+    // It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
+    // later on by using name resolvable with a DNS query, such as `nymtech.net`.
+    announce_address: Url,
+
     /// Address of the validator contract managing the network
     mixnet_contract_address: String,
 
@@ -102,11 +108,17 @@ pub struct Base {
 
 impl Default for Base {
     fn default() -> Self {
+        let default_validator: Url = DEFAULT_LOCAL_VALIDATOR
+            .parse()
+            .expect("default local validator is malformed!");
+        let mut default_announce_address = default_validator.clone();
+        default_announce_address
+            .set_port(Some(DEFAULT_VALIDATOR_API_PORT))
+            .expect("default local validator is malformed!");
         Base {
             id: String::default(),
-            local_validator: DEFAULT_LOCAL_VALIDATOR
-                .parse()
-                .expect("default local validator is malformed!"),
+            local_validator: default_validator,
+            announce_address: default_announce_address,
             mixnet_contract_address: String::default(),
             mnemonic: "exact antique hybrid width raise anchor puzzle degree fee quit long crack net vague hip despair write put useless civil mechanic broom music day".to_string(),
         }
@@ -376,6 +388,12 @@ impl Config {
         self
     }
 
+    #[cfg(feature = "coconut")]
+    pub fn with_announce_address(mut self, announce_address: Url) -> Self {
+        self.base.announce_address = announce_address;
+        self
+    }
+
     pub fn with_custom_mixnet_contract<S: Into<String>>(mut self, mixnet_contract: S) -> Self {
         self.base.mixnet_contract_address = mixnet_contract.into();
         self
@@ -436,6 +454,11 @@ impl Config {
 
     pub fn get_nymd_validator_url(&self) -> Url {
         self.base.local_validator.clone()
+    }
+
+    #[cfg(feature = "coconut")]
+    pub fn get_announce_address(&self) -> Url {
+        self.base.announce_address.clone()
     }
 
     pub fn get_mixnet_contract_address(&self) -> String {

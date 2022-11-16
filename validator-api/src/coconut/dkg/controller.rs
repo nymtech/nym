@@ -68,7 +68,7 @@ impl<R: RngCore + Clone> DkgController<R> {
             dkg_client: DkgClient::new(nymd_client),
             secret_key_path: config.secret_key_path(),
             verification_key_path: config.verification_key_path(),
-            state: State::new(dkg_keypair, coconut_keypair),
+            state: State::new(config.get_announce_address(), dkg_keypair, coconut_keypair),
             rng,
             polling_rate: config.get_dkg_contract_polling_rate(),
         })

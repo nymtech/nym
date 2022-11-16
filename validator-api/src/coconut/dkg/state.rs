@@ -10,6 +10,7 @@ use cosmwasm_std::Addr;
 use dkg::bte::{keys::KeyPair as DkgKeyPair, PublicKey, PublicKeyWithProof};
 use dkg::{NodeIndex, RecoveredVerificationKeys, Threshold};
 use std::collections::BTreeMap;
+use url::Url;
 
 // note: each dealer is also a receiver which simplifies some logic significantly
 #[derive(Debug)]
@@ -67,6 +68,7 @@ pub(crate) trait ConsistentState {
 }
 
 pub(crate) struct State {
+    announce_address: Url,
     dkg_keypair: DkgKeyPair,
     coconut_keypair: CoconutKeyPair,
     node_index: Option<NodeIndex>,
@@ -126,8 +128,13 @@ impl ConsistentState for State {
 }
 
 impl State {
-    pub fn new(dkg_keypair: DkgKeyPair, coconut_keypair: CoconutKeyPair) -> Self {
+    pub fn new(
+        announce_address: Url,
+        dkg_keypair: DkgKeyPair,
+        coconut_keypair: CoconutKeyPair,
+    ) -> Self {
         State {
+            announce_address,
             dkg_keypair,
             coconut_keypair,
             node_index: None,
@@ -139,6 +146,10 @@ impl State {
             voted_vks: false,
             executed_proposal: false,
         }
+    }
+
+    pub fn announce_address(&self) -> &Url {
+        &self.announce_address
     }
 
     pub fn dkg_keypair(&self) -> &DkgKeyPair {

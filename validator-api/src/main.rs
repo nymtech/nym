@@ -35,6 +35,7 @@ use std::time::Duration;
 use std::{fs, process};
 use task::ShutdownNotifier;
 use tokio::sync::Notify;
+use url::Url;
 use validator_client::nymd::SigningNymdClient;
 
 use crate::epoch_operations::RewardedSetUpdater;
@@ -70,6 +71,8 @@ const WRITE_CONFIG_ARG: &str = "save-config";
 const NYMD_VALIDATOR_ARG: &str = "nymd-validator";
 const ENABLED_CREDENTIALS_MODE_ARG_NAME: &str = "enabled-credentials-mode";
 
+#[cfg(feature = "coconut")]
+const ANNOUNCE_ADDRESS: &str = "announce-address";
 #[cfg(feature = "coconut")]
 const API_VALIDATORS_ARG: &str = "api-validators";
 #[cfg(feature = "coconut")]
@@ -197,9 +200,15 @@ fn parse_args() -> ArgMatches {
                 .takes_value(true)
         )
         .arg(
+            Arg::with_name(ANNOUNCE_ADDRESS)
+                .help("Announced address where coconut clients will connect.")
+                .long(ANNOUNCE_ADDRESS)
+                .takes_value(true)
+        )
+        .arg(
             Arg::with_name(COCONUT_ENABLED)
                 .help("Flag to indicate whether coconut signer authority is enabled on this API")
-                .requires_all(&[MNEMONIC_ARG, API_VALIDATORS_ARG])
+                .requires_all(&[MNEMONIC_ARG, API_VALIDATORS_ARG, ANNOUNCE_ADDRESS])
                 .long(COCONUT_ENABLED),
         );
     base_app.get_matches()
@@ -274,6 +283,13 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         if let Some(raw_validators) = read_var_if_not_default(API_VALIDATOR) {
             config = config.with_custom_validator_apis(::config::parse_validators(&raw_validators))
         }
+    }
+
+    #[cfg(feature = "coconut")]
+    if let Some(announce_address) = matches.value_of(ANNOUNCE_ADDRESS) {
+        config = config.with_announce_address(
+            Url::parse(announce_address).expect("Could not parse announce address"),
+        );
     }
 
     if let Some(raw_validator) = matches.value_of(NYMD_VALIDATOR_ARG) {

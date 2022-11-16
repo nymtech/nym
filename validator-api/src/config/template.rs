@@ -16,6 +16,11 @@ id = '{{ base.id }}'
 # Validator server to which the API will be getting information about the network.
 local_validator = '{{ base.local_validator }}'
 
+# Address announced to the directory server for the clients to connect to.
+# It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
+# later on by using name resolvable with a DNS query, such as `nymtech.net`.
+announce_address = '{{ base.announce_address }}'
+
 # Address of the validator contract managing the network.
 mixnet_contract_address = '{{ base.mixnet_contract_address }}'
 

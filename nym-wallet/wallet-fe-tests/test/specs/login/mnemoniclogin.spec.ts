@@ -2,7 +2,6 @@ import Auth from '../../pageobjects/authScreens';
 import Balance from '../../pageobjects/balanceScreen';
 import ValidatorClient from '@nymproject/nym-validator-client';
 const textConstants = require('../../../common/text-constants');
-const userData = require('../../../common/user-data.json');
 const Helper = require('../../../common/helper');
 
 describe('Wallet sign in functionality with mnemonic', () => {

@@ -1,5 +1,6 @@
 const os = require('os');
 const path = require('path');
+const deleteSavedWallet = require('../scripts/deletesavedwallet');
 const { spawn, spawnSync } = require('child_process');
 
 //insert path to binary
@@ -58,36 +59,40 @@ exports.config = {
 
   // Reporting tool and settings
 
-  // reporters: [
-  //     [
-  //         "allure",
-  //         {
-  //             outputDir: "allure-results",
-  //             disableWebdriverStepsReporting: true,
-  //             disableWebdriverScreenshotsReporting: true,
-  //             // useCucumberStepReporter: true,
-  //             // disableMochaHooks: true,
-  //         },
-  //     ],
-  // ],
+  reporters: [
+    [
+      'allure',
+      {
+        outputDir: 'allure-results',
+        disableWebdriverStepsReporting: true,
+        disableWebdriverScreenshotsReporting: true,
+        // useCucumberStepReporter: true,
+        // disableMochaHooks: true,
+      },
+    ],
+  ],
 
   // Things to run before/after each test session
 
-  // onPrepare: () => {
-  // let scriptpath = process.cwd() + "/scripts/killprocess.sh";
-  // spawn('bash', [scriptpath]);
-  // },
+  onPrepare: () => {
+    let scriptpath = process.cwd() + '/scripts/killprocess.sh';
+    spawn('bash', [scriptpath]);
+  },
 
   beforeSession: () => {
     tauriDriver = spawn(path.resolve(os.homedir(), '.cargo', 'bin', 'tauri-driver'), [], {
       stdio: [null, process.stdout, process.stderr],
     });
+
+    //before the session - if any issues arise with wallet data, let's remove existing saved files
+    deleteSavedWallet;
   },
 
-  // afterEach: function(test) {
-  //   if (test.error !== undefined) {
-  //     browser.takeScreenshot();}
-  // },
+  afterEach: function (test) {
+    if (test.error !== undefined) {
+      browser.takeScreenshot();
+    }
+  },
 
   // clean up the `tauri-driver` process we spawned at the start of the session
   afterSession: () => tauriDriver.kill(),

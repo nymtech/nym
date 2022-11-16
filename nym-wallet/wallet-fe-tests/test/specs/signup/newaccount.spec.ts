@@ -4,28 +4,13 @@ const textConstants = require('../../../common/text-constants');
 const userData = require('../../../common/user-data.json');
 const deleteScript = require('../../../scripts/deletesavedwallet');
 const Helper = require('../../../common/helper');
-import { newMnemonicLogin } from '../helpers/helper.spec';
 
 // TO-DO figure out how to not repeat steps but also start a fresh test on each run
 
 describe('Create a new account negative scenarios', () => {
-  it('generate new mnemonic and verify mnemonic words', () => {
-    newMnemonicLogin();
-
-    // // delete an existing saved-wallet.json
-    // deleteScript
-    // // click through create account flow
-    // await Helper.navigateAndClick(Auth.createAccount)
-    // // await Helper.elementVisible(Auth.mnemonicPhrase)
-    // // save and verify mnemonic
-    // const mnemonic = await browser.execute(() => {
-    //     return document.getElementById("mnemonicPhrase").innerHTML;
-    // });
-    // await Helper.mnemonicWordTileIndex(mnemonic)
-    // // ensure that once the task above is complete, the 'next' button is enabled
-    // const nextButton = await Auth.nextToStep3
-    // const isNextDisabled = await nextButton.getAttribute('disabled')
-    // expect(isNextDisabled).toBe(null)
+  it('generate new mnemonic and verify mnemonic words', async () => {
+    //create the new mnemoinc
+    await Auth.newMnemonicCreation();
   });
 
   it('click skip password', async () => {
@@ -54,7 +39,7 @@ describe('Create a new account negative scenarios', () => {
 
 describe.skip('Create a new account and verify login', () => {
   it('generate new mnemonic and verify mnemonic words', async () => {
-    await newMnemonicLogin();
+    await Auth.newMnemonicCreation();
   });
 
   it('set up valid password for new account', async () => {
@@ -74,12 +59,12 @@ describe.skip('Create a new account and verify login', () => {
   it('proceed to login with newly created password', async () => {
     // login with a password
     await Helper.navigateAndClick(Auth.nextStorePassword);
-    await browser.pause(3000);
+
     await Helper.navigateAndClick(Auth.enterPassword);
     await Helper.addValueToTextField(Auth.enterPassword, textConstants.password);
-    await browser.pause(3000);
+
     await Helper.navigateAndClick(Auth.signInPasswordButton);
-    await browser.pause(3000);
+
     await Helper.elementVisible(Balance.balance);
     //new accounts will always default to mainnet, so 0 balance
     await Helper.verifyStrictText(Balance.nymBalance, textConstants.noNym);

@@ -13,8 +13,8 @@ class Balance {
     return $("[data-testid='copyIcon']");
   } // TO-DO check
 
-  get accountNumber(): Promise<WebdriverIO.Element> {
-    return $("[data-testid='accountNumber']");
+  get walletAddress(): Promise<WebdriverIO.Element> {
+    return $("[data-testid='walletAddress']");
   } // TO-DO check
 
   get networkDropdown(): Promise<WebdriverIO.Element> {

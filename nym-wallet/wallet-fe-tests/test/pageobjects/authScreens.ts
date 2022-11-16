@@ -77,7 +77,7 @@ class Auth {
   get mnemonicPhrase(): Promise<WebdriverIO.Element> {
     return $('mnemonicPhrase');
   }
-  // get mnemonicPhrase(): Promise<WebdriverIO.Element> { return $("[data-testid='mnemonicPhrase']") }
+
   get backToWelcomePageFromCreate(): Promise<WebdriverIO.Element> {
     return $("[data-testid='backToWelcome']");
   }
@@ -89,8 +89,7 @@ class Auth {
   get mnemonicWordTile(): Promise<WebdriverIO.ElementArray> {
     return $$("[data-testid='mnemonicWordTile']");
   }
-  // get wordIndex(): Promise<WebdriverIO.Element> { return $("[data-testid='wordIndex']") }
-  // get mnemonicWordTile(): Promise<WebdriverIO.Element> { return $("[data-testid='mnemonicWordTile']") }
+
   get nextToStep3(): Promise<WebdriverIO.Element> {
     return $("[data-testid='nextToStep3']");
   }
@@ -128,6 +127,7 @@ class Auth {
     return $("[data-testid='error']");
   } //check
   //TO-DO get this bit below working
+
   getErrorMessage = async () => {
     await (await this.error).waitForDisplayed({ timeout: 1500 });
     await (await this.error).getText();

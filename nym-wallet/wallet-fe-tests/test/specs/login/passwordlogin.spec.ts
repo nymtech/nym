@@ -3,8 +3,6 @@ import Balance from '../../pageobjects/balanceScreen';
 import ValidatorClient from '@nymproject/nym-validator-client';
 const deleteScript = require('../../../scripts/deletesavedwallet');
 const textConstants = require('../../../common/text-constants');
-const userData = require('../../../common/user-data.json');
-const deleteWallet = require('../../../scripts/deletesavedwallet');
 const Helper = require('../../../common/helper');
 
 describe('Create password for existing account and use it to sign in', () => {
@@ -33,7 +31,7 @@ describe('Create password for existing account and use it to sign in', () => {
   it('enter correct mnemonic', async () => {
     // generate random mnemonic in the backend
     const randomMnemonic = ValidatorClient.randomMnemonic();
-    deleteScript;
+
     // use it to continue with password creation flow
     await Helper.navigateAndClick(Auth.backToMnemonicSignIn);
     await Helper.navigateAndClick(Auth.createPassword);
@@ -86,8 +84,6 @@ describe('Create password for existing account and use it to sign in', () => {
 
 describe('Wallet sign in functionality without creating password', () => {
   it('sign in with invalid password and no saved wallet.json file throws error', async () => {
-    // delete existing saved wallet file
-    deleteWallet;
     //click through sign without entering a password
     await Helper.navigateAndClick(Auth.signInButton);
     await Helper.navigateAndClick(Auth.signInPassword);

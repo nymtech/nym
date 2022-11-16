@@ -1,6 +1,5 @@
 import Auth from '../../pageobjects/authScreens';
 const deleteScript = require('../../../scripts/deletesavedwallet');
-const walletExists = require('../../../scripts/savedwalletexists');
 const Helper = require('../../../common/helper');
 
 export function newMnemonicLogin() {
@@ -8,8 +7,7 @@ export function newMnemonicLogin() {
 
   describe('Create a new account and verify login', () => {
     it('generate new mnemonic and verify mnemonic words', async () => {
-      // delete an existing saved-wallet.json
-      walletExists;
+      // delete an existing saved-wallet
       deleteScript;
       // click through create account flow
       console.log('--------------------');

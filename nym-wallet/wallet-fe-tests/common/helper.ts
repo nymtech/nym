@@ -2,7 +2,7 @@ import Balance from '../test/pageobjects/balanceScreen';
 import Auth from '../test/pageobjects/authScreens';
 const userData = require('../common/user-data.json');
 const deleteScript = require('../scripts/deletesavedwallet');
-const savedWalletScript = require('../scripts/savedwalletexists');
+const savedWalletScript = require('../scripts/deletesavedwallet.ts');
 
 class Helpers {
   // clear wallet data, login, and navigate to QA network

@@ -5,7 +5,6 @@ const deleteScript = require('../../../scripts/deletesavedwallet');
 const textConstants = require('../../../common/text-constants');
 const userData = require('../../../common/user-data.json');
 const deleteWallet = require('../../../scripts/deletesavedwallet');
-const walletExists = require('../../../scripts/savedwalletexists');
 const Helper = require('../../../common/helper');
 
 describe('Create password for existing account and use it to sign in', () => {

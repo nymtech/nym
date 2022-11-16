@@ -3,7 +3,6 @@ import Balance from '../../pageobjects/balanceScreen';
 const textConstants = require('../../../common/text-constants');
 const userData = require('../../../common/user-data.json');
 const deleteScript = require('../../../scripts/deletesavedwallet');
-const walletExists = require('../../../scripts/savedwalletexists');
 const Helper = require('../../../common/helper');
 import { newMnemonicLogin } from '../helpers/helper.spec';
 

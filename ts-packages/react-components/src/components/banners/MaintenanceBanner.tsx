@@ -34,7 +34,7 @@ export const MaintenanceBanner = (props: BannerProps) => {
         >
           <Box display="flex">
             <Typography variant="body1" fontWeight={700}>
-              SCHEDULED MAINTENANCE
+              NYM UPGRADE
             </Typography>
             <Divider orientation="vertical" flexItem sx={{ mx: '16px', borderRightWidth: 2 }} />
             <Typography variant="body2">

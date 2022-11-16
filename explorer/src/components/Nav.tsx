@@ -25,7 +25,7 @@ import { DarkLightSwitchDesktop } from './Switch';
 import { NavOptionType } from '../context/nav';
 
 const drawerWidth = 255;
-const bannerHeight = 113;
+const bannerHeight = 80;
 
 const openedMixin = (theme: Theme): CSSObject => ({
   width: drawerWidth,
@@ -235,7 +235,7 @@ export const Nav: React.FC = ({ children }) => {
   const [drawerIsOpen, setDrawerToOpen] = React.useState(false);
   const [fixedOpen, setFixedOpen] = React.useState(false);
   // Set maintenance banner to false by default to don't display it
-  const [openMaintenance, setOpenMaintenance] = React.useState(false);
+  const [openMaintenance, setOpenMaintenance] = React.useState(true);
   const theme = useTheme();
 
   const setToActive = (id: number) => {

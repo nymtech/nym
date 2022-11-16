@@ -15,6 +15,7 @@ jobs:
           inputFile: '.github/workflows/nightly_build_release_matrix.json'
           filter: '[?runOnEvent==`${{ github.event_name }}` || runOnEvent==`always`]'
   get_release:
+    runs-on: ubuntu-latest
     needs: matrix_prep
     outputs:
       output1: {{ steps.step2.outputs.lastest_release }}

@@ -95,12 +95,12 @@ impl GeoLocateTask {
                             .await;
                     }
                 },
-                Err(e) => {
-                    warn!(
-                        "❌ Oh no! Location for {} failed. Error: {:#?}",
-                        cache_item.mix_node().host,
-                        e
-                    );
+                Err(_e) => {
+                    // warn!(
+                    //     "❌ Oh no! Location for {} failed. Error: {:#?}",
+                    //     cache_item.mix_node().host,
+                    //     e
+                    // );
                 }
             };
         }

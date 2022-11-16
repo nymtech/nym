@@ -1,13 +1,13 @@
-const os = require('os')
-const path = require('path')
-const { spawn, spawnSync } = require('child_process')
+const os = require('os');
+const path = require('path');
+const { spawn, spawnSync } = require('child_process');
 
 //insert path to binary
-const nym_path = '../target/debug/nym-wallet'
-// this one below will run the prod version aka without QA netwo0rk option 
+const nym_path = '../target/debug/nym-wallet';
+// this one below will run the prod version aka without QA netwo0rk option
 // const nym_path = '../target/release/nym-wallet'
 
-let tauriDriver: any
+let tauriDriver: any;
 
 exports.config = {
   autoCompileOpts: {
@@ -20,24 +20,12 @@ exports.config = {
   specs: ['./test/specs/**/*.ts'],
 
   suites: {
-    signup: [
-      './test/specs/signup/*.ts',
-    ],
-    login: [
-      './test/specs/login/*.ts',
-    ],
-    balance: [
-      './test/specs/balance/*.ts',
-    ],
-    general: [
-      './test/specs/general/*.ts',
-    ],
-    send: [
-      './test/specs/bond/*.ts',
-    ],
-    delegation: [
-      './test/specs/delegation/*.ts',
-    ],
+    signup: ['./test/specs/signup/*.ts'],
+    login: ['./test/specs/login/*.ts'],
+    balance: ['./test/specs/balance/*.ts'],
+    general: ['./test/specs/general/*.ts'],
+    send: ['./test/specs/bond/*.ts'],
+    delegation: ['./test/specs/delegation/*.ts'],
   },
 
   exclude: [
@@ -67,7 +55,7 @@ exports.config = {
     timeout: 60000,
   },
 
-  // Reporting tool and settings 
+  // Reporting tool and settings
 
   // reporters: [
   //     [
@@ -89,15 +77,10 @@ exports.config = {
   // spawn('bash', [scriptpath]);
   // },
 
-
   beforeSession: () => {
-
-    (tauriDriver = spawn(
-      path.resolve(os.homedir(), '.cargo', 'bin', 'tauri-driver'),
-      [],
-      { stdio: [null, process.stdout, process.stderr] }
-    ))
-
+    tauriDriver = spawn(path.resolve(os.homedir(), '.cargo', 'bin', 'tauri-driver'), [], {
+      stdio: [null, process.stdout, process.stderr],
+    });
   },
 
   // afterEach: function(test) {
@@ -106,6 +89,5 @@ exports.config = {
   // },
 
   // clean up the `tauri-driver` process we spawned at the start of the session
-  afterSession: () =>
-    tauriDriver.kill(),
-}
+  afterSession: () => tauriDriver.kill(),
+};

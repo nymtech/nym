@@ -1,17 +1,23 @@
 class Bond {
+  // Bonding
 
-    // Bonding
+  get bondTitle() {
+    return $("[data-testid='Bond']");
+  }
+  get mixnodeRadio() {
+    return $("[data-testid='mix-node']");
+  }
+  get gatewayRadio() {
+    return $("[data-testid='gate-way']");
+  }
+  get fundsAlert() {
+    return $("[data-testid='fundsAlert']");
+  }
 
-    get bondTitle() { return $("[data-testid='Bond']") }
-    get mixnodeRadio() { return $("[data-testid='mix-node']") }
-    get gatewayRadio() { return $("[data-testid='gate-way']") }
-    get fundsAlert() { return $("[data-testid='fundsAlert']") }
+  // Unbonding
 
-
-    // Unbonding
-
-    get unbondTitle() { return $("[data-testid='Unbond']") }
-
-
+  get unbondTitle() {
+    return $("[data-testid='Unbond']");
+  }
 }
-export default new Bond()
+export default new Bond();

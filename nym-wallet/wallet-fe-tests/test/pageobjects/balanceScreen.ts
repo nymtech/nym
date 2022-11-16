@@ -10,12 +10,12 @@ class Balance {
   }
 
   get copyAccountId(): Promise<WebdriverIO.Element> {
-    return $("[data-testid='copyIcon']");
-  } // TO-DO check
+    return $("[data-testid='ContentCopyIcon']");
+  } 
 
   get walletAddress(): Promise<WebdriverIO.Element> {
-    return $("[data-testid='walletAddress']");
-  } // TO-DO check
+    return $("[data-testid='wallet-address']");
+  } 
 
   get networkDropdown(): Promise<WebdriverIO.Element> {
     return $("[data-testid='ArrowDropDownIcon']");

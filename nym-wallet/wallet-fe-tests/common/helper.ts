@@ -75,6 +75,10 @@ class Helpers {
     await element.waitForDisplayed({ timeout: 6000 });
   };
 
+  elementGetText = async (element) => {
+    await element.getText(element);
+  };
+
   elementClickable = async (element) => {
     await element.toBeClickable({ timeout: 8000 });
   };
@@ -93,32 +97,18 @@ class Helpers {
     expect(error).toContain(expectedText);
   };
 
-  // token calculations
-  currentBalance = async (value) => {
-    return parseFloat(value.split(/\s+/)[0].toString()).toFixed(5);
-  };
+  getAccountAddress = async () => {
+    // fix this in the future to make it generic
+    
+    let address = await browser.execute(() => {
+      return document.querySelectorAll("[data-testid='wallet-address']")[0].innerHTML;
+    });
+    return address;
+  }
 
-  calculateFees = async (beforeBalance, transactionFee, amount, isSend) => {
-    let fee;
+  //removed those nasty methods as we can now get the correct txs fee from estimation
+  //add cleaner approach
 
-    if (isSend) {
-      //send transaction
-      fee = transactionFee.split(/\s+/)[0];
-    } else {
-      //delegate transaction
-      fee = transactionFee.split(/\s+/)[3];
-    }
-
-    const currentBalance = beforeBalance.split(/\s+/)[0];
-    console.log('currenttttt 2 ............. = ' + currentBalance);
-    const castCurrentBalance = parseFloat(currentBalance).toFixed(5);
-    console.log('castttt ............. ' + castCurrentBalance);
-    const transCost = +parseFloat(amount) + +parseFloat(fee).toFixed(5);
-    console.log('trans .............' + transCost);
-
-    let sum = +castCurrentBalance - transCost;
-    return sum.toFixed(5);
-  };
 }
 
 export default new Helpers();

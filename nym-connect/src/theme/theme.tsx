@@ -24,17 +24,17 @@ const nymPalette: NymPalette = {
   success: '#21D073',
   info: '#60D7EF',
   fee: '#967FF0',
-  background: { light: '#F4F6F8', dark: '#121726' },
+  background: { light: '#F4F6F8', dark: '#1D2125' },
   text: {
     light: '#F2F2F2',
-    dark: '#121726',
+    dark: '#1D2125',
   },
 };
 
 const darkMode: NymPaletteVariant = {
   mode: 'dark',
   background: {
-    main: '#121726',
+    main: '#1D2125',
     paper: '#242C3D',
   },
   text: {
@@ -52,7 +52,7 @@ const lightMode: NymPaletteVariant = {
     paper: '#FFFFFF',
   },
   text: {
-    main: '#121726',
+    main: '#1D2125',
   },
   topNav: {
     background: '#111826',

@@ -2,8 +2,10 @@ import React, { useEffect, useMemo } from 'react';
 import IconButton from '@mui/material/IconButton';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
-import ArrowDropDownCircleIcon from '@mui/icons-material/ArrowDropDownCircle';
-import { Box, CircularProgress, Stack, Tooltip, Typography } from '@mui/material';
+import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded';
+import KeyboardArrowUpRoundedIcon from '@mui/icons-material/KeyboardArrowUpRounded';
+import { Box, CircularProgress, Stack, Tooltip, Typography, ListItemIcon } from '@mui/material';
+import Check from '@mui/icons-material/Check';
 import { ServiceProvider, Service, Services } from '../types/directory';
 
 type ServiceWithRandomSp = {
@@ -62,7 +64,7 @@ export const ServiceProviderSelector: React.FC<{
           Loading services...
         </Typography>
         <IconButton id="service-provider-button" disabled>
-          <ArrowDropDownCircleIcon />
+          {open ? <KeyboardArrowUpRoundedIcon /> : <KeyboardArrowDownRoundedIcon />}
         </IconButton>
       </Box>
     );
@@ -80,14 +82,14 @@ export const ServiceProviderSelector: React.FC<{
 
   return (
     <>
-      <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ mt: 3 }}>
-        <Typography
-          ref={textEl}
-          fontSize={14}
-          fontWeight={700}
-          color={(theme) => (serviceProvider ? undefined : theme.palette.primary.main)}
-        >
-          {service ? service.description : 'Select a service'}
+      <Box
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+        sx={{ mt: 3, borderBottom: (theme) => `1px solid ${theme.palette.info.main}` }}
+      >
+        <Typography ref={textEl} fontSize={14} fontWeight={700} color={(theme) => theme.palette.info.main}>
+          {!service ? 'Select a service' : service.description}
         </Typography>
         <IconButton
           id="service-provider-button"
@@ -95,8 +97,11 @@ export const ServiceProviderSelector: React.FC<{
           aria-haspopup="true"
           aria-expanded={open ? 'true' : undefined}
           onClick={handleClick}
+          color="info"
+          size="small"
+          sx={{ padding: 0 }}
         >
-          <ArrowDropDownCircleIcon />
+          {open ? <KeyboardArrowUpRoundedIcon /> : <KeyboardArrowDownRoundedIcon />}
         </IconButton>
       </Box>
       <Menu
@@ -112,6 +117,11 @@ export const ServiceProviderSelector: React.FC<{
           vertical: 'top',
           horizontal: 'left',
         }}
+        PaperProps={{
+          sx: {
+            border: '1px solid rgba(96, 214, 239, 0.4)',
+          },
+        }}
         MenuListProps={{
           'aria-labelledby': 'service-provider-button',
           sx: {
@@ -120,7 +130,18 @@ export const ServiceProviderSelector: React.FC<{
         }}
       >
         {servicesWithRandomSp.map(({ id, description, sp }) => (
-          <MenuItem dense key={id} sx={{ fontSize: 'small', fontWeight: 'bold' }} onClick={() => handleClose(sp)}>
+          <MenuItem
+            dense
+            autoFocus={id === service?.id}
+            key={id}
+            sx={{
+              fontSize: 'small',
+              fontWeight: 'bold',
+              minWidth: '208px',
+              '&.Mui-focusVisible': { bgcolor: 'transparent' },
+            }}
+            onClick={() => handleClose(sp)}
+          >
             <Tooltip
               title={
                 <Stack direction="column">
@@ -143,6 +164,16 @@ export const ServiceProviderSelector: React.FC<{
             >
               <Typography>{description}</Typography>
             </Tooltip>
+            {id === service?.id && (
+              <ListItemIcon
+                sx={{
+                  position: 'absolute',
+                  right: '0',
+                }}
+              >
+                <Check sx={{ padding: 0 }} />
+              </ListItemIcon>
+            )}
           </MenuItem>
         ))}
       </Menu>

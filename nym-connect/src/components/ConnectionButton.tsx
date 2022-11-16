@@ -2,10 +2,10 @@ import React from 'react';
 import { ConnectionStatusKind } from '../types';
 
 const getBusyFillColor = (color: string): string => {
-  if (color === '#60D6EF') {
+  if (color === '#F4B02D') {
     return '#21D072';
   }
-  return '#60D6EF';
+  return '#F4B02D';
 };
 
 const getStatusFillColor = (status: ConnectionStatusKind, hover: boolean, isError: boolean): string => {
@@ -21,10 +21,10 @@ const getStatusFillColor = (status: ConnectionStatusKind, hover: boolean, isErro
       if (hover) {
         return '#21D072';
       }
-      return '#60D6EF';
+      return '#F4B02D';
     case ConnectionStatusKind.connecting:
     case ConnectionStatusKind.disconnecting:
-      return '#60D6EF';
+      return '#F4B02D';
     default:
       // connected
       if (hover) {

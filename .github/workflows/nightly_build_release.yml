@@ -16,7 +16,7 @@ jobs:
           filter: '[?runOnEvent==`${{ github.event_name }}` || runOnEvent==`always`]'
   get_release:
     needs: matrix_prep
-    output:
+    outputs:
       output1: {{ steps.step2.outputs.lastest_release }}
     steps:
       - name: Check out repository code

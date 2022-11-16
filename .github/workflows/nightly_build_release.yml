@@ -40,7 +40,7 @@ jobs:
       - name: Check out latest release branch
         uses: actions/checkout@v3
         with:
-          ref: origin/release/v1.1.1
+          ref: release/v1.1.1
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1

@@ -101,7 +101,7 @@ pub(crate) async fn execute(args: &Run) -> Result<(), ClientError> {
     };
 
     let override_config_fields = OverrideConfig::from(args.clone());
-    config = override_config(config, override_config_fields);
+    //config = override_config(config, override_config_fields);
 
     if config.get_base_mut().set_empty_fields_to_defaults() {
         warn!("some of the core config options were left unset. the default values are going to get used instead.");

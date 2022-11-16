@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: matrix_prep
     outputs:
-      output1: {{ steps.step2.outputs.lastest_release }}
+      output1: ${{ steps.step2.outputs.lastest_release }}
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2

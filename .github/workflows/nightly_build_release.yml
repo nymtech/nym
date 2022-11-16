@@ -8,7 +8,7 @@ jobs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       # creates the matrix strategy from nightly_build_release_matrix.json
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
       - id: set-matrix
         uses: JoshuaTheMiller/conditional-build-matrix@main
         with:
@@ -21,7 +21,7 @@ jobs:
       output1: ${{ steps.step2.outputs.lastest_release }}
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set environment variable to latest release branch
         id: step2
@@ -38,12 +38,9 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
 
       - name: Check out latest release branch
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: ${{ needs.get_release.outputs.output1 }}
-
-      - name: Print output content
-        run: echo ${{ needs.get_release.outputs.output1 }}
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
@@ -180,7 +177,7 @@ jobs:
       - name: Collect jobs status
         uses: technote-space/workflow-conclusion-action@v2
       - name: Check out repository code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Keybase - Node Install
         if: env.WORKFLOW_CONCLUSION == 'failure'
         run: npm install

@@ -291,7 +291,7 @@ impl NymClient {
             msg_input,
             closed_connection_tx,
             buffer_requester,
-            self.as_mix_recipient(),
+            &self.as_mix_recipient(),
         );
 
         websocket::Listener::new(self.config.get_listening_port()).start(websocket_handler);

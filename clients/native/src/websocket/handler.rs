@@ -69,13 +69,13 @@ impl Handler {
         msg_input: InputMessageSender,
         closed_connection_tx: ClosedConnectionSender,
         buffer_requester: ReceivedBufferRequestSender,
-        self_full_address: Recipient,
+        self_full_address: &Recipient,
     ) -> Self {
         Handler {
             msg_input,
             closed_connection_tx,
             buffer_requester,
-            self_full_address,
+            self_full_address: *self_full_address,
             socket: None,
             received_response_type: Default::default(),
         }
@@ -83,14 +83,14 @@ impl Handler {
 
     fn handle_send(
         &mut self,
-        recipient: Recipient,
+        recipient: &Recipient,
         message: Vec<u8>,
         with_reply_surb: bool,
         connection_id: u64,
     ) -> Option<ServerResponse> {
         // the ack control is now responsible for chunking, etc.
         let lane = TransmissionLane::ConnectionId(connection_id);
-        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb, lane);
+        let input_msg = InputMessage::new_fresh(*recipient, message, with_reply_surb, lane);
         self.msg_input.unbounded_send(input_msg).unwrap();
 
         None
@@ -125,7 +125,7 @@ impl Handler {
                 message,
                 with_reply_surb,
                 connection_id,
-            } => self.handle_send(recipient, message, with_reply_surb, connection_id),
+            } => self.handle_send(&recipient, message, with_reply_surb, connection_id),
             ClientRequest::Reply {
                 message,
                 reply_surb,
@@ -150,7 +150,7 @@ impl Handler {
         response.map(|resp| WsMessage::text(resp.into_text()))
     }
 
-    fn handle_binary_message(&mut self, msg: Vec<u8>) -> Option<WsMessage> {
+    fn handle_binary_message(&mut self, msg: &[u8]) -> Option<WsMessage> {
         debug!("Handling binary message request");
 
         self.received_response_type = ReceivedResponseType::Binary;
@@ -170,35 +170,9 @@ impl Handler {
         // old version of this file.
         match raw_request {
             WsMessage::Text(text_message) => self.handle_text_message(text_message),
-            WsMessage::Binary(binary_message) => self.handle_binary_message(binary_message),
+            WsMessage::Binary(binary_message) => self.handle_binary_message(&binary_message),
             _ => None,
         }
-    }
-
-    // I'm still not entirely sure why `send_all` requires `TryStream` rather than `Stream`, but
-    // let's just play along for now
-    fn prepare_reconstructed_binary(
-        &self,
-        reconstructed_messages: Vec<ReconstructedMessage>,
-    ) -> Vec<Result<WsMessage, WsError>> {
-        reconstructed_messages
-            .into_iter()
-            .map(ServerResponse::Received)
-            .map(|resp| Ok(WsMessage::Binary(resp.into_binary())))
-            .collect()
-    }
-
-    // I'm still not entirely sure why `send_all` requires `TryStream` rather than `Stream`, but
-    // let's just play along for now
-    fn prepare_reconstructed_text(
-        &self,
-        reconstructed_messages: Vec<ReconstructedMessage>,
-    ) -> Vec<Result<WsMessage, WsError>> {
-        reconstructed_messages
-            .into_iter()
-            .map(ServerResponse::Received)
-            .map(|resp| Ok(WsMessage::Text(resp.into_text())))
-            .collect()
     }
 
     async fn push_websocket_received_plaintexts(
@@ -209,10 +183,8 @@ impl Handler {
         // if it's text or binary, but for time being we use the naive assumption that if
         // client is sending Message::Text it expects text back. Same for Message::Binary
         let response_messages = match self.received_response_type {
-            ReceivedResponseType::Binary => {
-                self.prepare_reconstructed_binary(reconstructed_messages)
-            }
-            ReceivedResponseType::Text => self.prepare_reconstructed_text(reconstructed_messages),
+            ReceivedResponseType::Binary => prepare_reconstructed_binary(reconstructed_messages),
+            ReceivedResponseType::Text => prepare_reconstructed_text(reconstructed_messages),
         };
 
         let mut send_stream = futures::stream::iter(response_messages);
@@ -306,4 +278,28 @@ impl Handler {
 
         self.listen_for_requests(reconstructed_receiver).await;
     }
+}
+
+// I'm still not entirely sure why `send_all` requires `TryStream` rather than `Stream`, but
+// let's just play along for now
+fn prepare_reconstructed_binary(
+    reconstructed_messages: Vec<ReconstructedMessage>,
+) -> Vec<Result<WsMessage, WsError>> {
+    reconstructed_messages
+        .into_iter()
+        .map(ServerResponse::Received)
+        .map(|resp| Ok(WsMessage::Binary(resp.into_binary())))
+        .collect()
+}
+
+// I'm still not entirely sure why `send_all` requires `TryStream` rather than `Stream`, but
+// let's just play along for now
+fn prepare_reconstructed_text(
+    reconstructed_messages: Vec<ReconstructedMessage>,
+) -> Vec<Result<WsMessage, WsError>> {
+    reconstructed_messages
+        .into_iter()
+        .map(ServerResponse::Received)
+        .map(|resp| Ok(WsMessage::Text(resp.into_text())))
+        .collect()
 }

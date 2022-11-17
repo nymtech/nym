@@ -1,5 +1,12 @@
 import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
-import { DelegationWithEverything, DecCoin, TransactionExecuteResult, FeeDetails } from '@nymproject/types';
+import {
+  DelegationWithEverything,
+  DecCoin,
+  TransactionExecuteResult,
+  FeeDetails,
+  Fee,
+  CurrencyDenom,
+} from '@nymproject/types';
 import { DelegationContext, TDelegationTransaction } from '../delegations';
 
 import { mockSleep } from './utils';
@@ -154,11 +161,7 @@ export const MockDelegationContextProvider: FC<{}> = ({ children }) => {
     };
   };
 
-  const undelegate = async (
-    mix_id: number,
-    _usesVestingContractTokens: boolean,
-    _fee?: FeeDetails,
-  ): Promise<TransactionExecuteResult[]> => {
+  const undelegate = async (mix_id: number, _fee?: Fee): Promise<TransactionExecuteResult> => {
     await mockSleep(SLEEP_MS);
     mockDelegations = mockDelegations.map((d) => {
       if (d.mix_id === mix_id) {
@@ -175,18 +178,29 @@ export const MockDelegationContextProvider: FC<{}> = ({ children }) => {
       triggerStateUpdate();
     }, 3000);
 
-    return [
-      {
-        logs_json: '',
-        data_json: '',
-        transaction_hash: '',
-        gas_info: {
-          gas_wanted: { gas_units: BigInt(1) },
-          gas_used: { gas_units: BigInt(1) },
-        },
-        fee: { amount: '1', denom: 'nym' },
+    return {
+      logs_json: '',
+      data_json: '',
+      transaction_hash: '',
+      gas_info: {
+        gas_wanted: { gas_units: BigInt(1) },
+        gas_used: { gas_units: BigInt(1) },
       },
-    ];
+      fee: { amount: '1', denom: 'nym' as CurrencyDenom },
+    };
+  };
+
+  const undelegateVesting = async (mix_id: number, _fee?: FeeDetails) => {
+    return {
+      logs_json: '',
+      data_json: '',
+      transaction_hash: '',
+      gas_info: {
+        gas_wanted: { gas_units: BigInt(1) },
+        gas_used: { gas_units: BigInt(1) },
+      },
+      fee: { amount: '1', denom: 'nym' as CurrencyDenom },
+    };
   };
 
   const resetState = () => {
@@ -226,6 +240,7 @@ export const MockDelegationContextProvider: FC<{}> = ({ children }) => {
       addDelegation,
       updateDelegation,
       undelegate,
+      undelegateVesting,
     }),
     [isLoading, error, delegations, totalDelegations, trigger],
   );

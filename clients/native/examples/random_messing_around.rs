@@ -110,7 +110,7 @@ async fn send_file_without_reply() {
 
     let send_reply_req = ClientRequest::Reply {
         // message: vec![5, 6, 7, 8],
-        message: vec![42u8; 1000000],
+        message: vec![42u8; 100000],
         sender_tag,
     };
     let response = send_message_and_get_response(&mut ws_stream, send_reply_req.serialize()).await;

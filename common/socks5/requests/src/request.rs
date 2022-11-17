@@ -169,7 +169,7 @@ impl Request {
             }
             RequestFlag::Send => {
                 let local_closed = b[9] != 0;
-                let data = b[10..].as_ref().to_vec();
+                let data = b[10..].to_vec();
 
                 Ok(Request::Send(connection_id, data, local_closed))
             }

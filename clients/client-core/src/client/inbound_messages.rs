@@ -13,6 +13,7 @@ pub enum InputMessage {
         data: Vec<u8>,
         reply_surbs: u32,
     },
+    // TODO: `Regular` variant without surbs
     Reply {
         recipient_tag: AnonymousSenderTag,
         data: Vec<u8>,

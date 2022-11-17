@@ -136,6 +136,10 @@ where
         let required_surbs = fragments.len();
         info!("This reply requires {:?} SURBs", fragments.len());
 
+        // TODO: edge case:
+        // we're making a lot of requests and have to request a lot of surbs
+        // (but at some point we run out of surbs for surb requests)
+
         let (surbs, surbs_left) = self
             .received_reply_surbs
             .get_reply_surbs(&recipient_tag, fragments.len());
@@ -160,18 +164,23 @@ where
             self.insert_pending_replies(&recipient_tag, fragments);
 
             // if we're running low on surbs, we should request more (unless we've already requested them)
-            let already_requesting = self
+            let mut already_requesting = self
                 .received_reply_surbs
                 .set_requesting_more_surbs(&recipient_tag)
                 .expect("error handling");
+
+            if already_requesting {
+                warn!("we were already requesting surbs, but we shall ignore it");
+                already_requesting = false;
+            }
 
             if !already_requesting {
                 self.request_additional_reply_surbs(
                     recipient_tag,
                     extra_surbs + required_surbs as u32,
                 )
-                .await
-                .expect("this temporary error handling HAS TO go")
+                .await;
+                // .expect("this temporary error handling HAS TO go")
             }
         }
     }
@@ -230,6 +239,10 @@ where
     ) {
         println!("trying to clear pending queue");
         let surbs_left = available_surbs.len();
+        if surbs_left == 0 {
+            println!("we have no surbs...");
+            return;
+        }
 
         println!("we have {} surbs on hand", surbs_left);
 
@@ -237,6 +250,10 @@ where
         if let Some(to_send) = self.pop_at_most_pending_replies(&target, surbs_left) {
             // TODO: optimise: we're cloning the fragments every time to re-insert them into the buffer in case of failure
             let to_send_vec = to_send.into_iter().collect::<Vec<_>>();
+
+            if to_send_vec.is_empty() {
+                panic!("empty1");
+            }
 
             let surbs_for_reply = available_surbs.drain(..to_send_vec.len()).collect();
             if let Err(returned_surbs) = self

@@ -175,7 +175,7 @@ impl StatisticsCollector for ServiceStatisticsCollector {
                 "{}:{}",
                 DEFAULT_STATISTICS_SERVICE_ADDRESS, DEFAULT_STATISTICS_SERVICE_PORT
             ),
-            self.stats_provider_addr,
+            Some(self.stats_provider_addr),
         );
         self.mix_input_sender
             .unbounded_send((

@@ -39,7 +39,7 @@ pub struct ServiceProvider {
 
 // TODO: move elsewhere after things settle
 #[derive(Debug, Copy, Clone)]
-pub(crate) enum ReturnAddress {
+pub enum ReturnAddress {
     Known(Recipient),
     Anonymous(AnonymousSenderTag),
 }
@@ -228,7 +228,7 @@ impl ServiceProvider {
         controller_sender: &mut ControllerSender,
         mix_input_sender: &mpsc::UnboundedSender<(Socks5Message, ReturnAddress)>,
         sender_tag: Option<AnonymousSenderTag>,
-        connect_req: ConnectRequest,
+        connect_req: Box<ConnectRequest>,
         shutdown: ShutdownListener,
     ) {
         let return_address = match ReturnAddress::new(connect_req.return_address, sender_tag) {
@@ -240,6 +240,9 @@ impl ServiceProvider {
                 return;
             }
         };
+
+        let remote_addr = connect_req.remote_addr;
+        let conn_id = connect_req.conn_id;
 
         if !self.open_proxy && !self.outbound_request_filter.check(&remote_addr) {
             let log_msg = format!("Domain {:?} failed filter check", remote_addr);
@@ -314,7 +317,7 @@ impl ServiceProvider {
                         controller_sender,
                         mix_input_sender,
                         message.sender_tag,
-                        req.into(),
+                        req,
                         shutdown,
                     )
                 }

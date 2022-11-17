@@ -91,7 +91,7 @@ export const BondedGateway = ({
       {network && (
         <Typography sx={{ mt: 2, fontSize: 'small' }}>
           Check more stats of your gateway on the{' '}
-          <Link href={`${urls(network).networkExplorer}/network-components/gateways`} target="_blank">
+          <Link href={`${urls(network).networkExplorer}/network-components/gateway/${identityKey}`} target="_blank">
             explorer
           </Link>
         </Typography>

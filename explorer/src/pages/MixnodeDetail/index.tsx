@@ -223,7 +223,7 @@ export const PageMixnodeDetail: React.FC = () => {
   }
 
   return (
-    <MixnodeContextProvider mixNodeIdentityKey={id}>
+    <MixnodeContextProvider mixId={id}>
       <PageMixnodeDetailGuard />
     </MixnodeContextProvider>
   );

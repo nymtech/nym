@@ -84,6 +84,10 @@ impl NymTopology {
         &self.mixes
     }
 
+    pub fn num_mixnodes(&self) -> usize {
+        self.mixes.values().flat_map(|m| m.iter()).count()
+    }
+
     pub fn mixes_as_vec(&self) -> Vec<mix::Node> {
         let mut mixes: Vec<mix::Node> = vec![];
 

@@ -13,7 +13,7 @@ use validator_client::nymd::wallet::DirectSecp256k1HdWallet;
 pub struct SignatureOutputJson {
     pub account_id: String,
     pub public_key: PublicKey,
-    pub signature: String,
+    pub signature_as_hex: String,
 }
 
 #[derive(Debug, Parser)]
@@ -46,7 +46,7 @@ pub fn sign(args: Args, prefix: &str, mnemonic: Option<bip39::Mnemonic>) {
                             let output = SignatureOutputJson {
                                 account_id: account.address().to_string(),
                                 public_key: account.public_key(),
-                                signature: signature.to_string(),
+                                signature_as_hex: signature.to_string(),
                             };
                             println!("{}", json!(output));
                         }

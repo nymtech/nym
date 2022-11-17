@@ -8,6 +8,7 @@ const SLEEP_MS = 1000;
 
 const bondedMixnodeMock: TBondedMixnode = {
   name: 'Monster node',
+  mixId: 1,
   identityKey: '7mjM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
   stake: { denom: 'nym', amount: '1234' },
   bond: { denom: 'nym', amount: '1234' },

@@ -7,7 +7,7 @@ use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsRe
 use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState, NodeIndex};
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use contracts_common::dealings::ContractSafeBytes;
-use multisig_contract_common::msg::ProposalResponse;
+use cw3::ProposalResponse;
 use validator_client::nymd::cosmwasm_client::logs::{find_attribute, NODE_INDEX};
 use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
 use validator_client::nymd::AccountId;
@@ -82,8 +82,12 @@ impl DkgClient {
     pub(crate) async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
+        announce_address: String,
     ) -> Result<NodeIndex, CoconutError> {
-        let res = self.inner.register_dealer(bte_key).await?;
+        let res = self
+            .inner
+            .register_dealer(bte_key, announce_address)
+            .await?;
         let node_index = find_attribute(&res.logs, "wasm", NODE_INDEX)
             .ok_or(CoconutError::NodeIndexRecoveryError {
                 reason: String::from("node index not found"),

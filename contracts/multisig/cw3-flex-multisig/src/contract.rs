@@ -463,6 +463,7 @@ mod tests {
     const SOMEBODY: &str = "somebody";
     const TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
         "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
+    const TEST_COCONUT_DKG_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 
     fn member<T: Into<String>>(addr: T, weight: u64) -> Member {
         Member {
@@ -542,6 +543,7 @@ mod tests {
             threshold,
             max_voting_period,
             coconut_bandwidth_contract_address: TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string(),
+            coconut_dkg_contract_address: TEST_COCONUT_DKG_CONTRACT_ADDRESS.to_string(),
         };
         app.instantiate_contract(flex_id, Addr::unchecked(OWNER), &msg, &[], "flex", None)
             .unwrap()
@@ -658,6 +660,7 @@ mod tests {
             },
             max_voting_period,
             coconut_bandwidth_contract_address: TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string(),
+            coconut_dkg_contract_address: TEST_COCONUT_DKG_CONTRACT_ADDRESS.to_string(),
         };
         let err = app
             .instantiate_contract(
@@ -680,6 +683,7 @@ mod tests {
             threshold: Threshold::AbsoluteCount { weight: 100 },
             max_voting_period,
             coconut_bandwidth_contract_address: TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string(),
+            coconut_dkg_contract_address: TEST_COCONUT_DKG_CONTRACT_ADDRESS.to_string(),
         };
         let err = app
             .instantiate_contract(
@@ -702,6 +706,7 @@ mod tests {
             threshold: Threshold::AbsoluteCount { weight: 1 },
             max_voting_period,
             coconut_bandwidth_contract_address: TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string(),
+            coconut_dkg_contract_address: TEST_COCONUT_DKG_CONTRACT_ADDRESS.to_string(),
         };
         let flex_addr = app
             .instantiate_contract(

@@ -20,6 +20,7 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     RegisterDealer {
         bte_key_with_proof: EncodedBTEPublicKeyWithProof,
+        announce_address: String,
     },
 
     CommitDealing {

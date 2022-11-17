@@ -25,9 +25,10 @@ use crate::config::persistence::pathfinder::GatewayPathfinder;
 #[cfg(feature = "coconut")]
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 #[cfg(feature = "coconut")]
-use credentials::obtain_aggregate_verification_key;
+use credentials::coconut::utils::obtain_aggregate_verification_key_new;
 #[cfg(feature = "coconut")]
-use validator_client::nymd;
+use validator_client::nymd::SigningNymdClient;
+use validator_client::Client;
 
 use self::storage::PersistentStorage;
 
@@ -242,31 +243,37 @@ where
     #[cfg(feature = "coconut")]
     fn random_nymd_client(
         &self,
-    ) -> validator_client::nymd::NymdClient<validator_client::nymd::SigningNymdClient> {
+    ) -> validator_client::Client<validator_client::nymd::SigningNymdClient> {
         let endpoints = self.config.get_validator_nymd_endpoints();
         let validator_nymd = endpoints
             .choose(&mut thread_rng())
             .expect("The list of validators is empty");
 
         let network_details = NymNetworkDetails::new_from_env();
-        let client_config = nymd::Config::try_from_nym_network_details(&network_details)
-            .expect("failed to construct valid validator client config with the provided network");
-
-        validator_client::nymd::NymdClient::connect_with_mnemonic(
-            client_config,
-            validator_nymd.as_ref(),
-            self.config.get_cosmos_mnemonic(),
-            None,
+        let client_config = validator_client::Config::try_from_nym_network_details(
+            &network_details,
         )
-        .expect("Could not connect with mnemonic")
+        .expect("failed to construct valid validator client config with the provided network");
+
+        let mut client = Client::new_signing(client_config, self.config.get_cosmos_mnemonic())
+            .expect("Could not connect with mnemonic");
+        client
+            .change_nymd(validator_nymd.clone())
+            .expect("Could not use the random nymd URL");
+        client
     }
 
     #[cfg(feature = "coconut")]
-    fn all_api_clients(&self) -> Vec<validator_client::ApiClient> {
-        self.config
-            .get_validator_api_endpoints()
+    async fn all_coconut_api_clients(
+        &self,
+        nymd_client: &Client<SigningNymdClient>,
+    ) -> Vec<validator_client::CoconutApiClient> {
+        nymd_client
+            .get_all_nymd_verification_key_shares()
+            .await
+            .expect("Could not query for verification keys")
             .into_iter()
-            .map(validator_client::ApiClient::new)
+            .filter_map(|share| validator_client::CoconutApiClient::try_from(share))
             .collect()
     }
 
@@ -306,20 +313,21 @@ where
         }
 
         #[cfg(feature = "coconut")]
-        let validators_verification_key =
-            obtain_aggregate_verification_key(&self.config.get_validator_api_endpoints())
+        let coconut_verifier = {
+            let nymd_client = self.random_nymd_client();
+            let api_clients = self.all_coconut_api_clients(&nymd_client).await;
+            let validators_verification_key = obtain_aggregate_verification_key_new(&api_clients)
                 .await
                 .expect("failed to contact validators to obtain their verification keys");
-        #[cfg(feature = "coconut")]
-        let nymd_client = self.random_nymd_client();
-        #[cfg(feature = "coconut")]
-        let coconut_verifier = CoconutVerifier::new(
-            self.all_api_clients(),
-            nymd_client,
-            std::env::var(network_defaults::var_names::MIX_DENOM).expect("mix denom base not set"),
-            validators_verification_key,
-        )
-        .expect("Could not create coconut verifier");
+            CoconutVerifier::new(
+                api_clients,
+                nymd_client,
+                std::env::var(network_defaults::var_names::MIX_DENOM)
+                    .expect("mix denom base not set"),
+                validators_verification_key,
+            )
+            .expect("Could not create coconut verifier")
+        };
 
         let mix_forwarding_channel = self.start_packet_forwarder();
 

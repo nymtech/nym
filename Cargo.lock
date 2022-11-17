@@ -642,6 +642,7 @@ version = "0.1.0"
 dependencies = [
  "contracts-common",
  "cosmwasm-std",
+ "cw-utils",
  "multisig-contract-common",
  "schemars",
  "serde",
@@ -1243,9 +1244,9 @@ dependencies = [
 
 [[package]]
 name = "cw-utils"
-version = "0.13.2"
+version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "babd2c090f39d07ce5bf2556962305e795daa048ce20a93709eb591476e4a29e"
+checksum = "9dbaecb78c8e8abfd6b4258c7f4fbeb5c49a5e45ee4d910d3240ee8e1d714e1b"
 dependencies = [
  "cosmwasm-std",
  "schemars",
@@ -1254,10 +1255,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "cw3"
-version = "0.13.2"
+name = "cw2"
+version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f871854338a54c7bb094d16ffe17212b93b146d9659dbce4c9402a9b77e240ef"
+checksum = "04cf4639517490dd36b333bbd6c4fbd92e325fd0acf4683b41753bc5eb63bfc1"
+dependencies = [
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "cw3"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe19462a7f644ba60c19d3443cb90d00c50d9b6b3b0a3a7fca93df8261af979b"
 dependencies = [
  "cosmwasm-std",
  "cw-utils",
@@ -1266,10 +1279,26 @@ dependencies = [
 ]
 
 [[package]]
-name = "cw4"
-version = "0.13.2"
+name = "cw3-fixed-multisig"
+version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4476d6a7c13c46ed9ff260bd0e1cf648dc37b13f483822e1ff2a431f0f6ee52"
+checksum = "df54aa54c13f405ec4ab36b6217538bc957d439eee58f89312db05a79caf6706"
+dependencies = [
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw2",
+ "cw3",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "cw4"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0acc3549d5ce11c6901b3a676f2e2628684722197054d97cd0101ea174ed5cbd"
 dependencies = [
  "cosmwasm-std",
  "cw-storage-plus",
@@ -2953,6 +2982,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-utils",
  "cw3",
+ "cw3-fixed-multisig",
  "cw4",
  "schemars",
  "serde",
@@ -6448,6 +6478,7 @@ dependencies = [
  "contracts-common",
  "cosmrs",
  "cosmwasm-std",
+ "cw3",
  "execute",
  "flate2",
  "futures",

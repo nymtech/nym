@@ -10,6 +10,9 @@ use coconut_dkg_common::types::EpochState;
 use coconut_dkg_common::verification_key::{to_cosmos_msg, ContractVKShare, VerificationKeyShare};
 use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Response};
 
+// Wait time for the verification to take place
+const BLOCK_TIME_FOR_VERIFICATION_SECS: u64 = 60;
+
 pub fn try_commit_verification_key_share(
     deps: DepsMut<'_>,
     env: Env,
@@ -30,6 +33,7 @@ pub fn try_commit_verification_key_share(
     let data = ContractVKShare {
         share,
         node_index: details.assigned_index,
+        announce_address: details.announce_address,
         owner: info.sender.clone(),
         verified: false,
     };
@@ -39,6 +43,9 @@ pub fn try_commit_verification_key_share(
         info.sender.clone(),
         env.contract.address.to_string(),
         STATE.load(deps.storage)?.multisig_addr.to_string(),
+        env.block
+            .time
+            .plus_seconds(BLOCK_TIME_FOR_VERIFICATION_SECS),
     )?;
 
     Ok(Response::new().add_message(msg))

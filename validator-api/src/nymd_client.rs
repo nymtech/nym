@@ -34,7 +34,7 @@ use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare
 #[cfg(feature = "coconut")]
 use contracts_common::dealings::ContractSafeBytes;
 #[cfg(feature = "coconut")]
-use multisig_contract_common::msg::ProposalResponse;
+use cw3::ProposalResponse;
 #[cfg(feature = "coconut")]
 use validator_client::nymd::{
     cosmwasm_client::types::ExecuteResult,
@@ -377,13 +377,14 @@ where
     async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
+        announce_address: String,
     ) -> Result<ExecuteResult, CoconutError> {
         Ok(self
             .0
             .write()
             .await
             .nymd
-            .register_dealer(bte_key, None)
+            .register_dealer(bte_key, announce_address, None)
             .await?)
     }
 

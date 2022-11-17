@@ -210,6 +210,7 @@ version = "0.1.0"
 dependencies = [
  "contracts-common",
  "cosmwasm-std",
+ "cw-utils",
  "multisig-contract-common",
  "schemars",
  "serde",
@@ -222,6 +223,8 @@ dependencies = [
  "bandwidth-claim-contract",
  "coconut-bandwidth",
  "coconut-bandwidth-contract-common",
+ "coconut-dkg",
+ "coconut-dkg-common",
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw-controllers",
@@ -229,6 +232,7 @@ dependencies = [
  "cw-storage-plus",
  "cw-utils",
  "cw3-flex-multisig",
+ "cw4",
  "cw4-group",
  "multisig-contract-common",
  "schemars",
@@ -410,9 +414,9 @@ dependencies = [
 
 [[package]]
 name = "cw-multi-test"
-version = "0.13.2"
+version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cbea57e5be4a682268a5eca1a57efece57a54ff216bfd87603d5e864aad40e12"
+checksum = "a3f9a8ab7c3c29ec93cb7a39ce4b14a05e053153b4a17ef7cf2246af1b7c087e"
 dependencies = [
  "anyhow",
  "cosmwasm-std",
@@ -524,7 +528,7 @@ dependencies = [
 
 [[package]]
 name = "cw4-group"
-version = "0.13.1"
+version = "0.13.4"
 dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
@@ -999,6 +1003,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-utils",
  "cw3",
+ "cw3-fixed-multisig",
  "cw4",
  "schemars",
  "serde",

@@ -10,6 +10,7 @@ use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
 use url::Url;
 use validator_api_requests::coconut::BlindSignRequestBody;
+use validator_client::CoconutApiClient;
 
 use crate::coconut::bandwidth::{BandwidthVoucher, PRIVATE_ATTRIBUTES, PUBLIC_ATTRIBUTES};
 use crate::coconut::params::{
@@ -57,6 +58,25 @@ pub async fn obtain_aggregate_verification_key(
         indices.push((id + 1) as u64);
         shares.push(response.key);
     }
+
+    Ok(aggregate_verification_keys(&shares, Some(&indices))?)
+}
+
+pub async fn obtain_aggregate_verification_key_new(
+    api_clients: &[CoconutApiClient],
+) -> Result<VerificationKey, Error> {
+    if api_clients.is_empty() {
+        return Err(Error::NoValidatorsAvailable);
+    }
+
+    let indices: Vec<_> = api_clients
+        .iter()
+        .map(|api_client| api_client.node_id)
+        .collect();
+    let shares: Vec<_> = api_clients
+        .iter()
+        .map(|api_client| api_client.verification_key.clone())
+        .collect();
 
     Ok(aggregate_verification_keys(&shares, Some(&indices))?)
 }

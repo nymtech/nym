@@ -4,7 +4,8 @@
 use crate::nymd::error::NymdError;
 use crate::nymd::{CosmWasmClient, NymdClient};
 
-use multisig_contract_common::msg::{ProposalListResponse, ProposalResponse, QueryMsg};
+use cw3::{ProposalListResponse, ProposalResponse};
+use multisig_contract_common::msg::QueryMsg;
 
 use async_trait::async_trait;
 

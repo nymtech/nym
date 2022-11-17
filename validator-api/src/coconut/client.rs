@@ -7,7 +7,7 @@ use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsRe
 use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use contracts_common::dealings::ContractSafeBytes;
-use multisig_contract_common::msg::ProposalResponse;
+use cw3::ProposalResponse;
 use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
 use validator_client::nymd::{AccountId, Fee, TxResponse};
 
@@ -29,8 +29,11 @@ pub trait Client {
     async fn vote_proposal(&self, proposal_id: u64, vote_yes: bool, fee: Option<Fee>)
         -> Result<()>;
     async fn execute_proposal(&self, proposal_id: u64) -> Result<()>;
-    async fn register_dealer(&self, bte_key: EncodedBTEPublicKeyWithProof)
-        -> Result<ExecuteResult>;
+    async fn register_dealer(
+        &self,
+        bte_key: EncodedBTEPublicKeyWithProof,
+        announce_address: String,
+    ) -> Result<ExecuteResult>;
     async fn submit_dealing(&self, dealing_bytes: ContractSafeBytes) -> Result<ExecuteResult>;
     async fn submit_verification_key_share(
         &self,

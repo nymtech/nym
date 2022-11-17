@@ -38,6 +38,7 @@ async-trait = { version = "0.1.51", optional = true }
 bip39 = { version = "1", features = ["rand"], optional = true }
 config = { path = "../../config", optional = true }
 cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support", features = ["rpc", "bip32", "cosmwasm"], optional = true}
+cw3 = { version = "0.13.4", optional = true }
 prost = { version = "0.10", default-features = false, optional = true }
 flate2 = { version = "1.0.20", optional = true }
 sha2 = { version = "0.9.5", optional = true }
@@ -54,6 +55,7 @@ nymd-client = [
     "bip39",
     "config",
     "cosmrs",
+    "cw3",
     "prost",
     "flate2",
     "sha2",

@@ -11,9 +11,9 @@ use coconut_dkg_common::verification_key::owner_from_cosmos_msgs;
 use coconut_interface::KeyPair as CoconutKeyPair;
 use cosmwasm_std::Addr;
 use credentials::coconut::bandwidth::{PRIVATE_ATTRIBUTES, PUBLIC_ATTRIBUTES};
+use cw3::{ProposalResponse, Status};
 use dkg::bte::{decrypt_share, setup};
 use dkg::{combine_shares, try_recover_verification_keys, Dealing, Threshold};
-use multisig_contract_common::msg::{ProposalResponse, Status};
 use nymcoconut::tests::helpers::transpose_matrix;
 use nymcoconut::{check_vk_pairing, Base58, KeyPair, Parameters, SecretKey, VerificationKey};
 use pemstore::KeyPairPath;
@@ -154,7 +154,7 @@ pub(crate) async fn verification_key_submission(
         })?;
     state.set_proposal_id(proposal_id);
     state.set_coconut_keypair(coconut_keypair).await;
-    info!("DKG finished, keys are saved to disk");
+    info!("DKG: Submitted own verification key");
 
     Ok(())
 }
@@ -221,6 +221,7 @@ pub(crate) async fn verification_key_validation(
         }
     }
     state.set_voted_vks();
+    info!("DKG: Validated the other verification keys");
     Ok(())
 }
 
@@ -237,6 +238,7 @@ pub(crate) async fn verification_key_finalization(
         .execute_verification_key_share(proposal_id)
         .await?;
     state.set_executed_proposal();
+    info!("DKG: Finalized own verification key on chain");
 
     Ok(())
 }

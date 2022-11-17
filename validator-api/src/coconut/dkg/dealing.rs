@@ -45,7 +45,7 @@ pub(crate) async fn dealing_exchange(
             .await?;
     }
 
-    info!("Finished submitting DKG dealing");
+    info!("DKG: Finished submitting dealing");
     state.set_receiver_index(receiver_index);
 
     Ok(())

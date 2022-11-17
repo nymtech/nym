@@ -9,7 +9,7 @@ mod error;
 pub mod nymd;
 pub mod validator_api;
 
-pub use crate::client::ApiClient;
+pub use crate::client::{ApiClient, CoconutApiClient};
 pub use crate::error::ValidatorClientError;
 pub use validator_api_requests::*;
 

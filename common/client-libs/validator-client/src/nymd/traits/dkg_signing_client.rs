@@ -16,6 +16,7 @@ pub trait DkgSigningClient {
     async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
+        announce_address: String,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>;
 
@@ -40,10 +41,12 @@ where
     async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
+        announce_address: String,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError> {
         let req = DkgExecuteMsg::RegisterDealer {
             bte_key_with_proof: bte_key,
+            announce_address,
         };
         let deposit = self.get_deposit_amount().await?;
 

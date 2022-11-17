@@ -70,8 +70,11 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::RegisterDealer { bte_key_with_proof } => {
-            dealers::transactions::try_add_dealer(deps, info, bte_key_with_proof)
+        ExecuteMsg::RegisterDealer {
+            bte_key_with_proof,
+            announce_address,
+        } => {
+            dealers::transactions::try_add_dealer(deps, info, bte_key_with_proof, announce_address)
         }
         ExecuteMsg::CommitDealing { dealing_bytes } => {
             dealings::transactions::try_commit_dealings(deps, info, dealing_bytes)
@@ -180,6 +183,7 @@ mod tests {
         let msg = InstantiateMsg {
             group_addr: "group_addr".to_string(),
             multisig_addr: "multisig_addr".to_string(),
+            admin: "admin".to_string(),
             mix_denom: "nym".to_string(),
         };
         let info = mock_info("creator", &[]);

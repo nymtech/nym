@@ -3,12 +3,14 @@
 
 use crate::{validator_api, ValidatorClientError};
 use coconut_dkg_common::dealer::ContractDealing;
-use coconut_dkg_common::types::DealerDetails;
+use coconut_dkg_common::types::{DealerDetails, NodeIndex};
 use coconut_dkg_common::verification_key::ContractVKShare;
+use coconut_interface::{Base58, VerificationKey};
+use cosmrs::AccountId;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::MixId;
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef};
-use url::Url;
+use std::str::FromStr;
 use validator_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse, VerificationKeyResponse,
     VerifyCredentialBody, VerifyCredentialResponse,
@@ -24,15 +26,17 @@ use crate::nymd::traits::{DkgQueryClient, MixnetQueryClient};
 #[cfg(feature = "nymd-client")]
 use crate::nymd::{self, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient};
 #[cfg(feature = "nymd-client")]
+use cw3::ProposalResponse;
+#[cfg(feature = "nymd-client")]
 use mixnet_contract_common::{
     mixnode::MixNodeBond,
     pending_events::{PendingEpochEvent, PendingIntervalEvent},
     Delegation, RewardedSetNodeStatus, UnbondedMixnode,
 };
 #[cfg(feature = "nymd-client")]
-use multisig_contract_common::msg::ProposalResponse;
-#[cfg(feature = "nymd-client")]
 use network_defaults::NymNetworkDetails;
+#[cfg(feature = "nymd-client")]
+use url::Url;
 #[cfg(feature = "nymd-client")]
 use validator_api_requests::models::MixNodeBondAnnotated;
 
@@ -725,6 +729,33 @@ impl<C> Client<C> {
         &self,
     ) -> Result<VerificationKeyResponse, ValidatorClientError> {
         Ok(self.validator_api.get_coconut_verification_key().await?)
+    }
+}
+
+pub struct CoconutApiClient {
+    pub api_client: ApiClient,
+    pub verification_key: VerificationKey,
+    pub node_id: NodeIndex,
+    pub cosmos_address: AccountId,
+}
+
+impl CoconutApiClient {
+    pub fn try_from(share: ContractVKShare) -> Option<Self> {
+        if share.verified {
+            if let Ok(url_address) = Url::parse(&share.announce_address) {
+                if let Ok(verification_key) = VerificationKey::try_from_bs58(&share.share) {
+                    if let Ok(cosmos_address) = AccountId::from_str(share.owner.as_str()) {
+                        return Some(CoconutApiClient {
+                            api_client: ApiClient::new(url_address),
+                            verification_key,
+                            node_id: share.node_index,
+                            cosmos_address,
+                        });
+                    }
+                }
+            }
+        }
+        None
     }
 }
 

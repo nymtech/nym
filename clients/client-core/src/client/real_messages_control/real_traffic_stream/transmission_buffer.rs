@@ -41,6 +41,10 @@ impl TransmissionBuffer {
         self.buffer.keys().count()
     }
 
+    pub(crate) fn lane_length(&self, lane: &TransmissionLane) -> Option<usize> {
+        self.buffer.get(lane).map(LaneBufferEntry::len)
+    }
+
     #[allow(unused)]
     pub(crate) fn connections(&self) -> HashSet<u64> {
         self.buffer
@@ -127,7 +131,7 @@ impl TransmissionBuffer {
         Some(real_next)
     }
 
-    pub(crate) fn pop_next_message_at_random(&mut self) -> Option<RealMessage> {
+    pub(crate) fn pop_next_message_at_random(&mut self) -> Option<(TransmissionLane, RealMessage)> {
         if self.buffer.is_empty() {
             return None;
         }
@@ -142,8 +146,9 @@ impl TransmissionBuffer {
             *self.pick_random_lane()?
         };
 
+        let msg = self.pop_front_from_lane(&lane)?;
         log::trace!("picking to send from lane: {:?}", lane);
-        self.pop_front_from_lane(&lane)
+        Some((lane, msg))
     }
 
     pub(crate) fn prune_stale_connections(&mut self) {

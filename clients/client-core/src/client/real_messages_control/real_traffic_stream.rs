@@ -4,7 +4,9 @@
 use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
-use client_connections::{ClosedConnectionReceiver, ConnectionId, TransmissionLane};
+use client_connections::{
+    ClosedConnectionReceiver, ConnectionId, LaneQueueLength, TransmissionLane,
+};
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
@@ -134,6 +136,9 @@ where
     /// Incoming channel for being notified of closed connections, so that we can close lanes
     /// corresponding to connections. To avoid sending traffic unnecessary
     closed_connection_rx: ClosedConnectionReceiver,
+
+    /// Report queue lengths so that upstream can backoff sending data, and keep connections open.
+    lane_queue_length: LaneQueueLength,
 }
 
 pub(crate) struct RealMessage {
@@ -177,6 +182,7 @@ where
         rng: R,
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
+        lane_queue_length: LaneQueueLength,
         closed_connection_rx: ClosedConnectionReceiver,
     ) -> Self {
         OutQueueControl {
@@ -192,6 +198,7 @@ where
             topology_access,
             transmission_buffer: Default::default(),
             closed_connection_rx,
+            lane_queue_length,
         }
     }
 
@@ -309,6 +316,17 @@ where
         }
     }
 
+    fn pop_next_message(&mut self) -> Option<RealMessage> {
+        // Pop the next message from the transmission buffer
+        let (lane, real_next) = self.transmission_buffer.pop_next_message_at_random()?;
+
+        // Update the published queue length
+        let lane_length = self.transmission_buffer.lane_length(&lane);
+        self.lane_queue_length.set(&lane, lane_length);
+
+        Some(real_next)
+    }
+
     fn poll_poisson(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
         // The average delay could change depending on if backpressure in the downstream channel
         // (mix_tx) was detected.
@@ -359,16 +377,13 @@ where
                     log::trace!("handling real_messages: size: {}", real_messages.len());
 
                     self.transmission_buffer.store(&conn_id, real_messages);
-                    let real_next = self
-                        .transmission_buffer
-                        .pop_next_message_at_random()
-                        .expect("we just added one");
+                    let real_next = self.pop_next_message().expect("Just stored one");
 
                     Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
                 }
 
                 Poll::Pending => {
-                    if let Some(real_next) = self.transmission_buffer.pop_next_message_at_random() {
+                    if let Some(real_next) = self.pop_next_message() {
                         Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
                     } else {
                         // otherwise construct a dummy one
@@ -411,16 +426,13 @@ where
 
                 // First store what we got for the given connection id
                 self.transmission_buffer.store(&conn_id, real_messages);
-                let real_next = self
-                    .transmission_buffer
-                    .pop_next_message_at_random()
-                    .expect("we just added one");
+                let real_next = self.pop_next_message().expect("we just added one");
 
                 Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
             }
 
             Poll::Pending => {
-                if let Some(real_next) = self.transmission_buffer.pop_next_message_at_random() {
+                if let Some(real_next) = self.pop_next_message() {
                     Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
                 } else {
                     Poll::Pending

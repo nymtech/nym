@@ -9,7 +9,7 @@ use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
     server::SphinxSocksServer,
 };
-use client_connections::{ClosedConnectionReceiver, ClosedConnectionSender};
+use client_connections::{ClosedConnectionReceiver, ClosedConnectionSender, LaneQueueLength};
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
     InputMessage, InputMessageReceiver, InputMessageSender,
@@ -120,6 +120,7 @@ impl NymClient {
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
         closed_connection_rx: ClosedConnectionReceiver,
+        lane_queue_length: LaneQueueLength,
         shutdown: ShutdownListener,
     ) {
         let mut controller_config = client_core::client::real_messages_control::Config::new(
@@ -149,6 +150,7 @@ impl NymClient {
             mix_sender,
             topology_accessor,
             reply_key_storage,
+            lane_queue_length,
             closed_connection_rx,
         )
         .start_with_shutdown(shutdown);
@@ -409,6 +411,10 @@ impl NymClient {
         // This will be forwarded to `OutQueueControl`
         let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
 
+        // Shared queue length data. Published by the `OutQueueController` in the client, and used
+        // primarily to throttle incoming connections
+        let shared_lane_queue_length = LaneQueueLength::new();
+
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
             reply_key_storage,
@@ -416,6 +422,7 @@ impl NymClient {
             input_receiver,
             sphinx_message_sender.clone(),
             closed_connection_rx,
+            shared_lane_queue_length.clone(),
             shutdown.subscribe(),
         );
 

@@ -474,10 +474,10 @@ pub fn migrate(
     // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address
     // and vesting contract requiring the mixnet contract address), if we ever want to deploy any new fresh
     // environment, one of the contracts will HAVE TO go through a migration
-    if !msg.vesting_contract_address.is_empty() {
+    if let Some(vesting_contract_address) = msg.vesting_contract_address {
         let mut current_state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
         current_state.vesting_contract_address =
-            deps.api.addr_validate(&msg.vesting_contract_address)?;
+            deps.api.addr_validate(&vesting_contract_address)?;
         mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &current_state)?;
     }
 

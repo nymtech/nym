@@ -66,6 +66,7 @@ export const BondedMixnode = ({
   const navigate = useNavigate();
   const {
     name,
+    mixId,
     stake,
     bond,
     stakeSaturation,
@@ -165,7 +166,7 @@ export const BondedMixnode = ({
         {network && (
           <Typography sx={{ mt: 2, fontSize: 'small' }}>
             Check more stats of your node on the{' '}
-            <Link href={`${urls(network).networkExplorer}/network-components/mixnodes`} target="_blank">
+            <Link href={`${urls(network).networkExplorer}/network-components/mixnode/${mixId}`} target="_blank">
               explorer
             </Link>
           </Typography>

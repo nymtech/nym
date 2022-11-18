@@ -48,6 +48,7 @@ import {
 
 export type TBondedMixnode = {
   name?: string;
+  mixId: number;
   identityKey: string;
   stake: DecCoin;
   bond: DecCoin;
@@ -266,6 +267,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
           const routingScore = await getAvgUptime();
           setBondedNode({
             name: nodeDescription?.name,
+            mixId: mix_id,
             identityKey: bond_information.mix_node.identity_key,
             stake: {
               amount: calculateStake(rewarding_details.operator, rewarding_details.delegates),

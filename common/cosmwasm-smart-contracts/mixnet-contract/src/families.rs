@@ -1,5 +1,6 @@
 use crate::{IdentityKey, IdentityKeyRef};
 use cosmwasm_std::Addr;
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
@@ -8,7 +9,7 @@ use std::collections::HashSet;
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/NodeFamily.ts")
 )]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, JsonSchema)]
 pub struct Family {
     head: FamilyHead,
     proxy: Option<String>,
@@ -21,7 +22,7 @@ pub struct Family {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/NodeFamilyHead.ts")
 )]
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, JsonSchema)]
 pub struct FamilyHead(IdentityKey);
 
 impl FamilyHead {

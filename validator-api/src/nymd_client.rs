@@ -4,6 +4,7 @@
 use crate::config::Config;
 use crate::epoch_operations::MixnodeToReward;
 use config::defaults::{NymNetworkDetails, DEFAULT_VALIDATOR_API_PORT};
+use mixnet_contract_common::families::Family;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::RewardingParams;
 use mixnet_contract_common::{
@@ -188,6 +189,19 @@ impl<C> Client<C> {
             .read()
             .await
             .get_all_nymd_rewarded_set_mixnodes()
+            .await
+    }
+
+    pub(crate) async fn get_all_node_families(
+        &self,
+    ) -> Result<Vec<Family>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        self.0
+            .read()
+            .await
+            .get_all_node_families()
             .await
     }
 

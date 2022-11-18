@@ -36,7 +36,6 @@ impl RewardedSetNodeStatus {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeDetails {
     pub bond_information: MixNodeBond,
-
     pub rewarding_details: MixNodeRewarding,
 }
 

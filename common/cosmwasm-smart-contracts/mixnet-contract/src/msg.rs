@@ -355,7 +355,10 @@ impl ExecuteMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     // families
-    GetAllFamilies {},
+    GetAllFamiliesPaged {
+        limit: Option<u32>,
+        start_after: Option<String>
+    },
     GetFamilyByHead {
         head: String,
         proxy: Option<String>,

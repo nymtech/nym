@@ -5,6 +5,7 @@ use crate::nymd_client::Client;
 use crate::storage::ValidatorApiStorage;
 use ::time::OffsetDateTime;
 use anyhow::Result;
+use mixnet_contract_common::families::Family;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use mixnet_contract_common::{
@@ -141,8 +142,15 @@ impl<C> ValidatorCacheRefresher<C> {
         interval_reward_params: RewardingParams,
         current_interval: Interval,
         rewarded_set: &HashMap<MixId, RewardedSetNodeStatus>,
+        families: &[Family],
     ) -> Vec<MixNodeBondAnnotated> {
         let mut annotated = Vec::new();
+        let mut mix_to_family = HashMap::new();
+        for family in families {
+            for member in family.members() {
+                mix_to_family.insert(member, family.head().clone());
+            }
+        }
         for mixnode in mixnodes {
             let stake_saturation = mixnode
                 .rewarding_details
@@ -174,6 +182,10 @@ impl<C> ValidatorCacheRefresher<C> {
                     current_interval,
                 );
 
+            let family = mix_to_family
+                .get(&mixnode.bond_information.identity().to_string())
+                .cloned();
+
             annotated.push(MixNodeBondAnnotated {
                 mixnode_details: mixnode,
                 stake_saturation,
@@ -181,6 +193,7 @@ impl<C> ValidatorCacheRefresher<C> {
                 performance,
                 estimated_operator_apy,
                 estimated_delegators_apy,
+                family,
             });
         }
         annotated
@@ -226,10 +239,18 @@ impl<C> ValidatorCacheRefresher<C> {
         let mixnodes = self.nymd_client.get_mixnodes().await?;
         let gateways = self.nymd_client.get_gateways().await?;
 
+        let families = self.nymd_client.get_all_node_families().await?;
+
         let rewarded_set = self.get_rewarded_set_map().await;
 
         let mixnodes = self
-            .annotate_node_with_details(mixnodes, rewarding_params, current_interval, &rewarded_set)
+            .annotate_node_with_details(
+                mixnodes,
+                rewarding_params,
+                current_interval,
+                &rewarded_set,
+                &families,
+            )
             .await;
 
         let (rewarded_set, active_set) =

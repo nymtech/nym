@@ -193,6 +193,7 @@ impl RewardedSetUpdater {
 
         let new_rewarded_set =
             self.determine_rewarded_set(all_mixnodes, rewarding_parameters.rewarded_set_size);
+        
         self.nymd_client
             .advance_current_epoch(new_rewarded_set, rewarding_parameters.active_set_size)
             .await?;

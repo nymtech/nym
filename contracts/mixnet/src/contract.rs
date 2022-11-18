@@ -348,9 +348,9 @@ pub fn query(
     msg: QueryMsg,
 ) -> Result<QueryResponse, MixnetContractError> {
     let query_res = match msg {
-        QueryMsg::GetAllFamilies {} => {
-            to_binary(&crate::families::queries::get_all_families(deps.storage))
-        }
+        QueryMsg::GetAllFamiliesPaged { limit, start_after } => to_binary(
+            &crate::families::queries::get_all_families_paged(deps.storage, start_after, limit)?,
+        ),
         QueryMsg::GetFamilyByHead { head, proxy } => to_binary(
             &crate::families::queries::get_family_by_head(&head, proxy, deps.storage)?,
         ),

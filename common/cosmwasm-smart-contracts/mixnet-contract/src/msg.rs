@@ -8,11 +8,12 @@ use crate::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use crate::reward_params::{
     IntervalRewardParams, IntervalRewardingParamsUpdate, Performance, RewardingParams,
 };
-use crate::{delegation, ContractStateParams, MixId, Percent};
+use crate::{delegation, ContractStateParams, Layer, LayerAssignment, MixId, Percent};
 use crate::{Gateway, IdentityKey, MixNode};
 use cosmwasm_std::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
@@ -75,7 +76,7 @@ impl InitialRewardingParams {
 pub enum ExecuteMsg {
     AssignNodeLayer {
         mix_id: MixId,
-        layer: u8,
+        layer: Layer,
     },
     // Families
     /// Only owner of the node can crate the family with node as head
@@ -139,7 +140,8 @@ pub enum ExecuteMsg {
         force_immediately: bool,
     },
     AdvanceCurrentEpoch {
-        new_rewarded_set: Vec<MixId>,
+        new_rewarded_set: Vec<LayerAssignment>,
+        // families_in_layer: HashMap<String, Layer>,
         expected_active_set_size: u32,
     },
     ReconcileEpochEvents {
@@ -240,7 +242,7 @@ impl ExecuteMsg {
     pub fn default_memo(&self) -> String {
         match self {
             ExecuteMsg::AssignNodeLayer { mix_id, layer } => {
-                format!("assigning mix {mix_id} for layer {layer}")
+                format!("assigning mix {} for layer {:?}", mix_id, layer)
             }
             ExecuteMsg::CreateFamily { .. } => "crating node family with".to_string(),
             ExecuteMsg::JoinFamily { family_head, .. } => {
@@ -357,7 +359,7 @@ pub enum QueryMsg {
     // families
     GetAllFamiliesPaged {
         limit: Option<u32>,
-        start_after: Option<String>
+        start_after: Option<String>,
     },
     GetFamilyByHead {
         head: String,

@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
+use crate::families::storage::FAMILY_LAYERS;
 use crate::interval::helpers::change_interval_config;
 use crate::interval::pending_events::ContractExecutableEvent;
 use crate::interval::storage::push_new_interval_event;
+use crate::mixnodes::transactions::update_mixnode_layer;
 use crate::rewards;
 use crate::rewards::storage as rewards_storage;
 use crate::support::helpers::{ensure_is_authorized, ensure_is_owner};
@@ -16,8 +18,8 @@ use mixnet_contract_common::events::{
     new_reconcile_pending_events,
 };
 use mixnet_contract_common::pending_events::PendingIntervalEventKind;
-use mixnet_contract_common::MixId;
-use std::collections::BTreeSet;
+use mixnet_contract_common::{Layer, LayerAssignment, MixId};
+use std::collections::{BTreeSet, HashMap};
 
 // those two should be called in separate tx (from advancing epoch),
 // since there might be a lot of events to execute.
@@ -202,7 +204,8 @@ pub fn try_advance_epoch(
     mut deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
-    new_rewarded_set: Vec<MixId>,
+    layer_assignments: Vec<LayerAssignment>,
+    families_in_layer: HashMap<String, Layer>,
     expected_active_set_size: u32,
 ) -> Result<Response, MixnetContractError> {
     // Only rewarding validator can attempt to advance epoch
@@ -247,11 +250,21 @@ pub fn try_advance_epoch(
     }
 
     let updated_interval = current_interval.advance_epoch();
-    let num_nodes = new_rewarded_set.len();
+    let num_nodes = layer_assignments.len();
+
+    let new_rewarded_set = layer_assignments.iter().map(|l| l.mix_id()).collect();
 
     // finally save updated interval and the rewarded set
     storage::save_interval(deps.storage, &updated_interval)?;
     update_rewarded_set(deps.storage, new_rewarded_set, expected_active_set_size)?;
+
+    for a in layer_assignments {
+        update_mixnode_layer(a.mix_id(), a.layer(), deps.storage)?
+    }
+
+    // for (k, v) in families_in_layer {
+    //     FAMILY_LAYERS.save(deps.storage, k, &v)?;
+    // }
 
     Ok(response.add_event(new_advance_epoch_event(updated_interval, num_nodes as u32)))
 }
@@ -1133,30 +1146,41 @@ mod tests {
     #[cfg(test)]
     mod advancing_epoch {
         use super::*;
+        use crate::mixnodes::queries::query_mixnode_details;
         use crate::rewards::models::RewardPoolChange;
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use cosmwasm_std::testing::mock_info;
-        use cosmwasm_std::{coin, coins, BankMsg, Decimal, Empty, SubMsg};
+        use cosmwasm_std::{coin, coins, BankMsg, Decimal, Empty, SubMsg, Uint128};
         use mixnet_contract_common::events::{
             new_delegation_on_unbonded_node_event, new_rewarding_params_update_event,
         };
         use mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
-        use mixnet_contract_common::RewardedSetNodeStatus;
+        use mixnet_contract_common::{Layer, RewardedSetNodeStatus};
 
         #[test]
         fn can_only_be_performed_by_specified_rewarding_validator() {
             let mut test = TestSetup::new();
+            test.add_dummy_mixnode("1", Some(Uint128::new(100000000)));
+            test.add_dummy_mixnode("2", Some(Uint128::new(100000000)));
+            test.add_dummy_mixnode("3", Some(Uint128::new(100000000)));
             let current_active_set = test.rewarding_params().active_set_size;
             let some_sender = mock_info("foomper", &[]);
 
             test.skip_to_current_epoch_end();
+
+            let layer_assignments = vec![
+                LayerAssignment::new(1, Layer::One),
+                LayerAssignment::new(2, Layer::Two),
+                LayerAssignment::new(3, Layer::Three),
+            ];
 
             let env = test.env();
             let res = try_advance_epoch(
                 test.deps_mut(),
                 env,
                 some_sender,
-                vec![1, 2, 3],
+                layer_assignments.clone(),
+                HashMap::new(),
                 current_active_set,
             );
             assert_eq!(res, Err(MixnetContractError::Unauthorized));
@@ -1168,9 +1192,11 @@ mod tests {
                 test.deps_mut(),
                 env,
                 sender,
-                vec![1, 2, 3],
+                layer_assignments,
+                HashMap::new(),
                 current_active_set,
             );
+            println!("{:?}", res);
             assert!(res.is_ok())
         }
 
@@ -1179,19 +1205,48 @@ mod tests {
             let mut test = TestSetup::new();
             let current_active_set = test.rewarding_params().active_set_size;
 
+            test.add_dummy_mixnode("1", Some(Uint128::new(100000000)));
+            test.add_dummy_mixnode("2", Some(Uint128::new(100000000)));
+            test.add_dummy_mixnode("3", Some(Uint128::new(100000000)));
+
+            let layer_assignments = vec![
+                LayerAssignment::new(1, Layer::One),
+                LayerAssignment::new(2, Layer::Two),
+                LayerAssignment::new(3, Layer::Three),
+            ];
+
             let env = test.env();
             let sender = test.rewarding_validator();
             let res = try_advance_epoch(
                 test.deps_mut(),
                 env,
                 sender.clone(),
-                vec![1, 2, 3],
+                layer_assignments.clone(),
+                HashMap::new(),
                 current_active_set,
             );
             assert!(matches!(
                 res,
                 Err(MixnetContractError::EpochInProgress { .. })
             ));
+
+            let mixnode_1 = query_mixnode_details(test.deps.as_ref(), 1).unwrap();
+            assert_eq!(
+                mixnode_1.mixnode_details.unwrap().bond_information.layer,
+                Layer::One
+            );
+
+            let mixnode_1 = query_mixnode_details(test.deps.as_ref(), 2).unwrap();
+            assert_eq!(
+                mixnode_1.mixnode_details.unwrap().bond_information.layer,
+                Layer::Two
+            );
+
+            let mixnode_1 = query_mixnode_details(test.deps.as_ref(), 3).unwrap();
+            assert_eq!(
+                mixnode_1.mixnode_details.unwrap().bond_information.layer,
+                Layer::Three
+            );
 
             // sanity check
             test.skip_to_current_epoch_end();
@@ -1200,7 +1255,8 @@ mod tests {
                 test.deps_mut(),
                 env,
                 sender,
-                vec![1, 2, 3],
+                layer_assignments,
+                HashMap::new(),
                 current_active_set,
             );
             assert!(res.is_ok())
@@ -1211,9 +1267,19 @@ mod tests {
             let mut test = TestSetup::new();
             let current_active_set = test.rewarding_params().active_set_size;
 
+            test.add_dummy_mixnode("1", Some(Uint128::new(100000000)));
+            test.add_dummy_mixnode("2", Some(Uint128::new(100000000)));
+            test.add_dummy_mixnode("3", Some(Uint128::new(100000000)));
+
             push_n_dummy_epoch_actions(&mut test, 10);
             push_n_dummy_interval_actions(&mut test, 10);
             test.skip_to_current_epoch_end();
+
+            let layer_assignments = vec![
+                LayerAssignment::new(1, Layer::One),
+                LayerAssignment::new(2, Layer::Two),
+                LayerAssignment::new(3, Layer::Three),
+            ];
 
             let env = test.env();
             let sender = test.rewarding_validator();
@@ -1221,7 +1287,8 @@ mod tests {
                 test.deps_mut(),
                 env,
                 sender,
-                vec![1, 2, 3],
+                layer_assignments,
+                HashMap::new(),
                 current_active_set,
             )
             .unwrap();
@@ -1237,9 +1304,19 @@ mod tests {
             let mut test = TestSetup::new();
             let current_active_set = test.rewarding_params().active_set_size;
 
+            test.add_dummy_mixnode("1", Some(Uint128::new(100000000)));
+            test.add_dummy_mixnode("2", Some(Uint128::new(100000000)));
+            test.add_dummy_mixnode("3", Some(Uint128::new(100000000)));
+
             push_n_dummy_epoch_actions(&mut test, 10);
             push_n_dummy_interval_actions(&mut test, 10);
             test.skip_to_current_interval_end();
+
+            let layer_assignments = vec![
+                LayerAssignment::new(1, Layer::One),
+                LayerAssignment::new(2, Layer::Two),
+                LayerAssignment::new(3, Layer::Three),
+            ];
 
             let env = test.env();
             let sender = test.rewarding_validator();
@@ -1247,7 +1324,8 @@ mod tests {
                 test.deps_mut(),
                 env,
                 sender,
-                vec![1, 2, 3],
+                layer_assignments,
+                HashMap::new(),
                 current_active_set,
             )
             .unwrap();
@@ -1263,6 +1341,10 @@ mod tests {
             let mut test = TestSetup::new();
             let env = test.env();
             let current_active_set = test.rewarding_params().active_set_size;
+
+            test.add_dummy_mixnode("1", Some(Uint128::new(100000000)));
+            test.add_dummy_mixnode("2", Some(Uint128::new(100000000)));
+            test.add_dummy_mixnode("3", Some(Uint128::new(100000000)));
 
             let mut expected_events = Vec::new();
             let mut expected_messages: Vec<SubMsg<Empty>> = Vec::new();
@@ -1310,13 +1392,20 @@ mod tests {
 
             test.skip_to_current_interval_end();
 
+            let layer_assignments = vec![
+                LayerAssignment::new(1, Layer::One),
+                LayerAssignment::new(2, Layer::Two),
+                LayerAssignment::new(3, Layer::Three),
+            ];
+
             let env = test.env();
             let sender = test.rewarding_validator();
             let res = try_advance_epoch(
                 test.deps_mut(),
                 env,
                 sender,
-                vec![1, 2, 3],
+                layer_assignments,
+                HashMap::new(),
                 current_active_set,
             )
             .unwrap();
@@ -1343,6 +1432,10 @@ mod tests {
             let mut test = TestSetup::new();
             let current_active_set = test.rewarding_params().active_set_size;
 
+            test.add_dummy_mixnode("1", Some(Uint128::new(100000000)));
+            test.add_dummy_mixnode("2", Some(Uint128::new(100000000)));
+            test.add_dummy_mixnode("3", Some(Uint128::new(100000000)));
+
             let start_params = test.rewarding_params();
 
             let pool_update = Decimal::from_atomics(100_000_000u32, 0).unwrap();
@@ -1357,6 +1450,12 @@ mod tests {
                 )
                 .unwrap();
 
+            let layer_assignments = vec![
+                LayerAssignment::new(1, Layer::One),
+                LayerAssignment::new(2, Layer::Two),
+                LayerAssignment::new(3, Layer::Three),
+            ];
+
             // end of epoch - nothing has happened
             let sender = test.rewarding_validator();
             test.skip_to_current_epoch_end();
@@ -1365,7 +1464,8 @@ mod tests {
                 test.deps_mut(),
                 env,
                 sender,
-                vec![1, 2, 3],
+                layer_assignments.clone(),
+                HashMap::new(),
                 current_active_set,
             )
             .unwrap();
@@ -1384,7 +1484,8 @@ mod tests {
                 test.deps_mut(),
                 env,
                 sender,
-                vec![1, 2, 3],
+                layer_assignments,
+                HashMap::new(),
                 current_active_set,
             )
             .unwrap();
@@ -1413,9 +1514,19 @@ mod tests {
             let mut test = TestSetup::new();
             let current_active_set = test.rewarding_params().active_set_size;
 
+            test.add_dummy_mixnode("1", Some(Uint128::new(100000000)));
+            test.add_dummy_mixnode("2", Some(Uint128::new(100000000)));
+            test.add_dummy_mixnode("3", Some(Uint128::new(100000000)));
+
             let interval_pre = test.current_interval();
             let rewarded_set_pre = test.rewarded_set();
             assert!(rewarded_set_pre.is_empty());
+
+            let layer_assignments = vec![
+                LayerAssignment::new(1, Layer::One),
+                LayerAssignment::new(2, Layer::Two),
+                LayerAssignment::new(3, Layer::Three),
+            ];
 
             let sender = test.rewarding_validator();
             test.skip_to_current_interval_end();
@@ -1424,7 +1535,8 @@ mod tests {
                 test.deps_mut(),
                 env,
                 sender,
-                vec![1, 2, 3],
+                layer_assignments,
+                HashMap::new(),
                 current_active_set,
             )
             .unwrap();

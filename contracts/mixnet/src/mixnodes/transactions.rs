@@ -13,7 +13,7 @@ use crate::support::helpers::{
     ensure_bonded, ensure_is_authorized, ensure_no_existing_bond, ensure_proxy_match,
     validate_node_identity_signature, validate_pledge,
 };
-use cosmwasm_std::{coin, Addr, Coin, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{coin, Addr, Coin, DepsMut, Env, MessageInfo, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_mixnode_bonding_event, new_mixnode_config_update_event,
@@ -24,29 +24,32 @@ use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use mixnet_contract_common::pending_events::{PendingEpochEventKind, PendingIntervalEventKind};
 use mixnet_contract_common::{Layer, MixId, MixNode};
 
+pub(crate) fn update_mixnode_layer(
+    mix_id: MixId,
+    layer: Layer,
+    storage: &mut dyn Storage,
+) -> Result<(), MixnetContractError> {
+    let bond = if let Some(bond_information) = storage::mixnode_bonds().may_load(storage, mix_id)? {
+        bond_information
+    } else {
+        return Err(MixnetContractError::MixNodeBondNotFound { mix_id });
+    };
+    let mut updated_bond = bond.clone();
+    updated_bond.layer = layer;
+
+    storage::mixnode_bonds().replace(storage, bond.mix_id, Some(&updated_bond), Some(&bond))?;
+    Ok(())
+}
+
 pub fn assign_mixnode_layer(
     deps: DepsMut<'_>,
     info: MessageInfo,
     mix_id: MixId,
-    layer: u8,
+    layer: Layer,
 ) -> Result<Response, MixnetContractError> {
     ensure_is_authorized(info.sender, deps.storage)?;
 
-    let bond =
-        if let Some(bond_information) = storage::mixnode_bonds().may_load(deps.storage, mix_id)? {
-            bond_information
-        } else {
-            return Err(MixnetContractError::MixNodeBondNotFound { mix_id });
-        };
-    let mut updated_bond = bond.clone();
-    updated_bond.layer = Layer::try_from(layer)?;
-
-    storage::mixnode_bonds().replace(
-        deps.storage,
-        bond.mix_id,
-        Some(&updated_bond),
-        Some(&bond),
-    )?;
+    update_mixnode_layer(mix_id, layer, deps.storage)?;
 
     Ok(Response::default())
 }

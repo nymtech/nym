@@ -19,11 +19,14 @@ use crate::storage::ValidatorApiStorage;
 use mixnet_contract_common::{
     reward_params::Performance, CurrentIntervalResponse, ExecuteMsg, Interval, MixId,
 };
+use mixnet_contract_common::{Layer, LayerAssignment};
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::time::Duration;
 use tokio::time::sleep;
+use validator_api_requests::models::MixNodeBondAnnotated;
 use validator_client::nymd::SigningNymdClient;
 
 pub(crate) mod error;
@@ -32,7 +35,6 @@ mod helpers;
 use crate::epoch_operations::helpers::stake_to_f64;
 use crate::node_status_api::ONE_DAY;
 use error::RewardingError;
-use mixnet_contract_common::mixnode::MixNodeDetails;
 use task::ShutdownListener;
 
 #[derive(Debug, Clone, Copy)]
@@ -57,6 +59,16 @@ pub struct RewardedSetUpdater {
     storage: ValidatorApiStorage,
 }
 
+// Weight of a layer being chose is reciprocal to current count in layer
+fn layer_weight(l: &Layer, layer_assignments: &HashMap<Layer, f32>) -> f32 {
+    let total = layer_assignments.values().fold(0., |acc, i| acc + i);
+    if total == 0. {
+        1.
+    } else {
+        1. - (layer_assignments.get(l).unwrap_or(&0.) / total)
+    }
+}
+
 impl RewardedSetUpdater {
     pub(crate) async fn current_interval_details(
         &self,
@@ -76,23 +88,62 @@ impl RewardedSetUpdater {
         })
     }
 
+    async fn determine_layers(
+        &self,
+        rewarded_set: &[MixNodeBondAnnotated],
+    ) -> Result<(Vec<LayerAssignment>, HashMap<String, Layer>), RewardingError> {
+        let mut families_in_layer: HashMap<String, Layer> = HashMap::new();
+        let mut assignments = vec![];
+        let mut layer_assignments: HashMap<Layer, f32> = HashMap::new();
+        let mut rng = OsRng;
+        let layers = vec![Layer::One, Layer::Two, Layer::Three];
+
+        for mix in rewarded_set {
+            // Get layer already assigned to nodes family, if any
+            let family_layer = mix
+                .family
+                .as_ref()
+                .and_then(|h| families_in_layer.get(h.identity()));
+
+            // Same node families are always assigned to the same layer, otherwise layer selected by a random weighted choice
+            let layer = if let Some(layer) = family_layer {
+                layer.to_owned()
+            } else {
+                layers
+                    .choose_weighted(&mut rng, |l| layer_weight(l, &layer_assignments))?
+                    .to_owned()
+            };
+
+            assignments.push(LayerAssignment::new(mix.mix_id(), layer));
+
+            // layer accounting
+            let layer_entry = layer_assignments.entry(layer).or_insert(0.);
+            *layer_entry += 1.;
+            if let Some(ref family) = mix.family {
+                families_in_layer.insert(family.identity().to_string(), layer);
+            }
+        }
+
+        Ok((assignments, families_in_layer))
+    }
+
     fn determine_rewarded_set(
         &self,
-        mixnodes: Vec<MixNodeDetails>,
+        mixnodes: &[MixNodeBondAnnotated],
         nodes_to_select: u32,
-    ) -> Vec<MixId> {
+    ) -> Result<Vec<MixNodeBondAnnotated>, RewardingError> {
         if mixnodes.is_empty() {
-            return Vec::new();
+            return Ok(Vec::new());
         }
 
         let mut rng = OsRng;
 
         // generate list of mixnodes and their relatively weight (by total stake)
         let choices = mixnodes
-            .into_iter()
+            .iter()
             .map(|mix| {
-                let total_stake = stake_to_f64(mix.total_stake());
-                (mix.mix_id(), total_stake)
+                let total_stake = stake_to_f64(mix.mixnode_details.total_stake());
+                (mix.to_owned(), total_stake)
             })
             .collect::<Vec<_>>();
 
@@ -101,11 +152,10 @@ impl RewardedSetUpdater {
         // - we have invalid weights, i.e. less than zero or NaNs - it shouldn't happen in our case as we safely cast down from u128
         // - all weights are zero - it's impossible in our case as the list of nodes is not empty and weight is proportional to stake. You must have non-zero stake in order to bond
         // - we have more than u32::MAX values (which is incredibly unrealistic to have 4B mixnodes bonded... literally every other person on the planet would need one)
-        choices
-            .choose_multiple_weighted(&mut rng, nodes_to_select as usize, |item| item.1)
-            .unwrap()
-            .map(|(mix_id, _weight)| *mix_id)
-            .collect()
+        Ok(choices
+            .choose_multiple_weighted(&mut rng, nodes_to_select as usize, |item| item.1)?
+            .map(|(mix, _weight)| mix.to_owned())
+            .collect())
     }
 
     async fn reward_current_rewarded_set(
@@ -186,16 +236,23 @@ impl RewardedSetUpdater {
 
     async fn update_rewarded_set_and_advance_epoch(
         &self,
-        all_mixnodes: Vec<MixNodeDetails>,
+        all_mixnodes: &[MixNodeBondAnnotated],
     ) -> Result<(), RewardingError> {
         // we grab rewarding parameters here as they might have gotten updated when performing epoch actions
         let rewarding_parameters = self.nymd_client.get_current_rewarding_parameters().await?;
 
         let new_rewarded_set =
-            self.determine_rewarded_set(all_mixnodes, rewarding_parameters.rewarded_set_size);
-        
+            self.determine_rewarded_set(all_mixnodes, rewarding_parameters.rewarded_set_size)?;
+
+        let (layer_assignments, families_in_layer) =
+            self.determine_layers(&new_rewarded_set).await?;
+
         self.nymd_client
-            .advance_current_epoch(new_rewarded_set, rewarding_parameters.active_set_size)
+            .advance_current_epoch(
+                layer_assignments,
+                families_in_layer,
+                rewarding_parameters.active_set_size,
+            )
             .await?;
 
         Ok(())
@@ -220,14 +277,10 @@ impl RewardedSetUpdater {
 
         let epoch_end = interval.current_epoch_end();
 
-        let all_nodes = self.validator_cache.mixnodes().await;
-        if all_nodes.is_empty() {
+        let all_mixnodes = self.validator_cache.mixnodes_detailed().await;
+        if all_mixnodes.is_empty() {
             log::warn!("there don't seem to be any mixnodes on the network!")
         }
-
-        // get list of all mixnodes BEFORE rewarding happens as to now be biased by rewards
-        // that might be given to them
-        let all_mixnodes = self.validator_cache.mixnodes().await;
 
         // Reward all the nodes in the still current, soon to be previous rewarded set
         log::info!("Rewarding the current rewarded set...");
@@ -258,7 +311,7 @@ impl RewardedSetUpdater {
 
         log::info!("Advancing epoch and updating the rewarded set...");
         if let Err(err) = self
-            .update_rewarded_set_and_advance_epoch(all_mixnodes)
+            .update_rewarded_set_and_advance_epoch(&all_mixnodes)
             .await
         {
             log::error!("FAILED to advance the current epoch... - {}", err);

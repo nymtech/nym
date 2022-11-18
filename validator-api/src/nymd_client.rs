@@ -8,8 +8,10 @@ use mixnet_contract_common::families::Family;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::RewardingParams;
 use mixnet_contract_common::{
-    CurrentIntervalResponse, ExecuteMsg, GatewayBond, MixId, RewardedSetNodeStatus,
+    CurrentIntervalResponse, ExecuteMsg, GatewayBond, Layer, LayerAssignment, MixId,
+    RewardedSetNodeStatus,
 };
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use validator_client::nymd::traits::{MixnetQueryClient, MixnetSigningClient};
@@ -192,17 +194,11 @@ impl<C> Client<C> {
             .await
     }
 
-    pub(crate) async fn get_all_node_families(
-        &self,
-    ) -> Result<Vec<Family>, ValidatorClientError>
+    pub(crate) async fn get_all_node_families(&self) -> Result<Vec<Family>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync + Send,
     {
-        self.0
-            .read()
-            .await
-            .get_all_node_families()
-            .await
+        self.0.read().await.get_all_node_families().await
     }
 
     pub(crate) async fn send_rewarding_messages(
@@ -251,7 +247,8 @@ impl<C> Client<C> {
 
     pub(crate) async fn advance_current_epoch(
         &self,
-        new_rewarded_set: Vec<MixId>,
+        new_rewarded_set: Vec<LayerAssignment>,
+        families_in_layer: HashMap<String, Layer>,
         expected_active_set_size: u32,
     ) -> Result<(), ValidatorClientError>
     where
@@ -261,7 +258,12 @@ impl<C> Client<C> {
             .write()
             .await
             .nymd
-            .advance_current_epoch(new_rewarded_set, expected_active_set_size, None)
+            .advance_current_epoch(
+                new_rewarded_set,
+                families_in_layer,
+                expected_active_set_size,
+                None,
+            )
             .await?;
         Ok(())
     }

@@ -68,6 +68,8 @@ struct ValidatorCacheInner {
 
     current_reward_params: Cache<Option<RewardingParams>>,
     current_interval: Cache<Option<Interval>>,
+
+    families: Cache<Vec<Family>>,
 }
 
 fn current_unix_timestamp() -> i64 {
@@ -270,6 +272,7 @@ impl<C> ValidatorCacheRefresher<C> {
                 active_set,
                 rewarding_params,
                 current_interval,
+                families,
             )
             .await;
 
@@ -343,6 +346,7 @@ impl ValidatorCache {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn update_cache(
         &self,
         mixnodes: Vec<MixNodeBondAnnotated>,
@@ -351,6 +355,7 @@ impl ValidatorCache {
         active_set: Vec<MixNodeBondAnnotated>,
         rewarding_params: RewardingParams,
         current_interval: Interval,
+        families: Vec<Family>,
     ) {
         match time::timeout(Duration::from_millis(100), self.inner.write()).await {
             Ok(mut cache) => {
@@ -360,6 +365,7 @@ impl ValidatorCache {
                 cache.active_set.update(active_set);
                 cache.current_reward_params.update(Some(rewarding_params));
                 cache.current_interval.update(Some(current_interval));
+                cache.families.update(families)
             }
             Err(e) => {
                 error!("{}", e);
@@ -471,6 +477,17 @@ impl ValidatorCache {
             .into_iter()
             .map(|bond| bond.mixnode_details)
             .collect()
+    }
+
+    #[allow(dead_code)]
+    pub async fn families(&self) -> Vec<Family> {
+        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
+            Ok(cache) => cache.families.clone().into_inner(),
+            Err(e) => {
+                error!("{}", e);
+                Vec::new()
+            }
+        }
     }
 
     pub async fn mixnodes_basic(&self) -> Vec<MixNodeBond> {
@@ -636,6 +653,7 @@ impl ValidatorCacheInner {
             gateways_blacklist: Cache::default(),
             current_interval: Cache::default(),
             current_reward_params: Cache::default(),
+            families: Cache::default(),
         }
     }
 }

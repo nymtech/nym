@@ -1,9 +1,14 @@
 use cosmwasm_std::{StdError, Storage};
-use cw_storage_plus::{Index, IndexList, IndexedMap, UniqueIndex};
+use cw_storage_plus::{Index, IndexList, IndexedMap, Map, UniqueIndex};
 use mixnet_contract_common::families::{family_storage_key, Family, FamilyHead};
+use mixnet_contract_common::Layer;
 use mixnet_contract_common::{error::MixnetContractError, IdentityKeyRef};
 
-use crate::constants::{FAMILIES_INDEX_NAMESPACE, FAMILIES_MAP_NAMESPACE};
+use crate::constants::{
+    FAMILIES_INDEX_NAMESPACE, FAMILIES_LAYERS_NAMESPACE, FAMILIES_MAP_NAMESPACE,
+};
+
+pub const FAMILY_LAYERS: Map<String, Layer> = Map::new(FAMILIES_LAYERS_NAMESPACE);
 
 pub struct FamilyIndex<'a> {
     pub label: UniqueIndex<'a, String, Family>,

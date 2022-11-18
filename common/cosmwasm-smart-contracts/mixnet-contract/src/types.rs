@@ -22,6 +22,27 @@ pub type BlockHeight = u64;
 pub type EpochEventId = u32;
 pub type IntervalEventId = u32;
 
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Serialize, Deserialize, Debug, Clone, JsonSchema, PartialEq)]
+pub struct LayerAssignment {
+    mix_id: MixId,
+    layer: Layer,
+}
+
+impl LayerAssignment {
+    pub fn new(mix_id: MixId, layer: Layer) -> Self {
+        LayerAssignment { mix_id, layer }
+    }
+
+    pub fn mix_id(&self) -> MixId {
+        self.mix_id
+    }
+
+    pub fn layer(&self) -> Layer {
+        self.layer
+    }
+}
+
 #[derive(Debug, Default, Serialize, Deserialize, Copy, Clone, Eq, PartialEq)]
 pub struct LayerDistribution {
     pub layer1: u64,

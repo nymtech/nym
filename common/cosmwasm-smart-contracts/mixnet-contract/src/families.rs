@@ -1,4 +1,4 @@
-use crate::{IdentityKey, IdentityKeyRef};
+use crate::{IdentityKey, IdentityKeyRef, Layer};
 use cosmwasm_std::Addr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -15,6 +15,15 @@ pub struct Family {
     proxy: Option<String>,
     label: String,
     members: HashSet<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, JsonSchema)]
+pub struct FamilyAnnotated {
+    head: FamilyHead,
+    proxy: Option<String>,
+    label: String,
+    members: HashSet<String>,
+    layer: Option<Layer>,
 }
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
@@ -80,6 +89,42 @@ impl Family {
     #[allow(dead_code)]
     pub fn is_member(&self, member: IdentityKeyRef<'_>) -> bool {
         self.members().contains(member)
+    }
+
+    pub fn into_annotated(self, layer: Option<Layer>) -> FamilyAnnotated {
+        FamilyAnnotated {
+            head: self.head,
+            proxy: self.proxy,
+            label: self.label,
+            members: self.members,
+            layer,
+        }
+    }
+}
+
+impl FamilyAnnotated {
+    #[allow(dead_code)]
+    pub fn head(&self) -> &FamilyHead {
+        &self.head
+    }
+
+    pub fn head_identity(&self) -> IdentityKeyRef<'_> {
+        self.head.identity()
+    }
+
+    #[allow(dead_code)]
+    pub fn proxy(&self) -> Option<&String> {
+        self.proxy.as_ref()
+    }
+
+    #[allow(dead_code)]
+    pub fn label(&self) -> &str {
+        &self.label
+    }
+
+    #[allow(dead_code)]
+    pub fn layer(&self) -> Option<&Layer> {
+        self.layer.as_ref()
     }
 }
 

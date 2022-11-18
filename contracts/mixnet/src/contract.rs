@@ -1,6 +1,8 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::collections::HashMap;
+
 use crate::constants::{INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMOUNT};
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
@@ -192,12 +194,14 @@ pub fn execute(
         ),
         ExecuteMsg::AdvanceCurrentEpoch {
             new_rewarded_set,
+            // families_in_layer,
             expected_active_set_size,
         } => crate::interval::transactions::try_advance_epoch(
             deps,
             env,
             info,
             new_rewarded_set,
+            HashMap::new(),
             expected_active_set_size,
         ),
         ExecuteMsg::ReconcileEpochEvents { limit } => {

@@ -75,3 +75,4 @@ pub(crate) const MIXNODES_REWARDING_PK_NAMESPACE: &str = "mnr";
 
 pub(crate) const FAMILIES_INDEX_NAMESPACE: &str = "faml";
 pub(crate) const FAMILIES_MAP_NAMESPACE: &str = "fam";
+pub(crate) const FAMILIES_LAYERS_NAMESPACE: &str = "faly";

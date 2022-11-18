@@ -101,7 +101,7 @@ pub struct MixNodeBondAnnotated {
     pub performance: Performance,
     pub estimated_operator_apy: Decimal,
     pub estimated_delegators_apy: Decimal,
-    pub family: Option<FamilyHead>
+    pub family: Option<FamilyHead>,
 }
 
 impl MixNodeBondAnnotated {

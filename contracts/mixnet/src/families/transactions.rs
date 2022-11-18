@@ -1,3 +1,4 @@
+use crate::mixnodes::transactions::update_mixnode_layer;
 use crate::support::helpers::{
     ensure_bonded, validate_family_signature, validate_node_identity_signature,
 };
@@ -6,7 +7,9 @@ use cosmwasm_std::{Addr, DepsMut, MessageInfo, Response};
 use mixnet_contract_common::families::{Family, FamilyHead};
 use mixnet_contract_common::{error::MixnetContractError, IdentityKey, IdentityKeyRef};
 
-use super::storage::{add_family_member, create_family, get_family, remove_family_member};
+use super::storage::{
+    add_family_member, create_family, get_family, remove_family_member, FAMILY_LAYERS,
+};
 
 /// Creates a new MixNode family with senders node as head
 pub fn try_create_family(
@@ -122,6 +125,14 @@ fn _try_join_family(
     )?;
 
     let mut family = get_family(&family_head, proxy, deps.storage)?;
+
+    let family_layer = FAMILY_LAYERS.may_load(deps.storage, family.storage_key())?;
+
+    if let Some(layer) = family_layer {
+        if layer != existing_bond.layer {
+            update_mixnode_layer(existing_bond.mix_id, layer, deps.storage)?;
+        }
+    }
 
     add_family_member(&mut family, deps.storage, existing_bond.identity())?;
 

@@ -1,14 +1,20 @@
 import React, { createContext, FC, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { getDelegationSummary, undelegateAllFromMixnode } from 'src/requests/delegation';
+import { getDelegationSummary, undelegateAllFromMixnode, undelegateFromMixnode } from 'src/requests/delegation';
 import {
   DelegationWithEverything,
   FeeDetails,
   DecCoin,
   TransactionExecuteResult,
   WrappedDelegationEvent,
+  Fee,
 } from '@nymproject/types';
 import type { Network } from 'src/types';
-import { delegateToMixnode, getAllPendingDelegations, vestingDelegateToMixnode } from 'src/requests';
+import {
+  delegateToMixnode,
+  getAllPendingDelegations,
+  vestingDelegateToMixnode,
+  vestingUndelegateFromMixnode,
+} from 'src/requests';
 import { TPoolOption } from 'src/components';
 import { decCoinToDisplay } from 'src/utils';
 
@@ -25,11 +31,8 @@ export type TDelegationContext = {
     tokenPool: TPoolOption,
     fee?: FeeDetails,
   ) => Promise<TransactionExecuteResult>;
-  undelegate: (
-    mix_id: number,
-    usesVestingContractTokens: boolean,
-    fee?: FeeDetails,
-  ) => Promise<TransactionExecuteResult[]>;
+  undelegate: (mix_id: number, fee?: Fee) => Promise<TransactionExecuteResult>;
+  undelegateVesting: (mix_id: number) => Promise<TransactionExecuteResult>;
 };
 
 export type TDelegationTransaction = {
@@ -51,7 +54,10 @@ export const DelegationContext = createContext<TDelegationContext>({
   addDelegation: async () => {
     throw new Error('Not implemented');
   },
-  undelegate: async () => {
+  undelegate: () => {
+    throw new Error('Not implemented');
+  },
+  undelegateVesting: () => {
     throw new Error('Not implemented');
   },
 });
@@ -135,7 +141,8 @@ export const DelegationContextProvider: FC<{
       totalRewards,
       refresh,
       addDelegation,
-      undelegate: undelegateAllFromMixnode,
+      undelegate: undelegateFromMixnode,
+      undelegateVesting: vestingUndelegateFromMixnode,
     }),
     [isLoading, error, delegations, pendingDelegations, totalDelegations],
   );

@@ -8,7 +8,7 @@ export const PendingDelegationItem = ({ item, explorerUrl }: { item: WrappedDele
     <TableCell>
       <Link
         target="_blank"
-        href={`${explorerUrl}/network-components/mixnode/${item.node_identity}`}
+        href={`${explorerUrl}/network-components/mixnode/${item.event.mix_id}`}
         text={`${item.node_identity.slice(0, 6)}...${item.node_identity.slice(-6)}`}
         color="text.primary"
         noIcon

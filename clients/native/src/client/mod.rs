@@ -30,11 +30,13 @@ use gateway_client::{
     MixnetMessageSender,
 };
 use log::*;
+use network_defaults::NymNetworkDetails;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::receiver::ReconstructedMessage;
 use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
+use validator_client::{Client, CoconutApiClient};
 
 use crate::client::config::{Config, SocketType};
 use crate::error::ClientError;
@@ -200,11 +202,21 @@ impl NymClient {
             .expect("provided gateway id is invalid!");
 
         #[cfg(feature = "coconut")]
-        let bandwidth_controller = BandwidthController::new(
-            credential_storage::initialise_storage(self.config.get_base().get_database_path())
-                .await,
-            self.config.get_base().get_validator_api_endpoints(),
-        );
+        let bandwidth_controller = {
+            let details = NymNetworkDetails::new_from_env();
+            let client_config = validator_client::Config::try_from_nym_network_details(&details)
+                .expect("failed to construct validator client config");
+            let client =
+                Client::new_query(client_config).expect("Could not construct query client");
+            let coconut_api_clients = CoconutApiClient::all_coconut_api_clients(&client)
+                .await
+                .expect("Could not query api clients");
+            BandwidthController::new(
+                credential_storage::initialise_storage(self.config.get_base().get_database_path())
+                    .await,
+                coconut_api_clients,
+            )
+        };
         #[cfg(not(feature = "coconut"))]
         let bandwidth_controller = BandwidthController::new(
             credential_storage::initialise_storage(self.config.get_base().get_database_path())

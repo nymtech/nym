@@ -741,9 +741,12 @@ pub struct CoconutApiClient {
 }
 
 impl CoconutApiClient {
-    pub async fn all_coconut_api_clients(
-        nymd_client: &Client<SigningNymdClient>,
-    ) -> Result<Vec<Self>, ValidatorClientError> {
+    pub async fn all_coconut_api_clients<C>(
+        nymd_client: &Client<C>,
+    ) -> Result<Vec<Self>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
         Ok(nymd_client
             .get_all_nymd_verification_key_shares()
             .await?

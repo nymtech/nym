@@ -138,26 +138,33 @@ async fn obtain_partial_credential(
 pub async fn obtain_aggregate_signature(
     params: &Parameters,
     attributes: &BandwidthVoucher,
-    validators: &[Url],
+    coconut_api_clients: &[CoconutApiClient],
 ) -> Result<Signature, Error> {
-    if validators.is_empty() {
+    if coconut_api_clients.is_empty() {
         return Err(Error::NoValidatorsAvailable);
     }
     let public_attributes = attributes.get_public_attributes();
     let private_attributes = attributes.get_private_attributes();
 
-    let mut shares = Vec::with_capacity(validators.len());
-    let mut validators_partial_vks: Vec<VerificationKey> = Vec::with_capacity(validators.len());
+    let mut shares = Vec::with_capacity(coconut_api_clients.len());
+    let validators_partial_vks: Vec<_> = coconut_api_clients
+        .iter()
+        .map(|api_client| api_client.verification_key.clone())
+        .collect();
+    let indices: Vec<_> = coconut_api_clients
+        .iter()
+        .map(|api_client| api_client.node_id)
+        .collect();
 
-    let mut client = validator_client::ApiClient::new(validators[0].clone());
-    for (id, validator_url) in validators.iter().enumerate() {
-        client.change_validator_api(validator_url.clone());
-        let validator_partial_vk = client.get_coconut_verification_key().await?;
-        validators_partial_vks.push(validator_partial_vk.key.clone());
-        let signature =
-            obtain_partial_credential(params, attributes, &client, &validator_partial_vk.key)
-                .await?;
-        let share = SignatureShare::new(signature, (id + 1) as u64);
+    for coconut_api_client in coconut_api_clients.iter() {
+        let signature = obtain_partial_credential(
+            params,
+            attributes,
+            &coconut_api_client.api_client,
+            &coconut_api_client.verification_key,
+        )
+        .await?;
+        let share = SignatureShare::new(signature, coconut_api_client.node_id);
         shares.push(share)
     }
 
@@ -165,10 +172,6 @@ pub async fn obtain_aggregate_signature(
     attributes.extend_from_slice(&private_attributes);
     attributes.extend_from_slice(&public_attributes);
 
-    let mut indices: Vec<u64> = Vec::with_capacity(validators_partial_vks.len());
-    for i in 0..validators_partial_vks.len() {
-        indices.push((i + 1) as u64);
-    }
     let verification_key =
         aggregate_verification_keys(&validators_partial_vks, Some(indices.as_ref()))?;
 

@@ -186,7 +186,7 @@ where
             .prepare_and_split_message(message, reply_surbs, topology)
             .expect("somehow the topology was invalid after all!");
 
-        log::info!("storing {} reply keys", reply_keys.len());
+        log::trace!("storing {} reply keys", reply_keys.len());
         self.reply_key_storage.insert_multiple(reply_keys);
 
         let mut pending_acks = Vec::with_capacity(fragments.len());

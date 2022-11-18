@@ -13,10 +13,13 @@ pub struct CombinedReplyStorage {
 }
 
 impl CombinedReplyStorage {
-    pub fn new(min_surb_threshold: usize) -> CombinedReplyStorage {
+    pub fn new(min_surb_threshold: usize, max_surb_threshold: usize) -> CombinedReplyStorage {
         CombinedReplyStorage {
             sent_reply_keys: SentReplyKeys::new(),
-            received_reply_surbs: ReceivedReplySurbsMap::new(min_surb_threshold),
+            received_reply_surbs: ReceivedReplySurbsMap::new(
+                min_surb_threshold,
+                max_surb_threshold,
+            ),
         }
     }
 

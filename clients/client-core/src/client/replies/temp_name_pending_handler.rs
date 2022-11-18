@@ -11,7 +11,7 @@ use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::chunking::fragment::Fragment;
 use rand::{CryptoRng, Rng};
-use std::cmp::min;
+use std::cmp::{max, min};
 use std::collections::{HashMap, VecDeque};
 use std::time::Duration;
 use tokio::time::Instant;
@@ -108,6 +108,10 @@ impl PendingReply {
     fn increase_surb_request_counter(&mut self, amount: u32) {
         self.next_surb_request_increment += amount
     }
+
+    fn decrease_surb_request_counter(&mut self, amount: u32) {
+        self.next_surb_request_increment = self.next_surb_request_increment.saturating_sub(amount)
+    }
 }
 
 // the purpose of this task:
@@ -123,6 +127,10 @@ pub struct ToBeNamedPendingReplyController<R> {
     pending_replies: HashMap<AnonymousSenderTag, PendingReply>,
     message_handler: MessageHandler<R>,
     received_reply_surbs: ReceivedReplySurbsMap,
+
+    // TODO: move elsewhere
+    min_surb_request_size: u32,
+    max_surb_request_size: u32,
 }
 
 impl<R> ToBeNamedPendingReplyController<R>
@@ -141,6 +149,10 @@ where
             message_handler,
             received_reply_surbs,
             // surbs_last_received_at: Instant::now(),
+
+            // TODO: HARDCODED!!
+            min_surb_request_size: 10,
+            max_surb_request_size: 250,
         }
     }
 
@@ -159,6 +171,14 @@ where
             .get_mut(recipient)
             .expect("this failure should be impossible")
             .increase_surb_request_counter(amount);
+    }
+
+    fn decrement_surb_request_counter(&mut self, recipient: &AnonymousSenderTag, amount: u32) {
+        // TODO: investigate whether this failure can ever happen
+        self.pending_replies
+            .get_mut(recipient)
+            .expect("this failure should be impossible")
+            .decrease_surb_request_counter(amount);
     }
 
     fn reset_surb_request_counter(&mut self, recipient: &AnonymousSenderTag) {
@@ -212,7 +232,7 @@ where
         } else {
             #[deprecated]
             //remove hardcoded 10
-            let extra_surbs = 10;
+            let extra_surbs = 0;
 
             info!("requesting surbs from send handler");
             self.insert_pending_replies(&recipient_tag, fragments);
@@ -223,17 +243,21 @@ where
                 .set_requesting_more_surbs(&recipient_tag)
                 .expect("error handling");
 
+            // TODO: revisit that dodgy if
             if already_requesting {
                 warn!("we were already requesting surbs, but we shall ignore it");
                 already_requesting = false;
             }
 
             if !already_requesting {
+                let ideal_amount = extra_surbs + required_surbs as u32;
+                let amount = min(
+                    max(ideal_amount, self.min_surb_request_size),
+                    self.max_surb_request_size,
+                );
+
                 if let Err(err) = self
-                    .request_additional_reply_surbs(
-                        recipient_tag,
-                        extra_surbs + required_surbs as u32,
-                    )
+                    .request_additional_reply_surbs(recipient_tag, amount)
                     .await
                 {
                     error!("couldnt request additional surbs - {:?}", err);
@@ -446,7 +470,7 @@ where
             warn!("we haven't received any surbs in {:?}", diff);
 
             // TODO: hardcoded value
-            if diff > Duration::from_secs(20) {
+            if diff > Duration::from_secs(10) {
                 to_request.push(*pending_reply_target);
             }
         }

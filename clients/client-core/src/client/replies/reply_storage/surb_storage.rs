@@ -24,14 +24,21 @@ struct ReceivedReplySurbsMapInner {
 
     // the minimum amount of surbs that have to be kept in storage for requests for more surbs
     min_surb_threshold: AtomicUsize,
+
+    // the maximum amount of surbs that we want to keep in storage so that we don't over-request them
+    max_surb_threshold: AtomicUsize,
 }
 
 impl ReceivedReplySurbsMap {
-    pub(crate) fn new(min_surb_threshold: usize) -> ReceivedReplySurbsMap {
+    pub(crate) fn new(
+        min_surb_threshold: usize,
+        max_surb_threshold: usize,
+    ) -> ReceivedReplySurbsMap {
         ReceivedReplySurbsMap {
             inner: Arc::new(ReceivedReplySurbsMapInner {
                 data: DashMap::new(),
                 min_surb_threshold: AtomicUsize::new(min_surb_threshold),
+                max_surb_threshold: AtomicUsize::new(max_surb_threshold),
             }),
         }
     }
@@ -100,6 +107,10 @@ impl ReceivedReplySurbsMap {
 
     pub(crate) fn min_surb_threshold(&self) -> usize {
         self.inner.min_surb_threshold.load(Ordering::Relaxed)
+    }
+
+    pub(crate) fn max_surb_threshold(&self) -> usize {
+        self.inner.max_surb_threshold.load(Ordering::Relaxed)
     }
 
     pub(crate) fn available_surbs(&self, target: &AnonymousSenderTag) -> usize {

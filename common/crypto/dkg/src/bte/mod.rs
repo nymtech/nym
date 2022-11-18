@@ -39,23 +39,17 @@ pub const SCALAR_SIZE: usize = 32;
 /// In paper B; number of distinct chunks
 pub const CHUNK_SIZE: usize = 1 << (CHUNK_BYTES << 3);
 
-// considers all lambda_t + lambda_h bits
+// considers all lambda_h bits
 pub fn evaluate_f(params: &Params) -> G2Projective {
-    params
-        .fs
-        .iter()
-        .chain(params.fh.iter())
-        .fold(params.f0, |acc, f_i| acc + f_i)
+    params.fh.iter().fold(params.f0, |acc, f_i| acc + f_i)
 }
 
 pub struct Params {
     /// Security parameter of our $H_{\Lamda_H}$ hash function
     pub lambda_h: usize,
 
-    // keeping f0 separate from the rest of the curve points makes it easier to work with tau
     f0: G2Projective,
-    fs: Vec<G2Projective>, // f_1, f_2, .... f_{lambda_t} in the paper
-    fh: Vec<G2Projective>, // f_{lambda_t+1}, f_{lambda_t+1}, .... f_{lambda_t+lambda_h} in the paper
+    fh: Vec<G2Projective>, // f_{lambda_h}, f_{lambda_h+1}, .... f_{lambda_h} in the paper
     h: G2Projective,
 
     /// Precomputed `h` used for the miller loop
@@ -64,8 +58,6 @@ pub struct Params {
 
 pub fn setup() -> Params {
     let f0 = hash_g2(b"f0", SETUP_DOMAIN);
-
-    let fs = vec![hash_g2("f1", SETUP_DOMAIN)];
 
     let fh = (0..HASH_SECURITY_PARAM)
         .map(|i| hash_g2(format!("fh{}", i), SETUP_DOMAIN))
@@ -76,7 +68,6 @@ pub fn setup() -> Params {
     Params {
         lambda_h: HASH_SECURITY_PARAM,
         f0,
-        fs,
         fh,
         h,
         _h_prepared: G2Prepared::from(h.to_affine()),

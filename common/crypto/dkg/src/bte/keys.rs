@@ -26,11 +26,10 @@ pub fn keygen(params: &Params, mut rng: impl RngCore) -> (DecryptionKey, PublicK
     let a = g1 * rho;
     let b = g2 * x + params.f0 * rho;
 
-    let ds = params.fs.iter().map(|f_i| f_i * rho).collect();
     let dh = params.fh.iter().map(|fh_i| fh_i * rho).collect();
     let e = params.h * rho;
 
-    let dk = DecryptionKey::new_root(a, b, ds, dh, e);
+    let dk = DecryptionKey::new_root(a, b, dh, e);
 
     let public_key = PublicKey(y);
     let key_with_proof = PublicKeyWithProof {
@@ -126,11 +125,8 @@ pub struct DecryptionKey {
     // g1^rho
     pub(crate) a: G1Projective,
 
-    // g2^x
+    // g2^x * f0^rho
     pub(crate) b: G2Projective,
-
-    // f_i^rho, up to lambda_t elements
-    pub(crate) ds: Vec<G2Projective>,
 
     // fh_i^rho, always lambda_h elements
     pub(crate) dh: Vec<G2Projective>,
@@ -140,29 +136,19 @@ pub struct DecryptionKey {
 }
 
 impl DecryptionKey {
-    fn new_root(
-        a: G1Projective,
-        b: G2Projective,
-        ds: Vec<G2Projective>,
-        dh: Vec<G2Projective>,
-        e: G2Projective,
-    ) -> Self {
-        DecryptionKey { a, b, ds, dh, e }
+    fn new_root(a: G1Projective, b: G2Projective, dh: Vec<G2Projective>, e: G2Projective) -> Self {
+        DecryptionKey { a, b, dh, e }
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
         let g1_elements = 1;
-        let g2_elements = self.ds.len() + self.dh.len() + 2;
+        let g2_elements = self.dh.len() + 2;
 
         // the extra 8 comes from the triple u32 we use for encoding lengths of ds and dh
         let mut bytes = Vec::with_capacity(g1_elements * 48 + g2_elements * 96 + 8);
 
         bytes.extend_from_slice(self.a.to_bytes().as_ref());
         bytes.extend_from_slice(self.b.to_bytes().as_ref());
-        bytes.extend_from_slice(&((self.ds.len() as u32).to_be_bytes()));
-        for d_i in &self.ds {
-            bytes.extend_from_slice(d_i.to_bytes().as_ref());
-        }
         bytes.extend_from_slice(&((self.dh.len() as u32).to_be_bytes()));
         for dh_i in &self.dh {
             bytes.extend_from_slice(dh_i.to_bytes().as_ref());
@@ -176,10 +162,9 @@ impl DecryptionKey {
         // at the very least we require bytes for:
         // - a ( 48 )
         // - b ( 96 )
-        // - length indication of ds ( 4 )
         // - length indication of dh ( 4 )
         // - e ( 96 )
-        if bytes.len() < 48 + 96 + 4 + 4 + 96 {
+        if bytes.len() < 48 + 96 + 4 + 96 {
             return Err(DkgError::new_deserialization_failure(
                 "Node",
                 "insufficient number of bytes provided",
@@ -196,29 +181,6 @@ impl DecryptionKey {
             DkgError::new_deserialization_failure("Node.b", "invalid curve point")
         })?;
         i += 96;
-
-        let ds_len = u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
-        i += 4;
-
-        if bytes[i..].len() < ds_len * 96 + 4 {
-            return Err(DkgError::new_deserialization_failure(
-                "Node",
-                "insufficient number of bytes provided (ds)",
-            ));
-        }
-
-        let mut ds = Vec::with_capacity(ds_len);
-        for j in 0..ds_len {
-            let d_i = deserialize_g2(&bytes[i..i + 96]).ok_or_else(|| {
-                DkgError::new_deserialization_failure(
-                    format!("Node.ds_{}", j),
-                    "invalid curve point",
-                )
-            })?;
-
-            ds.push(d_i);
-            i += 96;
-        }
 
         let dh_len = u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
         i += 4;
@@ -247,7 +209,7 @@ impl DecryptionKey {
             DkgError::new_deserialization_failure("Node.h", "invalid curve point")
         })?;
 
-        Ok(Self { a, b, ds, dh, e })
+        Ok(Self { a, b, dh, e })
     }
 }
 

@@ -275,9 +275,8 @@ pub fn decrypt_share(
     }
 
     let b_neg = dk
-        .ds
+        .dh
         .iter()
-        .chain(dk.dh.iter())
         .fold(dk.b, |acc, d_i| acc + d_i)
         .neg()
         .to_affine();

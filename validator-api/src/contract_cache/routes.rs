@@ -1,13 +1,19 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::contract_cache::ValidatorCache;
-use mixnet_contract_common::mixnode::MixNodeDetails;
-use mixnet_contract_common::reward_params::RewardingParams;
-use mixnet_contract_common::{GatewayBond, Interval, MixId};
-use rocket::response::Redirect;
-use rocket::serde::json::Json;
-use rocket::State;
+use crate::{
+    contract_cache::ValidatorCache,
+    node_status_api::{
+        helpers::{_get_active_set_detailed, _get_mixnodes_detailed, _get_rewarded_set_detailed},
+        NodeStatusCache,
+    },
+};
+use mixnet_contract_common::{
+    mixnode::MixNodeDetails, reward_params::RewardingParams, GatewayBond, Interval, MixId,
+};
+use validator_api_requests::models::MixNodeBondAnnotated;
+
+use rocket::{serde::json::Json, State};
 use rocket_okapi::openapi;
 use std::collections::HashSet;
 
@@ -17,10 +23,19 @@ pub async fn get_mixnodes(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeDeta
     Json(cache.mixnodes().await)
 }
 
+// DEPRECATED: this endpoint now lives in `node_status_api`. Once all consumers are updated,
+// replace this with
+// ```
+//  pub fn get_mixnodes_detailed() -> Redirect {
+//      Redirect::to(uri!("/v1/status/mixnodes/detailed"))
+//  }
+// ```
 #[openapi(tag = "contract-cache")]
 #[get("/mixnodes/detailed")]
-pub fn get_mixnodes_detailed() -> Redirect {
-    Redirect::to(uri!("/v1/status/mixnodes/detailed"))
+pub async fn get_mixnodes_detailed(
+    cache: &State<NodeStatusCache>,
+) -> Json<Vec<MixNodeBondAnnotated>> {
+    Json(_get_mixnodes_detailed(cache).await)
 }
 
 #[openapi(tag = "contract-cache")]
@@ -35,10 +50,19 @@ pub async fn get_rewarded_set(cache: &State<ValidatorCache>) -> Json<Vec<MixNode
     Json(cache.rewarded_set().await.value)
 }
 
+// DEPRECATED: this endpoint now lives in `node_status_api`. Once all consumers are updated,
+// replace this with
+// ```
+//  pub fn get_mixnodes_set_detailed() -> Redirect {
+//      Redirect::to(uri!("/v1/status/mixnodes/rewarded/detailed"))
+//  }
+// ```
 #[openapi(tag = "contract-cache")]
 #[get("/mixnodes/rewarded/detailed")]
-pub fn get_rewarded_set_detailed() -> Redirect {
-    Redirect::to(uri!("/status/mixnodes/rewarded/detailed"))
+pub async fn get_rewarded_set_detailed(
+    cache: &State<NodeStatusCache>,
+) -> Json<Vec<MixNodeBondAnnotated>> {
+    Json(_get_rewarded_set_detailed(cache).await)
 }
 
 #[openapi(tag = "contract-cache")]
@@ -47,10 +71,19 @@ pub async fn get_active_set(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeDe
     Json(cache.active_set().await.value)
 }
 
+// DEPRECATED: this endpoint now lives in `node_status_api`. Once all consumers are updated,
+// replace this with
+// ```
+//  pub fn get_active_set_detailed() -> Redirect {
+//      Redirect::to(uri!("/status/mixnodes/active/detailed"))
+//  }
+// ```
 #[openapi(tag = "contract-cache")]
 #[get("/mixnodes/active/detailed")]
-pub fn get_active_set_detailed() -> Redirect {
-    Redirect::to(uri!("/status/mixnodes/active/detailed"))
+pub async fn get_active_set_detailed(
+    cache: &State<NodeStatusCache>,
+) -> Json<Vec<MixNodeBondAnnotated>> {
+    Json(_get_active_set_detailed(cache).await)
 }
 
 #[openapi(tag = "contract-cache")]

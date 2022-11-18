@@ -175,7 +175,7 @@ impl NodeStatusCacheRefresher {
     }
 
     async fn refresh_cache(&self) -> Result<(), NodeStatusCacheError> {
-        // log::info!("Updating node status cache");
+        log::info!("Updating node status cache");
         let mixnode_bonds = self.contract_cache.mixnodes().await;
         let params = self
             .contract_cache

@@ -219,11 +219,9 @@ pub fn check_vk_pairing(
 ) -> bool {
     let values_len = dkg_values.len();
     if values_len == 0 || values_len - 1 != vk.beta_g1.len() || values_len - 1 != vk.beta_g2.len() {
-        println!("First");
         return false;
     }
     if vk.alpha != *dkg_values.last().unwrap() {
-        println!("Second");
         return false;
     }
     if dkg_values
@@ -231,7 +229,6 @@ pub fn check_vk_pairing(
         .zip(vk.beta_g2.iter())
         .any(|(dkg_beta, vk_beta)| dkg_beta != vk_beta)
     {
-        println!("Third");
         return false;
     }
     if vk.beta_g1.iter().zip(vk.beta_g2.iter()).any(|(g1, g2)| {
@@ -242,7 +239,6 @@ pub fn check_vk_pairing(
             params.prepared_miller_g2(),
         )
     }) {
-        println!("Fourth");
         return false;
     }
 

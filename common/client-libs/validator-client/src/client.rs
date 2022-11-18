@@ -12,8 +12,7 @@ use mixnet_contract_common::MixId;
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef};
 use std::str::FromStr;
 use validator_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse, VerificationKeyResponse,
-    VerifyCredentialBody, VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_api_requests::models::{
     GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
@@ -660,9 +659,11 @@ impl<C> Client<C> {
                 .nymd
                 .list_proposals(start_after.take(), self.proposals_page_limit)
                 .await?;
+
+            let last_id = paged_response.proposals.last().map(|prop| prop.id);
             proposals.append(&mut paged_response.proposals);
 
-            if let Some(start_after_res) = paged_response.proposals.last().map(|prop| prop.id) {
+            if let Some(start_after_res) = last_id {
                 start_after = Some(start_after_res)
             } else {
                 break;
@@ -723,12 +724,6 @@ impl<C> Client<C> {
         request_body: &BlindSignRequestBody,
     ) -> Result<BlindedSignatureResponse, ValidatorClientError> {
         Ok(self.validator_api.blind_sign(request_body).await?)
-    }
-
-    pub async fn get_coconut_verification_key(
-        &self,
-    ) -> Result<VerificationKeyResponse, ValidatorClientError> {
-        Ok(self.validator_api.get_coconut_verification_key().await?)
     }
 }
 
@@ -878,16 +873,6 @@ impl ApiClient {
             .validator_api
             .partial_bandwidth_credential(request_body)
             .await?)
-    }
-
-    pub async fn get_coconut_verification_key(
-        &self,
-    ) -> Result<VerificationKeyResponse, ValidatorClientError> {
-        Ok(self.validator_api.get_coconut_verification_key().await?)
-    }
-
-    pub async fn get_cosmos_address(&self) -> Result<CosmosAddressResponse, ValidatorClientError> {
-        Ok(self.validator_api.get_cosmos_address().await?)
     }
 
     pub async fn verify_bandwidth_credential(

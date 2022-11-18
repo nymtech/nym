@@ -46,8 +46,6 @@ use coconut::{
 use logging::setup_logging;
 #[cfg(feature = "coconut")]
 use validator_client::nymd::bip32::secp256k1::elliptic_curve::rand_core::OsRng;
-#[cfg(feature = "coconut")]
-use validator_client::CoconutApiClient;
 
 pub(crate) mod config;
 pub(crate) mod contract_cache;
@@ -440,13 +438,11 @@ async fn setup_rocket(
 
     #[cfg(feature = "coconut")]
     let rocket = if config.get_coconut_signer_enabled() {
-        let client = _nymd_client.0.read().await;
-        let coconut_api_clients = CoconutApiClient::all_coconut_api_clients(&client).await?;
         rocket.attach(InternalSignRequest::stage(
             _nymd_client.clone(),
             _mix_denom,
             coconut_keypair,
-            QueryCommunicationChannel::new(coconut_api_clients),
+            QueryCommunicationChannel::new(_nymd_client),
             storage.clone().unwrap(),
         ))
     } else {

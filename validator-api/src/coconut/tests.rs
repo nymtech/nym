@@ -170,6 +170,7 @@ impl super::client::Client for DummyClient {
     async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
+        announce_address: String,
     ) -> Result<ExecuteResult> {
         todo!()
     }

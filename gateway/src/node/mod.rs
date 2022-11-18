@@ -25,7 +25,7 @@ use crate::config::persistence::pathfinder::GatewayPathfinder;
 #[cfg(feature = "coconut")]
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 #[cfg(feature = "coconut")]
-use credentials::coconut::utils::obtain_aggregate_verification_key_new;
+use credentials::coconut::utils::obtain_aggregate_verification_key;
 use validator_client::{Client, CoconutApiClient};
 
 use self::storage::PersistentStorage;
@@ -302,7 +302,7 @@ where
             let api_clients = CoconutApiClient::all_coconut_api_clients(&nymd_client)
                 .await
                 .expect("Could not query all api clients");
-            let validators_verification_key = obtain_aggregate_verification_key_new(&api_clients)
+            let validators_verification_key = obtain_aggregate_verification_key(&api_clients)
                 .await
                 .expect("failed to contact validators to obtain their verification keys");
             CoconutVerifier::new(

@@ -965,7 +965,6 @@ dependencies = [
  "crypto",
  "rand 0.7.3",
  "thiserror",
- "url",
  "validator-api-requests",
  "validator-client",
 ]

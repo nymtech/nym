@@ -21,7 +21,7 @@ use validator_client::CoconutApiClient;
 use {
     coconut_interface::Base58,
     credentials::coconut::{
-        bandwidth::prepare_for_spending, utils::obtain_aggregate_verification_key_new,
+        bandwidth::prepare_for_spending, utils::obtain_aggregate_verification_key,
     },
 };
 
@@ -54,8 +54,7 @@ where
     pub async fn prepare_coconut_credential(
         &self,
     ) -> Result<coconut_interface::Credential, GatewayClientError> {
-        let verification_key =
-            obtain_aggregate_verification_key_new(&self.coconut_api_clients).await?;
+        let verification_key = obtain_aggregate_verification_key(&self.coconut_api_clients).await?;
         let bandwidth_credential = self.storage.get_next_coconut_credential().await?;
         let voucher_value = u64::from_str(&bandwidth_credential.voucher_value)
             .map_err(|_| StorageError::InconsistentData)?;

@@ -8,7 +8,6 @@ use coconut_interface::{
 use crypto::asymmetric::encryption::PublicKey;
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
-use url::Url;
 use validator_api_requests::coconut::BlindSignRequestBody;
 use validator_client::CoconutApiClient;
 
@@ -18,51 +17,7 @@ use crate::coconut::params::{
 };
 use crate::error::Error;
 
-/// Contacts all provided validators and then aggregate their verification keys.
-///
-/// # Arguments
-///
-/// * `validators`: list of validators to obtain verification keys from.
-///
-/// Note: list of validators must be correctly ordered by the polynomial coordinates used
-/// during key generation and it is responsibility of the caller to ensure that correct
-/// number of them is provided
-///
-/// # Examples
-///
-/// ```no_run
-/// use url::{Url, ParseError};
-/// use credentials::obtain_aggregate_verification_key;
-///
-/// async fn example() -> Result<(), ParseError> {
-///     let validators = vec!["https://sandbox-validator1.nymtech.net/api".parse()?, "https://sandbox-validator2.nymtech.net/api".parse()?];
-///     let aggregated_key = obtain_aggregate_verification_key(&validators).await;
-///     // deal with the obtained Result
-///     Ok(())
-/// }
-/// ```
 pub async fn obtain_aggregate_verification_key(
-    validators: &[Url],
-) -> Result<VerificationKey, Error> {
-    if validators.is_empty() {
-        return Err(Error::NoValidatorsAvailable);
-    }
-
-    let mut indices = Vec::with_capacity(validators.len());
-    let mut shares = Vec::with_capacity(validators.len());
-
-    let mut client = validator_client::ApiClient::new(validators[0].clone());
-    for (id, validator_url) in validators.iter().enumerate() {
-        client.change_validator_api(validator_url.clone());
-        let response = client.get_coconut_verification_key().await?;
-        indices.push((id + 1) as u64);
-        shares.push(response.key);
-    }
-
-    Ok(aggregate_verification_keys(&shares, Some(&indices))?)
-}
-
-pub async fn obtain_aggregate_verification_key_new(
     api_clients: &[CoconutApiClient],
 ) -> Result<VerificationKey, Error> {
     if api_clients.is_empty() {

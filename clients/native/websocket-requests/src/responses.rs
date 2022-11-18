@@ -414,7 +414,7 @@ mod tests {
     #[test]
     fn lane_queue_length_response_serialization_works() {
         let lane_queue_length_response = ServerResponse::LaneQueueLength(13, 42);
-        let bytes = self_address_response.serialize();
+        let bytes = lane_queue_length_response.serialize();
         let recovered = ServerResponse::deserialize(&bytes).unwrap();
         match recovered {
             ServerResponse::LaneQueueLength(lane, queue_length) => {

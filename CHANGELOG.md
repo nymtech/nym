@@ -7,6 +7,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 ### Added
 
 - binaries: add `-c` shortform for `--config-env-file`
+- websocket-requests: add server response signalling current packet queue length in the client
 
 ### Changed
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::bte::keys::{DecryptionKey, PublicKey};
-use crate::bte::{Epoch, Params, CHUNK_SIZE, G2_GENERATOR_PREPARED, NUM_CHUNKS, PAIRING_BASE};
+use crate::bte::{evaluate_f, Params, CHUNK_SIZE, G2_GENERATOR_PREPARED, NUM_CHUNKS, PAIRING_BASE};
 use crate::error::DkgError;
 use crate::utils::{combine_g1_chunks, combine_scalar_chunks, deserialize_g1, deserialize_g2};
 use crate::{Chunk, ChunkedShare, Share};
@@ -25,7 +25,6 @@ pub struct Ciphertexts {
 
 impl Ciphertexts {
     pub fn verify_integrity(&self, params: &Params) -> bool {
-        let epoch = Epoch::default();
         // if this checks fails it means the ciphertext is undefined as values
         // in `r`, `s` and `z` are meaningless since technically this ciphertext
         // has been created for 0 parties
@@ -34,9 +33,7 @@ impl Ciphertexts {
         }
 
         let g1_neg = G1Affine::generator().neg();
-        let f = epoch
-            .as_extended_tau(&self.rr, &self.ss, &self.ciphertext_chunks)
-            .evaluate_f(params);
+        let f = evaluate_f(params);
 
         // we have to use `f` in up to `NUM_CHUNKS` pairings (if everything is valid),
         // so perform some precomputation on it
@@ -197,7 +194,6 @@ pub fn encrypt_shares(
     mut rng: impl RngCore,
 ) -> (Ciphertexts, HazmatRandomness) {
     let g1 = G1Projective::generator();
-    let epoch = Epoch::default();
 
     let mut rand_rs = Vec::with_capacity(NUM_CHUNKS);
     let mut rand_ss = Vec::with_capacity(NUM_CHUNKS);
@@ -243,7 +239,7 @@ pub fn encrypt_shares(
     let rr = rr.try_into().unwrap();
     let ss = ss.try_into().unwrap();
 
-    let f = epoch.as_extended_tau(&rr, &ss, &cc).evaluate_f(params);
+    let f = evaluate_f(params);
 
     let mut zz = Vec::with_capacity(NUM_CHUNKS);
     for i in 0..NUM_CHUNKS {
@@ -273,32 +269,20 @@ pub fn decrypt_share(
     lookup_table: Option<&BabyStepGiantStepLookup>,
 ) -> Result<Share, DkgError> {
     let mut plaintext = ChunkedShare::default();
-    let epoch = Epoch::default();
-
-    let decryption_node = &dk.inner;
-    let extended_tau = epoch.as_extended_tau(
-        &ciphertext.rr,
-        &ciphertext.ss,
-        &ciphertext.ciphertext_chunks,
-    );
 
     if i >= ciphertext.ciphertext_chunks.len() {
         return Err(DkgError::UnavailableCiphertext(i));
     }
 
-    let height = decryption_node.tau.height();
-    let b_neg = decryption_node
+    let b_neg = dk
         .ds
         .iter()
-        .chain(decryption_node.dh.iter())
-        .zip(extended_tau.0.iter().by_vals().skip(height))
-        .filter(|(_, i)| *i)
-        .map(|(d_i, _)| d_i)
-        .fold(decryption_node.b, |acc, d_i| acc + d_i)
+        .chain(dk.dh.iter())
+        .fold(dk.b, |acc, d_i| acc + d_i)
         .neg()
         .to_affine();
 
-    let e_neg = decryption_node.e.neg().to_affine();
+    let e_neg = dk.e.neg().to_affine();
 
     for j in 0..NUM_CHUNKS {
         let rr_j = &ciphertext.rr[j];
@@ -309,7 +293,7 @@ pub fn decrypt_share(
         let miller = bls12_381::multi_miller_loop(&[
             (&cc_ij.to_affine(), &G2_GENERATOR_PREPARED),
             (&rr_j.to_affine(), &G2Prepared::from(b_neg)),
-            (&decryption_node.a.to_affine(), &G2Prepared::from(zz_j)),
+            (&dk.a.to_affine(), &G2Prepared::from(zz_j)),
             (&ss_j.to_affine(), &G2Prepared::from(e_neg)),
         ]);
         let m = miller.final_exponentiation();

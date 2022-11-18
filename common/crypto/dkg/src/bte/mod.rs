@@ -1,17 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::error::DkgError;
-use crate::utils::{hash_g2, RandomOracleBuilder};
+use crate::utils::hash_g2;
 use crate::{Chunk, Share};
-use bitvec::field::BitField;
-use bitvec::order::Msb0;
-use bitvec::vec::BitVec;
-use bitvec::view::BitView;
-use bls12_381::{G1Affine, G1Projective, G2Affine, G2Prepared, G2Projective, Gt};
+use bls12_381::{G1Affine, G2Affine, G2Prepared, G2Projective, Gt};
 use group::Curve;
 use lazy_static::lazy_static;
-use zeroize::Zeroize;
 
 pub mod encryption;
 pub mod keys;
@@ -35,10 +29,6 @@ lazy_static! {
 // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-hash-to-curve-11#section-3.1
 const SETUP_DOMAIN: &[u8] = b"NYM_COCONUT_NIDKG_V01_CS01_WITH_BLS12381G2_XMD:SHA-256_SSWU_RO_SETUP";
 
-// this particular domain is not for curve hashing, but might as well also follow the same naming pattern
-const TREE_TAU_EXTENSION_DOMAIN: &[u8] = b"NYM_COCONUT_NIDKG_V01_CS01_SHA-256_TREE_EXTENSION";
-
-const MAX_EPOCHS_EXP: usize = 32;
 const HASH_SECURITY_PARAM: usize = 256;
 
 // note: CHUNK_BYTES * NUM_CHUNKS must equal to SCALAR_SIZE
@@ -49,175 +39,16 @@ pub const SCALAR_SIZE: usize = 32;
 /// In paper B; number of distinct chunks
 pub const CHUNK_SIZE: usize = 1 << (CHUNK_BYTES << 3);
 
-pub(crate) type EpochStore = u32;
-
-#[derive(Clone, Debug, PartialEq, PartialOrd)]
-// None empty bitvec implies this is a root node
-pub(crate) struct Tau(BitVec<EpochStore, Msb0>);
-
-impl Tau {
-    pub fn new_root() -> Self {
-        Tau(BitVec::new())
-    }
-
-    // TODO: perhaps this should be explicitly moved to some test module
-    #[cfg(test)]
-    pub(crate) fn new(epoch: EpochStore) -> Self {
-        Tau(epoch.view_bits().to_bitvec())
-    }
-
-    #[allow(unused)]
-    pub fn left_child(&self) -> Self {
-        let mut child = self.0.clone();
-        child.push(false);
-        Tau(child)
-    }
-
-    pub fn height(&self) -> usize {
-        self.0.len()
-    }
-
-    fn extend(
-        &self,
-        rr: &[G1Projective; NUM_CHUNKS],
-        ss: &[G1Projective; NUM_CHUNKS],
-        cc: &[[G1Projective; NUM_CHUNKS]],
-    ) -> Self {
-        let mut random_oracle_builder = RandomOracleBuilder::new(TREE_TAU_EXTENSION_DOMAIN);
-        random_oracle_builder.update_with_g1_elements(rr.iter());
-        random_oracle_builder.update_with_g1_elements(ss.iter());
-        for ciphertext_chunks in cc {
-            random_oracle_builder.update_with_g1_elements(ciphertext_chunks.iter());
-        }
-
-        let tau_mem = self.0.as_raw_slice();
-        assert_eq!(tau_mem.len(), 1, "tau length invariant was broken");
-        random_oracle_builder.update(tau_mem[0].to_be_bytes());
-
-        let oracle_output = random_oracle_builder.finalize();
-        debug_assert_eq!(oracle_output.len() * 8, HASH_SECURITY_PARAM);
-
-        let mut extended_tau = self.clone();
-        for byte in oracle_output {
-            extended_tau
-                .0
-                .extend_from_bitslice(byte.view_bits::<Msb0>())
-        }
-
-        extended_tau
-    }
-
-    // considers all lambda_t + lambda_h bits
-    fn evaluate_f(&self, params: &Params) -> G2Projective {
-        self.0
-            .iter()
-            .by_vals()
-            .zip(params.fs.iter().chain(params.fh.iter()))
-            .filter(|(i, _)| *i)
-            .map(|(_, f_i)| f_i)
-            .fold(params.f0, |acc, f_i| acc + f_i)
-    }
-
-    pub(crate) fn to_bytes(&self) -> Vec<u8> {
-        let len_bytes = (self.0.len() as u32).to_be_bytes();
-        len_bytes
-            .into_iter()
-            .chain(self.0.chunks(8).map(BitField::load_be))
-            .collect()
-    }
-
-    pub(crate) fn try_from_bytes(b: &[u8]) -> Result<Self, DkgError> {
-        if b.len() < 4 {
-            return Err(DkgError::new_deserialization_failure(
-                "Tau",
-                "insufficient number of bytes provided",
-            ));
-        }
-        let tau_len = u32::from_be_bytes([b[0], b[1], b[2], b[3]]) as usize;
-
-        // maximum theoretical length
-        if tau_len > MAX_EPOCHS_EXP + HASH_SECURITY_PARAM {
-            return Err(DkgError::new_deserialization_failure(
-                "Tau",
-                format!(
-                    "malformed length {} is greater than maximum {}",
-                    tau_len,
-                    MAX_EPOCHS_EXP + HASH_SECURITY_PARAM
-                ),
-            ));
-        }
-
-        if tau_len == 0 {
-            if b.len() != 4 {
-                Err(DkgError::new_deserialization_failure(
-                    "Tau",
-                    "malformed bytes",
-                ))
-            } else {
-                Ok(Tau::new_root())
-            }
-        } else if b.len() == 4 {
-            Err(DkgError::new_deserialization_failure(
-                "Tau",
-                "insufficient number of bytes provided",
-            ))
-        } else {
-            let mut inner = BitVec::repeat(false, tau_len);
-            for (slot, &byte) in inner.chunks_mut(8).zip(b[4..].iter()) {
-                slot.store_be(byte);
-            }
-
-            Ok(Tau(inner))
-        }
-    }
-}
-
-impl Zeroize for Tau {
-    fn zeroize(&mut self) {
-        for v in self.0.as_raw_mut_slice() {
-            v.zeroize()
-        }
-    }
-}
-
-#[derive(Copy, Clone, Debug, Default, PartialEq, Eq, PartialOrd)]
-pub struct Epoch(EpochStore);
-
-impl Epoch {
-    pub fn new(value: EpochStore) -> Self {
-        Epoch(value)
-    }
-
-    pub(crate) fn as_tau(&self) -> Tau {
-        (*self).into()
-    }
-
-    pub(crate) fn as_extended_tau(
-        &self,
-        rr: &[G1Projective; NUM_CHUNKS],
-        ss: &[G1Projective; NUM_CHUNKS],
-        cc: &[[G1Projective; NUM_CHUNKS]],
-    ) -> Tau {
-        self.as_tau().extend(rr, ss, cc)
-    }
-}
-
-impl From<Epoch> for Tau {
-    fn from(epoch: Epoch) -> Self {
-        Tau(epoch.0.view_bits().to_bitvec())
-    }
-}
-
-impl From<EpochStore> for Epoch {
-    fn from(epoch: EpochStore) -> Self {
-        Epoch(epoch)
-    }
+// considers all lambda_t + lambda_h bits
+pub fn evaluate_f(params: &Params) -> G2Projective {
+    params
+        .fs
+        .iter()
+        .chain(params.fh.iter())
+        .fold(params.f0, |acc, f_i| acc + f_i)
 }
 
 pub struct Params {
-    /// Maximum size of an epoch, in bits.
-    pub lambda_t: usize,
-
     /// Security parameter of our $H_{\Lamda_H}$ hash function
     pub lambda_h: usize,
 
@@ -243,98 +74,11 @@ pub fn setup() -> Params {
     let h = hash_g2(b"h", SETUP_DOMAIN);
 
     Params {
-        lambda_t: 1,
         lambda_h: HASH_SECURITY_PARAM,
         f0,
         fs,
         fh,
         h,
         _h_prepared: G2Prepared::from(h.to_affine()),
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use bitvec::bitvec;
-    use bitvec::order::Msb0;
-
-    #[test]
-    fn creating_tau_from_epoch() {
-        assert!(Tau::new_root().0.is_empty());
-
-        let zero = Tau::new(0);
-        assert!(zero.0.iter().by_vals().all(|b| !b));
-
-        let one = Tau::new(1);
-        let mut iter = one.0.iter().by_vals();
-        // first 31 bits are 0, the last one is 1
-        for _ in 0..31 {
-            assert!(!iter.next().unwrap())
-        }
-        assert!(iter.next().unwrap());
-
-        // 101010 in binary
-        let forty_two = Tau::new(42);
-        // first 26 bits are not set
-        let mut iter = forty_two.0.iter().by_vals();
-        for _ in 0..26 {
-            assert!(!iter.next().unwrap())
-        }
-        assert!(iter.next().unwrap());
-        assert!(!iter.next().unwrap());
-        assert!(iter.next().unwrap());
-        assert!(!iter.next().unwrap());
-        assert!(iter.next().unwrap());
-        assert!(!iter.next().unwrap());
-
-        // value that requires an actual u32 (i.e. takes 4 bytes to represent)
-        // 11000100_01000000_01001001_01101011 in binary
-        let big_val = Tau::new(3292547435);
-        let expected = bitvec![u32, Msb0;
-            1, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1,
-            0, 1, 1
-        ];
-        assert_eq!(expected, big_val.0)
-    }
-
-    #[test]
-    fn tau_roundtrip() {
-        let good_taus = vec![
-            Tau::new_root(),
-            Tau::new(0),
-            Tau::new(1),
-            Tau::new(2),
-            Tau::new(42),
-            Tau::new(123456),
-            Tau::new(3292547435),
-            Tau::new(u32::MAX),
-        ];
-
-        for tau in good_taus {
-            let bytes = tau.to_bytes();
-            let recovered = Tau::try_from_bytes(&bytes).unwrap();
-            assert_eq!(tau, recovered);
-        }
-
-        // more valid variants
-        let mut another_tau = Tau::new(u32::MAX);
-        another_tau.0.push(true);
-        another_tau.0.push(false);
-        another_tau.0.push(true);
-
-        let bytes = another_tau.to_bytes();
-        let recovered = Tau::try_from_bytes(&bytes).unwrap();
-        assert_eq!(another_tau, recovered);
-
-        // ensure there are no panics
-        let big_length_bytes = [255, 255, 255, 255, 42];
-        assert!(Tau::try_from_bytes(&big_length_bytes).is_err());
-
-        assert!(Tau::try_from_bytes(&[]).is_err());
-        assert!(Tau::try_from_bytes(&[1, 1, 1, 1]).is_err());
-        assert!(Tau::try_from_bytes(&[0, 0, 0, 1]).is_err());
-        assert!(Tau::try_from_bytes(&[1, 0, 0, 0]).is_err());
-        assert!(Tau::try_from_bytes(&[1, 0, 0]).is_err());
     }
 }

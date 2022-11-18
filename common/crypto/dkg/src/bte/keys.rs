@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::bte::proof_discrete_log::ProofOfDiscreteLog;
-use crate::bte::{Params, Tau};
+use crate::bte::Params;
 use crate::error::DkgError;
 use crate::utils::{deserialize_g1, deserialize_g2, deserialize_scalar};
 use bls12_381::{G1Projective, G2Projective, Scalar};
@@ -10,175 +10,6 @@ use ff::Field;
 use group::GroupEncoding;
 use rand_core::RngCore;
 use zeroize::Zeroize;
-
-#[derive(Debug, Zeroize)]
-#[zeroize(drop)]
-#[cfg_attr(test, derive(Clone, PartialEq))]
-pub(crate) struct Node {
-    pub(crate) tau: Tau,
-
-    // g1^rho
-    pub(crate) a: G1Projective,
-
-    // g2^x
-    pub(crate) b: G2Projective,
-
-    // f_i^rho, up to lambda_t elements
-    pub(crate) ds: Vec<G2Projective>,
-
-    // fh_i^rho, always lambda_h elements
-    pub(crate) dh: Vec<G2Projective>,
-
-    // h^rho
-    pub(crate) e: G2Projective,
-}
-
-impl Node {
-    fn new_root(
-        a: G1Projective,
-        b: G2Projective,
-        ds: Vec<G2Projective>,
-        dh: Vec<G2Projective>,
-        e: G2Projective,
-    ) -> Self {
-        Node {
-            tau: Tau::new_root(),
-            a,
-            b,
-            ds,
-            dh,
-            e,
-        }
-    }
-
-    // tau_bytes_len || tau || a || b || len_ds || ds || len_dh || dh || e
-    pub(crate) fn to_bytes(&self) -> Vec<u8> {
-        let g1_elements = 1;
-        let g2_elements = self.ds.len() + self.dh.len() + 2;
-
-        let tau_bytes = self.tau.to_bytes();
-
-        // the extra 12 comes from the triple u32 we use for encoding lengths of tau, ds and dh
-        let mut bytes =
-            Vec::with_capacity(tau_bytes.len() + g1_elements * 48 + g2_elements * 96 + 12);
-
-        bytes.extend_from_slice(&((tau_bytes.len() as u32).to_be_bytes()));
-        bytes.extend_from_slice(&tau_bytes);
-        bytes.extend_from_slice(self.a.to_bytes().as_ref());
-        bytes.extend_from_slice(self.b.to_bytes().as_ref());
-        bytes.extend_from_slice(&((self.ds.len() as u32).to_be_bytes()));
-        for d_i in &self.ds {
-            bytes.extend_from_slice(d_i.to_bytes().as_ref());
-        }
-        bytes.extend_from_slice(&((self.dh.len() as u32).to_be_bytes()));
-        for dh_i in &self.dh {
-            bytes.extend_from_slice(dh_i.to_bytes().as_ref());
-        }
-        bytes.extend_from_slice(self.e.to_bytes().as_ref());
-
-        bytes
-    }
-
-    pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, DkgError> {
-        // at the very least we require bytes for:
-        // - tau_len ( 4 )
-        // - tau ( could be 0 for root node )
-        // - a ( 48 )
-        // - b ( 96 )
-        // - length indication of ds ( 4 )
-        // - length indication of dh ( 4 )
-        // - e ( 96 )
-        if bytes.len() < 4 + 48 + 96 + 4 + 4 + 96 {
-            return Err(DkgError::new_deserialization_failure(
-                "Node",
-                "insufficient number of bytes provided",
-            ));
-        }
-
-        let tau_len = u32::from_be_bytes((&bytes[..4]).try_into().unwrap()) as usize;
-        let mut i = 4;
-
-        let tau = Tau::try_from_bytes(&bytes[i..i + tau_len])?;
-        i += tau_len;
-
-        // perform another length check to account for bytes consumed by tau
-        if bytes[i..].len() < 48 + 96 + 4 + 4 + 96 {
-            return Err(DkgError::new_deserialization_failure(
-                "Node",
-                "insufficient number of bytes provided",
-            ));
-        }
-
-        let a = deserialize_g1(&bytes[i..i + 48]).ok_or_else(|| {
-            DkgError::new_deserialization_failure("Node.a", "invalid curve point")
-        })?;
-        i += 48;
-
-        let b = deserialize_g2(&bytes[i..i + 96]).ok_or_else(|| {
-            DkgError::new_deserialization_failure("Node.b", "invalid curve point")
-        })?;
-        i += 96;
-
-        let ds_len = u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
-        i += 4;
-
-        if bytes[i..].len() < ds_len * 96 + 4 {
-            return Err(DkgError::new_deserialization_failure(
-                "Node",
-                "insufficient number of bytes provided (ds)",
-            ));
-        }
-
-        let mut ds = Vec::with_capacity(ds_len);
-        for j in 0..ds_len {
-            let d_i = deserialize_g2(&bytes[i..i + 96]).ok_or_else(|| {
-                DkgError::new_deserialization_failure(
-                    format!("Node.ds_{}", j),
-                    "invalid curve point",
-                )
-            })?;
-
-            ds.push(d_i);
-            i += 96;
-        }
-
-        let dh_len = u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
-        i += 4;
-
-        if bytes[i..].len() != (dh_len + 1) * 96 {
-            return Err(DkgError::new_deserialization_failure(
-                "Node",
-                "insufficient number of bytes provided (dh)",
-            ));
-        }
-
-        let mut dh = Vec::with_capacity(dh_len);
-        for j in 0..dh_len {
-            let dh_i = deserialize_g2(&bytes[i..i + 96]).ok_or_else(|| {
-                DkgError::new_deserialization_failure(
-                    format!("Node.dh_{}", j),
-                    "invalid curve point",
-                )
-            })?;
-
-            dh.push(dh_i);
-            i += 96;
-        }
-
-        let e = deserialize_g2(&bytes[i..]).ok_or_else(|| {
-            DkgError::new_deserialization_failure("Node.h", "invalid curve point")
-        })?;
-
-        Ok(Node {
-            tau,
-            a,
-            b,
-            ds,
-            dh,
-            e,
-        })
-    }
-}
 
 // produces public key and a decryption key for the root of the tree
 pub fn keygen(params: &Params, mut rng: impl RngCore) -> (DecryptionKey, PublicKeyWithProof) {
@@ -199,7 +30,7 @@ pub fn keygen(params: &Params, mut rng: impl RngCore) -> (DecryptionKey, PublicK
     let dh = params.fh.iter().map(|fh_i| fh_i * rho).collect();
     let e = params.h * rho;
 
-    let dk = DecryptionKey::new_root(Node::new_root(a, b, ds, dh, e));
+    let dk = DecryptionKey::new_root(a, b, ds, dh, e);
 
     let public_key = PublicKey(y);
     let key_with_proof = PublicKeyWithProof {
@@ -292,22 +123,131 @@ impl PublicKeyWithProof {
 #[zeroize(drop)]
 #[cfg_attr(test, derive(PartialEq))]
 pub struct DecryptionKey {
-    pub(crate) inner: Node,
+    // g1^rho
+    pub(crate) a: G1Projective,
+
+    // g2^x
+    pub(crate) b: G2Projective,
+
+    // f_i^rho, up to lambda_t elements
+    pub(crate) ds: Vec<G2Projective>,
+
+    // fh_i^rho, always lambda_h elements
+    pub(crate) dh: Vec<G2Projective>,
+
+    // h^rho
+    pub(crate) e: G2Projective,
 }
 
 impl DecryptionKey {
-    fn new_root(root_node: Node) -> Self {
-        DecryptionKey { inner: root_node }
+    fn new_root(
+        a: G1Projective,
+        b: G2Projective,
+        ds: Vec<G2Projective>,
+        dh: Vec<G2Projective>,
+        e: G2Projective,
+    ) -> Self {
+        DecryptionKey { a, b, ds, dh, e }
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {
-        self.inner.to_bytes()
+        let g1_elements = 1;
+        let g2_elements = self.ds.len() + self.dh.len() + 2;
+
+        // the extra 8 comes from the triple u32 we use for encoding lengths of ds and dh
+        let mut bytes = Vec::with_capacity(g1_elements * 48 + g2_elements * 96 + 8);
+
+        bytes.extend_from_slice(self.a.to_bytes().as_ref());
+        bytes.extend_from_slice(self.b.to_bytes().as_ref());
+        bytes.extend_from_slice(&((self.ds.len() as u32).to_be_bytes()));
+        for d_i in &self.ds {
+            bytes.extend_from_slice(d_i.to_bytes().as_ref());
+        }
+        bytes.extend_from_slice(&((self.dh.len() as u32).to_be_bytes()));
+        for dh_i in &self.dh {
+            bytes.extend_from_slice(dh_i.to_bytes().as_ref());
+        }
+        bytes.extend_from_slice(self.e.to_bytes().as_ref());
+
+        bytes
     }
 
-    pub fn try_from_bytes(b: &[u8]) -> Result<Self, DkgError> {
-        Ok(Self {
-            inner: Node::try_from_bytes(b)?,
-        })
+    pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, DkgError> {
+        // at the very least we require bytes for:
+        // - a ( 48 )
+        // - b ( 96 )
+        // - length indication of ds ( 4 )
+        // - length indication of dh ( 4 )
+        // - e ( 96 )
+        if bytes.len() < 48 + 96 + 4 + 4 + 96 {
+            return Err(DkgError::new_deserialization_failure(
+                "Node",
+                "insufficient number of bytes provided",
+            ));
+        }
+
+        let mut i = 0;
+        let a = deserialize_g1(&bytes[i..i + 48]).ok_or_else(|| {
+            DkgError::new_deserialization_failure("Node.a", "invalid curve point")
+        })?;
+        i += 48;
+
+        let b = deserialize_g2(&bytes[i..i + 96]).ok_or_else(|| {
+            DkgError::new_deserialization_failure("Node.b", "invalid curve point")
+        })?;
+        i += 96;
+
+        let ds_len = u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+        i += 4;
+
+        if bytes[i..].len() < ds_len * 96 + 4 {
+            return Err(DkgError::new_deserialization_failure(
+                "Node",
+                "insufficient number of bytes provided (ds)",
+            ));
+        }
+
+        let mut ds = Vec::with_capacity(ds_len);
+        for j in 0..ds_len {
+            let d_i = deserialize_g2(&bytes[i..i + 96]).ok_or_else(|| {
+                DkgError::new_deserialization_failure(
+                    format!("Node.ds_{}", j),
+                    "invalid curve point",
+                )
+            })?;
+
+            ds.push(d_i);
+            i += 96;
+        }
+
+        let dh_len = u32::from_be_bytes((&bytes[i..i + 4]).try_into().unwrap()) as usize;
+        i += 4;
+
+        if bytes[i..].len() != (dh_len + 1) * 96 {
+            return Err(DkgError::new_deserialization_failure(
+                "Node",
+                "insufficient number of bytes provided (dh)",
+            ));
+        }
+
+        let mut dh = Vec::with_capacity(dh_len);
+        for j in 0..dh_len {
+            let dh_i = deserialize_g2(&bytes[i..i + 96]).ok_or_else(|| {
+                DkgError::new_deserialization_failure(
+                    format!("Node.dh_{}", j),
+                    "invalid curve point",
+                )
+            })?;
+
+            dh.push(dh_i);
+            i += 96;
+        }
+
+        let e = deserialize_g2(&bytes[i..]).ok_or_else(|| {
+            DkgError::new_deserialization_failure("Node.h", "invalid curve point")
+        })?;
+
+        Ok(Self { a, b, ds, dh, e })
     }
 }
 

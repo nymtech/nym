@@ -10,6 +10,7 @@ use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 use tokio::sync::{Mutex, RwLock};
+use tokio::time::Instant;
 
 #[derive(Debug, Clone)]
 pub struct ReceivedReplySurbsMap {
@@ -58,6 +59,19 @@ impl ReceivedReplySurbsMap {
     // ) -> Option<ReceivedReplySurbs> {
     //     self.data.read().await.get(target).cloned()
     // }
+
+    pub(crate) fn reset_surbs_last_received_at(&self, target: &AnonymousSenderTag) {
+        if let Some(mut entry) = self.inner.data.get_mut(target) {
+            entry.surbs_last_received_at = Instant::now();
+        }
+    }
+
+    pub(crate) fn surbs_last_received_at(&self, target: &AnonymousSenderTag) -> Option<Instant> {
+        self.inner
+            .data
+            .get(target)
+            .map(|e| e.surbs_last_received_at())
+    }
 
     pub(crate) fn requesting_more_surbs(&self, target: &AnonymousSenderTag) -> Option<bool> {
         self.inner
@@ -173,6 +187,7 @@ struct ReceivedReplySurbs {
     // so we could invalidate entries from the previous key rotations
     data: VecDeque<ReplySurb>,
     requesting_more_surbs: bool,
+    surbs_last_received_at: Instant,
 }
 
 impl ReceivedReplySurbs {
@@ -180,7 +195,12 @@ impl ReceivedReplySurbs {
         ReceivedReplySurbs {
             data: initial_surbs,
             requesting_more_surbs: false,
+            surbs_last_received_at: Instant::now(),
         }
+    }
+
+    pub(crate) fn surbs_last_received_at(&self) -> Instant {
+        self.surbs_last_received_at
     }
 
     pub(crate) fn requesting_more_surbs(&self) -> bool {
@@ -222,10 +242,15 @@ impl ReceivedReplySurbs {
     pub(crate) fn insert_reply_surbs<I: IntoIterator<Item = ReplySurb>>(&mut self, surbs: I) {
         let mut v = surbs.into_iter().collect::<VecDeque<_>>();
         println!("storing {} surbs in the storage", v.len());
-        self.data.append(&mut v)
+        self.data.append(&mut v);
+        self.surbs_last_received_at = Instant::now();
+        println!("we now have {} surbs!", self.data.len());
     }
 
     pub(crate) fn insert_reply_surb(&mut self, surb: ReplySurb) {
+        // TODO: be super careful about attempting to reset the instant here
+        // as we frequently (or maybe only) use this method for re-inserting UNUSED, OLD
+        // reply surb
         self.data.push_back(surb)
     }
 }

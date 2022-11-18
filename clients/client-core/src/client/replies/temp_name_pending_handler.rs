@@ -13,8 +13,17 @@ use nymsphinx::chunking::fragment::Fragment;
 use rand::{CryptoRng, Rng};
 use std::cmp::min;
 use std::collections::{HashMap, VecDeque};
+use std::time::Duration;
+use tokio::time::Instant;
 
 // TODO: rename
+
+// TODO: move elsewhere and share with other bits doing surb requests
+#[derive(Debug, Copy, Clone)]
+pub enum SurbRequestError {
+    NotEnoughSurbs,
+    InvalidTopology,
+}
 
 pub fn new_control_channels() -> (ToBeNamedSender, ToBeNamedReceiver) {
     let (tx, rx) = mpsc::unbounded();
@@ -82,6 +91,25 @@ pub enum ToBeNamedMessage {
     },
 }
 
+// TODO: move when cleaning
+struct PendingReply {
+    next_surb_request_increment: u32,
+    data: VecDeque<Fragment>,
+}
+
+impl PendingReply {
+    fn new(data: Vec<Fragment>) -> Self {
+        PendingReply {
+            next_surb_request_increment: 0,
+            data: data.into(),
+        }
+    }
+
+    fn increase_surb_request_counter(&mut self, amount: u32) {
+        self.next_surb_request_increment += amount
+    }
+}
+
 // the purpose of this task:
 // - buffers split messages from input message listener if there were insufficient surbs to send them
 // - upon getting extra surbs, resends them
@@ -92,7 +120,7 @@ pub enum ToBeNamedMessage {
 pub struct ToBeNamedPendingReplyController<R> {
     // expected_reliability: f32,
     request_receiver: ToBeNamedReceiver,
-    pending_replies: HashMap<AnonymousSenderTag, VecDeque<Fragment>>,
+    pending_replies: HashMap<AnonymousSenderTag, PendingReply>,
     message_handler: MessageHandler<R>,
     received_reply_surbs: ReceivedReplySurbsMap,
 }
@@ -112,15 +140,41 @@ where
             pending_replies: Default::default(),
             message_handler,
             received_reply_surbs,
+            // surbs_last_received_at: Instant::now(),
         }
     }
 
     fn insert_pending_replies(&mut self, recipient: &AnonymousSenderTag, fragments: Vec<Fragment>) {
         if let Some(existing) = self.pending_replies.get_mut(recipient) {
-            existing.append(&mut fragments.into())
+            existing.data.append(&mut fragments.into())
         } else {
-            self.pending_replies.insert(*recipient, fragments.into());
+            self.pending_replies
+                .insert(*recipient, PendingReply::new(fragments));
         }
+    }
+
+    fn increment_surb_request_counter(&mut self, recipient: &AnonymousSenderTag, amount: u32) {
+        // TODO: investigate whether this failure can ever happen
+        self.pending_replies
+            .get_mut(recipient)
+            .expect("this failure should be impossible")
+            .increase_surb_request_counter(amount);
+    }
+
+    fn reset_surb_request_counter(&mut self, recipient: &AnonymousSenderTag) {
+        // TODO: investigate whether this failure can ever happen
+        self.pending_replies
+            .get_mut(recipient)
+            .expect("this failure should be impossible")
+            .next_surb_request_increment = 0;
+    }
+
+    fn surb_request_counter(&mut self, recipient: &AnonymousSenderTag) -> u32 {
+        // TODO: investigate whether this failure can ever happen
+        self.pending_replies
+            .get_mut(recipient)
+            .expect("this failure should be impossible")
+            .next_surb_request_increment
     }
 
     async fn handle_send_reply(&mut self, recipient_tag: AnonymousSenderTag, data: Vec<u8>) {
@@ -175,12 +229,17 @@ where
             }
 
             if !already_requesting {
-                self.request_additional_reply_surbs(
-                    recipient_tag,
-                    extra_surbs + required_surbs as u32,
-                )
-                .await;
-                // .expect("this temporary error handling HAS TO go")
+                if let Err(err) = self
+                    .request_additional_reply_surbs(
+                        recipient_tag,
+                        extra_surbs + required_surbs as u32,
+                    )
+                    .await
+                {
+                    error!("couldnt request additional surbs - {:?}", err);
+                    self.increment_surb_request_counter(&recipient_tag, required_surbs as u32)
+                    // if we failed to request surbs, increase value for the next request
+                }
             }
         }
     }
@@ -188,14 +247,19 @@ where
     async fn request_additional_reply_surbs(
         &mut self,
         target: AnonymousSenderTag,
-        amount: u32,
-    ) -> Option<()> {
+        mut amount: u32,
+    ) -> Result<(), SurbRequestError> {
         log::info!("requesting {amount} reply surbs ...");
 
-        let (reply_surb, _) = self
+        let reply_surb = self
             .received_reply_surbs
-            .get_reply_surb_ignoring_threshold(&target)?;
-        let reply_surb = reply_surb?;
+            .get_reply_surb_ignoring_threshold(&target)
+            .and_then(|(reply_surb, _)| reply_surb)
+            .ok_or(SurbRequestError::NotEnoughSurbs)?;
+
+        let counter = self.surb_request_counter(&target);
+        amount += counter;
+        log::info!("incrementing the amount to {amount}");
 
         if let Err(returned_surb) = self
             .message_handler
@@ -206,10 +270,12 @@ where
             // TODO: perhaps there should be some timer here to repeat the request once topology recovers
             self.received_reply_surbs
                 .insert_surb(&target, returned_surb);
+            return Err(SurbRequestError::InvalidTopology);
         }
 
-        // TODO: that's a really terrible return type.
-        Some(())
+        // reset increment to zero
+        self.reset_surb_request_counter(&target);
+        Ok(())
     }
 
     fn pop_at_most_pending_replies(
@@ -218,14 +284,15 @@ where
         amount: usize,
     ) -> Option<VecDeque<Fragment>> {
         // if possible, pop all pending replies, if not, pop only entries for which we'd have a reply surb
-        let total = self.pending_replies.get(from)?.len();
+        let total = self.pending_replies.get(from)?.data.len();
         println!("pending queue has {total} elements");
         if total < amount {
-            self.pending_replies.remove(from)
+            self.pending_replies.remove(from).map(|d| d.data)
         } else {
             Some(
                 self.pending_replies
                     .get_mut(from)?
+                    .data
                     .drain(..amount)
                     .collect(),
             )
@@ -279,6 +346,10 @@ where
     ) {
         println!("handling received surbs");
 
+        // TODO: reset surb timer here ONLY
+        self.received_reply_surbs
+            .reset_surbs_last_received_at(&from);
+
         // clear the requesting flag since we should have been asking for surbs
         if from_surb_request
             && self
@@ -316,13 +387,23 @@ where
         // they have no business in asking for more
         // TODO:
         // 3. construct and send the surbs away
-        if self
-            .message_handler
-            .try_send_normal_message(recipient, Vec::new(), amount)
-            .await
-            .is_none()
-        {
-            warn!("failed to send additional surbs to {}", recipient)
+
+        // TODO: improve this dodgy loop
+        let mut remaining = amount;
+        while remaining > 0 {
+            let to_send = min(remaining, 100);
+            if self
+                .message_handler
+                .try_send_normal_message(recipient, Vec::new(), to_send)
+                .await
+                .is_none()
+            {
+                warn!("failed to send additional surbs to {}", recipient)
+            } else {
+                warn!("sent {to_send} surbs");
+            }
+
+            remaining -= to_send;
         }
     }
 
@@ -345,12 +426,52 @@ where
         }
     }
 
+    async fn inspect_stale_entries(&mut self) {
+        let mut to_request = Vec::new();
+
+        let now = Instant::now();
+        for (pending_reply_target, vals) in &self.pending_replies {
+            if vals.data.is_empty() {
+                error!("WE'RE KEEPING EMPTY ENTRY!!")
+            }
+
+            let last_received = self
+                .received_reply_surbs
+                .surbs_last_received_at(pending_reply_target)
+                .expect("I think this shouldnt fail? to be verified.");
+
+            let diff = now - last_received;
+            warn!("we haven't received any surbs in {:?}", diff);
+            warn!("we haven't received any surbs in {:?}", diff);
+            warn!("we haven't received any surbs in {:?}", diff);
+
+            // TODO: hardcoded value
+            if diff > Duration::from_secs(20) {
+                to_request.push(*pending_reply_target);
+            }
+        }
+
+        for pending_reply_target in to_request {
+            warn!("requesting more surbs...");
+            // TODO: change below
+            self.request_additional_reply_surbs(pending_reply_target, 10)
+                .await;
+        }
+    }
+
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
         debug!("Started ToBeNamedPendingReplyController with graceful shutdown support");
 
+        let polling_rate = Duration::from_secs(5);
+        let mut interval_timer = tokio::time::interval(polling_rate);
+
         while !shutdown.is_shutdown() {
             tokio::select! {
+                biased;
+                _ = shutdown.recv() => {
+                    log::trace!("ToBeNamedPendingReplyController: Received shutdown");
+                },
                 req = self.request_receiver.next() => match req {
                     Some(req) => self.handle_request(req).await,
                     None => {
@@ -358,9 +479,9 @@ where
                         break;
                     }
                 },
-                _ = shutdown.recv() => {
-                    log::trace!("ToBeNamedPendingReplyController: Received shutdown");
-                }
+                _ = interval_timer.tick() => {
+                    self.inspect_stale_entries().await
+                },
             }
         }
         assert!(shutdown.is_shutdown_poll());

@@ -28,7 +28,7 @@ use crate::node::client_handling::websocket::connection_handler::coconut::Coconu
 use credentials::coconut::utils::obtain_aggregate_verification_key_new;
 #[cfg(feature = "coconut")]
 use validator_client::nymd::SigningNymdClient;
-use validator_client::Client;
+use validator_client::{Client, CoconutApiClient};
 
 use self::storage::PersistentStorage;
 
@@ -263,20 +263,6 @@ where
         client
     }
 
-    #[cfg(feature = "coconut")]
-    async fn all_coconut_api_clients(
-        &self,
-        nymd_client: &Client<SigningNymdClient>,
-    ) -> Vec<validator_client::CoconutApiClient> {
-        nymd_client
-            .get_all_nymd_verification_key_shares()
-            .await
-            .expect("Could not query for verification keys")
-            .into_iter()
-            .filter_map(|share| validator_client::CoconutApiClient::try_from(share))
-            .collect()
-    }
-
     // TODO: ask DH whether this function still makes sense in ^0.10
     async fn check_if_same_ip_gateway_exists(&self) -> Option<String> {
         let validator_client = self.random_api_client();
@@ -315,7 +301,9 @@ where
         #[cfg(feature = "coconut")]
         let coconut_verifier = {
             let nymd_client = self.random_nymd_client();
-            let api_clients = self.all_coconut_api_clients(&nymd_client).await;
+            let api_clients = CoconutApiClient::all_coconut_api_clients(&nymd_client)
+                .await
+                .expect("Could not query all api clients");
             let validators_verification_key = obtain_aggregate_verification_key_new(&api_clients)
                 .await
                 .expect("failed to contact validators to obtain their verification keys");

@@ -3,8 +3,8 @@
 
 use crate::coconut::error::Result;
 use coconut_interface::VerificationKey;
-use credentials::obtain_aggregate_verification_key;
-use url::Url;
+use credentials::coconut::utils::obtain_aggregate_verification_key_new;
+use validator_client::CoconutApiClient;
 
 #[async_trait]
 pub trait APICommunicationChannel {
@@ -12,18 +12,20 @@ pub trait APICommunicationChannel {
 }
 
 pub struct QueryCommunicationChannel {
-    validator_apis: Vec<Url>,
+    coconut_api_clients: Vec<CoconutApiClient>,
 }
 
 impl QueryCommunicationChannel {
-    pub fn new(validator_apis: Vec<Url>) -> Self {
-        QueryCommunicationChannel { validator_apis }
+    pub fn new(coconut_api_clients: Vec<CoconutApiClient>) -> Self {
+        QueryCommunicationChannel {
+            coconut_api_clients,
+        }
     }
 }
 
 #[async_trait]
 impl APICommunicationChannel for QueryCommunicationChannel {
     async fn aggregated_verification_key(&self) -> Result<VerificationKey> {
-        Ok(obtain_aggregate_verification_key(&self.validator_apis).await?)
+        Ok(obtain_aggregate_verification_key_new(&self.coconut_api_clients).await?)
     }
 }

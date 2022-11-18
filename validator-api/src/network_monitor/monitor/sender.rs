@@ -90,15 +90,6 @@ struct FreshGatewayClientData {
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<identity::KeyPair>,
     gateway_response_timeout: Duration,
-
-    // I guess in the future this struct will require aggregated verification key and....
-    // ... something for obtaining actual credential
-
-    // TODO:
-    // SECURITY:
-    // for coconut bandwidth credentials we currently have no double spending protection, just to
-    // get things running we're re-using the same credential for all gateways all the time.
-    // THIS IS VERY BAD!!
     bandwidth_controller: BandwidthController<PersistentStorage>,
     disabled_credentials_mode: bool,
 }

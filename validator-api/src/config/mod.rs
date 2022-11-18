@@ -296,11 +296,6 @@ pub struct CoconutSigner {
 
     /// Duration of the interval for polling the dkg contract.
     dkg_contract_polling_rate: Duration,
-
-    /// Specifies list of all validators on the network issuing coconut credentials.
-    /// A special care must be taken to ensure they are in correct order.
-    /// The list must also contain THIS validator that is running the test
-    all_validator_apis: Vec<Url>,
 }
 
 impl CoconutSigner {
@@ -335,7 +330,6 @@ impl Default for CoconutSigner {
             decryption_key_path: CoconutSigner::default_dkg_decryption_key_path(),
             public_key_with_proof_path: CoconutSigner::default_dkg_public_key_with_proof_path(),
             dkg_contract_polling_rate: DEFAULT_DKG_CONTRACT_POLLING_RATE,
-            all_validator_apis: Default::default(),
         }
     }
 }
@@ -401,12 +395,6 @@ impl Config {
 
     pub fn with_mnemonic<S: Into<String>>(mut self, mnemonic: S) -> Self {
         self.base.mnemonic = mnemonic.into();
-        self
-    }
-
-    #[cfg(feature = "coconut")]
-    pub fn with_custom_validator_apis(mut self, validator_api_urls: Vec<Url>) -> Self {
-        self.coconut_signer.all_validator_apis = validator_api_urls;
         self
     }
 
@@ -544,12 +532,6 @@ impl Config {
     #[cfg(feature = "coconut")]
     pub fn get_dkg_contract_polling_rate(&self) -> Duration {
         self.coconut_signer.dkg_contract_polling_rate
-    }
-
-    // fix dead code warnings as this method is only ever used with coconut feature
-    #[cfg(feature = "coconut")]
-    pub fn get_all_validator_api_endpoints(&self) -> Vec<Url> {
-        self.coconut_signer.all_validator_apis.clone()
     }
 
     // TODO: Remove if still unused

@@ -27,6 +27,7 @@ type Params<'a, K, V> = &'a [(K, V)];
 
 const NO_PARAMS: Params<'_, &'_ str, &'_ str> = &[];
 
+#[derive(Clone)]
 pub struct Client {
     url: Url,
     reqwest_client: reqwest::Client,

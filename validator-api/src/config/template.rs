@@ -110,14 +110,5 @@ decryption_key_path = '{{ coconut_signer.decryption_key_path }}'
 # Path to the dkg dealer public key with proof
 public_key_with_proof_path = '{{ coconut_signer.public_key_with_proof_path }}'
 
-# Specifies list of all validators on the network issuing coconut credentials.
-# A special care must be taken to ensure they are in correct order.
-# The list must also contain THIS validator that is running the test
-all_validator_apis = [
-    {{#each coconut_signer.all_validator_apis }}
-        '{{this}}',
-    {{/each}}
-]
-
 "#
 }

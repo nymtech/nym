@@ -16,11 +16,12 @@ use credential_storage::error::StorageError;
 
 #[cfg(feature = "coconut")]
 use std::str::FromStr;
+use validator_client::CoconutApiClient;
 #[cfg(feature = "coconut")]
 use {
     coconut_interface::Base58,
     credentials::coconut::{
-        bandwidth::prepare_for_spending, utils::obtain_aggregate_verification_key,
+        bandwidth::prepare_for_spending, utils::obtain_aggregate_verification_key_new,
     },
 };
 
@@ -29,7 +30,7 @@ pub struct BandwidthController<St: Storage> {
     #[allow(dead_code)]
     storage: St,
     #[cfg(feature = "coconut")]
-    validator_endpoints: Vec<url::Url>,
+    coconut_api_clients: Vec<CoconutApiClient>,
 }
 
 impl<St> BandwidthController<St>
@@ -37,10 +38,10 @@ where
     St: Storage + Clone + 'static,
 {
     #[cfg(feature = "coconut")]
-    pub fn new(storage: St, validator_endpoints: Vec<url::Url>) -> Self {
+    pub fn new(storage: St, coconut_api_clients: Vec<CoconutApiClient>) -> Self {
         BandwidthController {
             storage,
-            validator_endpoints,
+            coconut_api_clients,
         }
     }
 
@@ -53,7 +54,8 @@ where
     pub async fn prepare_coconut_credential(
         &self,
     ) -> Result<coconut_interface::Credential, GatewayClientError> {
-        let verification_key = obtain_aggregate_verification_key(&self.validator_endpoints).await?;
+        let verification_key =
+            obtain_aggregate_verification_key_new(&self.coconut_api_clients).await?;
         let bandwidth_credential = self.storage.get_next_coconut_credential().await?;
         let voucher_value = u64::from_str(&bandwidth_credential.voucher_value)
             .map_err(|_| StorageError::InconsistentData)?;

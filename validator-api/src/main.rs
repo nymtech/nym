@@ -12,8 +12,6 @@ use crate::nymd_client::Client;
 use crate::storage::ValidatorApiStorage;
 use ::config::defaults::mainnet::read_var_if_not_default;
 use ::config::defaults::setup_env;
-#[cfg(feature = "coconut")]
-use ::config::defaults::var_names::API_VALIDATOR;
 use ::config::defaults::var_names::{CONFIGURED, MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
 use ::config::NymConfig;
 use anyhow::Result;
@@ -48,6 +46,8 @@ use coconut::{
 use logging::setup_logging;
 #[cfg(feature = "coconut")]
 use validator_client::nymd::bip32::secp256k1::elliptic_curve::rand_core::OsRng;
+#[cfg(feature = "coconut")]
+use validator_client::CoconutApiClient;
 
 pub(crate) mod config;
 pub(crate) mod contract_cache;
@@ -73,8 +73,6 @@ const ENABLED_CREDENTIALS_MODE_ARG_NAME: &str = "enabled-credentials-mode";
 
 #[cfg(feature = "coconut")]
 const ANNOUNCE_ADDRESS: &str = "announce-address";
-#[cfg(feature = "coconut")]
-const API_VALIDATORS_ARG: &str = "api-validators";
 #[cfg(feature = "coconut")]
 const COCONUT_ENABLED: &str = "enable-coconut";
 
@@ -194,21 +192,15 @@ fn parse_args() -> ArgMatches {
     #[cfg(feature = "coconut")]
     let base_app = base_app
         .arg(
-            Arg::with_name(API_VALIDATORS_ARG)
-                .help("specifies list of all validators on the network issuing coconut credentials. Ensure they are properly ordered")
-                .long(API_VALIDATORS_ARG)
-                .takes_value(true)
-        )
-        .arg(
             Arg::with_name(ANNOUNCE_ADDRESS)
                 .help("Announced address where coconut clients will connect.")
                 .long(ANNOUNCE_ADDRESS)
-                .takes_value(true)
+                .takes_value(true),
         )
         .arg(
             Arg::with_name(COCONUT_ENABLED)
                 .help("Flag to indicate whether coconut signer authority is enabled on this API")
-                .requires_all(&[MNEMONIC_ARG, API_VALIDATORS_ARG, ANNOUNCE_ADDRESS])
+                .requires_all(&[MNEMONIC_ARG, ANNOUNCE_ADDRESS])
                 .long(COCONUT_ENABLED),
         );
     base_app.get_matches()
@@ -274,15 +266,6 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     #[cfg(feature = "coconut")]
     if matches.is_present(COCONUT_ENABLED) {
         config = config.with_coconut_signer_enabled(true)
-    }
-
-    #[cfg(feature = "coconut")]
-    if let Some(raw_validators) = matches.value_of(API_VALIDATORS_ARG) {
-        config = config.with_custom_validator_apis(::config::parse_validators(raw_validators));
-    } else if std::env::var(CONFIGURED).is_ok() {
-        if let Some(raw_validators) = read_var_if_not_default(API_VALIDATOR) {
-            config = config.with_custom_validator_apis(::config::parse_validators(&raw_validators))
-        }
     }
 
     #[cfg(feature = "coconut")]
@@ -388,6 +371,7 @@ fn setup_liftoff_notify(notify: Arc<Notify>) -> AdHoc {
 
 fn setup_network_monitor<'a>(
     config: &'a Config,
+    nymd_client: Client<SigningNymdClient>,
     system_version: &str,
     rocket: &Rocket<Ignite>,
 ) -> Option<NetworkMonitorBuilder<'a>> {
@@ -401,6 +385,7 @@ fn setup_network_monitor<'a>(
 
     Some(NetworkMonitorBuilder::new(
         config,
+        nymd_client,
         system_version,
         node_status_storage,
         validator_cache,
@@ -455,11 +440,13 @@ async fn setup_rocket(
 
     #[cfg(feature = "coconut")]
     let rocket = if config.get_coconut_signer_enabled() {
+        let client = _nymd_client.0.read().await;
+        let coconut_api_clients = CoconutApiClient::all_coconut_api_clients(&client).await?;
         rocket.attach(InternalSignRequest::stage(
-            _nymd_client,
+            _nymd_client.clone(),
             _mix_denom,
             coconut_keypair,
-            QueryCommunicationChannel::new(config.get_all_validator_api_endpoints()),
+            QueryCommunicationChannel::new(coconut_api_clients),
             storage.clone().unwrap(),
         ))
     } else {
@@ -557,7 +544,12 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
         coconut_keypair.clone(),
     )
     .await?;
-    let monitor_builder = setup_network_monitor(&config, system_version, &rocket);
+    let monitor_builder = setup_network_monitor(
+        &config,
+        signing_nymd_client.clone(),
+        system_version,
+        &rocket,
+    );
 
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
     let node_status_cache = rocket.state::<NodeStatusCache>().unwrap().clone();

@@ -732,6 +732,7 @@ impl<C> Client<C> {
     }
 }
 
+#[derive(Clone)]
 pub struct CoconutApiClient {
     pub api_client: ApiClient,
     pub verification_key: VerificationKey,
@@ -740,7 +741,18 @@ pub struct CoconutApiClient {
 }
 
 impl CoconutApiClient {
-    pub fn try_from(share: ContractVKShare) -> Option<Self> {
+    pub async fn all_coconut_api_clients(
+        nymd_client: &Client<SigningNymdClient>,
+    ) -> Result<Vec<Self>, ValidatorClientError> {
+        Ok(nymd_client
+            .get_all_nymd_verification_key_shares()
+            .await?
+            .into_iter()
+            .filter_map(|share| Self::try_from(share))
+            .collect())
+    }
+
+    fn try_from(share: ContractVKShare) -> Option<Self> {
         if share.verified {
             if let Ok(url_address) = Url::parse(&share.announce_address) {
                 if let Ok(verification_key) = VerificationKey::try_from_bs58(&share.share) {
@@ -759,6 +771,7 @@ impl CoconutApiClient {
     }
 }
 
+#[derive(Clone)]
 pub struct ApiClient {
     pub validator_api: validator_api::Client,
     // TODO: perhaps if we really need it at some (currently I don't see any reasons for it)

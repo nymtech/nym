@@ -135,7 +135,7 @@ wasm_bindgen(wasmUrl)
       );
       
       // set a different gatewayListener in order to avoid workaround ws over https error
-      if (!config.gatewayListener)
+      if (config.gatewayListener)
             gatewayEndpoint.gateway_listener  = config.gatewayListener;
       
       // create the client, passing handlers for events

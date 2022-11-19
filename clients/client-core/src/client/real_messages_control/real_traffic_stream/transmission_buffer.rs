@@ -201,7 +201,6 @@ impl LaneBufferEntry {
             > Duration::from_secs(MSG_CONSIDERED_STALE_AFTER_SECS)
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     fn len(&self) -> usize {
         self.real_messages.len()
     }

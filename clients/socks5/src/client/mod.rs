@@ -413,7 +413,7 @@ impl NymClient {
 
         // Shared queue length data. Published by the `OutQueueController` in the client, and used
         // primarily to throttle incoming connections
-        let shared_lane_queue_length = LaneQueueLengths::new();
+        let shared_lane_queue_lengths = LaneQueueLengths::new();
 
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
@@ -422,7 +422,7 @@ impl NymClient {
             input_receiver,
             sphinx_message_sender.clone(),
             closed_connection_rx,
-            shared_lane_queue_length.clone(),
+            shared_lane_queue_lengths,
             shutdown.subscribe(),
         );
 

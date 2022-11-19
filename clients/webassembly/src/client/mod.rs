@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::config::Config;
-use client_connections::{ClosedConnectionReceiver, TransmissionLane};
+use client_connections::{ClosedConnectionReceiver, TransmissionLane, LaneQueueLengths};
 use client_core::client::{
     cover_traffic_stream::LoopCoverTrafficStream,
     inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender},
@@ -129,6 +129,7 @@ impl NymClient {
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
         closed_connection_rx: ClosedConnectionReceiver,
+        lane_queue_lengths: LaneQueueLengths,
     ) {
         let mut controller_config = real_messages_control::Config::new(
             self.key_manager.ack_key(),
@@ -153,6 +154,7 @@ impl NymClient {
             input_receiver,
             mix_sender,
             topology_accessor,
+            lane_queue_lengths,
             closed_connection_rx,
         )
         .start();
@@ -353,12 +355,17 @@ impl NymClient {
         // The MixTrafficController then sends the actual traffic
         let sphinx_message_sender = Self::start_mix_traffic_controller(gateway_client);
 
+        // Shared queue length data. Published by the `OutQueueController` in the client, and used
+        // primarily to throttle incoming connections
+        let shared_lane_queue_lengths = LaneQueueLengths::new();
+
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
             closed_connection_rx,
+            shared_lane_queue_lengths.clone(),
         );
 
         if !self.config.debug.disable_loop_cover_traffic_stream {

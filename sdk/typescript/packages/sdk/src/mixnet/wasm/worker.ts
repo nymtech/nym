@@ -133,7 +133,11 @@ wasm_bindgen(wasmUrl)
         config.validatorApiUrl,
         config.preferredGatewayIdentityKey,
       );
-
+      
+      // set a different gatewayListener in order to avoid workaround ws over https error
+      if (!config.gatewayListener)
+            gatewayEndpoint.gateway_listener  = config.gatewayListener;
+      
       // create the client, passing handlers for events
       wrapper.init(
         new wasm_bindgen.Config(

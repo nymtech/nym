@@ -106,6 +106,7 @@ where
 // obviously when we finally make shared rng that is on 'higher' level, this should become
 // generic `R`
 impl RealMessagesController<OsRng> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         config: Config,
         ack_receiver: AcknowledgementReceiver,

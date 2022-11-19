@@ -4,7 +4,7 @@ use super::authentication::{AuthenticationMethods, Authenticator, User};
 use super::request::{SocksCommand, SocksRequest};
 use super::types::{ResponseCode, SocksProxyError};
 use super::{RESERVED, SOCKS_VERSION};
-use client_connections::{LaneQueueLength, TransmissionLane};
+use client_connections::{LaneQueueLengths, TransmissionLane};
 use client_core::client::inbound_messages::{InputMessage, InputMessageSender};
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
@@ -142,7 +142,7 @@ pub(crate) struct SocksClient {
     service_provider: Recipient,
     self_address: Recipient,
     started_proxy: bool,
-    lane_queue_length: LaneQueueLength,
+    lane_queue_lengths: LaneQueueLengths,
     shutdown_listener: ShutdownListener,
     active_connections: Arc<std::sync::Mutex<u64>>,
 }
@@ -168,7 +168,7 @@ impl SocksClient {
         service_provider: Recipient,
         controller_sender: ControllerSender,
         self_address: Recipient,
-        lane_queue_length: LaneQueueLength,
+        lane_queue_lengths: LaneQueueLengths,
         shutdown_listener: ShutdownListener,
         active_connections: Arc<std::sync::Mutex<u64>>,
     ) -> Self {
@@ -190,7 +190,7 @@ impl SocksClient {
             service_provider,
             self_address,
             started_proxy: false,
-            lane_queue_length,
+            lane_queue_lengths,
             shutdown_listener,
             active_connections,
         }
@@ -273,7 +273,7 @@ impl SocksClient {
             conn_receiver,
             input_sender,
             connection_id,
-            self.lane_queue_length.clone(),
+            self.lane_queue_lengths.clone(),
             self.shutdown_listener.clone(),
         )
         .run(move |conn_id, read_data, socket_closed| {
@@ -300,9 +300,11 @@ impl SocksClient {
         let request = SocksRequest::from_stream(&mut self.stream).await?;
         let remote_address = request.to_string();
 
-
         if active_connections > 50 {
-            log::warn!("Refusing SOCKS5: too many connections: {}", active_connections);
+            log::warn!(
+                "Refusing SOCKS5: too many connections: {}",
+                active_connections
+            );
             self.refuse_connection_socks5().await;
             return Ok(());
         }

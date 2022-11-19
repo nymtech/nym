@@ -1,7 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_connections::LaneQueueLength;
+use client_connections::LaneQueueLengths;
 use futures::channel::mpsc;
 use nymsphinx::addressing::clients::Recipient;
 use proxy_helpers::connection_controller::ConnectionReceiver;
@@ -42,7 +42,7 @@ impl Connection {
         &mut self,
         mix_receiver: ConnectionReceiver,
         mix_sender: mpsc::UnboundedSender<(Socks5Message, Recipient)>,
-        lane_queue_length: LaneQueueLength,
+        lane_queue_lengths: LaneQueueLengths,
         shutdown: ShutdownListener,
     ) {
         let stream = self.conn.take().unwrap();
@@ -56,7 +56,7 @@ impl Connection {
             mix_receiver,
             mix_sender,
             connection_id,
-            lane_queue_length,
+            lane_queue_lengths,
             shutdown,
         )
         .run(move |conn_id, read_data, socket_closed| {

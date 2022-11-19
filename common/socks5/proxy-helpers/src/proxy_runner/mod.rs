@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::connection_controller::ConnectionReceiver;
-use client_connections::LaneQueueLength;
+use client_connections::LaneQueueLengths;
 use futures::channel::mpsc;
 use socks5_requests::ConnectionId;
 use std::{sync::Arc, time::Duration};
@@ -46,7 +46,7 @@ pub struct ProxyRunner<S> {
     local_destination_address: String,
     remote_source_address: String,
     connection_id: ConnectionId,
-    lane_queue_length: LaneQueueLength,
+    lane_queue_lengths: LaneQueueLengths,
 
     // Listens to shutdown commands from higher up
     shutdown_listener: ShutdownListener,
@@ -63,7 +63,7 @@ where
         mix_receiver: ConnectionReceiver,
         mix_sender: MixProxySender<S>,
         connection_id: ConnectionId,
-        lane_queue_length: LaneQueueLength,
+        lane_queue_lengths: LaneQueueLengths,
         shutdown_listener: ShutdownListener,
     ) -> Self {
         ProxyRunner {
@@ -73,7 +73,7 @@ where
             local_destination_address,
             remote_source_address,
             connection_id,
-            lane_queue_length,
+            lane_queue_lengths,
             shutdown_listener,
         }
     }
@@ -96,7 +96,7 @@ where
             self.mix_sender.clone(),
             adapter_fn,
             Arc::clone(&shutdown_notify),
-            self.lane_queue_length.clone(),
+            self.lane_queue_lengths.clone(),
             self.shutdown_listener.clone(),
         );
 

@@ -5,7 +5,7 @@ use super::MixProxySender;
 use super::SHUTDOWN_TIMEOUT;
 use crate::available_reader::AvailableReader;
 use bytes::Bytes;
-use client_connections::LaneQueueLength;
+use client_connections::LaneQueueLengths;
 use client_connections::TransmissionLane;
 use futures::FutureExt;
 use futures::StreamExt;
@@ -40,7 +40,7 @@ async fn deal_with_data<F, S>(
     message_sender: &mut OrderedMessageSender,
     mix_sender: &MixProxySender<S>,
     adapter_fn: F,
-    lane_queue_length: LaneQueueLength,
+    lane_queue_lengths: LaneQueueLengths,
 ) -> bool
 where
     F: Fn(ConnectionId, Vec<u8>, bool) -> S,
@@ -77,7 +77,7 @@ where
     //loop {
     {
         let (queue_length, est_busy_conn) = {
-            let mut guard = lane_queue_length.lock().unwrap();
+            let mut guard = lane_queue_lengths.lock().unwrap();
             //let queue_length = *guard.get(&lane).unwrap_or(&0);
             //let queue_length = *guard.entry(lane).or_insert(0);
             let queue_length = guard.get(&lane).unwrap_or(0);
@@ -156,7 +156,7 @@ pub(super) async fn run_inbound<F, S>(
     mix_sender: MixProxySender<S>,
     adapter_fn: F,
     shutdown_notify: Arc<Notify>,
-    lane_queue_length: LaneQueueLength,
+    lane_queue_lengths: LaneQueueLengths,
     mut shutdown_listener: ShutdownListener,
 ) -> OwnedReadHalf
 where
@@ -179,7 +179,7 @@ where
                     &mut message_sender,
                     &mix_sender,
                     &adapter_fn,
-                    lane_queue_length.clone()
+                    lane_queue_lengths.clone()
                 ).await {
                     break
                 }

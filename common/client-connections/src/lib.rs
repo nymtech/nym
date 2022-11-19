@@ -80,7 +80,7 @@ impl std::ops::Deref for LaneQueueLengths {
 
 #[derive(Debug)]
 pub struct LaneQueueLengthsInner {
-    map: HashMap<TransmissionLane, usize>,
+    pub map: HashMap<TransmissionLane, usize>,
 }
 
 impl LaneQueueLengthsInner {

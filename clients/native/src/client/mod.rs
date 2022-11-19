@@ -287,7 +287,7 @@ impl NymClient {
         &self,
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
-        lane_queue_length: LaneQueueLength,
+        lane_queue_lengths: LaneQueueLengths,
         closed_connection_tx: ClosedConnectionSender,
     ) {
         info!("Starting websocket listener...");
@@ -297,7 +297,7 @@ impl NymClient {
             closed_connection_tx,
             buffer_requester,
             &self.as_mix_recipient(),
-            lane_queue_length,
+            lane_queue_lengths,
         );
 
         websocket::Listener::new(self.config.get_listening_port()).start(websocket_handler);
@@ -425,7 +425,7 @@ impl NymClient {
 
         // Shared queue length data. Published by the `OutQueueController` in the client, and used
         // primarily to throttle incoming connections (e.g socks5 for attached network-requesters)
-        let shared_lane_queue_length = LaneQueueLengths::new();
+        let shared_lane_queue_lengths = LaneQueueLengths::new();
 
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
@@ -433,7 +433,7 @@ impl NymClient {
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
-            shared_lane_queue_length.clone(),
+            shared_lane_queue_lengths.clone(),
             closed_connection_rx,
             shutdown.subscribe(),
         );
@@ -454,7 +454,7 @@ impl NymClient {
             SocketType::WebSocket => self.start_websocket_listener(
                 received_buffer_request_sender,
                 input_sender,
-                shared_lane_queue_length,
+                shared_lane_queue_lengths,
                 closed_connection_tx,
             ),
             SocketType::None => {

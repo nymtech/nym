@@ -285,7 +285,7 @@ where
     fn on_close_connection(&mut self, connection_id: ConnectionId) {
         //log::debug!("Removing lane for connection: {connection_id}");
         //self.transmission_buffer
-            //.remove(&TransmissionLane::ConnectionId(connection_id));
+        //.remove(&TransmissionLane::ConnectionId(connection_id));
     }
 
     fn current_average_message_sending_delay(&self) -> Duration {

@@ -286,7 +286,7 @@ impl NymClient {
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
         closed_connection_tx: ClosedConnectionSender,
-        lane_queue_length: LaneQueueLength,
+        lane_queue_lengths: LaneQueueLengths,
         shutdown: ShutdownListener,
     ) {
         info!("Starting socks5 listener...");
@@ -299,7 +299,7 @@ impl NymClient {
             authenticator,
             self.config.get_provider_mix_address(),
             self.as_mix_recipient(),
-            lane_queue_length,
+            lane_queue_lengths,
             shutdown,
         );
         tokio::spawn(async move {
@@ -415,7 +415,7 @@ impl NymClient {
 
         // Shared queue length data. Published by the `OutQueueController` in the client, and used
         // primarily to throttle incoming connections
-        let shared_lane_queue_length = LaneQueueLengths::new();
+        let shared_lane_queue_lengths = LaneQueueLengths::new();
 
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
@@ -424,7 +424,7 @@ impl NymClient {
             input_receiver,
             sphinx_message_sender.clone(),
             closed_connection_rx,
-            shared_lane_queue_length.clone(),
+            shared_lane_queue_lengths.clone(),
             shutdown.subscribe(),
         );
 
@@ -444,7 +444,7 @@ impl NymClient {
             received_buffer_request_sender,
             input_sender,
             closed_connection_tx,
-            shared_lane_queue_length,
+            shared_lane_queue_lengths,
             shutdown.subscribe(),
         );
 

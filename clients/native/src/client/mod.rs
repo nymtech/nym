@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use client_connections::{
-    ClosedConnectionReceiver, ClosedConnectionSender, LaneQueueLength, TransmissionLane,
+    ClosedConnectionReceiver, ClosedConnectionSender, LaneQueueLengths, TransmissionLane,
 };
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
@@ -121,7 +121,7 @@ impl NymClient {
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
-        lane_queue_length: LaneQueueLength,
+        lane_queue_lengths: LaneQueueLengths,
         closed_connection_rx: ClosedConnectionReceiver,
         shutdown: ShutdownListener,
     ) {
@@ -152,7 +152,7 @@ impl NymClient {
             mix_sender,
             topology_accessor,
             reply_key_storage,
-            lane_queue_length,
+            lane_queue_lengths,
             closed_connection_rx,
         )
         .start_with_shutdown(shutdown);
@@ -423,7 +423,7 @@ impl NymClient {
 
         // Shared queue length data. Published by the `OutQueueController` in the client, and used
         // primarily to throttle incoming connections (e.g socks5 for attached network-requesters)
-        let shared_lane_queue_length = LaneQueueLength::new();
+        let shared_lane_queue_length = LaneQueueLengths::new();
 
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),

@@ -25,12 +25,12 @@ pub type ClosedConnectionReceiver = mpsc::UnboundedReceiver<ConnectionId>;
 // The `OutQueueControl` publishes the backlog per lane, primarily so that upstream can slow down
 // if needed.
 #[derive(Clone)]
-pub struct LaneQueueLength(std::sync::Arc<std::sync::Mutex<LaneQueueLengthInner>>);
+pub struct LaneQueueLengths(std::sync::Arc<std::sync::Mutex<LaneQueueLengthsInner>>);
 
-impl LaneQueueLength {
+impl LaneQueueLengths {
     pub fn new() -> Self {
-        LaneQueueLength(std::sync::Arc::new(std::sync::Mutex::new(
-            LaneQueueLengthInner {
+        LaneQueueLengths(std::sync::Arc::new(std::sync::Mutex::new(
+            LaneQueueLengthsInner {
                 map: HashMap::new(),
             },
         )))
@@ -54,20 +54,20 @@ impl LaneQueueLength {
     }
 }
 
-impl Default for LaneQueueLength {
+impl Default for LaneQueueLengths {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl std::ops::Deref for LaneQueueLength {
-    type Target = std::sync::Arc<std::sync::Mutex<LaneQueueLengthInner>>;
+impl std::ops::Deref for LaneQueueLengths {
+    type Target = std::sync::Arc<std::sync::Mutex<LaneQueueLengthsInner>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
     }
 }
 
-pub struct LaneQueueLengthInner {
+pub struct LaneQueueLengthsInner {
     map: HashMap<TransmissionLane, usize>,
 }

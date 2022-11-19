@@ -5,7 +5,7 @@ use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
 use client_connections::{
-    ClosedConnectionReceiver, ConnectionId, LaneQueueLength, TransmissionLane,
+    ClosedConnectionReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
 };
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
@@ -138,7 +138,7 @@ where
     closed_connection_rx: ClosedConnectionReceiver,
 
     /// Report queue lengths so that upstream can backoff sending data, and keep connections open.
-    lane_queue_length: LaneQueueLength,
+    lane_queue_lengths: LaneQueueLengths,
 }
 
 pub(crate) struct RealMessage {
@@ -182,7 +182,7 @@ where
         rng: R,
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
-        lane_queue_length: LaneQueueLength,
+        lane_queue_lengths: LaneQueueLengths,
         closed_connection_rx: ClosedConnectionReceiver,
     ) -> Self {
         OutQueueControl {
@@ -198,7 +198,7 @@ where
             topology_access,
             transmission_buffer: Default::default(),
             closed_connection_rx,
-            lane_queue_length,
+            lane_queue_lengths,
         }
     }
 
@@ -322,7 +322,7 @@ where
 
         // Update the published queue length
         let lane_length = self.transmission_buffer.lane_length(&lane);
-        self.lane_queue_length.set(&lane, lane_length);
+        self.lane_queue_lengths.set(&lane, lane_length);
 
         Some(real_next)
     }

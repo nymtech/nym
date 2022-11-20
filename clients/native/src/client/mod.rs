@@ -431,7 +431,7 @@ impl NymClient {
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
-            shared_lane_queue_length.clone(),
+            shared_lane_queue_length,
             closed_connection_rx,
             shutdown.subscribe(),
         );

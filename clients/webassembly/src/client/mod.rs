@@ -365,7 +365,7 @@ impl NymClient {
             input_receiver,
             sphinx_message_sender.clone(),
             closed_connection_rx,
-            shared_lane_queue_lengths.clone(),
+            shared_lane_queue_lengths,
         );
 
         if !self.config.debug.disable_loop_cover_traffic_stream {

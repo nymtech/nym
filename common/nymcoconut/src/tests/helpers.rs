@@ -110,7 +110,6 @@ pub mod tests {
     use bls12_381::Scalar;
     use dkg::{bte::decrypt_share, combine_shares, Dealing, NodeIndex};
     use rand_chacha::rand_core::SeedableRng;
-    use std::fmt::Debug;
 
     pub fn generate_dkg_secrets(node_indices: &[NodeIndex]) -> Vec<Scalar> {
         let dummy_seed = [42u8; 32];

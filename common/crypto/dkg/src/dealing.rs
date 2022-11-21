@@ -399,8 +399,10 @@ mod tests {
         .unwrap();
 
         // END OF SETUP
-        let (recovered_master, recovered_partials) =
-            try_recover_verification_keys(&dealings, threshold, &receivers).unwrap();
+        let RecoveredVerificationKeys {
+            recovered_master,
+            recovered_partials,
+        } = try_recover_verification_keys(&dealings, threshold, &receivers).unwrap();
 
         let g2 = G2Projective::generator();
         assert_eq!(g2 * master_secret, recovered_master);
@@ -435,8 +437,10 @@ mod tests {
             })
             .collect::<Vec<_>>();
 
-        let (recovered_master, recovered_partials) =
-            try_recover_verification_keys(&dealings, threshold, &receivers).unwrap();
+        let RecoveredVerificationKeys {
+            recovered_master,
+            recovered_partials,
+        } = try_recover_verification_keys(&dealings, threshold, &receivers).unwrap();
 
         assert!(verify_verification_keys(
             &recovered_master,

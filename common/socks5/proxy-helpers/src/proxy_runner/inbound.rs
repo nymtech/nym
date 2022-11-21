@@ -102,23 +102,6 @@ where
         panic!();
     }
 
-    // If we receive large data sets then what might happen is that we push all the data down the
-    // channel and the close it before the lane queue lenghts are updated in `OutQueueControl`. So
-    // we back off ever so slightly here to give some time for them to reach the `OutQueueControl`
-    // and the lane queue lengths being updated until the next message for this connection.
-
-    // TODO: this is all hardcoded and ugly. The correct solution I hope would be to rework
-    // `OutQueueControl` to poll it's incoming channel independently on the poisson delay.
-    if read_data.len() > 50_000 {
-        // Heuristic used:
-        // average delay: 20ms => 50 packets/sec
-        // ~1.5 kB/packet => ~75 kB/s
-        let time_to_send = read_data.len() / 75;
-        // Dont need to wait until we've sent the data, just something that is proportional to it.
-        let fraction_of_time_to_send = time_to_send / 10;
-        time::sleep(Duration::from_millis(fraction_of_time_to_send as u64)).await;
-    }
-
     if is_finished {
         // technically we already informed it when we sent the message to mixnet above
         debug!(target: &*format!("({}) socks5 inbound", connection_id), "The local socket is closed - won't receive any more data. Informing remote about that...");

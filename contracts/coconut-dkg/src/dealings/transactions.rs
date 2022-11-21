@@ -5,7 +5,7 @@ use crate::dealers::storage as dealers_storage;
 use crate::dealings::storage::DEALINGS_BYTES;
 use crate::epoch_state::utils::check_epoch_state;
 use crate::ContractError;
-use coconut_dkg_common::types::{ContractSafeBytes, EpochState, TOTAL_DEALINGS};
+use coconut_dkg_common::types::{ContractSafeBytes, EpochState};
 use cosmwasm_std::{DepsMut, MessageInfo, Response};
 
 pub fn try_commit_dealings(
@@ -24,9 +24,9 @@ pub fn try_commit_dealings(
 
     // check if this dealer has already committed to all dealings
     // (we don't want to allow overwriting anything)
-    for idx in 0..TOTAL_DEALINGS {
-        if !DEALINGS_BYTES[idx].has(deps.storage, &info.sender) {
-            DEALINGS_BYTES[idx].save(deps.storage, &info.sender, &dealing_bytes)?;
+    for dealings in DEALINGS_BYTES {
+        if !dealings.has(deps.storage, &info.sender) {
+            dealings.save(deps.storage, &info.sender, &dealing_bytes)?;
             return Ok(Response::default());
         }
     }

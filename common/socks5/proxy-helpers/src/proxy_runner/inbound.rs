@@ -81,15 +81,7 @@ where
     // is empty.
     if let Some(lane_queue_lengths) = lane_queue_lengths {
         if is_finished {
-            while let Some(queue) =
-                lane_queue_lengths.get(&TransmissionLane::ConnectionId(connection_id))
-            {
-                if queue > 0 {
-                    sleep(Duration::from_millis(500)).await;
-                } else {
-                    break;
-                }
-            }
+            wait_until_lane_empty(lane_queue_lengths, connection_id).await;
         }
     }
 
@@ -107,6 +99,16 @@ where
     }
 
     is_finished
+}
+
+async fn wait_until_lane_empty(lane_queue_lengths: LaneQueueLengths, connection_id: u64) {
+    while let Some(queue) = lane_queue_lengths.get(&TransmissionLane::ConnectionId(connection_id)) {
+        if queue > 0 {
+            sleep(Duration::from_millis(500)).await;
+        } else {
+            break;
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

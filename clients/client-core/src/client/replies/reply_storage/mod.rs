@@ -10,6 +10,7 @@ use std::sync::{Arc, RwLock};
 // TEMP
 pub use crate::client::replies::reply_storage::combined::CombinedReplyStorage;
 pub use crate::client::replies::reply_storage::key_storage::SentReplyKeys;
+pub use crate::client::replies::reply_storage::tag_storage::UsedSenderTags;
 
 mod backend;
 mod combined;

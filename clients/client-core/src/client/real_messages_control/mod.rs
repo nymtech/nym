@@ -155,6 +155,7 @@ impl RealMessagesController<OsRng> {
         )
         .with_custom_real_message_packet_size(config.packet_size);
         let message_handler = MessageHandler::new(
+            rng,
             Arc::clone(&config.ack_key),
             config.self_recipient,
             message_preparer,
@@ -162,6 +163,7 @@ impl RealMessagesController<OsRng> {
             real_message_sender.clone(),
             topology_access.clone(),
             reply_storage.key_storage(),
+            reply_storage.tags_storage(),
         );
 
         let reply_control = ToBeNamedPendingReplyController::new(

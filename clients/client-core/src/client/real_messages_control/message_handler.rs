@@ -6,12 +6,14 @@ use crate::client::real_messages_control::real_traffic_stream::{
     BatchRealMessageSender, RealMessage,
 };
 use crate::client::real_messages_control::{AckActionSender, Action};
-use crate::client::replies::reply_storage::SentReplyKeys;
+use crate::client::replies::reply_storage::{SentReplyKeys, UsedSenderTags};
 use crate::client::topology_control::{InvalidTopologyError, TopologyAccessor, TopologyReadPermit};
 use log::{error, info, warn};
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, RepliableMessage, ReplyMessage};
+use nymsphinx::anonymous_replies::requests::{
+    AnonymousSenderTag, RepliableMessage, ReplyMessage, SENDER_TAG_SIZE,
+};
 use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::chunking::fragment::{Fragment, FragmentIdentifier};
 use nymsphinx::message::NymMessage;
@@ -89,6 +91,7 @@ impl PreparationError {
 
 #[derive(Clone)]
 pub(crate) struct MessageHandler<R> {
+    rng: R,
     ack_key: Arc<AckKey>,
     self_address: Recipient,
     message_preparer: MessagePreparer<R>,
@@ -96,6 +99,7 @@ pub(crate) struct MessageHandler<R> {
     real_message_sender: BatchRealMessageSender,
     topology_access: TopologyAccessor,
     reply_key_storage: SentReplyKeys,
+    tag_storage: UsedSenderTags,
 }
 
 impl<R> MessageHandler<R>
@@ -103,6 +107,7 @@ where
     R: CryptoRng + Rng,
 {
     pub(crate) fn new(
+        rng: R,
         ack_key: Arc<AckKey>,
         self_address: Recipient,
         message_preparer: MessagePreparer<R>,
@@ -110,8 +115,10 @@ where
         real_message_sender: BatchRealMessageSender,
         topology_access: TopologyAccessor,
         reply_key_storage: SentReplyKeys,
+        tag_storage: UsedSenderTags,
     ) -> Self {
         MessageHandler {
+            rng,
             ack_key,
             self_address,
             message_preparer,
@@ -119,6 +126,20 @@ where
             real_message_sender,
             topology_access,
             reply_key_storage,
+            tag_storage,
+        }
+    }
+
+    fn get_or_create_sender_tag(&mut self, recipient: &Recipient) -> AnonymousSenderTag {
+        if let Some(existing) = self.tag_storage.try_get_existing(recipient) {
+            info!("we already had sender tag for {recipient}");
+            existing
+        } else {
+            info!("creating new sender tag for {recipient}");
+            let mut new_tag = [0u8; SENDER_TAG_SIZE];
+            self.rng.fill_bytes(&mut new_tag);
+            self.tag_storage.insert_new(recipient, new_tag);
+            new_tag
         }
     }
 
@@ -258,6 +279,7 @@ where
         recipient: Recipient,
         amount: u32,
     ) -> Result<(), PreparationError> {
+        let sender_tag = self.get_or_create_sender_tag(&recipient);
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = self.get_topology(&topology_permit)?;
 
@@ -272,8 +294,6 @@ where
         log::trace!("storing {} reply keys", reply_keys.len());
         self.reply_key_storage.insert_multiple(reply_keys);
 
-        // TODO TEMP: we need to look it up in our to-be-introduced storage
-        let sender_tag = [42u8; 16];
         let message = NymMessage::new_repliable(RepliableMessage::new_additional_surbs(
             sender_tag,
             reply_surbs,
@@ -316,6 +336,7 @@ where
         message: Vec<u8>,
         num_reply_surbs: u32,
     ) -> Result<(), PreparationError> {
+        let sender_tag = self.get_or_create_sender_tag(&recipient);
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = self.get_topology(&topology_permit)?;
 
@@ -330,8 +351,6 @@ where
         log::trace!("storing {} reply keys", reply_keys.len());
         self.reply_key_storage.insert_multiple(reply_keys);
 
-        // TODO TEMP: we need to look it up in our to-be-introduced storage
-        let sender_tag = [42u8; 16];
         let message =
             NymMessage::new_repliable(RepliableMessage::new_data(message, sender_tag, reply_surbs));
 

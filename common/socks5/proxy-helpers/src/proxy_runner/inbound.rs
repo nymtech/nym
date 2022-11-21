@@ -78,10 +78,14 @@ where
     );
 
     // If we are closing the socket, wait until the data has passed `OutQueueControl` and the lane
-    // is empty.
+    // is empty, otherwise just wait until we are reasonably close to finish sending as a way to
+    // throttle the incoming data.
     if let Some(lane_queue_lengths) = lane_queue_lengths {
         if is_finished {
             wait_until_lane_empty(lane_queue_lengths, connection_id).await;
+        } else {
+            // We allow a bit of slack when this is not the last msg
+            wait_until_lane_almost_empty(lane_queue_lengths, connection_id).await;
         }
     }
 
@@ -102,9 +106,32 @@ where
 }
 
 async fn wait_until_lane_empty(lane_queue_lengths: LaneQueueLengths, connection_id: u64) {
+    wait_for_lane(
+        lane_queue_lengths,
+        connection_id,
+        0,
+        Duration::from_millis(500),
+    ).await
+}
+
+async fn wait_until_lane_almost_empty(lane_queue_lengths: LaneQueueLengths, connection_id: u64) {
+    wait_for_lane(
+        lane_queue_lengths,
+        connection_id,
+        10,
+        Duration::from_millis(100),
+    ).await
+}
+
+async fn wait_for_lane(
+    lane_queue_lengths: LaneQueueLengths,
+    connection_id: u64,
+    queue_length_threshold: usize,
+    sleep_duration: Duration,
+) {
     while let Some(queue) = lane_queue_lengths.get(&TransmissionLane::ConnectionId(connection_id)) {
-        if queue > 0 {
-            sleep(Duration::from_millis(500)).await;
+        if queue > queue_length_threshold {
+            sleep(sleep_duration).await;
         } else {
             break;
         }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use bls12_381::{G2Projective, Scalar};
-use dkg::bte::{decrypt_share, keygen, setup, Epoch};
+use dkg::bte::{decrypt_share, keygen, setup};
 use dkg::interpolation::perform_lagrangian_interpolation_at_origin;
 use dkg::{combine_shares, try_recover_verification_keys, Dealing};
 use rand_core::SeedableRng;
@@ -32,9 +32,6 @@ fn single_sender() {
         full_keys.push((dk, pk))
     }
 
-    // start off in a defined epoch (i.e. not root);
-    let epoch = Epoch::new(2);
-
     // TODO: HERE BE SERIALIZATION / DESERIALIZATION THAT'S NOT IMPLEMENTED YET
     // verify remote proofs of key possession
     for key in full_keys.iter() {
@@ -46,23 +43,20 @@ fn single_sender() {
         &params,
         node_indices[0],
         threshold,
-        epoch,
         &receivers,
         None,
     );
     dealing
-        .verify(&params, epoch, threshold, &receivers, None)
+        .verify(&params, threshold, &receivers, None)
         .unwrap();
 
     // make sure each share is actually decryptable (even though proofs say they must be, perform this sanity check)
     for (i, (ref mut dk, _)) in full_keys.iter_mut().enumerate() {
-        dk.try_update_to(epoch, &params, &mut rng).unwrap();
-        let _recovered = decrypt_share(dk, i, &dealing.ciphertexts, epoch, None).unwrap();
+        let _recovered = decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap();
     }
 
     // and for good measure, check that the dealer's share matches decryption result
-    let recovered_dealer =
-        decrypt_share(&full_keys[0].0, 0, &dealing.ciphertexts, epoch, None).unwrap();
+    let recovered_dealer = decrypt_share(&full_keys[0].0, 0, &dealing.ciphertexts, None).unwrap();
     assert_eq!(recovered_dealer, dealer_share.unwrap());
 }
 
@@ -87,9 +81,6 @@ fn full_threshold_secret_sharing() {
         full_keys.push((dk, pk))
     }
 
-    // start off in a defined epoch (i.e. not root);
-    let epoch = Epoch::new(2);
-
     // TODO: HERE BE SERIALIZATION / DESERIALIZATION THAT'S NOT IMPLEMENTED YET
     // verify remote proofs of key possession
     for key in full_keys.iter() {
@@ -99,21 +90,12 @@ fn full_threshold_secret_sharing() {
     let dealings = node_indices
         .iter()
         .map(|&dealer_index| {
-            Dealing::create(
-                &mut rng,
-                &params,
-                dealer_index,
-                threshold,
-                epoch,
-                &receivers,
-                None,
-            )
-            .0
+            Dealing::create(&mut rng, &params, dealer_index, threshold, &receivers, None).0
         })
         .collect::<Vec<_>>();
     for dealing in dealings.iter() {
         dealing
-            .verify(&params, epoch, threshold, &receivers, None)
+            .verify(&params, threshold, &receivers, None)
             .unwrap();
     }
 
@@ -125,11 +107,9 @@ fn full_threshold_secret_sharing() {
 
     let mut derived_secrets = Vec::new();
     for (i, (ref mut dk, _)) in full_keys.iter_mut().enumerate() {
-        dk.try_update_to(epoch, &params, &mut rng).unwrap();
-
         let shares = dealings
             .iter()
-            .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, epoch, None).unwrap())
+            .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
             .collect();
 
         // we know dealer_share matches, but it would be inconvenient to try to put them in here,
@@ -183,22 +163,10 @@ fn full_threshold_secret_resharing() {
         full_keys.push((dk, pk))
     }
 
-    // start off in a defined epoch (i.e. not root);
-    let epoch = Epoch::new(2);
-
     let first_dealings = node_indices
         .iter()
         .map(|&dealer_index| {
-            Dealing::create(
-                &mut rng,
-                &params,
-                dealer_index,
-                threshold,
-                epoch,
-                &receivers,
-                None,
-            )
-            .0
+            Dealing::create(&mut rng, &params, dealer_index, threshold, &receivers, None).0
         })
         .collect::<Vec<_>>();
 
@@ -208,11 +176,9 @@ fn full_threshold_secret_resharing() {
 
     let mut derived_secrets = Vec::new();
     for (i, (ref mut dk, _)) in full_keys.iter_mut().enumerate() {
-        dk.try_update_to(epoch, &params, &mut rng).unwrap();
-
         let shares = first_dealings
             .iter()
-            .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, epoch, None).unwrap())
+            .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
             .collect();
 
         let recovered_secret =
@@ -227,8 +193,6 @@ fn full_threshold_secret_resharing() {
     ])
     .unwrap();
 
-    let next_epoch = Epoch::new(3);
-
     // attempt to create resharing dealings!
     let resharing_dealings = node_indices
         .iter()
@@ -239,7 +203,6 @@ fn full_threshold_secret_resharing() {
                 &params,
                 dealer_index,
                 threshold,
-                next_epoch,
                 &receivers,
                 Some(*prior_secret),
             )
@@ -249,7 +212,7 @@ fn full_threshold_secret_resharing() {
 
     for (reshared_dealing, prior_vk) in resharing_dealings.iter().zip(recovered_partials.iter()) {
         reshared_dealing
-            .verify(&params, next_epoch, threshold, &receivers, Some(*prior_vk))
+            .verify(&params, threshold, &receivers, Some(*prior_vk))
             .unwrap();
     }
 
@@ -259,11 +222,9 @@ fn full_threshold_secret_resharing() {
 
     let mut reshared_secrets = Vec::new();
     for (i, (ref mut dk, _)) in full_keys.iter_mut().enumerate() {
-        dk.try_update_to(next_epoch, &params, &mut rng).unwrap();
-
         let shares = resharing_dealings
             .iter()
-            .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, next_epoch, None).unwrap())
+            .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
             .collect();
 
         let recovered_secret =

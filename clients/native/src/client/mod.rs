@@ -1,7 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_connections::{ClosedConnectionReceiver, ClosedConnectionSender, TransmissionLane};
+use client_connections::{
+    ClosedConnectionReceiver, ClosedConnectionSender, LaneQueueLengths, TransmissionLane,
+};
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
     InputMessage, InputMessageReceiver, InputMessageSender,
@@ -119,6 +121,7 @@ impl NymClient {
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
+        lane_queue_lengths: LaneQueueLengths,
         closed_connection_rx: ClosedConnectionReceiver,
         shutdown: ShutdownListener,
     ) {
@@ -149,6 +152,7 @@ impl NymClient {
             mix_sender,
             topology_accessor,
             reply_key_storage,
+            lane_queue_lengths,
             closed_connection_rx,
         )
         .start_with_shutdown(shutdown);
@@ -417,12 +421,17 @@ impl NymClient {
         // controller that connections are closed.
         let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
 
+        // Shared queue length data. Published by the `OutQueueController` in the client, and used
+        // primarily to throttle incoming connections (e.g socks5 for attached network-requesters)
+        let shared_lane_queue_length = LaneQueueLengths::new();
+
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
             reply_key_storage,
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
+            shared_lane_queue_length,
             closed_connection_rx,
             shutdown.subscribe(),
         );

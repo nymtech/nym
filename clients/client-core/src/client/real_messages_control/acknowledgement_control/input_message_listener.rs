@@ -69,31 +69,49 @@ where
         }
     }
 
-    async fn handle_fresh_message(
+    async fn handle_plain_message(&mut self, recipient: Recipient, content: Vec<u8>) {
+        if let Err(err) = self
+            .message_handler
+            .try_send_plain_message(recipient, content)
+            .await
+        {
+            warn!("failed to send a plain message - {err}")
+        }
+    }
+
+    async fn handle_repliable_message(
         &mut self,
         recipient: Recipient,
         content: Vec<u8>,
         reply_surbs: u32,
     ) {
-        if self
+        if let Err(err) = self
             .message_handler
-            .try_send_normal_message(recipient, content, reply_surbs)
+            .try_send_message_with_reply_surbs(recipient, content, reply_surbs)
             .await
-            .is_none()
         {
-            warn!("failed to send message to {}", recipient)
+            warn!("failed to send a repliable message - {err}")
         }
     }
 
     async fn on_input_message(&mut self, msg: InputMessage) {
         match msg {
-            InputMessage::Regular {
+            InputMessage::Regular { recipient, data } => {
+                self.handle_plain_message(recipient, data).await
+            }
+            InputMessage::Anonymous {
                 recipient,
                 data,
                 reply_surbs,
             } => {
-                self.handle_fresh_message(recipient, data, reply_surbs)
+                self.handle_repliable_message(recipient, data, reply_surbs)
                     .await
+            }
+            InputMessage::Reply {
+                recipient_tag,
+                data,
+            } => {
+                self.handle_reply(recipient_tag, data).await;
             }
             InputMessage::ReplyWithSurb {
                 recipient_tag,
@@ -102,12 +120,6 @@ where
             } => {
                 self.handle_reply_with_surb(recipient_tag, reply_surb, data)
                     .await
-            }
-            InputMessage::Reply {
-                recipient_tag,
-                data,
-            } => {
-                self.handle_reply(recipient_tag, data).await;
             }
         };
     }

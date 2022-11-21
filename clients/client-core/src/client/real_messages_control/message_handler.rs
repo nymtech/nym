@@ -22,17 +22,48 @@ use std::sync::Arc;
 use thiserror::Error;
 use topology::{NymTopology, NymTopologyError};
 
-// TODO: fix those disgusting and lazy Option<()> return types!
+// TODO1: fix those disgusting and lazy Option<()> return types!
+
+// TODO2: attempt to unify `InvalidTopologyError` and `NymTopologyError`
+#[derive(Debug, Clone, Error)]
+#[error(transparent)]
+pub enum PreparationErrorRepr {
+    InvalidTopology(#[from] InvalidTopologyError),
+    NymTopologyError(#[from] NymTopologyError),
+    #[error("The received message cannot be sent using a single reply surb. It ended up getting split into {fragments} fragments.")]
+    MessageTooLongForSingleSurb {
+        fragments: usize,
+    },
+}
 
 // deprecated because I need to move it elsewhere
-#[derive(Debug)]
-pub(crate) struct PreparationError {
+#[derive(Debug, Error)]
+#[error("Failed to prepare packets - {source}. {} reply surbs will be returned", .returned_surbs.as_ref().map(|s| s.len()).unwrap_or_default())]
+pub struct PreparationError {
     // #[error("Could not construct a packet due to invalid network topology - {source}")]
     // InvalidTopology {
-    source: InvalidTopologyError,
+    #[source]
+    source: PreparationErrorRepr,
 
     returned_surbs: Option<Vec<ReplySurb>>,
-    // },
+}
+
+impl From<InvalidTopologyError> for PreparationError {
+    fn from(err: InvalidTopologyError) -> Self {
+        PreparationError {
+            source: err.into(),
+            returned_surbs: None,
+        }
+    }
+}
+
+impl From<NymTopologyError> for PreparationError {
+    fn from(err: NymTopologyError) -> Self {
+        PreparationError {
+            source: err.into(),
+            returned_surbs: None,
+        }
+    }
 }
 
 impl PreparationError {
@@ -40,6 +71,14 @@ impl PreparationError {
         debug_assert!(self.returned_surbs.is_none());
         self.returned_surbs = Some(reply_surbs);
         self
+    }
+
+    pub(crate) fn into_inner(self) -> (PreparationErrorRepr, Option<Vec<ReplySurb>>) {
+        (self.source, self.returned_surbs)
+    }
+
+    pub(crate) fn take_returned_surbs(&mut self) -> Option<Vec<ReplySurb>> {
+        self.returned_surbs.take()
     }
 }
 
@@ -86,10 +125,7 @@ where
             Ok(topology_ref) => Ok(topology_ref),
             Err(err) => {
                 warn!("Could not process the packet - the network topology is invalid - {err}");
-                Err(PreparationError {
-                    source: err,
-                    returned_surbs: None,
-                })
+                Err(err.into())
             }
         }
     }
@@ -100,11 +136,16 @@ where
         message: ReplyMessage,
         reply_surb: ReplySurb,
         is_extra_surb_request: bool,
-    ) -> Result<(), ReplySurb> {
+    ) -> Result<(), PreparationError> {
         let mut fragment = self.message_preparer.prepare_and_split_reply(message);
         if fragment.len() > 1 {
             // well, it's not a single surb message
-            return Err(reply_surb);
+            return Err(PreparationError {
+                source: PreparationErrorRepr::MessageTooLongForSingleSurb {
+                    fragments: fragment.len(),
+                },
+                returned_surbs: Some(vec![reply_surb]),
+            });
         }
 
         let chunk = fragment.pop().unwrap();
@@ -129,7 +170,7 @@ where
         from: AnonymousSenderTag,
         reply_surb: ReplySurb,
         amount: u32,
-    ) -> Result<(), ReplySurb> {
+    ) -> Result<(), PreparationError> {
         info!("REQUESTING {amount} MORE SURBS!!");
         info!("REQUESTING {amount} MORE SURBS!!");
         info!("REQUESTING {amount} MORE SURBS!!");
@@ -165,14 +206,10 @@ where
         );
 
         let topology_permit = self.topology_access.get_read_permit().await;
-        let topology = self
-            .get_topology(&topology_permit)
-            .map_err(|e| e.return_surbs(reply_surbs))?;
-
-        // let topology = match self.get_topology(&topology_permit) {
-        //     Some(topology) => topology,
-        //     None => return Err(reply_surbs),
-        // };
+        let topology = match self.get_topology(&topology_permit) {
+            Ok(topology) => topology,
+            Err(err) => return Err(err.return_surbs(reply_surbs)),
+        };
 
         let mut pending_acks = Vec::with_capacity(fragments.len());
         let mut real_messages = Vec::with_capacity(fragments.len());
@@ -199,7 +236,7 @@ where
         Ok(())
     }
 
-    async fn try_send_plain_message(
+    pub(crate) async fn try_send_plain_message(
         &mut self,
         recipient: Recipient,
         message: Vec<u8>,
@@ -207,47 +244,34 @@ where
         todo!()
     }
 
-    async fn try_send_additional_reply_surbs(
+    pub(crate) async fn try_send_additional_reply_surbs(
         &mut self,
         recipient: Recipient,
         amount: u32,
     ) -> Result<(), PreparationError> {
-        todo!()
-    }
-
-    async fn try_send_message_with_reply_surbs(
-        &mut self,
-        recipient: Recipient,
-        message: Vec<u8>,
-        num_reply_surbs: u32,
-    ) -> Result<(), PreparationError> {
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = self.get_topology(&topology_permit)?;
 
-        // let message = NymMessage::new_repliable(RepliableMessage::temp_new_additional_surbs())
-        todo!()
-    }
-
-    // TODO: change function signature to better accomodate for 'repliable' messages
-    // (for example where you're not sending any plaintext inside)
-    #[deprecated]
-    pub(crate) async fn try_send_normal_message(
-        &mut self,
-        recipient: Recipient,
-        message: Vec<u8>,
-        reply_surbs: u32,
-    ) -> Option<()> {
-        let topology_permit = self.topology_access.get_read_permit().await;
-        let topology = self.get_topology(&topology_permit)?;
-
-        // split the message, attach optional reply surb
-        let (fragments, reply_keys) = self
+        let reply_surbs = self
             .message_preparer
-            .prepare_and_split_message(message, reply_surbs, topology)
-            .expect("somehow the topology was invalid after all!");
+            .generate_reply_surbs(amount as usize, &topology)?;
 
+        let reply_keys = reply_surbs
+            .iter()
+            .map(|s| *s.encryption_key())
+            .collect::<Vec<_>>();
         log::trace!("storing {} reply keys", reply_keys.len());
         self.reply_key_storage.insert_multiple(reply_keys);
+
+        // TODO TEMP: we need to look it up in our to-be-introduced storage
+        let sender_tag = [42u8; 16];
+        let message = NymMessage::new_repliable(RepliableMessage::new_additional_surbs(
+            sender_tag,
+            reply_surbs,
+        ));
+
+        // TODO: move to shared code
+        let fragments = self.message_preparer.prepare_and_split_message(message);
 
         let mut pending_acks = Vec::with_capacity(fragments.len());
         let mut real_messages = Vec::with_capacity(fragments.len());
@@ -255,10 +279,12 @@ where
             // we need to clone it because we need to keep it in memory in case we had to retransmit
             // it. And then we'd need to recreate entire ACK again.
             let chunk_clone = fragment.clone();
-            let prepared_fragment = self
-                .message_preparer
-                .prepare_chunk_for_sending(chunk_clone, topology, &self.ack_key, &recipient)
-                .unwrap();
+            let prepared_fragment = self.message_preparer.prepare_chunk_for_sending(
+                chunk_clone,
+                topology,
+                &self.ack_key,
+                &recipient,
+            )?;
 
             let real_message =
                 RealMessage::new(prepared_fragment.mix_packet, fragment.fragment_identifier());
@@ -272,14 +298,116 @@ where
         self.insert_pending_acks(pending_acks);
         self.forward_messages(real_messages);
 
-        Some(())
+        Ok(())
+    }
+
+    pub(crate) async fn try_send_message_with_reply_surbs(
+        &mut self,
+        recipient: Recipient,
+        message: Vec<u8>,
+        num_reply_surbs: u32,
+    ) -> Result<(), PreparationError> {
+        let topology_permit = self.topology_access.get_read_permit().await;
+        let topology = self.get_topology(&topology_permit)?;
+
+        let reply_surbs = self
+            .message_preparer
+            .generate_reply_surbs(num_reply_surbs as usize, &topology)?;
+
+        let reply_keys = reply_surbs
+            .iter()
+            .map(|s| *s.encryption_key())
+            .collect::<Vec<_>>();
+        log::trace!("storing {} reply keys", reply_keys.len());
+        self.reply_key_storage.insert_multiple(reply_keys);
+
+        // TODO TEMP: we need to look it up in our to-be-introduced storage
+        let sender_tag = [42u8; 16];
+        let message =
+            NymMessage::new_repliable(RepliableMessage::new_data(message, sender_tag, reply_surbs));
+
+        // TODO: move to shared code
+        let fragments = self.message_preparer.prepare_and_split_message(message);
+
+        let mut pending_acks = Vec::with_capacity(fragments.len());
+        let mut real_messages = Vec::with_capacity(fragments.len());
+        for fragment in fragments {
+            // we need to clone it because we need to keep it in memory in case we had to retransmit
+            // it. And then we'd need to recreate entire ACK again.
+            let chunk_clone = fragment.clone();
+            let prepared_fragment = self.message_preparer.prepare_chunk_for_sending(
+                chunk_clone,
+                topology,
+                &self.ack_key,
+                &recipient,
+            )?;
+
+            let real_message =
+                RealMessage::new(prepared_fragment.mix_packet, fragment.fragment_identifier());
+            let delay = prepared_fragment.total_delay;
+            let pending_ack = PendingAcknowledgement::new_known(fragment, delay, recipient);
+
+            real_messages.push(real_message);
+            pending_acks.push(pending_ack);
+        }
+
+        self.insert_pending_acks(pending_acks);
+        self.forward_messages(real_messages);
+
+        Ok(())
+    }
+
+    // TODO: change function signature to better accomodate for 'repliable' messages
+    // (for example where you're not sending any plaintext inside)
+    #[deprecated]
+    pub(crate) async fn try_send_normal_message(
+        &mut self,
+        recipient: Recipient,
+        message: Vec<u8>,
+        reply_surbs: u32,
+    ) -> Result<(), PreparationError> {
+        todo!()
+        //
+        // let topology_permit = self.topology_access.get_read_permit().await;
+        // let topology = self.get_topology(&topology_permit)?;
+        //
+        // // split the message, attach optional reply surb
+        // let fragments = self.message_preparer.prepare_and_split_message(message);
+        //
+        // log::trace!("storing {} reply keys", reply_keys.len());
+        // self.reply_key_storage.insert_multiple(reply_keys);
+        //
+        // let mut pending_acks = Vec::with_capacity(fragments.len());
+        // let mut real_messages = Vec::with_capacity(fragments.len());
+        // for fragment in fragments {
+        //     // we need to clone it because we need to keep it in memory in case we had to retransmit
+        //     // it. And then we'd need to recreate entire ACK again.
+        //     let chunk_clone = fragment.clone();
+        //     let prepared_fragment = self
+        //         .message_preparer
+        //         .prepare_chunk_for_sending(chunk_clone, topology, &self.ack_key, &recipient)
+        //         .unwrap();
+        //
+        //     let real_message =
+        //         RealMessage::new(prepared_fragment.mix_packet, fragment.fragment_identifier());
+        //     let delay = prepared_fragment.total_delay;
+        //     let pending_ack = PendingAcknowledgement::new_known(fragment, delay, recipient);
+        //
+        //     real_messages.push(real_message);
+        //     pending_acks.push(pending_ack);
+        // }
+        //
+        // self.insert_pending_acks(pending_acks);
+        // self.forward_messages(real_messages);
+        //
+        // Some(())
     }
 
     pub(crate) async fn try_prepare_single_chunk_for_sending(
         &mut self,
         recipient: Recipient,
         chunk: Fragment,
-    ) -> Option<PreparedFragment> {
+    ) -> Result<PreparedFragment, PreparationError> {
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = self.get_topology(&topology_permit)?;
 
@@ -288,18 +416,18 @@ where
             .prepare_chunk_for_sending(chunk, topology, &self.ack_key, &recipient)
             .unwrap();
 
-        Some(prepared_fragment)
+        Ok(prepared_fragment)
     }
 
     pub(crate) async fn try_prepare_single_reply_chunk_for_sending(
         &mut self,
         reply_surb: ReplySurb,
         chunk: Fragment,
-    ) -> Result<PreparedFragment, ReplySurb> {
+    ) -> Result<PreparedFragment, PreparationError> {
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = match self.get_topology(&topology_permit) {
-            Some(topology) => topology,
-            None => return Err(reply_surb),
+            Ok(topology) => topology,
+            Err(err) => return Err(err.return_surbs(vec![reply_surb])),
         };
 
         let prepared_fragment = self

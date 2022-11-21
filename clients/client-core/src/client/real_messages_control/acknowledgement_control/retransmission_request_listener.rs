@@ -5,7 +5,7 @@ use super::action_controller::{AckActionSender, Action};
 use super::PendingAcknowledgement;
 use super::RetransmissionRequestReceiver;
 use crate::client::real_messages_control::acknowledgement_control::PacketDestination;
-use crate::client::real_messages_control::message_handler::MessageHandler;
+use crate::client::real_messages_control::message_handler::{MessageHandler, PreparationError};
 use crate::client::real_messages_control::real_traffic_stream::RealMessage;
 use crate::client::replies::reply_storage::ReceivedReplySurbsMap;
 use futures::StreamExt;
@@ -54,7 +54,7 @@ where
         &mut self,
         packet_recipient: Recipient,
         chunk_data: Fragment,
-    ) -> Option<PreparedFragment> {
+    ) -> Result<PreparedFragment, PreparationError> {
         debug!("retransmitting normal packet...");
 
         self.message_handler
@@ -67,6 +67,8 @@ where
         recipient_tag: AnonymousSenderTag,
         extra_surb_request: bool,
         chunk_data: Fragment,
+        // ) -> Result<PreparedFragment, PreparationError> {
+        // TODO: make it return a proper Result
     ) -> Option<PreparedFragment> {
         error!("retransmitting reply packet...");
 
@@ -96,7 +98,7 @@ where
                         .get_reply_surb_ignoring_threshold(&recipient_tag)?
                         .0
                     {
-                        if let Err(returned_surb) = self
+                        if let Err(err) = self
                             .message_handler
                             .try_request_additional_reply_surbs(
                                 recipient_tag,
@@ -105,9 +107,10 @@ where
                             )
                             .await
                         {
-                            warn!("we failed to ask for more surbs...");
+                            let (msg, returned_surbs) = err.into_inner();
+                            warn!("we failed to ask for more surbs... - {msg}");
                             self.received_reply_surbs
-                                .insert_surb(&recipient_tag, returned_surb);
+                                .insert_maybe_surbs(&recipient_tag, returned_surbs);
                             self.received_reply_surbs
                                 .clear_requesting_more_surbs(&recipient_tag)?;
                         }
@@ -129,9 +132,11 @@ where
             .await
         {
             Ok(prepared_fragment) => Some(prepared_fragment),
-            Err(returned_surb) => {
+            Err(err) => {
+                let (msg, returned_surbs) = err.into_inner();
+                warn!("failed to prepare message for retransmission - {msg}",);
                 self.received_reply_surbs
-                    .insert_surb(&recipient_tag, returned_surb);
+                    .insert_maybe_surbs(&recipient_tag, returned_surbs);
                 None
             }
         }
@@ -162,8 +167,10 @@ where
                 .await
             }
             PacketDestination::KnownRecipient(recipient) => {
+                // TODO: preserve err info
                 self.prepare_normal_retransmission_chunk(*recipient, chunk_clone)
                     .await
+                    .ok()
             }
         };
 

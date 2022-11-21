@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::real_messages_control::message_handler::MessageHandler;
+use crate::client::real_messages_control::message_handler::{MessageHandler, PreparationErrorRepr};
 use crate::client::replies::reply_storage::ReceivedReplySurbsMap;
 use futures::channel::mpsc;
 use futures::StreamExt;
@@ -14,15 +14,17 @@ use rand::{CryptoRng, Rng};
 use std::cmp::{max, min};
 use std::collections::{HashMap, VecDeque};
 use std::time::Duration;
+use thiserror::Error;
 use tokio::time::Instant;
-
 // TODO: rename
 
 // TODO: move elsewhere and share with other bits doing surb requests
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone, Error)]
 pub enum SurbRequestError {
-    NotEnoughSurbs,
-    InvalidTopology,
+    #[error("Not enough reply SURBs to send the message. We have {available} available and require {required}.")]
+    NotEnoughSurbs { available: usize, required: usize },
+    #[error(transparent)]
+    InvalidTopology(#[from] PreparationErrorRepr),
 }
 
 pub fn new_control_channels() -> (ToBeNamedSender, ToBeNamedReceiver) {
@@ -219,15 +221,16 @@ where
             .get_reply_surbs(&recipient_tag, fragments.len());
 
         if let Some(reply_surbs) = surbs {
-            if let Err(returned_surbs) = self
+            if let Err(err) = self
                 .message_handler
                 .try_send_reply_chunks(recipient_tag, fragments, reply_surbs)
                 .await
             {
-                warn!("failed to send reply to {:?}", recipient_tag);
                 // TODO: perhaps there should be some timer here to repeat the request once topology recovers
+                let (msg, returned_surbs) = err.into_inner();
+                warn!("failed to send reply to {:?} - {msg}", recipient_tag);
                 self.received_reply_surbs
-                    .insert_surbs(&recipient_tag, returned_surbs);
+                    .insert_maybe_surbs(&recipient_tag, returned_surbs);
             }
         } else {
             #[deprecated]
@@ -279,22 +282,29 @@ where
             .received_reply_surbs
             .get_reply_surb_ignoring_threshold(&target)
             .and_then(|(reply_surb, _)| reply_surb)
-            .ok_or(SurbRequestError::NotEnoughSurbs)?;
+            .ok_or(SurbRequestError::NotEnoughSurbs {
+                available: 0,
+                required: 1,
+            })?;
 
         let counter = self.surb_request_counter(&target);
         amount += counter;
         log::info!("incrementing the amount to {amount}");
 
-        if let Err(returned_surb) = self
+        if let Err(err) = self
             .message_handler
             .try_request_additional_reply_surbs(target, reply_surb, amount)
             .await
         {
-            warn!("failed to request additional surbs from {:?}", target);
+            let (msg, returned_surbs) = err.into_inner();
+            warn!(
+                "failed to request additional surbs from {:?} - {msg}",
+                target
+            );
             // TODO: perhaps there should be some timer here to repeat the request once topology recovers
             self.received_reply_surbs
-                .insert_surb(&target, returned_surb);
-            return Err(SurbRequestError::InvalidTopology);
+                .insert_maybe_surbs(&target, returned_surbs);
+            return Err(msg.into());
         }
 
         // reset increment to zero
@@ -347,15 +357,18 @@ where
             }
 
             let surbs_for_reply = available_surbs.drain(..to_send_vec.len()).collect();
-            if let Err(returned_surbs) = self
+            if let Err(err) = self
                 .message_handler
                 .try_send_reply_chunks(target, to_send_vec, surbs_for_reply)
                 .await
             {
-                warn!("failed to clear pending queue for {:?}", target);
+                let (msg, returned_surbs) = err.into_inner();
+                warn!("failed to clear pending queue for {:?} - {msg}", target);
                 // TODO: perhaps there should be some timer here to repeat the request once topology recovers
-                self.received_reply_surbs
-                    .insert_surbs(&target, returned_surbs);
+                if let Some(returned_surbs) = returned_surbs {
+                    self.received_reply_surbs
+                        .insert_surbs(&target, returned_surbs);
+                }
             }
         } else {
             println!("nothing left to clear");
@@ -416,13 +429,13 @@ where
         let mut remaining = amount;
         while remaining > 0 {
             let to_send = min(remaining, 100);
-            if self
+            if let Err(err) = self
                 .message_handler
-                .try_send_normal_message(recipient, Vec::new(), to_send)
+                .try_send_additional_reply_surbs(recipient, to_send)
                 .await
-                .is_none()
             {
-                warn!("failed to send additional surbs to {}", recipient)
+                warn!("failed to send additional surbs to {recipient} - {err}");
+                debug_assert!(err.into_inner().1.is_none())
             } else {
                 warn!("sent {to_send} surbs");
             }
@@ -465,12 +478,10 @@ where
                 .expect("I think this shouldnt fail? to be verified.");
 
             let diff = now - last_received;
-            warn!("we haven't received any surbs in {:?}", diff);
-            warn!("we haven't received any surbs in {:?}", diff);
-            warn!("we haven't received any surbs in {:?}", diff);
 
             // TODO: hardcoded value
             if diff > Duration::from_secs(10) {
+                warn!("we haven't received any surbs in {:?}", diff);
                 to_request.push(*pending_reply_target);
             }
         }

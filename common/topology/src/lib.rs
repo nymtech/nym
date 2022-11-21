@@ -20,10 +20,10 @@ pub mod filter;
 pub mod gateway;
 pub mod mix;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Error)]
 pub enum NymTopologyError {
     #[error("Gateway with identity key {identity_key} doesn't exist")]
-    NonExistentGatewayError { identity_key: NodeIdentity },
+    NonExistentGatewayError { identity_key: String },
 
     #[error("Wanted to create a mix route with {requested} hops, while only {available} layers are available")]
     InvalidNumberOfHopsError { available: usize, requested: usize },
@@ -173,7 +173,7 @@ impl NymTopology {
     {
         let gateway = self.get_gateway(gateway_identity).ok_or(
             NymTopologyError::NonExistentGatewayError {
-                identity_key: *gateway_identity,
+                identity_key: gateway_identity.to_base58_string(),
             },
         )?;
 

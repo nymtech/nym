@@ -154,7 +154,7 @@ where
         self.packet_size.plaintext_size() - ack_overhead - key_digest_overhead
     }
 
-    fn generate_reply_surbs(
+    pub fn generate_reply_surbs(
         &mut self,
         amount: usize,
         topology: &NymTopology,

@@ -17,7 +17,7 @@ use tokio::sync::{RwLock, RwLockReadGuard};
 use topology::{nym_topology_from_detailed, MixLayer, NymTopology};
 use url::Url;
 
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Error)]
 pub enum InvalidTopologyError {
     #[error("The provided network topology is empty - the network request(s) probably failed")]
     EmptyNetworkTopology,
@@ -32,7 +32,7 @@ pub enum InvalidTopologyError {
     EmptyMixLayer { layer: MixLayer },
 
     #[error("Gateway with identity key {identity_key} doesn't exist")]
-    NonExistentGatewayError { identity_key: NodeIdentity },
+    NonExistentGatewayError { identity_key: String },
 }
 
 // I'm extremely curious why compiler NEVER complained about lack of Debug here before
@@ -110,7 +110,7 @@ impl<'a> TopologyReadPermit<'a> {
         // 5. does it contain OUR gateway (so that we could create an ack packet)?
         if !topology.gateway_exists(ack_recipient.gateway()) {
             return Err(InvalidTopologyError::NonExistentGatewayError {
-                identity_key: *ack_recipient.gateway(),
+                identity_key: ack_recipient.gateway().to_base58_string(),
             });
         }
 
@@ -118,7 +118,7 @@ impl<'a> TopologyReadPermit<'a> {
         if let Some(recipient) = packet_recipient {
             if !topology.gateway_exists(recipient.gateway()) {
                 return Err(InvalidTopologyError::NonExistentGatewayError {
-                    identity_key: *recipient.gateway(),
+                    identity_key: recipient.gateway().to_base58_string(),
                 });
             }
         }
@@ -299,7 +299,7 @@ impl TopologyRefresher {
 
         let mixnodes = match self.validator_client.get_cached_active_mixnodes().await {
             Err(err) => {
-                error!("failed to get network mixnodes - {}", err);
+                error!("failed to get network mixnodes - {err}");
                 return None;
             }
             Ok(mixes) => mixes,
@@ -307,7 +307,7 @@ impl TopologyRefresher {
 
         let gateways = match self.validator_client.get_cached_gateways().await {
             Err(err) => {
-                error!("failed to get network gateways - {}", err);
+                error!("failed to get network gateways - {err}");
                 return None;
             }
             Ok(gateways) => gateways,

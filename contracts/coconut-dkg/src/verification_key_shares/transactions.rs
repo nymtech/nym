@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::constants::BLOCK_TIME_FOR_VERIFICATION_SECS;
 use crate::dealers::storage as dealers_storage;
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
@@ -9,9 +10,6 @@ use crate::verification_key_shares::storage::VK_SHARES;
 use coconut_dkg_common::types::EpochState;
 use coconut_dkg_common::verification_key::{to_cosmos_msg, ContractVKShare, VerificationKeyShare};
 use cosmwasm_std::{Addr, DepsMut, Env, MessageInfo, Response};
-
-// Wait time for the verification to take place
-const BLOCK_TIME_FOR_VERIFICATION_SECS: u64 = 60;
 
 pub fn try_commit_verification_key_share(
     deps: DepsMut<'_>,

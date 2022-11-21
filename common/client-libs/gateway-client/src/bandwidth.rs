@@ -17,7 +17,7 @@ use credential_storage::error::StorageError;
 #[cfg(feature = "coconut")]
 use std::str::FromStr;
 #[cfg(feature = "coconut")]
-use validator_client::CoconutApiClient;
+use validator_client::client::CoconutApiClient;
 #[cfg(feature = "coconut")]
 use {
     coconut_interface::Base58,

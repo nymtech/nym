@@ -20,21 +20,21 @@ const ConnectionStatusContent: React.FC<{
       );
     case ConnectionStatusKind.disconnecting:
       return (
-        <>
+        <Box display="flex" alignItems="center" justifyContent="center">
           <CircularProgress size={FONT_SIZE} color="inherit" />
           <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} ml={1}>
             Disconnecting...
           </Typography>
-        </>
+        </Box>
       );
     case ConnectionStatusKind.connecting:
       return (
-        <>
+        <Box display="flex" alignItems="center" justifyContent="center">
           <CircularProgress size={FONT_SIZE} color="inherit" />
           <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} ml={1}>
             Connecting...
           </Typography>
-        </>
+        </Box>
       );
     case ConnectionStatusKind.disconnected:
       return (

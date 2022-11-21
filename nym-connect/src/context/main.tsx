@@ -14,7 +14,7 @@ const TAURI_EVENT_STATUS_CHANGED = 'app:connection-status-changed';
 
 type ModeType = 'light' | 'dark';
 
-type TClientContext = {
+export type TClientContext = {
   mode: ModeType;
   connectionStatus: ConnectionStatusKind;
   connectionStats?: ConnectionStatsItem[];

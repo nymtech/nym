@@ -12,7 +12,7 @@ const root = document.getElementById('root');
 ReactDOM.render(
   <ErrorBoundary FallbackComponent={ErrorFallback}>
     <ClientContextProvider>
-      <NymMixnetTheme>
+      <NymMixnetTheme mode="dark">
         <AppWindowFrame>
           <App />
         </AppWindowFrame>

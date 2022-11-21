@@ -1,8 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import IconButton from '@mui/material/IconButton';
-import MenuItem from '@mui/material/MenuItem';
-import ArrowDropDownCircleIcon from '@mui/icons-material/ArrowDropDownCircle';
-import { Box, CircularProgress, Input, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { Box, CircularProgress, Input, Stack, TextField, Tooltip, Typography, MenuItem } from '@mui/material';
 import { ServiceProvider, Service, Services } from '../types/directory';
 
 type ServiceWithRandomSp = {
@@ -16,7 +13,7 @@ export const ServiceProviderSelector: React.FC<{
   services?: Services;
   currentSp?: ServiceProvider;
 }> = ({ services, currentSp, onChange }) => {
-  const [service, setService] = React.useState<Service>();
+  const [service, setService] = React.useState<Service>({ id: '', description: '', items: [] });
   const [serviceProvider, setServiceProvider] = React.useState<ServiceProvider | undefined>(currentSp);
 
   useEffect(() => {
@@ -36,7 +33,9 @@ export const ServiceProviderSelector: React.FC<{
         ),
       );
 
-      setService(match);
+      if (match) {
+        setService(match);
+      }
     }
   }, [serviceProvider, services]);
 
@@ -49,14 +48,11 @@ export const ServiceProviderSelector: React.FC<{
 
   if (!services) {
     return (
-      <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ mt: 3 }}>
+      <Box display="flex" alignItems="center" justifyContent="center" sx={{ my: 3 }}>
         <Typography fontSize={14} fontWeight={700} color={(theme) => theme.palette.common.white}>
           <CircularProgress size={14} sx={{ mr: 1 }} color="inherit" />
           Loading services...
         </Typography>
-        <IconButton id="service-provider-button" disabled>
-          <ArrowDropDownCircleIcon />
-        </IconButton>
       </Box>
     );
   }
@@ -97,6 +93,9 @@ export const ServiceProviderSelector: React.FC<{
                 borderTopLeftRadius: 0,
                 borderTopRightRadius: 0,
                 '&& .Mui-selected': {
+                  backgroundColor: '#FFFFFF33',
+                },
+                '&& .Mui-focusVisible': {
                   backgroundColor: '#FFFFFF33',
                 },
               },

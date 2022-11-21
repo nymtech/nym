@@ -4,11 +4,11 @@ import { CustomTitleBar } from './CustomTitleBar';
 
 export const AppWindowFrame: React.FC = ({ children }) => (
   <Box
-    style={{
+    sx={{
       display: 'grid',
+      borderRadius: '12px',
       gridTemplateRows: '40px 1fr',
-      background: '#1D2125',
-
+      bgcolor: 'nym.background.dark',
       height: '100vh',
     }}
   >

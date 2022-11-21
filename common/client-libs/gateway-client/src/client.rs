@@ -335,8 +335,9 @@ impl GatewayClient {
                         Ok(msg) => msg
                     };
                     match ws_msg {
-                        Message::Binary(bin_msg) => {
-                            if let Err(err) = self.packet_router.route_received(vec![bin_msg]) {
+                        Message::Binary(ref _bin_msg) => {
+                            let plaintexts = PartiallyDelegated::recover_received_plaintexts(vec![ws_msg],self.shared_key.as_ref().unwrap());
+                            if let Err(err) = self.packet_router.route_received(plaintexts) {
                                 log::warn!("Route received failed: {:?}", err);
                             }
                         }

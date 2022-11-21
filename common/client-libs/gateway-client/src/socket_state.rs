@@ -44,7 +44,7 @@ pub(crate) struct PartiallyDelegated {
 }
 
 impl PartiallyDelegated {
-    fn recover_received_plaintexts(ws_msgs: Vec<Message>, shared_key: &SharedKeys) -> Vec<Vec<u8>> {
+    pub(crate) fn recover_received_plaintexts(ws_msgs: Vec<Message>, shared_key: &SharedKeys) -> Vec<Vec<u8>> {
         let mut plaintexts = Vec::with_capacity(ws_msgs.len());
         for ws_msg in ws_msgs {
             match ws_msg {

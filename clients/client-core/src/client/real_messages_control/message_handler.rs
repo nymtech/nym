@@ -14,22 +14,15 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::{
     AnonymousSenderTag, RepliableMessage, ReplyMessage, SENDER_TAG_SIZE,
 };
-use nymsphinx::anonymous_replies::ReplySurb;
+use nymsphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey};
 use nymsphinx::chunking::fragment::{Fragment, FragmentIdentifier};
 use nymsphinx::message::NymMessage;
 use nymsphinx::preparer::{MessagePreparer, PreparedFragment};
 use nymsphinx::Delay as SphinxDelay;
 use rand::{CryptoRng, Rng};
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use thiserror::Error;
 use topology::{NymTopology, NymTopologyError};
-
-// deprecating so that id rembember to remove it
-#[deprecated]
-static REQUESTED_SURBS: AtomicUsize = AtomicUsize::new(0);
-
-// TODO1: fix those disgusting and lazy Option<()> return types!
 
 // TODO2: attempt to unify `InvalidTopologyError` and `NymTopologyError`
 #[derive(Debug, Clone, Error)]
@@ -156,6 +149,25 @@ where
         }
     }
 
+    async fn generate_reply_surbs_with_keys(
+        &mut self,
+        amount: usize,
+    ) -> Result<(Vec<ReplySurb>, Vec<SurbEncryptionKey>), PreparationError> {
+        let topology_permit = self.topology_access.get_read_permit().await;
+        let topology = self.get_topology(&topology_permit)?;
+
+        let reply_surbs = self
+            .message_preparer
+            .generate_reply_surbs(amount, topology)?;
+
+        let reply_keys = reply_surbs
+            .iter()
+            .map(|s| *s.encryption_key())
+            .collect::<Vec<_>>();
+
+        Ok((reply_surbs, reply_keys))
+    }
+
     pub(crate) async fn try_send_single_surb_message(
         &mut self,
         target: AnonymousSenderTag,
@@ -163,7 +175,9 @@ where
         reply_surb: ReplySurb,
         is_extra_surb_request: bool,
     ) -> Result<(), PreparationError> {
-        let mut fragment = self.message_preparer.prepare_and_split_reply(message);
+        let mut fragment = self
+            .message_preparer
+            .pad_and_split_message(NymMessage::new_reply(message));
         if fragment.len() > 1 {
             // well, it's not a single surb message
             return Err(PreparationError {
@@ -197,27 +211,19 @@ where
         reply_surb: ReplySurb,
         amount: u32,
     ) -> Result<(), PreparationError> {
-        let old = REQUESTED_SURBS.fetch_add(amount as usize, Ordering::SeqCst);
-
-        info!(
-            "REQUESTING {amount} MORE SURBS!! In total we requested {}",
-            old + amount as usize
-        );
+        info!("requesting {amount} reply surbs from {:?}", from);
 
         let surbs_request = ReplyMessage::new_surb_request_message(self.self_address, amount);
         self.try_send_single_surb_message(from, surbs_request, reply_surb, true)
             .await
     }
 
-    // TODO: this will require additional argument to make it use different variant of `ReplyMessage`
+    // // TODO: this will require additional argument to make it use different variant of `ReplyMessage`
     pub(crate) fn split_reply_message(&mut self, message: Vec<u8>) -> Vec<Fragment> {
         self.message_preparer
-            .prepare_and_split_reply(ReplyMessage::new_data_message(message))
-    }
-
-    pub(crate) async fn prepare_reply_message_for_sending(&mut self, message: Vec<u8>) {
-        let topology_permit = self.topology_access.get_read_permit().await;
-        // let topology = self.get_topology(&topology_permit)?;
+            .pad_and_split_message(NymMessage::new_reply(ReplyMessage::new_data_message(
+                message,
+            )))
     }
 
     pub(crate) async fn try_send_reply_chunks(
@@ -249,7 +255,7 @@ where
             let chunk_clone = fragment.clone();
             let prepared_fragment = self
                 .message_preparer
-                .prepare_reply_chunk_for_sending(chunk_clone, topology, reply_surb, &self.ack_key)
+                .prepare_reply_chunk_for_sending(chunk_clone, topology, &self.ack_key, reply_surb)
                 .unwrap();
 
             let real_message =
@@ -271,36 +277,24 @@ where
         recipient: Recipient,
         message: Vec<u8>,
     ) -> Result<(), PreparationError> {
-        todo!()
+        let message = NymMessage::new_plain(message);
+        self.try_split_and_send_non_reply_message(message, recipient)
+            .await
     }
 
-    pub(crate) async fn try_send_additional_reply_surbs(
+    pub(crate) async fn try_split_and_send_non_reply_message(
         &mut self,
+        message: NymMessage,
         recipient: Recipient,
-        amount: u32,
     ) -> Result<(), PreparationError> {
-        let sender_tag = self.get_or_create_sender_tag(&recipient);
+        // TODO: I really dislike existence of this assertion, it implies code has to be re-organised
+        debug_assert!(!matches!(message, NymMessage::Reply(_)));
+
+        // TODO2: it's really annoying we have to get topology permit again here due to borrow-checker
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = self.get_topology(&topology_permit)?;
 
-        let reply_surbs = self
-            .message_preparer
-            .generate_reply_surbs(amount as usize, &topology)?;
-
-        let reply_keys = reply_surbs
-            .iter()
-            .map(|s| *s.encryption_key())
-            .collect::<Vec<_>>();
-        log::trace!("storing {} reply keys", reply_keys.len());
-        self.reply_key_storage.insert_multiple(reply_keys);
-
-        let message = NymMessage::new_repliable(RepliableMessage::new_additional_surbs(
-            sender_tag,
-            reply_surbs,
-        ));
-
-        // TODO: move to shared code
-        let fragments = self.message_preparer.prepare_and_split_message(message);
+        let fragments = self.message_preparer.pad_and_split_message(message);
 
         let mut pending_acks = Vec::with_capacity(fragments.len());
         let mut real_messages = Vec::with_capacity(fragments.len());
@@ -326,6 +320,29 @@ where
 
         self.insert_pending_acks(pending_acks);
         self.forward_messages(real_messages);
+
+        Ok(())
+    }
+
+    pub(crate) async fn try_send_additional_reply_surbs(
+        &mut self,
+        recipient: Recipient,
+        amount: u32,
+    ) -> Result<(), PreparationError> {
+        let sender_tag = self.get_or_create_sender_tag(&recipient);
+        let (reply_surbs, reply_keys) =
+            self.generate_reply_surbs_with_keys(amount as usize).await?;
+
+        let message = NymMessage::new_repliable(RepliableMessage::new_additional_surbs(
+            sender_tag,
+            reply_surbs,
+        ));
+
+        self.try_split_and_send_non_reply_message(message, recipient)
+            .await?;
+
+        log::trace!("storing {} reply keys", reply_keys.len());
+        self.reply_key_storage.insert_multiple(reply_keys);
 
         Ok(())
     }
@@ -337,98 +354,20 @@ where
         num_reply_surbs: u32,
     ) -> Result<(), PreparationError> {
         let sender_tag = self.get_or_create_sender_tag(&recipient);
-        let topology_permit = self.topology_access.get_read_permit().await;
-        let topology = self.get_topology(&topology_permit)?;
-
-        let reply_surbs = self
-            .message_preparer
-            .generate_reply_surbs(num_reply_surbs as usize, &topology)?;
-
-        let reply_keys = reply_surbs
-            .iter()
-            .map(|s| *s.encryption_key())
-            .collect::<Vec<_>>();
-        log::trace!("storing {} reply keys", reply_keys.len());
-        self.reply_key_storage.insert_multiple(reply_keys);
+        let (reply_surbs, reply_keys) = self
+            .generate_reply_surbs_with_keys(num_reply_surbs as usize)
+            .await?;
 
         let message =
             NymMessage::new_repliable(RepliableMessage::new_data(message, sender_tag, reply_surbs));
 
-        // TODO: move to shared code
-        let fragments = self.message_preparer.prepare_and_split_message(message);
+        self.try_split_and_send_non_reply_message(message, recipient)
+            .await?;
 
-        let mut pending_acks = Vec::with_capacity(fragments.len());
-        let mut real_messages = Vec::with_capacity(fragments.len());
-        for fragment in fragments {
-            // we need to clone it because we need to keep it in memory in case we had to retransmit
-            // it. And then we'd need to recreate entire ACK again.
-            let chunk_clone = fragment.clone();
-            let prepared_fragment = self.message_preparer.prepare_chunk_for_sending(
-                chunk_clone,
-                topology,
-                &self.ack_key,
-                &recipient,
-            )?;
-
-            let real_message =
-                RealMessage::new(prepared_fragment.mix_packet, fragment.fragment_identifier());
-            let delay = prepared_fragment.total_delay;
-            let pending_ack = PendingAcknowledgement::new_known(fragment, delay, recipient);
-
-            real_messages.push(real_message);
-            pending_acks.push(pending_ack);
-        }
-
-        self.insert_pending_acks(pending_acks);
-        self.forward_messages(real_messages);
+        log::trace!("storing {} reply keys", reply_keys.len());
+        self.reply_key_storage.insert_multiple(reply_keys);
 
         Ok(())
-    }
-
-    // TODO: change function signature to better accomodate for 'repliable' messages
-    // (for example where you're not sending any plaintext inside)
-    #[deprecated]
-    pub(crate) async fn try_send_normal_message(
-        &mut self,
-        recipient: Recipient,
-        message: Vec<u8>,
-        reply_surbs: u32,
-    ) -> Result<(), PreparationError> {
-        todo!()
-        //
-        // let topology_permit = self.topology_access.get_read_permit().await;
-        // let topology = self.get_topology(&topology_permit)?;
-        //
-        // // split the message, attach optional reply surb
-        // let fragments = self.message_preparer.prepare_and_split_message(message);
-        //
-        // log::trace!("storing {} reply keys", reply_keys.len());
-        // self.reply_key_storage.insert_multiple(reply_keys);
-        //
-        // let mut pending_acks = Vec::with_capacity(fragments.len());
-        // let mut real_messages = Vec::with_capacity(fragments.len());
-        // for fragment in fragments {
-        //     // we need to clone it because we need to keep it in memory in case we had to retransmit
-        //     // it. And then we'd need to recreate entire ACK again.
-        //     let chunk_clone = fragment.clone();
-        //     let prepared_fragment = self
-        //         .message_preparer
-        //         .prepare_chunk_for_sending(chunk_clone, topology, &self.ack_key, &recipient)
-        //         .unwrap();
-        //
-        //     let real_message =
-        //         RealMessage::new(prepared_fragment.mix_packet, fragment.fragment_identifier());
-        //     let delay = prepared_fragment.total_delay;
-        //     let pending_ack = PendingAcknowledgement::new_known(fragment, delay, recipient);
-        //
-        //     real_messages.push(real_message);
-        //     pending_acks.push(pending_ack);
-        // }
-        //
-        // self.insert_pending_acks(pending_acks);
-        // self.forward_messages(real_messages);
-        //
-        // Some(())
     }
 
     pub(crate) async fn try_prepare_single_chunk_for_sending(
@@ -460,30 +399,11 @@ where
 
         let prepared_fragment = self
             .message_preparer
-            .prepare_reply_chunk_for_sending(chunk, topology, reply_surb, &self.ack_key)
+            .prepare_reply_chunk_for_sending(chunk, topology, &self.ack_key, reply_surb)
             .unwrap();
 
         Ok(prepared_fragment)
     }
-
-    //
-    // fn insert_single_reply_ack(
-    //     &self,
-    //     message_chunk: Fragment,
-    //     delay: SphinxDelay,
-    //     recipient_tag: AnonymousSenderTag,
-    //     extra_surb_request: bool,
-    // ) {
-    //     let pending_ack = PendingAcknowledgement::new_anonymous(
-    //         message_chunk,
-    //         delay,
-    //         recipient_tag,
-    //         extra_surb_request,
-    //     );
-    //     self.action_sender
-    //         .unbounded_send(Action::new_insert(vec![pending_ack]))
-    //         .expect("action control task has died")
-    // }
 
     pub(crate) fn insert_pending_acks(&self, pending_acks: Vec<PendingAcknowledgement>) {
         self.action_sender

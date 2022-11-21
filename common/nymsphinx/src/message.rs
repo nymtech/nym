@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::chunking;
-use crate::receiver::MessageRecoveryError;
+use crypto::asymmetric::encryption;
+use crypto::Digest;
 use nymsphinx_addressing::clients::Recipient;
+use nymsphinx_addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
 use nymsphinx_anonymous_replies::requests::{
-    AnonymousSenderTag, RepliableMessage, ReplyMessage, ReplyMessageContent, UnnamedRepliesError,
+    RepliableMessage, ReplyMessage, ReplyMessageContent, UnnamedRepliesError,
 };
-use nymsphinx_anonymous_replies::ReplySurb;
 use nymsphinx_chunking::fragment::Fragment;
+use nymsphinx_params::{PacketSize, ReplySurbKeyDigestAlgorithm};
 use rand::Rng;
-use std::mem;
-use std::vec::IntoIter;
 
 #[derive(Debug)]
 pub struct InvalidMessageType;
@@ -124,6 +124,24 @@ impl NymMessage {
                 &bytes[1..],
             )?)),
         }
+    }
+
+    /// Length of plaintext (from the sphinx point of view) data that is available per sphinx
+    /// packet.
+    pub fn available_plaintext_per_packet(&self, packet_size: PacketSize) -> usize {
+        let ack_overhead = MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::AckPacket.size();
+
+        let variant_overhead = match self {
+            // each plain or repliable packet attaches an ephemeral public key so that the recipient
+            // could perform diffie-hellman with its own keys followed by a kdf to re-derive
+            // the packet encryption key
+            NymMessage::Plain(_) | NymMessage::Repliable(_) => encryption::PUBLIC_KEY_SIZE,
+            // each reply attaches the digest of the encryption key so that the recipient could
+            // lookup correct key for decryption,
+            NymMessage::Reply(_) => ReplySurbKeyDigestAlgorithm::output_size(),
+        };
+
+        packet_size.plaintext_size() - ack_overhead - variant_overhead
     }
 
     /// Pads the message so that after it gets chunked, it will occupy exactly N sphinx packets.

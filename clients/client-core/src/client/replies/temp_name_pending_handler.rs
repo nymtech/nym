@@ -97,26 +97,12 @@ pub enum ToBeNamedMessage {
 
 // TODO: move when cleaning
 struct PendingReply {
-    #[deprecated]
-    // TODO: remove that field
-    next_surb_request_increment: u32,
     data: VecDeque<Fragment>,
 }
 
 impl PendingReply {
     fn new(data: Vec<Fragment>) -> Self {
-        PendingReply {
-            next_surb_request_increment: 0,
-            data: data.into(),
-        }
-    }
-
-    fn increase_surb_request_counter(&mut self, amount: u32) {
-        self.next_surb_request_increment += amount
-    }
-
-    fn decrease_surb_request_counter(&mut self, amount: u32) {
-        self.next_surb_request_increment = self.next_surb_request_increment.saturating_sub(amount)
+        PendingReply { data: data.into() }
     }
 }
 
@@ -167,38 +153,6 @@ where
             self.pending_replies
                 .insert(*recipient, PendingReply::new(fragments));
         }
-    }
-
-    fn increment_surb_request_counter(&mut self, recipient: &AnonymousSenderTag, amount: u32) {
-        // TODO: investigate whether this failure can ever happen
-        self.pending_replies
-            .get_mut(recipient)
-            .expect("this failure should be impossible")
-            .increase_surb_request_counter(amount);
-    }
-
-    fn decrement_surb_request_counter(&mut self, recipient: &AnonymousSenderTag, amount: u32) {
-        // TODO: investigate whether this failure can ever happen
-        self.pending_replies
-            .get_mut(recipient)
-            .expect("this failure should be impossible")
-            .decrease_surb_request_counter(amount);
-    }
-
-    fn reset_surb_request_counter(&mut self, recipient: &AnonymousSenderTag) {
-        // TODO: investigate whether this failure can ever happen
-        self.pending_replies
-            .get_mut(recipient)
-            .expect("this failure should be impossible")
-            .next_surb_request_increment = 0;
-    }
-
-    fn surb_request_counter(&mut self, recipient: &AnonymousSenderTag) -> u32 {
-        // TODO: investigate whether this failure can ever happen
-        self.pending_replies
-            .get_mut(recipient)
-            .expect("this failure should be impossible")
-            .next_surb_request_increment
     }
 
     async fn handle_send_reply(&mut self, recipient_tag: AnonymousSenderTag, data: Vec<u8>) {
@@ -298,9 +252,9 @@ where
     async fn request_additional_reply_surbs(
         &mut self,
         target: AnonymousSenderTag,
-        mut amount: u32,
+        amount: u32,
     ) -> Result<(), SurbRequestError> {
-        log::info!("requesting {amount} reply surbs ...");
+        info!("requesting {amount} reply surbs ...");
 
         let reply_surb = self
             .received_reply_surbs
@@ -310,10 +264,6 @@ where
                 available: 0,
                 required: 1,
             })?;
-
-        // let counter = self.surb_request_counter(&target);
-        // amount += counter;
-        // log::info!("incrementing the amount to {amount}");
 
         if let Err(err) = self
             .message_handler
@@ -334,8 +284,6 @@ where
                 .increment_pending_reception(&target, amount);
         }
 
-        // decrement the counter by what we managed to request
-        self.decrement_surb_request_counter(&target, amount);
         Ok(())
     }
 
@@ -580,8 +528,7 @@ where
             return;
         }
 
-        let increment = pending.next_surb_request_increment;
-        let request_size = min(self.max_surb_request_size, queue_size + increment);
+        let request_size = min(self.max_surb_request_size, queue_size);
 
         if let Err(err) = self
             .request_additional_reply_surbs(target, request_size)

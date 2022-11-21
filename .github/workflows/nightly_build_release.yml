@@ -1,6 +1,8 @@
 name: Nightly builds on latest release
 
-on: workflow_dispatch
+on:
+  schedule:
+    - cron: '14 2 * * *'
 jobs:
   matrix_prep:
     runs-on: ubuntu-latest

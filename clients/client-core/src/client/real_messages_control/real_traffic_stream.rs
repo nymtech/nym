@@ -7,7 +7,6 @@ use crate::client::topology_control::TopologyAccessor;
 use client_connections::{
     ClosedConnectionReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
 };
-use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
@@ -158,8 +157,8 @@ impl RealMessage {
 // messages are already prepared, etc. the real point of it is to forward it to mix_traffic
 // after sufficient delay
 pub(crate) type BatchRealMessageSender =
-    mpsc::UnboundedSender<(Vec<RealMessage>, TransmissionLane)>;
-type BatchRealMessageReceiver = mpsc::UnboundedReceiver<(Vec<RealMessage>, TransmissionLane)>;
+    tokio::sync::mpsc::Sender<(Vec<RealMessage>, TransmissionLane)>;
+type BatchRealMessageReceiver = tokio::sync::mpsc::Receiver<(Vec<RealMessage>, TransmissionLane)>;
 
 pub(crate) enum StreamMessage {
     Cover,
@@ -368,7 +367,7 @@ where
             // in `Vec`, this ensures that on average we will fetch messages faster than we can
             // send, which is a condition for being able to multiplex sphinx packets from multiple
             // data streams.
-            match Pin::new(&mut self.real_receiver).poll_next(cx) {
+            match Pin::new(&mut self.real_receiver).poll_recv(cx) {
                 // in the case our real message channel stream was closed, we should also indicate we are closed
                 // (and whoever is using the stream should panic)
                 Poll::Ready(None) => Poll::Ready(None),
@@ -416,7 +415,7 @@ where
             self.on_close_connection(id);
         }
 
-        match Pin::new(&mut self.real_receiver).poll_next(cx) {
+        match Pin::new(&mut self.real_receiver).poll_recv(cx) {
             // in the case our real message channel stream was closed, we should also indicate we are closed
             // (and whoever is using the stream should panic)
             Poll::Ready(None) => Poll::Ready(None),

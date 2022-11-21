@@ -78,26 +78,15 @@ where
         ordered_msg.len()
     );
 
-    // WIP: if is_finished, wait here to send until the queue is clear
+    // If we are closing the channel, wait until the data has passed `OutQueueControl` and the lane
+    // is empty.
     if let Some(lane_queue_lengths) = lane_queue_lengths {
-        log::info!("Received size: {}", read_data.len());
-
-        // If we receive multiple large data sets in short succession we need to back off passing them off
-        // downstream to give some time for them to reach the out queue controller and the lane
-        // queue lengts being updated
-        if read_data.len() > 50_000 {
-            time::sleep(Duration::from_millis(200)).await;
-        }
-
-        let queue = lane_queue_lengths.get(&TransmissionLane::ConnectionId(connection_id));
-        log::info!("lane: {connection_id}: queue: {:?}", queue);
-
         if is_finished {
             while let Some(queue) =
                 lane_queue_lengths.get(&TransmissionLane::ConnectionId(connection_id))
             {
                 if queue > 0 {
-                    sleep(Duration::from_millis(100)).await;
+                    sleep(Duration::from_millis(500)).await;
                 } else {
                     break;
                 }
@@ -111,6 +100,23 @@ where
         .is_err()
     {
         panic!();
+    }
+
+    // If we receive large data sets then what might happen is that we push all the data down the
+    // channel and the close it before the lane queue lenghts are updated in `OutQueueControl`. So
+    // we back off ever so slightly here to give some time for them to reach the `OutQueueControl`
+    // and the lane queue lengths being updated until the next message for this connection.
+
+    // TODO: this is all hardcoded and ugly. The correct solution I hope would be to rework
+    // `OutQueueControl` to poll it's incoming channel independently on the poisson delay.
+    if read_data.len() > 50_000 {
+        // Heuristic used:
+        // average delay: 20ms => 50 packets/sec
+        // ~1.5 kB/packet => ~75 kB/s
+        let time_to_send = read_data.len() / 75;
+        // Dont need to wait until we've sent the data, just something that is proportional to it.
+        let fraction_of_time_to_send = time_to_send / 10;
+        time::sleep(Duration::from_millis(fraction_of_time_to_send as u64)).await;
     }
 
     if is_finished {

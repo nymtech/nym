@@ -109,6 +109,12 @@ pub trait VestingSigningClient {
         cap: Option<PledgeCap>,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>;
+
+    async fn transfer_ownership(
+        &self,
+        to_address: &str,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError>;
 }
 
 #[async_trait]
@@ -402,6 +408,27 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
                 fee,
                 "VestingContract::CreatePeriodicVestingAccount",
                 vec![amount],
+            )
+            .await
+    }
+
+    async fn transfer_ownership(
+        &self,
+        to_address: &str,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
+        let req = VestingExecuteMsg::TransferOwnership {
+            to_address: to_address.to_string(),
+        };
+        self.client
+            .execute(
+                self.address(),
+                self.vesting_contract_address(),
+                &req,
+                fee,
+                "VestingContract::TransferOwnership",
+                vec![],
             )
             .await
     }

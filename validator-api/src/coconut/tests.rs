@@ -39,6 +39,9 @@ use validator_client::validator_api::routes::{
 use crate::coconut::State;
 use crate::ValidatorApiStorage;
 use async_trait::async_trait;
+use coconut_dkg_common::dealer::DealerDetailsResponse;
+use coconut_dkg_common::types::EncodedBTEPublicKeyWithProof;
+use contracts_common::commitment::ContractSafeCommitment;
 use crypto::asymmetric::{encryption, identity};
 use rand_07::rngs::OsRng;
 use rocket::http::Status;
@@ -46,6 +49,7 @@ use rocket::local::asynchronous::Client;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
+use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
 
 const TEST_COIN_DENOM: &str = "unym";
 const TEST_REWARDING_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
@@ -117,6 +121,10 @@ impl super::client::Client for DummyClient {
             })
     }
 
+    async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse> {
+        todo!()
+    }
+
     async fn vote_proposal(
         &self,
         proposal_id: u64,
@@ -131,6 +139,20 @@ impl super::client::Client for DummyClient {
             }
         }
         Ok(())
+    }
+
+    async fn register_dealer(
+        &self,
+        bte_key: EncodedBTEPublicKeyWithProof,
+    ) -> Result<ExecuteResult> {
+        todo!()
+    }
+
+    async fn submit_dealing_commitment(
+        &self,
+        commitment: ContractSafeCommitment,
+    ) -> Result<ExecuteResult> {
+        todo!()
     }
 }
 

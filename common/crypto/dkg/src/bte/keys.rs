@@ -8,6 +8,7 @@ use crate::utils::{deserialize_g1, deserialize_g2, deserialize_scalar};
 use bls12_381::{G1Projective, G2Projective, Scalar};
 use ff::Field;
 use group::GroupEncoding;
+use pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use rand_core::RngCore;
 use zeroize::Zeroize;
 
@@ -57,6 +58,20 @@ impl PublicKey {
 pub struct PublicKeyWithProof {
     pub(crate) key: PublicKey,
     pub(crate) proof: ProofOfDiscreteLog,
+}
+
+impl PemStorableKey for PublicKeyWithProof {
+    type Error = DkgError;
+
+    fn pem_type() -> &'static str {
+        "DKG PUBLIC KEY WITH PROOF"
+    }
+    fn to_bytes(&self) -> Vec<u8> {
+        self.to_bytes()
+    }
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Self::Error> {
+        Self::try_from_bytes(bytes)
+    }
 }
 
 impl PublicKeyWithProof {
@@ -135,6 +150,20 @@ pub struct DecryptionKey {
     pub(crate) e: G2Projective,
 }
 
+impl PemStorableKey for DecryptionKey {
+    type Error = DkgError;
+
+    fn pem_type() -> &'static str {
+        "DKG DECRYPTION KEY"
+    }
+    fn to_bytes(&self) -> Vec<u8> {
+        self.to_bytes()
+    }
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Self::Error> {
+        Self::try_from_bytes(bytes)
+    }
+}
+
 impl DecryptionKey {
     fn new_root(a: G1Projective, b: G2Projective, dh: Vec<G2Projective>, e: G2Projective) -> Self {
         DecryptionKey { a, b, dh, e }
@@ -210,6 +239,55 @@ impl DecryptionKey {
         })?;
 
         Ok(Self { a, b, dh, e })
+    }
+}
+
+pub struct KeyPair {
+    pub(crate) private_key: DecryptionKey,
+    pub(crate) public_key: PublicKeyWithProof,
+}
+
+impl KeyPair {
+    pub fn new(params: &Params, rng: impl RngCore) -> Self {
+        let (dk, pk) = keygen(params, rng);
+        Self {
+            private_key: dk,
+            public_key: pk,
+        }
+    }
+    pub fn private_key(&self) -> &DecryptionKey {
+        &self.private_key
+    }
+
+    pub fn public_key(&self) -> &PublicKeyWithProof {
+        &self.public_key
+    }
+
+    pub fn from_bytes(priv_bytes: &[u8], pub_bytes: &[u8]) -> Result<Self, DkgError> {
+        Ok(KeyPair {
+            private_key: DecryptionKey::try_from_bytes(priv_bytes)?,
+            public_key: PublicKeyWithProof::try_from_bytes(pub_bytes)?,
+        })
+    }
+}
+
+impl PemStorableKeyPair for KeyPair {
+    type PrivatePemKey = DecryptionKey;
+    type PublicPemKey = PublicKeyWithProof;
+
+    fn private_key(&self) -> &Self::PrivatePemKey {
+        self.private_key()
+    }
+
+    fn public_key(&self) -> &Self::PublicPemKey {
+        self.public_key()
+    }
+
+    fn from_keys(private_key: Self::PrivatePemKey, public_key: Self::PublicPemKey) -> Self {
+        KeyPair {
+            private_key,
+            public_key,
+        }
     }
 }
 

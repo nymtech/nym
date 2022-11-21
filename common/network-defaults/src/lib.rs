@@ -36,6 +36,7 @@ pub struct NymContracts {
     pub bandwidth_claim_contract_address: Option<String>,
     pub coconut_bandwidth_contract_address: Option<String>,
     pub multisig_contract_address: Option<String>,
+    pub coconut_dkg_contract_address: Option<String>,
 }
 
 // I wanted to use the simpler `NetworkDetails` name, but there's a clash
@@ -96,6 +97,9 @@ impl NymNetworkDetails {
             .with_multisig_contract(Some(
                 var(var_names::MULTISIG_CONTRACT_ADDRESS).expect("multisig contract not set"),
             ))
+            .with_coconut_dkg_contract(Some(
+                var(var_names::COCONUT_DKG_CONTRACT_ADDRESS).expect("coconut dkg contract not set"),
+            ))
     }
 
     pub fn new_mainnet() -> Self {
@@ -121,6 +125,9 @@ impl NymNetworkDetails {
                     mainnet::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
                 ),
                 multisig_contract_address: parse_optional_str(mainnet::MULTISIG_CONTRACT_ADDRESS),
+                coconut_dkg_contract_address: parse_optional_str(
+                    mainnet::COCONUT_DKG_CONTRACT_ADDRESS,
+                ),
             },
         }
     }
@@ -188,6 +195,12 @@ impl NymNetworkDetails {
     #[must_use]
     pub fn with_multisig_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
         self.contracts.multisig_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_coconut_dkg_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.coconut_dkg_contract_address = contract.map(Into::into);
         self
     }
 }

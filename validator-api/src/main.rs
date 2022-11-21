@@ -39,7 +39,11 @@ use validator_client::nymd::SigningNymdClient;
 
 use crate::epoch_operations::RewardedSetUpdater;
 #[cfg(feature = "coconut")]
-use coconut::{comm::QueryCommunicationChannel, InternalSignRequest};
+use coconut::{
+    comm::QueryCommunicationChannel,
+    dkg::{init_keypair, DkgController},
+    InternalSignRequest,
+};
 #[cfg(feature = "coconut")]
 use coconut_interface::{Base58, KeyPair};
 use logging::setup_logging;
@@ -506,8 +510,8 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
 
     // try to load config from the file, if it doesn't exist, use default values
     let id = matches.value_of(ID);
-    let config = match Config::load_from_file(id) {
-        Ok(cfg) => cfg,
+    let (config, _already_inited) = match Config::load_from_file(id) {
+        Ok(cfg) => (cfg, true),
         Err(_) => {
             let config_path = Config::default_config_file_path(id)
                 .into_os_string()
@@ -517,11 +521,17 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
                 "Could not load the configuration file from {}. Either the file did not exist or was malformed. Using the default values instead",
                 config_path
             );
-            Config::new()
+            (Config::new(), false)
         }
     };
 
     let config = override_config(config, &matches);
+
+    #[cfg(feature = "coconut")]
+    if !_already_inited {
+        init_keypair(&config)?;
+    }
+
     // if we just wanted to write data to the config, exit
     if matches.is_present(WRITE_CONFIG_ARG) {
         return Ok(());
@@ -546,6 +556,13 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
 
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
     let node_status_cache = rocket.state::<NodeStatusCache>().unwrap().clone();
+
+    #[cfg(feature = "coconut")]
+    {
+        let dkg_controller = DkgController::new(&config, signing_nymd_client.clone())?;
+        let shutdown_listener = shutdown.subscribe();
+        tokio::spawn(async move { dkg_controller.run(shutdown_listener).await });
+    }
 
     // if network monitor is disabled, we're not going to be sending any rewarding hence
     // we're not starting signing client

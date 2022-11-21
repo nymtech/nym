@@ -4,6 +4,7 @@
 pub(crate) mod client;
 pub(crate) mod comm;
 mod deposit;
+pub(crate) mod dkg;
 pub(crate) mod error;
 #[cfg(test)]
 mod tests;

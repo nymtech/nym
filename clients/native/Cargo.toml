@@ -51,6 +51,7 @@ topology = { path = "../../common/topology" }
 validator-client = { path = "../../common/client-libs/validator-client", features = ["nymd-client"] }
 version-checker = { path = "../../common/version-checker" }
 websocket-requests = { path = "websocket-requests" }
+tap = "1.0.1"
 
 [features]
 coconut = ["coconut-interface", "credentials", "credentials/coconut", "gateway-requests/coconut", "gateway-client/coconut", "client-core/coconut"]

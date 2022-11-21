@@ -23,15 +23,19 @@ const ENABLE_STATISTICS: &str = "enable-statistics";
 #[derive(Args)]
 struct Run {
     /// Specifies whether this network requester should run in 'open-proxy' mode
+    #[clap(long)]
     open_proxy: bool,
 
     /// Websocket port to bind to
+    #[clap(long)]
     websocket_port: Option<String>,
 
     /// Enable service anonymized statistics that get sent to a statistics aggregator server
+    #[clap(long)]
     enable_statistics: bool,
 
     /// Mixnet client address where a statistics aggregator is running. The default value is a Nym aggregator client
+    #[clap(long)]
     statistics_recipient: Option<String>,
 }
 

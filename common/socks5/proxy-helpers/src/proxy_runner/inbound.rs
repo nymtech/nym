@@ -29,7 +29,7 @@ fn send_empty_close<F, S>(
         .unwrap();
 }
 
-fn deal_with_data<F, S>(
+async fn deal_with_data<F, S>(
     read_data: Option<io::Result<Bytes>>,
     local_destination_address: &str,
     remote_source_address: &str,
@@ -37,6 +37,7 @@ fn deal_with_data<F, S>(
     message_sender: &mut OrderedMessageSender,
     mix_sender: &MixProxySender<S>,
     adapter_fn: F,
+    lane_queue_lengths: LaneQueueLengths,
 ) -> bool
 where
     F: Fn(ConnectionId, Vec<u8>, bool) -> S,
@@ -88,6 +89,7 @@ pub(super) async fn run_inbound<F, S>(
     mix_sender: MixProxySender<S>,
     adapter_fn: F,
     shutdown_notify: Arc<Notify>,
+    lane_queue_lengths: LaneQueueLengths,
     mut shutdown_listener: ShutdownListener,
 ) -> OwnedReadHalf
 where
@@ -102,12 +104,24 @@ where
     loop {
         select! {
             read_data = &mut available_reader.next() => {
-                if deal_with_data(read_data, &local_destination_address, &remote_source_address, connection_id, &mut message_sender, &mix_sender, &adapter_fn) {
+                if deal_with_data(
+                    read_data,
+                    &local_destination_address,
+                    &remote_source_address,
+                    connection_id,
+                    &mut message_sender,
+                    &mix_sender,
+                    &adapter_fn,
+                    lane_queue_lengths.clone()
+                ).await {
                     break
                 }
             }
             _ = &mut shutdown_future => {
-                debug!("closing inbound proxy after outbound was closed {:?} ago", SHUTDOWN_TIMEOUT);
+                debug!(
+                    "closing inbound proxy after outbound was closed {:?} ago",
+                    SHUTDOWN_TIMEOUT
+                );
                 // inform remote just in case it was closed because of lack of heartbeat.
                 // worst case the remote will just have couple of false negatives
                 send_empty_close(connection_id, &mut message_sender, &mix_sender, &adapter_fn);

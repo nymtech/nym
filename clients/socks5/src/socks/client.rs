@@ -4,7 +4,7 @@ use super::authentication::{AuthenticationMethods, Authenticator, User};
 use super::request::{SocksCommand, SocksRequest};
 use super::types::{ResponseCode, SocksProxyError};
 use super::{RESERVED, SOCKS_VERSION};
-use client_connections::TransmissionLane;
+use client_connections::{LaneQueueLengths, TransmissionLane};
 use client_core::client::inbound_messages::{InputMessage, InputMessageSender};
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
@@ -141,6 +141,7 @@ pub(crate) struct SocksClient {
     service_provider: Recipient,
     self_address: Recipient,
     started_proxy: bool,
+    lane_queue_lengths: LaneQueueLengths,
     shutdown_listener: ShutdownListener,
 }
 
@@ -165,6 +166,7 @@ impl SocksClient {
         service_provider: Recipient,
         controller_sender: ControllerSender,
         self_address: Recipient,
+        lane_queue_lengths: LaneQueueLengths,
         shutdown_listener: ShutdownListener,
     ) -> Self {
         let connection_id = Self::generate_random();
@@ -179,6 +181,7 @@ impl SocksClient {
             service_provider,
             self_address,
             started_proxy: false,
+            lane_queue_lengths,
             shutdown_listener,
         }
     }
@@ -258,6 +261,7 @@ impl SocksClient {
             conn_receiver,
             input_sender,
             connection_id,
+            self.lane_queue_lengths.clone(),
             self.shutdown_listener.clone(),
         )
         .run(move |conn_id, read_data, socket_closed| {

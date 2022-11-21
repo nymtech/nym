@@ -16,7 +16,6 @@ use std::time::Duration;
 use std::{io, sync::Arc};
 use task::ShutdownListener;
 use tokio::select;
-use tokio::time;
 use tokio::{net::tcp::OwnedReadHalf, sync::Notify, time::sleep};
 
 async fn send_empty_close<F, S>(

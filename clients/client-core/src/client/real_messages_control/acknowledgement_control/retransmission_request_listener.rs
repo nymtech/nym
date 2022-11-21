@@ -87,11 +87,11 @@ where
 
             if self.received_reply_surbs.below_threshold(surbs_left) {
                 // if we're running low on surbs, we should request more (unless we've already requested them)
-                let already_requesting = self
+                let pending_reception = self
                     .received_reply_surbs
-                    .set_requesting_more_surbs(&recipient_tag)?;
+                    .pending_reception(&recipient_tag)?;
 
-                if !already_requesting {
+                if pending_reception < SURBS_TO_REQUEST {
                     info!("requesting surbs from retransmission handler");
                     if let Some(another_surb) = self
                         .received_reply_surbs
@@ -111,9 +111,9 @@ where
                             warn!("we failed to ask for more surbs... - {msg}");
                             self.received_reply_surbs
                                 .insert_maybe_surbs(&recipient_tag, returned_surbs);
-                            self.received_reply_surbs
-                                .clear_requesting_more_surbs(&recipient_tag)?;
                         }
+                        self.received_reply_surbs
+                            .increment_pending_reception(&recipient_tag, SURBS_TO_REQUEST)?;
                     }
                 }
             }

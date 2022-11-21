@@ -23,6 +23,8 @@ use std::sync::Arc;
 use thiserror::Error;
 use topology::{NymTopology, NymTopologyError};
 
+// deprecating so that id rembember to remove it
+#[deprecated]
 static REQUESTED_SURBS: AtomicUsize = AtomicUsize::new(0);
 
 // TODO1: fix those disgusting and lazy Option<()> return types!

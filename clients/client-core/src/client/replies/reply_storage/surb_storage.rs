@@ -79,25 +79,37 @@ impl ReceivedReplySurbsMap {
             .map(|e| e.surbs_last_received_at())
     }
 
-    pub(crate) fn requesting_more_surbs(&self, target: &AnonymousSenderTag) -> Option<bool> {
-        self.inner
-            .data
-            .get(target)
-            .map(|e| e.requesting_more_surbs())
+    pub(crate) fn pending_reception(&self, target: &AnonymousSenderTag) -> Option<u32> {
+        self.inner.data.get(target).map(|e| e.pending_reception())
     }
 
-    pub(crate) fn set_requesting_more_surbs(&self, target: &AnonymousSenderTag) -> Option<bool> {
+    pub(crate) fn increment_pending_reception(
+        &self,
+        target: &AnonymousSenderTag,
+        amount: u32,
+    ) -> Option<u32> {
         self.inner
             .data
             .get_mut(target)
-            .map(|mut e| e.set_requesting_more_surbs())
+            .map(|mut e| e.increment_pending_reception(amount))
     }
 
-    pub(crate) fn clear_requesting_more_surbs(&self, target: &AnonymousSenderTag) -> Option<()> {
+    pub(crate) fn decrement_pending_reception(
+        &self,
+        target: &AnonymousSenderTag,
+        amount: u32,
+    ) -> Option<u32> {
         self.inner
             .data
             .get_mut(target)
-            .map(|mut e| e.clear_requesting_more_surbs())
+            .map(|mut e| e.decrement_pending_reception(amount))
+    }
+
+    pub(crate) fn reset_pending_reception(&self, target: &AnonymousSenderTag) -> Option<()> {
+        self.inner
+            .data
+            .get_mut(target)
+            .map(|mut e| e.reset_pending_reception())
     }
 
     pub(crate) fn below_threshold(&self, amount: usize) -> bool {
@@ -206,7 +218,8 @@ struct ReceivedReplySurbs {
     // in the future we'd probably want to put extra data here to indicate when the SURBs got received
     // so we could invalidate entries from the previous key rotations
     data: VecDeque<ReplySurb>,
-    requesting_more_surbs: bool,
+
+    pending_reception: u32,
     surbs_last_received_at: Instant,
 }
 
@@ -214,7 +227,7 @@ impl ReceivedReplySurbs {
     fn new(initial_surbs: VecDeque<ReplySurb>) -> Self {
         ReceivedReplySurbs {
             data: initial_surbs,
-            requesting_more_surbs: false,
+            pending_reception: 0,
             surbs_last_received_at: Instant::now(),
         }
     }
@@ -223,18 +236,23 @@ impl ReceivedReplySurbs {
         self.surbs_last_received_at
     }
 
-    pub(crate) fn requesting_more_surbs(&self) -> bool {
-        self.requesting_more_surbs
+    pub(crate) fn pending_reception(&self) -> u32 {
+        self.pending_reception
     }
 
-    pub(crate) fn set_requesting_more_surbs(&mut self) -> bool {
-        let old = self.requesting_more_surbs;
-        self.requesting_more_surbs = true;
-        old
+    pub(crate) fn increment_pending_reception(&mut self, amount: u32) -> u32 {
+        self.pending_reception += amount;
+        self.pending_reception
     }
 
-    pub(crate) fn clear_requesting_more_surbs(&mut self) {
-        self.requesting_more_surbs = false
+    pub(crate) fn decrement_pending_reception(&mut self, amount: u32) -> u32 {
+        println!("{} - {}", self.pending_reception, amount);
+        self.pending_reception -= amount;
+        self.pending_reception
+    }
+
+    pub(crate) fn reset_pending_reception(&mut self) {
+        self.pending_reception = 0
     }
 
     pub(crate) fn get_reply_surbs(&mut self, amount: usize) -> (Option<Vec<ReplySurb>>, usize) {

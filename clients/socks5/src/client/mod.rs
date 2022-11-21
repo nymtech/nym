@@ -20,7 +20,7 @@ use client_core::client::real_messages_control::RealMessagesController;
 use client_core::client::received_buffer::{
     ReceivedBufferRequestReceiver, ReceivedBufferRequestSender, ReceivedMessagesBufferController,
 };
-use client_core::client::reply_key_storage::{ReplyKeyStorage, ReplyKeyStorageError};
+use client_core::client::reply_key_storage::ReplyKeyStorage;
 use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };

@@ -41,12 +41,12 @@ use crate::epoch_operations::RewardedSetUpdater;
 #[cfg(feature = "coconut")]
 use coconut::{
     comm::QueryCommunicationChannel,
-    dkg::{init_keypair, DkgController},
+    dkg::controller::{init_keypair, DkgController},
     InternalSignRequest,
 };
-#[cfg(feature = "coconut")]
-use coconut_interface::{Base58, KeyPair};
 use logging::setup_logging;
+#[cfg(feature = "coconut")]
+use validator_client::nymd::bip32::secp256k1::elliptic_curve::rand_core::OsRng;
 
 pub(crate) mod config;
 pub(crate) mod contract_cache;
@@ -419,6 +419,7 @@ async fn setup_rocket(
     _mix_denom: String,
     liftoff_notify: Arc<Notify>,
     _nymd_client: Client<SigningNymdClient>,
+    #[cfg(feature = "coconut")] coconut_keypair: coconut::keypair::KeyPair,
 ) -> Result<Rocket<Ignite>> {
     let openapi_settings = rocket_okapi::settings::OpenApiSettings::default();
     let mut rocket = rocket::build();
@@ -451,14 +452,10 @@ async fn setup_rocket(
 
     #[cfg(feature = "coconut")]
     let rocket = if config.get_coconut_signer_enabled() {
-        let keypair_bs58 = fs::read_to_string(config.keypair_path())?
-            .trim()
-            .to_string();
-        let keypair = KeyPair::try_from_bs58(keypair_bs58)?;
         rocket.attach(InternalSignRequest::stage(
             _nymd_client,
             _mix_denom,
-            keypair,
+            coconut_keypair,
             QueryCommunicationChannel::new(config.get_all_validator_api_endpoints()),
             storage.clone().unwrap(),
         ))
@@ -544,12 +541,17 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
     // We need a bigger timeout
     let shutdown = ShutdownNotifier::new(10);
 
+    #[cfg(feature = "coconut")]
+    let coconut_keypair = coconut::keypair::KeyPair::new();
+
     // let's build our rocket!
     let rocket = setup_rocket(
         &config,
         mix_denom,
         Arc::clone(&liftoff_notify),
         signing_nymd_client.clone(),
+        #[cfg(feature = "coconut")]
+        coconut_keypair.clone(),
     )
     .await?;
     let monitor_builder = setup_network_monitor(&config, system_version, &rocket);
@@ -559,7 +561,8 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
 
     #[cfg(feature = "coconut")]
     {
-        let dkg_controller = DkgController::new(&config, signing_nymd_client.clone())?;
+        let dkg_controller =
+            DkgController::new(&config, signing_nymd_client.clone(), coconut_keypair, OsRng)?;
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(async move { dkg_controller.run(shutdown_listener).await });
     }

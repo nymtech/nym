@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::{Addr, StdError, VerificationError};
+use cw_controllers::AdminError;
 use thiserror::Error;
 
 /// Custom errors for contract failure conditions.
@@ -9,6 +10,9 @@ use thiserror::Error;
 pub enum ContractError {
     #[error("{0}")]
     Std(#[from] StdError),
+
+    #[error("{0}")]
+    Admin(#[from] AdminError),
 
     #[error("Group contract invalid address '{addr}'")]
     InvalidGroup { addr: String },
@@ -39,6 +43,14 @@ pub enum ContractError {
 
     #[error("Epoch hasn't been correctly initialised!")]
     EpochNotInitialised,
+
+    #[error(
+        "Requested action needs state to be {expected_state}, currently in state {current_state}, "
+    )]
+    IncorrectEpochState {
+        current_state: String,
+        expected_state: String,
+    },
 
     // we should never ever see this error (famous last words in programming), therefore, I'd want to
     // explicitly declare it so that when we ultimate do see it, it's gonna be more informative over "normal" panic

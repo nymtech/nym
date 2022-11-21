@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::types::{ContractSafeCommitment, EncodedBTEPublicKeyWithProof, NodeIndex};
+use crate::types::{ContractSafeBytes, EncodedBTEPublicKeyWithProof, NodeIndex};
 use cosmwasm_std::{Addr, Coin};
 use serde::{Deserialize, Serialize};
 
@@ -68,33 +68,33 @@ impl PagedDealerResponse {
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub struct ContractDealingCommitment {
-    pub commitment: ContractSafeCommitment,
+pub struct ContractDealing {
+    pub dealing: ContractSafeBytes,
     pub dealer: Addr,
 }
 
-impl ContractDealingCommitment {
-    pub fn new(commitment: ContractSafeCommitment, dealer: Addr) -> Self {
-        ContractDealingCommitment { commitment, dealer }
+impl ContractDealing {
+    pub fn new(dealing: ContractSafeBytes, dealer: Addr) -> Self {
+        ContractDealing { dealing, dealer }
     }
 }
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub struct PagedCommitmentsResponse {
-    pub commitments: Vec<ContractDealingCommitment>,
+pub struct PagedDealingsResponse {
+    pub dealings: Vec<ContractDealing>,
     pub per_page: usize,
     pub start_next_after: Option<Addr>,
 }
 
-impl PagedCommitmentsResponse {
+impl PagedDealingsResponse {
     pub fn new(
-        commitments: Vec<ContractDealingCommitment>,
+        dealings: Vec<ContractDealing>,
         per_page: usize,
         start_next_after: Option<Addr>,
     ) -> Self {
-        PagedCommitmentsResponse {
-            commitments,
+        PagedDealingsResponse {
+            dealings,
             per_page,
             start_next_after,
         }

@@ -5,19 +5,22 @@ use crate::constants::MINIMUM_DEPOSIT;
 use crate::dealers::queries::{
     query_current_dealers_paged, query_dealer_details, query_past_dealers_paged,
 };
-use crate::dealings::queries::query_epoch_dealings_commitments_paged;
+use crate::dealings::queries::query_dealings_paged;
+use crate::epoch_state::queries::query_current_epoch_state;
 use crate::error::ContractError;
-use crate::state::{State, STATE};
+use crate::state::{State, ADMIN, STATE};
 use coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use coconut_dkg_common::types::MinimumDepositResponse;
+use coconut_dkg_common::types::{EpochState, MinimumDepositResponse};
 use cosmwasm_std::{
     entry_point, to_binary, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
 };
 use cw4::Cw4Contract;
+use epoch_state::storage::{advance_epoch_state, CURRENT_EPOCH_STATE};
 
 mod constants;
 mod dealers;
 mod dealings;
+mod epoch_state;
 mod error;
 mod state;
 
@@ -28,11 +31,14 @@ mod state;
 /// `msg` is the contract initialization message, sort of like a constructor call.
 #[entry_point]
 pub fn instantiate(
-    deps: DepsMut<'_>,
+    mut deps: DepsMut<'_>,
     _env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    let admin_addr = deps.api.addr_validate(&msg.admin)?;
+    ADMIN.set(deps.branch(), Some(admin_addr))?;
+
     let group_addr = Cw4Contract(deps.api.addr_validate(&msg.group_addr).map_err(|_| {
         ContractError::InvalidGroup {
             addr: msg.group_addr.clone(),
@@ -44,6 +50,8 @@ pub fn instantiate(
         mix_denom: msg.mix_denom,
     };
     STATE.save(deps.storage, &state)?;
+
+    CURRENT_EPOCH_STATE.save(deps.storage, &EpochState::default())?;
 
     Ok(Response::default())
 }
@@ -60,12 +68,13 @@ pub fn execute(
         ExecuteMsg::RegisterDealer { bte_key_with_proof } => {
             dealers::transactions::try_add_dealer(deps, info, bte_key_with_proof)
         }
-        ExecuteMsg::CommitDealing { commitment } => {
-            dealings::transactions::try_commit_dealing(deps, info, commitment)
+        ExecuteMsg::CommitDealing { dealing_bytes } => {
+            dealings::transactions::try_commit_dealings(deps, info, dealing_bytes)
         }
         ExecuteMsg::DebugUnsafeResetAll { init_msg } => {
             reset_contract_state(deps, env, info, init_msg)
         }
+        ExecuteMsg::AdvanceEpochState {} => advance_epoch_state(deps, info),
     }
 }
 
@@ -75,6 +84,7 @@ fn reset_contract_state(
     info: MessageInfo,
     init_msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
+    ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
     // this resets the epoch
     instantiate(deps.branch(), env, info, init_msg)?;
 
@@ -85,7 +95,7 @@ fn reset_contract_state(
     let past = dealers::storage::past_dealers()
         .keys(deps.storage, None, None, cosmwasm_std::Order::Ascending)
         .collect::<Result<Vec<_>, _>>()?;
-    let commitments = crate::dealings::storage::DEALING_COMMITMENTS
+    let dealings = dealings::storage::DEALINGS_BYTES[0]
         .keys(deps.storage, None, None, cosmwasm_std::Order::Ascending)
         .collect::<Result<Vec<_>, _>>()?;
 
@@ -97,8 +107,10 @@ fn reset_contract_state(
         dealers::storage::past_dealers().remove(deps.storage, &dealer)?;
     }
 
-    for addr in commitments {
-        dealings::storage::DEALING_COMMITMENTS.remove(deps.storage, &addr);
+    for addr in dealings {
+        for map in dealings::storage::DEALINGS_BYTES {
+            map.remove(deps.storage, &addr);
+        }
     }
 
     dealers::storage::NODE_INDEX_COUNTER.save(deps.storage, &0u64)?;
@@ -109,6 +121,7 @@ fn reset_contract_state(
 #[entry_point]
 pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let response = match msg {
+        QueryMsg::GetCurrentEpochState {} => to_binary(&query_current_epoch_state(deps.storage)?)?,
         QueryMsg::GetDealerDetails { dealer_address } => {
             to_binary(&query_dealer_details(deps, dealer_address)?)?
         }
@@ -122,9 +135,11 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
             MINIMUM_DEPOSIT.u128(),
             STATE.load(deps.storage)?.mix_denom,
         )))?,
-        QueryMsg::GetDealingsCommitments { limit, start_after } => to_binary(
-            &query_epoch_dealings_commitments_paged(deps, start_after, limit)?,
-        )?,
+        QueryMsg::GetDealing {
+            idx,
+            limit,
+            start_after,
+        } => to_binary(&query_dealings_paged(deps, idx, start_after, limit)?)?,
     };
 
     Ok(response)
@@ -147,6 +162,7 @@ mod tests {
         let msg = InstantiateMsg {
             group_addr: "group_addr".to_string(),
             mix_denom: "nym".to_string(),
+            admin: "admin".to_string(),
         };
         let info = mock_info("creator", &[]);
 

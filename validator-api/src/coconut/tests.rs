@@ -39,9 +39,9 @@ use validator_client::validator_api::routes::{
 use crate::coconut::State;
 use crate::ValidatorApiStorage;
 use async_trait::async_trait;
-use coconut_dkg_common::dealer::DealerDetailsResponse;
-use coconut_dkg_common::types::EncodedBTEPublicKeyWithProof;
-use contracts_common::commitment::ContractSafeCommitment;
+use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
+use contracts_common::dealings::ContractSafeBytes;
 use crypto::asymmetric::{encryption, identity};
 use rand_07::rngs::OsRng;
 use rocket::http::Status;
@@ -121,7 +121,19 @@ impl super::client::Client for DummyClient {
             })
     }
 
+    async fn get_current_epoch_state(&self) -> Result<EpochState> {
+        todo!()
+    }
+
     async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse> {
+        todo!()
+    }
+
+    async fn get_current_dealers(&self) -> Result<Vec<DealerDetails>> {
+        todo!()
+    }
+
+    async fn get_dealings(&self, idx: usize) -> Result<Vec<ContractDealing>> {
         todo!()
     }
 
@@ -148,10 +160,7 @@ impl super::client::Client for DummyClient {
         todo!()
     }
 
-    async fn submit_dealing_commitment(
-        &self,
-        commitment: ContractSafeCommitment,
-    ) -> Result<ExecuteResult> {
+    async fn submit_dealing(&self, dealing_bytes: ContractSafeBytes) -> Result<ExecuteResult> {
         todo!()
     }
 }
@@ -209,11 +218,13 @@ async fn check_signer_verif_key(key_pair: KeyPair) {
         &Arc::new(RwLock::new(HashMap::new())),
     );
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
+    let staged_key_pair = crate::coconut::KeyPair::new();
+    staged_key_pair.set(key_pair).await;
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         TEST_COIN_DENOM.to_string(),
-        key_pair,
+        staged_key_pair,
         comm_channel,
         storage,
     ));
@@ -303,11 +314,13 @@ async fn signed_before() {
         &Arc::new(RwLock::new(HashMap::new())),
     );
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
+    let staged_key_pair = crate::coconut::KeyPair::new();
+    staged_key_pair.set(key_pair).await;
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         TEST_COIN_DENOM.to_string(),
-        key_pair,
+        staged_key_pair,
         comm_channel,
         storage.clone(),
     ));
@@ -373,10 +386,12 @@ async fn state_functions() {
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
+    let staged_key_pair = crate::coconut::KeyPair::new();
+    staged_key_pair.set(key_pair).await;
     let state = State::new(
         nymd_client,
         TEST_COIN_DENOM.to_string(),
-        key_pair,
+        staged_key_pair,
         comm_channel,
         storage.clone(),
     );
@@ -543,11 +558,13 @@ async fn blind_sign_correct() {
         &Arc::new(RwLock::new(HashMap::new())),
     );
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
+    let staged_key_pair = crate::coconut::KeyPair::new();
+    staged_key_pair.set(key_pair).await;
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         TEST_COIN_DENOM.to_string(),
-        key_pair,
+        staged_key_pair,
         comm_channel,
         storage.clone(),
     ));
@@ -622,11 +639,13 @@ async fn signature_test() {
         &Arc::new(RwLock::new(HashMap::new())),
     );
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
+    let staged_key_pair = crate::coconut::KeyPair::new();
+    staged_key_pair.set(key_pair).await;
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         TEST_COIN_DENOM.to_string(),
-        key_pair,
+        staged_key_pair,
         comm_channel,
         storage.clone(),
     ));
@@ -694,10 +713,12 @@ async fn get_cosmos_address() {
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
+    let staged_key_pair = crate::coconut::KeyPair::new();
+    staged_key_pair.set(key_pair).await;
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         TEST_COIN_DENOM.to_string(),
-        key_pair,
+        staged_key_pair,
         comm_channel,
         storage.clone(),
     ));
@@ -740,15 +761,23 @@ async fn verification_of_bandwidth_credential() {
         hash_to_scalar(voucher_value.to_string()),
         hash_to_scalar(voucher_info),
     ];
-    let theta = theta_from_keys_and_attributes(&params, &key_pairs, &public_attributes).unwrap();
+    let indices: Vec<u64> = key_pairs
+        .iter()
+        .enumerate()
+        .map(|(idx, _)| (idx + 1) as u64)
+        .collect();
+    let theta =
+        theta_from_keys_and_attributes(&params, &key_pairs, &indices, &public_attributes).unwrap();
     let key_pair = key_pairs.remove(0);
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage1 = ValidatorApiStorage::init(db_dir).await.unwrap();
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
+    let staged_key_pair = crate::coconut::KeyPair::new();
+    staged_key_pair.set(key_pair).await;
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client.clone(),
         TEST_COIN_DENOM.to_string(),
-        key_pair,
+        staged_key_pair,
         comm_channel.clone(),
         storage1.clone(),
     ));

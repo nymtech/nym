@@ -71,6 +71,12 @@ impl TryFrom<&[u8]> for SecretKey {
 }
 
 impl SecretKey {
+    /// Following a (distributed) key generation process, scalar values can be obtained
+    /// outside of the normal key generation process.
+    pub fn create_from_raw(x: Scalar, ys: Vec<Scalar>) -> Self {
+        Self { x, ys }
+    }
+
     /// Derive verification key using this secret key.
     pub fn verification_key(&self, params: &Parameters) -> VerificationKey {
         let g1 = params.gen1();
@@ -362,6 +368,14 @@ pub struct KeyPair {
 
 impl KeyPair {
     const MARKER_BYTES: &'static [u8] = b"coconutkeypair";
+
+    pub fn from_keys(secret_key: SecretKey, verification_key: VerificationKey) -> Self {
+        Self {
+            secret_key,
+            verification_key,
+            index: None,
+        }
+    }
 
     pub fn secret_key(&self) -> SecretKey {
         self.secret_key.clone()

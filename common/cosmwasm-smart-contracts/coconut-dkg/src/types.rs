@@ -5,12 +5,15 @@ use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
 pub use crate::dealer::{DealerDetails, PagedDealerResponse};
-pub use contracts_common::commitment::ContractSafeCommitment;
+pub use contracts_common::dealings::ContractSafeBytes;
 pub use cosmwasm_std::{Addr, Coin};
 
 pub type EncodedBTEPublicKeyWithProof = String;
 pub type EncodedBTEPublicKeyWithProofRef<'a> = &'a str;
 pub type NodeIndex = u64;
+
+// 2 public attributes, 2 private attributes, 1 fixed for coconut credential
+pub const TOTAL_DEALINGS: usize = 2 + 2 + 1;
 
 // currently (it is still extremely likely to change, we might be able to get rid of verification key-related complaints),
 // the epoch can be in the following states (in order):
@@ -29,12 +32,14 @@ pub type NodeIndex = u64;
 pub enum EpochState {
     PublicKeySubmission,
     DealingExchange,
-    ComplaintSubmission,
-    ComplaintVoting,
     VerificationKeySubmission,
-    VerificationKeyMismatchSubmission,
-    VerificationKeyMismatchVoting,
     InProgress,
+}
+
+impl Default for EpochState {
+    fn default() -> Self {
+        Self::PublicKeySubmission
+    }
 }
 
 impl Display for EpochState {
@@ -42,15 +47,7 @@ impl Display for EpochState {
         match self {
             EpochState::PublicKeySubmission => write!(f, "PublicKeySubmission"),
             EpochState::DealingExchange => write!(f, "DealingExchange"),
-            EpochState::ComplaintSubmission => write!(f, "ComplaintSubmission"),
-            EpochState::ComplaintVoting => write!(f, "ComplaintVoting"),
             EpochState::VerificationKeySubmission => write!(f, "VerificationKeySubmission"),
-            EpochState::VerificationKeyMismatchSubmission => {
-                write!(f, "VerificationKeyMismatchSubmission")
-            }
-            EpochState::VerificationKeyMismatchVoting => {
-                write!(f, "VerificationKeyMismatchVoting")
-            }
             EpochState::InProgress => write!(f, "InProgress"),
         }
     }
@@ -60,16 +57,8 @@ impl EpochState {
     pub fn next(self) -> Option<Self> {
         match self {
             EpochState::PublicKeySubmission => Some(EpochState::DealingExchange),
-            EpochState::DealingExchange => Some(EpochState::ComplaintSubmission),
-            EpochState::ComplaintSubmission => Some(EpochState::ComplaintVoting),
-            EpochState::ComplaintVoting => Some(EpochState::VerificationKeySubmission),
-            EpochState::VerificationKeySubmission => {
-                Some(EpochState::VerificationKeyMismatchSubmission)
-            }
-            EpochState::VerificationKeyMismatchSubmission => {
-                Some(EpochState::VerificationKeyMismatchVoting)
-            }
-            EpochState::VerificationKeyMismatchVoting => Some(EpochState::InProgress),
+            EpochState::DealingExchange => Some(EpochState::VerificationKeySubmission),
+            EpochState::VerificationKeySubmission => Some(EpochState::InProgress),
             EpochState::InProgress => None,
         }
     }

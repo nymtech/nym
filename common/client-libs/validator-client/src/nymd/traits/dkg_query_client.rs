@@ -5,14 +5,15 @@ use crate::nymd::error::NymdError;
 use crate::nymd::{CosmWasmClient, NymdClient};
 use async_trait::async_trait;
 use coconut_dkg_common::dealer::{
-    DealerDetailsResponse, PagedCommitmentsResponse, PagedDealerResponse,
+    DealerDetailsResponse, PagedDealerResponse, PagedDealingsResponse,
 };
 use coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
-use coconut_dkg_common::types::MinimumDepositResponse;
+use coconut_dkg_common::types::{EpochState, MinimumDepositResponse};
 use cosmrs::AccountId;
 
 #[async_trait]
 pub trait DkgQueryClient {
+    async fn get_current_epoch_state(&self) -> Result<EpochState, NymdError>;
     async fn get_dealer_details(
         &self,
         address: &AccountId,
@@ -29,11 +30,12 @@ pub trait DkgQueryClient {
     ) -> Result<PagedDealerResponse, NymdError>;
 
     async fn get_deposit_amount(&self) -> Result<MinimumDepositResponse, NymdError>;
-    async fn get_dealings_commitments_paged(
+    async fn get_dealings_paged(
         &self,
+        idx: usize,
         start_after: Option<String>,
         page_limit: Option<u32>,
-    ) -> Result<PagedCommitmentsResponse, NymdError>;
+    ) -> Result<PagedDealingsResponse, NymdError>;
 }
 
 #[async_trait]
@@ -41,6 +43,12 @@ impl<C> DkgQueryClient for NymdClient<C>
 where
     C: CosmWasmClient + Send + Sync,
 {
+    async fn get_current_epoch_state(&self) -> Result<EpochState, NymdError> {
+        let request = DkgQueryMsg::GetCurrentEpochState {};
+        self.client
+            .query_contract_smart(self.coconut_dkg_contract_address(), &request)
+            .await
+    }
     async fn get_dealer_details(
         &self,
         address: &AccountId,
@@ -88,12 +96,14 @@ where
             .await
     }
 
-    async fn get_dealings_commitments_paged(
+    async fn get_dealings_paged(
         &self,
+        idx: usize,
         start_after: Option<String>,
         page_limit: Option<u32>,
-    ) -> Result<PagedCommitmentsResponse, NymdError> {
-        let request = DkgQueryMsg::GetDealingsCommitments {
+    ) -> Result<PagedDealingsResponse, NymdError> {
+        let request = DkgQueryMsg::GetDealing {
+            idx: idx as u64,
             limit: page_limit,
             start_after,
         };

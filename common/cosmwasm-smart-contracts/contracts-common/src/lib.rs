@@ -4,7 +4,7 @@
 #![warn(clippy::expect_used)]
 #![warn(clippy::unwrap_used)]
 
-pub mod commitment;
+pub mod dealings;
 pub mod events;
 pub mod types;
 

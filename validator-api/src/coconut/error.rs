@@ -11,6 +11,7 @@ use crypto::asymmetric::{
     encryption::KeyRecoveryError,
     identity::{Ed25519RecoveryError, SignatureError},
 };
+use dkg::error::DkgError;
 use validator_client::nymd::error::NymdError;
 
 use crate::node_status_api::models::ValidatorApiStorageError;
@@ -30,6 +31,9 @@ pub enum CoconutError {
 
     #[error("Nymd error - {0}")]
     NymdError(#[from] NymdError),
+
+    #[error("Validator client error - {0}")]
+    ValidatorClientError(#[from] validator_client::ValidatorClientError),
 
     #[error("Coconut internal error - {0}")]
     CoconutInternalError(#[from] nymcoconut::CoconutError),
@@ -78,8 +82,17 @@ pub enum CoconutError {
     #[error("Invalid status of credential: {status}")]
     InvalidCredentialStatus { status: String },
 
+    #[error("DKG error: {0}")]
+    DkgError(#[from] DkgError),
+
     #[error("Failed to recover assigned node index: {reason}")]
     NodeIndexRecoveryError { reason: String },
+
+    #[error("Unrecoverable state: {reason}. Process should be restarted")]
+    UnrecoverableState { reason: String },
+
+    #[error("DKG has not finished yet in order to derive the coconut key")]
+    KeyPairNotDerivedYet,
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {

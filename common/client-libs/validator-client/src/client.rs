@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{validator_api, ValidatorClientError};
-use coconut_dkg_common::dealer::ContractDealingCommitment;
+use coconut_dkg_common::dealer::ContractDealing;
 use coconut_dkg_common::types::DealerDetails;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::MixId;
@@ -577,20 +577,21 @@ impl<C> Client<C> {
         Ok(dealers)
     }
 
-    pub async fn get_all_nymd_epoch_dealings_commitments(
+    pub async fn get_all_nymd_epoch_dealings(
         &self,
-    ) -> Result<Vec<ContractDealingCommitment>, ValidatorClientError>
+        idx: usize,
+    ) -> Result<Vec<ContractDealing>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync + Send,
     {
-        let mut commitments = Vec::new();
+        let mut dealings = Vec::new();
         let mut start_after = None;
         loop {
             let mut paged_response = self
                 .nymd
-                .get_dealings_commitments_paged(start_after.take(), self.dealers_page_limit)
+                .get_dealings_paged(idx, start_after.take(), self.dealers_page_limit)
                 .await?;
-            commitments.append(&mut paged_response.commitments);
+            dealings.append(&mut paged_response.dealings);
 
             if let Some(start_after_res) = paged_response.start_next_after {
                 start_after = Some(start_after_res.into_string())
@@ -599,7 +600,7 @@ impl<C> Client<C> {
             }
         }
 
-        Ok(commitments)
+        Ok(dealings)
     }
 }
 

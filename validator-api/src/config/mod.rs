@@ -12,6 +12,8 @@ mod template;
 
 pub const DEFAULT_LOCAL_VALIDATOR: &str = "http://localhost:26657";
 
+pub const DEFAULT_DKG_CONTRACT_POLLING_RATE: Duration = Duration::from_secs(10);
+
 const DEFAULT_GATEWAY_SENDING_RATE: usize = 200;
 const DEFAULT_MAX_CONCURRENT_GATEWAY_CLIENTS: usize = 50;
 const DEFAULT_PACKET_DELIVERY_TIMEOUT: Duration = Duration::from_secs(20);
@@ -277,6 +279,9 @@ pub struct CoconutSigner {
     /// Path to the dkg dealer public key with proof.
     public_key_with_proof_path: PathBuf,
 
+    /// Duration of the interval for polling the dkg contract.
+    dkg_contract_polling_rate: Duration,
+
     /// Specifies list of all validators on the network issuing coconut credentials.
     /// A special care must be taken to ensure they are in correct order.
     /// The list must also contain THIS validator that is running the test
@@ -303,6 +308,7 @@ impl Default for CoconutSigner {
             keypair_path: Default::default(),
             decryption_key_path: CoconutSigner::default_dkg_decryption_key_path(),
             public_key_with_proof_path: CoconutSigner::default_dkg_public_key_with_proof_path(),
+            dkg_contract_polling_rate: DEFAULT_DKG_CONTRACT_POLLING_RATE,
             all_validator_apis: Default::default(),
         }
     }
@@ -481,7 +487,7 @@ impl Config {
     }
 
     #[cfg(feature = "coconut")]
-    pub fn keypair_path(&self) -> PathBuf {
+    pub fn _keypair_path(&self) -> PathBuf {
         self.coconut_signer.keypair_path.clone()
     }
 
@@ -493,6 +499,11 @@ impl Config {
     #[cfg(feature = "coconut")]
     pub fn public_key_with_proof_path(&self) -> PathBuf {
         self.coconut_signer.public_key_with_proof_path.clone()
+    }
+
+    #[cfg(feature = "coconut")]
+    pub fn get_dkg_contract_polling_rate(&self) -> Duration {
+        self.coconut_signer.dkg_contract_polling_rate
     }
 
     // fix dead code warnings as this method is only ever used with coconut feature

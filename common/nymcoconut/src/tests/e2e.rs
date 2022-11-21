@@ -1,11 +1,16 @@
+// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::tests::helpers::tests::generate_dkg_keys;
 use crate::{
-    aggregate_verification_keys, setup, tests::helpers::theta_from_keys_and_attributes, ttp_keygen,
-    verify_credential, CoconutError, VerificationKey,
+    aggregate_verification_keys, setup, tests::helpers::*, ttp_keygen, verify_credential,
+    CoconutError, VerificationKey,
 };
 
 #[test]
-fn main() -> Result<(), CoconutError> {
+fn keygen() -> Result<(), CoconutError> {
     let params = setup(5)?;
+    let node_indices = vec![15u64, 248, 33521];
 
     let public_attributes = params.n_random_scalars(2);
 
@@ -18,10 +23,52 @@ fn main() -> Result<(), CoconutError> {
         .collect();
 
     // aggregate verification keys
-    let verification_key = aggregate_verification_keys(&verification_keys, Some(&[1, 2, 3]))?;
+    let verification_key = aggregate_verification_keys(&verification_keys, Some(&node_indices))?;
 
     // Generate cryptographic material to verify them
-    let theta = theta_from_keys_and_attributes(&params, &coconut_keypairs, &public_attributes)?;
+    let theta = theta_from_keys_and_attributes(
+        &params,
+        &coconut_keypairs,
+        &node_indices,
+        &public_attributes,
+    )?;
+
+    // Verify credentials
+    assert!(verify_credential(
+        &params,
+        &verification_key,
+        &theta,
+        &public_attributes,
+    ));
+
+    Ok(())
+}
+
+#[test]
+fn dkg() -> Result<(), CoconutError> {
+    let params = setup(5)?;
+    let node_indices = vec![15u64, 248, 33521];
+
+    let public_attributes = params.n_random_scalars(2);
+
+    // generate_keys
+    let coconut_keypairs = generate_dkg_keys(5, &node_indices);
+
+    let verification_keys: Vec<VerificationKey> = coconut_keypairs
+        .iter()
+        .map(|keypair| keypair.verification_key())
+        .collect();
+
+    // aggregate verification keys
+    let verification_key = aggregate_verification_keys(&verification_keys, Some(&node_indices))?;
+
+    // Generate cryptographic material to verify them
+    let theta = theta_from_keys_and_attributes(
+        &params,
+        &coconut_keypairs,
+        &node_indices,
+        &public_attributes,
+    )?;
 
     // Verify credentials
     assert!(verify_credential(

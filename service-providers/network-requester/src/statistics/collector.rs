@@ -3,6 +3,7 @@
 
 use async_trait::async_trait;
 use log::*;
+use proxy_helpers::proxy_runner::MixProxySender;
 use rand::RngCore;
 use serde::Deserialize;
 use sqlx::types::chrono::{DateTime, Utc};
@@ -76,13 +77,13 @@ pub struct ServiceStatisticsCollector {
     pub(crate) response_stats_data: Arc<RwLock<StatsData>>,
     pub(crate) connected_services: Arc<RwLock<HashMap<ConnectionId, RemoteAddress>>>,
     stats_provider_addr: Recipient,
-    mix_input_sender: tokio::sync::mpsc::Sender<(Socks5Message, Recipient)>,
+    mix_input_sender: MixProxySender<(Socks5Message, Recipient)>,
 }
 
 impl ServiceStatisticsCollector {
     pub async fn new(
         stats_provider_addr: Option<Recipient>,
-        mix_input_sender: tokio::sync::mpsc::Sender<(Socks5Message, Recipient)>,
+        mix_input_sender: MixProxySender<(Socks5Message, Recipient)>,
     ) -> Result<Self, StatsError> {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(3))

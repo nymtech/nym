@@ -15,6 +15,7 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::{Controller, ControllerCommand, ControllerSender};
+use proxy_helpers::proxy_runner::{MixProxyReader, MixProxySender};
 use socks5_requests::{
     ConnectionId, Message as Socks5Message, NetworkRequesterResponse, Request, Response,
 };
@@ -67,7 +68,7 @@ impl ServiceProvider {
     /// via the `websocket_writer`.
     async fn mixnet_response_listener(
         mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
-        mut mix_reader: tokio::sync::mpsc::Receiver<(Socks5Message, Recipient)>,
+        mut mix_reader: MixProxyReader<(Socks5Message, Recipient)>,
         stats_collector: Option<ServiceStatisticsCollector>,
         mut closed_connection_rx: ClosedConnectionReceiver,
     ) {
@@ -153,7 +154,7 @@ impl ServiceProvider {
         remote_addr: String,
         return_address: Recipient,
         controller_sender: ControllerSender,
-        mix_input_sender: tokio::sync::mpsc::Sender<(Socks5Message, Recipient)>,
+        mix_input_sender: MixProxySender<(Socks5Message, Recipient)>,
         shutdown: ShutdownListener,
     ) {
         let mut conn = match Connection::new(conn_id, remote_addr.clone(), return_address).await {
@@ -214,7 +215,7 @@ impl ServiceProvider {
     async fn handle_proxy_connect(
         &mut self,
         controller_sender: &mut ControllerSender,
-        mix_input_sender: &tokio::sync::mpsc::Sender<(Socks5Message, Recipient)>,
+        mix_input_sender: &MixProxySender<(Socks5Message, Recipient)>,
         conn_id: ConnectionId,
         remote_addr: String,
         return_address: Recipient,
@@ -271,7 +272,7 @@ impl ServiceProvider {
         &mut self,
         raw_request: &[u8],
         controller_sender: &mut ControllerSender,
-        mix_input_sender: &tokio::sync::mpsc::Sender<(Socks5Message, Recipient)>,
+        mix_input_sender: &MixProxySender<(Socks5Message, Recipient)>,
         stats_collector: Option<ServiceStatisticsCollector>,
         shutdown: ShutdownListener,
     ) {

@@ -77,7 +77,7 @@ where
         ordered_msg.len()
     );
 
-    // If we are closing the channel, wait until the data has passed `OutQueueControl` and the lane
+    // If we are closing the socket, wait until the data has passed `OutQueueControl` and the lane
     // is empty.
     if let Some(lane_queue_lengths) = lane_queue_lengths {
         if is_finished {

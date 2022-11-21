@@ -3,7 +3,7 @@
 
 use nymsphinx::addressing::clients::Recipient;
 use proxy_helpers::connection_controller::ConnectionReceiver;
-use proxy_helpers::proxy_runner::ProxyRunner;
+use proxy_helpers::proxy_runner::{MixProxySender, ProxyRunner};
 use socks5_requests::{ConnectionId, Message as Socks5Message, RemoteAddress, Response};
 use std::io;
 use task::ShutdownListener;
@@ -39,7 +39,7 @@ impl Connection {
     pub(crate) async fn run_proxy(
         &mut self,
         mix_receiver: ConnectionReceiver,
-        mix_sender: tokio::sync::mpsc::Sender<(Socks5Message, Recipient)>,
+        mix_sender: MixProxySender<(Socks5Message, Recipient)>,
         shutdown: ShutdownListener,
     ) {
         let stream = self.conn.take().unwrap();

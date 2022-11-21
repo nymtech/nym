@@ -38,7 +38,7 @@ pub fn try_commit_verification_key_share(
     VK_SHARES.save(deps.storage, &info.sender, &data)?;
 
     let msg = to_cosmos_msg(
-        info.sender.clone(),
+        info.sender,
         env.contract.address.to_string(),
         STATE.load(deps.storage)?.multisig_addr.to_string(),
         env.block

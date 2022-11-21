@@ -25,7 +25,7 @@ pub fn try_commit_dealings(
     // check if this dealer has already committed to all dealings
     // (we don't want to allow overwriting anything)
     for dealings in DEALINGS_BYTES {
-        if !dealings.may_load(deps.storage, &info.sender)?.is_none() {
+        if !dealings.has(deps.storage, &info.sender) {
             dealings.save(deps.storage, &info.sender, &dealing_bytes)?;
             return Ok(Response::default());
         }

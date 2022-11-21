@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::filter::VersionFilterable;
@@ -14,19 +14,22 @@ use std::fmt::{self, Display, Formatter};
 use std::io;
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
 use std::str::FromStr;
+use thiserror::Error;
 
 pub mod filter;
 pub mod gateway;
 pub mod mix;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum NymTopologyError {
-    InvalidMixLayerError,
-    MissingLayerError(Vec<u64>),
-    NonExistentGatewayError,
+    #[error("Gateway with identity key {identity_key} doesn't exist")]
+    NonExistentGatewayError { identity_key: NodeIdentity },
 
-    InvalidNumberOfHopsError,
-    NoMixesOnLayerAvailable(MixLayer),
+    #[error("Wanted to create a mix route with {requested} hops, while only {available} layers are available")]
+    InvalidNumberOfHopsError { available: usize, requested: usize },
+
+    #[error("No mixnodes available on layer {layer}")]
+    NoMixesOnLayerAvailable { layer: MixLayer },
 }
 
 #[derive(Debug, Clone)]
@@ -130,7 +133,10 @@ impl NymTopology {
         use rand::seq::SliceRandom;
 
         if self.mixes.len() < num_mix_hops as usize {
-            return Err(NymTopologyError::InvalidNumberOfHopsError);
+            return Err(NymTopologyError::InvalidNumberOfHopsError {
+                available: self.mixes.len(),
+                requested: num_mix_hops as usize,
+            });
         }
         let mut route = Vec::with_capacity(num_mix_hops as usize);
 
@@ -140,13 +146,13 @@ impl NymTopology {
             let layer_mixes = self
                 .mixes
                 .get(&layer)
-                .ok_or(NymTopologyError::NoMixesOnLayerAvailable(layer))?;
+                .ok_or(NymTopologyError::NoMixesOnLayerAvailable { layer })?;
 
             // choose a random mix from the above list
             // this can return a 'None' only if slice is empty
             let random_mix = layer_mixes
                 .choose(rng)
-                .ok_or(NymTopologyError::NoMixesOnLayerAvailable(layer))?;
+                .ok_or(NymTopologyError::NoMixesOnLayerAvailable { layer })?;
             route.push(random_mix.into());
         }
 
@@ -165,9 +171,11 @@ impl NymTopology {
         // I don't think there's a need for this RNG to be crypto-secure
         R: Rng + ?Sized,
     {
-        let gateway = self
-            .get_gateway(gateway_identity)
-            .ok_or(NymTopologyError::NonExistentGatewayError)?;
+        let gateway = self.get_gateway(gateway_identity).ok_or(
+            NymTopologyError::NonExistentGatewayError {
+                identity_key: *gateway_identity,
+            },
+        )?;
 
         Ok(self
             .random_mix_route(rng, num_mix_hops)?

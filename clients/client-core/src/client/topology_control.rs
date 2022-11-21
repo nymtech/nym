@@ -1,9 +1,10 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::spawn_future;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::addressing::nodes::NodeIdentity;
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
@@ -11,9 +12,28 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::time;
 use std::time::Duration;
+use thiserror::Error;
 use tokio::sync::{RwLock, RwLockReadGuard};
-use topology::{nym_topology_from_detailed, NymTopology};
+use topology::{nym_topology_from_detailed, MixLayer, NymTopology};
 use url::Url;
+
+#[derive(Debug, Error)]
+pub enum InvalidTopologyError {
+    #[error("The provided network topology is empty - the network request(s) probably failed")]
+    EmptyNetworkTopology,
+
+    #[error("The provided network topology has no gateways available")]
+    NoGatewaysAvailable,
+
+    #[error("The provided network topology has no mixnodes available")]
+    NoMixnodesAvailable,
+
+    #[error("{layer} has no mixnodes available")]
+    EmptyMixLayer { layer: MixLayer },
+
+    #[error("Gateway with identity key {identity_key} doesn't exist")]
+    NonExistentGatewayError { identity_key: NodeIdentity },
+}
 
 // I'm extremely curious why compiler NEVER complained about lack of Debug here before
 #[derive(Debug)]
@@ -54,18 +74,56 @@ impl<'a> TopologyReadPermit<'a> {
         &'a self,
         ack_recipient: &Recipient,
         packet_recipient: Option<&Recipient>,
-    ) -> Option<&'a NymTopology> {
-        // Note: implicit deref with Deref for TopologyReadPermit is happening here
-        let topology_ref_option = self.permit.as_ref();
-        topology_ref_option.as_ref().filter(|topology_ref| {
-            !(!topology_ref.can_construct_path_through(DEFAULT_NUM_MIX_HOPS)
-                || !topology_ref.gateway_exists(ack_recipient.gateway())
-                || if let Some(packet_recipient) = packet_recipient {
-                    !topology_ref.gateway_exists(packet_recipient.gateway())
-                } else {
-                    false
-                })
-        })
+    ) -> Result<&'a NymTopology, InvalidTopologyError> {
+        // 1. Have we managed to get anything from the refresher, i.e. have the nym-api queries gone through?
+        let topology = self
+            .permit
+            .as_ref()
+            .as_ref()
+            .ok_or(InvalidTopologyError::EmptyNetworkTopology)?;
+
+        // note: `can_construct_path_through` is equivalent to #2, #3, #4
+
+        // 2. does it have any mixnode at all?
+        let mixnodes = topology.mixes();
+        if mixnodes.is_empty() {
+            return Err(InvalidTopologyError::NoMixnodesAvailable);
+        }
+
+        // 3. does it have any gateways at all?
+        if topology.gateways().is_empty() {
+            return Err(InvalidTopologyError::NoGatewaysAvailable);
+        }
+
+        // 4. does it have a mixnode on each layer?
+        for layer in 1..=DEFAULT_NUM_MIX_HOPS {
+            match mixnodes.get(&layer) {
+                None => return Err(InvalidTopologyError::EmptyMixLayer { layer }),
+                Some(layer_nodes) => {
+                    if layer_nodes.is_empty() {
+                        return Err(InvalidTopologyError::EmptyMixLayer { layer });
+                    }
+                }
+            }
+        }
+
+        // 5. does it contain OUR gateway (so that we could create an ack packet)?
+        if !topology.gateway_exists(ack_recipient.gateway()) {
+            return Err(InvalidTopologyError::NonExistentGatewayError {
+                identity_key: *ack_recipient.gateway(),
+            });
+        }
+
+        // 6. for our target recipient, does it contain THEIR gateway (so that we could create
+        if let Some(recipient) = packet_recipient {
+            if !topology.gateway_exists(recipient.gateway()) {
+                return Err(InvalidTopologyError::NonExistentGatewayError {
+                    identity_key: *recipient.gateway(),
+                });
+            }
+        }
+
+        Ok(topology)
     }
 }
 

@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::replies::reply_storage::tag_storage::UsedSenderTags;
 use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, SentReplyKeys};
 use nymsphinx::anonymous_replies::encryption_key::EncryptionKeyDigest;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
@@ -10,6 +11,7 @@ use nymsphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey};
 pub struct CombinedReplyStorage {
     sent_reply_keys: SentReplyKeys,
     received_reply_surbs: ReceivedReplySurbsMap,
+    used_tags: UsedSenderTags,
 }
 
 impl CombinedReplyStorage {
@@ -20,6 +22,7 @@ impl CombinedReplyStorage {
                 min_surb_threshold,
                 max_surb_threshold,
             ),
+            used_tags: UsedSenderTags::new(),
         }
     }
 
@@ -31,6 +34,11 @@ impl CombinedReplyStorage {
     #[deprecated]
     pub(crate) fn surbs_storage(&self) -> ReceivedReplySurbsMap {
         self.received_reply_surbs.clone()
+    }
+
+    #[deprecated]
+    pub(crate) fn tags_storage(&self) -> UsedSenderTags {
+        self.used_tags.clone()
     }
 
     pub(crate) fn min_surb_threshold(&self) -> usize {

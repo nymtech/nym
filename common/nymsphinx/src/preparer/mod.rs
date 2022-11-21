@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::message::NymMessage;
@@ -26,6 +26,7 @@ use nymsphinx_types::{delays, Delay};
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
 use std::time::Duration;
+// use thiserror::Error;
 use topology::{NymTopology, NymTopologyError};
 
 pub(crate) mod payload;
@@ -42,17 +43,19 @@ pub struct PreparedFragment {
     pub mix_packet: MixPacket,
 }
 
-#[derive(Debug)]
-pub enum PreparationError {
-    TopologyError(NymTopologyError),
-    TooLongReplyMessageError,
-}
-
-impl From<NymTopologyError> for PreparationError {
-    fn from(err: NymTopologyError) -> Self {
-        PreparationError::TopologyError(err)
-    }
-}
+// #[derive(Debug, Error)]
+// pub enum PreparationError {
+//     #[error("todo")]
+//     TopologyError(NymTopologyError),
+//     #[error("todo")]
+//     TooLongReplyMessageError,
+// }
+//
+// impl From<NymTopologyError> for PreparationError {
+//     fn from(err: NymTopologyError) -> Self {
+//         PreparationError::TopologyError(err)
+//     }
+// }
 
 /// Prepares the message that is to be sent through the mix network by attaching
 /// an optional reply-SURB, padding it to appropriate length, encrypting its content,
@@ -151,6 +154,25 @@ where
         self.packet_size.plaintext_size() - ack_overhead - key_digest_overhead
     }
 
+    fn generate_reply_surbs(
+        &mut self,
+        amount: usize,
+        topology: &NymTopology,
+    ) -> Result<Vec<ReplySurb>, NymTopologyError> {
+        let mut reply_surbs = Vec::with_capacity(amount);
+        for _ in 0..amount {
+            let reply_surb = ReplySurb::construct(
+                &mut self.rng,
+                &self.sender_address,
+                self.average_packet_delay,
+                topology,
+            )?;
+            reply_surbs.push(reply_surb)
+        }
+
+        Ok(reply_surbs)
+    }
+
     // /// Attaches reply-SURB to the message alongside the reply key.
     // /// Results in:
     // /// new_message = 0 || message
@@ -163,7 +185,7 @@ where
         message: Vec<u8>,
         num_reply_surbs: u32,
         topology: &NymTopology,
-    ) -> Result<(NymMessage, Vec<SurbEncryptionKey>), PreparationError> {
+    ) -> Result<(NymMessage, Vec<SurbEncryptionKey>), NymTopologyError> {
         let mut reply_surbs = Vec::with_capacity(num_reply_surbs as usize);
         let mut reply_keys = Vec::with_capacity(num_reply_surbs as usize);
 
@@ -180,12 +202,14 @@ where
 
         // temporary:
         let msg = if num_reply_surbs > 0 {
-            let repliable = if message.is_empty() {
-                RepliableMessage::temp_new_additional_surbs(reply_surbs)
-            } else {
-                RepliableMessage::temp_new_data(message, reply_surbs)
-            };
-            NymMessage::new_repliable(repliable)
+            // let repliable = if message.is_empty() {
+            //     RepliableMessage::temp_new_additional_surbs(reply_surbs)
+            // } else {
+            //     RepliableMessage::temp_new_data(message, reply_surbs)
+            // };
+            // NymMessage::new_repliable(repliable)
+
+            todo!()
         } else {
             NymMessage::new_plain(message)
         };
@@ -325,101 +349,103 @@ where
     /// Attaches an optional reply-surb and correct padding to the underlying message
     /// and splits it into [`Fragment`] that can be later packed into sphinx packets to be
     /// sent through the mix network.
+    #[deprecated]
     pub fn prepare_and_split_message(
         &mut self,
-        message: Vec<u8>,
-        reply_surbs: u32,
-        topology: &NymTopology,
-    ) -> Result<(Vec<Fragment>, Vec<SurbEncryptionKey>), PreparationError> {
-        let (message, reply_keys) =
-            self.optionally_attach_reply_surbs(message, reply_surbs, topology)?;
+        message: NymMessage,
+        // topology: &NymTopology,
+        // ) -> Result<(Vec<Fragment>, Vec<SurbEncryptionKey>), NymTopologyError> {
+    ) -> Vec<Fragment> {
+        // let (message, reply_keys) =
+        //     self.optionally_attach_reply_surbs(message, reply_surbs, topology)?;
 
         let plaintext_per_packet = self.available_plaintext_per_regular_packet();
         let fragments = message
             .pad_to_full_packet_lengths(plaintext_per_packet)
             .split_into_fragments(&mut self.rng, plaintext_per_packet);
 
-        Ok((fragments, reply_keys))
+        fragments
+        // Ok((fragments, reply_keys))
     }
 
-    // TODO: perhaps the return type could somehow be combined with [`PreparedFragment`] ?
-    // TODO: see if this is still needed (I've deprecated it so that i'd known if it's still used
-    // once I'm done with the rest of the changes)
-    #[deprecated]
-    pub fn prepare_reply_for_use(
-        &mut self,
-        message: Vec<u8>,
-        reply_surb: ReplySurb,
-        topology: &NymTopology,
-        ack_key: &AckKey,
-    ) -> Result<(MixPacket, FragmentIdentifier), PreparationError> {
-        // there's no chunking in reply-surbs so there's a hard limit on message,
-        // we also need to put the key digest into the message (same size as ephemeral key)
-        // and need 1 byte to indicate padding length (this is not the case for 'normal' messages
-        // as there the padding is added for the whole message)
-        // so before doing any processing, let's see if we have enough space for it all
-        let ack_overhead = MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::AckPacket.size();
-        if message.len()
-            > self.packet_size.plaintext_size()
-                - ack_overhead
-                - ReplySurbKeyDigestAlgorithm::output_size()
-                - 1
-        {
-            return Err(PreparationError::TooLongReplyMessageError);
-        }
-
-        let reply_id = FragmentIdentifier::new_reply(&mut self.rng);
-
-        // create an ack
-        // even though it won't be used for retransmission, it must be present so that
-        // gateways could not distinguish reply packets from normal messages due to lack of said acks
-        // note: the ack delay is irrelevant since we do not know the delay of actual surb
-        let (_, surb_ack_bytes) = self
-            .generate_surb_ack(reply_id, topology, ack_key)?
-            .prepare_for_sending();
-
-        let zero_pad_len = self.packet_size.plaintext_size()
-            - message.len()
-            - ack_overhead
-            - ReplySurbKeyDigestAlgorithm::output_size()
-            - 1;
-
-        // create reply message that will reach the recipient:
-        let mut reply_content: Vec<_> = message
-            .into_iter()
-            .chain(std::iter::once(1))
-            .chain(std::iter::repeat(0).take(zero_pad_len))
-            .collect();
-
-        // encrypt the reply message
-        let zero_iv = stream_cipher::zero_iv::<ReplySurbEncryptionAlgorithm>();
-        stream_cipher::encrypt_in_place::<ReplySurbEncryptionAlgorithm>(
-            reply_surb.encryption_key().inner(),
-            &zero_iv,
-            &mut reply_content,
-        );
-
-        // combine it together as follows:
-        // SURB_ACK_FIRST_HOP || SURB_ACK_DATA || KEY_DIGEST || E (REPLY_MESSAGE || 1 || 0*)
-        // (note: surb_ack_bytes contains SURB_ACK_FIRST_HOP || SURB_ACK_DATA )
-        let packet_payload: Vec<_> = surb_ack_bytes
-            .into_iter()
-            .chain(reply_surb.encryption_key().compute_digest().iter().copied())
-            .chain(reply_content.into_iter())
-            .collect();
-
-        // finally put it all inside a sphinx packet
-        // this can only fail if packet payload has incorrect size, but if it does, it means
-        // there's a bug in the above code
-        let (packet, first_hop) = reply_surb
-            .apply_surb(&packet_payload, Some(self.packet_size))
-            .unwrap();
-
-        Ok((
-            MixPacket::new(first_hop, packet, Default::default()),
-            reply_id,
-        ))
-    }
+    // // TODO: perhaps the return type could somehow be combined with [`PreparedFragment`] ?
+    // // TODO: see if this is still needed (I've deprecated it so that i'd known if it's still used
+    // // once I'm done with the rest of the changes)
+    // #[deprecated]
+    // pub fn prepare_reply_for_use(
+    //     &mut self,
+    //     message: Vec<u8>,
+    //     reply_surb: ReplySurb,
+    //     topology: &NymTopology,
+    //     ack_key: &AckKey,
+    // ) -> Result<(MixPacket, FragmentIdentifier), PreparationError> {
+    //     // there's no chunking in reply-surbs so there's a hard limit on message,
+    //     // we also need to put the key digest into the message (same size as ephemeral key)
+    //     // and need 1 byte to indicate padding length (this is not the case for 'normal' messages
+    //     // as there the padding is added for the whole message)
+    //     // so before doing any processing, let's see if we have enough space for it all
+    //     let ack_overhead = MAX_NODE_ADDRESS_UNPADDED_LEN + PacketSize::AckPacket.size();
+    //     if message.len()
+    //         > self.packet_size.plaintext_size()
+    //             - ack_overhead
+    //             - ReplySurbKeyDigestAlgorithm::output_size()
+    //             - 1
+    //     {
+    //         return Err(PreparationError::TooLongReplyMessageError);
+    //     }
+    //
+    //     let reply_id = FragmentIdentifier::new_reply(&mut self.rng);
+    //
+    //     // create an ack
+    //     // even though it won't be used for retransmission, it must be present so that
+    //     // gateways could not distinguish reply packets from normal messages due to lack of said acks
+    //     // note: the ack delay is irrelevant since we do not know the delay of actual surb
+    //     let (_, surb_ack_bytes) = self
+    //         .generate_surb_ack(reply_id, topology, ack_key)?
+    //         .prepare_for_sending();
+    //
+    //     let zero_pad_len = self.packet_size.plaintext_size()
+    //         - message.len()
+    //         - ack_overhead
+    //         - ReplySurbKeyDigestAlgorithm::output_size()
+    //         - 1;
+    //
+    //     // create reply message that will reach the recipient:
+    //     let mut reply_content: Vec<_> = message
+    //         .into_iter()
+    //         .chain(std::iter::once(1))
+    //         .chain(std::iter::repeat(0).take(zero_pad_len))
+    //         .collect();
+    //
+    //     // encrypt the reply message
+    //     let zero_iv = stream_cipher::zero_iv::<ReplySurbEncryptionAlgorithm>();
+    //     stream_cipher::encrypt_in_place::<ReplySurbEncryptionAlgorithm>(
+    //         reply_surb.encryption_key().inner(),
+    //         &zero_iv,
+    //         &mut reply_content,
+    //     );
+    //
+    //     // combine it together as follows:
+    //     // SURB_ACK_FIRST_HOP || SURB_ACK_DATA || KEY_DIGEST || E (REPLY_MESSAGE || 1 || 0*)
+    //     // (note: surb_ack_bytes contains SURB_ACK_FIRST_HOP || SURB_ACK_DATA )
+    //     let packet_payload: Vec<_> = surb_ack_bytes
+    //         .into_iter()
+    //         .chain(reply_surb.encryption_key().compute_digest().iter().copied())
+    //         .chain(reply_content.into_iter())
+    //         .collect();
+    //
+    //     // finally put it all inside a sphinx packet
+    //     // this can only fail if packet payload has incorrect size, but if it does, it means
+    //     // there's a bug in the above code
+    //     let (packet, first_hop) = reply_surb
+    //         .apply_surb(&packet_payload, Some(self.packet_size))
+    //         .unwrap();
+    //
+    //     Ok((
+    //         MixPacket::new(first_hop, packet, Default::default()),
+    //         reply_id,
+    //     ))
+    // }
 
     #[allow(dead_code)]
     #[cfg(test)]

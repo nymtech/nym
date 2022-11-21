@@ -19,6 +19,8 @@ const CLIENT_ENCRYPTION_KEY_SIZE: usize = encryption::PUBLIC_KEY_SIZE;
 pub type ClientIdentity = identity::PublicKey;
 const CLIENT_IDENTITY_SIZE: usize = identity::PUBLIC_KEY_LENGTH;
 
+pub type RecipientBytes = [u8; Recipient::LEN];
+
 #[derive(Debug)]
 pub enum RecipientFormattingError {
     MalformedRecipientError,
@@ -58,7 +60,7 @@ impl From<encryption::KeyRecoveryError> for RecipientFormattingError {
 }
 
 // TODO: this should a different home... somewhere, but where?
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Recipient {
     client_identity: ClientIdentity,
     client_encryption_key: ClientEncryptionKey,
@@ -154,7 +156,7 @@ impl Recipient {
         &self.gateway
     }
 
-    pub fn to_bytes(self) -> [u8; Self::LEN] {
+    pub fn to_bytes(self) -> RecipientBytes {
         let mut out = [0u8; Self::LEN];
         out[..CLIENT_IDENTITY_SIZE].copy_from_slice(&self.client_identity.to_bytes());
         out[CLIENT_IDENTITY_SIZE..CLIENT_IDENTITY_SIZE + CLIENT_ENCRYPTION_KEY_SIZE]
@@ -165,7 +167,7 @@ impl Recipient {
         out
     }
 
-    pub fn try_from_bytes(bytes: [u8; Self::LEN]) -> Result<Self, RecipientFormattingError> {
+    pub fn try_from_bytes(bytes: RecipientBytes) -> Result<Self, RecipientFormattingError> {
         let identity_bytes = &bytes[..CLIENT_IDENTITY_SIZE];
         let enc_key_bytes =
             &bytes[CLIENT_IDENTITY_SIZE..CLIENT_IDENTITY_SIZE + CLIENT_ENCRYPTION_KEY_SIZE];

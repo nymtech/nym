@@ -15,6 +15,7 @@ mod backend;
 mod combined;
 mod key_storage;
 mod surb_storage;
+mod tag_storage;
 
 // only really exists to get information about shutdown and save data to the backing storage
 pub struct ReplyStorage<T> {

@@ -5,7 +5,6 @@ use dashmap::DashMap;
 use log::error;
 use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, ReplyMessage};
 use nymsphinx::anonymous_replies::ReplySurb;
-use nymsphinx::message::NymMessage;
 use std::collections::{HashMap, VecDeque};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;

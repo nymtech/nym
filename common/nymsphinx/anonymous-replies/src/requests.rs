@@ -18,9 +18,13 @@ pub struct RepliableMessage {
 impl RepliableMessage {
     // temporary for proof of concept re-implementation with single sender-receiver pair
     #[deprecated]
-    pub fn temp_new_data(data: Vec<u8>, reply_surbs: Vec<ReplySurb>) -> Self {
+    pub fn temp_new_data(
+        data: Vec<u8>,
+        sender_tag: AnonymousSenderTag,
+        reply_surbs: Vec<ReplySurb>,
+    ) -> Self {
         RepliableMessage {
-            sender_tag: [8u8; SENDER_TAG_SIZE],
+            sender_tag,
             content: RepliableMessageContent::Data {
                 message: data,
                 reply_surbs,
@@ -29,9 +33,12 @@ impl RepliableMessage {
     }
 
     #[deprecated]
-    pub fn temp_new_additional_surbs(reply_surbs: Vec<ReplySurb>) -> Self {
+    pub fn temp_new_additional_surbs(
+        sender_tag: AnonymousSenderTag,
+        reply_surbs: Vec<ReplySurb>,
+    ) -> Self {
         RepliableMessage {
-            sender_tag: [8u8; SENDER_TAG_SIZE],
+            sender_tag,
             content: RepliableMessageContent::AdditionalSurbs { reply_surbs },
         }
     }

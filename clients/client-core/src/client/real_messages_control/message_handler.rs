@@ -7,20 +7,41 @@ use crate::client::real_messages_control::real_traffic_stream::{
 };
 use crate::client::real_messages_control::{AckActionSender, Action};
 use crate::client::replies::reply_storage::SentReplyKeys;
-use crate::client::topology_control::{TopologyAccessor, TopologyReadPermit};
+use crate::client::topology_control::{InvalidTopologyError, TopologyAccessor, TopologyReadPermit};
 use log::{error, info, warn};
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, ReplyMessage};
+use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, RepliableMessage, ReplyMessage};
 use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::chunking::fragment::{Fragment, FragmentIdentifier};
+use nymsphinx::message::NymMessage;
 use nymsphinx::preparer::{MessagePreparer, PreparedFragment};
 use nymsphinx::Delay as SphinxDelay;
 use rand::{CryptoRng, Rng};
 use std::sync::Arc;
-use topology::NymTopology;
+use thiserror::Error;
+use topology::{NymTopology, NymTopologyError};
 
 // TODO: fix those disgusting and lazy Option<()> return types!
+
+// deprecated because I need to move it elsewhere
+#[derive(Debug)]
+pub(crate) struct PreparationError {
+    // #[error("Could not construct a packet due to invalid network topology - {source}")]
+    // InvalidTopology {
+    source: InvalidTopologyError,
+
+    returned_surbs: Option<Vec<ReplySurb>>,
+    // },
+}
+
+impl PreparationError {
+    fn return_surbs(mut self, reply_surbs: Vec<ReplySurb>) -> Self {
+        debug_assert!(self.returned_surbs.is_none());
+        self.returned_surbs = Some(reply_surbs);
+        self
+    }
+}
 
 #[derive(Clone)]
 pub(crate) struct MessageHandler<R> {
@@ -57,12 +78,18 @@ where
         }
     }
 
-    fn get_topology<'a>(&self, permit: &'a TopologyReadPermit<'a>) -> Option<&'a NymTopology> {
+    fn get_topology<'a>(
+        &self,
+        permit: &'a TopologyReadPermit<'a>,
+    ) -> Result<&'a NymTopology, PreparationError> {
         match permit.try_get_valid_topology_ref(&self.self_address, None) {
-            Some(topology_ref) => Some(topology_ref),
-            None => {
-                warn!("Could not process the packet - the network topology is invalid");
-                None
+            Ok(topology_ref) => Ok(topology_ref),
+            Err(err) => {
+                warn!("Could not process the packet - the network topology is invalid - {err}");
+                Err(PreparationError {
+                    source: err,
+                    returned_surbs: None,
+                })
             }
         }
     }
@@ -127,22 +154,25 @@ where
         target: AnonymousSenderTag,
         fragments: Vec<Fragment>,
         reply_surbs: Vec<ReplySurb>,
-    ) -> Result<(), Vec<ReplySurb>> {
-        if fragments.len() != reply_surbs.len() {
-            // emit an error as this should have never been reached
-            error!(
-                "attempted to send {} fragments with {} reply surbs",
-                fragments.len(),
-                reply_surbs.len()
-            );
-            return Err(reply_surbs);
-        }
+    ) -> Result<(), PreparationError> {
+        // this should never be reached!
+        debug_assert_ne!(
+            fragments.len(),
+            reply_surbs.len(),
+            "attempted to send {} fragments with {} reply surbs",
+            fragments.len(),
+            reply_surbs.len()
+        );
 
         let topology_permit = self.topology_access.get_read_permit().await;
-        let topology = match self.get_topology(&topology_permit) {
-            Some(topology) => topology,
-            None => return Err(reply_surbs),
-        };
+        let topology = self
+            .get_topology(&topology_permit)
+            .map_err(|e| e.return_surbs(reply_surbs))?;
+
+        // let topology = match self.get_topology(&topology_permit) {
+        //     Some(topology) => topology,
+        //     None => return Err(reply_surbs),
+        // };
 
         let mut pending_acks = Vec::with_capacity(fragments.len());
         let mut real_messages = Vec::with_capacity(fragments.len());
@@ -169,8 +199,38 @@ where
         Ok(())
     }
 
+    async fn try_send_plain_message(
+        &mut self,
+        recipient: Recipient,
+        message: Vec<u8>,
+    ) -> Result<(), PreparationError> {
+        todo!()
+    }
+
+    async fn try_send_additional_reply_surbs(
+        &mut self,
+        recipient: Recipient,
+        amount: u32,
+    ) -> Result<(), PreparationError> {
+        todo!()
+    }
+
+    async fn try_send_message_with_reply_surbs(
+        &mut self,
+        recipient: Recipient,
+        message: Vec<u8>,
+        num_reply_surbs: u32,
+    ) -> Result<(), PreparationError> {
+        let topology_permit = self.topology_access.get_read_permit().await;
+        let topology = self.get_topology(&topology_permit)?;
+
+        // let message = NymMessage::new_repliable(RepliableMessage::temp_new_additional_surbs())
+        todo!()
+    }
+
     // TODO: change function signature to better accomodate for 'repliable' messages
     // (for example where you're not sending any plaintext inside)
+    #[deprecated]
     pub(crate) async fn try_send_normal_message(
         &mut self,
         recipient: Recipient,

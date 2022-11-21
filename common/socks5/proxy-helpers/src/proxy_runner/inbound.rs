@@ -111,7 +111,8 @@ async fn wait_until_lane_empty(lane_queue_lengths: LaneQueueLengths, connection_
         connection_id,
         0,
         Duration::from_millis(500),
-    ).await
+    )
+    .await
 }
 
 async fn wait_until_lane_almost_empty(lane_queue_lengths: LaneQueueLengths, connection_id: u64) {
@@ -120,7 +121,8 @@ async fn wait_until_lane_almost_empty(lane_queue_lengths: LaneQueueLengths, conn
         connection_id,
         10,
         Duration::from_millis(100),
-    ).await
+    )
+    .await
 }
 
 async fn wait_for_lane(

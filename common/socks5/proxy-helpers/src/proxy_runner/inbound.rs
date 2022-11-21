@@ -19,7 +19,7 @@ use tokio::select;
 use tokio::time;
 use tokio::{net::tcp::OwnedReadHalf, sync::Notify, time::sleep};
 
-fn send_empty_close<F, S>(
+async fn send_empty_close<F, S>(
     connection_id: ConnectionId,
     message_sender: &mut OrderedMessageSender,
     mix_sender: &MixProxySender<S>,
@@ -28,9 +28,13 @@ fn send_empty_close<F, S>(
     F: Fn(ConnectionId, Vec<u8>, bool) -> S,
 {
     let ordered_msg = message_sender.wrap_message(Vec::new()).into_bytes();
-    mix_sender
-        .unbounded_send(adapter_fn(connection_id, ordered_msg, true))
-        .unwrap();
+    if mix_sender
+        .send(adapter_fn(connection_id, ordered_msg, true))
+        .await
+        .is_err()
+    {
+        panic!();
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -78,9 +82,13 @@ where
     if let Some(lane_queue_lengths) = lane_queue_lengths {
         log::info!("Received size: {}", read_data.len());
 
-        //if read_data.len() > 1000 {
-            //time::sleep(Duration::from_millis(100)).await;
-        //}
+        // If we receive multiple large data sets in short succession we need to back off passing them off
+        // downstream to give some time for them to reach the out queue controller and the lane
+        // queue lengts being updated
+        if read_data.len() > 50_000 {
+            time::sleep(Duration::from_millis(200)).await;
+        }
+
         let queue = lane_queue_lengths.get(&TransmissionLane::ConnectionId(connection_id));
         log::info!("lane: {connection_id}: queue: {:?}", queue);
 
@@ -97,9 +105,13 @@ where
         }
     }
 
-    mix_sender
-        .unbounded_send(adapter_fn(connection_id, ordered_msg, is_finished))
-        .unwrap();
+    if mix_sender
+        .send(adapter_fn(connection_id, ordered_msg, is_finished))
+        .await
+        .is_err()
+    {
+        panic!();
+    }
 
     if is_finished {
         // technically we already informed it when we sent the message to mixnet above
@@ -153,7 +165,7 @@ where
                 );
                 // inform remote just in case it was closed because of lack of heartbeat.
                 // worst case the remote will just have couple of false negatives
-                send_empty_close(connection_id, &mut message_sender, &mix_sender, &adapter_fn);
+                send_empty_close(connection_id, &mut message_sender, &mix_sender, &adapter_fn).await;
                 break;
             }
             _ = shutdown_listener.recv() => {

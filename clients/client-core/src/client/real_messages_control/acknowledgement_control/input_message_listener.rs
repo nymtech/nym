@@ -9,7 +9,6 @@ use crate::client::{
     topology_control::TopologyAccessor,
 };
 use client_connections::TransmissionLane;
-use futures::StreamExt;
 use log::*;
 use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::preparer::MessagePreparer;
@@ -200,7 +199,7 @@ where
 
         while !shutdown.is_shutdown() {
             tokio::select! {
-                input_msg = self.input_receiver.next() => match input_msg {
+                input_msg = self.input_receiver.recv() => match input_msg {
                     Some(input_msg) => {
                         self.on_input_message(input_msg).await;
                     },

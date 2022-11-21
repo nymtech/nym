@@ -3,7 +3,6 @@
 
 use crate::connection_controller::ConnectionReceiver;
 use client_connections::LaneQueueLengths;
-use futures::channel::mpsc;
 use socks5_requests::ConnectionId;
 use std::{sync::Arc, time::Duration};
 use task::ShutdownListener;
@@ -30,7 +29,8 @@ impl From<(Vec<u8>, bool)> for ProxyMessage {
     }
 }
 
-pub type MixProxySender<S> = mpsc::UnboundedSender<S>;
+//pub type MixProxySender<S> = mpsc::UnboundedSender<S>;
+pub type MixProxySender<S> = tokio::sync::mpsc::Sender<S>;
 
 // TODO: when we finally get to implementing graceful shutdown,
 // on Drop this guy should tell the remote that it's closed now

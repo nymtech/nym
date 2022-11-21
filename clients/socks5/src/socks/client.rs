@@ -229,7 +229,7 @@ impl SocksClient {
         }
     }
 
-    fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
+    async fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
         let req = Request::new_connect(self.connection_id, remote_address, self.self_address);
         let msg = Message::Request(req);
 
@@ -239,11 +239,13 @@ impl SocksClient {
             false,
             TransmissionLane::ConnectionId(self.connection_id),
         );
-        self.input_sender.unbounded_send(input_message).unwrap();
+        if self.input_sender.send(input_message).await.is_err() {
+            panic!();
+        }
     }
 
     async fn run_proxy(&mut self, conn_receiver: ConnectionReceiver, remote_proxy_target: String) {
-        self.send_connect_to_mixnet(remote_proxy_target.clone());
+        self.send_connect_to_mixnet(remote_proxy_target.clone()).await;
 
         let stream = self.stream.run_proxy();
         let local_stream_remote = stream

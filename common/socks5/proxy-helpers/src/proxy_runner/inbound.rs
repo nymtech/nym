@@ -34,7 +34,7 @@ fn send_empty_close<F, S>(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn deal_with_data<F, S>(
+async fn deal_with_data<F, S>(
     read_data: Option<io::Result<Bytes>>,
     local_destination_address: &str,
     remote_source_address: &str,
@@ -78,11 +78,23 @@ where
     if let Some(lane_queue_lengths) = lane_queue_lengths {
         log::info!("Received size: {}", read_data.len());
 
-        if read_data.len() > 1000 {
-            time::sleep(Duration::from_millis(100)).await;
-        }
+        //if read_data.len() > 1000 {
+            //time::sleep(Duration::from_millis(100)).await;
+        //}
         let queue = lane_queue_lengths.get(&TransmissionLane::ConnectionId(connection_id));
         log::info!("lane: {connection_id}: queue: {:?}", queue);
+
+        if is_finished {
+            while let Some(queue) =
+                lane_queue_lengths.get(&TransmissionLane::ConnectionId(connection_id))
+            {
+                if queue > 0 {
+                    sleep(Duration::from_millis(100)).await;
+                } else {
+                    break;
+                }
+            }
+        }
     }
 
     mix_sender
@@ -130,7 +142,7 @@ where
                     &mix_sender,
                     &adapter_fn,
                     lane_queue_lengths.clone()
-                ) {
+                ).await {
                     break
                 }
             }

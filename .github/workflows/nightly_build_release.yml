@@ -28,7 +28,7 @@ jobs:
         run: echo "latest_release=$(git branch -r | grep -E 'release/v[0-9]+\.[0-9]+\.[0-9]+' | tail -n 1 | sed 's/  origin\///')" >> $GITHUB_OUTPUT
       - name: Echo
         id: step3
-        run: echo "latest_release=$(git branch -r | grep -E 'release/v[0-9]+\.[0-9]+\.[0-9]+' | tail -n 1 | sed 's/  origin\///')"
+        run: echo "latest_release=$(git branch -r)"
   build:
     needs: [get_release,matrix_prep]
     strategy:

@@ -245,7 +245,8 @@ impl SocksClient {
     }
 
     async fn run_proxy(&mut self, conn_receiver: ConnectionReceiver, remote_proxy_target: String) {
-        self.send_connect_to_mixnet(remote_proxy_target.clone()).await;
+        self.send_connect_to_mixnet(remote_proxy_target.clone())
+            .await;
 
         let stream = self.stream.run_proxy();
         let local_stream_remote = stream

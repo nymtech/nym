@@ -5,7 +5,7 @@ use crate::client::real_messages_control::message_handler::{MessageHandler, Prep
 use crate::client::replies::reply_storage::ReceivedReplySurbsMap;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use log::{debug, error, info, warn};
+use log::{debug, error, info, trace, warn};
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::anonymous_replies::ReplySurb;
@@ -13,9 +13,11 @@ use nymsphinx::chunking::fragment::Fragment;
 use rand::{CryptoRng, Rng};
 use std::cmp::{max, min};
 use std::collections::{HashMap, VecDeque};
+use std::sync::atomic::AtomicUsize;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::time::Instant;
+
 // TODO: rename
 
 // TODO: move elsewhere and share with other bits doing surb requests
@@ -221,6 +223,11 @@ where
             .get_reply_surbs(&recipient_tag, fragments.len());
 
         if let Some(reply_surbs) = surbs {
+            error!(
+                "we did NOT request any extra surbs! but still used {}",
+                reply_surbs.len()
+            );
+
             if let Err(err) = self
                 .message_handler
                 .try_send_reply_chunks(recipient_tag, fragments, reply_surbs)
@@ -307,8 +314,8 @@ where
             return Err(msg.into());
         }
 
-        // reset increment to zero
-        self.reset_surb_request_counter(&target);
+        // decrement the counter by what we managed to request
+        self.decrement_surb_request_counter(&target, amount);
         Ok(())
     }
 
@@ -353,6 +360,7 @@ where
             let to_send_vec = to_send.into_iter().collect::<Vec<_>>();
 
             if to_send_vec.is_empty() {
+                // TODO: fix: this panic actually happens periodically
                 panic!("empty1");
             }
 
@@ -410,7 +418,10 @@ where
         // 2. if we have any pending replies, use surbs for those
         self.try_clear_pending_queue(from, &mut reply_surbs).await;
 
-        // 3. buffer any leftovers
+        // 3. if our queue is still not empty (and we have no surb requests pending), request more surbs
+        // self.request_reply_surbs_for_queue_clearing(from).await;
+
+        // 4. buffer any leftovers
         if !reply_surbs.is_empty() {
             self.received_reply_surbs.insert_surbs(&from, reply_surbs)
         }
@@ -463,6 +474,27 @@ where
         }
     }
 
+    async fn request_reply_surbs_for_queue_clearing(&mut self, target: AnonymousSenderTag) {
+        let pending = match self.pending_replies.get(&target) {
+            Some(pending) => pending,
+            None => {
+                warn!("there are no pending replies for {:?}!", target);
+                return;
+            }
+        };
+        let queue_size = pending.data.len() as u32;
+        if queue_size == 0 {
+            trace!("the pending queue for {:?} is already empty", target);
+            return;
+        }
+
+        let increment = pending.next_surb_request_increment;
+        let request_size = min(self.max_surb_request_size, queue_size + increment);
+
+        self.request_additional_reply_surbs(target, request_size)
+            .await;
+    }
+
     async fn inspect_stale_entries(&mut self) {
         let mut to_request = Vec::new();
 
@@ -489,7 +521,7 @@ where
         for pending_reply_target in to_request {
             warn!("requesting more surbs...");
             // TODO: change below
-            self.request_additional_reply_surbs(pending_reply_target, 10)
+            self.request_reply_surbs_for_queue_clearing(pending_reply_target)
                 .await;
         }
     }

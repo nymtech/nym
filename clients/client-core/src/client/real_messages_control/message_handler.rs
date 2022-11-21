@@ -18,9 +18,12 @@ use nymsphinx::message::NymMessage;
 use nymsphinx::preparer::{MessagePreparer, PreparedFragment};
 use nymsphinx::Delay as SphinxDelay;
 use rand::{CryptoRng, Rng};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use thiserror::Error;
 use topology::{NymTopology, NymTopologyError};
+
+static REQUESTED_SURBS: AtomicUsize = AtomicUsize::new(0);
 
 // TODO1: fix those disgusting and lazy Option<()> return types!
 
@@ -171,9 +174,13 @@ where
         reply_surb: ReplySurb,
         amount: u32,
     ) -> Result<(), PreparationError> {
-        info!("REQUESTING {amount} MORE SURBS!!");
-        info!("REQUESTING {amount} MORE SURBS!!");
-        info!("REQUESTING {amount} MORE SURBS!!");
+        let old = REQUESTED_SURBS.fetch_add(amount as usize, Ordering::SeqCst);
+
+        info!(
+            "REQUESTING {amount} MORE SURBS!! In total we requested {}",
+            old + amount as usize
+        );
+
         let surbs_request = ReplyMessage::new_surb_request_message(self.self_address, amount);
         self.try_send_single_surb_message(from, surbs_request, reply_surb, true)
             .await

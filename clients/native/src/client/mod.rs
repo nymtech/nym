@@ -304,28 +304,43 @@ impl NymClient {
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
-    pub fn send_message(&mut self, recipient: Recipient, message: Vec<u8>, with_reply_surb: bool) {
+    pub async fn send_message(
+        &mut self,
+        recipient: Recipient,
+        message: Vec<u8>,
+        with_reply_surb: bool,
+    ) {
         let lane = TransmissionLane::General;
         let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb, lane);
 
-        self.input_tx
+        if self
+            .input_tx
             .as_ref()
             .expect("start method was not called before!")
-            .unbounded_send(input_msg)
-            .unwrap();
+            .send(input_msg)
+            .await
+            .is_err()
+        {
+            panic!();
+        }
     }
 
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
-    pub fn send_reply(&mut self, reply_surb: ReplySurb, message: Vec<u8>) {
+    pub async fn send_reply(&mut self, reply_surb: ReplySurb, message: Vec<u8>) {
         let input_msg = InputMessage::new_reply(reply_surb, message);
 
-        self.input_tx
+        if self
+            .input_tx
             .as_ref()
             .expect("start method was not called before!")
-            .unbounded_send(input_msg)
-            .unwrap();
+            .send(input_msg)
+            .await
+            .is_err()
+        {
+            panic!();
+        }
     }
 
     /// EXPERIMENTAL DIRECT RUST API
@@ -382,7 +397,7 @@ impl NymClient {
         let (received_buffer_request_sender, received_buffer_request_receiver) = mpsc::unbounded();
 
         // channels responsible for controlling real messages
-        let (input_sender, input_receiver) = mpsc::unbounded::<InputMessage>();
+        let (input_sender, input_receiver) = tokio::sync::mpsc::channel::<InputMessage>(1);
 
         // channels responsible for controlling ack messages
         let (ack_sender, ack_receiver) = mpsc::unbounded();

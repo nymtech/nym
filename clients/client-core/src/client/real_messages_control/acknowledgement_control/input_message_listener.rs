@@ -9,7 +9,6 @@ use crate::client::{
     topology_control::TopologyAccessor,
 };
 use client_connections::TransmissionLane;
-use futures::StreamExt;
 use log::*;
 use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::preparer::MessagePreparer;
@@ -188,9 +187,14 @@ where
         // there's no point in trying to send nothing
         if let Some(real_messages) = real_messages {
             // tells real message sender (with the poisson timer) to send this to the mix network
-            self.real_message_sender
-                .unbounded_send((real_messages, lane))
-                .unwrap();
+            if self
+                .real_message_sender
+                .send((real_messages, lane))
+                .await
+                .is_err()
+            {
+                panic!();
+            }
         }
     }
 
@@ -200,7 +204,7 @@ where
 
         while !shutdown.is_shutdown() {
             tokio::select! {
-                input_msg = self.input_receiver.next() => match input_msg {
+                input_msg = self.input_receiver.recv() => match input_msg {
                     Some(input_msg) => {
                         self.on_input_message(input_msg).await;
                     },
@@ -221,7 +225,7 @@ where
     #[cfg(target_arch = "wasm32")]
     pub(super) async fn run(&mut self) {
         debug!("Started InputMessageListener without graceful shutdown support");
-        while let Some(input_msg) = self.input_receiver.next().await {
+        while let Some(input_msg) = self.input_receiver.recv().await {
             self.on_input_message(input_msg).await;
         }
     }

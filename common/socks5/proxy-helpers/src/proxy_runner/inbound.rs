@@ -5,17 +5,20 @@ use super::MixProxySender;
 use super::SHUTDOWN_TIMEOUT;
 use crate::available_reader::AvailableReader;
 use bytes::Bytes;
+use client_connections::LaneQueueLengths;
+use client_connections::TransmissionLane;
 use futures::FutureExt;
 use futures::StreamExt;
 use log::*;
 use ordered_buffer::OrderedMessageSender;
 use socks5_requests::ConnectionId;
+use std::time::Duration;
 use std::{io, sync::Arc};
 use task::ShutdownListener;
 use tokio::select;
 use tokio::{net::tcp::OwnedReadHalf, sync::Notify, time::sleep};
 
-fn send_empty_close<F, S>(
+async fn send_empty_close<F, S>(
     connection_id: ConnectionId,
     message_sender: &mut OrderedMessageSender,
     mix_sender: &MixProxySender<S>,
@@ -24,12 +27,17 @@ fn send_empty_close<F, S>(
     F: Fn(ConnectionId, Vec<u8>, bool) -> S,
 {
     let ordered_msg = message_sender.wrap_message(Vec::new()).into_bytes();
-    mix_sender
-        .unbounded_send(adapter_fn(connection_id, ordered_msg, true))
-        .unwrap();
+    if mix_sender
+        .send(adapter_fn(connection_id, ordered_msg, true))
+        .await
+        .is_err()
+    {
+        panic!();
+    }
 }
 
-fn deal_with_data<F, S>(
+#[allow(clippy::too_many_arguments)]
+async fn deal_with_data<F, S>(
     read_data: Option<io::Result<Bytes>>,
     local_destination_address: &str,
     remote_source_address: &str,
@@ -37,6 +45,7 @@ fn deal_with_data<F, S>(
     message_sender: &mut OrderedMessageSender,
     mix_sender: &MixProxySender<S>,
     adapter_fn: F,
+    lane_queue_lengths: Option<LaneQueueLengths>,
 ) -> bool
 where
     F: Fn(ConnectionId, Vec<u8>, bool) -> S,
@@ -67,9 +76,26 @@ where
         "pushing data down the input sender: size: {}",
         ordered_msg.len()
     );
-    mix_sender
-        .unbounded_send(adapter_fn(connection_id, ordered_msg, is_finished))
-        .unwrap();
+
+    // If we are closing the socket, wait until the data has passed `OutQueueControl` and the lane
+    // is empty, otherwise just wait until we are reasonably close to finish sending as a way to
+    // throttle the incoming data.
+    if let Some(lane_queue_lengths) = lane_queue_lengths {
+        if is_finished {
+            wait_until_lane_empty(lane_queue_lengths, connection_id).await;
+        } else {
+            // We allow a bit of slack when this is not the last msg
+            wait_until_lane_almost_empty(lane_queue_lengths, connection_id).await;
+        }
+    }
+
+    if mix_sender
+        .send(adapter_fn(connection_id, ordered_msg, is_finished))
+        .await
+        .is_err()
+    {
+        panic!();
+    }
 
     if is_finished {
         // technically we already informed it when we sent the message to mixnet above
@@ -77,6 +103,41 @@ where
     }
 
     is_finished
+}
+
+async fn wait_until_lane_empty(lane_queue_lengths: LaneQueueLengths, connection_id: u64) {
+    wait_for_lane(
+        lane_queue_lengths,
+        connection_id,
+        0,
+        Duration::from_millis(500),
+    )
+    .await
+}
+
+async fn wait_until_lane_almost_empty(lane_queue_lengths: LaneQueueLengths, connection_id: u64) {
+    wait_for_lane(
+        lane_queue_lengths,
+        connection_id,
+        10,
+        Duration::from_millis(100),
+    )
+    .await
+}
+
+async fn wait_for_lane(
+    lane_queue_lengths: LaneQueueLengths,
+    connection_id: u64,
+    queue_length_threshold: usize,
+    sleep_duration: Duration,
+) {
+    while let Some(queue) = lane_queue_lengths.get(&TransmissionLane::ConnectionId(connection_id)) {
+        if queue > queue_length_threshold {
+            sleep(sleep_duration).await;
+        } else {
+            break;
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -88,6 +149,7 @@ pub(super) async fn run_inbound<F, S>(
     mix_sender: MixProxySender<S>,
     adapter_fn: F,
     shutdown_notify: Arc<Notify>,
+    lane_queue_lengths: Option<LaneQueueLengths>,
     mut shutdown_listener: ShutdownListener,
 ) -> OwnedReadHalf
 where
@@ -102,15 +164,27 @@ where
     loop {
         select! {
             read_data = &mut available_reader.next() => {
-                if deal_with_data(read_data, &local_destination_address, &remote_source_address, connection_id, &mut message_sender, &mix_sender, &adapter_fn) {
+                if deal_with_data(
+                    read_data,
+                    &local_destination_address,
+                    &remote_source_address,
+                    connection_id,
+                    &mut message_sender,
+                    &mix_sender,
+                    &adapter_fn,
+                    lane_queue_lengths.clone()
+                ).await {
                     break
                 }
             }
             _ = &mut shutdown_future => {
-                debug!("closing inbound proxy after outbound was closed {:?} ago", SHUTDOWN_TIMEOUT);
+                debug!(
+                    "closing inbound proxy after outbound was closed {:?} ago",
+                    SHUTDOWN_TIMEOUT
+                );
                 // inform remote just in case it was closed because of lack of heartbeat.
                 // worst case the remote will just have couple of false negatives
-                send_empty_close(connection_id, &mut message_sender, &mix_sender, &adapter_fn);
+                send_empty_close(connection_id, &mut message_sender, &mix_sender, &adapter_fn).await;
                 break;
             }
             _ = shutdown_listener.recv() => {

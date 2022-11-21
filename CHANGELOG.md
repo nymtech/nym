@@ -12,8 +12,10 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 ### Changed
 
 - clients: add concept of transmission lanes to better handle multiple data streams ([#1720])
+- socks5-client: wait closing inbound connection until data is sent, and throttle incoming data in general ([#1783])
 
 [#1720]: https://github.com/nymtech/nym/pull/1720
+[#1783]: https://github.com/nymtech/nym/pull/1783
 
 
 ## [v1.1.0](https://github.com/nymtech/nym/tree/v1.1.0) (2022-11-09)

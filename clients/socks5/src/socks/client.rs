@@ -4,7 +4,7 @@ use super::authentication::{AuthenticationMethods, Authenticator, User};
 use super::request::{SocksCommand, SocksRequest};
 use super::types::{ResponseCode, SocksProxyError};
 use super::{RESERVED, SOCKS_VERSION};
-use client_connections::TransmissionLane;
+use client_connections::{LaneQueueLengths, TransmissionLane};
 use client_core::client::inbound_messages::{InputMessage, InputMessageSender};
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
@@ -141,6 +141,7 @@ pub(crate) struct SocksClient {
     service_provider: Recipient,
     self_address: Recipient,
     started_proxy: bool,
+    lane_queue_lengths: LaneQueueLengths,
     shutdown_listener: ShutdownListener,
 }
 
@@ -158,6 +159,7 @@ impl Drop for SocksClient {
 
 impl SocksClient {
     /// Create a new SOCKClient
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         stream: TcpStream,
         authenticator: Authenticator,
@@ -165,6 +167,7 @@ impl SocksClient {
         service_provider: Recipient,
         controller_sender: ControllerSender,
         self_address: Recipient,
+        lane_queue_lengths: LaneQueueLengths,
         shutdown_listener: ShutdownListener,
     ) -> Self {
         let connection_id = Self::generate_random();
@@ -179,6 +182,7 @@ impl SocksClient {
             service_provider,
             self_address,
             started_proxy: false,
+            lane_queue_lengths,
             shutdown_listener,
         }
     }
@@ -226,7 +230,7 @@ impl SocksClient {
         }
     }
 
-    fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
+    async fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
         let req = Request::new_connect(self.connection_id, remote_address, self.self_address);
         let msg = Message::Request(req);
 
@@ -236,11 +240,14 @@ impl SocksClient {
             false,
             TransmissionLane::ConnectionId(self.connection_id),
         );
-        self.input_sender.unbounded_send(input_message).unwrap();
+        if self.input_sender.send(input_message).await.is_err() {
+            panic!();
+        }
     }
 
     async fn run_proxy(&mut self, conn_receiver: ConnectionReceiver, remote_proxy_target: String) {
-        self.send_connect_to_mixnet(remote_proxy_target.clone());
+        self.send_connect_to_mixnet(remote_proxy_target.clone())
+            .await;
 
         let stream = self.stream.run_proxy();
         let local_stream_remote = stream
@@ -258,6 +265,7 @@ impl SocksClient {
             conn_receiver,
             input_sender,
             connection_id,
+            Some(self.lane_queue_lengths.clone()),
             self.shutdown_listener.clone(),
         )
         .run(move |conn_id, read_data, socket_closed| {

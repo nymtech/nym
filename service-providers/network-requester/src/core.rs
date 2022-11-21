@@ -336,7 +336,6 @@ impl ServiceProvider {
         // going to be used by `mixnet_response_listener`
         let (mix_input_sender, mix_input_receiver) =
             tokio::sync::mpsc::channel::<(Socks5Message, Recipient)>(1);
-        //mpsc::unbounded::<(Socks5Message, Recipient)>();
 
         // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
         let shutdown = task::ShutdownNotifier::default();

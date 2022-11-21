@@ -326,7 +326,7 @@ impl NymClient {
         let (received_buffer_request_sender, received_buffer_request_receiver) = mpsc::unbounded();
 
         // channels responsible for controlling real messages
-        let (input_sender, input_receiver) = mpsc::unbounded::<InputMessage>();
+        let (input_sender, input_receiver) = tokio::sync::mpsc::channel::<InputMessage>(1);
 
         // channels responsible for controlling ack messages
         let (ack_sender, ack_receiver) = mpsc::unbounded();
@@ -395,11 +395,16 @@ impl NymClient {
 
         let input_msg = InputMessage::new_fresh(recipient, message, false, lane);
 
-        self.input_tx
+        if self
+            .input_tx
             .as_ref()
             .expect("start method was not called before!")
-            .unbounded_send(input_msg)
-            .unwrap();
+            .send(input_msg)
+            .await
+            .is_err()
+        {
+            panic!();
+        }
 
         self
     }

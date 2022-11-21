@@ -225,7 +225,7 @@ where
     #[cfg(target_arch = "wasm32")]
     pub(super) async fn run(&mut self) {
         debug!("Started InputMessageListener without graceful shutdown support");
-        while let Some(input_msg) = self.input_receiver.next().await {
+        while let Some(input_msg) = self.input_receiver.recv().await {
             self.on_input_message(input_msg).await;
         }
     }

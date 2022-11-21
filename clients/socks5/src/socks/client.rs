@@ -159,6 +159,7 @@ impl Drop for SocksClient {
 
 impl SocksClient {
     /// Create a new SOCKClient
+    #[allow(clippy::too_many_lines)]
     pub fn new(
         stream: TcpStream,
         authenticator: Authenticator,

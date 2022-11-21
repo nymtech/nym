@@ -182,7 +182,7 @@ pub(crate) async fn verification_key_validation(
             .list_proposals()
             .await?
             .iter()
-            .filter_map(|prop| validate_proposal(prop)),
+            .filter_map(validate_proposal),
     );
     let filtered_receivers_by_idx: Vec<_> =
         state.current_dealers_by_idx().keys().copied().collect();

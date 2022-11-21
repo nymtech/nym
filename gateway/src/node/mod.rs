@@ -26,6 +26,7 @@ use crate::config::persistence::pathfinder::GatewayPathfinder;
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 #[cfg(feature = "coconut")]
 use credentials::coconut::utils::obtain_aggregate_verification_key;
+#[cfg(feature = "coconut")]
 use validator_client::{Client, CoconutApiClient};
 
 use self::storage::PersistentStorage;

@@ -99,8 +99,6 @@ pub fn transpose_matrix<T: Debug>(matrix: Vec<Vec<T>>) -> Vec<Vec<T>> {
                 .collect::<Vec<_>>()
         })
         .collect::<Vec<_>>()
-        .try_into()
-        .unwrap()
 }
 
 #[cfg(test)]

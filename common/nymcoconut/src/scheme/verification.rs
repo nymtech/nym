@@ -233,7 +233,7 @@ pub fn check_vk_pairing(
     }
     if vk.beta_g1.iter().zip(vk.beta_g2.iter()).any(|(g1, g2)| {
         !check_bilinear_pairing(
-            &params.gen1(),
+            params.gen1(),
             &G2Prepared::from(g2.to_affine()),
             &g1.to_affine(),
             params.prepared_miller_g2(),

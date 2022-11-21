@@ -746,7 +746,7 @@ impl CoconutApiClient {
             .get_all_nymd_verification_key_shares()
             .await?
             .into_iter()
-            .filter_map(|share| Self::try_from(share))
+            .filter_map(Self::try_from)
             .collect())
     }
 

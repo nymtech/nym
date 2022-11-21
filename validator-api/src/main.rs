@@ -33,6 +33,7 @@ use std::time::Duration;
 use std::{fs, process};
 use task::ShutdownNotifier;
 use tokio::sync::Notify;
+#[cfg(feature = "coconut")]
 use url::Url;
 use validator_client::nymd::SigningNymdClient;
 
@@ -369,7 +370,7 @@ fn setup_liftoff_notify(notify: Arc<Notify>) -> AdHoc {
 
 fn setup_network_monitor<'a>(
     config: &'a Config,
-    nymd_client: Client<SigningNymdClient>,
+    _nymd_client: Client<SigningNymdClient>,
     system_version: &str,
     rocket: &Rocket<Ignite>,
 ) -> Option<NetworkMonitorBuilder<'a>> {
@@ -383,7 +384,7 @@ fn setup_network_monitor<'a>(
 
     Some(NetworkMonitorBuilder::new(
         config,
-        nymd_client,
+        _nymd_client,
         system_version,
         node_status_storage,
         validator_cache,

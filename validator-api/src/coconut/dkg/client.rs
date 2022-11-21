@@ -126,7 +126,7 @@ impl DkgClient {
                 .submit_verification_key_share(share.clone())
                 .await;
         }
-        Ok(ret?)
+        ret
     }
 
     pub(crate) async fn vote_verification_key_share(

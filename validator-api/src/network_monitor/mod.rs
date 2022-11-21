@@ -8,7 +8,6 @@ use gateway_client::bandwidth::BandwidthController;
 use std::sync::Arc;
 use task::ShutdownNotifier;
 use validator_client::nymd::SigningNymdClient;
-use validator_client::CoconutApiClient;
 
 use crate::config::Config;
 use crate::contract_cache::ValidatorCache;
@@ -35,7 +34,7 @@ pub(crate) const ROUTE_TESTING_TEST_NONCE: u64 = 0;
 
 pub(crate) struct NetworkMonitorBuilder<'a> {
     config: &'a Config,
-    nymd_client: Client<SigningNymdClient>,
+    _nymd_client: Client<SigningNymdClient>,
     system_version: String,
     node_status_storage: ValidatorApiStorage,
     validator_cache: ValidatorCache,
@@ -44,14 +43,14 @@ pub(crate) struct NetworkMonitorBuilder<'a> {
 impl<'a> NetworkMonitorBuilder<'a> {
     pub(crate) fn new(
         config: &'a Config,
-        nymd_client: Client<SigningNymdClient>,
+        _nymd_client: Client<SigningNymdClient>,
         system_version: &str,
         node_status_storage: ValidatorApiStorage,
         validator_cache: ValidatorCache,
     ) -> Self {
         NetworkMonitorBuilder {
             config,
-            nymd_client,
+            _nymd_client,
             system_version: system_version.to_string(),
             node_status_storage,
             validator_cache,
@@ -81,10 +80,11 @@ impl<'a> NetworkMonitorBuilder<'a> {
 
         #[cfg(feature = "coconut")]
         let bandwidth_controller = {
-            let client = self.nymd_client.0.read().await;
-            let coconut_api_clients = CoconutApiClient::all_coconut_api_clients(&client)
-                .await
-                .expect("Could not query api clients");
+            let client = self._nymd_client.0.read().await;
+            let coconut_api_clients =
+                validator_client::CoconutApiClient::all_coconut_api_clients(&client)
+                    .await
+                    .expect("Could not query api clients");
             BandwidthController::new(
                 credential_storage::initialise_storage(self.config.get_credentials_database_path())
                     .await,

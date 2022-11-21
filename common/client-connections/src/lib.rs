@@ -78,6 +78,24 @@ impl std::ops::Deref for LaneQueueLengths {
     }
 }
 
+#[derive(Debug)]
 pub struct LaneQueueLengthsInner {
-    map: HashMap<TransmissionLane, usize>,
+    pub map: HashMap<TransmissionLane, usize>,
+}
+
+impl LaneQueueLengthsInner {
+    pub fn get(&self, lane: &TransmissionLane) -> Option<usize> {
+        self.map.get(lane).copied()
+    }
+
+    pub fn values(&self) -> impl Iterator<Item = &usize> {
+        self.map.values()
+    }
+
+    pub fn modify<F>(&mut self, lane: &TransmissionLane, f: F)
+    where
+        F: FnOnce(&mut usize),
+    {
+        self.map.entry(*lane).and_modify(f);
+    }
 }

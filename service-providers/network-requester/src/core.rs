@@ -7,7 +7,7 @@ use crate::error::NetworkRequesterError;
 use crate::statistics::ServiceStatisticsCollector;
 use crate::websocket;
 use crate::websocket::TSWebsocketStream;
-use client_connections::{ClosedConnectionReceiver, LaneQueueLengths, TransmissionLane};
+use client_connections::ClosedConnectionReceiver;
 use futures::channel::mpsc;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};

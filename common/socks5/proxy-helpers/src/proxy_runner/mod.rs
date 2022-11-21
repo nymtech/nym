@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::connection_controller::ConnectionReceiver;
+use client_connections::LaneQueueLengths;
 use futures::channel::mpsc;
 use socks5_requests::ConnectionId;
 use std::{sync::Arc, time::Duration};
@@ -45,7 +46,7 @@ pub struct ProxyRunner<S> {
     local_destination_address: String,
     remote_source_address: String,
     connection_id: ConnectionId,
-    lane_queue_lengths: LaneQueueLengths,
+    lane_queue_lengths: Option<LaneQueueLengths>,
 
     // Listens to shutdown commands from higher up
     shutdown_listener: ShutdownListener,
@@ -55,6 +56,7 @@ impl<S> ProxyRunner<S>
 where
     S: Send + 'static,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         socket: TcpStream,
         local_destination_address: String, // addresses are provided for better logging
@@ -62,7 +64,7 @@ where
         mix_receiver: ConnectionReceiver,
         mix_sender: MixProxySender<S>,
         connection_id: ConnectionId,
-        lane_queue_lengths: LaneQueueLengths,
+        lane_queue_lengths: Option<LaneQueueLengths>,
         shutdown_listener: ShutdownListener,
     ) -> Self {
         ProxyRunner {

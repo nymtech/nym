@@ -261,7 +261,7 @@ impl SocksClient {
             conn_receiver,
             input_sender,
             connection_id,
-            self.lane_queue_lengths.clone(),
+            Some(self.lane_queue_lengths.clone()),
             self.shutdown_listener.clone(),
         )
         .run(move |conn_id, read_data, socket_closed| {

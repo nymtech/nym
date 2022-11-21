@@ -5,14 +5,18 @@ use super::MixProxySender;
 use super::SHUTDOWN_TIMEOUT;
 use crate::available_reader::AvailableReader;
 use bytes::Bytes;
+use client_connections::LaneQueueLengths;
+use client_connections::TransmissionLane;
 use futures::FutureExt;
 use futures::StreamExt;
 use log::*;
 use ordered_buffer::OrderedMessageSender;
 use socks5_requests::ConnectionId;
+use std::time::Duration;
 use std::{io, sync::Arc};
 use task::ShutdownListener;
 use tokio::select;
+use tokio::time;
 use tokio::{net::tcp::OwnedReadHalf, sync::Notify, time::sleep};
 
 fn send_empty_close<F, S>(
@@ -29,7 +33,8 @@ fn send_empty_close<F, S>(
         .unwrap();
 }
 
-async fn deal_with_data<F, S>(
+#[allow(clippy::too_many_arguments)]
+fn deal_with_data<F, S>(
     read_data: Option<io::Result<Bytes>>,
     local_destination_address: &str,
     remote_source_address: &str,
@@ -37,7 +42,7 @@ async fn deal_with_data<F, S>(
     message_sender: &mut OrderedMessageSender,
     mix_sender: &MixProxySender<S>,
     adapter_fn: F,
-    lane_queue_lengths: LaneQueueLengths,
+    lane_queue_lengths: Option<LaneQueueLengths>,
 ) -> bool
 where
     F: Fn(ConnectionId, Vec<u8>, bool) -> S,
@@ -68,6 +73,18 @@ where
         "pushing data down the input sender: size: {}",
         ordered_msg.len()
     );
+
+    // WIP: if is_finished, wait here to send until the queue is clear
+    if let Some(lane_queue_lengths) = lane_queue_lengths {
+        log::info!("Received size: {}", read_data.len());
+
+        if read_data.len() > 1000 {
+            time::sleep(Duration::from_millis(100)).await;
+        }
+        let queue = lane_queue_lengths.get(&TransmissionLane::ConnectionId(connection_id));
+        log::info!("lane: {connection_id}: queue: {:?}", queue);
+    }
+
     mix_sender
         .unbounded_send(adapter_fn(connection_id, ordered_msg, is_finished))
         .unwrap();
@@ -89,7 +106,7 @@ pub(super) async fn run_inbound<F, S>(
     mix_sender: MixProxySender<S>,
     adapter_fn: F,
     shutdown_notify: Arc<Notify>,
-    lane_queue_lengths: LaneQueueLengths,
+    lane_queue_lengths: Option<LaneQueueLengths>,
     mut shutdown_listener: ShutdownListener,
 ) -> OwnedReadHalf
 where
@@ -113,7 +130,7 @@ where
                     &mix_sender,
                     &adapter_fn,
                     lane_queue_lengths.clone()
-                ).await {
+                ) {
                     break
                 }
             }

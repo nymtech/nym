@@ -41,7 +41,6 @@ impl Connection {
         &mut self,
         mix_receiver: ConnectionReceiver,
         mix_sender: mpsc::UnboundedSender<(Socks5Message, Recipient)>,
-        lane_queue_lengths: LaneQueueLengths,
         shutdown: ShutdownListener,
     ) {
         let stream = self.conn.take().unwrap();
@@ -55,7 +54,7 @@ impl Connection {
             mix_receiver,
             mix_sender,
             connection_id,
-            lane_queue_lengths,
+            None,
             shutdown,
         )
         .run(move |conn_id, read_data, socket_closed| {

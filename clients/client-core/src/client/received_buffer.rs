@@ -122,7 +122,7 @@ impl ReceivedMessagesBufferInner {
             Ok(frag_data) => frag_data,
         };
 
-        self.recover_from_fragment(&fragment_data)
+        self.recover_from_fragment(fragment_data)
     }
 }
 

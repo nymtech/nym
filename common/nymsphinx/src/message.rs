@@ -7,7 +7,8 @@ use crypto::Digest;
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
 use nymsphinx_anonymous_replies::requests::{
-    RepliableMessage, ReplyMessage, ReplyMessageContent, UnnamedRepliesError,
+    RepliableMessage, RepliableMessageContent, ReplyMessage, ReplyMessageContent,
+    UnnamedRepliesError,
 };
 use nymsphinx_chunking::fragment::Fragment;
 use nymsphinx_params::{PacketSize, ReplySurbKeyDigestAlgorithm};
@@ -80,6 +81,20 @@ impl NymMessage {
                 matches!(reply_msg.content, ReplyMessageContent::SurbRequest { .. })
             }
             _ => false,
+        }
+    }
+
+    pub fn into_inner_data(self) -> Vec<u8> {
+        match self {
+            NymMessage::Plain(data) => data,
+            NymMessage::Repliable(repliable) => match repliable.content {
+                RepliableMessageContent::Data { message, .. } => message,
+                _ => Vec::new(),
+            },
+            NymMessage::Reply(reply) => match reply.content {
+                ReplyMessageContent::Data { message } => message,
+                _ => Vec::new(),
+            },
         }
     }
 

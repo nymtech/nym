@@ -143,6 +143,9 @@ pub(crate) struct SocksClient {
     started_proxy: bool,
     shutdown_listener: ShutdownListener,
 
+    // TODO: make it configurable
+    #[deprecated(note = "make clippy yell at me for trying to forget about it")]
+    anonymous: bool,
     initial_surbs: u32,
     per_request_surbs: u32,
 }
@@ -185,6 +188,7 @@ impl SocksClient {
             shutdown_listener,
 
             // TODO: make it configurable
+            anonymous: true,
             initial_surbs: 10,
             per_request_surbs: 2,
         }
@@ -233,7 +237,7 @@ impl SocksClient {
         }
     }
 
-    async fn send_connect_anonymous_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
+    async fn send_anonymous_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
         let req = Request::new_connect(self.connection_id, remote_address, None);
         let msg = Message::Request(req);
 
@@ -245,22 +249,24 @@ impl SocksClient {
         self.input_sender.unbounded_send(input_message).unwrap();
     }
 
-    async fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
-        #[deprecated(note = "move it to config and handle the other case")]
-        const USE_ANONYMOUS: bool = true;
+    async fn send_connect_to_mixnet_with_return_address(&mut self, remote_address: RemoteAddress) {
+        let req = Request::new_connect(self.connection_id, remote_address, Some(self.self_address));
+        let msg = Message::Request(req);
 
-        if USE_ANONYMOUS {
-            self.send_connect_anonymous_connect_to_mixnet(remote_address)
-                .await
+        let input_message = InputMessage::new_regular(self.service_provider, msg.into_bytes());
+        self.input_sender.unbounded_send(input_message).unwrap();
+    }
+
+    async fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
+        if self.anonymous {
+            self.send_anonymous_connect_to_mixnet(remote_address).await
         } else {
-            unimplemented!()
+            self.send_connect_to_mixnet_with_return_address(remote_address)
+                .await
         }
     }
 
     async fn run_proxy(&mut self, conn_receiver: ConnectionReceiver, remote_proxy_target: String) {
-        #[deprecated(note = "move it to config and handle the other case")]
-        const USE_ANONYMOUS: bool = true;
-
         self.send_connect_to_mixnet(remote_proxy_target.clone())
             .await;
 
@@ -271,6 +277,7 @@ impl SocksClient {
             .to_string();
         let connection_id = self.connection_id;
         let input_sender = self.input_sender.clone();
+        let anonymous = self.anonymous;
         let per_request_surbs = self.per_request_surbs;
 
         let recipient = self.service_provider;
@@ -286,7 +293,7 @@ impl SocksClient {
         .run(move |conn_id, read_data, socket_closed| {
             let provider_request = Request::new_send(conn_id, read_data, socket_closed);
             let provider_message = Message::Request(provider_request);
-            if USE_ANONYMOUS {
+            if anonymous {
                 InputMessage::new_anonymous(
                     recipient,
                     provider_message.into_bytes(),

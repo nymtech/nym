@@ -74,7 +74,7 @@ impl PacketRouter {
                 received_messages.push(received_packet);
             } else {
                 // this can happen if other clients are not padding their messages
-                warn!("Received message of unexpected size. Probably from an outdated client... len: {}", received_packet.len());
+                //warn!("Received message of unexpected size. Probably from an outdated client... len: {}", received_packet.len());
                 received_messages.push(received_packet);
             }
         }

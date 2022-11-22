@@ -178,6 +178,7 @@ impl ServiceProvider {
         return_address: Recipient,
         controller_sender: ControllerSender,
         mix_input_sender: MixProxySender<(Socks5Message, Recipient)>,
+        lane_queue_lengths: LaneQueueLengths,
         shutdown: ShutdownListener,
     ) {
         let mut conn = match Connection::new(conn_id, remote_addr.clone(), return_address).await {
@@ -219,7 +220,7 @@ impl ServiceProvider {
         );
 
         // run the proxy on the connection
-        conn.run_proxy(mix_receiver, mix_input_sender, shutdown)
+        conn.run_proxy(mix_receiver, mix_input_sender, lane_queue_lengths, shutdown)
             .await;
 
         // proxy is done - remove the access channel from the controller
@@ -240,6 +241,7 @@ impl ServiceProvider {
         &mut self,
         controller_sender: &mut ControllerSender,
         mix_input_sender: &MixProxySender<(Socks5Message, Recipient)>,
+        lane_queue_lengths: LaneQueueLengths,
         conn_id: ConnectionId,
         remote_addr: String,
         return_address: Recipient,
@@ -274,6 +276,7 @@ impl ServiceProvider {
                 return_address,
                 controller_sender_clone,
                 mix_input_sender_clone,
+                lane_queue_lengths,
                 shutdown,
             )
             .await
@@ -297,6 +300,7 @@ impl ServiceProvider {
         raw_request: &[u8],
         controller_sender: &mut ControllerSender,
         mix_input_sender: &MixProxySender<(Socks5Message, Recipient)>,
+        lane_queue_lengths: LaneQueueLengths,
         stats_collector: Option<ServiceStatisticsCollector>,
         shutdown: ShutdownListener,
     ) {
@@ -320,6 +324,7 @@ impl ServiceProvider {
                     self.handle_proxy_connect(
                         controller_sender,
                         mix_input_sender,
+                        lane_queue_lengths,
                         req.conn_id,
                         req.remote_addr,
                         req.return_address,
@@ -431,6 +436,7 @@ impl ServiceProvider {
                 &raw_message,
                 &mut controller_sender,
                 &mix_input_sender,
+                shared_lane_queue_lengths.clone(),
                 stats_collector.clone(),
                 shutdown.subscribe(),
             )

@@ -10,10 +10,10 @@ use self::{
 };
 use crate::client::real_messages_control::acknowledgement_control::AcknowledgementControllerConnectors;
 use crate::client::real_messages_control::message_handler::MessageHandler;
-use crate::client::replies::reply_storage::{CombinedReplyStorage, SentReplyKeys};
-use crate::client::replies::temp_name_pending_handler::{
-    ToBeNamedPendingReplyController, ToBeNamedReceiver, ToBeNamedSender,
+use crate::client::replies::reply_controller::{
+    ReplyController, ReplyControllerReceiver, ReplyControllerSender,
 };
+use crate::client::replies::reply_storage::{CombinedReplyStorage, SentReplyKeys};
 use crate::client::{
     inbound_messages::InputMessageReceiver, mix_traffic::BatchMixMessageSender,
     topology_control::TopologyAccessor,
@@ -106,7 +106,7 @@ where
 {
     out_queue_control: OutQueueControl<R>,
     ack_control: AcknowledgementController<R>,
-    reply_control: ToBeNamedPendingReplyController<R>,
+    reply_control: ReplyController<R>,
 }
 
 // obviously when we finally make shared rng that is on 'higher' level, this should become
@@ -120,8 +120,8 @@ impl RealMessagesController<OsRng> {
         topology_access: TopologyAccessor,
         reply_storage: CombinedReplyStorage,
         // so much refactoring needed, but this is temporary just to test things out
-        to_be_named_channel_sender: ToBeNamedSender,
-        to_be_named_channel_receiver: ToBeNamedReceiver,
+        to_be_named_channel_sender: ReplyControllerSender,
+        to_be_named_channel_receiver: ReplyControllerReceiver,
     ) -> Self {
         let rng = OsRng;
 
@@ -166,7 +166,7 @@ impl RealMessagesController<OsRng> {
             reply_storage.tags_storage(),
         );
 
-        let reply_control = ToBeNamedPendingReplyController::new(
+        let reply_control = ReplyController::new(
             message_handler.clone(),
             reply_storage.surbs_storage(),
             to_be_named_channel_receiver,

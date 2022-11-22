@@ -16,25 +16,25 @@ use std::collections::{HashMap, VecDeque};
 use std::time::Duration;
 use tokio::time::Instant;
 
-pub fn new_control_channels() -> (ToBeNamedSender, ToBeNamedReceiver) {
+pub fn new_control_channels() -> (ReplyControllerSender, ReplyControllerReceiver) {
     let (tx, rx) = mpsc::unbounded();
     (tx.into(), rx)
 }
 
 #[derive(Debug, Clone)]
-pub struct ToBeNamedSender(mpsc::UnboundedSender<ToBeNamedMessage>);
+pub struct ReplyControllerSender(mpsc::UnboundedSender<ReplyControllerMessage>);
 
-impl From<mpsc::UnboundedSender<ToBeNamedMessage>> for ToBeNamedSender {
-    fn from(inner: mpsc::UnboundedSender<ToBeNamedMessage>) -> Self {
-        ToBeNamedSender(inner)
+impl From<mpsc::UnboundedSender<ReplyControllerMessage>> for ReplyControllerSender {
+    fn from(inner: mpsc::UnboundedSender<ReplyControllerMessage>) -> Self {
+        ReplyControllerSender(inner)
     }
 }
 
-impl ToBeNamedSender {
+impl ReplyControllerSender {
     pub(crate) fn send_reply(&self, recipient: AnonymousSenderTag, message: Vec<u8>) {
         self.0
-            .unbounded_send(ToBeNamedMessage::SendReply { recipient, message })
-            .expect("ToBeNamedReceiver has died!")
+            .unbounded_send(ReplyControllerMessage::SendReply { recipient, message })
+            .expect("ReplyControllerReceiver has died!")
     }
 
     pub(crate) fn send_additional_surbs(
@@ -44,25 +44,25 @@ impl ToBeNamedSender {
         from_surb_request: bool,
     ) {
         self.0
-            .unbounded_send(ToBeNamedMessage::AdditionalSurbs {
+            .unbounded_send(ReplyControllerMessage::AdditionalSurbs {
                 sender_tag,
                 reply_surbs,
                 from_surb_request,
             })
-            .expect("ToBeNamedReceiver has died!")
+            .expect("ReplyControllerReceiver has died!")
     }
 
     pub(crate) fn send_additional_surbs_request(&self, recipient: Recipient, amount: u32) {
         self.0
-            .unbounded_send(ToBeNamedMessage::AdditionalSurbsRequest { recipient, amount })
-            .expect("ToBeNamedReceiver has died!")
+            .unbounded_send(ReplyControllerMessage::AdditionalSurbsRequest { recipient, amount })
+            .expect("ReplyControllerReceiver has died!")
     }
 }
 
-pub type ToBeNamedReceiver = mpsc::UnboundedReceiver<ToBeNamedMessage>;
+pub type ReplyControllerReceiver = mpsc::UnboundedReceiver<ReplyControllerMessage>;
 
 #[derive(Debug)]
-pub enum ToBeNamedMessage {
+pub enum ReplyControllerMessage {
     SendReply {
         recipient: AnonymousSenderTag,
         message: Vec<u8>,
@@ -100,9 +100,9 @@ impl PendingReply {
 // - replies to "give additional surbs" requests
 // - will reply to future heartbeats
 
-pub struct ToBeNamedPendingReplyController<R> {
+pub struct ReplyController<R> {
     // expected_reliability: f32,
-    request_receiver: ToBeNamedReceiver,
+    request_receiver: ReplyControllerReceiver,
     pending_replies: HashMap<AnonymousSenderTag, PendingReply>,
     message_handler: MessageHandler<R>,
     received_reply_surbs: ReceivedReplySurbsMap,
@@ -112,7 +112,7 @@ pub struct ToBeNamedPendingReplyController<R> {
     max_surb_request_size: u32,
 }
 
-impl<R> ToBeNamedPendingReplyController<R>
+impl<R> ReplyController<R>
 where
     R: CryptoRng + Rng,
 {
@@ -120,9 +120,9 @@ where
     pub(crate) fn new(
         message_handler: MessageHandler<R>,
         received_reply_surbs: ReceivedReplySurbsMap,
-        request_receiver: ToBeNamedReceiver,
+        request_receiver: ReplyControllerReceiver,
     ) -> Self {
-        ToBeNamedPendingReplyController {
+        ReplyController {
             request_receiver,
             pending_replies: Default::default(),
             message_handler,
@@ -436,12 +436,12 @@ where
         }
     }
 
-    async fn handle_request(&mut self, request: ToBeNamedMessage) {
+    async fn handle_request(&mut self, request: ReplyControllerMessage) {
         match request {
-            ToBeNamedMessage::SendReply { recipient, message } => {
+            ReplyControllerMessage::SendReply { recipient, message } => {
                 self.handle_send_reply(recipient, message).await
             }
-            ToBeNamedMessage::AdditionalSurbs {
+            ReplyControllerMessage::AdditionalSurbs {
                 sender_tag,
                 reply_surbs,
                 from_surb_request,
@@ -449,7 +449,7 @@ where
                 self.handle_received_surbs(sender_tag, reply_surbs, from_surb_request)
                     .await
             }
-            ToBeNamedMessage::AdditionalSurbsRequest { recipient, amount } => {
+            ReplyControllerMessage::AdditionalSurbsRequest { recipient, amount } => {
                 self.handle_surb_request(recipient, amount).await
             }
         }

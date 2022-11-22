@@ -20,9 +20,11 @@ use client_core::client::real_messages_control::RealMessagesController;
 use client_core::client::received_buffer::{
     ReceivedBufferRequestReceiver, ReceivedBufferRequestSender, ReceivedMessagesBufferController,
 };
+use client_core::client::replies::reply_controller;
+use client_core::client::replies::reply_controller::{
+    ReplyControllerReceiver, ReplyControllerSender,
+};
 use client_core::client::replies::reply_storage::{CombinedReplyStorage, SentReplyKeys};
-use client_core::client::replies::temp_name_pending_handler;
-use client_core::client::replies::temp_name_pending_handler::{ToBeNamedReceiver, ToBeNamedSender};
 use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
@@ -120,8 +122,8 @@ impl NymClient {
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
         reply_storage: CombinedReplyStorage,
-        to_be_named_channel_sender: ToBeNamedSender,
-        to_be_named_channel_receiver: ToBeNamedReceiver,
+        to_be_named_channel_sender: ReplyControllerSender,
+        to_be_named_channel_receiver: ReplyControllerReceiver,
         shutdown: ShutdownListener,
     ) {
         let mut controller_config = real_messages_control::Config::new(
@@ -163,7 +165,7 @@ impl NymClient {
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_receiver: MixnetMessageReceiver,
         reply_key_storage: SentReplyKeys,
-        to_be_named_channel: ToBeNamedSender,
+        to_be_named_channel: ReplyControllerSender,
         shutdown: ShutdownListener,
     ) {
         info!("Starting received messages buffer controller...");
@@ -381,7 +383,7 @@ impl NymClient {
 
         // channels responsible for dealing with reply-related fun
         let (to_be_named_channel_sender, to_be_named_channel_receiver) =
-            temp_name_pending_handler::new_control_channels();
+            reply_controller::new_control_channels();
 
         // Shutdown notifier for signalling tasks to stop
         let shutdown = ShutdownNotifier::default();

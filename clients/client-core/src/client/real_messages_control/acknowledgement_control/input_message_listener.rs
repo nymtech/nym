@@ -3,7 +3,7 @@
 
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver};
 use crate::client::real_messages_control::message_handler::MessageHandler;
-use crate::client::replies::temp_name_pending_handler::ToBeNamedSender;
+use crate::client::replies::reply_controller::ReplyControllerSender;
 use futures::StreamExt;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
@@ -20,7 +20,7 @@ where
 {
     input_receiver: InputMessageReceiver,
     message_handler: MessageHandler<R>,
-    to_be_named_channel: ToBeNamedSender,
+    to_be_named_channel: ReplyControllerSender,
 }
 
 pub(super) struct Config {
@@ -37,7 +37,7 @@ where
     pub(super) fn new(
         input_receiver: InputMessageReceiver,
         message_handler: MessageHandler<R>,
-        to_be_named_channel: ToBeNamedSender,
+        to_be_named_channel: ReplyControllerSender,
     ) -> Self {
         InputMessageListener {
             input_receiver,

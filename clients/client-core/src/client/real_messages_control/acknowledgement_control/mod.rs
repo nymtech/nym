@@ -10,7 +10,7 @@ use self::{
 use super::real_traffic_stream::BatchRealMessageSender;
 use crate::client::inbound_messages::InputMessageReceiver;
 use crate::client::real_messages_control::message_handler::MessageHandler;
-use crate::client::replies::temp_name_pending_handler::ToBeNamedSender;
+use crate::client::replies::reply_controller::ReplyControllerSender;
 use crate::spawn_future;
 use action_controller::AckActionReceiver;
 use futures::channel::mpsc;
@@ -214,7 +214,7 @@ where
         ack_key: Arc<AckKey>,
         connectors: AcknowledgementControllerConnectors,
         message_handler: MessageHandler<R>,
-        to_be_named_channel: ToBeNamedSender,
+        to_be_named_channel: ReplyControllerSender,
         received_reply_surbs: ReceivedReplySurbsMap,
     ) -> Self {
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();

@@ -15,8 +15,8 @@ use std::sync::Arc;
 
 // #[cfg(feature = "reply-surb")]
 // use crate::client::reply_key_storage::ReplyKeyStorage;
+use crate::client::replies::reply_controller::ReplyControllerSender;
 use crate::client::replies::reply_storage::{CombinedReplyStorage, SentReplyKeys};
-use crate::client::replies::temp_name_pending_handler::ToBeNamedSender;
 #[cfg(feature = "reply-surb")]
 use crypto::{symmetric::stream_cipher, Digest};
 use nymsphinx::anonymous_replies::requests::{
@@ -146,14 +146,14 @@ struct ReceivedMessagesBuffer {
 
     //
     reply_key_storage: SentReplyKeys,
-    to_be_named_channel: ToBeNamedSender,
+    to_be_named_channel: ReplyControllerSender,
 }
 
 impl ReceivedMessagesBuffer {
     fn new(
         local_encryption_keypair: Arc<encryption::KeyPair>,
         reply_key_storage: SentReplyKeys,
-        to_be_named_channel: ToBeNamedSender,
+        to_be_named_channel: ReplyControllerSender,
     ) -> Self {
         ReceivedMessagesBuffer {
             inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
@@ -506,7 +506,7 @@ impl ReceivedMessagesBufferController {
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_packet_receiver: MixnetMessageReceiver,
         reply_key_storage: SentReplyKeys,
-        to_be_named_channel: ToBeNamedSender,
+        to_be_named_channel: ReplyControllerSender,
     ) -> Self {
         let received_buffer = ReceivedMessagesBuffer::new(
             local_encryption_keypair,

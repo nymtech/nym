@@ -144,9 +144,12 @@ impl ServiceProvider {
                     log::info!(
                         "received LaneQueueLength lane: {lane}, queue_length: {queue_length}"
                     );
-                    let lane = TransmissionLane::ConnectionId(lane);
-                    let mut guard = lane_queue_lengths.lock().unwrap();
-                    guard.map.insert(lane, queue_length);
+                    if let Ok(mut lane_queue_lengths) = lane_queue_lengths.lock() {
+                        let lane = TransmissionLane::ConnectionId(lane);
+                        lane_queue_lengths.map.insert(lane, queue_length);
+                    } else {
+                        log::warn!("Unable to lock lane queue lengths, skipping updating received lane length")
+                    }
                     continue;
                 }
                 ServerResponse::Error(err) => {
@@ -401,17 +404,14 @@ impl ServiceProvider {
         println!("\nAll systems go. Press CTRL-C to stop the server.");
         // for each incoming message from the websocket... (which in 99.99% cases is going to be a mix message)
         loop {
-            let received = match Self::read_websocket_message(
-                &mut websocket_reader,
-                shared_lane_queue_lengths.clone(),
-            )
-            .await
-            {
-                Some(msg) => msg,
-                None => {
-                    error!("The websocket stream has finished!");
-                    return Ok(());
-                }
+            let Some(received) = Self::read_websocket_message(
+                    &mut websocket_reader,
+                    shared_lane_queue_lengths.clone()
+                )
+                .await
+            else {
+                log::error!("The websocket stream has finished!");
+                return Ok(());
             };
 
             let raw_message = received.message;

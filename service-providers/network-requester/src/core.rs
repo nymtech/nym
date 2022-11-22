@@ -7,7 +7,9 @@ use crate::error::NetworkRequesterError;
 use crate::statistics::ServiceStatisticsCollector;
 use crate::websocket;
 use crate::websocket::TSWebsocketStream;
-use client_connections::{ClosedConnectionReceiver, LaneQueueLengths, TransmissionLane};
+use client_connections::{
+    ClosedConnectionReceiver, ConnectionCommand, LaneQueueLengths, TransmissionLane,
+};
 use futures::channel::mpsc;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
@@ -108,11 +110,28 @@ impl ServiceProvider {
                         break;
                     }
                 },
-                Some(id) = closed_connection_rx.next() => {
-                    let msg = ClientRequest::ClosedConnection(id);
-                    let ws_msg = Message::Binary(msg.serialize());
-                    websocket_writer.send(ws_msg).await.unwrap();
-                }
+                Some(command) = closed_connection_rx.next() => {
+                    match command {
+                        ConnectionCommand::Close(id) => {
+                            let msg = ClientRequest::ClosedConnection(id);
+                            let ws_msg = Message::Binary(msg.serialize());
+                            websocket_writer.send(ws_msg).await.unwrap();
+                        }
+                        ConnectionCommand::ActiveConnections(ids) => {
+                            // We can optimize this by sending a single request, but this is
+                            // usually in the low single digits, max a few tens, so we leave that
+                            // for a rainy day.
+                            // Also that means fiddling with the currently manual
+                            // serialize/deserialize we do with ClientRequests ... bleh
+                            for id in ids {
+                                log::info!("Requesting lane queue length for: {}", id);
+                                let msg = ClientRequest::GetLaneQueueLength(id);
+                                let ws_msg = Message::Binary(msg.serialize());
+                                websocket_writer.send(ws_msg).await.unwrap();
+                            }
+                        }
+                    }
+                },
             }
         }
     }
@@ -382,7 +401,7 @@ impl ServiceProvider {
         // We provide it with a ShutdownListener since it requires it, even though for the network
         // requester shutdown signalling is not yet fully implemented.
         let (mut active_connections_controller, mut controller_sender) =
-            Controller::new(closed_connection_tx, shutdown.subscribe());
+            Controller::new(closed_connection_tx, true, shutdown.subscribe());
 
         tokio::spawn(async move {
             active_connections_controller.run().await;

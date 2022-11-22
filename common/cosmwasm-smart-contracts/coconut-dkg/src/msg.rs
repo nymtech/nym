@@ -36,12 +36,6 @@ pub enum ExecuteMsg {
     },
 
     AdvanceEpochState {},
-
-    // DEBUG ONLY TXs. THEY SHALL BE REMOVED BEFORE FINALISING THE CODE
-    // only exists for debugging purposes on local network to reset the entire state of the contract
-    DebugUnsafeResetAll {
-        init_msg: InstantiateMsg,
-    },
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]

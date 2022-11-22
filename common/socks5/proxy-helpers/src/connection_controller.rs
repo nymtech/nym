@@ -1,14 +1,18 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_connections::ClosedConnectionSender;
+use client_connections::{ClosedConnectionSender, ConnectionCommand};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
 use ordered_buffer::{OrderedMessage, OrderedMessageBuffer, ReadContiguousData};
 use socks5_requests::ConnectionId;
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    time::Duration,
+};
 use task::ShutdownListener;
+use tokio::time;
 
 /// A generic message produced after reading from a socket/connection. It includes data that was
 /// actually read alongside boolean indicating whether the connection got closed so that
@@ -77,6 +81,8 @@ pub struct Controller {
     // Broadcast closed connections
     closed_connection_tx: ClosedConnectionSender,
 
+    broadcast_connections: bool,
+
     // TODO: this can potentially be abused to ddos and kill provider. Not sure at this point
     // how to handle it more gracefully
 
@@ -90,6 +96,7 @@ pub struct Controller {
 impl Controller {
     pub fn new(
         closed_connection_tx: ClosedConnectionSender,
+        broadcast_connections: bool,
         shutdown: ShutdownListener,
     ) -> (Self, ControllerSender) {
         let (sender, receiver) = mpsc::unbounded();
@@ -99,6 +106,7 @@ impl Controller {
                 receiver,
                 recently_closed: HashSet::new(),
                 closed_connection_tx,
+                broadcast_connections,
                 pending_messages: HashMap::new(),
                 shutdown,
             },
@@ -137,7 +145,18 @@ impl Controller {
         self.recently_closed.insert(conn_id);
 
         // Announce closed connections, currently used by the `OutQueueControl`.
-        self.closed_connection_tx.unbounded_send(conn_id).unwrap();
+        self.closed_connection_tx
+            .unbounded_send(ConnectionCommand::Close(conn_id))
+            .unwrap();
+    }
+
+    fn broadcast_active_connections(&mut self) {
+        // What about the recently closed ones? Hopefully we can ignore them ...
+        let conn_ids = self.active_connections.keys().copied().collect();
+
+        self.closed_connection_tx
+            .unbounded_send(ConnectionCommand::ActiveConnections(conn_ids))
+            .unwrap();
     }
 
     fn send_to_connection(&mut self, conn_id: ConnectionId, payload: Vec<u8>, is_closed: bool) {
@@ -196,6 +215,8 @@ impl Controller {
     }
 
     pub async fn run(&mut self) {
+        let mut interval = time::interval(Duration::from_millis(500));
+
         loop {
             tokio::select! {
                 command = self.receiver.next() => match command {
@@ -210,7 +231,12 @@ impl Controller {
                         log::trace!("SOCKS5 Controller: Stopping since channel closed");
                         break;
                     }
-                }
+                },
+                _ = interval.tick() => {
+                    if self.broadcast_connections {
+                        self.broadcast_active_connections();
+                    }
+                },
             }
         }
         assert!(self.shutdown.is_shutdown_poll());

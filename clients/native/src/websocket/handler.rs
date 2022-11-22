@@ -1,7 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_connections::{ClosedConnectionSender, LaneQueueLengths, TransmissionLane};
+use client_connections::{
+    ClosedConnectionSender, ConnectionCommand, LaneQueueLengths, TransmissionLane,
+};
 use client_core::client::{
     inbound_messages::{InputMessage, InputMessageSender},
     received_buffer::{
@@ -134,9 +136,22 @@ impl Handler {
 
     fn handle_closed_connection(&self, connection_id: u64) -> Option<ServerResponse> {
         self.closed_connection_tx
-            .unbounded_send(connection_id)
+            .unbounded_send(ConnectionCommand::Close(connection_id))
             .unwrap();
         None
+    }
+
+    fn handle_get_lane_queue_length(&self, connection_id: u64) -> Option<ServerResponse> {
+        let Ok(lane_queue_lengths) = self.lane_queue_lengths.lock() else {
+            log::warn!(
+                "Failed to get the lane queue length lock, not responding back with the current queue length"
+            );
+            return None;
+        };
+
+        let lane = TransmissionLane::ConnectionId(connection_id);
+        let queue_length = lane_queue_lengths.get(&lane).unwrap_or(0);
+        Some(ServerResponse::LaneQueueLength(connection_id, queue_length))
     }
 
     async fn handle_request(&mut self, request: ClientRequest) -> Option<ServerResponse> {
@@ -156,6 +171,7 @@ impl Handler {
             } => self.handle_reply(reply_surb, message).await,
             ClientRequest::SelfAddress => Some(self.handle_self_address()),
             ClientRequest::ClosedConnection(id) => self.handle_closed_connection(id),
+            ClientRequest::GetLaneQueueLength(id) => self.handle_get_lane_queue_length(id),
         }
     }
 

@@ -5,7 +5,7 @@ use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
 use client_connections::{
-    ClosedConnectionReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
+    ClosedConnectionReceiver, ConnectionCommand, ConnectionId, LaneQueueLengths, TransmissionLane,
 };
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
@@ -336,7 +336,10 @@ where
         // NOTE: this feels a bit iffy, the `OutQueueControl` is getting ripe for a rewrite to
         // something simpler.
         if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connection_rx).poll_next(cx) {
-            self.on_close_connection(id);
+            match id {
+                ConnectionCommand::Close(id) => self.on_close_connection(id),
+                ConnectionCommand::ActiveConnections(_) => panic!(),
+            }
         }
 
         if let Some(ref mut next_delay) = &mut self.next_delay {
@@ -412,7 +415,10 @@ where
     fn poll_immediate(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
         // Start by checking if we have any incoming messages about closed connections
         if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connection_rx).poll_next(cx) {
-            self.on_close_connection(id);
+            match id {
+                ConnectionCommand::Close(id) => self.on_close_connection(id),
+                ConnectionCommand::ActiveConnections(_) => panic!(),
+            }
         }
 
         match Pin::new(&mut self.real_receiver).poll_recv(cx) {

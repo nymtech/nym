@@ -341,7 +341,7 @@ where
         println!("queue: {}", queue_size);
         println!("available: {}", available_surbs);
         if (still_pending + available_surbs) < max_surbs_threshold
-            && (still_pending + available_surbs) < queue_size
+            && (still_pending + available_surbs) < (queue_size + min_surbs_threshold)
         {
             self.request_reply_surbs_for_queue_clearing(from).await;
         }

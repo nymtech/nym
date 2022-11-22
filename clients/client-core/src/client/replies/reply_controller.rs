@@ -82,17 +82,6 @@ pub enum ReplyControllerMessage {
     },
 }
 
-// TODO: move when cleaning
-struct PendingReply {
-    data: VecDeque<Fragment>,
-}
-
-impl PendingReply {
-    fn new(data: Vec<Fragment>) -> Self {
-        PendingReply { data: data.into() }
-    }
-}
-
 // the purpose of this task:
 // - buffers split messages from input message listener if there were insufficient surbs to send them
 // - upon getting extra surbs, resends them
@@ -103,7 +92,7 @@ impl PendingReply {
 pub struct ReplyController<R> {
     // expected_reliability: f32,
     request_receiver: ReplyControllerReceiver,
-    pending_replies: HashMap<AnonymousSenderTag, PendingReply>,
+    pending_replies: HashMap<AnonymousSenderTag, VecDeque<Fragment>>,
     message_handler: MessageHandler<R>,
     received_reply_surbs: ReceivedReplySurbsMap,
 
@@ -135,10 +124,9 @@ where
 
     fn insert_pending_replies(&mut self, recipient: &AnonymousSenderTag, fragments: Vec<Fragment>) {
         if let Some(existing) = self.pending_replies.get_mut(recipient) {
-            existing.data.append(&mut fragments.into())
+            existing.append(&mut fragments.into())
         } else {
-            self.pending_replies
-                .insert(*recipient, PendingReply::new(fragments));
+            self.pending_replies.insert(*recipient, fragments.into());
         }
     }
 
@@ -241,18 +229,17 @@ where
         amount: usize,
     ) -> Option<VecDeque<Fragment>> {
         // if possible, pop all pending replies, if not, pop only entries for which we'd have a reply surb
-        let total = self.pending_replies.get(from)?.data.len();
+        let total = self.pending_replies.get(from)?.len();
         println!("pending queue has {total} elements");
         if total == 0 {
             return None;
         }
         if total < amount {
-            self.pending_replies.remove(from).map(|d| d.data)
+            self.pending_replies.remove(from)
         } else {
             Some(
                 self.pending_replies
                     .get_mut(from)?
-                    .data
                     .drain(..amount)
                     .collect(),
             )
@@ -353,7 +340,7 @@ where
         let queue_size = self
             .pending_replies
             .get(&from)
-            .map(|p| p.data.len())
+            .map(|p| p.len())
             .unwrap_or_default();
         let available_surbs = self.received_reply_surbs.available_surbs(&from);
         println!("pending: {}", still_pending);
@@ -465,7 +452,7 @@ where
                 return;
             }
         };
-        let queue_size = pending.data.len() as u32;
+        let queue_size = pending.len() as u32;
         if queue_size == 0 {
             trace!("the pending queue for {:?} is already empty", target);
             return;
@@ -486,7 +473,7 @@ where
 
         let now = Instant::now();
         for (pending_reply_target, vals) in &self.pending_replies {
-            if vals.data.is_empty() {
+            if vals.is_empty() {
                 // TODO: remove it from the map before getting here
                 continue;
             }

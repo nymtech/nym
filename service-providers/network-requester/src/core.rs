@@ -7,7 +7,7 @@ use crate::error::NetworkRequesterError;
 use crate::statistics::ServiceStatisticsCollector;
 use crate::websocket;
 use crate::websocket::TSWebsocketStream;
-use client_connections::ClosedConnectionReceiver;
+use client_connections::{ClosedConnectionReceiver, LaneQueueLengths, TransmissionLane};
 use futures::channel::mpsc;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
@@ -117,8 +117,23 @@ impl ServiceProvider {
         }
     }
 
+    fn handle_lane_queue_length_response(
+        lane_queue_lengths: &LaneQueueLengths,
+        lane: u64,
+        queue_length: usize,
+    ) {
+        log::info!("received LaneQueueLength lane: {lane}, queue_length: {queue_length}");
+        if let Ok(mut lane_queue_lengths) = lane_queue_lengths.lock() {
+            let lane = TransmissionLane::ConnectionId(lane);
+            lane_queue_lengths.map.insert(lane, queue_length);
+        } else {
+            log::warn!("Unable to lock lane queue lengths, skipping updating received lane length")
+        }
+    }
+
     async fn read_websocket_message(
         websocket_reader: &mut SplitStream<TSWebsocketStream>,
+        lane_queue_lengths: LaneQueueLengths,
     ) -> Option<ReconstructedMessage> {
         while let Some(msg) = websocket_reader.next().await {
             let data = msg
@@ -139,6 +154,14 @@ impl ServiceProvider {
 
             let received = match deserialized_message {
                 ServerResponse::Received(received) => received,
+                ServerResponse::LaneQueueLength(lane, queue_length) => {
+                    Self::handle_lane_queue_length_response(
+                        &lane_queue_lengths,
+                        lane,
+                        queue_length,
+                    );
+                    continue;
+                }
                 ServerResponse::Error(err) => {
                     panic!("received error from native client! - {}", err)
                 }
@@ -212,6 +235,7 @@ impl ServiceProvider {
         );
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn handle_proxy_connect(
         &mut self,
         controller_sender: &mut ControllerSender,
@@ -346,6 +370,10 @@ impl ServiceProvider {
         // `ClientRequest`.
         let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
 
+        // Shared queue length data. Published by the `OutQueueController` in the client, and used
+        // primarily to throttle incoming connections
+        let shared_lane_queue_lengths = LaneQueueLengths::new();
+
         // Controller for managing all active connections.
         // We provide it with a ShutdownListener since it requires it, even though for the network
         // requester shutdown signalling is not yet fully implemented.
@@ -386,12 +414,14 @@ impl ServiceProvider {
         println!("\nAll systems go. Press CTRL-C to stop the server.");
         // for each incoming message from the websocket... (which in 99.99% cases is going to be a mix message)
         loop {
-            let received = match Self::read_websocket_message(&mut websocket_reader).await {
-                Some(msg) => msg,
-                None => {
-                    error!("The websocket stream has finished!");
-                    return Ok(());
-                }
+            let Some(received) = Self::read_websocket_message(
+                    &mut websocket_reader,
+                    shared_lane_queue_lengths.clone()
+                )
+                .await
+            else {
+                log::error!("The websocket stream has finished!");
+                return Ok(());
             };
 
             let raw_message = received.message;

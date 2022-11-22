@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_connections::{ClosedConnectionSender, TransmissionLane};
+use client_connections::{ClosedConnectionSender, LaneQueueLengths, TransmissionLane};
 use client_core::client::{
     inbound_messages::{InputMessage, InputMessageSender},
     received_buffer::{
@@ -40,6 +40,7 @@ pub(crate) struct Handler {
     self_full_address: Recipient,
     socket: Option<WebSocketStream<TcpStream>>,
     received_response_type: ReceivedResponseType,
+    lane_queue_lengths: LaneQueueLengths,
 }
 
 // clone is used to use handler on a new connection, which initially is `None`
@@ -52,6 +53,7 @@ impl Clone for Handler {
             self_full_address: self.self_full_address,
             socket: None,
             received_response_type: Default::default(),
+            lane_queue_lengths: self.lane_queue_lengths.clone(),
         }
     }
 }
@@ -70,6 +72,7 @@ impl Handler {
         closed_connection_tx: ClosedConnectionSender,
         buffer_requester: ReceivedBufferRequestSender,
         self_full_address: &Recipient,
+        lane_queue_lengths: LaneQueueLengths,
     ) -> Self {
         Handler {
             msg_input,
@@ -78,6 +81,7 @@ impl Handler {
             self_full_address: *self_full_address,
             socket: None,
             received_response_type: Default::default(),
+            lane_queue_lengths,
         }
     }
 
@@ -95,6 +99,15 @@ impl Handler {
             panic!();
         }
 
+        // on receiving a send, we reply back the current lane queue length for that connection id.
+        // Note that this does _NOT_ take into account the packets that have been received but not
+        // yet reach `OutQueueControl`, so it might be a tad low.
+        if let Ok(lane_queue_lengths) = self.lane_queue_lengths.lock() {
+            let queue_length = lane_queue_lengths.get(&lane).unwrap_or(0);
+            return Some(ServerResponse::LaneQueueLength(connection_id, queue_length));
+        }
+
+        log::warn!("Failed to get the lane queue length lock, not responding back with the current queue length");
         None
     }
 

@@ -61,11 +61,7 @@ impl ReturnAddress {
 
     fn send_back_to(self, message: Vec<u8>) -> ClientRequest {
         match self {
-            ReturnAddress::Known(recipient) => ClientRequest::Send {
-                recipient,
-                message,
-                reply_surbs: 0,
-            },
+            ReturnAddress::Known(recipient) => ClientRequest::Send { recipient, message },
             ReturnAddress::Anonymous(sender_tag) => ClientRequest::Reply {
                 message,
                 sender_tag,

@@ -17,11 +17,11 @@ enum ClientRequestTag {
     /// Value tag representing [`Send`] variant of the [`ClientRequest`]
     Send = 0x00,
 
-    /// Value tag representing [`Reply`] variant of the [`ClientRequest`]
-    Reply = 0x01,
+    /// Value tag representing [`SendAnonymous`] variant of the [`ClientRequest`]
+    SendAnonymous = 0x01,
 
-    /// Value tag representing [`ReplyWithSurb`] variant of the [`ClientRequest`]
-    ReplyWithSurb = 0x02,
+    /// Value tag representing [`Reply`] variant of the [`ClientRequest`]
+    Reply = 0x02,
 
     /// Value tag representing [`SelfAddress`] variant of the [`ClientRequest`]
     SelfAddress = 0x03,
@@ -33,8 +33,8 @@ impl TryFrom<u8> for ClientRequestTag {
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             _ if value == (Self::Send as u8) => Ok(Self::Send),
+            _ if value == (Self::SendAnonymous as u8) => Ok(Self::SendAnonymous),
             _ if value == (Self::Reply as u8) => Ok(Self::Reply),
-            _ if value == (Self::ReplyWithSurb as u8) => Ok(Self::ReplyWithSurb),
             _ if value == (Self::SelfAddress as u8) => Ok(Self::SelfAddress),
             n => Err(error::Error::new(
                 ErrorKind::UnknownRequest,
@@ -47,43 +47,58 @@ impl TryFrom<u8> for ClientRequestTag {
 #[allow(non_snake_case)]
 #[derive(Debug)]
 pub enum ClientRequest {
+    /// The simplest message variant where no additional information is attached.
+    /// You're simply sending your `data` to specified `recipient` without any tagging.
+    ///
+    /// Ends up with `NymMessage::Plain` variant
     Send {
+        recipient: Recipient,
+        message: Vec<u8>,
+    },
+
+    /// Create a message used for a duplex anonymous communication where the recipient
+    /// will never learn of our true identity. This is achieved by carefully sending `reply_surbs`.
+    ///
+    /// Note that if reply_surbs is set to zero then
+    /// this variant requires the client having sent some reply_surbs in the past
+    /// (and thus the recipient also knowing our sender tag).
+    ///
+    /// Ends up with `NymMessage::Repliable` variant
+    SendAnonymous {
         recipient: Recipient,
         message: Vec<u8>,
         reply_surbs: u32,
     },
-    // TODO: another variant to send anonymously WITHOUT attaching surbs (you may think receiver has enough)
-    // (you need to attach the tag)
+
+    /// Attempt to use our internally received and stored `ReplySurb` to send the message back
+    /// to specified recipient whilst not knowing its full identity (or even gateway).
+    ///
+    /// Ends up with `NymMessage::Reply` variant
     Reply {
-        message: Vec<u8>,
-        sender_tag: AnonymousSenderTag,
-    },
-    ReplyWithSurb {
         sender_tag: AnonymousSenderTag,
         message: Vec<u8>,
-        reply_surb: ReplySurb,
     },
+
     SelfAddress,
 }
 
 // we could have been parsing it directly TryFrom<WsMessage>, but we want to retain
 // information about whether it came from binary or text to send appropriate response back
 impl ClientRequest {
-    // SEND_REQUEST_TAG || reply_surbs || recipient || data_len || data
-    fn serialize_send(recipient: Recipient, data: Vec<u8>, reply_surbs: u32) -> Vec<u8> {
+    // SEND_REQUEST_TAG || recipient || data_len || data
+    fn serialize_send(recipient: Recipient, data: Vec<u8>) -> Vec<u8> {
         let data_len_bytes = (data.len() as u64).to_be_bytes();
         std::iter::once(ClientRequestTag::Send as u8)
-            .chain(reply_surbs.to_be_bytes().into_iter())
             .chain(recipient.to_bytes().into_iter()) // will not be length prefixed because the length is constant
             .chain(data_len_bytes.into_iter())
             .chain(data.into_iter())
             .collect()
     }
 
-    // SEND_REQUEST_TAG || with_reply || recipient || data_len || data
+    // SEND_REQUEST_TAG || recipient || data_len || data
     fn deserialize_send(b: &[u8]) -> Result<Self, error::Error> {
-        // we need to have at least 1 (tag) + 4 (num surbs) + Recipient::LEN + sizeof<u64> bytes
-        if b.len() < 2 + Recipient::LEN + size_of::<u64>() {
+        // we need to have at least 1 (tag) + Recipient::LEN + sizeof<u64> bytes
+        if b.len() < 1 + Recipient::LEN + size_of::<u64>() {
             return Err(error::Error::new(
                 ErrorKind::TooShortRequest,
                 "not enough data provided to recover 'send'".to_string(),
@@ -92,6 +107,62 @@ impl ClientRequest {
 
         // this MUST match because it was called by 'deserialize'
         debug_assert_eq!(b[0], ClientRequestTag::Send as u8);
+
+        let mut recipient_bytes = [0u8; Recipient::LEN];
+        recipient_bytes.copy_from_slice(&b[1..1 + Recipient::LEN]);
+        let recipient = match Recipient::try_from_bytes(recipient_bytes) {
+            Ok(recipient) => recipient,
+            Err(err) => {
+                return Err(error::Error::new(
+                    ErrorKind::MalformedRequest,
+                    format!("malformed recipient: {:?}", err),
+                ))
+            }
+        };
+
+        let data_len_bytes = &b[1 + Recipient::LEN..1 + Recipient::LEN + size_of::<u64>()];
+        let data_len = u64::from_be_bytes(data_len_bytes.try_into().unwrap());
+        let data = &b[1 + Recipient::LEN + size_of::<u64>()..];
+        if data.len() as u64 != data_len {
+            return Err(error::Error::new(
+                ErrorKind::MalformedRequest,
+                format!(
+                    "data len has inconsistent length. specified: {} got: {}",
+                    data_len,
+                    data.len()
+                ),
+            ));
+        }
+
+        Ok(ClientRequest::Send {
+            recipient,
+            message: data.to_vec(),
+        })
+    }
+
+    // SEND_ANONYMOUS_REQUEST_TAG || reply_surbs || recipient || data_len || data
+    fn serialize_send_anonymous(recipient: Recipient, data: Vec<u8>, reply_surbs: u32) -> Vec<u8> {
+        let data_len_bytes = (data.len() as u64).to_be_bytes();
+        std::iter::once(ClientRequestTag::SendAnonymous as u8)
+            .chain(reply_surbs.to_be_bytes().into_iter())
+            .chain(recipient.to_bytes().into_iter()) // will not be length prefixed because the length is constant
+            .chain(data_len_bytes.into_iter())
+            .chain(data.into_iter())
+            .collect()
+    }
+
+    // SEND_ANONYMOUS_REQUEST_TAG || reply_surbs || recipient || data_len || data
+    fn deserialize_send_anonymous(b: &[u8]) -> Result<Self, error::Error> {
+        // we need to have at least 1 (tag) + sizeof<u32> (num surbs) + Recipient::LEN + sizeof<u64> bytes
+        if b.len() < 1 + size_of::<u32>() + Recipient::LEN + size_of::<u64>() {
+            return Err(error::Error::new(
+                ErrorKind::TooShortRequest,
+                "not enough data provided to recover 'send_anonymous'".to_string(),
+            ));
+        }
+
+        // this MUST match because it was called by 'deserialize'
+        debug_assert_eq!(b[0], ClientRequestTag::SendAnonymous as u8);
 
         let reply_surbs = u32::from_be_bytes([b[1], b[2], b[3], b[4]]);
 
@@ -121,7 +192,7 @@ impl ClientRequest {
             ));
         }
 
-        Ok(ClientRequest::Send {
+        Ok(ClientRequest::SendAnonymous {
             reply_surbs,
             recipient,
             message: data.to_vec(),
@@ -176,101 +247,6 @@ impl ClientRequest {
         })
     }
 
-    // REPLY_REQUEST_TAG || recipient_tag || surb_len || surb || message_len || message
-    fn serialize_reply_with_surb(
-        recipient_tag: AnonymousSenderTag,
-        message: Vec<u8>,
-        reply_surb: ReplySurb,
-    ) -> Vec<u8> {
-        let reply_surb_bytes = reply_surb.to_bytes();
-        let surb_len_bytes = (reply_surb_bytes.len() as u64).to_be_bytes();
-        let message_len_bytes = (message.len() as u64).to_be_bytes();
-
-        std::iter::once(ClientRequestTag::ReplyWithSurb as u8)
-            .chain(recipient_tag.into_iter())
-            .chain(surb_len_bytes.into_iter())
-            .chain(reply_surb_bytes.into_iter())
-            .chain(message_len_bytes.into_iter())
-            .chain(message.into_iter())
-            .collect()
-    }
-
-    // REPLY_REQUEST_TAG || recipient_tag || surb_len || surb || message_len || message
-    fn deserialize_reply_with_surb(b: &[u8]) -> Result<Self, error::Error> {
-        // we need to have at the very least 2 * sizeof<u64> bytes (in case, for some peculiar reason
-        // message and reply surb were 0 len - the request would still be malformed, but would in theory
-        // be parse-able)
-        if b.len() < 1 + SENDER_TAG_SIZE + 2 * size_of::<u64>() {
-            return Err(error::Error::new(
-                ErrorKind::TooShortRequest,
-                "not enough data provided to recover 'reply with surb'".to_string(),
-            ));
-        }
-
-        // this MUST match because it was called by 'deserialize'
-        debug_assert_eq!(b[0], ClientRequestTag::ReplyWithSurb as u8);
-
-        // the unwrap here is fine as we're definitely using exactly SENDER_TAG_SIZE bytes
-        let sender_tag = b[1..1 + SENDER_TAG_SIZE].try_into().unwrap();
-
-        let reply_surb_len = u64::from_be_bytes(
-            b[1 + SENDER_TAG_SIZE..1 + SENDER_TAG_SIZE + size_of::<u64>()]
-                .as_ref()
-                .try_into()
-                .unwrap(),
-        );
-
-        // make sure we won't go out of bounds here
-        if reply_surb_len > (b.len() - 1 + SENDER_TAG_SIZE + 2 * size_of::<u64>()) as u64 {
-            return Err(error::Error::new(
-                ErrorKind::MalformedRequest,
-                format!(
-                    "not enough data to recover reply surb with specified length {}",
-                    reply_surb_len
-                ),
-            ));
-        }
-
-        let surb_bound = 1 + SENDER_TAG_SIZE + size_of::<u64>() + reply_surb_len as usize;
-
-        let reply_surb_bytes = &b[1 + size_of::<u64>()..surb_bound];
-        let reply_surb = match ReplySurb::from_bytes(reply_surb_bytes) {
-            Ok(reply_surb) => reply_surb,
-            Err(err) => {
-                return Err(error::Error::new(
-                    ErrorKind::MalformedRequest,
-                    format!("malformed reply surb: {:?}", err),
-                ))
-            }
-        };
-
-        let message_len = u64::from_be_bytes(
-            b[surb_bound..surb_bound + size_of::<u64>()]
-                .as_ref()
-                .try_into()
-                .unwrap(),
-        );
-        let message = &b[surb_bound + size_of::<u64>()..];
-        if message.len() as u64 != message_len {
-            return Err(error::Error::new(
-                ErrorKind::MalformedRequest,
-                format!(
-                    "message len has inconsistent length. specified: {} got: {}",
-                    message_len,
-                    message.len()
-                ),
-            ));
-        }
-        // TODO: should this blow HERE, i.e. during deserialization that the data you're trying
-        // to send via reply is too long?
-
-        Ok(ClientRequest::ReplyWithSurb {
-            sender_tag,
-            reply_surb,
-            message: message.to_vec(),
-        })
-    }
-
     // SELF_ADDRESS_REQUEST_TAG
     fn serialize_self_address() -> Vec<u8> {
         vec![ClientRequestTag::SelfAddress as u8]
@@ -286,22 +262,18 @@ impl ClientRequest {
 
     pub fn serialize(self) -> Vec<u8> {
         match self {
-            ClientRequest::Send {
+            ClientRequest::Send { recipient, message } => Self::serialize_send(recipient, message),
+
+            ClientRequest::SendAnonymous {
                 recipient,
                 message,
                 reply_surbs,
-            } => Self::serialize_send(recipient, message, reply_surbs),
+            } => Self::serialize_send_anonymous(recipient, message, reply_surbs),
 
             ClientRequest::Reply {
                 message,
                 sender_tag,
             } => Self::serialize_reply(message, sender_tag),
-
-            ClientRequest::ReplyWithSurb {
-                message,
-                sender_tag,
-                reply_surb,
-            } => Self::serialize_reply_with_surb(sender_tag, message, reply_surb),
 
             ClientRequest::SelfAddress => Self::serialize_self_address(),
         }
@@ -322,8 +294,8 @@ impl ClientRequest {
         // determine what kind of request that is and try to deserialize it
         match request_tag {
             ClientRequestTag::Send => Self::deserialize_send(b),
+            ClientRequestTag::SendAnonymous => Self::deserialize_send_anonymous(b),
             ClientRequestTag::Reply => Self::deserialize_reply(b),
-            ClientRequestTag::ReplyWithSurb => Self::deserialize_reply_with_surb(b),
             ClientRequestTag::SelfAddress => Self::deserialize_self_address(b),
         }
     }

@@ -12,7 +12,6 @@ use futures::{SinkExt, StreamExt};
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::receiver::ReconstructedMessage;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
@@ -77,15 +76,19 @@ impl Handler {
         }
     }
 
-    fn handle_send(
+    fn handle_send(&mut self, recipient: Recipient, message: Vec<u8>) -> Option<ServerResponse> {
+        let input_msg = InputMessage::new_regular(recipient, message);
+        self.msg_input.unbounded_send(input_msg).unwrap();
+
+        None
+    }
+
+    fn handle_send_anonymous(
         &mut self,
         recipient: Recipient,
         message: Vec<u8>,
         reply_surbs: u32,
     ) -> Option<ServerResponse> {
-        // the ack control is now responsible for chunking, etc.
-        // TODO: SURB CHANGE
-
         let input_msg = InputMessage::new_anonymous(recipient, message, reply_surbs);
         self.msg_input.unbounded_send(input_msg).unwrap();
 
@@ -103,42 +106,25 @@ impl Handler {
         None
     }
 
-    fn handle_reply_with_surb(
-        &mut self,
-        recipient_tag: AnonymousSenderTag,
-        reply_surb: ReplySurb,
-        message: Vec<u8>,
-    ) -> Option<ServerResponse> {
-        if message.len() > ReplySurb::max_msg_len(Default::default()) {
-            return Some(ServerResponse::new_error(format!("too long message to put inside a reply SURB. Received: {} bytes and maximum is {} bytes", message.len(), ReplySurb::max_msg_len(Default::default()))));
-        }
-
-        let input_msg = InputMessage::new_reply_with_surb(recipient_tag, reply_surb, message);
-        self.msg_input.unbounded_send(input_msg).unwrap();
-
-        None
-    }
-
     fn handle_self_address(&self) -> ServerResponse {
         ServerResponse::SelfAddress(self.self_full_address)
     }
 
     fn handle_request(&mut self, request: ClientRequest) -> Option<ServerResponse> {
         match request {
-            ClientRequest::Send {
+            ClientRequest::Send { recipient, message } => self.handle_send(recipient, message),
+
+            ClientRequest::SendAnonymous {
                 recipient,
                 message,
                 reply_surbs,
-            } => self.handle_send(recipient, message, reply_surbs),
+            } => self.handle_send_anonymous(recipient, message, reply_surbs),
+
             ClientRequest::Reply {
                 message,
                 sender_tag,
             } => self.handle_reply(sender_tag, message),
-            ClientRequest::ReplyWithSurb {
-                sender_tag: recipient_tag,
-                message,
-                reply_surb,
-            } => self.handle_reply_with_surb(recipient_tag, reply_surb, message),
+
             ClientRequest::SelfAddress => Some(self.handle_self_address()),
         }
     }

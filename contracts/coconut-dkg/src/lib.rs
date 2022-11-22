@@ -89,51 +89,8 @@ pub fn execute(
                 deps, info, owner,
             )
         }
-        ExecuteMsg::DebugUnsafeResetAll { init_msg } => {
-            reset_contract_state(deps, env, info, init_msg)
-        }
         ExecuteMsg::AdvanceEpochState {} => advance_epoch_state(deps, info),
     }
-}
-
-fn reset_contract_state(
-    mut deps: DepsMut<'_>,
-    env: Env,
-    info: MessageInfo,
-    init_msg: InstantiateMsg,
-) -> Result<Response, ContractError> {
-    ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
-    // this resets the epoch
-    instantiate(deps.branch(), env, info, init_msg)?;
-
-    // clear all dealings, public keys, etc
-    let current = dealers::storage::current_dealers()
-        .keys(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-        .collect::<Result<Vec<_>, _>>()?;
-    let past = dealers::storage::past_dealers()
-        .keys(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-        .collect::<Result<Vec<_>, _>>()?;
-    let dealings = dealings::storage::DEALINGS_BYTES[0]
-        .keys(deps.storage, None, None, cosmwasm_std::Order::Ascending)
-        .collect::<Result<Vec<_>, _>>()?;
-
-    for dealer in current {
-        dealers::storage::current_dealers().remove(deps.storage, &dealer)?;
-    }
-
-    for dealer in past {
-        dealers::storage::past_dealers().remove(deps.storage, &dealer)?;
-    }
-
-    for addr in dealings {
-        for map in dealings::storage::DEALINGS_BYTES {
-            map.remove(deps.storage, &addr);
-        }
-    }
-
-    dealers::storage::NODE_INDEX_COUNTER.save(deps.storage, &0u64)?;
-
-    Ok(Response::default())
 }
 
 #[entry_point]

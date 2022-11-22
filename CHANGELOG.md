@@ -8,12 +8,19 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 - binaries: add `-c` shortform for `--config-env-file`
 - websocket-requests: add server response signalling current packet queue length in the client
+- contracts: DKG contract that handles coconut key generation ([#1678][#1708][#1747])
+- validator-api: generate coconut keys interactively, using DKG and multisig contracts ([#1678][#1708][#1747])
 
 ### Changed
 
 - clients: add concept of transmission lanes to better handle multiple data streams ([#1720])
+- clients,validator-api: take coconut signers from the chain instead of specifying them via CLI ([#1747])
+- multisig contract: add DKG contract to the list of addresses that can create proposals ([#1747])
 
+[#1678]: https://github.com/nymtech/nym/pull/1678
+[#1708]: https://github.com/nymtech/nym/pull/1708
 [#1720]: https://github.com/nymtech/nym/pull/1720
+[#1747]: https://github.com/nymtech/nym/pull/1747
 
 
 ## [v1.1.0](https://github.com/nymtech/nym/tree/v1.1.0) (2022-11-09)

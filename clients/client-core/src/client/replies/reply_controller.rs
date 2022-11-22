@@ -54,7 +54,10 @@ impl ReplyControllerSender {
 
     pub(crate) fn send_additional_surbs_request(&self, recipient: Recipient, amount: u32) {
         self.0
-            .unbounded_send(ReplyControllerMessage::AdditionalSurbsRequest { recipient, amount })
+            .unbounded_send(ReplyControllerMessage::AdditionalSurbsRequest {
+                recipient: Box::new(recipient),
+                amount,
+            })
             .expect("ReplyControllerReceiver has died!")
     }
 }
@@ -77,7 +80,7 @@ pub enum ReplyControllerMessage {
     // Should this also be handled in here? it's technically a completely different side of the pipe
     // let's see how it works when combined, might split it before creating PR
     AdditionalSurbsRequest {
-        recipient: Recipient,
+        recipient: Box<Recipient>,
         amount: u32,
     },
 }
@@ -413,7 +416,7 @@ where
                     .await
             }
             ReplyControllerMessage::AdditionalSurbsRequest { recipient, amount } => {
-                self.handle_surb_request(recipient, amount).await
+                self.handle_surb_request(*recipient, amount).await
             }
         }
     }

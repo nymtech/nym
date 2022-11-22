@@ -38,14 +38,7 @@ export const SignMessageModal = ({ onClose }: { onClose: () => void }) => {
   }
 
   return (
-    <SimpleModal
-      open
-      header="Sign message"
-      okLabel="Sign Message"
-      onOk={handleSign}
-      onClose={onClose}
-      okDisabled={loading}
-    >
+    <SimpleModal open header="Sign message" okLabel="Sign" onOk={handleSign} onClose={onClose} okDisabled={loading}>
       <Stack gap={2}>
         <TextField
           id="outlined-multiline-static"
@@ -68,7 +61,7 @@ export const SignMessageModal = ({ onClose }: { onClose: () => void }) => {
         />
 
         <Stack direction="row" alignItems="center" alignSelf="flex-end">
-          <Typography variant="body2" component="span" fontWeight={400} sx={{ mr: 1, color: 'text.primary' }}>
+          <Typography variant="body2" component="span" fontWeight={600} sx={{ mr: 1, color: 'text.primary' }}>
             Copy signature
           </Typography>
           <CopyToClipboard text={signature} iconButton />

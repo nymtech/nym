@@ -99,14 +99,16 @@ impl Handler {
             panic!();
         }
 
-        // WIP(JON)
-        let queue_lengh = self
-            .lane_queue_lengths
-            .lock()
-            .unwrap()
-            .get(&lane)
-            .unwrap_or(0);
-        Some(ServerResponse::LaneQueueLength(connection_id, queue_lengh))
+        // on receiving a send, we reply back the current lane queue length for that connection id.
+        // Note that this does _NOT_ take into account the packets that have been received but not
+        // yet reach `OutQueueControl`, so it might be a tad low.
+        if let Ok(lane_queue_lengths) = self.lane_queue_lengths.lock() {
+            let queue_length = lane_queue_lengths.get(&lane).unwrap_or(0);
+            return Some(ServerResponse::LaneQueueLength(connection_id, queue_length));
+        }
+
+        log::warn!("Failed to get the lane queue length lock, not responding back with the current queue length");
+        None
     }
 
     async fn handle_reply(

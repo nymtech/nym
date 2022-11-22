@@ -284,7 +284,6 @@ impl ServiceProvider {
     }
 
     fn handle_proxy_send(
-        &self,
         controller_sender: &mut ControllerSender,
         conn_id: ConnectionId,
         data: Vec<u8>,
@@ -348,7 +347,7 @@ impl ServiceProvider {
                                 .processed(remote_addr, data.len() as u32);
                         }
                     }
-                    self.handle_proxy_send(controller_sender, conn_id, data, closed)
+                    Self::handle_proxy_send(controller_sender, conn_id, data, closed)
                 }
             },
             Socks5Message::Response(_) | Socks5Message::NetworkRequesterResponse(_) => {}

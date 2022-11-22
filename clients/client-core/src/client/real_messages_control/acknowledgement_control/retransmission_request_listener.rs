@@ -88,12 +88,7 @@ where
         // and we're now below threshold, attempt to request additional surbs
         if !extra_surb_request && self.received_reply_surbs.below_threshold(surbs_left) {
             // if we're running low on surbs, we should request more (unless we've already requested them)
-            let pending_reception = self
-                .received_reply_surbs
-                .pending_reception(&recipient_tag)
-                .ok_or(PreparationError::UnknownSurbSender {
-                    sender_tag: recipient_tag,
-                })?;
+            let pending_reception = self.received_reply_surbs.pending_reception(&recipient_tag);
 
             if pending_reception < self.reply_surb_request_size {
                 info!("requesting surbs from retransmission handler");
@@ -180,20 +175,22 @@ where
             }
         };
 
-        let Ok(prepared_fragment) = maybe_prepared_fragment else {
-            warn!("Could not retransmit the packet - the network topology is invalid");
-            // we NEED to start timer here otherwise we will have this guy permanently stuck in memory
+        let prepared_fragment = match maybe_prepared_fragment {
+            Ok(prepared_fragment) => prepared_fragment,
+            Err(err) => {
+                warn!("Could not retransmit the packet - {err}");
+                // we NEED to start timer here otherwise we will have this guy permanently stuck in memory
 
-            // TODO: purge the entry from memory if it was an ack for reply packet and we're out of surbs
-            // self.action_sender
-            //     .unbounded_send(Action::new_remove(frag_id))
-            //     .unwrap();
+                // TODO: purge the entry from memory if it was an ack for reply packet and we're out of surbs
+                // self.action_sender
+                //     .unbounded_send(Action::new_remove(frag_id))
+                //     .unwrap();
 
-
-            self.action_sender
-                .unbounded_send(Action::new_start_timer(frag_id))
-                .unwrap();
-            return;
+                self.action_sender
+                    .unbounded_send(Action::new_start_timer(frag_id))
+                    .unwrap();
+                return;
+            }
         };
 
         // if we have the ONLY strong reference to the ack data, it means it was removed from the

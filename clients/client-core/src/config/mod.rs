@@ -29,6 +29,16 @@ const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: Duration = Duration::from_millis(5_00
 // bandwidth bridging protocol, we can come back to a smaller timeout value
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
+// reply-surbs related:
+
+// clients/client-core/src/client/replies/reply_storage/surb_storage.rs
+const DEFAULT_MINIMUM_REPLY_SURB_THRESHOLD: u32 = 10;
+const DEFAULT_MAXIMUM_REPLY_SURB_THRESHOLD: u32 = 200;
+
+// clients/client-core/src/client/replies/reply_controller.rs
+const DEFAULT_MINIMUM_REPLY_SURB_REQUEST_SIZE: u32 = 10;
+const DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE: u32 = 100;
+
 pub fn missing_string_value() -> String {
     MISSING_VALUE.to_string()
 }

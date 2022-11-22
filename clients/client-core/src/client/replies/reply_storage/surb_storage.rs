@@ -52,8 +52,12 @@ impl ReceivedReplySurbsMap {
             .map(|e| e.surbs_last_received_at())
     }
 
-    pub(crate) fn pending_reception(&self, target: &AnonymousSenderTag) -> Option<u32> {
-        self.inner.data.get(target).map(|e| e.pending_reception())
+    pub(crate) fn pending_reception(&self, target: &AnonymousSenderTag) -> u32 {
+        self.inner
+            .data
+            .get(target)
+            .map(|e| e.pending_reception())
+            .unwrap_or_default()
     }
 
     pub(crate) fn increment_pending_reception(
@@ -76,6 +80,12 @@ impl ReceivedReplySurbsMap {
             .data
             .get_mut(target)
             .map(|mut e| e.decrement_pending_reception(amount))
+    }
+
+    pub(crate) fn reset_pending_reception(&self, target: &AnonymousSenderTag) {
+        if let Some(mut e) = self.inner.data.get_mut(target) {
+            e.reset_pending_reception()
+        }
     }
 
     pub(crate) fn below_threshold(&self, amount: usize) -> bool {
@@ -190,9 +200,12 @@ impl ReceivedReplySurbs {
     }
 
     pub(crate) fn decrement_pending_reception(&mut self, amount: u32) -> u32 {
-        println!("{} - {}", self.pending_reception, amount);
-        self.pending_reception -= amount;
+        self.pending_reception = self.pending_reception.saturating_sub(amount);
         self.pending_reception
+    }
+
+    pub(crate) fn reset_pending_reception(&mut self) {
+        self.pending_reception = 0;
     }
 
     pub(crate) fn get_reply_surbs(&mut self, amount: usize) -> (Option<Vec<ReplySurb>>, usize) {

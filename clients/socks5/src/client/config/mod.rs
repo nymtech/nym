@@ -23,6 +23,7 @@ pub struct Config {
 
     socks5: Socks5,
 
+    #[serde(default)]
     socks5_debug: Socks5Debug,
 }
 

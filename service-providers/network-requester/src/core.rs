@@ -165,7 +165,6 @@ impl ServiceProvider {
         return_address: Recipient,
         controller_sender: ControllerSender,
         mix_input_sender: MixProxySender<(Socks5Message, Recipient)>,
-        lane_queue_lengths: LaneQueueLengths,
         shutdown: ShutdownListener,
     ) {
         let mut conn = match Connection::new(conn_id, remote_addr.clone(), return_address).await {
@@ -207,7 +206,7 @@ impl ServiceProvider {
         );
 
         // run the proxy on the connection
-        conn.run_proxy(mix_receiver, mix_input_sender, lane_queue_lengths, shutdown)
+        conn.run_proxy(mix_receiver, mix_input_sender, shutdown)
             .await;
 
         // proxy is done - remove the access channel from the controller
@@ -231,7 +230,6 @@ impl ServiceProvider {
         conn_id: ConnectionId,
         remote_addr: String,
         return_address: Recipient,
-        lane_queue_lengths: LaneQueueLengths,
         shutdown: ShutdownListener,
     ) {
         if !self.open_proxy && !self.outbound_request_filter.check(&remote_addr) {
@@ -263,7 +261,6 @@ impl ServiceProvider {
                 return_address,
                 controller_sender_clone,
                 mix_input_sender_clone,
-                lane_queue_lengths,
                 shutdown,
             )
             .await
@@ -288,7 +285,6 @@ impl ServiceProvider {
         controller_sender: &mut ControllerSender,
         mix_input_sender: &MixProxySender<(Socks5Message, Recipient)>,
         stats_collector: Option<ServiceStatisticsCollector>,
-        lane_queue_lengths: LaneQueueLengths,
         shutdown: ShutdownListener,
     ) {
         let deserialized_msg = match Socks5Message::try_from_bytes(raw_request) {
@@ -314,7 +310,6 @@ impl ServiceProvider {
                         req.conn_id,
                         req.remote_addr,
                         req.return_address,
-                        lane_queue_lengths,
                         shutdown,
                     )
                     .await
@@ -427,7 +422,6 @@ impl ServiceProvider {
                 &mut controller_sender,
                 &mix_input_sender,
                 stats_collector.clone(),
-                shared_lane_queue_lengths.clone(),
                 shutdown.subscribe(),
             )
             .await;

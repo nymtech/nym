@@ -8,7 +8,6 @@ use crate::error::{self, ErrorKind};
 use crate::text::ServerResponseText;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::SENDER_TAG_SIZE;
-use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::receiver::ReconstructedMessage;
 use std::convert::TryInto;
 use std::mem::size_of;
@@ -44,7 +43,7 @@ impl TryFrom<u8> for ServerResponseTag {
 #[derive(Debug)]
 pub enum ServerResponse {
     Received(ReconstructedMessage),
-    SelfAddress(Recipient),
+    SelfAddress(Box<Recipient>),
     Error(error::Error),
 }
 
@@ -143,7 +142,7 @@ impl ServerResponse {
     // SELF_ADDRESS_RESPONSE_TAG || self_address
     fn serialize_self_address(address: Recipient) -> Vec<u8> {
         std::iter::once(ServerResponseTag::SelfAddress as u8)
-            .chain(address.to_bytes().iter().cloned())
+            .chain(address.to_bytes().into_iter())
             .collect()
     }
 
@@ -172,7 +171,7 @@ impl ServerResponse {
             }
         };
 
-        Ok(ServerResponse::SelfAddress(recipient))
+        Ok(ServerResponse::SelfAddress(Box::new(recipient)))
     }
 
     // ERROR_RESPONSE_TAG || err_code || msg_len || msg
@@ -234,7 +233,7 @@ impl ServerResponse {
             ServerResponse::Received(reconstructed_message) => {
                 Self::serialize_received(reconstructed_message)
             }
-            ServerResponse::SelfAddress(address) => Self::serialize_self_address(address),
+            ServerResponse::SelfAddress(address) => Self::serialize_self_address(*address),
             ServerResponse::Error(err) => Self::serialize_error(err),
         }
     }

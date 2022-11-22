@@ -107,7 +107,7 @@ impl Handler {
     }
 
     fn handle_self_address(&self) -> ServerResponse {
-        ServerResponse::SelfAddress(self.self_full_address)
+        ServerResponse::SelfAddress(Box::new(self.self_full_address))
     }
 
     fn handle_request(&mut self, request: ClientRequest) -> Option<ServerResponse> {

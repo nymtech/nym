@@ -1,12 +1,16 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::config::{Config, SocketType};
+use crate::error::ClientError;
+use crate::websocket;
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
     InputMessage, InputMessageReceiver, InputMessageSender,
 };
 use client_core::client::key_manager::KeyManager;
 use client_core::client::mix_traffic::{BatchMixMessageSender, MixTrafficController};
+use client_core::client::real_messages_control;
 use client_core::client::real_messages_control::RealMessagesController;
 use client_core::client::received_buffer::{
     ReceivedBufferMessage, ReceivedBufferRequestReceiver, ReceivedBufferRequestSender,
@@ -20,7 +24,6 @@ use client_core::client::replies::reply_storage::{CombinedReplyStorage, SentRepl
 use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
-use client_core::client::{real_messages_control, replies};
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use client_core::error::ClientCoreError;
 use crypto::asymmetric::identity;
@@ -33,14 +36,10 @@ use gateway_client::{
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
-use nymsphinx::anonymous_replies::ReplySurb;
+use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::params::PacketSize;
 use nymsphinx::receiver::ReconstructedMessage;
 use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
-
-use crate::client::config::{Config, SocketType};
-use crate::error::ClientError;
-use crate::websocket;
 
 pub(crate) mod config;
 
@@ -300,29 +299,45 @@ impl NymClient {
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
-    pub fn send_message(&mut self, recipient: Recipient, message: Vec<u8>, with_reply_surb: bool) {
-        todo!()
-        // let input_msg = InputMessage::new_regular(recipient, message, with_reply_surb);
-        //
-        // self.input_tx
-        //     .as_ref()
-        //     .expect("start method was not called before!")
-        //     .unbounded_send(input_msg)
-        //     .unwrap();
+    pub fn send_regular_message(&mut self, recipient: Recipient, message: Vec<u8>) {
+        let input_msg = InputMessage::new_regular(recipient, message);
+
+        self.input_tx
+            .as_ref()
+            .expect("start method was not called before!")
+            .unbounded_send(input_msg)
+            .unwrap();
     }
 
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
-    pub fn send_reply(&mut self, reply_surb: ReplySurb, message: Vec<u8>) {
-        todo!()
-        // let input_msg = InputMessage::new_reply_with_surb(reply_surb, message);
-        //
-        // self.input_tx
-        //     .as_ref()
-        //     .expect("start method was not called before!")
-        //     .unbounded_send(input_msg)
-        //     .unwrap();
+    pub fn send_anonymous_message(
+        &mut self,
+        recipient: Recipient,
+        message: Vec<u8>,
+        reply_surbs: u32,
+    ) {
+        let input_msg = InputMessage::new_anonymous(recipient, message, reply_surbs);
+
+        self.input_tx
+            .as_ref()
+            .expect("start method was not called before!")
+            .unbounded_send(input_msg)
+            .unwrap();
+    }
+
+    /// EXPERIMENTAL DIRECT RUST API
+    /// It's untested and there are absolutely no guarantees about it (but seems to have worked
+    /// well enough in local tests)
+    pub fn send_reply(&mut self, recipient_tag: AnonymousSenderTag, message: Vec<u8>) {
+        let input_msg = InputMessage::new_reply(recipient_tag, message);
+
+        self.input_tx
+            .as_ref()
+            .expect("start method was not called before!")
+            .unbounded_send(input_msg)
+            .unwrap();
     }
 
     /// EXPERIMENTAL DIRECT RUST API

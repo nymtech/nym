@@ -8,7 +8,6 @@ use crate::error::{self, ErrorKind};
 use crate::text::ClientRequestText;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, SENDER_TAG_SIZE};
-use nymsphinx::anonymous_replies::ReplySurb;
 use std::convert::{TryFrom, TryInto};
 use std::mem::size_of;
 

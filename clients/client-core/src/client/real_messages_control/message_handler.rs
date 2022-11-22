@@ -15,10 +15,9 @@ use nymsphinx::anonymous_replies::requests::{
     AnonymousSenderTag, RepliableMessage, ReplyMessage, SENDER_TAG_SIZE,
 };
 use nymsphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey};
-use nymsphinx::chunking::fragment::{Fragment, FragmentIdentifier};
+use nymsphinx::chunking::fragment::Fragment;
 use nymsphinx::message::NymMessage;
 use nymsphinx::preparer::{MessagePreparer, PreparedFragment};
-use nymsphinx::Delay as SphinxDelay;
 use rand::{CryptoRng, Rng};
 use std::sync::Arc;
 use thiserror::Error;
@@ -64,32 +63,6 @@ pub struct SurbWrappedPreparationError {
     returned_surbs: Option<Vec<ReplySurb>>,
 }
 
-// impl From<InvalidTopologyError> for WrappedPreparationError {
-//     fn from(err: InvalidTopologyError) -> Self {
-//         WrappedPreparationError {
-//             source: err.into(),
-//             returned_surbs: None,
-//         }
-//     }
-// }
-//
-// impl From<NymTopologyError> for WrappedPreparationError {
-//     fn from(err: NymTopologyError) -> Self {
-//         WrappedPreparationError {
-//             source: err.into(),
-//             returned_surbs: None,
-//         }
-//     }
-// }
-// impl From<PreparationError> for WrappedPreparationError {
-//     fn from(err: PreparationError) -> Self {
-//         WrappedPreparationError {
-//             source: err,
-//             returned_surbs: None,
-//         }
-//     }
-// }
-
 impl<T> From<T> for SurbWrappedPreparationError
 where
     T: Into<PreparationError>,
@@ -103,24 +76,6 @@ where
 }
 
 impl SurbWrappedPreparationError {
-    // fn return_surbs(mut self, reply_surbs: Vec<ReplySurb>) -> Self {
-    //     debug_assert!(self.returned_surbs.is_none());
-    //     self.returned_surbs = Some(reply_surbs);
-    //     self
-    // }
-
-    // pub(crate) fn into_inner(self) -> (PreparationError, Option<Vec<ReplySurb>>) {
-    //     (self.source, self.returned_surbs)
-    // }
-    //
-    // pub(crate) fn into_inner_err(self) -> PreparationError {
-    //     self.source
-    // }
-    //
-    // pub(crate) fn take_returned_surbs(&mut self) -> Option<Vec<ReplySurb>> {
-    //     self.returned_surbs.take()
-    // }
-
     pub(crate) fn return_unused_surbs(
         self,
         surb_storage: &ReceivedReplySurbsMap,
@@ -459,12 +414,6 @@ where
     pub(crate) fn insert_pending_acks(&self, pending_acks: Vec<PendingAcknowledgement>) {
         self.action_sender
             .unbounded_send(Action::new_insert(pending_acks))
-            .expect("action control task has died")
-    }
-
-    pub(crate) fn update_ack_delay(&self, frag_id: FragmentIdentifier, new_delay: SphinxDelay) {
-        self.action_sender
-            .unbounded_send(Action::new_update_delay(frag_id, new_delay))
             .expect("action control task has died")
     }
 

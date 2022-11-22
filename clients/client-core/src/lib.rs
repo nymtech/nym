@@ -4,7 +4,6 @@ pub mod client;
 pub mod config;
 pub mod error;
 pub mod init;
-pub mod temp;
 
 #[cfg(target_arch = "wasm32")]
 pub(crate) fn spawn_future<F>(future: F)

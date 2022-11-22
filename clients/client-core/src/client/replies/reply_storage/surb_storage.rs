@@ -2,18 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use dashmap::DashMap;
-use log::error;
-use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, ReplyMessage};
+use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::anonymous_replies::ReplySurb;
-use std::collections::{HashMap, VecDeque};
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::collections::VecDeque;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock};
 use tokio::time::Instant;
 
 #[derive(Debug, Clone)]
 pub struct ReceivedReplySurbsMap {
-    // data: Arc<RwLock<HashMap<AnonymousSenderTag, ReceivedReplySurbs>>>,
     inner: Arc<ReceivedReplySurbsMapInner>,
 }
 
@@ -28,8 +25,6 @@ struct ReceivedReplySurbsMapInner {
     max_surb_threshold: AtomicUsize,
 }
 
-pub enum SurbError {}
-
 impl ReceivedReplySurbsMap {
     pub(crate) fn new(
         min_surb_threshold: usize,
@@ -43,30 +38,6 @@ impl ReceivedReplySurbsMap {
             }),
         }
     }
-
-    // pub(crate) async fn create_new_sender_store(
-    //     &mut self,
-    //     target: AnonymousSenderTag,
-    //     initial_surbs: Vec<ReplySurb>,
-    // ) {
-    //     let mut guard = self.data.write().await;
-    //     let entry = ReceivedReplySurbs::new(initial_surbs);
-    //     if let Some(existing_data) = guard.insert(target, entry) {
-    //         existing_data.invalidate();
-    //         let lost = existing_data.inner.data.lock().await.len();
-    //         error!(
-    //             "we have overwritten surbs stored for {:?}. We lost {:?} entries.",
-    //             target, lost
-    //         )
-    //     }
-    // }
-    //
-    // pub(crate) async fn get_handle(
-    //     &self,
-    //     target: &AnonymousSenderTag,
-    // ) -> Option<ReceivedReplySurbs> {
-    //     self.data.read().await.get(target).cloned()
-    // }
 
     pub(crate) fn reset_surbs_last_received_at(&self, target: &AnonymousSenderTag) {
         if let Some(mut entry) = self.inner.data.get_mut(target) {
@@ -105,13 +76,6 @@ impl ReceivedReplySurbsMap {
             .data
             .get_mut(target)
             .map(|mut e| e.decrement_pending_reception(amount))
-    }
-
-    pub(crate) fn reset_pending_reception(&self, target: &AnonymousSenderTag) -> Option<()> {
-        self.inner
-            .data
-            .get_mut(target)
-            .map(|mut e| e.reset_pending_reception())
     }
 
     pub(crate) fn below_threshold(&self, amount: usize) -> bool {
@@ -192,16 +156,6 @@ impl ReceivedReplySurbsMap {
         }
     }
 
-    // pub(crate) fn insert_maybe_surbs<I: IntoIterator<Item = ReplySurb>>(
-    //     &self,
-    //     target: &AnonymousSenderTag,
-    //     surbs: Option<I>,
-    // ) {
-    //     if let Some(reply_surbs) = surbs {
-    //         self.insert_surbs(target, reply_surbs)
-    //     }
-    // }
-
     pub(crate) fn insert_surb(&self, target: &AnonymousSenderTag, reply_surb: ReplySurb) {
         if let Some(mut existing_data) = self.inner.data.get_mut(target) {
             existing_data.insert_reply_surb(reply_surb)
@@ -251,10 +205,6 @@ impl ReceivedReplySurbs {
         println!("{} - {}", self.pending_reception, amount);
         self.pending_reception -= amount;
         self.pending_reception
-    }
-
-    pub(crate) fn reset_pending_reception(&mut self) {
-        self.pending_reception = 0
     }
 
     pub(crate) fn get_reply_surbs(&mut self, amount: usize) -> (Option<Vec<ReplySurb>>, usize) {

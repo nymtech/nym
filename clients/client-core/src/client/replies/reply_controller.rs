@@ -502,7 +502,7 @@ where
 
     #[cfg(not(target_arch = "wasm32"))]
     pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
-        debug!("Started ToBeNamedPendingReplyController with graceful shutdown support");
+        debug!("Started ReplyController with graceful shutdown support");
 
         let polling_rate = Duration::from_secs(5);
         let mut interval_timer = tokio::time::interval(polling_rate);
@@ -511,12 +511,12 @@ where
             tokio::select! {
                 biased;
                 _ = shutdown.recv() => {
-                    log::trace!("ToBeNamedPendingReplyController: Received shutdown");
+                    log::trace!("ReplyController: Received shutdown");
                 },
                 req = self.request_receiver.next() => match req {
                     Some(req) => self.handle_request(req).await,
                     None => {
-                        log::trace!("ToBeNamedPendingReplyController: Stopping since channel closed");
+                        log::trace!("ReplyController: Stopping since channel closed");
                         break;
                     }
                 },
@@ -526,12 +526,12 @@ where
             }
         }
         assert!(shutdown.is_shutdown_poll());
-        log::debug!("ToBeNamedPendingReplyController: Exiting");
+        log::debug!("ReplyController: Exiting");
     }
 
     #[cfg(target_arch = "wasm32")]
     pub(crate) async fn run(&mut self) {
-        debug!("Started ToBeNamedPendingReplyController without graceful shutdown support");
+        debug!("Started ReplyController without graceful shutdown support");
 
         while let Some(req) = self.request_receiver.next().await {
             self.handle_request(req).await

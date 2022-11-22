@@ -6,7 +6,6 @@ use super::types::{ResponseCode, SocksProxyError};
 use super::{RESERVED, SOCKS_VERSION};
 use client_core::client::inbound_messages::InputMessage;
 use client_core::client::inbound_messages::InputMessageSender;
-use client_core::temp::DEFAULT_SURBS_PER_MESSAGE;
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use log::*;
@@ -143,6 +142,9 @@ pub(crate) struct SocksClient {
     self_address: Recipient,
     started_proxy: bool,
     shutdown_listener: ShutdownListener,
+
+    initial_surbs: u32,
+    per_request_surbs: u32,
 }
 
 impl Drop for SocksClient {
@@ -181,6 +183,10 @@ impl SocksClient {
             self_address,
             started_proxy: false,
             shutdown_listener,
+
+            // TODO: make it configurable
+            initial_surbs: 10,
+            per_request_surbs: 2,
         }
     }
 
@@ -234,12 +240,13 @@ impl SocksClient {
         let input_message = InputMessage::new_anonymous(
             self.service_provider,
             msg.into_bytes(),
-            DEFAULT_SURBS_PER_MESSAGE,
+            self.initial_surbs,
         );
         self.input_sender.unbounded_send(input_message).unwrap();
     }
 
     async fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
+        #[deprecated(note = "move it to config and handle the other case")]
         const USE_ANONYMOUS: bool = true;
 
         if USE_ANONYMOUS {
@@ -251,6 +258,9 @@ impl SocksClient {
     }
 
     async fn run_proxy(&mut self, conn_receiver: ConnectionReceiver, remote_proxy_target: String) {
+        #[deprecated(note = "move it to config and handle the other case")]
+        const USE_ANONYMOUS: bool = true;
+
         self.send_connect_to_mixnet(remote_proxy_target.clone())
             .await;
 
@@ -261,6 +271,7 @@ impl SocksClient {
             .to_string();
         let connection_id = self.connection_id;
         let input_sender = self.input_sender.clone();
+        let per_request_surbs = self.per_request_surbs;
 
         let recipient = self.service_provider;
         let (stream, _) = ProxyRunner::new(
@@ -275,12 +286,15 @@ impl SocksClient {
         .run(move |conn_id, read_data, socket_closed| {
             let provider_request = Request::new_send(conn_id, read_data, socket_closed);
             let provider_message = Message::Request(provider_request);
-            // TODO: SURB CHANGE
-            InputMessage::new_anonymous(
-                recipient,
-                provider_message.into_bytes(),
-                DEFAULT_SURBS_PER_MESSAGE,
-            )
+            if USE_ANONYMOUS {
+                InputMessage::new_anonymous(
+                    recipient,
+                    provider_message.into_bytes(),
+                    per_request_surbs,
+                )
+            } else {
+                InputMessage::new_regular(recipient, provider_message.into_bytes())
+            }
         })
         .await
         .into_inner();

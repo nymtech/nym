@@ -5,6 +5,7 @@ use std::sync::atomic::Ordering;
 
 use crate::client::config::Config;
 use crate::error::Socks5ClientError;
+use crate::socks;
 use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
     server::SphinxSocksServer,
@@ -301,6 +302,11 @@ impl NymClient {
             authenticator,
             self.config.get_provider_mix_address(),
             self.as_mix_recipient(),
+            socks::client::Config::new(
+                self.config.get_send_anonymously(),
+                self.config.get_connection_start_surbs(),
+                self.config.get_per_request_surbs(),
+            ),
             shutdown,
         );
         tokio::spawn(async move { sphinx_socks.serve(msg_input, buffer_requester).await });

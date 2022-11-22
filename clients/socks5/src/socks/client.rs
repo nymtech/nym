@@ -126,11 +126,33 @@ impl AsyncWrite for StreamState {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct Config {
+    use_surbs_for_responses: bool,
+    connection_start_surbs: u32,
+    per_request_surbs: u32,
+}
+
+impl Config {
+    pub(crate) fn new(
+        use_surbs_for_responses: bool,
+        connection_start_surbs: u32,
+        per_request_surbs: u32,
+    ) -> Self {
+        Self {
+            use_surbs_for_responses,
+            connection_start_surbs,
+            per_request_surbs,
+        }
+    }
+}
+
 /// A client connecting to the Socks proxy server, because
 /// it wants to make a Nym-protected outbound request. Typically, this is
 /// something like e.g. a wallet app running on your laptop connecting to
 /// SphinxSocksServer.
 pub(crate) struct SocksClient {
+    config: Config,
     controller_sender: ControllerSender,
     stream: StreamState,
     auth_nmethods: u8,
@@ -142,12 +164,6 @@ pub(crate) struct SocksClient {
     self_address: Recipient,
     started_proxy: bool,
     shutdown_listener: ShutdownListener,
-
-    // TODO: make it configurable
-    #[deprecated(note = "make clippy yell at me for trying to forget about it")]
-    anonymous: bool,
-    initial_surbs: u32,
-    per_request_surbs: u32,
 }
 
 impl Drop for SocksClient {
@@ -165,6 +181,7 @@ impl Drop for SocksClient {
 impl SocksClient {
     /// Create a new SOCKClient
     pub fn new(
+        config: Config,
         stream: TcpStream,
         authenticator: Authenticator,
         input_sender: InputMessageSender,
@@ -175,6 +192,7 @@ impl SocksClient {
     ) -> Self {
         let connection_id = Self::generate_random();
         SocksClient {
+            config,
             controller_sender,
             connection_id,
             stream: StreamState::Available(stream),
@@ -186,11 +204,6 @@ impl SocksClient {
             self_address,
             started_proxy: false,
             shutdown_listener,
-
-            // TODO: make it configurable
-            anonymous: true,
-            initial_surbs: 10,
-            per_request_surbs: 2,
         }
     }
 
@@ -244,7 +257,7 @@ impl SocksClient {
         let input_message = InputMessage::new_anonymous(
             self.service_provider,
             msg.into_bytes(),
-            self.initial_surbs,
+            self.config.connection_start_surbs,
         );
         self.input_sender.unbounded_send(input_message).unwrap();
     }
@@ -258,7 +271,7 @@ impl SocksClient {
     }
 
     async fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
-        if self.anonymous {
+        if self.config.use_surbs_for_responses {
             self.send_anonymous_connect_to_mixnet(remote_address).await
         } else {
             self.send_connect_to_mixnet_with_return_address(remote_address)
@@ -277,8 +290,8 @@ impl SocksClient {
             .to_string();
         let connection_id = self.connection_id;
         let input_sender = self.input_sender.clone();
-        let anonymous = self.anonymous;
-        let per_request_surbs = self.per_request_surbs;
+        let anonymous = self.config.use_surbs_for_responses;
+        let per_request_surbs = self.config.per_request_surbs;
 
         let recipient = self.service_provider;
         let (stream, _) = ProxyRunner::new(

@@ -4,6 +4,7 @@ use super::{
     mixnet_responses::MixnetResponseListener,
     types::{ResponseCode, SocksProxyError},
 };
+use crate::socks::client;
 use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
 };
@@ -20,6 +21,7 @@ pub struct SphinxSocksServer {
     listening_address: SocketAddr,
     service_provider: Recipient,
     self_address: Recipient,
+    client_config: client::Config,
     shutdown: ShutdownListener,
 }
 
@@ -30,6 +32,7 @@ impl SphinxSocksServer {
         authenticator: Authenticator,
         service_provider: Recipient,
         self_address: Recipient,
+        client_config: client::Config,
         shutdown: ShutdownListener,
     ) -> Self {
         // hardcode ip as we (presumably) ONLY want to listen locally. If we change it, we can
@@ -41,6 +44,7 @@ impl SphinxSocksServer {
             listening_address: format!("{}:{}", ip, port).parse().unwrap(),
             service_provider,
             self_address,
+            client_config,
             shutdown,
         }
     }
@@ -77,6 +81,7 @@ impl SphinxSocksServer {
                 Ok((stream, _remote)) = listener.accept() => {
                     // TODO Optimize this
                     let mut client = SocksClient::new(
+                        self.client_config,
                         stream,
                         self.authenticator.clone(),
                         input_sender.clone(),

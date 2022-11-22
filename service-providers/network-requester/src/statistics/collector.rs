@@ -78,7 +78,7 @@ pub struct ServiceStatisticsCollector {
     pub(crate) response_stats_data: Arc<RwLock<StatsData>>,
     pub(crate) connected_services: Arc<RwLock<HashMap<ConnectionId, RemoteAddress>>>,
     stats_provider_addr: Recipient,
-    mix_input_sender: mpsc::UnboundedSender<(Socks5Message, Recipient)>,
+    mix_input_sender: mpsc::UnboundedSender<(Socks5Message, ReturnAddress)>,
 }
 
 impl ServiceStatisticsCollector {
@@ -86,32 +86,31 @@ impl ServiceStatisticsCollector {
         stats_provider_addr: Option<Recipient>,
         mix_input_sender: mpsc::UnboundedSender<(Socks5Message, ReturnAddress)>,
     ) -> Result<Self, StatsError> {
-        todo!()
-        // let client = reqwest::Client::builder()
-        //     .timeout(Duration::from_secs(3))
-        //     .build()?;
-        // let stats_provider_config: OptionalStatsProviderConfig = client
-        //     .get(REMOTE_SOURCE_OF_STATS_PROVIDER_CONFIG.to_string())
-        //     .send()
-        //     .await?
-        //     .json()
-        //     .await?;
-        // let stats_provider_addr = stats_provider_addr.unwrap_or(
-        //     Recipient::try_from_base58_string(
-        //         stats_provider_config
-        //             .stats_client_address()
-        //             .ok_or(StatsError::InvalidClientAddress)?,
-        //     )
-        //     .map_err(|_| StatsError::InvalidClientAddress)?,
-        // );
-        //
-        // Ok(ServiceStatisticsCollector {
-        //     request_stats_data: Arc::new(RwLock::new(StatsData::new())),
-        //     response_stats_data: Arc::new(RwLock::new(StatsData::new())),
-        //     connected_services: Arc::new(RwLock::new(HashMap::new())),
-        //     stats_provider_addr,
-        //     mix_input_sender,
-        // })
+        let client = reqwest::Client::builder()
+            .timeout(Duration::from_secs(3))
+            .build()?;
+        let stats_provider_config: OptionalStatsProviderConfig = client
+            .get(REMOTE_SOURCE_OF_STATS_PROVIDER_CONFIG.to_string())
+            .send()
+            .await?
+            .json()
+            .await?;
+        let stats_provider_addr = stats_provider_addr.unwrap_or(
+            Recipient::try_from_base58_string(
+                stats_provider_config
+                    .stats_client_address()
+                    .ok_or(StatsError::InvalidClientAddress)?,
+            )
+            .map_err(|_| StatsError::InvalidClientAddress)?,
+        );
+
+        Ok(ServiceStatisticsCollector {
+            request_stats_data: Arc::new(RwLock::new(StatsData::new())),
+            response_stats_data: Arc::new(RwLock::new(StatsData::new())),
+            connected_services: Arc::new(RwLock::new(HashMap::new())),
+            stats_provider_addr,
+            mix_input_sender,
+        })
     }
 }
 
@@ -180,7 +179,7 @@ impl StatisticsCollector for ServiceStatisticsCollector {
         self.mix_input_sender
             .unbounded_send((
                 Socks5Message::Request(connect_req),
-                self.stats_provider_addr,
+                self.stats_provider_addr.into(),
             ))
             .unwrap();
 
@@ -189,7 +188,10 @@ impl StatisticsCollector for ServiceStatisticsCollector {
         let ordered_msg = message_sender.wrap_message(msg).into_bytes();
         let send_req = Request::new_send(conn_id, ordered_msg, true);
         self.mix_input_sender
-            .unbounded_send((Socks5Message::Request(send_req), self.stats_provider_addr))
+            .unbounded_send((
+                Socks5Message::Request(send_req),
+                self.stats_provider_addr.into(),
+            ))
             .unwrap();
 
         Ok(())

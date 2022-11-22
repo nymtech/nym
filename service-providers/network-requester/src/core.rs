@@ -38,10 +38,22 @@ pub struct ServiceProvider {
 }
 
 // TODO: move elsewhere after things settle
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub enum ReturnAddress {
-    Known(Recipient),
+    Known(Box<Recipient>),
     Anonymous(AnonymousSenderTag),
+}
+
+impl From<Recipient> for ReturnAddress {
+    fn from(recipient: Recipient) -> Self {
+        ReturnAddress::Known(Box::new(recipient))
+    }
+}
+
+impl From<AnonymousSenderTag> for ReturnAddress {
+    fn from(sender_tag: AnonymousSenderTag) -> Self {
+        ReturnAddress::Anonymous(sender_tag)
+    }
 }
 
 impl ReturnAddress {
@@ -51,7 +63,7 @@ impl ReturnAddress {
     ) -> Option<Self> {
         // if somehow we received both, always prefer the explicit address since it's way easier to use
         if let Some(recipient) = explicit_return_address {
-            return Some(ReturnAddress::Known(recipient));
+            return Some(ReturnAddress::Known(Box::new(recipient)));
         }
         if let Some(sender_tag) = implicit_tag {
             return Some(ReturnAddress::Anonymous(sender_tag));
@@ -61,7 +73,10 @@ impl ReturnAddress {
 
     fn send_back_to(self, message: Vec<u8>) -> ClientRequest {
         match self {
-            ReturnAddress::Known(recipient) => ClientRequest::Send { recipient, message },
+            ReturnAddress::Known(recipient) => ClientRequest::Send {
+                recipient: *recipient,
+                message,
+            },
             ReturnAddress::Anonymous(sender_tag) => ClientRequest::Reply {
                 message,
                 sender_tag,
@@ -168,26 +183,27 @@ impl ServiceProvider {
         mix_input_sender: mpsc::UnboundedSender<(Socks5Message, ReturnAddress)>,
         shutdown: ShutdownListener,
     ) {
-        let mut conn = match Connection::new(conn_id, remote_addr.clone(), return_address).await {
-            Ok(conn) => conn,
-            Err(err) => {
-                error!(
-                    "error while connecting to {:?} ! - {:?}",
-                    remote_addr.clone(),
-                    err
-                );
+        let mut conn =
+            match Connection::new(conn_id, remote_addr.clone(), return_address.clone()).await {
+                Ok(conn) => conn,
+                Err(err) => {
+                    error!(
+                        "error while connecting to {:?} ! - {:?}",
+                        remote_addr.clone(),
+                        err
+                    );
 
-                // inform the remote that the connection is closed before it even was established
-                mix_input_sender
-                    .unbounded_send((
-                        Socks5Message::Response(Response::new(conn_id, Vec::new(), true)),
-                        return_address,
-                    ))
-                    .unwrap();
+                    // inform the remote that the connection is closed before it even was established
+                    mix_input_sender
+                        .unbounded_send((
+                            Socks5Message::Response(Response::new(conn_id, Vec::new(), true)),
+                            return_address,
+                        ))
+                        .unwrap();
 
-                return;
-            }
-        };
+                    return;
+                }
+            };
 
         // Connect implies it's a fresh connection - register it with our controller
         let (mix_sender, mix_receiver) = mpsc::unbounded();

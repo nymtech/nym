@@ -46,7 +46,7 @@ impl Connection {
         let stream = self.conn.take().unwrap();
         let remote_source_address = "???".to_string(); // we don't know ip address of requester
         let connection_id = self.id;
-        let return_address = self.return_address;
+        let return_address = self.return_address.clone();
         let (stream, _) = ProxyRunner::new(
             stream,
             self.address.clone(),
@@ -59,7 +59,7 @@ impl Connection {
         .run(move |conn_id, read_data, socket_closed| {
             (
                 Socks5Message::Response(Response::new(conn_id, read_data, socket_closed)),
-                return_address,
+                return_address.clone(),
             )
         })
         .await

@@ -37,6 +37,7 @@ use gateway_client::{
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
+use tap::TapFallible;
 use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
 
 pub mod config;
@@ -297,6 +298,7 @@ impl NymClient {
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
         closed_connection_tx: ClosedConnectionSender,
+        lane_queue_lengths: LaneQueueLengths,
         shutdown: ShutdownListener,
     ) {
         info!("Starting socks5 listener...");
@@ -309,6 +311,7 @@ impl NymClient {
             authenticator,
             self.config.get_provider_mix_address(),
             self.as_mix_recipient(),
+            lane_queue_lengths,
             shutdown,
         );
         tokio::spawn(async move {
@@ -383,7 +386,7 @@ impl NymClient {
         let (received_buffer_request_sender, received_buffer_request_receiver) = mpsc::unbounded();
 
         // channels responsible for controlling real messages
-        let (input_sender, input_receiver) = mpsc::unbounded::<InputMessage>();
+        let (input_sender, input_receiver) = tokio::sync::mpsc::channel::<InputMessage>(1);
 
         // channels responsible for controlling ack messages
         let (ack_sender, ack_receiver) = mpsc::unbounded();
@@ -391,7 +394,10 @@ impl NymClient {
 
         let reply_key_storage =
             ReplyKeyStorage::load(self.config.get_base().get_reply_encryption_key_store_path())
-                .expect("Failed to load reply key storage!");
+                .tap_err(|err| {
+                    log::error!("Failed to load reply key storage - is it perhaps already in use?");
+                    log::error!("{}", err);
+                })?;
 
         // Shutdown notifier for signalling tasks to stop
         let shutdown = ShutdownNotifier::default();
@@ -433,7 +439,7 @@ impl NymClient {
             input_receiver,
             sphinx_message_sender.clone(),
             closed_connection_rx,
-            shared_lane_queue_lengths,
+            shared_lane_queue_lengths.clone(),
             shutdown.subscribe(),
         );
 
@@ -453,6 +459,7 @@ impl NymClient {
             received_buffer_request_sender,
             input_sender,
             closed_connection_tx,
+            shared_lane_queue_lengths,
             shutdown.subscribe(),
         );
 

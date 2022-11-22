@@ -1,10 +1,9 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use futures::channel::mpsc;
 use nymsphinx::addressing::clients::Recipient;
 use proxy_helpers::connection_controller::ConnectionReceiver;
-use proxy_helpers::proxy_runner::ProxyRunner;
+use proxy_helpers::proxy_runner::{MixProxySender, ProxyRunner};
 use socks5_requests::{ConnectionId, Message as Socks5Message, RemoteAddress, Response};
 use std::io;
 use task::ShutdownListener;
@@ -40,7 +39,7 @@ impl Connection {
     pub(crate) async fn run_proxy(
         &mut self,
         mix_receiver: ConnectionReceiver,
-        mix_sender: mpsc::UnboundedSender<(Socks5Message, Recipient)>,
+        mix_sender: MixProxySender<(Socks5Message, Recipient)>,
         shutdown: ShutdownListener,
     ) {
         let stream = self.conn.take().unwrap();
@@ -54,6 +53,7 @@ impl Connection {
             mix_receiver,
             mix_sender,
             connection_id,
+            None,
             shutdown,
         )
         .run(move |conn_id, read_data, socket_closed| {

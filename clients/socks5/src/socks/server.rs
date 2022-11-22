@@ -4,7 +4,7 @@ use super::{
     mixnet_responses::MixnetResponseListener,
     types::{ResponseCode, SocksProxyError},
 };
-use client_connections::ClosedConnectionSender;
+use client_connections::{ClosedConnectionSender, LaneQueueLengths};
 use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
 };
@@ -21,6 +21,7 @@ pub struct SphinxSocksServer {
     listening_address: SocketAddr,
     service_provider: Recipient,
     self_address: Recipient,
+    lane_queue_lengths: LaneQueueLengths,
     shutdown: ShutdownListener,
 }
 
@@ -31,6 +32,7 @@ impl SphinxSocksServer {
         authenticator: Authenticator,
         service_provider: Recipient,
         self_address: Recipient,
+        lane_queue_lengths: LaneQueueLengths,
         shutdown: ShutdownListener,
     ) -> Self {
         // hardcode ip as we (presumably) ONLY want to listen locally. If we change it, we can
@@ -42,6 +44,7 @@ impl SphinxSocksServer {
             listening_address: format!("{}:{}", ip, port).parse().unwrap(),
             service_provider,
             self_address,
+            lane_queue_lengths,
             shutdown,
         }
     }
@@ -85,6 +88,7 @@ impl SphinxSocksServer {
                         self.service_provider,
                         controller_sender.clone(),
                         self.self_address,
+                        self.lane_queue_lengths.clone(),
                         self.shutdown.clone(),
                     );
 

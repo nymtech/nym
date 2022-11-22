@@ -81,7 +81,7 @@ impl Handler {
         }
     }
 
-    fn handle_send(
+    async fn handle_send(
         &mut self,
         recipient: &Recipient,
         message: Vec<u8>,
@@ -91,18 +91,26 @@ impl Handler {
         // the ack control is now responsible for chunking, etc.
         let lane = TransmissionLane::ConnectionId(connection_id);
         let input_msg = InputMessage::new_fresh(*recipient, message, with_reply_surb, lane);
-        self.msg_input.unbounded_send(input_msg).unwrap();
+        if self.msg_input.send(input_msg).await.is_err() {
+            panic!();
+        }
 
         None
     }
 
-    fn handle_reply(&mut self, reply_surb: ReplySurb, message: Vec<u8>) -> Option<ServerResponse> {
+    async fn handle_reply(
+        &mut self,
+        reply_surb: ReplySurb,
+        message: Vec<u8>,
+    ) -> Option<ServerResponse> {
         if message.len() > ReplySurb::max_msg_len(Default::default()) {
             return Some(ServerResponse::new_error(format!("too long message to put inside a reply SURB. Received: {} bytes and maximum is {} bytes", message.len(), ReplySurb::max_msg_len(Default::default()))));
         }
 
         let input_msg = InputMessage::new_reply(reply_surb, message);
-        self.msg_input.unbounded_send(input_msg).unwrap();
+        if self.msg_input.send(input_msg).await.is_err() {
+            panic!();
+        }
 
         None
     }
@@ -118,24 +126,27 @@ impl Handler {
         None
     }
 
-    fn handle_request(&mut self, request: ClientRequest) -> Option<ServerResponse> {
+    async fn handle_request(&mut self, request: ClientRequest) -> Option<ServerResponse> {
         match request {
             ClientRequest::Send {
                 recipient,
                 message,
                 with_reply_surb,
                 connection_id,
-            } => self.handle_send(&recipient, message, with_reply_surb, connection_id),
+            } => {
+                self.handle_send(&recipient, message, with_reply_surb, connection_id)
+                    .await
+            }
             ClientRequest::Reply {
                 message,
                 reply_surb,
-            } => self.handle_reply(reply_surb, message),
+            } => self.handle_reply(reply_surb, message).await,
             ClientRequest::SelfAddress => Some(self.handle_self_address()),
             ClientRequest::ClosedConnection(id) => self.handle_closed_connection(id),
         }
     }
 
-    fn handle_text_message(&mut self, msg: String) -> Option<WsMessage> {
+    async fn handle_text_message(&mut self, msg: String) -> Option<WsMessage> {
         debug!("Handling text message request");
         trace!("Content: {:?}", msg);
 
@@ -144,13 +155,13 @@ impl Handler {
 
         let response = match client_request {
             Err(err) => Some(ServerResponse::Error(err)),
-            Ok(req) => self.handle_request(req),
+            Ok(req) => self.handle_request(req).await,
         };
 
         response.map(|resp| WsMessage::text(resp.into_text()))
     }
 
-    fn handle_binary_message(&mut self, msg: &[u8]) -> Option<WsMessage> {
+    async fn handle_binary_message(&mut self, msg: &[u8]) -> Option<WsMessage> {
         debug!("Handling binary message request");
 
         self.received_response_type = ReceivedResponseType::Binary;
@@ -158,19 +169,19 @@ impl Handler {
 
         let response = match client_request {
             Err(err) => Some(ServerResponse::Error(err)),
-            Ok(req) => self.handle_request(req),
+            Ok(req) => self.handle_request(req).await,
         };
 
         response.map(|resp| WsMessage::Binary(resp.into_binary()))
     }
 
-    fn handle_ws_request(&mut self, raw_request: WsMessage) -> Option<WsMessage> {
+    async fn handle_ws_request(&mut self, raw_request: WsMessage) -> Option<WsMessage> {
         // apparently tungstenite auto-handles ping/pong/close messages so for now let's ignore
         // them and let's test that claim. If that's not the case, just copy code from
         // old version of this file.
         match raw_request {
-            WsMessage::Text(text_message) => self.handle_text_message(text_message),
-            WsMessage::Binary(binary_message) => self.handle_binary_message(&binary_message),
+            WsMessage::Text(text_message) => self.handle_text_message(text_message).await,
+            WsMessage::Binary(binary_message) => self.handle_binary_message(&binary_message).await,
             _ => None,
         }
     }
@@ -232,7 +243,7 @@ impl Handler {
                         break;
                     }
 
-                    if let Some(response) = self.handle_ws_request(socket_msg) {
+                    if let Some(response) = self.handle_ws_request(socket_msg).await {
                         if let Err(err) = self.send_websocket_response(response).await {
                             warn!(
                                 "Failed to send message over websocket: {}. Assuming the connection is dead.",

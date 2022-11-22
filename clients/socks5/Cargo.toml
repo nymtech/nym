@@ -46,6 +46,7 @@ task = { path = "../../common/task" }
 topology = { path = "../../common/topology" }
 validator-client = { path = "../../common/client-libs/validator-client", features = ["nymd-client"] }
 version-checker = { path = "../../common/version-checker" }
+tap = "1.0.1"
 
 [features]
 coconut = ["coconut-interface", "credentials", "gateway-requests/coconut", "gateway-client/coconut", "credentials/coconut", "client-core/coconut"]

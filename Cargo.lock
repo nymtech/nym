@@ -1504,9 +1504,9 @@ dependencies = [
 
 [[package]]
 name = "ed25519"
-version = "1.4.1"
+version = "1.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d5c4b5e5959dc2c2b89918d8e2cc40fcdd623cef026ed09d2f0ee05199dc8e4"
+checksum = "1e9c280362032ea4203659fc489832d0204ef09f247a0506f170dafcac08c369"
 dependencies = [
  "serde",
  "signature",
@@ -3199,6 +3199,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sled",
+ "tap",
  "task",
  "thiserror",
  "tokio",
@@ -3378,6 +3379,7 @@ dependencies = [
  "serde",
  "snafu 0.6.10",
  "socks5-requests",
+ "tap",
  "task",
  "thiserror",
  "tokio",

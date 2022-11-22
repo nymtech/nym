@@ -21,10 +21,12 @@ pub(crate) async fn public_key_submission(
     {
         details.assigned_index
     } else {
-        dkg_client.register_dealer(bte_key).await?
+        dkg_client
+            .register_dealer(bte_key, state.announce_address().to_string())
+            .await?
     };
     state.set_node_index(index);
-    info!("Starting dkg protocol with index {}", index);
+    info!("DKG: Using node index {}", index);
 
     Ok(())
 }

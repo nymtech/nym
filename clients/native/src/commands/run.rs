@@ -18,9 +18,13 @@ pub(crate) struct Run {
     #[clap(long)]
     id: String,
 
-    /// Comma separated list of rest endpoints of the validators
+    /// Comma separated list of rest endpoints of the nymd validators
     #[clap(long)]
-    validators: Option<String>,
+    nymd_validators: Option<String>,
+
+    /// Comma separated list of rest endpoints of the API validators
+    #[clap(long)]
+    api_validators: Option<String>,
 
     /// Id of the gateway we want to connect to. If overridden, it is user's responsibility to
     /// ensure prior registration happened
@@ -45,7 +49,8 @@ pub(crate) struct Run {
 impl From<Run> for OverrideConfig {
     fn from(run_config: Run) -> Self {
         OverrideConfig {
-            validators: run_config.validators,
+            nymd_validators: run_config.nymd_validators,
+            api_validators: run_config.api_validators,
             disable_socket: run_config.disable_socket,
             port: run_config.port,
             fastmode: false,

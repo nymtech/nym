@@ -8,11 +8,11 @@ use log::*;
 use coconut_interface::{Credential, VerificationKey};
 use validator_client::{
     nymd::{
-        cosmwasm_client::logs::{find_attribute, PROPOSAL_ID},
+        cosmwasm_client::logs::{find_attribute, BANDWIDTH_PROPOSAL_ID},
         traits::{CoconutBandwidthSigningClient, MultisigQueryClient, MultisigSigningClient},
-        Coin, Fee, NymdClient, SigningNymdClient,
+        Coin, Fee, SigningNymdClient,
     },
-    ApiClient,
+    Client, CoconutApiClient,
 };
 
 use super::authenticated::RequestHandlingError;
@@ -21,16 +21,16 @@ const ONE_HOUR_SEC: u64 = 3600;
 const MAX_FEEGRANT_UNYM: u128 = 10000;
 
 pub(crate) struct CoconutVerifier {
-    api_clients: Vec<ApiClient>,
-    nymd_client: NymdClient<SigningNymdClient>,
+    api_clients: Vec<CoconutApiClient>,
+    nymd_client: Client<SigningNymdClient>,
     mix_denom_base: String,
     aggregated_verification_key: VerificationKey,
 }
 
 impl CoconutVerifier {
     pub fn new(
-        api_clients: Vec<ApiClient>,
-        nymd_client: NymdClient<SigningNymdClient>,
+        api_clients: Vec<CoconutApiClient>,
+        nymd_client: Client<SigningNymdClient>,
         mix_denom_base: String,
         aggregated_verification_key: VerificationKey,
     ) -> Result<Self, RequestHandlingError> {
@@ -59,17 +59,18 @@ impl CoconutVerifier {
 
         let res = self
             .nymd_client
+            .nymd
             .spend_credential(
                 Coin::new(
                     credential.voucher_value().into(),
                     self.mix_denom_base.clone(),
                 ),
                 credential.blinded_serial_number(),
-                self.nymd_client.address().to_string(),
+                self.nymd_client.nymd.address().to_string(),
                 None,
             )
             .await?;
-        let proposal_id = find_attribute(&res.logs, "wasm", PROPOSAL_ID)
+        let proposal_id = find_attribute(&res.logs, "wasm", BANDWIDTH_PROPOSAL_ID)
             .ok_or(RequestHandlingError::ProposalIdError {
                 reason: String::from("proposal id not found"),
             })?
@@ -79,7 +80,7 @@ impl CoconutVerifier {
                 reason: String::from("proposal id could not be parsed to u64"),
             })?;
 
-        let proposal = self.nymd_client.get_proposal(proposal_id).await?;
+        let proposal = self.nymd_client.nymd.get_proposal(proposal_id).await?;
         if !credential.has_blinded_serial_number(&proposal.description)? {
             return Err(RequestHandlingError::ProposalIdError {
                 reason: String::from("proposal has different serial number"),
@@ -89,13 +90,13 @@ impl CoconutVerifier {
         let req = validator_api_requests::coconut::VerifyCredentialBody::new(
             credential.clone(),
             proposal_id,
-            self.nymd_client.address().clone(),
+            self.nymd_client.nymd.address().clone(),
         );
         for client in self.api_clients.iter() {
-            let api_cosmos_addr = client.get_cosmos_address().await?.addr;
             self.nymd_client
+                .nymd
                 .grant_allowance(
-                    &api_cosmos_addr,
+                    &client.cosmos_address,
                     vec![Coin::new(MAX_FEEGRANT_UNYM, self.mix_denom_base.clone())],
                     SystemTime::now().checked_add(Duration::from_secs(ONE_HOUR_SEC)),
                     // It would be nice to be able to filter deeper, but for now only the msg type filter is avaialable
@@ -104,20 +105,24 @@ impl CoconutVerifier {
                     None,
                 )
                 .await?;
-            let ret = client.verify_bandwidth_credential(&req).await;
+            let ret = client.api_client.verify_bandwidth_credential(&req).await;
             self.nymd_client
+                .nymd
                 .revoke_allowance(
-                    &api_cosmos_addr,
+                    &client.cosmos_address,
                     "Cleanup the previous allowance for releasing funds".to_string(),
                     revoke_fee.clone(),
                 )
                 .await?;
             if !ret?.verification_result {
-                debug!("Validator {} didn't accept the credential. It will probably vote No on the spending proposal", client.validator_api.current_url());
+                debug!("Validator {} didn't accept the credential. It will probably vote No on the spending proposal", client.api_client.validator_api.current_url());
             }
         }
 
-        self.nymd_client.execute_proposal(proposal_id, None).await?;
+        self.nymd_client
+            .nymd
+            .execute_proposal(proposal_id, None)
+            .await?;
 
         Ok(())
     }

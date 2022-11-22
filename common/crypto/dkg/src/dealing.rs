@@ -17,6 +17,13 @@ use zeroize::Zeroize;
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
+pub struct RecoveredVerificationKeys {
+    pub recovered_master: G2Projective,
+    pub recovered_partials: Vec<G2Projective>,
+}
+
+#[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct Dealing {
     pub public_coefficients: PublicCoefficients,
     pub ciphertexts: Ciphertexts,
@@ -245,7 +252,7 @@ pub fn try_recover_verification_keys(
     dealings: &[Dealing],
     threshold: Threshold,
     receivers: &BTreeMap<NodeIndex, PublicKey>,
-) -> Result<(G2Projective, Vec<G2Projective>), DkgError> {
+) -> Result<RecoveredVerificationKeys, DkgError> {
     if dealings.is_empty() {
         return Err(DkgError::NoDealingsAvailable);
     }
@@ -292,7 +299,10 @@ pub fn try_recover_verification_keys(
         .map(|index| interpolated_coefficients.evaluate_at(&Scalar::from(*index)))
         .collect();
 
-    Ok((master_verification_key, verification_key_shares))
+    Ok(RecoveredVerificationKeys {
+        recovered_master: master_verification_key,
+        recovered_partials: verification_key_shares,
+    })
 }
 
 pub fn verify_verification_keys(
@@ -389,8 +399,10 @@ mod tests {
         .unwrap();
 
         // END OF SETUP
-        let (recovered_master, recovered_partials) =
-            try_recover_verification_keys(&dealings, threshold, &receivers).unwrap();
+        let RecoveredVerificationKeys {
+            recovered_master,
+            recovered_partials,
+        } = try_recover_verification_keys(&dealings, threshold, &receivers).unwrap();
 
         let g2 = G2Projective::generator();
         assert_eq!(g2 * master_secret, recovered_master);
@@ -425,8 +437,10 @@ mod tests {
             })
             .collect::<Vec<_>>();
 
-        let (recovered_master, recovered_partials) =
-            try_recover_verification_keys(&dealings, threshold, &receivers).unwrap();
+        let RecoveredVerificationKeys {
+            recovered_master,
+            recovered_partials,
+        } = try_recover_verification_keys(&dealings, threshold, &receivers).unwrap();
 
         assert!(verify_verification_keys(
             &recovered_master,

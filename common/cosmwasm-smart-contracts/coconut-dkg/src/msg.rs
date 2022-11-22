@@ -2,14 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::types::{ContractSafeBytes, EncodedBTEPublicKeyWithProof};
+use crate::verification_key::VerificationKeyShare;
+use cosmwasm_std::Addr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct InstantiateMsg {
     pub group_addr: String,
-    pub mix_denom: String,
+    pub multisig_addr: String,
     pub admin: String,
+    pub mix_denom: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
@@ -17,10 +20,19 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     RegisterDealer {
         bte_key_with_proof: EncodedBTEPublicKeyWithProof,
+        announce_address: String,
     },
 
     CommitDealing {
         dealing_bytes: ContractSafeBytes,
+    },
+
+    CommitVerificationKeyShare {
+        share: VerificationKeyShare,
+    },
+
+    VerifyVerificationKeyShare {
+        owner: Addr,
     },
 
     AdvanceEpochState {},
@@ -50,6 +62,10 @@ pub enum QueryMsg {
     GetDepositAmount {},
     GetDealing {
         idx: u64,
+        limit: Option<u32>,
+        start_after: Option<String>,
+    },
+    GetVerificationKeys {
         limit: Option<u32>,
         start_after: Option<String>,
     },

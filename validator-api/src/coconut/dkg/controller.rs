@@ -3,6 +3,9 @@
 
 use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::state::{ConsistentState, State};
+use crate::coconut::dkg::verification_key::{
+    verification_key_finalization, verification_key_validation,
+};
 use crate::coconut::dkg::{
     dealing::dealing_exchange, public_key::public_key_submission,
     verification_key::verification_key_submission,
@@ -14,6 +17,7 @@ use coconut_dkg_common::types::EpochState;
 use dkg::bte::keys::KeyPair as DkgKeyPair;
 use rand::rngs::OsRng;
 use rand::RngCore;
+use std::path::PathBuf;
 use std::time::Duration;
 use task::ShutdownListener;
 use tokio::time::interval;
@@ -35,13 +39,15 @@ pub(crate) fn init_keypair(config: &Config) -> Result<()> {
 
 pub(crate) struct DkgController<R> {
     dkg_client: DkgClient,
+    secret_key_path: PathBuf,
+    verification_key_path: PathBuf,
     state: State,
     rng: R,
     polling_rate: Duration,
 }
 
 impl<R: RngCore + Clone> DkgController<R> {
-    pub(crate) fn new(
+    pub(crate) async fn new(
         config: &Config,
         nymd_client: nymd_client::Client<SigningNymdClient>,
         coconut_keypair: CoconutKeyPair,
@@ -51,20 +57,28 @@ impl<R: RngCore + Clone> DkgController<R> {
             config.decryption_key_path(),
             config.public_key_with_proof_path(),
         ))?;
+        if let Ok(coconut_keypair_value) = pemstore::load_keypair(&pemstore::KeyPairPath::new(
+            config.secret_key_path(),
+            config.verification_key_path(),
+        )) {
+            coconut_keypair.set(coconut_keypair_value).await;
+        }
 
         Ok(DkgController {
             dkg_client: DkgClient::new(nymd_client),
-            state: State::new(dkg_keypair, coconut_keypair),
+            secret_key_path: config.secret_key_path(),
+            verification_key_path: config.verification_key_path(),
+            state: State::new(config.get_announce_address(), dkg_keypair, coconut_keypair),
             rng,
             polling_rate: config.get_dkg_contract_polling_rate(),
         })
     }
 
-    async fn handle_epoch_state(&mut self) -> bool {
+    async fn handle_epoch_state(&mut self) {
         match self.dkg_client.get_current_epoch_state().await {
             Err(e) => warn!("Could not get current epoch state {}", e),
             Ok(epoch_state) => {
-                if let Err(e) = self.state.is_consistent(epoch_state) {
+                if let Err(e) = self.state.is_consistent(epoch_state).await {
                     error!(
                         "Epoch state is corrupted - {}, the process should be terminated",
                         e
@@ -78,28 +92,38 @@ impl<R: RngCore + Clone> DkgController<R> {
                         dealing_exchange(&self.dkg_client, &mut self.state, self.rng.clone()).await
                     }
                     EpochState::VerificationKeySubmission => {
-                        verification_key_submission(&self.dkg_client, &mut self.state).await
+                        let keypair_path = pemstore::KeyPairPath::new(
+                            self.secret_key_path.clone(),
+                            self.verification_key_path.clone(),
+                        );
+                        verification_key_submission(
+                            &self.dkg_client,
+                            &mut self.state,
+                            &keypair_path,
+                        )
+                        .await
                     }
-                    EpochState::InProgress => return true,
+                    EpochState::VerificationKeyValidation => {
+                        verification_key_validation(&self.dkg_client, &mut self.state).await
+                    }
+                    EpochState::VerificationKeyFinalization => {
+                        verification_key_finalization(&self.dkg_client, &mut self.state).await
+                    }
+                    // Just wait, in case we need to redo dkg at some point
+                    EpochState::InProgress => Ok(()),
                 };
                 if let Err(e) = ret {
                     warn!("Could not handle this iteration for the epoch state: {}", e);
                 }
             }
         }
-        false
     }
 
     pub(crate) async fn run(mut self, mut shutdown: ShutdownListener) {
         let mut interval = interval(self.polling_rate);
         while !shutdown.is_shutdown() {
             tokio::select! {
-                _ = interval.tick() => {
-                    if self.handle_epoch_state().await {
-                        // If dkg finished, we can finish this task
-                        break;
-                    }
-                }
+                _ = interval.tick() => self.handle_epoch_state().await,
                 _ = shutdown.recv() => {
                     trace!("DkgController: Received shutdown");
                 }

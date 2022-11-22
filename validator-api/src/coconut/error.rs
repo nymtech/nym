@@ -20,6 +20,9 @@ pub type Result<T> = std::result::Result<T, CoconutError>;
 
 #[derive(Debug, Error)]
 pub enum CoconutError {
+    #[error("{0}")]
+    IOError(#[from] std::io::Error),
+
     #[error("Could not parse Ed25519 data")]
     Ed25519ParseError(#[from] Ed25519RecoveryError),
 
@@ -93,6 +96,9 @@ pub enum CoconutError {
 
     #[error("DKG has not finished yet in order to derive the coconut key")]
     KeyPairNotDerivedYet,
+
+    #[error("There was a problem with the proposal id: {reason}")]
+    ProposalIdError { reason: String },
 }
 
 impl<'r, 'o: 'r> Responder<'r, 'o> for CoconutError {

@@ -65,6 +65,7 @@ pub fn try_add_dealer(
     mut deps: DepsMut<'_>,
     info: MessageInfo,
     bte_key_with_proof: EncodedBTEPublicKeyWithProof,
+    announce_address: String,
 ) -> Result<Response, ContractError> {
     check_epoch_state(deps.storage, EpochState::PublicKeySubmission)?;
     let state = STATE.load(deps.storage)?;
@@ -94,6 +95,7 @@ pub fn try_add_dealer(
     let dealer_details = DealerDetails {
         address: info.sender.clone(),
         bte_public_key_with_proof: bte_key_with_proof,
+        announce_address,
         assigned_index: node_index,
         deposit,
     };

@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 pub struct DealerDetails {
     pub address: Addr,
     pub bte_public_key_with_proof: EncodedBTEPublicKeyWithProof,
+    pub announce_address: String,
     pub assigned_index: NodeIndex,
     pub deposit: Coin,
 }

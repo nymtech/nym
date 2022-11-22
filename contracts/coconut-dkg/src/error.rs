@@ -60,6 +60,9 @@ pub enum ContractError {
     #[error("This sender is not a dealer for the current epoch")]
     NotADealer,
 
-    #[error("This dealer has already commited dealing for this epoch")]
-    AlreadyCommitted,
+    #[error("This dealer has already committed {commitment}")]
+    AlreadyCommitted { commitment: String },
+
+    #[error("No verification key committed for owner {owner}")]
+    NoCommitForOwner { owner: String },
 }

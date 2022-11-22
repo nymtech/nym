@@ -21,6 +21,7 @@ pub use scheme::keygen::SecretKey;
 pub use scheme::keygen::VerificationKey;
 pub use scheme::setup::setup;
 pub use scheme::setup::Parameters;
+pub use scheme::verification::check_vk_pairing;
 pub use scheme::verification::prove_bandwidth_credential;
 pub use scheme::verification::verify_credential;
 pub use scheme::verification::Theta;

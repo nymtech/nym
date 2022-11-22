@@ -31,8 +31,7 @@ use crypto::shared_key::new_ephemeral_shared_key;
 use crypto::symmetric::stream_cipher;
 use keypair::KeyPair;
 use validator_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse, VerificationKeyResponse,
-    VerifyCredentialBody, VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_client::nymd::{Coin, Fee};
 use validator_client::validator_api::routes::{BANDWIDTH, COCONUT_ROUTES};
@@ -186,8 +185,6 @@ impl InternalSignRequest {
                 ),
                 routes![
                     post_blind_sign,
-                    get_verification_key,
-                    get_cosmos_address,
                     post_partial_bandwidth_credential,
                     verify_bandwidth_credential
                 ],
@@ -256,26 +253,6 @@ pub async fn post_partial_bandwidth_credential(
         .await?
         .ok_or(CoconutError::NoSignature)?;
     Ok(Json(v))
-}
-
-#[get("/verification-key")]
-pub async fn get_verification_key(
-    state: &RocketState<State>,
-) -> Result<Json<VerificationKeyResponse>> {
-    state
-        .key_pair
-        .get()
-        .await
-        .as_ref()
-        .map(|keypair| Json(VerificationKeyResponse::new(keypair.verification_key())))
-        .ok_or(CoconutError::KeyPairNotDerivedYet)
-}
-
-#[get("/cosmos-address")]
-pub async fn get_cosmos_address(state: &RocketState<State>) -> Result<Json<CosmosAddressResponse>> {
-    Ok(Json(CosmosAddressResponse::new(
-        state.client.address().await,
-    )))
 }
 
 #[post("/verify-bandwidth-credential", data = "<verify_credential_body>")]

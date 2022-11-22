@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
+use config::defaults::DEFAULT_VALIDATOR_API_PORT;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -93,6 +94,11 @@ pub struct Base {
 
     local_validator: Url,
 
+    /// Address announced to the directory server for the clients to connect to.
+    // It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
+    // later on by using name resolvable with a DNS query, such as `nymtech.net`.
+    announce_address: Url,
+
     /// Address of the validator contract managing the network
     mixnet_contract_address: String,
 
@@ -102,11 +108,17 @@ pub struct Base {
 
 impl Default for Base {
     fn default() -> Self {
+        let default_validator: Url = DEFAULT_LOCAL_VALIDATOR
+            .parse()
+            .expect("default local validator is malformed!");
+        let mut default_announce_address = default_validator.clone();
+        default_announce_address
+            .set_port(Some(DEFAULT_VALIDATOR_API_PORT))
+            .expect("default local validator is malformed!");
         Base {
             id: String::default(),
-            local_validator: DEFAULT_LOCAL_VALIDATOR
-                .parse()
-                .expect("default local validator is malformed!"),
+            local_validator: default_validator,
+            announce_address: default_announce_address,
             mixnet_contract_address: String::default(),
             mnemonic: "exact antique hybrid width raise anchor puzzle degree fee quit long crack net vague hip despair write put useless civil mechanic broom music day".to_string(),
         }
@@ -270,8 +282,11 @@ pub struct CoconutSigner {
     /// Specifies whether rewarding service is enabled in this process.
     enabled: bool,
 
-    /// Path to the signing keypair
-    keypair_path: PathBuf,
+    /// Path to the coconut verification key.
+    verification_key_path: PathBuf,
+
+    /// Path to the coconut secret key.
+    secret_key_path: PathBuf,
 
     /// Path to the dkg dealer decryption key.
     decryption_key_path: PathBuf,
@@ -281,16 +296,21 @@ pub struct CoconutSigner {
 
     /// Duration of the interval for polling the dkg contract.
     dkg_contract_polling_rate: Duration,
-
-    /// Specifies list of all validators on the network issuing coconut credentials.
-    /// A special care must be taken to ensure they are in correct order.
-    /// The list must also contain THIS validator that is running the test
-    all_validator_apis: Vec<Url>,
 }
 
 impl CoconutSigner {
     pub const DKG_DECRYPTION_KEY_FILE: &'static str = "dkg_decryption_key.pem";
     pub const DKG_PUBLIC_KEY_WITH_PROOF_FILE: &'static str = "dkg_public_key_with_proof.pem";
+    pub const COCONUT_VERIFICATION_KEY_FILE: &'static str = "coconut_verification_key.pem";
+    pub const COCONUT_SECRET_KEY_FILE: &'static str = "coconut_secret_key.pem";
+
+    fn default_coconut_verification_key_path() -> PathBuf {
+        Config::default_data_directory(None).join(Self::COCONUT_VERIFICATION_KEY_FILE)
+    }
+
+    fn default_coconut_secret_key_path() -> PathBuf {
+        Config::default_data_directory(None).join(Self::COCONUT_SECRET_KEY_FILE)
+    }
 
     fn default_dkg_decryption_key_path() -> PathBuf {
         Config::default_data_directory(None).join(Self::DKG_DECRYPTION_KEY_FILE)
@@ -305,11 +325,11 @@ impl Default for CoconutSigner {
     fn default() -> Self {
         Self {
             enabled: Default::default(),
-            keypair_path: Default::default(),
+            verification_key_path: CoconutSigner::default_coconut_verification_key_path(),
+            secret_key_path: CoconutSigner::default_coconut_secret_key_path(),
             decryption_key_path: CoconutSigner::default_dkg_decryption_key_path(),
             public_key_with_proof_path: CoconutSigner::default_dkg_public_key_with_proof_path(),
             dkg_contract_polling_rate: DEFAULT_DKG_CONTRACT_POLLING_RATE,
-            all_validator_apis: Default::default(),
         }
     }
 }
@@ -325,6 +345,10 @@ impl Config {
             Config::default_data_directory(Some(id)).join(NodeStatusAPI::DB_FILE);
         self.network_monitor.credentials_database_path =
             Config::default_data_directory(Some(id)).join(NetworkMonitor::DB_FILE);
+        self.coconut_signer.verification_key_path = Config::default_data_directory(Some(id))
+            .join(CoconutSigner::COCONUT_VERIFICATION_KEY_FILE);
+        self.coconut_signer.secret_key_path =
+            Config::default_data_directory(Some(id)).join(CoconutSigner::COCONUT_SECRET_KEY_FILE);
         self.coconut_signer.decryption_key_path =
             Config::default_data_directory(Some(id)).join(CoconutSigner::DKG_DECRYPTION_KEY_FILE);
         self.coconut_signer.public_key_with_proof_path = Config::default_data_directory(Some(id))
@@ -358,6 +382,12 @@ impl Config {
         self
     }
 
+    #[cfg(feature = "coconut")]
+    pub fn with_announce_address(mut self, announce_address: Url) -> Self {
+        self.base.announce_address = announce_address;
+        self
+    }
+
     pub fn with_custom_mixnet_contract<S: Into<String>>(mut self, mixnet_contract: S) -> Self {
         self.base.mixnet_contract_address = mixnet_contract.into();
         self
@@ -365,18 +395,6 @@ impl Config {
 
     pub fn with_mnemonic<S: Into<String>>(mut self, mnemonic: S) -> Self {
         self.base.mnemonic = mnemonic.into();
-        self
-    }
-
-    #[cfg(feature = "coconut")]
-    pub fn with_keypair_path(mut self, keypair_path: PathBuf) -> Self {
-        self.coconut_signer.keypair_path = keypair_path;
-        self
-    }
-
-    #[cfg(feature = "coconut")]
-    pub fn with_custom_validator_apis(mut self, validator_api_urls: Vec<Url>) -> Self {
-        self.coconut_signer.all_validator_apis = validator_api_urls;
         self
     }
 
@@ -424,6 +442,11 @@ impl Config {
 
     pub fn get_nymd_validator_url(&self) -> Url {
         self.base.local_validator.clone()
+    }
+
+    #[cfg(feature = "coconut")]
+    pub fn get_announce_address(&self) -> Url {
+        self.base.announce_address.clone()
     }
 
     pub fn get_mixnet_contract_address(&self) -> String {
@@ -487,8 +510,13 @@ impl Config {
     }
 
     #[cfg(feature = "coconut")]
-    pub fn _keypair_path(&self) -> PathBuf {
-        self.coconut_signer.keypair_path.clone()
+    pub fn verification_key_path(&self) -> PathBuf {
+        self.coconut_signer.verification_key_path.clone()
+    }
+
+    #[cfg(feature = "coconut")]
+    pub fn secret_key_path(&self) -> PathBuf {
+        self.coconut_signer.secret_key_path.clone()
     }
 
     #[cfg(feature = "coconut")]
@@ -504,12 +532,6 @@ impl Config {
     #[cfg(feature = "coconut")]
     pub fn get_dkg_contract_polling_rate(&self) -> Duration {
         self.coconut_signer.dkg_contract_polling_rate
-    }
-
-    // fix dead code warnings as this method is only ever used with coconut feature
-    #[cfg(feature = "coconut")]
-    pub fn get_all_validator_api_endpoints(&self) -> Vec<Url> {
-        self.coconut_signer.all_validator_apis.clone()
     }
 
     // TODO: Remove if still unused

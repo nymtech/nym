@@ -2,15 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{validator_api, ValidatorClientError};
-use coconut_dkg_common::dealer::ContractDealing;
-use coconut_dkg_common::types::DealerDetails;
+use coconut_dkg_common::types::NodeIndex;
+#[cfg(feature = "nymd-client")]
+use coconut_dkg_common::{
+    dealer::ContractDealing, types::DealerDetails, verification_key::ContractVKShare,
+};
+#[cfg(feature = "nymd-client")]
+use coconut_interface::Base58;
+use coconut_interface::VerificationKey;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::MixId;
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef};
-use url::Url;
+#[cfg(feature = "nymd-client")]
+use std::str::FromStr;
 use validator_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse, VerificationKeyResponse,
-    VerifyCredentialBody, VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_api_requests::models::{
     GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
@@ -18,9 +24,11 @@ use validator_api_requests::models::{
 };
 
 #[cfg(feature = "nymd-client")]
-use crate::nymd::traits::{DkgQueryClient, MixnetQueryClient};
+use crate::nymd::traits::{DkgQueryClient, MixnetQueryClient, MultisigQueryClient};
 #[cfg(feature = "nymd-client")]
 use crate::nymd::{self, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient};
+#[cfg(feature = "nymd-client")]
+use cw3::ProposalResponse;
 #[cfg(feature = "nymd-client")]
 use mixnet_contract_common::{
     mixnode::MixNodeBond,
@@ -29,6 +37,7 @@ use mixnet_contract_common::{
 };
 #[cfg(feature = "nymd-client")]
 use network_defaults::NymNetworkDetails;
+use url::Url;
 #[cfg(feature = "nymd-client")]
 use validator_api_requests::models::MixNodeBondAnnotated;
 
@@ -46,6 +55,8 @@ pub struct Config {
     mixnode_delegations_page_limit: Option<u32>,
     rewarded_set_page_limit: Option<u32>,
     dealers_page_limit: Option<u32>,
+    verification_key_page_limit: Option<u32>,
+    proposals_page_limit: Option<u32>,
 }
 
 #[cfg(feature = "nymd-client")]
@@ -76,6 +87,8 @@ impl Config {
             mixnode_delegations_page_limit: None,
             rewarded_set_page_limit: None,
             dealers_page_limit: None,
+            verification_key_page_limit: None,
+            proposals_page_limit: None,
         })
     }
 
@@ -124,6 +137,8 @@ pub struct Client<C> {
     mixnode_delegations_page_limit: Option<u32>,
     rewarded_set_page_limit: Option<u32>,
     dealers_page_limit: Option<u32>,
+    verification_key_page_limit: Option<u32>,
+    proposals_page_limit: Option<u32>,
 
     // ideally they would have been read-only, but unfortunately rust doesn't have such features
     pub validator_api: validator_api::Client,
@@ -151,6 +166,8 @@ impl Client<SigningNymdClient> {
             mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,
             rewarded_set_page_limit: config.rewarded_set_page_limit,
             dealers_page_limit: config.dealers_page_limit,
+            verification_key_page_limit: config.verification_key_page_limit,
+            proposals_page_limit: config.proposals_page_limit,
             validator_api: validator_api_client,
             nymd: nymd_client,
         })
@@ -185,6 +202,8 @@ impl Client<QueryNymdClient> {
             mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,
             rewarded_set_page_limit: config.rewarded_set_page_limit,
             dealers_page_limit: config.dealers_page_limit,
+            verification_key_page_limit: config.verification_key_page_limit,
+            proposals_page_limit: config.proposals_page_limit,
             validator_api: validator_api_client,
             nymd: nymd_client,
         })
@@ -602,6 +621,59 @@ impl<C> Client<C> {
 
         Ok(dealings)
     }
+
+    pub async fn get_all_nymd_verification_key_shares(
+        &self,
+    ) -> Result<Vec<ContractVKShare>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        let mut shares = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .nymd
+                .get_vk_shares_paged(start_after.take(), self.verification_key_page_limit)
+                .await?;
+            shares.append(&mut paged_response.shares);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res.into_string())
+            } else {
+                break;
+            }
+        }
+
+        Ok(shares)
+    }
+
+    pub async fn get_all_nymd_proposals(
+        &self,
+    ) -> Result<Vec<ProposalResponse>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        let mut proposals = Vec::new();
+        let mut start_after = None;
+
+        loop {
+            let mut paged_response = self
+                .nymd
+                .list_proposals(start_after.take(), self.proposals_page_limit)
+                .await?;
+
+            let last_id = paged_response.proposals.last().map(|prop| prop.id);
+            proposals.append(&mut paged_response.proposals);
+
+            if let Some(start_after_res) = last_id {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(proposals)
+    }
 }
 
 // validator-api wrappers
@@ -655,14 +727,53 @@ impl<C> Client<C> {
     ) -> Result<BlindedSignatureResponse, ValidatorClientError> {
         Ok(self.validator_api.blind_sign(request_body).await?)
     }
+}
 
-    pub async fn get_coconut_verification_key(
-        &self,
-    ) -> Result<VerificationKeyResponse, ValidatorClientError> {
-        Ok(self.validator_api.get_coconut_verification_key().await?)
+#[derive(Clone)]
+pub struct CoconutApiClient {
+    pub api_client: ApiClient,
+    pub verification_key: VerificationKey,
+    pub node_id: NodeIndex,
+    #[cfg(feature = "nymd-client")]
+    pub cosmos_address: cosmrs::AccountId,
+}
+
+#[cfg(feature = "nymd-client")]
+impl CoconutApiClient {
+    pub async fn all_coconut_api_clients<C>(
+        nymd_client: &Client<C>,
+    ) -> Result<Vec<Self>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        Ok(nymd_client
+            .get_all_nymd_verification_key_shares()
+            .await?
+            .into_iter()
+            .filter_map(Self::try_from)
+            .collect())
+    }
+
+    fn try_from(share: ContractVKShare) -> Option<Self> {
+        if share.verified {
+            if let Ok(url_address) = Url::parse(&share.announce_address) {
+                if let Ok(verification_key) = VerificationKey::try_from_bs58(&share.share) {
+                    if let Ok(cosmos_address) = cosmrs::AccountId::from_str(share.owner.as_str()) {
+                        return Some(CoconutApiClient {
+                            api_client: ApiClient::new(url_address),
+                            verification_key,
+                            node_id: share.node_index,
+                            cosmos_address,
+                        });
+                    }
+                }
+            }
+        }
+        None
     }
 }
 
+#[derive(Clone)]
 pub struct ApiClient {
     pub validator_api: validator_api::Client,
     // TODO: perhaps if we really need it at some (currently I don't see any reasons for it)
@@ -766,16 +877,6 @@ impl ApiClient {
             .validator_api
             .partial_bandwidth_credential(request_body)
             .await?)
-    }
-
-    pub async fn get_coconut_verification_key(
-        &self,
-    ) -> Result<VerificationKeyResponse, ValidatorClientError> {
-        Ok(self.validator_api.get_coconut_verification_key().await?)
-    }
-
-    pub async fn get_cosmos_address(&self) -> Result<CosmosAddressResponse, ValidatorClientError> {
-        Ok(self.validator_api.get_cosmos_address().await?)
     }
 
     pub async fn verify_bandwidth_credential(

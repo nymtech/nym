@@ -12,8 +12,6 @@ use crate::nymd_client::Client;
 use crate::storage::ValidatorApiStorage;
 use ::config::defaults::mainnet::read_var_if_not_default;
 use ::config::defaults::setup_env;
-#[cfg(feature = "coconut")]
-use ::config::defaults::var_names::API_VALIDATOR;
 use ::config::defaults::var_names::{CONFIGURED, MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
 use ::config::NymConfig;
 use anyhow::Result;
@@ -35,6 +33,8 @@ use std::time::Duration;
 use std::{fs, process};
 use task::ShutdownNotifier;
 use tokio::sync::Notify;
+#[cfg(feature = "coconut")]
+use url::Url;
 use validator_client::nymd::SigningNymdClient;
 
 use crate::epoch_operations::RewardedSetUpdater;
@@ -71,9 +71,7 @@ const NYMD_VALIDATOR_ARG: &str = "nymd-validator";
 const ENABLED_CREDENTIALS_MODE_ARG_NAME: &str = "enabled-credentials-mode";
 
 #[cfg(feature = "coconut")]
-const API_VALIDATORS_ARG: &str = "api-validators";
-#[cfg(feature = "coconut")]
-const KEYPAIR_ARG: &str = "keypair";
+const ANNOUNCE_ADDRESS: &str = "announce-address";
 #[cfg(feature = "coconut")]
 const COCONUT_ENABLED: &str = "enable-coconut";
 
@@ -193,21 +191,15 @@ fn parse_args() -> ArgMatches {
     #[cfg(feature = "coconut")]
     let base_app = base_app
         .arg(
-            Arg::with_name(KEYPAIR_ARG)
-                .help("Path to the secret key file")
-                .takes_value(true)
-                .long(KEYPAIR_ARG),
-        )
-        .arg(
-            Arg::with_name(API_VALIDATORS_ARG)
-                .help("specifies list of all validators on the network issuing coconut credentials. Ensure they are properly ordered")
-                .long(API_VALIDATORS_ARG)
-                .takes_value(true)
+            Arg::with_name(ANNOUNCE_ADDRESS)
+                .help("Announced address where coconut clients will connect.")
+                .long(ANNOUNCE_ADDRESS)
+                .takes_value(true),
         )
         .arg(
             Arg::with_name(COCONUT_ENABLED)
                 .help("Flag to indicate whether coconut signer authority is enabled on this API")
-                .requires_all(&[KEYPAIR_ARG, MNEMONIC_ARG, API_VALIDATORS_ARG])
+                .requires_all(&[MNEMONIC_ARG, ANNOUNCE_ADDRESS])
                 .long(COCONUT_ENABLED),
         );
     base_app.get_matches()
@@ -276,12 +268,10 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     }
 
     #[cfg(feature = "coconut")]
-    if let Some(raw_validators) = matches.value_of(API_VALIDATORS_ARG) {
-        config = config.with_custom_validator_apis(::config::parse_validators(raw_validators));
-    } else if std::env::var(CONFIGURED).is_ok() {
-        if let Some(raw_validators) = read_var_if_not_default(API_VALIDATOR) {
-            config = config.with_custom_validator_apis(::config::parse_validators(&raw_validators))
-        }
+    if let Some(announce_address) = matches.value_of(ANNOUNCE_ADDRESS) {
+        config = config.with_announce_address(
+            Url::parse(announce_address).expect("Could not parse announce address"),
+        );
     }
 
     if let Some(raw_validator) = matches.value_of(NYMD_VALIDATOR_ARG) {
@@ -338,11 +328,6 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         )
     }
 
-    #[cfg(feature = "coconut")]
-    if let Some(keypair_path) = matches.value_of(KEYPAIR_ARG) {
-        config = config.with_keypair_path(keypair_path.into())
-    }
-
     if matches.is_present(ENABLED_CREDENTIALS_MODE_ARG_NAME) {
         config = config.with_disabled_credentials_mode(false)
     }
@@ -385,6 +370,7 @@ fn setup_liftoff_notify(notify: Arc<Notify>) -> AdHoc {
 
 fn setup_network_monitor<'a>(
     config: &'a Config,
+    _nymd_client: Client<SigningNymdClient>,
     system_version: &str,
     rocket: &Rocket<Ignite>,
 ) -> Option<NetworkMonitorBuilder<'a>> {
@@ -398,6 +384,7 @@ fn setup_network_monitor<'a>(
 
     Some(NetworkMonitorBuilder::new(
         config,
+        _nymd_client,
         system_version,
         node_status_storage,
         validator_cache,
@@ -453,10 +440,10 @@ async fn setup_rocket(
     #[cfg(feature = "coconut")]
     let rocket = if config.get_coconut_signer_enabled() {
         rocket.attach(InternalSignRequest::stage(
-            _nymd_client,
+            _nymd_client.clone(),
             _mix_denom,
             coconut_keypair,
-            QueryCommunicationChannel::new(config.get_all_validator_api_endpoints()),
+            QueryCommunicationChannel::new(_nymd_client),
             storage.clone().unwrap(),
         ))
     } else {
@@ -554,7 +541,12 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
         coconut_keypair.clone(),
     )
     .await?;
-    let monitor_builder = setup_network_monitor(&config, system_version, &rocket);
+    let monitor_builder = setup_network_monitor(
+        &config,
+        signing_nymd_client.clone(),
+        system_version,
+        &rocket,
+    );
 
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
     let node_status_cache = rocket.state::<NodeStatusCache>().unwrap().clone();
@@ -562,7 +554,8 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
     #[cfg(feature = "coconut")]
     {
         let dkg_controller =
-            DkgController::new(&config, signing_nymd_client.clone(), coconut_keypair, OsRng)?;
+            DkgController::new(&config, signing_nymd_client.clone(), coconut_keypair, OsRng)
+                .await?;
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(async move { dkg_controller.run(shutdown_listener).await });
     }

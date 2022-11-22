@@ -212,6 +212,39 @@ pub fn check_bilinear_pairing(p: &G1Affine, q: &G2Prepared, r: &G1Affine, s: &G2
     multi_miller.final_exponentiation().is_identity().into()
 }
 
+pub fn check_vk_pairing(
+    params: &Parameters,
+    dkg_values: &[G2Projective],
+    vk: &VerificationKey,
+) -> bool {
+    let values_len = dkg_values.len();
+    if values_len == 0 || values_len - 1 != vk.beta_g1.len() || values_len - 1 != vk.beta_g2.len() {
+        return false;
+    }
+    if vk.alpha != *dkg_values.last().unwrap() {
+        return false;
+    }
+    if dkg_values
+        .iter()
+        .zip(vk.beta_g2.iter())
+        .any(|(dkg_beta, vk_beta)| dkg_beta != vk_beta)
+    {
+        return false;
+    }
+    if vk.beta_g1.iter().zip(vk.beta_g2.iter()).any(|(g1, g2)| {
+        !check_bilinear_pairing(
+            params.gen1(),
+            &G2Prepared::from(g2.to_affine()),
+            &g1.to_affine(),
+            params.prepared_miller_g2(),
+        )
+    }) {
+        return false;
+    }
+
+    true
+}
+
 pub fn verify_credential(
     params: &Parameters,
     verification_key: &VerificationKey,
@@ -283,6 +316,15 @@ mod tests {
     use crate::scheme::setup::setup;
 
     use super::*;
+
+    #[test]
+    fn vk_pairing() {
+        let params = setup(2).unwrap();
+        let vk = keygen(&params).verification_key();
+        let mut dkg_values = vk.beta_g2.clone();
+        dkg_values.push(vk.alpha);
+        assert!(check_vk_pairing(&params, &dkg_values, &vk));
+    }
 
     #[test]
     fn theta_bytes_roundtrip() {

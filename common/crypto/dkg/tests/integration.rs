@@ -3,6 +3,7 @@
 
 use bls12_381::{G2Projective, Scalar};
 use dkg::bte::{decrypt_share, keygen, setup};
+use dkg::dealing::RecoveredVerificationKeys;
 use dkg::interpolation::perform_lagrangian_interpolation_at_origin;
 use dkg::{combine_shares, try_recover_verification_keys, Dealing};
 use rand_core::SeedableRng;
@@ -100,8 +101,10 @@ fn full_threshold_secret_sharing() {
     }
 
     // recover verification keys
-    let (recovered_master, recovered_partials) =
-        try_recover_verification_keys(&dealings, threshold, &receivers).unwrap();
+    let RecoveredVerificationKeys {
+        recovered_master,
+        recovered_partials,
+    } = try_recover_verification_keys(&dealings, threshold, &receivers).unwrap();
 
     let g2 = G2Projective::generator();
 
@@ -171,8 +174,10 @@ fn full_threshold_secret_resharing() {
         .collect::<Vec<_>>();
 
     // recover verification keys
-    let (public_original_master, recovered_partials) =
-        try_recover_verification_keys(&first_dealings, threshold, &receivers).unwrap();
+    let RecoveredVerificationKeys {
+        recovered_master: public_original_master,
+        recovered_partials,
+    } = try_recover_verification_keys(&first_dealings, threshold, &receivers).unwrap();
 
     let mut derived_secrets = Vec::new();
     for (i, (ref mut dk, _)) in full_keys.iter_mut().enumerate() {
@@ -217,8 +222,10 @@ fn full_threshold_secret_resharing() {
     }
 
     // recover verification keys
-    let (public_reshared_master, reshared_partials) =
-        try_recover_verification_keys(&resharing_dealings, threshold, &receivers).unwrap();
+    let RecoveredVerificationKeys {
+        recovered_master: public_reshared_master,
+        recovered_partials: reshared_partials,
+    } = try_recover_verification_keys(&resharing_dealings, threshold, &receivers).unwrap();
 
     let mut reshared_secrets = Vec::new();
     for (i, (ref mut dk, _)) in full_keys.iter_mut().enumerate() {

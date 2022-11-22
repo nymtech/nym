@@ -8,8 +8,8 @@ use coconut_interface::{
 use crypto::asymmetric::encryption::PublicKey;
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
-use url::Url;
 use validator_api_requests::coconut::BlindSignRequestBody;
+use validator_client::client::CoconutApiClient;
 
 use crate::coconut::bandwidth::{BandwidthVoucher, PRIVATE_ATTRIBUTES, PUBLIC_ATTRIBUTES};
 use crate::coconut::params::{
@@ -17,46 +17,21 @@ use crate::coconut::params::{
 };
 use crate::error::Error;
 
-/// Contacts all provided validators and then aggregate their verification keys.
-///
-/// # Arguments
-///
-/// * `validators`: list of validators to obtain verification keys from.
-///
-/// Note: list of validators must be correctly ordered by the polynomial coordinates used
-/// during key generation and it is responsibility of the caller to ensure that correct
-/// number of them is provided
-///
-/// # Examples
-///
-/// ```no_run
-/// use url::{Url, ParseError};
-/// use credentials::obtain_aggregate_verification_key;
-///
-/// async fn example() -> Result<(), ParseError> {
-///     let validators = vec!["https://sandbox-validator1.nymtech.net/api".parse()?, "https://sandbox-validator2.nymtech.net/api".parse()?];
-///     let aggregated_key = obtain_aggregate_verification_key(&validators).await;
-///     // deal with the obtained Result
-///     Ok(())
-/// }
-/// ```
 pub async fn obtain_aggregate_verification_key(
-    validators: &[Url],
+    api_clients: &[CoconutApiClient],
 ) -> Result<VerificationKey, Error> {
-    if validators.is_empty() {
+    if api_clients.is_empty() {
         return Err(Error::NoValidatorsAvailable);
     }
 
-    let mut indices = Vec::with_capacity(validators.len());
-    let mut shares = Vec::with_capacity(validators.len());
-
-    let mut client = validator_client::ApiClient::new(validators[0].clone());
-    for (id, validator_url) in validators.iter().enumerate() {
-        client.change_validator_api(validator_url.clone());
-        let response = client.get_coconut_verification_key().await?;
-        indices.push((id + 1) as u64);
-        shares.push(response.key);
-    }
+    let indices: Vec<_> = api_clients
+        .iter()
+        .map(|api_client| api_client.node_id)
+        .collect();
+    let shares: Vec<_> = api_clients
+        .iter()
+        .map(|api_client| api_client.verification_key.clone())
+        .collect();
 
     Ok(aggregate_verification_keys(&shares, Some(&indices))?)
 }
@@ -64,7 +39,7 @@ pub async fn obtain_aggregate_verification_key(
 async fn obtain_partial_credential(
     params: &Parameters,
     attributes: &BandwidthVoucher,
-    client: &validator_client::ApiClient,
+    client: &validator_client::client::ApiClient,
     validator_vk: &VerificationKey,
 ) -> Result<Signature, Error> {
     let public_attributes = attributes.get_public_attributes();
@@ -118,26 +93,33 @@ async fn obtain_partial_credential(
 pub async fn obtain_aggregate_signature(
     params: &Parameters,
     attributes: &BandwidthVoucher,
-    validators: &[Url],
+    coconut_api_clients: &[CoconutApiClient],
 ) -> Result<Signature, Error> {
-    if validators.is_empty() {
+    if coconut_api_clients.is_empty() {
         return Err(Error::NoValidatorsAvailable);
     }
     let public_attributes = attributes.get_public_attributes();
     let private_attributes = attributes.get_private_attributes();
 
-    let mut shares = Vec::with_capacity(validators.len());
-    let mut validators_partial_vks: Vec<VerificationKey> = Vec::with_capacity(validators.len());
+    let mut shares = Vec::with_capacity(coconut_api_clients.len());
+    let validators_partial_vks: Vec<_> = coconut_api_clients
+        .iter()
+        .map(|api_client| api_client.verification_key.clone())
+        .collect();
+    let indices: Vec<_> = coconut_api_clients
+        .iter()
+        .map(|api_client| api_client.node_id)
+        .collect();
 
-    let mut client = validator_client::ApiClient::new(validators[0].clone());
-    for (id, validator_url) in validators.iter().enumerate() {
-        client.change_validator_api(validator_url.clone());
-        let validator_partial_vk = client.get_coconut_verification_key().await?;
-        validators_partial_vks.push(validator_partial_vk.key.clone());
-        let signature =
-            obtain_partial_credential(params, attributes, &client, &validator_partial_vk.key)
-                .await?;
-        let share = SignatureShare::new(signature, (id + 1) as u64);
+    for coconut_api_client in coconut_api_clients.iter() {
+        let signature = obtain_partial_credential(
+            params,
+            attributes,
+            &coconut_api_client.api_client,
+            &coconut_api_client.verification_key,
+        )
+        .await?;
+        let share = SignatureShare::new(signature, coconut_api_client.node_id);
         shares.push(share)
     }
 
@@ -145,10 +127,6 @@ pub async fn obtain_aggregate_signature(
     attributes.extend_from_slice(&private_attributes);
     attributes.extend_from_slice(&public_attributes);
 
-    let mut indices: Vec<u64> = Vec::with_capacity(validators_partial_vks.len());
-    for i in 0..validators_partial_vks.len() {
-        indices.push((i + 1) as u64);
-    }
     let verification_key =
         aggregate_verification_keys(&validators_partial_vks, Some(indices.as_ref()))?;
 

@@ -25,9 +25,13 @@ pub(crate) struct Init {
     #[clap(long)]
     force_register_gateway: bool,
 
-    /// Comma separated list of rest endpoints of the validators
+    /// Comma separated list of rest endpoints of the nymd validators
     #[clap(long)]
-    validators: Option<String>,
+    nymd_validators: Option<String>,
+
+    /// Comma separated list of rest endpoints of the API validators
+    #[clap(long)]
+    api_validators: Option<String>,
 
     /// Whether to not start the websocket
     #[clap(long)]
@@ -52,7 +56,8 @@ pub(crate) struct Init {
 impl From<Init> for OverrideConfig {
     fn from(init_config: Init) -> Self {
         OverrideConfig {
-            validators: init_config.validators,
+            nymd_validators: init_config.nymd_validators,
+            api_validators: init_config.api_validators,
             disable_socket: init_config.disable_socket,
             port: init_config.port,
             fastmode: init_config.fastmode,

@@ -14,7 +14,7 @@ pub fn try_commit_dealings(
     dealing_bytes: ContractSafeBytes,
 ) -> Result<Response, ContractError> {
     check_epoch_state(deps.storage, EpochState::DealingExchange)?;
-    // ensure the sender is a dealer for the current epoch
+    // ensure the sender is a dealer
     if dealers_storage::current_dealers()
         .may_load(deps.storage, &info.sender)?
         .is_none()
@@ -31,5 +31,7 @@ pub fn try_commit_dealings(
         }
     }
 
-    Err(ContractError::AlreadyCommitted)
+    Err(ContractError::AlreadyCommitted {
+        commitment: String::from("dealing"),
+    })
 }

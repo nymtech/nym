@@ -30,9 +30,11 @@ use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsRe
 #[cfg(feature = "coconut")]
 use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
 #[cfg(feature = "coconut")]
+use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
+#[cfg(feature = "coconut")]
 use contracts_common::dealings::ContractSafeBytes;
 #[cfg(feature = "coconut")]
-use multisig_contract_common::msg::ProposalResponse;
+use cw3::ProposalResponse;
 #[cfg(feature = "coconut")]
 use validator_client::nymd::{
     cosmwasm_client::types::ExecuteResult,
@@ -291,6 +293,10 @@ where
         Ok(self.0.read().await.nymd.get_proposal(proposal_id).await?)
     }
 
+    async fn list_proposals(&self) -> crate::coconut::error::Result<Vec<ProposalResponse>> {
+        Ok(self.0.read().await.get_all_nymd_proposals().await?)
+    }
+
     async fn get_spent_credential(
         &self,
         blinded_serial_number: String,
@@ -332,6 +338,17 @@ where
         Ok(self.0.read().await.get_all_nymd_epoch_dealings(idx).await?)
     }
 
+    async fn get_verification_key_shares(
+        &self,
+    ) -> crate::coconut::error::Result<Vec<ContractVKShare>> {
+        Ok(self
+            .0
+            .read()
+            .await
+            .get_all_nymd_verification_key_shares()
+            .await?)
+    }
+
     async fn vote_proposal(
         &self,
         proposal_id: u64,
@@ -347,16 +364,27 @@ where
         Ok(())
     }
 
+    async fn execute_proposal(&self, proposal_id: u64) -> crate::coconut::error::Result<()> {
+        self.0
+            .read()
+            .await
+            .nymd
+            .execute_proposal(proposal_id, None)
+            .await?;
+        Ok(())
+    }
+
     async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
+        announce_address: String,
     ) -> Result<ExecuteResult, CoconutError> {
         Ok(self
             .0
             .write()
             .await
             .nymd
-            .register_dealer(bte_key, None)
+            .register_dealer(bte_key, announce_address, None)
             .await?)
     }
 
@@ -370,6 +398,19 @@ where
             .await
             .nymd
             .submit_dealing_bytes(dealing_bytes, None)
+            .await?)
+    }
+
+    async fn submit_verification_key_share(
+        &self,
+        share: VerificationKeyShare,
+    ) -> crate::coconut::error::Result<ExecuteResult> {
+        Ok(self
+            .0
+            .write()
+            .await
+            .nymd
+            .submit_verification_key_share(share, None)
             .await?)
     }
 }

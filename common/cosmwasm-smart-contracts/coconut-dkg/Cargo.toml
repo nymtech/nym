@@ -7,7 +7,9 @@ edition = "2021"
 
 [dependencies]
 cosmwasm-std = "1.0.0"
+cw-utils = "0.13.4"
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 
 contracts-common = { path = "../contracts-common" }
+multisig-contract-common = { path = "../multisig-contract" }

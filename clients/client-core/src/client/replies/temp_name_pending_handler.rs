@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::real_messages_control::message_handler::{MessageHandler, PreparationErrorRepr};
+use crate::client::real_messages_control::message_handler::{MessageHandler, PreparationError};
 use crate::client::replies::reply_storage::ReceivedReplySurbsMap;
 use futures::channel::mpsc;
 use futures::StreamExt;
@@ -13,21 +13,8 @@ use nymsphinx::chunking::fragment::Fragment;
 use rand::{CryptoRng, Rng};
 use std::cmp::{max, min};
 use std::collections::{HashMap, VecDeque};
-use std::sync::atomic::AtomicUsize;
 use std::time::Duration;
-use thiserror::Error;
 use tokio::time::Instant;
-
-// TODO: rename
-
-// TODO: move elsewhere and share with other bits doing surb requests
-#[derive(Debug, Clone, Error)]
-pub enum SurbRequestError {
-    #[error("Not enough reply SURBs to send the message. We have {available} available and require {required}.")]
-    NotEnoughSurbs { available: usize, required: usize },
-    #[error(transparent)]
-    InvalidTopology(#[from] PreparationErrorRepr),
-}
 
 pub fn new_control_channels() -> (ToBeNamedSender, ToBeNamedReceiver) {
     let (tx, rx) = mpsc::unbounded();
@@ -188,10 +175,8 @@ where
                 .await
             {
                 // TODO: perhaps there should be some timer here to repeat the request once topology recovers
-                let (msg, returned_surbs) = err.into_inner();
-                warn!("failed to send reply to {:?} - {msg}", recipient_tag);
-                self.received_reply_surbs
-                    .insert_maybe_surbs(&recipient_tag, returned_surbs);
+                let err = err.return_unused_surbs(&self.received_reply_surbs, &recipient_tag);
+                warn!("failed to send reply to {:?} - {err}", recipient_tag);
             }
         } else {
             // we don't have enough surbs for this reply
@@ -210,42 +195,7 @@ where
                 .await
             {
                 error!("couldnt request additional surbs - {:?}", err);
-                // self.increment_surb_request_counter(&recipient_tag, required_surbs as u32)
-                // if we failed to request surbs, increase value for the next request
             }
-
-            // #[deprecated]
-            //     //remove hardcoded 10
-            //     let extra_surbs = 0;
-            //
-            // // if we're running low on surbs, we should request more (unless we've already requested them)
-            // let mut already_requesting = self
-            //     .received_reply_surbs
-            //     .set_requesting_more_surbs(&recipient_tag)
-            //     .expect("error handling");
-            //
-            // // TODO: revisit that dodgy if
-            // if already_requesting {
-            //     warn!("we were already requesting surbs, but we shall ignore it");
-            //     already_requesting = false;
-            // }
-            //
-            // if !already_requesting {
-            //     let ideal_amount = extra_surbs + required_surbs as u32;
-            //     let amount = min(
-            //         max(ideal_amount, self.min_surb_request_size),
-            //         self.max_surb_request_size,
-            //     );
-            //
-            //     if let Err(err) = self
-            //         .request_additional_reply_surbs(recipient_tag, amount)
-            //         .await
-            //     {
-            //         error!("couldnt request additional surbs - {:?}", err);
-            //         self.increment_surb_request_counter(&recipient_tag, required_surbs as u32)
-            //         // if we failed to request surbs, increase value for the next request
-            //     }
-            // }
         }
     }
 
@@ -253,14 +203,14 @@ where
         &mut self,
         target: AnonymousSenderTag,
         amount: u32,
-    ) -> Result<(), SurbRequestError> {
+    ) -> Result<(), PreparationError> {
         info!("requesting {amount} reply surbs ...");
 
         let reply_surb = self
             .received_reply_surbs
             .get_reply_surb_ignoring_threshold(&target)
             .and_then(|(reply_surb, _)| reply_surb)
-            .ok_or(SurbRequestError::NotEnoughSurbs {
+            .ok_or(PreparationError::NotEnoughSurbs {
                 available: 0,
                 required: 1,
             })?;
@@ -270,15 +220,13 @@ where
             .try_request_additional_reply_surbs(target, reply_surb, amount)
             .await
         {
-            let (msg, returned_surbs) = err.into_inner();
+            let err = err.return_unused_surbs(&self.received_reply_surbs, &target);
             warn!(
-                "failed to request additional surbs from {:?} - {msg}",
+                "failed to request additional surbs from {:?} - {err}",
                 target
             );
             // TODO: perhaps there should be some timer here to repeat the request once topology recovers
-            self.received_reply_surbs
-                .insert_maybe_surbs(&target, returned_surbs);
-            return Err(msg.into());
+            return Err(err);
         } else {
             self.received_reply_surbs
                 .increment_pending_reception(&target, amount);
@@ -349,13 +297,9 @@ where
                 .try_send_reply_chunks(target, to_send_vec, surbs_for_reply)
                 .await
             {
-                let (msg, returned_surbs) = err.into_inner();
-                warn!("failed to clear pending queue for {:?} - {msg}", target);
+                let err = err.return_unused_surbs(&self.received_reply_surbs, &target);
+                warn!("failed to clear pending queue for {:?} - {err}", target);
                 // TODO: perhaps there should be some timer here to repeat the request once topology recovers
-                if let Some(returned_surbs) = returned_surbs {
-                    self.received_reply_surbs
-                        .insert_surbs(&target, returned_surbs);
-                }
             }
         } else {
             println!("nothing left to clear");
@@ -484,7 +428,6 @@ where
                 .await
             {
                 warn!("failed to send additional surbs to {recipient} - {err}");
-                debug_assert!(err.into_inner().1.is_none())
             } else {
                 warn!("sent {to_send} surbs");
             }

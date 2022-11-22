@@ -6,7 +6,7 @@ use crate::client::real_messages_control::real_traffic_stream::{
     BatchRealMessageSender, RealMessage,
 };
 use crate::client::real_messages_control::{AckActionSender, Action};
-use crate::client::replies::reply_storage::{SentReplyKeys, UsedSenderTags};
+use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, SentReplyKeys, UsedSenderTags};
 use crate::client::topology_control::{InvalidTopologyError, TopologyAccessor, TopologyReadPermit};
 use log::{error, info, warn};
 use nymsphinx::acknowledgements::AckKey;
@@ -24,61 +24,112 @@ use std::sync::Arc;
 use thiserror::Error;
 use topology::{NymTopology, NymTopologyError};
 
+// TODO: move that error elsewhere since it seems to be contaminating different files
 // TODO2: attempt to unify `InvalidTopologyError` and `NymTopologyError`
 #[derive(Debug, Clone, Error)]
-#[error(transparent)]
-pub enum PreparationErrorRepr {
+pub enum PreparationError {
+    #[error(transparent)]
     InvalidTopology(#[from] InvalidTopologyError),
+
+    #[error(transparent)]
     NymTopologyError(#[from] NymTopologyError),
+
     #[error("The received message cannot be sent using a single reply surb. It ended up getting split into {fragments} fragments.")]
-    MessageTooLongForSingleSurb {
-        fragments: usize,
-    },
+    MessageTooLongForSingleSurb { fragments: usize },
+
+    #[error(
+        "Never received any reply SURBs associated with the following sender tag: {sender_tag:?}"
+    )]
+    UnknownSurbSender { sender_tag: AnonymousSenderTag },
+
+    #[error("Not enough reply SURBs to send the message. We have {available} available and require at least {required}.")]
+    NotEnoughSurbs { available: usize, required: usize },
 }
 
-// deprecated because I need to move it elsewhere
+impl PreparationError {
+    fn return_surbs(self, returned_surbs: Vec<ReplySurb>) -> SurbWrappedPreparationError {
+        SurbWrappedPreparationError {
+            source: self,
+            returned_surbs: Some(returned_surbs),
+        }
+    }
+}
+
 #[derive(Debug, Error)]
 #[error("Failed to prepare packets - {source}. {} reply surbs will be returned", .returned_surbs.as_ref().map(|s| s.len()).unwrap_or_default())]
-pub struct PreparationError {
-    // #[error("Could not construct a packet due to invalid network topology - {source}")]
-    // InvalidTopology {
+pub struct SurbWrappedPreparationError {
     #[source]
-    source: PreparationErrorRepr,
+    source: PreparationError,
 
     returned_surbs: Option<Vec<ReplySurb>>,
 }
 
-impl From<InvalidTopologyError> for PreparationError {
-    fn from(err: InvalidTopologyError) -> Self {
-        PreparationError {
+// impl From<InvalidTopologyError> for WrappedPreparationError {
+//     fn from(err: InvalidTopologyError) -> Self {
+//         WrappedPreparationError {
+//             source: err.into(),
+//             returned_surbs: None,
+//         }
+//     }
+// }
+//
+// impl From<NymTopologyError> for WrappedPreparationError {
+//     fn from(err: NymTopologyError) -> Self {
+//         WrappedPreparationError {
+//             source: err.into(),
+//             returned_surbs: None,
+//         }
+//     }
+// }
+// impl From<PreparationError> for WrappedPreparationError {
+//     fn from(err: PreparationError) -> Self {
+//         WrappedPreparationError {
+//             source: err,
+//             returned_surbs: None,
+//         }
+//     }
+// }
+
+impl<T> From<T> for SurbWrappedPreparationError
+where
+    T: Into<PreparationError>,
+{
+    fn from(err: T) -> Self {
+        SurbWrappedPreparationError {
             source: err.into(),
             returned_surbs: None,
         }
     }
 }
 
-impl From<NymTopologyError> for PreparationError {
-    fn from(err: NymTopologyError) -> Self {
-        PreparationError {
-            source: err.into(),
-            returned_surbs: None,
+impl SurbWrappedPreparationError {
+    // fn return_surbs(mut self, reply_surbs: Vec<ReplySurb>) -> Self {
+    //     debug_assert!(self.returned_surbs.is_none());
+    //     self.returned_surbs = Some(reply_surbs);
+    //     self
+    // }
+
+    // pub(crate) fn into_inner(self) -> (PreparationError, Option<Vec<ReplySurb>>) {
+    //     (self.source, self.returned_surbs)
+    // }
+    //
+    // pub(crate) fn into_inner_err(self) -> PreparationError {
+    //     self.source
+    // }
+    //
+    // pub(crate) fn take_returned_surbs(&mut self) -> Option<Vec<ReplySurb>> {
+    //     self.returned_surbs.take()
+    // }
+
+    pub(crate) fn return_unused_surbs(
+        self,
+        surb_storage: &ReceivedReplySurbsMap,
+        target: &AnonymousSenderTag,
+    ) -> PreparationError {
+        if let Some(reply_surbs) = self.returned_surbs {
+            surb_storage.insert_surbs(target, reply_surbs)
         }
-    }
-}
-
-impl PreparationError {
-    fn return_surbs(mut self, reply_surbs: Vec<ReplySurb>) -> Self {
-        debug_assert!(self.returned_surbs.is_none());
-        self.returned_surbs = Some(reply_surbs);
-        self
-    }
-
-    pub(crate) fn into_inner(self) -> (PreparationErrorRepr, Option<Vec<ReplySurb>>) {
-        (self.source, self.returned_surbs)
-    }
-
-    pub(crate) fn take_returned_surbs(&mut self) -> Option<Vec<ReplySurb>> {
-        self.returned_surbs.take()
+        self.source
     }
 }
 
@@ -174,14 +225,14 @@ where
         message: ReplyMessage,
         reply_surb: ReplySurb,
         is_extra_surb_request: bool,
-    ) -> Result<(), PreparationError> {
+    ) -> Result<(), SurbWrappedPreparationError> {
         let mut fragment = self
             .message_preparer
             .pad_and_split_message(NymMessage::new_reply(message));
         if fragment.len() > 1 {
             // well, it's not a single surb message
-            return Err(PreparationError {
-                source: PreparationErrorRepr::MessageTooLongForSingleSurb {
+            return Err(SurbWrappedPreparationError {
+                source: PreparationError::MessageTooLongForSingleSurb {
                     fragments: fragment.len(),
                 },
                 returned_surbs: Some(vec![reply_surb]),
@@ -210,7 +261,7 @@ where
         from: AnonymousSenderTag,
         reply_surb: ReplySurb,
         amount: u32,
-    ) -> Result<(), PreparationError> {
+    ) -> Result<(), SurbWrappedPreparationError> {
         info!("requesting {amount} reply surbs from {:?}", from);
 
         let surbs_request = ReplyMessage::new_surb_request_message(self.self_address, amount);
@@ -231,7 +282,7 @@ where
         target: AnonymousSenderTag,
         fragments: Vec<Fragment>,
         reply_surbs: Vec<ReplySurb>,
-    ) -> Result<(), PreparationError> {
+    ) -> Result<(), SurbWrappedPreparationError> {
         // this should never be reached!
         debug_assert_ne!(
             fragments.len(),
@@ -352,7 +403,7 @@ where
         recipient: Recipient,
         message: Vec<u8>,
         num_reply_surbs: u32,
-    ) -> Result<(), PreparationError> {
+    ) -> Result<(), SurbWrappedPreparationError> {
         let sender_tag = self.get_or_create_sender_tag(&recipient);
         let (reply_surbs, reply_keys) = self
             .generate_reply_surbs_with_keys(num_reply_surbs as usize)
@@ -390,7 +441,7 @@ where
         &mut self,
         reply_surb: ReplySurb,
         chunk: Fragment,
-    ) -> Result<PreparedFragment, PreparationError> {
+    ) -> Result<PreparedFragment, SurbWrappedPreparationError> {
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = match self.get_topology(&topology_permit) {
             Ok(topology) => topology,

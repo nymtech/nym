@@ -28,6 +28,8 @@ struct ReceivedReplySurbsMapInner {
     max_surb_threshold: AtomicUsize,
 }
 
+pub enum SurbError {}
+
 impl ReceivedReplySurbsMap {
     pub(crate) fn new(
         min_surb_threshold: usize,
@@ -190,15 +192,15 @@ impl ReceivedReplySurbsMap {
         }
     }
 
-    pub(crate) fn insert_maybe_surbs<I: IntoIterator<Item = ReplySurb>>(
-        &self,
-        target: &AnonymousSenderTag,
-        surbs: Option<I>,
-    ) {
-        if let Some(reply_surbs) = surbs {
-            self.insert_surbs(target, reply_surbs)
-        }
-    }
+    // pub(crate) fn insert_maybe_surbs<I: IntoIterator<Item = ReplySurb>>(
+    //     &self,
+    //     target: &AnonymousSenderTag,
+    //     surbs: Option<I>,
+    // ) {
+    //     if let Some(reply_surbs) = surbs {
+    //         self.insert_surbs(target, reply_surbs)
+    //     }
+    // }
 
     pub(crate) fn insert_surb(&self, target: &AnonymousSenderTag, reply_surb: ReplySurb) {
         if let Some(mut existing_data) = self.inner.data.get_mut(target) {

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
-use crate::families::storage::FAMILY_LAYERS;
 use crate::interval::helpers::change_interval_config;
 use crate::interval::pending_events::ContractExecutableEvent;
 use crate::interval::storage::push_new_interval_event;
@@ -18,8 +17,8 @@ use mixnet_contract_common::events::{
     new_reconcile_pending_events,
 };
 use mixnet_contract_common::pending_events::PendingIntervalEventKind;
-use mixnet_contract_common::{Layer, LayerAssignment, MixId};
-use std::collections::{BTreeSet, HashMap};
+use mixnet_contract_common::{LayerAssignment, MixId};
+use std::collections::BTreeSet;
 
 // those two should be called in separate tx (from advancing epoch),
 // since there might be a lot of events to execute.
@@ -205,7 +204,6 @@ pub fn try_advance_epoch(
     env: Env,
     info: MessageInfo,
     layer_assignments: Vec<LayerAssignment>,
-    families_in_layer: HashMap<String, Layer>,
     expected_active_set_size: u32,
 ) -> Result<Response, MixnetContractError> {
     // Only rewarding validator can attempt to advance epoch
@@ -259,12 +257,8 @@ pub fn try_advance_epoch(
     update_rewarded_set(deps.storage, new_rewarded_set, expected_active_set_size)?;
 
     for a in layer_assignments {
-        update_mixnode_layer(a.mix_id(), a.layer(), deps.storage)?
+        update_mixnode_layer(a.mix_id(), a.layer(), deps.storage)?;
     }
-
-    // for (k, v) in families_in_layer {
-    //     FAMILY_LAYERS.save(deps.storage, k, &v)?;
-    // }
 
     Ok(response.add_event(new_advance_epoch_event(updated_interval, num_nodes as u32)))
 }
@@ -1180,7 +1174,6 @@ mod tests {
                 env,
                 some_sender,
                 layer_assignments.clone(),
-                HashMap::new(),
                 current_active_set,
             );
             assert_eq!(res, Err(MixnetContractError::Unauthorized));
@@ -1193,7 +1186,6 @@ mod tests {
                 env,
                 sender,
                 layer_assignments,
-                HashMap::new(),
                 current_active_set,
             );
             println!("{:?}", res);
@@ -1222,7 +1214,6 @@ mod tests {
                 env,
                 sender.clone(),
                 layer_assignments.clone(),
-                HashMap::new(),
                 current_active_set,
             );
             assert!(matches!(
@@ -1256,7 +1247,6 @@ mod tests {
                 env,
                 sender,
                 layer_assignments,
-                HashMap::new(),
                 current_active_set,
             );
             assert!(res.is_ok())
@@ -1288,7 +1278,6 @@ mod tests {
                 env,
                 sender,
                 layer_assignments,
-                HashMap::new(),
                 current_active_set,
             )
             .unwrap();
@@ -1325,7 +1314,6 @@ mod tests {
                 env,
                 sender,
                 layer_assignments,
-                HashMap::new(),
                 current_active_set,
             )
             .unwrap();
@@ -1405,7 +1393,6 @@ mod tests {
                 env,
                 sender,
                 layer_assignments,
-                HashMap::new(),
                 current_active_set,
             )
             .unwrap();
@@ -1465,7 +1452,6 @@ mod tests {
                 env,
                 sender,
                 layer_assignments.clone(),
-                HashMap::new(),
                 current_active_set,
             )
             .unwrap();
@@ -1485,7 +1471,6 @@ mod tests {
                 env,
                 sender,
                 layer_assignments,
-                HashMap::new(),
                 current_active_set,
             )
             .unwrap();
@@ -1536,7 +1521,6 @@ mod tests {
                 env,
                 sender,
                 layer_assignments,
-                HashMap::new(),
                 current_active_set,
             )
             .unwrap();

@@ -5,7 +5,7 @@ use crate::nymd_client::Client;
 use crate::storage::ValidatorApiStorage;
 use ::time::OffsetDateTime;
 use anyhow::Result;
-use mixnet_contract_common::families::Family;
+use mixnet_contract_common::families::FamilyHead;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use mixnet_contract_common::{
@@ -68,8 +68,6 @@ struct ValidatorCacheInner {
 
     current_reward_params: Cache<Option<RewardingParams>>,
     current_interval: Cache<Option<Interval>>,
-
-    families: Cache<Vec<Family>>,
 }
 
 fn current_unix_timestamp() -> i64 {
@@ -144,15 +142,12 @@ impl<C> ValidatorCacheRefresher<C> {
         interval_reward_params: RewardingParams,
         current_interval: Interval,
         rewarded_set: &HashMap<MixId, RewardedSetNodeStatus>,
-        families: &[Family],
+        mix_to_family: Vec<(IdentityKey, FamilyHead)>,
     ) -> Vec<MixNodeBondAnnotated> {
+        let mix_to_family = mix_to_family
+            .into_iter()
+            .collect::<HashMap<IdentityKey, FamilyHead>>();
         let mut annotated = Vec::new();
-        let mut mix_to_family = HashMap::new();
-        for family in families {
-            for member in family.members() {
-                mix_to_family.insert(member, family.head().clone());
-            }
-        }
         for mixnode in mixnodes {
             let stake_saturation = mixnode
                 .rewarding_details
@@ -241,7 +236,7 @@ impl<C> ValidatorCacheRefresher<C> {
         let mixnodes = self.nymd_client.get_mixnodes().await?;
         let gateways = self.nymd_client.get_gateways().await?;
 
-        let families = self.nymd_client.get_all_node_families().await?;
+        let mix_to_family = self.nymd_client.get_all_family_members().await?;
 
         let rewarded_set = self.get_rewarded_set_map().await;
 
@@ -251,7 +246,7 @@ impl<C> ValidatorCacheRefresher<C> {
                 rewarding_params,
                 current_interval,
                 &rewarded_set,
-                &families,
+                mix_to_family,
             )
             .await;
 
@@ -272,7 +267,6 @@ impl<C> ValidatorCacheRefresher<C> {
                 active_set,
                 rewarding_params,
                 current_interval,
-                families,
             )
             .await;
 
@@ -355,7 +349,6 @@ impl ValidatorCache {
         active_set: Vec<MixNodeBondAnnotated>,
         rewarding_params: RewardingParams,
         current_interval: Interval,
-        families: Vec<Family>,
     ) {
         match time::timeout(Duration::from_millis(100), self.inner.write()).await {
             Ok(mut cache) => {
@@ -365,7 +358,6 @@ impl ValidatorCache {
                 cache.active_set.update(active_set);
                 cache.current_reward_params.update(Some(rewarding_params));
                 cache.current_interval.update(Some(current_interval));
-                cache.families.update(families)
             }
             Err(e) => {
                 error!("{}", e);
@@ -477,17 +469,6 @@ impl ValidatorCache {
             .into_iter()
             .map(|bond| bond.mixnode_details)
             .collect()
-    }
-
-    #[allow(dead_code)]
-    pub async fn families(&self) -> Vec<Family> {
-        match time::timeout(Duration::from_millis(100), self.inner.read()).await {
-            Ok(cache) => cache.families.clone().into_inner(),
-            Err(e) => {
-                error!("{}", e);
-                Vec::new()
-            }
-        }
     }
 
     pub async fn mixnodes_basic(&self) -> Vec<MixNodeBond> {
@@ -653,7 +634,6 @@ impl ValidatorCacheInner {
             gateways_blacklist: Cache::default(),
             current_interval: Cache::default(),
             current_reward_params: Cache::default(),
-            families: Cache::default(),
         }
     }
 }

@@ -21,9 +21,9 @@ use mixnet_contract_common::{
     CurrentIntervalResponse, EpochEventId, GatewayBondResponse, GatewayOwnershipResponse,
     IdentityKey, IntervalEventId, LayerDistribution, MixId, MixOwnershipResponse,
     MixnodeDetailsResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
-    PagedFamiliesResponse, PagedGatewayResponse, PagedMixNodeDelegationsResponse,
-    PagedMixnodeBondsResponse, PagedRewardedSetResponse, PendingEpochEventsResponse,
-    PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg,
+    PagedFamiliesResponse, PagedGatewayResponse, PagedMembersResponse,
+    PagedMixNodeDelegationsResponse, PagedMixnodeBondsResponse, PagedRewardedSetResponse,
+    PendingEpochEventsResponse, PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg,
 };
 use serde::Deserialize;
 
@@ -80,6 +80,15 @@ pub trait MixnetQueryClient {
         limit: Option<u32>,
     ) -> Result<PagedFamiliesResponse, NymdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetAllFamiliesPaged { limit, start_after })
+            .await
+    }
+
+    async fn get_all_family_members_paged(
+        &self,
+        start_after: Option<String>,
+        limit: Option<u32>,
+    ) -> Result<PagedMembersResponse, NymdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetAllMembersPaged { limit, start_after })
             .await
     }
 
@@ -375,14 +384,9 @@ pub trait MixnetQueryClient {
         .await
     }
 
-    async fn get_node_family_by_head(
-        &self,
-        head: &str,
-        proxy: Option<String>,
-    ) -> Result<Option<Family>, NymdError> {
+    async fn get_node_family_by_head(&self, head: &str) -> Result<Option<Family>, NymdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetFamilyByHead {
             head: head.to_string(),
-            proxy,
         })
         .await
     }

@@ -1,4 +1,3 @@
-use crate::mixnodes::transactions::update_mixnode_layer;
 use crate::support::helpers::{
     ensure_bonded, validate_family_signature, validate_node_identity_signature,
 };
@@ -8,7 +7,8 @@ use mixnet_contract_common::families::{Family, FamilyHead};
 use mixnet_contract_common::{error::MixnetContractError, IdentityKey, IdentityKeyRef};
 
 use super::storage::{
-    add_family_member, create_family, get_family, remove_family_member, FAMILY_LAYERS,
+    add_family_member, create_family, get_family, is_any_member, is_family_member,
+    remove_family_member,
 };
 
 /// Creates a new MixNode family with senders node as head
@@ -64,6 +64,11 @@ fn _try_create_family(
     )?;
 
     let family_head = FamilyHead::new(existing_bond.identity());
+
+    if let Ok(_family) = get_family(&family_head, deps.storage) {
+        return Err(MixnetContractError::FamilyCanHaveOnlyOne);
+    }
+
     let family = Family::new(family_head, proxy, label);
     create_family(&family, deps.storage)?;
     Ok(Response::default())
@@ -76,25 +81,19 @@ pub fn try_join_family(
     family_head: IdentityKey,
 ) -> Result<Response, MixnetContractError> {
     let family_head = FamilyHead::new(&family_head);
-    _try_join_family(deps, &info.sender, signature, family_head, None)
+    _try_join_family(deps, &info.sender, signature, family_head)
 }
 
 pub fn try_join_family_on_behalf(
     deps: DepsMut,
-    info: MessageInfo,
+    _info: MessageInfo,
     member_address: String,
     signature: String,
     family_head: IdentityKey,
 ) -> Result<Response, MixnetContractError> {
     let member_address = deps.api.addr_validate(&member_address)?;
     let family_head = FamilyHead::new(&family_head);
-    _try_join_family(
-        deps,
-        &member_address,
-        signature,
-        family_head,
-        Some(info.sender),
-    )
+    _try_join_family(deps, &member_address, signature, family_head)
 }
 
 fn _try_join_family(
@@ -102,10 +101,7 @@ fn _try_join_family(
     owner: &Addr,
     signature: String,
     family_head: FamilyHead,
-    proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
-    let proxy = proxy.map(|p| p.to_string());
-
     let existing_bond = crate::mixnodes::storage::mixnode_bonds()
         .idx
         .owner
@@ -117,6 +113,19 @@ fn _try_join_family(
 
     ensure_bonded(&existing_bond)?;
 
+    if family_head.identity() == existing_bond.identity() {
+        return Err(MixnetContractError::CantJoinOwnFamily {
+            head: family_head.identity().to_string(),
+            member: existing_bond.identity().to_string(),
+        });
+    }
+
+    if let Some(family) = is_any_member(deps.storage, existing_bond.identity())? {
+        return Err(MixnetContractError::AlreadyMemberOfFamily(
+            family.identity().to_string(),
+        ));
+    }
+
     validate_family_signature(
         deps.as_ref(),
         existing_bond.identity(),
@@ -124,17 +133,9 @@ fn _try_join_family(
         family_head.identity(),
     )?;
 
-    let mut family = get_family(&family_head, proxy, deps.storage)?;
+    let family = get_family(&family_head, deps.storage)?;
 
-    let family_layer = FAMILY_LAYERS.may_load(deps.storage, family.storage_key())?;
-
-    if let Some(layer) = family_layer {
-        if layer != existing_bond.layer {
-            update_mixnode_layer(existing_bond.mix_id, layer, deps.storage)?;
-        }
-    }
-
-    add_family_member(&mut family, deps.storage, existing_bond.identity())?;
+    add_family_member(&family, deps.storage, existing_bond.identity())?;
 
     Ok(Response::default())
 }
@@ -146,25 +147,19 @@ pub fn try_leave_family(
     family_head: IdentityKey,
 ) -> Result<Response, MixnetContractError> {
     let family_head = FamilyHead::new(&family_head);
-    _try_leave_family(deps, &info.sender, signature, family_head, None)
+    _try_leave_family(deps, &info.sender, signature, family_head)
 }
 
 pub fn try_leave_family_on_behalf(
     deps: DepsMut,
-    info: MessageInfo,
+    _info: MessageInfo,
     member_address: String,
     signature: String,
     family_head: IdentityKey,
 ) -> Result<Response, MixnetContractError> {
     let family_head = FamilyHead::new(&family_head);
     let member_address = deps.api.addr_validate(&member_address)?;
-    _try_leave_family(
-        deps,
-        &member_address,
-        signature,
-        family_head,
-        Some(info.sender),
-    )
+    _try_leave_family(deps, &member_address, signature, family_head)
 }
 
 fn _try_leave_family(
@@ -172,10 +167,7 @@ fn _try_leave_family(
     owner: &Addr,
     signature: String,
     family_head: FamilyHead,
-    proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
-    let proxy = proxy.map(|p| p.to_string());
-
     let existing_bond = crate::mixnodes::storage::mixnode_bonds()
         .idx
         .owner
@@ -187,6 +179,21 @@ fn _try_leave_family(
 
     ensure_bonded(&existing_bond)?;
 
+    if family_head.identity() == existing_bond.identity() {
+        return Err(MixnetContractError::CantLeaveOwnFamily {
+            head: family_head.identity().to_string(),
+            member: existing_bond.identity().to_string(),
+        });
+    }
+
+    let family = get_family(&family_head, deps.storage)?;
+    if !is_family_member(deps.storage, &family, existing_bond.identity())? {
+        return Err(MixnetContractError::NotAMember {
+            head: family_head.identity().to_string(),
+            member: existing_bond.identity().to_string(),
+        });
+    }
+
     validate_family_signature(
         deps.as_ref(),
         existing_bond.identity(),
@@ -194,9 +201,7 @@ fn _try_leave_family(
         family_head.identity(),
     )?;
 
-    let mut family = get_family(&family_head, proxy, deps.storage)?;
-
-    remove_family_member(&mut family, deps.storage, existing_bond.identity())?;
+    remove_family_member(deps.storage, existing_bond.identity());
 
     Ok(Response::default())
 }
@@ -207,24 +212,18 @@ pub fn try_head_kick_member(
     owner_signature: String,
     member: IdentityKeyRef,
 ) -> Result<Response, MixnetContractError> {
-    _try_head_kick_member(deps, &info.sender, owner_signature, member, None)
+    _try_head_kick_member(deps, &info.sender, owner_signature, member)
 }
 
 pub fn try_head_kick_member_on_behalf(
     deps: DepsMut,
-    info: MessageInfo,
+    _info: MessageInfo,
     head_address: String,
     owner_signature: String,
     member: IdentityKeyRef,
 ) -> Result<Response, MixnetContractError> {
     let head_address = deps.api.addr_validate(&head_address)?;
-    _try_head_kick_member(
-        deps,
-        &head_address,
-        owner_signature,
-        member,
-        Some(info.sender),
-    )
+    _try_head_kick_member(deps, &head_address, owner_signature, member)
 }
 
 fn _try_head_kick_member(
@@ -232,10 +231,7 @@ fn _try_head_kick_member(
     owner: &Addr,
     owner_signature: String,
     member: IdentityKeyRef<'_>,
-    proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
-    let proxy = proxy.map(|p| p.to_string());
-
     let existing_bond = crate::mixnodes::storage::mixnode_bonds()
         .idx
         .owner
@@ -255,9 +251,15 @@ fn _try_head_kick_member(
     )?;
 
     let family_head = FamilyHead::new(existing_bond.identity());
-    let mut family = get_family(&family_head, proxy, deps.storage)?;
-    remove_family_member(&mut family, deps.storage, member)?;
+    let family = get_family(&family_head, deps.storage)?;
+    if !is_family_member(deps.storage, &family, member)? {
+        return Err(MixnetContractError::NotAMember {
+            head: family_head.identity().to_string(),
+            member: existing_bond.identity().to_string(),
+        });
+    }
 
+    remove_family_member(deps.storage, member);
     Ok(Response::default())
 }
 
@@ -265,6 +267,7 @@ fn _try_head_kick_member(
 mod test {
     use super::*;
     use crate::families::queries::{get_family_by_head, get_family_by_label};
+    use crate::families::storage::is_family_member;
     use crate::mixnet_contract_settings::storage::minimum_mixnode_pledge;
     use crate::support::tests::{fixtures, test_helpers};
     use cosmwasm_std::testing::{mock_env, mock_info};
@@ -331,7 +334,7 @@ mod test {
         )
         .unwrap();
         let family_head = FamilyHead::new(&head_mixnode.identity_key);
-        assert!(get_family(&family_head, None, &deps.storage).is_ok());
+        assert!(get_family(&family_head, &deps.storage).is_ok());
 
         let nope = try_create_family(
             deps.as_mut(),
@@ -352,7 +355,7 @@ mod test {
         assert!(family.is_some());
         assert_eq!(family.unwrap().head_identity(), family_head.identity());
 
-        let family = get_family_by_head(family_head.identity(), None, &deps.storage).unwrap();
+        let family = get_family_by_head(family_head.identity(), &deps.storage).unwrap();
         assert_eq!(family.head_identity(), family_head.identity());
 
         let join_signature = head_keypair
@@ -368,9 +371,9 @@ mod test {
         )
         .unwrap();
 
-        let family = get_family(&family_head, None, &deps.storage).unwrap();
+        let family = get_family(&family_head, &deps.storage).unwrap();
 
-        assert!(family.is_member(&member_mixnode.identity_key));
+        assert!(is_family_member(&deps.storage, &family, &member_mixnode.identity_key).unwrap());
 
         try_leave_family(
             deps.as_mut(),
@@ -380,9 +383,8 @@ mod test {
         )
         .unwrap();
 
-        let family = get_family(&family_head, None, &deps.storage).unwrap();
-
-        assert!(!family.is_member(&member_mixnode.identity_key));
+        let family = get_family(&family_head, &deps.storage).unwrap();
+        assert!(!is_family_member(&deps.storage, &family, &member_mixnode.identity_key).unwrap());
 
         try_join_family(
             deps.as_mut(),
@@ -392,9 +394,9 @@ mod test {
         )
         .unwrap();
 
-        let family = get_family(&family_head, None, &deps.storage).unwrap();
+        let family = get_family(&family_head, &deps.storage).unwrap();
 
-        assert!(family.is_member(&member_mixnode.identity_key));
+        assert!(is_family_member(&deps.storage, &family, &member_mixnode.identity_key).unwrap());
 
         try_head_kick_member(
             deps.as_mut(),
@@ -404,7 +406,7 @@ mod test {
         )
         .unwrap();
 
-        let family = get_family(&family_head, None, &deps.storage).unwrap();
-        assert!(!family.is_member(&member_mixnode.identity_key));
+        let family = get_family(&family_head, &deps.storage).unwrap();
+        assert!(!is_family_member(&deps.storage, &family, &member_mixnode.identity_key).unwrap());
     }
 }

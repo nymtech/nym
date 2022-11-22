@@ -1,8 +1,6 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::HashMap;
-
 use crate::nymd::coin::Coin;
 pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 use crate::nymd::cosmwasm_client::types::ExecuteResult;
@@ -13,8 +11,7 @@ use cosmrs::AccountId;
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use mixnet_contract_common::reward_params::{IntervalRewardingParamsUpdate, Performance};
 use mixnet_contract_common::{
-    ContractStateParams, ExecuteMsg as MixnetExecuteMsg, Gateway, Layer, LayerAssignment, MixId,
-    MixNode,
+    ContractStateParams, ExecuteMsg as MixnetExecuteMsg, Gateway, LayerAssignment, MixId, MixNode,
 };
 
 #[async_trait]
@@ -112,7 +109,6 @@ pub trait MixnetSigningClient {
     async fn advance_current_epoch(
         &self,
         new_rewarded_set: Vec<LayerAssignment>,
-        families_in_layer: HashMap<String, Layer>,
         expected_active_set_size: u32,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError> {
@@ -120,7 +116,6 @@ pub trait MixnetSigningClient {
             fee,
             MixnetExecuteMsg::AdvanceCurrentEpoch {
                 new_rewarded_set,
-                // families_in_layer,
                 expected_active_set_size,
             },
             vec![],

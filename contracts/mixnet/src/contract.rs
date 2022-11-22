@@ -1,8 +1,5 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
-use std::collections::HashMap;
-
 use crate::constants::{INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMOUNT};
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
@@ -201,7 +198,6 @@ pub fn execute(
             env,
             info,
             new_rewarded_set,
-            HashMap::new(),
             expected_active_set_size,
         ),
         ExecuteMsg::ReconcileEpochEvents { limit } => {
@@ -355,11 +351,20 @@ pub fn query(
         QueryMsg::GetAllFamiliesPaged { limit, start_after } => to_binary(
             &crate::families::queries::get_all_families_paged(deps.storage, start_after, limit)?,
         ),
-        QueryMsg::GetFamilyByHead { head, proxy } => to_binary(
-            &crate::families::queries::get_family_by_head(&head, proxy, deps.storage)?,
+        QueryMsg::GetAllMembersPaged { limit, start_after } => to_binary(
+            &crate::families::queries::get_all_members_paged(deps.storage, start_after, limit)?,
+        ),
+        QueryMsg::GetFamilyByHead { head } => to_binary(
+            &crate::families::queries::get_family_by_head(&head, deps.storage)?,
         ),
         QueryMsg::GetFamilyByLabel { label } => to_binary(
             &crate::families::queries::get_family_by_label(&label, deps.storage)?,
+        ),
+        QueryMsg::GetFamilyMembersByHead { head } => to_binary(
+            &crate::families::queries::get_family_members_by_head(&head, deps.storage)?,
+        ),
+        QueryMsg::GetFamilyMembersByLabel { label } => to_binary(
+            &crate::families::queries::get_family_members_by_label(&label, deps.storage)?,
         ),
         QueryMsg::GetContractVersion {} => {
             to_binary(&crate::mixnet_contract_settings::queries::query_contract_version())

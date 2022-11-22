@@ -244,15 +244,11 @@ impl RewardedSetUpdater {
         let new_rewarded_set =
             self.determine_rewarded_set(all_mixnodes, rewarding_parameters.rewarded_set_size)?;
 
-        let (layer_assignments, families_in_layer) =
+        let (layer_assignments, _families_in_layer) =
             self.determine_layers(&new_rewarded_set).await?;
 
         self.nymd_client
-            .advance_current_epoch(
-                layer_assignments,
-                families_in_layer,
-                rewarding_parameters.active_set_size,
-            )
+            .advance_current_epoch(layer_assignments, rewarding_parameters.active_set_size)
             .await?;
 
         Ok(())

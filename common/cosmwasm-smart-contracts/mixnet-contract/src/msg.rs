@@ -13,7 +13,6 @@ use crate::{Gateway, IdentityKey, MixNode};
 use cosmwasm_std::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::time::Duration;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
@@ -361,11 +360,20 @@ pub enum QueryMsg {
         limit: Option<u32>,
         start_after: Option<String>,
     },
+    GetAllMembersPaged {
+        limit: Option<u32>,
+        start_after: Option<String>,
+    },
     GetFamilyByHead {
         head: String,
-        proxy: Option<String>,
     },
     GetFamilyByLabel {
+        label: String,
+    },
+    GetFamilyMembersByHead {
+        head: String,
+    },
+    GetFamilyMembersByLabel {
         label: String,
     },
     // state/sys-params-related

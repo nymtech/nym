@@ -71,7 +71,7 @@ pub fn execute(
         ExecuteMsg::LeaveFamily {
             signature,
             family_head,
-        } => try_join_family(info, deps, signature, family_head),
+        } => try_leave_family(info, deps, signature, family_head),
         ExecuteMsg::KickFamilyMember { signature, member } => {
             try_kick_family_member(info, deps, signature, member)
         }

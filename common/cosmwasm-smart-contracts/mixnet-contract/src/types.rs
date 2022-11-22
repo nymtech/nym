@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::MixnetContractError;
-use crate::families::Family;
+use crate::families::{Family, FamilyHead};
 use crate::{Layer, RewardedSetNodeStatus};
 use cosmwasm_std::Addr;
 use cosmwasm_std::Coin;
@@ -152,5 +152,11 @@ pub struct PagedRewardedSetResponse {
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub struct PagedFamiliesResponse {
     pub families: Vec<Family>,
+    pub start_next_after: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
+pub struct PagedMembersResponse {
+    pub members: Vec<(IdentityKey, FamilyHead)>,
     pub start_next_after: Option<String>,
 }

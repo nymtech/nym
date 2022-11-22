@@ -1,8 +1,7 @@
-use crate::{IdentityKey, IdentityKeyRef, Layer};
+use crate::{IdentityKey, IdentityKeyRef};
 use cosmwasm_std::Addr;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -14,16 +13,6 @@ pub struct Family {
     head: FamilyHead,
     proxy: Option<String>,
     label: String,
-    members: HashSet<String>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Eq, PartialEq, JsonSchema)]
-pub struct FamilyAnnotated {
-    head: FamilyHead,
-    proxy: Option<String>,
-    label: String,
-    members: HashSet<String>,
-    layer: Option<Layer>,
 }
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
@@ -50,7 +39,6 @@ impl Family {
             head,
             proxy: proxy.map(|p| p.to_string()),
             label: label.to_string(),
-            members: HashSet::new(),
         }
     }
 
@@ -71,73 +59,5 @@ impl Family {
     #[allow(dead_code)]
     pub fn label(&self) -> &str {
         &self.label
-    }
-
-    #[allow(dead_code)]
-    pub fn members(&self) -> &HashSet<String> {
-        &self.members
-    }
-
-    pub fn members_mut(&mut self) -> &mut HashSet<String> {
-        &mut self.members
-    }
-
-    pub fn storage_key(&self) -> String {
-        family_storage_key(self.head_identity(), self.proxy.as_ref())
-    }
-
-    #[allow(dead_code)]
-    pub fn is_member(&self, member: IdentityKeyRef<'_>) -> bool {
-        self.members().contains(member)
-    }
-
-    pub fn into_annotated(self, layer: Option<Layer>) -> FamilyAnnotated {
-        FamilyAnnotated {
-            head: self.head,
-            proxy: self.proxy,
-            label: self.label,
-            members: self.members,
-            layer,
-        }
-    }
-}
-
-impl FamilyAnnotated {
-    #[allow(dead_code)]
-    pub fn head(&self) -> &FamilyHead {
-        &self.head
-    }
-
-    pub fn head_identity(&self) -> IdentityKeyRef<'_> {
-        self.head.identity()
-    }
-
-    #[allow(dead_code)]
-    pub fn proxy(&self) -> Option<&String> {
-        self.proxy.as_ref()
-    }
-
-    #[allow(dead_code)]
-    pub fn label(&self) -> &str {
-        &self.label
-    }
-
-    #[allow(dead_code)]
-    pub fn layer(&self) -> Option<&Layer> {
-        self.layer.as_ref()
-    }
-}
-
-pub fn family_storage_key(head: &str, proxy: Option<&String>) -> String {
-    if let Some(proxy) = proxy {
-        let key_bytes = head
-            .as_bytes()
-            .iter()
-            .zip(proxy.as_bytes())
-            .map(|(x, y)| x ^ y)
-            .collect::<Vec<_>>();
-        bs58::encode(key_bytes).into_string()
-    } else {
-        head.to_string()
     }
 }

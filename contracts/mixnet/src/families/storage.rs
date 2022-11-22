@@ -1,14 +1,11 @@
-use cosmwasm_std::{StdError, Storage};
+use std::collections::HashSet;
+
+use cosmwasm_std::{Order, StdError, Storage};
 use cw_storage_plus::{Index, IndexList, IndexedMap, Map, UniqueIndex};
-use mixnet_contract_common::families::{family_storage_key, Family, FamilyHead};
-use mixnet_contract_common::Layer;
-use mixnet_contract_common::{error::MixnetContractError, IdentityKeyRef};
+use mixnet_contract_common::families::{Family, FamilyHead};
+use mixnet_contract_common::{error::MixnetContractError, IdentityKey, IdentityKeyRef};
 
-use crate::constants::{
-    FAMILIES_INDEX_NAMESPACE, FAMILIES_LAYERS_NAMESPACE, FAMILIES_MAP_NAMESPACE,
-};
-
-pub const FAMILY_LAYERS: Map<String, Layer> = Map::new(FAMILIES_LAYERS_NAMESPACE);
+use crate::constants::{FAMILIES_INDEX_NAMESPACE, FAMILIES_MAP_NAMESPACE, MEMBERS_MAP_NAMESPACE};
 
 pub struct FamilyIndex<'a> {
     pub label: UniqueIndex<'a, String, Family>,
@@ -29,24 +26,33 @@ pub fn families<'a>() -> IndexedMap<'a, String, Family, FamilyIndex<'a>> {
     IndexedMap::new(FAMILIES_MAP_NAMESPACE, indexes)
 }
 
-pub fn get_family(
-    head: &FamilyHead,
-    proxy: Option<String>,
+pub const MEMBERS: Map<IdentityKey, FamilyHead> = Map::new(MEMBERS_MAP_NAMESPACE);
+
+pub fn get_members(
+    family: &Family,
     store: &dyn Storage,
-) -> Result<Family, MixnetContractError> {
-    let key = family_storage_key(head.identity(), proxy.as_ref());
-    if let Some(family) = families().may_load(store, key)? {
+) -> Result<HashSet<IdentityKey>, MixnetContractError> {
+    Ok(MEMBERS
+        .range(store, None, None, Order::Ascending)
+        .filter_map(|res| res.ok())
+        .filter(|(_member, head)| head == family.head())
+        .map(|(member, _storage_key)| member)
+        .collect())
+}
+
+pub fn get_family(head: &FamilyHead, store: &dyn Storage) -> Result<Family, MixnetContractError> {
+    let key = head.identity();
+    if let Some(family) = families().may_load(store, key.to_string())? {
         Ok(family)
     } else {
         Err(MixnetContractError::FamilyDoesNotExist {
             head: head.identity().to_string(),
-            proxy: proxy.unwrap_or_default(),
         })
     }
 }
 
 pub fn create_family(f: &Family, store: &mut dyn Storage) -> Result<(), MixnetContractError> {
-    match families().save(store, f.storage_key(), f) {
+    match families().save(store, f.head_identity().to_string(), f) {
         Ok(()) => Ok(()),
         Err(e) => match &e {
             StdError::GenericErr { msg } => {
@@ -63,24 +69,31 @@ pub fn create_family(f: &Family, store: &mut dyn Storage) -> Result<(), MixnetCo
     }
 }
 
-pub fn save_family(f: &Family, store: &mut dyn Storage) -> Result<(), MixnetContractError> {
-    Ok(families().save(store, f.storage_key(), f)?)
-}
-
 pub fn add_family_member(
-    f: &mut Family,
+    f: &Family,
     store: &mut dyn Storage,
     member: IdentityKeyRef<'_>,
 ) -> Result<(), MixnetContractError> {
-    f.members_mut().insert(member.to_string());
-    save_family(f, store)
+    Ok(MEMBERS.save(store, member.to_string(), f.head())?)
 }
 
-pub fn remove_family_member(
-    f: &mut Family,
-    store: &mut dyn Storage,
+pub fn remove_family_member(store: &mut dyn Storage, member: IdentityKeyRef<'_>) {
+    MEMBERS.remove(store, member.to_string())
+}
+
+#[allow(dead_code)]
+pub fn is_family_member(
+    store: &dyn Storage,
+    f: &Family,
     member: IdentityKeyRef<'_>,
-) -> Result<(), MixnetContractError> {
-    f.members_mut().remove(member);
-    save_family(f, store)
+) -> Result<bool, MixnetContractError> {
+    let m = get_members(f, store)?;
+    Ok(m.contains(member))
+}
+
+pub fn is_any_member(
+    store: &dyn Storage,
+    member: IdentityKeyRef<'_>,
+) -> Result<Option<FamilyHead>, MixnetContractError> {
+    Ok(MEMBERS.may_load(store, member.to_string())?)
 }

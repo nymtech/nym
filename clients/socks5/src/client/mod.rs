@@ -37,6 +37,7 @@ use gateway_client::{
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
+use tap::TapFallible;
 use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
 
 pub mod config;
@@ -382,7 +383,10 @@ impl NymClient {
 
         let reply_key_storage =
             ReplyKeyStorage::load(self.config.get_base().get_reply_encryption_key_store_path())
-                .expect("Failed to load reply key storage!");
+                .tap_err(|err| {
+                    log::error!("Failed to load reply key storage - is it perhaps already in use?");
+                    log::error!("{}", err);
+                })?;
 
         // Shutdown notifier for signalling tasks to stop
         let shutdown = ShutdownNotifier::default();

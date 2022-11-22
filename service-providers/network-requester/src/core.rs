@@ -117,6 +117,20 @@ impl ServiceProvider {
         }
     }
 
+    fn handle_lane_queue_length_response(
+        lane_queue_lengths: &LaneQueueLengths,
+        lane: u64,
+        queue_length: usize,
+    ) {
+        log::info!("received LaneQueueLength lane: {lane}, queue_length: {queue_length}");
+        if let Ok(mut lane_queue_lengths) = lane_queue_lengths.lock() {
+            let lane = TransmissionLane::ConnectionId(lane);
+            lane_queue_lengths.map.insert(lane, queue_length);
+        } else {
+            log::warn!("Unable to lock lane queue lengths, skipping updating received lane length")
+        }
+    }
+
     async fn read_websocket_message(
         websocket_reader: &mut SplitStream<TSWebsocketStream>,
         lane_queue_lengths: LaneQueueLengths,
@@ -141,15 +155,11 @@ impl ServiceProvider {
             let received = match deserialized_message {
                 ServerResponse::Received(received) => received,
                 ServerResponse::LaneQueueLength(lane, queue_length) => {
-                    log::info!(
-                        "received LaneQueueLength lane: {lane}, queue_length: {queue_length}"
+                    Self::handle_lane_queue_length_response(
+                        &lane_queue_lengths,
+                        lane,
+                        queue_length,
                     );
-                    if let Ok(mut lane_queue_lengths) = lane_queue_lengths.lock() {
-                        let lane = TransmissionLane::ConnectionId(lane);
-                        lane_queue_lengths.map.insert(lane, queue_length);
-                    } else {
-                        log::warn!("Unable to lock lane queue lengths, skipping updating received lane length")
-                    }
                     continue;
                 }
                 ServerResponse::Error(err) => {

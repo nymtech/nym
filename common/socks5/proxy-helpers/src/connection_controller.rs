@@ -137,7 +137,13 @@ impl Controller {
         self.recently_closed.insert(conn_id);
 
         // Announce closed connections, currently used by the `OutQueueControl`.
-        self.closed_connection_tx.unbounded_send(conn_id).unwrap();
+        if let Err(err) = self.closed_connection_tx.unbounded_send(conn_id) {
+            if self.shutdown.is_shutdown_poll() {
+                log::debug!("Failed to send: {}", err);
+            } else {
+                log::error!("Failed to send: {}", err);
+            }
+        }
     }
 
     fn send_to_connection(&mut self, conn_id: ConnectionId, payload: Vec<u8>, is_closed: bool) {

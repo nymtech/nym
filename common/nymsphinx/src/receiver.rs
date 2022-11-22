@@ -7,7 +7,7 @@ use crypto::asymmetric::encryption;
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
 use crypto::symmetric::stream_cipher::CipherKey;
-use nymsphinx_anonymous_replies::reply_surb::{ReplySurb, ReplySurbError};
+use nymsphinx_anonymous_replies::reply_surb::ReplySurbError;
 use nymsphinx_anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx_anonymous_replies::SurbEncryptionKey;
 use nymsphinx_chunking::fragment::Fragment;
@@ -22,8 +22,9 @@ use nymsphinx_params::{
 pub struct ReconstructedMessage {
     /// The actual plaintext message that was received.
     pub message: Vec<u8>,
-    // /// Optional ReplySURB to allow for an anonymous reply to the sender.
-    // pub reply_surbs: Vec<ReplySurb>,
+
+    /// Optional ephemeral sender tag indicating pseudo-identity of the party who sent us the message
+    /// (alongside any reply SURBs)
     pub sender_tag: Option<AnonymousSenderTag>,
 }
 
@@ -89,30 +90,6 @@ impl MessageReceiver {
         self.num_mix_hops = hops;
         self
     }
-
-    // /// Parses the message to strip and optionally recover reply SURB.
-    // fn recover_reply_surbs_from_message(
-    //     &self,
-    //     message: &mut Vec<u8>,
-    // ) -> Result<Option<ReplySurb>, MessageRecoveryError> {
-    //     todo!()
-    //     // match message[0] {
-    //     //     n if n == false as u8 => {
-    //     //         message.remove(0);
-    //     //         Ok(None)
-    //     //     }
-    //     //     n if n == true as u8 => {
-    //     //         let surb_len: usize = ReplySurb::serialized_len(self.num_mix_hops);
-    //     //         // note the extra +1 (due to 0/1 message prefix)
-    //     //         let surb_bytes = &message[1..1 + surb_len];
-    //     //         let reply_surb = ReplySurb::from_bytes(surb_bytes)?;
-    //     //
-    //     //         *message = message.drain(1 + surb_len..).collect();
-    //     //         Ok(Some(reply_surb))
-    //     //     }
-    //     //     _ => Err(MessageRecoveryError::InvalidSurbPrefixError),
-    //     // }
-    // }
 
     fn decrypt_raw_message<C>(&self, message: &mut [u8], key: &CipherKey<C>)
     where

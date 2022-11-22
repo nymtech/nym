@@ -7,7 +7,6 @@ use self::{
     retransmission_request_listener::RetransmissionRequestListener,
     sent_notification_listener::SentNotificationListener,
 };
-use super::real_traffic_stream::BatchRealMessageSender;
 use crate::client::inbound_messages::InputMessageReceiver;
 use crate::client::real_messages_control::message_handler::MessageHandler;
 use crate::client::replies::reply_controller::ReplyControllerSender;
@@ -111,10 +110,6 @@ impl PendingAcknowledgement {
 /// AcknowledgementControllerConnectors represents set of channels for communication with
 /// other parts of the system in order to support acknowledgements and retransmission.
 pub(super) struct AcknowledgementControllerConnectors {
-    /// Channel used for forwarding prepared sphinx messages into the poisson sender
-    /// to be sent to the mix network.
-    real_message_sender: BatchRealMessageSender,
-
     /// Channel used for receiving raw messages from a client. The messages need to be put
     /// into sphinx packets first.
     input_receiver: InputMessageReceiver,
@@ -136,7 +131,6 @@ pub(super) struct AcknowledgementControllerConnectors {
 
 impl AcknowledgementControllerConnectors {
     pub(super) fn new(
-        real_message_sender: BatchRealMessageSender,
         input_receiver: InputMessageReceiver,
         sent_notifier: SentPacketNotificationReceiver,
         ack_receiver: AcknowledgementReceiver,
@@ -144,7 +138,6 @@ impl AcknowledgementControllerConnectors {
         ack_action_receiver: AckActionReceiver,
     ) -> Self {
         AcknowledgementControllerConnectors {
-            real_message_sender,
             input_receiver,
             sent_notifier,
             ack_receiver,
@@ -162,28 +155,15 @@ pub(super) struct Config {
     /// Given ack timeout in the form a * BASE_DELAY + b, it specifies the multiplier `a`
     ack_wait_multiplier: f64,
 
-    /// Average delay an acknowledgement packet is going to get delayed at a single mixnode.
-    average_ack_delay: Duration,
-
-    /// Average delay a data packet is going to get delayed at a single mixnode.
-    average_packet_delay: Duration,
-
     /// Predefined packet size used for the encapsulated messages.
     packet_size: PacketSize,
 }
 
 impl Config {
-    pub(super) fn new(
-        ack_wait_addition: Duration,
-        ack_wait_multiplier: f64,
-        average_ack_delay: Duration,
-        average_packet_delay: Duration,
-    ) -> Self {
+    pub(super) fn new(ack_wait_addition: Duration, ack_wait_multiplier: f64) -> Self {
         Config {
             ack_wait_addition,
             ack_wait_multiplier,
-            average_ack_delay,
-            average_packet_delay,
             packet_size: Default::default(),
         }
     }
@@ -214,7 +194,7 @@ where
         ack_key: Arc<AckKey>,
         connectors: AcknowledgementControllerConnectors,
         message_handler: MessageHandler<R>,
-        to_be_named_channel: ReplyControllerSender,
+        reply_controller_sender: ReplyControllerSender,
         received_reply_surbs: ReceivedReplySurbsMap,
     ) -> Self {
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
@@ -238,7 +218,7 @@ where
         let input_message_listener = InputMessageListener::new(
             connectors.input_receiver,
             message_handler.clone(),
-            to_be_named_channel,
+            reply_controller_sender,
         );
 
         // will listen for any ack timeouts and trigger retransmission

@@ -7,8 +7,7 @@ use crate::client::replies::reply_controller::ReplyControllerSender;
 use futures::StreamExt;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, ReplyMessage};
-use nymsphinx::anonymous_replies::ReplySurb;
+use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use rand::{CryptoRng, Rng};
 
 /// Module responsible for dealing with the received messages: splitting them, creating acknowledgements,
@@ -20,11 +19,7 @@ where
 {
     input_receiver: InputMessageReceiver,
     message_handler: MessageHandler<R>,
-    to_be_named_channel: ReplyControllerSender,
-}
-
-pub(super) struct Config {
-    max_per_sender_buffer_size: usize,
+    reply_controller_sender: ReplyControllerSender,
 }
 
 impl<R> InputMessageListener<R>
@@ -37,36 +32,18 @@ where
     pub(super) fn new(
         input_receiver: InputMessageReceiver,
         message_handler: MessageHandler<R>,
-        to_be_named_channel: ReplyControllerSender,
+        reply_controller_sender: ReplyControllerSender,
     ) -> Self {
         InputMessageListener {
             input_receiver,
             message_handler,
-            to_be_named_channel,
+            reply_controller_sender,
         }
     }
 
     async fn handle_reply(&mut self, recipient_tag: AnonymousSenderTag, data: Vec<u8>) {
         // offload reply handling to the dedicated task
-        self.to_be_named_channel.send_reply(recipient_tag, data)
-    }
-
-    // we require topology for replies to generate surb_acks
-    async fn handle_reply_with_surb(
-        &mut self,
-        recipient_tag: AnonymousSenderTag,
-        reply_surb: ReplySurb,
-        data: Vec<u8>,
-    ) {
-        let message = ReplyMessage::new_data_message(data);
-        if let Err(_returned_surb) = self
-            .message_handler
-            .try_send_single_surb_message(recipient_tag, message, reply_surb, false)
-            .await
-        {
-            // TODO: return concrete error instead
-            warn!("failed to send our single-surb message. It was either too long or the topology was invalid");
-        }
+        self.reply_controller_sender.send_reply(recipient_tag, data)
     }
 
     async fn handle_plain_message(&mut self, recipient: Recipient, content: Vec<u8>) {
@@ -112,14 +89,6 @@ where
                 data,
             } => {
                 self.handle_reply(recipient_tag, data).await;
-            }
-            InputMessage::ReplyWithSurb {
-                recipient_tag,
-                reply_surb,
-                data,
-            } => {
-                self.handle_reply_with_surb(recipient_tag, reply_surb, data)
-                    .await
             }
         };
     }

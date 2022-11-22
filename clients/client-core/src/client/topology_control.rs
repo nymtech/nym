@@ -4,7 +4,6 @@
 use crate::spawn_future;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::addressing::nodes::NodeIdentity;
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
 use rand::seq::SliceRandom;
 use rand::thread_rng;

@@ -13,7 +13,7 @@ use crate::client::real_messages_control::message_handler::MessageHandler;
 use crate::client::replies::reply_controller::{
     ReplyController, ReplyControllerReceiver, ReplyControllerSender,
 };
-use crate::client::replies::reply_storage::{CombinedReplyStorage, SentReplyKeys};
+use crate::client::replies::reply_storage::CombinedReplyStorage;
 use crate::client::{
     inbound_messages::InputMessageReceiver, mix_traffic::BatchMixMessageSender,
     topology_control::TopologyAccessor,
@@ -120,8 +120,8 @@ impl RealMessagesController<OsRng> {
         topology_access: TopologyAccessor,
         reply_storage: CombinedReplyStorage,
         // so much refactoring needed, but this is temporary just to test things out
-        to_be_named_channel_sender: ReplyControllerSender,
-        to_be_named_channel_receiver: ReplyControllerReceiver,
+        reply_controller_sender: ReplyControllerSender,
+        reply_controller_receiver: ReplyControllerReceiver,
     ) -> Self {
         let rng = OsRng;
 
@@ -130,7 +130,6 @@ impl RealMessagesController<OsRng> {
         let (ack_action_tx, ack_action_rx) = mpsc::unbounded();
 
         let ack_controller_connectors = AcknowledgementControllerConnectors::new(
-            real_message_sender.clone(),
             input_receiver,
             sent_notifier_rx,
             ack_receiver,
@@ -141,8 +140,6 @@ impl RealMessagesController<OsRng> {
         let ack_control_config = acknowledgement_control::Config::new(
             config.ack_wait_addition,
             config.ack_wait_multiplier,
-            config.average_ack_delay_duration,
-            config.average_packet_delay_duration,
         )
         .with_custom_packet_size(config.packet_size);
 
@@ -159,8 +156,8 @@ impl RealMessagesController<OsRng> {
             Arc::clone(&config.ack_key),
             config.self_recipient,
             message_preparer,
-            ack_action_tx.clone(),
-            real_message_sender.clone(),
+            ack_action_tx,
+            real_message_sender,
             topology_access.clone(),
             reply_storage.key_storage(),
             reply_storage.tags_storage(),
@@ -169,7 +166,7 @@ impl RealMessagesController<OsRng> {
         let reply_control = ReplyController::new(
             message_handler.clone(),
             reply_storage.surbs_storage(),
-            to_be_named_channel_receiver,
+            reply_controller_receiver,
         );
 
         let ack_control = AcknowledgementController::new(
@@ -177,7 +174,7 @@ impl RealMessagesController<OsRng> {
             Arc::clone(&config.ack_key),
             ack_controller_connectors,
             message_handler,
-            to_be_named_channel_sender,
+            reply_controller_sender,
             reply_storage.surbs_storage(),
         );
 
@@ -197,7 +194,7 @@ impl RealMessagesController<OsRng> {
             real_message_receiver,
             rng,
             config.self_recipient,
-            topology_access.clone(),
+            topology_access,
         );
 
         RealMessagesController {

@@ -3,7 +3,7 @@
 
 use super::PendingAcknowledgement;
 use crate::client::real_messages_control::acknowledgement_control::RetransmissionRequestSender;
-use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
 use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, QueueKey};
@@ -13,8 +13,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-pub(crate) type AckActionSender = UnboundedSender<Action>;
-pub(crate) type AckActionReceiver = UnboundedReceiver<Action>;
+pub(crate) type AckActionSender = mpsc::UnboundedSender<Action>;
+pub(crate) type AckActionReceiver = mpsc::UnboundedReceiver<Action>;
 
 // The actual data being sent off as well as potential key to the delay queue
 type PendingAckEntry = (Arc<PendingAcknowledgement>, Option<QueueKey>);
@@ -96,7 +96,7 @@ pub(super) struct ActionController {
     pending_acks_timers: NonExhaustiveDelayQueue<FragmentIdentifier>,
 
     /// Channel for receiving `Action`s from other modules.
-    incoming_actions: UnboundedReceiver<Action>,
+    incoming_actions: AckActionReceiver,
 
     /// Channel for notifying `RetransmissionRequestListener` about expired acknowledgements.
     retransmission_sender: RetransmissionRequestSender,

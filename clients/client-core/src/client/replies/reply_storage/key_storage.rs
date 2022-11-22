@@ -4,7 +4,6 @@
 use dashmap::DashMap;
 use nymsphinx::anonymous_replies::encryption_key::EncryptionKeyDigest;
 use nymsphinx::anonymous_replies::SurbEncryptionKey;
-use std::collections::HashSet;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]

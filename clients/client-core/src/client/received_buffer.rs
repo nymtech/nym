@@ -1,33 +1,25 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::replies::reply_controller::ReplyControllerSender;
+use crate::client::replies::reply_storage::SentReplyKeys;
 use crate::spawn_future;
 use crypto::asymmetric::encryption;
+use crypto::Digest;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
 use gateway_client::MixnetMessageReceiver;
 use log::*;
-use nymsphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
-use rand::Rng;
-use std::collections::HashSet;
-use std::sync::Arc;
-
-// #[cfg(feature = "reply-surb")]
-// use crate::client::reply_key_storage::ReplyKeyStorage;
-use crate::client::replies::reply_controller::ReplyControllerSender;
-use crate::client::replies::reply_storage::{CombinedReplyStorage, SentReplyKeys};
-#[cfg(feature = "reply-surb")]
-use crypto::{symmetric::stream_cipher, Digest};
 use nymsphinx::anonymous_replies::requests::{
     RepliableMessage, RepliableMessageContent, ReplyMessage, ReplyMessageContent,
 };
-#[cfg(feature = "reply-surb")]
 use nymsphinx::anonymous_replies::{encryption_key::EncryptionKeyDigest, SurbEncryptionKey};
-use nymsphinx::chunking::fragment::Fragment;
 use nymsphinx::message::{NymMessage, PlainMessage};
-#[cfg(feature = "reply-surb")]
-use nymsphinx::params::{ReplySurbEncryptionAlgorithm, ReplySurbKeyDigestAlgorithm};
+use nymsphinx::params::ReplySurbKeyDigestAlgorithm;
+use nymsphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
+use std::collections::HashSet;
+use std::sync::Arc;
 
 // Buffer Requests to say "hey, send any reconstructed messages to this channel"
 // or to say "hey, I'm going offline, don't send anything more to me. Just buffer them instead"
@@ -146,14 +138,14 @@ struct ReceivedMessagesBuffer {
 
     //
     reply_key_storage: SentReplyKeys,
-    to_be_named_channel: ReplyControllerSender,
+    reply_controller_sender: ReplyControllerSender,
 }
 
 impl ReceivedMessagesBuffer {
     fn new(
         local_encryption_keypair: Arc<encryption::KeyPair>,
         reply_key_storage: SentReplyKeys,
-        to_be_named_channel: ReplyControllerSender,
+        reply_controller_sender: ReplyControllerSender,
     ) -> Self {
         ReceivedMessagesBuffer {
             inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
@@ -164,7 +156,7 @@ impl ReceivedMessagesBuffer {
                 recently_reconstructed: HashSet::new(),
             })),
             reply_key_storage,
-            to_be_named_channel,
+            reply_controller_sender,
         }
     }
 
@@ -250,7 +242,7 @@ impl ReceivedMessagesBuffer {
                 }
             };
 
-            self.to_be_named_channel.send_additional_surbs(
+            self.reply_controller_sender.send_additional_surbs(
                 msg.sender_tag,
                 reply_surbs,
                 from_surb_request,
@@ -269,7 +261,7 @@ impl ReceivedMessagesBuffer {
                 ReplyMessageContent::Data { message } => reconstructed.push(message.into()),
                 ReplyMessageContent::SurbRequest { recipient, amount } => {
                     info!("received request for {amount} additional surbs");
-                    self.to_be_named_channel
+                    self.reply_controller_sender
                         .send_additional_surbs_request(recipient, amount);
                     // error!("received request for additional {} reply SURBs! We don't know how to handle it yet : (", amount)
                 }
@@ -506,12 +498,12 @@ impl ReceivedMessagesBufferController {
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_packet_receiver: MixnetMessageReceiver,
         reply_key_storage: SentReplyKeys,
-        to_be_named_channel: ReplyControllerSender,
+        reply_controller_sender: ReplyControllerSender,
     ) -> Self {
         let received_buffer = ReceivedMessagesBuffer::new(
             local_encryption_keypair,
             reply_key_storage,
-            to_be_named_channel,
+            reply_controller_sender,
         );
 
         ReceivedMessagesBufferController {

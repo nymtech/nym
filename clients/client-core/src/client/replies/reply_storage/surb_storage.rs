@@ -155,18 +155,6 @@ impl ReceivedReplySurbsMap {
             self.inner.data.insert(*target, new_entry);
         }
     }
-
-    pub(crate) fn insert_surb(&self, target: &AnonymousSenderTag, reply_surb: ReplySurb) {
-        if let Some(mut existing_data) = self.inner.data.get_mut(target) {
-            existing_data.insert_reply_surb(reply_surb)
-        } else {
-            // this should never really get hit, but let's guard ourselves against it regardless...
-            let mut surbs = VecDeque::new();
-            surbs.push_back(reply_surb);
-            let new_entry = ReceivedReplySurbs::new(surbs);
-            self.inner.data.insert(*target, new_entry);
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -235,12 +223,5 @@ impl ReceivedReplySurbs {
         self.data.append(&mut v);
         self.surbs_last_received_at = Instant::now();
         println!("we now have {} surbs!", self.data.len());
-    }
-
-    pub(crate) fn insert_reply_surb(&mut self, surb: ReplySurb) {
-        // TODO: be super careful about attempting to reset the instant here
-        // as we frequently (or maybe only) use this method for re-inserting UNUSED, OLD
-        // reply surb
-        self.data.push_back(surb)
     }
 }

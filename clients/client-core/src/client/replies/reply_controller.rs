@@ -147,16 +147,11 @@ where
         // we're making a lot of requests and have to request a lot of surbs
         // (but at some point we run out of surbs for surb requests)
 
-        let (surbs, surbs_left) = self
+        let (surbs, _surbs_left) = self
             .received_reply_surbs
             .get_reply_surbs(&recipient_tag, fragments.len());
 
         if let Some(reply_surbs) = surbs {
-            error!(
-                "we did NOT request any extra surbs! but still used {}",
-                reply_surbs.len()
-            );
-
             if let Err(err) = self
                 .message_handler
                 .try_send_reply_chunks(recipient_tag, fragments, reply_surbs)
@@ -296,12 +291,11 @@ where
     async fn handle_received_surbs(
         &mut self,
         from: AnonymousSenderTag,
-        mut reply_surbs: Vec<ReplySurb>,
+        reply_surbs: Vec<ReplySurb>,
         from_surb_request: bool,
     ) {
         println!("handling received surbs");
 
-        // TODO: reset surb timer here ONLY
         self.received_reply_surbs
             .reset_surbs_last_received_at(&from);
 

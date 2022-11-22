@@ -122,8 +122,8 @@ impl NymClient {
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
         reply_storage: CombinedReplyStorage,
-        to_be_named_channel_sender: ReplyControllerSender,
-        to_be_named_channel_receiver: ReplyControllerReceiver,
+        reply_controller_sender: ReplyControllerSender,
+        reply_controller_receiver: ReplyControllerReceiver,
         shutdown: ShutdownListener,
     ) {
         let mut controller_config = real_messages_control::Config::new(
@@ -152,8 +152,8 @@ impl NymClient {
             mix_sender,
             topology_accessor,
             reply_storage,
-            to_be_named_channel_sender,
-            to_be_named_channel_receiver,
+            reply_controller_sender,
+            reply_controller_receiver,
         )
         .start_with_shutdown(shutdown);
     }
@@ -165,7 +165,7 @@ impl NymClient {
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_receiver: MixnetMessageReceiver,
         reply_key_storage: SentReplyKeys,
-        to_be_named_channel: ReplyControllerSender,
+        reply_controller_sender: ReplyControllerSender,
         shutdown: ShutdownListener,
     ) {
         info!("Starting received messages buffer controller...");
@@ -174,7 +174,7 @@ impl NymClient {
             query_receiver,
             mixnet_receiver,
             reply_key_storage,
-            to_be_named_channel,
+            reply_controller_sender,
         )
         .start_with_shutdown(shutdown)
     }
@@ -382,7 +382,7 @@ impl NymClient {
         //         .expect("Failed to load reply key storage!");
 
         // channels responsible for dealing with reply-related fun
-        let (to_be_named_channel_sender, to_be_named_channel_receiver) =
+        let (reply_controller_sender, reply_controller_receiver) =
             reply_controller::new_control_channels();
 
         // Shutdown notifier for signalling tasks to stop
@@ -404,7 +404,7 @@ impl NymClient {
             received_buffer_request_receiver,
             mixnet_messages_receiver,
             reply_storage.key_storage(),
-            to_be_named_channel_sender.clone(),
+            reply_controller_sender.clone(),
             shutdown.subscribe(),
         );
 
@@ -425,8 +425,8 @@ impl NymClient {
             input_receiver,
             sphinx_message_sender.clone(),
             reply_storage,
-            to_be_named_channel_sender,
-            to_be_named_channel_receiver,
+            reply_controller_sender,
+            reply_controller_receiver,
             shutdown.subscribe(),
         );
 

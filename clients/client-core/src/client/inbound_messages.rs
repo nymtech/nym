@@ -1,7 +1,6 @@
 use futures::channel::mpsc;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nymsphinx::anonymous_replies::ReplySurb;
 
 pub type InputMessageSender = mpsc::UnboundedSender<InputMessage>;
 pub type InputMessageReceiver = mpsc::UnboundedReceiver<InputMessage>;
@@ -36,18 +35,6 @@ pub enum InputMessage {
         recipient_tag: AnonymousSenderTag,
         data: Vec<u8>,
     },
-
-    /// A simpler version of a `Reply` variant, where the `ReplySurb` is explicitly provided
-    /// with the request. However, this makes the `data` limited in size to what a single SURB
-    /// can wrap.
-    ///
-    /// Ends up with `NymMessage::Reply` variant
-    #[deprecated]
-    ReplyWithSurb {
-        recipient_tag: AnonymousSenderTag,
-        reply_surb: ReplySurb,
-        data: Vec<u8>,
-    },
 }
 
 impl InputMessage {
@@ -66,18 +53,6 @@ impl InputMessage {
     pub fn new_reply(recipient_tag: AnonymousSenderTag, data: Vec<u8>) -> Self {
         InputMessage::Reply {
             recipient_tag,
-            data,
-        }
-    }
-
-    pub fn new_reply_with_surb(
-        recipient_tag: AnonymousSenderTag,
-        reply_surb: ReplySurb,
-        data: Vec<u8>,
-    ) -> Self {
-        InputMessage::ReplyWithSurb {
-            recipient_tag,
-            reply_surb,
             data,
         }
     }

@@ -26,13 +26,15 @@ export const SignMessageModal = ({ onClose }: { onClose: () => void }) => {
   };
 
   if (error) {
-    <ErrorModal
-      open
-      message={`An error occured: ${error}`}
-      onClose={() => {
-        refresh();
-      }}
-    />;
+    return (
+      <ErrorModal
+        open
+        message={`An error occured: ${error}`}
+        onClose={() => {
+          refresh();
+        }}
+      />
+    );
   }
 
   return (
@@ -69,7 +71,7 @@ export const SignMessageModal = ({ onClose }: { onClose: () => void }) => {
           <Typography variant="body2" component="span" fontWeight={400} sx={{ mr: 1, color: 'text.primary' }}>
             Copy signature
           </Typography>
-          <CopyToClipboard text={signature} />
+          <CopyToClipboard text={signature} iconButton />
         </Stack>
       </Stack>
     </SimpleModal>

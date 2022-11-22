@@ -107,7 +107,7 @@ export const Tutorial = () => {
         />
       </Grid>
       <Stack direction="row" gap={2} justifyContent="flex-end" mt={5}>
-        <Button variant="outlined" size="large" onClick={() => {}}>
+        <Button variant="outlined" size="large" onClick={() => setShowSignModal(true)}>
           Sign message
         </Button>
         <Button variant="contained" size="large" onClick={() => {}}>

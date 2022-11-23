@@ -42,19 +42,28 @@ pub struct StringMessage {
 
 /// Create a new binary message with a user-specified `kind`.
 #[wasm_bindgen]
-pub fn create_binary_message(kind: u8, payload: Vec<u8>) -> Vec<u8> {
-    create_binary_message_with_headers(kind, payload, "".to_string())
+pub fn create_binary_message(kind: u8, payload: Vec<u8>, headers: Option<String>) -> Vec<u8> {
+    create_binary_message_with_headers(kind, payload, headers)
 }
 
 /// Create a new message with a UTF-8 encoded string `payload` and a user-specified `kind`.
 #[wasm_bindgen]
-pub fn create_binary_message_from_string(kind: u8, payload: String) -> Vec<u8> {
-    create_binary_message_with_headers(kind, payload.as_bytes().to_vec(), "".to_string())
+pub fn create_binary_message_from_string(
+    kind: u8,
+    payload: String,
+    headers: Option<String>,
+) -> Vec<u8> {
+    create_binary_message_with_headers(kind, payload.as_bytes().to_vec(), headers)
 }
 
 /// Create a new binary message with a user-specified `kind`, and `headers` as a string.
 #[wasm_bindgen]
-pub fn create_binary_message_with_headers(kind: u8, payload: Vec<u8>, headers: String) -> Vec<u8> {
+pub fn create_binary_message_with_headers(
+    kind: u8,
+    payload: Vec<u8>,
+    headers: Option<String>,
+) -> Vec<u8> {
+    let headers = headers.unwrap_or_else(|| "".to_string());
     let headers = headers.as_bytes().to_vec();
     let size = (headers.len() as u64).to_be_bytes().to_vec();
     vec![vec![kind], size, headers, payload].concat()
@@ -169,7 +178,7 @@ mod tests {
         let message_as_bytes = create_binary_message_with_headers(
             42u8,
             vec![0u8, 1u8, 2u8],
-            "test headers".to_string(),
+            Some("test headers".to_string()),
         );
 
         // calculate header size
@@ -197,7 +206,7 @@ mod tests {
     #[wasm_bindgen_test]
     fn test_binary_with_empty_headers() {
         let message_as_bytes =
-            create_binary_message_with_headers(42u8, vec![0u8, 1u8, 2u8], "".to_string());
+            create_binary_message_with_headers(42u8, vec![0u8, 1u8, 2u8], Some("".to_string()));
 
         let expected_size = 0;
 

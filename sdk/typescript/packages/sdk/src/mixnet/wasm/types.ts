@@ -27,6 +27,11 @@ export interface NymClientConfig {
    * Optional. The identity key of the preferred gateway to connect to.
    */
   preferredGatewayIdentityKey?: string;
+  
+  /**
+   * Optional. The listener websocket of the preferred gateway to connect to.
+   */
+  gatewayListener?: string;
 
   /**
    * Optional. Settings for the WASM client.

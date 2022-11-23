@@ -482,6 +482,12 @@ where
         } else {
             log::debug!("{status_str}");
         }
+        if self.sending_delay_controller.current_multiplier() > 1 {
+            log::warn!(
+                "Unable to send packets fast enough - sending delay multiplier set to: {}",
+                self.sending_delay_controller.current_multiplier()
+            );
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]

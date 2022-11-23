@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::real_messages_control::message_handler::{MessageHandler, PreparationError};
-use crate::client::replies::reply_storage::ReceivedReplySurbsMap;
+use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, UsedSenderTags};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::{debug, info, trace, warn};
@@ -92,6 +92,8 @@ pub enum ReplyControllerMessage {
 // - replies to "give additional surbs" requests
 // - will reply to future heartbeats
 
+// TODO: this should be split into ingress and egress controllers
+// because currently its trying to perform two distinct jobs
 pub struct ReplyController<R> {
     // TODO: incorporate that field at some point
     // and use binomial distribution to determine the expected required number
@@ -101,6 +103,7 @@ pub struct ReplyController<R> {
     pending_replies: HashMap<AnonymousSenderTag, VecDeque<Fragment>>,
     message_handler: MessageHandler<R>,
     received_reply_surbs: ReceivedReplySurbsMap,
+    tag_storage: UsedSenderTags,
 
     min_surb_request_size: u32,
     max_surb_request_size: u32,
@@ -115,6 +118,7 @@ where
     pub(crate) fn new(
         message_handler: MessageHandler<R>,
         received_reply_surbs: ReceivedReplySurbsMap,
+        tag_storage: UsedSenderTags,
         request_receiver: ReplyControllerReceiver,
         min_surb_request_size: u32,
         max_surb_request_size: u32,
@@ -126,6 +130,7 @@ where
             pending_replies: Default::default(),
             message_handler,
             received_reply_surbs,
+            tag_storage,
             min_surb_request_size,
             max_surb_request_size,
             maximum_allowed_reply_surb_request_size,
@@ -336,16 +341,22 @@ where
         }
     }
 
-    async fn handle_surb_request(&mut self, recipient: Recipient, amount: u32) {
-        // 1. check whether the requested amount is within sane range
-        // (say if it was malformed and asked for 1M surbs, we should reject it)
-        // TODO:
-        // 2. check whether we sent any surbs in the past to this recipient, otherwise
+    async fn handle_surb_request(&mut self, recipient: Recipient, mut amount: u32) {
+        // 1. check whether we sent any surbs in the past to this recipient, otherwise
         // they have no business in asking for more
-        // TODO:
-        // 3. construct and send the surbs away
+        if !self.tag_storage.exists(&recipient) {
+            warn!("{recipient} asked us for reply SURBs even though we never sent them any anonymous messages before!");
+            return;
+        }
 
-        // TODO: improve this dodgy loop
+        // 2. check whether the requested amount is within sane range
+        if amount > self.maximum_allowed_reply_surb_request_size {
+            warn!("The requested reply surb amount is larger than our maximum allowed ({amount} > {}). Lowering it to a more sane value...", self.maximum_allowed_reply_surb_request_size);
+            amount = self.maximum_allowed_reply_surb_request_size;
+        }
+
+        // 3. construct and send the surbs away
+        // (send them in smaller batches to make the experience a bit smoother
         let mut remaining = amount;
         while remaining > 0 {
             let to_send = min(remaining, 100);

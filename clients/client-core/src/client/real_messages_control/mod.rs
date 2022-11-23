@@ -182,6 +182,7 @@ impl RealMessagesController<OsRng> {
         let reply_control = ReplyController::new(
             message_handler.clone(),
             reply_storage.surbs_storage(),
+            reply_storage.tags_storage(),
             reply_controller_receiver,
             config.minimum_reply_surb_request_size,
             config.maximum_reply_surb_request_size,

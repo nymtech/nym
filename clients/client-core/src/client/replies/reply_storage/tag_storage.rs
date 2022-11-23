@@ -35,4 +35,8 @@ impl UsedSenderTags {
             .get(&recipient.to_bytes())
             .map(|r| *r.value())
     }
+
+    pub(crate) fn exists(&self, recipient: &Recipient) -> bool {
+        self.inner.data.contains_key(&recipient.to_bytes())
+    }
 }

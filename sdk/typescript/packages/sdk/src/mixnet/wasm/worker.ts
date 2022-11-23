@@ -16,6 +16,7 @@ import type {
   StringMessageReceivedEvent,
   BinaryMessageReceivedEvent,
   NymClientConfig,
+  Headers,
 } from './types';
 import { EventKinds } from './types';
 
@@ -91,12 +92,13 @@ class ClientWrapper {
     this.client = await this.client.start();
   };
 
-  sendMessage = async ({ payload, recipient }: { recipient: string; payload: string }) => {
+  sendMessage = async ({ payload, recipient, headers }: { recipient: string; payload: string; headers?: Headers }) => {
     if (!this.client) {
       console.error('Client has not been initialised. Please call `init` first.');
       return;
     }
-    const message = wasm_bindgen.create_binary_message_from_string(PAYLOAD_KIND_TEXT, payload);
+    const headersAsJsonString = headers ? JSON.stringify(headers) : '';
+    const message = wasm_bindgen.create_binary_message_from_string(PAYLOAD_KIND_TEXT, payload, headersAsJsonString);
     this.client = await this.client.send_binary_message(message, recipient);
   };
 
@@ -107,13 +109,14 @@ class ClientWrapper {
   }: {
     recipient: string;
     payload: Uint8Array;
-    headers?: string;
+    headers?: Headers;
   }) => {
     if (!this.client) {
       console.error('Client has not been initialised. Please call `init` first.');
       return;
     }
-    const message = wasm_bindgen.create_binary_message_with_headers(PAYLOAD_KIND_BINARY, payload, headers || '');
+    const headersAsJsonString = headers ? JSON.stringify(headers) : '';
+    const message = wasm_bindgen.create_binary_message_with_headers(PAYLOAD_KIND_BINARY, payload, headersAsJsonString);
     this.client = await this.client.send_binary_message(message, recipient);
   };
 }
@@ -133,11 +136,10 @@ wasm_bindgen(wasmUrl)
         config.validatorApiUrl,
         config.preferredGatewayIdentityKey,
       );
-      
+
       // set a different gatewayListener in order to avoid workaround ws over https error
-      if (config.gatewayListener)
-            gatewayEndpoint.gateway_listener  = config.gatewayListener;
-      
+      if (config.gatewayListener) gatewayEndpoint.gateway_listener = config.gatewayListener;
+
       // create the client, passing handlers for events
       wrapper.init(
         new wasm_bindgen.Config(
@@ -153,19 +155,20 @@ wasm_bindgen(wasmUrl)
         async (message) => {
           try {
             const { kind, payload, headers } = await wasm_bindgen.parse_binary_message_with_headers(message);
+            const parsedHeaders = headers?.length > 0 ? JSON.parse(headers) : undefined;
             switch (kind) {
               case PAYLOAD_KIND_TEXT: {
                 const stringMessage = await wasm_bindgen.parse_string_message_with_headers(message);
                 postMessageWithType<StringMessageReceivedEvent>({
                   kind: EventKinds.StringMessageReceived,
-                  args: { kind, payload: stringMessage.payload },
+                  args: { kind, payload: stringMessage.payload, headers: parsedHeaders },
                 });
                 break;
               }
               case PAYLOAD_KIND_BINARY:
                 postMessageWithType<BinaryMessageReceivedEvent>({
                   kind: EventKinds.BinaryMessageReceived,
-                  args: { kind, payload, headers: headers || '' },
+                  args: { kind, payload, headers: parsedHeaders },
                 });
                 break;
               default:

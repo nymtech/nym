@@ -27,7 +27,7 @@ export interface NymClientConfig {
    * Optional. The identity key of the preferred gateway to connect to.
    */
   preferredGatewayIdentityKey?: string;
-  
+
   /**
    * Optional. The listener websocket of the preferred gateway to connect to.
    */
@@ -39,11 +39,16 @@ export interface NymClientConfig {
   debug?: wasm_bindgen.Debug;
 }
 
+export interface Headers {
+  senderAddress?: string;
+  [key: string]: unknown;
+}
+
 export interface IWebWorker {
   start: (config: NymClientConfig) => void;
   selfAddress: () => string | undefined;
-  sendMessage: (args: { payload: string; recipient: string }) => void;
-  sendBinaryMessage: (args: { payload: Uint8Array; recipient: string; headers?: string }) => void;
+  sendMessage: (args: { payload: string; recipient: string; headers?: Headers }) => void;
+  sendBinaryMessage: (args: { payload: Uint8Array; recipient: string; headers?: Headers }) => void;
 }
 
 export enum EventKinds {
@@ -72,6 +77,7 @@ export interface StringMessageReceivedEvent {
   args: {
     kind: number;
     payload: string;
+    headers?: Headers;
   };
 }
 
@@ -80,7 +86,7 @@ export interface BinaryMessageReceivedEvent {
   args: {
     kind: number;
     payload: Uint8Array;
-    headers: string;
+    headers?: Headers;
   };
 }
 

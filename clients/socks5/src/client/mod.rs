@@ -9,7 +9,7 @@ use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
     server::SphinxSocksServer,
 };
-use client_connections::{ClosedConnectionReceiver, ClosedConnectionSender, LaneQueueLengths};
+use client_connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
     InputMessage, InputMessageReceiver, InputMessageSender,
@@ -120,7 +120,7 @@ impl NymClient {
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
-        closed_connection_rx: ClosedConnectionReceiver,
+        closed_connection_rx: ConnectionCommandReceiver,
         lane_queue_lengths: LaneQueueLengths,
         shutdown: ShutdownListener,
     ) {
@@ -297,7 +297,7 @@ impl NymClient {
         &self,
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
-        closed_connection_tx: ClosedConnectionSender,
+        closed_connection_tx: ConnectionCommandSender,
         lane_queue_lengths: LaneQueueLengths,
         shutdown: ShutdownListener,
     ) {

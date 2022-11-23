@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use client_connections::{
-    ClosedConnectionReceiver, ClosedConnectionSender, LaneQueueLengths, TransmissionLane,
+    ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths, TransmissionLane,
 };
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
@@ -123,7 +123,7 @@ impl NymClient {
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
         lane_queue_lengths: LaneQueueLengths,
-        closed_connection_rx: ClosedConnectionReceiver,
+        closed_connection_rx: ConnectionCommandReceiver,
         shutdown: ShutdownListener,
     ) {
         let mut controller_config = real_messages_control::Config::new(
@@ -300,7 +300,7 @@ impl NymClient {
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
         shared_lane_queue_lengths: LaneQueueLengths,
-        closed_connection_tx: ClosedConnectionSender,
+        closed_connection_tx: ConnectionCommandSender,
     ) {
         info!("Starting websocket listener...");
 

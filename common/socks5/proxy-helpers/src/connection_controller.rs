@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_connections::{ClosedConnectionSender, ConnectionCommand};
+use client_connections::{ConnectionCommandSender, ConnectionCommand};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
@@ -79,7 +79,7 @@ pub struct Controller {
     recently_closed: HashSet<ConnectionId>,
 
     // Broadcast closed connections
-    closed_connection_tx: ClosedConnectionSender,
+    closed_connection_tx: ConnectionCommandSender,
 
     broadcast_connections: bool,
 
@@ -95,7 +95,7 @@ pub struct Controller {
 
 impl Controller {
     pub fn new(
-        closed_connection_tx: ClosedConnectionSender,
+        closed_connection_tx: ConnectionCommandSender,
         broadcast_connections: bool,
         shutdown: ShutdownListener,
     ) -> (Self, ControllerSender) {

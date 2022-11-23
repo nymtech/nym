@@ -4,7 +4,7 @@ use super::{
     mixnet_responses::MixnetResponseListener,
     types::{ResponseCode, SocksProxyError},
 };
-use client_connections::{ClosedConnectionSender, LaneQueueLengths};
+use client_connections::{ConnectionCommandSender, LaneQueueLengths};
 use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
 };
@@ -55,7 +55,7 @@ impl SphinxSocksServer {
         &mut self,
         input_sender: InputMessageSender,
         buffer_requester: ReceivedBufferRequestSender,
-        closed_connection_tx: ClosedConnectionSender,
+        closed_connection_tx: ConnectionCommandSender,
     ) -> Result<(), SocksProxyError> {
         let listener = TcpListener::bind(self.listening_address).await.unwrap();
         info!("Serving Connections...");

@@ -5,7 +5,7 @@ use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
 use client_connections::{
-    ClosedConnectionReceiver, ConnectionCommand, ConnectionId, LaneQueueLengths, TransmissionLane,
+    ConnectionCommandReceiver, ConnectionCommand, ConnectionId, LaneQueueLengths, TransmissionLane,
 };
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
@@ -134,7 +134,7 @@ where
 
     /// Incoming channel for being notified of closed connections, so that we can close lanes
     /// corresponding to connections. To avoid sending traffic unnecessary
-    closed_connection_rx: ClosedConnectionReceiver,
+    closed_connection_rx: ConnectionCommandReceiver,
 
     /// Report queue lengths so that upstream can backoff sending data, and keep connections open.
     lane_queue_lengths: LaneQueueLengths,
@@ -182,7 +182,7 @@ where
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
         lane_queue_lengths: LaneQueueLengths,
-        closed_connection_rx: ClosedConnectionReceiver,
+        closed_connection_rx: ConnectionCommandReceiver,
     ) -> Self {
         OutQueueControl {
             config,

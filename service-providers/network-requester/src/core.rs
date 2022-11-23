@@ -8,7 +8,7 @@ use crate::statistics::ServiceStatisticsCollector;
 use crate::websocket;
 use crate::websocket::TSWebsocketStream;
 use client_connections::{
-    ClosedConnectionReceiver, ConnectionCommand, LaneQueueLengths, TransmissionLane,
+    ConnectionCommandReceiver, ConnectionCommand, LaneQueueLengths, TransmissionLane,
 };
 use futures::channel::mpsc;
 use futures::stream::{SplitSink, SplitStream};
@@ -72,7 +72,7 @@ impl ServiceProvider {
         mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
         mut mix_reader: MixProxyReader<(Socks5Message, Recipient)>,
         stats_collector: Option<ServiceStatisticsCollector>,
-        mut closed_connection_rx: ClosedConnectionReceiver,
+        mut closed_connection_rx: ConnectionCommandReceiver,
     ) {
         loop {
             tokio::select! {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use client_connections::{
-    ClosedConnectionSender, ConnectionCommand, LaneQueueLengths, TransmissionLane,
+    ConnectionCommandSender, ConnectionCommand, LaneQueueLengths, TransmissionLane,
 };
 use client_core::client::{
     inbound_messages::{InputMessage, InputMessageSender},
@@ -37,7 +37,7 @@ impl Default for ReceivedResponseType {
 
 pub(crate) struct Handler {
     msg_input: InputMessageSender,
-    closed_connection_tx: ClosedConnectionSender,
+    closed_connection_tx: ConnectionCommandSender,
     buffer_requester: ReceivedBufferRequestSender,
     self_full_address: Recipient,
     socket: Option<WebSocketStream<TcpStream>>,
@@ -71,7 +71,7 @@ impl Drop for Handler {
 impl Handler {
     pub(crate) fn new(
         msg_input: InputMessageSender,
-        closed_connection_tx: ClosedConnectionSender,
+        closed_connection_tx: ConnectionCommandSender,
         buffer_requester: ReceivedBufferRequestSender,
         self_full_address: &Recipient,
         lane_queue_lengths: LaneQueueLengths,

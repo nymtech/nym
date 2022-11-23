@@ -16,7 +16,7 @@ use crate::{
     },
     spawn_future,
 };
-use client_connections::{ClosedConnectionReceiver, LaneQueueLengths};
+use client_connections::{ConnectionCommandReceiver, LaneQueueLengths};
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
@@ -115,7 +115,7 @@ impl RealMessagesController<OsRng> {
         topology_access: TopologyAccessor,
         #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
         lane_queue_lengths: LaneQueueLengths,
-        closed_connection_rx: ClosedConnectionReceiver,
+        closed_connection_rx: ConnectionCommandReceiver,
     ) -> Self {
         let rng = OsRng;
 

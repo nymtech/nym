@@ -101,7 +101,7 @@ fn dkg_create_proposal() {
             bte_key_with_proof: "bte_key_with_proof".to_string(),
             announce_address: "127.0.0.1:8000".to_string(),
         },
-        &coins(1000000000, TEST_COIN_DENOM),
+        &vec![],
     )
     .unwrap();
 

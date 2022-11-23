@@ -79,15 +79,3 @@ impl EpochState {
         states
     }
 }
-
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
-#[serde(rename_all = "snake_case")]
-pub struct MinimumDepositResponse {
-    pub amount: Coin,
-}
-
-impl MinimumDepositResponse {
-    pub fn new(amount: Coin) -> Self {
-        MinimumDepositResponse { amount }
-    }
-}

@@ -53,7 +53,6 @@ pub enum QueryMsg {
         limit: Option<u32>,
         start_after: Option<String>,
     },
-    GetDepositAmount {},
     GetDealing {
         idx: u64,
         limit: Option<u32>,

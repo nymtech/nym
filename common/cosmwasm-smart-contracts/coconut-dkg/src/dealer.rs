@@ -2,17 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::types::{ContractSafeBytes, EncodedBTEPublicKeyWithProof, NodeIndex};
-use cosmwasm_std::{Addr, Coin};
+use cosmwasm_std::Addr;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub struct DealerDetails {
     pub address: Addr,
     pub bte_public_key_with_proof: EncodedBTEPublicKeyWithProof,
     pub announce_address: String,
     pub assigned_index: NodeIndex,
-    pub deposit: Coin,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -29,7 +28,7 @@ impl DealerType {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct DealerDetailsResponse {
     pub details: Option<DealerDetails>,
@@ -45,7 +44,7 @@ impl DealerDetailsResponse {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub struct PagedDealerResponse {
     pub dealers: Vec<DealerDetails>,

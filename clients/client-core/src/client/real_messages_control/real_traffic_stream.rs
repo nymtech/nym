@@ -464,17 +464,23 @@ where
         let lanes = self.transmission_buffer.num_lanes();
         let mult = self.sending_delay_controller.current_multiplier();
         let delay = self.current_average_message_sending_delay().as_millis();
-        if self.config.disable_poisson_packet_distribution {
-            log::info!(
+        let status_str = if self.config.disable_poisson_packet_distribution {
+            format!(
                 "Status: {lanes} lanes, backlog: {:.2} kiB ({packets}), no delay",
                 backlog
-            );
+            )
         } else {
-            log::info!(
+            format!(
                 "Status: {lanes} lanes, backlog: {:.2} kiB ({packets}), avg delay: {}ms ({mult})",
-                backlog,
-                delay
-            );
+                backlog, delay
+            )
+        };
+        if packets > 1000 {
+            log::warn!("{status_str}");
+        } else if packets > 0 {
+            log::info!("{status_str}");
+        } else {
+            log::debug!("{status_str}");
         }
     }
 

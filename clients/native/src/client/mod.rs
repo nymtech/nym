@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use client_connections::{
-    ClosedConnectionReceiver, ClosedConnectionSender, LaneQueueLengths, TransmissionLane,
+    ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths, TransmissionLane,
 };
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
@@ -123,7 +123,7 @@ impl NymClient {
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
         lane_queue_lengths: LaneQueueLengths,
-        closed_connection_rx: ClosedConnectionReceiver,
+        client_connection_rx: ConnectionCommandReceiver,
         shutdown: ShutdownListener,
     ) {
         let mut controller_config = real_messages_control::Config::new(
@@ -154,7 +154,7 @@ impl NymClient {
             topology_accessor,
             reply_key_storage,
             lane_queue_lengths,
-            closed_connection_rx,
+            client_connection_rx,
         )
         .start_with_shutdown(shutdown);
     }
@@ -299,15 +299,17 @@ impl NymClient {
         &self,
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
-        closed_connection_tx: ClosedConnectionSender,
+        shared_lane_queue_lengths: LaneQueueLengths,
+        client_connection_tx: ConnectionCommandSender,
     ) {
         info!("Starting websocket listener...");
 
         let websocket_handler = websocket::Handler::new(
             msg_input,
-            closed_connection_tx,
+            client_connection_tx,
             buffer_requester,
             &self.as_mix_recipient(),
+            shared_lane_queue_lengths,
         );
 
         websocket::Listener::new(self.config.get_listening_port()).start(websocket_handler);
@@ -449,11 +451,11 @@ impl NymClient {
 
         // Channels that the websocket listener can use to signal downstream to the real traffic
         // controller that connections are closed.
-        let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
+        let (client_connection_tx, client_connection_rx) = mpsc::unbounded();
 
         // Shared queue length data. Published by the `OutQueueController` in the client, and used
         // primarily to throttle incoming connections (e.g socks5 for attached network-requesters)
-        let shared_lane_queue_length = LaneQueueLengths::new();
+        let shared_lane_queue_lengths = LaneQueueLengths::new();
 
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
@@ -461,8 +463,8 @@ impl NymClient {
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
-            shared_lane_queue_length,
-            closed_connection_rx,
+            shared_lane_queue_lengths.clone(),
+            client_connection_rx,
             shutdown.subscribe(),
         );
 
@@ -482,7 +484,8 @@ impl NymClient {
             SocketType::WebSocket => self.start_websocket_listener(
                 received_buffer_request_sender,
                 input_sender,
-                closed_connection_tx,
+                shared_lane_queue_lengths,
+                client_connection_tx,
             ),
             SocketType::None => {
                 // if we did not start the socket, it means we're running (supposedly) in the native mode

@@ -106,23 +106,37 @@ where
 }
 
 async fn wait_until_lane_empty(lane_queue_lengths: LaneQueueLengths, connection_id: u64) {
-    wait_for_lane(
-        lane_queue_lengths,
-        connection_id,
-        0,
-        Duration::from_millis(500),
+    if tokio::time::timeout(
+        Duration::from_secs(2 * 60),
+        wait_for_lane(
+            lane_queue_lengths,
+            connection_id,
+            0,
+            Duration::from_millis(500),
+        ),
     )
     .await
+    .is_err()
+    {
+        log::warn!("Wait until lane empty timed out");
+    }
 }
 
 async fn wait_until_lane_almost_empty(lane_queue_lengths: LaneQueueLengths, connection_id: u64) {
-    wait_for_lane(
-        lane_queue_lengths,
-        connection_id,
-        10,
-        Duration::from_millis(100),
+    if tokio::time::timeout(
+        Duration::from_secs(2 * 60),
+        wait_for_lane(
+            lane_queue_lengths,
+            connection_id,
+            10,
+            Duration::from_millis(100),
+        ),
     )
     .await
+    .is_err()
+    {
+        log::debug!("Wait until lane almost empty timed out");
+    }
 }
 
 async fn wait_for_lane(

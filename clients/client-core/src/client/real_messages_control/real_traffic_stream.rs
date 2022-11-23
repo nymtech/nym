@@ -5,7 +5,7 @@ use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
 use client_connections::{
-    ClosedConnectionReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
+    ConnectionCommand, ConnectionCommandReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
 };
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
@@ -134,7 +134,7 @@ where
 
     /// Incoming channel for being notified of closed connections, so that we can close lanes
     /// corresponding to connections. To avoid sending traffic unnecessary
-    closed_connection_rx: ClosedConnectionReceiver,
+    client_connection_rx: ConnectionCommandReceiver,
 
     /// Report queue lengths so that upstream can backoff sending data, and keep connections open.
     lane_queue_lengths: LaneQueueLengths,
@@ -182,7 +182,7 @@ where
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
         lane_queue_lengths: LaneQueueLengths,
-        closed_connection_rx: ClosedConnectionReceiver,
+        client_connection_rx: ConnectionCommandReceiver,
     ) -> Self {
         OutQueueControl {
             config,
@@ -196,7 +196,7 @@ where
             rng,
             topology_access,
             transmission_buffer: Default::default(),
-            closed_connection_rx,
+            client_connection_rx,
             lane_queue_lengths,
         }
     }
@@ -262,7 +262,7 @@ where
             self.sent_notify(fragment_id);
         }
 
-        // In addition to closing connections on receiving messages throught closed_connection_rx,
+        // In addition to closing connections on receiving messages throught client_connection_rx,
         // also close connections when sufficiently stale.
         self.transmission_buffer.prune_stale_connections();
 
@@ -335,8 +335,11 @@ where
         // Start by checking if we have any incoming messages about closed connections
         // NOTE: this feels a bit iffy, the `OutQueueControl` is getting ripe for a rewrite to
         // something simpler.
-        if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connection_rx).poll_next(cx) {
-            self.on_close_connection(id);
+        if let Poll::Ready(Some(id)) = Pin::new(&mut self.client_connection_rx).poll_next(cx) {
+            match id {
+                ConnectionCommand::Close(id) => self.on_close_connection(id),
+                ConnectionCommand::ActiveConnections(_) => panic!(),
+            }
         }
 
         if let Some(ref mut next_delay) = &mut self.next_delay {
@@ -411,8 +414,11 @@ where
 
     fn poll_immediate(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
         // Start by checking if we have any incoming messages about closed connections
-        if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connection_rx).poll_next(cx) {
-            self.on_close_connection(id);
+        if let Poll::Ready(Some(id)) = Pin::new(&mut self.client_connection_rx).poll_next(cx) {
+            match id {
+                ConnectionCommand::Close(id) => self.on_close_connection(id),
+                ConnectionCommand::ActiveConnections(_) => panic!(),
+            }
         }
 
         match Pin::new(&mut self.real_receiver).poll_recv(cx) {

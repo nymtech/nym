@@ -23,6 +23,9 @@ pub const SELF_ADDRESS_REQUEST_TAG: u8 = 0x02;
 /// Value tag representing [`ClosedConnection`] variant of the [`ClientRequest`]
 pub const CLOSED_CONNECTION_REQUEST_TAG: u8 = 0x03;
 
+/// Value tag representing [`GetLaneQueueLength`] variant of the [`ClientRequest`]
+pub const GET_LANE_QUEUE_LENGHT_TAG: u8 = 0x04;
+
 #[allow(non_snake_case)]
 #[derive(Debug)]
 pub enum ClientRequest {
@@ -39,6 +42,7 @@ pub enum ClientRequest {
     },
     SelfAddress,
     ClosedConnection(u64),
+    GetLaneQueueLength(u64),
 }
 
 // we could have been parsing it directly TryFrom<WsMessage>, but we want to retain
@@ -241,6 +245,26 @@ impl ClientRequest {
         ClientRequest::ClosedConnection(connection_id)
     }
 
+    // GET_LANE_QUEUE_LENGHT_TAG
+    fn serialize_get_lane_queue_lengths(connection_id: u64) -> Vec<u8> {
+        let conn_id_bytes = connection_id.to_be_bytes();
+        std::iter::once(GET_LANE_QUEUE_LENGHT_TAG)
+            .chain(conn_id_bytes.iter().copied())
+            .collect()
+    }
+
+    // GET_LANE_QUEUE_LENGHT_TAG
+    fn deserialize_get_lane_queue_length(b: &[u8]) -> Self {
+        // this MUST match because it was called by 'deserialize'
+        debug_assert_eq!(b[0], GET_LANE_QUEUE_LENGHT_TAG);
+
+        let mut connection_id_bytes = [0u8; size_of::<u64>()];
+        connection_id_bytes.copy_from_slice(&b[1..=size_of::<u64>()]);
+        let connection_id = u64::from_be_bytes(connection_id_bytes);
+
+        ClientRequest::GetLaneQueueLength(connection_id)
+    }
+
     pub fn serialize(self) -> Vec<u8> {
         match self {
             ClientRequest::Send {
@@ -258,6 +282,8 @@ impl ClientRequest {
             ClientRequest::SelfAddress => Self::serialize_self_address(),
 
             ClientRequest::ClosedConnection(id) => Self::serialize_closed_connection(id),
+
+            ClientRequest::GetLaneQueueLength(id) => Self::serialize_get_lane_queue_lengths(id),
         }
     }
 
@@ -288,6 +314,7 @@ impl ClientRequest {
             REPLY_REQUEST_TAG => Self::deserialize_reply(b),
             SELF_ADDRESS_REQUEST_TAG => Ok(Self::deserialize_self_address(b)),
             CLOSED_CONNECTION_REQUEST_TAG => Ok(Self::deserialize_closed_connection(b)),
+            GET_LANE_QUEUE_LENGHT_TAG => Ok(Self::deserialize_get_lane_queue_length(b)),
             n => Err(error::Error::new(
                 ErrorKind::UnknownRequest,
                 format!("type {n}"),

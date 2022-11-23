@@ -1,7 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_connections::{ClosedConnectionSender, TransmissionLane};
+use client_connections::{
+    ConnectionCommand, ConnectionCommandSender, LaneQueueLengths, TransmissionLane,
+};
 use client_core::client::{
     inbound_messages::{InputMessage, InputMessageSender},
     received_buffer::{
@@ -35,11 +37,12 @@ impl Default for ReceivedResponseType {
 
 pub(crate) struct Handler {
     msg_input: InputMessageSender,
-    closed_connection_tx: ClosedConnectionSender,
+    client_connection_tx: ConnectionCommandSender,
     buffer_requester: ReceivedBufferRequestSender,
     self_full_address: Recipient,
     socket: Option<WebSocketStream<TcpStream>>,
     received_response_type: ReceivedResponseType,
+    lane_queue_lengths: LaneQueueLengths,
 }
 
 // clone is used to use handler on a new connection, which initially is `None`
@@ -47,11 +50,12 @@ impl Clone for Handler {
     fn clone(&self) -> Self {
         Handler {
             msg_input: self.msg_input.clone(),
-            closed_connection_tx: self.closed_connection_tx.clone(),
+            client_connection_tx: self.client_connection_tx.clone(),
             buffer_requester: self.buffer_requester.clone(),
             self_full_address: self.self_full_address,
             socket: None,
             received_response_type: Default::default(),
+            lane_queue_lengths: self.lane_queue_lengths.clone(),
         }
     }
 }
@@ -67,17 +71,19 @@ impl Drop for Handler {
 impl Handler {
     pub(crate) fn new(
         msg_input: InputMessageSender,
-        closed_connection_tx: ClosedConnectionSender,
+        client_connection_tx: ConnectionCommandSender,
         buffer_requester: ReceivedBufferRequestSender,
         self_full_address: &Recipient,
+        lane_queue_lengths: LaneQueueLengths,
     ) -> Self {
         Handler {
             msg_input,
-            closed_connection_tx,
+            client_connection_tx,
             buffer_requester,
             self_full_address: *self_full_address,
             socket: None,
             received_response_type: Default::default(),
+            lane_queue_lengths,
         }
     }
 
@@ -95,6 +101,15 @@ impl Handler {
             panic!();
         }
 
+        // on receiving a send, we reply back the current lane queue length for that connection id.
+        // Note that this does _NOT_ take into account the packets that have been received but not
+        // yet reach `OutQueueControl`, so it might be a tad low.
+        if let Ok(lane_queue_lengths) = self.lane_queue_lengths.lock() {
+            let queue_length = lane_queue_lengths.get(&lane).unwrap_or(0);
+            return Some(ServerResponse::LaneQueueLength(connection_id, queue_length));
+        }
+
+        log::warn!("Failed to get the lane queue length lock, not responding back with the current queue length");
         None
     }
 
@@ -120,10 +135,23 @@ impl Handler {
     }
 
     fn handle_closed_connection(&self, connection_id: u64) -> Option<ServerResponse> {
-        self.closed_connection_tx
-            .unbounded_send(connection_id)
+        self.client_connection_tx
+            .unbounded_send(ConnectionCommand::Close(connection_id))
             .unwrap();
         None
+    }
+
+    fn handle_get_lane_queue_length(&self, connection_id: u64) -> Option<ServerResponse> {
+        let Ok(lane_queue_lengths) = self.lane_queue_lengths.lock() else {
+            log::warn!(
+                "Failed to get the lane queue length lock, not responding back with the current queue length"
+            );
+            return None;
+        };
+
+        let lane = TransmissionLane::ConnectionId(connection_id);
+        let queue_length = lane_queue_lengths.get(&lane).unwrap_or(0);
+        Some(ServerResponse::LaneQueueLength(connection_id, queue_length))
     }
 
     async fn handle_request(&mut self, request: ClientRequest) -> Option<ServerResponse> {
@@ -143,6 +171,7 @@ impl Handler {
             } => self.handle_reply(reply_surb, message).await,
             ClientRequest::SelfAddress => Some(self.handle_self_address()),
             ClientRequest::ClosedConnection(id) => self.handle_closed_connection(id),
+            ClientRequest::GetLaneQueueLength(id) => self.handle_get_lane_queue_length(id),
         }
     }
 

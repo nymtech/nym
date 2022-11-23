@@ -399,14 +399,37 @@ mod tests {
     #[test]
     fn handshake_payload_can_be_deserialized_into_register_handshake_init_request() {
         let handshake_data = vec![1, 2, 3, 4, 5, 6];
-        let handshake_payload = RegistrationHandshake::HandshakePayload {
+        let handshake_payload_with_protocol = RegistrationHandshake::HandshakePayload {
+            protocol_version: Some(42),
             data: handshake_data.clone(),
         };
-        let serialized = serde_json::to_string(&handshake_payload).unwrap();
+        let serialized = serde_json::to_string(&handshake_payload_with_protocol).unwrap();
         let deserialized = ClientControlRequest::try_from(serialized).unwrap();
 
         match deserialized {
-            ClientControlRequest::RegisterHandshakeInitRequest { data } => {
+            ClientControlRequest::RegisterHandshakeInitRequest {
+                protocol_version,
+                data,
+            } => {
+                assert_eq!(protocol_version, Some(42));
+                assert_eq!(data, handshake_data)
+            }
+            _ => unreachable!("this branch shouldn't have been reached!"),
+        }
+
+        let handshake_payload_without_protocol = RegistrationHandshake::HandshakePayload {
+            protocol_version: None,
+            data: handshake_data.clone(),
+        };
+        let serialized = serde_json::to_string(&handshake_payload_without_protocol).unwrap();
+        let deserialized = ClientControlRequest::try_from(serialized).unwrap();
+
+        match deserialized {
+            ClientControlRequest::RegisterHandshakeInitRequest {
+                protocol_version,
+                data,
+            } => {
+                assert!(protocol_version.is_none());
                 assert_eq!(data, handshake_data)
             }
             _ => unreachable!("this branch shouldn't have been reached!"),

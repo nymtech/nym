@@ -1,6 +1,8 @@
 name: Build release of Nym smart contracts
 on:
   workflow_dispatch:
+  release:
+    types: [created]
 
 defaults:
   run:
@@ -36,3 +38,11 @@ jobs:
           name: vesting_contract.wasm
           path: contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm
           retention-days: 5
+
+      - name: Upload to release based on tag name
+        uses: softprops/action-gh-release@v1
+        if: github.event_name == 'release'
+        with:
+          files: |
+            mixnet_contract.wasm 
+            vesting_contract.wasm

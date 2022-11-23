@@ -3,7 +3,6 @@
 
 use crate::nymd::cosmwasm_client::types::ExecuteResult;
 use crate::nymd::error::NymdError;
-use crate::nymd::traits::dkg_query_client::DkgQueryClient;
 use crate::nymd::{Fee, NymdClient, SigningCosmWasmClient};
 use async_trait::async_trait;
 use coconut_dkg_common::msg::ExecuteMsg as DkgExecuteMsg;
@@ -48,7 +47,6 @@ where
             bte_key_with_proof: bte_key,
             announce_address,
         };
-        let deposit = self.get_deposit_amount().await?;
 
         self.client
             .execute(
@@ -57,7 +55,7 @@ where
                 &req,
                 fee.unwrap_or_default(),
                 format!("registering {} as a dealer", self.address()),
-                vec![deposit.amount.into()],
+                vec![],
             )
             .await
     }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::config::Config;
-use client_connections::{ClosedConnectionReceiver, LaneQueueLengths, TransmissionLane};
+use client_connections::{ConnectionCommandReceiver, LaneQueueLengths, TransmissionLane};
 use client_core::client::{
     cover_traffic_stream::LoopCoverTrafficStream,
     inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender},
@@ -128,7 +128,7 @@ impl NymClient {
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
-        client_connection_rx: ClosedConnectionReceiver,
+        client_connection_rx: ConnectionCommandReceiver,
         lane_queue_lengths: LaneQueueLengths,
     ) {
         let mut controller_config = real_messages_control::Config::new(

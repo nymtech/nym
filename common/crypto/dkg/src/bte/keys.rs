@@ -135,7 +135,7 @@ impl PublicKeyWithProof {
 
 #[derive(Debug, Zeroize)]
 #[zeroize(drop)]
-#[cfg_attr(test, derive(PartialEq))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct DecryptionKey {
     // g1^rho
     pub(crate) a: G1Projective,

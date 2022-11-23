@@ -128,15 +128,8 @@ impl NymClient {
         shutdown: ShutdownListener,
     ) {
         let mut controller_config = real_messages_control::Config::new(
+            self.config.get_debug_settings(),
             self.key_manager.ack_key(),
-            self.config.get_base().get_ack_wait_multiplier(),
-            self.config.get_base().get_ack_wait_addition(),
-            self.config.get_base().get_average_ack_delay(),
-            self.config.get_base().get_message_sending_average_delay(),
-            self.config.get_base().get_average_packet_delay(),
-            self.config
-                .get_base()
-                .get_disabled_main_poisson_packet_distribution(),
             self.as_mix_recipient(),
         );
 
@@ -400,7 +393,14 @@ impl NymClient {
         // =====================
         // =====================
         // TODO: lower the value and improve the reliability when it's low (because it should still work in that case)
-        let reply_storage = CombinedReplyStorage::new(20, 500);
+        let reply_storage = CombinedReplyStorage::new(
+            self.config
+                .get_base()
+                .get_minimum_reply_surb_storage_threshold(),
+            self.config
+                .get_base()
+                .get_maximum_reply_surb_storage_threshold(),
+        );
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.

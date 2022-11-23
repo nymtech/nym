@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::template::config_template;
-use client_core::config::Config as BaseConfig;
 pub use client_core::config::MISSING_VALUE;
+use client_core::config::{Config as BaseConfig, Debug};
 use config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
@@ -98,6 +98,10 @@ impl Config {
 
     pub fn get_base_mut(&mut self) -> &mut BaseConfig<Self> {
         &mut self.base
+    }
+
+    pub fn get_debug_settings(&self) -> &Debug {
+        self.get_base().get_debug_config()
     }
 
     pub fn get_socket_type(&self) -> SocketType {

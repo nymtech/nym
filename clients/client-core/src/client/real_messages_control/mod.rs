@@ -30,6 +30,7 @@ use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 use std::time::Duration;
 
+use crate::config;
 pub(crate) use acknowledgement_control::{AckActionSender, Action};
 // #[cfg(feature = "reply-surb")]
 // use crate::client::reply_key_storage::ReplyKeyStorage;
@@ -67,31 +68,46 @@ pub struct Config {
 
     /// Predefined packet size used for the encapsulated messages.
     packet_size: PacketSize,
+
+    /// Defines the minimum number of reply surbs the client would request.
+    minimum_reply_surb_request_size: u32,
+
+    /// Defines the maximum number of reply surbs the client would request.
+    maximum_reply_surb_request_size: u32,
+
+    /// Defines the maximum number of reply surbs a remote party is allowed to request from this client at once.
+    maximum_allowed_reply_surb_request_size: u32,
+
+    /// Defines maximum amount of time the client is going to wait for reply surbs before explicitly asking
+    /// for more even though in theory they wouldn't need to.
+    maximum_reply_surb_waiting_period: Duration,
 }
 
 impl Config {
-    // TODO: change the config into a builder
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
+        base_client_debug_config: &config::Debug,
         ack_key: Arc<AckKey>,
-        ack_wait_multiplier: f64,
-        ack_wait_addition: Duration,
-        average_ack_delay_duration: Duration,
-        average_message_sending_delay: Duration,
-        average_packet_delay_duration: Duration,
-        disable_main_poisson_packet_distribution: bool,
         self_recipient: Recipient,
     ) -> Self {
         Config {
             ack_key,
-            ack_wait_addition,
-            ack_wait_multiplier,
             self_recipient,
-            average_message_sending_delay,
-            average_packet_delay_duration,
-            average_ack_delay_duration,
-            disable_main_poisson_packet_distribution,
             packet_size: Default::default(),
+            ack_wait_addition: base_client_debug_config.ack_wait_addition,
+            ack_wait_multiplier: base_client_debug_config.ack_wait_multiplier,
+            average_message_sending_delay: base_client_debug_config.message_sending_average_delay,
+            average_packet_delay_duration: base_client_debug_config.average_packet_delay,
+            average_ack_delay_duration: base_client_debug_config.average_ack_delay,
+            disable_main_poisson_packet_distribution: base_client_debug_config
+                .disable_main_poisson_packet_distribution,
+            minimum_reply_surb_request_size: base_client_debug_config
+                .minimum_reply_surb_request_size,
+            maximum_reply_surb_request_size: base_client_debug_config
+                .maximum_reply_surb_request_size,
+            maximum_allowed_reply_surb_request_size: base_client_debug_config
+                .maximum_allowed_reply_surb_request_size,
+            maximum_reply_surb_waiting_period: base_client_debug_config
+                .maximum_reply_surb_waiting_period,
         }
     }
 
@@ -167,6 +183,10 @@ impl RealMessagesController<OsRng> {
             message_handler.clone(),
             reply_storage.surbs_storage(),
             reply_controller_receiver,
+            config.minimum_reply_surb_request_size,
+            config.maximum_reply_surb_request_size,
+            config.maximum_allowed_reply_surb_request_size,
+            config.maximum_reply_surb_waiting_period,
         );
 
         let ack_control = AcknowledgementController::new(

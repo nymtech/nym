@@ -93,35 +93,43 @@ pub enum ReplyControllerMessage {
 // - will reply to future heartbeats
 
 pub struct ReplyController<R> {
+    // TODO: incorporate that field at some point
+    // and use binomial distribution to determine the expected required number
+    // of surbs required to send the message through
     // expected_reliability: f32,
     request_receiver: ReplyControllerReceiver,
     pending_replies: HashMap<AnonymousSenderTag, VecDeque<Fragment>>,
     message_handler: MessageHandler<R>,
     received_reply_surbs: ReceivedReplySurbsMap,
 
-    // TODO: move elsewhere
     min_surb_request_size: u32,
     max_surb_request_size: u32,
+    maximum_allowed_reply_surb_request_size: u32,
+    max_surb_waiting_period: Duration,
 }
 
 impl<R> ReplyController<R>
 where
     R: CryptoRng + Rng,
 {
-    // TODO: don't make it public
     pub(crate) fn new(
         message_handler: MessageHandler<R>,
         received_reply_surbs: ReceivedReplySurbsMap,
         request_receiver: ReplyControllerReceiver,
+        min_surb_request_size: u32,
+        max_surb_request_size: u32,
+        maximum_allowed_reply_surb_request_size: u32,
+        max_surb_waiting_period: Duration,
     ) -> Self {
         ReplyController {
             request_receiver,
             pending_replies: Default::default(),
             message_handler,
             received_reply_surbs,
-            // surbs_last_received_at: Instant::now(),
-            min_surb_request_size: 10,
-            max_surb_request_size: 50,
+            min_surb_request_size,
+            max_surb_request_size,
+            maximum_allowed_reply_surb_request_size,
+            max_surb_waiting_period,
         }
     }
 
@@ -308,71 +316,24 @@ where
     ) {
         println!("handling received surbs");
 
+        // clear the requesting flag since we should have been asking for surbs
         self.received_reply_surbs
             .reset_surbs_last_received_at(&from);
-
-        // clear the requesting flag since we should have been asking for surbs
         if from_surb_request {
             self.received_reply_surbs
                 .decrement_pending_reception(&from, reply_surbs.len() as u32);
         }
+
+        // store received surbs
         self.received_reply_surbs.insert_surbs(&from, reply_surbs);
 
+        // use as many as we can for clearing pending queue
         self.try_clear_pending_queue(from).await;
-        //
-        // if available_surbs > min_surbs_threshold {
-        // }
 
-        // 3. if our queue is still not empty, we used all received surbs and we're below our max threshold,
-        // request additional surbs
-        // (note: actual available_surbs might be slightly bigger than the variable if we just
-        // inserted some, but that's still good enough approximation)
+        // if we have to, request more
         if self.should_request_more_surbs(&from) {
             self.request_reply_surbs_for_queue_clearing(from).await;
         }
-
-        //
-        //
-        //
-        //
-        // // 1. make sure we have > threshold number of surbs for the given target
-        // let available_surbs = self.received_reply_surbs.available_surbs(&from);
-        // let min_surbs_threshold = self.received_reply_surbs.min_surb_threshold();
-        // let max_surbs_threshold = self.received_reply_surbs.max_surb_threshold();
-        //
-        // if available_surbs < min_surbs_threshold {
-        //     let to_insert = min(min_surbs_threshold - available_surbs, reply_surbs.len());
-        //     self.received_reply_surbs
-        //         .insert_surbs(&from, &mut reply_surbs.drain(..to_insert))
-        // }
-        //
-        // // 2. if we have any pending replies, use surbs for those
-        // self.try_clear_pending_queue(from, &mut reply_surbs).await;
-        //
-        // // 3. if our queue is still not empty, we used all received surbs and we're below our max threshold,
-        // // request additional surbs
-        // // (note: actual available_surbs might be slightly bigger than the variable if we just
-        // // inserted some, but that's still good enough approximation)
-        //
-        // let queue_size = self
-        //     .pending_replies
-        //     .get(&from)
-        //     .map(|p| p.data.len())
-        //     .unwrap_or_default();
-        // let available_surbs = self.received_reply_surbs.available_surbs(&from);
-        // println!("pending: {}", still_pending);
-        // println!("queue: {}", queue_size);
-        // println!("available: {}", available_surbs);
-        // if (still_pending + available_surbs) < max_surbs_threshold
-        //     && (still_pending + available_surbs) < queue_size
-        // {
-        //     self.request_reply_surbs_for_queue_clearing(from).await;
-        // }
-        // // otherwise
-        // // 4. buffer any leftovers
-        // if !reply_surbs.is_empty() {
-        //     self.received_reply_surbs.insert_surbs(&from, reply_surbs)
-        // }
     }
 
     async fn handle_surb_request(&mut self, recipient: Recipient, amount: u32) {
@@ -467,16 +428,13 @@ where
 
             let diff = now - last_received;
 
-            // TODO: hardcoded value
-            if diff > Duration::from_secs(10) {
-                warn!("we haven't received any surbs in {:?}", diff);
+            if diff > self.max_surb_waiting_period {
+                warn!("We haven't received any surbs in {:?} from {:?}. Going to explicitly ask for more", diff, pending_reply_target);
                 to_request.push(*pending_reply_target);
             }
         }
 
         for pending_reply_target in to_request {
-            warn!("requesting more surbs...");
-            // TODO: change below
             self.request_reply_surbs_for_queue_clearing(pending_reply_target)
                 .await;
             self.received_reply_surbs

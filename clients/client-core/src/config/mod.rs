@@ -31,13 +31,18 @@ const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
 // reply-surbs related:
 
+// define when to request
 // clients/client-core/src/client/replies/reply_storage/surb_storage.rs
-const DEFAULT_MINIMUM_REPLY_SURB_THRESHOLD: u32 = 10;
-const DEFAULT_MAXIMUM_REPLY_SURB_THRESHOLD: u32 = 200;
+const DEFAULT_MINIMUM_REPLY_SURB_STORAGE_THRESHOLD: usize = 10;
+const DEFAULT_MAXIMUM_REPLY_SURB_STORAGE_THRESHOLD: usize = 200;
 
+// define how much to request at once
 // clients/client-core/src/client/replies/reply_controller.rs
 const DEFAULT_MINIMUM_REPLY_SURB_REQUEST_SIZE: u32 = 10;
 const DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE: u32 = 100;
+
+const DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE: u32 = 500;
+const DEFAULT_MAXIMUM_REPLY_SURB_WAITING_PERIOD: Duration = Duration::from_secs(10);
 
 pub fn missing_string_value() -> String {
     MISSING_VALUE.to_string()
@@ -152,6 +157,10 @@ impl<T: NymConfig> Config<T> {
         self.client.id.clone()
     }
 
+    pub fn get_debug_config(&self) -> &Debug {
+        &self.debug
+    }
+
     pub fn get_disabled_credentials_mode(&self) -> bool {
         self.client.disabled_credentials_mode
     }
@@ -212,6 +221,10 @@ impl<T: NymConfig> Config<T> {
         self.client.database_path.clone()
     }
 
+    pub fn get_version(&self) -> &str {
+        &self.client.version
+    }
+
     // Debug getters
     pub fn get_average_packet_delay(&self) -> Duration {
         self.debug.average_packet_delay
@@ -261,8 +274,28 @@ impl<T: NymConfig> Config<T> {
         self.debug.use_extended_packet_size
     }
 
-    pub fn get_version(&self) -> &str {
-        &self.client.version
+    pub fn get_minimum_reply_surb_storage_threshold(&self) -> usize {
+        self.debug.minimum_reply_surb_storage_threshold
+    }
+
+    pub fn get_maximum_reply_surb_storage_threshold(&self) -> usize {
+        self.debug.maximum_reply_surb_storage_threshold
+    }
+
+    pub fn get_minimum_reply_surb_request_size(&self) -> u32 {
+        self.debug.minimum_reply_surb_request_size
+    }
+
+    pub fn get_maximum_reply_surb_request_size(&self) -> u32 {
+        self.debug.maximum_reply_surb_request_size
+    }
+
+    pub fn get_maximum_allowed_reply_surb_request_size(&self) -> u32 {
+        self.debug.maximum_allowed_reply_surb_request_size
+    }
+
+    pub fn get_maximum_reply_surb_waiting_period(&self) -> Duration {
+        self.debug.maximum_reply_surb_waiting_period
     }
 }
 
@@ -482,6 +515,27 @@ pub struct Debug {
 
     /// Controls whether the sent sphinx packet use the NON-DEFAULT bigger size.
     pub use_extended_packet_size: bool,
+
+    /// Defines the minimum number of reply surbs the client wants to keep in its storage at all times.
+    /// It can only allow to go below that value if its to request additional reply surbs.
+    pub minimum_reply_surb_storage_threshold: usize,
+
+    /// Defines the maximum number of reply surbs the client wants to keep in its storage at any times.
+    pub maximum_reply_surb_storage_threshold: usize,
+
+    /// Defines the minimum number of reply surbs the client would request.
+    pub minimum_reply_surb_request_size: u32,
+
+    /// Defines the maximum number of reply surbs the client would request.
+    pub maximum_reply_surb_request_size: u32,
+
+    /// Defines the maximum number of reply surbs a remote party is allowed to request from this client at once.
+    pub maximum_allowed_reply_surb_request_size: u32,
+
+    /// Defines maximum amount of time the client is going to wait for reply surbs before explicitly asking
+    /// for more even though in theory they wouldn't need to.
+    #[serde(with = "humantime_serde")]
+    pub maximum_reply_surb_waiting_period: Duration,
 }
 
 impl Default for Debug {
@@ -499,6 +553,12 @@ impl Default for Debug {
             disable_loop_cover_traffic_stream: false,
             disable_main_poisson_packet_distribution: false,
             use_extended_packet_size: false,
+            minimum_reply_surb_storage_threshold: DEFAULT_MINIMUM_REPLY_SURB_STORAGE_THRESHOLD,
+            maximum_reply_surb_storage_threshold: DEFAULT_MAXIMUM_REPLY_SURB_STORAGE_THRESHOLD,
+            minimum_reply_surb_request_size: DEFAULT_MINIMUM_REPLY_SURB_REQUEST_SIZE,
+            maximum_reply_surb_request_size: DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE,
+            maximum_allowed_reply_surb_request_size: DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE,
+            maximum_reply_surb_waiting_period: DEFAULT_MAXIMUM_REPLY_SURB_WAITING_PERIOD,
         }
     }
 }

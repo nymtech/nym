@@ -68,6 +68,12 @@ impl ActiveConnection {
     }
 }
 
+#[derive(PartialEq, Eq)]
+pub enum BroadcastActiveConnections {
+    On,
+    Off,
+}
+
 /// Controller represents a way of managing multiple open connections that are used for socks5
 /// proxy.
 pub struct Controller {
@@ -81,7 +87,9 @@ pub struct Controller {
     // Broadcast closed connections
     client_connection_tx: ConnectionCommandSender,
 
-    broadcast_connections: bool,
+    // The controller can broadcast active connections. This is useful in the network-requester
+    // where its used to query the client for lane queue lengths
+    broadcast_connections: BroadcastActiveConnections,
 
     // TODO: this can potentially be abused to ddos and kill provider. Not sure at this point
     // how to handle it more gracefully
@@ -96,7 +104,7 @@ pub struct Controller {
 impl Controller {
     pub fn new(
         client_connection_tx: ConnectionCommandSender,
-        broadcast_connections: bool,
+        broadcast_connections: BroadcastActiveConnections,
         shutdown: ShutdownListener,
     ) -> (Self, ControllerSender) {
         let (sender, receiver) = mpsc::unbounded();
@@ -240,7 +248,7 @@ impl Controller {
                     }
                 },
                 _ = interval.tick() => {
-                    if self.broadcast_connections {
+                    if self.broadcast_connections == BroadcastActiveConnections::On {
                         self.broadcast_active_connections();
                     }
                 },

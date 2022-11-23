@@ -16,7 +16,9 @@ use futures::{SinkExt, StreamExt};
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::receiver::ReconstructedMessage;
-use proxy_helpers::connection_controller::{Controller, ControllerCommand, ControllerSender};
+use proxy_helpers::connection_controller::{
+    BroadcastActiveConnections, Controller, ControllerCommand, ControllerSender,
+};
 use proxy_helpers::proxy_runner::{MixProxyReader, MixProxySender};
 use socks5_requests::{
     ConnectionId, Message as Socks5Message, NetworkRequesterResponse, Request, Response,
@@ -124,7 +126,7 @@ impl ServiceProvider {
                             // Also that means fiddling with the currently manual
                             // serialize/deserialize we do with ClientRequests ... bleh
                             for id in ids {
-                                log::info!("Requesting lane queue length for: {}", id);
+                                log::trace!("Requesting lane queue length for: {}", id);
                                 let msg = ClientRequest::GetLaneQueueLength(id);
                                 let ws_msg = Message::Binary(msg.serialize());
                                 websocket_writer.send(ws_msg).await.unwrap();
@@ -141,7 +143,7 @@ impl ServiceProvider {
         lane: u64,
         queue_length: usize,
     ) {
-        log::info!("received LaneQueueLength lane: {lane}, queue_length: {queue_length}");
+        log::trace!("Received LaneQueueLength lane: {lane}, queue_length: {queue_length}");
         if let Ok(mut lane_queue_lengths) = lane_queue_lengths.lock() {
             let lane = TransmissionLane::ConnectionId(lane);
             lane_queue_lengths.map.insert(lane, queue_length);
@@ -400,8 +402,11 @@ impl ServiceProvider {
         // Controller for managing all active connections.
         // We provide it with a ShutdownListener since it requires it, even though for the network
         // requester shutdown signalling is not yet fully implemented.
-        let (mut active_connections_controller, mut controller_sender) =
-            Controller::new(client_connection_tx, true, shutdown.subscribe());
+        let (mut active_connections_controller, mut controller_sender) = Controller::new(
+            client_connection_tx,
+            BroadcastActiveConnections::On,
+            shutdown.subscribe(),
+        );
 
         tokio::spawn(async move {
             active_connections_controller.run().await;

@@ -9,7 +9,7 @@ use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
     server::SphinxSocksServer,
 };
-use client_connections::{ClosedConnectionReceiver, ClosedConnectionSender, LaneQueueLengths};
+use client_connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
     InputMessage, InputMessageReceiver, InputMessageSender,
@@ -120,7 +120,7 @@ impl NymClient {
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
-        closed_connection_rx: ClosedConnectionReceiver,
+        client_connection_rx: ConnectionCommandReceiver,
         lane_queue_lengths: LaneQueueLengths,
         shutdown: ShutdownListener,
     ) {
@@ -152,7 +152,7 @@ impl NymClient {
             topology_accessor,
             reply_key_storage,
             lane_queue_lengths,
-            closed_connection_rx,
+            client_connection_rx,
         )
         .start_with_shutdown(shutdown);
     }
@@ -297,7 +297,7 @@ impl NymClient {
         &self,
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
-        closed_connection_tx: ClosedConnectionSender,
+        client_connection_tx: ConnectionCommandSender,
         lane_queue_lengths: LaneQueueLengths,
         shutdown: ShutdownListener,
     ) {
@@ -316,7 +316,7 @@ impl NymClient {
         );
         tokio::spawn(async move {
             sphinx_socks
-                .serve(msg_input, buffer_requester, closed_connection_tx)
+                .serve(msg_input, buffer_requester, client_connection_tx)
                 .await
         });
     }
@@ -426,7 +426,7 @@ impl NymClient {
 
         // Channel for announcing closed (socks5) connections by the controller.
         // This will be forwarded to `OutQueueControl`
-        let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
+        let (client_connection_tx, client_connection_rx) = mpsc::unbounded();
 
         // Shared queue length data. Published by the `OutQueueController` in the client, and used
         // primarily to throttle incoming connections
@@ -438,7 +438,7 @@ impl NymClient {
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
-            closed_connection_rx,
+            client_connection_rx,
             shared_lane_queue_lengths.clone(),
             shutdown.subscribe(),
         );
@@ -458,7 +458,7 @@ impl NymClient {
         self.start_socks5_listener(
             received_buffer_request_sender,
             input_sender,
-            closed_connection_tx,
+            client_connection_tx,
             shared_lane_queue_lengths,
             shutdown.subscribe(),
         );

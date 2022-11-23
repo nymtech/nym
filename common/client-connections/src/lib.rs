@@ -16,11 +16,21 @@ pub enum TransmissionLane {
     ConnectionId(ConnectionId),
 }
 
-/// Announce connections that are closed, for whoever is interested.
-/// One usecase is that the network-requester and socks5-client wants to know about this, so that
-/// they can forward this to the `OutQueueControl` (via `ClientRequest` for the network-requester)
-pub type ClosedConnectionSender = mpsc::UnboundedSender<ConnectionId>;
-pub type ClosedConnectionReceiver = mpsc::UnboundedReceiver<ConnectionId>;
+/// Used by the connection controller to report current state for client connections.
+pub type ConnectionCommandSender = mpsc::UnboundedSender<ConnectionCommand>;
+pub type ConnectionCommandReceiver = mpsc::UnboundedReceiver<ConnectionCommand>;
+
+pub enum ConnectionCommand {
+    // Announce that at a connection was closed. E.g the `OutQueueControl` uses this to discard
+    // transmission lanes.
+    Close(ConnectionId),
+
+    // In the network requester for example, we usually want to broadcast active connections
+    // regularly, so we know what connections we need to request lane queue lengths for from the
+    // client.
+    // In the socks5-client, this is not needed since have direct access to the lane queue lengths.
+    ActiveConnections(Vec<ConnectionId>),
+}
 
 // The `OutQueueControl` publishes the backlog per lane, primarily so that upstream can slow down
 // if needed.

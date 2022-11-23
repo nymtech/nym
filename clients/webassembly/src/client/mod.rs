@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::config::Config;
-use client_connections::{ClosedConnectionReceiver, LaneQueueLengths, TransmissionLane};
+use client_connections::{ConnectionCommandReceiver, LaneQueueLengths, TransmissionLane};
 use client_core::client::{
     cover_traffic_stream::LoopCoverTrafficStream,
     inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender},
@@ -128,7 +128,7 @@ impl NymClient {
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
-        closed_connection_rx: ClosedConnectionReceiver,
+        client_connection_rx: ConnectionCommandReceiver,
         lane_queue_lengths: LaneQueueLengths,
     ) {
         let mut controller_config = real_messages_control::Config::new(
@@ -155,7 +155,7 @@ impl NymClient {
             mix_sender,
             topology_accessor,
             lane_queue_lengths,
-            closed_connection_rx,
+            client_connection_rx,
         )
         .start();
     }
@@ -334,7 +334,7 @@ impl NymClient {
 
         // Channel that the real traffix controller can listed to for closing connections.
         // Currently unused in the wasm client.
-        let (_closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
+        let (_client_connection_tx, client_connection_rx) = mpsc::unbounded();
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
@@ -364,7 +364,7 @@ impl NymClient {
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
-            closed_connection_rx,
+            client_connection_rx,
             shared_lane_queue_lengths,
         );
 

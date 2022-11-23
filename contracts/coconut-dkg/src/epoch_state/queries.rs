@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
-use crate::ContractError;
+use crate::error::ContractError;
 use coconut_dkg_common::types::EpochState;
 use cosmwasm_std::Storage;
 

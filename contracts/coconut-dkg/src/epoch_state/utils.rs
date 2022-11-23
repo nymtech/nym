@@ -1,7 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{ContractError, CURRENT_EPOCH_STATE};
+use crate::epoch_state::storage::CURRENT_EPOCH_STATE;
+use crate::error::ContractError;
 use coconut_dkg_common::types::EpochState;
 use cosmwasm_std::Storage;
 

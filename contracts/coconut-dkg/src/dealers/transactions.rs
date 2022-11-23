@@ -3,7 +3,8 @@
 
 use crate::dealers::storage as dealers_storage;
 use crate::epoch_state::utils::check_epoch_state;
-use crate::{ContractError, State, STATE};
+use crate::error::ContractError;
+use crate::state::{State, STATE};
 use coconut_dkg_common::types::{DealerDetails, EncodedBTEPublicKeyWithProof, EpochState};
 use cosmwasm_std::{Addr, DepsMut, MessageInfo, Response};
 

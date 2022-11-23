@@ -4,7 +4,7 @@
 use crate::dealers::storage as dealers_storage;
 use crate::dealings::storage::DEALINGS_BYTES;
 use crate::epoch_state::utils::check_epoch_state;
-use crate::ContractError;
+use crate::error::ContractError;
 use coconut_dkg_common::types::{ContractSafeBytes, EpochState};
 use cosmwasm_std::{DepsMut, MessageInfo, Response};
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use client_connections::{
-    ConnectionCommandSender, ConnectionCommand, LaneQueueLengths, TransmissionLane,
+    ConnectionCommand, ConnectionCommandSender, LaneQueueLengths, TransmissionLane,
 };
 use client_core::client::{
     inbound_messages::{InputMessage, InputMessageSender},
@@ -37,7 +37,7 @@ impl Default for ReceivedResponseType {
 
 pub(crate) struct Handler {
     msg_input: InputMessageSender,
-    closed_connection_tx: ConnectionCommandSender,
+    client_connection_tx: ConnectionCommandSender,
     buffer_requester: ReceivedBufferRequestSender,
     self_full_address: Recipient,
     socket: Option<WebSocketStream<TcpStream>>,
@@ -50,7 +50,7 @@ impl Clone for Handler {
     fn clone(&self) -> Self {
         Handler {
             msg_input: self.msg_input.clone(),
-            closed_connection_tx: self.closed_connection_tx.clone(),
+            client_connection_tx: self.client_connection_tx.clone(),
             buffer_requester: self.buffer_requester.clone(),
             self_full_address: self.self_full_address,
             socket: None,
@@ -71,14 +71,14 @@ impl Drop for Handler {
 impl Handler {
     pub(crate) fn new(
         msg_input: InputMessageSender,
-        closed_connection_tx: ConnectionCommandSender,
+        client_connection_tx: ConnectionCommandSender,
         buffer_requester: ReceivedBufferRequestSender,
         self_full_address: &Recipient,
         lane_queue_lengths: LaneQueueLengths,
     ) -> Self {
         Handler {
             msg_input,
-            closed_connection_tx,
+            client_connection_tx,
             buffer_requester,
             self_full_address: *self_full_address,
             socket: None,
@@ -135,7 +135,7 @@ impl Handler {
     }
 
     fn handle_closed_connection(&self, connection_id: u64) -> Option<ServerResponse> {
-        self.closed_connection_tx
+        self.client_connection_tx
             .unbounded_send(ConnectionCommand::Close(connection_id))
             .unwrap();
         None

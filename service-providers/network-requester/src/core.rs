@@ -8,7 +8,7 @@ use crate::statistics::ServiceStatisticsCollector;
 use crate::websocket;
 use crate::websocket::TSWebsocketStream;
 use client_connections::{
-    ConnectionCommandReceiver, ConnectionCommand, LaneQueueLengths, TransmissionLane,
+    ConnectionCommand, ConnectionCommandReceiver, LaneQueueLengths, TransmissionLane,
 };
 use futures::channel::mpsc;
 use futures::stream::{SplitSink, SplitStream};
@@ -72,7 +72,7 @@ impl ServiceProvider {
         mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
         mut mix_reader: MixProxyReader<(Socks5Message, Recipient)>,
         stats_collector: Option<ServiceStatisticsCollector>,
-        mut closed_connection_rx: ConnectionCommandReceiver,
+        mut client_connection_rx: ConnectionCommandReceiver,
     ) {
         loop {
             tokio::select! {
@@ -110,7 +110,7 @@ impl ServiceProvider {
                         break;
                     }
                 },
-                Some(command) = closed_connection_rx.next() => {
+                Some(command) = client_connection_rx.next() => {
                     match command {
                         ConnectionCommand::Close(id) => {
                             let msg = ClientRequest::ClosedConnection(id);
@@ -388,10 +388,10 @@ impl ServiceProvider {
         // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
         let shutdown = task::ShutdownNotifier::default();
 
-        // Channel for announcing closed (socks5) connections by the controller.
-        // The `mixnet_response_listener` will forward this info to the client using a
-        // `ClientRequest`.
-        let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
+        // Channel for announcing client connection state by the controller.
+        // The `mixnet_response_listener` will use this to either report closed connection to the
+        // client or request lane queue lengths.
+        let (client_connection_tx, client_connection_rx) = mpsc::unbounded();
 
         // Shared queue length data. Published by the `OutQueueController` in the client, and used
         // primarily to throttle incoming connections
@@ -401,7 +401,7 @@ impl ServiceProvider {
         // We provide it with a ShutdownListener since it requires it, even though for the network
         // requester shutdown signalling is not yet fully implemented.
         let (mut active_connections_controller, mut controller_sender) =
-            Controller::new(closed_connection_tx, true, shutdown.subscribe());
+            Controller::new(client_connection_tx, true, shutdown.subscribe());
 
         tokio::spawn(async move {
             active_connections_controller.run().await;
@@ -429,7 +429,7 @@ impl ServiceProvider {
                 websocket_writer,
                 mix_input_receiver,
                 stats_collector_clone,
-                closed_connection_rx,
+                client_connection_rx,
             )
             .await;
         });

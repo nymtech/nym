@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_connections::{ConnectionCommandSender, ConnectionCommand};
+use client_connections::{ConnectionCommand, ConnectionCommandSender};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
@@ -79,7 +79,7 @@ pub struct Controller {
     recently_closed: HashSet<ConnectionId>,
 
     // Broadcast closed connections
-    closed_connection_tx: ConnectionCommandSender,
+    client_connection_tx: ConnectionCommandSender,
 
     broadcast_connections: bool,
 
@@ -95,7 +95,7 @@ pub struct Controller {
 
 impl Controller {
     pub fn new(
-        closed_connection_tx: ConnectionCommandSender,
+        client_connection_tx: ConnectionCommandSender,
         broadcast_connections: bool,
         shutdown: ShutdownListener,
     ) -> (Self, ControllerSender) {
@@ -105,7 +105,7 @@ impl Controller {
                 active_connections: HashMap::new(),
                 receiver,
                 recently_closed: HashSet::new(),
-                closed_connection_tx,
+                client_connection_tx,
                 broadcast_connections,
                 pending_messages: HashMap::new(),
                 shutdown,
@@ -146,7 +146,7 @@ impl Controller {
 
         // Announce closed connections, currently used by the `OutQueueControl`.
         if let Err(err) = self
-            .closed_connection_tx
+            .client_connection_tx
             .unbounded_send(ConnectionCommand::Close(conn_id))
         {
             if self.shutdown.is_shutdown_poll() {
@@ -161,7 +161,7 @@ impl Controller {
         // What about the recently closed ones? Hopefully we can ignore them ...
         let conn_ids = self.active_connections.keys().copied().collect();
 
-        self.closed_connection_tx
+        self.client_connection_tx
             .unbounded_send(ConnectionCommand::ActiveConnections(conn_ids))
             .unwrap();
     }

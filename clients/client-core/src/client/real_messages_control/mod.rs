@@ -115,7 +115,7 @@ impl RealMessagesController<OsRng> {
         topology_access: TopologyAccessor,
         #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
         lane_queue_lengths: LaneQueueLengths,
-        closed_connection_rx: ConnectionCommandReceiver,
+        client_connection_rx: ConnectionCommandReceiver,
     ) -> Self {
         let rng = OsRng;
 
@@ -166,7 +166,7 @@ impl RealMessagesController<OsRng> {
             config.self_recipient,
             topology_access,
             lane_queue_lengths,
-            closed_connection_rx,
+            client_connection_rx,
         );
 
         RealMessagesController {

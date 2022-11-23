@@ -253,7 +253,7 @@ where
         };
 
         if let Err(err) = self.mix_tx.send(vec![next_message]).await {
-            log::error!("Failed to send - channel closed: {}", err);
+            log::error!("Failed to send: {}", err);
         }
 
         // notify ack controller about sending our message only after we actually managed to push it

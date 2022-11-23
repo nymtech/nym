@@ -11,15 +11,18 @@ use coconut_dkg_common::msg::ExecuteMsg::{
     AdvanceEpochState, CommitVerificationKeyShare, RegisterDealer,
 };
 use coconut_dkg_common::msg::InstantiateMsg as DkgInstantiateMsg;
+use coconut_dkg_common::msg::QueryMsg::GetVerificationKeys;
+use coconut_dkg_common::verification_key::PagedVKSharesResponse;
 use cosmwasm_std::{coins, Addr, Decimal};
 use cw4::Member;
 use cw4_group::msg::InstantiateMsg as GroupInstantiateMsg;
 use cw_multi_test::Executor;
 use cw_utils::{Duration, Threshold};
+use multisig_contract_common::msg::ExecuteMsg::{Execute, Vote};
 use multisig_contract_common::msg::InstantiateMsg as MultisigInstantiateMsg;
 
 #[test]
-fn dkg_create_proposal() {
+fn dkg_proposal() {
     let init_funds = coins(10000000000, TEST_COIN_DENOM);
     let mut app = mock_app(&init_funds);
     let member1 = Member {
@@ -47,7 +50,7 @@ fn dkg_create_proposal() {
     let msg = MultisigInstantiateMsg {
         group_addr: group_contract_addr.to_string(),
         threshold: Threshold::AbsolutePercentage {
-            percentage: Decimal::from_ratio(2u128, 3u128),
+            percentage: Decimal::from_ratio(1u128, 1u128),
         },
         max_voting_period: Duration::Time(1000),
         coconut_bandwidth_contract_address: TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string(),
@@ -88,7 +91,7 @@ fn dkg_create_proposal() {
     };
     app.migrate_contract(
         Addr::unchecked(OWNER),
-        multisig_contract_addr,
+        multisig_contract_addr.clone(),
         &msg,
         multisig_code_id,
     )
@@ -115,6 +118,9 @@ fn dkg_create_proposal() {
         .unwrap();
     }
 
+    // Proposal needs to be later then the member became part of the group
+    app.update_block(|block| block.height += 1);
+
     let msg = CommitVerificationKeyShare {
         share: "share".to_string(),
     };
@@ -126,6 +132,7 @@ fn dkg_create_proposal() {
             &vec![],
         )
         .unwrap();
+
     let proposal_id = res
         .events
         .into_iter()
@@ -138,5 +145,62 @@ fn dkg_create_proposal() {
         .value
         .parse::<u64>()
         .unwrap();
-    assert_eq!(1, proposal_id);
+
+    let mut res: PagedVKSharesResponse = app
+        .wrap()
+        .query_wasm_smart(
+            coconut_dkg_contract_addr.clone(),
+            &GetVerificationKeys {
+                limit: None,
+                start_after: None,
+            },
+        )
+        .unwrap();
+    let share = res.shares.pop().unwrap();
+    assert_eq!(share.share, "share".to_string());
+    assert_eq!(share.announce_address, "127.0.0.1:8000".to_string());
+    assert_eq!(share.node_index, 1);
+    assert_eq!(share.owner, Addr::unchecked(MEMBER1));
+    assert!(!share.verified);
+
+    app.execute_contract(
+        Addr::unchecked(MEMBER1),
+        multisig_contract_addr.clone(),
+        &Vote {
+            proposal_id,
+            vote: cw3::Vote::Yes,
+        },
+        &vec![],
+    )
+    .unwrap();
+
+    for _ in 0..2 {
+        app.execute_contract(
+            Addr::unchecked(OWNER),
+            coconut_dkg_contract_addr.clone(),
+            &AdvanceEpochState {},
+            &vec![],
+        )
+        .unwrap();
+    }
+
+    app.execute_contract(
+        Addr::unchecked(MEMBER1),
+        multisig_contract_addr.clone(),
+        &Execute { proposal_id },
+        &vec![],
+    )
+    .unwrap();
+
+    let res: PagedVKSharesResponse = app
+        .wrap()
+        .query_wasm_smart(
+            coconut_dkg_contract_addr,
+            &GetVerificationKeys {
+                limit: None,
+                start_after: None,
+            },
+        )
+        .unwrap();
+    assert!(res.shares[0].verified);
 }

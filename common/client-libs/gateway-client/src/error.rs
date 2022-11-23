@@ -85,6 +85,9 @@ pub enum GatewayClientError {
 
     #[error("Failed to send mixnet message")]
     MixnetMsgSenderFailedToSend,
+
+    #[error("Attempted to negotiate connection with gateway using incompatible protocol version. Ours is {current} and the gateway reports {gateway:?}")]
+    IncompatibleProtocol { gateway: Option<u8>, current: u8 },
 }
 
 impl GatewayClientError {

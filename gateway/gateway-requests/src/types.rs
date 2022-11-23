@@ -4,7 +4,7 @@
 use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::iv::IV;
 use crate::registration::handshake::SharedKeys;
-use crate::GatewayMacSize;
+use crate::{GatewayMacSize, PROTOCOL_VERSION};
 use crypto::generic_array::typenum::Unsigned;
 use crypto::hmac::recompute_keyed_hmac_and_verify_tag;
 use crypto::symmetric::stream_cipher;
@@ -28,13 +28,22 @@ use credentials::token::bandwidth::TokenCredential;
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum RegistrationHandshake {
-    HandshakePayload { data: Vec<u8> },
-    HandshakeError { message: String },
+    HandshakePayload {
+        #[serde(default)]
+        protocol_version: Option<u8>,
+        data: Vec<u8>,
+    },
+    HandshakeError {
+        message: String,
+    },
 }
 
 impl RegistrationHandshake {
     pub fn new_payload(data: Vec<u8>) -> Self {
-        RegistrationHandshake::HandshakePayload { data }
+        RegistrationHandshake::HandshakePayload {
+            protocol_version: Some(PROTOCOL_VERSION),
+            data,
+        }
     }
 
     pub fn new_error<S: Into<String>>(message: S) -> Self {
@@ -115,12 +124,16 @@ pub enum ClientControlRequest {
     // TODO: should this also contain a MAC considering that at this point we already
     // have the shared key derived?
     Authenticate {
+        #[serde(default)]
+        protocol_version: Option<u8>,
         address: String,
         enc_address: String,
         iv: String,
     },
     #[serde(alias = "handshakePayload")]
     RegisterHandshakeInitRequest {
+        #[serde(default)]
+        protocol_version: Option<u8>,
         data: Vec<u8>,
     },
     BandwidthCredential {
@@ -137,6 +150,7 @@ impl ClientControlRequest {
         iv: IV,
     ) -> Self {
         ClientControlRequest::Authenticate {
+            protocol_version: Some(PROTOCOL_VERSION),
             address: address.as_base58_string(),
             enc_address: enc_address.to_base58_string(),
             iv: iv.to_base58_string(),
@@ -223,10 +237,14 @@ impl TryInto<String> for ClientControlRequest {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ServerResponse {
     Authenticate {
+        #[serde(default)]
+        protocol_version: Option<u8>,
         status: bool,
         bandwidth_remaining: i64,
     },
     Register {
+        #[serde(default)]
+        protocol_version: Option<u8>,
         status: bool,
     },
     Bandwidth {

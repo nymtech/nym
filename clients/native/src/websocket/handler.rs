@@ -92,26 +92,42 @@ impl Handler {
         recipient: &Recipient,
         message: Vec<u8>,
         with_reply_surb: bool,
-        connection_id: u64,
+        connection_id: Option<u64>,
     ) -> Option<ServerResponse> {
+        // We map the absence of a connection id as going into the general lane.
+        let lane = connection_id.map_or(TransmissionLane::General, |id| {
+            TransmissionLane::ConnectionId(id)
+        });
+
         // the ack control is now responsible for chunking, etc.
-        let lane = TransmissionLane::ConnectionId(connection_id);
         let input_msg = InputMessage::new_fresh(*recipient, message, with_reply_surb, lane);
         self.msg_input
             .send(input_msg)
             .await
             .expect("InputMessageReceiver has stopped receiving!");
 
+        // Only reply back with a `LaneQueueLength` if the sender providided a connection id
+        let connection_id = match lane {
+            TransmissionLane::General
+            | TransmissionLane::Reply
+            | TransmissionLane::Retransmission
+            | TransmissionLane::Control => return None,
+            TransmissionLane::ConnectionId(id) => id,
+        };
+
         // on receiving a send, we reply back the current lane queue length for that connection id.
         // Note that this does _NOT_ take into account the packets that have been received but not
         // yet reach `OutQueueControl`, so it might be a tad low.
-        if let Ok(lane_queue_lengths) = self.lane_queue_lengths.lock() {
-            let queue_length = lane_queue_lengths.get(&lane).unwrap_or(0);
-            return Some(ServerResponse::LaneQueueLength(connection_id, queue_length));
-        }
+        let Ok(lane_queue_lengths) = self.lane_queue_lengths.lock() else {
+            log::warn!(
+                "Failed to get the lane queue length lock, \
+                not responding back with the current queue length"
+            );
+            return None;
+        };
 
-        log::warn!("Failed to get the lane queue length lock, not responding back with the current queue length");
-        None
+        let queue_length = lane_queue_lengths.get(&lane).unwrap_or(0);
+        Some(ServerResponse::LaneQueueLength(connection_id, queue_length))
     }
 
     async fn handle_reply(
@@ -120,7 +136,13 @@ impl Handler {
         message: Vec<u8>,
     ) -> Option<ServerResponse> {
         if message.len() > ReplySurb::max_msg_len(Default::default()) {
-            return Some(ServerResponse::new_error(format!("too long message to put inside a reply SURB. Received: {} bytes and maximum is {} bytes", message.len(), ReplySurb::max_msg_len(Default::default()))));
+            return Some(
+                ServerResponse::new_error(
+                    format!(
+                        "too long message to put inside a reply SURB. Received: {} bytes and maximum is {} bytes",
+                        message.len(), ReplySurb::max_msg_len(Default::default()))
+                    )
+                );
         }
 
         let input_msg = InputMessage::new_reply(reply_surb, message);

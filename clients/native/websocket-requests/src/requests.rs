@@ -34,7 +34,7 @@ pub enum ClientRequest {
         message: Vec<u8>,
         // Perhaps we could change it to a number to indicate how many reply_SURBs we want to include?
         with_reply_surb: bool,
-        connection_id: u64,
+        connection_id: Option<u64>,
     },
     Reply {
         message: Vec<u8>,
@@ -53,10 +53,10 @@ impl ClientRequest {
         recipient: Recipient,
         data: Vec<u8>,
         with_reply_surb: bool,
-        connection_id: u64,
+        connection_id: Option<u64>,
     ) -> Vec<u8> {
         let data_len_bytes = (data.len() as u64).to_be_bytes();
-        let conn_id_bytes = connection_id.to_be_bytes();
+        let conn_id_bytes = connection_id.unwrap_or(0).to_be_bytes();
         std::iter::once(SEND_REQUEST_TAG)
             .chain(std::iter::once(with_reply_surb as u8))
             .chain(recipient.to_bytes().iter().cloned()) // will not be length prefixed because the length is constant
@@ -106,6 +106,11 @@ impl ClientRequest {
         connection_id_bytes
             .copy_from_slice(&b[2 + Recipient::LEN..2 + Recipient::LEN + size_of::<u64>()]);
         let connection_id = u64::from_be_bytes(connection_id_bytes);
+        let connection_id = if connection_id == 0 {
+            None
+        } else {
+            Some(connection_id)
+        };
 
         let data_len_bytes =
             &b[2 + Recipient::LEN + size_of::<u64>()..2 + Recipient::LEN + 2 * size_of::<u64>()];
@@ -350,7 +355,7 @@ mod tests {
             recipient,
             message: b"foomp".to_vec(),
             with_reply_surb: false,
-            connection_id: 42,
+            connection_id: Some(42),
         };
 
         let bytes = send_request_no_surb.serialize();
@@ -365,7 +370,7 @@ mod tests {
                 assert_eq!(recipient.to_string(), recipient_string);
                 assert_eq!(message, b"foomp".to_vec());
                 assert!(!with_reply_surb);
-                assert_eq!(connection_id, 42)
+                assert_eq!(connection_id, Some(42))
             }
             _ => unreachable!(),
         }
@@ -374,7 +379,7 @@ mod tests {
             recipient,
             message: b"foomp".to_vec(),
             with_reply_surb: true,
-            connection_id: 213,
+            connection_id: None,
         };
 
         let bytes = send_request_surb.serialize();
@@ -389,7 +394,7 @@ mod tests {
                 assert_eq!(recipient.to_string(), recipient_string);
                 assert_eq!(message, b"foomp".to_vec());
                 assert!(with_reply_surb);
-                assert_eq!(connection_id, 213)
+                assert_eq!(connection_id, None)
             }
             _ => unreachable!(),
         }

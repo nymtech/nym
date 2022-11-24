@@ -239,7 +239,14 @@ impl ClientRequest {
     }
 
     // CLOSED_CONNECTION_REQUEST_TAG
-    fn deserialize_closed_connection(b: &[u8]) -> Self {
+    fn deserialize_closed_connection(b: &[u8]) -> Result<Self, error::Error> {
+        if b.len() != 1 + size_of::<u64>() {
+            return Err(error::Error::new(
+                ErrorKind::MalformedRequest,
+                "the received closed connection has invalid length".to_string(),
+            ));
+        }
+
         // this MUST match because it was called by 'deserialize'
         debug_assert_eq!(b[0], CLOSED_CONNECTION_REQUEST_TAG);
 
@@ -247,7 +254,7 @@ impl ClientRequest {
         connection_id_bytes.copy_from_slice(&b[1..=size_of::<u64>()]);
         let connection_id = u64::from_be_bytes(connection_id_bytes);
 
-        ClientRequest::ClosedConnection(connection_id)
+        Ok(ClientRequest::ClosedConnection(connection_id))
     }
 
     // GET_LANE_QUEUE_LENGHT_TAG
@@ -259,7 +266,14 @@ impl ClientRequest {
     }
 
     // GET_LANE_QUEUE_LENGHT_TAG
-    fn deserialize_get_lane_queue_length(b: &[u8]) -> Self {
+    fn deserialize_get_lane_queue_length(b: &[u8]) -> Result<Self, error::Error> {
+        if b.len() != 1 + size_of::<u64>() {
+            return Err(error::Error::new(
+                ErrorKind::MalformedRequest,
+                "the received get lane queue length has invalid length".to_string(),
+            ));
+        }
+
         // this MUST match because it was called by 'deserialize'
         debug_assert_eq!(b[0], GET_LANE_QUEUE_LENGHT_TAG);
 
@@ -267,7 +281,7 @@ impl ClientRequest {
         connection_id_bytes.copy_from_slice(&b[1..=size_of::<u64>()]);
         let connection_id = u64::from_be_bytes(connection_id_bytes);
 
-        ClientRequest::GetLaneQueueLength(connection_id)
+        Ok(ClientRequest::GetLaneQueueLength(connection_id))
     }
 
     pub fn serialize(self) -> Vec<u8> {
@@ -318,8 +332,8 @@ impl ClientRequest {
             SEND_REQUEST_TAG => Self::deserialize_send(b),
             REPLY_REQUEST_TAG => Self::deserialize_reply(b),
             SELF_ADDRESS_REQUEST_TAG => Ok(Self::deserialize_self_address(b)),
-            CLOSED_CONNECTION_REQUEST_TAG => Ok(Self::deserialize_closed_connection(b)),
-            GET_LANE_QUEUE_LENGHT_TAG => Ok(Self::deserialize_get_lane_queue_length(b)),
+            CLOSED_CONNECTION_REQUEST_TAG => Self::deserialize_closed_connection(b),
+            GET_LANE_QUEUE_LENGHT_TAG => Self::deserialize_get_lane_queue_length(b),
             n => Err(error::Error::new(
                 ErrorKind::UnknownRequest,
                 format!("type {n}"),

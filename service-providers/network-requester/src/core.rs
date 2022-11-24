@@ -130,7 +130,6 @@ impl ServiceProvider {
     ) {
         loop {
             tokio::select! {
-                // TODO: wire SURBs in here once they're available
                 socks5_msg = mix_reader.recv() => {
                     if let Some((msg, return_address)) = socks5_msg {
                         if let Some(stats_collector) = stats_collector.as_ref() {

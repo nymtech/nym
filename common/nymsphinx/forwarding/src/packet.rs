@@ -52,7 +52,11 @@ pub struct MixPacket {
 
 impl Debug for MixPacket {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "MixPacket to {:?} with packet_mode {:?}", self.next_hop, self.packet_mode)
+        write!(
+            f,
+            "MixPacket to {:?} with packet_mode {:?}",
+            self.next_hop, self.packet_mode
+        )
     }
 }
 

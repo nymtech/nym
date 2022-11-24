@@ -43,6 +43,8 @@ const DEFAULT_MINIMUM_REPLY_SURB_REQUEST_SIZE: u32 = 10;
 const DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE: u32 = 100;
 
 const DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE: u32 = 500;
+
+const DEFAULT_RETRANSMISSION_REPLY_SURB_REQUEST_SIZE: u32 = 10;
 const DEFAULT_MAXIMUM_REPLY_SURB_WAITING_PERIOD: Duration = Duration::from_secs(10);
 
 pub fn missing_string_value() -> String {
@@ -303,6 +305,10 @@ impl<T: NymConfig> Config<T> {
         self.debug.maximum_allowed_reply_surb_request_size
     }
 
+    pub fn get_retransmission_reply_surb_request_size(&self) -> u32 {
+        self.debug.retransmission_reply_surb_request_size
+    }
+
     pub fn get_maximum_reply_surb_waiting_period(&self) -> Duration {
         self.debug.maximum_reply_surb_waiting_period
     }
@@ -545,6 +551,9 @@ pub struct Debug {
     /// Defines the maximum number of reply surbs a remote party is allowed to request from this client at once.
     pub maximum_allowed_reply_surb_request_size: u32,
 
+    /// Defines the amount of reply surbs that the client is going to request when it runs out while attempting to retransmit packets.
+    pub retransmission_reply_surb_request_size: u32,
+
     /// Defines maximum amount of time the client is going to wait for reply surbs before explicitly asking
     /// for more even though in theory they wouldn't need to.
     #[serde(with = "humantime_serde")]
@@ -579,6 +588,7 @@ impl Default for Debug {
             minimum_reply_surb_request_size: DEFAULT_MINIMUM_REPLY_SURB_REQUEST_SIZE,
             maximum_reply_surb_request_size: DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE,
             maximum_allowed_reply_surb_request_size: DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE,
+            retransmission_reply_surb_request_size: DEFAULT_RETRANSMISSION_REPLY_SURB_REQUEST_SIZE,
             maximum_reply_surb_waiting_period: DEFAULT_MAXIMUM_REPLY_SURB_WAITING_PERIOD,
         }
     }

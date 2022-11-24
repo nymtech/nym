@@ -155,15 +155,23 @@ pub(super) struct Config {
     /// Given ack timeout in the form a * BASE_DELAY + b, it specifies the multiplier `a`
     ack_wait_multiplier: f64,
 
+    /// Defines the amount of reply surbs that the client is going to request when it runs out while attempting to retransmit packets.
+    retransmission_reply_surb_request_size: u32,
+
     /// Predefined packet size used for the encapsulated messages.
     packet_size: PacketSize,
 }
 
 impl Config {
-    pub(super) fn new(ack_wait_addition: Duration, ack_wait_multiplier: f64) -> Self {
+    pub(super) fn new(
+        ack_wait_addition: Duration,
+        ack_wait_multiplier: f64,
+        retransmission_reply_surb_request_size: u32,
+    ) -> Self {
         Config {
             ack_wait_addition,
             ack_wait_multiplier,
+            retransmission_reply_surb_request_size,
             packet_size: Default::default(),
         }
     }
@@ -227,6 +235,7 @@ where
             message_handler,
             retransmission_rx,
             received_reply_surbs,
+            config.retransmission_reply_surb_request_size,
         );
 
         // will listen for events indicating the packet was sent through the network so that

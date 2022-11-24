@@ -29,7 +29,6 @@ pub(super) struct RetransmissionRequestListener<R> {
     // this work should be offloaded to the `ToBeNamedPendingReplyController`?
     received_reply_surbs: ReceivedReplySurbsMap,
 
-    #[deprecated(note = "this should be moved into config")]
     reply_surb_request_size: u32,
 }
 
@@ -42,14 +41,14 @@ where
         message_handler: MessageHandler<R>,
         request_receiver: RetransmissionRequestReceiver,
         received_reply_surbs: ReceivedReplySurbsMap,
+        reply_surb_request_size: u32,
     ) -> Self {
         RetransmissionRequestListener {
             action_sender,
             message_handler,
             request_receiver,
             received_reply_surbs,
-            #[deprecated(note = "this should be moved into config")]
-            reply_surb_request_size: 10,
+            reply_surb_request_size,
         }
     }
 

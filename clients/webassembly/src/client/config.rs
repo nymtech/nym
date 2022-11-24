@@ -103,6 +103,29 @@ pub struct Debug {
 
     /// Controls whether the sent sphinx packet use the NON-DEFAULT bigger size.
     pub use_extended_packet_size: bool,
+
+    /// Defines the minimum number of reply surbs the client wants to keep in its storage at all times.
+    /// It can only allow to go below that value if its to request additional reply surbs.
+    pub minimum_reply_surb_storage_threshold: usize,
+
+    /// Defines the maximum number of reply surbs the client wants to keep in its storage at any times.
+    pub maximum_reply_surb_storage_threshold: usize,
+
+    /// Defines the minimum number of reply surbs the client would request.
+    pub minimum_reply_surb_request_size: u32,
+
+    /// Defines the maximum number of reply surbs the client would request.
+    pub maximum_reply_surb_request_size: u32,
+
+    /// Defines the maximum number of reply surbs a remote party is allowed to request from this client at once.
+    pub maximum_allowed_reply_surb_request_size: u32,
+
+    /// Defines the amount of reply surbs that the client is going to request when it runs out while attempting to retransmit packets.
+    pub retransmission_reply_surb_request_size: u32,
+
+    /// Defines maximum amount of time the client is going to wait for reply surbs before explicitly asking
+    /// for more even though in theory they wouldn't need to.
+    pub maximum_reply_surb_waiting_period_ms: u64,
 }
 
 impl From<Debug> for ConfigDebug {
@@ -132,6 +155,15 @@ impl From<Debug> for ConfigDebug {
             disable_main_poisson_packet_distribution: debug
                 .disable_main_poisson_packet_distribution,
             use_extended_packet_size,
+            minimum_reply_surb_storage_threshold: debug.minimum_reply_surb_storage_threshold,
+            maximum_reply_surb_storage_threshold: debug.maximum_reply_surb_storage_threshold,
+            minimum_reply_surb_request_size: debug.minimum_reply_surb_request_size,
+            maximum_reply_surb_request_size: debug.maximum_reply_surb_request_size,
+            maximum_allowed_reply_surb_request_size: debug.maximum_allowed_reply_surb_request_size,
+            retransmission_reply_surb_request_size: debug.retransmission_reply_surb_request_size,
+            maximum_reply_surb_waiting_period: Duration::from_millis(
+                debug.maximum_reply_surb_waiting_period_ms,
+            ),
         }
     }
 }
@@ -154,6 +186,15 @@ impl From<ConfigDebug> for Debug {
             disable_main_poisson_packet_distribution: debug
                 .disable_main_poisson_packet_distribution,
             use_extended_packet_size: debug.use_extended_packet_size.is_some(),
+            minimum_reply_surb_storage_threshold: debug.minimum_reply_surb_storage_threshold,
+            maximum_reply_surb_storage_threshold: debug.maximum_reply_surb_storage_threshold,
+            minimum_reply_surb_request_size: debug.minimum_reply_surb_request_size,
+            maximum_reply_surb_request_size: debug.maximum_reply_surb_request_size,
+            maximum_allowed_reply_surb_request_size: debug.maximum_allowed_reply_surb_request_size,
+            retransmission_reply_surb_request_size: debug.retransmission_reply_surb_request_size,
+            maximum_reply_surb_waiting_period_ms: debug
+                .maximum_reply_surb_waiting_period
+                .as_millis() as u64,
         }
     }
 }

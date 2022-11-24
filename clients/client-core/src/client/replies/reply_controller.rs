@@ -510,8 +510,14 @@ where
     pub(crate) async fn run(&mut self) {
         debug!("Started ReplyController without graceful shutdown support");
 
-        while let Some(req) = self.request_receiver.next().await {
-            self.handle_request(req).await
+        let polling_rate = Duration::from_secs(5);
+        let mut interval_timer = tokio::time::interval(polling_rate);
+
+        loop {
+            tokio::select! {
+                req = self.request_receiver.next() => self.handle_request(req.unwrap()).await,
+                _ = interval_timer.tick() => self.inspect_stale_entries().await
+            }
         }
     }
 }

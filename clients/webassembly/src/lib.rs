@@ -9,6 +9,8 @@ mod client;
 pub mod encoded_payload_helper;
 #[cfg(target_arch = "wasm32")]
 pub mod gateway_selector;
+#[cfg(target_arch = "wasm32")]
+pub mod validation;
 
 #[wasm_bindgen]
 pub fn set_panic_hook() {

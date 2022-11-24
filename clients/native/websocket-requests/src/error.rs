@@ -24,8 +24,11 @@ impl fmt::Debug for Error {
 }
 
 impl Error {
-    pub fn new(kind: ErrorKind, message: String) -> Self {
-        Error { kind, message }
+    pub fn new<S: Into<String>>(kind: ErrorKind, message: S) -> Self {
+        Error {
+            kind,
+            message: message.into(),
+        }
     }
 }
 

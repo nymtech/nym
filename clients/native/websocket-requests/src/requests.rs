@@ -321,8 +321,14 @@ impl ClientRequest {
     }
 
     // CLOSED_CONNECTION_REQUEST_TAG
-    #[deprecated(note = "remember to implement length checks here")]
     fn deserialize_closed_connection(b: &[u8]) -> Result<Self, error::Error> {
+        if b.len() != 1 + size_of::<u64>() {
+            return Err(error::Error::new(
+                ErrorKind::MalformedRequest,
+                "The received closed connection has invalid length",
+            ));
+        }
+
         // this MUST match because it was called by 'deserialize'
         debug_assert_eq!(b[0], ClientRequestTag::ClosedConnection as u8);
 
@@ -342,8 +348,14 @@ impl ClientRequest {
     }
 
     // GET_LANE_QUEUE_LENGHT_TAG
-    #[deprecated(note = "remember to implement length checks here")]
     fn deserialize_get_lane_queue_length(b: &[u8]) -> Result<Self, error::Error> {
+        if b.len() != 1 + size_of::<u64>() {
+            return Err(error::Error::new(
+                ErrorKind::MalformedRequest,
+                "The received get lane queue lengths has invalid length",
+            ));
+        }
+
         // this MUST match because it was called by 'deserialize'
         debug_assert_eq!(b[0], ClientRequestTag::GetLaneQueueLength as u8);
 

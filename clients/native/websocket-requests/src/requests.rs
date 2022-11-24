@@ -142,9 +142,10 @@ impl ClientRequest {
             .copy_from_slice(&b[1 + Recipient::LEN..1 + Recipient::LEN + size_of::<u64>()]);
         let connection_id = u64::from_be_bytes(connection_id_bytes);
 
-        let data_len_bytes = &b[1 + Recipient::LEN..1 + Recipient::LEN + size_of::<u64>()];
+        let data_len_bytes =
+            &b[1 + Recipient::LEN + size_of::<u64>()..1 + Recipient::LEN + 2 * size_of::<u64>()];
         let data_len = u64::from_be_bytes(data_len_bytes.try_into().unwrap());
-        let data = &b[1 + Recipient::LEN + size_of::<u64>()..];
+        let data = &b[1 + Recipient::LEN + 2 * size_of::<u64>()..];
         if data.len() as u64 != data_len {
             return Err(error::Error::new(
                 ErrorKind::MalformedRequest,

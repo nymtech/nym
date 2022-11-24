@@ -175,30 +175,22 @@ impl StatisticsCollector for ServiceStatisticsCollector {
             ),
             self.stats_provider_addr,
         );
-        if self
-            .mix_input_sender
+        self.mix_input_sender
             .send((
                 Socks5Message::Request(connect_req),
                 self.stats_provider_addr,
             ))
             .await
-            .is_err()
-        {
-            panic!();
-        }
+            .expect("MixProxyReader has stopped receiving!");
 
         trace!("Sending data to statistics service");
         let mut message_sender = OrderedMessageSender::new();
         let ordered_msg = message_sender.wrap_message(msg).into_bytes();
         let send_req = Request::new_send(conn_id, ordered_msg, true);
-        if self
-            .mix_input_sender
+        self.mix_input_sender
             .send((Socks5Message::Request(send_req), self.stats_provider_addr))
             .await
-            .is_err()
-        {
-            panic!();
-        }
+            .expect("MixProxyReader has stopped receiving!");
 
         Ok(())
     }

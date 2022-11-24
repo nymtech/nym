@@ -212,16 +212,13 @@ impl ServiceProvider {
                 );
 
                 // inform the remote that the connection is closed before it even was established
-                if mix_input_sender
+                mix_input_sender
                     .send((
                         Socks5Message::Response(Response::new(conn_id, Vec::new(), true)),
                         return_address,
                     ))
                     .await
-                    .is_err()
-                {
-                    panic!();
-                }
+                    .expect("InputMessageReceiver has stopped receiving!");
 
                 return;
             }
@@ -271,7 +268,7 @@ impl ServiceProvider {
         if !self.open_proxy && !self.outbound_request_filter.check(&remote_addr) {
             let log_msg = format!("Domain {:?} failed filter check", remote_addr);
             log::info!("{}", log_msg);
-            if mix_input_sender
+            mix_input_sender
                 .send((
                     Socks5Message::NetworkRequesterResponse(NetworkRequesterResponse::new(
                         conn_id, log_msg,
@@ -279,10 +276,7 @@ impl ServiceProvider {
                     return_address,
                 ))
                 .await
-                .is_err()
-            {
-                panic!();
-            }
+                .expect("InputMessageReceiver has stopped receiving!");
             return;
         }
 

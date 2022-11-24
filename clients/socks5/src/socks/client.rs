@@ -240,9 +240,10 @@ impl SocksClient {
             false,
             TransmissionLane::ConnectionId(self.connection_id),
         );
-        if self.input_sender.send(input_message).await.is_err() {
-            panic!();
-        }
+        self.input_sender
+            .send(input_message)
+            .await
+            .expect("InputMessageReceiver has stopped receiving!");
     }
 
     async fn run_proxy(&mut self, conn_receiver: ConnectionReceiver, remote_proxy_target: String) {

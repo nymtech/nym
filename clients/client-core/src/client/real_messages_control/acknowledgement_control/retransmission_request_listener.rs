@@ -116,17 +116,13 @@ where
             .unwrap();
 
         // send to `OutQueueControl` to eventually send to the mix network
-        if self
-            .real_message_sender
+        self.real_message_sender
             .send((
                 vec![RealMessage::new(prepared_fragment.mix_packet, frag_id)],
                 TransmissionLane::Retransmission,
             ))
             .await
-            .is_err()
-        {
-            panic!();
-        }
+            .expect("BatchRealMessageReceiver has stopped receiving!");
     }
 
     #[cfg(not(target_arch = "wasm32"))]

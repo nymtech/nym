@@ -442,50 +442,23 @@ mod tests {
         let recipient = Recipient::try_from_base58_string("CytBseW6yFXUMzz4SGAKdNLGR7q3sJLLYxyBGvutNEQV.4QXYyEVc5fUDjmmi8PrHN9tdUFV4PCvSJE1278cHyvoe@4sBbL1ngf1vtNqykydQKTFh26sQCw888GpUqvPvyNB4f").unwrap();
         let recipient_string = recipient.to_string();
 
-        let send_request_no_surb = ClientRequest::Send {
+        let send_request = ClientRequest::Send {
             recipient,
             message: b"foomp".to_vec(),
-            reply_surbs: 0,
             connection_id: 42,
         };
 
-        let bytes = send_request_no_surb.serialize();
+        let bytes = send_request.serialize();
         let recovered = ClientRequest::deserialize(&bytes).unwrap();
         match recovered {
             ClientRequest::Send {
                 recipient,
                 message,
-                reply_surbs,
                 connection_id,
             } => {
                 assert_eq!(recipient.to_string(), recipient_string);
                 assert_eq!(message, b"foomp".to_vec());
-                assert_eq!(reply_surbs, 0);
                 assert_eq!(connection_id, 42)
-            }
-            _ => unreachable!(),
-        }
-
-        let send_request_surb = ClientRequest::Send {
-            recipient,
-            message: b"foomp".to_vec(),
-            reply_surbs: 42,
-            connection_id: 213,
-        };
-
-        let bytes = send_request_surb.serialize();
-        let recovered = ClientRequest::deserialize(&bytes).unwrap();
-        match recovered {
-            ClientRequest::Send {
-                recipient,
-                message,
-                reply_surbs,
-                connection_id,
-            } => {
-                assert_eq!(recipient.to_string(), recipient_string);
-                assert_eq!(message, b"foomp".to_vec());
-                assert_eq!(reply_surbs, 42);
-                assert_eq!(connection_id, 213)
             }
             _ => unreachable!(),
         }
@@ -493,35 +466,52 @@ mod tests {
 
     #[test]
     fn send_anonymous_request_serialization_works() {
-        unimplemented!()
+        let original_recipient = Recipient::try_from_base58_string("CytBseW6yFXUMzz4SGAKdNLGR7q3sJLLYxyBGvutNEQV.4QXYyEVc5fUDjmmi8PrHN9tdUFV4PCvSJE1278cHyvoe@4sBbL1ngf1vtNqykydQKTFh26sQCw888GpUqvPvyNB4f").unwrap();
+
+        let send_anonymous_request = ClientRequest::SendAnonymous {
+            recipient: original_recipient,
+            message: b"foomp".to_vec(),
+            reply_surbs: 666,
+            connection_id: 42,
+        };
+
+        let bytes = send_anonymous_request.serialize();
+        let recovered = ClientRequest::deserialize(&bytes).unwrap();
+        match recovered {
+            ClientRequest::SendAnonymous {
+                recipient,
+                message,
+                reply_surbs,
+                connection_id,
+            } => {
+                assert_eq!(recipient, original_recipient);
+                assert_eq!(message, b"foomp".to_vec());
+                assert_eq!(connection_id, 42);
+                assert_eq!(reply_surbs, 666)
+            }
+            _ => unreachable!(),
+        }
     }
 
     #[test]
     fn reply_request_serialization_works() {
-        unimplemented!()
-    }
-
-    #[test]
-    fn reply_with_surb_request_serialization_works() {
-        let reply_surb_string = "CjfVbHbfAjbC3W1BvNHGXmM8KNAnDNYGaHMLqVDxRYeo352csAihstup9bvqXam4dTWgfHak6KYwL9STaxWJ47E8XFZbSEvs7hEsfCkxr6K9WJuSBPK84GDDEvad8ZAuMCoaXsAd5S2Lj9a5eYyzG4SL1jHzhSMni55LyJwumxo1ZTGZNXggxw1RREosvyzNrW9Rsi3owyPqLCwXpiei2tHZty8w8midVvg8vDa7ZEJD842CLv8D4ohynSG7gDpqTrhkRaqYAuz7dzqNbMXLJRM7v823Jn16fA1L7YQxmcaUdUigyRSgTdb4i9ebiLGSyJ1iDe6Acz613PQZh6Ua3bZ2zVKq3dSycpDm9ngarRK4zJrAaUxRkdih8YzW3BY4nL9eqkfKA4N1TWCLaRU7zpSaf8yMEwrAZReU3d5zLV8c5KBfa2w8R5anhQeBojduZEGEad8kkHuKU52Zg93FeWHvH1qgZaEJMHH4nN7gKXz9mvWDhYwyF4vt3Uy2NhCHC3N5pL1gMme27YcoPcTEia1fxKZtnt6rtEozzTrAgCJGswigkFbkafiV5QaJwLKTUxtzhkZ57eEuLPte9UvJHzhhXUQ2CV7R2BUkJjYZy3Zsx6YYvdYWiAFFkWUwNEGA4QpShUHciBfsQVHQ7pN41YcyYUhbywQDFnTVgEmdUZ1XCBi3gyK5U3tDQmFzP1u9m3mWrUA8qB9mRDE7ptNDm5c3c1458L6uXLUth7sdMaa1Was5LCmCdmNDtvNpCDAEt1in6q6mrZFR85aCSU9b1baNGwZoCqPpPvydkVe63gXWoi8ebvdyxARrqACFrSB3ZdY3uJBw8CTMNkKK6MvcefMkSVVsbLd36TQAtYSCqrpiMc5dQuKcEu5QfciwvWYXYx8WFNAgKwP2mv49KCTvfozNDUCbjzDwSx92Zv5zjG8HbFpB13bY9UZGeyTPvv7gGxCzjGjJGbW6FRAheRQaaje5fUgCNM95Tv7wBmAMRHHFgWafeK1sdFH7dtCX9u898HucGTaboSKLsVh8J78gbbkHErwjMh7y9YRkceq5TTYS5da4kHnyNKYWSbxgZrmFg44XGKoeYcqoHB3XTZrdsf7F5fFeNwnihkmADvhAcaxXUmVqq4rQFZH84a1iC3WBWXYcqiZH2L7ujGWV7mMDT4HBEerDYjc8rNY4xGTPfivCrBCJW1i14aqW8xRdsdgTM88eTksvC3WPJLJ7iMzfKXeL7fMW1Ek6QGyQtLBW98vEESpdcDg6DeZ5rMz6VqjTGGqcCaFGfHoqtfxMDaBAEsyQ8h7XDX6dg1wq9wH6j4Tw7Tj1MEv1b8uj5NJkozZdzVdYA2QyE2Dp8vuurQG6uVdTDNww2d88RBQ8sVgjxN8gR45y4woJLhFAaNTAtrY6wDTxyXST13ni6oyqdYxjFVk9Am4v3DzH7Y2K8iRVSHfTk4FRbPULyaeK6wt2anvMJH1XdvVRgc14h67MnBxMgMD1UFk8AErN7CDj26fppe3c5G6KozJe4cSqQUGbBjVzBnrHCruqrfZBn5hNZHTV37bQiomqhRQXohxhuKEnNrGbAe1xNvJr9X";
-        let reply_surb = ReplySurb::from_base58_string(reply_surb_string).unwrap();
-        let reply_request = ClientRequest::ReplyWithSurb {
-            sender_tag: [42u8; SENDER_TAG_SIZE],
+        let reply_request = ClientRequest::Reply {
+            sender_tag: [8u8; SENDER_TAG_SIZE],
             message: b"foomp".to_vec(),
-            reply_surb,
+            connection_id: 42,
         };
 
         let bytes = reply_request.serialize();
         let recovered = ClientRequest::deserialize(&bytes).unwrap();
         match recovered {
-            ClientRequest::ReplyWithSurb {
-                reply_surb,
+            ClientRequest::Reply {
                 sender_tag,
                 message,
+                connection_id,
             } => {
-                assert_eq!(reply_surb.to_base58_string(), reply_surb_string);
+                assert_eq!(sender_tag, [8u8; SENDER_TAG_SIZE]);
                 assert_eq!(message, b"foomp".to_vec());
-                assert_eq!(sender_tag, [42u8; SENDER_TAG_SIZE])
+                assert_eq!(connection_id, 42);
             }
             _ => unreachable!(),
         }
@@ -545,6 +535,17 @@ mod tests {
         let recovered = ClientRequest::deserialize(&bytes).unwrap();
         match recovered {
             ClientRequest::ClosedConnection(id) => assert_eq!(id, 42),
+            _ => unreachable!(),
+        }
+    }
+
+    #[test]
+    fn get_lane_queue_length_request_serialization_works() {
+        let close_connection_request = ClientRequest::GetLaneQueueLength(42);
+        let bytes = close_connection_request.serialize();
+        let recovered = ClientRequest::deserialize(&bytes).unwrap();
+        match recovered {
+            ClientRequest::GetLaneQueueLength(id) => assert_eq!(id, 42),
             _ => unreachable!(),
         }
     }

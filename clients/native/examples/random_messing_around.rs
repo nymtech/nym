@@ -25,58 +25,10 @@ async fn get_self_address(ws_stream: &mut WebSocketStream<MaybeTlsStream<TcpStre
     let response = send_message_and_get_response(ws_stream, self_address_request).await;
 
     match response {
-        ServerResponse::SelfAddress(recipient) => recipient,
+        ServerResponse::SelfAddress(recipient) => *recipient,
         res => panic!("received an unexpected response! - {:?}", res),
     }
 }
-
-// async fn send_file_with_reply() {
-//     let uri = "ws://localhost:1977";
-//     let (mut ws_stream, _) = connect_async(uri).await.unwrap();
-//
-//     let recipient = get_self_address(&mut ws_stream).await;
-//     println!("our full address is: {}", recipient);
-//
-//     let read_data = std::fs::read("examples/dummy_file").unwrap();
-//
-//     let send_request = ClientRequest::Send {
-//         recipient,
-//         message: read_data,
-//         reply_surbs: 42
-//     };
-//
-//     println!("sending content of 'dummy_file' over the mix network...");
-//     let response = send_message_and_get_response(&mut ws_stream, send_request.serialize()).await;
-//
-//     let received = match response {
-//         ServerResponse::Received(received) => received,
-//         _ => panic!("received an unexpected response!"),
-//     };
-//
-//     println!("writing the file back to the disk!");
-//     std::fs::write("examples/received_file_withreply", received.message).unwrap();
-//
-//     let reply_message = b"hello from reply SURB! - thanks for sending me the file!".to_vec();
-//     let reply_request = ClientRequest::Reply {
-//         message: reply_message.clone(),
-//         reply_surb: received.reply_surb.unwrap(),
-//     };
-//
-//     println!(
-//         "sending {:?} (using reply SURB!) over the mix network...",
-//         String::from_utf8(reply_message).unwrap()
-//     );
-//     let response = send_message_and_get_response(&mut ws_stream, reply_request.serialize()).await;
-//     let received = match response {
-//         ServerResponse::Received(received) => received,
-//         _ => panic!("received an unexpected response!"),
-//     };
-//
-//     println!(
-//         "received {:#?} from the mix network!",
-//         String::from_utf8(received.message).unwrap()
-//     );
-// }
 
 async fn send_file_without_reply() {
     let uri = "ws://localhost:1977";
@@ -87,10 +39,11 @@ async fn send_file_without_reply() {
 
     let read_data = vec![42u8; 100_000];
 
-    let send_request = ClientRequest::Send {
+    let send_request = ClientRequest::SendAnonymous {
         recipient,
         message: read_data,
         reply_surbs: 3,
+        connection_id: 0,
     };
 
     println!("sending content of 'dummy_file' over the mix network...");
@@ -112,6 +65,7 @@ async fn send_file_without_reply() {
         // message: vec![5, 6, 7, 8],
         message: vec![42u8; 100000],
         sender_tag,
+        connection_id: 0,
     };
     let response = send_message_and_get_response(&mut ws_stream, send_reply_req.serialize()).await;
 

@@ -194,10 +194,7 @@ mod message_receiver {
     use super::*;
     use crypto::asymmetric::identity;
     use mixnet_contract_common::Layer;
-    use nymsphinx_addressing::clients::Recipient;
-    use rand::rngs::OsRng;
     use std::collections::HashMap;
-    use std::time::Duration;
     use topology::{gateway, mix, NymTopology};
 
     // TODO: is it somehow maybe possible to move it to `topology` and have if conditionally
@@ -287,42 +284,5 @@ mod message_receiver {
                 version: "0.8.0-dev".to_string(),
             }],
         )
-    }
-
-    #[test]
-    fn correctly_splits_message_into_plaintext_and_surb() {
-        let message_receiver: MessageReceiver = Default::default();
-
-        // the actual 'correctness' of the underlying message doesn't matter for this test
-        let message = vec![42; 100];
-        let dummy_recipient = Recipient::try_from_base58_string("CytBseW6yFXUMzz4SGAKdNLGR7q3sJLLYxyBGvutNEQV.4QXYyEVc5fUDjmmi8PrHN9tdUFV4PCvSJE1278cHyvoe@FioFa8nMmPpQnYi7JyojoTuwGLeyNS8BF4ChPr29zUML").unwrap();
-        let average_delay = Duration::from_millis(500);
-        let topology = topology_fixture();
-
-        let reply_surb =
-            ReplySurb::construct(&mut OsRng, &dummy_recipient, average_delay, &topology).unwrap();
-
-        let reply_surb_bytes = reply_surb.to_bytes();
-
-        // this is not exactly what is 'received' but rather after "some" processing, however,
-        // this is the expected argument to the function
-        let mut received_without_surb: Vec<_> =
-            std::iter::once(0).chain(message.iter().cloned()).collect();
-
-        let reply_surb = message_receiver
-            .recover_reply_surbs_from_message(&mut received_without_surb)
-            .unwrap();
-        assert_eq!(received_without_surb, message);
-        assert!(reply_surb.is_none());
-
-        let mut received_with_surb: Vec<_> = std::iter::once(1)
-            .chain(reply_surb_bytes.iter().cloned())
-            .chain(message.iter().cloned())
-            .collect();
-        let reply_surb = message_receiver
-            .recover_reply_surbs_from_message(&mut received_with_surb)
-            .unwrap();
-        assert_eq!(received_with_surb, message);
-        assert_eq!(reply_surb_bytes, reply_surb.unwrap().to_bytes());
     }
 }

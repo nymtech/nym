@@ -4,7 +4,9 @@
 use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
-use futures::channel::mpsc;
+use client_connections::{
+    ConnectionCommand, ConnectionCommandReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
+};
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
@@ -16,7 +18,6 @@ use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::params::PacketSize;
 use nymsphinx::utils::sample_poisson_duration;
 use rand::{CryptoRng, Rng};
-use std::collections::VecDeque;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
@@ -28,22 +29,22 @@ use tokio::time;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
 
-// The minimum time between increasing the average delay between packets. If we hit the ceiling in
-// the available buffer space we want to take somewhat swift action, but we still need to give a
-// short time to give the channel a chance reduce pressure.
-const INCREASE_DELAY_MIN_CHANGE_INTERVAL_SECS: u64 = 1;
-// The minimum time between decreasing the average delay between packets. We don't want to change
-// to quickly to keep things somewhat stable. Also there are buffers downstreams meaning we need to
-// wait a little to see the effect before we decrease further.
-const DECREASE_DELAY_MIN_CHANGE_INTERVAL_SECS: u64 = 30;
-// If we enough time passes without any sign of backpressure in the channel, we can consider
-// lowering the average delay. The goal is to keep somewhat stable, rather than maxing out
-// bandwidth at all times.
-const ACCEPTABLE_TIME_WITHOUT_BACKPRESSURE_SECS: u64 = 30;
-// The maximum multiplier we apply to the base average Poisson delay.
-const MAX_DELAY_MULTIPLIER: u32 = 6;
-// The minium multiplier we apply to the base average Poisson delay.
-const MIN_DELAY_MULTIPLIER: u32 = 1;
+use self::{
+    sending_delay_controller::SendingDelayController, transmission_buffer::TransmissionBuffer,
+};
+
+mod sending_delay_controller;
+mod transmission_buffer;
+
+#[cfg(not(target_arch = "wasm32"))]
+fn get_time_now() -> time::Instant {
+    time::Instant::now()
+}
+
+#[cfg(target_arch = "wasm32")]
+fn get_time_now() -> wasm_timer::Instant {
+    wasm_timer::Instant::now()
+}
 
 /// Configurable parameters of the `OutQueueControl`
 pub(crate) struct Config {
@@ -86,101 +87,6 @@ impl Config {
     }
 }
 
-struct SendingDelayController {
-    /// Multiply the average sending delay.
-    /// This is normally set to unity, but if we detect backpressure we increase this
-    /// multiplier. We use discrete steps.
-    current_multiplier: u32,
-
-    /// Maximum delay multiplier
-    upper_bound: u32,
-
-    /// Minimum delay multiplier
-    lower_bound: u32,
-
-    /// To make sure we don't change the multiplier to fast, we limit a change to some duration
-    #[cfg(not(target_arch = "wasm32"))]
-    time_when_changed: time::Instant,
-
-    #[cfg(target_arch = "wasm32")]
-    time_when_changed: wasm_timer::Instant,
-
-    /// If we have a long enough time without any backpressure detected we try reducing the sending
-    /// delay multiplier
-    #[cfg(not(target_arch = "wasm32"))]
-    time_when_backpressure_detected: time::Instant,
-
-    #[cfg(target_arch = "wasm32")]
-    time_when_backpressure_detected: wasm_timer::Instant,
-}
-
-#[cfg(not(target_arch = "wasm32"))]
-fn get_time_now() -> time::Instant {
-    time::Instant::now()
-}
-
-#[cfg(target_arch = "wasm32")]
-fn get_time_now() -> wasm_timer::Instant {
-    wasm_timer::Instant::now()
-}
-
-impl SendingDelayController {
-    fn new(lower_bound: u32, upper_bound: u32) -> Self {
-        assert!(lower_bound <= upper_bound);
-        let now = get_time_now();
-        SendingDelayController {
-            current_multiplier: MIN_DELAY_MULTIPLIER,
-            upper_bound,
-            lower_bound,
-            time_when_changed: now,
-            time_when_backpressure_detected: now,
-        }
-    }
-
-    fn current_multiplier(&self) -> u32 {
-        self.current_multiplier
-    }
-
-    fn increase_delay_multiplier(&mut self) {
-        self.current_multiplier =
-            (self.current_multiplier + 1).clamp(self.lower_bound, self.upper_bound);
-        self.time_when_changed = get_time_now();
-        log::debug!(
-            "Increasing sending delay multiplier to: {}",
-            self.current_multiplier
-        );
-    }
-
-    fn decrease_delay_multiplier(&mut self) {
-        self.current_multiplier =
-            (self.current_multiplier - 1).clamp(self.lower_bound, self.upper_bound);
-        self.time_when_changed = get_time_now();
-        log::debug!(
-            "Decreasing sending delay multiplier to: {}",
-            self.current_multiplier
-        );
-    }
-
-    fn record_backpressure_detected(&mut self) {
-        self.time_when_backpressure_detected = get_time_now();
-    }
-
-    fn not_increased_delay_recently(&self) -> bool {
-        get_time_now()
-            > self.time_when_changed + Duration::from_secs(INCREASE_DELAY_MIN_CHANGE_INTERVAL_SECS)
-    }
-
-    fn is_sending_reliable(&self) -> bool {
-        let now = get_time_now();
-        let delay_change_interval = Duration::from_secs(DECREASE_DELAY_MIN_CHANGE_INTERVAL_SECS);
-        let acceptable_time_without_backpressure =
-            Duration::from_secs(ACCEPTABLE_TIME_WITHOUT_BACKPRESSURE_SECS);
-
-        now > self.time_when_backpressure_detected + acceptable_time_without_backpressure
-            && now > self.time_when_changed + delay_change_interval
-    }
-}
-
 pub(crate) struct OutQueueControl<R>
 where
     R: CryptoRng + Rng,
@@ -204,7 +110,7 @@ where
 
     // To make sure we don't overload the mix_tx channel, we limit the rate we are pushing
     // messages.
-    sending_rate_controller: SendingDelayController,
+    sending_delay_controller: SendingDelayController,
 
     /// Channel used for sending prepared sphinx packets to `MixTrafficController` that sends them
     /// out to the network without any further delays.
@@ -223,10 +129,19 @@ where
     /// Accessor to the common instance of network topology.
     topology_access: TopologyAccessor,
 
-    /// Buffer containing all real messages received. It is first exhausted before more are pulled.
-    received_buffer: VecDeque<RealMessage>,
+    /// Buffer containing all incoming real messages keyed by transmission lane, that we will send
+    /// out to the mixnet.
+    transmission_buffer: TransmissionBuffer,
+
+    /// Incoming channel for being notified of closed connections, so that we can close lanes
+    /// corresponding to connections. To avoid sending traffic unnecessary
+    client_connection_rx: ConnectionCommandReceiver,
+
+    /// Report queue lengths so that upstream can backoff sending data, and keep connections open.
+    lane_queue_lengths: LaneQueueLengths,
 }
 
+#[derive(Debug)]
 pub(crate) struct RealMessage {
     mix_packet: MixPacket,
     fragment_id: FragmentIdentifier,
@@ -253,8 +168,9 @@ impl RealMessage {
 
 // messages are already prepared, etc. the real point of it is to forward it to mix_traffic
 // after sufficient delay
-pub(crate) type BatchRealMessageSender = mpsc::UnboundedSender<Vec<RealMessage>>;
-type BatchRealMessageReceiver = mpsc::UnboundedReceiver<Vec<RealMessage>>;
+pub(crate) type BatchRealMessageSender =
+    tokio::sync::mpsc::Sender<(Vec<RealMessage>, TransmissionLane)>;
+type BatchRealMessageReceiver = tokio::sync::mpsc::Receiver<(Vec<RealMessage>, TransmissionLane)>;
 
 pub(crate) enum StreamMessage {
     Cover,
@@ -277,22 +193,23 @@ where
         rng: R,
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
+        lane_queue_lengths: LaneQueueLengths,
+        client_connection_rx: ConnectionCommandReceiver,
     ) -> Self {
         OutQueueControl {
             config,
             ack_key,
             sent_notifier,
             next_delay: None,
-            sending_rate_controller: SendingDelayController::new(
-                MIN_DELAY_MULTIPLIER,
-                MAX_DELAY_MULTIPLIER,
-            ),
+            sending_delay_controller: Default::default(),
             mix_tx,
             real_receiver,
             our_full_destination,
             rng,
             topology_access,
-            received_buffer: VecDeque::with_capacity(0), // we won't be putting any data into this guy directly
+            transmission_buffer: Default::default(),
+            client_connection_rx,
+            lane_queue_lengths,
         }
     }
 
@@ -347,7 +264,7 @@ where
         };
 
         if let Err(err) = self.mix_tx.send(vec![next_message]).await {
-            log::error!("Failed to send - channel closed: {}", err);
+            log::error!("Failed to send: {}", err);
         }
 
         // notify ack controller about sending our message only after we actually managed to push it
@@ -355,6 +272,10 @@ where
         if let Some(fragment_id) = fragment_id {
             self.sent_notify(fragment_id);
         }
+
+        // In addition to closing connections on receiving messages throught client_connection_rx,
+        // also close connections when sufficiently stale.
+        self.transmission_buffer.prune_stale_connections();
 
         // JS: Not entirely sure why or how it fixes stuff, but without the yield call,
         // the UnboundedReceiver [of mix_rx] will not get a chance to read anything
@@ -367,36 +288,53 @@ where
         tokio::task::yield_now().await;
     }
 
+    fn on_close_connection(&mut self, connection_id: ConnectionId) {
+        log::debug!("Removing lane for connection: {connection_id}");
+        self.transmission_buffer
+            .remove(&TransmissionLane::ConnectionId(connection_id));
+    }
+
     fn current_average_message_sending_delay(&self) -> Duration {
         self.config.average_message_sending_delay
-            * self.sending_rate_controller.current_multiplier()
+            * self.sending_delay_controller.current_multiplier()
     }
 
     fn adjust_current_average_message_sending_delay(&mut self) {
         let used_slots = self.mix_tx.max_capacity() - self.mix_tx.capacity();
         log::trace!(
             "used_slots: {used_slots}, current_multiplier: {}",
-            self.sending_rate_controller.current_multiplier()
+            self.sending_delay_controller.current_multiplier()
         );
 
         // Even just a single used slot is enough to signal backpressure
         if used_slots > 0 {
             log::trace!("Backpressure detected");
-            self.sending_rate_controller.record_backpressure_detected();
+            self.sending_delay_controller.record_backpressure_detected();
         }
 
         // If the buffer is running out, slow down the sending rate
         if self.mix_tx.capacity() == 0
-            && self.sending_rate_controller.not_increased_delay_recently()
+            && self.sending_delay_controller.not_increased_delay_recently()
         {
-            self.sending_rate_controller.increase_delay_multiplier();
+            self.sending_delay_controller.increase_delay_multiplier();
         }
 
         // Very carefully step up the sending rate in case it seems like we can solidly handle the
         // current rate.
-        if self.sending_rate_controller.is_sending_reliable() {
-            self.sending_rate_controller.decrease_delay_multiplier();
+        if self.sending_delay_controller.is_sending_reliable() {
+            self.sending_delay_controller.decrease_delay_multiplier();
         }
+    }
+
+    fn pop_next_message(&mut self) -> Option<RealMessage> {
+        // Pop the next message from the transmission buffer
+        let (lane, real_next) = self.transmission_buffer.pop_next_message_at_random()?;
+
+        // Update the published queue length
+        let lane_length = self.transmission_buffer.lane_length(&lane);
+        self.lane_queue_lengths.set(&lane, lane_length);
+
+        Some(real_next)
     }
 
     fn poll_poisson(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
@@ -404,6 +342,16 @@ where
         // (mix_tx) was detected.
         self.adjust_current_average_message_sending_delay();
         let avg_delay = self.current_average_message_sending_delay();
+
+        // Start by checking if we have any incoming messages about closed connections
+        // NOTE: this feels a bit iffy, the `OutQueueControl` is getting ripe for a rewrite to
+        // something simpler.
+        if let Poll::Ready(Some(id)) = Pin::new(&mut self.client_connection_rx).poll_next(cx) {
+            match id {
+                ConnectionCommand::Close(id) => self.on_close_connection(id),
+                ConnectionCommand::ActiveConnections(_) => panic!(),
+            }
+        }
 
         if let Some(ref mut next_delay) = &mut self.next_delay {
             // it is not yet time to return a message
@@ -429,28 +377,32 @@ where
                 next_delay.as_mut().reset(next_poisson_delay);
             }
 
-            // check if we have anything immediately available
-            if let Some(real_available) = self.received_buffer.pop_front() {
-                return Poll::Ready(Some(StreamMessage::Real(Box::new(real_available))));
-            }
-
-            // decide what kind of message to send
-            match Pin::new(&mut self.real_receiver).poll_next(cx) {
+            // On every iteration we get new messages from upstream. Given that these come bunched
+            // in `Vec`, this ensures that on average we will fetch messages faster than we can
+            // send, which is a condition for being able to multiplex sphinx packets from multiple
+            // data streams.
+            match Pin::new(&mut self.real_receiver).poll_recv(cx) {
                 // in the case our real message channel stream was closed, we should also indicate we are closed
                 // (and whoever is using the stream should panic)
                 Poll::Ready(None) => Poll::Ready(None),
 
-                // if there are more messages available, return first one and store the rest
-                Poll::Ready(Some(real_messages)) => {
-                    self.received_buffer = real_messages.into();
-                    // we MUST HAVE received at least ONE message
-                    Poll::Ready(Some(StreamMessage::Real(Box::new(
-                        self.received_buffer.pop_front().unwrap(),
-                    ))))
+                Poll::Ready(Some((real_messages, conn_id))) => {
+                    log::trace!("handling real_messages: size: {}", real_messages.len());
+
+                    self.transmission_buffer.store(&conn_id, real_messages);
+                    let real_next = self.pop_next_message().expect("Just stored one");
+
+                    Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
                 }
 
-                // otherwise construct a dummy one
-                Poll::Pending => Poll::Ready(Some(StreamMessage::Cover)),
+                Poll::Pending => {
+                    if let Some(real_next) = self.pop_next_message() {
+                        Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
+                    } else {
+                        // otherwise construct a dummy one
+                        Poll::Ready(Some(StreamMessage::Cover))
+                    }
+                }
             }
         } else {
             // we never set an initial delay - let's do it now
@@ -472,32 +424,36 @@ where
     }
 
     fn poll_immediate(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
-        // check if we have anything immediately available
-        if let Some(real_available) = self.received_buffer.pop_front() {
-            // if there are more messages immediately available, notify the runtime
-            // because we should be polled again
-            if !self.received_buffer.is_empty() {
-                cx.waker().wake_by_ref()
+        // Start by checking if we have any incoming messages about closed connections
+        if let Poll::Ready(Some(id)) = Pin::new(&mut self.client_connection_rx).poll_next(cx) {
+            match id {
+                ConnectionCommand::Close(id) => self.on_close_connection(id),
+                ConnectionCommand::ActiveConnections(_) => panic!(),
             }
-            return Poll::Ready(Some(StreamMessage::Real(Box::new(real_available))));
         }
 
-        match Pin::new(&mut self.real_receiver).poll_next(cx) {
+        match Pin::new(&mut self.real_receiver).poll_recv(cx) {
             // in the case our real message channel stream was closed, we should also indicate we are closed
             // (and whoever is using the stream should panic)
             Poll::Ready(None) => Poll::Ready(None),
 
-            // if there are more messages available, return first one and store the rest
-            Poll::Ready(Some(real_messages)) => {
-                self.received_buffer = real_messages.into();
-                // we MUST HAVE received at least ONE message
-                Poll::Ready(Some(StreamMessage::Real(Box::new(
-                    self.received_buffer.pop_front().unwrap(),
-                ))))
+            Poll::Ready(Some((real_messages, conn_id))) => {
+                log::trace!("handling real_messages: size: {}", real_messages.len());
+
+                // First store what we got for the given connection id
+                self.transmission_buffer.store(&conn_id, real_messages);
+                let real_next = self.pop_next_message().expect("we just added one");
+
+                Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
             }
 
-            // if there's nothing, then there's nothing
-            Poll::Pending => Poll::Pending,
+            Poll::Pending => {
+                if let Some(real_next) = self.pop_next_message() {
+                    Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
+                } else {
+                    Poll::Pending
+                }
+            }
         }
     }
 
@@ -513,8 +469,31 @@ where
     }
 
     #[cfg(not(target_arch = "wasm32"))]
+    fn log_status(&self) {
+        let packets = self.transmission_buffer.total_size();
+        let backlog = self.transmission_buffer.total_size_in_bytes() as f64 / 1024.0;
+        let lanes = self.transmission_buffer.num_lanes();
+        let mult = self.sending_delay_controller.current_multiplier();
+        let delay = self.current_average_message_sending_delay().as_millis();
+        if self.config.disable_poisson_packet_distribution {
+            log::info!(
+                "Status: {lanes} lanes, backlog: {:.2} kiB ({packets}), no delay",
+                backlog
+            );
+        } else {
+            log::info!(
+                "Status: {lanes} lanes, backlog: {:.2} kiB ({packets}), avg delay: {}ms ({mult})",
+                backlog,
+                delay
+            );
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
         debug!("Started OutQueueControl with graceful shutdown support");
+
+        let mut status_timer = tokio::time::interval(Duration::from_secs(1));
 
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -522,14 +501,14 @@ where
                 _ = shutdown.recv() => {
                     log::trace!("OutQueueControl: Received shutdown");
                 }
-                next_message = self.next() => match next_message {
-                    Some(next_message) => {
-                        self.on_message(next_message).await;
-                    },
-                    None => {
-                        log::trace!("OutQueueControl: Stopping since channel closed");
-                        break;
-                    }
+                _ = status_timer.tick() => {
+                    self.log_status();
+                }
+                next_message = self.next() => if let Some(next_message) = next_message {
+                    self.on_message(next_message).await;
+                } else {
+                    log::trace!("OutQueueControl: Stopping since channel closed");
+                    break;
                 }
             }
         }

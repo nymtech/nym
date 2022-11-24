@@ -19,33 +19,36 @@ use credentials::coconut::params::{
 };
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
-use multisig_contract_common::msg::ProposalResponse;
 use nymcoconut::tests::helpers::theta_from_keys_and_attributes;
 use nymcoconut::{
-    prepare_blind_sign, ttp_keygen, Base58, BlindSignRequest, BlindedSignature, KeyPair, Parameters,
+    prepare_blind_sign, ttp_keygen, Base58, BlindSignRequest, BlindedSignature, Parameters,
 };
 use validator_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse, VerificationKeyResponse,
-    VerifyCredentialBody, VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_client::nymd::Coin;
 use validator_client::nymd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
 use validator_client::validator_api::routes::{
-    API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_COSMOS_ADDRESS,
-    COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL, COCONUT_ROUTES, COCONUT_VERIFICATION_KEY,
-    COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
+    API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL,
+    COCONUT_ROUTES, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
 };
 
 use crate::coconut::State;
 use crate::ValidatorApiStorage;
 use async_trait::async_trait;
+use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
+use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
+use contracts_common::dealings::ContractSafeBytes;
 use crypto::asymmetric::{encryption, identity};
+use cw3::ProposalResponse;
 use rand_07::rngs::OsRng;
 use rocket::http::Status;
 use rocket::local::asynchronous::Client;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
+use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
 
 const TEST_COIN_DENOM: &str = "unym";
 const TEST_REWARDING_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
@@ -103,6 +106,10 @@ impl super::client::Client for DummyClient {
             })
     }
 
+    async fn list_proposals(&self) -> Result<Vec<ProposalResponse>> {
+        todo!()
+    }
+
     async fn get_spent_credential(
         &self,
         blinded_serial_number: String,
@@ -115,6 +122,26 @@ impl super::client::Client for DummyClient {
             .ok_or(CoconutError::InvalidCredentialStatus {
                 status: String::from("spent credential not found"),
             })
+    }
+
+    async fn get_current_epoch_state(&self) -> Result<EpochState> {
+        todo!()
+    }
+
+    async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse> {
+        todo!()
+    }
+
+    async fn get_current_dealers(&self) -> Result<Vec<DealerDetails>> {
+        todo!()
+    }
+
+    async fn get_dealings(&self, _idx: usize) -> Result<Vec<ContractDealing>> {
+        todo!()
+    }
+
+    async fn get_verification_key_shares(&self) -> Result<Vec<ContractVKShare>> {
+        todo!()
     }
 
     async fn vote_proposal(
@@ -131,6 +158,29 @@ impl super::client::Client for DummyClient {
             }
         }
         Ok(())
+    }
+
+    async fn execute_proposal(&self, _proposal_id: u64) -> Result<()> {
+        todo!()
+    }
+
+    async fn register_dealer(
+        &self,
+        _bte_key: EncodedBTEPublicKeyWithProof,
+        _announce_address: String,
+    ) -> Result<ExecuteResult> {
+        todo!()
+    }
+
+    async fn submit_dealing(&self, _dealing_bytes: ContractSafeBytes) -> Result<ExecuteResult> {
+        todo!()
+    }
+
+    async fn submit_verification_key_share(
+        &self,
+        _share: VerificationKeyShare,
+    ) -> Result<ExecuteResult> {
+        todo!()
     }
 }
 
@@ -171,63 +221,6 @@ pub fn tx_entry_fixture(tx_hash: &str) -> TxResponse {
         },
         tx: vec![].into(),
         proof: None,
-    }
-}
-
-async fn check_signer_verif_key(key_pair: KeyPair) {
-    let verification_key = key_pair.verification_key();
-
-    let mut db_dir = std::env::temp_dir();
-    db_dir.push(&verification_key.to_bs58()[..8]);
-    let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
-    let nymd_client = DummyClient::new(
-        AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap(),
-        &Arc::new(RwLock::new(HashMap::new())),
-        &Arc::new(RwLock::new(HashMap::new())),
-        &Arc::new(RwLock::new(HashMap::new())),
-    );
-    let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
-
-    let rocket = rocket::build().attach(InternalSignRequest::stage(
-        nymd_client,
-        TEST_COIN_DENOM.to_string(),
-        key_pair,
-        comm_channel,
-        storage,
-    ));
-
-    let client = Client::tracked(rocket)
-        .await
-        .expect("valid rocket instance");
-
-    let response = client
-        .get(format!(
-            "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_VERIFICATION_KEY
-        ))
-        .dispatch()
-        .await;
-    assert_eq!(response.status(), Status::Ok);
-
-    // This is a more direct way, but there's a bug which makes it hang https://github.com/SergioBenitez/Rocket/issues/1893
-    // assert!(response
-    //     .into_json::<BlindedSignatureResponse>()
-    //     .await
-    //     .is_some());
-    let verification_key_response =
-        serde_json::from_str::<VerificationKeyResponse>(&response.into_string().await.unwrap())
-            .unwrap();
-    assert_eq!(verification_key_response.key, verification_key);
-}
-
-#[tokio::test]
-async fn multiple_verification_key() {
-    let params = Parameters::new(4).unwrap();
-    let num_authorities = 4;
-
-    let key_pairs = ttp_keygen(&params, num_authorities, num_authorities).unwrap();
-    for key_pair in key_pairs.into_iter() {
-        check_signer_verif_key(key_pair).await;
     }
 }
 
@@ -281,11 +274,13 @@ async fn signed_before() {
         &Arc::new(RwLock::new(HashMap::new())),
     );
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
+    let staged_key_pair = crate::coconut::KeyPair::new();
+    staged_key_pair.set(key_pair).await;
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         TEST_COIN_DENOM.to_string(),
-        key_pair,
+        staged_key_pair,
         comm_channel,
         storage.clone(),
     ));
@@ -351,10 +346,12 @@ async fn state_functions() {
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
+    let staged_key_pair = crate::coconut::KeyPair::new();
+    staged_key_pair.set(key_pair).await;
     let state = State::new(
         nymd_client,
         TEST_COIN_DENOM.to_string(),
-        key_pair,
+        staged_key_pair,
         comm_channel,
         storage.clone(),
     );
@@ -521,11 +518,13 @@ async fn blind_sign_correct() {
         &Arc::new(RwLock::new(HashMap::new())),
     );
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
+    let staged_key_pair = crate::coconut::KeyPair::new();
+    staged_key_pair.set(key_pair).await;
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         TEST_COIN_DENOM.to_string(),
-        key_pair,
+        staged_key_pair,
         comm_channel,
         storage.clone(),
     ));
@@ -600,11 +599,13 @@ async fn signature_test() {
         &Arc::new(RwLock::new(HashMap::new())),
     );
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
+    let staged_key_pair = crate::coconut::KeyPair::new();
+    staged_key_pair.set(key_pair).await;
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client,
         TEST_COIN_DENOM.to_string(),
-        key_pair,
+        staged_key_pair,
         comm_channel,
         storage.clone(),
     ));
@@ -657,47 +658,6 @@ async fn signature_test() {
 }
 
 #[tokio::test]
-async fn get_cosmos_address() {
-    let validator_address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
-    let nymd_client = DummyClient::new(
-        validator_address.clone(),
-        &Arc::new(RwLock::new(HashMap::new())),
-        &Arc::new(RwLock::new(HashMap::new())),
-        &Arc::new(RwLock::new(HashMap::new())),
-    );
-    let mut db_dir = std::env::temp_dir();
-    let key_pair = ttp_keygen(&Parameters::new(4).unwrap(), 1, 1)
-        .unwrap()
-        .remove(0);
-    db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
-    let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
-    let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
-    let rocket = rocket::build().attach(InternalSignRequest::stage(
-        nymd_client,
-        TEST_COIN_DENOM.to_string(),
-        key_pair,
-        comm_channel,
-        storage.clone(),
-    ));
-    let client = Client::tracked(rocket)
-        .await
-        .expect("valid rocket instance");
-
-    let response = client
-        .get(format!(
-            "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_COSMOS_ADDRESS
-        ))
-        .dispatch()
-        .await;
-    assert_eq!(response.status(), Status::Ok);
-    let cosmos_addr_response =
-        serde_json::from_str::<CosmosAddressResponse>(&response.into_string().await.unwrap())
-            .unwrap();
-    assert_eq!(validator_address, cosmos_addr_response.addr);
-}
-
-#[tokio::test]
 async fn verification_of_bandwidth_credential() {
     // Setup variables
     let validator_address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
@@ -718,15 +678,23 @@ async fn verification_of_bandwidth_credential() {
         hash_to_scalar(voucher_value.to_string()),
         hash_to_scalar(voucher_info),
     ];
-    let theta = theta_from_keys_and_attributes(&params, &key_pairs, &public_attributes).unwrap();
+    let indices: Vec<u64> = key_pairs
+        .iter()
+        .enumerate()
+        .map(|(idx, _)| (idx + 1) as u64)
+        .collect();
+    let theta =
+        theta_from_keys_and_attributes(&params, &key_pairs, &indices, &public_attributes).unwrap();
     let key_pair = key_pairs.remove(0);
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage1 = ValidatorApiStorage::init(db_dir).await.unwrap();
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
+    let staged_key_pair = crate::coconut::KeyPair::new();
+    staged_key_pair.set(key_pair).await;
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nymd_client.clone(),
         TEST_COIN_DENOM.to_string(),
-        key_pair,
+        staged_key_pair,
         comm_channel.clone(),
         storage1.clone(),
     ));

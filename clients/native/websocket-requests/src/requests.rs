@@ -24,6 +24,12 @@ enum ClientRequestTag {
 
     /// Value tag representing [`SelfAddress`] variant of the [`ClientRequest`]
     SelfAddress = 0x03,
+
+    /// Value tag representing [`ClosedConnection`] variant of the [`ClientRequest`]
+    ClosedConnection = 0x04,
+
+    /// Value tag representing [`GetLaneQueueLength`] variant of the [`ClientRequest`]
+    GetLaneQueueLength = 0x05,
 }
 
 impl TryFrom<u8> for ClientRequestTag {
@@ -35,6 +41,8 @@ impl TryFrom<u8> for ClientRequestTag {
             _ if value == (Self::SendAnonymous as u8) => Ok(Self::SendAnonymous),
             _ if value == (Self::Reply as u8) => Ok(Self::Reply),
             _ if value == (Self::SelfAddress as u8) => Ok(Self::SelfAddress),
+            _ if value == (Self::ClosedConnection as u8) => Ok(Self::ClosedConnection),
+            _ if value == (Self::GetLaneQueueLength as u8) => Ok(Self::GetLaneQueueLength),
             n => Err(error::Error::new(
                 ErrorKind::UnknownRequest,
                 format!("{n} does not correspond to any valid request tag"),
@@ -53,6 +61,7 @@ pub enum ClientRequest {
     Send {
         recipient: Recipient,
         message: Vec<u8>,
+        connection_id: u64,
     },
 
     /// Create a message used for a duplex anonymous communication where the recipient
@@ -67,6 +76,7 @@ pub enum ClientRequest {
         recipient: Recipient,
         message: Vec<u8>,
         reply_surbs: u32,
+        connection_id: u64,
     },
 
     /// Attempt to use our internally received and stored `ReplySurb` to send the message back
@@ -76,28 +86,36 @@ pub enum ClientRequest {
     Reply {
         sender_tag: AnonymousSenderTag,
         message: Vec<u8>,
+        connection_id: u64,
     },
 
     SelfAddress,
+
+    ClosedConnection(u64),
+
+    GetLaneQueueLength(u64),
 }
 
 // we could have been parsing it directly TryFrom<WsMessage>, but we want to retain
 // information about whether it came from binary or text to send appropriate response back
 impl ClientRequest {
-    // SEND_REQUEST_TAG || recipient || data_len || data
-    fn serialize_send(recipient: Recipient, data: Vec<u8>) -> Vec<u8> {
+    // SEND_REQUEST_TAG || recipient || conn_id || data_len || data
+    fn serialize_send(recipient: Recipient, data: Vec<u8>, connection_id: u64) -> Vec<u8> {
         let data_len_bytes = (data.len() as u64).to_be_bytes();
+        let conn_id_bytes = connection_id.to_be_bytes();
+
         std::iter::once(ClientRequestTag::Send as u8)
             .chain(recipient.to_bytes().into_iter()) // will not be length prefixed because the length is constant
+            .chain(conn_id_bytes.into_iter())
             .chain(data_len_bytes.into_iter())
             .chain(data.into_iter())
             .collect()
     }
 
-    // SEND_REQUEST_TAG || recipient || data_len || data
+    // SEND_REQUEST_TAG || recipient || conn_id || data_len || data
     fn deserialize_send(b: &[u8]) -> Result<Self, error::Error> {
-        // we need to have at least 1 (tag) + Recipient::LEN + sizeof<u64> bytes
-        if b.len() < 1 + Recipient::LEN + size_of::<u64>() {
+        // we need to have at least 1 (tag) + Recipient::LEN + 2*sizeof<u64> bytes
+        if b.len() < 1 + Recipient::LEN + 2 * size_of::<u64>() {
             return Err(error::Error::new(
                 ErrorKind::TooShortRequest,
                 "not enough data provided to recover 'send'".to_string(),
@@ -119,6 +137,11 @@ impl ClientRequest {
             }
         };
 
+        let mut connection_id_bytes = [0u8; size_of::<u64>()];
+        connection_id_bytes
+            .copy_from_slice(&b[1 + Recipient::LEN..1 + Recipient::LEN + size_of::<u64>()]);
+        let connection_id = u64::from_be_bytes(connection_id_bytes);
+
         let data_len_bytes = &b[1 + Recipient::LEN..1 + Recipient::LEN + size_of::<u64>()];
         let data_len = u64::from_be_bytes(data_len_bytes.try_into().unwrap());
         let data = &b[1 + Recipient::LEN + size_of::<u64>()..];
@@ -136,15 +159,24 @@ impl ClientRequest {
         Ok(ClientRequest::Send {
             recipient,
             message: data.to_vec(),
+            connection_id,
         })
     }
 
-    // SEND_ANONYMOUS_REQUEST_TAG || reply_surbs || recipient || data_len || data
-    fn serialize_send_anonymous(recipient: Recipient, data: Vec<u8>, reply_surbs: u32) -> Vec<u8> {
+    // SEND_ANONYMOUS_REQUEST_TAG || reply_surbs || recipient || conn_id || data_len || data
+    fn serialize_send_anonymous(
+        recipient: Recipient,
+        data: Vec<u8>,
+        reply_surbs: u32,
+        connection_id: u64,
+    ) -> Vec<u8> {
         let data_len_bytes = (data.len() as u64).to_be_bytes();
+        let conn_id_bytes = connection_id.to_be_bytes();
+
         std::iter::once(ClientRequestTag::SendAnonymous as u8)
             .chain(reply_surbs.to_be_bytes().into_iter())
             .chain(recipient.to_bytes().into_iter()) // will not be length prefixed because the length is constant
+            .chain(conn_id_bytes.into_iter())
             .chain(data_len_bytes.into_iter())
             .chain(data.into_iter())
             .collect()
@@ -152,8 +184,8 @@ impl ClientRequest {
 
     // SEND_ANONYMOUS_REQUEST_TAG || reply_surbs || recipient || data_len || data
     fn deserialize_send_anonymous(b: &[u8]) -> Result<Self, error::Error> {
-        // we need to have at least 1 (tag) + sizeof<u32> (num surbs) + Recipient::LEN + sizeof<u64> bytes
-        if b.len() < 1 + size_of::<u32>() + Recipient::LEN + size_of::<u64>() {
+        // we need to have at least 1 (tag) + sizeof<u32> (num surbs) + Recipient::LEN + 2 *sizeof<u64> bytes
+        if b.len() < 1 + size_of::<u32>() + Recipient::LEN + 2 * size_of::<u64>() {
             return Err(error::Error::new(
                 ErrorKind::TooShortRequest,
                 "not enough data provided to recover 'send_anonymous'".to_string(),
@@ -177,9 +209,15 @@ impl ClientRequest {
             }
         };
 
-        let data_len_bytes = &b[5 + Recipient::LEN..5 + Recipient::LEN + size_of::<u64>()];
+        let mut connection_id_bytes = [0u8; size_of::<u64>()];
+        connection_id_bytes
+            .copy_from_slice(&b[5 + Recipient::LEN..5 + Recipient::LEN + size_of::<u64>()]);
+        let connection_id = u64::from_be_bytes(connection_id_bytes);
+
+        let data_len_bytes =
+            &b[5 + Recipient::LEN + size_of::<u64>()..5 + Recipient::LEN + 2 * size_of::<u64>()];
         let data_len = u64::from_be_bytes(data_len_bytes.try_into().unwrap());
-        let data = &b[5 + Recipient::LEN + size_of::<u64>()..];
+        let data = &b[5 + Recipient::LEN + 2 * size_of::<u64>()..];
         if data.len() as u64 != data_len {
             return Err(error::Error::new(
                 ErrorKind::MalformedRequest,
@@ -195,22 +233,30 @@ impl ClientRequest {
             reply_surbs,
             recipient,
             message: data.to_vec(),
+            connection_id,
         })
     }
 
-    // REPLY_REQUEST_TAG || SENDER_TAG || message_len || message
-    fn serialize_reply(message: Vec<u8>, sender_tag: AnonymousSenderTag) -> Vec<u8> {
+    // REPLY_REQUEST_TAG || SENDER_TAG || conn_id || message_len || message
+    fn serialize_reply(
+        message: Vec<u8>,
+        sender_tag: AnonymousSenderTag,
+        connection_id: u64,
+    ) -> Vec<u8> {
         let message_len_bytes = (message.len() as u64).to_be_bytes();
+        let conn_id_bytes = connection_id.to_be_bytes();
+
         std::iter::once(ClientRequestTag::Reply as u8)
             .chain(sender_tag.into_iter())
+            .chain(conn_id_bytes.into_iter())
             .chain(message_len_bytes.into_iter())
             .chain(message.into_iter())
             .collect()
     }
 
-    // REPLY_REQUEST_TAG || SENDER_TAG || message_len || message]
+    // REPLY_REQUEST_TAG || SENDER_TAG || conn_id || message_len || message
     fn deserialize_reply(b: &[u8]) -> Result<Self, error::Error> {
-        if b.len() < 1 + SENDER_TAG_SIZE + size_of::<u64>() {
+        if b.len() < 1 + SENDER_TAG_SIZE + 2 * size_of::<u64>() {
             return Err(error::Error::new(
                 ErrorKind::TooShortRequest,
                 "not enough data provided to recover 'reply'".to_string(),
@@ -223,12 +269,17 @@ impl ClientRequest {
         // the unwrap here is fine as we're definitely using exactly SENDER_TAG_SIZE bytes
         let sender_tag = b[1..1 + SENDER_TAG_SIZE].try_into().unwrap();
 
+        let mut connection_id_bytes = [0u8; size_of::<u64>()];
+        connection_id_bytes
+            .copy_from_slice(&b[1 + SENDER_TAG_SIZE..1 + SENDER_TAG_SIZE + size_of::<u64>()]);
+        let connection_id = u64::from_be_bytes(connection_id_bytes);
+
         let message_len = u64::from_be_bytes(
-            b[1 + SENDER_TAG_SIZE..1 + SENDER_TAG_SIZE + size_of::<u64>()]
+            b[1 + SENDER_TAG_SIZE + size_of::<u64>()..1 + SENDER_TAG_SIZE + 2 * size_of::<u64>()]
                 .try_into()
                 .unwrap(),
         );
-        let message = &b[1 + SENDER_TAG_SIZE + size_of::<u64>()..];
+        let message = &b[1 + SENDER_TAG_SIZE + 2 * size_of::<u64>()..];
         if message.len() as u64 != message_len {
             return Err(error::Error::new(
                 ErrorKind::MalformedRequest,
@@ -243,6 +294,7 @@ impl ClientRequest {
         Ok(ClientRequest::Reply {
             message: message.to_vec(),
             sender_tag,
+            connection_id,
         })
     }
 
@@ -259,22 +311,74 @@ impl ClientRequest {
         Ok(ClientRequest::SelfAddress)
     }
 
+    // CLOSED_CONNECTION_REQUEST_TAG
+    fn serialize_closed_connection(connection_id: u64) -> Vec<u8> {
+        let conn_id_bytes = connection_id.to_be_bytes();
+        std::iter::once(ClientRequestTag::ClosedConnection as u8)
+            .chain(conn_id_bytes.into_iter())
+            .collect()
+    }
+
+    // CLOSED_CONNECTION_REQUEST_TAG
+    #[deprecated(note = "remember to implement length checks here")]
+    fn deserialize_closed_connection(b: &[u8]) -> Result<Self, error::Error> {
+        // this MUST match because it was called by 'deserialize'
+        debug_assert_eq!(b[0], ClientRequestTag::ClosedConnection as u8);
+
+        let mut connection_id_bytes = [0u8; size_of::<u64>()];
+        connection_id_bytes.copy_from_slice(&b[1..=size_of::<u64>()]);
+        let connection_id = u64::from_be_bytes(connection_id_bytes);
+
+        Ok(ClientRequest::ClosedConnection(connection_id))
+    }
+
+    // GET_LANE_QUEUE_LENGHT_TAG
+    fn serialize_get_lane_queue_lengths(connection_id: u64) -> Vec<u8> {
+        let conn_id_bytes = connection_id.to_be_bytes();
+        std::iter::once(ClientRequestTag::GetLaneQueueLength as u8)
+            .chain(conn_id_bytes.into_iter())
+            .collect()
+    }
+
+    // GET_LANE_QUEUE_LENGHT_TAG
+    #[deprecated(note = "remember to implement length checks here")]
+    fn deserialize_get_lane_queue_length(b: &[u8]) -> Result<Self, error::Error> {
+        // this MUST match because it was called by 'deserialize'
+        debug_assert_eq!(b[0], ClientRequestTag::GetLaneQueueLength as u8);
+
+        let mut connection_id_bytes = [0u8; size_of::<u64>()];
+        connection_id_bytes.copy_from_slice(&b[1..=size_of::<u64>()]);
+        let connection_id = u64::from_be_bytes(connection_id_bytes);
+
+        Ok(ClientRequest::GetLaneQueueLength(connection_id))
+    }
+
     pub fn serialize(self) -> Vec<u8> {
         match self {
-            ClientRequest::Send { recipient, message } => Self::serialize_send(recipient, message),
+            ClientRequest::Send {
+                recipient,
+                message,
+                connection_id,
+            } => Self::serialize_send(recipient, message, connection_id),
 
             ClientRequest::SendAnonymous {
                 recipient,
                 message,
                 reply_surbs,
-            } => Self::serialize_send_anonymous(recipient, message, reply_surbs),
+                connection_id,
+            } => Self::serialize_send_anonymous(recipient, message, reply_surbs, connection_id),
 
             ClientRequest::Reply {
                 message,
                 sender_tag,
-            } => Self::serialize_reply(message, sender_tag),
+                connection_id,
+            } => Self::serialize_reply(message, sender_tag, connection_id),
 
             ClientRequest::SelfAddress => Self::serialize_self_address(),
+
+            ClientRequest::ClosedConnection(id) => Self::serialize_closed_connection(id),
+
+            ClientRequest::GetLaneQueueLength(id) => Self::serialize_get_lane_queue_lengths(id),
         }
     }
 
@@ -296,11 +400,13 @@ impl ClientRequest {
             ClientRequestTag::SendAnonymous => Self::deserialize_send_anonymous(b),
             ClientRequestTag::Reply => Self::deserialize_reply(b),
             ClientRequestTag::SelfAddress => Self::deserialize_self_address(b),
+            ClientRequestTag::ClosedConnection => Self::deserialize_closed_connection(b),
+            ClientRequestTag::GetLaneQueueLength => Self::deserialize_get_lane_queue_length(b),
         }
     }
 
-    pub fn try_from_binary(raw_req: Vec<u8>) -> Result<Self, error::Error> {
-        Self::deserialize(&raw_req)
+    pub fn try_from_binary(raw_req: &[u8]) -> Result<Self, error::Error> {
+        Self::deserialize(raw_req)
     }
 
     pub fn try_from_text(raw_req: String) -> Result<Self, error::Error> {
@@ -327,6 +433,7 @@ mod tests {
             recipient,
             message: b"foomp".to_vec(),
             reply_surbs: 0,
+            connection_id: 42,
         };
 
         let bytes = send_request_no_surb.serialize();
@@ -336,10 +443,12 @@ mod tests {
                 recipient,
                 message,
                 reply_surbs,
+                connection_id,
             } => {
                 assert_eq!(recipient.to_string(), recipient_string);
                 assert_eq!(message, b"foomp".to_vec());
-                assert_eq!(reply_surbs, 0)
+                assert_eq!(reply_surbs, 0);
+                assert_eq!(connection_id, 42)
             }
             _ => unreachable!(),
         }
@@ -348,6 +457,7 @@ mod tests {
             recipient,
             message: b"foomp".to_vec(),
             reply_surbs: 42,
+            connection_id: 213,
         };
 
         let bytes = send_request_surb.serialize();
@@ -357,13 +467,20 @@ mod tests {
                 recipient,
                 message,
                 reply_surbs,
+                connection_id,
             } => {
                 assert_eq!(recipient.to_string(), recipient_string);
                 assert_eq!(message, b"foomp".to_vec());
-                assert_eq!(reply_surbs, 42)
+                assert_eq!(reply_surbs, 42);
+                assert_eq!(connection_id, 213)
             }
             _ => unreachable!(),
         }
+    }
+
+    #[test]
+    fn send_anonymous_request_serialization_works() {
+        unimplemented!()
     }
 
     #[test]
@@ -378,7 +495,6 @@ mod tests {
         let reply_request = ClientRequest::ReplyWithSurb {
             sender_tag: [42u8; SENDER_TAG_SIZE],
             message: b"foomp".to_vec(),
-
             reply_surb,
         };
 
@@ -405,6 +521,17 @@ mod tests {
         let recovered = ClientRequest::deserialize(&bytes).unwrap();
         match recovered {
             ClientRequest::SelfAddress => (),
+            _ => unreachable!(),
+        }
+    }
+
+    #[test]
+    fn close_connection_request_serialization_works() {
+        let close_connection_request = ClientRequest::ClosedConnection(42);
+        let bytes = close_connection_request.serialize();
+        let recovered = ClientRequest::deserialize(&bytes).unwrap();
+        match recovered {
+            ClientRequest::ClosedConnection(id) => assert_eq!(id, 42),
             _ => unreachable!(),
         }
     }

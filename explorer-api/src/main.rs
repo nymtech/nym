@@ -6,6 +6,7 @@ extern crate rocket_okapi;
 use clap::Parser;
 use dotenv::dotenv;
 use log::info;
+use logging::setup_logging;
 use network_defaults::setup_env;
 use task::ShutdownNotifier;
 
@@ -114,19 +115,4 @@ async fn wait_for_signal() {
             log::info!("Received SIGINT");
         },
     }
-}
-
-fn setup_logging() {
-    let mut log_builder = pretty_env_logger::formatted_timed_builder();
-    if let Ok(s) = ::std::env::var("RUST_LOG") {
-        log_builder.parse_filters(&s);
-    } else {
-        // default to 'Info'
-        log_builder.filter(None, log::LevelFilter::Info);
-    }
-
-    log_builder
-        .filter_module("tokio_reactor", log::LevelFilter::Warn)
-        .filter_module("reqwest", log::LevelFilter::Warn)
-        .init();
 }

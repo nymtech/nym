@@ -4,8 +4,8 @@ use super::authentication::{AuthenticationMethods, Authenticator, User};
 use super::request::{SocksCommand, SocksRequest};
 use super::types::{ResponseCode, SocksProxyError};
 use super::{RESERVED, SOCKS_VERSION};
-use client_core::client::inbound_messages::InputMessage;
-use client_core::client::inbound_messages::InputMessageSender;
+use client_connections::{LaneQueueLengths, TransmissionLane};
+use client_core::client::inbound_messages::{InputMessage, InputMessageSender};
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use log::*;
@@ -163,6 +163,7 @@ pub(crate) struct SocksClient {
     service_provider: Recipient,
     self_address: Recipient,
     started_proxy: bool,
+    lane_queue_lengths: LaneQueueLengths,
     shutdown_listener: ShutdownListener,
 }
 
@@ -180,6 +181,7 @@ impl Drop for SocksClient {
 
 impl SocksClient {
     /// Create a new SOCKClient
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         config: Config,
         stream: TcpStream,
@@ -188,6 +190,7 @@ impl SocksClient {
         service_provider: Recipient,
         controller_sender: ControllerSender,
         self_address: Recipient,
+        lane_queue_lengths: LaneQueueLengths,
         shutdown_listener: ShutdownListener,
     ) -> Self {
         let connection_id = Self::generate_random();
@@ -203,6 +206,7 @@ impl SocksClient {
             service_provider,
             self_address,
             started_proxy: false,
+            lane_queue_lengths,
             shutdown_listener,
         }
     }
@@ -258,16 +262,25 @@ impl SocksClient {
             self.service_provider,
             msg.into_bytes(),
             self.config.connection_start_surbs,
+            TransmissionLane::ConnectionId(self.connection_id),
         );
-        self.input_sender.unbounded_send(input_message).unwrap();
+        if self.input_sender.send(input_message).await.is_err() {
+            panic!();
+        }
     }
 
     async fn send_connect_to_mixnet_with_return_address(&mut self, remote_address: RemoteAddress) {
         let req = Request::new_connect(self.connection_id, remote_address, Some(self.self_address));
         let msg = Message::Request(req);
 
-        let input_message = InputMessage::new_regular(self.service_provider, msg.into_bytes());
-        self.input_sender.unbounded_send(input_message).unwrap();
+        let input_message = InputMessage::new_regular(
+            self.service_provider,
+            msg.into_bytes(),
+            TransmissionLane::ConnectionId(self.connection_id),
+        );
+        if self.input_sender.send(input_message).await.is_err() {
+            panic!();
+        }
     }
 
     async fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
@@ -301,19 +314,22 @@ impl SocksClient {
             conn_receiver,
             input_sender,
             connection_id,
+            Some(self.lane_queue_lengths.clone()),
             self.shutdown_listener.clone(),
         )
         .run(move |conn_id, read_data, socket_closed| {
             let provider_request = Request::new_send(conn_id, read_data, socket_closed);
             let provider_message = Message::Request(provider_request);
+            let lane = TransmissionLane::ConnectionId(conn_id);
             if anonymous {
                 InputMessage::new_anonymous(
                     recipient,
                     provider_message.into_bytes(),
                     per_request_surbs,
+                    lane,
                 )
             } else {
-                InputMessage::new_regular(recipient, provider_message.into_bytes())
+                InputMessage::new_regular(recipient, provider_message.into_bytes(), lane)
             }
         })
         .await

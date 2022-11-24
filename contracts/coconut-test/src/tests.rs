@@ -4,3 +4,4 @@
 mod deposit_and_release;
 mod helpers;
 mod spend_credential_creates_proposal;
+mod submit_vk_creates_proposal;

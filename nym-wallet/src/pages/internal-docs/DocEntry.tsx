@@ -69,6 +69,7 @@ export const DocEntry: React.FC<DocEntryProps> = (props) => {
             label={arg.name}
             id={argKey(props.function.name, arg.name)}
             key={argKey(props.function.name, arg.name)}
+            InputLabelProps={{ shrink: true }}
           />
         ))}
       </div>

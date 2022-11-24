@@ -19,17 +19,20 @@ pub(super) enum ClientRequestText {
     Send {
         message: String,
         recipient: String,
+        connection_id: u64,
     },
     #[serde(rename_all = "camelCase")]
     SendAnonymous {
         recipient: String,
         message: String,
         reply_surbs: u32,
+        connection_id: u64,
     },
     #[serde(rename_all = "camelCase")]
     Reply {
         sender_tag: AnonymousSenderTag,
         message: String,
+        connection_id: u64,
     },
     SelfAddress,
 }
@@ -47,7 +50,11 @@ impl TryInto<ClientRequest> for ClientRequestText {
 
     fn try_into(self) -> Result<ClientRequest, Self::Error> {
         match self {
-            ClientRequestText::Send { message, recipient } => {
+            ClientRequestText::Send {
+                message,
+                recipient,
+                connection_id,
+            } => {
                 let message_bytes = message.into_bytes();
                 let recipient = Recipient::try_from_base58_string(recipient).map_err(|err| {
                     Self::Error::new(ErrorKind::MalformedRequest, err.to_string())
@@ -56,12 +63,14 @@ impl TryInto<ClientRequest> for ClientRequestText {
                 Ok(ClientRequest::Send {
                     message: message_bytes,
                     recipient,
+                    connection_id,
                 })
             }
             ClientRequestText::SendAnonymous {
                 recipient,
                 message,
                 reply_surbs,
+                connection_id,
             } => {
                 let message_bytes = message.into_bytes();
                 let recipient = Recipient::try_from_base58_string(recipient).map_err(|err| {
@@ -71,18 +80,21 @@ impl TryInto<ClientRequest> for ClientRequestText {
                     recipient,
                     message: message_bytes,
                     reply_surbs,
+                    connection_id,
                 })
             }
             ClientRequestText::SelfAddress => Ok(ClientRequest::SelfAddress),
             ClientRequestText::Reply {
                 sender_tag,
                 message,
+                connection_id,
             } => {
                 let message_bytes = message.into_bytes();
 
                 Ok(ClientRequest::Reply {
                     sender_tag,
                     message: message_bytes,
+                    connection_id,
                 })
             }
         }
@@ -102,6 +114,10 @@ pub(super) enum ServerResponseText {
     },
     SelfAddress {
         address: String,
+    },
+    LaneQueueLength {
+        lane: u64,
+        queue_length: usize,
     },
     Error {
         message: String,
@@ -142,6 +158,9 @@ impl From<ServerResponse> for ServerResponseText {
             ServerResponse::SelfAddress(recipient) => ServerResponseText::SelfAddress {
                 address: recipient.to_string(),
             },
+            ServerResponse::LaneQueueLength { lane, queue_length } => {
+                ServerResponseText::LaneQueueLength { lane, queue_length }
+            }
             ServerResponse::Error(err) => ServerResponseText::Error {
                 message: err.to_string(),
             },

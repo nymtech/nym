@@ -1,10 +1,12 @@
-use cosmwasm_std::{Coin, Timestamp, Uint128};
+use cosmwasm_std::{Coin, Timestamp};
 use mixnet_contract_common::{
     mixnode::{MixNodeConfigUpdate, MixNodeCostParams},
     Gateway, MixId, MixNode,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+
+use crate::PledgeCap;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -83,6 +85,7 @@ pub enum ExecuteMsg {
         owner_address: String,
         staking_address: Option<String>,
         vesting_spec: Option<VestingSpecification>,
+        cap: Option<PledgeCap>,
     },
     WithdrawVestedCoins {
         amount: Coin,
@@ -120,7 +123,8 @@ pub enum ExecuteMsg {
         to_address: Option<String>,
     },
     UpdateLockedPledgeCap {
-        amount: Uint128,
+        address: String,
+        cap: PledgeCap,
     },
 }
 
@@ -156,6 +160,7 @@ impl ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    GetContractVersion {},
     LockedCoins {
         vesting_account_address: String,
         block_time: Option<Timestamp>,
@@ -201,7 +206,6 @@ pub enum QueryMsg {
     GetCurrentVestingPeriod {
         address: String,
     },
-    GetLockedPledgeCap {},
     GetDelegationTimes {
         address: String,
         mix_id: MixId,

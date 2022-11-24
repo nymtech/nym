@@ -577,9 +577,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "client-connections"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "log",
+]
+
+[[package]]
 name = "client-core"
 version = "1.1.0"
 dependencies = [
+ "client-connections",
  "config",
  "crypto",
  "dashmap 5.4.0",
@@ -623,6 +632,18 @@ name = "coconut-bandwidth-contract-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "multisig-contract-common",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "coconut-dkg-common"
+version = "0.1.0"
+dependencies = [
+ "contracts-common",
+ "cosmwasm-std",
+ "cw-utils",
  "multisig-contract-common",
  "schemars",
  "serde",
@@ -737,8 +758,13 @@ checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 name = "contracts-common"
 version = "0.1.0"
 dependencies = [
+ "bs58",
  "cosmwasm-std",
+ "dkg",
+ "schemars",
  "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]
@@ -848,9 +874,9 @@ dependencies = [
 
 [[package]]
 name = "cpufeatures"
-version = "0.2.2"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59a6001667ab124aebae2a495118e11d30984c3a653e99d86d58971708cf5e4b"
+checksum = "28d997bd5e24a5928dd43e46dc529867e207907fe0b239c3477d924f7f2ca320"
 dependencies = [
  "libc",
 ]
@@ -940,7 +966,6 @@ dependencies = [
  "crypto",
  "rand 0.7.3",
  "thiserror",
- "url",
  "validator-api-requests",
  "validator-client",
 ]
@@ -1219,9 +1244,9 @@ dependencies = [
 
 [[package]]
 name = "cw-utils"
-version = "0.13.2"
+version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "babd2c090f39d07ce5bf2556962305e795daa048ce20a93709eb591476e4a29e"
+checksum = "9dbaecb78c8e8abfd6b4258c7f4fbeb5c49a5e45ee4d910d3240ee8e1d714e1b"
 dependencies = [
  "cosmwasm-std",
  "schemars",
@@ -1230,10 +1255,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "cw3"
-version = "0.13.2"
+name = "cw2"
+version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f871854338a54c7bb094d16ffe17212b93b146d9659dbce4c9402a9b77e240ef"
+checksum = "04cf4639517490dd36b333bbd6c4fbd92e325fd0acf4683b41753bc5eb63bfc1"
+dependencies = [
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "cw3"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe19462a7f644ba60c19d3443cb90d00c50d9b6b3b0a3a7fca93df8261af979b"
 dependencies = [
  "cosmwasm-std",
  "cw-utils",
@@ -1242,10 +1279,26 @@ dependencies = [
 ]
 
 [[package]]
-name = "cw4"
-version = "0.13.2"
+name = "cw3-fixed-multisig"
+version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4476d6a7c13c46ed9ff260bd0e1cf648dc37b13f483822e1ff2a431f0f6ee52"
+checksum = "df54aa54c13f405ec4ab36b6217538bc957d439eee58f89312db05a79caf6706"
+dependencies = [
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw2",
+ "cw3",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "cw4"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0acc3549d5ce11c6901b3a676f2e2628684722197054d97cd0101ea174ed5cbd"
 dependencies = [
  "cosmwasm-std",
  "cw-storage-plus",
@@ -1413,6 +1466,7 @@ dependencies = [
  "ff 0.11.0",
  "group 0.11.0",
  "lazy_static",
+ "pemstore",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rand_core 0.6.3",
@@ -1464,9 +1518,9 @@ dependencies = [
 
 [[package]]
 name = "ed25519"
-version = "1.4.1"
+version = "1.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d5c4b5e5959dc2c2b89918d8e2cc40fcdd623cef026ed09d2f0ee05199dc8e4"
+checksum = "1e9c280362032ea4203659fc489832d0204ef09f247a0506f170dafcac08c369"
 dependencies = [
  "serde",
  "signature",
@@ -1593,15 +1647,17 @@ dependencies = [
 
 [[package]]
 name = "explorer-api"
-version = "1.0.1"
+version = "1.1.0"
 dependencies = [
  "chrono",
  "clap 3.2.8",
+ "contracts-common",
  "dotenv",
  "humantime-serde",
  "isocountry",
  "itertools",
  "log",
+ "logging",
  "maxminddb",
  "mixnet-contract-common",
  "network-defaults",
@@ -2742,6 +2798,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "logging"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "pretty_env_logger",
+]
+
+[[package]]
 name = "loom"
 version = "0.5.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2932,6 +2996,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-utils",
  "cw3",
+ "cw3-fixed-multisig",
  "cw4",
  "schemars",
  "serde",
@@ -3072,7 +3137,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.0.0"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "base64",
@@ -3083,6 +3148,7 @@ dependencies = [
  "clap_complete_fig",
  "dotenv",
  "log",
+ "logging",
  "network-defaults",
  "nym-cli-commands",
  "pretty_env_logger",
@@ -3126,6 +3192,7 @@ name = "nym-client"
 version = "1.1.0"
 dependencies = [
  "clap 3.2.8",
+ "client-connections",
  "client-core",
  "coconut-interface",
  "completions",
@@ -3138,6 +3205,7 @@ dependencies = [
  "gateway-client",
  "gateway-requests",
  "log",
+ "logging",
  "network-defaults",
  "nymsphinx",
  "pemstore",
@@ -3146,6 +3214,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sled",
+ "tap",
  "task",
  "thiserror",
  "tokio",
@@ -3160,7 +3229,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "1.0.2"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3180,6 +3249,7 @@ dependencies = [
  "gateway-requests",
  "humantime-serde",
  "log",
+ "logging",
  "mixnet-client",
  "mixnode-common",
  "network-defaults",
@@ -3206,7 +3276,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "1.0.2"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "bs58",
@@ -3222,6 +3292,7 @@ dependencies = [
  "humantime-serde",
  "lazy_static",
  "log",
+ "logging",
  "mixnet-client",
  "mixnode-common",
  "nonexhaustive-delayqueue",
@@ -3247,15 +3318,17 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.0.2"
+version = "1.1.0"
 dependencies = [
  "async-trait",
  "clap 3.2.8",
+ "client-connections",
  "completions",
  "dirs",
  "futures",
  "ipnetwork 0.20.0",
  "log",
+ "logging",
  "network-defaults",
  "nymsphinx",
  "ordered-buffer",
@@ -3281,6 +3354,7 @@ version = "1.0.2"
 dependencies = [
  "dirs",
  "log",
+ "logging",
  "pretty_env_logger",
  "rocket",
  "serde",
@@ -3295,6 +3369,7 @@ name = "nym-socks5-client"
 version = "1.1.0"
 dependencies = [
  "clap 3.2.8",
+ "client-connections",
  "client-core",
  "coconut-interface",
  "completions",
@@ -3307,6 +3382,7 @@ dependencies = [
  "gateway-client",
  "gateway-requests",
  "log",
+ "logging",
  "network-defaults",
  "nymsphinx",
  "ordered-buffer",
@@ -3318,6 +3394,7 @@ dependencies = [
  "serde",
  "snafu 0.6.10",
  "socks5-requests",
+ "tap",
  "task",
  "thiserror",
  "tokio",
@@ -3356,16 +3433,19 @@ dependencies = [
 
 [[package]]
 name = "nym-validator-api"
-version = "1.0.2"
+version = "1.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "bs58",
  "cfg-if 1.0.0",
  "clap 3.2.8",
  "coconut-bandwidth-contract-common",
+ "coconut-dkg-common",
  "coconut-interface",
  "config",
  "console-subscriber",
+ "contracts-common",
  "cosmwasm-std",
  "credential-storage",
  "credentials",
@@ -3373,6 +3453,7 @@ dependencies = [
  "cw-utils",
  "cw3",
  "dirs",
+ "dkg",
  "dotenv",
  "futures",
  "gateway-client",
@@ -3380,11 +3461,13 @@ dependencies = [
  "humantime-serde",
  "inclusion-probability",
  "log",
+ "logging",
  "mixnet-contract-common",
  "multisig-contract-common",
  "nymcoconut",
  "nymsphinx",
  "okapi",
+ "pemstore",
  "pin-project",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -3437,16 +3520,19 @@ name = "nymcoconut"
 version = "0.5.0"
 dependencies = [
  "bincode",
- "bls12_381 0.5.0",
+ "bls12_381 0.6.0",
  "bs58",
  "criterion",
  "digest 0.9.0",
+ "dkg",
  "doc-comment",
- "ff 0.10.1",
+ "ff 0.11.0",
  "getrandom 0.2.6",
- "group 0.10.0",
+ "group 0.11.0",
  "itertools",
+ "pemstore",
  "rand 0.8.5",
+ "rand_chacha 0.3.1",
  "serde",
  "serde_derive",
  "sha2 0.9.9",
@@ -4118,6 +4204,7 @@ name = "proxy-helpers"
 version = "0.1.0"
 dependencies = [
  "bytes",
+ "client-connections",
  "futures",
  "log",
  "ordered-buffer",
@@ -6403,9 +6490,11 @@ dependencies = [
  "base64",
  "bip39",
  "coconut-bandwidth-contract-common",
+ "coconut-dkg-common",
  "coconut-interface",
  "colored",
  "config",
+ "contracts-common",
  "cosmrs",
  "cosmwasm-std",
  "cw3",
@@ -6494,12 +6583,14 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 name = "vesting-contract"
 version = "1.1.0"
 dependencies = [
+ "contracts-common",
  "cosmwasm-std",
  "cw-storage-plus",
  "mixnet-contract-common",
  "schemars",
  "serde",
  "thiserror",
+ "vergen 5.1.17",
  "vesting-contract-common",
 ]
 
@@ -6507,6 +6598,7 @@ dependencies = [
 name = "vesting-contract-common"
 version = "0.1.0"
 dependencies = [
+ "contracts-common",
  "cosmwasm-std",
  "mixnet-contract-common",
  "schemars",

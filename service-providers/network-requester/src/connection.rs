@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::core::ReturnAddress;
-use futures::channel::mpsc;
+use client_connections::LaneQueueLengths;
 use proxy_helpers::connection_controller::ConnectionReceiver;
-use proxy_helpers::proxy_runner::ProxyRunner;
+use proxy_helpers::proxy_runner::{MixProxySender, ProxyRunner};
 use socks5_requests::{ConnectionId, Message as Socks5Message, RemoteAddress, Response};
 use std::io;
 use task::ShutdownListener;
@@ -40,7 +40,8 @@ impl Connection {
     pub(crate) async fn run_proxy(
         &mut self,
         mix_receiver: ConnectionReceiver,
-        mix_sender: mpsc::UnboundedSender<(Socks5Message, ReturnAddress)>,
+        mix_sender: MixProxySender<(Socks5Message, ReturnAddress)>,
+        lane_queue_lengths: LaneQueueLengths,
         shutdown: ShutdownListener,
     ) {
         let stream = self.conn.take().unwrap();
@@ -54,6 +55,7 @@ impl Connection {
             mix_receiver,
             mix_sender,
             connection_id,
+            Some(lane_queue_lengths),
             shutdown,
         )
         .run(move |conn_id, read_data, socket_closed| {

@@ -4,6 +4,7 @@
   "private": true,
   "license": "Apache 2.0",
   "workspaces": [
+    "sdk/typescript/**",
     "ts-packages/*",
     "nym-wallet",
     "nym-connect",

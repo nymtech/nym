@@ -1,9 +1,9 @@
-use futures::channel::mpsc;
+use client_connections::TransmissionLane;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 
-pub type InputMessageSender = mpsc::UnboundedSender<InputMessage>;
-pub type InputMessageReceiver = mpsc::UnboundedReceiver<InputMessage>;
+pub type InputMessageSender = tokio::sync::mpsc::Sender<InputMessage>;
+pub type InputMessageReceiver = tokio::sync::mpsc::Receiver<InputMessage>;
 
 #[derive(Debug)]
 pub enum InputMessage {
@@ -11,7 +11,11 @@ pub enum InputMessage {
     /// You're simply sending your `data` to specified `recipient` without any tagging.
     ///
     /// Ends up with `NymMessage::Plain` variant
-    Regular { recipient: Recipient, data: Vec<u8> },
+    Regular {
+        recipient: Recipient,
+        data: Vec<u8>,
+        lane: TransmissionLane,
+    },
 
     /// Create a message used for a duplex anonymous communication where the recipient
     /// will never learn of our true identity. This is achieved by carefully sending `reply_surbs`.
@@ -25,6 +29,7 @@ pub enum InputMessage {
         recipient: Recipient,
         data: Vec<u8>,
         reply_surbs: u32,
+        lane: TransmissionLane,
     },
 
     /// Attempt to use our internally received and stored `ReplySurb` to send the message back
@@ -34,26 +39,42 @@ pub enum InputMessage {
     Reply {
         recipient_tag: AnonymousSenderTag,
         data: Vec<u8>,
+        lane: TransmissionLane,
     },
 }
 
 impl InputMessage {
-    pub fn new_regular(recipient: Recipient, data: Vec<u8>) -> Self {
-        InputMessage::Regular { recipient, data }
+    pub fn new_regular(recipient: Recipient, data: Vec<u8>, lane: TransmissionLane) -> Self {
+        InputMessage::Regular {
+            recipient,
+            data,
+            lane,
+        }
     }
 
-    pub fn new_anonymous(recipient: Recipient, data: Vec<u8>, reply_surbs: u32) -> Self {
+    pub fn new_anonymous(
+        recipient: Recipient,
+        data: Vec<u8>,
+        reply_surbs: u32,
+        lane: TransmissionLane,
+    ) -> Self {
         InputMessage::Anonymous {
             recipient,
             data,
             reply_surbs,
+            lane,
         }
     }
 
-    pub fn new_reply(recipient_tag: AnonymousSenderTag, data: Vec<u8>) -> Self {
+    pub fn new_reply(
+        recipient_tag: AnonymousSenderTag,
+        data: Vec<u8>,
+        lane: TransmissionLane,
+    ) -> Self {
         InputMessage::Reply {
             recipient_tag,
             data,
+            lane,
         }
     }
 }

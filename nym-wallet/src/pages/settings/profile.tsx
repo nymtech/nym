@@ -15,9 +15,9 @@ export const Profile = () => {
             Node identity: {mixnodeDetails?.bond_information.mix_node.identity_key || 'n/a'}
           </Typography>
           <Divider />
-          <TextField label="Mixnode name" disabled />
-          <TextField multiline label="Mixnode description" rows={3} disabled />
-          <TextField label="Link" disabled />
+          <TextField label="Mixnode name" disabled InputLabelProps={{ shrink: true }} />
+          <TextField multiline label="Mixnode description" rows={3} disabled InputLabelProps={{ shrink: true }} />
+          <TextField label="Link" disabled InputLabelProps={{ shrink: true }} />
         </Stack>
       </Box>
       <Box

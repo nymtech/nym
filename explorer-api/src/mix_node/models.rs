@@ -3,6 +3,7 @@
 
 use crate::cache::Cache;
 use crate::mix_nodes::location::Location;
+use contracts_common::Percent;
 use mixnet_contract_common::Delegation;
 use mixnet_contract_common::{Addr, Coin, Layer, MixId, MixNode};
 use serde::Deserialize;
@@ -24,6 +25,7 @@ pub(crate) enum MixnodeStatus {
 pub(crate) struct PrettyDetailedMixNodeBond {
     // I leave this to @MS to refactor this type as a lot of things here are redundant thanks to
     // the existence of `MixNodeDetails`
+    pub mix_id: MixId,
     pub location: Option<Location>,
     pub status: MixnodeStatus,
     pub pledge_amount: Coin,
@@ -32,9 +34,12 @@ pub(crate) struct PrettyDetailedMixNodeBond {
     pub layer: Layer,
     pub mix_node: MixNode,
     pub stake_saturation: f32,
+    pub uncapped_saturation: f32,
     pub avg_uptime: u8,
     pub estimated_operator_apy: f64,
     pub estimated_delegators_apy: f64,
+    pub operating_cost: Coin,
+    pub profit_margin_percent: Percent,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
@@ -149,6 +154,7 @@ pub(crate) struct NodeStats {
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
 pub(crate) struct EconomicDynamicsStats {
     pub(crate) stake_saturation: f32,
+    pub(crate) uncapped_saturation: f32,
 
     pub(crate) active_set_inclusion_probability: SelectionChance,
     pub(crate) reserve_set_inclusion_probability: SelectionChance,

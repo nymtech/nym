@@ -35,7 +35,7 @@ const columns: ColumnsType[] = [
   },
   {
     field: 'self_percentage',
-    title: 'Self %',
+    title: 'Bond %',
     headerAlign: 'left',
     width: 99,
   },
@@ -223,7 +223,7 @@ export const PageMixnodeDetail: React.FC = () => {
   }
 
   return (
-    <MixnodeContextProvider mixNodeIdentityKey={id}>
+    <MixnodeContextProvider mixId={id}>
       <PageMixnodeDetailGuard />
     </MixnodeContextProvider>
   );

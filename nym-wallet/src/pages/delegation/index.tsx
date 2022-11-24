@@ -52,6 +52,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     isLoading,
     addDelegation,
     undelegate,
+    undelegateVesting,
     refresh: refreshDelegations,
   } = useDelegationContext();
 
@@ -111,7 +112,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   const handleNewDelegation = async (
     mix_id: number,
-    identityKey: string,
+    _: string,
     amount: DecCoin,
     tokenPool: TPoolOption,
     fee?: FeeDetails,
@@ -206,7 +207,8 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   const handleUndelegate = async (
     mixId: number,
-    identityKey: string,
+    // identityKey is no longer used
+    _: string,
     usesVestingContractTokens: boolean,
     fee?: FeeDetails,
   ) => {
@@ -216,19 +218,27 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     });
     setShowUndelegateModal(false);
     setCurrentDelegationListActionItem(undefined);
-
+    let tx;
     try {
-      const txs = await undelegate(mixId, usesVestingContractTokens, fee);
+      if (usesVestingContractTokens) {
+        tx = await undelegateVesting(mixId);
+      } else {
+        tx = await undelegate(mixId, fee?.fee);
+      }
+
+      // const txs = await undelegate(mixId, usesVestingContractTokens, fee);
       const balances = await getAllBalances();
 
       setConfirmationModalProps({
         status: 'success',
         action: 'undelegate',
         ...balances,
-        transactions: txs.map((tx) => ({
-          url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
-          hash: tx.transaction_hash,
-        })),
+        transactions: [
+          {
+            url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
+            hash: tx.transaction_hash,
+          },
+        ],
       });
     } catch (e) {
       Console.error('Failed to undelegate', e);
@@ -268,19 +278,20 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     }
   };
 
-  const delegationsComponent = (delegations: TDelegations | undefined) => {
+  const delegationsComponent = (delegationItems: TDelegations | undefined) => {
     if (isLoading) {
       return (
         <Box sx={{ width: '100%', display: 'flex', justifyContent: 'center' }}>
           <CircularProgress />
         </Box>
       );
-    } else if (Boolean(delegations?.length)) {
+    }
+    if (delegationItems && Boolean(delegationItems?.length)) {
       return (
         <DelegationList
           explorerUrl={urls(network).networkExplorer}
           isLoading={isLoading}
-          items={delegations}
+          items={delegationItems}
           onItemActionClick={handleDelegationItemActionClick}
         />
       );

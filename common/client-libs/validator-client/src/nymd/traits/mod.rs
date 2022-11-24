@@ -3,6 +3,8 @@
 
 mod coconut_bandwidth_query_client;
 mod coconut_bandwidth_signing_client;
+mod dkg_query_client;
+mod dkg_signing_client;
 mod mixnet_query_client;
 mod mixnet_signing_client;
 mod multisig_query_client;
@@ -12,6 +14,8 @@ mod vesting_signing_client;
 
 pub use coconut_bandwidth_query_client::CoconutBandwidthQueryClient;
 pub use coconut_bandwidth_signing_client::CoconutBandwidthSigningClient;
+pub use dkg_query_client::DkgQueryClient;
+pub use dkg_signing_client::DkgSigningClient;
 pub use mixnet_query_client::MixnetQueryClient;
 pub use mixnet_signing_client::MixnetSigningClient;
 pub use multisig_query_client::MultisigQueryClient;

@@ -4,14 +4,18 @@ const path = require('path');
 const { Octokit, App } = require('octokit');
 
 async function addToContextAndValidate(context) {
-    return
+  return
 }
 
 async function getMessageBody(context) {
-  const source = fs
+  try {
+    const source = fs
     .readFileSync("deny.message").toString();
+    return source;
+} catch (error) {
+    console.error(error);
+}
 
-  return source;
 }
 
 module.exports = {

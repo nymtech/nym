@@ -1,6 +1,6 @@
 [package]
 name = "cw4-group"
-version = "0.13.1"
+version = "0.13.4"
 authors = ["Ethan Frey <ethanfrey@users.noreply.github.com>"]
 edition = "2018"
 description = "Simple cw4 implementation of group membership controlled by admin "
@@ -24,11 +24,11 @@ crate-type = ["cdylib", "rlib"]
 library = []
 
 [dependencies]
-cw-utils = { version = "0.13.2" }
-cw2 = { version = "0.13.2" }
-cw4 = { version = "0.13.2" }
-cw-controllers = { version = "0.13.2" }
-cw-storage-plus = { version = "0.13.2" }
+cw-utils = { version = "0.13.4" }
+cw2 = { version = "0.13.4" }
+cw4 = { version = "0.13.4" }
+cw-controllers = { version = "0.13.4" }
+cw-storage-plus = { version = "0.13.4" }
 cosmwasm-std = { version = "1.0.0" }
 schemars = "0.8.1"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }

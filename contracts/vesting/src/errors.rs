@@ -44,6 +44,8 @@ pub enum ContractError {
     InvalidAddress(String),
     #[error("VESTING ({}): Account already exists: {0}", line!())]
     AccountAlreadyExists(String),
+    #[error("VESTING ({}): Staking account already exists: {0}", line!())]
+    StakingAccountAlreadyExists(String),
     #[error("VESTING ({}): Too few coins sent for vesting account creation, sent {sent}, need at least {need}", line!())]
     MinVestingFunds { sent: u128, need: u128 },
     #[error("VESTING ({}): Maximum amount of locked coins has already been pledged: {current}, cap is {cap}", line!())]

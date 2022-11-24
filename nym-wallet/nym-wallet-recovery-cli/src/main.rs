@@ -12,6 +12,7 @@ use aes_gcm::{aead::Aead, Aes256Gcm, Key, NewAead, Nonce};
 use anyhow::{anyhow, Result};
 use argon2::{Algorithm, Argon2, Params, Version};
 use clap::Parser;
+use logging::setup_logging;
 use serde_json::Value;
 
 // Mostly defaults
@@ -59,18 +60,6 @@ fn main() -> Result<()> {
         ParseMode::Try
     };
     decrypt_file(file, &args.password, &parse)
-}
-
-fn setup_logging() {
-    let mut log_builder = pretty_env_logger::formatted_timed_builder();
-    if let Ok(s) = ::std::env::var("RUST_LOG") {
-        log_builder.parse_filters(&s);
-    } else {
-        // default to 'Info'
-        log_builder.filter(None, log::LevelFilter::Info);
-    }
-
-    log_builder.init();
 }
 
 fn decrypt_file(file: File, passwords: &[String], parse: &ParseMode) -> Result<()> {

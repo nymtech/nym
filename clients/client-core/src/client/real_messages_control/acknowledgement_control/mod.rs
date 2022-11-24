@@ -187,7 +187,7 @@ where
 
 impl<R> AcknowledgementController<R>
 where
-    R: 'static + CryptoRng + Rng + Clone + Send,
+    R: 'static + CryptoRng + Rng + Clone + Send + Sync,
 {
     pub(super) fn new(
         config: Config,

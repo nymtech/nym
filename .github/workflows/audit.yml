@@ -1,21 +1,29 @@
 name: Daily security audit
 
-on: workflow_dispatch
+on:
+  schedule:
+    - cron: '5 9 * * *'
 jobs:
   cargo-deny:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: EmbarkStudios/cargo-deny-action@v1
+      - name: Checkout repository code
+        uses: actions/checkout@v2
+      - name: Install rust toolchain
+        uses: actions-rs/toolchain@v1
         with:
-          log-level: warn
-          command: check
-          arguments: --all-features
-          command-arguments: "advisories >> .github/workflows/support-files/deny.message"
+          toolchain: stable
+      - name: Install cargo deny
+        run: cargo install --locked cargo-deny
+      - name: Run cargo deny
+        run: |
+          find . -name Cargo.toml -exec cargo deny --manifest-path {} check \
+            advisories -A advisory-not-detected  --hide-inclusion-graph \; &> \
+            >(uniq  &> .github/workflows/support-files/notifications/deny.message )
       - uses: actions/upload-artifact@v3
         with:
           name: report
-          path: .github/workflows/support-files/deny.message
+          path: .github/workflows/support-files/notifications/deny.message
   notification:
     needs: cargo-deny
     runs-on: ubuntu-latest
@@ -26,7 +34,7 @@ jobs:
         uses: actions/download-artifact@v3
         with:
           name: report
-          path: .github/workflows/support-files/deny.message
+          path: .github/workflows/support-files/notifications
       - name: Keybase - Node Install
         run: npm install
         working-directory: .github/workflows/support-files

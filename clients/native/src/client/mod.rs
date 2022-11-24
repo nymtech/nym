@@ -4,6 +4,9 @@
 use crate::client::config::{Config, SocketType};
 use crate::error::ClientError;
 use crate::websocket;
+use client_connections::{
+    ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths, TransmissionLane,
+};
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
     InputMessage, InputMessageReceiver, InputMessageSender,
@@ -37,7 +40,6 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nymsphinx::params::PacketSize;
 use nymsphinx::receiver::ReconstructedMessage;
 use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
 
@@ -106,13 +108,15 @@ impl NymClient {
             topology_accessor,
         );
 
-        if self.config.get_base().get_use_extended_packet_size() {
-            stream.set_custom_packet_size(PacketSize::ExtendedPacket)
+        if let Some(size) = self.config.get_base().get_use_extended_packet_size() {
+            log::debug!("Setting extended packet size: {:?}", size);
+            stream.set_custom_packet_size(size.into());
         }
 
         stream.start_with_shutdown(shutdown);
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn start_real_traffic_controller(
         &self,
         topology_accessor: TopologyAccessor,
@@ -122,6 +126,8 @@ impl NymClient {
         reply_storage: CombinedReplyStorage,
         reply_controller_sender: ReplyControllerSender,
         reply_controller_receiver: ReplyControllerReceiver,
+        lane_queue_lengths: LaneQueueLengths,
+        client_connection_rx: ConnectionCommandReceiver,
         shutdown: ShutdownListener,
     ) {
         let mut controller_config = real_messages_control::Config::new(
@@ -130,8 +136,9 @@ impl NymClient {
             self.as_mix_recipient(),
         );
 
-        if self.config.get_base().get_use_extended_packet_size() {
-            controller_config.set_custom_packet_size(PacketSize::ExtendedPacket)
+        if let Some(size) = self.config.get_base().get_use_extended_packet_size() {
+            log::debug!("Setting extended packet size: {:?}", size);
+            controller_config.set_custom_packet_size(size.into());
         }
 
         info!("Starting real traffic stream...");
@@ -145,6 +152,8 @@ impl NymClient {
             reply_storage,
             reply_controller_sender,
             reply_controller_receiver,
+            lane_queue_lengths,
+            client_connection_rx,
         )
         .start_with_shutdown(shutdown);
     }
@@ -193,11 +202,22 @@ impl NymClient {
             .expect("provided gateway id is invalid!");
 
         #[cfg(feature = "coconut")]
-        let bandwidth_controller = BandwidthController::new(
-            credential_storage::initialise_storage(self.config.get_base().get_database_path())
-                .await,
-            self.config.get_base().get_validator_api_endpoints(),
-        );
+        let bandwidth_controller = {
+            let details = network_defaults::NymNetworkDetails::new_from_env();
+            let client_config = validator_client::Config::try_from_nym_network_details(&details)
+                .expect("failed to construct validator client config");
+            let client = validator_client::Client::new_query(client_config)
+                .expect("Could not construct query client");
+            let coconut_api_clients =
+                validator_client::CoconutApiClient::all_coconut_api_clients(&client)
+                    .await
+                    .expect("Could not query api clients");
+            BandwidthController::new(
+                credential_storage::initialise_storage(self.config.get_base().get_database_path())
+                    .await,
+                coconut_api_clients,
+            )
+        };
         #[cfg(not(feature = "coconut"))]
         let bandwidth_controller = BandwidthController::new(
             credential_storage::initialise_storage(self.config.get_base().get_database_path())
@@ -280,11 +300,18 @@ impl NymClient {
         &self,
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
+        shared_lane_queue_lengths: LaneQueueLengths,
+        client_connection_tx: ConnectionCommandSender,
     ) {
         info!("Starting websocket listener...");
 
-        let websocket_handler =
-            websocket::Handler::new(msg_input, buffer_requester, self.as_mix_recipient());
+        let websocket_handler = websocket::Handler::new(
+            msg_input,
+            client_connection_tx,
+            buffer_requester,
+            &self.as_mix_recipient(),
+            shared_lane_queue_lengths,
+        );
 
         websocket::Listener::new(self.config.get_listening_port()).start(websocket_handler);
     }
@@ -292,45 +319,63 @@ impl NymClient {
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
-    pub fn send_regular_message(&mut self, recipient: Recipient, message: Vec<u8>) {
-        let input_msg = InputMessage::new_regular(recipient, message);
+    pub async fn send_regular_message(&mut self, recipient: Recipient, message: Vec<u8>) {
+        let lane = TransmissionLane::General;
+        let input_msg = InputMessage::new_regular(recipient, message, lane);
 
-        self.input_tx
+        if self
+            .input_tx
             .as_ref()
             .expect("start method was not called before!")
-            .unbounded_send(input_msg)
-            .unwrap();
+            .send(input_msg)
+            .await
+            .is_err()
+        {
+            panic!();
+        }
     }
 
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
-    pub fn send_anonymous_message(
+    pub async fn send_anonymous_message(
         &mut self,
         recipient: Recipient,
         message: Vec<u8>,
         reply_surbs: u32,
     ) {
-        let input_msg = InputMessage::new_anonymous(recipient, message, reply_surbs);
+        let lane = TransmissionLane::General;
+        let input_msg = InputMessage::new_anonymous(recipient, message, reply_surbs, lane);
 
-        self.input_tx
+        if self
+            .input_tx
             .as_ref()
             .expect("start method was not called before!")
-            .unbounded_send(input_msg)
-            .unwrap();
+            .send(input_msg)
+            .await
+            .is_err()
+        {
+            panic!();
+        }
     }
 
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
-    pub fn send_reply(&mut self, recipient_tag: AnonymousSenderTag, message: Vec<u8>) {
-        let input_msg = InputMessage::new_reply(recipient_tag, message);
+    pub async fn send_reply(&mut self, recipient_tag: AnonymousSenderTag, message: Vec<u8>) {
+        let lane = TransmissionLane::General;
+        let input_msg = InputMessage::new_reply(recipient_tag, message, lane);
 
-        self.input_tx
+        if self
+            .input_tx
             .as_ref()
             .expect("start method was not called before!")
-            .unbounded_send(input_msg)
-            .unwrap();
+            .send(input_msg)
+            .await
+            .is_err()
+        {
+            panic!();
+        }
     }
 
     /// EXPERIMENTAL DIRECT RUST API
@@ -387,7 +432,7 @@ impl NymClient {
         let (received_buffer_request_sender, received_buffer_request_receiver) = mpsc::unbounded();
 
         // channels responsible for controlling real messages
-        let (input_sender, input_receiver) = mpsc::unbounded::<InputMessage>();
+        let (input_sender, input_receiver) = tokio::sync::mpsc::channel::<InputMessage>(1);
 
         // channels responsible for controlling ack messages
         let (ack_sender, ack_receiver) = mpsc::unbounded();
@@ -439,6 +484,14 @@ impl NymClient {
         let sphinx_message_sender =
             Self::start_mix_traffic_controller(gateway_client, shutdown.subscribe());
 
+        // Channels that the websocket listener can use to signal downstream to the real traffic
+        // controller that connections are closed.
+        let (client_connection_tx, client_connection_rx) = mpsc::unbounded();
+
+        // Shared queue length data. Published by the `OutQueueController` in the client, and used
+        // primarily to throttle incoming connections (e.g socks5 for attached network-requesters)
+        let shared_lane_queue_lengths = LaneQueueLengths::new();
+
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
             ack_receiver,
@@ -447,6 +500,8 @@ impl NymClient {
             reply_storage,
             reply_controller_sender,
             reply_controller_receiver,
+            shared_lane_queue_lengths.clone(),
+            client_connection_rx,
             shutdown.subscribe(),
         );
 
@@ -463,9 +518,12 @@ impl NymClient {
         }
 
         match self.config.get_socket_type() {
-            SocketType::WebSocket => {
-                self.start_websocket_listener(received_buffer_request_sender, input_sender)
-            }
+            SocketType::WebSocket => self.start_websocket_listener(
+                received_buffer_request_sender,
+                input_sender,
+                shared_lane_queue_lengths,
+                client_connection_tx,
+            ),
             SocketType::None => {
                 // if we did not start the socket, it means we're running (supposedly) in the native mode
                 // and hence we should announce 'ourselves' to the buffer

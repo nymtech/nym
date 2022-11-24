@@ -5,12 +5,13 @@ use super::{
     types::{ResponseCode, SocksProxyError},
 };
 use crate::socks::client;
+use client_connections::{ConnectionCommandSender, LaneQueueLengths};
 use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
 };
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use proxy_helpers::connection_controller::Controller;
+use proxy_helpers::connection_controller::{BroadcastActiveConnections, Controller};
 use std::net::SocketAddr;
 use task::ShutdownListener;
 use tokio::net::TcpListener;
@@ -22,6 +23,7 @@ pub struct SphinxSocksServer {
     service_provider: Recipient,
     self_address: Recipient,
     client_config: client::Config,
+    lane_queue_lengths: LaneQueueLengths,
     shutdown: ShutdownListener,
 }
 
@@ -32,6 +34,7 @@ impl SphinxSocksServer {
         authenticator: Authenticator,
         service_provider: Recipient,
         self_address: Recipient,
+        lane_queue_lengths: LaneQueueLengths,
         client_config: client::Config,
         shutdown: ShutdownListener,
     ) -> Self {
@@ -45,6 +48,7 @@ impl SphinxSocksServer {
             service_provider,
             self_address,
             client_config,
+            lane_queue_lengths,
             shutdown,
         }
     }
@@ -55,13 +59,17 @@ impl SphinxSocksServer {
         &mut self,
         input_sender: InputMessageSender,
         buffer_requester: ReceivedBufferRequestSender,
+        client_connection_tx: ConnectionCommandSender,
     ) -> Result<(), SocksProxyError> {
         let listener = TcpListener::bind(self.listening_address).await.unwrap();
         info!("Serving Connections...");
 
         // controller for managing all active connections
-        let (mut active_streams_controller, controller_sender) =
-            Controller::new(self.shutdown.clone());
+        let (mut active_streams_controller, controller_sender) = Controller::new(
+            client_connection_tx,
+            BroadcastActiveConnections::Off,
+            self.shutdown.clone(),
+        );
         tokio::spawn(async move {
             active_streams_controller.run().await;
         });
@@ -88,6 +96,7 @@ impl SphinxSocksServer {
                         self.service_provider,
                         controller_sender.clone(),
                         self.self_address,
+                        self.lane_queue_lengths.clone(),
                         self.shutdown.clone(),
                     );
 

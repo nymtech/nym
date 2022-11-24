@@ -5,7 +5,7 @@ use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressEr
 use nymsphinx_params::{PacketMode, PacketSize};
 use nymsphinx_types::SphinxPacket;
 use std::convert::TryFrom;
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
 
 #[derive(Debug)]
 pub enum MixPacketFormattingError {
@@ -25,8 +25,10 @@ impl Display for MixPacketFormattingError {
             InvalidPacketSize(actual) =>
                 write!(
                     f,
-                    "received request had invalid size. (actual: {}, but expected one of: {} (ACK), {} (REGULAR), {} (EXTENDED))",
-                    actual, PacketSize::AckPacket.size(), PacketSize::RegularPacket.size(), PacketSize::ExtendedPacket.size()
+                    "received request had invalid size. (actual: {}, but expected one of: {} (ACK), {} (REGULAR), {}, {}, {} (EXTENDED))",
+                    actual, PacketSize::AckPacket.size(), PacketSize::RegularPacket.size(),
+                    PacketSize::ExtendedPacket8.size(), PacketSize::ExtendedPacket16.size(),
+                    PacketSize::ExtendedPacket32.size()
                 ),
             MalformedSphinxPacket => write!(f, "received sphinx packet was malformed"),
             InvalidPacketMode => write!(f, "provided packet mode is invalid")
@@ -46,6 +48,12 @@ pub struct MixPacket {
     next_hop: NymNodeRoutingAddress,
     sphinx_packet: SphinxPacket,
     packet_mode: PacketMode,
+}
+
+impl Debug for MixPacket {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "MixPacket to {:?} with packet_mode {:?}", self.next_hop, self.packet_mode)
+    }
 }
 
 impl MixPacket {

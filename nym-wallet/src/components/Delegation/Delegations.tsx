@@ -7,7 +7,7 @@ import { DelegationListItemActions } from './DelegationActions';
 
 export const Delegations: React.FC<{
   isLoading?: boolean;
-  items?: DelegationWithEverything[];
+  items: DelegationWithEverything[];
   explorerUrl: string;
   onDelegationItemActionClick?: (item: DelegationWithEverything, action: DelegationListItemActions) => void;
 }> = ({ isLoading, items, explorerUrl, onDelegationItemActionClick }) => (

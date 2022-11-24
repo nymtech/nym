@@ -6,8 +6,9 @@ use crate::error::BackendError;
 use crate::state::WalletState;
 use mixnet_contract_common::{IdentityKeyRef, MixId};
 use validator_client::models::{
-    GatewayCoreStatusResponse, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
-    MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse,
+    GatewayCoreStatusResponse, GatewayStatusReportResponse, InclusionProbabilityResponse,
+    MixnodeCoreStatusResponse, MixnodeStatusResponse, RewardEstimationResponse,
+    StakeSaturationResponse,
 };
 
 #[tauri::command]
@@ -30,6 +31,14 @@ pub async fn gateway_core_node_status(
     Ok(api_client!(state)
         .get_gateway_core_status_count(identity, since)
         .await?)
+}
+
+#[tauri::command]
+pub async fn gateway_report(
+    identity: IdentityKeyRef<'_>,
+    state: tauri::State<'_, WalletState>,
+) -> Result<GatewayStatusReportResponse, BackendError> {
+    Ok(api_client!(state).get_gateway_report(identity).await?)
 }
 
 #[tauri::command]

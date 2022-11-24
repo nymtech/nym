@@ -73,6 +73,9 @@ pub struct Interval {
     // TODO add a better TS type generation
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     #[serde(with = "string_rfc3339_offset_date_time")]
+    // note: the `ts-rs failed to parse this attribute. It will be ignored.` warning emitted during
+    // compilation is fine (I guess). `ts-rs` can't handle `with` serde attribute, but that's okay
+    // since we explicitly specified this field should correspond to typescript's string
     current_epoch_start: OffsetDateTime,
     current_epoch_id: EpochId,
     #[cfg_attr(feature = "generate-ts", ts(type = "{ secs: number; nanos: number; }"))]

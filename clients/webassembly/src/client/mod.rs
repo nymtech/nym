@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::config::Config;
+use client_connections::{ConnectionCommandReceiver, LaneQueueLengths, TransmissionLane};
 use client_core::client::{
     cover_traffic_stream::LoopCoverTrafficStream,
     inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender},
@@ -22,11 +23,10 @@ use gateway_client::{
     MixnetMessageSender,
 };
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::params::PacketSize;
 use rand::rngs::OsRng;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::spawn_local;
-use wasm_utils::{console_log, console_warn};
+use wasm_utils::console_log;
 
 pub mod config;
 
@@ -45,6 +45,7 @@ pub struct NymClient {
 
     // callbacks
     on_message: Option<js_sys::Function>,
+    on_binary_message: Option<js_sys::Function>,
     on_gateway_connect: Option<js_sys::Function>,
 }
 
@@ -56,6 +57,7 @@ impl NymClient {
             config,
             key_manager: Self::setup_key_manager(),
             on_message: None,
+            on_binary_message: None,
             on_gateway_connect: None,
             input_tx: None,
         }
@@ -73,8 +75,11 @@ impl NymClient {
         self.on_message = Some(on_message);
     }
 
+    pub fn set_on_binary_message(&mut self, on_binary_message: js_sys::Function) {
+        self.on_binary_message = Some(on_binary_message);
+    }
+
     pub fn set_on_gateway_connect(&mut self, on_connect: js_sys::Function) {
-        console_log!("setting on connect...");
         self.on_gateway_connect = Some(on_connect)
     }
 
@@ -110,8 +115,8 @@ impl NymClient {
             topology_accessor,
         );
 
-        if self.config.debug.use_extended_packet_size {
-            stream.set_custom_packet_size(PacketSize::ExtendedPacket)
+        if let Some(size) = &self.config.debug.use_extended_packet_size {
+            stream.set_custom_packet_size(size.clone().into());
         }
 
         stream.start();
@@ -123,6 +128,8 @@ impl NymClient {
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
+        client_connection_rx: ConnectionCommandReceiver,
+        lane_queue_lengths: LaneQueueLengths,
     ) {
         let mut controller_config = real_messages_control::Config::new(
             self.key_manager.ack_key(),
@@ -135,8 +142,8 @@ impl NymClient {
             self.as_mix_recipient(),
         );
 
-        if self.config.debug.use_extended_packet_size {
-            controller_config.set_custom_packet_size(PacketSize::ExtendedPacket)
+        if let Some(size) = &self.config.debug.use_extended_packet_size {
+            controller_config.set_custom_packet_size(size.clone().into());
         }
 
         console_log!("Starting real traffic stream...");
@@ -147,6 +154,8 @@ impl NymClient {
             input_receiver,
             mix_sender,
             topology_accessor,
+            lane_queue_lengths,
+            client_connection_rx,
         )
         .start();
     }
@@ -267,6 +276,7 @@ impl NymClient {
         received_buffer_request_sender: ReceivedBufferRequestSender,
     ) {
         let on_message = self.on_message.take();
+        let on_binary_message = self.on_binary_message.take();
 
         spawn_local(async move {
             let (reconstructed_sender, mut reconstructed_receiver) = mpsc::unbounded();
@@ -281,8 +291,14 @@ impl NymClient {
             let this = JsValue::null();
 
             while let Some(reconstructed) = reconstructed_receiver.next().await {
-                if let Some(ref callback) = on_message {
-                    for msg in reconstructed {
+                for msg in reconstructed {
+                    if let Some(ref callback_binary) = on_binary_message {
+                        let arg1 = serde_wasm_bindgen::to_value(&msg.message).unwrap();
+                        callback_binary
+                            .call1(&this, &arg1)
+                            .expect("on binary message failed!");
+                    }
+                    if let Some(ref callback) = on_message {
                         if msg.reply_surb.is_some() {
                             console_log!("the received message contained a reply-surb that we do not know how to handle (yet)")
                         }
@@ -290,9 +306,6 @@ impl NymClient {
                         let arg1 = serde_wasm_bindgen::to_value(&stringified).unwrap();
                         callback.call1(&this, &arg1).expect("on message failed!");
                     }
-                } else {
-                    console_warn!("no on_message callback was specified. the received message content is getting dropped");
-                    console_log!("the raw messages: {:?}", reconstructed)
                 }
             }
         });
@@ -313,11 +326,15 @@ impl NymClient {
         let (received_buffer_request_sender, received_buffer_request_receiver) = mpsc::unbounded();
 
         // channels responsible for controlling real messages
-        let (input_sender, input_receiver) = mpsc::unbounded::<InputMessage>();
+        let (input_sender, input_receiver) = tokio::sync::mpsc::channel::<InputMessage>(1);
 
         // channels responsible for controlling ack messages
         let (ack_sender, ack_receiver) = mpsc::unbounded();
         let shared_topology_accessor = TopologyAccessor::new();
+
+        // Channel that the real traffix controller can listed to for closing connections.
+        // Currently unused in the wasm client.
+        let (_client_connection_tx, client_connection_rx) = mpsc::unbounded();
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
@@ -338,11 +355,17 @@ impl NymClient {
         // The MixTrafficController then sends the actual traffic
         let sphinx_message_sender = Self::start_mix_traffic_controller(gateway_client);
 
+        // Shared queue length data. Published by the `OutQueueController` in the client, and used
+        // primarily to throttle incoming connections
+        let shared_lane_queue_lengths = LaneQueueLengths::new();
+
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
+            client_connection_rx,
+            shared_lane_queue_lengths,
         );
 
         if !self.config.debug.disable_loop_cover_traffic_stream {
@@ -368,14 +391,20 @@ impl NymClient {
         console_log!("Sending {} bytes to {}", message.len(), recipient);
 
         let recipient = Recipient::try_from_base58_string(recipient).unwrap();
+        let lane = TransmissionLane::General;
 
-        let input_msg = InputMessage::new_fresh(recipient, message, false);
+        let input_msg = InputMessage::new_fresh(recipient, message, false, lane);
 
-        self.input_tx
+        if self
+            .input_tx
             .as_ref()
             .expect("start method was not called before!")
-            .unbounded_send(input_msg)
-            .unwrap();
+            .send(input_msg)
+            .await
+            .is_err()
+        {
+            panic!();
+        }
 
         self
     }

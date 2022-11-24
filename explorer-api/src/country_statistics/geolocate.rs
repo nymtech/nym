@@ -58,7 +58,10 @@ impl GeoLocateTask {
                 continue;
             }
 
-            match geo_ip.query(&cache_item.mix_node().host) {
+            match geo_ip.query(
+                &cache_item.mix_node().host,
+                Some(cache_item.mix_node().mix_port),
+            ) {
                 Ok(opt) => match opt {
                     Some(location) => {
                         let location = Location::new(location);
@@ -92,12 +95,12 @@ impl GeoLocateTask {
                             .await;
                     }
                 },
-                Err(e) => {
-                    warn!(
-                        "❌ Oh no! Location for {} failed. Error: {:#?}",
-                        cache_item.mix_node().host,
-                        e
-                    );
+                Err(_e) => {
+                    // warn!(
+                    //     "❌ Oh no! Location for {} failed. Error: {:#?}",
+                    //     cache_item.mix_node().host,
+                    //     e
+                    // );
                 }
             };
         }

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use config::NymConfig;
+use nymsphinx::params::PacketSize;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::path::PathBuf;
@@ -139,6 +140,10 @@ impl<T: NymConfig> Config<T> {
         self.client.gateway_endpoint.gateway_id = id.into();
     }
 
+    pub fn set_custom_validators(&mut self, validator_urls: Vec<Url>) {
+        self.client.validator_urls = validator_urls;
+    }
+
     pub fn set_custom_validator_apis(&mut self, validator_api_urls: Vec<Url>) {
         self.client.validator_api_urls = validator_api_urls;
     }
@@ -195,6 +200,10 @@ impl<T: NymConfig> Config<T> {
 
     pub fn get_ack_key_file(&self) -> PathBuf {
         self.client.ack_key_file.clone()
+    }
+
+    pub fn get_validator_endpoints(&self) -> Vec<Url> {
+        self.client.validator_urls.clone()
     }
 
     pub fn get_validator_api_endpoints(&self) -> Vec<Url> {
@@ -270,7 +279,7 @@ impl<T: NymConfig> Config<T> {
         self.debug.disable_main_poisson_packet_distribution
     }
 
-    pub fn get_use_extended_packet_size(&self) -> bool {
+    pub fn get_use_extended_packet_size(&self) -> Option<ExtendedPacketSize> {
         self.debug.use_extended_packet_size
     }
 
@@ -348,6 +357,9 @@ pub struct Client<T> {
     #[serde(default)]
     disabled_credentials_mode: bool,
 
+    /// Addresses to nymd validators via which the client can communicate with the chain.
+    validator_urls: Vec<Url>,
+
     /// Addresses to APIs running on validator from which the client gets the view of the network.
     validator_api_urls: Vec<Url>,
 
@@ -396,6 +408,7 @@ impl<T: NymConfig> Default for Client<T> {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
             disabled_credentials_mode: true,
+            validator_urls: vec![],
             validator_api_urls: vec![],
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
@@ -513,8 +526,8 @@ pub struct Debug {
     /// poisson distribution.
     pub disable_main_poisson_packet_distribution: bool,
 
-    /// Controls whether the sent sphinx packet use the NON-DEFAULT bigger size.
-    pub use_extended_packet_size: bool,
+    /// Controls whether the sent sphinx packet use a NON-DEFAULT bigger size.
+    pub use_extended_packet_size: Option<ExtendedPacketSize>,
 
     /// Defines the minimum number of reply surbs the client wants to keep in its storage at all times.
     /// It can only allow to go below that value if its to request additional reply surbs.
@@ -538,6 +551,14 @@ pub struct Debug {
     pub maximum_reply_surb_waiting_period: Duration,
 }
 
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum ExtendedPacketSize {
+    Extended8,
+    Extended16,
+    Extended32,
+}
+
 impl Default for Debug {
     fn default() -> Self {
         Debug {
@@ -552,13 +573,23 @@ impl Default for Debug {
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,
             disable_loop_cover_traffic_stream: false,
             disable_main_poisson_packet_distribution: false,
-            use_extended_packet_size: false,
+            use_extended_packet_size: None,
             minimum_reply_surb_storage_threshold: DEFAULT_MINIMUM_REPLY_SURB_STORAGE_THRESHOLD,
             maximum_reply_surb_storage_threshold: DEFAULT_MAXIMUM_REPLY_SURB_STORAGE_THRESHOLD,
             minimum_reply_surb_request_size: DEFAULT_MINIMUM_REPLY_SURB_REQUEST_SIZE,
             maximum_reply_surb_request_size: DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE,
             maximum_allowed_reply_surb_request_size: DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE,
             maximum_reply_surb_waiting_period: DEFAULT_MAXIMUM_REPLY_SURB_WAITING_PERIOD,
+        }
+    }
+}
+
+impl From<ExtendedPacketSize> for PacketSize {
+    fn from(size: ExtendedPacketSize) -> PacketSize {
+        match size {
+            ExtendedPacketSize::Extended8 => PacketSize::ExtendedPacket8,
+            ExtendedPacketSize::Extended16 => PacketSize::ExtendedPacket16,
+            ExtendedPacketSize::Extended32 => PacketSize::ExtendedPacket32,
         }
     }
 }

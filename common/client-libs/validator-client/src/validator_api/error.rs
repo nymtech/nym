@@ -1,4 +1,5 @@
 use thiserror::Error;
+use validator_api_requests::models::RequestError;
 
 #[derive(Error, Debug)]
 pub enum ValidatorAPIError {
@@ -10,4 +11,7 @@ pub enum ValidatorAPIError {
 
     #[error("Request failed with error message - {0}")]
     GenericRequestFailure(String),
+
+    #[error("The validator API has failed to resolve our request. It returned status code {status} and additional error message: {}", error.message())]
+    ApiRequestFailure { status: u16, error: RequestError },
 }

@@ -3,6 +3,7 @@
 
 use crate::client::real_messages_control::message_handler::{MessageHandler, PreparationError};
 use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, UsedSenderTags};
+use client_connections::TransmissionLane;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::{debug, info, trace, warn};
@@ -31,9 +32,18 @@ impl From<mpsc::UnboundedSender<ReplyControllerMessage>> for ReplyControllerSend
 }
 
 impl ReplyControllerSender {
-    pub(crate) fn send_reply(&self, recipient: AnonymousSenderTag, message: Vec<u8>) {
+    pub(crate) fn send_reply(
+        &self,
+        recipient: AnonymousSenderTag,
+        message: Vec<u8>,
+        lane: TransmissionLane,
+    ) {
         self.0
-            .unbounded_send(ReplyControllerMessage::SendReply { recipient, message })
+            .unbounded_send(ReplyControllerMessage::SendReply {
+                recipient,
+                message,
+                lane,
+            })
             .expect("ReplyControllerReceiver has died!")
     }
 
@@ -69,6 +79,7 @@ pub enum ReplyControllerMessage {
     SendReply {
         recipient: AnonymousSenderTag,
         message: Vec<u8>,
+        lane: TransmissionLane,
     },
 
     AdditionalSurbs {
@@ -167,7 +178,12 @@ where
             && (pending_surbs + available_surbs) < (queue_size + min_surbs_threshold)
     }
 
-    async fn handle_send_reply(&mut self, recipient_tag: AnonymousSenderTag, data: Vec<u8>) {
+    async fn handle_send_reply(
+        &mut self,
+        recipient_tag: AnonymousSenderTag,
+        data: Vec<u8>,
+        lane: TransmissionLane,
+    ) {
         if !self.received_reply_surbs.contains_surbs_for(&recipient_tag) {
             warn!("received reply request for {:?} but we don't have any surbs stored for that recipient!", recipient_tag);
             return;
@@ -191,7 +207,7 @@ where
         if let Some(reply_surbs) = surbs {
             if let Err(err) = self
                 .message_handler
-                .try_send_reply_chunks(recipient_tag, fragments, reply_surbs)
+                .try_send_reply_chunks(recipient_tag, fragments, reply_surbs, lane)
                 .await
             {
                 // TODO: perhaps there should be some timer here to repeat the request once topology recovers
@@ -301,7 +317,12 @@ where
 
             if let Err(err) = self
                 .message_handler
-                .try_send_reply_chunks(target, to_send_vec, surbs_for_reply)
+                .try_send_reply_chunks(
+                    target,
+                    to_send_vec,
+                    surbs_for_reply,
+                    TransmissionLane::General,
+                )
                 .await
             {
                 let err = err.return_unused_surbs(&self.received_reply_surbs, &target);
@@ -376,9 +397,11 @@ where
 
     async fn handle_request(&mut self, request: ReplyControllerMessage) {
         match request {
-            ReplyControllerMessage::SendReply { recipient, message } => {
-                self.handle_send_reply(recipient, message).await
-            }
+            ReplyControllerMessage::SendReply {
+                recipient,
+                message,
+                lane,
+            } => self.handle_send_reply(recipient, message, lane).await,
             ReplyControllerMessage::AdditionalSurbs {
                 sender_tag,
                 reply_surbs,

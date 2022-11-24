@@ -100,7 +100,13 @@ export const BondMoreModal = ({
         </Box>
 
         <Box>
-          <TextField fullWidth label="Signature" value={signature} onChange={(e) => setSignature(e.target.value)} />
+          <TextField
+            fullWidth
+            label="Signature"
+            value={signature}
+            onChange={(e) => setSignature(e.target.value)}
+            InputLabelProps={{ shrink: true }}
+          />
           {errorSignature && <FormHelperText sx={{ color: 'error.main' }}>Invalid signature</FormHelperText>}
         </Box>
 

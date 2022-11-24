@@ -1,6 +1,6 @@
 [package]
 name = "explorer-api"
-version = "1.0.1"
+version = "1.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -27,6 +27,8 @@ maxminddb = "0.23.0"
 dotenv = "0.15.0"
 
 mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
+contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
 network-defaults = { path = "../common/network-defaults" }
+logging = { path = "../common/logging"}
 task = { path = "../common/task" }
 validator-client = { path = "../common/client-libs/validator-client", features=["nymd-client"] }

@@ -4,7 +4,7 @@
 use crate::client::inbound_messages::{InputMessage, InputMessageReceiver};
 use crate::client::real_messages_control::message_handler::MessageHandler;
 use crate::client::replies::reply_controller::ReplyControllerSender;
-use futures::StreamExt;
+use client_connections::TransmissionLane;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
@@ -41,15 +41,26 @@ where
         }
     }
 
-    async fn handle_reply(&mut self, recipient_tag: AnonymousSenderTag, data: Vec<u8>) {
+    async fn handle_reply(
+        &mut self,
+        recipient_tag: AnonymousSenderTag,
+        data: Vec<u8>,
+        lane: TransmissionLane,
+    ) {
         // offload reply handling to the dedicated task
-        self.reply_controller_sender.send_reply(recipient_tag, data)
+        self.reply_controller_sender
+            .send_reply(recipient_tag, data, lane)
     }
 
-    async fn handle_plain_message(&mut self, recipient: Recipient, content: Vec<u8>) {
+    async fn handle_plain_message(
+        &mut self,
+        recipient: Recipient,
+        content: Vec<u8>,
+        lane: TransmissionLane,
+    ) {
         if let Err(err) = self
             .message_handler
-            .try_send_plain_message(recipient, content)
+            .try_send_plain_message(recipient, content, lane)
             .await
         {
             warn!("failed to send a plain message - {err}")
@@ -61,10 +72,11 @@ where
         recipient: Recipient,
         content: Vec<u8>,
         reply_surbs: u32,
+        lane: TransmissionLane,
     ) {
         if let Err(err) = self
             .message_handler
-            .try_send_message_with_reply_surbs(recipient, content, reply_surbs)
+            .try_send_message_with_reply_surbs(recipient, content, reply_surbs, lane)
             .await
         {
             warn!("failed to send a repliable message - {err}")
@@ -73,22 +85,26 @@ where
 
     async fn on_input_message(&mut self, msg: InputMessage) {
         match msg {
-            InputMessage::Regular { recipient, data } => {
-                self.handle_plain_message(recipient, data).await
-            }
+            InputMessage::Regular {
+                recipient,
+                data,
+                lane,
+            } => self.handle_plain_message(recipient, data, lane).await,
             InputMessage::Anonymous {
                 recipient,
                 data,
                 reply_surbs,
+                lane,
             } => {
-                self.handle_repliable_message(recipient, data, reply_surbs)
+                self.handle_repliable_message(recipient, data, reply_surbs, lane)
                     .await
             }
             InputMessage::Reply {
                 recipient_tag,
                 data,
+                lane,
             } => {
-                self.handle_reply(recipient_tag, data).await;
+                self.handle_reply(recipient_tag, data, lane).await;
             }
         };
     }
@@ -99,7 +115,7 @@ where
 
         while !shutdown.is_shutdown() {
             tokio::select! {
-                input_msg = self.input_receiver.next() => match input_msg {
+                input_msg = self.input_receiver.recv() => match input_msg {
                     Some(input_msg) => {
                         self.on_input_message(input_msg).await;
                     },
@@ -120,7 +136,7 @@ where
     #[cfg(target_arch = "wasm32")]
     pub(super) async fn run(&mut self) {
         debug!("Started InputMessageListener without graceful shutdown support");
-        while let Some(input_msg) = self.input_receiver.next().await {
+        while let Some(input_msg) = self.input_receiver.recv().await {
             self.on_input_message(input_msg).await;
         }
     }

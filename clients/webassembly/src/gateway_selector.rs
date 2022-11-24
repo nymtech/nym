@@ -6,7 +6,7 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub async fn get_gateway(api_server: String, preferred: Option<String>) -> GatewayEndpoint {
-    let validator_client = validator_client::ApiClient::new(api_server.parse().unwrap());
+    let validator_client = validator_client::client::ApiClient::new(api_server.parse().unwrap());
 
     let gateways = match validator_client.get_cached_gateways().await {
         Err(err) => panic!("failed to obtain list of all gateways - {}", err),

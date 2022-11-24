@@ -22,6 +22,7 @@ import {
   vestingBondMixNode,
   vestingUnbondGateway,
   vestingUnbondMixnode,
+  getPendingEpochEvents,
   updateMixnodeCostParams as updateMixnodeCostParamsRequest,
   vestingUpdateMixnodeCostParams as updateMixnodeVestingCostParamsRequest,
   getNodeDescription as getNodeDescriptionRequest,
@@ -32,11 +33,13 @@ import {
   getInclusionProbability,
   getMixnodeAvgUptime,
   getMixnodeRewardEstimation,
+  getGatewayReport,
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
 import {
   attachDefaultOperatingCost,
+  decCoinToDisplay,
   toDisplay,
   toPercentFloatString,
   toPercentIntegerString,
@@ -45,6 +48,7 @@ import {
 
 export type TBondedMixnode = {
   name?: string;
+  mixId: number;
   identityKey: string;
   stake: DecCoin;
   bond: DecCoin;
@@ -64,6 +68,7 @@ export type TBondedMixnode = {
   mixPort: number;
   verlocPort: number;
   version: string;
+  isUnbonding: boolean;
 };
 
 export interface TBondedGateway {
@@ -78,6 +83,11 @@ export interface TBondedGateway {
   mixPort: number;
   verlocPort: number;
   version: string;
+  routingScore?: {
+    current: number;
+    average: number;
+  };
+  isUnbonding: boolean;
 }
 
 export type TokenPool = 'locked' | 'balance';
@@ -215,6 +225,16 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     return stake;
   };
 
+  const getGatewayReportDetails = async (identityKey: string) => {
+    try {
+      const report = await getGatewayReport(identityKey);
+      return { current: report.most_recent, average: report.last_day };
+    } catch (e) {
+      Console.error(e);
+      return undefined;
+    }
+  };
+
   const refresh = useCallback(async () => {
     setIsLoading(true);
 
@@ -247,19 +267,20 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
           const routingScore = await getAvgUptime();
           setBondedNode({
             name: nodeDescription?.name,
+            mixId: mix_id,
             identityKey: bond_information.mix_node.identity_key,
             stake: {
               amount: calculateStake(rewarding_details.operator, rewarding_details.delegates),
               denom: bond_information.original_pledge.denom,
             },
-            bond: bond_information.original_pledge,
+            bond: decCoinToDisplay(bond_information.original_pledge),
             profitMargin: toPercentIntegerString(rewarding_details.cost_params.profit_margin_percent),
             delegators: rewarding_details.unique_delegations,
             proxy: bond_information.proxy,
             operatorRewards,
             status,
             stakeSaturation,
-            operatorCost: rewarding_details.cost_params.interval_operating_cost,
+            operatorCost: decCoinToDisplay(rewarding_details.cost_params.interval_operating_cost),
             host: bond_information.mix_node.host.replace(/\s/g, ''),
             routingScore,
             activeSetProbability: setProbabilities?.in_active,
@@ -269,6 +290,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             mixPort: bond_information.mix_node.mix_port,
             verlocPort: bond_information.mix_node.verloc_port,
             version: bond_information.mix_node.version,
+            isUnbonding: bond_information.is_unbonding,
           } as TBondedMixnode);
         }
       } catch (e: any) {
@@ -282,14 +304,16 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
         const data = await getGatewayBondDetails();
         if (data) {
           const nodeDescription = await getNodeDescription(data.gateway.host, data.gateway.clients_port);
-
+          const routingScore = await getGatewayReportDetails(data.gateway.identity_key);
           setBondedNode({
             name: nodeDescription?.name,
             identityKey: data.gateway.identity_key,
             ip: data.gateway.host,
             location: data.gateway.location,
-            bond: data.pledge_amount,
+            bond: decCoinToDisplay(data.pledge_amount),
             proxy: data.proxy,
+            routingScore,
+            isUnbonding: false,
           } as TBondedGateway);
         }
       } catch (e: any) {

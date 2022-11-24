@@ -195,7 +195,7 @@ impl TopologyRefresherConfig {
 }
 
 pub struct TopologyRefresher {
-    validator_client: validator_client::ApiClient,
+    validator_client: validator_client::client::ApiClient,
     client_version: String,
 
     validator_api_urls: Vec<Url>,
@@ -211,7 +211,9 @@ impl TopologyRefresher {
         cfg.validator_api_urls.shuffle(&mut thread_rng());
 
         TopologyRefresher {
-            validator_client: validator_client::ApiClient::new(cfg.validator_api_urls[0].clone()),
+            validator_client: validator_client::client::ApiClient::new(
+                cfg.validator_api_urls[0].clone(),
+            ),
             client_version: cfg.client_version,
             validator_api_urls: cfg.validator_api_urls,
             topology_accessor,

@@ -36,12 +36,6 @@ pub enum BackendError {
         source: ClientCoreError,
     },
 
-    #[error("State error")]
-    StateError,
-    #[error("Could not connect")]
-    CouldNotConnect,
-    #[error("Could not disconnect")]
-    CouldNotDisconnect,
     #[error("Could not send disconnect signal to the SOCKS5 client")]
     CoundNotSendDisconnectSignal,
     #[error("No service provider set")]

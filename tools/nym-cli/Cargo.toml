@@ -1,6 +1,6 @@
 [package]
 name = "nym-cli"
-version = "1.0.0"
+version = "1.1.0"
 authors = ["Nym Technologies SA"]
 edition = "2021"
 
@@ -20,5 +20,6 @@ bip39 = "1.0.1"
 anyhow = "1"
 
 nym-cli-commands = { path = "../../common/commands" }
+logging = { path = "../../common/logging"}
 validator-client = { path = "../../common/client-libs/validator-client", features = ["nymd-client"] }
 network-defaults = { path = "../../common/network-defaults" }

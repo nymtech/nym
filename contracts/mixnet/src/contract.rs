@@ -467,10 +467,20 @@ pub fn query(
 
 #[entry_point]
 pub fn migrate(
-    _deps: DepsMut<'_>,
+    deps: DepsMut<'_>,
     _env: Env,
-    _msg: MigrateMsg,
+    msg: MigrateMsg,
 ) -> Result<Response, MixnetContractError> {
+    // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address
+    // and vesting contract requiring the mixnet contract address), if we ever want to deploy any new fresh
+    // environment, one of the contracts will HAVE TO go through a migration
+    if let Some(vesting_contract_address) = msg.vesting_contract_address {
+        let mut current_state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
+        current_state.vesting_contract_address =
+            deps.api.addr_validate(&vesting_contract_address)?;
+        mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &current_state)?;
+    }
+
     Ok(Default::default())
 }
 
@@ -497,6 +507,7 @@ mod tests {
             initial_rewarding_params: InitialRewardingParams {
                 initial_reward_pool: Decimal::from_atomics(100_000_000_000_000u128, 0).unwrap(),
                 initial_staking_supply: Decimal::from_atomics(123_456_000_000_000u128, 0).unwrap(),
+                staking_supply_scale_factor: Percent::hundred(),
                 sybil_resistance: Percent::from_percentage_value(23).unwrap(),
                 active_set_work_factor: Decimal::from_atomics(10u32, 0).unwrap(),
                 interval_pool_emission: Percent::from_percentage_value(1).unwrap(),
@@ -535,6 +546,7 @@ mod tests {
             interval: IntervalRewardParams {
                 reward_pool: Decimal::from_atomics(100_000_000_000_000u128, 0).unwrap(),
                 staking_supply: Decimal::from_atomics(123_456_000_000_000u128, 0).unwrap(),
+                staking_supply_scale_factor: Percent::hundred(),
                 epoch_reward_budget: expected_epoch_reward_budget,
                 stake_saturation_point: expected_stake_saturation_point,
                 sybil_resistance: Percent::from_percentage_value(23).unwrap(),

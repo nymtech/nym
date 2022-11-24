@@ -10,14 +10,11 @@ pub const GATEWAYS: &str = "gateways";
 pub const DETAILED: &str = "detailed";
 pub const ACTIVE: &str = "active";
 pub const REWARDED: &str = "rewarded";
-
 pub const COCONUT_ROUTES: &str = "coconut";
 pub const BANDWIDTH: &str = "bandwidth";
 
 pub const COCONUT_BLIND_SIGN: &str = "blind-sign";
 pub const COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL: &str = "partial-bandwidth-credential";
-pub const COCONUT_VERIFICATION_KEY: &str = "verification-key";
-pub const COCONUT_COSMOS_ADDRESS: &str = "cosmos-address";
 pub const COCONUT_VERIFY_BANDWIDTH_CREDENTIAL: &str = "verify-bandwidth-credential";
 
 pub const STATUS_ROUTES: &str = "status";
@@ -28,6 +25,8 @@ pub const CORE_STATUS_COUNT: &str = "core-status-count";
 pub const SINCE_ARG: &str = "since";
 
 pub const STATUS: &str = "status";
+pub const REPORT: &str = "report";
+pub const HISTORY: &str = "history";
 pub const REWARD_ESTIMATION: &str = "reward-estimation";
 pub const AVG_UPTIME: &str = "avg_uptime";
 pub const STAKE_SATURATION: &str = "stake-saturation";

@@ -15,14 +15,12 @@ use cosmrs::rpc::query::Query;
 use cosmrs::rpc::Error as TendermintRpcError;
 use cosmrs::rpc::HttpClientUrl;
 use cosmrs::tx::Msg;
-use cosmwasm_std::Uint128;
 use execute::execute;
 use network_defaults::{ChainDetails, NymNetworkDetails};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::time::SystemTime;
 use vesting_contract_common::ExecuteMsg as VestingExecuteMsg;
-use vesting_contract_common::QueryMsg as VestingQueryMsg;
 
 pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
@@ -47,6 +45,7 @@ pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
 use mixnet_contract_common::MixId;
 pub use signing_client::Client as SigningNymdClient;
 pub use traits::{VestingQueryClient, VestingSigningClient};
+use vesting_contract_common::PledgeCap;
 
 pub mod coin;
 pub mod cosmwasm_client;
@@ -66,6 +65,7 @@ pub struct Config {
     pub(crate) bandwidth_claim_contract_address: Option<AccountId>,
     pub(crate) coconut_bandwidth_contract_address: Option<AccountId>,
     pub(crate) multisig_contract_address: Option<AccountId>,
+    pub(crate) coconut_dkg_contract_address: Option<AccountId>,
     // TODO: add this in later commits
     // pub(crate) gas_price: GasPrice,
 }
@@ -117,6 +117,10 @@ impl Config {
             )?,
             multisig_contract_address: Self::parse_optional_account(
                 details.contracts.multisig_contract_address.as_ref(),
+                prefix,
+            )?,
+            coconut_dkg_contract_address: Self::parse_optional_account(
+                details.contracts.coconut_dkg_contract_address.as_ref(),
                 prefix,
             )?,
         })
@@ -274,6 +278,14 @@ impl<C> NymdClient<C> {
     // so it's not introducing new source of failure (just moves it)
     pub fn multisig_contract_address(&self) -> &AccountId {
         self.config.multisig_contract_address.as_ref().unwrap()
+    }
+
+    // TODO: this should get changed into Result<&AccountId, NymdError> (or Option<&AccountId> in future commits
+    // note: what unwrap is doing here is just moving a failure that would have normally
+    // occurred in `connect` when attempting to parse an empty address,
+    // so it's not introducing new source of failure (just moves it)
+    pub fn coconut_dkg_contract_address(&self) -> &AccountId {
+        self.config.coconut_dkg_contract_address.as_ref().unwrap()
     }
 
     pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {
@@ -480,16 +492,6 @@ impl<C> NymdClient<C> {
         C: CosmWasmClient + Sync,
     {
         self.client.get_total_supply().await
-    }
-
-    pub async fn vesting_get_locked_pledge_cap(&self) -> Result<Uint128, NymdError>
-    where
-        C: CosmWasmClient + Sync,
-    {
-        let request = VestingQueryMsg::GetLockedPledgeCap {};
-        self.client
-            .query_contract_smart(self.vesting_contract_address(), &request)
-            .await
     }
 
     pub async fn simulate<I, M>(&self, messages: I) -> Result<SimulateResponse, NymdError>
@@ -737,12 +739,16 @@ impl<C> NymdClient<C> {
     #[execute("vesting")]
     fn _vesting_update_locked_pledge_cap(
         &self,
-        amount: Uint128,
+        address: String,
+        cap: PledgeCap,
         fee: Option<Fee>,
     ) -> (VestingExecuteMsg, Option<Fee>)
     where
         C: SigningCosmWasmClient + Sync,
     {
-        (VestingExecuteMsg::UpdateLockedPledgeCap { amount }, fee)
+        (
+            VestingExecuteMsg::UpdateLockedPledgeCap { address, cap },
+            fee,
+        )
     }
 }

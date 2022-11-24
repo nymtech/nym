@@ -2,9 +2,12 @@
 pub mod helpers {
     use crate::contract::instantiate;
     use crate::vesting::{populate_vesting_periods, Account};
+    use contracts_common::Percent;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info, MockApi, MockQuerier};
     use cosmwasm_std::{Addr, Coin, Empty, Env, MemoryStorage, OwnedDeps, Storage, Uint128};
+    use std::str::FromStr;
     use vesting_contract_common::messages::{InitMsg, VestingSpecification};
+    use vesting_contract_common::PledgeCap;
 
     pub const TEST_COIN_DENOM: &str = "unym";
 
@@ -37,6 +40,7 @@ pub mod helpers {
             },
             start_time_ts,
             periods,
+            None,
             storage,
         )
         .unwrap()
@@ -56,6 +60,29 @@ pub mod helpers {
             },
             start_time,
             periods,
+            Some(PledgeCap::from_str("0.1").unwrap()),
+            storage,
+        )
+        .unwrap()
+    }
+
+    pub fn vesting_account_percent_fixture(storage: &mut dyn Storage, env: &Env) -> Account {
+        let start_time = env.block.time;
+        let periods =
+            populate_vesting_periods(start_time.seconds(), VestingSpecification::default());
+
+        Account::new(
+            Addr::unchecked("owner"),
+            Some(Addr::unchecked("staking")),
+            Coin {
+                amount: Uint128::new(1_000_000_000_000),
+                denom: TEST_COIN_DENOM.to_string(),
+            },
+            start_time,
+            periods,
+            Some(PledgeCap::Percent(
+                Percent::from_percentage_value(10).unwrap(),
+            )),
             storage,
         )
         .unwrap()

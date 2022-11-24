@@ -10,6 +10,7 @@ use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
     server::SphinxSocksServer,
 };
+use client_connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
     InputMessage, InputMessageReceiver, InputMessageSender,
@@ -42,7 +43,6 @@ use gateway_client::{
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
-use nymsphinx::params::PacketSize;
 use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
 
 pub mod config;
@@ -109,13 +109,15 @@ impl NymClient {
             topology_accessor,
         );
 
-        if self.config.get_base().get_use_extended_packet_size() {
-            stream.set_custom_packet_size(PacketSize::ExtendedPacket)
+        if let Some(size) = self.config.get_base().get_use_extended_packet_size() {
+            log::debug!("Setting extended packet size: {:?}", size);
+            stream.set_custom_packet_size(size.into());
         }
 
         stream.start_with_shutdown(shutdown);
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn start_real_traffic_controller(
         &self,
         topology_accessor: TopologyAccessor,
@@ -125,6 +127,8 @@ impl NymClient {
         reply_storage: CombinedReplyStorage,
         reply_controller_sender: ReplyControllerSender,
         reply_controller_receiver: ReplyControllerReceiver,
+        client_connection_rx: ConnectionCommandReceiver,
+        lane_queue_lengths: LaneQueueLengths,
         shutdown: ShutdownListener,
     ) {
         let mut controller_config = real_messages_control::Config::new(
@@ -133,8 +137,9 @@ impl NymClient {
             self.as_mix_recipient(),
         );
 
-        if self.config.get_base().get_use_extended_packet_size() {
-            controller_config.set_custom_packet_size(PacketSize::ExtendedPacket)
+        if let Some(size) = self.config.get_base().get_use_extended_packet_size() {
+            log::debug!("Setting extended packet size: {:?}", size);
+            controller_config.set_custom_packet_size(size.into());
         }
 
         info!("Starting real traffic stream...");
@@ -148,6 +153,8 @@ impl NymClient {
             reply_storage,
             reply_controller_sender,
             reply_controller_receiver,
+            lane_queue_lengths,
+            client_connection_rx,
         )
         .start_with_shutdown(shutdown);
     }
@@ -196,11 +203,22 @@ impl NymClient {
             .expect("provided gateway id is invalid!");
 
         #[cfg(feature = "coconut")]
-        let bandwidth_controller = BandwidthController::new(
-            credential_storage::initialise_storage(self.config.get_base().get_database_path())
-                .await,
-            self.config.get_base().get_validator_api_endpoints(),
-        );
+        let bandwidth_controller = {
+            let details = network_defaults::NymNetworkDetails::new_from_env();
+            let client_config = validator_client::Config::try_from_nym_network_details(&details)
+                .expect("failed to construct validator client config");
+            let client = validator_client::Client::new_query(client_config)
+                .expect("Could not construct query client");
+            let coconut_api_clients =
+                validator_client::CoconutApiClient::all_coconut_api_clients(&client)
+                    .await
+                    .expect("Could not query api clients");
+            BandwidthController::new(
+                credential_storage::initialise_storage(self.config.get_base().get_database_path())
+                    .await,
+                coconut_api_clients,
+            )
+        };
         #[cfg(not(feature = "coconut"))]
         let bandwidth_controller = BandwidthController::new(
             credential_storage::initialise_storage(self.config.get_base().get_database_path())
@@ -283,6 +301,8 @@ impl NymClient {
         &self,
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
+        client_connection_tx: ConnectionCommandSender,
+        lane_queue_lengths: LaneQueueLengths,
         shutdown: ShutdownListener,
     ) {
         info!("Starting socks5 listener...");
@@ -295,6 +315,7 @@ impl NymClient {
             authenticator,
             self.config.get_provider_mix_address(),
             self.as_mix_recipient(),
+            lane_queue_lengths,
             socks::client::Config::new(
                 self.config.get_send_anonymously(),
                 self.config.get_connection_start_surbs(),
@@ -302,7 +323,11 @@ impl NymClient {
             ),
             shutdown,
         );
-        tokio::spawn(async move { sphinx_socks.serve(msg_input, buffer_requester).await });
+        tokio::spawn(async move {
+            sphinx_socks
+                .serve(msg_input, buffer_requester, client_connection_tx)
+                .await
+        });
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
@@ -370,7 +395,7 @@ impl NymClient {
         let (received_buffer_request_sender, received_buffer_request_receiver) = mpsc::unbounded();
 
         // channels responsible for controlling real messages
-        let (input_sender, input_receiver) = mpsc::unbounded::<InputMessage>();
+        let (input_sender, input_receiver) = tokio::sync::mpsc::channel::<InputMessage>(1);
 
         // channels responsible for controlling ack messages
         let (ack_sender, ack_receiver) = mpsc::unbounded();
@@ -425,6 +450,14 @@ impl NymClient {
         let sphinx_message_sender =
             Self::start_mix_traffic_controller(gateway_client, shutdown.subscribe());
 
+        // Channel for announcing closed (socks5) connections by the controller.
+        // This will be forwarded to `OutQueueControl`
+        let (client_connection_tx, client_connection_rx) = mpsc::unbounded();
+
+        // Shared queue length data. Published by the `OutQueueController` in the client, and used
+        // primarily to throttle incoming connections
+        let shared_lane_queue_lengths = LaneQueueLengths::new();
+
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
             ack_receiver,
@@ -433,6 +466,8 @@ impl NymClient {
             reply_storage,
             reply_controller_sender,
             reply_controller_receiver,
+            client_connection_rx,
+            shared_lane_queue_lengths.clone(),
             shutdown.subscribe(),
         );
 
@@ -451,6 +486,8 @@ impl NymClient {
         self.start_socks5_listener(
             received_buffer_request_sender,
             input_sender,
+            client_connection_tx,
+            shared_lane_queue_lengths,
             shutdown.subscribe(),
         );
 

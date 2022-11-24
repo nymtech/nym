@@ -13,6 +13,7 @@ pub struct Config {
     // Total weight and voters are queried from this contract
     pub group_addr: Cw4Contract,
     pub coconut_bandwidth_addr: Addr,
+    pub coconut_dkg_addr: Addr,
 }
 
 // unique items

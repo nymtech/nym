@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-gateway"
-version = "1.0.2"
+version = "1.1.0"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -56,6 +56,7 @@ credentials = { path = "../common/credentials" }
 config = { path = "../common/config" }
 crypto = { path = "../common/crypto" }
 completions = { path = "../common/completions" }
+logging = { path = "../common/logging"}
 gateway-requests = { path = "gateway-requests" }
 mixnet-client = { path = "../common/client-libs/mixnet-client" }
 mixnode-common = { path = "../common/mixnode-common" }

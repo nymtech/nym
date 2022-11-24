@@ -148,6 +148,7 @@ export const CurrencyFormField: React.FC<{
       placeholder={placeholder}
       label={label}
       onChange={handleChange}
+      InputLabelProps={{ shrink: true }}
       sx={sx}
     />
   );

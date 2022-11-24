@@ -8,6 +8,7 @@ use crate::client::real_messages_control::real_traffic_stream::{
 use crate::client::real_messages_control::{AckActionSender, Action};
 use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, SentReplyKeys, UsedSenderTags};
 use crate::client::topology_control::{InvalidTopologyError, TopologyAccessor, TopologyReadPermit};
+use client_connections::TransmissionLane;
 use log::{error, info, warn};
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
@@ -206,7 +207,13 @@ where
         let pending_ack =
             PendingAcknowledgement::new_anonymous(chunk, delay, target, is_extra_surb_request);
 
-        self.forward_messages(vec![real_messages]);
+        let lane = if is_extra_surb_request {
+            TransmissionLane::ReplySurbRequest
+        } else {
+            TransmissionLane::General
+        };
+
+        self.forward_messages(vec![real_messages], lane).await;
         self.insert_pending_acks(vec![pending_ack]);
         Ok(())
     }
@@ -237,6 +244,7 @@ where
         target: AnonymousSenderTag,
         fragments: Vec<Fragment>,
         reply_surbs: Vec<ReplySurb>,
+        lane: TransmissionLane,
     ) -> Result<(), SurbWrappedPreparationError> {
         // this should never be reached!
         debug_assert_ne!(
@@ -273,7 +281,7 @@ where
             pending_acks.push(pending_ack);
         }
 
-        self.forward_messages(real_messages);
+        self.forward_messages(real_messages, lane).await;
         self.insert_pending_acks(pending_acks);
         Ok(())
     }
@@ -282,9 +290,10 @@ where
         &mut self,
         recipient: Recipient,
         message: Vec<u8>,
+        lane: TransmissionLane,
     ) -> Result<(), PreparationError> {
         let message = NymMessage::new_plain(message);
-        self.try_split_and_send_non_reply_message(message, recipient)
+        self.try_split_and_send_non_reply_message(message, recipient, lane)
             .await
     }
 
@@ -292,6 +301,7 @@ where
         &mut self,
         message: NymMessage,
         recipient: Recipient,
+        lane: TransmissionLane,
     ) -> Result<(), PreparationError> {
         // TODO: I really dislike existence of this assertion, it implies code has to be re-organised
         debug_assert!(!matches!(message, NymMessage::Reply(_)));
@@ -325,7 +335,7 @@ where
         }
 
         self.insert_pending_acks(pending_acks);
-        self.forward_messages(real_messages);
+        self.forward_messages(real_messages, lane).await;
 
         Ok(())
     }
@@ -344,8 +354,12 @@ where
             reply_surbs,
         ));
 
-        self.try_split_and_send_non_reply_message(message, recipient)
-            .await?;
+        self.try_split_and_send_non_reply_message(
+            message,
+            recipient,
+            TransmissionLane::AdditionalReplySurbs,
+        )
+        .await?;
 
         log::trace!("storing {} reply keys", reply_keys.len());
         self.reply_key_storage.insert_multiple(reply_keys);
@@ -358,6 +372,7 @@ where
         recipient: Recipient,
         message: Vec<u8>,
         num_reply_surbs: u32,
+        lane: TransmissionLane,
     ) -> Result<(), SurbWrappedPreparationError> {
         let sender_tag = self.get_or_create_sender_tag(&recipient);
         let (reply_surbs, reply_keys) = self
@@ -367,7 +382,7 @@ where
         let message =
             NymMessage::new_repliable(RepliableMessage::new_data(message, sender_tag, reply_surbs));
 
-        self.try_split_and_send_non_reply_message(message, recipient)
+        self.try_split_and_send_non_reply_message(message, recipient, lane)
             .await?;
 
         log::trace!("storing {} reply keys", reply_keys.len());
@@ -418,9 +433,14 @@ where
     }
 
     // tells real message sender (with the poisson timer) to send this to the mix network
-    pub(super) fn forward_messages(&self, messages: Vec<RealMessage>) {
+    pub(super) async fn forward_messages(
+        &self,
+        messages: Vec<RealMessage>,
+        transmission_lane: TransmissionLane,
+    ) {
         self.real_message_sender
-            .unbounded_send(messages)
-            .expect("real message receiver task (OutQueueControl) has died")
+            .send((messages, transmission_lane))
+            .await
+            .expect("real message receiver task (OutQueueControl) has died");
     }
 }

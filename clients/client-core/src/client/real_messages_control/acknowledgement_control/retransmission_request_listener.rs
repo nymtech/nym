@@ -1,13 +1,15 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::action_controller::{AckActionSender, Action};
-use super::PendingAcknowledgement;
-use super::RetransmissionRequestReceiver;
+use super::{
+    action_controller::{AckActionSender, Action},
+    PendingAcknowledgement, RetransmissionRequestReceiver,
+};
 use crate::client::real_messages_control::acknowledgement_control::PacketDestination;
 use crate::client::real_messages_control::message_handler::{MessageHandler, PreparationError};
 use crate::client::real_messages_control::real_traffic_stream::RealMessage;
 use crate::client::replies::reply_storage::ReceivedReplySurbsMap;
+use client_connections::TransmissionLane;
 use futures::StreamExt;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
@@ -26,6 +28,8 @@ pub(super) struct RetransmissionRequestListener<R> {
     // we're holding this for the purposes of retransmitting dropped reply message, but perhaps
     // this work should be offloaded to the `ToBeNamedPendingReplyController`?
     received_reply_surbs: ReceivedReplySurbsMap,
+
+    #[deprecated(note = "this should be moved into config")]
     reply_surb_request_size: u32,
 }
 
@@ -218,10 +222,12 @@ where
             .unwrap();
 
         // send to `OutQueueControl` to eventually send to the mix network
-        self.message_handler.forward_messages(vec![RealMessage::new(
-            prepared_fragment.mix_packet,
-            frag_id,
-        )])
+        self.message_handler
+            .forward_messages(
+                vec![RealMessage::new(prepared_fragment.mix_packet, frag_id)],
+                TransmissionLane::Retransmission,
+            )
+            .await
     }
 
     #[cfg(not(target_arch = "wasm32"))]

@@ -51,7 +51,7 @@ fn long_version_static() -> &'static str {
 #[clap(author = "Nymtech", version, long_version = long_version_static(), about)]
 pub(crate) struct Cli {
     /// Path pointing to an env file that configures the client.
-    #[clap(long)]
+    #[clap(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
     #[clap(subcommand)]
@@ -62,8 +62,10 @@ pub(crate) struct Cli {
 pub(crate) enum Commands {
     /// Initialise a Nym client. Do this first!
     Init(init::Init),
+
     /// Run the Nym client with provided configuration client optionally overriding set parameters
     Run(run::Run),
+
     /// Try to upgrade the client
     Upgrade(upgrade::Upgrade),
 
@@ -76,7 +78,8 @@ pub(crate) enum Commands {
 
 // Configuration that can be overridden.
 pub(crate) struct OverrideConfig {
-    validators: Option<String>,
+    nymd_validators: Option<String>,
+    api_validators: Option<String>,
     port: Option<u16>,
     fastmode: bool,
 
@@ -98,7 +101,16 @@ pub(crate) async fn execute(args: &Cli) -> Result<(), Socks5ClientError> {
 }
 
 pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
-    if let Some(raw_validators) = args.validators {
+    if let Some(raw_validators) = args.nymd_validators {
+        config
+            .get_base_mut()
+            .set_custom_validators(parse_validators(&raw_validators));
+    } else if let Ok(raw_validators) = std::env::var(network_defaults::var_names::NYMD_VALIDATOR) {
+        config
+            .get_base_mut()
+            .set_custom_validators(parse_validators(&raw_validators));
+    }
+    if let Some(raw_validators) = args.api_validators {
         config
             .get_base_mut()
             .set_custom_validator_apis(parse_validators(&raw_validators));

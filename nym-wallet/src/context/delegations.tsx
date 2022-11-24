@@ -1,15 +1,22 @@
 import React, { createContext, FC, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { getDelegationSummary, undelegateAllFromMixnode } from 'src/requests/delegation';
+import { getDelegationSummary, undelegateAllFromMixnode, undelegateFromMixnode } from 'src/requests/delegation';
 import {
   DelegationWithEverything,
   FeeDetails,
   DecCoin,
   TransactionExecuteResult,
   WrappedDelegationEvent,
+  Fee,
 } from '@nymproject/types';
 import type { Network } from 'src/types';
-import { delegateToMixnode, getAllPendingDelegations, vestingDelegateToMixnode } from 'src/requests';
+import {
+  delegateToMixnode,
+  getAllPendingDelegations,
+  vestingDelegateToMixnode,
+  vestingUndelegateFromMixnode,
+} from 'src/requests';
 import { TPoolOption } from 'src/components';
+import { decCoinToDisplay } from 'src/utils';
 
 export type TDelegationContext = {
   isLoading: boolean;
@@ -24,11 +31,8 @@ export type TDelegationContext = {
     tokenPool: TPoolOption,
     fee?: FeeDetails,
   ) => Promise<TransactionExecuteResult>;
-  undelegate: (
-    mix_id: number,
-    usesVestingContractTokens: boolean,
-    fee?: FeeDetails,
-  ) => Promise<TransactionExecuteResult[]>;
+  undelegate: (mix_id: number, fee?: Fee) => Promise<TransactionExecuteResult>;
+  undelegateVesting: (mix_id: number) => Promise<TransactionExecuteResult>;
 };
 
 export type TDelegationTransaction = {
@@ -36,7 +40,8 @@ export type TDelegationTransaction = {
 };
 
 export type DelegationWithEvent = DelegationWithEverything | WrappedDelegationEvent;
-export type TDelegations = DelegationWithEvent[];
+export type TDelegation = DelegationWithEvent;
+export type TDelegations = TDelegation[];
 
 export const isPendingDelegation = (delegation: DelegationWithEvent): delegation is WrappedDelegationEvent =>
   'event' in delegation;
@@ -49,7 +54,10 @@ export const DelegationContext = createContext<TDelegationContext>({
   addDelegation: async () => {
     throw new Error('Not implemented');
   },
-  undelegate: async () => {
+  undelegate: () => {
+    throw new Error('Not implemented');
+  },
+  undelegateVesting: () => {
     throw new Error('Not implemented');
   },
 });
@@ -99,9 +107,18 @@ export const DelegationContextProvider: FC<{
         const some = data.delegations.some(({ node_identity }) => node_identity === event.node_identity);
         return !some;
       });
+      const items = data.delegations.map((delegation) => ({
+        ...delegation,
+        amount: decCoinToDisplay(delegation.amount),
+        unclaimed_rewards: delegation.unclaimed_rewards && decCoinToDisplay(delegation.unclaimed_rewards),
+        cost_params: delegation.cost_params && {
+          ...delegation.cost_params,
+          interval_operating_cost: decCoinToDisplay(delegation.cost_params.interval_operating_cost),
+        },
+      }));
 
       setPendingDelegations(pending);
-      setDelegations([...data.delegations, ...pendingOnNewNodes]);
+      setDelegations([...items, ...pendingOnNewNodes]);
       setTotalDelegations(`${data.total_delegations.amount} ${data.total_delegations.denom}`);
       setTotalRewards(`${data.total_rewards.amount} ${data.total_rewards.denom}`);
     } catch (e) {
@@ -124,7 +141,8 @@ export const DelegationContextProvider: FC<{
       totalRewards,
       refresh,
       addDelegation,
-      undelegate: undelegateAllFromMixnode,
+      undelegate: undelegateFromMixnode,
+      undelegateVesting: vestingUndelegateFromMixnode,
     }),
     [isLoading, error, delegations, pendingDelegations, totalDelegations],
   );

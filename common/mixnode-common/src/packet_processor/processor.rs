@@ -116,7 +116,10 @@ impl SphinxPacketProcessor {
                 trace!("received an ack packet!");
                 Ok((None, data))
             }
-            PacketSize::RegularPacket | PacketSize::ExtendedPacket => {
+            PacketSize::RegularPacket
+            | PacketSize::ExtendedPacket8
+            | PacketSize::ExtendedPacket16
+            | PacketSize::ExtendedPacket32 => {
                 trace!("received a normal packet!");
                 let (ack_data, message) = self.split_hop_data_into_ack_and_message(data)?;
                 let (ack_first_hop, ack_packet) = SurbAck::try_recover_first_hop_packet(&ack_data)?;

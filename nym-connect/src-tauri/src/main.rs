@@ -6,6 +6,7 @@
 use std::sync::Arc;
 
 use config_common::defaults::setup_env;
+use logging::setup_logging;
 use tauri::Menu;
 use tokio::sync::RwLock;
 
@@ -54,23 +55,4 @@ fn main() {
         .on_system_tray_event(tray_menu_event_handler)
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
-}
-
-fn setup_logging() {
-    let mut log_builder = pretty_env_logger::formatted_timed_builder();
-    if let Ok(s) = ::std::env::var("RUST_LOG") {
-        log_builder.parse_filters(&s);
-    } else {
-        // default to 'Info'
-        log_builder.filter(None, log::LevelFilter::Info);
-    }
-
-    log_builder
-        .filter_module("handlebars", log::LevelFilter::Warn)
-        .filter_module("mio", log::LevelFilter::Warn)
-        .filter_module("sled", log::LevelFilter::Warn)
-        .filter_module("tokio_tungstenite", log::LevelFilter::Warn)
-        .filter_module("tungstenite", log::LevelFilter::Warn)
-        .filter_module("want", log::LevelFilter::Warn)
-        .init();
 }

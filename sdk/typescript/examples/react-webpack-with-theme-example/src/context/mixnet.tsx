@@ -1,13 +1,10 @@
 import * as React from 'react';
-import { createNymMixnetClient, IWebWorkerEvents, NymClientConfig, NymMixnetClient } from '@nymproject/sdk';
+import { createNymMixnetClient, IWebWorkerEvents, NymClientConfig, NymMixnetClient, Headers } from '@nymproject/sdk';
 
-export interface BinaryMessageHeaders {
+export interface BinaryMessageHeaders extends Headers {
   filename: string;
   mimeType: string;
 }
-
-export const parseBinaryMessageHeaders = (headers: string): BinaryMessageHeaders =>
-  JSON.parse(headers) as BinaryMessageHeaders;
 
 interface State {
   // data
@@ -17,7 +14,7 @@ interface State {
 
   // methods
   connect: (config: NymClientConfig) => Promise<void>;
-  sendTextMessage: (args: { payload: string; recipient: string }) => Promise<void>;
+  sendTextMessage: (args: { payload: string; recipient: string; headers?: Headers }) => Promise<void>;
   sendBinaryMessage: (args: { payload: Uint8Array; recipient: string; headers: BinaryMessageHeaders }) => Promise<void>;
 }
 
@@ -62,7 +59,7 @@ export const MixnetContextProvider: React.FC = ({ children }) => {
     await nym.current.client.start(config);
   };
 
-  const sendTextMessage = async (args: { payload: string; recipient: string }) => {
+  const sendTextMessage = async (args: { payload: string; recipient: string; headers?: Headers }) => {
     if (!nym.current?.client) {
       console.error('Nym client has not initialised. Please wrap in useEffect on `isReady` prop of this context.');
       return;
@@ -76,8 +73,7 @@ export const MixnetContextProvider: React.FC = ({ children }) => {
       return;
     }
     // convert headers to JSON
-    const sendArgs = { ...args, headers: JSON.stringify(args.headers) };
-    await nym.current.client.sendBinaryMessage(sendArgs);
+    await nym.current.client.sendBinaryMessage(args);
   };
 
   const value = React.useMemo<State>(

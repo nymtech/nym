@@ -5,9 +5,12 @@ import {
   Chip,
   CircularProgress,
   Container,
+  FormControlLabel,
+  FormGroup,
   InputAdornment,
   Link,
   Stack,
+  Switch,
   TextField,
   Tooltip,
   Typography,
@@ -20,6 +23,8 @@ import CallReceivedIcon from '@mui/icons-material/CallReceived';
 import PersonIcon from '@mui/icons-material/Person';
 import PersonOffIcon from '@mui/icons-material/PersonOff';
 import ErrorIcon from '@mui/icons-material/Error';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import { NymLogo } from '@nymproject/react/logo/NymLogo';
 import { NymThemeProvider } from '@nymproject/mui-theme';
 import { useTheme } from '@mui/material/styles';
@@ -28,9 +33,10 @@ import { DropzoneDialog } from 'react-mui-dropzone';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import ArticleIcon from '@mui/icons-material/Article';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
+import { Headers } from '@nymproject/sdk';
 import { ThemeToggle } from './ThemeToggle';
 import { AppContextProvider, useAppContext } from './context';
-import { MixnetContextProvider, parseBinaryMessageHeaders, useMixnetContext } from './context/mixnet';
+import { BinaryMessageHeaders, MixnetContextProvider, useMixnetContext } from './context/mixnet';
 
 export const AppTheme: React.FC = ({ children }) => {
   const { mode } = useAppContext();
@@ -45,6 +51,7 @@ interface Log {
   fileDownloadUrl?: string;
   filesize?: number;
   timestamp: Date;
+  headers?: Headers;
 }
 
 interface UploadState {
@@ -52,11 +59,48 @@ interface UploadState {
   files: File[];
 }
 
+const ClientAddress: React.FC<{ label?: string; tooltip?: string; address?: string }> = ({
+  label,
+  address,
+  tooltip,
+}) => {
+  const copy = useClipboard();
+
+  if (!address) {
+    return <Chip label="Anonymous" icon={<VisibilityOffIcon />} />;
+  }
+
+  const addressShort = `${address.slice(0, 24)}...`;
+
+  return (
+    <Tooltip arrow title={tooltip || ''}>
+      <Chip
+        clickable
+        label={
+          label ? (
+            <>
+              <strong>{label}</strong> {addressShort}
+            </>
+          ) : (
+            <>{addressShort}</>
+          )
+        }
+        onClick={() => {
+          if (address) {
+            copy.copy(address);
+          }
+        }}
+        icon={<ContentCopyIcon />}
+      />
+    </Tooltip>
+  );
+};
+
 export const Content: React.FC = () => {
   const theme = useTheme();
   const { isReady, address, connect, events, sendTextMessage, sendBinaryMessage } = useMixnetContext();
-  const copy = useClipboard();
 
+  const [revealSenderAddress, setRevealSenderAddress] = React.useState(false);
   const [sendToSelf, setSendToSelf] = React.useState(false);
   const [recipient, setRecipient] = React.useState<string>();
   const handleRecipientChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -94,13 +138,8 @@ export const Content: React.FC = () => {
 
   React.useEffect(() => {
     if (isReady) {
-      // // mixnet v1
-      // const validatorApiUrl = 'https://validator.nymtech.net/api';
-      // const preferredGatewayIdentityKey = 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM';
-
-      // mixnet v2
-      const validatorApiUrl = 'https://qwerty-validator-api.qa.nymte.ch/api'; // "http://localhost:8081";
-      const preferredGatewayIdentityKey = undefined; // '36vfvEyBzo5cWEFbnP7fqgY39kFw9PQhvwzbispeNaxL';
+      const validatorApiUrl = 'https://validator.nymtech.net/api';
+      const preferredGatewayIdentityKey = 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM';
 
       connect({
         clientId: 'Example Client',
@@ -117,6 +156,7 @@ export const Content: React.FC = () => {
           kind: 'rx',
           timestamp: new Date(),
           message: e.args.payload,
+          headers: e.args.headers,
         });
         setLogTrigger(Date.now());
       });
@@ -142,8 +182,12 @@ export const Content: React.FC = () => {
   React.useEffect(() => {
     if (events) {
       const unsubcribe = events.subscribeToBinaryMessageReceivedEvent((e) => {
-        // the headers will be JSON (see the mixnet context for how they are created), so parse them
-        const headers = parseBinaryMessageHeaders(e.args.headers);
+        if (!e.args.headers) {
+          console.error('Expected headers, got undefined 😢', e.args);
+          return;
+        }
+
+        const headers = e.args.headers as BinaryMessageHeaders;
 
         const blob = new Blob([new Uint8Array(e.args.payload)], { type: headers.mimeType });
         log.current.push({
@@ -152,6 +196,7 @@ export const Content: React.FC = () => {
           filename: headers.filename,
           fileDownloadUrl: URL.createObjectURL(blob),
           filesize: e.args.payload.length,
+          headers: e.args.headers,
         });
         setLogTrigger(Date.now());
       });
@@ -184,7 +229,8 @@ export const Content: React.FC = () => {
       message,
     });
     setLogTrigger(Date.now());
-    await sendTextMessage({ payload: message, recipient });
+    const senderAddress = revealSenderAddress ? address : undefined;
+    await sendTextMessage({ payload: message, recipient, headers: { senderAddress } });
 
     await Promise.all(
       files.map(async (f) => {
@@ -200,7 +246,7 @@ export const Content: React.FC = () => {
           return await sendBinaryMessage({
             payload: new Uint8Array(buffer),
             recipient,
-            headers: { filename: f.name, mimeType: f.type },
+            headers: { filename: f.name, mimeType: f.type, senderAddress },
           });
         } catch (e) {
           addErrorLog('Failed to send file', f.name);
@@ -249,20 +295,7 @@ export const Content: React.FC = () => {
           ) : (
             <>
               <Chip color="success" icon={<CheckCircleIcon />} label="Connected" variant="outlined" />
-              {address && (
-                <Tooltip arrow title="Copy your client address to the clipboard">
-                  <Chip
-                    clickable
-                    label={`${address.slice(0, 24)}...`}
-                    onClick={() => {
-                      if (address) {
-                        copy.copy(address);
-                      }
-                    }}
-                    icon={<ContentCopyIcon />}
-                  />
-                </Tooltip>
-              )}
+              <ClientAddress address={address} tooltip="Copy your client address to the clipboard" />
             </>
           )}
         </Stack>
@@ -347,9 +380,34 @@ export const Content: React.FC = () => {
               />
             </Box>
 
-            <Button variant="contained" sx={{ width: 100 }} onClick={handleSend}>
-              Send
-            </Button>
+            <Stack direction="row" spacing={2}>
+              <Button variant="contained" sx={{ width: 100 }} onClick={handleSend}>
+                Send
+              </Button>
+              <FormGroup>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      color={revealSenderAddress ? 'warning' : 'default'}
+                      onClick={() => setRevealSenderAddress((prevState) => !prevState)}
+                    />
+                  }
+                  label={
+                    revealSenderAddress ? (
+                      <Stack direction="row" spacing={1}>
+                        <VisibilityIcon color="warning" />
+                        <Typography color={theme.palette.warning.main}>Reveal your address to the recipient</Typography>
+                      </Stack>
+                    ) : (
+                      <Stack direction="row" spacing={1}>
+                        <VisibilityOffIcon />
+                        <Typography>Hide your address from the recipient</Typography>
+                      </Stack>
+                    )
+                  }
+                />
+              </FormGroup>
+            </Stack>
           </Stack>
         )}
       </Box>
@@ -398,6 +456,16 @@ export const Content: React.FC = () => {
                 )}
               </>
             )}
+            {item.kind === 'rx' &&
+              (item.headers?.senderAddress ? (
+                <ClientAddress
+                  label="Sender"
+                  tooltip="Click to copy the message sender's address"
+                  address={item.headers?.senderAddress}
+                />
+              ) : (
+                <ClientAddress label="Sender" />
+              ))}
           </Stack>
         </Box>
       ))}

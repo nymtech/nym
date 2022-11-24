@@ -25,6 +25,7 @@ pub enum MessageError {
     UnknownMessageType,
 }
 
+#[derive(Debug)]
 pub enum Message {
     Request(Request),
     Response(Response),

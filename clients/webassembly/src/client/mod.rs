@@ -395,16 +395,12 @@ impl NymClient {
 
         let input_msg = InputMessage::new_fresh(recipient, message, false, lane);
 
-        if self
-            .input_tx
+        self.input_tx
             .as_ref()
             .expect("start method was not called before!")
             .send(input_msg)
             .await
-            .is_err()
-        {
-            panic!();
-        }
+            .expect("InputMessageReceiver has stopped receiving!");
 
         self
     }

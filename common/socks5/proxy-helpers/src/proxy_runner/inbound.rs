@@ -12,6 +12,7 @@ use futures::StreamExt;
 use log::*;
 use ordered_buffer::OrderedMessageSender;
 use socks5_requests::ConnectionId;
+use std::fmt::Debug;
 use std::time::Duration;
 use std::{io, sync::Arc};
 use task::ShutdownListener;
@@ -25,15 +26,13 @@ async fn send_empty_close<F, S>(
     adapter_fn: F,
 ) where
     F: Fn(ConnectionId, Vec<u8>, bool) -> S,
+    S: Debug,
 {
     let ordered_msg = message_sender.wrap_message(Vec::new()).into_bytes();
-    if mix_sender
+    mix_sender
         .send(adapter_fn(connection_id, ordered_msg, true))
         .await
-        .is_err()
-    {
-        panic!();
-    }
+        .expect("BatchRealMessageReceiver has stopped receiving!");
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -49,6 +48,7 @@ async fn deal_with_data<F, S>(
 ) -> bool
 where
     F: Fn(ConnectionId, Vec<u8>, bool) -> S,
+    S: Debug,
 {
     let (read_data, is_finished) = match read_data {
         Some(data) => match data {
@@ -89,13 +89,10 @@ where
         }
     }
 
-    if mix_sender
+    mix_sender
         .send(adapter_fn(connection_id, ordered_msg, is_finished))
         .await
-        .is_err()
-    {
-        panic!();
-    }
+        .expect("InputMessageReceiver has stopped receiving!");
 
     if is_finished {
         // technically we already informed it when we sent the message to mixnet above
@@ -168,6 +165,7 @@ pub(super) async fn run_inbound<F, S>(
 ) -> OwnedReadHalf
 where
     F: Fn(ConnectionId, Vec<u8>, bool) -> S + Send + 'static,
+    S: Debug,
 {
     let mut available_reader = AvailableReader::new(&mut reader);
     let mut message_sender = OrderedMessageSender::new();

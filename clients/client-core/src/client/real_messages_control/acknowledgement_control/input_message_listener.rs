@@ -187,14 +187,10 @@ where
         // there's no point in trying to send nothing
         if let Some(real_messages) = real_messages {
             // tells real message sender (with the poisson timer) to send this to the mix network
-            if self
-                .real_message_sender
+            self.real_message_sender
                 .send((real_messages, lane))
                 .await
-                .is_err()
-            {
-                panic!();
-            }
+                .expect("BatchRealMessageReceiver has stopped receiving!");
         }
     }
 

@@ -106,6 +106,7 @@ impl<R> MessageHandler<R>
 where
     R: CryptoRng + Rng,
 {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         rng: R,
         ack_key: Arc<AckKey>,

@@ -141,8 +141,7 @@ impl ActionController {
                 // timer TWICE for the SAME PendingAcknowledgement
                 panic!("Tried to start an already started ack timer!")
             }
-            let timeout = (pending_ack_data.delay.clone() * self.config.ack_wait_multiplier)
-                .to_duration()
+            let timeout = (pending_ack_data.delay * self.config.ack_wait_multiplier).to_duration()
                 + self.config.ack_wait_addition;
 
             let new_queue_key = self.pending_acks_timers.insert(frag_id, timeout);

@@ -50,6 +50,7 @@ impl TryFrom<u8> for NymMessageType {
 
 pub type PlainMessage = Vec<u8>;
 
+#[derive(Debug)]
 pub enum NymMessage {
     Plain(PlainMessage),
     Repliable(RepliableMessage),
@@ -59,7 +60,10 @@ pub enum NymMessage {
 impl NymMessage {
     pub fn new_additional_surbs_request(recipient: Recipient, amount: u32) -> Self {
         NymMessage::Reply(ReplyMessage {
-            content: ReplyMessageContent::SurbRequest { recipient, amount },
+            content: ReplyMessageContent::SurbRequest {
+                recipient: Box::new(recipient),
+                amount,
+            },
         })
     }
 

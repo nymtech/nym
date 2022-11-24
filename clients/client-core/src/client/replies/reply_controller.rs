@@ -126,6 +126,7 @@ impl<R> ReplyController<R>
 where
     R: CryptoRng + Rng,
 {
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         message_handler: MessageHandler<R>,
         received_reply_surbs: ReceivedReplySurbsMap,

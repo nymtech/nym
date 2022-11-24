@@ -107,7 +107,7 @@ impl ReceivedMessagesBufferInner {
             .recover_plaintext_from_reply(reply_ciphertext, reply_key);
         let fragment_data = reply_ciphertext;
 
-        self.recover_from_fragment(&fragment_data)
+        self.recover_from_fragment(fragment_data)
     }
 
     fn process_received_regular_packet(&mut self, mut raw_fragment: Vec<u8>) -> Option<NymMessage> {
@@ -262,7 +262,7 @@ impl ReceivedMessagesBuffer {
                 ReplyMessageContent::SurbRequest { recipient, amount } => {
                     info!("received request for {amount} additional surbs");
                     self.reply_controller_sender
-                        .send_additional_surbs_request(recipient, amount);
+                        .send_additional_surbs_request(*recipient, amount);
                     // error!("received request for additional {} reply SURBs! We don't know how to handle it yet : (", amount)
                 }
             }

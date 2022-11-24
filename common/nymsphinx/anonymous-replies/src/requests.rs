@@ -10,6 +10,7 @@ pub struct UnnamedRepliesError;
 pub const SENDER_TAG_SIZE: usize = 16;
 pub type AnonymousSenderTag = [u8; SENDER_TAG_SIZE];
 
+#[derive(Debug)]
 pub struct RepliableMessage {
     pub sender_tag: AnonymousSenderTag,
     pub content: RepliableMessageContent,
@@ -120,6 +121,7 @@ impl TryFrom<u8> for RepliableMessageContentTag {
 }
 
 // sent by original sender that initialised the communication that knows address of the remote
+#[derive(Debug)]
 pub enum RepliableMessageContent {
     Data {
         message: Vec<u8>,
@@ -213,6 +215,7 @@ impl RepliableMessageContent {
 }
 
 // sent by the remote party who does **NOT** know the original sender's identity
+#[derive(Debug)]
 pub struct ReplyMessage {
     pub content: ReplyMessageContent,
 }
@@ -226,7 +229,10 @@ impl ReplyMessage {
 
     pub fn new_surb_request_message(recipient: Recipient, amount: u32) -> Self {
         ReplyMessage {
-            content: ReplyMessageContent::SurbRequest { recipient, amount },
+            content: ReplyMessageContent::SurbRequest {
+                recipient: Box::new(recipient),
+                amount,
+            },
         }
     }
 
@@ -267,10 +273,16 @@ impl TryFrom<u8> for ReplyMessageContentTag {
     }
 }
 
+#[derive(Debug)]
 pub enum ReplyMessageContent {
     // TODO: later allow to request surbs whilst sending data
-    Data { message: Vec<u8> },
-    SurbRequest { recipient: Recipient, amount: u32 },
+    Data {
+        message: Vec<u8>,
+    },
+    SurbRequest {
+        recipient: Box<Recipient>,
+        amount: u32,
+    },
 }
 
 impl ReplyMessageContent {
@@ -306,8 +318,10 @@ impl ReplyMessageContent {
                 recipient_bytes.copy_from_slice(&bytes[..Recipient::LEN]);
 
                 Ok(ReplyMessageContent::SurbRequest {
-                    recipient: Recipient::try_from_bytes(recipient_bytes)
-                        .map_err(|_| UnnamedRepliesError)?,
+                    recipient: Box::new(
+                        Recipient::try_from_bytes(recipient_bytes)
+                            .map_err(|_| UnnamedRepliesError)?,
+                    ),
                     amount: u32::from_be_bytes([
                         bytes[Recipient::LEN],
                         bytes[Recipient::LEN + 1],

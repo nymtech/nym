@@ -20,6 +20,7 @@ use nymsphinx::params::ReplySurbKeyDigestAlgorithm;
 use nymsphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
 use std::collections::HashSet;
 use std::sync::Arc;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 // Buffer Requests to say "hey, send any reconstructed messages to this channel"
 // or to say "hey, I'm going offline, don't send anything more to me. Just buffer them instead"
@@ -49,6 +50,7 @@ impl ReceivedMessagesBufferInner {
     fn recover_from_fragment(&mut self, fragment_data: &[u8]) -> Option<NymMessage> {
         if nymsphinx::cover::is_cover(fragment_data) {
             trace!("The message was a loop cover message! Skipping it");
+            println!("Cover received");
             return None;
         }
 
@@ -59,6 +61,12 @@ impl ReceivedMessagesBufferInner {
             }
             Ok(frag) => frag,
         };
+        
+        let time = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_millis();
+        println!("real received : _{:?}_{}_{}", &fragment.id(),&fragment.current_fragment(),time);
 
         if self.recently_reconstructed.contains(&fragment.id()) {
             debug!("Received a chunk of already re-assembled message ({:?})! It probably got here because the ack got lost", fragment.id());

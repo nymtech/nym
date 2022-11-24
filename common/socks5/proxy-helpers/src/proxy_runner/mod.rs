@@ -4,6 +4,7 @@
 use crate::connection_controller::ConnectionReceiver;
 use client_connections::LaneQueueLengths;
 use socks5_requests::ConnectionId;
+use std::fmt::Debug;
 use std::{sync::Arc, time::Duration};
 use task::ShutdownListener;
 use tokio::{net::TcpStream, sync::Notify};
@@ -54,7 +55,7 @@ pub struct ProxyRunner<S> {
 
 impl<S> ProxyRunner<S>
 where
-    S: Send + 'static,
+    S: Debug + Send + 'static,
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new(

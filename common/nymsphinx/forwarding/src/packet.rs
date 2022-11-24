@@ -54,8 +54,11 @@ impl Debug for MixPacket {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "MixPacket to {:?} with packet_mode {:?}",
-            self.next_hop, self.packet_mode
+            "MixPacket to {:?} with packet_mode {:?}. Sphinx header: {:?}, payload length: {}",
+            self.next_hop,
+            self.packet_mode,
+            self.sphinx_packet.header,
+            self.sphinx_packet.payload.len()
         )
     }
 }

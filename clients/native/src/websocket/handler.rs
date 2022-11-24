@@ -96,9 +96,10 @@ impl Handler {
         // the ack control is now responsible for chunking, etc.
         let lane = TransmissionLane::ConnectionId(connection_id);
         let input_msg = InputMessage::new_regular(recipient, message, lane);
-        if self.msg_input.send(input_msg).await.is_err() {
-            panic!();
-        }
+        self.msg_input
+            .send(input_msg)
+            .await
+            .expect("InputMessageReceiver has stopped receiving!");
 
         // on receiving a send, we reply back the current lane queue length for that connection id.
         // Note that this does _NOT_ take into account the packets that have been received but not
@@ -124,9 +125,10 @@ impl Handler {
     ) -> Option<ServerResponse> {
         let lane = TransmissionLane::ConnectionId(connection_id);
         let input_msg = InputMessage::new_anonymous(recipient, message, reply_surbs, lane);
-        if self.msg_input.send(input_msg).await.is_err() {
-            panic!();
-        }
+        self.msg_input
+            .send(input_msg)
+            .await
+            .expect("InputMessageReceiver has stopped receiving!");
 
         // on receiving a send, we reply back the current lane queue length for that connection id.
         // Note that this does _NOT_ take into account the packets that have been received but not
@@ -151,9 +153,10 @@ impl Handler {
     ) -> Option<ServerResponse> {
         let lane = TransmissionLane::ConnectionId(connection_id);
         let input_msg = InputMessage::new_reply(recipient_tag, message, lane);
-        if self.msg_input.send(input_msg).await.is_err() {
-            panic!();
-        }
+        self.msg_input
+            .send(input_msg)
+            .await
+            .expect("InputMessageReceiver has stopped receiving!");
 
         // on receiving a send, we reply back the current lane queue length for that connection id.
         // Note that this does _NOT_ take into account the packets that have been received but not

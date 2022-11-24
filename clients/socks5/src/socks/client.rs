@@ -264,9 +264,10 @@ impl SocksClient {
             self.config.connection_start_surbs,
             TransmissionLane::ConnectionId(self.connection_id),
         );
-        if self.input_sender.send(input_message).await.is_err() {
-            panic!();
-        }
+        self.input_sender
+            .send(input_message)
+            .await
+            .expect("InputMessageReceiver has stopped receiving!");
     }
 
     async fn send_connect_to_mixnet_with_return_address(&mut self, remote_address: RemoteAddress) {
@@ -278,9 +279,10 @@ impl SocksClient {
             msg.into_bytes(),
             TransmissionLane::ConnectionId(self.connection_id),
         );
-        if self.input_sender.send(input_message).await.is_err() {
-            panic!();
-        }
+        self.input_sender
+            .send(input_message)
+            .await
+            .expect("InputMessageReceiver has stopped receiving!");
     }
 
     async fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {

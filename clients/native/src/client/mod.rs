@@ -323,16 +323,12 @@ impl NymClient {
         let lane = TransmissionLane::General;
         let input_msg = InputMessage::new_regular(recipient, message, lane);
 
-        if self
-            .input_tx
+        self.input_tx
             .as_ref()
             .expect("start method was not called before!")
             .send(input_msg)
             .await
-            .is_err()
-        {
-            panic!();
-        }
+            .expect("InputMessageReceiver has stopped receiving!");
     }
 
     /// EXPERIMENTAL DIRECT RUST API
@@ -347,16 +343,12 @@ impl NymClient {
         let lane = TransmissionLane::General;
         let input_msg = InputMessage::new_anonymous(recipient, message, reply_surbs, lane);
 
-        if self
-            .input_tx
+        self.input_tx
             .as_ref()
             .expect("start method was not called before!")
             .send(input_msg)
             .await
-            .is_err()
-        {
-            panic!();
-        }
+            .expect("InputMessageReceiver has stopped receiving!");
     }
 
     /// EXPERIMENTAL DIRECT RUST API
@@ -366,16 +358,12 @@ impl NymClient {
         let lane = TransmissionLane::General;
         let input_msg = InputMessage::new_reply(recipient_tag, message, lane);
 
-        if self
-            .input_tx
+        self.input_tx
             .as_ref()
             .expect("start method was not called before!")
             .send(input_msg)
             .await
-            .is_err()
-        {
-            panic!();
-        }
+            .expect("InputMessageReceiver has stopped receiving!");
     }
 
     /// EXPERIMENTAL DIRECT RUST API

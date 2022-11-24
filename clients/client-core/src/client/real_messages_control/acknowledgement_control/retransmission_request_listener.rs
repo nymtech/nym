@@ -87,9 +87,11 @@ where
             sender_tag: recipient_tag,
         })?;
 
+        let min_surb_threshold = self.received_reply_surbs.min_surb_threshold();
+
         // but if it wasn't a retransmission for obtaining additional reply surbs
-        // and we're now below threshold, attempt to request additional surbs
-        if !extra_surb_request && self.received_reply_surbs.below_threshold(surbs_left) {
+        // and we're now about to go below threshold, attempt to request additional surbs
+        if !extra_surb_request && surbs_left <= (min_surb_threshold + 1) {
             // if we're running low on surbs, we should request more (unless we've already requested them)
             let pending_reception = self.received_reply_surbs.pending_reception(&recipient_tag);
 
@@ -172,7 +174,6 @@ where
                 .await
             }
             PacketDestination::KnownRecipient(recipient) => {
-                // TODO: preserve err info
                 self.prepare_normal_retransmission_chunk(**recipient, chunk_clone)
                     .await
             }

@@ -61,7 +61,7 @@ pub(crate) enum PacketDestination {
         // below our stored reply surb threshold
         extra_surb_request: bool,
     },
-    KnownRecipient(Recipient),
+    KnownRecipient(Box<Recipient>),
 }
 
 /// Structure representing a data `Fragment` that is on-route to the specified `Recipient`

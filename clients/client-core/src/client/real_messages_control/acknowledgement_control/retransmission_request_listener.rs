@@ -173,7 +173,7 @@ where
             }
             PacketDestination::KnownRecipient(recipient) => {
                 // TODO: preserve err info
-                self.prepare_normal_retransmission_chunk(*recipient, chunk_clone)
+                self.prepare_normal_retransmission_chunk(**recipient, chunk_clone)
                     .await
             }
         };

@@ -20,3 +20,28 @@ pub(crate) fn check_epoch_state(
         Ok(())
     }
 }
+
+#[cfg(test)]
+pub(crate) mod test {
+    use super::*;
+    use crate::support::tests::helpers::init_contract;
+
+    #[test]
+    pub fn check_state() {
+        let mut deps = init_contract();
+
+        for fixed_state in EpochState::default().all_until(EpochState::InProgress) {
+            CURRENT_EPOCH_STATE
+                .save(deps.as_mut().storage, &fixed_state)
+                .unwrap();
+            for against_state in EpochState::default().all_until(EpochState::InProgress) {
+                let ret = check_epoch_state(deps.as_mut().storage, against_state);
+                if fixed_state == against_state {
+                    assert!(ret.is_ok());
+                } else {
+                    assert!(ret.is_err());
+                }
+            }
+        }
+    }
+}

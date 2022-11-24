@@ -20,7 +20,7 @@ pub(super) enum ClientRequestText {
         message: String,
         recipient: String,
         with_reply_surb: bool,
-        connection_id: u64,
+        connection_id: Option<u64>,
     },
     SelfAddress,
     #[serde(rename_all = "camelCase")]

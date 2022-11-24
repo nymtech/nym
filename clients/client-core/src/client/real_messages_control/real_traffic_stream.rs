@@ -140,6 +140,7 @@ where
     lane_queue_lengths: LaneQueueLengths,
 }
 
+#[derive(Debug)]
 pub(crate) struct RealMessage {
     mix_packet: MixPacket,
     fragment_id: FragmentIdentifier,

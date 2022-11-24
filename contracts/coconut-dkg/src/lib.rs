@@ -8,4 +8,5 @@ mod dealings;
 mod epoch_state;
 mod error;
 mod state;
+mod support;
 mod verification_key_shares;

@@ -69,3 +69,143 @@ pub fn try_verify_verification_key_share(
 
     Ok(Response::default())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::epoch_state::storage::{advance_epoch_state, CURRENT_EPOCH_STATE};
+    use crate::support::tests::helpers;
+    use crate::support::tests::helpers::{ADMIN_ADDRESS, MULTISIG_CONTRACT};
+    use coconut_dkg_common::dealer::DealerDetails;
+    use coconut_dkg_common::types::EpochState;
+    use cosmwasm_std::testing::{mock_env, mock_info};
+    use cosmwasm_std::Storage;
+    use cw_controllers::AdminError;
+
+    #[test]
+    fn commit_vk_share() {
+        let mut deps = helpers::init_contract();
+        let env = mock_env();
+        let info = mock_info("requester", &[]);
+        let share = "share".to_string();
+
+        let ret = try_commit_verification_key_share(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            share.clone(),
+        )
+        .unwrap_err();
+        assert_eq!(
+            ret,
+            ContractError::IncorrectEpochState {
+                current_state: EpochState::default().to_string(),
+                expected_state: EpochState::VerificationKeySubmission.to_string()
+            }
+        );
+        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        let ret = try_commit_verification_key_share(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            share.clone(),
+        )
+        .unwrap_err();
+        assert_eq!(ret, ContractError::NotADealer);
+
+        let dealer = Addr::unchecked("requester");
+        let dealer_details = DealerDetails {
+            address: dealer.clone(),
+            bte_public_key_with_proof: String::new(),
+            announce_address: String::new(),
+            assigned_index: 1,
+        };
+        dealers_storage::current_dealers()
+            .save(deps.as_mut().storage, &dealer, &dealer_details)
+            .unwrap();
+
+        try_commit_verification_key_share(deps.as_mut(), env.clone(), info.clone(), share.clone())
+            .unwrap();
+
+        let ret = try_commit_verification_key_share(
+            deps.as_mut(),
+            env.clone(),
+            info.clone(),
+            share.clone(),
+        )
+        .unwrap_err();
+        assert_eq!(
+            ret,
+            ContractError::AlreadyCommitted {
+                commitment: String::from("verification key share")
+            }
+        );
+    }
+
+    #[test]
+    fn invalid_verify_vk_share() {
+        let mut deps = helpers::init_contract();
+        let info = mock_info("requester", &[]);
+        let owner = Addr::unchecked("owner");
+        let multisig_info = mock_info(MULTISIG_CONTRACT, &[]);
+
+        let ret = try_verify_verification_key_share(deps.as_mut(), info.clone(), owner.clone())
+            .unwrap_err();
+        assert_eq!(
+            ret,
+            ContractError::IncorrectEpochState {
+                current_state: EpochState::default().to_string(),
+                expected_state: EpochState::VerificationKeyFinalization.to_string()
+            }
+        );
+
+        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+
+        let ret =
+            try_verify_verification_key_share(deps.as_mut(), info, owner.clone()).unwrap_err();
+        assert_eq!(ret, ContractError::Admin(AdminError::NotAdmin {}));
+
+        let ret = try_verify_verification_key_share(deps.as_mut(), multisig_info, owner.clone())
+            .unwrap_err();
+        assert_eq!(
+            ret,
+            ContractError::NoCommitForOwner {
+                owner: owner.to_string()
+            }
+        );
+    }
+
+    #[test]
+    fn verify_vk_share() {
+        let mut deps = helpers::init_contract();
+        let env = mock_env();
+        let owner = Addr::unchecked("owner");
+        let info = mock_info(owner.as_ref(), &[]);
+        let share = "share".to_string();
+        let multisig_info = mock_info(MULTISIG_CONTRACT, &[]);
+
+        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+
+        let dealer_details = DealerDetails {
+            address: owner.clone(),
+            bte_public_key_with_proof: String::new(),
+            announce_address: String::new(),
+            assigned_index: 1,
+        };
+        dealers_storage::current_dealers()
+            .save(deps.as_mut().storage, &owner, &dealer_details)
+            .unwrap();
+        try_commit_verification_key_share(deps.as_mut(), env.clone(), info.clone(), share.clone())
+            .unwrap();
+
+        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+
+        try_verify_verification_key_share(deps.as_mut(), multisig_info, owner.clone()).unwrap();
+    }
+}

@@ -27,13 +27,10 @@ async fn send_empty_close<F, S>(
     F: Fn(ConnectionId, Vec<u8>, bool) -> S,
 {
     let ordered_msg = message_sender.wrap_message(Vec::new()).into_bytes();
-    if mix_sender
+    mix_sender
         .send(adapter_fn(connection_id, ordered_msg, true))
         .await
-        .is_err()
-    {
-        panic!();
-    }
+        .expect("BatchRealMessageReceiver has stopped receiving!");
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -89,13 +86,10 @@ where
         }
     }
 
-    if mix_sender
+    mix_sender
         .send(adapter_fn(connection_id, ordered_msg, is_finished))
         .await
-        .is_err()
-    {
-        panic!();
-    }
+        .expect("InputMessageReceiver has stopped receiving!");
 
     if is_finished {
         // technically we already informed it when we sent the message to mixnet above

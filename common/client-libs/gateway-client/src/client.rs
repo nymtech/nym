@@ -2,19 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::bandwidth::BandwidthController;
-use crate::cleanup_socket_message;
 use crate::error::GatewayClientError;
 use crate::packet_router::PacketRouter;
 pub use crate::packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
 };
 use crate::socket_state::{PartiallyDelegated, SocketState};
-#[cfg(target_arch = "wasm32")]
-use crate::wasm_storage::PersistentStorage;
-#[cfg(feature = "coconut")]
-use coconut_interface::Credential;
-#[cfg(not(target_arch = "wasm32"))]
-use credential_storage::PersistentStorage;
+use crate::{cleanup_socket_message, try_decrypt_binary_message};
 use crypto::asymmetric::identity;
 use futures::{FutureExt, SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
@@ -28,13 +22,20 @@ use rand::rngs::OsRng;
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::time::Duration;
-#[cfg(not(target_arch = "wasm32"))]
-use task::ShutdownListener;
 use tungstenite::protocol::Message;
 
+#[cfg(feature = "coconut")]
+use coconut_interface::Credential;
+
+#[cfg(not(target_arch = "wasm32"))]
+use credential_storage::PersistentStorage;
+#[cfg(not(target_arch = "wasm32"))]
+use task::ShutdownListener;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;
 
+#[cfg(target_arch = "wasm32")]
+use crate::wasm_storage::PersistentStorage;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
 #[cfg(target_arch = "wasm32")]
@@ -336,7 +337,15 @@ impl GatewayClient {
                     };
                     match ws_msg {
                         Message::Binary(bin_msg) => {
-                            if let Err(err) = self.packet_router.route_received(vec![bin_msg]) {
+                            // if we have established the shared key already, attempt to use it for decryption
+                            // otherwise there's not much we can do apart from just routing what we have on hand
+                            if let Some(shared_keys) = &self.shared_key {
+                                if let Some(plaintext) = try_decrypt_binary_message(bin_msg, shared_keys) {
+                                    if let Err(err) = self.packet_router.route_received(vec![plaintext]) {
+                                        log::warn!("Route received failed: {:?}", err);
+                                    }
+                                }
+                            } else if let Err(err) = self.packet_router.route_received(vec![bin_msg]) {
                                 log::warn!("Route received failed: {:?}", err);
                             }
                         }

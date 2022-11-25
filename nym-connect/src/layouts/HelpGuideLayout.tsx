@@ -13,7 +13,7 @@ export const HelpGuideLayout = () => {
     return (
       <HelpPage
         step={step}
-        description="Select your service provider from the dropdown menu"
+        description="Select your service provider from the dropdown menu."
         img={Image1}
         onNext={() => setStep(2)}
       />
@@ -23,7 +23,7 @@ export const HelpGuideLayout = () => {
     return (
       <HelpPage
         step={step}
-        description="Click yellow button and connect to a service provider"
+        description="Click yellow button and connect to a service provider."
         img={Image2}
         onPrev={() => setStep(1)}
         onNext={() => setStep(3)}
@@ -34,7 +34,7 @@ export const HelpGuideLayout = () => {
     return (
       <HelpPage
         step={step}
-        description="Click on IP and Port to copy their values to the clipboard"
+        description="Click on IP and Port to copy their values to the clipboard."
         img={Image3}
         onPrev={() => setStep(2)}
         onNext={() => setStep(4)}
@@ -45,7 +45,7 @@ export const HelpGuideLayout = () => {
     return (
       <HelpPage
         step={step}
-        description="Go to settings in your app, select running via SOCKS5 proxy and paste the IP and Port values given by NymConnect."
+        description="Go to the settings of your selected app, under Proxy select run via SOCKS5 proxy then paste the IP and Port values given by NymConnect."
         img={Image4}
         onPrev={() => setStep(3)}
       />
@@ -60,7 +60,7 @@ export const HelpGuideLayout = () => {
         LinkComponent={Link}
         variant="text"
         color="inherit"
-        href="https://shipyard.nymtech.net/nym-connect"
+        href="https://nymtech.net/docs/stable/quickstart/nym-connect/"
         target="_blank"
       >
         Docs

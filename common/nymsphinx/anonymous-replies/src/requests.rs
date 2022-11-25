@@ -104,14 +104,14 @@ impl Display for RepliableMessage {
                 reply_surbs,
             } => write!(
                 f,
-                "repliable {:.2} kiB data message with {} reply surbs attached from {:?}",
+                "repliable {:.2} kiB data message with {} reply surbs attached from {}",
                 message.len() as f64 / 1024.0,
                 reply_surbs.len(),
                 self.sender_tag,
             ),
             RepliableMessageContent::AdditionalSurbs { reply_surbs } => write!(
                 f,
-                "repliable additional surbs message ({} reply surbs attached) from {:?}",
+                "repliable additional surbs message ({} reply surbs attached) from {}",
                 reply_surbs.len(),
                 self.sender_tag,
             ),
@@ -120,7 +120,7 @@ impl Display for RepliableMessage {
             } => {
                 write!(
                     f,
-                    "repliable heartbeat message ({} reply surbs attached) from {:?}",
+                    "repliable heartbeat message ({} reply surbs attached) from {}",
                     additional_reply_surbs.len(),
                     self.sender_tag,
                 )

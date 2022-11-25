@@ -36,7 +36,7 @@ pub enum PreparationError {
     MessageTooLongForSingleSurb { fragments: usize },
 
     #[error(
-        "Never received any reply SURBs associated with the following sender tag: {sender_tag:?}"
+        "Never received any reply SURBs associated with the following sender tag: {sender_tag}"
     )]
     UnknownSurbSender { sender_tag: AnonymousSenderTag },
 

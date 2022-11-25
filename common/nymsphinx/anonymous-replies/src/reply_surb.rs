@@ -21,10 +21,13 @@ use topology::{NymTopology, NymTopologyError};
 pub enum ReplySurbError {
     #[error("tried to use reply SURB with an unpadded message")]
     UnpaddedMessageError,
+
     #[error("reply SURB is incorrectly formatted: {0}")]
     MalformedStringError(#[from] bs58::decode::Error),
+
     #[error("failed to recover reply SURB from bytes: {0}")]
     RecoveryError(#[from] SphinxError),
+
     #[error("failed to recover reply SURB encryption key from bytes: {0}")]
     InvalidEncryptionKeyData(#[from] SurbEncryptionKeyError),
 }

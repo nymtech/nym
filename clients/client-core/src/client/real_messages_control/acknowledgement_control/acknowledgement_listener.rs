@@ -50,6 +50,7 @@ impl AcknowledgementListener {
             trace!("Received an ack for a cover message - no need to do anything");
             return;
         } else if frag_id.is_reply() {
+            error!("please let @jstuczyn know if you see this message");
             info!("Received an ack for a reply message - no need to do anything! (don't know what to do!)");
             // TODO: probably there will need to be some extra procedure here, something to notify
             // user that his reply reached the recipient (since we got an ack)

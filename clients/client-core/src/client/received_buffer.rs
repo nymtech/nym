@@ -68,9 +68,10 @@ impl ReceivedMessagesBufferInner {
         // if we returned an error the underlying message is malformed in some way
         match self.message_receiver.insert_new_fragment(fragment) {
             Err(err) => match err {
-                MessageRecoveryError::MalformedReconstructedMessage(message_sets) => {
+                MessageRecoveryError::MalformedReconstructedMessage { source, used_sets } => {
+                    error!("message reconstruction failed - {source}. Attempting to re-use the message sets...");
                     // TODO: should we really insert reconstructed sets? could this be abused for some attack?
-                    for set_id in message_sets {
+                    for set_id in used_sets {
                         if !self.recently_reconstructed.insert(set_id) {
                             // or perhaps we should even panic at this point?
                             error!("Reconstructed another message containing already used set id!")

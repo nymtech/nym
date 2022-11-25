@@ -1,10 +1,13 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ReplySurb;
+use crate::{ReplySurb, ReplySurbError};
 use nymsphinx_addressing::clients::{Recipient, RecipientFormattingError};
 use std::mem;
 use thiserror::Error;
+
+pub const SENDER_TAG_SIZE: usize = 16;
+pub type AnonymousSenderTag = [u8; SENDER_TAG_SIZE];
 
 #[derive(Debug, Error)]
 pub enum InvalidReplyRequestError {
@@ -17,12 +20,12 @@ pub enum InvalidReplyRequestError {
     #[error("{received} is not a valid content tag for a reply message")]
     InvalidReplyContentTag { received: u8 },
 
-    #[error("failed to deserialize recipient information {0}")]
+    #[error("failed to deserialize recipient information - {0}")]
     MalformedRecipient(#[from] RecipientFormattingError),
-}
 
-pub const SENDER_TAG_SIZE: usize = 16;
-pub type AnonymousSenderTag = [u8; SENDER_TAG_SIZE];
+    #[error("failed to deserialize replySURB - {0}")]
+    MalformedReplySurb(#[from] ReplySurbError),
+}
 
 #[derive(Debug)]
 pub struct RepliableMessage {
@@ -106,7 +109,7 @@ fn recover_reply_surbs(
     let mut reply_surbs = Vec::with_capacity(num_surbs as usize);
     for _ in 0..num_surbs as usize {
         let surb_bytes = &bytes[consumed..consumed + surb_size];
-        let reply_surb = ReplySurb::from_bytes(surb_bytes).unwrap_or_else(|_| todo!());
+        let reply_surb = ReplySurb::from_bytes(surb_bytes)?;
         reply_surbs.push(reply_surb);
 
         consumed += surb_size;

@@ -1,21 +1,22 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::message::{NymMessage, PaddedMessage, PlainMessage};
+use crate::message::{NymMessage, NymMessageError, PaddedMessage, PlainMessage};
 use crypto::aes::cipher::{KeyIvInit, StreamCipher};
 use crypto::asymmetric::encryption;
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
 use crypto::symmetric::stream_cipher::CipherKey;
-use nymsphinx_anonymous_replies::reply_surb::ReplySurbError;
 use nymsphinx_anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx_anonymous_replies::SurbEncryptionKey;
 use nymsphinx_chunking::fragment::Fragment;
 use nymsphinx_chunking::reconstruction::MessageReconstructor;
+use nymsphinx_chunking::ChunkingError;
 use nymsphinx_params::{
     PacketEncryptionAlgorithm, PacketHkdfAlgorithm, ReplySurbEncryptionAlgorithm,
     DEFAULT_NUM_MIX_HOPS,
 };
+use thiserror::Error;
 
 // TODO: should this live in this file?
 #[derive(Debug)]
@@ -46,27 +47,20 @@ impl From<PlainMessage> for ReconstructedMessage {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum MessageRecoveryError {
-    InvalidSurbPrefixError,
-    MalformedSurbError(ReplySurbError),
-    InvalidRemoteEphemeralKey(encryption::KeyRecoveryError),
-    MalformedFragmentError,
-    InvalidMessagePaddingError,
-    MalformedReconstructedMessage(Vec<i32>),
-    TooShortMessageError,
-}
+    #[error("Recovered remote x25519 public key is invalid - {0}")]
+    InvalidRemoteEphemeralKey(#[from] encryption::KeyRecoveryError),
 
-impl From<ReplySurbError> for MessageRecoveryError {
-    fn from(err: ReplySurbError) -> Self {
-        MessageRecoveryError::MalformedSurbError(err)
-    }
-}
+    #[error("The reconstructed message was malformed - {source}")]
+    MalformedReconstructedMessage {
+        #[source]
+        source: NymMessageError,
+        used_sets: Vec<i32>,
+    },
 
-impl From<encryption::KeyRecoveryError> for MessageRecoveryError {
-    fn from(err: encryption::KeyRecoveryError) -> Self {
-        MessageRecoveryError::InvalidRemoteEphemeralKey(err)
-    }
+    #[error("Failed to recover message fragment - {0}")]
+    FragmentRecoveryError(#[from] ChunkingError),
 }
 
 pub struct MessageReceiver {
@@ -140,21 +134,7 @@ impl MessageReceiver {
 
     /// Given fragment data recovers [`Fragment`] itself.
     pub fn recover_fragment(&self, frag_data: &[u8]) -> Result<Fragment, MessageRecoveryError> {
-        Fragment::try_from_bytes(frag_data)
-            .map_err(|_| MessageRecoveryError::MalformedFragmentError)
-    }
-
-    /// Removes the zero padding from the message that was initially included to ensure same length
-    /// sphinx payloads.
-    pub fn remove_padding(message: &mut Vec<u8>) -> Result<(), MessageRecoveryError> {
-        // we are looking for first occurrence of 1 in the tail and we get its index
-        if let Some(i) = message.iter().rposition(|b| *b == 1) {
-            // and now we only take bytes until that point (but not including it)
-            *message = message.drain(..i).collect();
-            Ok(())
-        } else {
-            Err(MessageRecoveryError::InvalidMessagePaddingError)
-        }
+        Ok(Fragment::try_from_bytes(frag_data)?)
     }
 
     /// Inserts given [`Fragment`] into the reconstructor.
@@ -169,11 +149,13 @@ impl MessageReceiver {
         fragment: Fragment,
     ) -> Result<Option<(NymMessage, Vec<i32>)>, MessageRecoveryError> {
         if let Some((message, used_sets)) = self.reconstructor.insert_new_fragment(fragment) {
-            let message = PaddedMessage::new_reconstructed(message)
-                .remove_padding(self.num_mix_hops)
-                .unwrap_or_else(|_| todo!("handle this error"));
-
-            Ok(Some((message, used_sets)))
+            match PaddedMessage::new_reconstructed(message).remove_padding(self.num_mix_hops) {
+                Ok(message) => Ok(Some((message, used_sets))),
+                Err(err) => Err(MessageRecoveryError::MalformedReconstructedMessage {
+                    source: err,
+                    used_sets,
+                }),
+            }
         } else {
             Ok(None)
         }

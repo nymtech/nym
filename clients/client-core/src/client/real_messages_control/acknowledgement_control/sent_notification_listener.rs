@@ -32,6 +32,7 @@ impl SentNotificationListener {
             trace!("sent off a cover message - no need to start retransmission timer!");
             return;
         } else if frag_id.is_reply() {
+            error!("please let @jstuczyn know if you see this message");
             debug!("sent off a reply message - no need to start retransmission timer!");
             // TODO: probably there will need to be some extra procedure here, like it would
             // be nice to know that our reply actually reached the recipient (i.e. we got the ack)

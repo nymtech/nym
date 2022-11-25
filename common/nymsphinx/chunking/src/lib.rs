@@ -3,6 +3,7 @@
 
 use crate::fragment::{linked_fragment_payload_max_len, unlinked_fragment_payload_max_len};
 pub use set::split_into_sets;
+use thiserror::Error;
 
 // Future consideration: currently in a lot of places, the payloads have randomised content
 // which is not a perfect testing strategy as it might not detect some edge cases I never would
@@ -45,18 +46,26 @@ pub mod set;
 /// Both of those concepts as well as their structures, i.e. `Set` and `Fragment`
 /// are further explained in the respective files.
 
-#[derive(PartialEq, Eq, Debug)]
+#[derive(PartialEq, Eq, Debug, Error)]
 pub enum ChunkingError {
-    InvalidPayloadLengthError,
-    TooBigMessageToSplit,
+    #[error("Received payload is too long. Got {received}, expected {expected}")]
+    InvalidPayloadLengthError { received: usize, expected: usize },
+
+    #[error("Received payload is too long. Got {received}, expected at most {expected_at_most}")]
+    TooLongPayloadLengthError {
+        received: usize,
+        expected_at_most: usize,
+    },
+
+    // this should really be split into multiple variants to provide better error information
+    #[error("Provided header was malformed or contained self-contradicting fields")]
     MalformedHeaderError,
-    NoValidProvidersError,
-    NoValidRoutesAvailableError,
-    InvalidTopologyError,
-    TooShortFragmentData,
-    MalformedFragmentData,
-    UnexpectedFragmentCount,
-    MalformedFragmentIdentifier,
+
+    #[error("Received too few bytes to deserialize fragment header. Got {received}, expected {expected}")]
+    TooShortFragmentHeader { received: usize, expected: usize },
+
+    #[error("Received fragment identifier ({received}) is not a valid value!")]
+    MalformedFragmentIdentifier { received: i32 },
 }
 
 /// Returns number of fragments the message will be split to as well as number of available

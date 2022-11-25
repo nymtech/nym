@@ -1,8 +1,12 @@
 use crate::error::Socks5ClientError;
 
-use super::authentication::Authenticator;
-use super::client::SocksClient;
-use super::{mixnet_responses::MixnetResponseListener, types::ResponseCode};
+use super::{
+    authentication::Authenticator,
+    client::SocksClient,
+    mixnet_responses::MixnetResponseListener,
+    types::{ResponseCodeV4, ResponseCodeV5},
+    SocksVersion,
+};
 use client_connections::{ConnectionCommandSender, LaneQueueLengths};
 use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
@@ -90,40 +94,42 @@ impl SphinxSocksServer {
                         stream,
                         self.authenticator.clone(),
                         input_sender.clone(),
-                        self.service_provider,
+                        &self.service_provider,
                         controller_sender.clone(),
-                        self.self_address,
+                        &self.self_address,
                         self.lane_queue_lengths.clone(),
                         self.shutdown.clone(),
                     );
 
                     tokio::spawn(async move {
                         {
-                            match client.run().await {
-                                Ok(_) => {}
-                                Err(error) => {
-                                    error!("Error! {}", error);
-                                    let error_text = format!("{}", error);
+                            if let Err(err) = client.run().await {
+                                error!("Error! {}", err);
+                                let error_text = format!("{}", err);
 
-                                    let response: ResponseCode;
-
-                                    if error_text.contains("Host") {
-                                        response = ResponseCode::HostUnreachable;
-                                    } else if error_text.contains("Network") {
-                                        response = ResponseCode::NetworkUnreachable;
-                                    } else if error_text.contains("ttl") {
-                                        response = ResponseCode::TtlExpired
-                                    } else {
-                                        response = ResponseCode::Failure
-                                    }
-
-                                    if client.error(response).await.is_err() {
+                                if client.get_version() == Some(&SocksVersion::V4) {
+                                    let response = ResponseCodeV4::RequestRejected;
+                                    if client.send_error_v4(response).await.is_err() {
                                         warn!("Failed to send error code");
                                     };
-                                    if client.shutdown().await.is_err() {
-                                        warn!("Failed to shutdown TcpStream");
+                                } else if client.get_version() == Some(&SocksVersion::V5) {
+                                    let response = if error_text.contains("Host") {
+                                        ResponseCodeV5::HostUnreachable
+                                    } else if error_text.contains("Network") {
+                                        ResponseCodeV5::NetworkUnreachable
+                                    } else if error_text.contains("ttl") {
+                                        ResponseCodeV5::TtlExpired
+                                    } else {
+                                        ResponseCodeV5::Failure
+                                    };
+
+                                    if client.send_error_v5(response).await.is_err() {
+                                        warn!("Failed to send error code");
                                     };
                                 }
+                                if client.shutdown().await.is_err() {
+                                    warn!("Failed to shutdown TcpStream");
+                                };
                             };
                             // client gets dropped here
                         }

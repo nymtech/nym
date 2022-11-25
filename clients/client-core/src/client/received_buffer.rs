@@ -53,8 +53,8 @@ impl ReceivedMessagesBufferInner {
         }
 
         let fragment = match self.message_receiver.recover_fragment(fragment_data) {
-            Err(e) => {
-                warn!("failed to recover fragment from raw data: {:?}. The whole underlying message might be corrupted and unrecoverable!", e);
+            Err(err) => {
+                warn!("failed to recover fragment from raw data: {err}. The whole underlying message might be corrupted and unrecoverable!");
                 return None;
             }
             Ok(frag) => frag,
@@ -116,8 +116,8 @@ impl ReceivedMessagesBufferInner {
             self.local_encryption_keypair.private_key(),
             &mut raw_fragment,
         ) {
-            Err(e) => {
-                warn!("failed to recover fragment data: {:?}. The whole underlying message might be corrupted and unrecoverable!", e);
+            Err(err) => {
+                warn!("failed to recover fragment data: {err}. The whole underlying message might be corrupted and unrecoverable!");
                 return None;
             }
             Ok(frag_data) => frag_data,
@@ -302,7 +302,7 @@ impl ReceivedMessagesBuffer {
         if let Some(sender) = &inner_guard.message_sender {
             trace!("Sending reconstructed messages to announced sender");
             if let Err(err) = sender.unbounded_send(reconstructed_messages) {
-                warn!("The reconstructed message receiver went offline without explicit notification (relevant error: - {:?})", err);
+                warn!("The reconstructed message receiver went offline without explicit notification (relevant error: - {err})");
                 inner_guard.message_sender = None;
                 inner_guard.messages.extend(err.into_inner());
             }

@@ -8,7 +8,12 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 -clients: ability to use multi-reply SURBs to send arbitrarily long messages fully anonymously whilst requesting additional reply blocks whenever they're about to run out ([#1796])
 
+### Changed
+
+- clients: improve message logging when received message fails to get reconstructed ([#1803])
+
 [#1796]: https://github.com/nymtech/nym/pull/1796
+[#1803]: https://github.com/nymtech/nym/pull/1803
 
 ## Unreleased
 

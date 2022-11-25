@@ -24,8 +24,11 @@ impl fmt::Debug for Error {
 }
 
 impl Error {
-    pub fn new(kind: ErrorKind, message: String) -> Self {
-        Error { kind, message }
+    pub fn new<S: Into<String>>(kind: ErrorKind, message: S) -> Self {
+        Error {
+            kind,
+            message: message.into(),
+        }
     }
 }
 
@@ -60,6 +63,31 @@ pub enum ErrorKind {
 
     /// The error is due to something else.
     Other = 0xFF,
+}
+
+impl TryFrom<u8> for ErrorKind {
+    type Error = Error;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            _ if value == (ErrorKind::EmptyRequest as u8) => Ok(ErrorKind::EmptyRequest),
+            _ if value == (ErrorKind::TooShortRequest as u8) => Ok(ErrorKind::TooShortRequest),
+            _ if value == (ErrorKind::UnknownRequest as u8) => Ok(ErrorKind::UnknownRequest),
+            _ if value == (ErrorKind::MalformedRequest as u8) => Ok(ErrorKind::MalformedRequest),
+
+            _ if value == (ErrorKind::EmptyResponse as u8) => Ok(ErrorKind::EmptyResponse),
+            _ if value == (ErrorKind::TooShortResponse as u8) => Ok(ErrorKind::TooShortResponse),
+            _ if value == (ErrorKind::UnknownResponse as u8) => Ok(ErrorKind::UnknownResponse),
+            _ if value == (ErrorKind::MalformedResponse as u8) => Ok(ErrorKind::MalformedResponse),
+
+            _ if value == (ErrorKind::Other as u8) => Ok(ErrorKind::Other),
+
+            n => Err(Error::new(
+                ErrorKind::MalformedResponse,
+                format!("invalid error code {}", n),
+            )),
+        }
+    }
 }
 
 impl ErrorKind {

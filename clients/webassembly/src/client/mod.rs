@@ -3,6 +3,11 @@
 
 use self::config::Config;
 use client_connections::{ConnectionCommandReceiver, LaneQueueLengths, TransmissionLane};
+use client_core::client::replies::reply_controller;
+use client_core::client::replies::reply_controller::{
+    ReplyControllerReceiver, ReplyControllerSender,
+};
+use client_core::client::replies::reply_storage::{CombinedReplyStorage, SentReplyKeys};
 use client_core::client::{
     cover_traffic_stream::LoopCoverTrafficStream,
     inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender},
@@ -116,34 +121,33 @@ impl NymClient {
         );
 
         if let Some(size) = &self.config.debug.use_extended_packet_size {
-            stream.set_custom_packet_size(size.clone().into());
+            stream.set_custom_packet_size((*size).into());
         }
 
         stream.start();
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn start_real_traffic_controller(
         &self,
         topology_accessor: TopologyAccessor,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
-        client_connection_rx: ConnectionCommandReceiver,
+        reply_storage: CombinedReplyStorage,
+        reply_controller_sender: ReplyControllerSender,
+        reply_controller_receiver: ReplyControllerReceiver,
         lane_queue_lengths: LaneQueueLengths,
+        client_connection_rx: ConnectionCommandReceiver,
     ) {
         let mut controller_config = real_messages_control::Config::new(
+            &self.config.debug,
             self.key_manager.ack_key(),
-            self.config.debug.ack_wait_multiplier,
-            self.config.debug.ack_wait_addition,
-            self.config.debug.average_ack_delay,
-            self.config.debug.message_sending_average_delay,
-            self.config.debug.average_packet_delay,
-            self.config.debug.disable_main_poisson_packet_distribution,
             self.as_mix_recipient(),
         );
 
         if let Some(size) = &self.config.debug.use_extended_packet_size {
-            controller_config.set_custom_packet_size(size.clone().into());
+            controller_config.set_custom_packet_size((*size).into());
         }
 
         console_log!("Starting real traffic stream...");
@@ -154,6 +158,9 @@ impl NymClient {
             input_receiver,
             mix_sender,
             topology_accessor,
+            reply_storage,
+            reply_controller_sender,
+            reply_controller_receiver,
             lane_queue_lengths,
             client_connection_rx,
         )
@@ -166,12 +173,16 @@ impl NymClient {
         &self,
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_receiver: MixnetMessageReceiver,
+        reply_key_storage: SentReplyKeys,
+        reply_controller_sender: ReplyControllerSender,
     ) {
         console_log!("Starting received messages buffer controller...");
         ReceivedMessagesBufferController::new(
             self.key_manager.encryption_keypair(),
             query_receiver,
             mixnet_receiver,
+            reply_key_storage,
+            reply_controller_sender,
         )
         .start()
     }
@@ -299,8 +310,8 @@ impl NymClient {
                             .expect("on binary message failed!");
                     }
                     if let Some(ref callback) = on_message {
-                        if msg.reply_surb.is_some() {
-                            console_log!("the received message contained a reply-surb that we do not know how to handle (yet)")
+                        if msg.sender_tag.is_some() {
+                            console_log!("the received message contained a sender_tag meaning it also contained some reply surbs, but we do not know how to handle them (yet)")
                         }
                         let stringified = String::from_utf8_lossy(&msg.message).into_owned();
                         let arg1 = serde_wasm_bindgen::to_value(&stringified).unwrap();
@@ -332,6 +343,22 @@ impl NymClient {
         let (ack_sender, ack_receiver) = mpsc::unbounded();
         let shared_topology_accessor = TopologyAccessor::new();
 
+        // channels responsible for dealing with reply-related fun
+        let (reply_controller_sender, reply_controller_receiver) =
+            reply_controller::new_control_channels();
+
+        // =====================
+        // =====================
+        // ======TEMPORARY======
+        // =====================
+        // =====================
+        // TODO: lower the value and improve the reliability when it's low (because it should still work in that case)
+        // (it goes insane at 10,200)
+        let reply_storage = CombinedReplyStorage::new(
+            self.config.debug.minimum_reply_surb_storage_threshold,
+            self.config.debug.maximum_reply_surb_storage_threshold,
+        );
+
         // Channel that the real traffix controller can listed to for closing connections.
         // Currently unused in the wasm client.
         let (_client_connection_tx, client_connection_rx) = mpsc::unbounded();
@@ -343,6 +370,8 @@ impl NymClient {
         self.start_received_messages_buffer_controller(
             received_buffer_request_receiver,
             mixnet_messages_receiver,
+            reply_storage.key_storage(),
+            reply_controller_sender.clone(),
         );
 
         let gateway_client = self
@@ -364,8 +393,11 @@ impl NymClient {
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
-            client_connection_rx,
+            reply_storage,
+            reply_controller_sender,
+            reply_controller_receiver,
             shared_lane_queue_lengths,
+            client_connection_rx,
         );
 
         if !self.config.debug.disable_loop_cover_traffic_stream {
@@ -393,7 +425,7 @@ impl NymClient {
         let recipient = Recipient::try_from_base58_string(recipient).unwrap();
         let lane = TransmissionLane::General;
 
-        let input_msg = InputMessage::new_fresh(recipient, message, false, lane);
+        let input_msg = InputMessage::new_regular(recipient, message, lane);
 
         self.input_tx
             .as_ref()

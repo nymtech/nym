@@ -123,9 +123,9 @@ checksum = "8da52d66c7071e2e3fa2a1e5c6d088fec47b593032b254f5e980de8ea54454d6"
 
 [[package]]
 name = "async-trait"
-version = "0.1.57"
+version = "0.1.58"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76464446b8bc32758d7e88ee1a804d9914cd9b1cb264c029899680b0be29826f"
+checksum = "1e805d94e6b5001b651426cf4cd446b1ab5f319d27bab5c644f61de0a804360c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -635,6 +635,7 @@ dependencies = [
  "client-connections",
  "config",
  "crypto",
+ "dashmap",
  "dirs",
  "futures",
  "gateway-client",
@@ -1283,6 +1284,19 @@ dependencies = [
  "darling_core",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "dashmap"
+version = "5.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "907076dfda823b0b36d2a1bb5f90c96660a5bbcd7729e10727f07858f22c4edc"
+dependencies = [
+ "cfg-if",
+ "hashbrown 0.12.3",
+ "lock_api",
+ "once_cell",
+ "parking_lot_core 0.9.3",
 ]
 
 [[package]]
@@ -3424,6 +3438,7 @@ dependencies = [
  "nymsphinx-types",
  "rand 0.7.3",
  "rand_distr",
+ "thiserror",
  "tokio",
  "topology",
 ]
@@ -3448,6 +3463,7 @@ dependencies = [
  "crypto",
  "nymsphinx-types",
  "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -3461,6 +3477,7 @@ dependencies = [
  "nymsphinx-types",
  "rand 0.7.3",
  "serde",
+ "thiserror",
  "topology",
 ]
 
@@ -3473,6 +3490,7 @@ dependencies = [
  "nymsphinx-params",
  "nymsphinx-types",
  "rand 0.7.3",
+ "thiserror",
 ]
 
 [[package]]
@@ -5107,7 +5125,7 @@ dependencies = [
 [[package]]
 name = "sphinx"
 version = "0.1.0"
-source = "git+https://github.com/nymtech/sphinx?rev=c494250f2a78bed33a618d470792418eee932859#c494250f2a78bed33a618d470792418eee932859"
+source = "git+https://github.com/nymtech/sphinx?rev=e05a1992522ed0afd3c6fcac160313ffc9bb306a#e05a1992522ed0afd3c6fcac160313ffc9bb306a"
 dependencies = [
  "aes 0.7.5",
  "arrayref",
@@ -5784,18 +5802,18 @@ checksum = "8eaa81235c7058867fa8c0e7314f33dcce9c215f535d1913822a2b3f5e289f3c"
 
 [[package]]
 name = "thiserror"
-version = "1.0.35"
+version = "1.0.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c53f98874615aea268107765aa1ed8f6116782501d18e53d08b471733bea6c85"
+checksum = "10deb33631e3c9018b9baf9dcbbc4f737320d2b576bac10f6aefa048fa407e3e"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.35"
+version = "1.0.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8b463991b4eab2d801e724172285ec4195c650e8ec79b149e6c2a8e6dd3f783"
+checksum = "982d17546b47146b28f7c22e3d08465f6b8903d0ea13c1660d9d84a6e7adcdbb"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -5951,6 +5969,7 @@ dependencies = [
  "nymsphinx-addressing",
  "nymsphinx-types",
  "rand 0.7.3",
+ "thiserror",
  "version-checker",
 ]
 

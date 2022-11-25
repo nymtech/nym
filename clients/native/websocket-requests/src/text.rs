@@ -1,11 +1,11 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::ErrorKind;
 use crate::requests::ClientRequest;
 use crate::responses::ServerResponse;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::ReplySurb;
+use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use serde::{Deserialize, Serialize};
 use std::convert::{TryFrom, TryInto};
 
@@ -19,15 +19,22 @@ pub(super) enum ClientRequestText {
     Send {
         message: String,
         recipient: String,
-        with_reply_surb: bool,
+        connection_id: Option<u64>,
+    },
+    #[serde(rename_all = "camelCase")]
+    SendAnonymous {
+        recipient: String,
+        message: String,
+        reply_surbs: u32,
+        connection_id: Option<u64>,
+    },
+    #[serde(rename_all = "camelCase")]
+    Reply {
+        sender_tag: AnonymousSenderTag,
+        message: String,
         connection_id: Option<u64>,
     },
     SelfAddress,
-    #[serde(rename_all = "camelCase")]
-    Reply {
-        message: String,
-        reply_surb: String,
-    },
 }
 
 impl TryFrom<String> for ClientRequestText {
@@ -46,7 +53,6 @@ impl TryInto<ClientRequest> for ClientRequestText {
             ClientRequestText::Send {
                 message,
                 recipient,
-                with_reply_surb,
                 connection_id,
             } => {
                 let message_bytes = message.into_bytes();
@@ -57,23 +63,38 @@ impl TryInto<ClientRequest> for ClientRequestText {
                 Ok(ClientRequest::Send {
                     message: message_bytes,
                     recipient,
-                    with_reply_surb,
+                    connection_id,
+                })
+            }
+            ClientRequestText::SendAnonymous {
+                recipient,
+                message,
+                reply_surbs,
+                connection_id,
+            } => {
+                let message_bytes = message.into_bytes();
+                let recipient = Recipient::try_from_base58_string(recipient).map_err(|err| {
+                    Self::Error::new(ErrorKind::MalformedRequest, err.to_string())
+                })?;
+                Ok(ClientRequest::SendAnonymous {
+                    recipient,
+                    message: message_bytes,
+                    reply_surbs,
                     connection_id,
                 })
             }
             ClientRequestText::SelfAddress => Ok(ClientRequest::SelfAddress),
             ClientRequestText::Reply {
+                sender_tag,
                 message,
-                reply_surb,
+                connection_id,
             } => {
                 let message_bytes = message.into_bytes();
-                let reply_surb = ReplySurb::from_base58_string(reply_surb).map_err(|err| {
-                    Self::Error::new(ErrorKind::MalformedRequest, err.to_string())
-                })?;
 
                 Ok(ClientRequest::Reply {
+                    sender_tag,
                     message: message_bytes,
-                    reply_surb,
+                    connection_id,
                 })
             }
         }
@@ -89,7 +110,7 @@ pub(super) enum ServerResponseText {
     #[serde(rename_all = "camelCase")]
     Received {
         message: String,
-        reply_surb: Option<String>,
+        sender_tag: Option<AnonymousSenderTag>,
     },
     SelfAddress {
         address: String,
@@ -131,15 +152,13 @@ impl From<ServerResponse> for ServerResponseText {
                     // TODO: ask DH what is more appropriate, lossy utf8 conversion or returning error and then
                     // pure binary later
                     message: String::from_utf8_lossy(&reconstructed.message).into_owned(),
-                    reply_surb: reconstructed
-                        .reply_surb
-                        .map(|reply_surb| reply_surb.to_base58_string()),
+                    sender_tag: reconstructed.sender_tag,
                 }
             }
             ServerResponse::SelfAddress(recipient) => ServerResponseText::SelfAddress {
                 address: recipient.to_string(),
             },
-            ServerResponse::LaneQueueLength(lane, queue_length) => {
+            ServerResponse::LaneQueueLength { lane, queue_length } => {
                 ServerResponseText::LaneQueueLength { lane, queue_length }
             }
             ServerResponse::Error(err) => ServerResponseText::Error {

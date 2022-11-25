@@ -16,6 +16,7 @@ use nymsphinx::chunking::fragment::FragmentIdentifier;
 use nymsphinx::cover::generate_loop_cover_packet;
 use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::params::PacketSize;
+use nymsphinx::preparer::PreparedFragment;
 use nymsphinx::utils::sample_poisson_duration;
 use rand::{CryptoRng, Rng};
 use std::pin::Pin;
@@ -144,6 +145,16 @@ where
 pub(crate) struct RealMessage {
     mix_packet: MixPacket,
     fragment_id: FragmentIdentifier,
+    // TODO: add info about it being constructed with reply-surb
+}
+
+impl From<(PreparedFragment, FragmentIdentifier)> for RealMessage {
+    fn from((fragment, fragment_id): (PreparedFragment, FragmentIdentifier)) -> Self {
+        RealMessage {
+            mix_packet: fragment.mix_packet,
+            fragment_id,
+        }
+    }
 }
 
 impl RealMessage {
@@ -220,17 +231,16 @@ where
                 // poisson delay, but is it really a problem?
                 let topology_permit = self.topology_access.get_read_permit().await;
                 // the ack is sent back to ourselves (and then ignored)
-                let topology_ref_option = topology_permit.try_get_valid_topology_ref(
+                let topology_ref = match topology_permit.try_get_valid_topology_ref(
                     &self.our_full_destination,
                     Some(&self.our_full_destination),
-                );
-                if topology_ref_option.is_none() {
-                    warn!(
-                        "No valid topology detected - won't send any loop cover message this time"
-                    );
-                    return;
-                }
-                let topology_ref = topology_ref_option.unwrap();
+                ) {
+                    Ok(topology) => topology,
+                    Err(err) => {
+                        warn!("We're not going to send any loop cover message this time, as the current topology seem to be invalid - {err}");
+                        return;
+                    }
+                };
 
                 (
                     generate_loop_cover_packet(
@@ -487,7 +497,14 @@ where
             log::warn!(
                 "Unable to send packets fast enough - sending delay multiplier set to: {}",
                 self.sending_delay_controller.current_multiplier()
-            );
+            )
+        };
+        if packets > 1000 {
+            log::warn!("{status_str}");
+        } else if packets > 0 {
+            log::info!("{status_str}");
+        } else {
+            log::debug!("{status_str}");
         }
     }
 

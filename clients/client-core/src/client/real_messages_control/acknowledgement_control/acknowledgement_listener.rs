@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::action_controller::{Action, ActionSender};
+use super::action_controller::{AckActionSender, Action};
 use futures::StreamExt;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
@@ -16,14 +16,14 @@ use std::sync::Arc;
 pub(super) struct AcknowledgementListener {
     ack_key: Arc<AckKey>,
     ack_receiver: AcknowledgementReceiver,
-    action_sender: ActionSender,
+    action_sender: AckActionSender,
 }
 
 impl AcknowledgementListener {
     pub(super) fn new(
         ack_key: Arc<AckKey>,
         ack_receiver: AcknowledgementReceiver,
-        action_sender: ActionSender,
+        action_sender: AckActionSender,
     ) -> Self {
         AcknowledgementListener {
             ack_key,
@@ -50,6 +50,7 @@ impl AcknowledgementListener {
             trace!("Received an ack for a cover message - no need to do anything");
             return;
         } else if frag_id.is_reply() {
+            error!("please let @jstuczyn know if you see this message");
             info!("Received an ack for a reply message - no need to do anything! (don't know what to do!)");
             // TODO: probably there will need to be some extra procedure here, something to notify
             // user that his reply reached the recipient (since we got an ack)

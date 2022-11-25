@@ -5,6 +5,7 @@ use std::sync::atomic::Ordering;
 
 use crate::client::config::Config;
 use crate::error::Socks5ClientError;
+use crate::socks;
 use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
     server::SphinxSocksServer,
@@ -16,11 +17,16 @@ use client_core::client::inbound_messages::{
 };
 use client_core::client::key_manager::KeyManager;
 use client_core::client::mix_traffic::{BatchMixMessageSender, MixTrafficController};
+use client_core::client::real_messages_control;
 use client_core::client::real_messages_control::RealMessagesController;
 use client_core::client::received_buffer::{
     ReceivedBufferRequestReceiver, ReceivedBufferRequestSender, ReceivedMessagesBufferController,
 };
-use client_core::client::reply_key_storage::ReplyKeyStorage;
+use client_core::client::replies::reply_controller;
+use client_core::client::replies::reply_controller::{
+    ReplyControllerReceiver, ReplyControllerSender,
+};
+use client_core::client::replies::reply_storage::{CombinedReplyStorage, SentReplyKeys};
 use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
@@ -37,7 +43,6 @@ use gateway_client::{
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
-use tap::TapFallible;
 use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
 
 pub mod config;
@@ -116,24 +121,19 @@ impl NymClient {
     fn start_real_traffic_controller(
         &self,
         topology_accessor: TopologyAccessor,
-        reply_key_storage: ReplyKeyStorage,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
+        reply_storage: CombinedReplyStorage,
+        reply_controller_sender: ReplyControllerSender,
+        reply_controller_receiver: ReplyControllerReceiver,
         client_connection_rx: ConnectionCommandReceiver,
         lane_queue_lengths: LaneQueueLengths,
         shutdown: ShutdownListener,
     ) {
-        let mut controller_config = client_core::client::real_messages_control::Config::new(
+        let mut controller_config = real_messages_control::Config::new(
+            self.config.get_debug_settings(),
             self.key_manager.ack_key(),
-            self.config.get_base().get_ack_wait_multiplier(),
-            self.config.get_base().get_ack_wait_addition(),
-            self.config.get_base().get_average_ack_delay(),
-            self.config.get_base().get_message_sending_average_delay(),
-            self.config.get_base().get_average_packet_delay(),
-            self.config
-                .get_base()
-                .get_disabled_main_poisson_packet_distribution(),
             self.as_mix_recipient(),
         );
 
@@ -150,7 +150,9 @@ impl NymClient {
             input_receiver,
             mix_sender,
             topology_accessor,
-            reply_key_storage,
+            reply_storage,
+            reply_controller_sender,
+            reply_controller_receiver,
             lane_queue_lengths,
             client_connection_rx,
         )
@@ -163,7 +165,8 @@ impl NymClient {
         &self,
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_receiver: MixnetMessageReceiver,
-        reply_key_storage: ReplyKeyStorage,
+        reply_key_storage: SentReplyKeys,
+        reply_controller_sender: ReplyControllerSender,
         shutdown: ShutdownListener,
     ) {
         info!("Starting received messages buffer controller...");
@@ -172,8 +175,9 @@ impl NymClient {
             query_receiver,
             mixnet_receiver,
             reply_key_storage,
+            reply_controller_sender,
         )
-        .start_with_shutdown(shutdown);
+        .start_with_shutdown(shutdown)
     }
 
     async fn start_gateway_client(
@@ -312,6 +316,11 @@ impl NymClient {
             self.config.get_provider_mix_address(),
             self.as_mix_recipient(),
             lane_queue_lengths,
+            socks::client::Config::new(
+                self.config.get_send_anonymously(),
+                self.config.get_connection_start_surbs(),
+                self.config.get_per_request_surbs(),
+            ),
             shutdown,
         );
         tokio::spawn(async move {
@@ -392,15 +401,31 @@ impl NymClient {
         let (ack_sender, ack_receiver) = mpsc::unbounded();
         let shared_topology_accessor = TopologyAccessor::new();
 
-        let reply_key_storage =
-            ReplyKeyStorage::load(self.config.get_base().get_reply_encryption_key_store_path())
-                .tap_err(|err| {
-                    log::error!("Failed to load reply key storage - is it perhaps already in use?");
-                    log::error!("{}", err);
-                })?;
+        // let reply_key_storage =
+        //     ReplyKeyStorage::load(self.config.get_base().get_reply_encryption_key_store_path())
+        //         .expect("Failed to load reply key storage!");
+
+        // channels responsible for dealing with reply-related fun
+        let (reply_controller_sender, reply_controller_receiver) =
+            reply_controller::new_control_channels();
 
         // Shutdown notifier for signalling tasks to stop
         let shutdown = ShutdownNotifier::default();
+
+        // =====================
+        // =====================
+        // ======TEMPORARY======
+        // =====================
+        // =====================
+        // TODO: lower the value and improve the reliability when it's low (because it should still work in that case)
+        let reply_storage = CombinedReplyStorage::new(
+            self.config
+                .get_base()
+                .get_minimum_reply_surb_storage_threshold(),
+            self.config
+                .get_base()
+                .get_maximum_reply_surb_storage_threshold(),
+        );
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
@@ -409,7 +434,8 @@ impl NymClient {
         self.start_received_messages_buffer_controller(
             received_buffer_request_receiver,
             mixnet_messages_receiver,
-            reply_key_storage.clone(),
+            reply_storage.key_storage(),
+            reply_controller_sender.clone(),
             shutdown.subscribe(),
         );
 
@@ -434,10 +460,12 @@ impl NymClient {
 
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
-            reply_key_storage,
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
+            reply_storage,
+            reply_controller_sender,
+            reply_controller_receiver,
             client_connection_rx,
             shared_lane_queue_lengths.clone(),
             shutdown.subscribe(),

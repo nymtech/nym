@@ -2,59 +2,150 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{
-    action_controller::{Action, ActionSender},
+    action_controller::{AckActionSender, Action},
     PendingAcknowledgement, RetransmissionRequestReceiver,
 };
-use crate::client::{
-    real_messages_control::real_traffic_stream::{BatchRealMessageSender, RealMessage},
-    topology_control::TopologyAccessor,
-};
-
+use crate::client::real_messages_control::acknowledgement_control::PacketDestination;
+use crate::client::real_messages_control::message_handler::{MessageHandler, PreparationError};
+use crate::client::real_messages_control::real_traffic_stream::RealMessage;
+use crate::client::replies::reply_storage::ReceivedReplySurbsMap;
 use client_connections::TransmissionLane;
 use futures::StreamExt;
 use log::*;
-use nymsphinx::{
-    acknowledgements::AckKey, addressing::clients::Recipient, preparer::MessagePreparer,
-};
+use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nymsphinx::chunking::fragment::Fragment;
+use nymsphinx::preparer::PreparedFragment;
 use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
 
 // responsible for packet retransmission upon fired timer
-pub(super) struct RetransmissionRequestListener<R>
-where
-    R: CryptoRng + Rng,
-{
-    ack_key: Arc<AckKey>,
-    ack_recipient: Recipient,
-    message_preparer: MessagePreparer<R>,
-    action_sender: ActionSender,
-    real_message_sender: BatchRealMessageSender,
+pub(super) struct RetransmissionRequestListener<R> {
+    action_sender: AckActionSender,
+    message_handler: MessageHandler<R>,
     request_receiver: RetransmissionRequestReceiver,
-    topology_access: TopologyAccessor,
+
+    // we're holding this for the purposes of retransmitting dropped reply message, but perhaps
+    // this work should be offloaded to the `ReplyController`?
+    received_reply_surbs: ReceivedReplySurbsMap,
+
+    reply_surb_request_size: u32,
 }
 
 impl<R> RetransmissionRequestListener<R>
 where
     R: CryptoRng + Rng,
 {
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
-        ack_key: Arc<AckKey>,
-        ack_recipient: Recipient,
-        message_preparer: MessagePreparer<R>,
-        action_sender: ActionSender,
-        real_message_sender: BatchRealMessageSender,
+        action_sender: AckActionSender,
+        message_handler: MessageHandler<R>,
         request_receiver: RetransmissionRequestReceiver,
-        topology_access: TopologyAccessor,
+        received_reply_surbs: ReceivedReplySurbsMap,
+        reply_surb_request_size: u32,
     ) -> Self {
         RetransmissionRequestListener {
-            ack_key,
-            ack_recipient,
-            message_preparer,
             action_sender,
-            real_message_sender,
+            message_handler,
             request_receiver,
-            topology_access,
+            received_reply_surbs,
+            reply_surb_request_size,
+        }
+    }
+
+    async fn prepare_normal_retransmission_chunk(
+        &mut self,
+        packet_recipient: Recipient,
+        chunk_data: Fragment,
+    ) -> Result<PreparedFragment, PreparationError> {
+        debug!("retransmitting normal packet...");
+
+        self.message_handler
+            .try_prepare_single_chunk_for_sending(packet_recipient, chunk_data)
+            .await
+    }
+
+    async fn prepare_reply_retransmission_chunk(
+        &mut self,
+        recipient_tag: AnonymousSenderTag,
+        extra_surb_request: bool,
+        chunk_data: Fragment,
+    ) -> Result<PreparedFragment, PreparationError> {
+        debug!("retransmitting reply packet...");
+
+        let surbs_left = self.received_reply_surbs.available_surbs(&recipient_tag);
+        trace!("{surbs_left} surbs left");
+
+        // if this is retransmission for obtaining additional reply surbs,
+        // we can dip below the storage threshold
+        let (maybe_reply_surb, surbs_left) = if extra_surb_request {
+            self.received_reply_surbs
+                .get_reply_surb_ignoring_threshold(&recipient_tag)
+        } else {
+            self.received_reply_surbs.get_reply_surb(&recipient_tag)
+        }
+        .ok_or(PreparationError::UnknownSurbSender {
+            sender_tag: recipient_tag,
+        })?;
+
+        let min_surb_threshold = self.received_reply_surbs.min_surb_threshold();
+
+        // but if it wasn't a retransmission for obtaining additional reply surbs
+        // and we're now about to go below threshold, attempt to request additional surbs
+        if !extra_surb_request && surbs_left <= (min_surb_threshold + 1) {
+            // if we're running low on surbs, we should request more (unless we've already requested them)
+            let pending_reception = self.received_reply_surbs.pending_reception(&recipient_tag);
+
+            if pending_reception < self.reply_surb_request_size {
+                trace!("requesting surbs from retransmission handler");
+
+                // TODO: is this logic for surb request possibly shared with other parts already?
+                if let Some(another_surb) = self
+                    .received_reply_surbs
+                    .get_reply_surb_ignoring_threshold(&recipient_tag)
+                    .ok_or(PreparationError::UnknownSurbSender {
+                        sender_tag: recipient_tag,
+                    })?
+                    .0
+                {
+                    if let Err(err) = self
+                        .message_handler
+                        .try_request_additional_reply_surbs(
+                            recipient_tag,
+                            another_surb,
+                            self.reply_surb_request_size,
+                        )
+                        .await
+                    {
+                        let err =
+                            err.return_unused_surbs(&self.received_reply_surbs, &recipient_tag);
+                        warn!("we failed to ask for more surbs... - {err}");
+                        // TODO: should we return here instead?
+                    }
+                    self.received_reply_surbs
+                        .increment_pending_reception(&recipient_tag, self.reply_surb_request_size)
+                        .ok_or(PreparationError::UnknownSurbSender {
+                            sender_tag: recipient_tag,
+                        })?;
+                }
+            }
+        }
+
+        let Some(reply_surb) = maybe_reply_surb else {
+            warn!("we run out of reply surbs for {:?} to retransmit our dropped message...", recipient_tag);
+            return Err(PreparationError::NotEnoughSurbs { available: 0, required: 1 })
+        };
+
+        match self
+            .message_handler
+            .try_prepare_single_reply_chunk_for_sending(reply_surb, chunk_data)
+            .await
+        {
+            Ok(prepared_fragment) => Ok(prepared_fragment),
+            Err(err) => {
+                let err = err.return_unused_surbs(&self.received_reply_surbs, &recipient_tag);
+                warn!("failed to prepare message for retransmission - {err}",);
+                Err(err)
+            }
         }
     }
 
@@ -66,29 +157,45 @@ where
                 return;
             }
         };
-        let packet_recipient = &timed_out_ack.recipient;
+
         let chunk_clone = timed_out_ack.message_chunk.clone();
         let frag_id = chunk_clone.fragment_identifier();
 
-        let topology_permit = self.topology_access.get_read_permit().await;
-        let topology_ref = match topology_permit
-            .try_get_valid_topology_ref(&self.ack_recipient, Some(packet_recipient))
-        {
-            Some(topology_ref) => topology_ref,
-            None => {
-                warn!("Could not retransmit the packet - the network topology is invalid");
+        let maybe_prepared_fragment = match &timed_out_ack.destination {
+            PacketDestination::Anonymous {
+                recipient_tag,
+                extra_surb_request,
+            } => {
+                self.prepare_reply_retransmission_chunk(
+                    *recipient_tag,
+                    *extra_surb_request,
+                    chunk_clone,
+                )
+                .await
+            }
+            PacketDestination::KnownRecipient(recipient) => {
+                self.prepare_normal_retransmission_chunk(**recipient, chunk_clone)
+                    .await
+            }
+        };
+
+        let prepared_fragment = match maybe_prepared_fragment {
+            Ok(prepared_fragment) => prepared_fragment,
+            Err(err) => {
+                warn!("Could not retransmit the packet - {err}");
                 // we NEED to start timer here otherwise we will have this guy permanently stuck in memory
+
+                // TODO: purge the entry from memory if it was an ack for reply packet and we're out of surbs
+                // self.action_sender
+                //     .unbounded_send(Action::new_remove(frag_id))
+                //     .unwrap();
+
                 self.action_sender
                     .unbounded_send(Action::new_start_timer(frag_id))
                     .unwrap();
                 return;
             }
         };
-
-        let prepared_fragment = self
-            .message_preparer
-            .prepare_chunk_for_sending(chunk_clone, topology_ref, &self.ack_key, packet_recipient)
-            .unwrap();
 
         // if we have the ONLY strong reference to the ack data, it means it was removed from the
         // pending acks
@@ -101,7 +208,6 @@ where
         // we no longer need the reference - let's drop it so that if somehow `UpdateTimer` action
         // reached the controller before this function terminated, the controller would not panic.
         drop(timed_out_ack);
-
         let new_delay = prepared_fragment.total_delay;
 
         // We know this update will be reflected by the `StartTimer` Action performed when this
@@ -116,13 +222,12 @@ where
             .unwrap();
 
         // send to `OutQueueControl` to eventually send to the mix network
-        self.real_message_sender
-            .send((
+        self.message_handler
+            .forward_messages(
                 vec![RealMessage::new(prepared_fragment.mix_packet, frag_id)],
                 TransmissionLane::Retransmission,
-            ))
+            )
             .await
-            .expect("BatchRealMessageReceiver has stopped receiving!");
     }
 
     #[cfg(not(target_arch = "wasm32"))]

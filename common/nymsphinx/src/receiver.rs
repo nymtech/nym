@@ -1,13 +1,22 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::message::{NymMessage, NymMessageError, PaddedMessage, PlainMessage};
+use crypto::aes::cipher::{KeyIvInit, StreamCipher};
 use crypto::asymmetric::encryption;
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
-use nymsphinx_anonymous_replies::reply_surb::{ReplySurb, ReplySurbError};
+use crypto::symmetric::stream_cipher::CipherKey;
+use nymsphinx_anonymous_replies::requests::AnonymousSenderTag;
+use nymsphinx_anonymous_replies::SurbEncryptionKey;
 use nymsphinx_chunking::fragment::Fragment;
 use nymsphinx_chunking::reconstruction::MessageReconstructor;
-use nymsphinx_params::{PacketEncryptionAlgorithm, PacketHkdfAlgorithm, DEFAULT_NUM_MIX_HOPS};
+use nymsphinx_chunking::ChunkingError;
+use nymsphinx_params::{
+    PacketEncryptionAlgorithm, PacketHkdfAlgorithm, ReplySurbEncryptionAlgorithm,
+    DEFAULT_NUM_MIX_HOPS,
+};
+use thiserror::Error;
 
 // TODO: should this live in this file?
 #[derive(Debug)]
@@ -15,31 +24,43 @@ pub struct ReconstructedMessage {
     /// The actual plaintext message that was received.
     pub message: Vec<u8>,
 
-    /// Optional ReplySURB to allow for an anonymous reply to the sender.
-    pub reply_surb: Option<ReplySurb>,
+    /// Optional ephemeral sender tag indicating pseudo-identity of the party who sent us the message
+    /// (alongside any reply SURBs)
+    pub sender_tag: Option<AnonymousSenderTag>,
 }
 
-#[derive(Debug)]
+impl ReconstructedMessage {
+    pub fn new(message: Vec<u8>, sender_tag: AnonymousSenderTag) -> Self {
+        Self {
+            message,
+            sender_tag: Some(sender_tag),
+        }
+    }
+}
+
+impl From<PlainMessage> for ReconstructedMessage {
+    fn from(message: PlainMessage) -> Self {
+        ReconstructedMessage {
+            message,
+            sender_tag: None,
+        }
+    }
+}
+
+#[derive(Debug, Error)]
 pub enum MessageRecoveryError {
-    InvalidSurbPrefixError,
-    MalformedSurbError(ReplySurbError),
-    InvalidRemoteEphemeralKey(encryption::KeyRecoveryError),
-    MalformedFragmentError,
-    InvalidMessagePaddingError,
-    MalformedReconstructedMessage(Vec<i32>),
-    TooShortMessageError,
-}
+    #[error("Recovered remote x25519 public key is invalid - {0}")]
+    InvalidRemoteEphemeralKey(#[from] encryption::KeyRecoveryError),
 
-impl From<ReplySurbError> for MessageRecoveryError {
-    fn from(err: ReplySurbError) -> Self {
-        MessageRecoveryError::MalformedSurbError(err)
-    }
-}
+    #[error("The reconstructed message was malformed - {source}")]
+    MalformedReconstructedMessage {
+        #[source]
+        source: NymMessageError,
+        used_sets: Vec<i32>,
+    },
 
-impl From<encryption::KeyRecoveryError> for MessageRecoveryError {
-    fn from(err: encryption::KeyRecoveryError) -> Self {
-        MessageRecoveryError::InvalidRemoteEphemeralKey(err)
-    }
+    #[error("Failed to recover message fragment - {0}")]
+    FragmentRecoveryError(#[from] ChunkingError),
 }
 
 pub struct MessageReceiver {
@@ -64,36 +85,34 @@ impl MessageReceiver {
         self
     }
 
-    /// Parses the message to strip and optionally recover reply SURB.
-    fn recover_reply_surb_from_message(
-        &self,
-        message: &mut Vec<u8>,
-    ) -> Result<Option<ReplySurb>, MessageRecoveryError> {
-        match message[0] {
-            n if n == false as u8 => {
-                message.remove(0);
-                Ok(None)
-            }
-            n if n == true as u8 => {
-                let surb_len: usize = ReplySurb::serialized_len(self.num_mix_hops);
-                // note the extra +1 (due to 0/1 message prefix)
-                let surb_bytes = &message[1..1 + surb_len];
-                let reply_surb = ReplySurb::from_bytes(surb_bytes)?;
+    fn decrypt_raw_message<C>(&self, message: &mut [u8], key: &CipherKey<C>)
+    where
+        C: StreamCipher + KeyIvInit,
+    {
+        let zero_iv = stream_cipher::zero_iv::<C>();
+        stream_cipher::decrypt_in_place::<C>(key, &zero_iv, message)
+    }
 
-                *message = message.drain(1 + surb_len..).collect();
-                Ok(Some(reply_surb))
-            }
-            _ => Err(MessageRecoveryError::InvalidSurbPrefixError),
-        }
+    /// Given raw fragment data, **WITH KEY DIGEST PREFIX ALREADY REMOVED!!**, uses looked up
+    /// key to decrypt fragment data
+    pub fn recover_plaintext_from_reply(
+        &self,
+        reply_ciphertext: &mut [u8],
+        reply_key: SurbEncryptionKey,
+    ) {
+        self.decrypt_raw_message::<ReplySurbEncryptionAlgorithm>(
+            reply_ciphertext,
+            reply_key.inner(),
+        )
     }
 
     /// Given raw fragment data, recovers the remote ephemeral key, recomputes shared secret,
     /// uses it to decrypt fragment data
-    pub fn recover_plaintext(
+    pub fn recover_plaintext_from_regular_packet<'a>(
         &self,
         local_key: &encryption::PrivateKey,
-        mut raw_enc_frag: Vec<u8>,
-    ) -> Result<Vec<u8>, MessageRecoveryError> {
+        raw_enc_frag: &'a mut [u8],
+    ) -> Result<&'a mut [u8], MessageRecoveryError> {
         // 1. recover remote encryption key
         let remote_key_bytes = &raw_enc_frag[..encryption::PUBLIC_KEY_SIZE];
         let remote_ephemeral_key = encryption::PublicKey::from_bytes(remote_key_bytes)?;
@@ -105,33 +124,17 @@ impl MessageReceiver {
         );
 
         // 3. decrypt fragment data
-        let fragment_bytes = &mut raw_enc_frag[encryption::PUBLIC_KEY_SIZE..];
+        let fragment_ciphertext = &mut raw_enc_frag[encryption::PUBLIC_KEY_SIZE..];
 
-        let zero_iv = stream_cipher::zero_iv::<PacketEncryptionAlgorithm>();
-        Ok(stream_cipher::decrypt::<PacketEncryptionAlgorithm>(
-            &encryption_key,
-            &zero_iv,
-            fragment_bytes,
-        ))
+        self.decrypt_raw_message::<PacketEncryptionAlgorithm>(fragment_ciphertext, &encryption_key);
+        let fragment_data = fragment_ciphertext;
+
+        Ok(fragment_data)
     }
 
     /// Given fragment data recovers [`Fragment`] itself.
     pub fn recover_fragment(&self, frag_data: &[u8]) -> Result<Fragment, MessageRecoveryError> {
-        Fragment::try_from_bytes(frag_data)
-            .map_err(|_| MessageRecoveryError::MalformedFragmentError)
-    }
-
-    /// Removes the zero padding from the message that was initially included to ensure same length
-    /// sphinx payloads.
-    pub fn remove_padding(message: &mut Vec<u8>) -> Result<(), MessageRecoveryError> {
-        // we are looking for first occurrence of 1 in the tail and we get its index
-        if let Some(i) = message.iter().rposition(|b| *b == 1) {
-            // and now we only take bytes until that point (but not including it)
-            *message = message.drain(..i).collect();
-            Ok(())
-        } else {
-            Err(MessageRecoveryError::InvalidMessagePaddingError)
-        }
+        Ok(Fragment::try_from_bytes(frag_data)?)
     }
 
     /// Inserts given [`Fragment`] into the reconstructor.
@@ -144,30 +147,15 @@ impl MessageReceiver {
     pub fn insert_new_fragment(
         &mut self,
         fragment: Fragment,
-    ) -> Result<Option<(ReconstructedMessage, Vec<i32>)>, MessageRecoveryError> {
-        if let Some((mut message, used_sets)) = self.reconstructor.insert_new_fragment(fragment) {
-            // Split message into plaintext and reply-SURB
-            let reply_surb = match self.recover_reply_surb_from_message(&mut message) {
-                Ok(reply_surb) => reply_surb,
-                Err(_) => {
-                    return Err(MessageRecoveryError::MalformedReconstructedMessage(
-                        used_sets,
-                    ));
-                }
-            };
-
-            // Finally, remove the zero padding from the message
-            Self::remove_padding(&mut message).map_err(|_| {
-                MessageRecoveryError::MalformedReconstructedMessage(used_sets.clone())
-            })?;
-
-            Ok(Some((
-                ReconstructedMessage {
-                    message,
-                    reply_surb,
-                },
-                used_sets,
-            )))
+    ) -> Result<Option<(NymMessage, Vec<i32>)>, MessageRecoveryError> {
+        if let Some((message, used_sets)) = self.reconstructor.insert_new_fragment(fragment) {
+            match PaddedMessage::new_reconstructed(message).remove_padding(self.num_mix_hops) {
+                Ok(message) => Ok(Some((message, used_sets))),
+                Err(err) => Err(MessageRecoveryError::MalformedReconstructedMessage {
+                    source: err,
+                    used_sets,
+                }),
+            }
         } else {
             Ok(None)
         }
@@ -188,10 +176,7 @@ mod message_receiver {
     use super::*;
     use crypto::asymmetric::identity;
     use mixnet_contract_common::Layer;
-    use nymsphinx_addressing::clients::Recipient;
-    use rand::rngs::OsRng;
     use std::collections::HashMap;
-    use std::time::Duration;
     use topology::{gateway, mix, NymTopology};
 
     // TODO: is it somehow maybe possible to move it to `topology` and have if conditionally
@@ -281,42 +266,5 @@ mod message_receiver {
                 version: "0.8.0-dev".to_string(),
             }],
         )
-    }
-
-    #[test]
-    fn correctly_splits_message_into_plaintext_and_surb() {
-        let message_receiver: MessageReceiver = Default::default();
-
-        // the actual 'correctness' of the underlying message doesn't matter for this test
-        let message = vec![42; 100];
-        let dummy_recipient = Recipient::try_from_base58_string("CytBseW6yFXUMzz4SGAKdNLGR7q3sJLLYxyBGvutNEQV.4QXYyEVc5fUDjmmi8PrHN9tdUFV4PCvSJE1278cHyvoe@FioFa8nMmPpQnYi7JyojoTuwGLeyNS8BF4ChPr29zUML").unwrap();
-        let average_delay = Duration::from_millis(500);
-        let topology = topology_fixture();
-
-        let reply_surb =
-            ReplySurb::construct(&mut OsRng, &dummy_recipient, average_delay, &topology).unwrap();
-
-        let reply_surb_bytes = reply_surb.to_bytes();
-
-        // this is not exactly what is 'received' but rather after "some" processing, however,
-        // this is the expected argument to the function
-        let mut received_without_surb: Vec<_> =
-            std::iter::once(0).chain(message.iter().cloned()).collect();
-
-        let reply_surb = message_receiver
-            .recover_reply_surb_from_message(&mut received_without_surb)
-            .unwrap();
-        assert_eq!(received_without_surb, message);
-        assert!(reply_surb.is_none());
-
-        let mut received_with_surb: Vec<_> = std::iter::once(1)
-            .chain(reply_surb_bytes.iter().cloned())
-            .chain(message.iter().cloned())
-            .collect();
-        let reply_surb = message_receiver
-            .recover_reply_surb_from_message(&mut received_with_surb)
-            .unwrap();
-        assert_eq!(received_with_surb, message);
-        assert_eq!(reply_surb_bytes, reply_surb.unwrap().to_bytes());
     }
 }

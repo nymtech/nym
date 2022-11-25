@@ -8,6 +8,11 @@
 use self::{
     acknowledgement_control::AcknowledgementController, real_traffic_stream::OutQueueControl,
 };
+use crate::client::real_messages_control::message_handler::MessageHandler;
+use crate::client::replies::reply_controller::{
+    ReplyController, ReplyControllerReceiver, ReplyControllerSender,
+};
+use crate::client::replies::reply_storage::CombinedReplyStorage;
 use crate::{
     client::{
         inbound_messages::InputMessageReceiver, mix_traffic::BatchMixMessageSender,
@@ -23,15 +28,19 @@ use log::*;
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::params::PacketSize;
+use nymsphinx::preparer::MessagePreparer;
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 use std::time::Duration;
 
-#[cfg(feature = "reply-surb")]
-use crate::client::reply_key_storage::ReplyKeyStorage;
+use crate::config;
+pub(crate) use acknowledgement_control::{AckActionSender, Action};
+// #[cfg(feature = "reply-surb")]
+// use crate::client::reply_key_storage::ReplyKeyStorage;
 
-mod acknowledgement_control;
-mod real_traffic_stream;
+pub(crate) mod acknowledgement_control;
+pub(crate) mod message_handler;
+pub(crate) mod real_traffic_stream;
 
 // TODO: ack_key and self_recipient shouldn't really be part of this config
 pub struct Config {
@@ -62,31 +71,51 @@ pub struct Config {
 
     /// Predefined packet size used for the encapsulated messages.
     packet_size: PacketSize,
+
+    /// Defines the minimum number of reply surbs the client would request.
+    minimum_reply_surb_request_size: u32,
+
+    /// Defines the maximum number of reply surbs the client would request.
+    maximum_reply_surb_request_size: u32,
+
+    /// Defines the maximum number of reply surbs a remote party is allowed to request from this client at once.
+    maximum_allowed_reply_surb_request_size: u32,
+
+    /// Defines the amount of reply surbs that the client is going to request when it runs out while attempting to retransmit packets.
+    retransmission_reply_surb_request_size: u32,
+
+    /// Defines maximum amount of time the client is going to wait for reply surbs before explicitly asking
+    /// for more even though in theory they wouldn't need to.
+    maximum_reply_surb_waiting_period: Duration,
 }
 
 impl Config {
-    // TODO: change the config into a builder
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
+        base_client_debug_config: &config::Debug,
         ack_key: Arc<AckKey>,
-        ack_wait_multiplier: f64,
-        ack_wait_addition: Duration,
-        average_ack_delay_duration: Duration,
-        average_message_sending_delay: Duration,
-        average_packet_delay_duration: Duration,
-        disable_main_poisson_packet_distribution: bool,
         self_recipient: Recipient,
     ) -> Self {
         Config {
             ack_key,
-            ack_wait_addition,
-            ack_wait_multiplier,
             self_recipient,
-            average_message_sending_delay,
-            average_packet_delay_duration,
-            average_ack_delay_duration,
-            disable_main_poisson_packet_distribution,
             packet_size: Default::default(),
+            ack_wait_addition: base_client_debug_config.ack_wait_addition,
+            ack_wait_multiplier: base_client_debug_config.ack_wait_multiplier,
+            average_message_sending_delay: base_client_debug_config.message_sending_average_delay,
+            average_packet_delay_duration: base_client_debug_config.average_packet_delay,
+            average_ack_delay_duration: base_client_debug_config.average_ack_delay,
+            disable_main_poisson_packet_distribution: base_client_debug_config
+                .disable_main_poisson_packet_distribution,
+            minimum_reply_surb_request_size: base_client_debug_config
+                .minimum_reply_surb_request_size,
+            maximum_reply_surb_request_size: base_client_debug_config
+                .maximum_reply_surb_request_size,
+            maximum_allowed_reply_surb_request_size: base_client_debug_config
+                .maximum_allowed_reply_surb_request_size,
+            retransmission_reply_surb_request_size: base_client_debug_config
+                .retransmission_reply_surb_request_size,
+            maximum_reply_surb_waiting_period: base_client_debug_config
+                .maximum_reply_surb_waiting_period,
         }
     }
 
@@ -101,6 +130,7 @@ where
 {
     out_queue_control: OutQueueControl<R>,
     ack_control: AcknowledgementController<R>,
+    reply_control: ReplyController<R>,
 }
 
 // obviously when we finally make shared rng that is on 'higher' level, this should become
@@ -113,7 +143,10 @@ impl RealMessagesController<OsRng> {
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
         topology_access: TopologyAccessor,
-        #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
+        reply_storage: CombinedReplyStorage,
+        // so much refactoring needed, but this is temporary just to test things out
+        reply_controller_sender: ReplyControllerSender,
+        reply_controller_receiver: ReplyControllerReceiver,
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
     ) -> Self {
@@ -121,31 +154,61 @@ impl RealMessagesController<OsRng> {
 
         let (real_message_sender, real_message_receiver) = tokio::sync::mpsc::channel(1);
         let (sent_notifier_tx, sent_notifier_rx) = mpsc::unbounded();
+        let (ack_action_tx, ack_action_rx) = mpsc::unbounded();
 
         let ack_controller_connectors = AcknowledgementControllerConnectors::new(
-            real_message_sender,
             input_receiver,
             sent_notifier_rx,
             ack_receiver,
+            ack_action_tx.clone(),
+            ack_action_rx,
         );
 
         let ack_control_config = acknowledgement_control::Config::new(
             config.ack_wait_addition,
             config.ack_wait_multiplier,
-            config.average_ack_delay_duration,
-            config.average_packet_delay_duration,
+            config.retransmission_reply_surb_request_size,
         )
         .with_custom_packet_size(config.packet_size);
 
-        let ack_control = AcknowledgementController::new(
-            ack_control_config,
+        // TODO: construct MessagePreparer itself inside the MessageHandler
+        let message_preparer = MessagePreparer::new(
             rng,
-            topology_access.clone(),
+            config.self_recipient,
+            config.average_packet_delay_duration,
+            config.average_ack_delay_duration,
+        )
+        .with_custom_real_message_packet_size(config.packet_size);
+        let message_handler = MessageHandler::new(
+            rng,
             Arc::clone(&config.ack_key),
             config.self_recipient,
+            message_preparer,
+            ack_action_tx,
+            real_message_sender,
+            topology_access.clone(),
+            reply_storage.key_storage(),
+            reply_storage.tags_storage(),
+        );
+
+        let reply_control = ReplyController::new(
+            message_handler.clone(),
+            reply_storage.surbs_storage(),
+            reply_storage.tags_storage(),
+            reply_controller_receiver,
+            config.minimum_reply_surb_request_size,
+            config.maximum_reply_surb_request_size,
+            config.maximum_allowed_reply_surb_request_size,
+            config.maximum_reply_surb_waiting_period,
+        );
+
+        let ack_control = AcknowledgementController::new(
+            ack_control_config,
+            Arc::clone(&config.ack_key),
             ack_controller_connectors,
-            #[cfg(feature = "reply-surb")]
-            reply_key_storage,
+            message_handler,
+            reply_controller_sender,
+            reply_storage.surbs_storage(),
         );
 
         let out_queue_config = real_traffic_stream::Config::new(
@@ -158,7 +221,7 @@ impl RealMessagesController<OsRng> {
 
         let out_queue_control = OutQueueControl::new(
             out_queue_config,
-            Arc::clone(&config.ack_key),
+            config.ack_key,
             sent_notifier_tx,
             mix_sender,
             real_message_receiver,
@@ -172,6 +235,7 @@ impl RealMessagesController<OsRng> {
         RealMessagesController {
             out_queue_control,
             ack_control,
+            reply_control,
         }
     }
 
@@ -179,12 +243,19 @@ impl RealMessagesController<OsRng> {
     pub fn start_with_shutdown(self, shutdown: task::ShutdownListener) {
         let mut out_queue_control = self.out_queue_control;
         let ack_control = self.ack_control;
+        let mut reply_control = self.reply_control;
 
         let shutdown_handle = shutdown.clone();
         spawn_future(async move {
             out_queue_control.run_with_shutdown(shutdown_handle).await;
             debug!("The out queue controller has finished execution!");
         });
+        let shutdown_handle = shutdown.clone();
+        spawn_future(async move {
+            reply_control.run_with_shutdown(shutdown_handle).await;
+            debug!("The reply controller has finished execution!");
+        });
+
         ack_control.start_with_shutdown(shutdown);
     }
 
@@ -192,10 +263,15 @@ impl RealMessagesController<OsRng> {
     pub fn start(self) {
         let mut out_queue_control = self.out_queue_control;
         let ack_control = self.ack_control;
+        let mut reply_control = self.reply_control;
 
         spawn_future(async move {
             out_queue_control.run().await;
             debug!("The out queue controller has finished execution!");
+        });
+        spawn_future(async move {
+            reply_control.run().await;
+            debug!("The reply controller has finished execution!");
         });
         ack_control.start();
     }

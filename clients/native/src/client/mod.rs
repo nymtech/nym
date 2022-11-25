@@ -1,6 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::config::{Config, SocketType};
+use crate::error::ClientError;
+use crate::websocket;
 use client_connections::{
     ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths, TransmissionLane,
 };
@@ -16,7 +19,11 @@ use client_core::client::received_buffer::{
     ReceivedBufferMessage, ReceivedBufferRequestReceiver, ReceivedBufferRequestSender,
     ReceivedMessagesBufferController, ReconstructedMessagesReceiver,
 };
-use client_core::client::reply_key_storage::ReplyKeyStorage;
+use client_core::client::replies::reply_controller;
+use client_core::client::replies::reply_controller::{
+    ReplyControllerReceiver, ReplyControllerSender,
+};
+use client_core::client::replies::reply_storage::{CombinedReplyStorage, SentReplyKeys};
 use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
@@ -32,14 +39,9 @@ use gateway_client::{
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
-use nymsphinx::anonymous_replies::ReplySurb;
+use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::receiver::ReconstructedMessage;
-use tap::TapFallible;
 use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
-
-use crate::client::config::{Config, SocketType};
-use crate::error::ClientError;
-use crate::websocket;
 
 pub(crate) mod config;
 
@@ -118,24 +120,19 @@ impl NymClient {
     fn start_real_traffic_controller(
         &self,
         topology_accessor: TopologyAccessor,
-        reply_key_storage: ReplyKeyStorage,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
+        reply_storage: CombinedReplyStorage,
+        reply_controller_sender: ReplyControllerSender,
+        reply_controller_receiver: ReplyControllerReceiver,
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
         shutdown: ShutdownListener,
     ) {
         let mut controller_config = real_messages_control::Config::new(
+            self.config.get_debug_settings(),
             self.key_manager.ack_key(),
-            self.config.get_base().get_ack_wait_multiplier(),
-            self.config.get_base().get_ack_wait_addition(),
-            self.config.get_base().get_average_ack_delay(),
-            self.config.get_base().get_message_sending_average_delay(),
-            self.config.get_base().get_average_packet_delay(),
-            self.config
-                .get_base()
-                .get_disabled_main_poisson_packet_distribution(),
             self.as_mix_recipient(),
         );
 
@@ -152,7 +149,9 @@ impl NymClient {
             input_receiver,
             mix_sender,
             topology_accessor,
-            reply_key_storage,
+            reply_storage,
+            reply_controller_sender,
+            reply_controller_receiver,
             lane_queue_lengths,
             client_connection_rx,
         )
@@ -165,7 +164,8 @@ impl NymClient {
         &self,
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_receiver: MixnetMessageReceiver,
-        reply_key_storage: ReplyKeyStorage,
+        reply_key_storage: SentReplyKeys,
+        reply_controller_sender: ReplyControllerSender,
         shutdown: ShutdownListener,
     ) {
         info!("Starting received messages buffer controller...");
@@ -174,6 +174,7 @@ impl NymClient {
             query_receiver,
             mixnet_receiver,
             reply_key_storage,
+            reply_controller_sender,
         )
         .start_with_shutdown(shutdown)
     }
@@ -318,14 +319,9 @@ impl NymClient {
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
-    pub async fn send_message(
-        &mut self,
-        recipient: Recipient,
-        message: Vec<u8>,
-        with_reply_surb: bool,
-    ) {
+    pub async fn send_regular_message(&mut self, recipient: Recipient, message: Vec<u8>) {
         let lane = TransmissionLane::General;
-        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb, lane);
+        let input_msg = InputMessage::new_regular(recipient, message, lane);
 
         self.input_tx
             .as_ref()
@@ -338,8 +334,29 @@ impl NymClient {
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
-    pub async fn send_reply(&mut self, reply_surb: ReplySurb, message: Vec<u8>) {
-        let input_msg = InputMessage::new_reply(reply_surb, message);
+    pub async fn send_anonymous_message(
+        &mut self,
+        recipient: Recipient,
+        message: Vec<u8>,
+        reply_surbs: u32,
+    ) {
+        let lane = TransmissionLane::General;
+        let input_msg = InputMessage::new_anonymous(recipient, message, reply_surbs, lane);
+
+        self.input_tx
+            .as_ref()
+            .expect("start method was not called before!")
+            .send(input_msg)
+            .await
+            .expect("InputMessageReceiver has stopped receiving!");
+    }
+
+    /// EXPERIMENTAL DIRECT RUST API
+    /// It's untested and there are absolutely no guarantees about it (but seems to have worked
+    /// well enough in local tests)
+    pub async fn send_reply(&mut self, recipient_tag: AnonymousSenderTag, message: Vec<u8>) {
+        let lane = TransmissionLane::General;
+        let input_msg = InputMessage::new_reply(recipient_tag, message, lane);
 
         self.input_tx
             .as_ref()
@@ -409,15 +426,28 @@ impl NymClient {
         let (ack_sender, ack_receiver) = mpsc::unbounded();
         let shared_topology_accessor = TopologyAccessor::new();
 
-        let reply_key_storage =
-            ReplyKeyStorage::load(self.config.get_base().get_reply_encryption_key_store_path())
-                .tap_err(|err| {
-                    log::error!("Failed to load reply key storage - is it perhaps already in use?");
-                    log::error!("{}", err);
-                })?;
+        // channels responsible for dealing with reply-related fun
+        let (reply_controller_sender, reply_controller_receiver) =
+            reply_controller::new_control_channels();
 
         // Shutdown notifier for signalling tasks to stop
         let shutdown = ShutdownNotifier::default();
+
+        // =====================
+        // =====================
+        // ======TEMPORARY======
+        // =====================
+        // =====================
+        // TODO: lower the value and improve the reliability when it's low (because it should still work in that case)
+        // (it goes insane at 10,200)
+        let reply_storage = CombinedReplyStorage::new(
+            self.config
+                .get_base()
+                .get_minimum_reply_surb_storage_threshold(),
+            self.config
+                .get_base()
+                .get_maximum_reply_surb_storage_threshold(),
+        );
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
@@ -426,7 +456,8 @@ impl NymClient {
         self.start_received_messages_buffer_controller(
             received_buffer_request_receiver,
             mixnet_messages_receiver,
-            reply_key_storage.clone(),
+            reply_storage.key_storage(),
+            reply_controller_sender.clone(),
             shutdown.subscribe(),
         );
 
@@ -451,10 +482,12 @@ impl NymClient {
 
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
-            reply_key_storage,
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
+            reply_storage,
+            reply_controller_sender,
+            reply_controller_receiver,
             shared_lane_queue_lengths.clone(),
             client_connection_rx,
             shutdown.subscribe(),

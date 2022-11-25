@@ -61,7 +61,7 @@ pub enum ClientRequest {
     Send {
         recipient: Recipient,
         message: Vec<u8>,
-        connection_id: u64,
+        connection_id: Option<u64>,
     },
 
     /// Create a message used for a duplex anonymous communication where the recipient
@@ -76,7 +76,7 @@ pub enum ClientRequest {
         recipient: Recipient,
         message: Vec<u8>,
         reply_surbs: u32,
-        connection_id: u64,
+        connection_id: Option<u64>,
     },
 
     /// Attempt to use our internally received and stored `ReplySurb` to send the message back
@@ -86,7 +86,7 @@ pub enum ClientRequest {
     Reply {
         sender_tag: AnonymousSenderTag,
         message: Vec<u8>,
-        connection_id: u64,
+        connection_id: Option<u64>,
     },
 
     SelfAddress,
@@ -100,9 +100,9 @@ pub enum ClientRequest {
 // information about whether it came from binary or text to send appropriate response back
 impl ClientRequest {
     // SEND_REQUEST_TAG || recipient || conn_id || data_len || data
-    fn serialize_send(recipient: Recipient, data: Vec<u8>, connection_id: u64) -> Vec<u8> {
+    fn serialize_send(recipient: Recipient, data: Vec<u8>, connection_id: Option<u64>) -> Vec<u8> {
         let data_len_bytes = (data.len() as u64).to_be_bytes();
-        let conn_id_bytes = connection_id.to_be_bytes();
+        let conn_id_bytes = connection_id.unwrap_or(0).to_be_bytes();
 
         std::iter::once(ClientRequestTag::Send as u8)
             .chain(recipient.to_bytes().into_iter()) // will not be length prefixed because the length is constant
@@ -141,6 +141,11 @@ impl ClientRequest {
         connection_id_bytes
             .copy_from_slice(&b[1 + Recipient::LEN..1 + Recipient::LEN + size_of::<u64>()]);
         let connection_id = u64::from_be_bytes(connection_id_bytes);
+        let connection_id = if connection_id == 0 {
+            None
+        } else {
+            Some(connection_id)
+        };
 
         let data_len_bytes =
             &b[1 + Recipient::LEN + size_of::<u64>()..1 + Recipient::LEN + 2 * size_of::<u64>()];
@@ -169,10 +174,10 @@ impl ClientRequest {
         recipient: Recipient,
         data: Vec<u8>,
         reply_surbs: u32,
-        connection_id: u64,
+        connection_id: Option<u64>,
     ) -> Vec<u8> {
         let data_len_bytes = (data.len() as u64).to_be_bytes();
-        let conn_id_bytes = connection_id.to_be_bytes();
+        let conn_id_bytes = connection_id.unwrap_or(0).to_be_bytes();
 
         std::iter::once(ClientRequestTag::SendAnonymous as u8)
             .chain(reply_surbs.to_be_bytes().into_iter())
@@ -214,6 +219,11 @@ impl ClientRequest {
         connection_id_bytes
             .copy_from_slice(&b[5 + Recipient::LEN..5 + Recipient::LEN + size_of::<u64>()]);
         let connection_id = u64::from_be_bytes(connection_id_bytes);
+        let connection_id = if connection_id == 0 {
+            None
+        } else {
+            Some(connection_id)
+        };
 
         let data_len_bytes =
             &b[5 + Recipient::LEN + size_of::<u64>()..5 + Recipient::LEN + 2 * size_of::<u64>()];
@@ -242,10 +252,10 @@ impl ClientRequest {
     fn serialize_reply(
         message: Vec<u8>,
         sender_tag: AnonymousSenderTag,
-        connection_id: u64,
+        connection_id: Option<u64>,
     ) -> Vec<u8> {
         let message_len_bytes = (message.len() as u64).to_be_bytes();
-        let conn_id_bytes = connection_id.to_be_bytes();
+        let conn_id_bytes = connection_id.unwrap_or(0).to_be_bytes();
 
         std::iter::once(ClientRequestTag::Reply as u8)
             .chain(sender_tag.into_iter())
@@ -274,6 +284,11 @@ impl ClientRequest {
         connection_id_bytes
             .copy_from_slice(&b[1 + SENDER_TAG_SIZE..1 + SENDER_TAG_SIZE + size_of::<u64>()]);
         let connection_id = u64::from_be_bytes(connection_id_bytes);
+        let connection_id = if connection_id == 0 {
+            None
+        } else {
+            Some(connection_id)
+        };
 
         let message_len = u64::from_be_bytes(
             b[1 + SENDER_TAG_SIZE + size_of::<u64>()..1 + SENDER_TAG_SIZE + 2 * size_of::<u64>()]
@@ -445,7 +460,7 @@ mod tests {
         let send_request = ClientRequest::Send {
             recipient,
             message: b"foomp".to_vec(),
-            connection_id: 42,
+            connection_id: Some(42),
         };
 
         let bytes = send_request.serialize();
@@ -458,7 +473,7 @@ mod tests {
             } => {
                 assert_eq!(recipient.to_string(), recipient_string);
                 assert_eq!(message, b"foomp".to_vec());
-                assert_eq!(connection_id, 42)
+                assert_eq!(connection_id, Some(42))
             }
             _ => unreachable!(),
         }
@@ -472,7 +487,7 @@ mod tests {
             recipient: original_recipient,
             message: b"foomp".to_vec(),
             reply_surbs: 666,
-            connection_id: 42,
+            connection_id: Some(42),
         };
 
         let bytes = send_anonymous_request.serialize();
@@ -486,7 +501,7 @@ mod tests {
             } => {
                 assert_eq!(recipient, original_recipient);
                 assert_eq!(message, b"foomp".to_vec());
-                assert_eq!(connection_id, 42);
+                assert_eq!(connection_id, Some(42));
                 assert_eq!(reply_surbs, 666)
             }
             _ => unreachable!(),
@@ -498,7 +513,7 @@ mod tests {
         let reply_request = ClientRequest::Reply {
             sender_tag: [8u8; SENDER_TAG_SIZE],
             message: b"foomp".to_vec(),
-            connection_id: 42,
+            connection_id: Some(42),
         };
 
         let bytes = reply_request.serialize();
@@ -511,7 +526,7 @@ mod tests {
             } => {
                 assert_eq!(sender_tag, [8u8; SENDER_TAG_SIZE]);
                 assert_eq!(message, b"foomp".to_vec());
-                assert_eq!(connection_id, 42);
+                assert_eq!(connection_id, Some(42));
             }
             _ => unreachable!(),
         }

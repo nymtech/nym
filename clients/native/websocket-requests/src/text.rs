@@ -19,20 +19,20 @@ pub(super) enum ClientRequestText {
     Send {
         message: String,
         recipient: String,
-        connection_id: u64,
+        connection_id: Option<u64>,
     },
     #[serde(rename_all = "camelCase")]
     SendAnonymous {
         recipient: String,
         message: String,
         reply_surbs: u32,
-        connection_id: u64,
+        connection_id: Option<u64>,
     },
     #[serde(rename_all = "camelCase")]
     Reply {
         sender_tag: AnonymousSenderTag,
         message: String,
-        connection_id: u64,
+        connection_id: Option<u64>,
     },
     SelfAddress,
 }

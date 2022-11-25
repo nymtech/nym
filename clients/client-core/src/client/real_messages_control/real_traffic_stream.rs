@@ -16,13 +16,13 @@ use nymsphinx::chunking::fragment::FragmentIdentifier;
 use nymsphinx::cover::generate_loop_cover_packet;
 use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::params::PacketSize;
+use nymsphinx::preparer::PreparedFragment;
 use nymsphinx::utils::sample_poisson_duration;
 use rand::{CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::time::Duration;
 
-use nymsphinx::preparer::PreparedFragment;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time;
 
@@ -484,6 +484,19 @@ where
             format!(
                 "Status: {lanes} lanes, backlog: {:.2} kiB ({packets}), avg delay: {}ms ({mult})",
                 backlog, delay
+            )
+        };
+        if packets > 1000 {
+            log::warn!("{status_str}");
+        } else if packets > 0 {
+            log::info!("{status_str}");
+        } else {
+            log::debug!("{status_str}");
+        }
+        if self.sending_delay_controller.current_multiplier() > 1 {
+            log::warn!(
+                "Unable to send packets fast enough - sending delay multiplier set to: {}",
+                self.sending_delay_controller.current_multiplier()
             )
         };
         if packets > 1000 {

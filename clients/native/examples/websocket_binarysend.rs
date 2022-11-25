@@ -44,7 +44,7 @@ async fn send_file_with_reply() {
     //     recipient,
     //     message: read_data,
     //     with_reply_surb: true,
-    //     connection_id: 0,
+    //     connection_id: Some(0),
     // };
     //
     // println!("sending content of 'dummy_file' over the mix network...");
@@ -92,7 +92,7 @@ async fn send_file_without_reply() {
     let send_request = ClientRequest::Send {
         recipient,
         message: read_data,
-        connection_id: 0,
+        connection_id: Some(0),
     };
 
     println!("sending content of 'dummy_file' over the mix network...");

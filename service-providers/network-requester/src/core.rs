@@ -82,12 +82,12 @@ impl ReturnAddress {
             ReturnAddress::Known(recipient) => ClientRequest::Send {
                 recipient: *recipient,
                 message,
-                connection_id,
+                connection_id: Some(connection_id),
             },
             ReturnAddress::Anonymous(sender_tag) => ClientRequest::Reply {
                 message,
                 sender_tag,
-                connection_id,
+                connection_id: Some(connection_id),
             },
         }
     }

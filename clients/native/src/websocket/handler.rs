@@ -91,20 +91,33 @@ impl Handler {
         &mut self,
         recipient: Recipient,
         message: Vec<u8>,
-        connection_id: u64,
+        connection_id: Option<u64>,
     ) -> Option<ServerResponse> {
         info!(
-            "Attempting to send {:.2} kiB message to {recipient} on connection_id {connection_id}",
+            "Attempting to send {:.2} kiB message to {recipient} on connection_id {connection_id:?}",
             message.len() as f64 / 1024.0
         );
 
+        // We map the absence of a connection id as going into the general lane.
+        let lane = connection_id.map_or(TransmissionLane::General, |id| {
+            TransmissionLane::ConnectionId(id)
+        });
+
         // the ack control is now responsible for chunking, etc.
-        let lane = TransmissionLane::ConnectionId(connection_id);
         let input_msg = InputMessage::new_regular(recipient, message, lane);
         self.msg_input
             .send(input_msg)
             .await
             .expect("InputMessageReceiver has stopped receiving!");
+
+        // Only reply back with a `LaneQueueLength` if the sender providided a connection id
+        let connection_id = match lane {
+            TransmissionLane::General
+            | TransmissionLane::ReplySurbRequest
+            | TransmissionLane::Retransmission
+            | TransmissionLane::AdditionalReplySurbs => return None,
+            TransmissionLane::ConnectionId(id) => id,
+        };
 
         // on receiving a send, we reply back the current lane queue length for that connection id.
         // Note that this does _NOT_ take into account the packets that have been received but not
@@ -126,19 +139,32 @@ impl Handler {
         recipient: Recipient,
         message: Vec<u8>,
         reply_surbs: u32,
-        connection_id: u64,
+        connection_id: Option<u64>,
     ) -> Option<ServerResponse> {
         info!(
-            "Attempting to anonymously send {:.2} kiB message to {recipient} on connection_id {connection_id} while attaching {reply_surbs} replySURBs.",
+            "Attempting to anonymously send {:.2} kiB message to {recipient} on connection_id {connection_id:?} while attaching {reply_surbs} replySURBs.",
             message.len() as f64 / 1024.0
         );
 
-        let lane = TransmissionLane::ConnectionId(connection_id);
+        // We map the absence of a connection id as going into the general lane.
+        let lane = connection_id.map_or(TransmissionLane::General, |id| {
+            TransmissionLane::ConnectionId(id)
+        });
+
         let input_msg = InputMessage::new_anonymous(recipient, message, reply_surbs, lane);
         self.msg_input
             .send(input_msg)
             .await
             .expect("InputMessageReceiver has stopped receiving!");
+
+        // Only reply back with a `LaneQueueLength` if the sender providided a connection id
+        let connection_id = match lane {
+            TransmissionLane::General
+            | TransmissionLane::ReplySurbRequest
+            | TransmissionLane::Retransmission
+            | TransmissionLane::AdditionalReplySurbs => return None,
+            TransmissionLane::ConnectionId(id) => id,
+        };
 
         // on receiving a send, we reply back the current lane queue length for that connection id.
         // Note that this does _NOT_ take into account the packets that have been received but not
@@ -159,16 +185,29 @@ impl Handler {
         &mut self,
         recipient_tag: AnonymousSenderTag,
         message: Vec<u8>,
-        connection_id: u64,
+        connection_id: Option<u64>,
     ) -> Option<ServerResponse> {
-        info!("Attempting to send {:.2} kiB reply message to {recipient_tag:?} on connection_id {connection_id}", message.len() as f64 / 1024.0);
+        info!("Attempting to send {:.2} kiB reply message to {recipient_tag:?} on connection_id {connection_id:?}", message.len() as f64 / 1024.0);
 
-        let lane = TransmissionLane::ConnectionId(connection_id);
+        // We map the absence of a connection id as going into the general lane.
+        let lane = connection_id.map_or(TransmissionLane::General, |id| {
+            TransmissionLane::ConnectionId(id)
+        });
+
         let input_msg = InputMessage::new_reply(recipient_tag, message, lane);
         self.msg_input
             .send(input_msg)
             .await
             .expect("InputMessageReceiver has stopped receiving!");
+
+        // Only reply back with a `LaneQueueLength` if the sender providided a connection id
+        let connection_id = match lane {
+            TransmissionLane::General
+            | TransmissionLane::ReplySurbRequest
+            | TransmissionLane::Retransmission
+            | TransmissionLane::AdditionalReplySurbs => return None,
+            TransmissionLane::ConnectionId(id) => id,
+        };
 
         // on receiving a send, we reply back the current lane queue length for that connection id.
         // Note that this does _NOT_ take into account the packets that have been received but not

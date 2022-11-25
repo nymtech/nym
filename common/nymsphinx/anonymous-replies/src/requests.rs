@@ -3,12 +3,74 @@
 
 use crate::{ReplySurb, ReplySurbError};
 use nymsphinx_addressing::clients::{Recipient, RecipientFormattingError};
+use rand::{CryptoRng, RngCore};
 use std::fmt::{Display, Formatter};
 use std::mem;
 use thiserror::Error;
 
 pub const SENDER_TAG_SIZE: usize = 16;
-pub type AnonymousSenderTag = [u8; SENDER_TAG_SIZE];
+
+#[derive(Debug, Error)]
+pub enum InvalidAnonymousSenderTagRepresentation {
+    #[error("Failed to decode the base58-encoded string - {0}")]
+    MalformedString(#[from] bs58::decode::Error),
+
+    #[error(
+        "Decoded AnonymousSenderTag has invalid length. Expected {expected}, but got {received}"
+    )]
+    InvalidLength { received: usize, expected: usize },
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+pub struct AnonymousSenderTag([u8; SENDER_TAG_SIZE]);
+
+impl From<[u8; SENDER_TAG_SIZE]> for AnonymousSenderTag {
+    fn from(bytes: [u8; SENDER_TAG_SIZE]) -> Self {
+        AnonymousSenderTag(bytes)
+    }
+}
+
+impl Display for AnonymousSenderTag {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.to_base58_string())
+    }
+}
+
+impl AnonymousSenderTag {
+    pub fn new_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
+        let mut bytes = [0u8; SENDER_TAG_SIZE];
+        rng.fill_bytes(&mut bytes);
+        AnonymousSenderTag(bytes)
+    }
+
+    pub fn to_bytes(&self) -> [u8; SENDER_TAG_SIZE] {
+        self.0
+    }
+
+    pub fn from_bytes(bytes: [u8; SENDER_TAG_SIZE]) -> Self {
+        AnonymousSenderTag(bytes)
+    }
+
+    pub fn to_base58_string(self) -> String {
+        bs58::encode(self.to_bytes()).into_string()
+    }
+
+    pub fn try_from_base58_string<I: AsRef<[u8]>>(
+        val: I,
+    ) -> Result<Self, InvalidAnonymousSenderTagRepresentation> {
+        let bytes = bs58::decode(val).into_vec()?;
+        if bytes.len() != SENDER_TAG_SIZE {
+            return Err(InvalidAnonymousSenderTagRepresentation::InvalidLength {
+                received: bytes.len(),
+                expected: SENDER_TAG_SIZE,
+            });
+        }
+
+        // the unwrap here is fine as we just asserted the bytes are of exactly SENDER_TAG_SIZE length
+        let byte_array: [u8; SENDER_TAG_SIZE] = bytes.try_into().unwrap();
+        Ok(AnonymousSenderTag::from_bytes(byte_array))
+    }
+}
 
 #[derive(Debug, Error)]
 pub enum InvalidReplyRequestError {
@@ -42,14 +104,14 @@ impl Display for RepliableMessage {
                 reply_surbs,
             } => write!(
                 f,
-                "repliable {:.2} kiB data message with {} reply surbs attached from {:?}",
+                "repliable {:.2} kiB data message with {} reply surbs attached from {}",
                 message.len() as f64 / 1024.0,
                 reply_surbs.len(),
                 self.sender_tag,
             ),
             RepliableMessageContent::AdditionalSurbs { reply_surbs } => write!(
                 f,
-                "repliable additional surbs message ({} reply surbs attached) from {:?}",
+                "repliable additional surbs message ({} reply surbs attached) from {}",
                 reply_surbs.len(),
                 self.sender_tag,
             ),
@@ -58,7 +120,7 @@ impl Display for RepliableMessage {
             } => {
                 write!(
                     f,
-                    "repliable heartbeat message ({} reply surbs attached) from {:?}",
+                    "repliable heartbeat message ({} reply surbs attached) from {}",
                     additional_reply_surbs.len(),
                     self.sender_tag,
                 )
@@ -96,6 +158,7 @@ impl RepliableMessage {
         let content_tag = self.content.tag();
 
         self.sender_tag
+            .to_bytes()
             .into_iter()
             .chain(std::iter::once(content_tag as u8))
             .chain(self.content.into_bytes())
@@ -109,7 +172,8 @@ impl RepliableMessage {
         if bytes.len() < SENDER_TAG_SIZE + 1 {
             return Err(InvalidReplyRequestError::RequestTooShortToDeserialize);
         }
-        let sender_tag = bytes[..SENDER_TAG_SIZE].try_into().unwrap();
+        let sender_tag =
+            AnonymousSenderTag::from_bytes(bytes[..SENDER_TAG_SIZE].try_into().unwrap());
         let content_tag = RepliableMessageContentTag::try_from(bytes[SENDER_TAG_SIZE])?;
 
         let content = RepliableMessageContent::try_from_bytes(

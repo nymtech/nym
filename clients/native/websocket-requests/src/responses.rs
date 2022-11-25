@@ -7,7 +7,7 @@
 use crate::error::{self, ErrorKind};
 use crate::text::ServerResponseText;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::SENDER_TAG_SIZE;
+use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, SENDER_TAG_SIZE};
 use nymsphinx::receiver::ReconstructedMessage;
 use std::convert::TryInto;
 use std::mem::size_of;
@@ -67,7 +67,7 @@ impl ServerResponse {
         if let Some(sender_tag) = reconstructed_message.sender_tag {
             std::iter::once(ServerResponseTag::Received as u8)
                 .chain(std::iter::once(true as u8))
-                .chain(sender_tag.into_iter())
+                .chain(sender_tag.to_bytes().into_iter())
                 .chain(message_len_bytes.iter().cloned())
                 .chain(reconstructed_message.message.into_iter())
                 .collect()
@@ -113,7 +113,9 @@ impl ServerResponse {
                 ));
             }
             i += SENDER_TAG_SIZE;
-            Some(b[2..2 + SENDER_TAG_SIZE].try_into().unwrap())
+            Some(AnonymousSenderTag::from_bytes(
+                b[2..2 + SENDER_TAG_SIZE].try_into().unwrap(),
+            ))
         } else {
             None
         };
@@ -322,14 +324,17 @@ mod tests {
     fn received_response_serialization_works() {
         let received_with_sender_tag = ServerResponse::Received(ReconstructedMessage {
             message: b"foomp".to_vec(),
-            sender_tag: Some([42u8; SENDER_TAG_SIZE]),
+            sender_tag: Some([42u8; SENDER_TAG_SIZE].into()),
         });
         let bytes = received_with_sender_tag.serialize();
         let recovered = ServerResponse::deserialize(&bytes).unwrap();
         match recovered {
             ServerResponse::Received(reconstructed) => {
                 assert_eq!(reconstructed.message, b"foomp".to_vec());
-                assert_eq!(reconstructed.sender_tag, Some([42u8; SENDER_TAG_SIZE]))
+                assert_eq!(
+                    reconstructed.sender_tag,
+                    Some([42u8; SENDER_TAG_SIZE].into())
+                )
             }
             _ => unreachable!(),
         }

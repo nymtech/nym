@@ -187,7 +187,7 @@ impl Handler {
         message: Vec<u8>,
         connection_id: Option<u64>,
     ) -> Option<ServerResponse> {
-        info!("Attempting to send {:.2} kiB reply message to {recipient_tag:?} on connection_id {connection_id:?}", message.len() as f64 / 1024.0);
+        info!("Attempting to send {:.2} kiB reply message to {recipient_tag} on connection_id {connection_id:?}", message.len() as f64 / 1024.0);
 
         // We map the absence of a connection id as going into the general lane.
         let lane = connection_id.map_or(TransmissionLane::General, |id| {

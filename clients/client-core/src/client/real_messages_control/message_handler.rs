@@ -12,9 +12,7 @@ use client_connections::TransmissionLane;
 use log::{debug, error, info, trace, warn};
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::{
-    AnonymousSenderTag, RepliableMessage, ReplyMessage, SENDER_TAG_SIZE,
-};
+use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, RepliableMessage, ReplyMessage};
 use nymsphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey};
 use nymsphinx::chunking::fragment::Fragment;
 use nymsphinx::message::NymMessage;
@@ -38,7 +36,7 @@ pub enum PreparationError {
     MessageTooLongForSingleSurb { fragments: usize },
 
     #[error(
-        "Never received any reply SURBs associated with the following sender tag: {sender_tag:?}"
+        "Never received any reply SURBs associated with the following sender tag: {sender_tag}"
     )]
     UnknownSurbSender { sender_tag: AnonymousSenderTag },
 
@@ -137,8 +135,7 @@ where
             existing
         } else {
             info!("creating new sender tag for {recipient}");
-            let mut new_tag = [0u8; SENDER_TAG_SIZE];
-            self.rng.fill_bytes(&mut new_tag);
+            let new_tag = AnonymousSenderTag::new_random(&mut self.rng);
             self.tag_storage.insert_new(recipient, new_tag);
             new_tag
         }

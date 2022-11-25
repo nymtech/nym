@@ -258,7 +258,7 @@ impl ClientRequest {
         let conn_id_bytes = connection_id.unwrap_or(0).to_be_bytes();
 
         std::iter::once(ClientRequestTag::Reply as u8)
-            .chain(sender_tag.into_iter())
+            .chain(sender_tag.to_bytes().into_iter())
             .chain(conn_id_bytes.into_iter())
             .chain(message_len_bytes.into_iter())
             .chain(message.into_iter())
@@ -278,7 +278,8 @@ impl ClientRequest {
         debug_assert_eq!(b[0], ClientRequestTag::Reply as u8);
 
         // the unwrap here is fine as we're definitely using exactly SENDER_TAG_SIZE bytes
-        let sender_tag = b[1..1 + SENDER_TAG_SIZE].try_into().unwrap();
+        let sender_tag =
+            AnonymousSenderTag::from_bytes(b[1..1 + SENDER_TAG_SIZE].try_into().unwrap());
 
         let mut connection_id_bytes = [0u8; size_of::<u64>()];
         connection_id_bytes
@@ -511,7 +512,7 @@ mod tests {
     #[test]
     fn reply_request_serialization_works() {
         let reply_request = ClientRequest::Reply {
-            sender_tag: [8u8; SENDER_TAG_SIZE],
+            sender_tag: [8u8; SENDER_TAG_SIZE].into(),
             message: b"foomp".to_vec(),
             connection_id: Some(42),
         };
@@ -524,7 +525,7 @@ mod tests {
                 message,
                 connection_id,
             } => {
-                assert_eq!(sender_tag, [8u8; SENDER_TAG_SIZE]);
+                assert_eq!(sender_tag, [8u8; SENDER_TAG_SIZE].into());
                 assert_eq!(message, b"foomp".to_vec());
                 assert_eq!(connection_id, Some(42));
             }

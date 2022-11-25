@@ -30,7 +30,7 @@ pub(super) enum ClientRequestText {
     },
     #[serde(rename_all = "camelCase")]
     Reply {
-        sender_tag: AnonymousSenderTag,
+        sender_tag: String,
         message: String,
         connection_id: Option<u64>,
     },
@@ -90,6 +90,10 @@ impl TryInto<ClientRequest> for ClientRequestText {
                 connection_id,
             } => {
                 let message_bytes = message.into_bytes();
+                let sender_tag =
+                    AnonymousSenderTag::try_from_base58_string(sender_tag).map_err(|err| {
+                        Self::Error::new(ErrorKind::MalformedRequest, err.to_string())
+                    })?;
 
                 Ok(ClientRequest::Reply {
                     sender_tag,
@@ -110,7 +114,7 @@ pub(super) enum ServerResponseText {
     #[serde(rename_all = "camelCase")]
     Received {
         message: String,
-        sender_tag: Option<AnonymousSenderTag>,
+        sender_tag: Option<String>,
     },
     SelfAddress {
         address: String,
@@ -152,7 +156,7 @@ impl From<ServerResponse> for ServerResponseText {
                     // TODO: ask DH what is more appropriate, lossy utf8 conversion or returning error and then
                     // pure binary later
                     message: String::from_utf8_lossy(&reconstructed.message).into_owned(),
-                    sender_tag: reconstructed.sender_tag,
+                    sender_tag: reconstructed.sender_tag.map(|tag| tag.to_base58_string()),
                 }
             }
             ServerResponse::SelfAddress(recipient) => ServerResponseText::SelfAddress {

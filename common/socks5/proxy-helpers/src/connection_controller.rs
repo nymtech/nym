@@ -254,6 +254,9 @@ impl Controller {
                 },
             }
         }
+        tokio::time::timeout(Duration::from_secs(15), self.shutdown.recv())
+            .await
+            .unwrap();
         assert!(self.shutdown.is_shutdown_poll());
         log::debug!("SOCKS5 Controller: Exiting");
     }

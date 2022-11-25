@@ -214,7 +214,6 @@ where
                 }
             }
         }
-        assert!(shutdown.is_shutdown_poll());
         log::debug!("InputMessageListener: Exiting");
     }
 

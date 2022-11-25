@@ -69,6 +69,8 @@ impl MixTrafficController {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub fn start_with_shutdown(mut self, mut shutdown: task::ShutdownListener) {
+        use std::time::Duration;
+
         spawn_future(async move {
             debug!("Started MixTrafficController with graceful shutdown support");
 
@@ -88,6 +90,9 @@ impl MixTrafficController {
                     }
                 }
             }
+            tokio::time::timeout(Duration::from_secs(15), shutdown.recv())
+                .await
+                .unwrap();
             assert!(shutdown.is_shutdown_poll());
             log::debug!("MixTrafficController: Exiting");
         })

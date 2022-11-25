@@ -1,2 +1,9 @@
+#[profile.release]
+#panic = "abort"
+#overflow-checks = true
+#
+#[profile.dev]
+#panic = "abort"
+#
 [workspace]
 members = ["src-tauri"]

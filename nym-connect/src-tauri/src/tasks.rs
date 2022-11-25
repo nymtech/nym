@@ -50,7 +50,7 @@ pub fn start_nym_socks5_client(
             .block_on(async move { socks5_client.run_and_listen(socks5_ctrl_rx).await });
 
         if let Err(err) = result {
-            log::error!("SOCKS5 proxy failed to start: {err}");
+            log::error!("SOCKS5 proxy failed: {err}");
             socks5_status_tx
                 .send(Socks5StatusMessage::FailedToStart)
                 .expect("Failed to send status message back to main task");

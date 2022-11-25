@@ -322,6 +322,8 @@ impl RequestReceiver {
 
     #[cfg(not(target_arch = "wasm32"))]
     async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+        use std::time::Duration;
+
         debug!("Started RequestReceiver with graceful shutdown support");
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -340,6 +342,9 @@ impl RequestReceiver {
                 },
             }
         }
+        tokio::time::timeout(Duration::from_secs(15), shutdown.recv())
+            .await
+            .unwrap();
         assert!(shutdown.is_shutdown_poll());
         log::debug!("RequestReceiver: Exiting");
     }
@@ -372,6 +377,8 @@ impl FragmentedMessageReceiver {
 
     #[cfg(not(target_arch = "wasm32"))]
     async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+        use std::time::Duration;
+
         debug!("Started FragmentedMessageReceiver with graceful shutdown support");
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -389,6 +396,9 @@ impl FragmentedMessageReceiver {
                 }
             }
         }
+        tokio::time::timeout(Duration::from_secs(15), shutdown.recv())
+            .await
+            .unwrap();
         assert!(shutdown.is_shutdown_poll());
         log::debug!("FragmentedMessageReceiver: Exiting");
     }

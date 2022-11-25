@@ -26,4 +26,7 @@ pub enum ClientCoreError {
     CouldNotLoadExistingGatewayConfiguration(std::io::Error),
     #[error("The current network topology seem to be insufficient to route any packets through")]
     InsufficientNetworkTopology,
+
+    #[error("Unexpected exit")]
+    UnexpectedExit,
 }

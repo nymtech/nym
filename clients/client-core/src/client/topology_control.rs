@@ -311,6 +311,9 @@ impl TopologyRefresher {
                     },
                 }
             }
+            tokio::time::timeout(Duration::from_secs(15), shutdown.recv())
+                .await
+                .unwrap();
             assert!(shutdown.is_shutdown_poll());
             log::debug!("TopologyRefresher: Exiting");
         })

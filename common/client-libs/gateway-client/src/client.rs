@@ -14,7 +14,7 @@ use futures::{FutureExt, SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::iv::IV;
 use gateway_requests::registration::handshake::{client_handshake, SharedKeys};
-use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse};
+use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse, PROTOCOL_VERSION};
 use log::*;
 use network_defaults::{REMAINING_BANDWIDTH_THRESHOLD, TOKENS_TO_BURN};
 use nymsphinx::forwarding::packet::MixPacket;
@@ -445,6 +445,33 @@ impl GatewayClient {
         }
     }
 
+    fn check_gateway_protocol(
+        &self,
+        gateway_protocol: Option<u8>,
+    ) -> Result<(), GatewayClientError> {
+        // right now there are no failure cases here, but this might change in the future
+        match gateway_protocol {
+            None => {
+                warn!("the gateway we're connected to has not specified its protocol version. It's probably running version < 1.1.X, but that's still fine for now. It will become a hard error in 1.2.0");
+                // note: in 1.2.0 we will have to return a hard error here
+                Ok(())
+            }
+            Some(v) if v != PROTOCOL_VERSION => {
+                let err = GatewayClientError::IncompatibleProtocol {
+                    gateway: Some(v),
+                    current: PROTOCOL_VERSION,
+                };
+                error!("{err}");
+                Err(err)
+            }
+
+            Some(_) => {
+                info!("the gateway is using exactly the same protocol version as we are. We're good to continue!");
+                Ok(())
+            }
+        }
+    }
+
     async fn register(&mut self) -> Result<(), GatewayClientError> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
@@ -467,11 +494,20 @@ impl GatewayClient {
             .map_err(GatewayClientError::RegistrationFailure),
             _ => unreachable!(),
         }?;
-        self.authenticated = match self.read_control_response().await? {
-            ServerResponse::Register { status } => Ok(status),
-            ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
-            _ => Err(GatewayClientError::UnexpectedResponse),
-        }?;
+        let (authentication_status, gateway_protocol) = match self.read_control_response().await? {
+            ServerResponse::Register {
+                protocol_version,
+                status,
+            } => (status, protocol_version),
+            ServerResponse::Error { message } => {
+                return Err(GatewayClientError::GatewayError(message))
+            }
+            _ => return Err(GatewayClientError::UnexpectedResponse),
+        };
+
+        self.check_gateway_protocol(gateway_protocol)?;
+        self.authenticated = authentication_status;
+
         if self.authenticated {
             self.shared_key = Some(Arc::new(shared_key));
         }
@@ -510,9 +546,11 @@ impl GatewayClient {
 
         match self.send_websocket_message(msg).await? {
             ServerResponse::Authenticate {
+                protocol_version,
                 status,
                 bandwidth_remaining,
             } => {
+                self.check_gateway_protocol(protocol_version)?;
                 self.authenticated = status;
                 self.bandwidth_remaining = bandwidth_remaining;
                 Ok(())

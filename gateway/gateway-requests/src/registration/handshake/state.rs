@@ -210,7 +210,10 @@ impl<'a, S> State<'a, S> {
                     match msg {
                         WsMessage::Text(ws_msg) => match types::RegistrationHandshake::try_from(ws_msg) {
                             Ok(reg_handshake_msg) => return match reg_handshake_msg {
-                                types::RegistrationHandshake::HandshakePayload { data } => Ok(data),
+                                // hehe, that's a bit disgusting that the type system requires we explicitly ignore the
+                                // protocol_version field that we actually never attach at this point
+                                // yet another reason for the overdue refactor
+                                types::RegistrationHandshake::HandshakePayload {  data, .. } => Ok(data),
                                 types::RegistrationHandshake::HandshakeError { message } => Err(HandshakeError::RemoteError(message)),
                             },
                             Err(_) => error!("Received a non-handshake message during the registration handshake! It's getting dropped."),

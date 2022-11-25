@@ -6,7 +6,7 @@ use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, UsedSenderTag
 use client_connections::TransmissionLane;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use log::{debug, info, trace, warn};
+use log::{debug, trace, warn};
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::anonymous_replies::ReplySurb;
@@ -173,7 +173,7 @@ where
         let min_surbs_threshold = self.received_reply_surbs.min_surb_threshold();
         let max_surbs_threshold = self.received_reply_surbs.max_surb_threshold();
 
-        println!("queue size: {queue_size}, available surbs: {available_surbs} pending surbs: {pending_surbs} threshold range: {min_surbs_threshold}..{max_surbs_threshold}");
+        debug!("queue size: {queue_size}, available surbs: {available_surbs} pending surbs: {pending_surbs} threshold range: {min_surbs_threshold}..{max_surbs_threshold}");
 
         (pending_surbs + available_surbs) < max_surbs_threshold
             && (pending_surbs + available_surbs) < (queue_size + min_surbs_threshold)
@@ -190,12 +190,11 @@ where
             return;
         }
 
-        // TODO: lower to debug/trace
-        info!("handling reply to {:?}", recipient_tag);
+        trace!("handling reply to {:?}", recipient_tag);
         let fragments = self.message_handler.split_reply_message(data);
 
         let required_surbs = fragments.len();
-        info!("This reply requires {:?} SURBs", required_surbs);
+        trace!("This reply requires {:?} SURBs", required_surbs);
 
         // TODO: edge case:
         // we're making a lot of requests and have to request a lot of surbs
@@ -217,8 +216,6 @@ where
             }
         } else {
             // we don't have enough surbs for this reply
-
-            info!("requesting surbs from send handler");
             self.insert_pending_replies(&recipient_tag, fragments);
 
             if self.should_request_more_surbs(&recipient_tag) {
@@ -233,8 +230,6 @@ where
         target: AnonymousSenderTag,
         amount: u32,
     ) -> Result<(), PreparationError> {
-        info!("requesting {amount} reply surbs ...");
-
         let reply_surb = self
             .received_reply_surbs
             .get_reply_surb_ignoring_threshold(&target)
@@ -271,7 +266,7 @@ where
     ) -> Option<VecDeque<Fragment>> {
         // if possible, pop all pending replies, if not, pop only entries for which we'd have a reply surb
         let total = self.pending_replies.get(from)?.len();
-        println!("pending queue has {total} elements");
+        trace!("pending queue has {total} elements");
         if total == 0 {
             return None;
         }
@@ -288,17 +283,17 @@ where
     }
 
     async fn try_clear_pending_queue(&mut self, target: AnonymousSenderTag) {
-        println!("trying to clear pending queue");
+        trace!("trying to clear pending queue");
         let available_surbs = self.received_reply_surbs.available_surbs(&target);
         let min_surbs_threshold = self.received_reply_surbs.min_surb_threshold();
 
         let max_to_clear = if available_surbs > min_surbs_threshold {
             available_surbs - min_surbs_threshold
         } else {
-            println!("we don't have enough surbs for queue clearing...");
+            trace!("we don't have enough surbs for queue clearing...");
             return;
         };
-        println!("we can clear up to {max_to_clear} entries");
+        trace!("we can clear up to {max_to_clear} entries");
 
         // we're guaranteed to not get more entries than we have reply surbs for
         if let Some(to_send) = self.pop_at_most_pending_replies(&target, max_to_clear) {
@@ -306,8 +301,9 @@ where
             let to_send_vec = to_send.into_iter().collect::<Vec<_>>();
 
             if to_send_vec.is_empty() {
-                // TODO: fix: this panic actually happens periodically
-                panic!("empty1");
+                panic!(
+                    "please let the devs know if you ever see this message (reply_controller.rs)"
+                );
             }
 
             let (surbs_for_reply, _) = self
@@ -331,7 +327,7 @@ where
                 // TODO: perhaps there should be some timer here to repeat the request once topology recovers
             }
         } else {
-            println!("nothing left to clear");
+            trace!("the pending queue is empty");
         }
     }
 
@@ -341,7 +337,7 @@ where
         reply_surbs: Vec<ReplySurb>,
         from_surb_request: bool,
     ) {
-        println!("handling received surbs");
+        trace!("handling received surbs");
 
         // clear the requesting flag since we should have been asking for surbs
         self.received_reply_surbs
@@ -389,7 +385,7 @@ where
             {
                 warn!("failed to send additional surbs to {recipient} - {err}");
             } else {
-                warn!("sent {to_send} surbs");
+                trace!("sent {to_send} reply SURBs to {recipient}");
             }
 
             remaining -= to_send;
@@ -418,7 +414,7 @@ where
     }
 
     async fn request_reply_surbs_for_queue_clearing(&mut self, target: AnonymousSenderTag) {
-        warn!("requesting surbs for queue clearing");
+        trace!("requesting surbs for queue clearing");
 
         let pending = match self.pending_replies.get(&target) {
             Some(pending) => pending,

@@ -93,6 +93,11 @@ impl Handler {
         message: Vec<u8>,
         connection_id: u64,
     ) -> Option<ServerResponse> {
+        info!(
+            "Attempting to send {:.2} kiB message to {recipient} on connection_id {connection_id}",
+            message.len() as f64 / 1024.0
+        );
+
         // the ack control is now responsible for chunking, etc.
         let lane = TransmissionLane::ConnectionId(connection_id);
         let input_msg = InputMessage::new_regular(recipient, message, lane);
@@ -123,6 +128,11 @@ impl Handler {
         reply_surbs: u32,
         connection_id: u64,
     ) -> Option<ServerResponse> {
+        info!(
+            "Attempting to anonymously send {:.2} kiB message to {recipient} on connection_id {connection_id} while attaching {reply_surbs} replySURBs.",
+            message.len() as f64 / 1024.0
+        );
+
         let lane = TransmissionLane::ConnectionId(connection_id);
         let input_msg = InputMessage::new_anonymous(recipient, message, reply_surbs, lane);
         self.msg_input
@@ -151,6 +161,8 @@ impl Handler {
         message: Vec<u8>,
         connection_id: u64,
     ) -> Option<ServerResponse> {
+        info!("Attempting to send {:.2} kiB reply message to {recipient_tag:?} on connection_id {connection_id}", message.len() as f64 / 1024.0);
+
         let lane = TransmissionLane::ConnectionId(connection_id);
         let input_msg = InputMessage::new_reply(recipient_tag, message, lane);
         self.msg_input

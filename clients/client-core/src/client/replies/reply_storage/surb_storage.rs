@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use dashmap::DashMap;
+use log::trace;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::anonymous_replies::ReplySurb;
 use std::collections::VecDeque;
@@ -228,9 +229,9 @@ impl ReceivedReplySurbs {
     // realistically we're always going to be getting multiple surbs at once
     pub(crate) fn insert_reply_surbs<I: IntoIterator<Item = ReplySurb>>(&mut self, surbs: I) {
         let mut v = surbs.into_iter().collect::<VecDeque<_>>();
-        println!("storing {} surbs in the storage", v.len());
+        trace!("storing {} surbs in the storage", v.len());
         self.data.append(&mut v);
         self.surbs_last_received_at = Instant::now();
-        println!("we now have {} surbs!", self.data.len());
+        trace!("we now have {} surbs!", self.data.len());
     }
 }

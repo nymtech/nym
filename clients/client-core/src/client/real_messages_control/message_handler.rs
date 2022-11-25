@@ -9,7 +9,7 @@ use crate::client::real_messages_control::{AckActionSender, Action};
 use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, SentReplyKeys, UsedSenderTags};
 use crate::client::topology_control::{InvalidTopologyError, TopologyAccessor, TopologyReadPermit};
 use client_connections::TransmissionLane;
-use log::{error, info, warn};
+use log::{debug, error, info, trace, warn};
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::{
@@ -133,7 +133,7 @@ where
 
     fn get_or_create_sender_tag(&mut self, recipient: &Recipient) -> AnonymousSenderTag {
         if let Some(existing) = self.tag_storage.try_get_existing(recipient) {
-            info!("we already had sender tag for {recipient}");
+            trace!("we already had sender tag for {recipient}");
             existing
         } else {
             info!("creating new sender tag for {recipient}");
@@ -225,7 +225,7 @@ where
         reply_surb: ReplySurb,
         amount: u32,
     ) -> Result<(), SurbWrappedPreparationError> {
-        info!("requesting {amount} reply surbs from {:?}", from);
+        debug!("requesting {amount} reply SURBs from {from:?}");
 
         let surbs_request = ReplyMessage::new_surb_request_message(self.self_address, amount);
         self.try_send_single_surb_message(from, surbs_request, reply_surb, true)

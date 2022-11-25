@@ -13,6 +13,7 @@ use nymsphinx_anonymous_replies::requests::{
 use nymsphinx_chunking::fragment::Fragment;
 use nymsphinx_params::{PacketSize, ReplySurbKeyDigestAlgorithm};
 use rand::Rng;
+use std::fmt::{Display, Formatter};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -57,6 +58,20 @@ pub enum NymMessage {
     Plain(PlainMessage),
     Repliable(RepliableMessage),
     Reply(ReplyMessage),
+}
+
+impl Display for NymMessage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            NymMessage::Plain(plain_message) => write!(
+                f,
+                "plain {:.2} kiB message",
+                plain_message.len() as f64 / 1024.0
+            ),
+            NymMessage::Repliable(repliable_message) => repliable_message.fmt(f),
+            NymMessage::Reply(reply_message) => reply_message.fmt(f),
+        }
+    }
 }
 
 impl NymMessage {

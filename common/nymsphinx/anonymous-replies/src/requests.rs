@@ -3,6 +3,7 @@
 
 use crate::{ReplySurb, ReplySurbError};
 use nymsphinx_addressing::clients::{Recipient, RecipientFormattingError};
+use std::fmt::{Display, Formatter};
 use std::mem;
 use thiserror::Error;
 
@@ -31,6 +32,39 @@ pub enum InvalidReplyRequestError {
 pub struct RepliableMessage {
     pub sender_tag: AnonymousSenderTag,
     pub content: RepliableMessageContent,
+}
+
+impl Display for RepliableMessage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match &self.content {
+            RepliableMessageContent::Data {
+                message,
+                reply_surbs,
+            } => write!(
+                f,
+                "repliable {:.2} kiB data message with {} reply surbs attached from {:?}",
+                message.len() as f64 / 1024.0,
+                reply_surbs.len(),
+                self.sender_tag,
+            ),
+            RepliableMessageContent::AdditionalSurbs { reply_surbs } => write!(
+                f,
+                "repliable additional surbs message ({} reply surbs attached) from {:?}",
+                reply_surbs.len(),
+                self.sender_tag,
+            ),
+            RepliableMessageContent::Heartbeat {
+                additional_reply_surbs,
+            } => {
+                write!(
+                    f,
+                    "repliable heartbeat message ({} reply surbs attached) from {:?}",
+                    additional_reply_surbs.len(),
+                    self.sender_tag,
+                )
+            }
+        }
+    }
 }
 
 impl RepliableMessage {
@@ -238,6 +272,22 @@ impl RepliableMessageContent {
 #[derive(Debug)]
 pub struct ReplyMessage {
     pub content: ReplyMessageContent,
+}
+
+impl Display for ReplyMessage {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match &self.content {
+            ReplyMessageContent::Data { message } => write!(
+                f,
+                "{:.2} kiB reply data message",
+                message.len() as f64 / 1024.0
+            ),
+            ReplyMessageContent::SurbRequest { recipient, amount } => write!(
+                f,
+                "request for {amount} additional reply SURBs from {recipient}",
+            ),
+        }
+    }
 }
 
 impl ReplyMessage {

@@ -217,7 +217,7 @@ impl ReceivedMessagesBuffer {
                     message,
                     reply_surbs,
                 } => {
-                    info!(
+                    trace!(
                         "received message that also contained additional {} reply surbs from {:?}!",
                         reply_surbs.len(),
                         msg.sender_tag
@@ -228,7 +228,7 @@ impl ReceivedMessagesBuffer {
                     (reply_surbs, false)
                 }
                 RepliableMessageContent::AdditionalSurbs { reply_surbs } => {
-                    info!(
+                    trace!(
                         "received additional {} reply surbs from {:?}!",
                         reply_surbs.len(),
                         msg.sender_tag
@@ -261,10 +261,9 @@ impl ReceivedMessagesBuffer {
             match msg.content {
                 ReplyMessageContent::Data { message } => reconstructed.push(message.into()),
                 ReplyMessageContent::SurbRequest { recipient, amount } => {
-                    info!("received request for {amount} additional surbs");
+                    debug!("received request for {amount} additional reply SURBs from {recipient}");
                     self.reply_controller_sender
                         .send_additional_surbs_request(*recipient, amount);
-                    // error!("received request for additional {} reply SURBs! We don't know how to handle it yet : (", amount)
                 }
             }
         }
@@ -357,6 +356,7 @@ impl ReceivedMessagesBuffer {
                 };
 
             if let Some(completed) = completed_message {
+                info!("received {completed}");
                 completed_messages.push(completed)
             }
         }

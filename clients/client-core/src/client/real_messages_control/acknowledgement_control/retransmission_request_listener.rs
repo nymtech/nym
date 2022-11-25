@@ -70,10 +70,10 @@ where
         extra_surb_request: bool,
         chunk_data: Fragment,
     ) -> Result<PreparedFragment, PreparationError> {
-        error!("retransmitting reply packet...");
+        debug!("retransmitting reply packet...");
 
         let surbs_left = self.received_reply_surbs.available_surbs(&recipient_tag);
-        println!("{surbs_left} surbs left");
+        trace!("{surbs_left} surbs left");
 
         // if this is retransmission for obtaining additional reply surbs,
         // we can dip below the storage threshold
@@ -96,7 +96,7 @@ where
             let pending_reception = self.received_reply_surbs.pending_reception(&recipient_tag);
 
             if pending_reception < self.reply_surb_request_size {
-                info!("requesting surbs from retransmission handler");
+                trace!("requesting surbs from retransmission handler");
 
                 // TODO: is this logic for surb request possibly shared with other parts already?
                 if let Some(another_surb) = self

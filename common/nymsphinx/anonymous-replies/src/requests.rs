@@ -2,10 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ReplySurb;
-use nymsphinx_addressing::clients::Recipient;
+use nymsphinx_addressing::clients::{Recipient, RecipientFormattingError};
 use std::mem;
+use thiserror::Error;
 
-pub struct UnnamedRepliesError;
+#[derive(Debug, Error)]
+pub enum InvalidReplyRequestError {
+    #[error("Did not provide sufficient number of bytes to deserialize a valid request")]
+    RequestTooShortToDeserialize,
+
+    #[error("{received} is not a valid content tag for a repliable message")]
+    InvalidRepliableContentTag { received: u8 },
+
+    #[error("{received} is not a valid content tag for a reply message")]
+    InvalidReplyContentTag { received: u8 },
+
+    #[error("failed to deserialize recipient information {0}")]
+    MalformedRecipient(#[from] RecipientFormattingError),
+}
 
 pub const SENDER_TAG_SIZE: usize = 16;
 pub type AnonymousSenderTag = [u8; SENDER_TAG_SIZE];
@@ -51,9 +65,12 @@ impl RepliableMessage {
             .collect()
     }
 
-    pub fn try_from_bytes(bytes: &[u8], num_mix_hops: u8) -> Result<Self, UnnamedRepliesError> {
+    pub fn try_from_bytes(
+        bytes: &[u8],
+        num_mix_hops: u8,
+    ) -> Result<Self, InvalidReplyRequestError> {
         if bytes.len() < SENDER_TAG_SIZE + 1 {
-            return Err(UnnamedRepliesError);
+            return Err(InvalidReplyRequestError::RequestTooShortToDeserialize);
         }
         let sender_tag = bytes[..SENDER_TAG_SIZE].try_into().unwrap();
         let content_tag = RepliableMessageContentTag::try_from(bytes[SENDER_TAG_SIZE])?;
@@ -75,15 +92,15 @@ impl RepliableMessage {
 fn recover_reply_surbs(
     bytes: &[u8],
     num_mix_hops: u8,
-) -> Result<(Vec<ReplySurb>, usize), UnnamedRepliesError> {
+) -> Result<(Vec<ReplySurb>, usize), InvalidReplyRequestError> {
     let mut consumed = mem::size_of::<u32>();
     if bytes.len() < consumed {
-        return Err(UnnamedRepliesError);
+        return Err(InvalidReplyRequestError::RequestTooShortToDeserialize);
     }
     let num_surbs = u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]);
     let surb_size = ReplySurb::serialized_len(num_mix_hops);
     if bytes[consumed..].len() < num_surbs as usize * surb_size {
-        return Err(UnnamedRepliesError);
+        return Err(InvalidReplyRequestError::RequestTooShortToDeserialize);
     }
 
     let mut reply_surbs = Vec::with_capacity(num_surbs as usize);
@@ -106,7 +123,7 @@ enum RepliableMessageContentTag {
 }
 
 impl TryFrom<u8> for RepliableMessageContentTag {
-    type Error = UnnamedRepliesError;
+    type Error = InvalidReplyRequestError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -115,7 +132,7 @@ impl TryFrom<u8> for RepliableMessageContentTag {
                 Ok(Self::AdditionalSurbs)
             }
             _ if value == (RepliableMessageContentTag::Heartbeat as u8) => Ok(Self::Heartbeat),
-            _ => Err(UnnamedRepliesError),
+            val => Err(InvalidReplyRequestError::InvalidRepliableContentTag { received: val }),
         }
     }
 }
@@ -182,9 +199,9 @@ impl RepliableMessageContent {
         bytes: &[u8],
         num_mix_hops: u8,
         tag: RepliableMessageContentTag,
-    ) -> Result<Self, UnnamedRepliesError> {
+    ) -> Result<Self, InvalidReplyRequestError> {
         if bytes.is_empty() {
-            return Err(UnnamedRepliesError);
+            return Err(InvalidReplyRequestError::RequestTooShortToDeserialize);
         }
 
         let (reply_surbs, n) = recover_reply_surbs(bytes, num_mix_hops)?;
@@ -244,9 +261,9 @@ impl ReplyMessage {
             .collect()
     }
 
-    pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, UnnamedRepliesError> {
+    pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, InvalidReplyRequestError> {
         if bytes.is_empty() {
-            return Err(UnnamedRepliesError);
+            return Err(InvalidReplyRequestError::RequestTooShortToDeserialize);
         }
         let tag = ReplyMessageContentTag::try_from(bytes[0])?;
         let content = ReplyMessageContent::try_from_bytes(&bytes[1..], tag)?;
@@ -262,13 +279,13 @@ enum ReplyMessageContentTag {
 }
 
 impl TryFrom<u8> for ReplyMessageContentTag {
-    type Error = UnnamedRepliesError;
+    type Error = InvalidReplyRequestError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             _ if value == (ReplyMessageContentTag::Data as u8) => Ok(Self::Data),
             _ if value == (ReplyMessageContentTag::SurbRequest as u8) => Ok(Self::SurbRequest),
-            _ => Err(UnnamedRepliesError),
+            val => Err(InvalidReplyRequestError::InvalidReplyContentTag { received: val }),
         }
     }
 }
@@ -301,9 +318,9 @@ impl ReplyMessageContent {
     fn try_from_bytes(
         bytes: &[u8],
         tag: ReplyMessageContentTag,
-    ) -> Result<Self, UnnamedRepliesError> {
+    ) -> Result<Self, InvalidReplyRequestError> {
         if bytes.is_empty() {
-            return Err(UnnamedRepliesError);
+            return Err(InvalidReplyRequestError::RequestTooShortToDeserialize);
         }
 
         match tag {
@@ -312,16 +329,13 @@ impl ReplyMessageContent {
             }),
             ReplyMessageContentTag::SurbRequest => {
                 if bytes.len() != Recipient::LEN + std::mem::size_of::<u32>() {
-                    return Err(UnnamedRepliesError);
+                    return Err(InvalidReplyRequestError::RequestTooShortToDeserialize);
                 }
                 let mut recipient_bytes = [0u8; Recipient::LEN];
                 recipient_bytes.copy_from_slice(&bytes[..Recipient::LEN]);
 
                 Ok(ReplyMessageContent::SurbRequest {
-                    recipient: Box::new(
-                        Recipient::try_from_bytes(recipient_bytes)
-                            .map_err(|_| UnnamedRepliesError)?,
-                    ),
+                    recipient: Box::new(Recipient::try_from_bytes(recipient_bytes)?),
                     amount: u32::from_be_bytes([
                         bytes[Recipient::LEN],
                         bytes[Recipient::LEN + 1],

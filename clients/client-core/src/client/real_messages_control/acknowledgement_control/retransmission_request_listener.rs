@@ -26,7 +26,7 @@ pub(super) struct RetransmissionRequestListener<R> {
     request_receiver: RetransmissionRequestReceiver,
 
     // we're holding this for the purposes of retransmitting dropped reply message, but perhaps
-    // this work should be offloaded to the `ToBeNamedPendingReplyController`?
+    // this work should be offloaded to the `ReplyController`?
     received_reply_surbs: ReceivedReplySurbsMap,
 
     reply_surb_request_size: u32,

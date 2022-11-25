@@ -7,43 +7,45 @@ use crypto::Digest;
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
 use nymsphinx_anonymous_replies::requests::{
-    RepliableMessage, RepliableMessageContent, ReplyMessage, ReplyMessageContent,
-    UnnamedRepliesError,
+    InvalidReplyRequestError, RepliableMessage, RepliableMessageContent, ReplyMessage,
+    ReplyMessageContent,
 };
 use nymsphinx_chunking::fragment::Fragment;
 use nymsphinx_params::{PacketSize, ReplySurbKeyDigestAlgorithm};
 use rand::Rng;
+use thiserror::Error;
 
-#[derive(Debug)]
-pub struct InvalidMessageType;
+#[derive(Debug, Error)]
+pub enum NymMessageError {
+    #[error("{received} is not a valid type tag for a NymMessage")]
+    InvalidMessageType { received: u8 },
 
-pub struct UnnamedError;
+    #[error(transparent)]
+    InvalidReplyRequest(#[from] InvalidReplyRequestError),
 
-impl From<UnnamedRepliesError> for UnnamedError {
-    fn from(_: UnnamedRepliesError) -> Self {
-        todo!()
-    }
+    #[error("The received message seems to have incorrect zero padding (no '1' byte found)")]
+    InvalidMessagePadding,
+
+    #[error("Received empty message for deserialization")]
+    EmptyMessage,
 }
 
-// we have to attach an extra byte of information to indicate number of reply surbs,
-// so might as well use this field for other purposes
 #[repr(u8)]
 enum NymMessageType {
     Plain = 0,
     Repliable = 1,
     Reply = 2,
-    // ReplySurbRequest = 1,
 }
 
 impl TryFrom<u8> for NymMessageType {
-    type Error = UnnamedError;
+    type Error = NymMessageError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             _ if value == (NymMessageType::Plain as u8) => Ok(Self::Plain),
             _ if value == (NymMessageType::Repliable as u8) => Ok(Self::Repliable),
             _ if value == (NymMessageType::Reply as u8) => Ok(Self::Reply),
-            _ => Err(UnnamedError),
+            val => Err(NymMessageError::InvalidMessageType { received: val }),
         }
     }
 }
@@ -128,9 +130,9 @@ impl NymMessage {
             .collect()
     }
 
-    fn try_from_bytes(bytes: &[u8], num_mix_hops: u8) -> Result<Self, UnnamedError> {
+    fn try_from_bytes(bytes: &[u8], num_mix_hops: u8) -> Result<Self, NymMessageError> {
         if bytes.is_empty() {
-            return Err(UnnamedError);
+            return Err(NymMessageError::EmptyMessage);
         }
 
         let typ_tag = NymMessageType::try_from(bytes[0])?;
@@ -182,87 +184,6 @@ impl NymMessage {
     }
 }
 
-//
-// pub struct AnnotatedNymMessage {
-//     typ: NymMessageType,
-//     // data: NymMessage,
-//     pub data: Vec<u8>,
-// }
-//
-// impl AnnotatedNymMessage {
-//     pub fn into_bytes(self) -> Vec<u8> {
-//         std::iter::once(self.typ as u8)
-//             .chain(self.data.into_iter())
-//             .collect()
-//     }
-//
-//     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, UnnamedError> {
-//         if bytes.is_empty() {
-//             return Err(UnnamedError);
-//         }
-//         let typ = NymMessageType::try_from(bytes[0]).unwrap_or_else(|_| todo!());
-//
-//         Ok(AnnotatedNymMessage {
-//             typ,
-//             data: bytes[1..].to_vec(),
-//         })
-//     }
-//
-//     pub fn is_reply_surb_request(&self) -> bool {
-//         matches!(MessageType::ReplySurbRequest, self.typ)
-//     }
-//
-//     pub fn into_inner(self) -> Vec<u8> {
-//         self.data
-//     }
-// }
-//
-// pub struct MessageWithOptionalReplySurbs {
-//     pub message: AnnotatedNymMessage,
-//     pub sender_tag: AnonymousSenderTag,
-//     pub reply_surbs: Vec<ReplySurb>,
-// }
-//
-// impl MessageWithOptionalReplySurbs {
-//     pub fn new(message: AnnotatedNymMessage, reply_surbs: Vec<ReplySurb>) -> Self {
-//         Self {
-//             message,
-//             reply_surbs,
-//         }
-//     }
-//
-//     // the message is in the format of:
-//     // num_surbs (u32) || reply_surbs || data
-//     fn into_bytes(self) -> Vec<u8> {
-//         let num_surbs = self.reply_surbs.len() as u32;
-//
-//         num_surbs
-//             .to_be_bytes()
-//             .into_iter()
-//             .chain(self.reply_surbs.into_iter().flat_map(|s| s.to_bytes()))
-//             .chain(self.message.into_bytes().into_iter())
-//             .collect()
-//     }
-//
-//     /// Pads the message so that after it gets chunked, it will occupy exactly N sphinx packets.
-//     /// Produces new_message = message || 1 || 0000....
-//     pub fn pad_to_full_packet_lengths(self, plaintext_per_packet: usize) -> PaddedMessage {
-//         let bytes = self.into_bytes();
-//
-//         // 1 is added as there will always have to be at least a single byte of padding (1) added
-//         // to be able to later distinguish the actual padding from the underlying message
-//         let (_, space_left) =
-//             chunking::number_of_required_fragments(bytes.len() + 1, plaintext_per_packet);
-//
-//         bytes
-//             .into_iter()
-//             .chain(std::iter::once(1u8))
-//             .chain(std::iter::repeat(0u8).take(space_left))
-//             .collect::<Vec<_>>()
-//             .into()
-//     }
-// }
-
 pub struct PaddedMessage(Vec<u8>);
 
 impl PaddedMessage {
@@ -284,13 +205,13 @@ impl PaddedMessage {
     }
 
     // reverse of NymMessage::pad_to_full_packet_lengths
-    pub fn remove_padding(self, num_mix_hops: u8) -> Result<NymMessage, UnnamedError> {
+    pub fn remove_padding(self, num_mix_hops: u8) -> Result<NymMessage, NymMessageError> {
         // we are looking for first occurrence of 1 in the tail and we get its index
         if let Some(padding_end) = self.0.iter().rposition(|b| *b == 1) {
             // and now we only take bytes until that point (but not including it)
             NymMessage::try_from_bytes(&self.0[..padding_end], num_mix_hops)
         } else {
-            Err(UnnamedError)
+            Err(NymMessageError::InvalidMessagePadding)
         }
     }
 }

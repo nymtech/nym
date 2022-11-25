@@ -3582,6 +3582,7 @@ dependencies = [
  "nymsphinx-types",
  "rand 0.7.3",
  "serde",
+ "thiserror",
 ]
 
 [[package]]

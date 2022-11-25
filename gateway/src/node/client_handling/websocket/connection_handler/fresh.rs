@@ -349,7 +349,7 @@ where
         // right now there are no failure cases here, but this might change in the future
         match client_protocol {
             None => {
-                warn!("the client we're connected to has not specified it's protocol version. It's probably running version < 1.1.X, but that's still fine for now. It will become a hard error in 1.2.0");
+                warn!("the client we're connected to has not specified its protocol version. It's probably running version < 1.1.X, but that's still fine for now. It will become a hard error in 1.2.0");
                 // note: in 1.2.0 we will have to return a hard error here
                 Ok(())
             }

@@ -130,9 +130,11 @@ pub struct Socks5 {
     /// The mix address of the provider to which all requests are going to be sent.
     provider_mix_address: String,
 
-    /// Flag to indicate whether this client shall send reply surbs with each request
-    /// and expect to receive any replies using those.
-    /// Note that it almost doubles bandwidth requirements.
+    /// Specifies whether this client is going to use an anonymous sender tag for communication with the service provider.
+    /// While this is going to hide its actual address information, it will make the actual communication
+    /// slower and consume nearly double the bandwidth as it will require sending reply SURBs.
+    ///
+    /// Note that some service providers might not support this.
     send_anonymously: bool,
 }
 

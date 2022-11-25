@@ -20,6 +20,14 @@ pub(crate) struct Init {
     #[clap(long)]
     provider: String,
 
+    /// Specifies whether this client is going to use an anonymous sender tag for communication with the service provider.
+    /// While this is going to hide its actual address information, it will make the actual communication
+    /// slower and consume nearly double the bandwidth as it will require sending reply SURBs.
+    ///
+    /// Note that some service providers might not support this.
+    #[clap(long)]
+    use_anonymous_sender_tag: bool,
+
     /// Id of the gateway we are going to connect to.
     #[clap(long)]
     gateway: Option<String>,
@@ -59,7 +67,9 @@ impl From<Init> for OverrideConfig {
             nymd_validators: init_config.nymd_validators,
             api_validators: init_config.api_validators,
             port: init_config.port,
+            use_anonymous_sender_tag: init_config.use_anonymous_sender_tag,
             fastmode: init_config.fastmode,
+
             #[cfg(feature = "coconut")]
             enabled_credentials_mode: init_config.enabled_credentials_mode,
         }

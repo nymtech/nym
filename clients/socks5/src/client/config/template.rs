@@ -92,9 +92,11 @@ provider_mix_address = '{{ socks5.provider_mix_address }}'
 # The port on which the client will be listening for incoming requests
 listening_port = {{ socks5.listening_port }}
 
-# Flag to indicate whether this client shall send reply surbs with each request
-# and expect to receive any replies using those.
-# Note that it almost doubles bandwidth requirements.
+# Specifies whether this client is going to use an anonymous sender tag for communication with the service provider.
+# While this is going to hide its actual address information, it will make the actual communication
+# slower and consume nearly double the bandwidth as it will require sending reply SURBs.
+#
+# Note that some service providers might not support this.
 send_anonymously = {{ socks5.send_anonymously }}
 
 ##### logging configuration options #####

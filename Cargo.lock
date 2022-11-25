@@ -3139,6 +3139,7 @@ dependencies = [
  "pretty_env_logger",
  "serde",
  "serde_json",
+ "tap",
  "tokio",
  "validator-client",
 ]
@@ -3164,6 +3165,7 @@ dependencies = [
  "rand 0.6.5",
  "serde",
  "serde_json",
+ "tap",
  "thiserror",
  "time 0.3.14",
  "toml",

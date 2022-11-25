@@ -18,6 +18,7 @@ serde_json = "1"
 tokio = { version = "1.11", features = [ "net", "rt-multi-thread", "macros", "signal"] }
 bip39 = "1.0.1"
 anyhow = "1"
+tap = "1"
 
 nym-cli-commands = { path = "../../common/commands" }
 logging = { path = "../../common/logging"}

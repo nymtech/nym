@@ -17,6 +17,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - clients,validator-api: take coconut signers from the chain instead of specifying them via CLI ([#1747])
 - multisig contract: add DKG contract to the list of addresses that can create proposals ([#1747])
 - socks5-client: wait closing inbound connection until data is sent, and throttle incoming data in general ([#1783])
+- nym-cli: improve error reporting/handling and changed `vesting-schedule` queries to use query client instead of signing client
 
 ### Fixed
 

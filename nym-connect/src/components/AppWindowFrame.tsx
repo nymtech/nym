@@ -5,10 +5,8 @@ import { CustomTitleBar } from './CustomTitleBar';
 export const AppWindowFrame: React.FC = ({ children }) => (
   <Box
     sx={{
-      background: (t) => t.palette.background.default,
-      borderRadius: '12px',
-      padding: '12px 16px',
       display: 'grid',
+      borderRadius: '12px',
       gridTemplateRows: '40px 1fr',
       bgcolor: 'nym.background.dark',
       height: '100vh',

@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { Box, CircularProgress, Input, Stack, TextField, Tooltip, Typography, MenuItem, ListItemIcon } from '@mui/material';
-import Check from '@mui/icons-material/Check';
+import { Box, CircularProgress, Stack, TextField, Tooltip, Typography, MenuItem, ListItemIcon } from '@mui/material';
 import { ServiceProvider, Service, Services } from '../types/directory';
 
 type ServiceWithRandomSp = {
@@ -128,16 +127,6 @@ export const ServiceProviderSelector: React.FC<{
             >
               <Typography>{description}</Typography>
             </Tooltip>
-            {id === service?.id && (
-              <ListItemIcon
-                sx={{
-                  position: 'absolute',
-                  right: '0',
-                }}
-              >
-                <Check sx={{ padding: 0 }} />
-              </ListItemIcon>
-            )}
           </MenuItem>
         ))}
       </TextField>

@@ -66,6 +66,12 @@ pub fn start_nym_socks5_client(
     Ok((socks5_ctrl_tx, socks5_status_rx, used_gateway))
 }
 
+#[derive(Clone, serde::Serialize)]
+struct Payload {
+    title: String,
+    message: String,
+}
+
 /// The disconnect listener listens to the channel setup between the socks5 proxy task and the main
 /// tauri task. Primarily it listens for shutdown messages, and updates the state accordingly.
 pub fn start_disconnect_listener(
@@ -78,14 +84,39 @@ pub fn start_disconnect_listener(
         match status_receiver.await {
             Ok(Socks5StatusMessage::Stopped) => {
                 log::info!("SOCKS5 task reported it has finished");
+                window
+                    .emit(
+                        "socks5-event",
+                        Payload {
+                            title: "SOCKS5 finished".into(),
+                            message: "SOCKS5 task reported it has finished".into(),
+                        },
+                    )
+                    .unwrap();
             }
             Ok(Socks5StatusMessage::FailedToStart) => {
                 log::info!("SOCKS5 task reported it failed to start");
+                window
+                    .emit(
+                        "socks5-event",
+                        Payload {
+                            title: "SOCKS5 error".into(),
+                            message: "SOCKS5 failed to start".into(),
+                        },
+                    )
+                    .unwrap();
             }
             Err(_) => {
                 log::info!("SOCKS5 task appears to have stopped abruptly");
-                // TODO: we should probably generate some events here, or otherwise signal to the
-                // frontend.
+                window
+                    .emit(
+                        "socks5-event",
+                        Payload {
+                            title: "SOCKS5 error".into(),
+                            message: "SOCKS5 stopped abruptly".into(),
+                        },
+                    )
+                    .unwrap();
             }
         }
 

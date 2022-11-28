@@ -1,6 +1,6 @@
 import React from 'react';
 import { Box } from '@mui/material';
-import { NymWordmark } from '@nymproject/react/logo/NymWordmark';
+import { CustomTitleBar } from './CustomTitleBar';
 
 export const AppWindowFrame: React.FC = ({ children }) => (
   <Box
@@ -9,13 +9,12 @@ export const AppWindowFrame: React.FC = ({ children }) => (
       borderRadius: '12px',
       padding: '12px 16px',
       display: 'grid',
-      gridTemplateRows: '30px auto',
-      width: '240px',
+      gridTemplateRows: '40px 1fr',
+      bgcolor: 'nym.background.dark',
+      height: '100vh',
     }}
   >
-    <Box display="flex" justifyContent="space-between" alignItems="center">
-      <NymWordmark width={22} />
-    </Box>
-    {children}
+    <CustomTitleBar />
+    <Box style={{ padding: '16px' }}>{children}</Box>
   </Box>
 );

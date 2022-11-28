@@ -1,9 +1,8 @@
+use crate::error::Socks5ClientError;
+
 use super::authentication::Authenticator;
 use super::client::SocksClient;
-use super::{
-    mixnet_responses::MixnetResponseListener,
-    types::{ResponseCode, SocksProxyError},
-};
+use super::{mixnet_responses::MixnetResponseListener, types::ResponseCode};
 use client_connections::{ConnectionCommandSender, LaneQueueLengths};
 use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
@@ -12,6 +11,7 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use proxy_helpers::connection_controller::{BroadcastActiveConnections, Controller};
 use std::net::SocketAddr;
+use tap::TapFallible;
 use task::ShutdownListener;
 use tokio::net::TcpListener;
 
@@ -56,8 +56,10 @@ impl SphinxSocksServer {
         input_sender: InputMessageSender,
         buffer_requester: ReceivedBufferRequestSender,
         client_connection_tx: ConnectionCommandSender,
-    ) -> Result<(), SocksProxyError> {
-        let listener = TcpListener::bind(self.listening_address).await.unwrap();
+    ) -> Result<(), Socks5ClientError> {
+        let listener = TcpListener::bind(self.listening_address)
+            .await
+            .tap_err(|err| log::error!("Failed to bind to address: {err}"))?;
         info!("Serving Connections...");
 
         // controller for managing all active connections

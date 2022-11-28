@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::sync::atomic::Ordering;
+use std::error::Error;
 
 use crate::client::config::Config;
 use crate::error::Socks5ClientError;
@@ -38,7 +38,8 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use tap::TapFallible;
-use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
+use task::signal::wait_for_signal_and_error;
+use task::{ShutdownListener, ShutdownNotifier};
 
 pub mod config;
 
@@ -299,7 +300,7 @@ impl NymClient {
         msg_input: InputMessageSender,
         client_connection_tx: ConnectionCommandSender,
         lane_queue_lengths: LaneQueueLengths,
-        shutdown: ShutdownListener,
+        mut shutdown: ShutdownListener,
     ) {
         info!("Starting socks5 listener...");
         let auth_methods = vec![AuthenticationMethods::NoAuth as u8];
@@ -312,38 +313,57 @@ impl NymClient {
             self.config.get_provider_mix_address(),
             self.as_mix_recipient(),
             lane_queue_lengths,
-            shutdown,
+            shutdown.clone(),
         );
         tokio::spawn(async move {
-            sphinx_socks
+            // Ideally we should have a fully fledged task manager to check for errors in all
+            // tasks.
+            // However, pragmatically, we start out by at least reporting errors for some of the
+            // tasks that interact with the outside world and can fail in normal operation, such as
+            // network issues.
+            // TODO: replace this by a generic solution, such as a task manager that stores all
+            // JoinHandles of all spawned tasks.
+            if let Err(res) = sphinx_socks
                 .serve(msg_input, buffer_requester, client_connection_tx)
                 .await
+            {
+                shutdown.send_we_stopped(Box::new(res));
+            }
         });
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
-    pub async fn run_forever(&mut self) -> Result<(), Socks5ClientError> {
-        let mut shutdown = self.start().await?;
-        wait_for_signal().await;
+    pub async fn run_forever(&mut self) -> Result<(), Box<dyn Error + Send>> {
+        let mut shutdown = self
+            .start()
+            .await
+            .map_err(|err| Box::new(err) as Box<dyn Error + Send>)?;
+
+        let res = wait_for_signal_and_error(&mut shutdown).await;
 
         log::info!("Sending shutdown");
-        client_core::client::SHUTDOWN_HAS_BEEN_SIGNALLED.store(true, Ordering::Relaxed);
         shutdown.signal_shutdown().ok();
 
         log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
         shutdown.wait_for_shutdown().await;
 
         log::info!("Stopping nym-socks5-client");
-        Ok(())
+        res
     }
 
     // Variant of `run_forever` that listends for remote control messages
     pub async fn run_and_listen(
         &mut self,
         mut receiver: Socks5ControlMessageReceiver,
-    ) -> Result<(), Socks5ClientError> {
-        let mut shutdown = self.start().await?;
-        tokio::select! {
+    ) -> Result<(), Box<dyn Error + Send>> {
+        // Start the main task
+        let mut shutdown = self
+            .start()
+            .await
+            .map_err(|err| Box::new(err) as Box<dyn Error + Send>)?;
+
+        let res = tokio::select! {
+            biased;
             message = receiver.next() => {
                 log::debug!("Received message: {:?}", message);
                 match message {
@@ -354,21 +374,26 @@ impl NymClient {
                         log::info!("Channel closed, stopping");
                     }
                 }
+                Ok(())
+            }
+            Some(msg) = shutdown.wait_for_error() => {
+                log::info!("Task error: {:?}", msg);
+                Err(msg)
             }
             _ = tokio::signal::ctrl_c() => {
                 log::info!("Received SIGINT");
+                Ok(())
             },
-        }
+        };
 
         log::info!("Sending shutdown");
-        client_core::client::SHUTDOWN_HAS_BEEN_SIGNALLED.store(true, Ordering::Relaxed);
         shutdown.signal_shutdown().ok();
 
         log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
         shutdown.wait_for_shutdown().await;
 
         log::info!("Stopping nym-socks5-client");
-        Ok(())
+        res
     }
 
     pub async fn start(&mut self) -> Result<ShutdownNotifier, Socks5ClientError> {

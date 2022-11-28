@@ -307,6 +307,8 @@ impl GatewayClient {
             let m_shutdown = self.shutdown.clone();
             async {
                 if let Some(mut s) = m_shutdown {
+                    // TODO: fix this by marking as success _after_ the select
+                    s.mark_as_success();
                     s.recv().await
                 } else {
                     std::future::pending::<()>().await

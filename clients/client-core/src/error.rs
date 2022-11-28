@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::reply_key_storage::ReplyKeyStorageError;
 use crypto::asymmetric::identity::Ed25519RecoveryError;
 use gateway_client::error::GatewayClientError;
 use validator_client::ValidatorClientError;
@@ -15,6 +16,8 @@ pub enum ClientCoreError {
     Ed25519RecoveryError(#[from] Ed25519RecoveryError),
     #[error("Validator client error: {0}")]
     ValidatorClientError(#[from] ValidatorClientError),
+    #[error("Reply key storage error: {0}")]
+    ReplyKeyStorageError(#[from] ReplyKeyStorageError),
 
     #[error("No gateway with id: {0}")]
     NoGatewayWithId(String),

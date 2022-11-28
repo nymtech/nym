@@ -5,21 +5,14 @@ use validator_client::ValidatorClientError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ClientError {
-    #[error("I/O error: {0}")]
-    IoError(#[from] std::io::Error),
-    #[error("Gateway client error: {0}")]
-    GatewayClientError(#[from] GatewayClientError),
-    #[error("Ed25519 error: {0}")]
-    Ed25519RecoveryError(#[from] Ed25519RecoveryError),
-    #[error("Validator client error: {0}")]
-    ValidatorClientError(#[from] ValidatorClientError),
     #[error("client-core error: {0}")]
     ClientCoreError(#[from] ClientCoreError),
-    #[error("Reply key storage error: {0}")]
-    ReplyKeyStorageError(#[from] ReplyKeyStorageError),
 
     #[error("Failed to load config for: {0}")]
     FailedToLoadConfig(String),
     #[error("Failed local version check, client and config mismatch")]
     FailedLocalVersionCheck,
+
+    #[error("Attempted to start the client in invalid socket mode")]
+    InvalidSocketMode,
 }

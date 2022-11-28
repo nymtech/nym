@@ -34,7 +34,7 @@ pub fn missing_string_value() -> String {
     MISSING_VALUE.to_string()
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config<T> {
     client: Client<T>,
@@ -45,14 +45,20 @@ pub struct Config<T> {
     debug: Debug,
 }
 
-impl<T: NymConfig> Config<T> {
-    pub fn new<S: Into<String>>(id: S) -> Self {
+impl<T> Config<T> {
+    pub fn new<S: Into<String>>(id: S) -> Self
+    where
+        T: NymConfig,
+    {
         let mut cfg = Config::default();
         cfg.with_id(id);
         cfg
     }
 
-    pub fn with_id<S: Into<String>>(&mut self, id: S) {
+    pub fn with_id<S: Into<String>>(&mut self, id: S)
+    where
+        T: NymConfig,
+    {
         let id = id.into();
 
         // identity key setting
@@ -300,7 +306,7 @@ impl From<topology::gateway::Node> for GatewayEndpoint {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 pub struct Client<T> {
     /// Version of the client for which this configuration was created.
     #[serde(default = "missing_string_value")]
@@ -416,11 +422,11 @@ impl<T: NymConfig> Client<T> {
     }
 }
 
-#[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Logging {}
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Debug {
     /// The parameter of Poisson distribution determining how long, on average,

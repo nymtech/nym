@@ -23,10 +23,6 @@ pub enum Socks5ClientError {
     #[error("SOCKS proxy error")]
     SocksProxyError(SocksProxyError),
 
-    #[error("Task halt")]
-    TaskHalt,
-    #[error("Task halted unexpectedly")]
-    TaskHaltedUnexpectedly,
     #[error("Failed to load config for: {0}")]
     FailedToLoadConfig(String),
     #[error("Failed local version check, client and config mismatch")]

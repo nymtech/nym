@@ -137,6 +137,8 @@ pub struct ShutdownListener {
     // Also notify if we dropped without shutdown being registered
     drop_error: ErrorSender,
 
+    // Sometimes it's necessary to clone and drop the shutdown listener during normal operation,
+    // for those situations we need to explicitly not drop (and trigger shutdown).
     set_not_drop: bool,
 }
 

@@ -196,6 +196,8 @@ where
 
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+        use std::time::Duration;
+
         debug!("Started InputMessageListener with graceful shutdown support");
 
         while !shutdown.is_shutdown() {
@@ -214,6 +216,9 @@ where
                 }
             }
         }
+        tokio::time::timeout(Duration::from_secs(15), shutdown.recv())
+            .await
+            .unwrap();
         log::debug!("InputMessageListener: Exiting");
     }
 

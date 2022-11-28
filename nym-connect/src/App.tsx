@@ -1,30 +1,41 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { DateTime } from 'luxon';
 import { ConnectionStatusKind } from './types';
 import { useClientContext } from './context/main';
 import { DefaultLayout } from './layouts/DefaultLayout';
 import { ConnectedLayout } from './layouts/ConnectedLayout';
+import { HelpGuideLayout } from './layouts/HelpGuideLayout';
 
 export const App: React.FC = () => {
   const context = useClientContext();
   const [busy, setBusy] = React.useState<boolean>();
+  const [showInfoModal, setShowInfoModal] = React.useState(false);
 
   const handleConnectClick = React.useCallback(async () => {
-    const oldStatus = context.connectionStatus;
-    if (oldStatus === ConnectionStatusKind.connected || oldStatus === ConnectionStatusKind.disconnected) {
+    const currentStatus = context.connectionStatus;
+    if (currentStatus === ConnectionStatusKind.connected || currentStatus === ConnectionStatusKind.disconnected) {
       setBusy(true);
 
       // eslint-disable-next-line default-case
-      switch (oldStatus) {
+      switch (currentStatus) {
         case ConnectionStatusKind.disconnected:
           await context.startConnecting();
+          context.setConnectedSince(DateTime.now());
           break;
         case ConnectionStatusKind.connected:
           await context.startDisconnecting();
+          context.setConnectedSince(undefined);
           break;
       }
       setBusy(false);
     }
   }, [context.connectionStatus]);
+
+  useEffect(() => {
+    if (context.connectionStatus === ConnectionStatusKind.connected) setShowInfoModal(true);
+  }, [context.connectionStatus]);
+
+  if (context.showHelp) return <HelpGuideLayout />;
 
   if (
     context.connectionStatus === ConnectionStatusKind.disconnected ||
@@ -32,6 +43,8 @@ export const App: React.FC = () => {
   ) {
     return (
       <DefaultLayout
+        error={context.error}
+        clearError={context.clearError}
         status={context.connectionStatus}
         busy={busy}
         onConnectClick={handleConnectClick}
@@ -43,6 +56,8 @@ export const App: React.FC = () => {
 
   return (
     <ConnectedLayout
+      showInfoModal={showInfoModal}
+      handleCloseInfoModal={() => setShowInfoModal(false)}
       status={context.connectionStatus}
       busy={busy}
       onConnectClick={handleConnectClick}

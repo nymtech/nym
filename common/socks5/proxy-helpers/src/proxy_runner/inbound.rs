@@ -208,5 +208,6 @@ where
     trace!("{} - inbound closed", connection_id);
     shutdown_notify.notify_one();
 
+    shutdown_listener.mark_as_success();
     reader
 }

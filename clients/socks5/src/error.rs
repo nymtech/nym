@@ -3,6 +3,8 @@ use crypto::asymmetric::identity::Ed25519RecoveryError;
 use gateway_client::error::GatewayClientError;
 use validator_client::ValidatorClientError;
 
+use crate::socks::types::SocksProxyError;
+
 #[derive(thiserror::Error, Debug)]
 pub enum Socks5ClientError {
     #[error("I/O error: {0}")]
@@ -18,8 +20,13 @@ pub enum Socks5ClientError {
     #[error("Reply key storage error: {0}")]
     ReplyKeyStorageError(#[from] ReplyKeyStorageError),
 
+    #[error("SOCKS proxy error")]
+    SocksProxyError(SocksProxyError),
+
     #[error("Failed to load config for: {0}")]
     FailedToLoadConfig(String),
     #[error("Failed local version check, client and config mismatch")]
     FailedLocalVersionCheck,
+    #[error("Fail to bind address")]
+    FailToBindAddress,
 }

@@ -483,6 +483,10 @@ where
         } else {
             log::debug!("{status_str}");
         }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn log_status_infrequent(&self) {
         if self.sending_delay_controller.current_multiplier() > 1 {
             log::warn!(
                 "Unable to send packets fast enough - sending delay multiplier set to: {}",
@@ -495,7 +499,8 @@ where
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
         debug!("Started OutQueueControl with graceful shutdown support");
 
-        let mut status_timer = tokio::time::interval(Duration::from_secs(1));
+        let mut status_timer = tokio::time::interval(Duration::from_secs(5));
+        let mut infrequent_status_timer = tokio::time::interval(Duration::from_secs(60));
 
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -506,6 +511,9 @@ where
                 _ = status_timer.tick() => {
                     self.log_status();
                 }
+                _ = infrequent_status_timer.tick() => {
+                    self.log_status_infrequent();
+                }
                 next_message = self.next() => if let Some(next_message) = next_message {
                     self.on_message(next_message).await;
                 } else {
@@ -514,7 +522,9 @@ where
                 }
             }
         }
-        assert!(shutdown.is_shutdown_poll());
+        tokio::time::timeout(Duration::from_secs(5), shutdown.recv())
+            .await
+            .expect("Task stopped without shutdown called");
         log::debug!("OutQueueControl: Exiting");
     }
 

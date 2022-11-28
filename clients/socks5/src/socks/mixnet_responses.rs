@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
@@ -103,7 +105,9 @@ impl MixnetResponseListener {
                 }
             }
         }
-        assert!(self.shutdown.is_shutdown_poll());
+        tokio::time::timeout(Duration::from_secs(5), self.shutdown.recv())
+            .await
+            .expect("Task stopped without shutdown called");
         log::debug!("MixnetResponseListener: Exiting");
     }
 }

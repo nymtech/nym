@@ -105,7 +105,7 @@ impl MixnetResponseListener {
                 }
             }
         }
-        tokio::time::timeout(Duration::from_secs(15), self.shutdown.recv())
+        tokio::time::timeout(Duration::from_secs(5), self.shutdown.recv())
             .await
             .unwrap();
         log::debug!("MixnetResponseListener: Exiting");

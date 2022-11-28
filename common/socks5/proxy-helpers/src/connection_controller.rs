@@ -254,7 +254,7 @@ impl Controller {
                 },
             }
         }
-        tokio::time::timeout(Duration::from_secs(15), self.shutdown.recv())
+        tokio::time::timeout(Duration::from_secs(5), self.shutdown.recv())
             .await
             .unwrap();
         assert!(self.shutdown.is_shutdown_poll());

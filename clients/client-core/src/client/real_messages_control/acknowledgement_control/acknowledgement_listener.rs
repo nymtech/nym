@@ -90,7 +90,7 @@ impl AcknowledgementListener {
                 }
             }
         }
-        tokio::time::timeout(Duration::from_secs(15), shutdown.recv())
+        tokio::time::timeout(Duration::from_secs(5), shutdown.recv())
             .await
             .unwrap();
         log::debug!("AcknowledgementListener: Exiting");

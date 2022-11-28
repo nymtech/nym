@@ -342,7 +342,7 @@ impl RequestReceiver {
                 },
             }
         }
-        tokio::time::timeout(Duration::from_secs(15), shutdown.recv())
+        tokio::time::timeout(Duration::from_secs(5), shutdown.recv())
             .await
             .unwrap();
         log::debug!("RequestReceiver: Exiting");
@@ -395,7 +395,7 @@ impl FragmentedMessageReceiver {
                 }
             }
         }
-        tokio::time::timeout(Duration::from_secs(15), shutdown.recv())
+        tokio::time::timeout(Duration::from_secs(5), shutdown.recv())
             .await
             .unwrap();
         log::debug!("FragmentedMessageReceiver: Exiting");

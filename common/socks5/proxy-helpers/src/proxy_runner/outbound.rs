@@ -90,5 +90,6 @@ pub(super) async fn run_outbound(
     trace!("{} - outbound closed", connection_id);
     shutdown_notify.notify_one();
 
+    shutdown_listener.mark_as_success();
     (writer, mix_receiver)
 }

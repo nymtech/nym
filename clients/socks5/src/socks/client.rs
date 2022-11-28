@@ -202,6 +202,7 @@ impl SocksClient {
     pub async fn shutdown(&mut self) -> Result<(), SocksProxyError> {
         info!("client is shutting down its TCP stream");
         self.stream.shutdown().await?;
+        self.shutdown_listener.mark_as_success();
         Ok(())
     }
 
@@ -318,6 +319,7 @@ impl SocksClient {
             SocksCommand::UdpAssociate => unimplemented!(), // not handled
         };
 
+        self.shutdown_listener.mark_as_success();
         Ok(())
     }
 

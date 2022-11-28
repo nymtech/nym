@@ -136,6 +136,8 @@ pub struct ShutdownListener {
 
     // Also notify if we dropped without shutdown being registered
     drop_error: ErrorSender,
+
+    set_not_drop: bool,
 }
 
 impl ShutdownListener {
@@ -149,6 +151,7 @@ impl ShutdownListener {
             notify,
             return_error,
             drop_error,
+            set_not_drop: false,
         }
     }
 
@@ -187,11 +190,15 @@ impl ShutdownListener {
         log::trace!("Notifying we stopped: {:?}", err);
         self.return_error.send(err).unwrap();
     }
+
+    pub fn mark_as_success(&mut self) {
+        self.set_not_drop = true;
+    }
 }
 
 impl Drop for ShutdownListener {
     fn drop(&mut self) {
-        if !self.is_shutdown_poll() {
+        if !self.set_not_drop && !self.is_shutdown_poll() {
             log::trace!("Notifying stop on unexpected drop");
             // If we can't send, well then there is not much to do
             self.drop_error

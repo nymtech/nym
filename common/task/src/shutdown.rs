@@ -85,8 +85,14 @@ impl ShutdownNotifier {
     }
 
     pub async fn wait_for_error(&mut self) -> Option<SentError> {
-        let mut error_rx = self.task_return_error_rx.take().unwrap();
-        let mut drop_rx = self.task_drop_rx.take().unwrap();
+        let mut error_rx = self
+            .task_return_error_rx
+            .take()
+            .expect("Unable to wait for error: attempt to wait twice?");
+        let mut drop_rx = self
+            .task_drop_rx
+            .take()
+            .expect("Unable to wait for error: attempt to wait twice?");
 
         // During an error we are likely like to be swamped with drop notifications as well, this
         // is a crude way to give priority to real errors (if there are any).
@@ -190,7 +196,9 @@ impl ShutdownListener {
 
     pub fn send_we_stopped(&mut self, err: SentError) {
         log::trace!("Notifying we stopped: {:?}", err);
-        self.return_error.send(err).unwrap();
+        if self.return_error.send(err).is_err() {
+            log::error!("Failed to send back error message");
+        }
     }
 
     pub fn mark_as_success(&mut self) {

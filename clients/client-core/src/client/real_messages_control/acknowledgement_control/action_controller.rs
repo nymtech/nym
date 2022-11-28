@@ -274,7 +274,7 @@ impl ActionController {
         }
         tokio::time::timeout(Duration::from_secs(5), shutdown.recv())
             .await
-            .unwrap();
+            .expect("Task stopped without shutdown called");
         log::debug!("ActionController: Exiting");
     }
 

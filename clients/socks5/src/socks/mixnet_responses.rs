@@ -107,7 +107,7 @@ impl MixnetResponseListener {
         }
         tokio::time::timeout(Duration::from_secs(5), self.shutdown.recv())
             .await
-            .unwrap();
+            .expect("Task stopped without shutdown called");
         log::debug!("MixnetResponseListener: Exiting");
     }
 }

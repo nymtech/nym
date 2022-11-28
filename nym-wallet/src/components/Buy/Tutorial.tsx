@@ -4,6 +4,9 @@ import { Tune as TuneIcon, BorderColor as BorderColorIcon, Paid as PaidIcon } fr
 import { NymCard } from '../NymCard';
 import { SignMessageModal } from './SignMessageModal';
 
+// TODO retrieve this value from env
+const EXCHANGE_URL = 'https://buy.nymtech.net';
+
 const borderColor = 'rgba(141, 147, 153, 0.2)';
 
 const TutorialStep = ({
@@ -110,8 +113,8 @@ export const Tutorial = () => {
         <Button variant="outlined" size="large" onClick={() => setShowSignModal(true)}>
           Sign message
         </Button>
-        <Button variant="contained" size="large" onClick={() => {}}>
-          Buy Nym
+        <Button variant="contained" size="large" href={EXCHANGE_URL} target="_blank">
+          Buy NYM
         </Button>
       </Stack>
     </NymCard>

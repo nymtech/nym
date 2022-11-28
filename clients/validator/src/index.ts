@@ -159,6 +159,10 @@ export default class ValidatorClient implements INymClient {
     return this.client.getCachedMixnodes();
   }
 
+  async getMixNodeBonds(): Promise<any[]> {
+    return this.client.getMixNodeBonds(this.mixnetContract, 10, '0');
+  }
+
   async getActiveMixnodes(): Promise<MixNodeBond[]> {
     return this.client.getActiveMixnodes();
   }

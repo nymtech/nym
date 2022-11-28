@@ -242,6 +242,10 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     return this.nymdQuerier.getMixNodesPaged(mixnetContractAddress, limit, startAfter);
   }
 
+  getMixNodeBonds(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<any> {
+    return this.nymdQuerier.getMixNodeBonds(mixnetContractAddress, limit, startAfter);
+  }
+
   getGatewaysPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedGatewayResponse> {
     return this.nymdQuerier.getGatewaysPaged(mixnetContractAddress, limit, startAfter);
   }

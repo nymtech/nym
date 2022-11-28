@@ -55,7 +55,7 @@ export interface ICosmWasmQuery {
 export interface INymdQuery {
   // nym-specific implemented inside NymQuerier
   getContractVersion(mixnetContractAddress: string): Promise<MixnetContractVersion>;
-
+  getMixNodeBonds(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<any>;
   getMixNodesPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedMixnodeResponse>;
   getGatewaysPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedGatewayResponse>;
   ownsMixNode(mixnetContractAddress: string, address: string): Promise<MixOwnershipResponse>;
@@ -117,6 +117,10 @@ export default class QueryClient extends CosmWasmClient implements IQueryClient 
 
   getMixNodesPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedMixnodeResponse> {
     return this.nymdQuerier.getMixNodesPaged(mixnetContractAddress, limit, startAfter);
+  }
+
+  getMixNodeBonds(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<any> {
+    return this.nymdQuerier.getMixNodeBonds(mixnetContractAddress, limit, startAfter);
   }
 
   getGatewaysPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedGatewayResponse> {

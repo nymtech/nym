@@ -47,6 +47,15 @@ export default class NymdQuerier implements INymdQuery {
     });
   }
 
+  getMixNodeBonds(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedMixnodeResponse> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      get_mix_nodes: {
+        limit,
+        start_after: startAfter,
+      },
+    });
+  }
+
   getGatewaysPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedGatewayResponse> {
     return this.client.queryContractSmart(mixnetContractAddress, {
       get_gateways: {

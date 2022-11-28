@@ -1,23 +1,17 @@
 {
-    "compilerOptions": {
-        "target": "es6",
-        "module": "commonjs",
-        "esModuleInterop": true,
-        "strict": true,
-        "declaration": true,
-        "outDir": "./dist",
-        "skipLibCheck": true
-    },
-    "typedocOptions": {
-        "entryPoints": [
-            "src/index.ts"
-        ],
-        "out": "docs"
-    },
-    "exclude": [
-        "dist",
-        "examples",
-        "tests",
-        "node_modules"
-    ]
+  "compilerOptions": {
+    "target": "es6",
+    "module": "commonjs",
+    "esModuleInterop": true,
+    "strict": true,
+    "declaration": true,
+    "outDir": "./dist",
+    "skipLibCheck": true,
+    "noImplicitAny": true
+  },
+  "typedocOptions": {
+    "entryPoints": ["src/index.ts"],
+    "out": "docs"
+  },
+  "exclude": ["dist", "examples", "tests", "node_modules"]
 }

@@ -7,6 +7,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-trait = { version = "0.1.58" }
 dirs = "4.0"
 dashmap = "5.4.0"
 futures = "0.3"
@@ -14,10 +15,11 @@ humantime-serde = "1.0"
 log = "0.4"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { version = "1.0", features = ["derive"] }
-sled = { version = "0.34", optional = true }
 tap = "1.0.1"
 thiserror = "1.0.34"
 url = { version ="2.2", features = ["serde"] }
+sqlx = { version = "0.6.2", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"], optional = true }
+tokio = { version = "1.21.2", features = ["time", "macros"]}
 
 # internal
 config = { path = "../../common/config" }
@@ -32,7 +34,6 @@ pemstore = { path = "../../common/pemstore" }
 topology = { path = "../../common/topology" }
 validator-client = { path = "../../common/client-libs/validator-client", default-features = false }
 
-tokio = { version = "1.21.2", features = ["time", "macros"]}
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen-futures]
 version = "0.4"
@@ -51,14 +52,12 @@ features = ["futures"]
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.task]
 path = "../../common/task"
 
-[target."cfg(not(target_arch = \"wasm32\"))".dependencies.sled]
-version = "0.34.7"
-
 [dev-dependencies]
 tempfile = "3.1.0"
 
 [features]
 default = []
+fs-surb-storage = ["sqlx"]
 wasm = ["gateway-client/wasm"]
 coconut = ["gateway-client/coconut", "gateway-requests/coconut"]
 

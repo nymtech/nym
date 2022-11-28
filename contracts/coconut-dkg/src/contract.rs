@@ -117,7 +117,76 @@ pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Respon
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::support::tests::fixtures::{dealer_details_fixture, TEST_MIX_DENOM};
+    use crate::support::tests::helpers::{ADMIN_ADDRESS, MULTISIG_CONTRACT};
+    use coconut_dkg_common::dealer::DealerDetails;
+    use coconut_dkg_common::msg::ExecuteMsg::RegisterDealer;
+    use coconut_dkg_common::types::NodeIndex;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+    use cosmwasm_std::{coins, Addr};
+    use cw4::Member;
+    use cw4_group::msg::InstantiateMsg as GroupInstantiateMsg;
+    use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
+
+    fn instantiate_with_group(app: &mut App, members: &[Addr]) -> Addr {
+        let group_code_id = app.store_code(Box::new(ContractWrapper::new(
+            cw4_group::contract::execute,
+            cw4_group::contract::instantiate,
+            cw4_group::contract::query,
+        )));
+        let msg = GroupInstantiateMsg {
+            admin: Some(ADMIN_ADDRESS.to_string()),
+            members: members
+                .iter()
+                .map(|member| Member {
+                    addr: member.to_string(),
+                    weight: 10,
+                })
+                .collect(),
+        };
+        let group_contract_addr = app
+            .instantiate_contract(
+                group_code_id,
+                Addr::unchecked(ADMIN_ADDRESS),
+                &msg,
+                &[],
+                "group",
+                None,
+            )
+            .unwrap();
+
+        let coconut_dkg_code_id =
+            app.store_code(Box::new(ContractWrapper::new(execute, instantiate, query)));
+        let msg = InstantiateMsg {
+            group_addr: group_contract_addr.to_string(),
+            multisig_addr: MULTISIG_CONTRACT.to_string(),
+            admin: Addr::unchecked(ADMIN_ADDRESS).to_string(),
+            mix_denom: TEST_MIX_DENOM.to_string(),
+        };
+        app.instantiate_contract(
+            coconut_dkg_code_id,
+            Addr::unchecked(ADMIN_ADDRESS),
+            &msg,
+            &[],
+            "coconut dkg",
+            None,
+        )
+        .unwrap()
+    }
+
+    fn parse_node_index(res: AppResponse) -> NodeIndex {
+        res.events
+            .into_iter()
+            .find(|e| &e.ty == "wasm")
+            .unwrap()
+            .attributes
+            .into_iter()
+            .find(|attr| &attr.key == "node_index")
+            .unwrap()
+            .value
+            .parse::<u64>()
+            .unwrap()
+    }
 
     #[test]
     fn initialize_contract() {
@@ -133,5 +202,63 @@ mod tests {
 
         let res = instantiate(deps.as_mut(), env.clone(), info, msg);
         assert!(res.is_ok())
+    }
+
+    #[test]
+    fn execute_add_dealer() {
+        let init_funds = coins(100, TEST_MIX_DENOM);
+        const MEMBER_SIZE: usize = 100;
+        let members: [Addr; MEMBER_SIZE] =
+            std::array::from_fn(|idx| Addr::unchecked(format!("member{}", idx)));
+
+        let mut app = AppBuilder::new().build(|router, _, storage| {
+            router
+                .bank
+                .init_balance(storage, &Addr::unchecked(ADMIN_ADDRESS), init_funds)
+                .unwrap();
+        });
+        let coconut_dkg_contract_addr = instantiate_with_group(&mut app, &members);
+
+        for (idx, member) in members.iter().enumerate() {
+            let res = app
+                .execute_contract(
+                    member.clone(),
+                    coconut_dkg_contract_addr.clone(),
+                    &RegisterDealer {
+                        bte_key_with_proof: "bte_key_with_proof".to_string(),
+                        announce_address: "127.0.0.1:8000".to_string(),
+                    },
+                    &vec![],
+                )
+                .unwrap();
+            assert_eq!(parse_node_index(res), (idx + 1) as u64);
+
+            let err = app
+                .execute_contract(
+                    member.clone(),
+                    coconut_dkg_contract_addr.clone(),
+                    &RegisterDealer {
+                        bte_key_with_proof: "bte_key_with_proof".to_string(),
+                        announce_address: "127.0.0.1:8000".to_string(),
+                    },
+                    &vec![],
+                )
+                .unwrap_err();
+            assert_eq!(ContractError::AlreadyADealer, err.downcast().unwrap());
+        }
+
+        let unauthorized_member = Addr::unchecked("not_a_member");
+        let err = app
+            .execute_contract(
+                unauthorized_member,
+                coconut_dkg_contract_addr.clone(),
+                &RegisterDealer {
+                    bte_key_with_proof: "bte_key_with_proof".to_string(),
+                    announce_address: "127.0.0.1:8000".to_string(),
+                },
+                &vec![],
+            )
+            .unwrap_err();
+        assert_eq!(ContractError::Unauthorized, err.downcast().unwrap());
     }
 }

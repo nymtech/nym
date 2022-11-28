@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use coconut_dkg_common::dealer::ContractDealing;
+use coconut_dkg_common::dealer::{ContractDealing, DealerDetails};
 use coconut_dkg_common::types::ContractSafeBytes;
 use coconut_dkg_common::verification_key::ContractVKShare;
 use cosmwasm_std::Addr;
@@ -22,9 +22,11 @@ pub fn dealing_bytes_fixture() -> ContractSafeBytes {
     ContractSafeBytes(vec![])
 }
 
-pub fn dealing_fixture(dealer: Addr) -> ContractDealing {
-    ContractDealing {
-        dealing: dealing_bytes_fixture(),
-        dealer,
+pub fn dealer_details_fixture(assigned_index: u64) -> DealerDetails {
+    DealerDetails {
+        address: Addr::unchecked(format!("owner{}", assigned_index)),
+        bte_public_key_with_proof: "".to_string(),
+        announce_address: "".to_string(),
+        assigned_index,
     }
 }

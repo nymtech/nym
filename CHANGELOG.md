@@ -21,6 +21,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 ### Fixed
 
 - gateway-client: fix decrypting stored messages on reconnect ([#1786])
+- socks5-client: fix shutting down all tasks if anyone of them panics or errors out ([#1805])
 
 [#1678]: https://github.com/nymtech/nym/pull/1678
 [#1708]: https://github.com/nymtech/nym/pull/1708
@@ -28,6 +29,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1747]: https://github.com/nymtech/nym/pull/1747
 [#1783]: https://github.com/nymtech/nym/pull/1783
 [#1786]: https://github.com/nymtech/nym/pull/1786
+[#1805]: https://github.com/nymtech/nym/pull/1805
 
 
 ## [v1.1.0](https://github.com/nymtech/nym/tree/v1.1.0) (2022-11-09)

@@ -315,6 +315,7 @@ pub struct Client<T> {
     disabled_credentials_mode: bool,
 
     /// Addresses to nymd validators via which the client can communicate with the chain.
+    #[serde(default)]
     validator_urls: Vec<Url>,
 
     /// Addresses to APIs running on validator from which the client gets the view of the network.

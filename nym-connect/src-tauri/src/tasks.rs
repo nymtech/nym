@@ -113,7 +113,7 @@ pub fn start_disconnect_listener(
                         "socks5-event",
                         Payload {
                             title: "SOCKS5 error".into(),
-                            message: "SOCKS5 stopped abruptly".into(),
+                            message: "SOCKS5 stopped abruptly. Please try reconnecting.".into(),
                         },
                     )
                     .unwrap();

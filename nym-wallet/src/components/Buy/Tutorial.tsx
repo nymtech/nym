@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button, Stack, Typography, Grid, Link } from '@mui/material';
+import { Button, Stack, Typography, Grid } from '@mui/material';
 import { Tune as TuneIcon, BorderColor as BorderColorIcon, Paid as PaidIcon } from '@mui/icons-material';
 import { NymCard } from '../NymCard';
 import { SignMessageModal } from './SignMessageModal';
@@ -18,7 +18,7 @@ const TutorialStep = ({
 }: {
   step: number;
   title: string;
-  text: string | React.ReactNode;
+  text: React.ReactNode;
   icon: React.ReactNode;
   divider?: boolean;
 }) => (
@@ -41,11 +41,7 @@ const TutorialStep = ({
       <Typography fontWeight={600} variant="h6">
         {title}
       </Typography>
-      {typeof text === 'string' ? (
-        <Typography sx={{ color: (t) => t.palette.nym.text.muted }}>{text}</Typography>
-      ) : (
-        text
-      )}
+      {text}
     </Stack>
   </Grid>
 );
@@ -105,8 +101,12 @@ export const Tutorial = () => {
           step={3}
           title="Make BTC tx and receive NYM"
           icon={<PaidIcon fontSize="small" />}
-          text="Send BTC to the given address. When the transaction is confirmed your purchased NYM tokens will be
-              transfered in your wallet."
+          text={
+            <Typography sx={{ color: (t) => t.palette.nym.text.muted }}>
+              Send BTC to the given address. When the transaction is confirmed your purchased NYM tokens will be
+              transferred in your wallet.
+            </Typography>
+          }
         />
       </Grid>
       <Stack direction="row" gap={2} justifyContent="flex-end" mt={5}>

@@ -339,7 +339,7 @@ impl TopologyRefresher {
             let mut interval =
                 gloo_timers::future::IntervalStream::new(self.refresh_rate.as_millis() as u32);
 
-            while let Some(_) = interval.next().await {
+            while (interval.next().await).is_some() {
                 self.refresh().await;
             }
         })

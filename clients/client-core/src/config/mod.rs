@@ -271,7 +271,7 @@ impl<T> Config<T> {
     }
 
     pub fn get_use_extended_packet_size(&self) -> Option<ExtendedPacketSize> {
-        self.debug.use_extended_packet_size.clone()
+        self.debug.use_extended_packet_size
     }
 
     pub fn get_version(&self) -> &str {

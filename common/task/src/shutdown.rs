@@ -155,6 +155,9 @@ pub struct ShutdownListener {
 }
 
 impl ShutdownListener {
+    #[cfg(not(target_arch = "wasm32"))]
+    const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
+
     fn new(
         notify: watch::Receiver<()>,
         return_error: ErrorSender,
@@ -179,6 +182,13 @@ impl ShutdownListener {
         }
         let _ = self.notify.changed().await;
         self.shutdown = true;
+    }
+
+    pub async fn recv_timeout(&mut self) {
+        #[cfg(not(target_arch = "wasm32"))]
+        tokio::time::timeout(Self::SHUTDOWN_TIMEOUT, self.recv())
+            .await
+            .expect("Task stopped without shutdown called");
     }
 
     pub fn is_shutdown_poll(&mut self) -> bool {

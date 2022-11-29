@@ -320,10 +320,7 @@ impl TopologyRefresher {
                     },
                 }
             }
-            #[cfg(not(target_arch = "wasm32"))]
-            tokio::time::timeout(std::time::Duration::from_secs(5), shutdown.recv())
-                .await
-                .expect("Task stopped without shutdown called");
+            shutdown.recv_timeout().await;
             log::debug!("TopologyRefresher: Exiting");
         })
     }

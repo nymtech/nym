@@ -5,4 +5,4 @@ pub mod shutdown;
 pub mod signal;
 
 pub use shutdown::{ShutdownListener, ShutdownNotifier};
-pub use signal::wait_for_signal;
+pub use signal::{wait_for_signal, wait_for_signal_and_error};

@@ -38,8 +38,7 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use tap::TapFallible;
-use task::signal::wait_for_signal_and_error;
-use task::{ShutdownListener, ShutdownNotifier};
+use task::{wait_for_signal_and_error, ShutdownListener, ShutdownNotifier};
 
 pub mod config;
 

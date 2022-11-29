@@ -42,9 +42,9 @@ pub fn mock_app(init_funds: &[Coin]) -> App {
 }
 pub fn contract_dkg() -> Box<dyn Contract<Empty>> {
     let contract = ContractWrapper::new(
-        coconut_dkg::execute,
-        coconut_dkg::instantiate,
-        coconut_dkg::query,
+        coconut_dkg::contract::execute,
+        coconut_dkg::contract::instantiate,
+        coconut_dkg::contract::query,
     );
     Box::new(contract)
 }

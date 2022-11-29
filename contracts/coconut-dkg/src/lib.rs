@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 mod constants;
-mod contract;
+pub mod contract;
 mod dealers;
 mod dealings;
 mod epoch_state;
-mod error;
+pub mod error;
 mod state;
 mod support;
 mod verification_key_shares;

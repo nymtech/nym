@@ -94,7 +94,7 @@ impl MixnodeBondingAccount for Account {
         let current_balance = self.load_balance(storage)?;
         let total_pledged_after =
             self.total_pledged_locked(storage, env)? + additional_pledge.amount;
-        let locked_pledge_cap = locked_pledge_cap(storage);
+        let locked_pledge_cap = self.absolute_pledge_cap()?;
 
         if locked_pledge_cap < total_pledged_after {
             return Err(ContractError::LockedPledgeCapReached {

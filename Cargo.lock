@@ -3576,6 +3576,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-sdk"
+version = "0.1.0"
+dependencies = [
+ "client-core",
+ "rand 0.7.3",
+ "tokio",
+]
+
+[[package]]
 name = "nym-socks5-client"
 version = "1.1.4"
 dependencies = [

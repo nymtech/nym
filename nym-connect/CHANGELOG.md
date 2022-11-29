@@ -5,6 +5,10 @@
 - socks5-client: fix shutting down all background workers if anyone of them panics or errors out. This fixes an issue where the nym-connect UI was showing connected even though the socks5 tunnel was non-functional. ([#1805])
 - gateway-libs: fix decryping messages stored on the gateway between reconnects ([#1786])
 
+- nymconnect: updated UI
+- nymconnect: new help area
+- nymconnect: listen for service errors and display on frontend
+
 [#1720]: https://github.com/nymtech/nym/pull/1720
 [#1772]: https://github.com/nymtech/nym/pull/1772
 [#1777]: https://github.com/nymtech/nym/pull/1777

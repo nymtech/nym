@@ -35,7 +35,7 @@ pub fn start_nym_socks5_client(
         .tap_err(|_| log::warn!("Failed to load configuration file"))?;
     let used_gateway = config.get_base().get_gateway_endpoint().clone();
 
-    let mut socks5_client = Socks5NymClient::new(config);
+    let socks5_client = Socks5NymClient::new(config);
     log::info!("Starting socks5 client");
 
     // Channel to send control messages to the socks5 client

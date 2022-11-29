@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use client_core::config::GatewayEndpoint;
+use client_core::config::GatewayEndpointConfig;
 use std::sync::Arc;
 use tap::TapFallible;
 use tokio::sync::RwLock;
@@ -169,7 +169,7 @@ async fn setup_gateway(
     register: bool,
     user_chosen_gateway_id: Option<&str>,
     config: &Socks5Config,
-) -> Result<GatewayEndpoint> {
+) -> Result<GatewayEndpointConfig> {
     if register {
         // Get the gateway details by querying the validator-api. Either pick one at random or use
         // the chosen one if it's among the available ones.

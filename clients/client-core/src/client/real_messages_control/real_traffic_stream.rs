@@ -495,40 +495,61 @@ where
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
         debug!("Started OutQueueControl with graceful shutdown support");
 
-        let mut status_timer = tokio::time::interval(Duration::from_secs(5));
-        let mut infrequent_status_timer = tokio::time::interval(Duration::from_secs(60));
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            let mut status_timer = tokio::time::interval(Duration::from_secs(5));
+            let mut infrequent_status_timer = tokio::time::interval(Duration::from_secs(60));
 
-        while !shutdown.is_shutdown() {
-            tokio::select! {
-                biased;
-                _ = shutdown.recv() => {
-                    log::trace!("OutQueueControl: Received shutdown");
+            while !shutdown.is_shutdown() {
+                tokio::select! {
+                    biased;
+                    _ = shutdown.recv() => {
+                        log::trace!("OutQueueControl: Received shutdown");
+                    }
+                    _ = status_timer.tick() => {
+                        self.log_status();
+                    }
+                    _ = infrequent_status_timer.tick() => {
+                        self.log_status_infrequent();
+                    }
+                    next_message = self.next() => if let Some(next_message) = next_message {
+                        self.on_message(next_message).await;
+                    } else {
+                        log::trace!("OutQueueControl: Stopping since channel closed");
+                        break;
+                    }
                 }
-                _ = status_timer.tick() => {
-                    self.log_status();
-                }
-                _ = infrequent_status_timer.tick() => {
-                    self.log_status_infrequent();
-                }
-                next_message = self.next() => if let Some(next_message) = next_message {
-                    self.on_message(next_message).await;
-                } else {
-                    log::trace!("OutQueueControl: Stopping since channel closed");
-                    break;
+            }
+            tokio::time::timeout(Duration::from_secs(5), shutdown.recv())
+                .await
+                .expect("Task stopped without shutdown called");
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            while !shutdown.is_shutdown() {
+                tokio::select! {
+                    biased;
+                    _ = shutdown.recv() => {
+                        log::trace!("OutQueueControl: Received shutdown");
+                    }
+                    next_message = self.next() => if let Some(next_message) = next_message {
+                        self.on_message(next_message).await;
+                    } else {
+                        log::trace!("OutQueueControl: Stopping since channel closed");
+                        break;
+                    }
                 }
             }
         }
-        tokio::time::timeout(Duration::from_secs(5), shutdown.recv())
-            .await
-            .expect("Task stopped without shutdown called");
         log::debug!("OutQueueControl: Exiting");
     }
 
-    #[cfg(target_arch = "wasm32")]
+    // todo: think whether this is still required
+    #[allow(dead_code)]
     pub(super) async fn run(&mut self) {
         debug!("Started OutQueueControl without graceful shutdown support");
 

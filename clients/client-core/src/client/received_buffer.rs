@@ -320,10 +320,7 @@ impl RequestReceiver {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
-        use std::time::Duration;
-
         debug!("Started RequestReceiver with graceful shutdown support");
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -342,13 +339,12 @@ impl RequestReceiver {
                 },
             }
         }
-        tokio::time::timeout(Duration::from_secs(5), shutdown.recv())
-            .await
-            .expect("Task stopped without shutdown called");
+        shutdown.recv_timeout().await;
         log::debug!("RequestReceiver: Exiting");
     }
 
-    #[cfg(target_arch = "wasm32")]
+    // todo: think whether this is still required
+    #[allow(dead_code)]
     async fn run(&mut self) {
         debug!("Started RequestReceiver without graceful shutdown support");
 
@@ -374,10 +370,7 @@ impl FragmentedMessageReceiver {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
-        use std::time::Duration;
-
         debug!("Started FragmentedMessageReceiver with graceful shutdown support");
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -395,13 +388,12 @@ impl FragmentedMessageReceiver {
                 }
             }
         }
-        tokio::time::timeout(Duration::from_secs(5), shutdown.recv())
-            .await
-            .expect("Task stopped without shutdown called");
+        shutdown.recv_timeout().await;
         log::debug!("FragmentedMessageReceiver: Exiting");
     }
 
-    #[cfg(target_arch = "wasm32")]
+    // todo: think whether this is still required
+    #[allow(dead_code)]
     async fn run(&mut self) {
         debug!("Started FragmentedMessageReceiver without graceful shutdown support");
 
@@ -438,7 +430,6 @@ impl ReceivedMessagesBufferController {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn start_with_shutdown(self, shutdown: task::ShutdownListener) {
         let mut fragmented_message_receiver = self.fragmented_message_receiver;
         let mut request_receiver = self.request_receiver;

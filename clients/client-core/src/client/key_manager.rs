@@ -149,6 +149,10 @@ impl KeyManager {
         )
     }
 
+    pub fn gateway_key_set(&self) -> bool {
+        self.gateway_shared_key.is_some()
+    }
+
     /// Gets an atomically reference counted pointer to [`AckKey`].
     pub fn ack_key(&self) -> Arc<AckKey> {
         Arc::clone(&self.ack_key)

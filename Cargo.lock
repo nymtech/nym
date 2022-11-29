@@ -609,6 +609,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "tokio",
+ "tokio-stream",
  "topology",
  "url",
  "validator-client",

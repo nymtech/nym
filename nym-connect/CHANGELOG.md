@@ -1,11 +1,16 @@
 ## [nym-connect-v1.1.1](https://github.com/nymtech/nym/tree/nym-connect-v1.1.1) (2022-11-29)
 
-- socks5-client: fix multiplex concurrent connections ([#1720])
-- socks5-client: fix wait closing inbound connection until data is sent, and throttle incoming data in general ([#1783])
+- socks5-client: fix multiplex concurrent connections ([#1720], #[1777])
+- socks5-client: fix wait closing inbound connection until data is sent, and throttle incoming data in general ([#1772], [#1783],[#1789])
 - socks5-client: fix shutting down all background workers if anyone of them panics or errors out. This fixes an issue where the nym-connect UI was showing connected even though the socks5 tunnel was non-functional. ([#1805])
+- gateway-libs: fix decryping messages stored on the gateway between reconnects ([#1786])
 
 [#1720]: https://github.com/nymtech/nym/pull/1720
+[#1772]: https://github.com/nymtech/nym/pull/1772
+[#1777]: https://github.com/nymtech/nym/pull/1777
 [#1783]: https://github.com/nymtech/nym/pull/1783
+[#1786]: https://github.com/nymtech/nym/pull/1786
+[#1789]: https://github.com/nymtech/nym/pull/1789
 [#1805]: https://github.com/nymtech/nym/pull/1805
 
 

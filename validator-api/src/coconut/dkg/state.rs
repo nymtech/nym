@@ -214,8 +214,8 @@ impl State {
         self.coconut_keypair.set(coconut_keypair).await
     }
 
-    pub fn set_node_index(&mut self, node_index: NodeIndex) {
-        self.node_index = Some(node_index);
+    pub fn set_node_index(&mut self, node_index: Option<NodeIndex>) {
+        self.node_index = node_index;
     }
 
     pub fn set_dealers(&mut self, dealers: Vec<DealerDetails>) {
@@ -254,5 +254,10 @@ impl State {
 
     pub fn set_executed_proposal(&mut self) {
         self.executed_proposal = true;
+    }
+
+    #[cfg(test)]
+    pub fn all_dealers(&self) -> &BTreeMap<Addr, Result<DkgParticipant, ComplaintReason>> {
+        &self.dealers
     }
 }

@@ -15,7 +15,7 @@ pub const MAX_DISPLAY_SIZE: usize = 128;
 // TODO: if we are to use this for different types, it might make sense to introduce something like
 // CommitmentTypeId field on the below for distinguishing different ones. it would somehow become part of the trait
 #[derive(Debug, Clone, Ord, PartialOrd, Eq, PartialEq, Hash, JsonSchema)]
-pub struct ContractSafeBytes(Vec<u8>);
+pub struct ContractSafeBytes(pub Vec<u8>);
 
 impl Deref for ContractSafeBytes {
     type Target = Vec<u8>;

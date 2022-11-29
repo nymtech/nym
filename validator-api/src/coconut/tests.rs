@@ -298,7 +298,7 @@ impl super::client::Client for DummyClient {
                     v.push(dealing_bytes.clone())
                 }
             })
-            .or_insert(vec![dealing_bytes]);
+            .or_insert_with(|| vec![dealing_bytes]);
 
         Ok(ExecuteResult {
             logs: vec![],

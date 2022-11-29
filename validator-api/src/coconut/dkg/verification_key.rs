@@ -37,7 +37,9 @@ async fn deterministic_filter_dealers(
             BTreeMap::from_iter(dealings.into_iter().filter_map(|contract_dealing| {
                 match Dealing::try_from(&contract_dealing.dealing) {
                     Ok(dealing) => {
-                        if let Err(_) = dealing.verify(&params, threshold, &initial_receivers, None)
+                        if dealing
+                            .verify(&params, threshold, &initial_receivers, None)
+                            .is_err()
                         {
                             state.mark_bad_dealer(
                                 &contract_dealing.dealer,
@@ -385,7 +387,7 @@ pub(crate) mod tests {
         )
         .await;
         for (dkg_client, state) in clients_and_states.iter_mut() {
-            let filtered = deterministic_filter_dealers(&dkg_client, state, 2)
+            let filtered = deterministic_filter_dealers(dkg_client, state, 2)
                 .await
                 .unwrap();
             assert_eq!(filtered.len(), TOTAL_DEALINGS);
@@ -421,7 +423,7 @@ pub(crate) mod tests {
             });
 
         for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
-            let filtered = deterministic_filter_dealers(&dkg_client, state, 2)
+            let filtered = deterministic_filter_dealers(dkg_client, state, 2)
                 .await
                 .unwrap();
             assert_eq!(filtered.len(), TOTAL_DEALINGS);
@@ -461,7 +463,7 @@ pub(crate) mod tests {
             });
 
         for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
-            let filtered = deterministic_filter_dealers(&dkg_client, state, 2)
+            let filtered = deterministic_filter_dealers(dkg_client, state, 2)
                 .await
                 .unwrap();
             assert_eq!(filtered.len(), TOTAL_DEALINGS);
@@ -504,12 +506,12 @@ pub(crate) mod tests {
             });
 
         for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
-            deterministic_filter_dealers(&dkg_client, state, 2)
+            deterministic_filter_dealers(dkg_client, state, 2)
                 .await
                 .unwrap();
             // second filter will leave behind the bad dealer and surface why it was left out
             // in the first place
-            let filtered = deterministic_filter_dealers(&dkg_client, state, 2)
+            let filtered = deterministic_filter_dealers(dkg_client, state, 2)
                 .await
                 .unwrap();
             assert_eq!(filtered.len(), TOTAL_DEALINGS);
@@ -550,12 +552,12 @@ pub(crate) mod tests {
             });
 
         for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
-            deterministic_filter_dealers(&dkg_client, state, 2)
+            deterministic_filter_dealers(dkg_client, state, 2)
                 .await
                 .unwrap();
             // second filter will leave behind the bad dealer and surface why it was left out
             // in the first place
-            let filtered = deterministic_filter_dealers(&dkg_client, state, 2)
+            let filtered = deterministic_filter_dealers(dkg_client, state, 2)
                 .await
                 .unwrap();
             assert_eq!(filtered.len(), TOTAL_DEALINGS);
@@ -583,7 +585,7 @@ pub(crate) mod tests {
         )
         .await;
         for (dkg_client, state) in clients_and_states.iter_mut() {
-            let filtered = deterministic_filter_dealers(&dkg_client, state, 2)
+            let filtered = deterministic_filter_dealers(dkg_client, state, 2)
                 .await
                 .unwrap();
             assert!(derive_partial_keypair(state, 2, filtered).is_ok());
@@ -616,7 +618,7 @@ pub(crate) mod tests {
             });
 
         for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
-            let filtered = deterministic_filter_dealers(&dkg_client, state, 2)
+            let filtered = deterministic_filter_dealers(dkg_client, state, 2)
                 .await
                 .unwrap();
             assert!(derive_partial_keypair(state, 2, filtered).is_ok());

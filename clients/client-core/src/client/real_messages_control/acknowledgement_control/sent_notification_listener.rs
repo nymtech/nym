@@ -65,6 +65,8 @@ impl SentNotificationListener {
         log::debug!("SentNotificationListener: Exiting");
     }
 
+    // todo: think whether this is still required
+    #[allow(dead_code)]
     pub(super) async fn run(&mut self) {
         debug!("Started SentNotificationListener without graceful shutdown support");
 

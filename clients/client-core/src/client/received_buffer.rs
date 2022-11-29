@@ -346,6 +346,8 @@ impl RequestReceiver {
         log::debug!("RequestReceiver: Exiting");
     }
 
+    // todo: think whether this is still required
+    #[allow(dead_code)]
     async fn run(&mut self) {
         debug!("Started RequestReceiver without graceful shutdown support");
 
@@ -396,6 +398,8 @@ impl FragmentedMessageReceiver {
         log::debug!("FragmentedMessageReceiver: Exiting");
     }
 
+    // todo: think whether this is still required
+    #[allow(dead_code)]
     async fn run(&mut self) {
         debug!("Started FragmentedMessageReceiver without graceful shutdown support");
 

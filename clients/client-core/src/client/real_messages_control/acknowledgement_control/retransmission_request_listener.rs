@@ -149,6 +149,8 @@ where
         log::debug!("RetransmissionRequestListener: Exiting");
     }
 
+    // todo: think whether this is still required
+    #[allow(dead_code)]
     pub(super) async fn run(&mut self) {
         debug!("Started RetransmissionRequestListener without graceful shutdown support");
 

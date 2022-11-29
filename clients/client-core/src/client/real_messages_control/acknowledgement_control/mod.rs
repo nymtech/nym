@@ -279,6 +279,8 @@ where
         });
     }
 
+    // todo: think whether this is still required
+    #[allow(dead_code)]
     pub(super) fn start(self) {
         let mut acknowledgement_listener = self.acknowledgement_listener;
         let mut input_message_listener = self.input_message_listener;

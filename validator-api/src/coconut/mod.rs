@@ -8,7 +8,7 @@ pub(crate) mod dkg;
 pub(crate) mod error;
 pub(crate) mod keypair;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 
 use crate::coconut::client::Client as LocalClient;
 use crate::coconut::deposit::extract_encryption_key;

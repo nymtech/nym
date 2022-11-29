@@ -74,7 +74,7 @@ impl<R: RngCore + Clone> DkgController<R> {
         })
     }
 
-    async fn handle_epoch_state(&mut self) {
+    pub(crate) async fn handle_epoch_state(&mut self) {
         match self.dkg_client.get_current_epoch_state().await {
             Err(e) => warn!("Could not get current epoch state {}", e),
             Ok(epoch_state) => {

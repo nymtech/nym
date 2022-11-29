@@ -1,14 +1,13 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::cleanup_socket_messages;
 use crate::error::GatewayClientError;
 use crate::packet_router::PacketRouter;
+use crate::{cleanup_socket_messages, try_decrypt_binary_message};
 use futures::channel::oneshot;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use gateway_requests::registration::handshake::SharedKeys;
-use gateway_requests::BinaryResponse;
 use log::*;
 use std::sync::Arc;
 #[cfg(not(target_arch = "wasm32"))]
@@ -50,21 +49,9 @@ impl PartiallyDelegated {
             match ws_msg {
                 Message::Binary(bin_msg) => {
                     // this function decrypts the request and checks the MAC
-                    let plaintext = match BinaryResponse::try_from_encrypted_tagged_bytes(
-                        bin_msg, shared_key,
-                    ) {
-                        Ok(bin_response) => match bin_response {
-                            BinaryResponse::PushedMixMessage(plaintext) => plaintext,
-                        },
-                        Err(err) => {
-                            warn!(
-                                "message received from the gateway was malformed! - {:?}",
-                                err
-                            );
-                            continue;
-                        }
-                    };
-                    plaintexts.push(plaintext)
+                    if let Some(plaintext) = try_decrypt_binary_message(bin_msg, shared_key) {
+                        plaintexts.push(plaintext)
+                    }
                 }
                 // I think that in the future we should perhaps have some sequence number system, i.e.
                 // so each request/response pair can be easily identified, so that if messages are

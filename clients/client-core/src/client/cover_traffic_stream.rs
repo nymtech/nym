@@ -228,7 +228,9 @@ impl LoopCoverTrafficStream<OsRng> {
                     }
                 }
             }
-            assert!(shutdown.is_shutdown_poll());
+            tokio::time::timeout(Duration::from_secs(5), shutdown.recv())
+                .await
+                .expect("Task stopped without shutdown called");
             log::debug!("LoopCoverTrafficStream: Exiting");
         })
     }

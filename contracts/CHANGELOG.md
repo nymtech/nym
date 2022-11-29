@@ -1,3 +1,12 @@
+## Unreleased
+
+## Added
+
+- Added migration code to the mixnet contract to allow updating stored vesting contract address to make it easier to deploy any future environments ([#1759],[#1769])
+
+[#1759]: https://github.com/nymtech/nym/pull/1759
+[#1769]: https://github.com/nymtech/nym/pull/1769
+
 ## [nym-contracts-v1.1.0](https://github.com/nymtech/nym/tree/nym-contracts-v1.1.0) (2022-11-09)
 
 ### Changed

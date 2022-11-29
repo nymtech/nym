@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::sync::atomic::Ordering;
+use std::error::Error;
 
 use crate::client::config::Config;
 use crate::error::Socks5ClientError;
@@ -9,7 +9,7 @@ use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
     server::SphinxSocksServer,
 };
-use client_connections::{ClosedConnectionReceiver, ClosedConnectionSender};
+use client_connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use client_core::client::cover_traffic_stream::LoopCoverTrafficStream;
 use client_core::client::inbound_messages::{
     InputMessage, InputMessageReceiver, InputMessageSender,
@@ -37,7 +37,9 @@ use gateway_client::{
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
-use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
+use tap::TapFallible;
+use task::signal::wait_for_signal_and_error;
+use task::{ShutdownListener, ShutdownNotifier};
 
 pub mod config;
 
@@ -119,7 +121,8 @@ impl NymClient {
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
-        closed_connection_rx: ClosedConnectionReceiver,
+        client_connection_rx: ConnectionCommandReceiver,
+        lane_queue_lengths: LaneQueueLengths,
         shutdown: ShutdownListener,
     ) {
         let mut controller_config = client_core::client::real_messages_control::Config::new(
@@ -149,7 +152,8 @@ impl NymClient {
             mix_sender,
             topology_accessor,
             reply_key_storage,
-            closed_connection_rx,
+            lane_queue_lengths,
+            client_connection_rx,
         )
         .start_with_shutdown(shutdown);
     }
@@ -196,11 +200,22 @@ impl NymClient {
             .expect("provided gateway id is invalid!");
 
         #[cfg(feature = "coconut")]
-        let bandwidth_controller = BandwidthController::new(
-            credential_storage::initialise_storage(self.config.get_base().get_database_path())
-                .await,
-            self.config.get_base().get_validator_api_endpoints(),
-        );
+        let bandwidth_controller = {
+            let details = network_defaults::NymNetworkDetails::new_from_env();
+            let client_config = validator_client::Config::try_from_nym_network_details(&details)
+                .expect("failed to construct validator client config");
+            let client = validator_client::Client::new_query(client_config)
+                .expect("Could not construct query client");
+            let coconut_api_clients =
+                validator_client::CoconutApiClient::all_coconut_api_clients(&client)
+                    .await
+                    .expect("Could not query api clients");
+            BandwidthController::new(
+                credential_storage::initialise_storage(self.config.get_base().get_database_path())
+                    .await,
+                coconut_api_clients,
+            )
+        };
         #[cfg(not(feature = "coconut"))]
         let bandwidth_controller = BandwidthController::new(
             credential_storage::initialise_storage(self.config.get_base().get_database_path())
@@ -283,8 +298,9 @@ impl NymClient {
         &self,
         buffer_requester: ReceivedBufferRequestSender,
         msg_input: InputMessageSender,
-        closed_connection_tx: ClosedConnectionSender,
-        shutdown: ShutdownListener,
+        client_connection_tx: ConnectionCommandSender,
+        lane_queue_lengths: LaneQueueLengths,
+        mut shutdown: ShutdownListener,
     ) {
         info!("Starting socks5 listener...");
         let auth_methods = vec![AuthenticationMethods::NoAuth as u8];
@@ -296,38 +312,58 @@ impl NymClient {
             authenticator,
             self.config.get_provider_mix_address(),
             self.as_mix_recipient(),
-            shutdown,
+            lane_queue_lengths,
+            shutdown.clone(),
         );
         tokio::spawn(async move {
-            sphinx_socks
-                .serve(msg_input, buffer_requester, closed_connection_tx)
+            // Ideally we should have a fully fledged task manager to check for errors in all
+            // tasks.
+            // However, pragmatically, we start out by at least reporting errors for some of the
+            // tasks that interact with the outside world and can fail in normal operation, such as
+            // network issues.
+            // TODO: replace this by a generic solution, such as a task manager that stores all
+            // JoinHandles of all spawned tasks.
+            if let Err(res) = sphinx_socks
+                .serve(msg_input, buffer_requester, client_connection_tx)
                 .await
+            {
+                shutdown.send_we_stopped(Box::new(res));
+            }
         });
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
-    pub async fn run_forever(&mut self) -> Result<(), Socks5ClientError> {
-        let mut shutdown = self.start().await?;
-        wait_for_signal().await;
+    pub async fn run_forever(&mut self) -> Result<(), Box<dyn Error + Send>> {
+        let mut shutdown = self
+            .start()
+            .await
+            .map_err(|err| Box::new(err) as Box<dyn Error + Send>)?;
+
+        let res = wait_for_signal_and_error(&mut shutdown).await;
 
         log::info!("Sending shutdown");
-        client_core::client::SHUTDOWN_HAS_BEEN_SIGNALLED.store(true, Ordering::Relaxed);
         shutdown.signal_shutdown().ok();
 
         log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
         shutdown.wait_for_shutdown().await;
 
         log::info!("Stopping nym-socks5-client");
-        Ok(())
+        res
     }
 
     // Variant of `run_forever` that listends for remote control messages
     pub async fn run_and_listen(
         &mut self,
         mut receiver: Socks5ControlMessageReceiver,
-    ) -> Result<(), Socks5ClientError> {
-        let mut shutdown = self.start().await?;
-        tokio::select! {
+    ) -> Result<(), Box<dyn Error + Send>> {
+        // Start the main task
+        let mut shutdown = self
+            .start()
+            .await
+            .map_err(|err| Box::new(err) as Box<dyn Error + Send>)?;
+
+        let res = tokio::select! {
+            biased;
             message = receiver.next() => {
                 log::debug!("Received message: {:?}", message);
                 match message {
@@ -338,21 +374,26 @@ impl NymClient {
                         log::info!("Channel closed, stopping");
                     }
                 }
+                Ok(())
+            }
+            Some(msg) = shutdown.wait_for_error() => {
+                log::info!("Task error: {:?}", msg);
+                Err(msg)
             }
             _ = tokio::signal::ctrl_c() => {
                 log::info!("Received SIGINT");
+                Ok(())
             },
-        }
+        };
 
         log::info!("Sending shutdown");
-        client_core::client::SHUTDOWN_HAS_BEEN_SIGNALLED.store(true, Ordering::Relaxed);
         shutdown.signal_shutdown().ok();
 
         log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
         shutdown.wait_for_shutdown().await;
 
         log::info!("Stopping nym-socks5-client");
-        Ok(())
+        res
     }
 
     pub async fn start(&mut self) -> Result<ShutdownNotifier, Socks5ClientError> {
@@ -370,7 +411,7 @@ impl NymClient {
         let (received_buffer_request_sender, received_buffer_request_receiver) = mpsc::unbounded();
 
         // channels responsible for controlling real messages
-        let (input_sender, input_receiver) = mpsc::unbounded::<InputMessage>();
+        let (input_sender, input_receiver) = tokio::sync::mpsc::channel::<InputMessage>(1);
 
         // channels responsible for controlling ack messages
         let (ack_sender, ack_receiver) = mpsc::unbounded();
@@ -378,7 +419,10 @@ impl NymClient {
 
         let reply_key_storage =
             ReplyKeyStorage::load(self.config.get_base().get_reply_encryption_key_store_path())
-                .expect("Failed to load reply key storage!");
+                .tap_err(|err| {
+                    log::error!("Failed to load reply key storage - is it perhaps already in use?");
+                    log::error!("{}", err);
+                })?;
 
         // Shutdown notifier for signalling tasks to stop
         let shutdown = ShutdownNotifier::default();
@@ -407,7 +451,11 @@ impl NymClient {
 
         // Channel for announcing closed (socks5) connections by the controller.
         // This will be forwarded to `OutQueueControl`
-        let (closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
+        let (client_connection_tx, client_connection_rx) = mpsc::unbounded();
+
+        // Shared queue length data. Published by the `OutQueueController` in the client, and used
+        // primarily to throttle incoming connections
+        let shared_lane_queue_lengths = LaneQueueLengths::new();
 
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
@@ -415,7 +463,8 @@ impl NymClient {
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
-            closed_connection_rx,
+            client_connection_rx,
+            shared_lane_queue_lengths.clone(),
             shutdown.subscribe(),
         );
 
@@ -434,7 +483,8 @@ impl NymClient {
         self.start_socks5_listener(
             received_buffer_request_sender,
             input_sender,
-            closed_connection_tx,
+            client_connection_tx,
+            shared_lane_queue_lengths,
             shutdown.subscribe(),
         );
 

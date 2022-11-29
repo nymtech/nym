@@ -1,31 +1,34 @@
 name: Nightly builds on latest release
 
-on: workflow_dispatch
+on:
+  schedule:
+    - cron: '14 2 * * *'
 jobs:
   matrix_prep:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      # creates the matrix strategy from nightly_build_release_matrix.json
+      # creates the matrix strategy from nightly_build_matrix_includes.json
       - uses: actions/checkout@v3
       - id: set-matrix
         uses: JoshuaTheMiller/conditional-build-matrix@main
         with:
-          inputFile: '.github/workflows/nightly_build_release_matrix.json'
+          inputFile: '.github/workflows/nightly_build_matrix_includes.json'
           filter: '[?runOnEvent==`${{ github.event_name }}` || runOnEvent==`always`]'
   get_release:
     runs-on: ubuntu-latest
     needs: matrix_prep
     outputs:
-      output1: ${{ steps.step2.outputs.lastest_release }}
+      output1: ${{ steps.step2.outputs.latest_release }}
     steps:
       - name: Check out repository code
         uses: actions/checkout@v3
-
+      - name: Fetch all branches
+        run: git fetch --all
       - name: Set output variable to latest release branch
         id: step2
-        run: echo "latest_release=$(git branch -r | grep -E 'release/v[0-9]+\.[0-9]+\.[0-9]+' | tail -n 1)" >> $GITHUB_OUTPUT
+        run: echo "latest_release=$(git branch -r | grep -E 'release/v[0-9]+\.[0-9]+\.[0-9]+' | tail -n 1 | sed 's/  origin\///')" >> $GITHUB_OUTPUT
   build:
     needs: [get_release,matrix_prep]
     strategy:
@@ -40,7 +43,7 @@ jobs:
       - name: Check out latest release branch
         uses: actions/checkout@v3
         with:
-          ref: release/v1.1.1
+          ref: ${{needs.get_release.outputs.output1}}
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
@@ -171,7 +174,7 @@ jobs:
           args: --manifest-path nym-wallet/Cargo.toml --workspace --all-targets -- -D warnings
 
   notification:
-    needs: build
+    needs: [build,get_release]
     runs-on: ubuntu-latest
     steps:
       - name: Collect jobs status
@@ -189,7 +192,7 @@ jobs:
           NYM_PROJECT_NAME: "Nym nightly build on latest release"
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
-          GIT_BRANCH: "${GITHUB_REF##*/}"
+          GIT_BRANCH: "https://github.com/nymtech/nym/tree/${{needs.get_release.outputs.output1}}"
           KEYBASE_NYMBOT_USERNAME: "${{ secrets.KEYBASE_NYMBOT_USERNAME }}"
           KEYBASE_NYMBOT_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
           KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBOT_TEAM }}"

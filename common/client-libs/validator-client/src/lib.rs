@@ -9,7 +9,8 @@ mod error;
 pub mod nymd;
 pub mod validator_api;
 
-pub use crate::client::ApiClient;
+#[cfg(feature = "nymd-client")]
+pub use crate::client::{ApiClient, CoconutApiClient};
 pub use crate::error::ValidatorClientError;
 pub use validator_api_requests::*;
 

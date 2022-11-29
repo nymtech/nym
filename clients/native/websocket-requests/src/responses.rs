@@ -23,10 +23,14 @@ pub const RECEIVED_RESPONSE_TAG: u8 = 0x01;
 /// Value tag representing [`SelfAddress`] variant of the [`ServerResponse`]
 pub const SELF_ADDRESS_RESPONSE_TAG: u8 = 0x02;
 
+/// Value tag representing [`LaneQueueLength`] variant of the [`ServerResponse`]
+pub const LANE_QUEUE_LENGTH_RESPONSE_TAG: u8 = 0x03;
+
 #[derive(Debug)]
 pub enum ServerResponse {
     Received(ReconstructedMessage),
     SelfAddress(Recipient),
+    LaneQueueLength(u64, usize),
     Error(error::Error),
 }
 
@@ -193,6 +197,31 @@ impl ServerResponse {
         Ok(ServerResponse::SelfAddress(recipient))
     }
 
+    // LANE_QUEUE_LENGTH_RESPONSE_TAG || lane || queue_length
+    fn serialize_lane_queue_length(lane: u64, queue_length: usize) -> Vec<u8> {
+        std::iter::once(LANE_QUEUE_LENGTH_RESPONSE_TAG)
+            .chain(lane.to_be_bytes().iter().cloned())
+            .chain(queue_length.to_be_bytes().iter().cloned())
+            .collect()
+    }
+
+    // LANE_QUEUE_LENGTH_RESPONSE_TAG || lane || queue_length
+    fn deserialize_lane_queue_length(b: &[u8]) -> Result<Self, error::Error> {
+        // this MUST match because it was called by 'deserialize'
+        debug_assert_eq!(b[0], LANE_QUEUE_LENGTH_RESPONSE_TAG);
+
+        let mut lane_bytes = [0u8; size_of::<u64>()];
+        lane_bytes.copy_from_slice(&b[1..=size_of::<u64>()]);
+        let lane = u64::from_be_bytes(lane_bytes);
+
+        let mut queue_length_bytes = [0u8; size_of::<usize>()];
+        queue_length_bytes
+            .copy_from_slice(&b[1 + size_of::<u64>()..1 + size_of::<u64>() + size_of::<usize>()]);
+        let queue_length = usize::from_be_bytes(queue_length_bytes);
+
+        Ok(ServerResponse::LaneQueueLength(lane, queue_length))
+    }
+
     // ERROR_RESPONSE_TAG || err_code || msg_len || msg
     fn serialize_error(error: error::Error) -> Vec<u8> {
         let message_len_bytes = (error.message.len() as u64).to_be_bytes();
@@ -272,6 +301,9 @@ impl ServerResponse {
                 Self::serialize_received(reconstructed_message)
             }
             ServerResponse::SelfAddress(address) => Self::serialize_self_address(address),
+            ServerResponse::LaneQueueLength(lane, queue_length) => {
+                Self::serialize_lane_queue_length(lane, queue_length)
+            }
             ServerResponse::Error(err) => Self::serialize_error(err),
         }
     }
@@ -302,6 +334,7 @@ impl ServerResponse {
         match response_tag {
             RECEIVED_RESPONSE_TAG => Self::deserialize_received(b),
             SELF_ADDRESS_RESPONSE_TAG => Self::deserialize_self_address(b),
+            LANE_QUEUE_LENGTH_RESPONSE_TAG => Self::deserialize_lane_queue_length(b),
             ERROR_RESPONSE_TAG => Self::deserialize_error(b),
             n => Err(error::Error::new(
                 ErrorKind::UnknownResponse,
@@ -373,6 +406,20 @@ mod tests {
         match recovered {
             ServerResponse::SelfAddress(recipient) => {
                 assert_eq!(recipient.to_string(), recipient_string)
+            }
+            _ => unreachable!(),
+        }
+    }
+
+    #[test]
+    fn lane_queue_length_response_serialization_works() {
+        let lane_queue_length_response = ServerResponse::LaneQueueLength(13, 42);
+        let bytes = lane_queue_length_response.serialize();
+        let recovered = ServerResponse::deserialize(&bytes).unwrap();
+        match recovered {
+            ServerResponse::LaneQueueLength(lane, queue_length) => {
+                assert_eq!(lane, 13);
+                assert_eq!(queue_length, 42)
             }
             _ => unreachable!(),
         }

@@ -9,8 +9,7 @@ use reqwest::Response;
 use serde::{Deserialize, Serialize};
 use url::Url;
 use validator_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse, VerificationKeyResponse,
-    VerifyCredentialBody, VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_api_requests::models::{
     GatewayCoreStatusResponse, GatewayStatusReportResponse, GatewayUptimeHistoryResponse,
@@ -27,6 +26,7 @@ type Params<'a, K, V> = &'a [(K, V)];
 
 const NO_PARAMS: Params<'_, &'_ str, &'_ str> = &[];
 
+#[derive(Clone)]
 pub struct Client {
     url: Url,
     reqwest_client: reqwest::Client,
@@ -439,34 +439,6 @@ impl Client {
             ],
             NO_PARAMS,
             request_body,
-        )
-        .await
-    }
-
-    pub async fn get_coconut_verification_key(
-        &self,
-    ) -> Result<VerificationKeyResponse, ValidatorAPIError> {
-        self.query_validator_api(
-            &[
-                routes::API_VERSION,
-                routes::COCONUT_ROUTES,
-                routes::BANDWIDTH,
-                routes::COCONUT_VERIFICATION_KEY,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    pub async fn get_cosmos_address(&self) -> Result<CosmosAddressResponse, ValidatorAPIError> {
-        self.query_validator_api(
-            &[
-                routes::API_VERSION,
-                routes::COCONUT_ROUTES,
-                routes::BANDWIDTH,
-                routes::COCONUT_COSMOS_ADDRESS,
-            ],
-            NO_PARAMS,
         )
         .await
     }

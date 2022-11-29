@@ -3,11 +3,11 @@
 
 use clap::Parser;
 use cosmrs::AccountId;
-use log::info;
+use log::{error, info};
 
 use validator_client::nymd::{Coin, VestingQueryClient};
 
-use crate::context::SigningClient;
+use crate::context::QueryClient;
 use crate::utils::show_error;
 use crate::utils::{pretty_coin, pretty_cosmwasm_coin};
 
@@ -18,8 +18,16 @@ pub struct Args {
     pub address: Option<AccountId>,
 }
 
-pub async fn balance(args: Args, client: SigningClient) {
-    let account_id = args.address.unwrap_or_else(|| client.address().clone());
+pub async fn balance(args: Args, client: QueryClient, address_from_mnemonic: Option<AccountId>) {
+    if args.address.is_none() && address_from_mnemonic.is_none() {
+        error!("Please specify an account address or a mnemonic to get the balance for");
+        return;
+    }
+
+    let account_id = args
+        .address
+        .unwrap_or_else(|| address_from_mnemonic.expect("please provide a mnemonic"));
+
     let vesting_address = account_id.to_string();
     let denom = client.current_chain_details().mix_denom.base.as_str();
 

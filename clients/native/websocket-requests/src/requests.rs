@@ -23,6 +23,9 @@ pub const SELF_ADDRESS_REQUEST_TAG: u8 = 0x02;
 /// Value tag representing [`ClosedConnection`] variant of the [`ClientRequest`]
 pub const CLOSED_CONNECTION_REQUEST_TAG: u8 = 0x03;
 
+/// Value tag representing [`GetLaneQueueLength`] variant of the [`ClientRequest`]
+pub const GET_LANE_QUEUE_LENGHT_TAG: u8 = 0x04;
+
 #[allow(non_snake_case)]
 #[derive(Debug)]
 pub enum ClientRequest {
@@ -31,7 +34,7 @@ pub enum ClientRequest {
         message: Vec<u8>,
         // Perhaps we could change it to a number to indicate how many reply_SURBs we want to include?
         with_reply_surb: bool,
-        connection_id: u64,
+        connection_id: Option<u64>,
     },
     Reply {
         message: Vec<u8>,
@@ -39,6 +42,7 @@ pub enum ClientRequest {
     },
     SelfAddress,
     ClosedConnection(u64),
+    GetLaneQueueLength(u64),
 }
 
 // we could have been parsing it directly TryFrom<WsMessage>, but we want to retain
@@ -49,10 +53,10 @@ impl ClientRequest {
         recipient: Recipient,
         data: Vec<u8>,
         with_reply_surb: bool,
-        connection_id: u64,
+        connection_id: Option<u64>,
     ) -> Vec<u8> {
         let data_len_bytes = (data.len() as u64).to_be_bytes();
-        let conn_id_bytes = connection_id.to_be_bytes();
+        let conn_id_bytes = connection_id.unwrap_or(0).to_be_bytes();
         std::iter::once(SEND_REQUEST_TAG)
             .chain(std::iter::once(with_reply_surb as u8))
             .chain(recipient.to_bytes().iter().cloned()) // will not be length prefixed because the length is constant
@@ -62,10 +66,10 @@ impl ClientRequest {
             .collect()
     }
 
-    // SEND_REQUEST_TAG || with_reply || recipient || data_len || data
+    // SEND_REQUEST_TAG || with_reply || recipient || conn_id || data_len || data
     fn deserialize_send(b: &[u8]) -> Result<Self, error::Error> {
-        // we need to have at least 1 (tag) + 1 (reply flag) + Recipient::LEN + sizeof<u64> bytes
-        if b.len() < 2 + Recipient::LEN + size_of::<u64>() {
+        // we need to have at least 1 (tag) + 1 (reply flag) + Recipient::LEN + 2*sizeof<u64> bytes
+        if b.len() < 2 + Recipient::LEN + 2 * size_of::<u64>() {
             return Err(error::Error::new(
                 ErrorKind::TooShortRequest,
                 "not enough data provided to recover 'send'".to_string(),
@@ -102,6 +106,11 @@ impl ClientRequest {
         connection_id_bytes
             .copy_from_slice(&b[2 + Recipient::LEN..2 + Recipient::LEN + size_of::<u64>()]);
         let connection_id = u64::from_be_bytes(connection_id_bytes);
+        let connection_id = if connection_id == 0 {
+            None
+        } else {
+            Some(connection_id)
+        };
 
         let data_len_bytes =
             &b[2 + Recipient::LEN + size_of::<u64>()..2 + Recipient::LEN + 2 * size_of::<u64>()];
@@ -127,7 +136,7 @@ impl ClientRequest {
     }
 
     // REPLY_REQUEST_TAG || surb_len || surb || message_len || message
-    fn serialize_reply(message: Vec<u8>, reply_surb: ReplySurb) -> Vec<u8> {
+    fn serialize_reply(message: Vec<u8>, reply_surb: &ReplySurb) -> Vec<u8> {
         let reply_surb_bytes = reply_surb.to_bytes();
         let surb_len_bytes = (reply_surb_bytes.len() as u64).to_be_bytes();
         let message_len_bytes = (message.len() as u64).to_be_bytes();
@@ -225,12 +234,19 @@ impl ClientRequest {
     fn serialize_closed_connection(connection_id: u64) -> Vec<u8> {
         let conn_id_bytes = connection_id.to_be_bytes();
         std::iter::once(CLOSED_CONNECTION_REQUEST_TAG)
-            .chain(conn_id_bytes.iter().cloned())
+            .chain(conn_id_bytes.iter().copied())
             .collect()
     }
 
     // CLOSED_CONNECTION_REQUEST_TAG
-    fn deserialize_closed_connection(b: &[u8]) -> Self {
+    fn deserialize_closed_connection(b: &[u8]) -> Result<Self, error::Error> {
+        if b.len() != 1 + size_of::<u64>() {
+            return Err(error::Error::new(
+                ErrorKind::MalformedRequest,
+                "the received closed connection has invalid length".to_string(),
+            ));
+        }
+
         // this MUST match because it was called by 'deserialize'
         debug_assert_eq!(b[0], CLOSED_CONNECTION_REQUEST_TAG);
 
@@ -238,7 +254,34 @@ impl ClientRequest {
         connection_id_bytes.copy_from_slice(&b[1..=size_of::<u64>()]);
         let connection_id = u64::from_be_bytes(connection_id_bytes);
 
-        ClientRequest::ClosedConnection(connection_id)
+        Ok(ClientRequest::ClosedConnection(connection_id))
+    }
+
+    // GET_LANE_QUEUE_LENGHT_TAG
+    fn serialize_get_lane_queue_lengths(connection_id: u64) -> Vec<u8> {
+        let conn_id_bytes = connection_id.to_be_bytes();
+        std::iter::once(GET_LANE_QUEUE_LENGHT_TAG)
+            .chain(conn_id_bytes.iter().copied())
+            .collect()
+    }
+
+    // GET_LANE_QUEUE_LENGHT_TAG
+    fn deserialize_get_lane_queue_length(b: &[u8]) -> Result<Self, error::Error> {
+        if b.len() != 1 + size_of::<u64>() {
+            return Err(error::Error::new(
+                ErrorKind::MalformedRequest,
+                "the received get lane queue length has invalid length".to_string(),
+            ));
+        }
+
+        // this MUST match because it was called by 'deserialize'
+        debug_assert_eq!(b[0], GET_LANE_QUEUE_LENGHT_TAG);
+
+        let mut connection_id_bytes = [0u8; size_of::<u64>()];
+        connection_id_bytes.copy_from_slice(&b[1..=size_of::<u64>()]);
+        let connection_id = u64::from_be_bytes(connection_id_bytes);
+
+        Ok(ClientRequest::GetLaneQueueLength(connection_id))
     }
 
     pub fn serialize(self) -> Vec<u8> {
@@ -253,11 +296,13 @@ impl ClientRequest {
             ClientRequest::Reply {
                 message,
                 reply_surb,
-            } => Self::serialize_reply(message, reply_surb),
+            } => Self::serialize_reply(message, &reply_surb),
 
             ClientRequest::SelfAddress => Self::serialize_self_address(),
 
             ClientRequest::ClosedConnection(id) => Self::serialize_closed_connection(id),
+
+            ClientRequest::GetLaneQueueLength(id) => Self::serialize_get_lane_queue_lengths(id),
         }
     }
 
@@ -287,16 +332,17 @@ impl ClientRequest {
             SEND_REQUEST_TAG => Self::deserialize_send(b),
             REPLY_REQUEST_TAG => Self::deserialize_reply(b),
             SELF_ADDRESS_REQUEST_TAG => Ok(Self::deserialize_self_address(b)),
-            CLOSED_CONNECTION_REQUEST_TAG => Ok(Self::deserialize_closed_connection(b)),
+            CLOSED_CONNECTION_REQUEST_TAG => Self::deserialize_closed_connection(b),
+            GET_LANE_QUEUE_LENGHT_TAG => Self::deserialize_get_lane_queue_length(b),
             n => Err(error::Error::new(
                 ErrorKind::UnknownRequest,
-                format!("type {}", n),
+                format!("type {n}"),
             )),
         }
     }
 
-    pub fn try_from_binary(raw_req: Vec<u8>) -> Result<Self, error::Error> {
-        Self::deserialize(&raw_req)
+    pub fn try_from_binary(raw_req: &[u8]) -> Result<Self, error::Error> {
+        Self::deserialize(raw_req)
     }
 
     pub fn try_from_text(raw_req: String) -> Result<Self, error::Error> {
@@ -323,7 +369,7 @@ mod tests {
             recipient,
             message: b"foomp".to_vec(),
             with_reply_surb: false,
-            connection_id: 42,
+            connection_id: Some(42),
         };
 
         let bytes = send_request_no_surb.serialize();
@@ -338,7 +384,7 @@ mod tests {
                 assert_eq!(recipient.to_string(), recipient_string);
                 assert_eq!(message, b"foomp".to_vec());
                 assert!(!with_reply_surb);
-                assert_eq!(connection_id, 42)
+                assert_eq!(connection_id, Some(42))
             }
             _ => unreachable!(),
         }
@@ -347,7 +393,7 @@ mod tests {
             recipient,
             message: b"foomp".to_vec(),
             with_reply_surb: true,
-            connection_id: 213,
+            connection_id: None,
         };
 
         let bytes = send_request_surb.serialize();
@@ -362,7 +408,7 @@ mod tests {
                 assert_eq!(recipient.to_string(), recipient_string);
                 assert_eq!(message, b"foomp".to_vec());
                 assert!(with_reply_surb);
-                assert_eq!(connection_id, 213)
+                assert_eq!(connection_id, None)
             }
             _ => unreachable!(),
         }

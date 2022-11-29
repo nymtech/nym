@@ -65,6 +65,7 @@ pub struct Config {
     pub(crate) bandwidth_claim_contract_address: Option<AccountId>,
     pub(crate) coconut_bandwidth_contract_address: Option<AccountId>,
     pub(crate) multisig_contract_address: Option<AccountId>,
+    pub(crate) coconut_dkg_contract_address: Option<AccountId>,
     // TODO: add this in later commits
     // pub(crate) gas_price: GasPrice,
 }
@@ -116,6 +117,10 @@ impl Config {
             )?,
             multisig_contract_address: Self::parse_optional_account(
                 details.contracts.multisig_contract_address.as_ref(),
+                prefix,
+            )?,
+            coconut_dkg_contract_address: Self::parse_optional_account(
+                details.contracts.coconut_dkg_contract_address.as_ref(),
                 prefix,
             )?,
         })
@@ -273,6 +278,14 @@ impl<C> NymdClient<C> {
     // so it's not introducing new source of failure (just moves it)
     pub fn multisig_contract_address(&self) -> &AccountId {
         self.config.multisig_contract_address.as_ref().unwrap()
+    }
+
+    // TODO: this should get changed into Result<&AccountId, NymdError> (or Option<&AccountId> in future commits
+    // note: what unwrap is doing here is just moving a failure that would have normally
+    // occurred in `connect` when attempting to parse an empty address,
+    // so it's not introducing new source of failure (just moves it)
+    pub fn coconut_dkg_contract_address(&self) -> &AccountId {
+        self.config.coconut_dkg_contract_address.as_ref().unwrap()
     }
 
     pub fn set_simulated_gas_multiplier(&mut self, multiplier: f32) {

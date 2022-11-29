@@ -14,8 +14,9 @@ use credential_storage::PersistentStorage;
 use credentials::coconut::bandwidth::{BandwidthVoucher, TOTAL_ATTRIBUTES};
 use credentials::coconut::utils::obtain_aggregate_signature;
 use crypto::asymmetric::{encryption, identity};
-use network_defaults::VOUCHER_INFO;
+use network_defaults::{NymNetworkDetails, VOUCHER_INFO};
 use validator_client::nymd::tx::Hash;
+use validator_client::{CoconutApiClient, Config};
 
 use crate::client::Client;
 use crate::error::{CredentialClientError, Result};
@@ -107,10 +108,9 @@ pub(crate) struct GetCredential {
     /// The hash of a successful deposit transaction
     #[clap(long)]
     tx_hash: String,
-    /// The URLs to the validator-api endpoints the are run as coconut signer authorities, separated
-    /// by comma (,)
+    /// The nymd URL that should be used
     #[clap(long)]
-    signer_authorities: String,
+    nymd_url: String,
     /// If we want to get the signature without attaching a blind sign request; it is expected that
     /// there is already a signature stored on the signer
     #[clap(long, parse(from_flag))]
@@ -124,7 +124,10 @@ impl Execute for GetCredential {
             .get::<State>(&self.tx_hash)
             .ok_or(CredentialClientError::NoDeposit)?;
 
-        let urls = config::parse_validators(&self.signer_authorities);
+        let network_details = NymNetworkDetails::new_from_env();
+        let config = Config::try_from_nym_network_details(&network_details)?;
+        let client = validator_client::Client::new_query(config)?;
+        let coconut_api_clients = CoconutApiClient::all_coconut_api_clients(&client).await?;
 
         let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
         let bandwidth_credential_attributes = if self.__no_request {
@@ -178,8 +181,12 @@ impl Execute for GetCredential {
         )?);
         db.set(&self.tx_hash, &state).unwrap();
 
-        let signature =
-            obtain_aggregate_signature(&params, &bandwidth_credential_attributes, &urls).await?;
+        let signature = obtain_aggregate_signature(
+            &params,
+            &bandwidth_credential_attributes,
+            &coconut_api_clients,
+        )
+        .await?;
         shared_storage
             .insert_coconut_credential(
                 state.amount.to_string(),

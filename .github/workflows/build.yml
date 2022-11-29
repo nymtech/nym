@@ -29,6 +29,12 @@ jobs:
           override: true
           components: rustfmt, clippy
 
+      - name: Check formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
       - name: Build all binaries
         uses: actions-rs/cargo@v1
         with:
@@ -48,12 +54,6 @@ jobs:
           command: test
           args: --workspace --all-features -- --ignored
 
-      - name: Check formatting
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-
       - uses: actions-rs/clippy-check@v1
         name: Clippy checks
         with:
@@ -65,6 +65,8 @@ jobs:
         with:
           command: clippy
           args: --workspace -- -D warnings
+
+      # COCONUT stuff
 
       - name: Build all binaries with coconut enabled
         uses: actions-rs/cargo@v1
@@ -82,4 +84,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --features=coconut -- -D warnings
+          args: --all-targets --features=coconut -- -D warnings

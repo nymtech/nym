@@ -72,6 +72,8 @@ impl AcknowledgementListener {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+        use std::time::Duration;
+
         debug!("Started AcknowledgementListener with graceful shutdown support");
 
         while !shutdown.is_shutdown() {
@@ -88,7 +90,9 @@ impl AcknowledgementListener {
                 }
             }
         }
-        assert!(shutdown.is_shutdown_poll());
+        tokio::time::timeout(Duration::from_secs(5), shutdown.recv())
+            .await
+            .expect("Task stopped without shutdown called");
         log::debug!("AcknowledgementListener: Exiting");
     }
 

@@ -8,13 +8,15 @@
 use self::{
     acknowledgement_control::AcknowledgementController, real_traffic_stream::OutQueueControl,
 };
-use crate::client::real_messages_control::acknowledgement_control::AcknowledgementControllerConnectors;
-use crate::client::{
-    inbound_messages::InputMessageReceiver, mix_traffic::BatchMixMessageSender,
-    topology_control::TopologyAccessor,
+use crate::{
+    client::{
+        inbound_messages::InputMessageReceiver, mix_traffic::BatchMixMessageSender,
+        real_messages_control::acknowledgement_control::AcknowledgementControllerConnectors,
+        topology_control::TopologyAccessor,
+    },
+    spawn_future,
 };
-use crate::spawn_future;
-use client_connections::ClosedConnectionReceiver;
+use client_connections::{ConnectionCommandReceiver, LaneQueueLengths};
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
@@ -104,6 +106,7 @@ where
 // obviously when we finally make shared rng that is on 'higher' level, this should become
 // generic `R`
 impl RealMessagesController<OsRng> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         config: Config,
         ack_receiver: AcknowledgementReceiver,
@@ -111,11 +114,12 @@ impl RealMessagesController<OsRng> {
         mix_sender: BatchMixMessageSender,
         topology_access: TopologyAccessor,
         #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
-        closed_connection_rx: ClosedConnectionReceiver,
+        lane_queue_lengths: LaneQueueLengths,
+        client_connection_rx: ConnectionCommandReceiver,
     ) -> Self {
         let rng = OsRng;
 
-        let (real_message_sender, real_message_receiver) = mpsc::unbounded();
+        let (real_message_sender, real_message_receiver) = tokio::sync::mpsc::channel(1);
         let (sent_notifier_tx, sent_notifier_rx) = mpsc::unbounded();
 
         let ack_controller_connectors = AcknowledgementControllerConnectors::new(
@@ -161,7 +165,8 @@ impl RealMessagesController<OsRng> {
             rng,
             config.self_recipient,
             topology_access,
-            closed_connection_rx,
+            lane_queue_lengths,
+            client_connection_rx,
         );
 
         RealMessagesController {

@@ -4,7 +4,9 @@
 pub(crate) mod client;
 pub(crate) mod comm;
 mod deposit;
+pub(crate) mod dkg;
 pub(crate) mod error;
+pub(crate) mod keypair;
 #[cfg(test)]
 mod tests;
 
@@ -16,8 +18,9 @@ use crate::ValidatorApiStorage;
 use coconut_bandwidth_contract_common::spend_credential::{
     funds_from_cosmos_msgs, SpendCredentialStatus,
 };
+use coconut_interface::KeyPair as CoconutKeyPair;
 use coconut_interface::{
-    Attribute, BlindSignRequest, BlindedSignature, KeyPair, Parameters, VerificationKey,
+    Attribute, BlindSignRequest, BlindedSignature, Parameters, VerificationKey,
 };
 use config::defaults::VALIDATOR_API_VERSION;
 use credentials::coconut::params::{
@@ -26,9 +29,9 @@ use credentials::coconut::params::{
 use crypto::asymmetric::encryption;
 use crypto::shared_key::new_ephemeral_shared_key;
 use crypto::symmetric::stream_cipher;
+use keypair::KeyPair;
 use validator_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, CosmosAddressResponse, VerificationKeyResponse,
-    VerifyCredentialBody, VerifyCredentialResponse,
+    BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_client::nymd::{Coin, Fee};
 use validator_client::validator_api::routes::{BANDWIDTH, COCONUT_ROUTES};
@@ -182,8 +185,6 @@ impl InternalSignRequest {
                 ),
                 routes![
                     post_blind_sign,
-                    get_verification_key,
-                    get_cosmos_address,
                     post_partial_bandwidth_credential,
                     verify_bandwidth_credential
                 ],
@@ -192,7 +193,7 @@ impl InternalSignRequest {
     }
 }
 
-fn blind_sign(request: InternalSignRequest, key_pair: &KeyPair) -> Result<BlindedSignature> {
+fn blind_sign(request: InternalSignRequest, key_pair: &CoconutKeyPair) -> Result<BlindedSignature> {
     let params = Parameters::new(request.total_params())?;
     Ok(coconut_interface::blind_sign(
         &params,
@@ -225,7 +226,11 @@ pub async fn post_blind_sign(
         blind_sign_request_body.public_attributes(),
         blind_sign_request_body.blind_sign_request().clone(),
     );
-    let blinded_signature = blind_sign(internal_request, &state.key_pair)?;
+    let blinded_signature = if let Some(keypair) = state.key_pair.get().await.as_ref() {
+        blind_sign(internal_request, keypair)?
+    } else {
+        return Err(CoconutError::KeyPairNotDerivedYet);
+    };
 
     let response = state
         .encrypt_and_store(
@@ -248,22 +253,6 @@ pub async fn post_partial_bandwidth_credential(
         .await?
         .ok_or(CoconutError::NoSignature)?;
     Ok(Json(v))
-}
-
-#[get("/verification-key")]
-pub async fn get_verification_key(
-    state: &RocketState<State>,
-) -> Result<Json<VerificationKeyResponse>> {
-    Ok(Json(VerificationKeyResponse::new(
-        state.key_pair.verification_key(),
-    )))
-}
-
-#[get("/cosmos-address")]
-pub async fn get_cosmos_address(state: &RocketState<State>) -> Result<Json<CosmosAddressResponse>> {
-    Ok(Json(CosmosAddressResponse::new(
-        state.client.address().await,
-    )))
 }
 
 #[post("/verify-bandwidth-credential", data = "<verify_credential_body>")]

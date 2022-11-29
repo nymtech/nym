@@ -31,7 +31,7 @@ pub async fn query_gateway_details(
     let validator_api = validator_servers
         .choose(&mut thread_rng())
         .ok_or(ClientCoreError::ListOfValidatorApisIsEmpty)?;
-    let validator_client = validator_client::ApiClient::new(validator_api.clone());
+    let validator_client = validator_client::client::ApiClient::new(validator_api.clone());
 
     log::trace!("Fetching list of gateways from: {}", validator_api);
     let gateways = validator_client.get_cached_gateways().await?;

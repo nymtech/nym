@@ -581,6 +581,7 @@ name = "client-connections"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "log",
 ]
 
 [[package]]
@@ -630,6 +631,18 @@ name = "coconut-bandwidth-contract-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-std",
+ "multisig-contract-common",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "coconut-dkg-common"
+version = "0.1.0"
+dependencies = [
+ "contracts-common",
+ "cosmwasm-std",
+ "cw-utils",
  "multisig-contract-common",
  "schemars",
  "serde",
@@ -744,7 +757,9 @@ checksum = "245097e9a4535ee1e3e3931fcfcd55a796a44c643e8596ff6566d68f09b87bbc"
 name = "contracts-common"
 version = "0.1.0"
 dependencies = [
+ "bs58",
  "cosmwasm-std",
+ "dkg",
  "schemars",
  "serde",
  "serde_json",
@@ -950,7 +965,6 @@ dependencies = [
  "crypto",
  "rand 0.7.3",
  "thiserror",
- "url",
  "validator-api-requests",
  "validator-client",
 ]
@@ -1229,9 +1243,9 @@ dependencies = [
 
 [[package]]
 name = "cw-utils"
-version = "0.13.2"
+version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "babd2c090f39d07ce5bf2556962305e795daa048ce20a93709eb591476e4a29e"
+checksum = "9dbaecb78c8e8abfd6b4258c7f4fbeb5c49a5e45ee4d910d3240ee8e1d714e1b"
 dependencies = [
  "cosmwasm-std",
  "schemars",
@@ -1240,10 +1254,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "cw3"
-version = "0.13.2"
+name = "cw2"
+version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f871854338a54c7bb094d16ffe17212b93b146d9659dbce4c9402a9b77e240ef"
+checksum = "04cf4639517490dd36b333bbd6c4fbd92e325fd0acf4683b41753bc5eb63bfc1"
+dependencies = [
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "cw3"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe19462a7f644ba60c19d3443cb90d00c50d9b6b3b0a3a7fca93df8261af979b"
 dependencies = [
  "cosmwasm-std",
  "cw-utils",
@@ -1252,10 +1278,26 @@ dependencies = [
 ]
 
 [[package]]
-name = "cw4"
-version = "0.13.2"
+name = "cw3-fixed-multisig"
+version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4476d6a7c13c46ed9ff260bd0e1cf648dc37b13f483822e1ff2a431f0f6ee52"
+checksum = "df54aa54c13f405ec4ab36b6217538bc957d439eee58f89312db05a79caf6706"
+dependencies = [
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw2",
+ "cw3",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "cw4"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0acc3549d5ce11c6901b3a676f2e2628684722197054d97cd0101ea174ed5cbd"
 dependencies = [
  "cosmwasm-std",
  "cw-storage-plus",
@@ -1410,6 +1452,7 @@ dependencies = [
  "ff 0.11.0",
  "group 0.11.0",
  "lazy_static",
+ "pemstore",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rand_core 0.6.3",
@@ -1461,9 +1504,9 @@ dependencies = [
 
 [[package]]
 name = "ed25519"
-version = "1.4.1"
+version = "1.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d5c4b5e5959dc2c2b89918d8e2cc40fcdd623cef026ed09d2f0ee05199dc8e4"
+checksum = "1e9c280362032ea4203659fc489832d0204ef09f247a0506f170dafcac08c369"
 dependencies = [
  "serde",
  "signature",
@@ -2938,6 +2981,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-utils",
  "cw3",
+ "cw3-fixed-multisig",
  "cw4",
  "schemars",
  "serde",
@@ -3095,6 +3139,7 @@ dependencies = [
  "pretty_env_logger",
  "serde",
  "serde_json",
+ "tap",
  "tokio",
  "validator-client",
 ]
@@ -3120,6 +3165,7 @@ dependencies = [
  "rand 0.6.5",
  "serde",
  "serde_json",
+ "tap",
  "thiserror",
  "time 0.3.14",
  "toml",
@@ -3155,6 +3201,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sled",
+ "tap",
  "task",
  "thiserror",
  "tokio",
@@ -3334,6 +3381,7 @@ dependencies = [
  "serde",
  "snafu 0.6.10",
  "socks5-requests",
+ "tap",
  "task",
  "thiserror",
  "tokio",
@@ -3376,9 +3424,11 @@ version = "1.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
+ "bs58",
  "cfg-if 1.0.0",
  "clap 3.2.8",
  "coconut-bandwidth-contract-common",
+ "coconut-dkg-common",
  "coconut-interface",
  "config",
  "console-subscriber",
@@ -3390,6 +3440,7 @@ dependencies = [
  "cw-utils",
  "cw3",
  "dirs",
+ "dkg",
  "dotenv",
  "futures",
  "gateway-client",
@@ -3403,6 +3454,7 @@ dependencies = [
  "nymcoconut",
  "nymsphinx",
  "okapi",
+ "pemstore",
  "pin-project",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -3455,16 +3507,19 @@ name = "nymcoconut"
 version = "0.5.0"
 dependencies = [
  "bincode",
- "bls12_381 0.5.0",
+ "bls12_381 0.6.0",
  "bs58",
  "criterion",
  "digest 0.9.0",
+ "dkg",
  "doc-comment",
- "ff 0.10.1",
+ "ff 0.11.0",
  "getrandom 0.2.6",
- "group 0.10.0",
+ "group 0.11.0",
  "itertools",
+ "pemstore",
  "rand 0.8.5",
+ "rand_chacha 0.3.1",
  "serde",
  "serde_derive",
  "sha2 0.9.9",
@@ -5640,7 +5695,9 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 name = "task"
 version = "0.1.0"
 dependencies = [
+ "futures",
  "log",
+ "thiserror",
  "tokio",
 ]
 
@@ -5780,18 +5837,18 @@ checksum = "b1141d4d61095b28419e22cb0bbf02755f5e54e0526f97f1e3d1d160e60885fb"
 
 [[package]]
 name = "thiserror"
-version = "1.0.35"
+version = "1.0.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c53f98874615aea268107765aa1ed8f6116782501d18e53d08b471733bea6c85"
+checksum = "10deb33631e3c9018b9baf9dcbbc4f737320d2b576bac10f6aefa048fa407e3e"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "1.0.35"
+version = "1.0.37"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f8b463991b4eab2d801e724172285ec4195c650e8ec79b149e6c2a8e6dd3f783"
+checksum = "982d17546b47146b28f7c22e3d08465f6b8903d0ea13c1660d9d84a6e7adcdbb"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -6419,6 +6476,7 @@ dependencies = [
  "base64",
  "bip39",
  "coconut-bandwidth-contract-common",
+ "coconut-dkg-common",
  "coconut-interface",
  "colored",
  "config",

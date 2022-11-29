@@ -20,7 +20,7 @@ pub(super) enum ClientRequestText {
         message: String,
         recipient: String,
         with_reply_surb: bool,
-        connection_id: u64,
+        connection_id: Option<u64>,
     },
     SelfAddress,
     #[serde(rename_all = "camelCase")]
@@ -94,6 +94,10 @@ pub(super) enum ServerResponseText {
     SelfAddress {
         address: String,
     },
+    LaneQueueLength {
+        lane: u64,
+        queue_length: usize,
+    },
     Error {
         message: String,
     },
@@ -135,6 +139,9 @@ impl From<ServerResponse> for ServerResponseText {
             ServerResponse::SelfAddress(recipient) => ServerResponseText::SelfAddress {
                 address: recipient.to_string(),
             },
+            ServerResponse::LaneQueueLength(lane, queue_length) => {
+                ServerResponseText::LaneQueueLength { lane, queue_length }
+            }
             ServerResponse::Error(err) => ServerResponseText::Error {
                 message: err.to_string(),
             },

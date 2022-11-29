@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use network_defaults::NymNetworkDetails;
-use nym_cli_commands::context::{create_signing_client, ClientArgs};
+use nym_cli_commands::context::{create_query_client, create_signing_client, ClientArgs};
 
 pub(crate) async fn execute(
     global_args: ClientArgs,
@@ -19,18 +19,22 @@ pub(crate) async fn execute(
             .await
         }
         Some(nym_cli_commands::validator::vesting::VestingScheduleCommands::Query(args)) => {
+            let address_from_args = args.address.clone();
             nym_cli_commands::validator::vesting::query_vesting_schedule::query(
                 args,
-                create_signing_client(global_args, network_details)?,
+                create_query_client(network_details)?,
+                address_from_args,
             )
             .await
         }
         Some(nym_cli_commands::validator::vesting::VestingScheduleCommands::VestedBalance(
             args,
         )) => {
+            let address_from_args = args.address.clone();
             nym_cli_commands::validator::vesting::balance::balance(
                 args,
-                create_signing_client(global_args, network_details)?,
+                create_query_client(network_details)?,
+                address_from_args,
             )
             .await
         }

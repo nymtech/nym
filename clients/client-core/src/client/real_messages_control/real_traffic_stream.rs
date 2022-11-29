@@ -4,8 +4,9 @@
 use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
-use client_connections::{ClosedConnectionReceiver, ConnectionId, TransmissionLane};
-use futures::channel::mpsc;
+use client_connections::{
+    ConnectionCommand, ConnectionCommandReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
+};
 use futures::task::{Context, Poll};
 use futures::{Future, Stream, StreamExt};
 use log::*;
@@ -133,9 +134,13 @@ where
 
     /// Incoming channel for being notified of closed connections, so that we can close lanes
     /// corresponding to connections. To avoid sending traffic unnecessary
-    closed_connection_rx: ClosedConnectionReceiver,
+    client_connection_rx: ConnectionCommandReceiver,
+
+    /// Report queue lengths so that upstream can backoff sending data, and keep connections open.
+    lane_queue_lengths: LaneQueueLengths,
 }
 
+#[derive(Debug)]
 pub(crate) struct RealMessage {
     mix_packet: MixPacket,
     fragment_id: FragmentIdentifier,
@@ -153,8 +158,8 @@ impl RealMessage {
 // messages are already prepared, etc. the real point of it is to forward it to mix_traffic
 // after sufficient delay
 pub(crate) type BatchRealMessageSender =
-    mpsc::UnboundedSender<(Vec<RealMessage>, TransmissionLane)>;
-type BatchRealMessageReceiver = mpsc::UnboundedReceiver<(Vec<RealMessage>, TransmissionLane)>;
+    tokio::sync::mpsc::Sender<(Vec<RealMessage>, TransmissionLane)>;
+type BatchRealMessageReceiver = tokio::sync::mpsc::Receiver<(Vec<RealMessage>, TransmissionLane)>;
 
 pub(crate) enum StreamMessage {
     Cover,
@@ -177,7 +182,8 @@ where
         rng: R,
         our_full_destination: Recipient,
         topology_access: TopologyAccessor,
-        closed_connection_rx: ClosedConnectionReceiver,
+        lane_queue_lengths: LaneQueueLengths,
+        client_connection_rx: ConnectionCommandReceiver,
     ) -> Self {
         OutQueueControl {
             config,
@@ -191,7 +197,8 @@ where
             rng,
             topology_access,
             transmission_buffer: Default::default(),
-            closed_connection_rx,
+            client_connection_rx,
+            lane_queue_lengths,
         }
     }
 
@@ -247,7 +254,7 @@ where
         };
 
         if let Err(err) = self.mix_tx.send(vec![next_message]).await {
-            log::error!("Failed to send - channel closed: {}", err);
+            log::error!("Failed to send: {}", err);
         }
 
         // notify ack controller about sending our message only after we actually managed to push it
@@ -256,7 +263,7 @@ where
             self.sent_notify(fragment_id);
         }
 
-        // In addition to closing connections on receiving messages throught closed_connection_rx,
+        // In addition to closing connections on receiving messages throught client_connection_rx,
         // also close connections when sufficiently stale.
         self.transmission_buffer.prune_stale_connections();
 
@@ -309,6 +316,17 @@ where
         }
     }
 
+    fn pop_next_message(&mut self) -> Option<RealMessage> {
+        // Pop the next message from the transmission buffer
+        let (lane, real_next) = self.transmission_buffer.pop_next_message_at_random()?;
+
+        // Update the published queue length
+        let lane_length = self.transmission_buffer.lane_length(&lane);
+        self.lane_queue_lengths.set(&lane, lane_length);
+
+        Some(real_next)
+    }
+
     fn poll_poisson(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
         // The average delay could change depending on if backpressure in the downstream channel
         // (mix_tx) was detected.
@@ -318,8 +336,11 @@ where
         // Start by checking if we have any incoming messages about closed connections
         // NOTE: this feels a bit iffy, the `OutQueueControl` is getting ripe for a rewrite to
         // something simpler.
-        if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connection_rx).poll_next(cx) {
-            self.on_close_connection(id);
+        if let Poll::Ready(Some(id)) = Pin::new(&mut self.client_connection_rx).poll_next(cx) {
+            match id {
+                ConnectionCommand::Close(id) => self.on_close_connection(id),
+                ConnectionCommand::ActiveConnections(_) => panic!(),
+            }
         }
 
         if let Some(ref mut next_delay) = &mut self.next_delay {
@@ -350,7 +371,7 @@ where
             // in `Vec`, this ensures that on average we will fetch messages faster than we can
             // send, which is a condition for being able to multiplex sphinx packets from multiple
             // data streams.
-            match Pin::new(&mut self.real_receiver).poll_next(cx) {
+            match Pin::new(&mut self.real_receiver).poll_recv(cx) {
                 // in the case our real message channel stream was closed, we should also indicate we are closed
                 // (and whoever is using the stream should panic)
                 Poll::Ready(None) => Poll::Ready(None),
@@ -359,16 +380,13 @@ where
                     log::trace!("handling real_messages: size: {}", real_messages.len());
 
                     self.transmission_buffer.store(&conn_id, real_messages);
-                    let real_next = self
-                        .transmission_buffer
-                        .pop_next_message_at_random()
-                        .expect("we just added one");
+                    let real_next = self.pop_next_message().expect("Just stored one");
 
                     Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
                 }
 
                 Poll::Pending => {
-                    if let Some(real_next) = self.transmission_buffer.pop_next_message_at_random() {
+                    if let Some(real_next) = self.pop_next_message() {
                         Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
                     } else {
                         // otherwise construct a dummy one
@@ -397,11 +415,14 @@ where
 
     fn poll_immediate(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
         // Start by checking if we have any incoming messages about closed connections
-        if let Poll::Ready(Some(id)) = Pin::new(&mut self.closed_connection_rx).poll_next(cx) {
-            self.on_close_connection(id);
+        if let Poll::Ready(Some(id)) = Pin::new(&mut self.client_connection_rx).poll_next(cx) {
+            match id {
+                ConnectionCommand::Close(id) => self.on_close_connection(id),
+                ConnectionCommand::ActiveConnections(_) => panic!(),
+            }
         }
 
-        match Pin::new(&mut self.real_receiver).poll_next(cx) {
+        match Pin::new(&mut self.real_receiver).poll_recv(cx) {
             // in the case our real message channel stream was closed, we should also indicate we are closed
             // (and whoever is using the stream should panic)
             Poll::Ready(None) => Poll::Ready(None),
@@ -411,16 +432,13 @@ where
 
                 // First store what we got for the given connection id
                 self.transmission_buffer.store(&conn_id, real_messages);
-                let real_next = self
-                    .transmission_buffer
-                    .pop_next_message_at_random()
-                    .expect("we just added one");
+                let real_next = self.pop_next_message().expect("we just added one");
 
                 Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
             }
 
             Poll::Pending => {
-                if let Some(real_next) = self.transmission_buffer.pop_next_message_at_random() {
+                if let Some(real_next) = self.pop_next_message() {
                     Poll::Ready(Some(StreamMessage::Real(Box::new(real_next))))
                 } else {
                     Poll::Pending
@@ -447,16 +465,32 @@ where
         let lanes = self.transmission_buffer.num_lanes();
         let mult = self.sending_delay_controller.current_multiplier();
         let delay = self.current_average_message_sending_delay().as_millis();
-        if self.config.disable_poisson_packet_distribution {
-            log::info!(
+        let status_str = if self.config.disable_poisson_packet_distribution {
+            format!(
                 "Status: {lanes} lanes, backlog: {:.2} kiB ({packets}), no delay",
                 backlog
-            );
+            )
         } else {
-            log::info!(
+            format!(
                 "Status: {lanes} lanes, backlog: {:.2} kiB ({packets}), avg delay: {}ms ({mult})",
-                backlog,
-                delay
+                backlog, delay
+            )
+        };
+        if packets > 1000 {
+            log::warn!("{status_str}");
+        } else if packets > 0 {
+            log::info!("{status_str}");
+        } else {
+            log::debug!("{status_str}");
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    fn log_status_infrequent(&self) {
+        if self.sending_delay_controller.current_multiplier() > 1 {
+            log::warn!(
+                "Unable to send packets fast enough - sending delay multiplier set to: {}",
+                self.sending_delay_controller.current_multiplier()
             );
         }
     }
@@ -465,7 +499,8 @@ where
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
         debug!("Started OutQueueControl with graceful shutdown support");
 
-        let mut status_timer = tokio::time::interval(Duration::from_secs(1));
+        let mut status_timer = tokio::time::interval(Duration::from_secs(5));
+        let mut infrequent_status_timer = tokio::time::interval(Duration::from_secs(60));
 
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -476,6 +511,9 @@ where
                 _ = status_timer.tick() => {
                     self.log_status();
                 }
+                _ = infrequent_status_timer.tick() => {
+                    self.log_status_infrequent();
+                }
                 next_message = self.next() => if let Some(next_message) = next_message {
                     self.on_message(next_message).await;
                 } else {
@@ -484,7 +522,9 @@ where
                 }
             }
         }
-        assert!(shutdown.is_shutdown_poll());
+        tokio::time::timeout(Duration::from_secs(5), shutdown.recv())
+            .await
+            .expect("Task stopped without shutdown called");
         log::debug!("OutQueueControl: Exiting");
     }
 

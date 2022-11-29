@@ -6,9 +6,10 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cw-utils = { version = "0.13.1" }
-cw3 = { version = "0.13.1" }
-cw4 = { version = "0.13.1" }
+cw-utils = { version = "0.13.4" }
+cw3 = { version = "0.13.4" }
+cw3-fixed-multisig = { version = "0.13.4", features = ["library"] }
+cw4 = { version = "0.13.4" }
 cosmwasm-std = "1.0.0"
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::config::Config;
-use client_connections::{ClosedConnectionReceiver, TransmissionLane};
+use client_connections::{ConnectionCommandReceiver, LaneQueueLengths, TransmissionLane};
 use client_core::client::{
     cover_traffic_stream::LoopCoverTrafficStream,
     inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender},
@@ -128,7 +128,8 @@ impl NymClient {
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
-        closed_connection_rx: ClosedConnectionReceiver,
+        client_connection_rx: ConnectionCommandReceiver,
+        lane_queue_lengths: LaneQueueLengths,
     ) {
         let mut controller_config = real_messages_control::Config::new(
             self.key_manager.ack_key(),
@@ -153,7 +154,8 @@ impl NymClient {
             input_receiver,
             mix_sender,
             topology_accessor,
-            closed_connection_rx,
+            lane_queue_lengths,
+            client_connection_rx,
         )
         .start();
     }
@@ -324,7 +326,7 @@ impl NymClient {
         let (received_buffer_request_sender, received_buffer_request_receiver) = mpsc::unbounded();
 
         // channels responsible for controlling real messages
-        let (input_sender, input_receiver) = mpsc::unbounded::<InputMessage>();
+        let (input_sender, input_receiver) = tokio::sync::mpsc::channel::<InputMessage>(1);
 
         // channels responsible for controlling ack messages
         let (ack_sender, ack_receiver) = mpsc::unbounded();
@@ -332,7 +334,7 @@ impl NymClient {
 
         // Channel that the real traffix controller can listed to for closing connections.
         // Currently unused in the wasm client.
-        let (_closed_connection_tx, closed_connection_rx) = mpsc::unbounded();
+        let (_client_connection_tx, client_connection_rx) = mpsc::unbounded();
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.
@@ -353,12 +355,17 @@ impl NymClient {
         // The MixTrafficController then sends the actual traffic
         let sphinx_message_sender = Self::start_mix_traffic_controller(gateway_client);
 
+        // Shared queue length data. Published by the `OutQueueController` in the client, and used
+        // primarily to throttle incoming connections
+        let shared_lane_queue_lengths = LaneQueueLengths::new();
+
         self.start_real_traffic_controller(
             shared_topology_accessor.clone(),
             ack_receiver,
             input_receiver,
             sphinx_message_sender.clone(),
-            closed_connection_rx,
+            client_connection_rx,
+            shared_lane_queue_lengths,
         );
 
         if !self.config.debug.disable_loop_cover_traffic_stream {
@@ -391,8 +398,9 @@ impl NymClient {
         self.input_tx
             .as_ref()
             .expect("start method was not called before!")
-            .unbounded_send(input_msg)
-            .unwrap();
+            .send(input_msg)
+            .await
+            .expect("InputMessageReceiver has stopped receiving!");
 
         self
     }

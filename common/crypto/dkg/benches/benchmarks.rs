@@ -9,7 +9,7 @@ use dkg::bte::proof_discrete_log::ProofOfDiscreteLog;
 use dkg::bte::proof_sharing::ProofOfSecretSharing;
 use dkg::bte::{
     decrypt_share, encrypt_shares, keygen, proof_chunking, proof_sharing, setup, DecryptionKey,
-    Epoch, PublicKey,
+    PublicKey,
 };
 use dkg::interpolation::polynomial::Polynomial;
 use dkg::{Dealing, NodeIndex, Share};
@@ -54,7 +54,6 @@ pub fn creating_dealing_for_3_parties(c: &mut Criterion) {
     let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
     let threshold = 2;
-    let epoch = Epoch::new(2);
 
     let (receivers, _) = prepare_keys(&mut rng, 3);
 
@@ -66,7 +65,6 @@ pub fn creating_dealing_for_3_parties(c: &mut Criterion) {
                     &params,
                     receivers.keys().next().copied().unwrap(),
                     threshold,
-                    epoch,
                     &receivers,
                     None,
                 )
@@ -80,7 +78,6 @@ pub fn verifying_dealing_made_for_3_parties_and_recovering_share(c: &mut Criteri
     let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
     let threshold = 2;
-    let epoch = Epoch::new(2);
 
     let (receivers, mut dks) = prepare_keys(&mut rng, 3);
     let (dealing, _) = Dealing::create(
@@ -88,22 +85,18 @@ pub fn verifying_dealing_made_for_3_parties_and_recovering_share(c: &mut Criteri
         &params,
         receivers.keys().next().copied().unwrap(),
         threshold,
-        epoch,
         &receivers,
         None,
     );
 
     let first_key = dks.get_mut(0).unwrap();
-    first_key.try_update_to(epoch, &params, &mut rng).unwrap();
 
     c.bench_function(
         "verifying single dealing made for 3 parties (threshold 2) and recovering share",
         |b| {
             b.iter(|| {
-                assert!(dealing
-                    .verify(&params, epoch, threshold, &receivers, None)
-                    .is_ok());
-                black_box(decrypt_share(first_key, 0, &dealing.ciphertexts, epoch, None).unwrap());
+                assert!(dealing.verify(&params, threshold, &receivers, None).is_ok());
+                black_box(decrypt_share(first_key, 0, &dealing.ciphertexts, None).unwrap());
             })
         },
     );
@@ -114,7 +107,6 @@ pub fn creating_dealing_for_20_parties(c: &mut Criterion) {
     let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
     let threshold = 14;
-    let epoch = Epoch::new(2);
 
     let (receivers, _) = prepare_keys(&mut rng, 20);
 
@@ -128,7 +120,6 @@ pub fn creating_dealing_for_20_parties(c: &mut Criterion) {
                         &params,
                         receivers.keys().next().copied().unwrap(),
                         threshold,
-                        epoch,
                         &receivers,
                         None,
                     )
@@ -143,7 +134,6 @@ pub fn verifying_dealing_made_for_20_parties_and_recovering_share(c: &mut Criter
     let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
     let threshold = 14;
-    let epoch = Epoch::new(2);
 
     let (receivers, mut dks) = prepare_keys(&mut rng, 20);
     let (dealing, _) = Dealing::create(
@@ -151,22 +141,18 @@ pub fn verifying_dealing_made_for_20_parties_and_recovering_share(c: &mut Criter
         &params,
         receivers.keys().next().copied().unwrap(),
         threshold,
-        epoch,
         &receivers,
         None,
     );
 
     let first_key = dks.get_mut(0).unwrap();
-    first_key.try_update_to(epoch, &params, &mut rng).unwrap();
 
     c.bench_function(
         "verifying single dealing made for 20 parties (threshold 14) and recovering share",
         |b| {
             b.iter(|| {
-                assert!(dealing
-                    .verify(&params, epoch, threshold, &receivers, None)
-                    .is_ok());
-                black_box(decrypt_share(first_key, 0, &dealing.ciphertexts, epoch, None).unwrap());
+                assert!(dealing.verify(&params, threshold, &receivers, None).is_ok());
+                black_box(decrypt_share(first_key, 0, &dealing.ciphertexts, None).unwrap());
             })
         },
     );
@@ -177,7 +163,6 @@ pub fn creating_dealing_for_100_parties(c: &mut Criterion) {
     let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
     let threshold = 67;
-    let epoch = Epoch::new(2);
 
     let (receivers, _) = prepare_keys(&mut rng, 100);
 
@@ -191,7 +176,6 @@ pub fn creating_dealing_for_100_parties(c: &mut Criterion) {
                         &params,
                         receivers.keys().next().copied().unwrap(),
                         threshold,
-                        epoch,
                         &receivers,
                         None,
                     )
@@ -206,7 +190,6 @@ pub fn verifying_dealing_made_for_100_parties_and_recovering_share(c: &mut Crite
     let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
     let threshold = 67;
-    let epoch = Epoch::new(2);
 
     let (receivers, mut dks) = prepare_keys(&mut rng, 100);
     let (dealing, _) = Dealing::create(
@@ -214,22 +197,18 @@ pub fn verifying_dealing_made_for_100_parties_and_recovering_share(c: &mut Crite
         &params,
         receivers.keys().next().copied().unwrap(),
         threshold,
-        epoch,
         &receivers,
         None,
     );
 
     let first_key = dks.get_mut(0).unwrap();
-    first_key.try_update_to(epoch, &params, &mut rng).unwrap();
 
     c.bench_function(
         "verifying single dealing made for 100 parties (threshold 67) and recovering share",
         |b| {
             b.iter(|| {
-                assert!(dealing
-                    .verify(&params, epoch, threshold, &receivers, None)
-                    .is_ok());
-                black_box(decrypt_share(first_key, 0, &dealing.ciphertexts, epoch, None).unwrap());
+                assert!(dealing.verify(&params, threshold, &receivers, None).is_ok());
+                black_box(decrypt_share(first_key, 0, &dealing.ciphertexts, None).unwrap());
             })
         },
     );
@@ -266,7 +245,6 @@ pub fn creating_proof_of_chunking_for_100_parties(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
     let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
-    let epoch = Epoch::new(2);
 
     let (receivers, _) = prepare_keys(&mut rng, 100);
 
@@ -283,7 +261,7 @@ pub fn creating_proof_of_chunking_for_100_parties(c: &mut Criterion) {
         .collect::<Vec<_>>();
     let ordered_public_keys = receivers.values().copied().collect::<Vec<_>>();
 
-    let (ciphertexts, hazmat) = encrypt_shares(&remote_share_key_pairs, epoch, &params, &mut rng);
+    let (ciphertexts, hazmat) = encrypt_shares(&remote_share_key_pairs, &params, &mut rng);
 
     c.bench_function("creating proof of chunking for 100 parties", |b| {
         b.iter(|| {
@@ -301,7 +279,6 @@ pub fn verifying_proof_of_chunking_for_100_parties(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
     let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
-    let epoch = Epoch::new(2);
 
     let (receivers, _) = prepare_keys(&mut rng, 100);
 
@@ -318,7 +295,7 @@ pub fn verifying_proof_of_chunking_for_100_parties(c: &mut Criterion) {
         .collect::<Vec<_>>();
     let ordered_public_keys = receivers.values().copied().collect::<Vec<_>>();
 
-    let (ciphertexts, hazmat) = encrypt_shares(&remote_share_key_pairs, epoch, &params, &mut rng);
+    let (ciphertexts, hazmat) = encrypt_shares(&remote_share_key_pairs, &params, &mut rng);
 
     let chunking_instance = proof_chunking::Instance::new(&ordered_public_keys, &ciphertexts);
     let proof_of_chunking =
@@ -338,7 +315,6 @@ pub fn creating_proof_of_secret_sharing_for_100_parties(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
     let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
-    let epoch = Epoch::new(2);
 
     let (receivers, _) = prepare_keys(&mut rng, 100);
 
@@ -354,7 +330,7 @@ pub fn creating_proof_of_secret_sharing_for_100_parties(c: &mut Criterion) {
         .map(|(share, key)| (share, key))
         .collect::<Vec<_>>();
 
-    let (ciphertexts, hazmat) = encrypt_shares(&remote_share_key_pairs, epoch, &params, &mut rng);
+    let (ciphertexts, hazmat) = encrypt_shares(&remote_share_key_pairs, &params, &mut rng);
 
     let combined_ciphertexts = ciphertexts.combine_ciphertexts();
     let combined_r = hazmat.combine_rs();
@@ -381,7 +357,6 @@ pub fn verifying_proof_of_secret_sharing_for_100_parties(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
     let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
-    let epoch = Epoch::new(2);
 
     let (receivers, _) = prepare_keys(&mut rng, 100);
 
@@ -397,7 +372,7 @@ pub fn verifying_proof_of_secret_sharing_for_100_parties(c: &mut Criterion) {
         .map(|(share, key)| (share, key))
         .collect::<Vec<_>>();
 
-    let (ciphertexts, hazmat) = encrypt_shares(&remote_share_key_pairs, epoch, &params, &mut rng);
+    let (ciphertexts, hazmat) = encrypt_shares(&remote_share_key_pairs, &params, &mut rng);
 
     let combined_ciphertexts = ciphertexts.combine_ciphertexts();
     let combined_r = hazmat.combine_rs();
@@ -430,7 +405,6 @@ pub fn single_share_encryption(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
     let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
-    let epoch = Epoch::new(2);
     let (_, pk) = keygen(&params, &mut rng);
 
     let polynomial = Polynomial::new_random(&mut rng, 3);
@@ -440,7 +414,6 @@ pub fn single_share_encryption(c: &mut Criterion) {
         b.iter(|| {
             black_box(encrypt_shares(
                 &[(&share, pk.public_key())],
-                epoch,
                 &params,
                 &mut rng,
             ))
@@ -452,7 +425,6 @@ pub fn share_encryption_100(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
     let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
-    let epoch = Epoch::new(2);
 
     let (receivers, _) = prepare_keys(&mut rng, 100);
     let polynomial = Polynomial::new_random(&mut rng, 3);
@@ -468,14 +440,7 @@ pub fn share_encryption_100(c: &mut Criterion) {
         .collect::<Vec<_>>();
 
     c.bench_function("100 shares encryption", |b| {
-        b.iter(|| {
-            black_box(encrypt_shares(
-                &remote_share_key_pairs,
-                epoch,
-                &params,
-                &mut rng,
-            ))
-        })
+        b.iter(|| black_box(encrypt_shares(&remote_share_key_pairs, &params, &mut rng)))
     });
 }
 
@@ -483,16 +448,14 @@ pub fn share_decryption(c: &mut Criterion) {
     let dummy_seed = [42u8; 32];
     let mut rng = rand_chacha::ChaCha20Rng::from_seed(dummy_seed);
     let params = setup();
-    let epoch = Epoch::new(2);
-    let (mut dk, pk) = keygen(&params, &mut rng);
+    let (dk, pk) = keygen(&params, &mut rng);
 
     let polynomial = Polynomial::new_random(&mut rng, 3);
     let share: Share = polynomial.evaluate_at(&Scalar::from(42)).into();
-    let (ciphertexts, _) = encrypt_shares(&[(&share, pk.public_key())], epoch, &params, &mut rng);
-    dk.try_update_to(epoch, &params, &mut rng).unwrap();
+    let (ciphertexts, _) = encrypt_shares(&[(&share, pk.public_key())], &params, &mut rng);
 
     c.bench_function("single share decryption", |b| {
-        b.iter(|| black_box(decrypt_share(&dk, 0, &ciphertexts, epoch, None)))
+        b.iter(|| black_box(decrypt_share(&dk, 0, &ciphertexts, None)))
     });
 }
 

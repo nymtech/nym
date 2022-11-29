@@ -4,7 +4,7 @@
 use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::iv::IV;
 use crate::registration::handshake::SharedKeys;
-use crate::GatewayMacSize;
+use crate::{GatewayMacSize, PROTOCOL_VERSION};
 use crypto::generic_array::typenum::Unsigned;
 use crypto::hmac::recompute_keyed_hmac_and_verify_tag;
 use crypto::symmetric::stream_cipher;
@@ -28,13 +28,22 @@ use credentials::token::bandwidth::TokenCredential;
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum RegistrationHandshake {
-    HandshakePayload { data: Vec<u8> },
-    HandshakeError { message: String },
+    HandshakePayload {
+        #[serde(default)]
+        protocol_version: Option<u8>,
+        data: Vec<u8>,
+    },
+    HandshakeError {
+        message: String,
+    },
 }
 
 impl RegistrationHandshake {
     pub fn new_payload(data: Vec<u8>) -> Self {
-        RegistrationHandshake::HandshakePayload { data }
+        RegistrationHandshake::HandshakePayload {
+            protocol_version: Some(PROTOCOL_VERSION),
+            data,
+        }
     }
 
     pub fn new_error<S: Into<String>>(message: S) -> Self {
@@ -115,12 +124,16 @@ pub enum ClientControlRequest {
     // TODO: should this also contain a MAC considering that at this point we already
     // have the shared key derived?
     Authenticate {
+        #[serde(default)]
+        protocol_version: Option<u8>,
         address: String,
         enc_address: String,
         iv: String,
     },
     #[serde(alias = "handshakePayload")]
     RegisterHandshakeInitRequest {
+        #[serde(default)]
+        protocol_version: Option<u8>,
         data: Vec<u8>,
     },
     BandwidthCredential {
@@ -137,6 +150,7 @@ impl ClientControlRequest {
         iv: IV,
     ) -> Self {
         ClientControlRequest::Authenticate {
+            protocol_version: Some(PROTOCOL_VERSION),
             address: address.as_base58_string(),
             enc_address: enc_address.to_base58_string(),
             iv: iv.to_base58_string(),
@@ -223,10 +237,14 @@ impl TryInto<String> for ClientControlRequest {
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum ServerResponse {
     Authenticate {
+        #[serde(default)]
+        protocol_version: Option<u8>,
         status: bool,
         bandwidth_remaining: i64,
     },
     Register {
+        #[serde(default)]
+        protocol_version: Option<u8>,
         status: bool,
     },
     Bandwidth {
@@ -381,14 +399,37 @@ mod tests {
     #[test]
     fn handshake_payload_can_be_deserialized_into_register_handshake_init_request() {
         let handshake_data = vec![1, 2, 3, 4, 5, 6];
-        let handshake_payload = RegistrationHandshake::HandshakePayload {
+        let handshake_payload_with_protocol = RegistrationHandshake::HandshakePayload {
+            protocol_version: Some(42),
             data: handshake_data.clone(),
         };
-        let serialized = serde_json::to_string(&handshake_payload).unwrap();
+        let serialized = serde_json::to_string(&handshake_payload_with_protocol).unwrap();
         let deserialized = ClientControlRequest::try_from(serialized).unwrap();
 
         match deserialized {
-            ClientControlRequest::RegisterHandshakeInitRequest { data } => {
+            ClientControlRequest::RegisterHandshakeInitRequest {
+                protocol_version,
+                data,
+            } => {
+                assert_eq!(protocol_version, Some(42));
+                assert_eq!(data, handshake_data)
+            }
+            _ => unreachable!("this branch shouldn't have been reached!"),
+        }
+
+        let handshake_payload_without_protocol = RegistrationHandshake::HandshakePayload {
+            protocol_version: None,
+            data: handshake_data.clone(),
+        };
+        let serialized = serde_json::to_string(&handshake_payload_without_protocol).unwrap();
+        let deserialized = ClientControlRequest::try_from(serialized).unwrap();
+
+        match deserialized {
+            ClientControlRequest::RegisterHandshakeInitRequest {
+                protocol_version,
+                data,
+            } => {
+                assert!(protocol_version.is_none());
                 assert_eq!(data, handshake_data)
             }
             _ => unreachable!("this branch shouldn't have been reached!"),

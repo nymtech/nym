@@ -1,7 +1,4 @@
-use client_core::{client::reply_key_storage::ReplyKeyStorageError, error::ClientCoreError};
-use crypto::asymmetric::identity::Ed25519RecoveryError;
-use gateway_client::error::GatewayClientError;
-use validator_client::ValidatorClientError;
+use client_core::error::ClientCoreError;
 
 use crate::socks::types::SocksProxyError;
 

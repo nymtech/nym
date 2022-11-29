@@ -31,6 +31,7 @@ pub struct ShutdownNotifier {
     // track of which tasks we are still waiting for.
     notify_tx: watch::Sender<()>,
     notify_rx: Option<watch::Receiver<()>>,
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     shutdown_timer_secs: u64,
 
     // If any task failed, it needs to report separately
@@ -113,6 +114,11 @@ impl ShutdownNotifier {
             drop(notify_rx);
         }
 
+        // in wasm we'll never get our shutdown anyway...
+        #[cfg(target_arch = "wasm32")]
+        futures::future::pending::<()>().await;
+
+        #[cfg(not(target_arch = "wasm32"))]
         tokio::select! {
             _ = self.notify_tx.closed() => {
                 log::info!("All registered tasks succesfully shutdown");

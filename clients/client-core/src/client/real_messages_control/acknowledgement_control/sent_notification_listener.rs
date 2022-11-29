@@ -42,7 +42,6 @@ impl SentNotificationListener {
             .unwrap();
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
         debug!("Started SentNotificationListener with graceful shutdown support");
 
@@ -66,7 +65,6 @@ impl SentNotificationListener {
         log::debug!("SentNotificationListener: Exiting");
     }
 
-    #[cfg(target_arch = "wasm32")]
     pub(super) async fn run(&mut self) {
         debug!("Started SentNotificationListener without graceful shutdown support");
 

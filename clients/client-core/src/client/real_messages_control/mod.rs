@@ -113,9 +113,9 @@ impl RealMessagesController<OsRng> {
         input_receiver: InputMessageReceiver,
         mix_sender: BatchMixMessageSender,
         topology_access: TopologyAccessor,
-        #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
+        #[cfg(feature = "reply-surb")] reply_key_storage: ReplyKeyStorage,
     ) -> Self {
         let rng = OsRng;
 
@@ -175,7 +175,6 @@ impl RealMessagesController<OsRng> {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn start_with_shutdown(self, shutdown: task::ShutdownListener) {
         let mut out_queue_control = self.out_queue_control;
         let ack_control = self.ack_control;

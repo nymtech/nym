@@ -105,6 +105,7 @@ impl MixnetResponseListener {
                 }
             }
         }
+        #[cfg(not(target_arch = "wasm32"))]
         tokio::time::timeout(Duration::from_secs(5), self.shutdown.recv())
             .await
             .expect("Task stopped without shutdown called");

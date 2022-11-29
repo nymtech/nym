@@ -234,7 +234,6 @@ where
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub(super) fn start_with_shutdown(self, shutdown: task::ShutdownListener) {
         let mut acknowledgement_listener = self.acknowledgement_listener;
         let mut input_message_listener = self.input_message_listener;
@@ -280,7 +279,6 @@ where
         });
     }
 
-    #[cfg(target_arch = "wasm32")]
     pub(super) fn start(self) {
         let mut acknowledgement_listener = self.acknowledgement_listener;
         let mut input_message_listener = self.input_message_listener;

@@ -7,8 +7,8 @@ use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
     server::SphinxSocksServer,
 };
+use client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput};
 use client_core::client::key_manager::KeyManager;
-use client_core::client::{BaseClientBuilder, ClientInput, ClientOutput};
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use futures::channel::mpsc;
 use futures::StreamExt;
@@ -189,7 +189,7 @@ impl NymClient {
     }
 
     pub async fn start(self) -> Result<ShutdownNotifier, Socks5ClientError> {
-        let base_builder = BaseClientBuilder::new(
+        let base_builder = BaseClientBuilder::new_from_base_config(
             self.config.get_base(),
             self.key_manager,
             Some(Self::create_bandwidth_controller(&self.config).await),

@@ -22,6 +22,7 @@ use rand::rngs::OsRng;
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::time::Duration;
+use task::ShutdownListener;
 use tungstenite::protocol::Message;
 
 #[cfg(feature = "coconut")]
@@ -29,8 +30,6 @@ use coconut_interface::Credential;
 
 #[cfg(not(target_arch = "wasm32"))]
 use credential_storage::PersistentStorage;
-#[cfg(not(target_arch = "wasm32"))]
-use task::ShutdownListener;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;
 
@@ -67,8 +66,9 @@ pub struct GatewayClient {
     /// Delay between each subsequent reconnection attempt.
     reconnection_backoff: Duration,
 
-    #[cfg(not(target_arch = "wasm32"))]
     /// Listen to shutdown messages.
+    // TODO: fix this
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     shutdown: Option<ShutdownListener>,
 }
 
@@ -85,7 +85,7 @@ impl GatewayClient {
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
         bandwidth_controller: Option<BandwidthController<PersistentStorage>>,
-        #[cfg(not(target_arch = "wasm32"))] shutdown: Option<ShutdownListener>,
+        shutdown: Option<ShutdownListener>,
     ) -> Self {
         GatewayClient {
             authenticated: false,
@@ -97,18 +97,12 @@ impl GatewayClient {
             local_identity,
             shared_key,
             connection: SocketState::NotConnected,
-            packet_router: PacketRouter::new(
-                ack_sender,
-                mixnet_message_sender,
-                #[cfg(not(target_arch = "wasm32"))]
-                shutdown.clone(),
-            ),
+            packet_router: PacketRouter::new(ack_sender, mixnet_message_sender, shutdown.clone()),
             response_timeout_duration,
             bandwidth_controller,
             should_reconnect_on_failure: true,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
-            #[cfg(not(target_arch = "wasm32"))]
             shutdown,
         }
     }
@@ -136,7 +130,7 @@ impl GatewayClient {
         gateway_owner: String,
         local_identity: Arc<identity::KeyPair>,
         response_timeout_duration: Duration,
-        #[cfg(not(target_arch = "wasm32"))] shutdown: Option<ShutdownListener>,
+        shutdown: Option<ShutdownListener>,
     ) -> Self {
         use futures::channel::mpsc;
 
@@ -144,12 +138,7 @@ impl GatewayClient {
         // perfectly fine here, because it's not meant to be used
         let (ack_tx, _) = mpsc::unbounded();
         let (mix_tx, _) = mpsc::unbounded();
-        let packet_router = PacketRouter::new(
-            ack_tx,
-            mix_tx,
-            #[cfg(not(target_arch = "wasm32"))]
-            shutdown.clone(),
-        );
+        let packet_router = PacketRouter::new(ack_tx, mix_tx, shutdown.clone());
 
         GatewayClient {
             authenticated: false,
@@ -167,7 +156,6 @@ impl GatewayClient {
             should_reconnect_on_failure: false,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
-            #[cfg(not(target_arch = "wasm32"))]
             shutdown,
         }
     }
@@ -403,13 +391,10 @@ impl GatewayClient {
                     .batch_send_without_response(messages)
                     .await
                 {
-                    error!("failed to batch send messages - {}...", err);
+                    error!("failed to batch send messages - {err}...");
                     // we must ensure we do not leave the task still active
                     if let Err(err) = self.recover_socket_connection().await {
-                        error!(
-                            "... and the delegated stream has also errored out - {}",
-                            err
-                        )
+                        error!("... and the delegated stream has also errored out - {err}")
                     }
                     Err(err)
                 } else {
@@ -429,13 +414,10 @@ impl GatewayClient {
             SocketState::Available(ref mut conn) => Ok(conn.send(msg).await?),
             SocketState::PartiallyDelegated(ref mut partially_delegated) => {
                 if let Err(err) = partially_delegated.send_without_response(msg).await {
-                    error!("failed to send message without response - {}...", err);
+                    error!("failed to send message without response - {err}...");
                     // we must ensure we do not leave the task still active
                     if let Err(err) = self.recover_socket_connection().await {
-                        error!(
-                            "... and the delegated stream has also errored out - {}",
-                            err
-                        )
+                        error!("... and the delegated stream has also errored out - {err}")
                     }
                     Err(err)
                 } else {

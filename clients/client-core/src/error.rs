@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(feature = "reply-surb")]
 use crate::client::reply_key_storage::ReplyKeyStorageError;
 use crypto::asymmetric::identity::Ed25519RecoveryError;
 use gateway_client::error::GatewayClientError;
@@ -16,6 +17,8 @@ pub enum ClientCoreError {
     Ed25519RecoveryError(#[from] Ed25519RecoveryError),
     #[error("Validator client error: {0}")]
     ValidatorClientError(#[from] ValidatorClientError),
+
+    #[cfg(feature = "reply-surb")]
     #[error("Reply key storage error: {0}")]
     ReplyKeyStorageError(#[from] ReplyKeyStorageError),
 

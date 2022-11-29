@@ -125,10 +125,7 @@ where
             .expect("BatchRealMessageReceiver has stopped receiving!");
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
-        use std::time::Duration;
-
         debug!("Started RetransmissionRequestListener with graceful shutdown support");
 
         while !shutdown.is_shutdown() {
@@ -145,13 +142,13 @@ where
                 }
             }
         }
-        tokio::time::timeout(Duration::from_secs(5), shutdown.recv())
+        #[cfg(not(target_arch = "wasm32"))]
+        tokio::time::timeout(std::time::Duration::from_secs(5), shutdown.recv())
             .await
             .expect("Task stopped without shutdown called");
         log::debug!("RetransmissionRequestListener: Exiting");
     }
 
-    #[cfg(target_arch = "wasm32")]
     pub(super) async fn run(&mut self) {
         debug!("Started RetransmissionRequestListener without graceful shutdown support");
 

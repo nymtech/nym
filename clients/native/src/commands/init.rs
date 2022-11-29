@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::Args;
-use client_core::{config::GatewayEndpoint, error::ClientCoreError};
+use client_core::{config::GatewayEndpointConfig, error::ClientCoreError};
 use config::NymConfig;
 
 use crate::{
@@ -132,7 +132,7 @@ async fn setup_gateway(
     register: bool,
     user_chosen_gateway_id: Option<&str>,
     config: &Config,
-) -> Result<GatewayEndpoint, ClientCoreError> {
+) -> Result<GatewayEndpointConfig, ClientCoreError> {
     if register {
         // Get the gateway details by querying the validator-api. Either pick one at random or use
         // the chosen one if it's among the available ones.

@@ -245,7 +245,6 @@ impl ActionController {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
         debug!("Started ActionController with graceful shutdown support");
 
@@ -272,13 +271,13 @@ impl ActionController {
                 }
             }
         }
+        #[cfg(not(target_arch = "wasm32"))]
         tokio::time::timeout(Duration::from_secs(5), shutdown.recv())
             .await
             .expect("Task stopped without shutdown called");
         log::debug!("ActionController: Exiting");
     }
 
-    #[cfg(target_arch = "wasm32")]
     pub(super) async fn run(&mut self) {
         debug!("Started ActionController without graceful shutdown support");
 

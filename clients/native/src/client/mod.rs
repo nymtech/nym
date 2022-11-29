@@ -5,10 +5,10 @@ use crate::client::config::Config;
 use crate::error::ClientError;
 use crate::websocket;
 use client_connections::TransmissionLane;
+use client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput};
 use client_core::client::inbound_messages::InputMessage;
 use client_core::client::key_manager::KeyManager;
 use client_core::client::received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
-use client_core::client::{BaseClientBuilder, ClientInput, ClientOutput};
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
@@ -119,7 +119,7 @@ impl SocketClient {
             return Err(ClientError::InvalidSocketMode);
         }
 
-        let base_builder = BaseClientBuilder::new(
+        let base_builder = BaseClientBuilder::new_from_base_config(
             self.config.get_base(),
             self.key_manager,
             Some(Self::create_bandwidth_controller(&self.config).await),
@@ -143,7 +143,7 @@ impl SocketClient {
             return Err(ClientError::InvalidSocketMode);
         }
 
-        let base_client = BaseClientBuilder::new(
+        let base_client = BaseClientBuilder::new_from_base_config(
             self.config.get_base(),
             self.key_manager,
             Some(Self::create_bandwidth_controller(&self.config).await),
@@ -167,6 +167,7 @@ impl SocketClient {
         Ok(DirectClient {
             client_input,
             reconstructed_receiver,
+            _shutdown_notifier: started_client.shutdown_notifier,
         })
     }
 }
@@ -174,6 +175,9 @@ impl SocketClient {
 pub struct DirectClient {
     client_input: ClientInput,
     reconstructed_receiver: ReconstructedMessagesReceiver,
+
+    // we need to keep reference to this guy otherwise things will start dropping
+    _shutdown_notifier: ShutdownNotifier,
 }
 
 impl DirectClient {

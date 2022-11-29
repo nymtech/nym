@@ -50,3 +50,101 @@ pub(crate) async fn dealing_exchange(
 
     Ok(())
 }
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use super::*;
+    use crate::coconut::tests::DummyClient;
+    use crate::coconut::KeyPair;
+    use coconut_dkg_common::dealer::DealerDetails;
+    use cosmwasm_std::Addr;
+    use dkg::bte::keys::KeyPair as DkgKeyPair;
+    use dkg::bte::Params;
+    use rand::rngs::OsRng;
+    use std::collections::HashMap;
+    use std::str::FromStr;
+    use std::sync::{Arc, RwLock};
+    use url::Url;
+    use validator_client::nymd::AccountId;
+
+    const TEST_VALIDATORS_ADDRESS: [&str; 3] = [
+        "n1aq9kakfgwqcufr23lsv644apavcntrsqsk4yus",
+        "n1s9l3xr4g0rglvk4yctktmck3h4eq0gp6z2e20v",
+        "n19kl4py32vsk297dm93ezem992cdyzdy4zuc2x6",
+    ];
+
+    fn insert_dealers(
+        params: &Params,
+        dealer_details_db: &Arc<RwLock<HashMap<String, DealerDetails>>>,
+    ) -> Vec<DkgKeyPair> {
+        let mut keypairs = vec![];
+        for (idx, addr) in TEST_VALIDATORS_ADDRESS.iter().enumerate() {
+            let keypair = DkgKeyPair::new(params, OsRng);
+            let bte_public_key_with_proof =
+                bs58::encode(&keypair.public_key().to_bytes()).into_string();
+            keypairs.push(keypair);
+            dealer_details_db.write().unwrap().insert(
+                addr.to_string(),
+                DealerDetails {
+                    address: Addr::unchecked(*addr),
+                    bte_public_key_with_proof,
+                    announce_address: format!("localhost:80{}", idx),
+                    assigned_index: (idx + 1) as u64,
+                },
+            );
+        }
+        keypairs
+    }
+
+    #[tokio::test]
+    async fn exchange_dealing() {
+        let self_index = 2;
+        let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
+        let dealings_db = Arc::new(RwLock::new(HashMap::new()));
+        let dkg_client = DkgClient::new(
+            DummyClient::new(AccountId::from_str(TEST_VALIDATORS_ADDRESS[0]).unwrap())
+                .with_dealer_details(&dealer_details_db)
+                .with_dealings(&dealings_db),
+        );
+        let params = setup();
+        let mut state = State::new(
+            Url::parse("localhost:8000").unwrap(),
+            DkgKeyPair::new(&params, OsRng),
+            KeyPair::new(),
+        );
+        state.set_node_index(Some(self_index));
+        let keypairs = insert_dealers(&params, &dealer_details_db);
+
+        dealing_exchange(&dkg_client, &mut state, OsRng)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            state.current_dealers_by_idx().values().collect::<Vec<_>>(),
+            keypairs
+                .iter()
+                .map(|k| k.public_key().public_key())
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(state.threshold().unwrap(), 2);
+        assert_eq!(state.receiver_index().unwrap(), 1);
+        let dealings = dealings_db
+            .read()
+            .unwrap()
+            .get(TEST_VALIDATORS_ADDRESS[0])
+            .unwrap()
+            .clone();
+        assert_eq!(dealings.len(), TOTAL_DEALINGS);
+
+        dealing_exchange(&dkg_client, &mut state, OsRng)
+            .await
+            .unwrap();
+        let new_dealings = dealings_db
+            .read()
+            .unwrap()
+            .get(TEST_VALIDATORS_ADDRESS[0])
+            .unwrap()
+            .clone();
+        assert_eq!(dealings, new_dealings);
+    }
+}

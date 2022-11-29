@@ -36,47 +36,103 @@ use validator_client::validator_api::routes::{
 use crate::coconut::State;
 use crate::ValidatorApiStorage;
 use async_trait::async_trait;
-use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
+use coconut_dkg_common::dealer::{
+    ContractDealing, DealerDetails, DealerDetailsResponse, DealerType,
+};
+use coconut_dkg_common::event_attributes::{DKG_PROPOSAL_ID, NODE_INDEX};
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState, TOTAL_DEALINGS};
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use contracts_common::dealings::ContractSafeBytes;
 use crypto::asymmetric::{encryption, identity};
 use cw3::ProposalResponse;
 use rand_07::rngs::OsRng;
+use rand_07::Rng;
 use rocket::http::Status;
 use rocket::local::asynchronous::Client;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
+use validator_client::nymd::cosmwasm_client::logs::Log;
 use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
 
 const TEST_COIN_DENOM: &str = "unym";
 const TEST_REWARDING_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 
 #[derive(Clone, Debug)]
-struct DummyClient {
+pub(crate) struct DummyClient {
     validator_address: AccountId,
     tx_db: Arc<RwLock<HashMap<String, TxResponse>>>,
     proposal_db: Arc<RwLock<HashMap<u64, ProposalResponse>>>,
     spent_credential_db: Arc<RwLock<HashMap<String, SpendCredentialResponse>>>,
+
+    epoch_state: Arc<RwLock<EpochState>>,
+    dealer_details: Arc<RwLock<HashMap<String, DealerDetails>>>,
+    dealings: Arc<RwLock<HashMap<String, Vec<ContractSafeBytes>>>>,
+    verification_share: Arc<RwLock<HashMap<String, ContractVKShare>>>,
 }
 
 impl DummyClient {
-    pub fn new(
-        validator_address: AccountId,
-        tx_db: &Arc<RwLock<HashMap<String, TxResponse>>>,
-        proposal_db: &Arc<RwLock<HashMap<u64, ProposalResponse>>>,
-        spent_credential_db: &Arc<RwLock<HashMap<String, SpendCredentialResponse>>>,
-    ) -> Self {
-        let tx_db = Arc::clone(tx_db);
-        let proposal_db = Arc::clone(proposal_db);
-        let spent_credential_db = Arc::clone(spent_credential_db);
+    pub fn new(validator_address: AccountId) -> Self {
         Self {
             validator_address,
-            tx_db,
-            proposal_db,
-            spent_credential_db,
+            tx_db: Arc::new(RwLock::new(HashMap::new())),
+            proposal_db: Arc::new(RwLock::new(HashMap::new())),
+            spent_credential_db: Arc::new(RwLock::new(HashMap::new())),
+            epoch_state: Arc::new(RwLock::new(EpochState::default())),
+            dealer_details: Arc::new(RwLock::new(HashMap::new())),
+            dealings: Arc::new(RwLock::new(HashMap::new())),
+            verification_share: Arc::new(RwLock::new(HashMap::new())),
         }
+    }
+
+    pub fn with_tx_db(mut self, tx_db: &Arc<RwLock<HashMap<String, TxResponse>>>) -> Self {
+        self.tx_db = Arc::clone(tx_db);
+        self
+    }
+
+    pub fn with_proposal_db(
+        mut self,
+        proposal_db: &Arc<RwLock<HashMap<u64, ProposalResponse>>>,
+    ) -> Self {
+        self.proposal_db = Arc::clone(proposal_db);
+        self
+    }
+
+    pub fn with_spent_credential_db(
+        mut self,
+        spent_credential_db: &Arc<RwLock<HashMap<String, SpendCredentialResponse>>>,
+    ) -> Self {
+        self.spent_credential_db = Arc::clone(spent_credential_db);
+        self
+    }
+
+    pub fn _with_epoch_state(mut self, epoch_state: &Arc<RwLock<EpochState>>) -> Self {
+        self.epoch_state = Arc::clone(epoch_state);
+        self
+    }
+
+    pub fn with_dealer_details(
+        mut self,
+        dealer_details: &Arc<RwLock<HashMap<String, DealerDetails>>>,
+    ) -> Self {
+        self.dealer_details = Arc::clone(dealer_details);
+        self
+    }
+
+    pub fn with_dealings(
+        mut self,
+        dealings: &Arc<RwLock<HashMap<String, Vec<ContractSafeBytes>>>>,
+    ) -> Self {
+        self.dealings = Arc::clone(dealings);
+        self
+    }
+
+    pub fn with_verification_share(
+        mut self,
+        verification_share: &Arc<RwLock<HashMap<String, ContractVKShare>>>,
+    ) -> Self {
+        self.verification_share = Arc::clone(verification_share);
+        self
     }
 }
 
@@ -107,7 +163,7 @@ impl super::client::Client for DummyClient {
     }
 
     async fn list_proposals(&self) -> Result<Vec<ProposalResponse>> {
-        todo!()
+        Ok(self.proposal_db.read().unwrap().values().cloned().collect())
     }
 
     async fn get_spent_credential(
@@ -125,23 +181,52 @@ impl super::client::Client for DummyClient {
     }
 
     async fn get_current_epoch_state(&self) -> Result<EpochState> {
-        todo!()
+        Ok(*self.epoch_state.read().unwrap())
     }
 
     async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse> {
-        todo!()
+        Ok(DealerDetailsResponse {
+            details: self
+                .dealer_details
+                .read()
+                .unwrap()
+                .get(self.validator_address.as_ref())
+                .cloned(),
+            dealer_type: DealerType::Current,
+        })
     }
 
     async fn get_current_dealers(&self) -> Result<Vec<DealerDetails>> {
-        todo!()
+        Ok(self
+            .dealer_details
+            .read()
+            .unwrap()
+            .values()
+            .cloned()
+            .collect())
     }
 
-    async fn get_dealings(&self, _idx: usize) -> Result<Vec<ContractDealing>> {
-        todo!()
+    async fn get_dealings(&self, idx: usize) -> Result<Vec<ContractDealing>> {
+        Ok(self
+            .dealings
+            .read()
+            .unwrap()
+            .iter()
+            .map(|(dealer, dealings)| ContractDealing {
+                dealing: dealings.get(idx).unwrap().clone(),
+                dealer: Addr::unchecked(dealer),
+            })
+            .collect())
     }
 
     async fn get_verification_key_shares(&self) -> Result<Vec<ContractVKShare>> {
-        todo!()
+        Ok(self
+            .verification_share
+            .read()
+            .unwrap()
+            .values()
+            .cloned()
+            .collect())
     }
 
     async fn vote_proposal(
@@ -151,36 +236,134 @@ impl super::client::Client for DummyClient {
         _fee: Option<Fee>,
     ) -> Result<()> {
         if let Some(proposal) = self.proposal_db.write().unwrap().get_mut(&proposal_id) {
-            if vote_yes {
-                proposal.status = cw3::Status::Passed;
-            } else {
-                proposal.status = cw3::Status::Rejected;
+            // for now, just suppose that first vote is honest
+            if proposal.status == cw3::Status::Open {
+                if vote_yes {
+                    proposal.status = cw3::Status::Passed;
+                } else {
+                    proposal.status = cw3::Status::Rejected;
+                }
             }
         }
         Ok(())
     }
 
-    async fn execute_proposal(&self, _proposal_id: u64) -> Result<()> {
-        todo!()
+    async fn execute_proposal(&self, proposal_id: u64) -> Result<()> {
+        self.proposal_db
+            .write()
+            .unwrap()
+            .entry(proposal_id)
+            .and_modify(|prop| {
+                if prop.status == cw3::Status::Passed {
+                    prop.status = cw3::Status::Executed
+                }
+            });
+        Ok(())
     }
 
     async fn register_dealer(
         &self,
-        _bte_key: EncodedBTEPublicKeyWithProof,
-        _announce_address: String,
+        bte_public_key_with_proof: EncodedBTEPublicKeyWithProof,
+        announce_address: String,
     ) -> Result<ExecuteResult> {
-        todo!()
+        let assigned_index = OsRng.gen();
+        self.dealer_details.write().unwrap().insert(
+            self.validator_address.to_string(),
+            DealerDetails {
+                address: Addr::unchecked(&self.validator_address.to_string()),
+                bte_public_key_with_proof,
+                announce_address,
+                assigned_index,
+            },
+        );
+        Ok(ExecuteResult {
+            logs: vec![Log {
+                msg_index: 0,
+                events: vec![cosmwasm_std::Event::new("wasm")
+                    .add_attribute(NODE_INDEX, assigned_index.to_string())],
+            }],
+            data: Default::default(),
+            transaction_hash: Hash::new([0; 32]),
+            gas_info: Default::default(),
+        })
     }
 
-    async fn submit_dealing(&self, _dealing_bytes: ContractSafeBytes) -> Result<ExecuteResult> {
-        todo!()
+    async fn submit_dealing(&self, dealing_bytes: ContractSafeBytes) -> Result<ExecuteResult> {
+        self.dealings
+            .write()
+            .unwrap()
+            .entry(self.validator_address.to_string())
+            .and_modify(|v| {
+                if v.len() < TOTAL_DEALINGS {
+                    v.push(dealing_bytes.clone())
+                }
+            })
+            .or_insert(vec![dealing_bytes]);
+
+        Ok(ExecuteResult {
+            logs: vec![],
+            data: Default::default(),
+            transaction_hash: Hash::new([0; 32]),
+            gas_info: Default::default(),
+        })
     }
 
     async fn submit_verification_key_share(
         &self,
-        _share: VerificationKeyShare,
+        share: VerificationKeyShare,
     ) -> Result<ExecuteResult> {
-        todo!()
+        let dealer_details = self
+            .dealer_details
+            .read()
+            .unwrap()
+            .get(self.validator_address.as_ref())
+            .unwrap()
+            .clone();
+        self.verification_share.write().unwrap().insert(
+            self.validator_address.to_string(),
+            ContractVKShare {
+                share,
+                announce_address: dealer_details.announce_address.clone(),
+                node_index: dealer_details.assigned_index,
+                owner: Addr::unchecked(self.validator_address.to_string()),
+                verified: false,
+            },
+        );
+        let proposal_id = OsRng.gen();
+        let verify_vk_share_req = coconut_dkg_common::msg::ExecuteMsg::VerifyVerificationKeyShare {
+            owner: Addr::unchecked(self.validator_address.as_ref()),
+        };
+        let verify_vk_share_msg = CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: String::new(),
+            msg: to_binary(&verify_vk_share_req).unwrap(),
+            funds: vec![],
+        });
+        let proposal = ProposalResponse {
+            id: proposal_id,
+            title: String::new(),
+            description: String::new(),
+            msgs: vec![verify_vk_share_msg],
+            status: cw3::Status::Open,
+            expires: cw_utils::Expiration::Never {},
+            threshold: cw_utils::ThresholdResponse::AbsolutePercentage {
+                percentage: Decimal::from_ratio(2u32, 3u32),
+                total_weight: 100,
+            },
+        };
+        self.proposal_db
+            .write()
+            .unwrap()
+            .insert(proposal_id, proposal);
+        Ok(ExecuteResult {
+            logs: vec![Log {
+                msg_index: 0,
+                events: vec![cosmwasm_std::Event::new("wasm")
+                    .add_attribute(DKG_PROPOSAL_ID, proposal_id.to_string())],
+            }],
+            data: Default::default(),
+            transaction_hash: Hash::new([0; 32]),
+            gas_info: Default::default(),
+        })
     }
 }
 
@@ -267,12 +450,9 @@ async fn signed_before() {
         .write()
         .unwrap()
         .insert(tx_hash.to_string(), tx_entry.clone());
-    let nymd_client = DummyClient::new(
-        AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap(),
-        &tx_db,
-        &Arc::new(RwLock::new(HashMap::new())),
-        &Arc::new(RwLock::new(HashMap::new())),
-    );
+    let nymd_client =
+        DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap())
+            .with_tx_db(&tx_db);
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
     staged_key_pair.set(key_pair).await;
@@ -334,12 +514,8 @@ async fn signed_before() {
 
 #[tokio::test]
 async fn state_functions() {
-    let nymd_client = DummyClient::new(
-        AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap(),
-        &Arc::new(RwLock::new(HashMap::new())),
-        &Arc::new(RwLock::new(HashMap::new())),
-        &Arc::new(RwLock::new(HashMap::new())),
-    );
+    let nymd_client =
+        DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap());
     let params = Parameters::new(4).unwrap();
     let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
     let mut db_dir = std::env::temp_dir();
@@ -511,12 +687,9 @@ async fn blind_sign_correct() {
         .write()
         .unwrap()
         .insert(tx_hash.to_string(), tx_entry.clone());
-    let nymd_client = DummyClient::new(
-        AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap(),
-        &tx_db,
-        &Arc::new(RwLock::new(HashMap::new())),
-        &Arc::new(RwLock::new(HashMap::new())),
-    );
+    let nymd_client =
+        DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap())
+            .with_tx_db(&tx_db);
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
     staged_key_pair.set(key_pair).await;
@@ -592,12 +765,8 @@ async fn signature_test() {
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
-    let nymd_client = DummyClient::new(
-        AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap(),
-        &Arc::new(RwLock::new(HashMap::new())),
-        &Arc::new(RwLock::new(HashMap::new())),
-        &Arc::new(RwLock::new(HashMap::new())),
-    );
+    let nymd_client =
+        DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap());
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
     staged_key_pair.set(key_pair).await;
@@ -663,12 +832,9 @@ async fn verification_of_bandwidth_credential() {
     let validator_address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
     let proposal_db = Arc::new(RwLock::new(HashMap::new()));
     let spent_credential_db = Arc::new(RwLock::new(HashMap::new()));
-    let nymd_client = DummyClient::new(
-        validator_address.clone(),
-        &Arc::new(RwLock::new(HashMap::new())),
-        &proposal_db,
-        &spent_credential_db,
-    );
+    let nymd_client = DummyClient::new(validator_address.clone())
+        .with_proposal_db(&proposal_db)
+        .with_spent_credential_db(&spent_credential_db);
     let mut db_dir = std::env::temp_dir();
     let params = Parameters::new(4).unwrap();
     let mut key_pairs = ttp_keygen(&params, 1, 1).unwrap();

@@ -79,9 +79,9 @@ jobs:
           retention-days: 30
 
       - uses: AButler/upload-release-assets@v2.0
+        # see https://stackoverflow.com/questions/71045674/how-to-check-if-an-optional-workflow-dispatch-input-is-set-or-not
+        if: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '' }}"
         with:
-          # see https://stackoverflow.com/questions/71045674/how-to-check-if-an-optional-workflow-dispatch-input-is-set-or-not
-          if: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '' }}"
           files: 'target/release/nym-client;target/release/nym-gateway;target/release/nym-mixnode;target/release/nym-socks5-client;target/release/nym-validator-api;target/release/nym-network-requester;target/release/nym-network-statistics;target/release/nym-cli'
           release-tag: ${{ inputs.release_tag }}
 

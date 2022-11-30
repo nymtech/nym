@@ -26,7 +26,7 @@ export const ApplicationLayout: React.FC = ({ children }) => {
           sx={{
             background: (t) => t.palette.nym.nymWallet.nav.background,
             overflow: 'auto',
-            py: 3,
+            py: 4,
           }}
           display="flex"
           flexDirection="column"

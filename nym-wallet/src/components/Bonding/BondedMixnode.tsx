@@ -136,7 +136,7 @@ export const BondedMixnode = ({
             </Box>
             {name && (
               <Tooltip title={host} arrow>
-                <Typography fontWeight="regular" variant="h6">
+                <Typography fontWeight="regular" variant="h6" width="fit-content">
                   {name}
                 </Typography>
               </Tooltip>

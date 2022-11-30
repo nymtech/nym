@@ -232,6 +232,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
       setConfirmationModalProps({
         status: 'success',
         action: 'undelegate',
+        message: 'This operation can take up to one hour to process',
         ...balances,
         transactions: [
           {

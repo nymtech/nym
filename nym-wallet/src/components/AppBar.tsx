@@ -15,7 +15,7 @@ export const AppBar = () => {
   const navigate = useNavigate();
 
   return (
-    <MuiAppBar position="sticky" sx={{ boxShadow: 'none', bgcolor: 'transparent', backgroundImage: 'none', pt: 2 }}>
+    <MuiAppBar position="sticky" sx={{ boxShadow: 'none', bgcolor: 'transparent', backgroundImage: 'none', pt: 3 }}>
       <Toolbar disableGutters>
         <Grid container justifyContent="space-between" alignItems="center" flexWrap="nowrap">
           <Grid item container alignItems="center" spacing={1}>

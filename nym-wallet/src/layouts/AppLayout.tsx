@@ -26,14 +26,14 @@ export const ApplicationLayout: React.FC = ({ children }) => {
           sx={{
             background: (t) => t.palette.nym.nymWallet.nav.background,
             overflow: 'auto',
-            py: 5,
+            py: 3,
           }}
           display="flex"
           flexDirection="column"
           justifyContent="space-between"
         >
           <Box>
-            <Box sx={{ ml: 5, mb: 3 }}>
+            <Box sx={{ ml: 5, mb: 7 }}>
               <NymWordmark height={14} />
             </Box>
             <Nav />

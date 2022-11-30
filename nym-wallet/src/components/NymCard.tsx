@@ -12,7 +12,7 @@ const CardContentNoPadding = styled(CardContent)(() => ({
 
 export const NymCard: React.FC<{
   title: string | React.ReactElement;
-  subheader?: string;
+  subheader?: string | React.ReactChild;
   Action?: React.ReactNode;
   Icon?: React.ReactNode;
   noPadding?: boolean;

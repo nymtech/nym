@@ -1,11 +1,7 @@
 use crate::error::Socks5ClientError;
 
 use super::{
-    authentication::Authenticator,
-    client::SocksClient,
-    mixnet_responses::MixnetResponseListener,
-    types::{ResponseCodeV4, ResponseCodeV5},
-    SocksVersion,
+    authentication::Authenticator, client::SocksClient, mixnet_responses::MixnetResponseListener,
 };
 use client_connections::{ConnectionCommandSender, LaneQueueLengths};
 use client_core::client::{
@@ -89,7 +85,6 @@ impl SphinxSocksServer {
         loop {
             tokio::select! {
                 Ok((stream, _remote)) = listener.accept() => {
-                    // TODO Optimize this
                     let mut client = SocksClient::new(
                         stream,
                         self.authenticator.clone(),
@@ -102,36 +97,14 @@ impl SphinxSocksServer {
                     );
 
                     tokio::spawn(async move {
-                        {
-                            if let Err(err) = client.run().await {
-                                error!("Error! {}", err);
-                                let error_text = format!("{}", err);
-
-                                if client.get_version() == Some(&SocksVersion::V4) {
-                                    let response = ResponseCodeV4::RequestRejected;
-                                    if client.send_error_v4(response).await.is_err() {
-                                        warn!("Failed to send error code");
-                                    };
-                                } else if client.get_version() == Some(&SocksVersion::V5) {
-                                    let response = if error_text.contains("Host") {
-                                        ResponseCodeV5::HostUnreachable
-                                    } else if error_text.contains("Network") {
-                                        ResponseCodeV5::NetworkUnreachable
-                                    } else if error_text.contains("ttl") {
-                                        ResponseCodeV5::TtlExpired
-                                    } else {
-                                        ResponseCodeV5::Failure
-                                    };
-
-                                    if client.send_error_v5(response).await.is_err() {
-                                        warn!("Failed to send error code");
-                                    };
-                                }
-                                if client.shutdown().await.is_err() {
-                                    warn!("Failed to shutdown TcpStream");
-                                };
+                        if let Err(err) = client.run().await {
+                            error!("Error! {}", err);
+                            if client.send_error(err).await.is_err() {
+                                warn!("Failed to error code");
                             };
-                            // client gets dropped here
+                            if client.shutdown().await.is_err() {
+                                warn!("Failed to shutdown TcpStream");
+                            };
                         }
                     });
                 },

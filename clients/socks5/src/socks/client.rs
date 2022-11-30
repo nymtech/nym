@@ -191,8 +191,31 @@ impl SocksClient {
         rng.next_u64()
     }
 
-    pub fn get_version(&self) -> Option<&SocksVersion> {
-        self.socks_version.as_ref()
+    pub async fn send_error(&mut self, err: SocksProxyError) -> Result<(), SocksProxyError> {
+        let error_text = format!("{}", err);
+        let version = self
+            .socks_version
+            .as_ref()
+            .expect("Trying to send error without knowing the version");
+
+        match version {
+            SocksVersion::V4 => {
+                let response = ResponseCodeV4::RequestRejected;
+                self.send_error_v4(response).await
+            }
+            SocksVersion::V5 => {
+                let response = if error_text.contains("Host") {
+                    ResponseCodeV5::HostUnreachable
+                } else if error_text.contains("Network") {
+                    ResponseCodeV5::NetworkUnreachable
+                } else if error_text.contains("ttl") {
+                    ResponseCodeV5::TtlExpired
+                } else {
+                    ResponseCodeV5::Failure
+                };
+                self.send_error_v5(response).await
+            }
+        }
     }
 
     // Send an error back to the client

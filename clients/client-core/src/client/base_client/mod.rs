@@ -185,6 +185,7 @@ impl<'a> BaseClientBuilder<'a> {
             self.debug_config.ack_wait_addition,
             self.debug_config.average_ack_delay,
             self.debug_config.message_sending_average_delay,
+            self.debug_config.scale_sending_rate_with_no_connections,
             self.debug_config.average_packet_delay,
             self.debug_config.disable_main_poisson_packet_distribution,
             self.as_mix_recipient(),

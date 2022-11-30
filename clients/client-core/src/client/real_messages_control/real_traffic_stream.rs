@@ -56,6 +56,8 @@ pub(crate) struct Config {
     /// Average delay between sending subsequent packets.
     average_message_sending_delay: Duration,
 
+    scale_sending_rate_with_no_connections: bool,
+
     /// Controls whether the stream constantly produces packets according to the predefined
     /// poisson distribution.
     disable_poisson_packet_distribution: bool,
@@ -69,12 +71,14 @@ impl Config {
         average_ack_delay: Duration,
         average_packet_delay: Duration,
         average_message_sending_delay: Duration,
+        scale_sending_rate_with_no_connections: bool,
         disable_poisson_packet_distribution: bool,
     ) -> Self {
         Config {
             average_ack_delay,
             average_packet_delay,
             average_message_sending_delay,
+            scale_sending_rate_with_no_connections,
             disable_poisson_packet_distribution,
             cover_packet_size: Default::default(),
         }
@@ -285,8 +289,14 @@ where
     }
 
     fn current_average_message_sending_delay(&self) -> Duration {
-        self.config.average_message_sending_delay
-            * self.sending_delay_controller.current_multiplier()
+        let current_numer = *self.sending_delay_controller.current_multiplier().numer() as f64;
+        let current_denom = *self.sending_delay_controller.current_multiplier().denom() as f64;
+        self.config
+            .average_message_sending_delay
+            .mul_f64(current_numer / current_denom)
+
+        //self.config.average_message_sending_delay
+        //* self.sending_delay_controller.current_multiplier()
     }
 
     fn adjust_current_average_message_sending_delay(&mut self) {
@@ -306,13 +316,24 @@ where
         if self.mix_tx.capacity() == 0
             && self.sending_delay_controller.not_increased_delay_recently()
         {
-            self.sending_delay_controller.increase_delay_multiplier();
+            if self.config.scale_sending_rate_with_no_connections {
+                self.sending_delay_controller
+                    .increase_delay_multiplier_with_connections();
+            } else {
+                self.sending_delay_controller.increase_delay_multiplier();
+            }
         }
 
         // Very carefully step up the sending rate in case it seems like we can solidly handle the
         // current rate.
         if self.sending_delay_controller.is_sending_reliable() {
-            self.sending_delay_controller.decrease_delay_multiplier();
+            if self.config.scale_sending_rate_with_no_connections {
+                let no_connections = self.transmission_buffer.connections().len();
+                self.sending_delay_controller
+                    .decrease_delay_multiplier_with_connections(no_connections);
+            } else {
+                self.sending_delay_controller.decrease_delay_multiplier();
+            }
         }
     }
 
@@ -487,7 +508,9 @@ where
 
     #[cfg(not(target_arch = "wasm32"))]
     fn log_status_infrequent(&self) {
-        if self.sending_delay_controller.current_multiplier() > 1 {
+        use num_rational::Rational64;
+
+        if self.sending_delay_controller.current_multiplier() > Rational64::from_integer(1) {
             log::warn!(
                 "Unable to send packets fast enough - sending delay multiplier set to: {}",
                 self.sending_delay_controller.current_multiplier()

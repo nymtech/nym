@@ -32,6 +32,7 @@ pemstore = { path = "../../common/pemstore" }
 topology = { path = "../../common/topology" }
 validator-client = { path = "../../common/client-libs/validator-client", default-features = false }
 task = { path = "../../common/task" }
+num-rational = "0.4.1"
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
 version = "0.1.9"

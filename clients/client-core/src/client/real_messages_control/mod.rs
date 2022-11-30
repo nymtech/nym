@@ -50,6 +50,8 @@ pub struct Config {
     /// Average delay between sending subsequent packets from this client.
     average_message_sending_delay: Duration,
 
+    scale_sending_rate_with_no_connections: bool,
+
     /// Average delay a data packet is going to get delayed at a single mixnode.
     average_packet_delay_duration: Duration,
 
@@ -73,6 +75,7 @@ impl Config {
         ack_wait_addition: Duration,
         average_ack_delay_duration: Duration,
         average_message_sending_delay: Duration,
+        scale_sending_rate_with_no_connections: bool,
         average_packet_delay_duration: Duration,
         disable_main_poisson_packet_distribution: bool,
         self_recipient: Recipient,
@@ -83,6 +86,7 @@ impl Config {
             ack_wait_multiplier,
             self_recipient,
             average_message_sending_delay,
+            scale_sending_rate_with_no_connections,
             average_packet_delay_duration,
             average_ack_delay_duration,
             disable_main_poisson_packet_distribution,
@@ -152,6 +156,7 @@ impl RealMessagesController<OsRng> {
             config.average_ack_delay_duration,
             config.average_packet_delay_duration,
             config.average_message_sending_delay,
+            config.scale_sending_rate_with_no_connections,
             config.disable_main_poisson_packet_distribution,
         )
         .with_custom_cover_packet_size(config.packet_size);

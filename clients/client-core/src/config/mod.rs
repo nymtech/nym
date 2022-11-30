@@ -474,6 +474,9 @@ pub struct DebugConfig {
     #[serde(with = "humantime_serde")]
     pub message_sending_average_delay: Duration,
 
+    /// Controls if we should increase the sending rate with the number of connections
+    pub scale_sending_rate_with_no_connections: bool,
+
     /// How long we're willing to wait for a response to a message sent to the gateway,
     /// before giving up on it.
     #[serde(with = "humantime_serde")]
@@ -519,6 +522,7 @@ impl Default for DebugConfig {
             ack_wait_addition: DEFAULT_ACK_WAIT_ADDITION,
             loop_cover_traffic_average_delay: DEFAULT_LOOP_COVER_STREAM_AVERAGE_DELAY,
             message_sending_average_delay: DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY,
+            scale_sending_rate_with_no_connections: false,
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             topology_refresh_rate: DEFAULT_TOPOLOGY_REFRESH_RATE,
             topology_resolution_timeout: DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT,

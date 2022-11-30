@@ -29,7 +29,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         if: "${{ github.event_name == 'workflow_dispatch' && github.event.inputs.release_tag != '' }}"
-        ref: ${{ github.event.inputs.release_tag }}
+        with:
+          ref: ${{ github.event.inputs.release_tag }}
 
       - uses: actions/checkout@v3
         if: "${{ github.event.inputs.release_tag == '' }}"

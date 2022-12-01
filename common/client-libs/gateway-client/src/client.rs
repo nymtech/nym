@@ -10,6 +10,7 @@ pub use crate::packet_router::{
 use crate::socket_state::{PartiallyDelegated, SocketState};
 use crate::{cleanup_socket_message, try_decrypt_binary_message};
 use crypto::asymmetric::identity;
+use futures::future::OptionFuture;
 use futures::{FutureExt, SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::iv::IV;
@@ -267,6 +268,90 @@ impl GatewayClient {
     }
 
     async fn read_control_response(&mut self) -> Result<ServerResponse, GatewayClientError> {
+        let shutdown = self.shutdown.take();
+
+        let (res, shutdown) = if let Some(shutdown) = shutdown {
+            self.read_control_response_inner_with_shutdown(shutdown)
+                .await
+        } else {
+            (self.read_control_response_inner().await, None)
+        };
+
+        self.shutdown = shutdown;
+        res
+    }
+
+    async fn read_control_response_inner_with_shutdown(
+        &mut self,
+        mut shutdown: ShutdownListener,
+    ) -> (
+        Result<ServerResponse, GatewayClientError>,
+        Option<ShutdownListener>,
+    ) {
+        // we use the fact that all request responses are Message::Text and only pushed
+        // sphinx packets are Message::Binary
+
+        let conn = match self.connection {
+            SocketState::Available(ref mut conn) => conn,
+            _ => {
+                return (
+                    Err(GatewayClientError::ConnectionInInvalidState),
+                    Some(shutdown),
+                )
+            }
+        };
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let timeout = tokio::time::sleep(self.response_timeout_duration);
+        #[cfg(not(target_arch = "wasm32"))]
+        tokio::pin!(timeout);
+
+        // technically the `wasm_timer` also works outside wasm, but unless required,
+        // I really prefer to just stick to tokio
+        #[cfg(target_arch = "wasm32")]
+        let mut timeout = wasm_timer::Delay::new(self.response_timeout_duration);
+
+        let res = loop {
+            tokio::select! {
+                _ = shutdown.recv() => {
+                    log::trace!("GatewayClient control response: Received shutdown");
+                    log::debug!("GatewayClient control response: Exiting");
+                    break Err(GatewayClientError::ConnectionClosedGatewayShutdown);
+                }
+                _ = &mut timeout => {
+                    break Err(GatewayClientError::Timeout);
+                }
+                msg = conn.next() => {
+                    let ws_msg = match cleanup_socket_message(msg) {
+                        Err(err) => break Err(err),
+                        Ok(msg) => msg
+                    };
+                    match ws_msg {
+                        Message::Binary(bin_msg) => {
+                            // if we have established the shared key already, attempt to use it for decryption
+                            // otherwise there's not much we can do apart from just routing what we have on hand
+                            if let Some(shared_keys) = &self.shared_key {
+                                if let Some(plaintext) = try_decrypt_binary_message(bin_msg, shared_keys) {
+                                    if let Err(err) = self.packet_router.route_received(vec![plaintext]) {
+                                        log::warn!("Route received failed: {:?}", err);
+                                    }
+                                }
+                            } else if let Err(err) = self.packet_router.route_received(vec![bin_msg]) {
+                                log::warn!("Route received failed: {:?}", err);
+                            }
+                        }
+                        Message::Text(txt_msg) => {
+                            break ServerResponse::try_from(txt_msg).map_err(|_| GatewayClientError::MalformedResponse);
+                        }
+                        _ => (),
+                    }
+                }
+            }
+        };
+        (res, Some(shutdown))
+    }
+
+    async fn read_control_response_inner(&mut self) -> Result<ServerResponse, GatewayClientError> {
         // we use the fact that all request responses are Message::Text and only pushed
         // sphinx packets are Message::Binary
 
@@ -283,44 +368,14 @@ impl GatewayClient {
         // technically the `wasm_timer` also works outside wasm, but unless required,
         // I really prefer to just stick to tokio
         #[cfg(target_arch = "wasm32")]
-        let timeout = wasm_timer::Delay::new(self.response_timeout_duration);
-
-        let mut fused_timeout = timeout.fuse();
-        let mut fused_stream = conn.fuse();
-
-        // Bit of an ugly workaround for selecting on an `Option` without having access to
-        // `tokio::select`
-        #[cfg(not(target_arch = "wasm32"))]
-        let shutdown = {
-            let m_shutdown = self.shutdown.clone();
-            async {
-                if let Some(mut s) = m_shutdown {
-                    // TODO: fix this by marking as success _after_ the select
-                    s.mark_as_success();
-                    s.recv().await
-                } else {
-                    std::future::pending::<()>().await
-                }
-            }
-            .fuse()
-        };
-        #[cfg(not(target_arch = "wasm32"))]
-        tokio::pin!(shutdown);
-
-        #[cfg(target_arch = "wasm32")]
-        let mut shutdown = std::future::pending::<()>().fuse();
+        let mut timeout = wasm_timer::Delay::new(self.response_timeout_duration);
 
         loop {
-            futures::select! {
-                _ = shutdown => {
-                    log::trace!("GatewayClient control response: Received shutdown");
-                    log::debug!("GatewayClient control response: Exiting");
-                    break Err(GatewayClientError::ConnectionClosedGatewayShutdown);
-                }
-                _ = &mut fused_timeout => {
+            tokio::select! {
+                _ = &mut timeout => {
                     break Err(GatewayClientError::Timeout);
                 }
-                msg = fused_stream.next() => {
+                msg = conn.next() => {
                     let ws_msg = match cleanup_socket_message(msg) {
                         Err(err) => break Err(err),
                         Ok(msg) => msg

@@ -168,9 +168,13 @@ impl SocksClient {
         controller_sender: ControllerSender,
         self_address: Recipient,
         lane_queue_lengths: LaneQueueLengths,
-        shutdown_listener: ShutdownListener,
+        mut shutdown_listener: ShutdownListener,
     ) -> Self {
+        // If this task fails and exits, we don't want to send shutdown signal
+        shutdown_listener.mark_as_success();
+
         let connection_id = Self::generate_random();
+
         SocksClient {
             controller_sender,
             connection_id,
@@ -252,10 +256,15 @@ impl SocksClient {
             .await;
 
         let stream = self.stream.run_proxy();
-        let local_stream_remote = stream
-            .peer_addr()
-            .expect("failed to extract peer address")
-            .to_string();
+        let peer_addr = match stream.peer_addr() {
+            Ok(peer_addr) => peer_addr,
+            Err(err) => {
+                log::error!("Unable to extract the remote peer address: {err}");
+                return;
+            }
+        };
+        let local_stream_remote = peer_addr.to_string();
+
         let connection_id = self.connection_id;
         let input_sender = self.input_sender.clone();
 
@@ -319,7 +328,6 @@ impl SocksClient {
             SocksCommand::UdpAssociate => unimplemented!(), // not handled
         };
 
-        self.shutdown_listener.mark_as_success();
         Ok(())
     }
 

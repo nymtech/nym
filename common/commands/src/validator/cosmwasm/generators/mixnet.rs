@@ -1,6 +1,6 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-//
+
 use clap::Parser;
 use log::{debug, info};
 
@@ -10,13 +10,13 @@ use std::time::Duration;
 
 #[derive(Debug, Parser)]
 pub struct Args {
-    #[clap(long)]
+    #[clap(long, empty_values = false)]
     pub rewarding_validator_address: String,
 
-    #[clap(long)]
+    #[clap(long, empty_values = false)]
     pub vesting_contract_address: String,
 
-    #[clap(long, default_value = "unym")]
+    #[clap(long, default_value = "unyxt")]
     pub rewarding_denom: String,
 
     #[clap(long, default_value_t = 720)]
@@ -51,7 +51,7 @@ pub struct Args {
 }
 
 pub async fn generate(args: Args) {
-    info!("Starting to generate mixnode instantiate msg");
+    info!("Starting to generate mixnet contract instantiate msg");
 
     debug!("Received arguments: {:?}", args);
 

@@ -3,7 +3,8 @@
 
 use clap::{Args, Subcommand};
 
-pub mod mixnode;
+pub mod mixnet;
+pub mod vesting;
 
 #[derive(Debug, Args)]
 #[clap(args_conflicts_with_subcommands = true, subcommand_required = true)]
@@ -14,6 +15,6 @@ pub struct GenerateMessage {
 
 #[derive(Debug, Subcommand)]
 pub enum GenerateMessageCommands {
-    /// Query mixnodes
-    Mixnode(mixnode::Args),
+    Mixnet(mixnet::Args),
+    Vesting(vesting::Args),
 }

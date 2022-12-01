@@ -8,6 +8,7 @@ import { TokenPoolSelector, TPoolOption } from 'src/components/TokenPoolSelector
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { validateAmount, validateKey } from 'src/utils';
+import { TBondedMixnode } from 'src/context';
 
 export const BondMoreModal = ({
   currentBond,
@@ -17,14 +18,15 @@ export const BondMoreModal = ({
   onClose,
 }: {
   currentBond: DecCoin;
+  mixId: string;
   userBalance?: string;
   hasVestingTokens: boolean;
-  onConfirm: (args: { additionalBond: DecCoin; signature: string; tokenPool: TPoolOption }) => Promise<void>;
+  onConfirm: (args: { additionalBond: DecCoin; tokenPool: TPoolOption }) => Promise<void>;
   onClose: () => void;
 }) => {
   const { fee, resetFeeState } = useGetFee();
   const [additionalBond, setAdditionalBond] = useState<DecCoin>({ amount: '0', denom: currentBond.denom });
-  const [signature, setSignature] = useState<string>('');
+  // const [signature, setSignature] = useState<string>('');
   const [tokenPool, setTokenPool] = useState<TPoolOption>('balance');
   const [errorAmount, setErrorAmount] = useState(false);
   const [errorSignature, setErrorSignature] = useState(false);
@@ -35,9 +37,9 @@ export const BondMoreModal = ({
       signature: false,
     };
 
-    if (!validateKey(signature || '', 64)) {
-      errors.signature = true;
-    }
+    // if (!validateKey(signature || '', 64)) {
+    //   errors.signature = true;
+    // }
 
     if (!additionalBond?.amount) {
       errors.amount = true;
@@ -47,8 +49,8 @@ export const BondMoreModal = ({
       errors.amount = true;
     }
 
-    if (!errors.amount && !errors.signature) {
-      onConfirm({ additionalBond, signature, tokenPool });
+    if (!errors.amount) {
+      onConfirm({ additionalBond, tokenPool });
     } else {
       setErrorAmount(errors.amount);
       setErrorSignature(errors.signature);
@@ -65,7 +67,7 @@ export const BondMoreModal = ({
         header="Bond more details"
         open
         fee={fee}
-        onConfirm={async () => onConfirm({ additionalBond, signature, tokenPool })}
+        onConfirm={async () => onConfirm({ additionalBond, tokenPool })}
         onPrev={resetFeeState}
       >
         <ModalListItem label="Current bond" value={`${currentBond.amount} ${currentBond.denom}`} divider />
@@ -98,7 +100,7 @@ export const BondMoreModal = ({
             validationError={errorAmount ? 'Please enter a valid amount' : undefined}
           />
         </Box>
-
+        {/* 
         <Box>
           <TextField
             fullWidth
@@ -108,7 +110,7 @@ export const BondMoreModal = ({
             InputLabelProps={{ shrink: true }}
           />
           {errorSignature && <FormHelperText sx={{ color: 'error.main' }}>Invalid signature</FormHelperText>}
-        </Box>
+        </Box> */}
 
         <Box>
           <ModalListItem label="Account balance" value={userBalance?.toUpperCase() || '-'} divider />

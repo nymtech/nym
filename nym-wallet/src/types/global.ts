@@ -49,6 +49,11 @@ export type TBondMixNodeArgs = {
   fee?: Fee;
 };
 
+export type TBondMoreArgs = {
+  mixId: MixNode;
+  amount: string;
+};
+
 export type TNodeDescription = {
   name: string;
   description: string;

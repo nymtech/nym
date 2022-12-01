@@ -100,7 +100,7 @@ export type TBondingContext = {
   bondMixnode: (data: TBondMixNodeArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   bondGateway: (data: TBondGatewayArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   unbond: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
-  bondMore: (signature: string, amount: DecCoin, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
+  bondMore: (amount: DecCoin, mixId: string) => Promise<TransactionExecuteResult | undefined>;
   redeemRewards: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   updateMixnode: (pm: string, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   checkOwnership: () => Promise<void>;
@@ -431,9 +431,49 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     return tx;
   };
 
-  const bondMore = async (_signature: string, _additionalBond: DecCoin) =>
-    // TODO to implement
-    undefined;
+  const bondGatewayaa = async (data: TBondGatewayArgs, tokenPool: TokenPool) => {
+    let tx: TransactionExecuteResult | undefined;
+    setIsLoading(true);
+    try {
+      if (tokenPool === 'balance') {
+        tx = await bondGatewayRequest(data);
+        await userBalance.fetchBalance();
+      }
+      if (tokenPool === 'locked') {
+        tx = await vestingBondGateway(data);
+        await userBalance.fetchTokenAllocation();
+      }
+      return tx;
+    } catch (e: any) {
+      Console.warn(e);
+      setError(`an error occurred: ${e}`);
+    } finally {
+      setIsLoading(false);
+    }
+    return undefined;
+  };
+
+  const bondMore = async (amount: DecCoin, mixId: string) => {
+    let tx: TransactionExecuteResult | undefined;
+    setIsLoading(true);
+    try {
+      if (tokenPool === 'balance') {
+        tx = await bondGatewayRequest(data);
+        await userBalance.fetchBalance();
+      }
+      if (tokenPool === 'locked') {
+        tx = await vestingBondGateway(data);
+        await userBalance.fetchTokenAllocation();
+      }
+      return tx;
+    } catch (e: any) {
+      Console.warn(e);
+      setError(`an error occurred: ${e}`);
+    } finally {
+      setIsLoading(false);
+    }
+    return undefined;
+  };
 
   const memoizedValue = useMemo(
     () => ({

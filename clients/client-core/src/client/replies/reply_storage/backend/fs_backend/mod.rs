@@ -63,15 +63,14 @@ impl Backend {
             Self::OLD_EXTENSION.to_string()
         };
 
-        let mut new_path = self.database_path.clone();
-        new_path.set_extension(new_extension);
+        let mut temp_old = self.database_path.clone();
+        temp_old.set_extension(new_extension);
 
-        fs::rename(&self.database_path, &new_path)
+        fs::rename(&self.database_path, &temp_old)
             .map_err(|err| StorageError::DatabaseRenameError { source: err })?;
-        self.manager = StorageManager::init(&new_path).await?;
+        self.manager = StorageManager::init(&self.database_path).await?;
 
-        let old_path = mem::replace(&mut self.database_path, new_path);
-        self.temporary_old_path = Some(old_path);
+        self.temporary_old_path = Some(temp_old);
         Ok(())
     }
 

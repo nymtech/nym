@@ -208,7 +208,7 @@ impl Backend {
         self.manager
             .insert_reply_surb_storage_metadata(ReplySurbStorageMetadata::new(
                 reply_surbs.min_surb_threshold(),
-                reply_surbs.min_surb_threshold(),
+                reply_surbs.max_surb_threshold(),
             ))
             .await
             .map_err(Into::into)

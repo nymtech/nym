@@ -121,6 +121,7 @@ fn parse_args() -> ArgMatches {
             Arg::with_name(CONFIG_ENV_FILE)
                 .help("Path pointing to an env file that configures the validator API")
                 .long(CONFIG_ENV_FILE)
+                .short('c')
                 .takes_value(true)
         )
         .arg(

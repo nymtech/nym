@@ -20,7 +20,6 @@ export const BondedMixnodeActions = ({
   const handleClose = () => setIsOpen(false);
 
   const handleActionClick = (action: TBondedMixnodeActions) => {
-    console.log({ action });
     onActionSelect(action);
     handleClose();
   };

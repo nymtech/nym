@@ -89,7 +89,6 @@ const Bonding = () => {
   };
 
   const handleBondedMixnodeAction = (action: TBondedMixnodeActions) => {
-    console.log({ action });
     switch (action) {
       case 'bondMore': {
         setShowModal('bond-more');

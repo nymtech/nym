@@ -50,8 +50,9 @@ export type TBondMixNodeArgs = {
 };
 
 export type TBondMoreArgs = {
-  mixId: MixNode;
-  amount: string;
+  additionalPledge: DecCoin;
+  fee?: Fee;
+
 };
 
 export type TNodeDescription = {

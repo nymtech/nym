@@ -13,7 +13,7 @@ import { ConfirmationDetailProps, ConfirmationDetailsModal } from 'src/component
 import { ErrorModal } from 'src/components/Modals/ErrorModal';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { AppContext, urls } from 'src/context/main';
-import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
+import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs, TBondMoreArgs } from 'src/types';
 import { BondedGateway } from 'src/components/Bonding/BondedGateway';
 import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsModal';
 import { BondingContextProvider, useBondingContext } from '../../context';
@@ -25,7 +25,7 @@ const Bonding = () => {
   const {
     network,
     clientDetails,
-    userBalance: { originalVesting },
+    userBalance: { originalVesting, balance },
   } = useContext(AppContext);
 
   const navigate = useNavigate();
@@ -68,10 +68,9 @@ const Bonding = () => {
     });
   };
 
-  const handleBondMore = async (args: { additionalBond: DecCoin; tokenPool: TPoolOption }) => {
-    const { additionalBond } = args;
+  const handleBondMore = async (data: TBondMoreArgs, tokenPool: TPoolOption) => {
     setShowModal(undefined);
-    const tx = await bondMore(additionalBond, bondedNode.mixId);
+    const tx = await bondMore(data, tokenPool);
     setConfirmationDetails({
       status: 'success',
       title: 'Bond More successful',
@@ -152,9 +151,11 @@ const Bonding = () => {
       {showModal === 'bond-more' && bondedNode && isMixnode(bondedNode) && (
         <BondMoreModal
           currentBond={bondedNode.bond}
+          userBalance={balance?.printable_balance}
           hasVestingTokens={Boolean(originalVesting)}
           onConfirm={handleBondMore}
           onClose={() => setShowModal(undefined)}
+          onError={handleError}
         />
       )}
 

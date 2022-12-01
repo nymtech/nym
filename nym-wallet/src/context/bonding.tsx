@@ -8,7 +8,7 @@ import {
 } from '@nymproject/types';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import Big from 'big.js';
-import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
+import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs, TBondMoreArgs } from 'src/types';
 import { Console } from 'src/utils/console';
 import {
   bondGateway as bondGatewayRequest,
@@ -18,6 +18,8 @@ import {
   getMixnodeBondDetails,
   unbondGateway as unbondGatewayRequest,
   unbondMixNode as unbondMixnodeRequest,
+  bondMore as bondMoreRequest,
+  vestingBondMore,
   vestingBondGateway,
   vestingBondMixNode,
   vestingUnbondGateway,
@@ -100,7 +102,7 @@ export type TBondingContext = {
   bondMixnode: (data: TBondMixNodeArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   bondGateway: (data: TBondGatewayArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   unbond: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
-  bondMore: (amount: DecCoin, mixId: string) => Promise<TransactionExecuteResult | undefined>;
+  bondMore: (data: TBondMoreArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   redeemRewards: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   updateMixnode: (pm: string, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   checkOwnership: () => Promise<void>;
@@ -431,40 +433,19 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
     return tx;
   };
 
-  const bondGatewayaa = async (data: TBondGatewayArgs, tokenPool: TokenPool) => {
+  const bondMore = async (data: TBondMoreArgs, tokenPool: TokenPool) => {
     let tx: TransactionExecuteResult | undefined;
     setIsLoading(true);
     try {
       if (tokenPool === 'balance') {
-        tx = await bondGatewayRequest(data);
+        tx = await bondMoreRequest(data);
         await userBalance.fetchBalance();
       }
       if (tokenPool === 'locked') {
-        tx = await vestingBondGateway(data);
+        tx = await vestingBondMore(data);
         await userBalance.fetchTokenAllocation();
       }
-      return tx;
-    } catch (e: any) {
-      Console.warn(e);
-      setError(`an error occurred: ${e}`);
-    } finally {
-      setIsLoading(false);
-    }
-    return undefined;
-  };
 
-  const bondMore = async (amount: DecCoin, mixId: string) => {
-    let tx: TransactionExecuteResult | undefined;
-    setIsLoading(true);
-    try {
-      if (tokenPool === 'balance') {
-        tx = await bondGatewayRequest(data);
-        await userBalance.fetchBalance();
-      }
-      if (tokenPool === 'locked') {
-        tx = await vestingBondGateway(data);
-        await userBalance.fetchTokenAllocation();
-      }
       return tx;
     } catch (e: any) {
       Console.warn(e);

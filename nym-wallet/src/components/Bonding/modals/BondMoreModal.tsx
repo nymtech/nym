@@ -8,7 +8,8 @@ import { TokenPoolSelector, TPoolOption } from 'src/components/TokenPoolSelector
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { validateAmount, validateKey } from 'src/utils';
-import { TBondedMixnode } from 'src/context';
+import { simulateBondMore, simulateVestingBondMore } from 'src/requests';
+import { TBondMoreArgs } from 'src/types';
 
 export const BondMoreModal = ({
   currentBond,
@@ -16,20 +17,27 @@ export const BondMoreModal = ({
   hasVestingTokens,
   onConfirm,
   onClose,
+  onError,
 }: {
   currentBond: DecCoin;
-  mixId: string;
   userBalance?: string;
   hasVestingTokens: boolean;
-  onConfirm: (args: { additionalBond: DecCoin; tokenPool: TPoolOption }) => Promise<void>;
+  onConfirm: (data: TBondMoreArgs, tokenPool: TPoolOption) => Promise<void>;
   onClose: () => void;
+  onError: (e: string) => void;
 }) => {
-  const { fee, resetFeeState } = useGetFee();
+  const { fee, getFee, resetFeeState, feeError } = useGetFee();
   const [additionalBond, setAdditionalBond] = useState<DecCoin>({ amount: '0', denom: currentBond.denom });
   // const [signature, setSignature] = useState<string>('');
   const [tokenPool, setTokenPool] = useState<TPoolOption>('balance');
   const [errorAmount, setErrorAmount] = useState(false);
   const [errorSignature, setErrorSignature] = useState(false);
+
+  useEffect(() => {
+    if (feeError) {
+      onError(feeError);
+    }
+  }, [feeError]);
 
   const handleOnOk = async () => {
     const errors = {
@@ -50,10 +58,17 @@ export const BondMoreModal = ({
     }
 
     if (!errors.amount) {
-      onConfirm({ additionalBond, tokenPool });
+      const data = { additionalPledge: additionalBond };
+      onConfirm(data, tokenPool);
     } else {
       setErrorAmount(errors.amount);
       setErrorSignature(errors.signature);
+    }
+
+    if (tokenPool === 'balance') {
+      await getFee<TBondMoreArgs>(simulateBondMore, { additionalPledge: additionalBond });
+    } else {
+      await getFee<TBondMoreArgs>(simulateVestingBondMore, { additionalPledge: additionalBond });
     }
   };
 
@@ -67,7 +82,7 @@ export const BondMoreModal = ({
         header="Bond more details"
         open
         fee={fee}
-        onConfirm={async () => onConfirm({ additionalBond, tokenPool })}
+        onConfirm={async () => onConfirm({ additionalPledge: additionalBond }, tokenPool)}
         onPrev={resetFeeState}
       >
         <ModalListItem label="Current bond" value={`${currentBond.amount} ${currentBond.denom}`} divider />

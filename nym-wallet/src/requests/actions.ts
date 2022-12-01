@@ -34,4 +34,4 @@ export const unbond = async (type: EnumNodeType) => {
 };
 
 export const bondMore = async (args: TBondMoreArgs) =>
-  invokeWrapper<TransactionExecuteResult>('bond_gateway', args);
+  invokeWrapper<TransactionExecuteResult>('pledge_more', args);

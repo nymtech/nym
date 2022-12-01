@@ -147,7 +147,7 @@ pub(crate) fn cleanup_post_unbond_mixnode_storage(
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use super::*;
     use crate::support::tests::fixtures::{
         mix_node_cost_params_fixture, mix_node_fixture, TEST_COIN_DENOM,
@@ -155,13 +155,13 @@ mod tests {
     use crate::support::tests::test_helpers::TestSetup;
     use cosmwasm_std::coin;
 
-    const OWNER_EXISTS: &str = "mix-owner-existing";
-    const OWNER_UNBONDING: &str = "mix-owner-unbonding";
-    const OWNER_UNBONDED: &str = "mix-owner-unbonded";
-    const OWNER_UNBONDED_LEFTOVER: &str = "mix-owner-unbonded-leftover";
+    pub(crate) const OWNER_EXISTS: &str = "mix-owner-existing";
+    pub(crate) const OWNER_UNBONDING: &str = "mix-owner-unbonding";
+    pub(crate) const OWNER_UNBONDED: &str = "mix-owner-unbonded";
+    pub(crate) const OWNER_UNBONDED_LEFTOVER: &str = "mix-owner-unbonded-leftover";
 
     // create a mixnode that is bonded, unbonded, in the process of unbonding and unbonded with leftover mix rewarding details
-    fn setup_mix_combinations(test: &mut TestSetup) -> Vec<MixId> {
+    pub(crate) fn setup_mix_combinations(test: &mut TestSetup) -> Vec<MixId> {
         let mix_id_exists = test.add_dummy_mixnode(OWNER_EXISTS, None);
         let mix_id_unbonding = test.add_dummy_mixnode(OWNER_UNBONDING, None);
         let mix_id_unbonded = test.add_dummy_mixnode(OWNER_UNBONDED, None);

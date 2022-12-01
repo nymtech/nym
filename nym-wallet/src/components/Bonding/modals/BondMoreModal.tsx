@@ -29,7 +29,6 @@ export const BondMoreModal = ({
   const { fee, getFee, resetFeeState, feeError } = useGetFee();
   const [additionalBond, setAdditionalBond] = useState<DecCoin>({ amount: '0', denom: currentBond.denom });
   const [errorAmount, setErrorAmount] = useState(false);
-  const [errorSignature, setErrorSignature] = useState(false);
 
   useEffect(() => {
     if (feeError) {
@@ -43,35 +42,29 @@ export const BondMoreModal = ({
     await onBondMore(data, tokenPool);
   };
 
+  const handleAmountChanged = async (value: DecCoin) => {
+    setAdditionalBond(value);
+    const { amount } = value;
+
+    if (!amount) {
+      setErrorAmount(true);
+    } else {
+      const validAmount = await validateAmount(amount, '1');
+      if (!validAmount) {
+        setErrorAmount(true);
+        return;
+      }
+      setErrorAmount(false);
+    }
+  };
+
   const handleOnOk = async () => {
-    const errors = {
-      amount: false,
-      signature: false,
-    };
-
-    if (!additionalBond?.amount) {
-      errors.amount = true;
-    }
-
-    if (additionalBond && !(await validateAmount(additionalBond.amount, '1'))) {
-      errors.amount = true;
-    }
-
-    if (errors.amount) {
-      setErrorAmount(errors.amount);
-      setErrorSignature(errors.signature);
-    }
-
     if (!proxy) {
       await getFee<TBondMoreArgs>(simulateBondMore, { additionalPledge: additionalBond });
     } else {
       await getFee<TBondMoreArgs>(simulateVestingBondMore, { additionalPledge: additionalBond });
     }
   };
-
-  useEffect(() => {
-    setErrorAmount(false);
-  }, [additionalBond]);
 
   if (fee)
     return (
@@ -95,7 +88,7 @@ export const BondMoreModal = ({
       subHeader="Bond more tokens on your node and receive more rewards"
       okLabel="Next"
       onOk={handleOnOk}
-      okDisabled={errorAmount || errorSignature}
+      okDisabled={errorAmount}
       onClose={onClose}
     >
       <Stack gap={3}>
@@ -105,8 +98,7 @@ export const BondMoreModal = ({
             label="Bond amount"
             denom={currentBond.denom}
             onChanged={(value) => {
-              setAdditionalBond(value);
-              setErrorSignature(false);
+              handleAmountChanged(value);
             }}
             fullWidth
             validationError={errorAmount ? 'Please enter a valid amount' : undefined}

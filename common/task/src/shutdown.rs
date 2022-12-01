@@ -185,7 +185,7 @@ impl ShutdownListener {
         }
     }
 
-    pub fn is_dummy(&self) {
+    pub fn is_dummy(&self) -> bool {
         self.mode.is_dummy()
     }
 

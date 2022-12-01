@@ -7,13 +7,14 @@ use crate::interval::helpers::change_interval_config;
 use crate::interval::storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::helpers::{cleanup_post_unbond_mixnode_storage, get_mixnode_details_by_id};
+use crate::mixnodes::storage as mixnodes_storage;
 use crate::rewards::storage as rewards_storage;
 use crate::support::helpers::send_to_proxy_or_owner;
 use cosmwasm_std::{wasm_execute, Addr, Coin, DepsMut, Env, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_active_set_update_event, new_delegation_event, new_delegation_on_unbonded_node_event,
-    new_mixnode_cost_params_update_event, new_mixnode_unbonding_event,
+    new_mixnode_cost_params_update_event, new_mixnode_unbonding_event, new_pledge_increase_event,
     new_rewarding_params_update_event, new_undelegation_event,
 };
 use mixnet_contract_common::mixnode::MixNodeCostParams;
@@ -258,6 +259,42 @@ pub(crate) fn update_active_set_size(
     Ok(Response::new().add_event(new_active_set_update_event(created_at, active_set_size)))
 }
 
+pub(crate) fn increase_pledge(
+    deps: DepsMut<'_>,
+    created_at: BlockHeight,
+    mix_id: MixId,
+    increase: Coin,
+) -> Result<Response, MixnetContractError> {
+    // note: we have already validated the amount to know it has the correct denomination
+
+    // the target node MUST exist - we have checked it at the time of putting this event onto the queue
+    // we have also verified there were no preceding unbond events
+    let mix_details = get_mixnode_details_by_id(deps.storage, mix_id)?.ok_or(
+        MixnetContractError::InconsistentState {
+            comment:
+                "mixnode getting processed to increase its pledge doesn't exist in the storage"
+                    .into(),
+        },
+    )?;
+
+    let mut updated_bond = mix_details.bond_information.clone();
+    let mut updated_rewarding = mix_details.rewarding_details;
+
+    updated_bond.original_pledge.amount += increase.amount;
+    updated_rewarding.increase_operator_uint128(increase.amount)?;
+
+    // update both, bond information and rewarding details
+    mixnodes_storage::mixnode_bonds().replace(
+        deps.storage,
+        mix_id,
+        Some(&updated_bond),
+        Some(&mix_details.bond_information),
+    )?;
+    rewards_storage::MIXNODE_REWARDING.save(deps.storage, mix_id, &updated_rewarding)?;
+
+    Ok(Response::new().add_event(new_pledge_increase_event(created_at, mix_id, &increase)))
+}
+
 impl ContractExecutableEvent for PendingEpochEventData {
     fn execute(self, deps: DepsMut<'_>, env: &Env) -> Result<Response, MixnetContractError> {
         // note that the basic validation on all those events was already performed before
@@ -274,6 +311,9 @@ impl ContractExecutableEvent for PendingEpochEventData {
                 mix_id,
                 proxy,
             } => undelegate(deps, self.created_at, owner, mix_id, proxy),
+            PendingEpochEventKind::PledgeMore { mix_id, amount } => {
+                increase_pledge(deps, self.created_at, mix_id, amount)
+            }
             PendingEpochEventKind::UnbondMixnode { mix_id } => {
                 unbond_mixnode(deps, env, self.created_at, mix_id)
             }
@@ -1131,6 +1171,228 @@ mod tests {
                 if let CosmosMsg::Wasm(WasmMsg::Execute { .. }) = &msg.msg {
                     panic!("we shouldn't have attempted to call any other contract!")
                 }
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod increasing_pledge {
+        use super::*;
+        use cosmwasm_std::Uint128;
+        use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
+
+        #[test]
+        fn returns_hard_error_if_mixnode_doesnt_exist() {
+            // this should have never happened so hard error MUST be thrown here
+            let mut test = TestSetup::new();
+
+            let amount = test.coin(123);
+            let res = increase_pledge(test.deps_mut(), 123, 1, amount);
+            assert!(matches!(
+                res,
+                Err(MixnetContractError::InconsistentState { .. })
+            ));
+        }
+
+        #[test]
+        fn updates_stored_bond_information_and_rewarding_details() {
+            let mut test = TestSetup::new();
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+
+            let old_details = get_mixnode_details_by_id(test.deps().storage, mix_id)
+                .unwrap()
+                .unwrap();
+
+            let amount = test.coin(12345);
+            increase_pledge(test.deps_mut(), 123, mix_id, amount.clone()).unwrap();
+
+            let updated_details = get_mixnode_details_by_id(test.deps().storage, mix_id)
+                .unwrap()
+                .unwrap();
+
+            assert_eq!(
+                updated_details.bond_information.original_pledge.amount,
+                old_details.bond_information.original_pledge.amount + amount.amount
+            );
+
+            assert_eq!(
+                updated_details.rewarding_details.operator,
+                old_details.rewarding_details.operator
+                    + Decimal::from_atomics(amount.amount, 0).unwrap()
+            );
+        }
+
+        #[test]
+        fn without_any_events_in_between_is_equivalent_to_pledging_the_same_amount_immediately() {
+            let mut test = TestSetup::new();
+            let pledge1 = Uint128::new(150_000_000);
+            let pledge2 = Uint128::new(50_000_000);
+            let pledge3 = Uint128::new(200_000_000);
+
+            let mix_id_repledge = test.add_dummy_mixnode("mix-owner1", Some(pledge1));
+            let increase = test.coin(pledge2.u128());
+            increase_pledge(test.deps_mut(), 123, mix_id_repledge, increase).unwrap();
+
+            let mix_id_full_pledge = test.add_dummy_mixnode("mix-owner2", Some(pledge3));
+
+            test.add_immediate_delegation("alice", 123_456_789u128, mix_id_repledge);
+            test.add_immediate_delegation("bob", 500_000_000u128, mix_id_repledge);
+            test.add_immediate_delegation("carol", 111_111_111u128, mix_id_repledge);
+
+            test.add_immediate_delegation("alice", 123_456_789u128, mix_id_full_pledge);
+            test.add_immediate_delegation("bob", 500_000_000u128, mix_id_full_pledge);
+            test.add_immediate_delegation("carol", 111_111_111u128, mix_id_full_pledge);
+
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
+
+            let dist1 =
+                test.reward_with_distribution(mix_id_repledge, test_helpers::performance(100.0));
+            let dist2 =
+                test.reward_with_distribution(mix_id_full_pledge, test_helpers::performance(100.0));
+
+            assert_eq!(dist1, dist2)
+        }
+
+        #[test]
+        fn correctly_increases_future_rewards() {
+            let mut test = TestSetup::new();
+            let pledge1 = Uint128::new(150_000_000_000);
+            let pledge2 = Uint128::new(50_000_000_000);
+
+            let mix_id_repledge = test.add_dummy_mixnode("mix-owner1", Some(pledge1));
+
+            test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_repledge);
+            test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_repledge);
+            test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_repledge);
+
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id_repledge]);
+
+            let dist =
+                test.reward_with_distribution(mix_id_repledge, test_helpers::performance(100.0));
+
+            let increase = test.coin(pledge2.u128());
+            increase_pledge(test.deps_mut(), 123, mix_id_repledge, increase).unwrap();
+
+            let pledge3 = Uint128::new(200_000_000_000) + truncate_reward_amount(dist.operator);
+            let mix_id_full_pledge = test.add_dummy_mixnode("mix-owner2", Some(pledge3));
+
+            test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_full_pledge);
+            test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_full_pledge);
+            test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_full_pledge);
+
+            let lost_operator = dist.operator
+                - Decimal::from_atomics(truncate_reward_amount(dist.operator), 0).unwrap();
+            let lost_delegates = dist.delegates
+                - Decimal::from_atomics(truncate_reward_amount(dist.delegates), 0).unwrap();
+
+            // add the tiny bit of lost precision manually
+            let mut mix_rewarding_full = test.mix_rewarding(mix_id_full_pledge);
+            mix_rewarding_full.delegates += lost_delegates;
+            mix_rewarding_full.operator += lost_operator;
+            rewards_storage::MIXNODE_REWARDING
+                .save(
+                    test.deps_mut().storage,
+                    mix_id_full_pledge,
+                    &mix_rewarding_full,
+                )
+                .unwrap();
+
+            test.add_immediate_delegation(
+                "dave",
+                truncate_reward_amount(dist.delegates).u128(),
+                mix_id_full_pledge,
+            );
+
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
+
+            // go through few epochs of rewarding
+            for _ in 0..500 {
+                test.skip_to_next_epoch_end();
+                let dist1 = test
+                    .reward_with_distribution(mix_id_repledge, test_helpers::performance(100.0));
+                let dist2 = test
+                    .reward_with_distribution(mix_id_full_pledge, test_helpers::performance(100.0));
+
+                assert_eq!(dist1, dist2)
+            }
+        }
+
+        #[test]
+        fn correctly_increases_future_rewards_with_more_passed_epochs() {
+            let mut test = TestSetup::new();
+            let pledge1 = Uint128::new(150_000_000_000);
+            let pledge2 = Uint128::new(50_000_000_000);
+
+            let mix_id_repledge = test.add_dummy_mixnode("mix-owner1", Some(pledge1));
+
+            test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_repledge);
+            test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_repledge);
+            test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_repledge);
+
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id_repledge]);
+
+            let mut cumulative_op_reward = Decimal::zero();
+            let mut cumulative_del_reward = Decimal::zero();
+
+            // go few epochs of rewarding before adding more pledge
+            for _ in 0..500 {
+                test.skip_to_next_epoch_end();
+                let dist = test
+                    .reward_with_distribution(mix_id_repledge, test_helpers::performance(100.0));
+                cumulative_op_reward += dist.operator;
+                cumulative_del_reward += dist.delegates;
+            }
+
+            let increase = test.coin(pledge2.u128());
+            increase_pledge(test.deps_mut(), 123, mix_id_repledge, increase).unwrap();
+
+            let pledge3 =
+                Uint128::new(200_000_000_000) + truncate_reward_amount(cumulative_op_reward);
+            let mix_id_full_pledge = test.add_dummy_mixnode("mix-owner2", Some(pledge3));
+
+            test.add_immediate_delegation("alice", 123_456_789_000u128, mix_id_full_pledge);
+            test.add_immediate_delegation("bob", 500_000_000_000u128, mix_id_full_pledge);
+            test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_full_pledge);
+
+            let lost_operator = cumulative_op_reward
+                - Decimal::from_atomics(truncate_reward_amount(cumulative_op_reward), 0).unwrap();
+            let lost_delegates = cumulative_del_reward
+                - Decimal::from_atomics(truncate_reward_amount(cumulative_del_reward), 0).unwrap();
+
+            // add the tiny bit of lost precision manually
+            let mut mix_rewarding_full = test.mix_rewarding(mix_id_full_pledge);
+            mix_rewarding_full.delegates += lost_delegates;
+            mix_rewarding_full.operator += lost_operator;
+            rewards_storage::MIXNODE_REWARDING
+                .save(
+                    test.deps_mut().storage,
+                    mix_id_full_pledge,
+                    &mix_rewarding_full,
+                )
+                .unwrap();
+
+            test.add_immediate_delegation(
+                "dave",
+                truncate_reward_amount(cumulative_del_reward).u128(),
+                mix_id_full_pledge,
+            );
+
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
+
+            // go through few more epochs of rewarding
+            for _ in 0..500 {
+                test.skip_to_next_epoch_end();
+                let dist1 = test
+                    .reward_with_distribution(mix_id_repledge, test_helpers::performance(100.0));
+                let dist2 = test
+                    .reward_with_distribution(mix_id_full_pledge, test_helpers::performance(100.0));
+
+                assert_eq!(dist1, dist2)
             }
         }
     }

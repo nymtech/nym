@@ -103,6 +103,33 @@ pub async fn bond_mixnode(
 }
 
 #[tauri::command]
+pub async fn pledge_more(
+    fee: Option<Fee>,
+    additional_pledge: DecCoin,
+    state: tauri::State<'_, WalletState>,
+) -> Result<TransactionExecuteResult, BackendError> {
+    let guard = state.read().await;
+    let additional_pledge_base = guard.attempt_convert_to_base_coin(additional_pledge.clone())?;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+    log::info!(
+        ">>> Pledge more, additional_pledge_display = {}, additional_pledge_base = {}, fee = {:?}",
+        additional_pledge,
+        additional_pledge_base,
+        fee,
+    );
+    let res = guard
+        .current_client()?
+        .nymd
+        .pledge_more(additional_pledge_base, fee)
+        .await?;
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
+}
+
+#[tauri::command]
 pub async fn unbond_mixnode(
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,

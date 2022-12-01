@@ -22,6 +22,18 @@ impl CombinedReplyStorage {
         }
     }
 
+    pub fn load(
+        sent_reply_keys: SentReplyKeys,
+        received_reply_surbs: ReceivedReplySurbsMap,
+        used_tags: UsedSenderTags,
+    ) -> Self {
+        CombinedReplyStorage {
+            sent_reply_keys,
+            received_reply_surbs,
+            used_tags,
+        }
+    }
+
     pub fn key_storage(&self) -> SentReplyKeys {
         self.sent_reply_keys.clone()
     }
@@ -32,5 +44,17 @@ impl CombinedReplyStorage {
 
     pub fn tags_storage(&self) -> UsedSenderTags {
         self.used_tags.clone()
+    }
+
+    pub fn key_storage_ref(&self) -> &SentReplyKeys {
+        &self.sent_reply_keys
+    }
+
+    pub fn surbs_storage_ref(&self) -> &ReceivedReplySurbsMap {
+        &self.received_reply_surbs
+    }
+
+    pub fn tags_storage_ref(&self) -> &UsedSenderTags {
+        &self.used_tags
     }
 }

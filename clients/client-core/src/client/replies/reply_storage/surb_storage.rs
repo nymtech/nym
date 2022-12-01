@@ -1,10 +1,12 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use dashmap::iter::Iter;
 use dashmap::DashMap;
 use log::trace;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::anonymous_replies::ReplySurb;
+use std::collections::hash_map::RandomState;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -38,6 +40,24 @@ impl ReceivedReplySurbsMap {
                 max_surb_threshold: AtomicUsize::new(max_surb_threshold),
             }),
         }
+    }
+
+    pub(crate) fn from_raw(
+        min_surb_threshold: usize,
+        max_surb_threshold: usize,
+        raw: Vec<(AnonymousSenderTag, ReceivedReplySurbs)>,
+    ) -> ReceivedReplySurbsMap {
+        ReceivedReplySurbsMap {
+            inner: Arc::new(ReceivedReplySurbsMapInner {
+                data: raw.into_iter().collect(),
+                min_surb_threshold: AtomicUsize::new(min_surb_threshold),
+                max_surb_threshold: AtomicUsize::new(max_surb_threshold),
+            }),
+        }
+    }
+
+    pub(crate) fn as_raw_iter(&self) -> Iter<'_, AnonymousSenderTag, ReceivedReplySurbs> {
+        self.inner.data.iter()
     }
 
     pub(crate) fn reset_surbs_last_received_at(&self, target: &AnonymousSenderTag) {
@@ -165,7 +185,7 @@ impl ReceivedReplySurbsMap {
 }
 
 #[derive(Debug)]
-struct ReceivedReplySurbs {
+pub(crate) struct ReceivedReplySurbs {
     // in the future we'd probably want to put extra data here to indicate when the SURBs got received
     // so we could invalidate entries from the previous key rotations
     data: VecDeque<ReplySurb>,
@@ -181,6 +201,21 @@ impl ReceivedReplySurbs {
             pending_reception: 0,
             surbs_last_received_at: Instant::now(),
         }
+    }
+
+    pub(crate) fn new_retrieved(
+        surbs: Vec<ReplySurb>,
+        surbs_last_received_at: Instant,
+    ) -> ReceivedReplySurbs {
+        ReceivedReplySurbs {
+            data: surbs.into(),
+            pending_reception: 0,
+            surbs_last_received_at,
+        }
+    }
+
+    pub(crate) fn surbs_ref(&self) -> &VecDeque<ReplySurb> {
+        &self.data
     }
 
     pub(crate) fn surbs_last_received_at(&self) -> Instant {

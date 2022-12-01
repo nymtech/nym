@@ -20,6 +20,7 @@ thiserror = "1.0.34"
 url = { version ="2.2", features = ["serde"] }
 sqlx = { version = "0.6.2", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"], optional = true }
 tokio = { version = "1.21.2", features = ["time", "macros"]}
+time = "0.3"
 
 # internal
 config = { path = "../../common/config" }
@@ -54,6 +55,10 @@ path = "../../common/task"
 
 [dev-dependencies]
 tempfile = "3.1.0"
+
+[build-dependencies]
+tokio = { version = "1.21.2", features = ["rt-multi-thread", "macros"] }
+sqlx = { version = "0.6.2", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
 
 [features]
 default = []

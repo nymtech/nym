@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button, Stack, Typography, Grid } from '@mui/material';
+import { Button, Stack, Typography, Grid, useMediaQuery, useTheme } from '@mui/material';
 import { Tune as TuneIcon, BorderColor as BorderColorIcon, Paid as PaidIcon } from '@mui/icons-material';
 import { NymCard } from '../NymCard';
 import { SignMessageModal } from './SignMessageModal';
@@ -14,13 +14,17 @@ const TutorialStep = ({
   title,
   text,
   icon,
-  divider,
+  borderRight,
+  borderBottom,
+  fixTitleHeight,
 }: {
   step: number;
   title: string;
   text: React.ReactNode;
   icon: React.ReactNode;
-  divider?: boolean;
+  borderRight?: boolean;
+  borderBottom?: boolean;
+  fixTitleHeight?: boolean;
 }) => (
   <Grid
     item
@@ -28,7 +32,8 @@ const TutorialStep = ({
     pb={2}
     pr={1}
     sx={{
-      borderRight: divider ? `1px solid ${borderColor}` : null,
+      borderRight: borderRight ? `1px solid ${borderColor}` : null,
+      borderBottom: borderBottom ? `1px solid ${borderColor}` : null,
     }}
   >
     <Stack gap={2}>
@@ -38,7 +43,13 @@ const TutorialStep = ({
           {`STEP ${step}`}
         </Typography>
       </Stack>
-      <Typography fontWeight={600} variant="h6">
+      <Typography
+        fontWeight={600}
+        variant="h6"
+        sx={{
+          minHeight: fixTitleHeight ? '40px' : undefined,
+        }}
+      >
         {title}
       </Typography>
       {text}
@@ -48,6 +59,9 @@ const TutorialStep = ({
 
 export const Tutorial = () => {
   const [showSignModal, setShowSignModal] = useState(false);
+  const theme = useTheme();
+  const showBorder = useMediaQuery(theme.breakpoints.up('md'));
+  const fixTitleHeight = useMediaQuery(theme.breakpoints.down('lg'));
 
   return (
     <NymCard borderless title="Buy NYM with BTC without KYC" sx={{ mt: 4 }}>
@@ -80,7 +94,9 @@ export const Tutorial = () => {
               amount, wallet address, etc.
             </Typography>
           }
-          divider
+          borderRight={showBorder}
+          borderBottom={!showBorder}
+          fixTitleHeight={fixTitleHeight}
         />
         <TutorialStep
           step={2}
@@ -95,7 +111,9 @@ export const Tutorial = () => {
               button below. Then copy and paste your signature back in the browser window.
             </Typography>
           }
-          divider
+          borderRight={showBorder}
+          borderBottom={!showBorder}
+          fixTitleHeight={fixTitleHeight}
         />
         <TutorialStep
           step={3}
@@ -107,6 +125,7 @@ export const Tutorial = () => {
               transferred in your wallet.
             </Typography>
           }
+          fixTitleHeight={fixTitleHeight}
         />
       </Grid>
       <Stack direction="row" gap={2} justifyContent="flex-end" mt={5}>

@@ -1,3 +1,4 @@
+use client_core::client::replies::reply_storage::fs_backend::StorageError;
 use client_core::error::ClientCoreError;
 use crypto::asymmetric::identity::Ed25519RecoveryError;
 use gateway_client::error::GatewayClientError;
@@ -19,4 +20,10 @@ pub enum Socks5ClientError {
     FailedToLoadConfig(String),
     #[error("Failed local version check, client and config mismatch")]
     FailedLocalVersionCheck,
+    #[error("experienced a failure with our reply surb persistent storage: {source}")]
+    SurbStorageError {
+        #[source]
+        #[from]
+        source: StorageError,
+    },
 }

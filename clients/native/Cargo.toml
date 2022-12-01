@@ -32,7 +32,7 @@ tokio = { version = "1.21.2", features = ["rt-multi-thread", "net", "signal"] } 
 tokio-tungstenite = "0.14" # websocket
 
 ## internal
-client-core = { path = "../client-core" }
+client-core = { path = "../client-core", features = ["fs-surb-storage"] }
 client-connections = { path = "../../common/client-connections" }
 coconut-interface = { path = "../../common/coconut-interface", optional = true }
 config = { path = "../../common/config" }

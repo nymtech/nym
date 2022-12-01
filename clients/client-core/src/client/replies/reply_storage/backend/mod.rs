@@ -6,27 +6,33 @@ use crate::client::replies::reply_storage::{
 };
 use async_trait::async_trait;
 use nymsphinx::anonymous_replies::SurbEncryptionKey;
+use std::error::Error;
+use thiserror::Error;
 
 #[cfg(target_arch = "wasm32")]
-mod browser_backend;
+pub mod browser_backend;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
-mod fs_backend;
+pub mod fs_backend;
 
 // #[cfg(all(test, feature = "std"))]
 // third case: node with actual filesystem
+
+#[derive(Debug, Error)]
+#[error("no information provided")]
+pub struct UndefinedError;
 
 pub struct Empty {}
 
 #[async_trait]
 impl ReplyStorageBackend for Empty {
-    type StorageError = ();
+    type StorageError = UndefinedError;
 
     async fn flush_surb_storage(
         &mut self,
-        storage: &CombinedReplyStorage,
+        _storage: &CombinedReplyStorage,
     ) -> Result<(), Self::StorageError> {
-        todo!()
+        Ok(())
     }
 
     async fn load_surb_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError> {
@@ -36,24 +42,14 @@ impl ReplyStorageBackend for Empty {
 
 #[async_trait]
 pub trait ReplyStorageBackend {
-    type StorageError;
+    type StorageError: Error;
 
     // reply keys and surbs would need additional field set when data is loaded
     // so if there's some failure, we'd trash it all
-
     async fn flush_surb_storage(
         &mut self,
         storage: &CombinedReplyStorage,
     ) -> Result<(), Self::StorageError>;
-    async fn load_surb_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError>;
 
-    // async fn flush_reply_keys_storage(&self) -> Result<(), Self::StorageError>;
-    // async fn flush_received_reply_surbs_storage(&self) -> Result<(), Self::StorageError>;
-    // async fn flush_used_tags_storage(&self) -> Result<(), Self::StorageError>;
-    //
-    // async fn load_reply_keys_storage(&self) -> Result<SentReplyKeys, Self::StorageError>;
-    // async fn load_received_reply_surbs_storage(
-    //     &self,
-    // ) -> Result<ReceivedReplySurbsMap, Self::StorageError>;
-    // async fn load_used_tags_storage(&self) -> Result<UsedSenderTags, Self::StorageError>;
+    async fn load_surb_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError>;
 }

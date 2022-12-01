@@ -1,7 +1,6 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::replies::reply_storage::backend::fs_backend::error::StorageError;
 use crate::client::replies::reply_storage::backend::fs_backend::manager::StorageManager;
 use crate::client::replies::reply_storage::backend::fs_backend::models::{
     ReplySurbStorageMetadata, StoredReplyKey, StoredReplySurb, StoredSenderTag, StoredSurbSender,
@@ -10,18 +9,19 @@ use crate::client::replies::reply_storage::surb_storage::ReceivedReplySurbs;
 use crate::client::replies::reply_storage::{
     CombinedReplyStorage, ReceivedReplySurbsMap, ReplyStorageBackend, SentReplyKeys, UsedSenderTags,
 };
+pub use self::error::StorageError;
 use async_trait::async_trait;
-use log::{info, warn};
+use log::warn;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
+use std::fs;
 use std::path::{Path, PathBuf};
-use std::{fs, mem};
 use tokio::time::Instant;
 
 mod error;
 mod manager;
 mod models;
 
-pub(crate) struct Backend {
+pub struct Backend {
     temporary_old_path: Option<PathBuf>,
     database_path: PathBuf,
     manager: StorageManager,
@@ -118,8 +118,8 @@ impl Backend {
     async fn get_stored_reply_keys(&self) -> Result<SentReplyKeys, StorageError> {
         let stored = self.manager.get_reply_keys().await?;
 
-        // // stop at the first instance of corruption. if even a single entry is malformed,
-        // // something weird has happened and we can't trust the rest of the data
+        // stop at the first instance of corruption. if even a single entry is malformed,
+        // something weird has happened and we can't trust the rest of the data
         let raw = stored
             .into_iter()
             .map(TryInto::try_into)

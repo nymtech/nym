@@ -64,12 +64,10 @@ pub struct Config<T> {
 
 impl<T: NymConfig> Config<T> {
     pub fn new<S: Into<String>>(id: S) -> Self {
-        let mut cfg = Config::default();
-        cfg.with_id(id);
-        cfg
+        Config::default().with_id(id)
     }
 
-    pub fn with_id<S: Into<String>>(&mut self, id: S) {
+    pub fn with_id<S: Into<String>>(mut self, id: S) -> Self {
         let id = id.into();
 
         // identity key setting
@@ -113,14 +111,9 @@ impl<T: NymConfig> Config<T> {
             self.client.ack_key_file = self::Client::<T>::default_ack_key_file(&id);
         }
 
-        if self
-            .client
-            .reply_encryption_key_store_path
-            .as_os_str()
-            .is_empty()
-        {
-            self.client.reply_encryption_key_store_path =
-                self::Client::<T>::default_reply_encryption_key_store_path(&id);
+        if self.client.reply_surb_database_path.as_os_str().is_empty() {
+            self.client.reply_surb_database_path =
+                self::Client::<T>::default_reply_surb_database_path(&id);
         }
 
         if self.client.database_path.as_os_str().is_empty() {
@@ -128,6 +121,7 @@ impl<T: NymConfig> Config<T> {
         }
 
         self.client.id = id;
+        self
     }
 
     pub fn with_disabled_credentials(&mut self, disabled_credentials_mode: bool) {
@@ -196,10 +190,6 @@ impl<T: NymConfig> Config<T> {
         self.client.gateway_shared_key_file.clone()
     }
 
-    pub fn get_reply_encryption_key_store_path(&self) -> PathBuf {
-        self.client.reply_encryption_key_store_path.clone()
-    }
-
     pub fn get_ack_key_file(&self) -> PathBuf {
         self.client.ack_key_file.clone()
     }
@@ -230,6 +220,10 @@ impl<T: NymConfig> Config<T> {
 
     pub fn get_database_path(&self) -> PathBuf {
         self.client.database_path.clone()
+    }
+
+    pub fn get_reply_surb_database_path(&self) -> PathBuf {
+        self.client.reply_surb_database_path.clone()
     }
 
     pub fn get_version(&self) -> &str {
@@ -389,15 +383,14 @@ pub struct Client<T> {
     /// acknowledgement so that nobody besides the client knows which packet it refers to.
     ack_key_file: PathBuf,
 
-    /// Full path to file containing reply encryption keys of all reply-SURBs we have ever
-    /// sent but not received back.
-    reply_encryption_key_store_path: PathBuf,
-
     /// Information regarding how the client should send data to gateway.
     gateway_endpoint: GatewayEndpoint,
 
     /// Path to the database containing bandwidth credentials of this client.
     database_path: PathBuf,
+
+    /// Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
+    reply_surb_database_path: PathBuf,
 
     /// nym_home_directory specifies absolute path to the home nym Clients directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
@@ -422,9 +415,9 @@ impl<T: NymConfig> Default for Client<T> {
             public_encryption_key_file: Default::default(),
             gateway_shared_key_file: Default::default(),
             ack_key_file: Default::default(),
-            reply_encryption_key_store_path: Default::default(),
             gateway_endpoint: Default::default(),
             database_path: Default::default(),
+            reply_surb_database_path: Default::default(),
             nym_root_directory: T::default_root_directory(),
             super_struct: Default::default(),
         }
@@ -456,9 +449,10 @@ impl<T: NymConfig> Client<T> {
         T::default_data_directory(Some(id)).join("ack_key.pem")
     }
 
-    fn default_reply_encryption_key_store_path(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("reply_key_store")
+    fn default_reply_surb_database_path(id: &str) -> PathBuf {
+        T::default_data_directory(Some(id)).join("persistent_reply_store.sqlite")
     }
+
     fn default_database_path(id: &str) -> PathBuf {
         T::default_data_directory(Some(id)).join("db.sqlite")
     }

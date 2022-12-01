@@ -26,7 +26,9 @@ use client_core::client::replies::reply_controller;
 use client_core::client::replies::reply_controller::{
     ReplyControllerReceiver, ReplyControllerSender,
 };
-use client_core::client::replies::reply_storage::{CombinedReplyStorage, SentReplyKeys};
+use client_core::client::replies::reply_storage::{
+    fs_backend, CombinedReplyStorage, PersistentReplyStorage, SentReplyKeys,
+};
 use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
@@ -297,6 +299,27 @@ impl NymClient {
         mix_tx
     }
 
+    async fn flush_surb_storage_on_shutdown(
+        &self,
+        mem_storage: CombinedReplyStorage,
+        shutdown: ShutdownListener,
+    ) -> Result<(), Socks5ClientError> {
+        let storage_backend =
+            match fs_backend::Backend::init(self.config.get_base().get_reply_surb_database_path())
+                .await
+            {
+                Ok(backend) => backend,
+                Err(err) => {
+                    error!("failed to setup persistent storage backend for our reply needs: {err}");
+                    return Err(err.into());
+                }
+            };
+
+        let persistent_storage = PersistentReplyStorage::new(mem_storage.clone(), storage_backend);
+        tokio::spawn(async move { persistent_storage.flush_on_shutdown(shutdown).await });
+        Ok(())
+    }
+
     fn start_socks5_listener(
         &self,
         buffer_requester: ReceivedBufferRequestSender,
@@ -426,6 +449,8 @@ impl NymClient {
                 .get_base()
                 .get_maximum_reply_surb_storage_threshold(),
         );
+        self.flush_surb_storage_on_shutdown(reply_storage.clone(), shutdown.subscribe())
+            .await?;
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.

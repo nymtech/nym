@@ -23,7 +23,9 @@ use client_core::client::replies::reply_controller;
 use client_core::client::replies::reply_controller::{
     ReplyControllerReceiver, ReplyControllerSender,
 };
-use client_core::client::replies::reply_storage::{CombinedReplyStorage, SentReplyKeys};
+use client_core::client::replies::reply_storage::{
+    fs_backend, CombinedReplyStorage, PersistentReplyStorage, SentReplyKeys,
+};
 use client_core::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
@@ -41,6 +43,7 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::receiver::ReconstructedMessage;
+use std::time::Duration;
 use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
 
 pub(crate) mod config;
@@ -296,6 +299,27 @@ impl NymClient {
         mix_tx
     }
 
+    async fn flush_surb_storage_on_shutdown(
+        &self,
+        mem_storage: CombinedReplyStorage,
+        shutdown: ShutdownListener,
+    ) -> Result<(), ClientError> {
+        let storage_backend =
+            match fs_backend::Backend::init(self.config.get_base().get_reply_surb_database_path())
+                .await
+            {
+                Ok(backend) => backend,
+                Err(err) => {
+                    error!("failed to setup persistent storage backend for our reply needs: {err}");
+                    return Err(err.into());
+                }
+            };
+
+        let persistent_storage = PersistentReplyStorage::new(mem_storage.clone(), storage_backend);
+        tokio::spawn(async move { persistent_storage.flush_on_shutdown(shutdown).await });
+        Ok(())
+    }
+
     fn start_websocket_listener(
         &self,
         buffer_requester: ReceivedBufferRequestSender,
@@ -385,7 +409,7 @@ impl NymClient {
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
     pub async fn run_forever(&mut self) -> Result<(), ClientError> {
-        let shutdown = self.start().await?;
+        let mut shutdown = self.start().await?;
         wait_for_signal().await;
 
         println!(
@@ -398,8 +422,8 @@ impl NymClient {
         // Some of these components have shutdown signalling implemented as part of socks5 work,
         // but since it's not fully implemented (yet) for all the components of the native client,
         // we don't try to wait and instead just stop immediately.
-        //log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
-        //shutdown.wait_for_shutdown().await;
+        log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
+        shutdown.wait_for_shutdown().await;
 
         log::info!("Stopping nym-client");
         Ok(())
@@ -448,6 +472,7 @@ impl NymClient {
                 .get_base()
                 .get_maximum_reply_surb_storage_threshold(),
         );
+        self.flush_surb_storage_on_shutdown(reply_storage.clone(), shutdown.subscribe()).await?;
 
         // the components are started in very specific order. Unless you know what you are doing,
         // do not change that.

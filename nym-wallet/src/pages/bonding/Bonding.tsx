@@ -153,7 +153,7 @@ const Bonding = () => {
           currentBond={bondedNode.bond}
           userBalance={balance?.printable_balance}
           hasVestingTokens={Boolean(originalVesting)}
-          onConfirm={handleBondMore}
+          onBondMore={handleBondMore}
           onClose={() => setShowModal(undefined)}
           onError={handleError}
         />

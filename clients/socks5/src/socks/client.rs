@@ -197,10 +197,10 @@ impl SocksClient {
 
     pub async fn send_error(&mut self, err: SocksProxyError) -> Result<(), SocksProxyError> {
         let error_text = format!("{}", err);
-        let version = self
-            .socks_version
-            .as_ref()
-            .expect("Trying to send error without knowing the version");
+        let Some(ref version) = self.socks_version else {
+            log::error!("Trying to send error without knowing the version");
+            return Ok(());
+        };
 
         match version {
             SocksVersion::V4 => {

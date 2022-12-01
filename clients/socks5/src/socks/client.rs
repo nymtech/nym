@@ -285,10 +285,15 @@ impl SocksClient {
             .await;
 
         let stream = self.stream.run_proxy();
-        let local_stream_remote = stream
-            .peer_addr()
-            .expect("failed to extract peer address")
-            .to_string();
+        let peer_addr = match stream.peer_addr() {
+            Ok(peer_addr) => peer_addr,
+            Err(err) => {
+                log::error!("Unable to extract the remote peer address: {err}");
+                return;
+            }
+        };
+        let local_stream_remote = peer_addr.to_string();
+
         let connection_id = self.connection_id;
         let input_sender = self.input_sender.clone();
 

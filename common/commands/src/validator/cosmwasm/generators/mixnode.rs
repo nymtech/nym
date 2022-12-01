@@ -87,8 +87,8 @@ pub async fn generate(args: Args) {
 
     debug!("instantiate_msg: {:?}", instantiate_msg);
 
-    let res =
-        serde_json::to_string(&instantiate_msg).expect("failed to convert instantiate msg to json");
+    let res = serde_json::to_string(&instantiate_msg)
+        .expect("failed to convert instantiate msg to json");
 
-    println!("{:?}", res)
+    println!("{}", res)
 }

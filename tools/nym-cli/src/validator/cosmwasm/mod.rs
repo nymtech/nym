@@ -1,6 +1,5 @@
 use network_defaults::NymNetworkDetails;
-use nym_cli_commands::context::create_signing_client;
-use nym_cli_commands::context::ClientArgs;
+use nym_cli_commands::context::{create_signing_client, ClientArgs};
 
 pub(crate) mod generators;
 

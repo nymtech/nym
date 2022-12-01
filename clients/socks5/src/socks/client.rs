@@ -167,9 +167,13 @@ impl SocksClient {
         controller_sender: ControllerSender,
         self_address: &Recipient,
         lane_queue_lengths: LaneQueueLengths,
-        shutdown_listener: ShutdownListener,
+        mut shutdown_listener: ShutdownListener,
     ) -> Self {
+        // If this task fails and exits, we don't want to send shutdown signal
+        shutdown_listener.mark_as_success();
+
         let connection_id = Self::generate_random();
+
         SocksClient {
             controller_sender,
             connection_id,
@@ -369,7 +373,6 @@ impl SocksClient {
             SocksCommand::UdpAssociate => unimplemented!(), // not handled
         };
 
-        self.shutdown_listener.mark_as_success();
         Ok(())
     }
 

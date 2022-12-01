@@ -630,7 +630,7 @@ dependencies = [
 
 [[package]]
 name = "client-core"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "client-connections",
  "config",
@@ -3352,7 +3352,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "clap",
  "client-connections",

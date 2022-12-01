@@ -100,7 +100,7 @@ impl SphinxSocksServer {
                         if let Err(err) = client.run().await {
                             error!("Error! {}", err);
                             if client.send_error(err).await.is_err() {
-                                warn!("Failed to error code");
+                                warn!("Failed to send error code");
                             };
                             if client.shutdown().await.is_err() {
                                 warn!("Failed to shutdown TcpStream");

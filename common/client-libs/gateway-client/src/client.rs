@@ -272,9 +272,7 @@ impl GatewayClient {
 
         let conn = match self.connection {
             SocketState::Available(ref mut conn) => conn,
-            _ => {
-                return Err(GatewayClientError::ConnectionInInvalidState);
-            }
+            _ => return Err(GatewayClientError::ConnectionInInvalidState),
         };
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -800,7 +798,6 @@ impl GatewayClient {
                                 .as_ref()
                                 .expect("no shared key present even though we're authenticated!"),
                         ),
-                        #[cfg(not(target_arch = "wasm32"))]
                         self.shutdown.clone(),
                     )
                 }

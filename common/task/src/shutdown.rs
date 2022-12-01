@@ -250,7 +250,7 @@ impl ShutdownListener {
     // example when we clone the listener for a task handling connections, we often want to drop
     // without signal failure.
     pub fn mark_as_success(&mut self) {
-        self.mode = ShutdownListenerMode::ListeningButDontReportHalt;
+        self.mode.set_should_not_signal_on_drop();
     }
 }
 
@@ -289,6 +289,14 @@ impl ShutdownListenerMode {
             ShutdownListenerMode::Listening => true,
             ShutdownListenerMode::ListeningButDontReportHalt | ShutdownListenerMode::Dummy => false,
         }
+    }
+
+    fn set_should_not_signal_on_drop(&mut self) {
+        use ShutdownListenerMode::{Dummy, Listening, ListeningButDontReportHalt};
+        *self = match &self {
+            ListeningButDontReportHalt | Listening => ListeningButDontReportHalt,
+            Dummy => Dummy,
+        };
     }
 }
 

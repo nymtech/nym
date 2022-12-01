@@ -10,7 +10,6 @@ use futures::{SinkExt, StreamExt};
 use gateway_requests::registration::handshake::SharedKeys;
 use log::*;
 use std::sync::Arc;
-#[cfg(not(target_arch = "wasm32"))]
 use task::ShutdownListener;
 use tungstenite::Message;
 
@@ -85,7 +84,7 @@ impl PartiallyDelegated {
         conn: WsConn,
         packet_router: PacketRouter,
         shared_key: Arc<SharedKeys>,
-        shutdown: ShutdownListener,
+        mut shutdown: ShutdownListener,
     ) -> Self {
         // when called for, it NEEDS TO yield back the stream so that we could merge it and
         // read control request responses.
@@ -98,12 +97,6 @@ impl PartiallyDelegated {
             let mut notify_receiver = notify_receiver;
             let mut chunk_stream = (&mut stream).ready_chunks(8);
             let mut packet_router = packet_router;
-
-            #[cfg(not(target_arch = "wasm32"))]
-            tokio::pin!(shutdown);
-
-            //#[cfg(target_arch = "wasm32")]
-            //let mut shutdown = std::future::pending::<()>();
 
             let ret_err = loop {
                 tokio::select! {
@@ -130,7 +123,10 @@ impl PartiallyDelegated {
 
             if match ret_err {
                 Err(err) => stream_sender.send(Err(err)),
-                Ok(_) => stream_sender.send(Ok(stream)),
+                Ok(_) => {
+                    shutdown.mark_as_success();
+                    stream_sender.send(Ok(stream))
+                }
             }
             .is_err()
             {

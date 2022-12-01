@@ -2,6 +2,13 @@
 
 Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## Unreleased
+
+### Added
+
+- socks5-client/network-requester: add support for socks4a protocol
+
+
 ## [v1.1.1](https://github.com/nymtech/nym/tree/v1.1.1) (2022-11-29)
 
 ### Added

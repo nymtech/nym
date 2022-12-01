@@ -92,7 +92,7 @@ export const Tutorial = () => {
               <Typography display="inline" fontWeight={600}>
                 Sign message
               </Typography>{' '}
-              button bellow. Then copy and paste your signature back in the browser window.
+              button below. Then copy and paste your signature back in the browser window.
             </Typography>
           }
           divider

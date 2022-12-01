@@ -270,7 +270,7 @@ impl<'a> BaseClientBuilder<'a> {
             ack_sender,
             self.debug_config.gateway_response_timeout,
             self.bandwidth_controller.take(),
-            Some(shutdown),
+            shutdown,
         );
 
         gateway_client.set_disabled_credentials_mode(self.disabled_credentials);

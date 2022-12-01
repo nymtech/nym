@@ -85,7 +85,8 @@ impl PartiallyDelegated {
         conn: WsConn,
         packet_router: PacketRouter,
         shared_key: Arc<SharedKeys>,
-        #[cfg(not(target_arch = "wasm32"))] shutdown: Option<ShutdownListener>,
+        //#[cfg(not(target_arch = "wasm32"))] shutdown: ShutdownListener,
+        shutdown: ShutdownListener,
     ) -> Self {
         // when called for, it NEEDS TO yield back the stream so that we could merge it and
         // read control request responses.
@@ -101,25 +102,25 @@ impl PartiallyDelegated {
 
             // Bit of an ugly workaround for selecting on an `Option` without having access to
             // `tokio::select`
-            #[cfg(not(target_arch = "wasm32"))]
-            let shutdown = {
-                async {
-                    if let Some(mut s) = shutdown {
-                        s.recv().await
-                    } else {
-                        std::future::pending::<()>().await
-                    }
-                }
-            };
+            //#[cfg(not(target_arch = "wasm32"))]
+            //let shutdown = {
+            //    async {
+            //        if let Some(mut s) = shutdown {
+            //            s.recv().await
+            //        } else {
+            //            std::future::pending::<()>().await
+            //        }
+            //    }
+            //};
             #[cfg(not(target_arch = "wasm32"))]
             tokio::pin!(shutdown);
 
-            #[cfg(target_arch = "wasm32")]
-            let mut shutdown = std::future::pending::<()>();
+            //#[cfg(target_arch = "wasm32")]
+            //let mut shutdown = std::future::pending::<()>();
 
             let ret_err = loop {
                 tokio::select! {
-                    _ = &mut shutdown => {
+                    _ = shutdown.recv() => {
                         log::trace!("GatewayClient listener: Received shutdown");
                         log::debug!("GatewayClient listener: Exiting");
                         return;

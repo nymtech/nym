@@ -259,7 +259,6 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             rewarding_details,
             bond_information: { mix_id },
           } = data;
-
           const { status, stakeSaturation, estimatedRewards } = await getAdditionalMixnodeDetails(mix_id);
           const setProbabilities = await getSetProbabilities(mix_id);
           const nodeDescription = await getNodeDescription(

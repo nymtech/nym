@@ -1,6 +1,6 @@
 import React, { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FeeDetails, DecCoin } from '@nymproject/types';
+import { FeeDetails } from '@nymproject/types';
 import { Box } from '@mui/material';
 import { TPoolOption } from 'src/components';
 import { Bond } from 'src/components/Bonding/Bond';
@@ -149,9 +149,8 @@ const Bonding = () => {
 
       {showModal === 'bond-more' && bondedNode && isMixnode(bondedNode) && (
         <BondMoreModal
-          currentBond={bondedNode.bond}
+          node={bondedNode}
           userBalance={balance?.printable_balance}
-          hasVestingTokens={Boolean(originalVesting)}
           onBondMore={handleBondMore}
           onClose={() => setShowModal(undefined)}
           onError={handleError}

@@ -10,25 +10,24 @@ import { useGetFee } from 'src/hooks/useGetFee';
 import { validateAmount } from 'src/utils';
 import { simulateBondMore, simulateVestingBondMore } from 'src/requests';
 import { TBondMoreArgs } from 'src/types';
+import { TBondedMixnode } from 'src/context';
 
 export const BondMoreModal = ({
-  currentBond,
+  node,
   userBalance,
-  hasVestingTokens,
   onBondMore,
   onClose,
   onError,
 }: {
-  currentBond: DecCoin;
+  node: TBondedMixnode;
   userBalance?: string;
-  hasVestingTokens: boolean;
   onBondMore: (data: TBondMoreArgs, tokenPool: TPoolOption) => Promise<void>;
   onClose: () => void;
   onError: (e: string) => void;
 }) => {
+  const { bond: currentBond, proxy } = node;
   const { fee, getFee, resetFeeState, feeError } = useGetFee();
   const [additionalBond, setAdditionalBond] = useState<DecCoin>({ amount: '0', denom: currentBond.denom });
-  const [tokenPool, setTokenPool] = useState<TPoolOption>('balance');
   const [errorAmount, setErrorAmount] = useState(false);
   const [errorSignature, setErrorSignature] = useState(false);
 
@@ -40,6 +39,7 @@ export const BondMoreModal = ({
 
   const handleConfirm = async () => {
     const data = { additionalPledge: additionalBond };
+    const tokenPool = proxy ? 'locked' : 'balance';
     await onBondMore(data, tokenPool);
   };
 
@@ -62,7 +62,7 @@ export const BondMoreModal = ({
       setErrorSignature(errors.signature);
     }
 
-    if (tokenPool === 'balance') {
+    if (!proxy) {
       await getFee<TBondMoreArgs>(simulateBondMore, { additionalPledge: additionalBond });
     } else {
       await getFee<TBondMoreArgs>(simulateVestingBondMore, { additionalPledge: additionalBond });
@@ -100,7 +100,6 @@ export const BondMoreModal = ({
     >
       <Stack gap={3}>
         <Box display="flex" gap={1}>
-          {hasVestingTokens && <TokenPoolSelector disabled={false} onSelect={(pool) => setTokenPool(pool)} />}
           <CurrencyFormField
             autoFocus
             label="Bond amount"

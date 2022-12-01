@@ -85,6 +85,14 @@ pub async fn simulate_bond_mixnode(
 }
 
 #[tauri::command]
+pub async fn simulate_pledge_more(
+    additional_pledge: DecCoin,
+    state: tauri::State<'_, WalletState>,
+) -> Result<FeeDetails, BackendError> {
+    simulate_mixnet_operation(ExecuteMsg::PledgeMore {}, Some(additional_pledge), &state).await
+}
+
+#[tauri::command]
 pub async fn simulate_unbond_mixnode(
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {

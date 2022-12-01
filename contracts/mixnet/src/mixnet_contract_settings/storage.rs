@@ -37,7 +37,6 @@ pub(crate) fn minimum_delegation_stake(
         .map(|state| state.params.minimum_mixnode_delegation)?)
 }
 
-#[allow(unused)]
 pub(crate) fn rewarding_denom(storage: &dyn Storage) -> Result<String, MixnetContractError> {
     Ok(CONTRACT_STATE
         .load(storage)

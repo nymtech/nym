@@ -180,6 +180,35 @@ pub trait MixnetSigningClient {
         .await
     }
 
+    async fn pledge_more(
+        &self,
+        additional_pledge: Coin,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::PledgeMore {},
+            vec![additional_pledge],
+        )
+        .await
+    }
+
+    async fn pledge_more_on_behalf(
+        &self,
+        owner: AccountId,
+        additional_pledge: Coin,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::PledgeMoreOnBehalf {
+                owner: owner.to_string(),
+            },
+            vec![additional_pledge],
+        )
+        .await
+    }
+
     async fn unbond_mixnode(&self, fee: Option<Fee>) -> Result<ExecuteResult, NymdError> {
         self.execute_mixnet_contract(fee, MixnetExecuteMsg::UnbondMixnode {}, vec![])
             .await

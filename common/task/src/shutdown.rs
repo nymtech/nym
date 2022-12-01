@@ -185,6 +185,10 @@ impl ShutdownListener {
         }
     }
 
+    pub fn is_dummy(&self) {
+        self.mode.is_dummy()
+    }
+
     pub fn is_shutdown(&self) -> bool {
         if self.mode.is_dummy() {
             false
@@ -236,6 +240,13 @@ impl ShutdownListener {
         }
     }
 
+    // This listener should to *not* notify the ShutdownNotifier to shutdown when dropped. For
+    // example when we clone the listener for a task handling connections, we often want to drop
+    // without signal failure.
+    pub fn mark_as_success(&mut self) {
+        self.mode.set_should_not_signal_on_drop();
+    }
+
     pub fn send_we_stopped(&mut self, err: SentError) {
         if self.mode.is_dummy() {
             return;
@@ -244,13 +255,6 @@ impl ShutdownListener {
         if self.return_error.send(err).is_err() {
             log::error!("Failed to send back error message");
         }
-    }
-
-    // This listener should to *not* notify the ShutdownNotifier to shutdown when dropped. For
-    // example when we clone the listener for a task handling connections, we often want to drop
-    // without signal failure.
-    pub fn mark_as_success(&mut self) {
-        self.mode.set_should_not_signal_on_drop();
     }
 }
 

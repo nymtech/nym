@@ -82,7 +82,7 @@ impl PacketRouter {
         if !received_messages.is_empty() {
             trace!("routing 'real'");
             if let Err(err) = self.mixnet_message_sender.unbounded_send(received_messages) {
-                if self.shutdown.is_shutdown_poll() {
+                if self.shutdown.is_shutdown_poll() || self.shutdown.is_dummy() {
                     // This should ideally not happen, but it's ok
                     log::warn!("Failed to send mixnet message due to receiver task shutdown");
                     return Err(GatewayClientError::MixnetMsgSenderFailedToSend);

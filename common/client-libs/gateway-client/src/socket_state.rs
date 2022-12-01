@@ -85,7 +85,6 @@ impl PartiallyDelegated {
         conn: WsConn,
         packet_router: PacketRouter,
         shared_key: Arc<SharedKeys>,
-        //#[cfg(not(target_arch = "wasm32"))] shutdown: ShutdownListener,
         shutdown: ShutdownListener,
     ) -> Self {
         // when called for, it NEEDS TO yield back the stream so that we could merge it and
@@ -100,18 +99,6 @@ impl PartiallyDelegated {
             let mut chunk_stream = (&mut stream).ready_chunks(8);
             let mut packet_router = packet_router;
 
-            // Bit of an ugly workaround for selecting on an `Option` without having access to
-            // `tokio::select`
-            //#[cfg(not(target_arch = "wasm32"))]
-            //let shutdown = {
-            //    async {
-            //        if let Some(mut s) = shutdown {
-            //            s.recv().await
-            //        } else {
-            //            std::future::pending::<()>().await
-            //        }
-            //    }
-            //};
             #[cfg(not(target_arch = "wasm32"))]
             tokio::pin!(shutdown);
 

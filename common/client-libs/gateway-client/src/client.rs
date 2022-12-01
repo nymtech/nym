@@ -22,7 +22,7 @@ use rand::rngs::OsRng;
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::time::Duration;
-use task::{ShutdownListener, ShutdownNotifier};
+use task::ShutdownListener;
 use tungstenite::protocol::Message;
 
 #[cfg(feature = "coconut")]
@@ -137,8 +137,7 @@ impl GatewayClient {
         // perfectly fine here, because it's not meant to be used
         let (ack_tx, _) = mpsc::unbounded();
         let (mix_tx, _) = mpsc::unbounded();
-        let dummy_shutdown = ShutdownNotifier::default();
-        let shutdown = dummy_shutdown.subscribe();
+        let shutdown = ShutdownListener::dummy();
         let packet_router = PacketRouter::new(ack_tx, mix_tx, shutdown.clone());
 
         GatewayClient {
@@ -266,20 +265,6 @@ impl GatewayClient {
             }
         }
     }
-
-    //async fn read_control_response(&mut self) -> Result<ServerResponse, GatewayClientError> {
-    //    let shutdown = self.shutdown.take();
-
-    //    let (res, shutdown) = if let Some(shutdown) = shutdown {
-    //        self.read_control_response_inner_with_shutdown(shutdown)
-    //            .await
-    //    } else {
-    //        (self.read_control_response_inner().await, None)
-    //    };
-
-    //    self.shutdown = shutdown;
-    //    res
-    //}
 
     async fn read_control_response(&mut self) -> Result<ServerResponse, GatewayClientError> {
         // we use the fact that all request responses are Message::Text and only pushed

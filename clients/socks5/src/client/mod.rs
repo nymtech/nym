@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::error::Error;
+use std::str::FromStr;
 
 use crate::client::config::Config;
 use crate::error::Socks5ClientError;
@@ -39,6 +40,7 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use tap::TapFallible;
 use task::{wait_for_signal_and_error, ShutdownListener, ShutdownNotifier};
+use url::Url;
 
 pub mod config;
 
@@ -199,25 +201,23 @@ impl NymClient {
             .expect("provided gateway id is invalid!");
 
         #[cfg(feature = "coconut")]
+        //temp hard code these values for testing
+        let qwerty_validator: Url =
+            Url::from_str("http://qwerty-validator.qa.nymte.ch:26657/").unwrap();
+        let val_api: Url =
+            Url::from_str("https://qwerty-coconut-one-validator-api.qa.nymte.ch/api").unwrap();
+
         let bandwidth_controller = {
             let details = network_defaults::NymNetworkDetails::new_from_env();
             let mut client_config =
                 validator_client::Config::try_from_nym_network_details(&details)
                     .expect("failed to construct validator client config");
-            let nymd_url = self
-                .config
-                .get_base()
-                .get_validator_endpoints()
-                .pop()
-                .expect("No nymd validator endpoint provided");
-            let api_url = self
-                .config
-                .get_base()
-                .get_validator_api_endpoints()
-                .pop()
-                .expect("No validator api endpoint provided");
+
             // overwrite env configuration with config URLs
-            client_config = client_config.with_urls(nymd_url, api_url);
+            client_config = client_config.with_urls(qwerty_validator, val_api);
+
+            println!("{:?}", client_config);
+
             let client = validator_client::Client::new_query(client_config)
                 .expect("Could not construct query client");
             let coconut_api_clients =

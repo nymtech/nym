@@ -14,6 +14,7 @@ use crate::menu::AddDefaultSubmenus;
 use crate::menu::{create_tray_menu, tray_menu_event_handler};
 use crate::state::State;
 use crate::window::window_toggle;
+use std::path::PathBuf;
 
 mod config;
 mod error;
@@ -26,7 +27,12 @@ mod window;
 
 fn main() {
     setup_logging();
-    setup_env(None);
+
+    //use qwerty environment
+    //path may need changing for your set up
+    let qwerty_environment = PathBuf::from("~/nym/envs/qa-qwerty.env");
+    setup_env(Some(qwerty_environment));
+    
     println!("Starting up...");
 
     // As per breaking change description here

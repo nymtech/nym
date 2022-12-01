@@ -127,6 +127,8 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
             .set_custom_validator_apis(config_common::parse_validators(&raw_validators));
     }
 
+    config.get_base_mut().with_disabled_credentials(false);
+
     let gateway = setup_gateway(
         &id,
         register_gateway,
@@ -134,6 +136,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         config.get_socks5(),
     )
     .await?;
+
     config.get_base_mut().with_gateway_endpoint(gateway);
 
     let config_save_location = config.get_socks5().get_config_file_save_location();

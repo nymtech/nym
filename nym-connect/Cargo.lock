@@ -630,7 +630,7 @@ dependencies = [
 
 [[package]]
 name = "client-core"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "client-connections",
  "config",
@@ -973,6 +973,7 @@ version = "0.1.0"
 dependencies = [
  "bls12_381 0.5.0",
  "coconut-interface",
+ "cosmrs",
  "crypto",
  "thiserror",
  "validator-api-requests",
@@ -1867,6 +1868,7 @@ name = "gateway-client"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "coconut-interface",
  "credential-storage",
  "credentials",
  "crypto",
@@ -1885,6 +1887,7 @@ dependencies = [
  "tokio-tungstenite",
  "tungstenite",
  "url",
+ "validator-client",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-timer",
@@ -1896,6 +1899,7 @@ name = "gateway-requests"
 version = "0.1.0"
 dependencies = [
  "bs58",
+ "coconut-interface",
  "credentials",
  "crypto",
  "futures",
@@ -3351,14 +3355,16 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "clap",
  "client-connections",
  "client-core",
+ "coconut-interface",
  "completions",
  "config",
  "credential-storage",
+ "credentials",
  "crypto",
  "dirs",
  "futures",

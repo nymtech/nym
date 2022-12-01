@@ -41,7 +41,7 @@ url = "2.2"
 client-core = { path = "../../clients/client-core" }
 config-common = { path = "../../common/config", package = "config" }
 logging = { path = "../../common/logging"}
-nym-socks5-client = { path = "../../clients/socks5" }
+nym-socks5-client = { path = "../../clients/socks5", features = ["coconut"] }
 topology = { path = "../../common/topology" }
 
 [dev-dependencies]

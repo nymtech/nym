@@ -1,0 +1,14 @@
+[
+    {
+      "id": "nym-testing",
+      "description": "coconuts",
+      "items": [
+        {
+          "id": "nym-coconut",
+          "description": "nym-credentials",
+          "address": "<input service provider address>",
+          "gateway": "<input these values>"
+        }
+      ]
+    }
+]

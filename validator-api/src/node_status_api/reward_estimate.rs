@@ -7,7 +7,7 @@ use mixnet_contract_common::reward_params::{NodeRewardParams, Performance, Rewar
 use mixnet_contract_common::rewarding::RewardEstimate;
 use mixnet_contract_common::{Interval, RewardedSetNodeStatus};
 
-pub fn compute_apy(epochs_in_year: Decimal, reward: Decimal, pledge_amount: Decimal) -> Decimal {
+fn compute_apy(epochs_in_year: Decimal, reward: Decimal, pledge_amount: Decimal) -> Decimal {
     if pledge_amount.is_zero() {
         return Decimal::zero();
     }

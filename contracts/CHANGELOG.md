@@ -3,7 +3,9 @@
 ## Added
 
 - Added migration code to the mixnet contract to allow updating stored vesting contract address to make it easier to deploy any future environments ([#1759],[#1769])
+- Added an option to pledge additional tokens without the need to rebond minxode ([#1679])
 
+[#1679]: https://github.com/nymtech/nym/pull/1679
 [#1759]: https://github.com/nymtech/nym/pull/1759
 [#1769]: https://github.com/nymtech/nym/pull/1769
 

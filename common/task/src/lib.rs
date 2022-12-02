@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod shutdown;
+#[cfg(not(target_arch = "wasm32"))]
 pub mod signal;
 
 pub use shutdown::{ShutdownListener, ShutdownNotifier};
-pub use signal::wait_for_signal;
+#[cfg(not(target_arch = "wasm32"))]
+pub use signal::{wait_for_signal, wait_for_signal_and_error};

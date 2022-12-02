@@ -10,6 +10,7 @@
     "beforeBuildCommand": ""
   },
   "tauri": {
+    "macOSPrivateApi": true,
     "systemTray": {
       "iconPath": "icons/tray_icon.png",
       "iconAsTemplate": true
@@ -18,13 +19,7 @@
       "active": true,
       "targets": "all",
       "identifier": "net.nymtech.connect",
-      "icon": [
-        "icons/32x32.png",
-        "icons/128x128.png",
-        "icons/128x128@2x.png",
-        "icons/icon.icns",
-        "icons/icon.ico"
-      ],
+      "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
       "resources": [],
       "externalBin": [],
       "copyright": "Copyright © 2021-2022 Nym Technologies SA",
@@ -49,9 +44,7 @@
     },
     "updater": {
       "active": true,
-      "endpoints": [
-        "https://nymtech.net/.wellknown/connect/updater.json"
-      ],
+      "endpoints": ["https://nymtech.net/.wellknown/connect/updater.json"],
       "dialog": true,
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENCNzQ2M0E5N0VFODE2NApSV1JrZ2U2WE9rYTNETTg1OTBKdE5uWUEra0hML2syOVUvQ2lxZmFZRzZ1T3NWbGM0eVRzUTVhVwo="
     },
@@ -61,14 +54,20 @@
       },
       "clipboard": {
         "writeText": true
+      },
+      "window": {
+        "startDragging": true,
+        "close": true
       }
     },
     "windows": [
       {
         "title": "NymConnect",
         "width": 240,
-        "height": 500,
-        "resizable": false
+        "height": 540,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true
       }
     ],
     "security": {

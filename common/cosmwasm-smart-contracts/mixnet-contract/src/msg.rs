@@ -113,6 +113,10 @@ pub enum ExecuteMsg {
         owner_signature: String,
         owner: String,
     },
+    PledgeMore {},
+    PledgeMoreOnBehalf {
+        owner: String,
+    },
     UnbondMixnode {},
     UnbondMixnodeOnBehalf {
         owner: String,
@@ -223,6 +227,8 @@ impl ExecuteMsg {
             ExecuteMsg::BondMixnodeOnBehalf { mix_node, .. } => {
                 format!("bonding mixnode {} on behalf", mix_node.identity_key)
             }
+            ExecuteMsg::PledgeMore {} => "pledging additional tokens".into(),
+            ExecuteMsg::PledgeMoreOnBehalf { .. } => "pledging additional tokens on behalf".into(),
             ExecuteMsg::UnbondMixnode { .. } => "unbonding mixnode".into(),
             ExecuteMsg::UnbondMixnodeOnBehalf { .. } => "unbonding mixnode on behalf".into(),
             ExecuteMsg::UpdateMixnodeCostParams { .. } => "updating mixnode cost parameters".into(),

@@ -82,7 +82,7 @@ impl SendingDelayController {
             self.current_multiplier =
                 (self.current_multiplier + 1).clamp(self.lower_bound, self.upper_bound);
             self.time_when_changed = get_time_now();
-            log::debug!(
+            log::warn!(
                 "Increasing sending delay multiplier to: {}",
                 self.current_multiplier
             );

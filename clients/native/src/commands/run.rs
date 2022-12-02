@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    client::{config::Config, NymClient},
+    client::{config::Config, SocketClient},
     commands::{override_config, OverrideConfig},
     error::ClientError,
 };
@@ -98,5 +98,5 @@ pub(crate) async fn execute(args: &Run) -> Result<(), ClientError> {
         return Err(ClientError::FailedLocalVersionCheck);
     }
 
-    NymClient::new(config).run_forever().await
+    SocketClient::new(config).run_socket_forever().await
 }

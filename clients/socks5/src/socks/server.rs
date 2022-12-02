@@ -1,8 +1,7 @@
-use super::authentication::Authenticator;
-use super::client::SocksClient;
+use crate::error::Socks5ClientError;
+
 use super::{
-    mixnet_responses::MixnetResponseListener,
-    types::{ResponseCode, SocksProxyError},
+    authentication::Authenticator, client::SocksClient, mixnet_responses::MixnetResponseListener,
 };
 use client_connections::{ConnectionCommandSender, LaneQueueLengths};
 use client_core::client::{
@@ -12,6 +11,7 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use proxy_helpers::connection_controller::{BroadcastActiveConnections, Controller};
 use std::net::SocketAddr;
+use tap::TapFallible;
 use task::ShutdownListener;
 use tokio::net::TcpListener;
 
@@ -56,8 +56,10 @@ impl SphinxSocksServer {
         input_sender: InputMessageSender,
         buffer_requester: ReceivedBufferRequestSender,
         client_connection_tx: ConnectionCommandSender,
-    ) -> Result<(), SocksProxyError> {
-        let listener = TcpListener::bind(self.listening_address).await.unwrap();
+    ) -> Result<(), Socks5ClientError> {
+        let listener = TcpListener::bind(self.listening_address)
+            .await
+            .tap_err(|err| log::error!("Failed to bind to address: {err}"))?;
         info!("Serving Connections...");
 
         // controller for managing all active connections
@@ -83,47 +85,26 @@ impl SphinxSocksServer {
         loop {
             tokio::select! {
                 Ok((stream, _remote)) = listener.accept() => {
-                    // TODO Optimize this
                     let mut client = SocksClient::new(
                         stream,
                         self.authenticator.clone(),
                         input_sender.clone(),
-                        self.service_provider,
+                        &self.service_provider,
                         controller_sender.clone(),
-                        self.self_address,
+                        &self.self_address,
                         self.lane_queue_lengths.clone(),
                         self.shutdown.clone(),
                     );
 
                     tokio::spawn(async move {
-                        {
-                            match client.run().await {
-                                Ok(_) => {}
-                                Err(error) => {
-                                    error!("Error! {}", error);
-                                    let error_text = format!("{}", error);
-
-                                    let response: ResponseCode;
-
-                                    if error_text.contains("Host") {
-                                        response = ResponseCode::HostUnreachable;
-                                    } else if error_text.contains("Network") {
-                                        response = ResponseCode::NetworkUnreachable;
-                                    } else if error_text.contains("ttl") {
-                                        response = ResponseCode::TtlExpired
-                                    } else {
-                                        response = ResponseCode::Failure
-                                    }
-
-                                    if client.error(response).await.is_err() {
-                                        warn!("Failed to send error code");
-                                    };
-                                    if client.shutdown().await.is_err() {
-                                        warn!("Failed to shutdown TcpStream");
-                                    };
-                                }
+                        if let Err(err) = client.run().await {
+                            error!("Error! {}", err);
+                            if client.send_error(err).await.is_err() {
+                                warn!("Failed to send error code");
                             };
-                            // client gets dropped here
+                            if client.shutdown().await.is_err() {
+                                warn!("Failed to shutdown TcpStream");
+                            };
                         }
                     });
                 },

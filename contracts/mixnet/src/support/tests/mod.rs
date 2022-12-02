@@ -28,6 +28,9 @@ pub mod test_helpers {
     use crate::mixnodes::transactions::{
         try_add_mixnode, try_add_mixnode_on_behalf, try_remove_mixnode,
     };
+    use crate::rewards::queries::{
+        query_pending_delegator_reward, query_pending_mixnode_operator_reward,
+    };
     use crate::rewards::storage as rewards_storage;
     use crate::rewards::transactions::try_reward_mixnode;
     use crate::support::tests;
@@ -37,7 +40,7 @@ pub mod test_helpers {
     use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::testing::MockApi;
     use cosmwasm_std::testing::MockQuerier;
-    use cosmwasm_std::{Addr, BankMsg, CosmosMsg, Storage};
+    use cosmwasm_std::{coin, Addr, BankMsg, CosmosMsg, Storage};
     use cosmwasm_std::{Coin, Order};
     use cosmwasm_std::{Decimal, Empty, MemoryStorage};
     use cosmwasm_std::{Deps, OwnedDeps};
@@ -136,6 +139,10 @@ pub mod test_helpers {
                 .load(self.deps().storage)
                 .unwrap()
                 .vesting_contract_address
+        }
+
+        pub fn coin(&self, amount: u128) -> Coin {
+            coin(amount, rewarding_denom(self.deps().storage).unwrap())
         }
 
         pub fn current_interval(&self) -> Interval {
@@ -308,6 +315,22 @@ pub mod test_helpers {
             .unwrap();
         }
 
+        #[allow(unused)]
+        pub fn pending_operator_reward(&mut self, mix: MixId) -> Decimal {
+            query_pending_mixnode_operator_reward(self.deps(), mix)
+                .unwrap()
+                .amount_earned_detailed
+                .expect("no reward!")
+        }
+
+        #[allow(unused)]
+        pub fn pending_delegator_reward(&mut self, delegator: &str, target: MixId) -> Decimal {
+            query_pending_delegator_reward(self.deps(), delegator.into(), target, None)
+                .unwrap()
+                .amount_earned_detailed
+                .expect("no reward!")
+        }
+
         pub fn skip_to_next_epoch_end(&mut self) {
             self.skip_to_next_epoch();
             self.skip_to_current_epoch_end();
@@ -337,8 +360,19 @@ pub mod test_helpers {
             self.env.block.time = Timestamp::from_seconds(epoch_end as u64 + 1);
             let advanced = interval.advance_epoch();
 
-            if interval.current_epoch_id() != interval.epochs_in_interval() {
+            assert_eq!(
+                interval.current_epoch_absolute_id() + 1,
+                advanced.current_epoch_absolute_id()
+            );
+
+            if interval.current_epoch_id() != interval.epochs_in_interval() - 1 {
                 assert_eq!(interval.current_epoch_id() + 1, advanced.current_epoch_id())
+            } else {
+                assert_eq!(advanced.current_epoch_id(), 0);
+                assert_eq!(
+                    interval.current_interval_id() + 1,
+                    advanced.current_interval_id()
+                )
             }
 
             interval_storage::save_interval(self.deps_mut().storage, &advanced).unwrap()

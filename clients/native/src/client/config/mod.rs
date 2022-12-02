@@ -27,6 +27,10 @@ impl SocketType {
             _ => SocketType::None,
         }
     }
+
+    pub fn is_websocket(&self) -> bool {
+        matches!(self, SocketType::WebSocket)
+    }
 }
 
 #[derive(Debug, Default, Deserialize, PartialEq, Serialize)]

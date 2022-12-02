@@ -325,6 +325,14 @@ impl MixNodeRewarding {
         Ok(())
     }
 
+    pub fn increase_operator_uint128(
+        &mut self,
+        amount: Uint128,
+    ) -> Result<(), MixnetContractError> {
+        self.operator += amount.into_base_decimal()?;
+        Ok(())
+    }
+
     pub fn increase_delegates_uint128(
         &mut self,
         amount: Uint128,

@@ -1,11 +1,11 @@
 import React from 'react';
-import { Box } from '@mui/material';
+import { Box, Divider } from '@mui/material';
 import { DateTime } from 'luxon';
-import { AppWindowFrame } from '../components/AppWindowFrame';
+import { IpAddressAndPortModal } from 'src/components/IpAddressAndPortModal';
+import { ConnectionTimer } from 'src/components/ConntectionTimer';
 import { ConnectionStatus } from '../components/ConnectionStatus';
 import { ConnectionStatusKind } from '../types';
-import { ConnectionStats, ConnectionStatsItem } from '../components/ConnectionStats';
-import { NeedHelp } from '../components/NeedHelp';
+import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ConnectionButton } from '../components/ConnectionButton';
 import { IpAddressAndPort } from '../components/IpAddressAndPort';
 import { ServiceProvider } from '../types/directory';
@@ -17,19 +17,32 @@ export const ConnectedLayout: React.FC<{
   port: number;
   connectedSince?: DateTime;
   busy?: boolean;
+  showInfoModal: boolean;
   isError?: boolean;
+  handleCloseInfoModal: () => void;
   onConnectClick?: (status: ConnectionStatusKind) => void;
   serviceProvider?: ServiceProvider;
-}> = ({ status, stats, ipAddress, port, connectedSince, busy, isError, serviceProvider, onConnectClick }) => (
-  <AppWindowFrame>
+}> = ({
+  status,
+  showInfoModal,
+  handleCloseInfoModal,
+  ipAddress,
+  port,
+  connectedSince,
+  busy,
+  isError,
+  serviceProvider,
+  onConnectClick,
+}) => (
+  <>
+    <IpAddressAndPortModal show={showInfoModal} onClose={handleCloseInfoModal} ipAddress={ipAddress} port={port} />
     <Box pb={4}>
-      <ConnectionStatus status={status} connectedSince={connectedSince} serviceProvider={serviceProvider} />
+      <ConnectionStatus status={ConnectionStatusKind.connected} serviceProvider={serviceProvider} />
     </Box>
-    <Box pb={4}>
-      <IpAddressAndPort label="SOCKS5 Proxy" ipAddress={ipAddress} port={port} />
-    </Box>
+    <IpAddressAndPort label="Socks5 address" ipAddress={ipAddress} port={port} />
+    <Divider sx={{ my: 3 }} />
     {/* <ConnectionStats stats={stats} /> */}
+    <ConnectionTimer connectedSince={connectedSince} />
     <ConnectionButton status={status} busy={busy} onClick={onConnectClick} isError={isError} />
-    <NeedHelp />
-  </AppWindowFrame>
+  </>
 );

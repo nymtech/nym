@@ -39,7 +39,7 @@ topology = { path = "../../common/topology" }
 gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm", "coconut"] }
 validator-client = { path = "../../common/client-libs/validator-client", default-features = false }
 wasm-utils = { path = "../../common/wasm-utils" }
-
+task = { path = "../../common/task" }
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
 # all the `std::fmt` and `std::panicking` infrastructure, so isn't great for

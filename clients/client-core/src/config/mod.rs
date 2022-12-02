@@ -34,7 +34,7 @@ pub fn missing_string_value() -> String {
     MISSING_VALUE.to_string()
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config<T> {
     client: Client<T>,
@@ -42,17 +42,23 @@ pub struct Config<T> {
     #[serde(default)]
     logging: Logging,
     #[serde(default)]
-    debug: Debug,
+    debug: DebugConfig,
 }
 
-impl<T: NymConfig> Config<T> {
-    pub fn new<S: Into<String>>(id: S) -> Self {
+impl<T> Config<T> {
+    pub fn new<S: Into<String>>(id: S) -> Self
+    where
+        T: NymConfig,
+    {
         let mut cfg = Config::default();
         cfg.with_id(id);
         cfg
     }
 
-    pub fn with_id<S: Into<String>>(&mut self, id: S) {
+    pub fn with_id<S: Into<String>>(&mut self, id: S)
+    where
+        T: NymConfig,
+    {
         let id = id.into();
 
         // identity key setting
@@ -117,7 +123,7 @@ impl<T: NymConfig> Config<T> {
         self.client.disabled_credentials_mode = disabled_credentials_mode;
     }
 
-    pub fn with_gateway_endpoint(&mut self, gateway_endpoint: GatewayEndpoint) {
+    pub fn with_gateway_endpoint(&mut self, gateway_endpoint: GatewayEndpointConfig) {
         self.client.gateway_endpoint = gateway_endpoint;
     }
 
@@ -203,7 +209,11 @@ impl<T: NymConfig> Config<T> {
         self.client.gateway_endpoint.gateway_listener.clone()
     }
 
-    pub fn get_gateway_endpoint(&self) -> &GatewayEndpoint {
+    pub fn get_gateway_endpoint_config(&self) -> &GatewayEndpointConfig {
+        &self.client.gateway_endpoint
+    }
+
+    pub fn get_gateway_endpoint(&self) -> &GatewayEndpointConfig {
         &self.client.gateway_endpoint
     }
 
@@ -212,6 +222,10 @@ impl<T: NymConfig> Config<T> {
     }
 
     // Debug getters
+    pub fn get_debug_config(&self) -> &DebugConfig {
+        &self.debug
+    }
+
     pub fn get_average_packet_delay(&self) -> Duration {
         self.debug.average_packet_delay
     }
@@ -257,7 +271,7 @@ impl<T: NymConfig> Config<T> {
     }
 
     pub fn get_use_extended_packet_size(&self) -> Option<ExtendedPacketSize> {
-        self.debug.use_extended_packet_size.clone()
+        self.debug.use_extended_packet_size
     }
 
     pub fn get_version(&self) -> &str {
@@ -277,7 +291,7 @@ impl<T: NymConfig> Default for Config<T> {
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter_with_clone))]
-pub struct GatewayEndpoint {
+pub struct GatewayEndpointConfig {
     /// gateway_id specifies ID of the gateway to which the client should send messages.
     /// If initially omitted, a random gateway will be chosen from the available topology.
     pub gateway_id: String,
@@ -289,10 +303,10 @@ pub struct GatewayEndpoint {
     pub gateway_listener: String,
 }
 
-impl From<topology::gateway::Node> for GatewayEndpoint {
-    fn from(node: topology::gateway::Node) -> GatewayEndpoint {
+impl From<topology::gateway::Node> for GatewayEndpointConfig {
+    fn from(node: topology::gateway::Node) -> GatewayEndpointConfig {
         let gateway_listener = node.clients_address();
-        GatewayEndpoint {
+        GatewayEndpointConfig {
             gateway_id: node.identity_key.to_base58_string(),
             gateway_owner: node.owner,
             gateway_listener,
@@ -300,7 +314,7 @@ impl From<topology::gateway::Node> for GatewayEndpoint {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 pub struct Client<T> {
     /// Version of the client for which this configuration was created.
     #[serde(default = "missing_string_value")]
@@ -315,6 +329,7 @@ pub struct Client<T> {
     disabled_credentials_mode: bool,
 
     /// Addresses to nymd validators via which the client can communicate with the chain.
+    #[serde(default)]
     validator_urls: Vec<Url>,
 
     /// Addresses to APIs running on validator from which the client gets the view of the network.
@@ -345,7 +360,7 @@ pub struct Client<T> {
     reply_encryption_key_store_path: PathBuf,
 
     /// Information regarding how the client should send data to gateway.
-    gateway_endpoint: GatewayEndpoint,
+    gateway_endpoint: GatewayEndpointConfig,
 
     /// Path to the database containing bandwidth credentials of this client.
     database_path: PathBuf,
@@ -415,13 +430,13 @@ impl<T: NymConfig> Client<T> {
     }
 }
 
-#[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Logging {}
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct Debug {
+pub struct DebugConfig {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent packet is going to be delayed at any given mix node.
     /// So for a packet going through three mix nodes, on average, it will take three times this value
@@ -487,7 +502,7 @@ pub struct Debug {
     pub use_extended_packet_size: Option<ExtendedPacketSize>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ExtendedPacketSize {
     Extended8,
@@ -495,9 +510,9 @@ pub enum ExtendedPacketSize {
     Extended32,
 }
 
-impl Default for Debug {
+impl Default for DebugConfig {
     fn default() -> Self {
-        Debug {
+        DebugConfig {
             average_packet_delay: DEFAULT_AVERAGE_PACKET_DELAY,
             average_ack_delay: DEFAULT_AVERAGE_PACKET_DELAY,
             ack_wait_multiplier: DEFAULT_ACK_WAIT_MULTIPLIER,

@@ -20,35 +20,44 @@ pub struct PersistentReplyStorage<T = backend::Empty>
 where
     T: ReplyStorageBackend,
 {
-    combined_storage: CombinedReplyStorage,
     backend: T,
 }
 
 impl<T> PersistentReplyStorage<T>
 where
-    T: ReplyStorageBackend,
+    T: ReplyStorageBackend + Send + Sync,
 {
-    pub fn new(combined_storage: CombinedReplyStorage, backend: T) -> Self {
-        PersistentReplyStorage {
-            combined_storage,
-            backend,
-        }
+    pub fn new(backend: T) -> Self {
+        PersistentReplyStorage { backend }
     }
 
-    pub async fn flush_on_shutdown(mut self, mut shutdown: task::ShutdownListener) {
+    pub async fn load_state_from_backend(&self) -> Result<CombinedReplyStorage, T::StorageError> {
+        self.backend.load_surb_storage().await
+    }
+
+    pub async fn flush_on_shutdown(
+        mut self,
+        mem_state: CombinedReplyStorage,
+        mut shutdown: task::ShutdownListener,
+    ) {
         debug!("Started PersistentReplyStorage");
+        if let Err(err) = self.backend.start_storage_session().await {
+            error!("failed to start the storage session - {err}");
+            return;
+        }
+
         shutdown.recv().await;
 
         info!("PersistentReplyStorage is flushing all reply-related data to underlying storage");
         warn!("you MUST NOT forcefully shutdown now or you risk data corruption!");
-        if let Err(err) = self
-            .backend
-            .flush_surb_storage(&self.combined_storage)
-            .await
-        {
+        if let Err(err) = self.backend.flush_surb_storage(&mem_state).await {
             error!("failed to flush our reply-related data to the persistent storage: {err}")
         } else {
             info!("Data flush is complete")
+        }
+
+        if let Err(err) = self.backend.stop_storage_session().await {
+            error!("failed to properly stop the storage session - {err}. We might not be able to smoothly restore it")
         }
     }
 }

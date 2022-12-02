@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+pub use self::error::StorageError;
 use crate::client::replies::reply_storage::backend::fs_backend::manager::StorageManager;
 use crate::client::replies::reply_storage::backend::fs_backend::models::{
     ReplySurbStorageMetadata, StoredReplyKey, StoredReplySurb, StoredSenderTag, StoredSurbSender,
@@ -9,12 +10,12 @@ use crate::client::replies::reply_storage::surb_storage::ReceivedReplySurbs;
 use crate::client::replies::reply_storage::{
     CombinedReplyStorage, ReceivedReplySurbsMap, ReplyStorageBackend, SentReplyKeys, UsedSenderTags,
 };
-pub use self::error::StorageError;
 use async_trait::async_trait;
-use log::warn;
+use log::{error, info, warn};
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use std::fs;
 use std::path::{Path, PathBuf};
+use time::OffsetDateTime;
 use tokio::time::Instant;
 
 mod error;
@@ -41,11 +42,72 @@ impl Backend {
         let backend = Backend {
             temporary_old_path: None,
             database_path: owned_path,
-            manager: StorageManager::init(database_path).await?,
+            manager: StorageManager::init(database_path, true).await?,
         };
 
         backend.manager.create_status_table().await?;
         Ok(backend)
+    }
+
+    pub async fn try_load<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
+        let owned_path: PathBuf = database_path.as_ref().into();
+        if owned_path.file_name().is_none() {
+            return Err(StorageError::DatabasePathWithoutFilename {
+                provided_path: owned_path,
+            });
+        }
+
+        let manager = StorageManager::init(database_path, false).await?;
+
+        // the database flush wasn't fully finished and thus the data is in inconsistent state
+        // (we don't really know what's properly saved or what's not)
+        if manager.get_flush_status().await? {
+            return Err(StorageError::IncompleteDataFlush);
+        }
+
+        // the process has gone down without full graceful shutdown,
+        // meaning the database doesn't contain valid data anymore
+        // so we have to purge it
+        if manager.get_client_in_use_status().await? {
+            error!("the client hasn't undergone through graceful shutdown the last time it's gone down - we can't trust its reply surbs or stored encryption keys. They shall get purged");
+            manager.delete_all_reply_surb_data().await?;
+            manager.delete_all_reply_keys().await?;
+        }
+
+        let last_flush_timestamp = manager.get_previous_flush_timestamp().await?;
+        let last_flush = match OffsetDateTime::from_unix_timestamp(last_flush_timestamp) {
+            Ok(last_flush) => last_flush,
+            Err(err) => {
+                return Err(StorageError::CorruptedData {
+                    details: format!("failed to parse stored timestamp - {err}"),
+                });
+            }
+        };
+
+        // in theory clients can use our reply surbs whenever they want, even a year in the future
+        // (assuming no key rotation has happened)
+        // but the way it's currently coded, everyone will purge old data
+        let since_last_flush = OffsetDateTime::now_utc() - last_flush;
+        if since_last_flush.whole_days() > 0 {
+            info!("it's been over {} days and {} hours since we last used our data store. our reply surbs are already outdated - we're going to purge them now.", since_last_flush.whole_days(), since_last_flush.whole_hours());
+            manager.delete_all_reply_surb_data().await?;
+        }
+
+        if since_last_flush.whole_days() > 1 {
+            info!("it's been over {} days and {} hours since we last used our data store. our reply keys are already outdated - we're going to purge them now.", since_last_flush.whole_days(), since_last_flush.whole_hours());
+            manager.delete_all_reply_keys().await?;
+        }
+
+        if since_last_flush.whole_days() > 2 {
+            info!("it's been over {} days and {} hours since we last used our data store. our used sender tags are already outdated - we're going to purge them now.", since_last_flush.whole_days(), since_last_flush.whole_hours());
+            manager.delete_all_tags().await?;
+        }
+
+        Ok(Backend {
+            temporary_old_path: None,
+            database_path: owned_path,
+            manager,
+        })
     }
 
     async fn close_pool(&mut self) {
@@ -68,7 +130,7 @@ impl Backend {
 
         fs::rename(&self.database_path, &temp_old)
             .map_err(|err| StorageError::DatabaseRenameError { source: err })?;
-        self.manager = StorageManager::init(&self.database_path).await?;
+        self.manager = StorageManager::init(&self.database_path, true).await?;
 
         self.temporary_old_path = Some(temp_old);
         Ok(())
@@ -84,12 +146,23 @@ impl Backend {
         }
     }
 
-    async fn start_storage_flush(&mut self) -> Result<(), StorageError> {
+    async fn start_storage_flush(&self) -> Result<(), StorageError> {
         Ok(self.manager.set_flush_status(true).await?)
     }
 
-    async fn end_storage_flush(&mut self) -> Result<(), StorageError> {
+    async fn end_storage_flush(&self) -> Result<(), StorageError> {
+        self.manager
+            .set_previous_flush_timestamp(OffsetDateTime::now_utc().unix_timestamp())
+            .await?;
         Ok(self.manager.set_flush_status(false).await?)
+    }
+
+    async fn start_client_use(&self) -> Result<(), StorageError> {
+        Ok(self.manager.set_client_in_use_status(true).await?)
+    }
+
+    async fn stop_client_use(&self) -> Result<(), StorageError> {
+        Ok(self.manager.set_client_in_use_status(false).await?)
     }
 
     async fn get_stored_tags(&self) -> Result<UsedSenderTags, StorageError> {
@@ -218,6 +291,10 @@ impl Backend {
 impl ReplyStorageBackend for Backend {
     type StorageError = error::StorageError;
 
+    async fn start_storage_session(&self) -> Result<(), Self::StorageError> {
+        self.start_client_use().await
+    }
+
     async fn flush_surb_storage(
         &mut self,
         storage: &CombinedReplyStorage,
@@ -237,11 +314,21 @@ impl ReplyStorageBackend for Backend {
         self.end_storage_flush().await
     }
 
+    async fn init_fresh(&mut self, fresh: &CombinedReplyStorage) -> Result<(), Self::StorageError> {
+        // for now nothing more to do apart from dumping the metadata
+        self.dump_reply_surb_storage_metadata(fresh.surbs_storage_ref())
+            .await
+    }
+
     async fn load_surb_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError> {
         let reply_keys = self.get_stored_reply_keys().await?;
         let tags = self.get_stored_tags().await?;
         let reply_surbs = self.get_stored_reply_surbs().await?;
 
         Ok(CombinedReplyStorage::load(reply_keys, reply_surbs, tags))
+    }
+
+    async fn stop_storage_session(self) -> Result<(), Self::StorageError> {
+        self.stop_client_use().await
     }
 }

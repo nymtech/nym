@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::fs;
 use std::sync::atomic::Ordering;
 
 use crate::client::config::Config;
@@ -299,25 +300,53 @@ impl NymClient {
         mix_tx
     }
 
-    async fn flush_surb_storage_on_shutdown(
+    async fn setup_persistent_reply_storage(
         &self,
-        mem_storage: CombinedReplyStorage,
         shutdown: ShutdownListener,
-    ) -> Result<(), Socks5ClientError> {
-        let storage_backend =
-            match fs_backend::Backend::init(self.config.get_base().get_reply_surb_database_path())
-                .await
-            {
+    ) -> Result<CombinedReplyStorage, Socks5ClientError> {
+        // if the database file doesnt exist, initialise fresh storage, otherwise attempt to load the existing one
+        let db_path = self.config.get_base().get_reply_surb_database_path();
+        let (persistent_storage, mem_store) = if db_path.exists() {
+            info!("loading existing surb database");
+            let storage_backend = match fs_backend::Backend::try_load(db_path).await {
                 Ok(backend) => backend,
                 Err(err) => {
                     error!("failed to setup persistent storage backend for our reply needs: {err}");
                     return Err(err.into());
                 }
             };
+            let persistent_storage = PersistentReplyStorage::new(storage_backend);
+            let mem_store = persistent_storage.load_state_from_backend().await?;
+            (persistent_storage, mem_store)
+        } else {
+            info!("creating fresh surb database");
+            let storage_backend = match fs_backend::Backend::init(db_path).await {
+                Ok(backend) => backend,
+                Err(err) => {
+                    error!("failed to setup persistent storage backend for our reply needs: {err}");
+                    return Err(err.into());
+                }
+            };
+            let persistent_storage = PersistentReplyStorage::new(storage_backend);
+            let mem_store = CombinedReplyStorage::new(
+                self.config
+                    .get_base()
+                    .get_minimum_reply_surb_storage_threshold(),
+                self.config
+                    .get_base()
+                    .get_maximum_reply_surb_storage_threshold(),
+            );
+            (persistent_storage, mem_store)
+        };
 
-        let persistent_storage = PersistentReplyStorage::new(mem_storage.clone(), storage_backend);
-        tokio::spawn(async move { persistent_storage.flush_on_shutdown(shutdown).await });
-        Ok(())
+        let store_clone = mem_store.clone();
+        tokio::spawn(async move {
+            persistent_storage
+                .flush_on_shutdown(store_clone, shutdown)
+                .await
+        });
+
+        Ok(mem_store)
     }
 
     fn start_socks5_listener(
@@ -435,21 +464,8 @@ impl NymClient {
         // Shutdown notifier for signalling tasks to stop
         let shutdown = ShutdownNotifier::default();
 
-        // =====================
-        // =====================
-        // ======TEMPORARY======
-        // =====================
-        // =====================
-        // TODO: lower the value and improve the reliability when it's low (because it should still work in that case)
-        let reply_storage = CombinedReplyStorage::new(
-            self.config
-                .get_base()
-                .get_minimum_reply_surb_storage_threshold(),
-            self.config
-                .get_base()
-                .get_maximum_reply_surb_storage_threshold(),
-        );
-        self.flush_surb_storage_on_shutdown(reply_storage.clone(), shutdown.subscribe())
+        let reply_storage = self
+            .setup_persistent_reply_storage(shutdown.subscribe())
             .await?;
 
         // the components are started in very specific order. Unless you know what you are doing,

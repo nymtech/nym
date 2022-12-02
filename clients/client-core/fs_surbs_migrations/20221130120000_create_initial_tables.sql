@@ -1,6 +1,8 @@
 CREATE TABLE status
 (
-    flush_in_progress INTEGER NOT NULL
+    flush_in_progress        INTEGER NOT NULL,
+    previous_flush_timestamp INTEGER NOT NULL,
+    client_in_use            INTEGER NOT NULL
 );
 
 CREATE TABLE reply_surb_storage_metadata
@@ -23,9 +25,9 @@ CREATE TABLE reply_key
 
 CREATE TABLE reply_surb_sender
 (
-    id  INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    id                  INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     last_sent_timestamp INTEGER NOT NULL,
-    tag BLOB    NOT NULL UNIQUE
+    tag                 BLOB    NOT NULL UNIQUE
 );
 
 CREATE TABLE reply_surb

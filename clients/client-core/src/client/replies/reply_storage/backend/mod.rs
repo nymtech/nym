@@ -1,11 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::replies::reply_storage::{
-    CombinedReplyStorage, ReceivedReplySurbsMap, SentReplyKeys, UsedSenderTags,
-};
+use crate::client::replies::reply_storage::CombinedReplyStorage;
 use async_trait::async_trait;
-use nymsphinx::anonymous_replies::SurbEncryptionKey;
 use std::error::Error;
 use thiserror::Error;
 
@@ -35,14 +32,25 @@ impl ReplyStorageBackend for Empty {
         Ok(())
     }
 
+    async fn init_fresh(
+        &mut self,
+        _fresh: &CombinedReplyStorage,
+    ) -> Result<(), Self::StorageError> {
+        Ok(())
+    }
+
     async fn load_surb_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError> {
         todo!()
     }
 }
 
 #[async_trait]
-pub trait ReplyStorageBackend {
+pub trait ReplyStorageBackend: Sized {
     type StorageError: Error;
+
+    async fn start_storage_session(&self) -> Result<(), Self::StorageError> {
+        Ok(())
+    }
 
     // reply keys and surbs would need additional field set when data is loaded
     // so if there's some failure, we'd trash it all
@@ -51,5 +59,13 @@ pub trait ReplyStorageBackend {
         storage: &CombinedReplyStorage,
     ) -> Result<(), Self::StorageError>;
 
+    /// The purpose of this call is to save any metadata that might be present.
+    /// (such as surb thresholds)
+    async fn init_fresh(&mut self, fresh: &CombinedReplyStorage) -> Result<(), Self::StorageError>;
+
     async fn load_surb_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError>;
+
+    async fn stop_storage_session(self) -> Result<(), Self::StorageError> {
+        Ok(())
+    }
 }

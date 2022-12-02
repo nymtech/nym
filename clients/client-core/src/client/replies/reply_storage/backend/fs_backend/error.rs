@@ -42,6 +42,9 @@ pub enum StorageError {
         source: sqlx::error::Error,
     },
 
+    #[error("The loaded data is inconsistent - it seems that on the last shutdown the client hasn't finished the data flush. You may have to remove the entire storage manually")]
+    IncompleteDataFlush,
+
     #[error("data retrieved from the underlying storage is corrupted: {details}")]
     CorruptedData {
         details: String,

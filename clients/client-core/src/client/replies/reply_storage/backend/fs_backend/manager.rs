@@ -16,10 +16,13 @@ pub(crate) struct StorageManager {
 
 // all SQL goes here
 impl StorageManager {
-    pub(crate) async fn init<P: AsRef<Path>>(database_path: P) -> Result<Self, StorageError> {
+    pub(crate) async fn init<P: AsRef<Path>>(
+        database_path: P,
+        fresh: bool,
+    ) -> Result<Self, StorageError> {
         let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
-            .create_if_missing(true);
+            .create_if_missing(fresh);
 
         opts.disable_statement_logging();
 
@@ -43,8 +46,16 @@ impl StorageManager {
         Ok(StorageManager { connection_pool })
     }
 
+    #[allow(dead_code)]
+    pub(crate) async fn status_table_exists(&self) -> Result<bool, sqlx::Error> {
+        sqlx::query!("SELECT name FROM sqlite_master WHERE type='table' AND name='status'")
+            .fetch_optional(&self.connection_pool)
+            .await
+            .map(|r| r.is_some())
+    }
+
     pub(crate) async fn create_status_table(&self) -> Result<(), sqlx::Error> {
-        sqlx::query!("INSERT INTO status(flush_in_progress) VALUES (0)")
+        sqlx::query!("INSERT INTO status(flush_in_progress, previous_flush_timestamp, client_in_use) VALUES (0, 0, 1)")
             .execute(&self.connection_pool)
             .await?;
         Ok(())
@@ -57,9 +68,48 @@ impl StorageManager {
             .map(|r| r.flush_in_progress > 0)
     }
 
+    pub(crate) async fn set_previous_flush_timestamp(
+        &self,
+        timestamp: i64,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!("UPDATE status SET previous_flush_timestamp = ?", timestamp)
+            .execute(&self.connection_pool)
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn get_previous_flush_timestamp(&self) -> Result<i64, sqlx::Error> {
+        sqlx::query!("SELECT previous_flush_timestamp FROM status;")
+            .fetch_one(&self.connection_pool)
+            .await
+            .map(|r| r.previous_flush_timestamp)
+    }
+
     pub(crate) async fn set_flush_status(&self, in_progress: bool) -> Result<(), sqlx::Error> {
         let in_progress_int = i64::from(in_progress);
         sqlx::query!("UPDATE status SET flush_in_progress = ?", in_progress_int)
+            .execute(&self.connection_pool)
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn get_client_in_use_status(&self) -> Result<bool, sqlx::Error> {
+        sqlx::query!("SELECT client_in_use FROM status;")
+            .fetch_one(&self.connection_pool)
+            .await
+            .map(|r| r.client_in_use > 0)
+    }
+
+    pub(crate) async fn set_client_in_use_status(&self, in_use: bool) -> Result<(), sqlx::Error> {
+        let in_use_int = i64::from(in_use);
+        sqlx::query!("UPDATE status SET client_in_use = ?", in_use_int)
+            .execute(&self.connection_pool)
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn delete_all_tags(&self) -> Result<(), sqlx::Error> {
+        sqlx::query!("DELETE FROM sender_tag;")
             .execute(&self.connection_pool)
             .await?;
         Ok(())
@@ -81,6 +131,13 @@ impl StorageManager {
         )
         .execute(&self.connection_pool)
         .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn delete_all_reply_keys(&self) -> Result<(), sqlx::Error> {
+        sqlx::query!("DELETE FROM reply_key;")
+            .execute(&self.connection_pool)
+            .await?;
         Ok(())
     }
 
@@ -140,6 +197,18 @@ impl StorageManager {
         )
         .fetch_all(&self.connection_pool)
         .await
+    }
+
+    pub(crate) async fn delete_all_reply_surb_data(&self) -> Result<(), sqlx::Error> {
+        sqlx::query!("DELETE FROM reply_surb;")
+            .execute(&self.connection_pool)
+            .await?;
+
+        sqlx::query!("DELETE FROM reply_surb_sender;")
+            .execute(&self.connection_pool)
+            .await?;
+
+        Ok(())
     }
 
     pub(crate) async fn insert_reply_surb(

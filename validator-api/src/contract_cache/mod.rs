@@ -25,7 +25,6 @@ use tokio::time;
 use validator_api_requests::models::MixnodeStatus;
 use validator_client::nymd::CosmWasmClient;
 
-pub(crate) mod reward_estimate;
 pub(crate) mod routes;
 
 // The cache can emit notifications to listeners about the current state

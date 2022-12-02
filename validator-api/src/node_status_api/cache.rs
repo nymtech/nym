@@ -20,6 +20,8 @@ use validator_api_requests::models::{MixNodeBondAnnotated, MixnodeStatus};
 
 use self::inclusion_probabilities::InclusionProbabilities;
 
+use super::reward_estimate::{compute_apy_from_reward, compute_reward_estimate};
+
 mod inclusion_probabilities;
 
 const CACHE_TIMOUT_MS: u64 = 100;
@@ -319,8 +321,7 @@ impl NodeStatusCacheRefresher {
 
             let rewarded_set_status = rewarded_set.get(&mixnode.mix_id()).copied();
 
-            // WIP(JON): these functions (and module) probably needs to be moved
-            let reward_estimate = crate::contract_cache::reward_estimate::compute_reward_estimate(
+            let reward_estimate = compute_reward_estimate(
                 &mixnode,
                 performance,
                 rewarded_set_status,
@@ -329,11 +330,7 @@ impl NodeStatusCacheRefresher {
             );
 
             let (estimated_operator_apy, estimated_delegators_apy) =
-                crate::contract_cache::reward_estimate::compute_apy_from_reward(
-                    &mixnode,
-                    reward_estimate,
-                    current_interval,
-                );
+                compute_apy_from_reward(&mixnode, reward_estimate, current_interval);
 
             annotated.push(MixNodeBondAnnotated {
                 mixnode_details: mixnode,

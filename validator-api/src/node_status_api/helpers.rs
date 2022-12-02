@@ -1,7 +1,6 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::contract_cache::reward_estimate::compute_reward_estimate;
 use crate::contract_cache::Cache;
 use crate::node_status_api::models::ErrorResponse;
 use crate::storage::ValidatorApiStorage;
@@ -17,6 +16,8 @@ use validator_api_requests::models::{
     MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
     StakeSaturationResponse, UptimeResponse,
 };
+
+use super::reward_estimate::compute_reward_estimate;
 
 pub(crate) async fn _mixnode_report(
     storage: &ValidatorApiStorage,

@@ -92,6 +92,19 @@ pub async fn simulate_vesting_bond_mixnode(
 }
 
 #[tauri::command]
+pub async fn simulate_vesting_pledge_more(
+    additional_pledge: DecCoin,
+    state: tauri::State<'_, WalletState>,
+) -> Result<FeeDetails, BackendError> {
+    let guard = state.read().await;
+    let amount = guard
+        .attempt_convert_to_base_coin(additional_pledge)?
+        .into();
+
+    simulate_vesting_operation(ExecuteMsg::PledgeMore { amount }, None, &state).await
+}
+
+#[tauri::command]
 pub async fn simulate_vesting_unbond_mixnode(
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {

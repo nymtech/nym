@@ -57,6 +57,10 @@ pub enum PendingEpochEventData {
         mix_id: MixId,
         proxy: Option<String>,
     },
+    PledgeMore {
+        mix_id: MixId,
+        amount: DecCoin,
+    },
     UnbondMixnode {
         mix_id: MixId,
     },
@@ -91,6 +95,12 @@ impl PendingEpochEventData {
                 mix_id,
                 proxy: proxy.map(|p| p.into_string()),
             }),
+            MixnetContractPendingEpochEventKind::PledgeMore { mix_id, amount } => {
+                Ok(PendingEpochEventData::PledgeMore {
+                    mix_id,
+                    amount: reg.attempt_convert_to_display_dec_coin(amount.into())?,
+                })
+            }
             MixnetContractPendingEpochEventKind::UnbondMixnode { mix_id } => {
                 Ok(PendingEpochEventData::UnbondMixnode { mix_id })
             }

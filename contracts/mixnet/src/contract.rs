@@ -168,6 +168,12 @@ pub fn execute(
             owner,
             owner_signature,
         ),
+        ExecuteMsg::PledgeMore {} => {
+            crate::mixnodes::transactions::try_increase_pledge(deps, env, info)
+        }
+        ExecuteMsg::PledgeMoreOnBehalf { owner } => {
+            crate::mixnodes::transactions::try_increase_pledge_on_behalf(deps, env, info, owner)
+        }
         ExecuteMsg::UnbondMixnode {} => {
             crate::mixnodes::transactions::try_remove_mixnode(deps, env, info)
         }

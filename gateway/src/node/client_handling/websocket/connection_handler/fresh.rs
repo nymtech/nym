@@ -70,7 +70,7 @@ impl InitialAuthenticationError {
 pub(crate) struct FreshHandler<R, S, St> {
     rng: R,
     local_identity: Arc<identity::KeyPair>,
-    pub(crate) disabled_credentials_mode: bool,
+    pub(crate) only_coconut_credentials: bool,
     pub(crate) active_clients_store: ActiveClientsStore,
     pub(crate) outbound_mix_sender: MixForwardingSender,
     pub(crate) socket_connection: SocketStream<S>,
@@ -93,7 +93,7 @@ where
     pub(crate) fn new(
         rng: R,
         conn: S,
-        disabled_credentials_mode: bool,
+        only_coconut_credentials: bool,
         outbound_mix_sender: MixForwardingSender,
         local_identity: Arc<identity::KeyPair>,
         storage: St,
@@ -103,7 +103,7 @@ where
         FreshHandler {
             rng,
             active_clients_store,
-            disabled_credentials_mode,
+            only_coconut_credentials,
             outbound_mix_sender,
             socket_connection: SocketStream::RawTcp(conn),
             local_identity,

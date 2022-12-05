@@ -34,7 +34,6 @@ where
     }
 
     // this will have to get enabled after merging develop
-    #[cfg(not(target_arch = "wasm32"))]
     pub async fn flush_on_shutdown(
         mut self,
         mem_state: CombinedReplyStorage,

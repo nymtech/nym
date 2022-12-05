@@ -5,6 +5,7 @@ use self::config::Config;
 use crate::client::response_pusher::ResponsePusher;
 use client_connections::TransmissionLane;
 use client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput};
+use client_core::client::replies::reply_storage::browser_backend;
 use client_core::client::{inbound_messages::InputMessage, key_manager::KeyManager};
 use crypto::asymmetric::identity;
 use nymsphinx::addressing::clients::Recipient;
@@ -21,10 +22,11 @@ pub struct NymClient {
     config: Config,
 
     /// KeyManager object containing smart pointers to all relevant keys used by the client.
-    // due to disgusting workaround I had to wrap the key_manager in an Option
+    // due to disgusting workaround I had to wrap the below in an Option
     // so that the interface wouldn't change (i.e. both `start` and `new` would still return a `NymClient`)
     key_manager: Option<KeyManager>,
     self_address: Option<String>,
+    storage_backend: Option<browser_backend::Backend>,
 
     // TODO: this should be stored somewhere persistently
     // received_keys: HashSet<SURBEncryptionKey>,
@@ -47,6 +49,7 @@ impl NymClient {
     #[wasm_bindgen(constructor)]
     pub fn new(config: Config) -> Self {
         Self {
+            storage_backend: Some(Self::setup_reply_surb_storage_backend(&config)),
             config,
             key_manager: Some(Self::setup_key_manager()),
             on_message: None,
@@ -67,6 +70,15 @@ impl NymClient {
         // for time being generate new keys each time...
         console_log!("generated new set of keys");
         KeyManager::new(&mut rng)
+    }
+
+    // don't get too excited about the name, under the hood it's just a big fat placeholder
+    // with no persistence
+    fn setup_reply_surb_storage_backend(config: &Config) -> browser_backend::Backend {
+        browser_backend::Backend::new(
+            config.debug.minimum_reply_surb_storage_threshold,
+            config.debug.maximum_reply_surb_storage_threshold,
+        )
     }
 
     pub fn set_on_message(&mut self, on_message: js_sys::Function) {
@@ -148,6 +160,7 @@ impl NymClient {
             &self.config.debug,
             self.key_manager.take().unwrap(),
             None,
+            self.storage_backend.take().unwrap(),
             true,
             vec![self.config.validator_api_url.clone()],
         );

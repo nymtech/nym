@@ -478,12 +478,18 @@ where
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
         debug!("Started ReplyController with graceful shutdown support");
 
         let polling_rate = Duration::from_secs(5);
-        let mut interval_timer = tokio::time::interval(polling_rate);
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let mut interval =
+            tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(polling_rate));
+
+        #[cfg(target_arch = "wasm32")]
+        let mut interval =
+            gloo_timers::future::IntervalStream::new(polling_rate.as_millis() as u32);
 
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -498,7 +504,7 @@ where
                         break;
                     }
                 },
-                _ = interval_timer.tick() => {
+                _ = interval.next() => {
                     self.inspect_stale_entries().await
                 },
             }

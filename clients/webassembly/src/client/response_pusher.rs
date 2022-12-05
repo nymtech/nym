@@ -57,8 +57,8 @@ impl ResponsePusher {
                             .expect("on binary message failed!");
                     }
                     if let Some(ref callback) = self.on_message {
-                        if msg.reply_surb.is_some() {
-                            console_log!("the received message contained a reply-surb that we do not know how to handle (yet)")
+                        if msg.sender_tag.is_some() {
+                            console_log!("the received message contained a sender tag (meaning we also got some surbs!), but we do not know how to handle that (yet)")
                         }
                         let stringified = String::from_utf8_lossy(&msg.message).into_owned();
                         let arg1 = serde_wasm_bindgen::to_value(&stringified).unwrap();

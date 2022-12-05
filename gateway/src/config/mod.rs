@@ -128,8 +128,8 @@ impl Config {
     }
 
     #[cfg(feature = "coconut")]
-    pub fn with_disabled_credentials_mode(mut self, disabled_credentials_mode: bool) -> Self {
-        self.gateway.disabled_credentials_mode = disabled_credentials_mode;
+    pub fn with_only_coconut_credentials(mut self, only_coconut_credentials: bool) -> Self {
+        self.gateway.only_coconut_credentials = only_coconut_credentials;
         self
     }
 
@@ -211,8 +211,8 @@ impl Config {
         self.config_directory().join(Self::config_file_name())
     }
 
-    pub fn get_disabled_credentials_mode(&self) -> bool {
-        self.gateway.disabled_credentials_mode
+    pub fn get_only_coconut_credentials(&self) -> bool {
+        self.gateway.only_coconut_credentials
     }
 
     pub fn get_private_identity_key_file(&self) -> PathBuf {
@@ -315,10 +315,10 @@ pub struct Gateway {
     /// ID specifies the human readable ID of this particular gateway.
     id: String,
 
-    /// Indicates whether this gateway is running in a disabled credentials mode, thus allowing clients
-    /// to claim bandwidth without presenting bandwidth credentials.
+    /// Indicates whether this gateway is accepting only coconut credentials for accessing the
+    /// the mixnet, or if it also accepts non-paying clients
     #[serde(default)]
-    disabled_credentials_mode: bool,
+    only_coconut_credentials: bool,
 
     /// Address to which this mixnode will bind to and will be listening for packets.
     #[serde(default = "bind_all_address")]
@@ -406,7 +406,7 @@ impl Default for Gateway {
         Gateway {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
-            disabled_credentials_mode: true,
+            only_coconut_credentials: false,
             listening_address: bind_all_address(),
             announce_address: "127.0.0.1".to_string(),
             mix_port: DEFAULT_MIX_LISTENING_PORT,

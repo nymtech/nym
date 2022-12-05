@@ -156,7 +156,7 @@ impl RewardedSetUpdater {
             Err(err) => {
                 warn!("failed to obtain the current rewarded set - {}. falling back to the cached version", err);
                 self.validator_cache
-                    .rewarded_set_detailed()
+                    .rewarded_set()
                     .await
                     .into_inner()
                     .into_iter()

@@ -83,6 +83,7 @@ pub(crate) struct OverrideConfig {
     api_validators: Option<String>,
     port: Option<u16>,
     fastmode: bool,
+    no_cover: bool,
 
     #[cfg(feature = "coconut")]
     enabled_credentials_mode: bool,
@@ -134,6 +135,10 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
 
     if args.fastmode {
         config.get_base_mut().set_high_default_traffic_volume();
+    }
+
+    if args.no_cover {
+        config.get_base_mut().set_no_cover_traffic();
     }
 
     config

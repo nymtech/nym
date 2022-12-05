@@ -3,9 +3,10 @@
 
 use super::NodeStatusCache;
 use crate::node_status_api::helpers::{
-    _compute_mixnode_reward_estimation, _get_mixnode_avg_uptime,
-    _get_mixnode_inclusion_probability, _get_mixnode_reward_estimation,
-    _get_mixnode_stake_saturation, _get_mixnode_status, _mixnode_core_status_count,
+    _compute_mixnode_reward_estimation, _get_active_set_detailed, _get_mixnode_avg_uptime,
+    _get_mixnode_inclusion_probabilities, _get_mixnode_inclusion_probability,
+    _get_mixnode_reward_estimation, _get_mixnode_stake_saturation, _get_mixnode_status,
+    _get_mixnodes_detailed, _get_rewarded_set_detailed, _mixnode_core_status_count,
     _mixnode_report, _mixnode_uptime_history,
 };
 use crate::node_status_api::models::ErrorResponse;
@@ -19,9 +20,9 @@ use rocket_okapi::openapi;
 use validator_api_requests::models::{
     AllInclusionProbabilitiesResponse, ComputeRewardEstParam, GatewayCoreStatusResponse,
     GatewayStatusReportResponse, GatewayUptimeHistoryResponse, InclusionProbabilityResponse,
-    MixnodeCoreStatusResponse, MixnodeStatusReportResponse, MixnodeStatusResponse,
-    MixnodeUptimeHistoryResponse, RewardEstimationResponse, StakeSaturationResponse,
-    UptimeResponse,
+    MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
+    MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
+    StakeSaturationResponse, UptimeResponse,
 };
 
 #[openapi(tag = "status")]
@@ -112,10 +113,13 @@ pub(crate) async fn get_mixnode_status(
 #[openapi(tag = "status")]
 #[get("/mixnode/<mix_id>/reward-estimation")]
 pub(crate) async fn get_mixnode_reward_estimation(
-    cache: &State<ValidatorCache>,
+    cache: &State<NodeStatusCache>,
+    validator_cache: &State<ValidatorCache>,
     mix_id: MixId,
 ) -> Result<Json<RewardEstimationResponse>, ErrorResponse> {
-    Ok(Json(_get_mixnode_reward_estimation(cache, mix_id).await?))
+    Ok(Json(
+        _get_mixnode_reward_estimation(cache, validator_cache, mix_id).await?,
+    ))
 }
 
 #[openapi(tag = "status")]
@@ -125,21 +129,31 @@ pub(crate) async fn get_mixnode_reward_estimation(
 )]
 pub(crate) async fn compute_mixnode_reward_estimation(
     user_reward_param: Json<ComputeRewardEstParam>,
-    cache: &State<ValidatorCache>,
+    cache: &State<NodeStatusCache>,
+    validator_cache: &State<ValidatorCache>,
     mix_id: MixId,
 ) -> Result<Json<RewardEstimationResponse>, ErrorResponse> {
     Ok(Json(
-        _compute_mixnode_reward_estimation(user_reward_param.into_inner(), cache, mix_id).await?,
+        _compute_mixnode_reward_estimation(
+            user_reward_param.into_inner(),
+            cache,
+            validator_cache,
+            mix_id,
+        )
+        .await?,
     ))
 }
 
 #[openapi(tag = "status")]
 #[get("/mixnode/<mix_id>/stake-saturation")]
 pub(crate) async fn get_mixnode_stake_saturation(
-    cache: &State<ValidatorCache>,
+    cache: &State<NodeStatusCache>,
+    validator_cache: &State<ValidatorCache>,
     mix_id: MixId,
 ) -> Result<Json<StakeSaturationResponse>, ErrorResponse> {
-    Ok(Json(_get_mixnode_stake_saturation(cache, mix_id).await?))
+    Ok(Json(
+        _get_mixnode_stake_saturation(cache, validator_cache, mix_id).await?,
+    ))
 }
 
 #[openapi(tag = "status")]
@@ -168,21 +182,29 @@ pub(crate) async fn get_mixnode_avg_uptime(
 pub(crate) async fn get_mixnode_inclusion_probabilities(
     cache: &State<NodeStatusCache>,
 ) -> Result<Json<AllInclusionProbabilitiesResponse>, ErrorResponse> {
-    if let Some(prob) = cache.inclusion_probabilities().await {
-        let as_at = prob.timestamp();
-        let prob = prob.into_inner();
-        Ok(Json(AllInclusionProbabilitiesResponse {
-            inclusion_probabilities: prob.inclusion_probabilities,
-            samples: prob.samples,
-            elapsed: prob.elapsed,
-            delta_max: prob.delta_max,
-            delta_l2: prob.delta_l2,
-            as_at,
-        }))
-    } else {
-        Err(ErrorResponse::new(
-            "No data available".to_string(),
-            Status::ServiceUnavailable,
-        ))
-    }
+    Ok(Json(_get_mixnode_inclusion_probabilities(cache).await?))
+}
+
+#[openapi(tag = "status")]
+#[get("/mixnodes/detailed")]
+pub async fn get_mixnodes_detailed(
+    cache: &State<NodeStatusCache>,
+) -> Json<Vec<MixNodeBondAnnotated>> {
+    Json(_get_mixnodes_detailed(cache).await)
+}
+
+#[openapi(tag = "status")]
+#[get("/mixnodes/rewarded/detailed")]
+pub async fn get_rewarded_set_detailed(
+    cache: &State<NodeStatusCache>,
+) -> Json<Vec<MixNodeBondAnnotated>> {
+    Json(_get_rewarded_set_detailed(cache).await)
+}
+
+#[openapi(tag = "status")]
+#[get("/mixnodes/active/detailed")]
+pub async fn get_active_set_detailed(
+    cache: &State<NodeStatusCache>,
+) -> Json<Vec<MixNodeBondAnnotated>> {
+    Json(_get_active_set_detailed(cache).await)
 }

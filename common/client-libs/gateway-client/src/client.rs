@@ -10,7 +10,7 @@ pub use crate::packet_router::{
 use crate::socket_state::{PartiallyDelegated, SocketState};
 use crate::{cleanup_socket_message, try_decrypt_binary_message};
 use crypto::asymmetric::identity;
-use futures::{FutureExt, SinkExt, StreamExt};
+use futures::{SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::iv::IV;
 use gateway_requests::registration::handshake::{client_handshake, SharedKeys};
@@ -67,9 +67,7 @@ pub struct GatewayClient {
     reconnection_backoff: Duration,
 
     /// Listen to shutdown messages.
-    // TODO: fix this
-    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
-    shutdown: Option<ShutdownListener>,
+    shutdown: ShutdownListener,
 }
 
 impl GatewayClient {
@@ -85,7 +83,7 @@ impl GatewayClient {
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
         bandwidth_controller: Option<BandwidthController<PersistentStorage>>,
-        shutdown: Option<ShutdownListener>,
+        shutdown: ShutdownListener,
     ) -> Self {
         GatewayClient {
             authenticated: false,
@@ -130,7 +128,6 @@ impl GatewayClient {
         gateway_owner: String,
         local_identity: Arc<identity::KeyPair>,
         response_timeout_duration: Duration,
-        shutdown: Option<ShutdownListener>,
     ) -> Self {
         use futures::channel::mpsc;
 
@@ -138,6 +135,7 @@ impl GatewayClient {
         // perfectly fine here, because it's not meant to be used
         let (ack_tx, _) = mpsc::unbounded();
         let (mix_tx, _) = mpsc::unbounded();
+        let shutdown = ShutdownListener::dummy();
         let packet_router = PacketRouter::new(ack_tx, mix_tx, shutdown.clone());
 
         GatewayClient {
@@ -283,44 +281,19 @@ impl GatewayClient {
         // technically the `wasm_timer` also works outside wasm, but unless required,
         // I really prefer to just stick to tokio
         #[cfg(target_arch = "wasm32")]
-        let timeout = wasm_timer::Delay::new(self.response_timeout_duration);
-
-        let mut fused_timeout = timeout.fuse();
-        let mut fused_stream = conn.fuse();
-
-        // Bit of an ugly workaround for selecting on an `Option` without having access to
-        // `tokio::select`
-        #[cfg(not(target_arch = "wasm32"))]
-        let shutdown = {
-            let m_shutdown = self.shutdown.clone();
-            async {
-                if let Some(mut s) = m_shutdown {
-                    // TODO: fix this by marking as success _after_ the select
-                    s.mark_as_success();
-                    s.recv().await
-                } else {
-                    std::future::pending::<()>().await
-                }
-            }
-            .fuse()
-        };
-        #[cfg(not(target_arch = "wasm32"))]
-        tokio::pin!(shutdown);
-
-        #[cfg(target_arch = "wasm32")]
-        let mut shutdown = std::future::pending::<()>().fuse();
+        let mut timeout = wasm_timer::Delay::new(self.response_timeout_duration);
 
         loop {
-            futures::select! {
-                _ = shutdown => {
+            tokio::select! {
+                _ = self.shutdown.recv() => {
                     log::trace!("GatewayClient control response: Received shutdown");
                     log::debug!("GatewayClient control response: Exiting");
                     break Err(GatewayClientError::ConnectionClosedGatewayShutdown);
                 }
-                _ = &mut fused_timeout => {
+                _ = &mut timeout => {
                     break Err(GatewayClientError::Timeout);
                 }
-                msg = fused_stream.next() => {
+                msg = conn.next() => {
                     let ws_msg = match cleanup_socket_message(msg) {
                         Err(err) => break Err(err),
                         Ok(msg) => msg
@@ -770,7 +743,6 @@ impl GatewayClient {
                                 .as_ref()
                                 .expect("no shared key present even though we're authenticated!"),
                         ),
-                        #[cfg(not(target_arch = "wasm32"))]
                         self.shutdown.clone(),
                     )
                 }

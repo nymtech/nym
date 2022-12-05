@@ -16,7 +16,7 @@ pub struct Args {
     #[clap(long, empty_values = false)]
     pub vesting_contract_address: String,
 
-    #[clap(long, default_value = "unyxt")]
+    #[clap(long, default_value = "unymt")]
     pub rewarding_denom: String,
 
     #[clap(long, default_value_t = 720)]

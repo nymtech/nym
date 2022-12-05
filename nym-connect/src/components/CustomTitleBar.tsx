@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowBack, Close, HelpOutline } from '@mui/icons-material';
+import { ArrowBack, Close, HelpOutline, Minimize } from '@mui/icons-material';
 import { Box, IconButton } from '@mui/material';
 import { NymWordmark } from '@nymproject/react/logo/NymWordmark';
 import { appWindow } from '@tauri-apps/api/window';
@@ -19,7 +19,7 @@ const customTitleBarStyles = {
 };
 
 const CustomButton = ({ Icon, onClick }: { Icon: React.JSXElementConstructor<any>; onClick: () => void }) => (
-  <IconButton size="small" style={{ padding: 0 }} onClick={onClick}>
+  <IconButton size="small" onClick={onClick} sx={{ padding: 0 }}>
     <Icon style={{ fontSize: 16 }} />
   </IconButton>
 );
@@ -28,14 +28,22 @@ export const CustomTitleBar = () => {
   const { showHelp, handleShowHelp } = useClientContext();
   return (
     <Box data-tauri-drag-region style={customTitleBarStyles.titlebar}>
-      <CustomButton
-        Icon={!showHelp ? HelpOutline : ArrowBack}
-        onClick={() => {
-          handleShowHelp();
-        }}
-      />
+      {/* set width to keep logo centered */}
+      <Box sx={{ width: '40px' }}>
+        <CustomButton
+          Icon={!showHelp ? HelpOutline : ArrowBack}
+          onClick={() => {
+            handleShowHelp();
+          }}
+        />
+      </Box>
+
       <NymWordmark width={36} />
-      <CustomButton Icon={Close} onClick={() => appWindow.close()} />
+
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+        <CustomButton Icon={Minimize} onClick={() => appWindow.minimize()} />
+        <CustomButton Icon={Close} onClick={() => appWindow.close()} />
+      </Box>
     </Box>
   );
 };

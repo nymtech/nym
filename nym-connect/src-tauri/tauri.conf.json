@@ -57,7 +57,8 @@
       },
       "window": {
         "startDragging": true,
-        "close": true
+        "close": true,
+        "minimize": true
       }
     },
     "windows": [

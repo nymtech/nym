@@ -1,7 +1,3 @@
-## UNRELEASED
-
-- nym-connect: fix issue with actual socks5 error message not being appened to the error message sent to the frontend.
-
 ## [nym-connect-v1.1.1](https://github.com/nymtech/nym/tree/nym-connect-v1.1.1) (2022-11-29)
 
 - socks5-client: fix multiplex concurrent connections ([#1720], [#1777])

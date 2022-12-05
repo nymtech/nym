@@ -80,7 +80,7 @@ impl NymClient {
         client_input: ClientInput,
         client_output: ClientOutput,
         self_address: Recipient,
-        mut shutdown: ShutdownListener,
+        shutdown: ShutdownListener,
     ) {
         info!("Starting socks5 listener...");
         let auth_methods = vec![AuthenticationMethods::NoAuth as u8];
@@ -103,25 +103,18 @@ impl NymClient {
             shared_lane_queue_lengths,
             shutdown.clone(),
         );
-        tokio::spawn(async move {
-            // Ideally we should have a fully fledged task manager to check for errors in all
-            // tasks.
-            // However, pragmatically, we start out by at least reporting errors for some of the
-            // tasks that interact with the outside world and can fail in normal operation, such as
-            // network issues.
-            // TODO: replace this by a generic solution, such as a task manager that stores all
-            // JoinHandles of all spawned tasks.
-            if let Err(res) = sphinx_socks
-                .serve(
-                    input_sender,
-                    received_buffer_request_sender,
-                    connection_command_sender,
-                )
-                .await
-            {
-                shutdown.send_we_stopped(Box::new(res));
-            }
-        });
+        task::spawn_with_report_error(
+            async move {
+                sphinx_socks
+                    .serve(
+                        input_sender,
+                        received_buffer_request_sender,
+                        connection_command_sender,
+                    )
+                    .await
+            },
+            shutdown,
+        );
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)

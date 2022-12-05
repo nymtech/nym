@@ -4,7 +4,6 @@
 use crate::client::replies::reply_storage::CombinedReplyStorage;
 use async_trait::async_trait;
 use std::error::Error;
-use std::sync::atomic::AtomicUsize;
 use thiserror::Error;
 
 #[cfg(target_arch = "wasm32")]

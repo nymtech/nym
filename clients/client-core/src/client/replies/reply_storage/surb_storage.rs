@@ -1,7 +1,6 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use dashmap::iter::Iter;
 use dashmap::DashMap;
 use log::trace;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
@@ -9,7 +8,15 @@ use nymsphinx::anonymous_replies::ReplySurb;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+
+#[cfg(not(target_arch = "wasm32"))]
 use tokio::time::Instant;
+
+#[cfg(not(target_arch = "wasm32"))]
+use dashmap::iter::Iter;
+
+#[cfg(target_arch = "wasm32")]
+use wasm_timer::Instant;
 
 #[derive(Debug, Clone)]
 pub struct ReceivedReplySurbsMap {
@@ -41,6 +48,7 @@ impl ReceivedReplySurbsMap {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn from_raw(
         min_surb_threshold: usize,
         max_surb_threshold: usize,
@@ -55,6 +63,7 @@ impl ReceivedReplySurbsMap {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn as_raw_iter(&self) -> Iter<'_, AnonymousSenderTag, ReceivedReplySurbs> {
         self.inner.data.iter()
     }
@@ -202,6 +211,7 @@ impl ReceivedReplySurbs {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn new_retrieved(
         surbs: Vec<ReplySurb>,
         surbs_last_received_at: Instant,
@@ -213,6 +223,7 @@ impl ReceivedReplySurbs {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn surbs_ref(&self) -> &VecDeque<ReplySurb> {
         &self.data
     }

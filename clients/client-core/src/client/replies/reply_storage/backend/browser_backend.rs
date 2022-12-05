@@ -2,9 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::replies::reply_storage::backend::Empty;
-use crate::client::replies::reply_storage::{
-    CombinedReplyStorage, ReceivedReplySurbsMap, ReplyStorageBackend, SentReplyKeys, UsedSenderTags,
-};
+use crate::client::replies::reply_storage::{CombinedReplyStorage, ReplyStorageBackend};
 use async_trait::async_trait;
 
 // well, right now we don't have the browser storage : (
@@ -15,14 +13,20 @@ pub struct Backend {
 
 #[async_trait]
 impl ReplyStorageBackend for Backend {
+    type StorageError = <Empty as ReplyStorageBackend>::StorageError;
+
     async fn flush_surb_storage(
-        &self,
+        &mut self,
         storage: &CombinedReplyStorage,
     ) -> Result<(), Self::StorageError> {
-        self.empty.flush_surb_storage(storage)
+        self.empty.flush_surb_storage(storage).await
+    }
+
+    async fn init_fresh(&mut self, fresh: &CombinedReplyStorage) -> Result<(), Self::StorageError> {
+        self.empty.init_fresh(fresh).await
     }
 
     async fn load_surb_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError> {
-        self.empty.load_surb_storage()
+        self.empty.load_surb_storage().await
     }
 }

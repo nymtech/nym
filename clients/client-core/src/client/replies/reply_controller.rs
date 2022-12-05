@@ -15,7 +15,12 @@ use rand::{CryptoRng, Rng};
 use std::cmp::{max, min};
 use std::collections::{HashMap, VecDeque};
 use std::time::Duration;
+
+#[cfg(not(target_arch = "wasm32"))]
 use tokio::time::Instant;
+
+#[cfg(target_arch = "wasm32")]
+use wasm_timer::Instant;
 
 pub fn new_control_channels() -> (ReplyControllerSender, ReplyControllerReceiver) {
     let (tx, rx) = mpsc::unbounded();

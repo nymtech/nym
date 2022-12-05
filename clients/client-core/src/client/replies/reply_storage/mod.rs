@@ -7,8 +7,6 @@ pub use crate::client::replies::reply_storage::surb_storage::ReceivedReplySurbsM
 pub use crate::client::replies::reply_storage::tag_storage::UsedSenderTags;
 pub use backend::*;
 
-use log::{debug, error, info, warn};
-
 mod backend;
 mod combined;
 mod key_storage;
@@ -35,11 +33,15 @@ where
         self.backend.load_surb_storage().await
     }
 
+    // this will have to get enabled after merging develop
+    #[cfg(not(target_arch = "wasm32"))]
     pub async fn flush_on_shutdown(
         mut self,
         mem_state: CombinedReplyStorage,
         mut shutdown: task::ShutdownListener,
     ) {
+        use log::{debug, error, info, warn};
+
         debug!("Started PersistentReplyStorage");
         if let Err(err) = self.backend.start_storage_session().await {
             error!("failed to start the storage session - {err}");

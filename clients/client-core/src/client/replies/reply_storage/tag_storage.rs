@@ -1,11 +1,13 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use dashmap::iter::Iter;
 use dashmap::DashMap;
 use nymsphinx::addressing::clients::{Recipient, RecipientBytes};
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use std::sync::Arc;
+
+#[cfg(not(target_arch = "wasm32"))]
+use dashmap::iter::Iter;
 
 #[derive(Debug, Clone)]
 pub struct UsedSenderTags {
@@ -26,6 +28,7 @@ impl UsedSenderTags {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn from_raw(raw: Vec<(RecipientBytes, AnonymousSenderTag)>) -> UsedSenderTags {
         UsedSenderTags {
             inner: Arc::new(UsedSenderTagsInner {
@@ -34,6 +37,7 @@ impl UsedSenderTags {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn as_raw_iter(&self) -> Iter<'_, RecipientBytes, AnonymousSenderTag> {
         self.inner.data.iter()
     }

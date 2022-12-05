@@ -1,11 +1,13 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use dashmap::iter::Iter;
 use dashmap::DashMap;
 use nymsphinx::anonymous_replies::encryption_key::EncryptionKeyDigest;
 use nymsphinx::anonymous_replies::SurbEncryptionKey;
 use std::sync::Arc;
+
+#[cfg(not(target_arch = "wasm32"))]
+use dashmap::iter::Iter;
 
 #[derive(Debug, Clone)]
 // TODO: we might have to also put the tag here
@@ -28,6 +30,7 @@ impl SentReplyKeys {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn from_raw(raw: Vec<(EncryptionKeyDigest, SurbEncryptionKey)>) -> SentReplyKeys {
         SentReplyKeys {
             inner: Arc::new(SentReplyKeysInner {
@@ -36,6 +39,7 @@ impl SentReplyKeys {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn as_raw_iter(&self) -> Iter<'_, EncryptionKeyDigest, SurbEncryptionKey> {
         self.inner.data.iter()
     }

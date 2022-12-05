@@ -49,6 +49,12 @@ export type TBondMixNodeArgs = {
   fee?: Fee;
 };
 
+export type TBondMoreArgs = {
+  additionalPledge: DecCoin;
+  fee?: Fee;
+
+};
+
 export type TNodeDescription = {
   name: string;
   description: string;

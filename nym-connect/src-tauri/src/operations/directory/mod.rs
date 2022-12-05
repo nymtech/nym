@@ -6,9 +6,11 @@ static SERVICE_PROVIDER_WELLKNOWN_URL: &str =
 
 #[tauri::command]
 pub async fn get_services() -> Result<Vec<DirectoryService>> {
+    log::trace!("Fetching services");
     let res = reqwest::get(SERVICE_PROVIDER_WELLKNOWN_URL)
         .await?
         .json::<Vec<DirectoryService>>()
         .await?;
+    log::trace!("Received: {:#?}", res);
     Ok(res)
 }

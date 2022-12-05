@@ -18,6 +18,13 @@ pub trait MixnodeBondingAccount {
         storage: &mut dyn Storage,
     ) -> Result<Response, ContractError>;
 
+    fn try_pledge_additional_tokens(
+        &self,
+        additional_pledge: Coin,
+        env: &Env,
+        storage: &mut dyn Storage,
+    ) -> Result<Response, ContractError>;
+
     fn try_unbond_mixnode(&self, storage: &dyn Storage) -> Result<Response, ContractError>;
 
     fn try_track_unbond_mixnode(

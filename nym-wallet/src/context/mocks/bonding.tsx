@@ -152,7 +152,7 @@ export const MockBondingContextProvider = ({
     return TxResultMock;
   };
 
-  const bondMore = async (_signature: string, _additionalBond: DecCoin) => {
+  const bondMore = async (): Promise<TransactionExecuteResult> => {
     setIsLoading(true);
     await mockSleep(SLEEP_MS);
     triggerStateUpdate();

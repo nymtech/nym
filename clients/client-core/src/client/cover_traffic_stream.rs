@@ -143,6 +143,16 @@ impl LoopCoverTrafficStream<OsRng> {
         self.packet_size = packet_size;
     }
 
+    fn set_next_delay(&mut self, amount: Duration) {
+        #[cfg(not(target_arch = "wasm32"))]
+        let next_delay = Box::pin(time::sleep(amount));
+
+        #[cfg(target_arch = "wasm32")]
+        let next_delay = Box::pin(wasm_timer::Delay::new(amount));
+
+        self.next_delay = next_delay;
+    }
+
     async fn on_new_message(&mut self) {
         trace!("next cover message!");
 
@@ -203,12 +213,11 @@ impl LoopCoverTrafficStream<OsRng> {
         tokio::task::yield_now().await;
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn start_with_shutdown(mut self, mut shutdown: task::ShutdownListener) {
         // we should set initial delay only when we actually start the stream
         let sampled =
             sample_poisson_duration(&mut self.rng, self.average_cover_message_sending_delay);
-        self.next_delay = Box::pin(time::sleep(sampled));
+        self.set_next_delay(sampled);
 
         spawn_future(async move {
             debug!("Started LoopCoverTrafficStream with graceful shutdown support");
@@ -229,17 +238,16 @@ impl LoopCoverTrafficStream<OsRng> {
                     }
                 }
             }
-            assert!(shutdown.is_shutdown_poll());
+            shutdown.recv_timeout().await;
             log::debug!("LoopCoverTrafficStream: Exiting");
         })
     }
 
-    #[cfg(target_arch = "wasm32")]
     pub fn start(mut self) {
         // we should set initial delay only when we actually start the stream
         let sampled =
             sample_poisson_duration(&mut self.rng, self.average_cover_message_sending_delay);
-        self.next_delay = Box::pin(wasm_timer::Delay::new(sampled));
+        self.set_next_delay(sampled);
 
         spawn_future(async move {
             debug!("Started LoopCoverTrafficStream without graceful shutdown support");

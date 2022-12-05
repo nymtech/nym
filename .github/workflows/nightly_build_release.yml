@@ -9,12 +9,12 @@ jobs:
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
-      # creates the matrix strategy from nightly_build_release_matrix.json
+      # creates the matrix strategy from nightly_build_matrix_includes.json
       - uses: actions/checkout@v3
       - id: set-matrix
         uses: JoshuaTheMiller/conditional-build-matrix@main
         with:
-          inputFile: '.github/workflows/nightly_build_release_matrix.json'
+          inputFile: '.github/workflows/nightly_build_matrix_includes.json'
           filter: '[?runOnEvent==`${{ github.event_name }}` || runOnEvent==`always`]'
   get_release:
     runs-on: ubuntu-latest
@@ -174,7 +174,7 @@ jobs:
           args: --manifest-path nym-wallet/Cargo.toml --workspace --all-targets -- -D warnings
 
   notification:
-    needs: build
+    needs: [build,get_release]
     runs-on: ubuntu-latest
     steps:
       - name: Collect jobs status
@@ -192,7 +192,7 @@ jobs:
           NYM_PROJECT_NAME: "Nym nightly build on latest release"
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
-          GIT_BRANCH: "${GITHUB_REF##*/}"
+          GIT_BRANCH: "https://github.com/nymtech/nym/tree/${{needs.get_release.outputs.output1}}"
           KEYBASE_NYMBOT_USERNAME: "${{ secrets.KEYBASE_NYMBOT_USERNAME }}"
           KEYBASE_NYMBOT_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
           KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBOT_TEAM }}"

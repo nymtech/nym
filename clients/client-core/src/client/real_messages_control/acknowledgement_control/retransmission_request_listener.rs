@@ -230,7 +230,6 @@ where
             .await
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
         debug!("Started RetransmissionRequestListener with graceful shutdown support");
 
@@ -248,11 +247,12 @@ where
                 }
             }
         }
-        assert!(shutdown.is_shutdown_poll());
+        shutdown.recv_timeout().await;
         log::debug!("RetransmissionRequestListener: Exiting");
     }
 
-    #[cfg(target_arch = "wasm32")]
+    // todo: think whether this is still required
+    #[allow(dead_code)]
     pub(super) async fn run(&mut self) {
         debug!("Started RetransmissionRequestListener without graceful shutdown support");
 

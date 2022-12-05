@@ -26,8 +26,15 @@ use {
     },
 };
 
+// TODO: make it nicer for wasm (I don't want to touch it for this experiment)
+#[cfg(target_arch = "wasm32")]
+use crate::wasm_storage::PersistentStorage;
+
+#[cfg(not(target_arch = "wasm32"))]
+use credential_storage::PersistentStorage;
+
 #[derive(Clone)]
-pub struct BandwidthController<St: Storage> {
+pub struct BandwidthController<St: Storage = PersistentStorage> {
     #[allow(dead_code)]
     storage: St,
     #[cfg(feature = "coconut")]

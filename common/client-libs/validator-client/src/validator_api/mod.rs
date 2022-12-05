@@ -136,7 +136,12 @@ impl Client {
         &self,
     ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorAPIError> {
         self.query_validator_api(
-            &[routes::API_VERSION, routes::MIXNODES, routes::DETAILED],
+            &[
+                routes::API_VERSION,
+                routes::STATUS,
+                routes::MIXNODES,
+                routes::DETAILED,
+            ],
             NO_PARAMS,
         )
         .await
@@ -161,6 +166,7 @@ impl Client {
         self.query_validator_api(
             &[
                 routes::API_VERSION,
+                routes::STATUS,
                 routes::MIXNODES,
                 routes::ACTIVE,
                 routes::DETAILED,
@@ -252,6 +258,7 @@ impl Client {
         self.query_validator_api(
             &[
                 routes::API_VERSION,
+                routes::STATUS,
                 routes::MIXNODES,
                 routes::REWARDED,
                 routes::DETAILED,

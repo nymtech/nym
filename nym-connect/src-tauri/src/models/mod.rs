@@ -45,7 +45,7 @@ pub struct AppEventConnectionStatusChangedPayload {
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct DirectoryService {
     pub id: String,
     pub description: String,
@@ -53,7 +53,7 @@ pub struct DirectoryService {
 }
 
 #[cfg_attr(test, derive(ts_rs::TS))]
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct DirectoryServiceProvider {
     pub id: String,
     pub description: String,

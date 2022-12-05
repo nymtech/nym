@@ -71,7 +71,6 @@ impl AcknowledgementListener {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
         debug!("Started AcknowledgementListener with graceful shutdown support");
 
@@ -89,11 +88,12 @@ impl AcknowledgementListener {
                 }
             }
         }
-        assert!(shutdown.is_shutdown_poll());
+        shutdown.recv_timeout().await;
         log::debug!("AcknowledgementListener: Exiting");
     }
 
-    #[cfg(target_arch = "wasm32")]
+    // todo: think whether this is still required
+    #[allow(dead_code)]
     pub(super) async fn run(&mut self) {
         debug!("Started AcknowledgementListener without graceful shutdown support");
 

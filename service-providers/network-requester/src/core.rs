@@ -203,9 +203,13 @@ impl ServiceProvider {
         lane_queue_lengths: LaneQueueLengths,
     ) -> Option<ReconstructedMessage> {
         while let Some(msg) = websocket_reader.next().await {
-            let data = msg
-                .expect("we failed to read from the websocket!")
-                .into_data();
+            let data = match msg {
+                Ok(msg) => msg.into_data(),
+                Err(err) => {
+                    log::error!("Failed to read from the websocket: {err}");
+                    continue;
+                }
+            };
 
             // try to recover the actual message from the mix network...
             let deserialized_message = match ServerResponse::deserialize(&data) {

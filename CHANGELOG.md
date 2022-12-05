@@ -19,6 +19,13 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ### Added
 
+- socks5-client/network-requester: add support for socks4a protocol
+
+
+## [v1.1.1](https://github.com/nymtech/nym/tree/v1.1.1) (2022-11-29)
+
+### Added
+
 - binaries: add `-c` shortform for `--config-env-file`
 - websocket-requests: add server response signalling current packet queue length in the client
 - contracts: DKG contract that handles coconut key generation ([#1678][#1708][#1747])
@@ -30,10 +37,16 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - clients,validator-api: take coconut signers from the chain instead of specifying them via CLI ([#1747])
 - multisig contract: add DKG contract to the list of addresses that can create proposals ([#1747])
 - socks5-client: wait closing inbound connection until data is sent, and throttle incoming data in general ([#1783])
+- nym-cli: improve error reporting/handling and changed `vesting-schedule` queries to use query client instead of signing client
 
 ### Fixed
 
 - gateway-client: fix decrypting stored messages on reconnect ([#1786])
+
+### Fixed
+
+- gateway-client: fix decrypting stored messages on reconnect ([#1786])
+- socks5-client: fix shutting down all tasks if anyone of them panics or errors out ([#1805])
 
 [#1678]: https://github.com/nymtech/nym/pull/1678
 [#1708]: https://github.com/nymtech/nym/pull/1708
@@ -41,6 +54,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1747]: https://github.com/nymtech/nym/pull/1747
 [#1783]: https://github.com/nymtech/nym/pull/1783
 [#1786]: https://github.com/nymtech/nym/pull/1786
+[#1805]: https://github.com/nymtech/nym/pull/1805
 
 
 ## [v1.1.0](https://github.com/nymtech/nym/tree/v1.1.0) (2022-11-09)

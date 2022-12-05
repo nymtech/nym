@@ -217,18 +217,14 @@ impl NymTopology {
 
     #[must_use]
     pub fn filter_system_version(&self, expected_version: &str) -> Self {
-        self.filter_node_versions(expected_version, expected_version)
+        self.filter_node_versions(expected_version)
     }
 
     #[must_use]
-    pub fn filter_node_versions(
-        &self,
-        expected_mix_version: &str,
-        expected_gateway_version: &str,
-    ) -> Self {
+    pub fn filter_node_versions(&self, expected_mix_version: &str) -> Self {
         NymTopology {
             mixes: self.mixes.filter_by_version(expected_mix_version),
-            gateways: self.gateways.filter_by_version(expected_gateway_version),
+            gateways: self.gateways.clone(),
         }
     }
 }

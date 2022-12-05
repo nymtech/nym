@@ -209,7 +209,7 @@ impl PacketSender {
             ack_sender,
             fresh_gateway_client_data.gateway_response_timeout,
             Some(fresh_gateway_client_data.bandwidth_controller.clone()),
-            None,
+            task::ShutdownListener::dummy(),
         );
 
         gateway_client

@@ -1,8 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::error::Error;
+
 use clap::{crate_version, Parser};
-use error::Socks5ClientError;
 use logging::setup_logging;
 use network_defaults::setup_env;
 
@@ -12,7 +13,7 @@ pub mod error;
 pub mod socks;
 
 #[tokio::main]
-async fn main() -> Result<(), Socks5ClientError> {
+async fn main() -> Result<(), Box<dyn Error + Send>> {
     setup_logging();
     println!("{}", banner());
 

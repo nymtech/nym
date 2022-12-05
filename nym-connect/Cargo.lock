@@ -639,7 +639,7 @@ dependencies = [
 
 [[package]]
 name = "client-core"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "async-trait",
  "client-connections",
@@ -664,6 +664,7 @@ dependencies = [
  "thiserror",
  "time 0.3.14",
  "tokio",
+ "tokio-stream",
  "topology",
  "url",
  "validator-client",
@@ -3385,7 +3386,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "clap",
  "client-connections",
@@ -5609,8 +5610,12 @@ dependencies = [
 name = "task"
 version = "0.1.0"
 dependencies = [
+ "futures",
  "log",
+ "thiserror",
  "tokio",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]

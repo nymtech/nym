@@ -73,14 +73,14 @@ impl Handler {
         msg_input: InputMessageSender,
         client_connection_tx: ConnectionCommandSender,
         buffer_requester: ReceivedBufferRequestSender,
-        self_full_address: &Recipient,
+        self_full_address: Recipient,
         lane_queue_lengths: LaneQueueLengths,
     ) -> Self {
         Handler {
             msg_input,
             client_connection_tx,
             buffer_requester,
-            self_full_address: *self_full_address,
+            self_full_address,
             socket: None,
             received_response_type: Default::default(),
             lane_queue_lengths,

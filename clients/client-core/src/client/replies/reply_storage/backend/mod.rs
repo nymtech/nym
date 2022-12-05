@@ -53,7 +53,7 @@ impl ReplyStorageBackend for Empty {
 
 #[async_trait]
 pub trait ReplyStorageBackend: Sized {
-    type StorageError: Error;
+    type StorageError: Error + 'static;
 
     async fn start_storage_session(&self) -> Result<(), Self::StorageError> {
         Ok(())

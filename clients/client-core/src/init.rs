@@ -18,16 +18,20 @@ use tap::TapFallible;
 use topology::{filter::VersionFilterable, gateway};
 use url::Url;
 
+use crate::client::replies::reply_storage::ReplyStorageBackend;
 use crate::{
     client::key_manager::KeyManager,
     config::{persistence::key_pathfinder::ClientKeyPathfinder, Config},
     error::ClientCoreError,
 };
 
-pub async fn query_gateway_details(
+pub async fn query_gateway_details<B>(
     validator_servers: Vec<Url>,
     chosen_gateway_id: Option<&str>,
-) -> Result<gateway::Node, ClientCoreError> {
+) -> Result<gateway::Node, ClientCoreError<B>>
+where
+    B: ReplyStorageBackend,
+{
     let validator_api = validator_servers
         .choose(&mut thread_rng())
         .ok_or(ClientCoreError::ListOfValidatorApisIsEmpty)?;
@@ -59,12 +63,13 @@ pub async fn query_gateway_details(
     }
 }
 
-pub async fn register_with_gateway_and_store_keys<T>(
+pub async fn register_with_gateway_and_store_keys<T, B>(
     gateway_details: gateway::Node,
     config: &Config<T>,
-) -> Result<(), ClientCoreError>
+) -> Result<(), ClientCoreError<B>>
 where
     T: NymConfig,
+    B: ReplyStorageBackend,
 {
     let mut rng = OsRng;
     let mut key_manager = KeyManager::new(&mut rng);
@@ -79,10 +84,13 @@ where
         .tap_err(|err| log::error!("Failed to generate keys: {err}"))?)
 }
 
-async fn register_with_gateway(
+async fn register_with_gateway<B>(
     gateway: &gateway::Node,
     our_identity: Arc<identity::KeyPair>,
-) -> Result<Arc<SharedKeys>, ClientCoreError> {
+) -> Result<Arc<SharedKeys>, ClientCoreError<B>>
+where
+    B: ReplyStorageBackend,
+{
     let timeout = Duration::from_millis(1500);
     let mut gateway_client = GatewayClient::new_init(
         gateway.clients_address(),
@@ -90,8 +98,6 @@ async fn register_with_gateway(
         gateway.owner.clone(),
         our_identity.clone(),
         timeout,
-        #[cfg(not(target_arch = "wasm32"))]
-        None,
     );
     gateway_client
         .establish_connection()
@@ -104,13 +110,17 @@ async fn register_with_gateway(
     Ok(shared_keys)
 }
 
-pub fn show_address<T>(config: &Config<T>) -> Result<(), ClientCoreError>
+pub fn show_address<T, B>(config: &Config<T>) -> Result<(), ClientCoreError<B>>
 where
     T: config::NymConfig,
+    B: ReplyStorageBackend,
 {
-    fn load_identity_keys(
+    fn load_identity_keys<B>(
         pathfinder: &ClientKeyPathfinder,
-    ) -> Result<identity::KeyPair, ClientCoreError> {
+    ) -> Result<identity::KeyPair, ClientCoreError<B>>
+    where
+        B: ReplyStorageBackend,
+    {
         let identity_keypair: identity::KeyPair =
             pemstore::load_keypair(&pemstore::KeyPairPath::new(
                 pathfinder.private_identity_key().to_owned(),
@@ -120,9 +130,12 @@ where
         Ok(identity_keypair)
     }
 
-    fn load_sphinx_keys(
+    fn load_sphinx_keys<B>(
         pathfinder: &ClientKeyPathfinder,
-    ) -> Result<encryption::KeyPair, ClientCoreError> {
+    ) -> Result<encryption::KeyPair, ClientCoreError<B>>
+    where
+        B: ReplyStorageBackend,
+    {
         let sphinx_keypair: encryption::KeyPair =
             pemstore::load_keypair(&pemstore::KeyPairPath::new(
                 pathfinder.private_encryption_key().to_owned(),

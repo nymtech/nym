@@ -6,6 +6,7 @@ use network_defaults::{
     var_names::{API_VALIDATOR, MIXNET_CONTRACT_ADDRESS, NYMD_VALIDATOR, VESTING_CONTRACT_ADDRESS},
     NymNetworkDetails,
 };
+use tap::prelude::*;
 use validator_client::nymd::{self, AccountId, NymdClient, QueryNymdClient, SigningNymdClient};
 pub use validator_client::validator_api::Client as ValidatorApiClient;
 
@@ -58,7 +59,7 @@ pub fn create_signing_client(
     network_details: &NymNetworkDetails,
 ) -> Result<SigningClient, ContextError> {
     let client_config = nymd::Config::try_from_nym_network_details(network_details)
-        .expect("failed to construct valid validator client config with the provided network");
+        .tap_err(|e| log::error!("Failed to get client config - {:?}", e))?;
 
     // get mnemonic
     let mnemonic = match std::env::var("MNEMONIC") {
@@ -87,7 +88,7 @@ pub fn create_query_client(
     network_details: &NymNetworkDetails,
 ) -> Result<QueryClient, ContextError> {
     let client_config = nymd::Config::try_from_nym_network_details(network_details)
-        .expect("failed to construct valid validator client config with the provided network");
+        .tap_err(|e| log::error!("Failed to get client config - {:?}", e))?;
 
     let nymd_url = network_details
         .endpoints
@@ -107,7 +108,7 @@ pub fn create_signing_client_with_validator_api(
     network_details: &NymNetworkDetails,
 ) -> Result<SigningClientWithValidatorAPI, ContextError> {
     let client_config = validator_client::Config::try_from_nym_network_details(network_details)
-        .expect("failed to construct valid validator client config with the provided network");
+        .tap_err(|e| log::error!("Failed to get client config - {:?}", e))?;
 
     // get mnemonic
     let mnemonic = match std::env::var("MNEMONIC") {
@@ -129,7 +130,7 @@ pub fn create_query_client_with_validator_api(
     network_details: &NymNetworkDetails,
 ) -> Result<QueryClientWithValidatorAPI, ContextError> {
     let client_config = validator_client::Config::try_from_nym_network_details(network_details)
-        .expect("failed to construct valid validator client config with the provided network");
+        .tap_err(|e| log::error!("Failed to get client config - {:?}", e))?;
 
     match validator_client::client::Client::new_query(client_config) {
         Ok(client) => Ok(client),

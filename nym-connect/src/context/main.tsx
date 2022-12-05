@@ -7,20 +7,26 @@ import { forage } from '@tauri-apps/tauri-forage';
 import { ConnectionStatusKind } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ServiceProvider, Services } from '../types/directory';
+import { Error } from 'src/types/error';
+import { TauriEvent } from 'src/types/event';
 
 const TAURI_EVENT_STATUS_CHANGED = 'app:connection-status-changed';
 
 type ModeType = 'light' | 'dark';
 
-type TClientContext = {
+export type TClientContext = {
   mode: ModeType;
   connectionStatus: ConnectionStatusKind;
   connectionStats?: ConnectionStatsItem[];
   connectedSince?: DateTime;
   services?: Services;
   serviceProvider?: ServiceProvider;
+  showHelp: boolean;
+  error?: Error;
 
   setMode: (mode: ModeType) => void;
+  clearError: () => void;
+  handleShowHelp: () => void;
   setConnectionStatus: (connectionStatus: ConnectionStatusKind) => void;
   setConnectionStats: (connectionStats: ConnectionStatsItem[] | undefined) => void;
   setConnectedSince: (connectedSince: DateTime | undefined) => void;
@@ -39,6 +45,8 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const [connectedSince, setConnectedSince] = useState<DateTime>();
   const [services, setServices] = React.useState<Services>([]);
   const [serviceProvider, setRawServiceProvider] = React.useState<ServiceProvider>();
+  const [showHelp, setShowHelp] = useState(false);
+  const [error, setError] = useState<Error>();
 
   useEffect(() => {
     invoke('get_services').then((result) => {
@@ -47,30 +55,45 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   }, []);
 
   useEffect(() => {
-    let unlisten: UnlistenFn | undefined;
+    const unlisten: UnlistenFn[] = [];
 
     // TODO: fix typings
     listen(TAURI_EVENT_STATUS_CHANGED, (event) => {
       const { status } = event.payload as any;
       console.log(TAURI_EVENT_STATUS_CHANGED, { status, event });
       setConnectionStatus(status);
+    })
+      .then((result) => {
+        unlisten.push(result);
+      })
+      .catch((e) => console.log(e));
+
+    listen('socks5-event', (e: TauriEvent) => {
+      setError(e.payload);
     }).then((result) => {
-      unlisten = result;
+      unlisten.push(result);
     });
 
     return () => {
-      if (unlisten) {
-        unlisten();
-      }
+      unlisten.forEach((unsubscribe) => unsubscribe());
     };
   }, []);
 
   const startConnecting = useCallback(async () => {
-    await invoke('start_connecting');
+    try {
+      await invoke('start_connecting');
+    } catch (e) {
+      setError({ title: 'Could not connect', message: e as string });
+      console.log(e);
+    }
   }, []);
 
   const startDisconnecting = useCallback(async () => {
-    await invoke('start_disconnecting');
+    try {
+      await invoke('start_disconnecting');
+    } catch (e) {
+      console.log(e);
+    }
   }, []);
 
   const setSpInStorage = async (sp: ServiceProvider) => {
@@ -92,11 +115,16 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       const spFromStorage = await forage.getItem({ key: 'nym-connect-sp' })();
       if (spFromStorage) {
         setRawServiceProvider(spFromStorage);
+        setServiceProvider(spFromStorage);
       }
     } catch (e) {
       console.warn(e);
     }
   };
+
+  const handleShowHelp = () => setShowHelp((show) => !show);
+
+  const clearError = () => setError(undefined);
 
   useEffect(() => {
     const validityCheck = async () => {
@@ -122,6 +150,8 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     () => ({
       mode,
       setMode,
+      error,
+      clearError,
       connectionStatus,
       setConnectionStatus,
       connectionStats,
@@ -133,8 +163,20 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       services,
       serviceProvider,
       setServiceProvider,
+      showHelp,
+      handleShowHelp,
     }),
-    [mode, connectedSince, connectionStatus, connectionStats, connectedSince, services, serviceProvider],
+    [
+      mode,
+      error,
+      connectedSince,
+      showHelp,
+      connectionStatus,
+      connectionStats,
+      connectedSince,
+      services,
+      serviceProvider,
+    ],
   );
 
   return <ClientContext.Provider value={contextValue}>{children}</ClientContext.Provider>;

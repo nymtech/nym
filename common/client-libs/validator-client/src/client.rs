@@ -1,6 +1,5 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
 use crate::{validator_api, ValidatorClientError};
 use coconut_dkg_common::types::NodeIndex;
 #[cfg(feature = "nymd-client")]
@@ -10,9 +9,10 @@ use coconut_dkg_common::{
 #[cfg(feature = "nymd-client")]
 use coconut_interface::Base58;
 use coconut_interface::VerificationKey;
+use mixnet_contract_common::families::{Family, FamilyHead};
 use mixnet_contract_common::mixnode::MixNodeDetails;
-use mixnet_contract_common::MixId;
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef};
+use mixnet_contract_common::{IdentityKey, MixId};
 #[cfg(feature = "nymd-client")]
 use std::str::FromStr;
 use validator_api_requests::coconut::{
@@ -220,6 +220,7 @@ impl Client<QueryNymdClient> {
 impl<C> Client<C> {
     // use case: somebody initialised client without a contract in order to upload and initialise one
     // and now they want to actually use it without making new client
+
     pub fn set_mixnet_contract_address(&mut self, mixnet_contract_address: cosmrs::AccountId) {
         self.nymd
             .set_mixnet_contract_address(mixnet_contract_address)
@@ -227,6 +228,56 @@ impl<C> Client<C> {
 
     pub fn get_mixnet_contract_address(&self) -> cosmrs::AccountId {
         self.nymd.mixnet_contract_address().clone()
+    }
+
+    pub async fn get_all_node_families(&self) -> Result<Vec<Family>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        let mut families = Vec::new();
+        let mut start_after = None;
+
+        loop {
+            let paged_response = self
+                .nymd
+                .get_all_node_families_paged(start_after.take(), None)
+                .await?;
+            families.extend(paged_response.families);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(families)
+    }
+
+    pub async fn get_all_family_members(
+        &self,
+    ) -> Result<Vec<(IdentityKey, FamilyHead)>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        let mut members = Vec::new();
+        let mut start_after = None;
+
+        loop {
+            let paged_response = self
+                .nymd
+                .get_all_family_members_paged(start_after.take(), None)
+                .await?;
+            members.extend(paged_response.members);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res)
+            } else {
+                break;
+            }
+        }
+
+        Ok(members)
     }
 
     // basically handles paging for us

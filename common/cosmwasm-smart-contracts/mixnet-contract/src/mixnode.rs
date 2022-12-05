@@ -36,7 +36,6 @@ impl RewardedSetNodeStatus {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeDetails {
     pub bond_information: MixNodeBond,
-
     pub rewarding_details: MixNodeRewarding,
 }
 
@@ -576,6 +575,29 @@ pub enum Layer {
 impl From<Layer> for String {
     fn from(layer: Layer) -> Self {
         (layer as u8).to_string()
+    }
+}
+
+impl TryFrom<u8> for Layer {
+    type Error = MixnetContractError;
+
+    fn try_from(i: u8) -> Result<Layer, MixnetContractError> {
+        match i {
+            1 => Ok(Layer::One),
+            2 => Ok(Layer::Two),
+            3 => Ok(Layer::Three),
+            _ => Err(MixnetContractError::InvalidLayer(i)),
+        }
+    }
+}
+
+impl From<Layer> for u8 {
+    fn from(layer: Layer) -> u8 {
+        match layer {
+            Layer::One => 1,
+            Layer::Two => 2,
+            Layer::Three => 3,
+        }
     }
 }
 

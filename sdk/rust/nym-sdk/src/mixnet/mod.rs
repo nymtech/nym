@@ -58,5 +58,5 @@ impl Client {
 }
 
 pub struct Config {
-    keys: Option<PathBuf>,
+    pub keys: Option<PathBuf>,
 }

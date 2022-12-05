@@ -11,6 +11,9 @@ use std::{fs, io};
 
 pub mod defaults;
 
+pub const CONFIG_DIR: &str = "config";
+pub const DATA_DIR: &str = "data";
+
 pub trait NymConfig: Default + Serialize + DeserializeOwned {
     fn template() -> &'static str;
 
@@ -23,17 +26,17 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
     // default, most probable, implementations; can be easily overridden where required
     fn default_config_directory(id: Option<&str>) -> PathBuf {
         if let Some(id) = id {
-            Self::default_root_directory().join(id).join("config")
+            Self::default_root_directory().join(id).join(CONFIG_DIR)
         } else {
-            Self::default_root_directory().join("config")
+            Self::default_root_directory().join(CONFIG_DIR)
         }
     }
 
     fn default_data_directory(id: Option<&str>) -> PathBuf {
         if let Some(id) = id {
-            Self::default_root_directory().join(id).join("data")
+            Self::default_root_directory().join(id).join(DATA_DIR)
         } else {
-            Self::default_root_directory().join("data")
+            Self::default_root_directory().join(DATA_DIR)
         }
     }
 
@@ -47,17 +50,17 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
 
     fn try_default_config_directory(id: Option<&str>) -> Option<PathBuf> {
         if let Some(id) = id {
-            Self::try_default_root_directory().map(|d| d.join(id).join("config"))
+            Self::try_default_root_directory().map(|d| d.join(id).join(CONFIG_DIR))
         } else {
-            Self::try_default_root_directory().map(|d| d.join("config"))
+            Self::try_default_root_directory().map(|d| d.join(CONFIG_DIR))
         }
     }
 
     fn try_default_data_directory(id: Option<&str>) -> Option<PathBuf> {
         if let Some(id) = id {
-            Self::try_default_root_directory().map(|d| d.join(id).join("data"))
+            Self::try_default_root_directory().map(|d| d.join(id).join(DATA_DIR))
         } else {
-            Self::try_default_root_directory().map(|d| d.join("data"))
+            Self::try_default_root_directory().map(|d| d.join(DATA_DIR))
         }
     }
 

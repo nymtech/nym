@@ -19,7 +19,7 @@ use crate::node::client_handling::websocket::connection_handler::coconut::Coconu
 pub(crate) struct Listener {
     address: SocketAddr,
     local_identity: Arc<identity::KeyPair>,
-    disabled_credentials_mode: bool,
+    only_coconut_credentials: bool,
 
     #[cfg(feature = "coconut")]
     pub(crate) coconut_verifier: Arc<CoconutVerifier>,
@@ -29,13 +29,13 @@ impl Listener {
     pub(crate) fn new(
         address: SocketAddr,
         local_identity: Arc<identity::KeyPair>,
-        disabled_credentials_mode: bool,
+        only_coconut_credentials: bool,
         #[cfg(feature = "coconut")] coconut_verifier: Arc<CoconutVerifier>,
     ) -> Self {
         Listener {
             address,
             local_identity,
-            disabled_credentials_mode,
+            only_coconut_credentials,
             #[cfg(feature = "coconut")]
             coconut_verifier,
         }
@@ -69,7 +69,7 @@ impl Listener {
                     let handle = FreshHandler::new(
                         OsRng,
                         socket,
-                        self.disabled_credentials_mode,
+                        self.only_coconut_credentials,
                         outbound_mix_sender.clone(),
                         Arc::clone(&self.local_identity),
                         storage.clone(),

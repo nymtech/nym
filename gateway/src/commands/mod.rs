@@ -60,7 +60,7 @@ pub(crate) struct OverrideConfig {
     mnemonic: Option<String>,
 
     #[cfg(feature = "coconut")]
-    enabled_credentials_mode: Option<bool>,
+    only_coconut_credentials: bool,
 }
 
 pub(crate) async fn execute(args: Cli) {
@@ -153,9 +153,7 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
 
     #[cfg(feature = "coconut")]
     {
-        if let Some(enabled_credentials_mode) = args.enabled_credentials_mode {
-            config = config.with_disabled_credentials_mode(!enabled_credentials_mode);
-        }
+        config = config.with_only_coconut_credentials(args.only_coconut_credentials);
     }
 
     config

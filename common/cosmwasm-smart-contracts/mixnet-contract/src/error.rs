@@ -166,4 +166,7 @@ pub enum MixnetContractError {
         head: IdentityKey,
         member: IdentityKey,
     },
+
+    #[error("Feature is not yet implemented")]
+    NotImplemented,
 }

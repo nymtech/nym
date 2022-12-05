@@ -226,41 +226,43 @@ pub fn try_head_kick_member_on_behalf(
     _try_head_kick_member(deps, &head_address, owner_signature, member)
 }
 
+#[allow(unused_variables)]
 fn _try_head_kick_member(
     deps: DepsMut,
     owner: &Addr,
     owner_signature: String,
     member: IdentityKeyRef<'_>,
 ) -> Result<Response, MixnetContractError> {
-    let existing_bond = crate::mixnodes::storage::mixnode_bonds()
-        .idx
-        .owner
-        .item(deps.storage, owner.clone())?
-        .ok_or(MixnetContractError::NoAssociatedMixNodeBond {
-            owner: owner.clone(),
-        })?
-        .1;
+    Err(MixnetContractError::NotImplemented)
+    // let existing_bond = crate::mixnodes::storage::mixnode_bonds()
+    //     .idx
+    //     .owner
+    //     .item(deps.storage, owner.clone())?
+    //     .ok_or(MixnetContractError::NoAssociatedMixNodeBond {
+    //         owner: owner.clone(),
+    //     })?
+    //     .1;
 
-    ensure_bonded(&existing_bond)?;
+    // ensure_bonded(&existing_bond)?;
 
-    validate_node_identity_signature(
-        deps.as_ref(),
-        owner,
-        &owner_signature,
-        existing_bond.identity(),
-    )?;
+    // validate_node_identity_signature(
+    //     deps.as_ref(),
+    //     owner,
+    //     &owner_signature,
+    //     existing_bond.identity(),
+    // )?;
 
-    let family_head = FamilyHead::new(existing_bond.identity());
-    let family = get_family(&family_head, deps.storage)?;
-    if !is_family_member(deps.storage, &family, member)? {
-        return Err(MixnetContractError::NotAMember {
-            head: family_head.identity().to_string(),
-            member: existing_bond.identity().to_string(),
-        });
-    }
+    // let family_head = FamilyHead::new(existing_bond.identity());
+    // let family = get_family(&family_head, deps.storage)?;
+    // if !is_family_member(deps.storage, &family, member)? {
+    //     return Err(MixnetContractError::NotAMember {
+    //         head: family_head.identity().to_string(),
+    //         member: existing_bond.identity().to_string(),
+    //     });
+    // }
 
-    remove_family_member(deps.storage, member);
-    Ok(Response::default())
+    // remove_family_member(deps.storage, member);
+    // Ok(Response::default())
 }
 
 #[cfg(test)]
@@ -398,15 +400,15 @@ mod test {
 
         assert!(is_family_member(&deps.storage, &family, &member_mixnode.identity_key).unwrap());
 
-        try_head_kick_member(
-            deps.as_mut(),
-            mock_info(&head, &[]),
-            head_sig.clone(),
-            &member_mixnode.identity_key.clone(),
-        )
-        .unwrap();
+        // try_head_kick_member(
+        //     deps.as_mut(),
+        //     mock_info(&head, &[]),
+        //     head_sig.clone(),
+        //     &member_mixnode.identity_key.clone(),
+        // )
+        // .unwrap();
 
-        let family = get_family(&family_head, &deps.storage).unwrap();
-        assert!(!is_family_member(&deps.storage, &family, &member_mixnode.identity_key).unwrap());
+        // let family = get_family(&family_head, &deps.storage).unwrap();
+        // assert!(!is_family_member(&deps.storage, &family, &member_mixnode.identity_key).unwrap());
     }
 }

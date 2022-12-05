@@ -8,6 +8,7 @@ mod constants;
 pub mod delegation;
 pub mod error;
 pub mod events;
+pub mod families;
 pub mod gateway;
 pub mod helpers;
 mod interval;

@@ -82,7 +82,7 @@ pub(crate) fn _try_add_gateway(
     validate_node_identity_signature(
         deps.as_ref(),
         &owner,
-        owner_signature,
+        &owner_signature,
         &gateway.identity_key,
     )?;
 

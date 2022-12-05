@@ -4,6 +4,9 @@
 use crate::nymd_client::Client;
 use ::time::OffsetDateTime;
 use anyhow::Result;
+use mixnet_contract_common::families::FamilyHead;
+use mixnet_contract_common::mixnode::MixNodeDetails;
+use mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use mixnet_contract_common::{
     mixnode::MixNodeDetails, reward_params::RewardingParams, GatewayBond, IdentityKey, Interval,
     MixId, MixNodeBond, RewardedSetNodeStatus,
@@ -123,6 +126,57 @@ impl<C> ValidatorCacheRefresher<C> {
         self.update_notifier.subscribe()
     }
 
+    async fn annotate_node_with_details(
+        &self,
+        mixnodes: Vec<MixNodeDetails>,
+        interval_reward_params: RewardingParams,
+        current_interval: Interval,
+        rewarded_set: &HashMap<MixId, RewardedSetNodeStatus>,
+    ) -> Vec<MixNodeBondAnnotated> {
+        let mut annotated = Vec::new();
+        for mixnode in mixnodes {
+            let stake_saturation = mixnode
+                .rewarding_details
+                .bond_saturation(&interval_reward_params);
+
+            let uncapped_stake_saturation = mixnode
+                .rewarding_details
+                .uncapped_bond_saturation(&interval_reward_params);
+
+            let performance = self
+                .get_performance(mixnode.mix_id(), current_interval)
+                .await
+                .unwrap_or_default();
+
+            let rewarded_set_status = rewarded_set.get(&mixnode.mix_id()).cloned();
+
+            let reward_estimate = reward_estimate::compute_reward_estimate(
+                &mixnode,
+                performance,
+                rewarded_set_status,
+                interval_reward_params,
+                current_interval,
+            );
+
+            let (estimated_operator_apy, estimated_delegators_apy) =
+                reward_estimate::compute_apy_from_reward(
+                    &mixnode,
+                    reward_estimate,
+                    current_interval,
+                );
+
+            annotated.push(MixNodeBondAnnotated {
+                mixnode_details: mixnode,
+                stake_saturation,
+                uncapped_stake_saturation,
+                performance,
+                estimated_operator_apy,
+                estimated_delegators_apy,
+            });
+        }
+        annotated
+    }
+
     async fn get_rewarded_set_map(&self) -> HashMap<MixId, RewardedSetNodeStatus>
     where
         C: CosmWasmClient + Sync + Send,
@@ -163,7 +217,11 @@ impl<C> ValidatorCacheRefresher<C> {
         let mixnodes = self.nymd_client.get_mixnodes().await?;
         let gateways = self.nymd_client.get_gateways().await?;
 
-        let rewarded_set_map = self.get_rewarded_set_map().await;
+        let rewarded_set = self.get_rewarded_set_map().await;
+
+        let mixnodes = self
+            .annotate_node_with_details(mixnodes, rewarding_params, current_interval, &rewarded_set)
+            .await;
 
         let (rewarded_set, active_set) =
             Self::collect_rewarded_and_active_set_details(&mixnodes, &rewarded_set_map);
@@ -255,6 +313,7 @@ impl ValidatorCache {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn update_cache(
         &self,
         mixnodes: Vec<MixNodeDetails>,

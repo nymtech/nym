@@ -1,6 +1,5 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
 use crate::constants::{INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMOUNT};
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
@@ -82,6 +81,69 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, MixnetContractError> {
     match msg {
+        ExecuteMsg::AssignNodeLayer { mix_id, layer } => {
+            crate::mixnodes::transactions::assign_mixnode_layer(deps, info, mix_id, layer)
+        }
+        // families
+        ExecuteMsg::CreateFamily {
+            owner_signature,
+            label,
+        } => crate::families::transactions::try_create_family(deps, info, owner_signature, &label),
+        ExecuteMsg::JoinFamily {
+            signature,
+            family_head,
+        } => crate::families::transactions::try_join_family(deps, info, signature, family_head),
+        ExecuteMsg::LeaveFamily {
+            signature,
+            family_head,
+        } => crate::families::transactions::try_leave_family(deps, info, signature, family_head),
+        ExecuteMsg::KickFamilyMember { signature, member } => {
+            crate::families::transactions::try_head_kick_member(deps, info, signature, &member)
+        }
+        ExecuteMsg::CreateFamilyOnBehalf {
+            owner_address,
+            owner_signature,
+            label,
+        } => crate::families::transactions::try_create_family_on_behalf(
+            deps,
+            info,
+            owner_address,
+            owner_signature,
+            &label,
+        ),
+        ExecuteMsg::JoinFamilyOnBehalf {
+            member_address,
+            signature,
+            family_head,
+        } => crate::families::transactions::try_join_family_on_behalf(
+            deps,
+            info,
+            member_address,
+            signature,
+            family_head,
+        ),
+        ExecuteMsg::LeaveFamilyOnBehalf {
+            member_address,
+            signature,
+            family_head,
+        } => crate::families::transactions::try_leave_family_on_behalf(
+            deps,
+            info,
+            member_address,
+            signature,
+            family_head,
+        ),
+        ExecuteMsg::KickFamilyMemberOnBehalf {
+            head_address,
+            signature,
+            member,
+        } => crate::families::transactions::try_head_kick_member_on_behalf(
+            deps,
+            info,
+            head_address,
+            signature,
+            &member,
+        ),
         // state/sys-params-related
         ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
             crate::mixnet_contract_settings::transactions::try_update_rewarding_validator_address(
@@ -129,6 +191,7 @@ pub fn execute(
         ),
         ExecuteMsg::AdvanceCurrentEpoch {
             new_rewarded_set,
+            // families_in_layer,
             expected_active_set_size,
         } => crate::interval::transactions::try_advance_epoch(
             deps,
@@ -285,6 +348,24 @@ pub fn query(
     msg: QueryMsg,
 ) -> Result<QueryResponse, MixnetContractError> {
     let query_res = match msg {
+        QueryMsg::GetAllFamiliesPaged { limit, start_after } => to_binary(
+            &crate::families::queries::get_all_families_paged(deps.storage, start_after, limit)?,
+        ),
+        QueryMsg::GetAllMembersPaged { limit, start_after } => to_binary(
+            &crate::families::queries::get_all_members_paged(deps.storage, start_after, limit)?,
+        ),
+        QueryMsg::GetFamilyByHead { head } => to_binary(
+            &crate::families::queries::get_family_by_head(&head, deps.storage)?,
+        ),
+        QueryMsg::GetFamilyByLabel { label } => to_binary(
+            &crate::families::queries::get_family_by_label(&label, deps.storage)?,
+        ),
+        QueryMsg::GetFamilyMembersByHead { head } => to_binary(
+            &crate::families::queries::get_family_members_by_head(&head, deps.storage)?,
+        ),
+        QueryMsg::GetFamilyMembersByLabel { label } => to_binary(
+            &crate::families::queries::get_family_members_by_label(&label, deps.storage)?,
+        ),
         QueryMsg::GetContractVersion {} => {
             to_binary(&crate::mixnet_contract_settings::queries::query_contract_version())
         }

@@ -187,13 +187,10 @@ impl TopologyRefresher {
     /// # Arguments
     ///
     /// * `topology`: active topology constructed from validator api data
-    /// * `mixnodes_count`: total number of active mixnodes
-    fn check_layer_distribution(
-        &self,
-        active_topology: &NymTopology,
-        mixnodes_count: usize,
-    ) -> bool {
+    fn check_layer_distribution(&self, active_topology: &NymTopology) -> bool {
         let mixes = active_topology.mixes();
+        let mixnodes_count = active_topology.num_mixnodes();
+
         if active_topology.gateways().is_empty() {
             return false;
         }
@@ -258,11 +255,10 @@ impl TopologyRefresher {
             Ok(gateways) => gateways,
         };
 
-        let mixnodes_count = mixnodes.len();
         let topology = nym_topology_from_detailed(mixnodes, gateways)
             .filter_system_version(&self.client_version);
 
-        if !self.check_layer_distribution(&topology, mixnodes_count) {
+        if !self.check_layer_distribution(&topology) {
             warn!("The current filtered active topology has extremely skewed layer distribution. It cannot be used.");
             None
         } else {

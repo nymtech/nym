@@ -6,7 +6,7 @@ use nymsphinx::addressing::clients::{Recipient, RecipientBytes};
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use std::sync::Arc;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 use dashmap::iter::Iter;
 
 #[derive(Debug, Clone)]
@@ -28,7 +28,7 @@ impl UsedSenderTags {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
     pub(crate) fn from_raw(raw: Vec<(RecipientBytes, AnonymousSenderTag)>) -> UsedSenderTags {
         UsedSenderTags {
             inner: Arc::new(UsedSenderTagsInner {
@@ -37,7 +37,7 @@ impl UsedSenderTags {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
     pub(crate) fn as_raw_iter(&self) -> Iter<'_, RecipientBytes, AnonymousSenderTag> {
         self.inner.data.iter()
     }

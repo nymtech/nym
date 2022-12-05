@@ -12,7 +12,7 @@ use std::sync::Arc;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::Instant;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 use dashmap::iter::Iter;
 
 #[cfg(target_arch = "wasm32")]
@@ -48,7 +48,7 @@ impl ReceivedReplySurbsMap {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
     pub(crate) fn from_raw(
         min_surb_threshold: usize,
         max_surb_threshold: usize,
@@ -63,7 +63,7 @@ impl ReceivedReplySurbsMap {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
     pub(crate) fn as_raw_iter(&self) -> Iter<'_, AnonymousSenderTag, ReceivedReplySurbs> {
         self.inner.data.iter()
     }
@@ -211,7 +211,7 @@ impl ReceivedReplySurbs {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
     pub(crate) fn new_retrieved(
         surbs: Vec<ReplySurb>,
         surbs_last_received_at: Instant,
@@ -223,7 +223,7 @@ impl ReceivedReplySurbs {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
     pub(crate) fn surbs_ref(&self) -> &VecDeque<ReplySurb> {
         &self.data
     }

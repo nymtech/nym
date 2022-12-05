@@ -38,7 +38,7 @@ use std::time::Duration;
 use task::{ShutdownListener, ShutdownNotifier};
 use url::Url;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 pub mod non_wasm_helpers;
 
 pub struct ClientInput {

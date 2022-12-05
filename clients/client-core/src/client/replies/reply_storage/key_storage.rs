@@ -6,7 +6,7 @@ use nymsphinx::anonymous_replies::encryption_key::EncryptionKeyDigest;
 use nymsphinx::anonymous_replies::SurbEncryptionKey;
 use std::sync::Arc;
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 use dashmap::iter::Iter;
 
 #[derive(Debug, Clone)]
@@ -30,7 +30,7 @@ impl SentReplyKeys {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
     pub(crate) fn from_raw(raw: Vec<(EncryptionKeyDigest, SurbEncryptionKey)>) -> SentReplyKeys {
         SentReplyKeys {
             inner: Arc::new(SentReplyKeysInner {
@@ -39,7 +39,7 @@ impl SentReplyKeys {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
     pub(crate) fn as_raw_iter(&self) -> Iter<'_, EncryptionKeyDigest, SurbEncryptionKey> {
         self.inner.data.iter()
     }

@@ -4,6 +4,7 @@
 use crate::client::replies::reply_storage::CombinedReplyStorage;
 use async_trait::async_trait;
 use std::error::Error;
+use std::sync::atomic::AtomicUsize;
 use thiserror::Error;
 
 #[cfg(target_arch = "wasm32")]
@@ -19,7 +20,11 @@ pub mod fs_backend;
 #[error("no information provided")]
 pub struct UndefinedError;
 
-pub struct Empty {}
+pub struct Empty {
+    // we need to keep 'basic' metadata here to "load" the CombinedReplyStorage
+    min_surb_threshold: usize,
+    max_surb_threshold: usize,
+}
 
 #[async_trait]
 impl ReplyStorageBackend for Empty {
@@ -40,7 +45,10 @@ impl ReplyStorageBackend for Empty {
     }
 
     async fn load_surb_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError> {
-        todo!()
+        Ok(CombinedReplyStorage::new(
+            self.min_surb_threshold,
+            self.max_surb_threshold,
+        ))
     }
 }
 

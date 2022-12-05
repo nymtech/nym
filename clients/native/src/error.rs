@@ -1,5 +1,4 @@
 use client_core::client::replies::reply_storage::fs_backend;
-use client_core::client::replies::reply_storage::fs_backend::StorageError;
 use client_core::error::ClientCoreError;
 
 #[derive(thiserror::Error, Debug)]

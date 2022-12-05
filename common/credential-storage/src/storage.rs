@@ -25,10 +25,10 @@ pub trait Storage: Send + Sync {
     /// Tries to retrieve one of the stored, unused credentials.
     async fn get_next_coconut_credential(&self) -> Result<CoconutCredential, StorageError>;
 
-    /// Removes from the database the specified credential.
+    /// Marks as consumed in the database the specified credential.
     ///
     /// # Arguments
     ///
-    /// * `signature`: Coconut credential in the form of a signature.
-    async fn remove_coconut_credential(&self, id: i64) -> Result<(), StorageError>;
+    /// * `id`: Id of the credential to be consumed.
+    async fn consume_coconut_credential(&self, id: i64) -> Result<(), StorageError>;
 }

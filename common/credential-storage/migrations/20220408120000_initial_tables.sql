@@ -10,7 +10,8 @@ CREATE TABLE coconut_credentials
     voucher_info        TEXT    NOT NULL,
     serial_number       TEXT    NOT NULL,
     binding_number      TEXT    NOT NULL,
-    signature           TEXT    NOT NULL UNIQUE
+    signature           TEXT    NOT NULL UNIQUE,
+    consumed            BOOLEAN NOT NULL
 );
 
 CREATE TABLE erc20_credentials

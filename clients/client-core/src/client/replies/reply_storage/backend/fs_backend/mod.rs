@@ -46,6 +46,7 @@ impl Backend {
         };
 
         backend.manager.create_status_table().await?;
+
         Ok(backend)
     }
 
@@ -131,6 +132,7 @@ impl Backend {
         fs::rename(&self.database_path, &temp_old)
             .map_err(|err| StorageError::DatabaseRenameError { source: err })?;
         self.manager = StorageManager::init(&self.database_path, true).await?;
+        self.manager.create_status_table().await?;
 
         self.temporary_old_path = Some(temp_old);
         Ok(())

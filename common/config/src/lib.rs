@@ -13,6 +13,7 @@ pub mod defaults;
 
 pub const CONFIG_DIR: &str = "config";
 pub const DATA_DIR: &str = "data";
+pub const DB_FILE_NAME: &str = "db.sqlite";
 
 pub trait NymConfig: Default + Serialize + DeserializeOwned {
     fn template() -> &'static str;

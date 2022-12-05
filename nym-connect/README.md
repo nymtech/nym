@@ -12,8 +12,8 @@ Nym Connects sets up a SOCKS5 proxy for local applications to use.
 ## Installation prerequisites - Linux / Mac
 
 - `Yarn`
-- `NodeJS >= v16.8.0`
-- `Rust & cargo >= v1.56`
+- `NodeJS >= v16`
+- `Rust & cargo`
 
 ## Installation prerequisites - Windows
 

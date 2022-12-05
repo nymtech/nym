@@ -6,8 +6,20 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+futures = "0.3"
 log = "0.4"
-tokio = { version = "1.21.2", features = ["macros", "signal", "time", "sync"] }
+thiserror = "1.0.37"
+tokio = { version = "1.21.2", features = ["macros", "sync"] }
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
+version = "1.21.2"
+features = ["signal", "time"]
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen-futures]
+version = "0.4"
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]
+version = "0.2.83"
 
 [dev-dependencies]
 tokio = { version = "1.21.2", features = ["rt-multi-thread", "net", "signal", "test-util", "macros"] }

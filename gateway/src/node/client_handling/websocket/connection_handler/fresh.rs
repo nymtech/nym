@@ -18,7 +18,7 @@ use gateway_requests::iv::{IVConversionError, IV};
 use gateway_requests::registration::handshake::error::HandshakeError;
 use gateway_requests::registration::handshake::{gateway_handshake, SharedKeys};
 use gateway_requests::types::{ClientControlRequest, ServerResponse};
-use gateway_requests::BinaryResponse;
+use gateway_requests::{BinaryResponse, PROTOCOL_VERSION};
 use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
 use nymsphinx::DestinationAddressBytes;
@@ -55,6 +55,9 @@ enum InitialAuthenticationError {
 
     #[error("Experienced connection error - {0}")]
     ConnectionError(#[from] WsError),
+
+    #[error("Attempted to negotiate connection with client using incompatible protocol version. Ours is {current} and the client reports {client:?}")]
+    IncompatibleProtocol { client: Option<u8>, current: u8 },
 }
 
 impl InitialAuthenticationError {
@@ -279,10 +282,7 @@ where
 
             // push them to the client
             if let Err(err) = self.push_packets_to_client(shared_keys, messages).await {
-                warn!(
-                    "We failed to send stored messages to fresh client - {}",
-                    err
-                );
+                warn!("We failed to send stored messages to fresh client - {err}",);
                 return Err(InitialAuthenticationError::ConnectionError(err));
             } else {
                 // if it was successful - remove them from the store
@@ -342,6 +342,27 @@ where
         }
     }
 
+    fn check_client_protocol(
+        &self,
+        client_protocol: Option<u8>,
+    ) -> Result<(), InitialAuthenticationError> {
+        // right now there are no failure cases here, but this might change in the future
+        match client_protocol {
+            Some(v) if v == PROTOCOL_VERSION => {
+                info!("the client is using exactly the same protocol version as we are. We're good to continue!");
+                Ok(())
+            }
+            v => {
+                let err = InitialAuthenticationError::IncompatibleProtocol {
+                    client: v,
+                    current: PROTOCOL_VERSION,
+                };
+                error!("{err}");
+                Err(err)
+            }
+        }
+    }
+
     /// Using the received challenge data, i.e. client's address as well the ciphertext of it plus
     /// a fresh IV, attempts to authenticate the client by checking whether the ciphertext matches
     /// the expected value if encrypted with the shared key.
@@ -389,6 +410,7 @@ where
     /// * `iv`: fresh IV received with the request.
     async fn handle_authenticate(
         &mut self,
+        client_protocol_version: Option<u8>,
         address: String,
         enc_address: String,
         iv: String,
@@ -396,6 +418,8 @@ where
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
+        self.check_client_protocol(client_protocol_version)?;
+
         let address = DestinationAddressBytes::try_from_base58_string(address)
             .map_err(|err| InitialAuthenticationError::MalformedClientAddress(err.to_string()))?;
         let encrypted_address = EncryptedAddressBytes::try_from_base58_string(enc_address)?;
@@ -420,6 +444,7 @@ where
         Ok(InitialAuthResult::new(
             client_details,
             ServerResponse::Authenticate {
+                protocol_version: Some(PROTOCOL_VERSION),
                 status,
                 bandwidth_remaining,
             },
@@ -474,11 +499,14 @@ where
     /// * `init_data`: init payload of the registration handshake.
     async fn handle_register(
         &mut self,
+        client_protocol_version: Option<u8>,
         init_data: Vec<u8>,
     ) -> Result<InitialAuthResult, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
     {
+        self.check_client_protocol(client_protocol_version)?;
+
         let remote_identity = Self::extract_remote_identity_from_register_init(&init_data)?;
         let remote_address = remote_identity.derive_destination_address();
 
@@ -493,7 +521,10 @@ where
 
         Ok(InitialAuthResult::new(
             Some(client_details),
-            ServerResponse::Register { status },
+            ServerResponse::Register {
+                protocol_version: Some(PROTOCOL_VERSION),
+                status,
+            },
         ))
     }
 
@@ -513,13 +544,18 @@ where
         if let Ok(request) = ClientControlRequest::try_from(raw_request) {
             match request {
                 ClientControlRequest::Authenticate {
+                    protocol_version,
                     address,
                     enc_address,
                     iv,
-                } => self.handle_authenticate(address, enc_address, iv).await,
-                ClientControlRequest::RegisterHandshakeInitRequest { data } => {
-                    self.handle_register(data).await
+                } => {
+                    self.handle_authenticate(protocol_version, address, enc_address, iv)
+                        .await
                 }
+                ClientControlRequest::RegisterHandshakeInitRequest {
+                    protocol_version,
+                    data,
+                } => self.handle_register(protocol_version, data).await,
                 // won't accept anything else (like bandwidth) without prior authentication
                 _ => Err(InitialAuthenticationError::InvalidRequest),
             }

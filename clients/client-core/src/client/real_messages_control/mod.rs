@@ -35,8 +35,6 @@ use std::time::Duration;
 
 use crate::config;
 pub(crate) use acknowledgement_control::{AckActionSender, Action};
-// #[cfg(feature = "reply-surb")]
-// use crate::client::reply_key_storage::ReplyKeyStorage;
 
 pub(crate) mod acknowledgement_control;
 pub(crate) mod message_handler;
@@ -91,7 +89,7 @@ pub struct Config {
 
 impl Config {
     pub fn new(
-        base_client_debug_config: &config::Debug,
+        base_client_debug_config: &config::DebugConfig,
         ack_key: Arc<AckKey>,
         self_recipient: Recipient,
     ) -> Self {
@@ -239,7 +237,6 @@ impl RealMessagesController<OsRng> {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn start_with_shutdown(self, shutdown: task::ShutdownListener) {
         let mut out_queue_control = self.out_queue_control;
         let ack_control = self.ack_control;

@@ -109,7 +109,7 @@ send_anonymously = {{ socks5.send_anonymously }}
 # The following options should not be modified unless you know EXACTLY what you are doing
 # as if set incorrectly, they may impact your anonymity.
 
-[socks5_debug]
+# [socks5_debug]
 
 
 [debug]

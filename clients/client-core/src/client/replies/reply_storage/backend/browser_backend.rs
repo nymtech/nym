@@ -11,6 +11,17 @@ pub struct Backend {
     empty: Empty,
 }
 
+impl Backend {
+    pub fn new(min_surb_threshold: usize, max_surb_threshold: usize) -> Self {
+        Backend {
+            empty: Empty {
+                min_surb_threshold,
+                max_surb_threshold,
+            },
+        }
+    }
+}
+
 #[async_trait]
 impl ReplyStorageBackend for Backend {
     type StorageError = <Empty as ReplyStorageBackend>::StorageError;

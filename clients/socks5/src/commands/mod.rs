@@ -1,8 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::error::Error;
+
 use crate::client::config::Config;
-use crate::error::Socks5ClientError;
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
 use completions::{fig_generate, ArgShell};
@@ -83,12 +84,13 @@ pub(crate) struct OverrideConfig {
     port: Option<u16>,
     use_anonymous_sender_tag: bool,
     fastmode: bool,
+    no_cover: bool,
 
     #[cfg(feature = "coconut")]
     enabled_credentials_mode: bool,
 }
 
-pub(crate) async fn execute(args: &Cli) -> Result<(), Socks5ClientError> {
+pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send>> {
     let bin_name = "nym-socks5-client";
 
     match &args.command {
@@ -138,6 +140,10 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
 
     if args.fastmode {
         config.get_base_mut().set_high_default_traffic_volume();
+    }
+
+    if args.no_cover {
+        config.get_base_mut().set_no_cover_traffic();
     }
 
     config

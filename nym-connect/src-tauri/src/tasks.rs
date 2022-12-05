@@ -1,4 +1,4 @@
-use client_core::config::GatewayEndpoint;
+use client_core::config::GatewayEndpointConfig;
 use futures::channel::mpsc;
 use std::sync::Arc;
 use tap::TapFallible;
@@ -25,13 +25,17 @@ pub enum Socks5StatusMessage {
 /// The main SOCKS5 client task. It loads the configuration from file determined by the `id`.
 pub fn start_nym_socks5_client(
     id: &str,
-) -> Result<(Socks5ControlMessageSender, StatusReceiver, GatewayEndpoint)> {
+) -> Result<(
+    Socks5ControlMessageSender,
+    StatusReceiver,
+    GatewayEndpointConfig,
+)> {
     log::info!("Loading config from file: {id}");
     let config = Socks5Config::load_from_file(Some(id))
         .tap_err(|_| log::warn!("Failed to load configuration file"))?;
     let used_gateway = config.get_base().get_gateway_endpoint().clone();
 
-    let mut socks5_client = Socks5NymClient::new(config);
+    let socks5_client = Socks5NymClient::new(config);
     log::info!("Starting socks5 client");
 
     // Channel to send control messages to the socks5 client
@@ -50,7 +54,7 @@ pub fn start_nym_socks5_client(
             .block_on(async move { socks5_client.run_and_listen(socks5_ctrl_rx).await });
 
         if let Err(err) = result {
-            log::error!("SOCKS5 proxy failed to start: {err}");
+            log::error!("SOCKS5 proxy failed: {err}");
             socks5_status_tx
                 .send(Socks5StatusMessage::FailedToStart)
                 .expect("Failed to send status message back to main task");
@@ -66,6 +70,12 @@ pub fn start_nym_socks5_client(
     Ok((socks5_ctrl_tx, socks5_status_rx, used_gateway))
 }
 
+#[derive(Clone, serde::Serialize)]
+struct Payload {
+    title: String,
+    message: String,
+}
+
 /// The disconnect listener listens to the channel setup between the socks5 proxy task and the main
 /// tauri task. Primarily it listens for shutdown messages, and updates the state accordingly.
 pub fn start_disconnect_listener(
@@ -78,14 +88,39 @@ pub fn start_disconnect_listener(
         match status_receiver.await {
             Ok(Socks5StatusMessage::Stopped) => {
                 log::info!("SOCKS5 task reported it has finished");
+                window
+                    .emit(
+                        "socks5-event",
+                        Payload {
+                            title: "SOCKS5 finished".into(),
+                            message: "SOCKS5 task reported it has finished".into(),
+                        },
+                    )
+                    .unwrap();
             }
             Ok(Socks5StatusMessage::FailedToStart) => {
                 log::info!("SOCKS5 task reported it failed to start");
+                window
+                    .emit(
+                        "socks5-event",
+                        Payload {
+                            title: "SOCKS5 error".into(),
+                            message: "SOCKS5 failed to start".into(),
+                        },
+                    )
+                    .unwrap();
             }
             Err(_) => {
                 log::info!("SOCKS5 task appears to have stopped abruptly");
-                // TODO: we should probably generate some events here, or otherwise signal to the
-                // frontend.
+                window
+                    .emit(
+                        "socks5-event",
+                        Payload {
+                            title: "SOCKS5 error".into(),
+                            message: "SOCKS5 stopped abruptly. Please try reconnecting.".into(),
+                        },
+                    )
+                    .unwrap();
             }
         }
 

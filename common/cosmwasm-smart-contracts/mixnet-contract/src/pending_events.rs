@@ -34,6 +34,10 @@ pub enum PendingEpochEventKind {
         mix_id: MixId,
         proxy: Option<Addr>,
     },
+    PledgeMore {
+        mix_id: MixId,
+        amount: Coin,
+    },
     UnbondMixnode {
         mix_id: MixId,
     },
@@ -78,7 +82,6 @@ pub enum PendingIntervalEventKind {
         mix_id: MixId,
         new_costs: MixNodeCostParams,
     },
-
     UpdateRewardingParams {
         update: IntervalRewardingParamsUpdate,
     },

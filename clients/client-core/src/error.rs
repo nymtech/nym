@@ -1,12 +1,13 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::replies::reply_storage::ReplyStorageBackend;
 use crypto::asymmetric::identity::Ed25519RecoveryError;
 use gateway_client::error::GatewayClientError;
 use validator_client::ValidatorClientError;
 
 #[derive(thiserror::Error, Debug)]
-pub enum ClientCoreError {
+pub enum ClientCoreError<B: ReplyStorageBackend> {
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
     #[error("Gateway client error: {0}")]
@@ -26,4 +27,10 @@ pub enum ClientCoreError {
     CouldNotLoadExistingGatewayConfiguration(std::io::Error),
     #[error("The current network topology seem to be insufficient to route any packets through")]
     InsufficientNetworkTopology,
+
+    #[error("Unexpected exit")]
+    UnexpectedExit,
+
+    #[error("experienced a failure with our reply surb persistent storage: {source}")]
+    SurbStorageError { source: B::StorageError },
 }

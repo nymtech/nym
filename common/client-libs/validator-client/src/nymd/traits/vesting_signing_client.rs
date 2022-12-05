@@ -64,6 +64,21 @@ pub trait VestingSigningClient {
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError>;
 
+    async fn vesting_pledge_more(
+        &self,
+        additional_pledge: Coin,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        self.execute_vesting_contract(
+            fee,
+            VestingExecuteMsg::PledgeMore {
+                amount: additional_pledge.into(),
+            },
+            vec![],
+        )
+        .await
+    }
+
     async fn vesting_unbond_mixnode(&self, fee: Option<Fee>) -> Result<ExecuteResult, NymdError>;
 
     async fn vesting_track_unbond_mixnode(

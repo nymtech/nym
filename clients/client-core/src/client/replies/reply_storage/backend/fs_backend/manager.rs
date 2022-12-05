@@ -9,7 +9,7 @@ use log::{error, info};
 use sqlx::ConnectOptions;
 use std::path::Path;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub(crate) struct StorageManager {
     pub(crate) connection_pool: sqlx::SqlitePool,
 }

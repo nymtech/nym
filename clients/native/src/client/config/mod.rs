@@ -3,7 +3,7 @@
 
 use crate::client::config::template::config_template;
 pub use client_core::config::MISSING_VALUE;
-use client_core::config::{Config as BaseConfig, Debug};
+use client_core::config::{Config as BaseConfig, DebugConfig};
 use config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
@@ -26,6 +26,10 @@ impl SocketType {
             "WEBSOCKET" | "WS" => SocketType::WebSocket,
             _ => SocketType::None,
         }
+    }
+
+    pub fn is_websocket(&self) -> bool {
+        matches!(self, SocketType::WebSocket)
     }
 }
 
@@ -100,7 +104,7 @@ impl Config {
         &mut self.base
     }
 
-    pub fn get_debug_settings(&self) -> &Debug {
+    pub fn get_debug_settings(&self) -> &DebugConfig {
         self.get_base().get_debug_config()
     }
 

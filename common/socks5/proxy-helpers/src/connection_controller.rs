@@ -254,6 +254,10 @@ impl Controller {
                 },
             }
         }
+        #[cfg(not(target_arch = "wasm32"))]
+        tokio::time::timeout(Duration::from_secs(5), self.shutdown.recv())
+            .await
+            .expect("Task stopped without shutdown called");
         assert!(self.shutdown.is_shutdown_poll());
         log::debug!("SOCKS5 Controller: Exiting");
     }

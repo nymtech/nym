@@ -1,12 +1,10 @@
 import React from 'react';
 import { Box, CircularProgress, Typography } from '@mui/material';
-import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
-import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
 import { DateTime } from 'luxon';
 import { ConnectionStatusKind } from '../types';
 import { ServiceProvider } from '../types/directory';
 
-const FONT_SIZE = '16px';
+const FONT_SIZE = '10px';
 const FONT_WEIGHT = '600';
 const FONT_STYLE = 'normal';
 
@@ -16,39 +14,41 @@ const ConnectionStatusContent: React.FC<{
   switch (status) {
     case ConnectionStatusKind.connected:
       return (
-        <>
-          <CheckCircleOutlineIcon />
-          <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} ml={1}>
-            Connected
-          </Typography>
-        </>
+        <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} textAlign="center">
+          Connected
+        </Typography>
       );
     case ConnectionStatusKind.disconnecting:
       return (
-        <>
+        <Box display="flex" alignItems="center" justifyContent="center">
           <CircularProgress size={FONT_SIZE} color="inherit" />
           <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} ml={1}>
             Disconnecting...
           </Typography>
-        </>
+        </Box>
       );
     case ConnectionStatusKind.connecting:
       return (
-        <>
+        <Box display="flex" alignItems="center" justifyContent="center">
           <CircularProgress size={FONT_SIZE} color="inherit" />
           <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} ml={1}>
             Connecting...
           </Typography>
-        </>
+        </Box>
       );
     case ConnectionStatusKind.disconnected:
       return (
-        <>
-          <CircleOutlinedIcon />
-          <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} ml={1}>
-            Disconnected
-          </Typography>
-        </>
+        <Typography
+          fontWeight={FONT_WEIGHT}
+          fontStyle={FONT_STYLE}
+          ml={1}
+          textTransform="uppercase"
+          textAlign="center"
+          fontSize="10px"
+          sx={{ wordSpacing: 3, letterSpacing: 2 }}
+        >
+          You are not protected
+        </Typography>
       );
     default:
       return null;
@@ -61,29 +61,22 @@ export const ConnectionStatus: React.FC<{
   serviceProvider?: ServiceProvider;
 }> = ({ status, connectedSince, serviceProvider }) => {
   const color =
-    status === ConnectionStatusKind.connected || status === ConnectionStatusKind.disconnecting ? '#21D072' : '#888';
-  const [duration, setDuration] = React.useState<string>();
-  React.useEffect(() => {
-    const intervalId = setInterval(() => {
-      if (connectedSince) {
-        setDuration(DateTime.now().diff(connectedSince).toFormat('hh:mm:ss'));
-      }
-    }, 500);
-    return () => {
-      clearInterval(intervalId);
-    };
-  }, [status, connectedSince]);
+    status === ConnectionStatusKind.connected || status === ConnectionStatusKind.disconnecting
+      ? '#21D072'
+      : 'warning.main';
+
   return (
     <>
-      <Box display="flex" justifyContent="space-between">
-        <Box color={color} fontSize={FONT_SIZE} display="flex" alignItems="center">
-          <ConnectionStatusContent status={status} />
-        </Box>
-        <Typography color={color} fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE}>
-          {status === ConnectionStatusKind.connected && duration}
-        </Typography>
+      <Box color={color} fontSize={FONT_SIZE} sx={{ mb: 1 }}>
+        <ConnectionStatusContent status={status} />
       </Box>
-      <Box>{serviceProvider && <Typography fontSize={12}>{serviceProvider.description}</Typography>}</Box>
+      <Box>
+        {serviceProvider && (
+          <Typography fontSize={12} textAlign="center">
+            To {serviceProvider.description}
+          </Typography>
+        )}
+      </Box>
     </>
   );
 };

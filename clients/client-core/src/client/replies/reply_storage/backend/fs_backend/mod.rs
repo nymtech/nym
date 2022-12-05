@@ -22,6 +22,7 @@ mod error;
 mod manager;
 mod models;
 
+#[derive(Debug)]
 pub struct Backend {
     temporary_old_path: Option<PathBuf>,
     database_path: PathBuf,

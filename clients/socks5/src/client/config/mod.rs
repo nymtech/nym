@@ -3,7 +3,7 @@
 
 use crate::client::config::template::config_template;
 pub use client_core::config::MISSING_VALUE;
-use client_core::config::{Config as BaseConfig, Debug};
+use client_core::config::{Config as BaseConfig, DebugConfig};
 use config::defaults::DEFAULT_SOCKS5_LISTENING_PORT;
 use config::NymConfig;
 use nymsphinx::addressing::clients::Recipient;
@@ -91,7 +91,7 @@ impl Config {
         &mut self.base
     }
 
-    pub fn get_debug_settings(&self) -> &Debug {
+    pub fn get_debug_settings(&self) -> &DebugConfig {
         self.get_base().get_debug_config()
     }
 

@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::Args;
-use client_core::{config::GatewayEndpoint, error::ClientCoreError};
+use client_core::client::replies::reply_storage::fs_backend;
+use client_core::{config::GatewayEndpointConfig, error::ClientCoreError};
 use config::NymConfig;
 
 use crate::{
@@ -54,6 +55,10 @@ pub(crate) struct Init {
     #[clap(long, hidden = true)]
     fastmode: bool,
 
+    /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
+    #[clap(long, hidden = true)]
+    no_cover: bool,
+
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
     /// with bandwidth credential requirement.
     #[cfg(feature = "coconut")]
@@ -69,7 +74,7 @@ impl From<Init> for OverrideConfig {
             port: init_config.port,
             use_anonymous_sender_tag: init_config.use_anonymous_sender_tag,
             fastmode: init_config.fastmode,
-
+            no_cover: init_config.no_cover,
             #[cfg(feature = "coconut")]
             enabled_credentials_mode: init_config.enabled_credentials_mode,
         }
@@ -130,10 +135,12 @@ pub(crate) async fn execute(args: &Init) {
     );
     println!("Client configuration completed.");
 
-    client_core::init::show_address(config.get_base()).unwrap_or_else(|err| {
-        eprintln!("Failed to show address\nError: {err}");
-        std::process::exit(1)
-    });
+    client_core::init::show_address::<_, fs_backend::Backend>(config.get_base()).unwrap_or_else(
+        |err| {
+            eprintln!("Failed to show address\nError: {err}");
+            std::process::exit(1)
+        },
+    );
 }
 
 async fn setup_gateway(
@@ -141,7 +148,7 @@ async fn setup_gateway(
     register: bool,
     user_chosen_gateway_id: Option<&str>,
     config: &Config,
-) -> Result<GatewayEndpoint, ClientCoreError> {
+) -> Result<GatewayEndpointConfig, ClientCoreError<fs_backend::Backend>> {
     if register {
         // Get the gateway details by querying the validator-api. Either pick one at random or use
         // the chosen one if it's among the available ones.

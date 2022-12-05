@@ -46,6 +46,10 @@ pub(crate) struct Init {
     #[clap(long, hidden = true)]
     fastmode: bool,
 
+    /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
+    #[clap(long, hidden = true)]
+    no_cover: bool,
+
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
     /// with bandwidth credential requirement.
     #[cfg(feature = "coconut")]
@@ -61,6 +65,7 @@ impl From<Init> for OverrideConfig {
             disable_socket: init_config.disable_socket,
             port: init_config.port,
             fastmode: init_config.fastmode,
+            no_cover: init_config.no_cover,
 
             #[cfg(feature = "coconut")]
             enabled_credentials_mode: init_config.enabled_credentials_mode,

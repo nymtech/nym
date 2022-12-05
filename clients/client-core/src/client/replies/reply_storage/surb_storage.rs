@@ -8,7 +8,15 @@ use nymsphinx::anonymous_replies::ReplySurb;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+
+#[cfg(not(target_arch = "wasm32"))]
 use tokio::time::Instant;
+
+#[cfg(not(target_arch = "wasm32"))]
+use dashmap::iter::Iter;
+
+#[cfg(target_arch = "wasm32")]
+use wasm_timer::Instant;
 
 #[derive(Debug, Clone)]
 pub struct ReceivedReplySurbsMap {
@@ -38,6 +46,26 @@ impl ReceivedReplySurbsMap {
                 max_surb_threshold: AtomicUsize::new(max_surb_threshold),
             }),
         }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn from_raw(
+        min_surb_threshold: usize,
+        max_surb_threshold: usize,
+        raw: Vec<(AnonymousSenderTag, ReceivedReplySurbs)>,
+    ) -> ReceivedReplySurbsMap {
+        ReceivedReplySurbsMap {
+            inner: Arc::new(ReceivedReplySurbsMapInner {
+                data: raw.into_iter().collect(),
+                min_surb_threshold: AtomicUsize::new(min_surb_threshold),
+                max_surb_threshold: AtomicUsize::new(max_surb_threshold),
+            }),
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn as_raw_iter(&self) -> Iter<'_, AnonymousSenderTag, ReceivedReplySurbs> {
+        self.inner.data.iter()
     }
 
     pub(crate) fn reset_surbs_last_received_at(&self, target: &AnonymousSenderTag) {
@@ -165,7 +193,7 @@ impl ReceivedReplySurbsMap {
 }
 
 #[derive(Debug)]
-struct ReceivedReplySurbs {
+pub(crate) struct ReceivedReplySurbs {
     // in the future we'd probably want to put extra data here to indicate when the SURBs got received
     // so we could invalidate entries from the previous key rotations
     data: VecDeque<ReplySurb>,
@@ -181,6 +209,23 @@ impl ReceivedReplySurbs {
             pending_reception: 0,
             surbs_last_received_at: Instant::now(),
         }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn new_retrieved(
+        surbs: Vec<ReplySurb>,
+        surbs_last_received_at: Instant,
+    ) -> ReceivedReplySurbs {
+        ReceivedReplySurbs {
+            data: surbs.into(),
+            pending_reception: 0,
+            surbs_last_received_at,
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn surbs_ref(&self) -> &VecDeque<ReplySurb> {
+        &self.data
     }
 
     pub(crate) fn surbs_last_received_at(&self) -> Instant {

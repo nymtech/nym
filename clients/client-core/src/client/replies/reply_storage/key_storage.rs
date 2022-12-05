@@ -6,6 +6,9 @@ use nymsphinx::anonymous_replies::encryption_key::EncryptionKeyDigest;
 use nymsphinx::anonymous_replies::SurbEncryptionKey;
 use std::sync::Arc;
 
+#[cfg(not(target_arch = "wasm32"))]
+use dashmap::iter::Iter;
+
 #[derive(Debug, Clone)]
 // TODO: we might have to also put the tag here
 // TODO2: some timestamp to indicate when entries should get purged if we expect to never get the reply back
@@ -25,6 +28,20 @@ impl SentReplyKeys {
                 data: DashMap::new(),
             }),
         }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn from_raw(raw: Vec<(EncryptionKeyDigest, SurbEncryptionKey)>) -> SentReplyKeys {
+        SentReplyKeys {
+            inner: Arc::new(SentReplyKeysInner {
+                data: raw.into_iter().collect(),
+            }),
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn as_raw_iter(&self) -> Iter<'_, EncryptionKeyDigest, SurbEncryptionKey> {
+        self.inner.data.iter()
     }
 
     pub(crate) fn insert_multiple(&self, keys: Vec<SurbEncryptionKey>) {

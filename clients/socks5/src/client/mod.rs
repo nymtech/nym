@@ -1,9 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::fs;
-use std::sync::atomic::Ordering;
-
 use crate::client::config::Config;
 use crate::error::Socks5ClientError;
 use crate::socks;
@@ -46,6 +43,7 @@ use gateway_client::{
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
+use std::sync::atomic::Ordering;
 use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
 
 pub mod config;

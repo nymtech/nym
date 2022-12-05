@@ -84,7 +84,7 @@ impl TryFrom<StoredReplyKey> for (EncryptionKeyDigest, SurbEncryptionKey) {
         let expected_reply_key_digest_size = ReplySurbKeyDigestAlgorithm::output_size();
         let reply_key_digest_size = value.key_digest.len();
 
-        let Some(digest_bytes) = EncryptionKeyDigest::from_exact_iter(value.key_digest) else {
+        let Some(digest) = EncryptionKeyDigest::from_exact_iter(value.key_digest) else {
             return Err(StorageError::CorruptedData {
                 details: format!(
                     "the reply surb digest has length of {reply_key_digest_size} while {expected_reply_key_digest_size} was expected",
@@ -102,7 +102,7 @@ impl TryFrom<StoredReplyKey> for (EncryptionKeyDigest, SurbEncryptionKey) {
             });
         };
 
-        Ok((EncryptionKeyDigest::from(digest_bytes), reply_key))
+        Ok((digest, reply_key))
     }
 }
 

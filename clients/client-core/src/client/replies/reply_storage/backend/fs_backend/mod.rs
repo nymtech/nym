@@ -205,7 +205,7 @@ impl Backend {
         for map_ref in reply_keys.as_raw_iter() {
             let (digest, key) = map_ref.pair();
             self.manager
-                .insert_reply_key(StoredReplyKey::new(digest.clone(), *key))
+                .insert_reply_key(StoredReplyKey::new(*digest, *key))
                 .await?;
         }
         Ok(())

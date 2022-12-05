@@ -649,7 +649,7 @@ impl GatewayClient {
                 .unwrap()
                 .consume_credential(credential_id)
                 .await?;
-            return Ok(());
+            Ok(())
         }
     }
 

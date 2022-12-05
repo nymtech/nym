@@ -632,7 +632,7 @@ impl GatewayClient {
         let _gateway_owner = self.gateway_owner.clone();
 
         #[cfg(feature = "coconut")]
-        let credential = self
+        let (credential, credential_id) = self
             .bandwidth_controller
             .as_ref()
             .unwrap()
@@ -642,7 +642,15 @@ impl GatewayClient {
         return self.try_claim_testnet_bandwidth().await;
 
         #[cfg(feature = "coconut")]
-        return self.claim_coconut_bandwidth(credential).await;
+        {
+            self.claim_coconut_bandwidth(credential).await?;
+            self.bandwidth_controller
+                .as_ref()
+                .unwrap()
+                .consume_credential(credential_id)
+                .await?;
+            return Ok(());
+        }
     }
 
     fn estimate_required_bandwidth(&self, packets: &[MixPacket]) -> i64 {

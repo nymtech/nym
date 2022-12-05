@@ -11,7 +11,8 @@ use client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOut
 use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use futures::channel::mpsc;
-use futures::StreamExt;
+use futures::future::BoxFuture;
+use futures::{FutureExt, StreamExt};
 use gateway_client::bandwidth::BandwidthController;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
@@ -103,25 +104,56 @@ impl NymClient {
             shared_lane_queue_lengths,
             shutdown.clone(),
         );
-        tokio::spawn(async move {
-            // Ideally we should have a fully fledged task manager to check for errors in all
-            // tasks.
-            // However, pragmatically, we start out by at least reporting errors for some of the
-            // tasks that interact with the outside world and can fail in normal operation, such as
-            // network issues.
-            // TODO: replace this by a generic solution, such as a task manager that stores all
-            // JoinHandles of all spawned tasks.
-            if let Err(res) = sphinx_socks
-                .serve(
-                    input_sender,
-                    received_buffer_request_sender,
-                    connection_command_sender,
-                )
-                .await
-            {
-                shutdown.send_we_stopped(Box::new(res));
-            }
-        });
+        //tokio::spawn(async move {
+        //    // Ideally we should have a fully fledged task manager to check for errors in all
+        //    // tasks.
+        //    // However, pragmatically, we start out by at least reporting errors for some of the
+        //    // tasks that interact with the outside world and can fail in normal operation, such as
+        //    // network issues.
+        //    // TODO: replace this by a generic solution, such as a task manager that stores all
+        //    // JoinHandles of all spawned tasks.
+        //    if let Err(res) = sphinx_socks
+        //        .serve(
+        //            input_sender,
+        //            received_buffer_request_sender,
+        //            connection_command_sender,
+        //        )
+        //        .await
+        //    {
+        //        shutdown.send_we_stopped(Box::new(res));
+        //    }
+        //});
+
+        //let f = async move {
+        //    // Ideally we should have a fully fledged task manager to check for errors in all
+        //    // tasks.
+        //    // However, pragmatically, we start out by at least reporting errors for some of the
+        //    // tasks that interact with the outside world and can fail in normal operation, such as
+        //    // network issues.
+        //    // TODO: replace this by a generic solution, such as a task manager that stores all
+        //    // JoinHandles of all spawned tasks.
+        //    if let Err(res) = sphinx_socks
+        //        .serve(
+        //            input_sender,
+        //            received_buffer_request_sender,
+        //            connection_command_sender,
+        //        )
+        //        .await
+        //    {
+        //        shutdown.send_we_stopped(Box::new(res));
+        //    }
+        //};
+
+        let ff = sphinx_socks
+            .serve(
+                input_sender,
+                received_buffer_request_sender,
+                connection_command_sender,
+            )
+            .boxed();
+        //let b = Box::pin(ff);
+        //let box_fut = BoxFuture::new(b);
+        spawn_with_return(ff);
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
@@ -213,4 +245,32 @@ impl NymClient {
 
         Ok(started_client.shutdown_notifier)
     }
+}
+
+//fn spawn_with_return<F, T, S>(future: F)
+//where
+//    F: std::future::Future<Output = Result<T, S>> + Send + 'static,
+//    F::Output: Send + 'static,
+//    //S: 'static,
+//    //T: 'static,
+//{
+//    let f = async move {
+//        if let Err(_err) = future.await {
+//            println!("error");
+//        }
+//    };
+//    tokio::spawn(f);
+//}
+
+fn spawn_with_return<T, E>(future: BoxFuture<'static, Result<T, E>>)
+where
+    T: 'static,
+    E: 'static,
+{
+    let f = async move {
+        if let Err(_err) = future.await {
+            println!("error");
+        }
+    };
+    tokio::spawn(f);
 }

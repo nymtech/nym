@@ -62,9 +62,13 @@ impl Clone for Handler {
 
 impl Drop for Handler {
     fn drop(&mut self) {
-        self.buffer_requester
+        if self
+            .buffer_requester
             .unbounded_send(ReceivedBufferMessage::ReceiverDisconnect)
-            .expect("the buffer request failed!")
+            .is_err()
+        {
+            error!("we failed to disconnect the receiver from the buffer! presumably the shutdown procedure has been initiated!")
+        }
     }
 }
 

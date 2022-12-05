@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use config::NymConfig;
+use config::{NymConfig, DB_FILE_NAME};
 use nymsphinx::params::PacketSize;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
@@ -412,7 +412,7 @@ impl<T: NymConfig> Client<T> {
         T::default_data_directory(Some(id)).join("reply_key_store")
     }
     fn default_database_path(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("db.sqlite")
+        T::default_data_directory(Some(id)).join(DB_FILE_NAME)
     }
 }
 

@@ -194,14 +194,30 @@ pub(crate) fn ensure_no_existing_bond(
     Ok(())
 }
 
-pub(crate) fn validate_node_identity_signature(
+pub fn validate_node_identity_signature(
     deps: Deps<'_>,
     owner: &Addr,
-    signature: String,
+    signature: &str,
     identity: IdentityKeyRef<'_>,
 ) -> Result<(), MixnetContractError> {
-    let owner_bytes = owner.as_bytes();
+    validate_signature(deps, owner.as_bytes(), signature, identity)
+}
 
+pub fn validate_family_signature(
+    deps: Deps<'_>,
+    family_member: IdentityKeyRef<'_>,
+    signature: &str,
+    family_head: IdentityKeyRef<'_>,
+) -> Result<(), MixnetContractError> {
+    validate_signature(deps, family_member.as_bytes(), signature, family_head)
+}
+
+pub(crate) fn validate_signature(
+    deps: Deps<'_>,
+    signed_bytes: &[u8],
+    signature: &str,
+    identity: IdentityKeyRef<'_>,
+) -> Result<(), MixnetContractError> {
     let mut identity_bytes = [0u8; 32];
     let mut signature_bytes = [0u8; 64];
 
@@ -226,7 +242,7 @@ pub(crate) fn validate_node_identity_signature(
 
     let res = deps
         .api
-        .ed25519_verify(owner_bytes, &signature_bytes, &identity_bytes)
+        .ed25519_verify(signed_bytes, &signature_bytes, &identity_bytes)
         .map_err(cosmwasm_std::StdError::verification_err)?;
     if !res {
         Err(MixnetContractError::InvalidEd25519Signature)
@@ -276,12 +292,7 @@ mod tests {
             Err(MixnetContractError::MalformedEd25519IdentityKey(
                 "buffer provided to decode base58 encoded string into was too small".into()
             )),
-            validate_node_identity_signature(
-                deps.as_ref(),
-                &address1,
-                sig_addr1_key1.clone(),
-                long_bs58,
-            )
+            validate_node_identity_signature(deps.as_ref(), &address1, &sig_addr1_key1, long_bs58,)
         );
 
         assert_eq!(
@@ -300,12 +311,7 @@ mod tests {
             Err(MixnetContractError::MalformedEd25519IdentityKey(
                 "Too few bytes provided for the public key".into()
             )),
-            validate_node_identity_signature(
-                deps.as_ref(),
-                &address1,
-                sig_addr1_key1.clone(),
-                short_bs58,
-            )
+            validate_node_identity_signature(deps.as_ref(), &address1, &sig_addr1_key1, short_bs58,)
         );
 
         assert_eq!(
@@ -325,7 +331,7 @@ mod tests {
             validate_node_identity_signature(
                 deps.as_ref(),
                 &address1,
-                sig_addr1_key1.clone(),
+                &sig_addr1_key1,
                 &keypair2.public_key().to_base58_string(),
             )
         );
@@ -335,7 +341,7 @@ mod tests {
             validate_node_identity_signature(
                 deps.as_ref(),
                 &address1,
-                sig_addr2_key1,
+                &sig_addr2_key1,
                 &keypair1.public_key().to_base58_string(),
             )
         );
@@ -345,7 +351,7 @@ mod tests {
             validate_node_identity_signature(
                 deps.as_ref(),
                 &address2,
-                sig_addr1_key1.clone(),
+                &sig_addr1_key1,
                 &keypair1.public_key().to_base58_string(),
             )
         );
@@ -355,7 +361,7 @@ mod tests {
             validate_node_identity_signature(
                 deps.as_ref(),
                 &address1,
-                sig_addr1_key2,
+                &sig_addr1_key2,
                 &keypair1.public_key().to_base58_string(),
             )
         );
@@ -363,7 +369,7 @@ mod tests {
         assert!(validate_node_identity_signature(
             deps.as_ref(),
             &address1,
-            sig_addr1_key1,
+            &sig_addr1_key1,
             &keypair1.public_key().to_base58_string(),
         )
         .is_ok());

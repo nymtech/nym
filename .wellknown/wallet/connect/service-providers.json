@@ -1,13 +1,13 @@
 [
     {
-      "id": "nym-testing",
-      "description": "coconuts",
+      "id": "Coconut",
+      "description": "Bandwidth Test",
       "items": [
         {
-          "id": "nym-coconut",
-          "description": "nym-credentials",
-          "address": "<input service provider address>",
-          "gateway": "<input these values>"
+          "id": "cocos",
+          "description": "testing",
+          "address": "51RhttA7LhKp573QWUU74uaFuoyb4Bg2cqNUaiuTRAMb.GW9e3T5TQvn5iyvdTVnhTWaZ9WLCaBvA8XVdnw4xL9DW@EVupP2tRUeZo5Y6RpBHAbm8kSntpgNyZNL6yCr7BDEoG",
+          "gateway": "EVupP2tRUeZo5Y6RpBHAbm8kSntpgNyZNL6yCr7BDEoG"
         }
       ]
     }

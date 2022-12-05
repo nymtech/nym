@@ -23,18 +23,6 @@ pub enum CredentialClientError {
     #[error("Credential error: {0}")]
     Credential(#[from] CredentialError),
 
-    #[error("No previous deposit with that tx hash")]
-    NoDeposit,
-
-    #[error("Wrong number of attributes")]
-    WrongAttributeNumber,
-
-    #[error("Could not find any backed up blind sign request data")]
-    NoLocalBlindSignRequest,
-
-    #[error("The local blind sign request data is corrupted")]
-    CorruptedBlindSignRequest,
-
     #[error("The tx hash provided is not valid")]
     InvalidTxHash,
 

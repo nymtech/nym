@@ -2,6 +2,12 @@
 
 Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- gateway: Renamed flag from `enabled/disabled_credentials_mode` to `only-coconut-credentials`
+
 ## [v1.1.1](https://github.com/nymtech/nym/tree/v1.1.1) (2022-11-29)
 
 ### Added

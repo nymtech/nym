@@ -30,7 +30,7 @@ fn main() {
 
     //use qwerty environment
     //path may need changing for your set up
-    let qwerty_environment = PathBuf::from("~/nym/envs/qa-qwerty.env");
+    let qwerty_environment = PathBuf::from("/Users/tommyvez/Documents/NYM_Production/nym/envs/qa-qwerty.env");
     setup_env(Some(qwerty_environment));
     
     println!("Starting up...");

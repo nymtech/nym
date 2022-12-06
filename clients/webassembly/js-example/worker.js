@@ -90,7 +90,7 @@ async function main() {
         case 'SendMessage': {
           const { message, recipient } = event.data.args;
           let uint8Array = new TextEncoder().encode(message);
-          await client.send_message(uint8Array, recipient);
+          await client.send_regular_message(uint8Array, recipient);
         }
       }
     }

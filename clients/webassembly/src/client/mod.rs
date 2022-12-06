@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::config::Config;
+use crate::client::helpers::InputSender;
 use crate::client::response_pusher::ResponsePusher;
 use client_connections::TransmissionLane;
 use client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput};
@@ -10,6 +11,7 @@ use client_core::client::{inbound_messages::InputMessage, key_manager::KeyManage
 use gateway_client::bandwidth::BandwidthController;
 use js_sys::Promise;
 use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use rand::rngs::OsRng;
 use std::sync::Arc;
 use task::ShutdownNotifier;
@@ -18,6 +20,7 @@ use wasm_bindgen_futures::future_to_promise;
 use wasm_utils::{console_error, console_log};
 
 pub mod config;
+mod helpers;
 mod response_pusher;
 
 #[wasm_bindgen]
@@ -127,25 +130,96 @@ impl NymClientBuilder {
 
 #[wasm_bindgen]
 impl NymClient {
-    pub fn send_message(&self, message: Vec<u8>, recipient: String) -> Promise {
-        console_log!("Sending {} bytes to {}", message.len(), recipient);
+    fn parse_recipient(recipient: &str) -> Result<Recipient, JsValue> {
+        match Recipient::try_from_base58_string(recipient) {
+            Ok(recipient) => Ok(recipient),
+            Err(err) => {
+                let error_msg = format!("{recipient} is not a valid Nym network recipient - {err}");
+                console_error!("{}", error_msg);
+                let js_error = js_sys::Error::new(&error_msg);
+                Err(JsValue::from(js_error))
+            }
+        }
+    }
 
-        let recipient = Recipient::try_from_base58_string(recipient).unwrap();
+    fn parse_sender_tag(tag: &str) -> Result<AnonymousSenderTag, JsValue> {
+        match AnonymousSenderTag::try_from_base58_string(tag) {
+            Ok(tag) => Ok(tag),
+            Err(err) => {
+                let error_msg = format!("{tag} is not a valid Nym AnonymousSenderTag - {err}");
+                console_error!("{}", error_msg);
+                let js_error = js_sys::Error::new(&error_msg);
+                Err(JsValue::from(js_error))
+            }
+        }
+    }
+
+    /// The simplest message variant where no additional information is attached.
+    /// You're simply sending your `data` to specified `recipient` without any tagging.
+    ///
+    /// Ends up with `NymMessage::Plain` variant
+    pub fn send_regular_message(&self, message: Vec<u8>, recipient: String) -> Promise {
+        console_log!(
+            "Attempting to send {:.2} kiB message to {recipient}",
+            message.len() as f64 / 1024.0
+        );
+
+        let recipient = match Self::parse_recipient(&recipient) {
+            Ok(recipient) => recipient,
+            Err(err) => return Promise::reject(&err),
+        };
         let lane = TransmissionLane::General;
 
         let input_msg = InputMessage::new_regular(recipient, message, lane);
+        self.client_input.send_message(input_msg)
+    }
 
-        let input = Arc::clone(&self.client_input);
+    /// Creates a message used for a duplex anonymous communication where the recipient
+    /// will never learn of our true identity. This is achieved by carefully sending `reply_surbs`.
+    ///
+    /// Note that if reply_surbs is set to zero then
+    /// this variant requires the client having sent some reply_surbs in the past
+    /// (and thus the recipient also knowing our sender tag).
+    ///
+    /// Ends up with `NymMessage::Repliable` variant
+    pub fn send_anonymous_message(
+        &self,
+        message: Vec<u8>,
+        recipient: String,
+        reply_surbs: u32,
+    ) -> Promise {
+        console_log!(
+            "Attempting to anonymously send {:.2} kiB message to {recipient} while attaching {reply_surbs} replySURBs.",
+            message.len() as f64 / 1024.0
+        );
 
-        future_to_promise(async move {
-            match input.input_sender.send(input_msg).await {
-                Ok(_) => Ok(JsValue::null()),
-                Err(_) => {
-                    let js_error =
-                        js_sys::Error::new("InputMessageReceiver has stopped receiving!");
-                    Err(JsValue::from(js_error))
-                }
-            }
-        })
+        let recipient = match Self::parse_recipient(&recipient) {
+            Ok(recipient) => recipient,
+            Err(err) => return Promise::reject(&err),
+        };
+        let lane = TransmissionLane::General;
+
+        let input_msg = InputMessage::new_anonymous(recipient, message, reply_surbs, lane);
+        self.client_input.send_message(input_msg)
+    }
+
+    /// Attempt to use our internally received and stored `ReplySurb` to send the message back
+    /// to specified recipient whilst not knowing its full identity (or even gateway).
+    ///
+    /// Ends up with `NymMessage::Reply` variant
+    pub fn send_reply(&self, message: Vec<u8>, recipient_tag: String) -> Promise {
+        console_log!(
+            "Attempting to send {:.2} kiB reply message to {recipient_tag}",
+            message.len() as f64 / 1024.0
+        );
+
+        let sender_tag = match Self::parse_sender_tag(&recipient_tag) {
+            Ok(recipient) => recipient,
+            Err(err) => return Promise::reject(&err),
+        };
+        let lane = TransmissionLane::General;
+
+        let input_msg = InputMessage::new_reply(sender_tag, message, lane);
+        self.client_input.send_message(input_msg)
     }
 }

@@ -1,10 +1,11 @@
-import React, { useCallback, useContext, useEffect, useState } from 'react';
+import React from 'react';
+import { Refresh } from '@mui/icons-material';
 import {
   Box,
   Button,
-  Grid,
   IconButton,
   Table,
+  TableBody,
   TableCell,
   TableCellProps,
   TableContainer,
@@ -12,9 +13,9 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
-import { InfoOutlined, Refresh } from '@mui/icons-material';
 import { useSnackbar } from 'notistack';
-import { InfoTooltip, NymCard, Title } from 'src/components';
+import { useContext, useEffect, useState } from 'react';
+import { NymCard } from 'src/components';
 import { AppContext } from 'src/context/main';
 import { Period } from 'src/types';
 import { VestingTimeline } from './components/vesting-timeline';
@@ -54,7 +55,7 @@ const VestingSchedule = () => {
   }, [userBalance.tokenAllocation, calculatePercentage]);
 
   return (
-    <TableContainer>
+    <TableContainer sx={{ py: 1 }}>
       <Table>
         <TableHead>
           <TableRow>
@@ -64,10 +65,12 @@ const VestingSchedule = () => {
               </TableCell>
             ))}
           </TableRow>
+        </TableHead>
+        <TableBody>
           <TableRow>
             <TableCell
               sx={{
-                color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
+                color: 'text.primary',
                 borderBottom: 'none',
                 textTransform: 'uppercase',
               }}
@@ -78,7 +81,7 @@ const VestingSchedule = () => {
             <TableCell
               align="left"
               sx={{
-                color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
+                color: 'text.primary',
                 borderBottom: 'none',
               }}
             >
@@ -86,7 +89,7 @@ const VestingSchedule = () => {
             </TableCell>
             <TableCell
               sx={{
-                color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
+                color: 'text.primary',
                 borderBottom: 'none',
               }}
             >
@@ -97,7 +100,7 @@ const VestingSchedule = () => {
             </TableCell>
             <TableCell
               sx={{
-                color: (t) => (t.palette.mode === 'light' ? t.palette.nym.text.muted : 'text.primary'),
+                color: 'text.primary',
                 borderBottom: 'none',
                 textTransform: 'uppercase',
               }}
@@ -107,7 +110,7 @@ const VestingSchedule = () => {
               {clientDetails?.display_mix_denom.toUpperCase()}
             </TableCell>
           </TableRow>
-        </TableHead>
+        </TableBody>
       </Table>
     </TableContainer>
   );
@@ -115,29 +118,22 @@ const VestingSchedule = () => {
 
 const TokenTransfer = () => {
   const { userBalance, clientDetails } = useContext(AppContext);
-  const icon = useCallback(
-    () => (
-      <Box sx={{ display: 'flex', mr: 1 }}>
-        <InfoTooltip title="Unlocked tokens that are available to transfer to your balance" size="medium" />
-      </Box>
-    ),
-    [],
-  );
-  return (
-    <Grid container sx={{ my: 2 }} direction="column" spacing={2}>
-      <Grid item>
-        <Title title="Transfer unlocked tokens" Icon={icon} />
-      </Grid>
-      <Grid item>
-        <Typography variant="subtitle2" sx={{ color: (t) => t.palette.nym.text.muted, mt: 2 }}>
-          Unlocked transferable tokens
-        </Typography>
 
-        <Typography data-testid="refresh-success" sx={{ color: 'text.primary' }} variant="h5" textTransform="uppercase">
-          {userBalance.tokenAllocation?.spendable || 'n/a'} {clientDetails?.display_mix_denom.toUpperCase()}
-        </Typography>
-      </Grid>
-    </Grid>
+  return (
+    <Box sx={{ my: 3 }}>
+      <Typography variant="subtitle2" sx={{ mb: 3, fontWeight: '600' }}>
+        Unlocked transferable tokens
+      </Typography>
+
+      <Typography
+        data-testid="refresh-success"
+        sx={{ color: 'text.primary', fontWeight: '600', fontSize: 28 }}
+        variant="h5"
+        textTransform="uppercase"
+      >
+        {userBalance.tokenAllocation?.spendable || 'n/a'} {clientDetails?.display_mix_denom.toUpperCase()}
+      </Typography>
+    </Box>
   );
 };
 
@@ -160,6 +156,12 @@ export const VestingCard = ({ onTransfer }: { onTransfer: () => Promise<void> })
   return (
     <NymCard
       title="Vesting Schedule"
+      subheader={
+        <Typography variant="caption" sx={{ color: 'nym.text.muted' }}>
+          You can use up to 10% of your locked tokens for bonding and delegating
+        </Typography>
+      }
+      borderless
       data-testid="check-unvested-tokens"
       Action={
         <IconButton

@@ -19,7 +19,7 @@ export const Balance = () => {
 
   return (
     <PageLayout>
-      <Box display="flex" flexDirection="column" gap={2}>
+      <Box display="flex" flexDirection="column" gap={4}>
         <BalanceCard />
         <VestingCard onTransfer={handleShowTransferModal} />
         {showTransferModal && <TransferModal onClose={() => setShowTransferModal(false)} />}

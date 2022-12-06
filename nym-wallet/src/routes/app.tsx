@@ -4,7 +4,7 @@ import { ApplicationLayout } from 'src/layouts';
 import { Terminal } from 'src/pages/terminal';
 import { Send } from 'src/components/Send';
 import { Receive } from '../components/Receive';
-import { Balance, InternalDocs, DelegationPage, Admin, BondingPage, NodeSettingsPage } from '../pages';
+import { Balance, InternalDocs, DelegationPage, Admin, BondingPage, NodeSettingsPage, BuyPage } from '../pages';
 
 export const AppRoutes = () => (
   <ApplicationLayout>
@@ -18,6 +18,7 @@ export const AppRoutes = () => (
       <Route path="/delegation" element={<DelegationPage />} />
       <Route path="/docs" element={<InternalDocs />} />
       <Route path="/admin" element={<Admin />} />
+      <Route path="/buy" element={<BuyPage />} />
     </Routes>
   </ApplicationLayout>
 );

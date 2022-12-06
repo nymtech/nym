@@ -17,38 +17,29 @@ importScripts('nym_client_wasm.js');
 console.log('Initializing worker');
 
 // wasm_bindgen creates a global variable (with the exports attached) that is in scope after `importScripts`
-const { default_debug, get_gateway, NymClient, set_panic_hook, Config } = wasm_bindgen;
+const { default_debug, get_gateway, NymClient, NymClientBuilder, set_panic_hook, Config, GatewayEndpointConfig } = wasm_bindgen;
 
-class ClientWrapper {
-  constructor(config, onMessageHandler) {
-    this.rustClient = new NymClient(config);
-    this.rustClient.set_on_message(onMessageHandler);
-    this.rustClient.set_on_gateway_connect(this.onConnect);
-  }
-
-  selfAddress = () => {
-    return this.rustClient.self_address();
-  };
-
-  onConnect = () => {
-    console.log('Established (and authenticated) gateway connection!');
-  };
-
-  start = async () => {
-    // this is current limitation of wasm in rust - for async methods you can't take self by reference...
-    // I'm trying to figure out if I can somehow hack my way around it, but for time being you have to re-assign
-    // the object (it's the same one)
-    this.rustClient = await this.rustClient.start();
-  };
-
-  sendMessage = async (recipient, message) => {
-    this.rustClient = await this.rustClient.send_message(recipient, message);
-  };
-
-  sendBinaryMessage = async (recipient, message) => {
-    this.rustClient = await this.rustClient.send_binary_message(recipient, message);
-  };
-}
+// class ClientWrapper {
+//   constructor(config, onMessageHandler) {
+//     this.rustClient = new NymClient(config);
+//     this.rustClient.set_on_message(onMessageHandler);
+//   }
+//
+//   selfAddress = () => {
+//     return this.rustClient.self_address();
+//   };
+//
+//   start = async () => {
+//     // this is current limitation of wasm in rust - for async methods you can't take self by reference...
+//     // I'm trying to figure out if I can somehow hack my way around it, but for time being you have to re-assign
+//     // the object (it's the same one)
+//     this.rustClient = await this.rustClient.start();
+//   };
+//
+//   sendMessage = async (recipient, message) => {
+//     await this.rustClient.send_message(recipient, message);
+//   };
+// }
 
 let client = null;
 
@@ -62,11 +53,12 @@ async function main() {
   set_panic_hook();
 
   // validator server we will use to get topology from
-  const validator = 'https://validator.nymtech.net/api'; //"http://localhost:8081";
-  const preferredGateway = 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM';
-
-  const gatewayEndpoint = await get_gateway(validator, preferredGateway);
-  gatewayEndpoint.gateway_listener = "wss://gateway1.nymtech.net:443"; // this is needed if we want it to work on the web. However this gateway is a v1 gateway, we will need to change for v2 once we get there
+  const validator = 'https://qwerty-validator-api.qa.nymte.ch/api';
+  
+  const gatewayId = 'EVupP2tRUeZo5Y6RpBHAbm8kSntpgNyZNL6yCr7BDEoG';
+  const gatewayOwner = 'n1rmlew3euapuq7rs4s4j9apv00whrsazr764kl7';
+  const gatewayListener = 'ws://176.58.120.72:9000';
+  const gatewayEndpoint = new GatewayEndpointConfig(gatewayId, gatewayOwner, gatewayListener)
 
   // only really useful if you want to adjust some settings like traffic rate
   // (if not needed you can just pass a null)
@@ -94,12 +86,20 @@ async function main() {
   };
 
   console.log('Instantiating WASM client...');
-  client = new ClientWrapper(config, onMessageHandler);
+  
+  // for some reason `new NymClientBuilder` was returning me some null pointers
+  // let clientBuilder = NymClientBuilder.new(config, (msg) => console.log("received", msg))
+  let clientBuilder = new NymClientBuilder(config, onMessageHandler)
   console.log('Web worker creating WASM client...');
-  await client.start();
+  let local_client = await clientBuilder.start_client();
   console.log('WASM client running!');
-
-  const selfAddress = client.rustClient.self_address();
+  
+  // client = new ClientWrapper(config, onMessageHandler);
+  const selfAddress = local_client.self_address;
+  
+  // set the global (I guess we don't have to anymore?)
+  client = local_client;
+  
   console.log(`Client address is ${selfAddress}`);
   self.postMessage({
     kind: 'Ready',
@@ -114,7 +114,8 @@ async function main() {
       switch (event.data.kind) {
         case 'SendMessage': {
           const { message, recipient } = event.data.args;
-          await client.sendMessage(message, recipient);
+          console.log(event.data)
+          await client.send_message(message, recipient);
         }
       }
     }

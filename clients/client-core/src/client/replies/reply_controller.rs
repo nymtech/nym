@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::real_messages_control::message_handler::{MessageHandler, PreparationError};
-use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, UsedSenderTags};
+use crate::client::replies::reply_storage::CombinedReplyStorage;
 use client_connections::TransmissionLane;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use log::{debug, error, trace, warn};
+use log::{debug, error, info, trace, warn};
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::anonymous_replies::ReplySurb;
@@ -18,9 +18,13 @@ use std::time::Duration;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::Instant;
+#[cfg(not(target_arch = "wasm32"))]
+type IntervalStream = tokio_stream::wrappers::IntervalStream;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_timer::Instant;
+#[cfg(target_arch = "wasm32")]
+type IntervalStream = gloo_timers::future::IntervalStream;
 
 pub fn new_control_channels() -> (ReplyControllerSender, ReplyControllerReceiver) {
     let (tx, rx) = mpsc::unbounded();
@@ -146,8 +150,7 @@ pub struct ReplyController<R> {
     request_receiver: ReplyControllerReceiver,
     pending_replies: HashMap<AnonymousSenderTag, VecDeque<Fragment>>,
     message_handler: MessageHandler<R>,
-    received_reply_surbs: ReceivedReplySurbsMap,
-    tag_storage: UsedSenderTags,
+    full_reply_storage: CombinedReplyStorage,
 }
 
 impl<R> ReplyController<R>
@@ -157,8 +160,7 @@ where
     pub(crate) fn new(
         config: Config,
         message_handler: MessageHandler<R>,
-        received_reply_surbs: ReceivedReplySurbsMap,
-        tag_storage: UsedSenderTags,
+        full_reply_storage: CombinedReplyStorage,
         request_receiver: ReplyControllerReceiver,
     ) -> Self {
         ReplyController {
@@ -166,8 +168,7 @@ where
             request_receiver,
             pending_replies: HashMap::new(),
             message_handler,
-            received_reply_surbs,
-            tag_storage,
+            full_reply_storage,
         }
     }
 
@@ -193,10 +194,22 @@ where
             None => return false,
         };
 
-        let available_surbs = self.received_reply_surbs.available_surbs(target);
-        let pending_surbs = self.received_reply_surbs.pending_reception(target) as usize;
-        let min_surbs_threshold = self.received_reply_surbs.min_surb_threshold();
-        let max_surbs_threshold = self.received_reply_surbs.max_surb_threshold();
+        let available_surbs = self
+            .full_reply_storage
+            .surbs_storage_ref()
+            .available_surbs(target);
+        let pending_surbs = self
+            .full_reply_storage
+            .surbs_storage_ref()
+            .pending_reception(target) as usize;
+        let min_surbs_threshold = self
+            .full_reply_storage
+            .surbs_storage_ref()
+            .min_surb_threshold();
+        let max_surbs_threshold = self
+            .full_reply_storage
+            .surbs_storage_ref()
+            .max_surb_threshold();
 
         debug!("queue size: {queue_size}, available surbs: {available_surbs} pending surbs: {pending_surbs} threshold range: {min_surbs_threshold}..{max_surbs_threshold}");
 
@@ -210,7 +223,11 @@ where
         data: Vec<u8>,
         lane: TransmissionLane,
     ) {
-        if !self.received_reply_surbs.contains_surbs_for(&recipient_tag) {
+        if !self
+            .full_reply_storage
+            .surbs_storage_ref()
+            .contains_surbs_for(&recipient_tag)
+        {
             warn!("received reply request for {:?} but we don't have any surbs stored for that recipient!", recipient_tag);
             return;
         }
@@ -226,7 +243,8 @@ where
         // (but at some point we run out of surbs for surb requests)
 
         let (surbs, _surbs_left) = self
-            .received_reply_surbs
+            .full_reply_storage
+            .surbs_storage_ref()
             .get_reply_surbs(&recipient_tag, required_surbs);
 
         if let Some(reply_surbs) = surbs {
@@ -235,7 +253,10 @@ where
                 .try_send_reply_chunks(recipient_tag, fragments, reply_surbs, lane)
                 .await
             {
-                let err = err.return_unused_surbs(&self.received_reply_surbs, &recipient_tag);
+                let err = err.return_unused_surbs(
+                    self.full_reply_storage.surbs_storage_ref(),
+                    &recipient_tag,
+                );
                 warn!("failed to send reply to {:?} - {err}", recipient_tag);
             }
         } else {
@@ -255,7 +276,8 @@ where
         amount: u32,
     ) -> Result<(), PreparationError> {
         let reply_surb = self
-            .received_reply_surbs
+            .full_reply_storage
+            .surbs_storage_ref()
             .get_reply_surb_ignoring_threshold(&target)
             .and_then(|(reply_surb, _)| reply_surb)
             .ok_or(PreparationError::NotEnoughSurbs {
@@ -268,15 +290,15 @@ where
             .try_request_additional_reply_surbs(target, reply_surb, amount)
             .await
         {
-            let err = err.return_unused_surbs(&self.received_reply_surbs, &target);
+            let err = err.return_unused_surbs(self.full_reply_storage.surbs_storage_ref(), &target);
             warn!(
                 "failed to request additional surbs from {:?} - {err}",
                 target
             );
-            // TODO: perhaps there should be some timer here to repeat the request once topology recovers
             return Err(err);
         } else {
-            self.received_reply_surbs
+            self.full_reply_storage
+                .surbs_storage_ref()
                 .increment_pending_reception(&target, amount);
         }
 
@@ -308,8 +330,14 @@ where
 
     async fn try_clear_pending_queue(&mut self, target: AnonymousSenderTag) {
         trace!("trying to clear pending queue");
-        let available_surbs = self.received_reply_surbs.available_surbs(&target);
-        let min_surbs_threshold = self.received_reply_surbs.min_surb_threshold();
+        let available_surbs = self
+            .full_reply_storage
+            .surbs_storage_ref()
+            .available_surbs(&target);
+        let min_surbs_threshold = self
+            .full_reply_storage
+            .surbs_storage_ref()
+            .min_surb_threshold();
 
         let max_to_clear = if available_surbs > min_surbs_threshold {
             available_surbs - min_surbs_threshold
@@ -330,7 +358,8 @@ where
             }
 
             let (surbs_for_reply, _) = self
-                .received_reply_surbs
+                .full_reply_storage
+                .surbs_storage_ref()
                 .get_reply_surbs(&target, to_send_vec.len());
 
             let Some(surbs_for_reply) = surbs_for_reply else {
@@ -350,7 +379,8 @@ where
                 )
                 .await
             {
-                let err = err.return_unused_surbs(&self.received_reply_surbs, &target);
+                let err =
+                    err.return_unused_surbs(self.full_reply_storage.surbs_storage_ref(), &target);
                 self.insert_pending_replies(&target, to_send);
                 warn!("failed to clear pending queue for {:?} - {err}", target);
             }
@@ -368,15 +398,19 @@ where
         trace!("handling received surbs");
 
         // clear the requesting flag since we should have been asking for surbs
-        self.received_reply_surbs
+        self.full_reply_storage
+            .surbs_storage_ref()
             .reset_surbs_last_received_at(&from);
         if from_surb_request {
-            self.received_reply_surbs
+            self.full_reply_storage
+                .surbs_storage_ref()
                 .decrement_pending_reception(&from, reply_surbs.len() as u32);
         }
 
         // store received surbs
-        self.received_reply_surbs.insert_surbs(&from, reply_surbs);
+        self.full_reply_storage
+            .surbs_storage_ref()
+            .insert_surbs(&from, reply_surbs);
 
         // use as many as we can for clearing pending queue
         self.try_clear_pending_queue(from).await;
@@ -390,7 +424,11 @@ where
     async fn handle_surb_request(&mut self, recipient: Recipient, mut amount: u32) {
         // 1. check whether we sent any surbs in the past to this recipient, otherwise
         // they have no business in asking for more
-        if !self.tag_storage.exists(&recipient) {
+        if !self
+            .full_reply_storage
+            .tags_storage_ref()
+            .exists(&recipient)
+        {
             warn!("{recipient} asked us for reply SURBs even though we never sent them any anonymous messages before!");
             return;
         }
@@ -481,7 +519,7 @@ where
             }
 
             let Some(last_received) = self
-                .received_reply_surbs
+                .full_reply_storage.surbs_storage_ref()
                 .surbs_last_received_at(pending_reply_target) else {
                 error!("we have {} pending replies for {pending_reply_target}, but we somehow never received any reply surbs from them!", vals.len());
                 to_remove.push(*pending_reply_target);
@@ -499,7 +537,8 @@ where
         for pending_reply_target in to_request {
             self.request_reply_surbs_for_queue_clearing(pending_reply_target)
                 .await;
-            self.received_reply_surbs
+            self.full_reply_storage
+                .surbs_storage_ref()
                 .reset_pending_reception(&pending_reply_target)
         }
 
@@ -508,18 +547,55 @@ where
         }
     }
 
+    async fn invalidate_old_data(&self) {
+        let now = Instant::now();
+
+        let mut to_remove = Vec::new();
+        for map_ref in self.full_reply_storage.surbs_storage_ref().as_raw_iter() {
+            let (sender, received) = map_ref.pair();
+            // TODO: handle the following edge case:
+            // there's a malicious client sending us exactly one reply surb just before we should have invalidated
+            // the data thus making us keep everything in memory
+            // possible solution: keep timestamp PER reply surb (but that seems like an overkill)
+            // but I doubt this is ever going to be a problem...
+            // ...
+            // However, if you're reading this message, it probably became a legit problem,
+            // so I guess add timestamp per surb then? chop-chop.
+
+            let last_received = received.surbs_last_received_at();
+            let diff = now - last_received;
+
+            if diff > self.config.max_surb_age {
+                info!("it's been {diff:?} since we last received any reply surb from {sender}. Going to remove all stored entries...");
+
+                to_remove.push(*sender);
+            }
+        }
+
+        for to_remove in to_remove {
+            self.full_reply_storage
+                .surbs_storage_ref()
+                .remove(&to_remove);
+        }
+    }
+
+    fn create_interval_stream(polling_rate: Duration) -> IntervalStream {
+        #[cfg(not(target_arch = "wasm32"))]
+        return tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(polling_rate));
+
+        #[cfg(target_arch = "wasm32")]
+        return gloo_timers::future::IntervalStream::new(polling_rate.as_millis() as u32);
+    }
+
     pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
         debug!("Started ReplyController with graceful shutdown support");
 
         let polling_rate = Duration::from_secs(5);
+        let mut stale_inspection = Self::create_interval_stream(polling_rate);
 
-        #[cfg(not(target_arch = "wasm32"))]
-        let mut interval =
-            tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(polling_rate));
-
-        #[cfg(target_arch = "wasm32")]
-        let mut interval =
-            gloo_timers::future::IntervalStream::new(polling_rate.as_millis() as u32);
+        // this is in the order of hours/days so we don't have to poll it that often
+        let polling_rate = Duration::from_secs(self.config.max_surb_age.as_secs() / 10);
+        let mut invalidation_inspection = Self::create_interval_stream(polling_rate);
 
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -534,9 +610,12 @@ where
                         break;
                     }
                 },
-                _ = interval.next() => {
+                _ = stale_inspection.next() => {
                     self.inspect_stale_entries().await
                 },
+                _ = invalidation_inspection.next() => {
+                    self.invalidate_old_data().await
+                }
             }
         }
         assert!(shutdown.is_shutdown_poll());
@@ -548,12 +627,12 @@ where
         debug!("Started ReplyController without graceful shutdown support");
 
         let polling_rate = Duration::from_secs(5);
-        let mut interval_timer = tokio::time::interval(polling_rate);
+        let mut interval = Self::create_interval_stream(polling_rate);
 
         loop {
             tokio::select! {
                 req = self.request_receiver.next() => self.handle_request(req.unwrap()).await,
-                _ = interval_timer.tick() => self.inspect_stale_entries().await
+                _ = interval.next() => self.inspect_stale_entries().await
             }
         }
     }

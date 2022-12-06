@@ -46,17 +46,14 @@ impl CombinedReplyStorage {
         self.used_tags.clone()
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn key_storage_ref(&self) -> &SentReplyKeys {
         &self.sent_reply_keys
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn surbs_storage_ref(&self) -> &ReceivedReplySurbsMap {
         &self.received_reply_surbs
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn tags_storage_ref(&self) -> &UsedSenderTags {
         &self.used_tags
     }

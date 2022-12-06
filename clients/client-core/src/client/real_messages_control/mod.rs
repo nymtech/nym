@@ -167,7 +167,7 @@ impl Config {
                 .retransmission_reply_surb_request_size,
             maximum_reply_surb_waiting_period: base_client_debug_config
                 .maximum_reply_surb_waiting_period,
-            maximum_reply_surb_age: base_client_debug_config.maximum_reply_surb_age
+            maximum_reply_surb_age: base_client_debug_config.maximum_reply_surb_age,
         }
     }
 
@@ -233,21 +233,20 @@ impl RealMessagesController<OsRng> {
             reply_storage.tags_storage(),
         );
 
-        let reply_control = ReplyController::new(
-            reply_controller_config,
-            message_handler.clone(),
-            reply_storage.surbs_storage(),
-            reply_storage.tags_storage(),
-            reply_controller_receiver,
-        );
-
         let ack_control = AcknowledgementController::new(
             ack_control_config,
             Arc::clone(&config.ack_key),
             ack_controller_connectors,
-            message_handler,
+            message_handler.clone(),
             reply_controller_sender,
             reply_storage.surbs_storage(),
+        );
+
+        let reply_control = ReplyController::new(
+            reply_controller_config,
+            message_handler,
+            reply_storage,
+            reply_controller_receiver,
         );
 
         let out_queue_control = OutQueueControl::new(

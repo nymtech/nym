@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use dashmap::iter::Iter;
 use dashmap::DashMap;
 use log::trace;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
@@ -11,9 +12,6 @@ use std::sync::Arc;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::Instant;
-
-#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
-use dashmap::iter::Iter;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_timer::Instant;
@@ -63,9 +61,12 @@ impl ReceivedReplySurbsMap {
         }
     }
 
-    #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
     pub(crate) fn as_raw_iter(&self) -> Iter<'_, AnonymousSenderTag, ReceivedReplySurbs> {
         self.inner.data.iter()
+    }
+
+    pub(crate) fn remove(&self, target: &AnonymousSenderTag) {
+        self.inner.data.remove(target);
     }
 
     pub(crate) fn reset_surbs_last_received_at(&self, target: &AnonymousSenderTag) {

@@ -96,9 +96,10 @@ function displaySend(message) {
 /**
  * Display received text messages in the browser. Colour them green.
  *
- * @param {string} message
+ * @param {Uint8Array} raw
  */
-function displayReceived(message) {
+function displayReceived(raw) {
+  let message = new TextDecoder().decode(new Uint8Array(raw))
   const content = message;
 
   let timestamp = new Date().toISOString().substr(11, 12);

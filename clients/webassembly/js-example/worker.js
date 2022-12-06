@@ -17,29 +17,7 @@ importScripts('nym_client_wasm.js');
 console.log('Initializing worker');
 
 // wasm_bindgen creates a global variable (with the exports attached) that is in scope after `importScripts`
-const { default_debug, get_gateway, NymClient, NymClientBuilder, set_panic_hook, Config, GatewayEndpointConfig } = wasm_bindgen;
-
-// class ClientWrapper {
-//   constructor(config, onMessageHandler) {
-//     this.rustClient = new NymClient(config);
-//     this.rustClient.set_on_message(onMessageHandler);
-//   }
-//
-//   selfAddress = () => {
-//     return this.rustClient.self_address();
-//   };
-//
-//   start = async () => {
-//     // this is current limitation of wasm in rust - for async methods you can't take self by reference...
-//     // I'm trying to figure out if I can somehow hack my way around it, but for time being you have to re-assign
-//     // the object (it's the same one)
-//     this.rustClient = await this.rustClient.start();
-//   };
-//
-//   sendMessage = async (recipient, message) => {
-//     await this.rustClient.send_message(recipient, message);
-//   };
-// }
+const { default_debug, NymClient, NymClientBuilder, set_panic_hook, Config, GatewayEndpointConfig } = wasm_bindgen;
 
 let client = null;
 
@@ -87,14 +65,11 @@ async function main() {
 
   console.log('Instantiating WASM client...');
   
-  // for some reason `new NymClientBuilder` was returning me some null pointers
-  // let clientBuilder = NymClientBuilder.new(config, (msg) => console.log("received", msg))
   let clientBuilder = new NymClientBuilder(config, onMessageHandler)
   console.log('Web worker creating WASM client...');
   let local_client = await clientBuilder.start_client();
   console.log('WASM client running!');
   
-  // client = new ClientWrapper(config, onMessageHandler);
   const selfAddress = local_client.self_address;
   
   // set the global (I guess we don't have to anymore?)
@@ -114,8 +89,8 @@ async function main() {
       switch (event.data.kind) {
         case 'SendMessage': {
           const { message, recipient } = event.data.args;
-          console.log(event.data)
-          await client.send_message(message, recipient);
+          let uint8Array = new TextEncoder().encode(message);
+          await client.send_message(uint8Array, recipient);
         }
       }
     }

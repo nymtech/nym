@@ -57,14 +57,12 @@ impl NymClient {
             let mut client_config =
                 validator_client::Config::try_from_nym_network_details(&details)
                     .expect("failed to construct validator client config");
-            let nymd_url = self
-                .config
+            let nymd_url = config
                 .get_base()
                 .get_validator_endpoints()
                 .pop()
                 .expect("No nymd validator endpoint provided");
-            let api_url = self
-                .config
+            let api_url = config
                 .get_base()
                 .get_validator_api_endpoints()
                 .pop()

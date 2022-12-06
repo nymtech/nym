@@ -3,9 +3,10 @@
 
 use crate::contract_cache::{Cache, CacheNotification, ValidatorCache};
 use crate::storage::ValidatorApiStorage;
+use mixnet_contract_common::families::FamilyHead;
 use mixnet_contract_common::reward_params::Performance;
 use mixnet_contract_common::{
-    Interval, MixId, MixNodeDetails, RewardedSetNodeStatus, RewardingParams,
+    IdentityKey, Interval, MixId, MixNodeDetails, RewardedSetNodeStatus, RewardingParams,
 };
 use rocket::fairing::AdHoc;
 use std::collections::HashMap;
@@ -238,6 +239,7 @@ impl NodeStatusCacheRefresher {
 
         let rewarded_set = self.contract_cache.rewarded_set().await;
         let active_set = self.contract_cache.active_set().await;
+        let mix_to_family = self.contract_cache.mix_to_family().await;
 
         let interval_reward_params =
             interval_reward_params.ok_or(NodeStatusCacheError::SourceDataMissing)?;
@@ -261,6 +263,7 @@ impl NodeStatusCacheRefresher {
                 interval_reward_params,
                 current_interval,
                 &rewarded_set_node_status,
+                mix_to_family.to_vec(),
             )
             .await;
 
@@ -301,7 +304,12 @@ impl NodeStatusCacheRefresher {
         interval_reward_params: RewardingParams,
         current_interval: Interval,
         rewarded_set: &HashMap<MixId, RewardedSetNodeStatus>,
+        mix_to_family: Vec<(IdentityKey, FamilyHead)>,
     ) -> Vec<MixNodeBondAnnotated> {
+        let mix_to_family = mix_to_family
+            .into_iter()
+            .collect::<HashMap<IdentityKey, FamilyHead>>();
+
         let mut annotated = Vec::new();
         for mixnode in mixnodes {
             let stake_saturation = mixnode
@@ -332,6 +340,10 @@ impl NodeStatusCacheRefresher {
             let (estimated_operator_apy, estimated_delegators_apy) =
                 compute_apy_from_reward(&mixnode, reward_estimate, current_interval);
 
+            let family = mix_to_family
+                .get(&mixnode.bond_information.identity().to_string())
+                .cloned();
+
             annotated.push(MixNodeBondAnnotated {
                 mixnode_details: mixnode,
                 stake_saturation,
@@ -339,6 +351,7 @@ impl NodeStatusCacheRefresher {
                 performance,
                 estimated_operator_apy,
                 estimated_delegators_apy,
+                family,
             });
         }
         annotated

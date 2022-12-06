@@ -25,5 +25,5 @@ nymsphinx-framing = { path = "../nymsphinx/framing" }
 nymsphinx-params = { path = "../nymsphinx/params" }
 nymsphinx-types = { path = "../nymsphinx/types" }
 task = { path = "../task" }
-validator-client = { path = "../client-libs/validator-client" }
+validator-client = { path = "../client-libs/validator-client", features = ['nymd-client'] }
 version-checker = { path = "../version-checker" }

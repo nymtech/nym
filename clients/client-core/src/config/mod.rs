@@ -363,6 +363,22 @@ pub struct GatewayEndpointConfig {
     pub gateway_listener: String,
 }
 
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+impl GatewayEndpointConfig {
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(constructor))]
+    pub fn new(
+        gateway_id: String,
+        gateway_owner: String,
+        gateway_listener: String,
+    ) -> GatewayEndpointConfig {
+        GatewayEndpointConfig {
+            gateway_id,
+            gateway_owner,
+            gateway_listener,
+        }
+    }
+}
+
 impl From<topology::gateway::Node> for GatewayEndpointConfig {
     fn from(node: topology::gateway::Node) -> GatewayEndpointConfig {
         let gateway_listener = node.clients_address();

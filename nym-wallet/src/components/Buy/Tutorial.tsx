@@ -100,7 +100,7 @@ export const Tutorial = () => {
         />
         <TutorialStep
           step={2}
-          title="Sign a message with your Nym wallet"
+          title="Sign a message"
           icon={<BorderColorIcon fontSize="small" />}
           text={
             <Typography sx={{ color: (t) => t.palette.nym.text.muted }}>

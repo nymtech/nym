@@ -96,7 +96,7 @@ impl SocketClient {
 
     /// blocking version of `start_socket` method. Will run forever (or until SIGINT is sent)
     pub async fn run_socket_forever(self) -> Result<(), ClientError> {
-        let shutdown = self.start_socket().await?;
+        let mut shutdown = self.start_socket().await?;
         wait_for_signal().await;
 
         println!(
@@ -109,8 +109,8 @@ impl SocketClient {
         // Some of these components have shutdown signalling implemented as part of socks5 work,
         // but since it's not fully implemented (yet) for all the components of the native client,
         // we don't try to wait and instead just stop immediately.
-        //log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
-        //shutdown.wait_for_shutdown().await;
+        log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
+        shutdown.wait_for_shutdown().await;
 
         log::info!("Stopping nym-client");
         Ok(())

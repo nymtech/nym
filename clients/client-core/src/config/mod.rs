@@ -47,6 +47,9 @@ const DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE: u32 = 500;
 const DEFAULT_RETRANSMISSION_REPLY_SURB_REQUEST_SIZE: u32 = 10;
 const DEFAULT_MAXIMUM_REPLY_SURB_WAITING_PERIOD: Duration = Duration::from_secs(10);
 
+// 4 hours
+const DEFAULT_MAXIMUM_REPLY_SURB_AGE: Duration = Duration::from_secs(4 * 60 * 60);
+
 pub fn missing_string_value() -> String {
     MISSING_VALUE.to_string()
 }
@@ -323,6 +326,10 @@ impl<T> Config<T> {
     pub fn get_maximum_reply_surb_waiting_period(&self) -> Duration {
         self.debug.maximum_reply_surb_waiting_period
     }
+
+    pub fn get_maximum_reply_surb_age(&self) -> Duration {
+        self.debug.maximum_reply_surb_age
+    }
 }
 
 impl<T: NymConfig> Default for Config<T> {
@@ -570,6 +577,11 @@ pub struct DebugConfig {
     /// for more even though in theory they wouldn't need to.
     #[serde(with = "humantime_serde")]
     pub maximum_reply_surb_waiting_period: Duration,
+
+    /// Defines maximum amount of time given reply surb is going to be valid for.
+    /// This is going to be superseded by key rotation once implemented.
+    #[serde(with = "humantime_serde")]
+    pub maximum_reply_surb_age: Duration,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -602,6 +614,7 @@ impl Default for DebugConfig {
             maximum_allowed_reply_surb_request_size: DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE,
             retransmission_reply_surb_request_size: DEFAULT_RETRANSMISSION_REPLY_SURB_REQUEST_SIZE,
             maximum_reply_surb_waiting_period: DEFAULT_MAXIMUM_REPLY_SURB_WAITING_PERIOD,
+            maximum_reply_surb_age: DEFAULT_MAXIMUM_REPLY_SURB_AGE,
         }
     }
 }

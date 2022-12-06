@@ -106,7 +106,7 @@ pub struct Config {
     max_surb_request_size: u32,
     maximum_allowed_reply_surb_request_size: u32,
     max_surb_waiting_period: Duration,
-    // max_surb_age: Duration,
+    max_surb_age: Duration,
 }
 
 impl Config {
@@ -115,14 +115,14 @@ impl Config {
         max_surb_request_size: u32,
         maximum_allowed_reply_surb_request_size: u32,
         max_surb_waiting_period: Duration,
-        // max_surb_age: Duration,
+        max_surb_age: Duration,
     ) -> Self {
         Self {
             min_surb_request_size,
             max_surb_request_size,
             maximum_allowed_reply_surb_request_size,
             max_surb_waiting_period,
-            // max_surb_age,
+            max_surb_age,
         }
     }
 }

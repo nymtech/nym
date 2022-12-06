@@ -85,6 +85,10 @@ pub struct Config {
     /// Defines maximum amount of time the client is going to wait for reply surbs before explicitly asking
     /// for more even though in theory they wouldn't need to.
     maximum_reply_surb_waiting_period: Duration,
+
+    /// Defines maximum amount of time given reply surb is going to be valid for.
+    /// This is going to be superseded by key rotation once implemented.
+    maximum_reply_surb_age: Duration,
 }
 
 impl<'a> From<&'a Config> for acknowledgement_control::Config {
@@ -119,6 +123,7 @@ impl<'a> From<&'a Config> for reply_controller::Config {
             cfg.maximum_reply_surb_request_size,
             cfg.maximum_allowed_reply_surb_request_size,
             cfg.maximum_reply_surb_waiting_period,
+            cfg.maximum_reply_surb_age,
         )
     }
 }
@@ -162,6 +167,7 @@ impl Config {
                 .retransmission_reply_surb_request_size,
             maximum_reply_surb_waiting_period: base_client_debug_config
                 .maximum_reply_surb_waiting_period,
+            maximum_reply_surb_age: base_client_debug_config.maximum_reply_surb_age
         }
     }
 

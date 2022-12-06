@@ -85,7 +85,7 @@ async function getMessageBody(context) {
             ...
           ],
           check_run_url: 'https://api.github.com/repos/nymtech/nym/check-runs/5182940024',
-          labels: [ 'ubuntu-latest' ],
+          labels: [ 'ubuntu-20.04' ],
           runner_id: 1,
           runner_name: 'Hosted Agent',
           runner_group_id: 2,

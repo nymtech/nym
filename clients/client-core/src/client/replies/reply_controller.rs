@@ -550,7 +550,8 @@ where
     async fn invalidate_old_data(&self) {
         let now = Instant::now();
 
-        let mut to_remove = Vec::new();
+        let mut to_remove_surbs = Vec::new();
+        let mut to_remove_keys = Vec::new();
         for map_ref in self.full_reply_storage.surbs_storage_ref().as_raw_iter() {
             let (sender, received) = map_ref.pair();
             // TODO: handle the following edge case:
@@ -568,14 +569,29 @@ where
             if diff > self.config.max_surb_age {
                 info!("it's been {diff:?} since we last received any reply surb from {sender}. Going to remove all stored entries...");
 
-                to_remove.push(*sender);
+                to_remove_surbs.push(*sender);
             }
         }
 
-        for to_remove in to_remove {
+        for map_ref in self.full_reply_storage.key_storage_ref().as_raw_iter() {
+            let (digest, reply_key) = map_ref.pair();
+
+            let diff = now - reply_key.sent_at;
+
+            if diff > self.config.max_surb_age {
+                debug!("it's been {diff:?} since we created this reply key. it's probably never going to get used, so we're going to purge it...");
+                to_remove_keys.push(*digest);
+            }
+        }
+
+        for to_remove in to_remove_surbs {
             self.full_reply_storage
                 .surbs_storage_ref()
                 .remove(&to_remove);
+        }
+
+        for to_remove in to_remove_keys {
+            self.full_reply_storage.key_storage().remove(to_remove)
         }
     }
 

@@ -47,8 +47,8 @@ const DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE: u32 = 500;
 const DEFAULT_RETRANSMISSION_REPLY_SURB_REQUEST_SIZE: u32 = 10;
 const DEFAULT_MAXIMUM_REPLY_SURB_WAITING_PERIOD: Duration = Duration::from_secs(10);
 
-// 4 hours
-const DEFAULT_MAXIMUM_REPLY_SURB_AGE: Duration = Duration::from_secs(4 * 60 * 60);
+// 24 hours
+const DEFAULT_MAXIMUM_REPLY_SURB_AGE: Duration = Duration::from_secs(24 * 60 * 60);
 
 pub fn missing_string_value() -> String {
     MISSING_VALUE.to_string()

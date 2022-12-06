@@ -16,9 +16,11 @@ use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, RepliableMessag
 use nymsphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey};
 use nymsphinx::chunking::fragment::Fragment;
 use nymsphinx::message::NymMessage;
+use nymsphinx::params::{PacketSize, DEFAULT_NUM_MIX_HOPS};
 use nymsphinx::preparer::{MessagePreparer, PreparedFragment};
 use rand::{CryptoRng, Rng};
 use std::sync::Arc;
+use std::time::Duration;
 use thiserror::Error;
 use topology::{NymTopology, NymTopologyError};
 
@@ -88,10 +90,63 @@ impl SurbWrappedPreparationError {
 }
 
 #[derive(Clone)]
-pub(crate) struct MessageHandler<R> {
-    rng: R,
+pub(crate) struct Config {
+    /// Key used to decrypt contents of received SURBAcks
     ack_key: Arc<AckKey>,
-    self_address: Recipient,
+
+    /// Address of this client which also represent an address to which all acknowledgements
+    /// and surb-based are going to be sent.
+    sender_address: Recipient,
+
+    /// Average delay a data packet is going to get delay at a single mixnode.
+    average_packet_delay: Duration,
+
+    /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
+    average_ack_delay: Duration,
+
+    /// Number of mix hops each packet ('real' message, ack, reply) is expected to take.
+    /// Note that it does not include gateway hops.
+    num_mix_hops: u8,
+
+    /// Predefined packet size used for the encapsulated messages.
+    packet_size: PacketSize,
+}
+
+impl Config {
+    pub fn new(
+        ack_key: Arc<AckKey>,
+        sender_address: Recipient,
+        average_packet_delay: Duration,
+        average_ack_delay: Duration,
+    ) -> Self {
+        Config {
+            ack_key,
+            sender_address,
+            average_packet_delay,
+            average_ack_delay,
+            num_mix_hops: DEFAULT_NUM_MIX_HOPS,
+            packet_size: PacketSize::default(),
+        }
+    }
+
+    /// Allows setting non-default number of expected mix hops in the network.
+    #[allow(dead_code)]
+    pub fn with_mix_hops(mut self, hops: u8) -> Self {
+        self.num_mix_hops = hops;
+        self
+    }
+
+    /// Allows setting non-default size of the sphinx packets sent out.
+    pub fn with_custom_packet_size(mut self, packet_size: PacketSize) -> Self {
+        self.packet_size = packet_size;
+        self
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct MessageHandler<R> {
+    config: Config,
+    rng: R,
     message_preparer: MessagePreparer<R>,
     action_sender: AckActionSender,
     real_message_sender: BatchRealMessageSender,
@@ -104,22 +159,30 @@ impl<R> MessageHandler<R>
 where
     R: CryptoRng + Rng,
 {
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
+        config: Config,
         rng: R,
-        ack_key: Arc<AckKey>,
-        self_address: Recipient,
-        message_preparer: MessagePreparer<R>,
         action_sender: AckActionSender,
         real_message_sender: BatchRealMessageSender,
         topology_access: TopologyAccessor,
         reply_key_storage: SentReplyKeys,
         tag_storage: UsedSenderTags,
-    ) -> Self {
-        MessageHandler {
+    ) -> Self
+    where
+        R: Copy,
+    {
+        let message_preparer = MessagePreparer::new(
             rng,
-            ack_key,
-            self_address,
+            config.sender_address,
+            config.average_packet_delay,
+            config.average_ack_delay,
+        )
+        .with_custom_real_message_packet_size(config.packet_size)
+        .with_mix_hops(config.num_mix_hops);
+
+        MessageHandler {
+            config,
+            rng,
             message_preparer,
             action_sender,
             real_message_sender,
@@ -145,7 +208,7 @@ where
         &self,
         permit: &'a TopologyReadPermit<'a>,
     ) -> Result<&'a NymTopology, PreparationError> {
-        match permit.try_get_valid_topology_ref(&self.self_address, None) {
+        match permit.try_get_valid_topology_ref(&self.config.sender_address, None) {
             Ok(topology_ref) => Ok(topology_ref),
             Err(err) => {
                 warn!("Could not process the packet - the network topology is invalid - {err}");
@@ -224,7 +287,8 @@ where
     ) -> Result<(), SurbWrappedPreparationError> {
         debug!("requesting {amount} reply SURBs from {from:?}");
 
-        let surbs_request = ReplyMessage::new_surb_request_message(self.self_address, amount);
+        let surbs_request =
+            ReplyMessage::new_surb_request_message(self.config.sender_address, amount);
         self.try_send_single_surb_message(from, surbs_request, reply_surb, true)
             .await
     }
@@ -267,7 +331,12 @@ where
             let chunk_clone = fragment.clone();
             let prepared_fragment = self
                 .message_preparer
-                .prepare_reply_chunk_for_sending(chunk_clone, topology, &self.ack_key, reply_surb)
+                .prepare_reply_chunk_for_sending(
+                    chunk_clone,
+                    topology,
+                    &self.config.ack_key,
+                    reply_surb,
+                )
                 .unwrap();
 
             let real_message =
@@ -319,7 +388,7 @@ where
             let prepared_fragment = self.message_preparer.prepare_chunk_for_sending(
                 chunk_clone,
                 topology,
-                &self.ack_key,
+                &self.config.ack_key,
                 &recipient,
             )?;
 
@@ -399,7 +468,7 @@ where
 
         let prepared_fragment = self
             .message_preparer
-            .prepare_chunk_for_sending(chunk, topology, &self.ack_key, &recipient)
+            .prepare_chunk_for_sending(chunk, topology, &self.config.ack_key, &recipient)
             .unwrap();
 
         Ok(prepared_fragment)
@@ -418,7 +487,7 @@ where
 
         let prepared_fragment = self
             .message_preparer
-            .prepare_reply_chunk_for_sending(chunk, topology, &self.ack_key, reply_surb)
+            .prepare_reply_chunk_for_sending(chunk, topology, &self.config.ack_key, reply_surb)
             .unwrap();
 
         Ok(prepared_fragment)

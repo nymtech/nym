@@ -101,6 +101,32 @@ pub enum ReplyControllerMessage {
     },
 }
 
+pub struct Config {
+    min_surb_request_size: u32,
+    max_surb_request_size: u32,
+    maximum_allowed_reply_surb_request_size: u32,
+    max_surb_waiting_period: Duration,
+    // max_surb_age: Duration,
+}
+
+impl Config {
+    pub(crate) fn new(
+        min_surb_request_size: u32,
+        max_surb_request_size: u32,
+        maximum_allowed_reply_surb_request_size: u32,
+        max_surb_waiting_period: Duration,
+        // max_surb_age: Duration,
+    ) -> Self {
+        Self {
+            min_surb_request_size,
+            max_surb_request_size,
+            maximum_allowed_reply_surb_request_size,
+            max_surb_waiting_period,
+            // max_surb_age,
+        }
+    }
+}
+
 // the purpose of this task:
 // - buffers split messages from input message listener if there were insufficient surbs to send them
 // - upon getting extra surbs, resends them
@@ -111,6 +137,8 @@ pub enum ReplyControllerMessage {
 // TODO: this should be split into ingress and egress controllers
 // because currently its trying to perform two distinct jobs
 pub struct ReplyController<R> {
+    config: Config,
+
     // TODO: incorporate that field at some point
     // and use binomial distribution to determine the expected required number
     // of surbs required to send the message through
@@ -120,38 +148,26 @@ pub struct ReplyController<R> {
     message_handler: MessageHandler<R>,
     received_reply_surbs: ReceivedReplySurbsMap,
     tag_storage: UsedSenderTags,
-
-    min_surb_request_size: u32,
-    max_surb_request_size: u32,
-    maximum_allowed_reply_surb_request_size: u32,
-    max_surb_waiting_period: Duration,
 }
 
 impl<R> ReplyController<R>
 where
     R: CryptoRng + Rng,
 {
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
+        config: Config,
         message_handler: MessageHandler<R>,
         received_reply_surbs: ReceivedReplySurbsMap,
         tag_storage: UsedSenderTags,
         request_receiver: ReplyControllerReceiver,
-        min_surb_request_size: u32,
-        max_surb_request_size: u32,
-        maximum_allowed_reply_surb_request_size: u32,
-        max_surb_waiting_period: Duration,
     ) -> Self {
         ReplyController {
+            config,
             request_receiver,
-            pending_replies: Default::default(),
+            pending_replies: HashMap::new(),
             message_handler,
             received_reply_surbs,
             tag_storage,
-            min_surb_request_size,
-            max_surb_request_size,
-            maximum_allowed_reply_surb_request_size,
-            max_surb_waiting_period,
         }
     }
 
@@ -373,9 +389,9 @@ where
         }
 
         // 2. check whether the requested amount is within sane range
-        if amount > self.maximum_allowed_reply_surb_request_size {
-            warn!("The requested reply surb amount is larger than our maximum allowed ({amount} > {}). Lowering it to a more sane value...", self.maximum_allowed_reply_surb_request_size);
-            amount = self.maximum_allowed_reply_surb_request_size;
+        if amount > self.config.maximum_allowed_reply_surb_request_size {
+            warn!("The requested reply surb amount is larger than our maximum allowed ({amount} > {}). Lowering it to a more sane value...", self.config.maximum_allowed_reply_surb_request_size);
+            amount = self.config.maximum_allowed_reply_surb_request_size;
         }
 
         // 3. construct and send the surbs away
@@ -435,8 +451,8 @@ where
         }
 
         let request_size = min(
-            self.max_surb_request_size,
-            max(queue_size, self.min_surb_request_size),
+            self.config.max_surb_request_size,
+            max(queue_size, self.config.min_surb_request_size),
         );
 
         if let Err(err) = self
@@ -464,7 +480,7 @@ where
 
             let diff = now - last_received;
 
-            if diff > self.max_surb_waiting_period {
+            if diff > self.config.max_surb_waiting_period {
                 warn!("We haven't received any surbs in {:?} from {:?}. Going to explicitly ask for more", diff, pending_reply_target);
                 to_request.push(*pending_reply_target);
             }

@@ -6,7 +6,7 @@ use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, UsedSenderTag
 use client_connections::TransmissionLane;
 use futures::channel::mpsc;
 use futures::StreamExt;
-use log::{debug, trace, warn};
+use log::{debug, error, trace, warn};
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::anonymous_replies::ReplySurb;
@@ -171,7 +171,11 @@ where
         }
     }
 
-    fn insert_pending_replies(&mut self, recipient: &AnonymousSenderTag, fragments: Vec<Fragment>) {
+    fn insert_pending_replies<V: Into<VecDeque<Fragment>>>(
+        &mut self,
+        recipient: &AnonymousSenderTag,
+        fragments: V,
+    ) {
         if let Some(existing) = self.pending_replies.get_mut(recipient) {
             existing.append(&mut fragments.into())
         } else {
@@ -231,7 +235,6 @@ where
                 .try_send_reply_chunks(recipient_tag, fragments, reply_surbs, lane)
                 .await
             {
-                // TODO: perhaps there should be some timer here to repeat the request once topology recovers
                 let err = err.return_unused_surbs(&self.received_reply_surbs, &recipient_tag);
                 warn!("failed to send reply to {:?} - {err}", recipient_tag);
             }
@@ -318,8 +321,7 @@ where
 
         // we're guaranteed to not get more entries than we have reply surbs for
         if let Some(to_send) = self.pop_at_most_pending_replies(&target, max_to_clear) {
-            // TODO: optimise: we're cloning the fragments every time to re-insert them into the buffer in case of failure
-            let to_send_vec = to_send.into_iter().collect::<Vec<_>>();
+            let to_send_vec = to_send.iter().cloned().collect::<Vec<_>>();
 
             if to_send_vec.is_empty() {
                 panic!(
@@ -330,8 +332,13 @@ where
             let (surbs_for_reply, _) = self
                 .received_reply_surbs
                 .get_reply_surbs(&target, to_send_vec.len());
-            let surbs_for_reply =
-                surbs_for_reply.expect("is is possible for this to ever show up?");
+
+            let Some(surbs_for_reply) = surbs_for_reply else {
+                // probably retransmission
+                debug!("somehow different task has stolen our reply surbs!");
+                self.insert_pending_replies(&target, to_send);
+                return
+            };
 
             if let Err(err) = self
                 .message_handler
@@ -344,8 +351,8 @@ where
                 .await
             {
                 let err = err.return_unused_surbs(&self.received_reply_surbs, &target);
+                self.insert_pending_replies(&target, to_send);
                 warn!("failed to clear pending queue for {:?} - {err}", target);
-                // TODO: perhaps there should be some timer here to repeat the request once topology recovers
             }
         } else {
             trace!("the pending queue is empty");
@@ -465,23 +472,26 @@ where
 
     async fn inspect_stale_entries(&mut self) {
         let mut to_request = Vec::new();
+        let mut to_remove = Vec::new();
 
         let now = Instant::now();
         for (pending_reply_target, vals) in &self.pending_replies {
             if vals.is_empty() {
-                // TODO: remove it from the map before getting here
                 continue;
             }
 
-            let last_received = self
+            let Some(last_received) = self
                 .received_reply_surbs
-                .surbs_last_received_at(pending_reply_target)
-                .expect("I think this shouldnt fail? to be verified.");
+                .surbs_last_received_at(pending_reply_target) else {
+                error!("we have {} pending replies for {pending_reply_target}, but we somehow never received any reply surbs from them!", vals.len());
+                to_remove.push(*pending_reply_target);
+                continue
+            };
 
             let diff = now - last_received;
 
             if diff > self.config.max_surb_waiting_period {
-                warn!("We haven't received any surbs in {:?} from {:?}. Going to explicitly ask for more", diff, pending_reply_target);
+                warn!("We haven't received any surbs in {:?} from {pending_reply_target}. Going to explicitly ask for more", diff);
                 to_request.push(*pending_reply_target);
             }
         }
@@ -491,6 +501,10 @@ where
                 .await;
             self.received_reply_surbs
                 .reset_pending_reception(&pending_reply_target)
+        }
+
+        for to_remove in to_remove {
+            self.pending_replies.remove(&to_remove);
         }
     }
 

@@ -49,6 +49,7 @@ pub struct NymClientBuilder {
 
 #[wasm_bindgen]
 impl NymClientBuilder {
+    #[wasm_bindgen(constructor)]
     pub fn new(config: Config, on_message: js_sys::Function) -> Self {
         //, key_manager: Option<KeyManager>) {
         NymClientBuilder {
@@ -124,6 +125,7 @@ impl NymClientBuilder {
     }
 }
 
+#[wasm_bindgen]
 impl NymClient {
     pub fn send_message(&self, message: Vec<u8>, recipient: String) -> Promise {
         console_log!("Sending {} bytes to {}", message.len(), recipient);

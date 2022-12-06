@@ -7,11 +7,14 @@ use client_connections::TransmissionLane;
 use client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput};
 use client_core::client::replies::reply_storage::browser_backend;
 use client_core::client::{inbound_messages::InputMessage, key_manager::KeyManager};
-use crypto::asymmetric::identity;
+use gateway_client::bandwidth::BandwidthController;
+use js_sys::Promise;
 use nymsphinx::addressing::clients::Recipient;
 use rand::rngs::OsRng;
+use std::sync::Arc;
 use task::ShutdownNotifier;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::future_to_promise;
 use wasm_utils::{console_error, console_log};
 
 pub mod config;
@@ -19,45 +22,42 @@ mod response_pusher;
 
 #[wasm_bindgen]
 pub struct NymClient {
-    config: Config,
-
-    /// KeyManager object containing smart pointers to all relevant keys used by the client.
-    // due to disgusting workaround I had to wrap the below in an Option
-    // so that the interface wouldn't change (i.e. both `start` and `new` would still return a `NymClient`)
-    key_manager: Option<KeyManager>,
-    self_address: Option<String>,
-    storage_backend: Option<browser_backend::Backend>,
-
-    // TODO: this should be stored somewhere persistently
-    // received_keys: HashSet<SURBEncryptionKey>,
-    /// Channel used for transforming 'raw' messages into sphinx packets and sending them
-    /// through the mix network.
-    client_input: Option<ClientInput>,
-
-    // callbacks
-    on_message: Option<js_sys::Function>,
-    on_binary_message: Option<js_sys::Function>,
-    on_gateway_connect: Option<js_sys::Function>,
+    #[wasm_bindgen(getter_with_clone)]
+    pub self_address: String,
+    client_input: Arc<ClientInput>,
 
     // even though we don't use graceful shutdowns, other components rely on existence of this struct
     // and if it's dropped, everything will start going offline
-    _shutdown: Option<ShutdownNotifier>,
+    _shutdown: ShutdownNotifier,
 }
 
 #[wasm_bindgen]
-impl NymClient {
-    #[wasm_bindgen(constructor)]
-    pub fn new(config: Config) -> Self {
-        Self {
-            storage_backend: Some(Self::setup_reply_surb_storage_backend(&config)),
+pub struct NymClientBuilder {
+    config: Config,
+
+    /// KeyManager object containing smart pointers to all relevant keys used by the client.
+    key_manager: KeyManager,
+
+    reply_surb_storage_backend: browser_backend::Backend,
+
+    on_message: js_sys::Function,
+
+    // unimplemented:
+    bandwidth_controller: Option<BandwidthController>,
+    disabled_credentials: bool,
+}
+
+#[wasm_bindgen]
+impl NymClientBuilder {
+    pub fn new(config: Config, on_message: js_sys::Function) -> Self {
+        //, key_manager: Option<KeyManager>) {
+        NymClientBuilder {
+            reply_surb_storage_backend: Self::setup_reply_surb_storage_backend(&config),
             config,
-            key_manager: Some(Self::setup_key_manager()),
-            on_message: None,
-            on_binary_message: None,
-            on_gateway_connect: None,
-            client_input: None,
-            self_address: None,
-            _shutdown: None,
+            key_manager: Self::setup_key_manager(),
+            on_message,
+            bandwidth_controller: None,
+            disabled_credentials: true,
         }
     }
 
@@ -81,51 +81,51 @@ impl NymClient {
         )
     }
 
-    pub fn set_on_message(&mut self, on_message: js_sys::Function) {
-        self.on_message = Some(on_message);
+    fn start_reconstructed_pusher(client_output: ClientOutput, on_message: js_sys::Function) {
+        ResponsePusher::new(client_output, on_message).start()
     }
 
-    pub fn set_on_binary_message(&mut self, on_binary_message: js_sys::Function) {
-        self.on_binary_message = Some(on_binary_message);
+    pub async fn start_client(self) -> Promise {
+        future_to_promise(async move {
+            console_log!("Starting the wasm client");
+
+            let base_builder = BaseClientBuilder::new(
+                &self.config.gateway_endpoint,
+                &self.config.debug,
+                self.key_manager,
+                self.bandwidth_controller,
+                self.reply_surb_storage_backend,
+                self.disabled_credentials,
+                vec![self.config.validator_api_url.clone()],
+            );
+
+            let self_address = base_builder.as_mix_recipient().to_string();
+            let mut started_client = match base_builder.start_base().await {
+                Ok(base_client) => base_client,
+                Err(err) => {
+                    let error_msg = format!("failed to start the base client components - {err}");
+                    console_error!("{}", error_msg);
+                    let js_error = js_sys::Error::new(&error_msg);
+                    return Err(JsValue::from(js_error));
+                }
+            };
+
+            let client_input = started_client.client_input.register_producer();
+            let client_output = started_client.client_output.register_consumer();
+
+            Self::start_reconstructed_pusher(client_output, self.on_message);
+
+            Ok(JsValue::from(NymClient {
+                self_address,
+                client_input: Arc::new(client_input),
+                _shutdown: started_client.shutdown_notifier,
+            }))
+        })
     }
+}
 
-    pub fn set_on_gateway_connect(&mut self, on_connect: js_sys::Function) {
-        self.on_gateway_connect = Some(on_connect)
-    }
-
-    fn as_mix_recipient(&self) -> Recipient {
-        // another disgusting (and hopefully temporary) workaround
-        let key_manager_ref = self
-            .key_manager
-            .as_ref()
-            .expect("attempting to call 'as_mix_recipient' after 'start'");
-
-        Recipient::new(
-            *key_manager_ref.identity_keypair().public_key(),
-            *key_manager_ref.encryption_keypair().public_key(),
-            identity::PublicKey::from_base58_string(&self.config.gateway_endpoint.gateway_id)
-                .expect("no gateway has been selected"),
-        )
-    }
-
-    pub fn self_address(&self) -> String {
-        if let Some(address) = &self.self_address {
-            address.clone()
-        } else {
-            self.as_mix_recipient().to_string()
-        }
-    }
-
-    // Right now it's impossible to have async exported functions to take `&mut self` rather than mut self
-    // TODO: try Rc<RefCell<Self>> approach?
-    pub async fn send_message(self, message: String, recipient: String) -> Self {
-        console_log!("Sending {} to {}", message, recipient);
-
-        let message_bytes = message.into_bytes();
-        self.send_binary_message(message_bytes, recipient).await
-    }
-
-    pub async fn send_binary_message(self, message: Vec<u8>, recipient: String) -> Self {
+impl NymClient {
+    pub fn send_message(&self, message: Vec<u8>, recipient: String) -> Promise {
         console_log!("Sending {} bytes to {}", message.len(), recipient);
 
         let recipient = Recipient::try_from_base58_string(recipient).unwrap();
@@ -133,66 +133,17 @@ impl NymClient {
 
         let input_msg = InputMessage::new_regular(recipient, message, lane);
 
-        self.client_input
-            .as_ref()
-            .expect("start method was not called before!")
-            .input_sender
-            .send(input_msg)
-            .await
-            .expect("InputMessageReceiver has stopped receiving!");
+        let input = Arc::clone(&self.client_input);
 
-        self
-    }
-
-    fn start_reconstructed_pusher(
-        client_output: ClientOutput,
-        on_message: Option<js_sys::Function>,
-        on_binary_message: Option<js_sys::Function>,
-    ) {
-        ResponsePusher::new(client_output, on_message, on_binary_message).start()
-    }
-
-    pub async fn start(mut self) -> NymClient {
-        console_log!("Starting the wasm client");
-
-        let base_builder = BaseClientBuilder::new(
-            &self.config.gateway_endpoint,
-            &self.config.debug,
-            self.key_manager.take().unwrap(),
-            None,
-            self.storage_backend.take().unwrap(),
-            true,
-            vec![self.config.validator_api_url.clone()],
-        );
-
-        self.self_address = Some(base_builder.as_mix_recipient().to_string());
-        let mut started_client = match base_builder.start_base().await {
-            Ok(base_client) => base_client,
-            Err(err) => {
-                console_error!("failed to start base client components - {}", err);
-                // proper error handling is left here as an exercise for the reader (hi Mark : ))
-                panic!("failed to start base client components - {err}")
+        future_to_promise(async move {
+            match input.input_sender.send(input_msg).await {
+                Ok(_) => Ok(JsValue::null()),
+                Err(_) => {
+                    let js_error =
+                        js_sys::Error::new("InputMessageReceiver has stopped receiving!");
+                    Err(JsValue::from(js_error))
+                }
             }
-        };
-        match self.on_gateway_connect.as_ref() {
-            Some(callback) => {
-                callback
-                    .call0(&JsValue::null())
-                    .expect("on connect callback failed!");
-            }
-            None => console_log!("Gateway connection established - no callback specified"),
-        };
-
-        // those should be moved to a completely different struct, but I don't want to break compatibility for now
-        let client_input = started_client.client_input.register_producer();
-        let client_output = started_client.client_output.register_consumer();
-
-        let on_message = self.on_message.take();
-        let on_binary_message = self.on_binary_message.take();
-        Self::start_reconstructed_pusher(client_output, on_message, on_binary_message);
-        self.client_input = Some(client_input);
-        self._shutdown = Some(started_client.shutdown_notifier);
-
-        self
+        })
     }
 }

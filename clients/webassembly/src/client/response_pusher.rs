@@ -11,21 +11,11 @@ use wasm_utils::console_log;
 
 pub(crate) struct ResponsePusher {
     reconstructed_receiver: ReconstructedMessagesReceiver,
-    on_message: Option<js_sys::Function>,
-    on_binary_message: Option<js_sys::Function>,
+    on_message: js_sys::Function,
 }
 
 impl ResponsePusher {
-    pub(crate) fn new(
-        client_output: ClientOutput,
-        on_message: Option<js_sys::Function>,
-        on_binary_message: Option<js_sys::Function>,
-    ) -> Self {
-        if on_message.is_none() && on_binary_message.is_none() {
-            // exercise for the reader : )
-            panic!("neither 'on_message' nor 'on_binary_message' was set!")
-        }
-
+    pub(crate) fn new(client_output: ClientOutput, on_message: js_sys::Function) -> Self {
         // register our output
         let (reconstructed_sender, reconstructed_receiver) = mpsc::unbounded();
 
@@ -40,7 +30,6 @@ impl ResponsePusher {
         ResponsePusher {
             reconstructed_receiver,
             on_message,
-            on_binary_message,
         }
     }
 
@@ -50,20 +39,13 @@ impl ResponsePusher {
 
             while let Some(reconstructed) = self.reconstructed_receiver.next().await {
                 for msg in reconstructed {
-                    if let Some(ref callback_binary) = self.on_binary_message {
-                        let arg1 = serde_wasm_bindgen::to_value(&msg.message).unwrap();
-                        callback_binary
-                            .call1(&this, &arg1)
-                            .expect("on binary message failed!");
+                    if msg.sender_tag.is_some() {
+                        console_log!("the received message contained a sender tag (meaning we also got some surbs!), but we do not know how to handle that (yet)")
                     }
-                    if let Some(ref callback) = self.on_message {
-                        if msg.sender_tag.is_some() {
-                            console_log!("the received message contained a sender tag (meaning we also got some surbs!), but we do not know how to handle that (yet)")
-                        }
-                        let stringified = String::from_utf8_lossy(&msg.message).into_owned();
-                        let arg1 = serde_wasm_bindgen::to_value(&stringified).unwrap();
-                        callback.call1(&this, &arg1).expect("on message failed!");
-                    }
+                    let arg1 = serde_wasm_bindgen::to_value(&msg.message).unwrap();
+                    self.on_message
+                        .call1(&this, &arg1)
+                        .expect("on binary message failed!");
                 }
             }
         })

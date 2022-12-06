@@ -12,6 +12,7 @@ import {
   GatewayOwnershipResponse,
   LayerDistribution,
   MixnetContractVersion,
+  MixNodeBond,
   MixOwnershipResponse,
   PagedAllDelegationsResponse,
   PagedDelegatorDelegationsResponse,
@@ -19,6 +20,7 @@ import {
   PagedMixDelegationsResponse,
   PagedMixnodeResponse,
   RewardingStatus,
+  StakeSaturation,
 } from './types';
 
 interface SmartContractQuery {
@@ -47,12 +49,9 @@ export default class NymdQuerier implements INymdQuery {
     });
   }
 
-  getMixNodeBonds(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedMixnodeResponse> {
+  getStakeSaturation(mixnetContractAddress: string, mixId: number): Promise<StakeSaturation> {
     return this.client.queryContractSmart(mixnetContractAddress, {
-      get_mix_nodes: {
-        limit,
-        start_after: startAfter,
-      },
+      get_stake_saturation: { mix_id: mixId },
     });
   }
 
@@ -70,6 +69,18 @@ export default class NymdQuerier implements INymdQuery {
       owns_mixnode: {
         address,
       },
+    });
+  }
+
+  getUnbondedMixNodes(mixnetContractAddress: string): Promise<any> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      get_unbonded_mix_nodes: {},
+    });
+  }
+
+  getUnbondedMixNodeInformation(mixnetContractAddress: string, mixId: number): Promise<MixNodeBond> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      get_unbonded_mix_node_information: { mix_id: mixId },
     });
   }
 

@@ -22,6 +22,7 @@ import {
   PagedGatewayResponse,
   PagedMixDelegationsResponse,
   PagedMixnodeResponse,
+  StakeSaturation,
 } from './types';
 import {
   CoinMap,
@@ -147,7 +148,7 @@ export default class ValidatorClient implements INymClient {
     return DirectSecp256k1HdWallet.fromMnemonic(mnemonic, signerOptions);
   }
 
-  getBalance(address: string): Promise<Coin> {
+  async getBalance(address: string): Promise<Coin> {
     return this.client.getBalance(address, this.denom);
   }
 
@@ -159,12 +160,20 @@ export default class ValidatorClient implements INymClient {
     return this.client.getCachedMixnodes();
   }
 
-  async getMixNodeBonds(): Promise<any[]> {
-    return this.client.getMixNodeBonds(this.mixnetContract, 10, '0');
+  async getStakeSaturation(mixId: number): Promise<StakeSaturation> {
+    return this.client.getStakeSaturation(this.mixnetContract, mixId);
   }
 
   async getActiveMixnodes(): Promise<MixNodeBond[]> {
     return this.client.getActiveMixnodes();
+  }
+
+  async getUnbondedMixNodes(): Promise<MixNodeBond[]> {
+    return this.client.getUnbondedMixNodes(this.mixnetContract);
+  }
+
+  async getUnbondedMixNodeInformation(mixId: number): Promise<MixNodeBond> {
+    return this.client.getUnbondedMixNodeInformation(this.mixnetContract, mixId);
   }
 
   async getRewardedMixnodes(): Promise<MixNodeBond[]> {

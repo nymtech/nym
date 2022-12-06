@@ -155,3 +155,9 @@ export type SendRequest = {
   recipientAddress: string;
   transferAmount: readonly Coin[];
 };
+
+export type StakeSaturation = {
+  mix_id: number;
+  current_saturation: string;
+  uncapped_saturation: string;
+};

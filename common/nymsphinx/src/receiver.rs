@@ -183,6 +183,7 @@ mod message_receiver {
     // available to other modules?
     /// Returns a hardcoded, valid instance of [`NymTopology`] that is to be used in
     /// tests requiring instance of topology.
+    #[allow(dead_code)]
     fn topology_fixture() -> NymTopology {
         let mut mixes = HashMap::new();
         mixes.insert(

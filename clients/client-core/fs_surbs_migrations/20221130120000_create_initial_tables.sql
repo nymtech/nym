@@ -19,8 +19,9 @@ CREATE TABLE sender_tag
 
 CREATE TABLE reply_key
 (
-    key_digest BLOB NOT NULL UNIQUE,
-    reply_key  BLOB NOT NULL UNIQUE
+    key_digest        BLOB    NOT NULL UNIQUE,
+    reply_key         BLOB    NOT NULL UNIQUE,
+    sent_at_timestamp INTEGER NOT NULL
 );
 
 CREATE TABLE reply_surb_sender

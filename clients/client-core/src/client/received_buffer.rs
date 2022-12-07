@@ -328,7 +328,7 @@ impl ReceivedMessagesBuffer {
             .try_pop(possible_key_digest)
             .map(|reply_encryption_key| {
                 (
-                    reply_encryption_key,
+                    *reply_encryption_key,
                     &mut raw_message[reply_surb_digest_size..],
                 )
             })

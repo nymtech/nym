@@ -27,16 +27,18 @@ describe('Network queries', async () => {
   it('can query for an account balance', async () => {
     const balance = await client.getBalance('n1ptg680vnmef2cd8l0s9uyc4f0hgf3x8sed6w77');
     expect(Number.parseFloat(balance.amount)).toBeGreaterThan(0);
-  }).timeout(5000);
+  });
 
   it('can query for stake saturation', async () => {
     const stakeSaturation = await client.getStakeSaturation(8);
     expect(stakeSaturation).toBeTruthy();
+    expect(stakeSaturation?.current_saturation).toBeTruthy();
   });
 
   it('can query for unbonded mixnodes', async () => {
     const unbondedNodes = await client.getUnbondedMixNodes();
     expect(unbondedNodes).toBeTruthy();
+    expect(Array.isArray(unbondedNodes)).toBeTruthy();
   });
 
   it('can query for unbonded mixnode information', async () => {
@@ -57,10 +59,12 @@ describe('Network queries', async () => {
   it('can query for all mixnode bonds', async () => {
     const mixnodeBonds = await client.getMixNodeBonds();
     expect(mixnodeBonds).toBeTruthy();
+    expect(Array.isArray(mixnodeBonds)).toBeTruthy();
   });
 
   it('can query for all mixnode details', async () => {
-    const mixnodeBonds = await client.getMixNodesDetailed();
-    expect(mixnodeBonds).toBeTruthy();
+    const mixnodeDetails = await client.getMixNodesDetailed();
+    expect(mixnodeDetails).toBeTruthy();
+    expect(Array.isArray(mixnodeDetails)).toBeTruthy();
   });
 });

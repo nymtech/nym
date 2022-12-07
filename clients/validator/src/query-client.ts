@@ -27,6 +27,7 @@ import {
   PagedMixDelegationsResponse,
   PagedMixNodeBondResponse,
   PagedMixNodeDetailsResponse,
+  PagedUnbondedMixnodesResponse,
   RewardingStatus,
   StakeSaturation,
   UnbondedMixnodeResponse,
@@ -167,8 +168,12 @@ export default class QueryClient extends CosmWasmClient implements IQueryClient 
     return this.nymdQuerier.ownsGateway(mixnetContractAddress, address);
   }
 
-  getUnbondedMixNodes(mixnetContractAddress: string): Promise<UnbondedMixnodeResponse[]> {
-    return this.nymdQuerier.getUnbondedMixNodes(mixnetContractAddress);
+  getUnbondedMixNodes(
+    mixnetContractAddress: string,
+    limit?: number,
+    startAfter?: string,
+  ): Promise<PagedUnbondedMixnodesResponse> {
+    return this.nymdQuerier.getUnbondedMixNodes(mixnetContractAddress, limit, startAfter);
   }
 
   getUnbondedMixNodeInformation(mixnetContractAddress: string, mixId: number): Promise<UnbondedMixnodeResponse> {

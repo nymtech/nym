@@ -7,7 +7,7 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc",
-    "test": "ts-mocha tests/**/*.test.ts",
+    "test": "yarn build && ts-mocha tests/**/*.test.ts",
     "coverage": "nyc npm test",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",

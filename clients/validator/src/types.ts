@@ -161,7 +161,10 @@ export type StakeSaturation = {
   uncapped_saturation: string;
 };
 
-export type UnbondedMixnodeResponse = {
-  mix_id: number;
-  unbonded_info?: UnbondedMixnode;
+export type UnbondedMixnodeResponse = [mix_id: number, unbonded_info?: UnbondedMixnode];
+
+export type PagedUnbondedMixnodesResponse = {
+  nodes: UnbondedMixnodeResponse[];
+  per_page: number;
+  start_next_after: string;
 };

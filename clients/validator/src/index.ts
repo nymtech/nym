@@ -22,6 +22,7 @@ import {
   PagedMixDelegationsResponse,
   PagedMixNodeBondResponse,
   PagedMixNodeDetailsResponse,
+  PagedUnbondedMixnodesResponse,
   StakeSaturation,
   UnbondedMixnodeResponse,
 } from './types';
@@ -36,7 +37,7 @@ import {
 } from './currency';
 import QueryClient from './query-client';
 import { nymGasPrice } from './stargate-helper';
-import { MixNodeBond, MixNodeDetails, MixNodeRewarding } from '@nymproject/types';
+import { MixNodeBond, MixNodeDetails, MixNodeRewarding, UnbondedMixnode } from '@nymproject/types';
 
 export { coins, coin } from '@cosmjs/stargate';
 export { Coin };
@@ -170,10 +171,6 @@ export default class ValidatorClient implements INymClient {
     return this.client.getActiveMixnodes();
   }
 
-  async getUnbondedMixNodes(): Promise<UnbondedMixnodeResponse[]> {
-    return this.client.getUnbondedMixNodes(this.mixnetContract);
-  }
-
   async getUnbondedMixNodeInformation(mixId: number): Promise<UnbondedMixnodeResponse> {
     return this.client.getUnbondedMixNodeInformation(this.mixnetContract, mixId);
   }
@@ -212,6 +209,29 @@ export default class ValidatorClient implements INymClient {
 
   public async getIntervalRewardPercent(): Promise<number> {
     return this.client.getIntervalRewardPercent(this.mixnetContract);
+  }
+
+  async getUnbondedMixNodes(): Promise<UnbondedMixnodeResponse[]> {
+    let mixNodes: UnbondedMixnodeResponse[] = [];
+    const limit = 50;
+    let startAfter;
+    for (;;) {
+      // eslint-disable-next-line no-await-in-loop
+      const pagedResponse: PagedUnbondedMixnodesResponse = await this.client.getUnbondedMixNodes(
+        this.mixnetContract,
+        limit,
+        startAfter,
+      );
+
+      mixNodes = mixNodes.concat(pagedResponse.nodes);
+      startAfter = pagedResponse.start_next_after;
+      // if `start_next_after` is not set, we're done
+      if (!startAfter) {
+        break;
+      }
+    }
+
+    return mixNodes;
   }
 
   public async getMixNodeBonds(): Promise<MixNodeBond[]> {

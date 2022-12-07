@@ -19,6 +19,7 @@ import {
   PagedMixDelegationsResponse,
   PagedMixNodeBondResponse,
   PagedMixNodeDetailsResponse,
+  PagedUnbondedMixnodesResponse,
   RewardingStatus,
   StakeSaturation,
   UnbondedMixnodeResponse,
@@ -95,9 +96,13 @@ export default class NymdQuerier implements INymdQuery {
     });
   }
 
-  getUnbondedMixNodes(mixnetContractAddress: string): Promise<UnbondedMixnodeResponse[]> {
+  getUnbondedMixNodes(
+    mixnetContractAddress: string,
+    limit?: number,
+    startAfter?: string,
+  ): Promise<PagedUnbondedMixnodesResponse> {
     return this.client.queryContractSmart(mixnetContractAddress, {
-      get_unbonded_mix_nodes: {},
+      get_unbonded_mix_nodes: { limit, start_after: startAfter },
     });
   }
 

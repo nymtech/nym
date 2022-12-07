@@ -31,6 +31,7 @@ import {
   PagedMixDelegationsResponse,
   PagedMixNodeBondResponse,
   PagedMixNodeDetailsResponse,
+  PagedUnbondedMixnodesResponse,
   RewardingStatus,
   UnbondedMixnodeResponse,
 } from './types';
@@ -291,8 +292,12 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     return this.nymdQuerier.getAllNetworkDelegationsPaged(mixnetContractAddress, limit, startAfter);
   }
 
-  getUnbondedMixNodes(mixnetContractAddress: string): Promise<UnbondedMixnodeResponse[]> {
-    return this.nymdQuerier.getUnbondedMixNodes(mixnetContractAddress);
+  getUnbondedMixNodes(
+    mixnetContractAddress: string,
+    limit?: number,
+    startAfter?: string,
+  ): Promise<PagedUnbondedMixnodesResponse> {
+    return this.nymdQuerier.getUnbondedMixNodes(mixnetContractAddress, limit, startAfter);
   }
 
   getMixNodeDelegationsPaged(

@@ -1,8 +1,8 @@
 [package]
 name = "cw3-flex-multisig"
-version = "0.13.1"
+version = "1.0.0"
 authors = ["Ethan Frey <ethanfrey@users.noreply.github.com>"]
-edition = "2018"
+edition = "2021"
 description = "Implementing cw3 with multiple voting patterns and dynamic groups"
 license = "Apache-2.0"
 repository = "https://github.com/CosmWasm/cw-plus"
@@ -13,24 +13,25 @@ documentation = "https://docs.cosmwasm.com"
 crate-type = ["cdylib", "rlib"]
 
 [features]
+backtraces = ["cosmwasm-std/backtraces"]
 # use library feature to disable all instantiate/execute/query exports
 library = []
 
 [dependencies]
-cw-utils = { version = "0.13.4" }
-cw2 = { version = "0.13.4" }
-cw3 = { version = "0.13.4" }
-cw3-fixed-multisig = { version = "0.13.4", features = ["library"] }
-cw4 = { version = "0.13.4" }
-cw-storage-plus = { version = "0.13.4" }
-cosmwasm-std = { version = "1.0.0" }
+cosmwasm-schema = { version = "1.1.0" }
+cw-utils = "0.16.0"
+cw2 = "1.0.0"
+cw3 = "1.0.0"
+cw3-fixed-multisig = { version = "1.0.0", features = ["library"] }
+cw4 = "1.0.0"
+cw20 = "1.0.0"
+cw-storage-plus = "0.16.0"
+cosmwasm-std = { version = "1.1.0" }
 schemars = "0.8.1"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0.23" }
 
-multisig-contract-common = { path= "../../../common/cosmwasm-smart-contracts/multisig-contract" }
-
 [dev-dependencies]
-cosmwasm-schema = { version = "1.0.0" }
-cw4-group = { path = "../cw4-group", version = "0.13.4" }
-cw-multi-test = { version = "0.13.4" }
+cw4-group = { path = "../cw4-group", version = "1.0.0" }
+cw-multi-test = "0.16.0"
+cw20-base = "1.0.0"

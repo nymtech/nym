@@ -1,4 +1,5 @@
 import { Coin } from '@cosmjs/stargate';
+import { UnbondedMixnode, MixNodeBond, MixNodeDetails } from '@nymproject/types';
 
 // TODO: ideally we'd have re-exported those using that fancy crate that builds ts types from rust
 
@@ -11,8 +12,14 @@ export type MixnetContractVersion = {
   rustc_version: string;
 };
 
-export type PagedMixnodeResponse = {
+export type PagedMixNodeBondResponse = {
   nodes: MixNodeBond[];
+  per_page: number;
+  start_next_after?: string;
+};
+
+export type PagedMixNodeDetailsResponse = {
+  nodes: MixNodeDetails[];
   per_page: number;
   start_next_after?: string;
 };
@@ -113,14 +120,6 @@ export enum Layer {
   Three,
 }
 
-export type MixNodeBond = {
-  owner: string;
-  mix_node: MixNode;
-  layer: Layer;
-  bond_amount: Coin;
-  total_delegation: Coin;
-};
-
 export type MixNode = {
   host: string;
   mix_port: number;
@@ -160,4 +159,9 @@ export type StakeSaturation = {
   mix_id: number;
   current_saturation: string;
   uncapped_saturation: string;
+};
+
+export type UnbondedMixnodeResponse = {
+  mix_id: number;
+  unbonded_info?: UnbondedMixnode;
 };

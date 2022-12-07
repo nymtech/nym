@@ -16,13 +16,14 @@ import {
   GatewayBond,
   MixnetContractVersion,
   MixNode,
-  MixNodeBond,
   PagedAllDelegationsResponse,
   PagedDelegatorDelegationsResponse,
   PagedGatewayResponse,
   PagedMixDelegationsResponse,
-  PagedMixnodeResponse,
+  PagedMixNodeBondResponse,
+  PagedMixNodeDetailsResponse,
   StakeSaturation,
+  UnbondedMixnodeResponse,
 } from './types';
 import {
   CoinMap,
@@ -35,6 +36,7 @@ import {
 } from './currency';
 import QueryClient from './query-client';
 import { nymGasPrice } from './stargate-helper';
+import { MixNodeBond, MixNodeDetails, MixNodeRewarding } from '@nymproject/types';
 
 export { coins, coin } from '@cosmjs/stargate';
 export { Coin };
@@ -168,16 +170,24 @@ export default class ValidatorClient implements INymClient {
     return this.client.getActiveMixnodes();
   }
 
-  async getUnbondedMixNodes(): Promise<MixNodeBond[]> {
+  async getUnbondedMixNodes(): Promise<UnbondedMixnodeResponse[]> {
     return this.client.getUnbondedMixNodes(this.mixnetContract);
   }
 
-  async getUnbondedMixNodeInformation(mixId: number): Promise<MixNodeBond> {
+  async getUnbondedMixNodeInformation(mixId: number): Promise<UnbondedMixnodeResponse> {
     return this.client.getUnbondedMixNodeInformation(this.mixnetContract, mixId);
   }
 
   async getRewardedMixnodes(): Promise<MixNodeBond[]> {
     return this.client.getRewardedMixnodes();
+  }
+
+  async getMixnodeRewardingDetails(mixId: number): Promise<MixNodeRewarding> {
+    return this.client.getMixnodeRewardingDetails(this.mixnetContract, mixId);
+  }
+
+  async getOwnedMixnode(address: string): Promise<any> {
+    return this.client.getOwnedMixnode(this.mixnetContract, address);
   }
 
   public async getMixnetContractSettings(): Promise<ContractStateParams> {
@@ -204,13 +214,39 @@ export default class ValidatorClient implements INymClient {
     return this.client.getIntervalRewardPercent(this.mixnetContract);
   }
 
-  public async getAllNymdMixnodes(): Promise<MixNodeBond[]> {
+  public async getMixNodeBonds(): Promise<MixNodeBond[]> {
     let mixNodes: MixNodeBond[] = [];
     const limit = 50;
     let startAfter;
     for (;;) {
       // eslint-disable-next-line no-await-in-loop
-      const pagedResponse: PagedMixnodeResponse = await this.client.getMixNodesPaged(this.mixnetContract, limit);
+      const pagedResponse: PagedMixNodeBondResponse = await this.client.getMixNodeBonds(
+        this.mixnetContract,
+        limit,
+        startAfter,
+      );
+      mixNodes = mixNodes.concat(pagedResponse.nodes);
+      startAfter = pagedResponse.start_next_after;
+      // if `start_next_after` is not set, we're done
+      if (!startAfter) {
+        break;
+      }
+    }
+
+    return mixNodes;
+  }
+
+  public async getMixNodesDetailed(): Promise<MixNodeDetails[]> {
+    let mixNodes: MixNodeDetails[] = [];
+    const limit = 50;
+    let startAfter;
+    for (;;) {
+      // eslint-disable-next-line no-await-in-loop
+      const pagedResponse: PagedMixNodeDetailsResponse = await this.client.getMixNodesDetailed(
+        this.mixnetContract,
+        limit,
+        startAfter,
+      );
       mixNodes = mixNodes.concat(pagedResponse.nodes);
       startAfter = pagedResponse.start_next_after;
       // if `start_next_after` is not set, we're done

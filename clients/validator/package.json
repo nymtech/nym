@@ -45,6 +45,7 @@
     "@cosmjs/proto-signing": "^0.28.0",
     "@cosmjs/stargate": "^0.28.0",
     "@cosmjs/tendermint-rpc": "^0.28.0",
+    "@nymproject/types": "^1.0.0",
     "axios": "^0.26.1",
     "cosmjs-types": "^0.4.1"
   }

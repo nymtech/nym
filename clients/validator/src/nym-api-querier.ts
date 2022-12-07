@@ -3,8 +3,9 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+import { MixNodeBond } from '@nymproject/types';
 import axios from 'axios';
-import { GatewayBond, MixNodeBond } from './types';
+import { GatewayBond } from './types';
 
 export const NYM_API_VERSION = '/v1';
 export const NYM_API_GATEWAYS_PATH = `${NYM_API_VERSION}/gateways`;

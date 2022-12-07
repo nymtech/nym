@@ -12,15 +12,16 @@ import {
   GatewayOwnershipResponse,
   LayerDistribution,
   MixnetContractVersion,
-  MixNodeBond,
   MixOwnershipResponse,
   PagedAllDelegationsResponse,
   PagedDelegatorDelegationsResponse,
   PagedGatewayResponse,
   PagedMixDelegationsResponse,
-  PagedMixnodeResponse,
+  PagedMixNodeBondResponse,
+  PagedMixNodeDetailsResponse,
   RewardingStatus,
   StakeSaturation,
+  UnbondedMixnodeResponse,
 } from './types';
 
 interface SmartContractQuery {
@@ -39,10 +40,26 @@ export default class NymdQuerier implements INymdQuery {
       get_contract_version: {},
     });
   }
-
-  getMixNodesPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedMixnodeResponse> {
+  getMixNodeBonds(
+    mixnetContractAddress: string,
+    limit?: number,
+    startAfter?: string,
+  ): Promise<PagedMixNodeBondResponse> {
     return this.client.queryContractSmart(mixnetContractAddress, {
-      get_mix_nodes: {
+      get_mix_node_bonds: {
+        limit,
+        start_after: startAfter,
+      },
+    });
+  }
+
+  getMixNodesDetailed(
+    mixnetContractAddress: string,
+    limit?: number,
+    startAfter?: string,
+  ): Promise<PagedMixNodeDetailsResponse> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      get_mix_nodes_detailed: {
         limit,
         start_after: startAfter,
       },
@@ -55,6 +72,12 @@ export default class NymdQuerier implements INymdQuery {
     });
   }
 
+  getMixnodeRewardingDetails(mixnetContractAddress: string, mixId: number): Promise<any> {
+    return this.client.queryContractSmart(mixnetContractAddress, {
+      get_mixnode_rewarding_details: { mix_id: mixId },
+    });
+  }
+
   getGatewaysPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedGatewayResponse> {
     return this.client.queryContractSmart(mixnetContractAddress, {
       get_gateways: {
@@ -64,21 +87,21 @@ export default class NymdQuerier implements INymdQuery {
     });
   }
 
-  ownsMixNode(mixnetContractAddress: string, address: string): Promise<MixOwnershipResponse> {
+  getOwnedMixnode(mixnetContractAddress: string, address: string): Promise<MixOwnershipResponse> {
     return this.client.queryContractSmart(mixnetContractAddress, {
-      owns_mixnode: {
+      get_owned_mixnode: {
         address,
       },
     });
   }
 
-  getUnbondedMixNodes(mixnetContractAddress: string): Promise<any> {
+  getUnbondedMixNodes(mixnetContractAddress: string): Promise<UnbondedMixnodeResponse[]> {
     return this.client.queryContractSmart(mixnetContractAddress, {
       get_unbonded_mix_nodes: {},
     });
   }
 
-  getUnbondedMixNodeInformation(mixnetContractAddress: string, mixId: number): Promise<MixNodeBond> {
+  getUnbondedMixNodeInformation(mixnetContractAddress: string, mixId: number): Promise<UnbondedMixnodeResponse> {
     return this.client.queryContractSmart(mixnetContractAddress, {
       get_unbonded_mix_node_information: { mix_id: mixId },
     });

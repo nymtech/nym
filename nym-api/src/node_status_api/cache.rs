@@ -320,7 +320,7 @@ impl NodeStatusCacheRefresher {
                 .rewarding_details
                 .uncapped_bond_saturation(&interval_reward_params);
 
-            // If the performance can't be obtained, because the validator-api was not started with
+            // If the performance can't be obtained, because the nym-api was not started with
             // the monitoring (and hence, storage), then reward estimates will be all zero
             let performance = self
                 .get_performance_from_storage(mixnode.mix_id(), current_interval)

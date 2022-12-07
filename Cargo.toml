@@ -74,8 +74,8 @@ members = [
     "mixnode",
     "service-providers/network-requester",
     "service-providers/network-statistics",
-    "validator-api",
-    "validator-api/validator-api-requests",
+    "nym-api",
+    "nym-api/validator-api-requests",
     "tools/nym-cli",
     "tools/ts-rs-cli"
 ]
@@ -87,7 +87,7 @@ default-members = [
     "service-providers/network-requester",
     "service-providers/network-statistics",
     "mixnode",
-    "validator-api",
+    "nym-api",
     "explorer-api",
 ]
 

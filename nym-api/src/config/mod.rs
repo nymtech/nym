@@ -66,11 +66,11 @@ impl NymConfig for Config {
         dirs::home_dir()
             .expect("Failed to evaluate $HOME value")
             .join(".nym")
-            .join("validator-api")
+            .join("../..")
     }
 
     fn try_default_root_directory() -> Option<PathBuf> {
-        dirs::home_dir().map(|path| path.join(".nym").join("validator-api"))
+        dirs::home_dir().map(|path| path.join(".nym").join("../.."))
     }
 
     fn root_directory(&self) -> PathBuf {
@@ -89,7 +89,7 @@ impl NymConfig for Config {
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 pub struct Base {
-    /// ID specifies the human readable ID of this particular validator-api.
+    /// ID specifies the human readable ID of this particular nym-api.
     id: String,
 
     local_validator: Url,

@@ -300,7 +300,7 @@ impl WalletStateInner {
             })
     }
 
-    /// Get the list of validator-api urls in the network config format, suitable for passing on to
+    /// Get the list of nym-api urls in the network config format, suitable for passing on to
     /// the UI
     pub fn get_api_urls(
         &self,

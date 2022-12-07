@@ -29,7 +29,7 @@ pub(crate) struct ValidatorApiStorage {
 
 impl ValidatorApiStorage {
     pub async fn init(database_path: PathBuf) -> Result<Self, ValidatorApiStorageError> {
-        // TODO: we can inject here more stuff based on our validator-api global config
+        // TODO: we can inject here more stuff based on our nym-api global config
         // struct. Maybe different pool size or timeout intervals?
         let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(&database_path)

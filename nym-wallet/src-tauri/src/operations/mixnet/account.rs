@@ -128,7 +128,7 @@ async fn _connect_with_mnemonic(
         .map(|(network, urls)| (*network, urls.iter().next().unwrap().clone()))
         .collect();
 
-    // Run connection tests on all nymd and validator-api endpoints
+    // Run connection tests on all nymd and nym-api endpoints
     let (nymd_urls, api_urls) =
         run_connection_test(untested_nymd_urls, untested_api_urls, &config).await;
 

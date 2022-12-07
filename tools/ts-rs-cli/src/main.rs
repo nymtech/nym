@@ -112,7 +112,7 @@ fn main() {
     do_export!(VestingPeriod);
     do_export!(WrappedDelegationEvent);
 
-    // validator-api-requests
+    // nym-api-requests
     do_export!(MixnodeCoreStatusResponse);
     do_export!(GatewayCoreStatusResponse);
     do_export!(InclusionProbabilityResponse);

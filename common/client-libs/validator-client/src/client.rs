@@ -727,7 +727,7 @@ impl<C> Client<C> {
     }
 }
 
-// validator-api wrappers
+// nym-api wrappers
 #[cfg(feature = "nymd-client")]
 impl<C> Client<C> {
     pub fn change_validator_api(&mut self, new_endpoint: Url) {

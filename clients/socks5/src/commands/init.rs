@@ -138,7 +138,7 @@ async fn setup_gateway(
     config: &Config,
 ) -> Result<GatewayEndpointConfig, ClientCoreError> {
     if register {
-        // Get the gateway details by querying the validator-api. Either pick one at random or use
+        // Get the gateway details by querying the nym-api. Either pick one at random or use
         // the chosen one if it's among the available ones.
         println!("Configuring gateway");
         let gateway = client_core::init::query_gateway_details(

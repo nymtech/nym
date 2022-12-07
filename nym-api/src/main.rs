@@ -126,7 +126,7 @@ fn parse_args() -> ArgMatches {
         )
         .arg(
             Arg::with_name(ID)
-                .help("Id of the validator-api we want to run")
+                .help("Id of the nym-api we want to run")
                 .long(ID)
                 .takes_value(true)
         )
@@ -624,7 +624,7 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
     // launch the rocket!
     // Rocket handles shutdown on it's own, but its shutdown handling should be incorporated
     // with that of the rest of the tasks.
-    // Currently it's runtime is forcefully terminated once the validator-api exits.
+    // Currently it's runtime is forcefully terminated once the nym-api exits.
     let shutdown_handle = rocket.shutdown();
     tokio::spawn(rocket.launch());
 

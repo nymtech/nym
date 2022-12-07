@@ -73,14 +73,12 @@ pub fn try_verify_verification_key_share(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::epoch_state::storage::CURRENT_EPOCH_STATE;
     use crate::epoch_state::transactions::advance_epoch_state;
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::{ADMIN_ADDRESS, MULTISIG_CONTRACT};
     use coconut_dkg_common::dealer::DealerDetails;
     use coconut_dkg_common::types::EpochState;
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::Storage;
     use cw_controllers::AdminError;
 
     #[test]

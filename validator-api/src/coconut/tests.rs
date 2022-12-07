@@ -349,6 +349,8 @@ impl super::client::Client for DummyClient {
                 percentage: Decimal::from_ratio(2u32, 3u32),
                 total_weight: 100,
             },
+            proposer: Addr::unchecked(self.validator_address.as_ref()),
+            deposit: None,
         };
         self.proposal_db
             .write()
@@ -905,6 +907,8 @@ async fn verification_of_bandwidth_credential() {
             percentage: Decimal::from_ratio(2u32, 3u32),
             total_weight: 100,
         },
+        proposer: Addr::unchecked("proposer"),
+        deposit: None,
     };
 
     // Test the endpoint with a different blinded serial number in the description

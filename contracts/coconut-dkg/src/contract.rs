@@ -117,9 +117,8 @@ pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Respon
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::support::tests::fixtures::{dealer_details_fixture, TEST_MIX_DENOM};
+    use crate::support::tests::fixtures::TEST_MIX_DENOM;
     use crate::support::tests::helpers::{ADMIN_ADDRESS, MULTISIG_CONTRACT};
-    use coconut_dkg_common::dealer::DealerDetails;
     use coconut_dkg_common::msg::ExecuteMsg::RegisterDealer;
     use coconut_dkg_common::types::NodeIndex;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};

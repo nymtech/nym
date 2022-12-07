@@ -18,9 +18,9 @@ use cw4::{Cw4Contract, MemberChangedHookMsg, MemberDiff};
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, Expiration, ThresholdResponse};
 
-use crate::error::ContractError;
-use crate::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
-use crate::state::{Config, CONFIG};
+use multisig_contract_common::error::ContractError;
+use multisig_contract_common::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
+use multisig_contract_common::state::{Config, CONFIG};
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crates.io:cw3-flex-multisig";
@@ -565,11 +565,11 @@ mod tests {
         group: Addr,
         threshold: Threshold,
         max_voting_period: Duration,
-        executor: Option<crate::state::Executor>,
+        executor: Option<multisig_contract_common::state::Executor>,
         proposal_deposit: Option<UncheckedDepositInfo>,
     ) -> Addr {
         let flex_id = app.store_code(contract_flex());
-        let msg = crate::msg::InstantiateMsg {
+        let msg = InstantiateMsg {
             group_addr: group.to_string(),
             threshold,
             max_voting_period,
@@ -611,7 +611,7 @@ mod tests {
         max_voting_period: Duration,
         init_funds: Vec<Coin>,
         multisig_as_group_admin: bool,
-        executor: Option<crate::state::Executor>,
+        executor: Option<multisig_contract_common::state::Executor>,
         proposal_deposit: Option<UncheckedDepositInfo>,
     ) -> (Addr, Addr) {
         // 1. Instantiate group contract with members (and OWNER as admin)
@@ -1360,7 +1360,7 @@ mod tests {
             voting_period,
             init_funds,
             true,
-            Some(crate::state::Executor::Member), // set executor as Member of voting group
+            Some(multisig_contract_common::state::Executor::Member), // set executor as Member of voting group
             None,
         );
 
@@ -1417,7 +1417,9 @@ mod tests {
             voting_period,
             init_funds,
             true,
-            Some(crate::state::Executor::Only(Addr::unchecked(VOTER3))), // only VOTER3 can execute proposal
+            Some(multisig_contract_common::state::Executor::Only(
+                Addr::unchecked(VOTER3),
+            )), // only VOTER3 can execute proposal
             None,
         );
 

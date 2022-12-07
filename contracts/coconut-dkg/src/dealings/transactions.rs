@@ -44,7 +44,6 @@ pub(crate) mod tests {
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::ADMIN_ADDRESS;
     use coconut_dkg_common::dealer::DealerDetails;
-    use coconut_dkg_common::types::TOTAL_DEALINGS;
     use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::Addr;
 

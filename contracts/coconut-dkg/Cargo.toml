@@ -13,14 +13,14 @@ coconut-dkg-common = { path = "../../common/cosmwasm-smart-contracts/coconut-dkg
 
 cosmwasm-std = "1.0.0"
 cosmwasm-storage = "1.0.0"
-cw-storage-plus = "0.13.4"
-cw-controllers = "0.13.4"
-cw4 = { version = "0.13.4" }
+cw-storage-plus = "0.16.0"
+cw-controllers = "1.0.0"
+cw4 = { version = "1.0.0" }
 
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = "1.0.23"
 
 [dev-dependencies]
-cw-multi-test = { version = "0.13.4" }
+cw-multi-test = { version = "0.16.0" }
 cw4-group = { path = "../multisig/cw4-group" }

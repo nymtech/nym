@@ -97,6 +97,7 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // expensive test
     async fn exchange_dealing() {
         let self_index = 2;
         let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));

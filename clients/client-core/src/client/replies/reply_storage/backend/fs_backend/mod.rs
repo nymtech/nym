@@ -16,7 +16,6 @@ use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use std::fs;
 use std::path::{Path, PathBuf};
 use time::OffsetDateTime;
-use tokio::time::Instant;
 
 mod error;
 mod manager;
@@ -221,7 +220,7 @@ impl Backend {
         let mut received_surbs = Vec::with_capacity(surb_senders.len());
         for sender in surb_senders {
             let sender_id = sender.id;
-            let (sender_tag, surbs_last_received_at): (AnonymousSenderTag, Instant) =
+            let (sender_tag, surbs_last_received_at_timestamp): (AnonymousSenderTag, i64) =
                 sender.try_into()?;
             let stored_surbs = self
                 .manager
@@ -233,7 +232,7 @@ impl Backend {
 
             received_surbs.push((
                 sender_tag,
-                ReceivedReplySurbs::new_retrieved(stored_surbs, surbs_last_received_at),
+                ReceivedReplySurbs::new_retrieved(stored_surbs, surbs_last_received_at_timestamp),
             ))
         }
 

@@ -7,12 +7,7 @@ use nymsphinx::anonymous_replies::encryption_key::EncryptionKeyDigest;
 use nymsphinx::anonymous_replies::SurbEncryptionKey;
 use std::ops::Deref;
 use std::sync::Arc;
-
-#[cfg(not(target_arch = "wasm32"))]
-use tokio::time::Instant;
-
-#[cfg(target_arch = "wasm32")]
-use wasm_timer::Instant;
+use time::OffsetDateTime;
 
 #[derive(Debug, Clone)]
 pub struct SentReplyKeys {
@@ -46,7 +41,7 @@ impl SentReplyKeys {
     }
 
     pub(crate) fn insert_multiple(&self, keys: Vec<SurbEncryptionKey>) {
-        let now = Instant::now();
+        let now = OffsetDateTime::now_utc().unix_timestamp();
         for key in keys {
             self.insert(UsedReplyKey::new(key, now))
         }
@@ -65,15 +60,19 @@ impl SentReplyKeys {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub(crate) struct UsedReplyKey {
     key: SurbEncryptionKey,
-    pub(crate) sent_at: Instant,
+    // the purpose of this field is to perform invalidation at relatively very long intervals
+    pub(crate) sent_at_timestamp: i64,
 }
 
 impl UsedReplyKey {
-    fn new(key: SurbEncryptionKey, sent_at: Instant) -> Self {
-        UsedReplyKey { key, sent_at }
+    pub(crate) fn new(key: SurbEncryptionKey, sent_at_timestamp: i64) -> Self {
+        UsedReplyKey {
+            key,
+            sent_at_timestamp,
+        }
     }
 }
 

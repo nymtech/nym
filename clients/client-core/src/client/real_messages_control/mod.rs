@@ -89,6 +89,10 @@ pub struct Config {
     /// Defines maximum amount of time given reply surb is going to be valid for.
     /// This is going to be superseded by key rotation once implemented.
     maximum_reply_surb_age: Duration,
+
+    /// Defines maximum amount of time given reply key is going to be valid for.
+    /// This is going to be superseded by key rotation once implemented.
+    maximum_reply_key_age: Duration,
 }
 
 impl<'a> From<&'a Config> for acknowledgement_control::Config {
@@ -124,6 +128,7 @@ impl<'a> From<&'a Config> for reply_controller::Config {
             cfg.maximum_allowed_reply_surb_request_size,
             cfg.maximum_reply_surb_waiting_period,
             cfg.maximum_reply_surb_age,
+            cfg.maximum_reply_key_age,
         )
     }
 }
@@ -168,6 +173,7 @@ impl Config {
             maximum_reply_surb_waiting_period: base_client_debug_config
                 .maximum_reply_surb_waiting_period,
             maximum_reply_surb_age: base_client_debug_config.maximum_reply_surb_age,
+            maximum_reply_key_age: base_client_debug_config.maximum_reply_key_age,
         }
     }
 

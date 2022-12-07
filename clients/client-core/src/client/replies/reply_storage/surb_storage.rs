@@ -9,12 +9,7 @@ use nymsphinx::anonymous_replies::ReplySurb;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-
-#[cfg(not(target_arch = "wasm32"))]
-use tokio::time::Instant;
-
-#[cfg(target_arch = "wasm32")]
-use wasm_timer::Instant;
+use time::OffsetDateTime;
 
 #[derive(Debug, Clone)]
 pub struct ReceivedReplySurbsMap {
@@ -71,11 +66,11 @@ impl ReceivedReplySurbsMap {
 
     pub(crate) fn reset_surbs_last_received_at(&self, target: &AnonymousSenderTag) {
         if let Some(mut entry) = self.inner.data.get_mut(target) {
-            entry.surbs_last_received_at = Instant::now();
+            entry.surbs_last_received_at_timestamp = OffsetDateTime::now_utc().unix_timestamp();
         }
     }
 
-    pub(crate) fn surbs_last_received_at(&self, target: &AnonymousSenderTag) -> Option<Instant> {
+    pub(crate) fn surbs_last_received_at(&self, target: &AnonymousSenderTag) -> Option<i64> {
         self.inner
             .data
             .get(target)
@@ -200,7 +195,7 @@ pub(crate) struct ReceivedReplySurbs {
     data: VecDeque<ReplySurb>,
 
     pending_reception: u32,
-    surbs_last_received_at: Instant,
+    surbs_last_received_at_timestamp: i64,
 }
 
 impl ReceivedReplySurbs {
@@ -208,19 +203,19 @@ impl ReceivedReplySurbs {
         ReceivedReplySurbs {
             data: initial_surbs,
             pending_reception: 0,
-            surbs_last_received_at: Instant::now(),
+            surbs_last_received_at_timestamp: OffsetDateTime::now_utc().unix_timestamp(),
         }
     }
 
     #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
     pub(crate) fn new_retrieved(
         surbs: Vec<ReplySurb>,
-        surbs_last_received_at: Instant,
+        surbs_last_received_at_timestamp: i64,
     ) -> ReceivedReplySurbs {
         ReceivedReplySurbs {
             data: surbs.into(),
             pending_reception: 0,
-            surbs_last_received_at,
+            surbs_last_received_at_timestamp,
         }
     }
 
@@ -229,8 +224,8 @@ impl ReceivedReplySurbs {
         &self.data
     }
 
-    pub(crate) fn surbs_last_received_at(&self) -> Instant {
-        self.surbs_last_received_at
+    pub(crate) fn surbs_last_received_at(&self) -> i64 {
+        self.surbs_last_received_at_timestamp
     }
 
     pub(crate) fn pending_reception(&self) -> u32 {
@@ -277,7 +272,7 @@ impl ReceivedReplySurbs {
         let mut v = surbs.into_iter().collect::<VecDeque<_>>();
         trace!("storing {} surbs in the storage", v.len());
         self.data.append(&mut v);
-        self.surbs_last_received_at = Instant::now();
+        self.surbs_last_received_at_timestamp = OffsetDateTime::now_utc().unix_timestamp();
         trace!("we now have {} surbs!", self.data.len());
     }
 }

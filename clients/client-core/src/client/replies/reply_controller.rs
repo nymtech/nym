@@ -15,14 +15,11 @@ use rand::{CryptoRng, Rng};
 use std::cmp::{max, min};
 use std::collections::{HashMap, VecDeque};
 use std::time::Duration;
+use time::OffsetDateTime;
 
-#[cfg(not(target_arch = "wasm32"))]
-use tokio::time::Instant;
 #[cfg(not(target_arch = "wasm32"))]
 type IntervalStream = tokio_stream::wrappers::IntervalStream;
 
-#[cfg(target_arch = "wasm32")]
-use wasm_timer::Instant;
 #[cfg(target_arch = "wasm32")]
 type IntervalStream = gloo_timers::future::IntervalStream;
 
@@ -110,7 +107,8 @@ pub struct Config {
     max_surb_request_size: u32,
     maximum_allowed_reply_surb_request_size: u32,
     max_surb_waiting_period: Duration,
-    max_surb_age: Duration,
+    max_reply_surb_age: Duration,
+    max_reply_key_age: Duration,
 }
 
 impl Config {
@@ -119,14 +117,16 @@ impl Config {
         max_surb_request_size: u32,
         maximum_allowed_reply_surb_request_size: u32,
         max_surb_waiting_period: Duration,
-        max_surb_age: Duration,
+        max_reply_surb_age: Duration,
+        max_reply_key_age: Duration,
     ) -> Self {
         Self {
             min_surb_request_size,
             max_surb_request_size,
             maximum_allowed_reply_surb_request_size,
             max_surb_waiting_period,
-            max_surb_age,
+            max_reply_surb_age,
+            max_reply_key_age,
         }
     }
 }
@@ -512,7 +512,7 @@ where
         let mut to_request = Vec::new();
         let mut to_remove = Vec::new();
 
-        let now = Instant::now();
+        let now = OffsetDateTime::now_utc();
         for (pending_reply_target, vals) in &self.pending_replies {
             if vals.is_empty() {
                 continue;
@@ -526,7 +526,14 @@ where
                 continue
             };
 
-            let diff = now - last_received;
+            // this should never ever happen (famous last words, eh?), but in case it DOES happen eventually
+            // purge that malformed data
+            let Ok(last_received_time) = OffsetDateTime::from_unix_timestamp(last_received) else {
+                error!("somehow our stored timestamp ({last_received}) for surbs from {pending_reply_target} is corrupted!. Going to remove all the associated entries");
+                to_remove.push(*pending_reply_target);
+                continue
+            };
+            let diff = now - last_received_time;
 
             if diff > self.config.max_surb_waiting_period {
                 warn!("We haven't received any surbs in {:?} from {pending_reply_target}. Going to explicitly ask for more", diff);
@@ -548,7 +555,7 @@ where
     }
 
     async fn invalidate_old_data(&self) {
-        let now = Instant::now();
+        let now = OffsetDateTime::now_utc();
 
         let mut to_remove_surbs = Vec::new();
         let mut to_remove_keys = Vec::new();
@@ -564,9 +571,16 @@ where
             // so I guess add timestamp per surb then? chop-chop.
 
             let last_received = received.surbs_last_received_at();
-            let diff = now - last_received;
+            // this should never ever happen (famous last words, eh?), but in case it DOES happen eventually
+            // purge that malformed data
+            let Ok(last_received_time) = OffsetDateTime::from_unix_timestamp(last_received) else {
+                error!("somehow our stored timestamp ({last_received}) for surbs from {sender} is corrupted!. Going to remove all the associated entries");
+                to_remove_surbs.push(*sender);
+                continue
+            };
+            let diff = now - last_received_time;
 
-            if diff > self.config.max_surb_age {
+            if diff > self.config.max_reply_surb_age {
                 info!("it's been {diff:?} since we last received any reply surb from {sender}. Going to remove all stored entries...");
 
                 to_remove_surbs.push(*sender);
@@ -576,9 +590,17 @@ where
         for map_ref in self.full_reply_storage.key_storage_ref().as_raw_iter() {
             let (digest, reply_key) = map_ref.pair();
 
-            let diff = now - reply_key.sent_at;
+            // this should never ever happen (famous last words, eh?), but in case it DOES happen eventually
+            // purge that malformed data
+            let Ok(sent_at) = OffsetDateTime::from_unix_timestamp(reply_key.sent_at_timestamp) else {
+                error!("somehow our stored timestamp ({}) for one of our reply key is corrupted!. Going to remove all the entry", reply_key.sent_at_timestamp);
+                to_remove_keys.push(*digest);
+                continue
+            };
 
-            if diff > self.config.max_surb_age {
+            let diff = now - sent_at;
+
+            if diff > self.config.max_reply_key_age {
                 debug!("it's been {diff:?} since we created this reply key. it's probably never going to get used, so we're going to purge it...");
                 to_remove_keys.push(*digest);
             }
@@ -610,7 +632,7 @@ where
         let mut stale_inspection = Self::create_interval_stream(polling_rate);
 
         // this is in the order of hours/days so we don't have to poll it that often
-        let polling_rate = Duration::from_secs(self.config.max_surb_age.as_secs() / 10);
+        let polling_rate = Duration::from_secs(self.config.max_reply_surb_age.as_secs() / 10);
         let mut invalidation_inspection = Self::create_interval_stream(polling_rate);
 
         while !shutdown.is_shutdown() {

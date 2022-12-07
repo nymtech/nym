@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::replies::reply_storage::backend::fs_backend::error::StorageError;
+use crate::client::replies::reply_storage::key_storage::UsedReplyKey;
 use crypto::generic_array::typenum::Unsigned;
 use crypto::Digest;
 use nymsphinx::addressing::clients::{Recipient, RecipientBytes};
@@ -9,9 +10,6 @@ use nymsphinx::anonymous_replies::encryption_key::EncryptionKeyDigest;
 use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, SENDER_TAG_SIZE};
 use nymsphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey, SurbEncryptionKeySize};
 use nymsphinx::params::ReplySurbKeyDigestAlgorithm;
-use std::time::Duration;
-use time::OffsetDateTime;
-use tokio::time::Instant;
 
 #[derive(Debug, Clone)]
 pub(crate) struct StoredSenderTag {
@@ -63,21 +61,20 @@ impl TryFrom<StoredSenderTag> for (RecipientBytes, AnonymousSenderTag) {
 pub(crate) struct StoredReplyKey {
     pub(crate) key_digest: Vec<u8>,
     pub(crate) reply_key: Vec<u8>,
+    pub(crate) sent_at_timestamp: i64,
 }
 
 impl StoredReplyKey {
-    pub(crate) fn new(
-        key_digest: EncryptionKeyDigest,
-        reply_key: SurbEncryptionKey,
-    ) -> StoredReplyKey {
+    pub(crate) fn new(key_digest: EncryptionKeyDigest, reply_key: UsedReplyKey) -> StoredReplyKey {
         StoredReplyKey {
             key_digest: key_digest.to_vec(),
-            reply_key: reply_key.to_bytes(),
+            reply_key: (*reply_key).to_bytes(),
+            sent_at_timestamp: reply_key.sent_at_timestamp,
         }
     }
 }
 
-impl TryFrom<StoredReplyKey> for (EncryptionKeyDigest, SurbEncryptionKey) {
+impl TryFrom<StoredReplyKey> for (EncryptionKeyDigest, UsedReplyKey) {
     type Error = StorageError;
 
     fn try_from(value: StoredReplyKey) -> Result<Self, Self::Error> {
@@ -102,7 +99,10 @@ impl TryFrom<StoredReplyKey> for (EncryptionKeyDigest, SurbEncryptionKey) {
             });
         };
 
-        Ok((digest, reply_key))
+        Ok((
+            digest,
+            UsedReplyKey::new(reply_key, value.sent_at_timestamp),
+        ))
     }
 }
 
@@ -113,25 +113,18 @@ pub(crate) struct StoredSurbSender {
 }
 
 impl StoredSurbSender {
-    pub(crate) fn new(tag: AnonymousSenderTag, last_sent: Instant) -> Self {
-        // this doesn't have to be sub-second accurate
-        // as a matter of fact even if it's off by few minutes or even hours,
-        // it would still be good enough
-        let elapsed = last_sent.elapsed();
-        let now = OffsetDateTime::now_utc();
-        let last_sent = now - elapsed;
-
+    pub(crate) fn new(tag: AnonymousSenderTag, last_sent_timestamp: i64) -> Self {
         StoredSurbSender {
             // for the purposes of STORING data,
             // we ignore that field anyway
             id: 0,
             tag: tag.to_bytes().to_vec(),
-            last_sent_timestamp: last_sent.unix_timestamp(),
+            last_sent_timestamp,
         }
     }
 }
 
-impl TryFrom<StoredSurbSender> for (AnonymousSenderTag, Instant) {
+impl TryFrom<StoredSurbSender> for (AnonymousSenderTag, i64) {
     type Error = StorageError;
 
     fn try_from(value: StoredSurbSender) -> Result<Self, Self::Error> {
@@ -145,26 +138,10 @@ impl TryFrom<StoredSurbSender> for (AnonymousSenderTag, Instant) {
             });
         };
 
-        let datetime =
-            OffsetDateTime::from_unix_timestamp(value.last_sent_timestamp).map_err(|err| {
-                StorageError::CorruptedData {
-                    details: format!("failed to parse stored timestamp - {err}"),
-                }
-            })?;
-
-        let duration_since: Duration =
-            (OffsetDateTime::now_utc() - datetime)
-                .try_into()
-                .map_err(|err| StorageError::CorruptedData {
-                    details: format!(
-                        "failed to extract valid duration from the stored timestamp - {err}"
-                    ),
-                })?;
-
-        let now = Instant::now();
-        let instant = now.checked_sub(duration_since).unwrap_or(now);
-
-        Ok((AnonymousSenderTag::from_bytes(sender_tag_bytes), instant))
+        Ok((
+            AnonymousSenderTag::from_bytes(sender_tag_bytes),
+            value.last_sent_timestamp,
+        ))
     }
 }
 

@@ -22,6 +22,8 @@ pub struct Config {
     pub max_voting_period: Duration,
     // Total weight and voters are queried from this contract
     pub group_addr: Cw4Contract,
+    pub coconut_bandwidth_addr: Addr,
+    pub coconut_dkg_addr: Addr,
     // who is able to execute passed proposals
     // None means that anyone can execute
     pub executor: Option<Executor>,

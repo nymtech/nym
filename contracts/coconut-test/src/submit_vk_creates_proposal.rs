@@ -53,8 +53,10 @@ fn dkg_proposal() {
             percentage: Decimal::from_ratio(1u128, 1u128),
         },
         max_voting_period: Duration::Time(1000),
+        executor: None,
         coconut_bandwidth_contract_address: TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string(),
         coconut_dkg_contract_address: TEST_COCONUT_DKG_CONTRACT_ADDRESS.to_string(),
+        proposal_deposit: None,
     };
     let multisig_contract_addr = app
         .instantiate_contract(

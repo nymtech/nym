@@ -70,7 +70,6 @@ pub fn try_add_dealer(
 pub(crate) mod tests {
     use super::*;
     use crate::epoch_state::transactions::advance_epoch_state;
-    use crate::support::tests::fixtures::dealer_details_fixture;
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::ADMIN_ADDRESS;
     use cosmwasm_std::testing::mock_info;
@@ -80,7 +79,6 @@ pub(crate) mod tests {
         let mut deps = helpers::init_contract();
         let owner = Addr::unchecked("owner");
         let info = mock_info(owner.as_str(), &[]);
-        let dealer_details = dealer_details_fixture(1);
         let bte_key_with_proof = String::from("bte_key_with_proof");
         let announce_address = String::from("localhost:8000");
 

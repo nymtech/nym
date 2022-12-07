@@ -192,7 +192,7 @@ jobs:
           NYM_PROJECT_NAME: "Nym nightly build on latest release"
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
-          GIT_BRANCH_NAME: "https://github.com/nymtech/nym/tree/${{needs.get_release.outputs.output1}}"
+          GIT_BRANCH_NAME: "${{needs.get_release.outputs.output1}}"
           KEYBASE_NYMBOT_USERNAME: "${{ secrets.KEYBASE_NYMBOT_USERNAME }}"
           KEYBASE_NYMBOT_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
           KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBOT_TEAM }}"

@@ -30,7 +30,7 @@ pub fn generate_owner_storage_subkey(address: &Addr, proxy: Option<&Addr>) -> St
     }
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub struct Delegation {
     /// Address of the owner of this delegation.
     pub owner: Addr,
@@ -107,7 +107,7 @@ impl Delegation {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct PagedMixNodeDelegationsResponse {
     pub delegations: Vec<Delegation>,
     pub start_next_after: Option<OwnerProxySubKey>,
@@ -122,7 +122,7 @@ impl PagedMixNodeDelegationsResponse {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct PagedDelegatorDelegationsResponse {
     pub delegations: Vec<Delegation>,
     pub start_next_after: Option<(MixId, OwnerProxySubKey)>,
@@ -140,7 +140,7 @@ impl PagedDelegatorDelegationsResponse {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct MixNodeDelegationResponse {
     pub delegation: Option<Delegation>,
     pub mixnode_still_bonded: bool,
@@ -155,7 +155,7 @@ impl MixNodeDelegationResponse {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct PagedAllDelegationsResponse {
     pub delegations: Vec<Delegation>,
     pub start_next_after: Option<StorageKey>,

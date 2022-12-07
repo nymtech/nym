@@ -23,7 +23,7 @@ pub struct Gateway {
     pub version: String,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct GatewayBond {
     pub pledge_amount: Coin,
     pub owner: Addr,
@@ -112,7 +112,7 @@ impl Display for GatewayBond {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct PagedGatewayResponse {
     pub nodes: Vec<GatewayBond>,
     pub per_page: usize,
@@ -133,13 +133,13 @@ impl PagedGatewayResponse {
     }
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct GatewayOwnershipResponse {
     pub address: Addr,
     pub gateway: Option<GatewayBond>,
 }
 
-#[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct GatewayBondResponse {
     pub identity: IdentityKey,
     pub gateway: Option<GatewayBond>,

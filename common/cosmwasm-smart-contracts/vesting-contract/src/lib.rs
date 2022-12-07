@@ -28,7 +28,7 @@ pub enum Period {
     After,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct PledgeData {
     pub amount: Coin,
     pub block_time: Timestamp,
@@ -49,7 +49,7 @@ impl PledgeData {
 }
 
 #[allow(clippy::derive_partial_eq_without_eq)]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub enum PledgeCap {
     Percent(Percent),
     Absolute(Uint128), // This has to be in unym
@@ -77,7 +77,7 @@ impl Default for PledgeCap {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct OriginalVestingResponse {
     pub amount: Coin,
     pub number_of_periods: usize,

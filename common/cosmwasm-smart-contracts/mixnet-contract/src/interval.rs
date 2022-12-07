@@ -358,7 +358,7 @@ impl CurrentIntervalResponse {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PendingEpochEventsResponse {
     pub seconds_until_executable: i64,
     pub events: Vec<PendingEpochEvent>,
@@ -379,7 +379,7 @@ impl PendingEpochEventsResponse {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 pub struct PendingIntervalEventsResponse {
     pub seconds_until_executable: i64,
     pub events: Vec<PendingIntervalEvent>,

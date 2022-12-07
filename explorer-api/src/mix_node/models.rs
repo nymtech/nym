@@ -42,7 +42,7 @@ pub(crate) struct PrettyDetailedMixNodeBond {
     pub profit_margin_percent: Percent,
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub struct SummedDelegations {
     pub owner: Addr,
     pub mix_id: MixId,

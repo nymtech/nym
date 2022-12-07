@@ -28,6 +28,7 @@ impl SentReplyKeys {
         }
     }
 
+    #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
     pub(crate) fn from_raw(raw: Vec<(EncryptionKeyDigest, UsedReplyKey)>) -> SentReplyKeys {
         SentReplyKeys {
             inner: Arc::new(SentReplyKeysInner {

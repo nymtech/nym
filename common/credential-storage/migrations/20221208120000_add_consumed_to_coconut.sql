@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+DROP TABLE coconut_credentials;
 CREATE TABLE coconut_credentials
 (
     id                  INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
@@ -10,13 +11,6 @@ CREATE TABLE coconut_credentials
     voucher_info        TEXT    NOT NULL,
     serial_number       TEXT    NOT NULL,
     binding_number      TEXT    NOT NULL,
-    signature           TEXT    NOT NULL UNIQUE
-);
-
-CREATE TABLE erc20_credentials
-(
-    id                  INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    public_key          TEXT    NOT NULL,
-    private_key         TEXT    NOT NULL,
+    signature           TEXT    NOT NULL UNIQUE,
     consumed            BOOLEAN NOT NULL
 );

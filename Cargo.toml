@@ -75,7 +75,7 @@ members = [
     "service-providers/network-requester",
     "service-providers/network-statistics",
     "nym-api",
-    "nym-api/validator-api-requests",
+    "nym-api/nym-api-requests",
     "tools/nym-cli",
     "tools/ts-rs-cli"
 ]

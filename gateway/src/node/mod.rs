@@ -18,9 +18,9 @@ use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use statistics_common::collector::StatisticsSender;
+use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
-use std::{collections::HashMap, net::SocketAddr};
 
 #[cfg(feature = "coconut")]
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
@@ -130,76 +130,24 @@ where
     }
 
     pub(crate) fn print_node_details(&self) {
-        let mut node_details = HashMap::new();
-        let identity_key_key = "identity_key";
-        let sphinx_key_key = "sphinx_key";
-        let owner_signature_key = "owner_signature";
-        let annonce_address_key = "host";
-        let bind_address_key = "listening_address";
-        let version_key = "version";
-        let mix_port_key = "mix_port";
-        let clients_port_key = "clients_port";
-        let data_store_key = "data_store";
-
-        node_details.insert(
-            identity_key_key,
-            self.identity_keypair.public_key().to_base58_string(),
-        );
-        node_details.insert(
-            sphinx_key_key,
-            self.sphinx_keypair.public_key().to_base58_string(),
-        );
-
-        node_details.insert(owner_signature_key, self.generate_owner_signature());
-        node_details.insert(annonce_address_key, self.config.get_announce_address());
-        node_details.insert(
-            bind_address_key,
-            self.config.get_listening_address().to_string(),
-        );
-
-        node_details.insert(version_key, self.config.get_version().to_string());
-        node_details.insert(mix_port_key, self.config.get_mix_port().to_string());
-        node_details.insert(clients_port_key, self.config.get_clients_port().to_string());
-        node_details.insert(
-            data_store_key,
-            self.config
+        let node_details = nym_types::gateway::GatewayNodeDetailsResponse {
+            identity_key: self.identity_keypair.public_key().to_base58_string(),
+            sphinx_key: self.sphinx_keypair.public_key().to_base58_string(),
+            owner_signature: self.generate_owner_signature(),
+            announce_address: self.config.get_announce_address(),
+            bind_address: self.config.get_listening_address().to_string(),
+            version: self.config.get_version().to_string(),
+            mix_port: self.config.get_mix_port(),
+            clients_port: self.config.get_clients_port(),
+            data_store: self
+                .config
                 .get_persistent_store_path()
                 .to_str()
                 .unwrap_or(".")
                 .to_string(),
-        );
+        };
 
-        println!(
-            "Identity Key: {}",
-            node_details.get(identity_key_key).expect("Can't fail")
-        );
-        println!(
-            "Sphinx Key: {}",
-            node_details.get(sphinx_key_key).expect("Can't fail")
-        );
-        println!(
-            "Owner Signature: {}",
-            node_details.get(owner_signature_key).expect("Can't fail")
-        );
-        println!(
-            "Host: {} (bind address: {})",
-            node_details.get(annonce_address_key).expect("Can't fail"),
-            node_details.get(bind_address_key).expect("Can't fail"),
-        );
-        println!(
-            "Version: {}",
-            node_details.get(version_key).expect("Can't fail")
-        );
-        println!(
-            "Mix Port: {}, Clients port: {}",
-            node_details.get(mix_port_key).expect("Can't fail"),
-            node_details.get(clients_port_key).expect("Can't fail"),
-        );
-
-        println!(
-            "Data store is at: {:?}",
-            self.config.get_persistent_store_path()
-        );
+        println!("{}", node_details);
 
         match std::fs::File::create("node_details_info.json") {
             Ok(file) => match serde_json::to_writer_pretty(file, &node_details) {

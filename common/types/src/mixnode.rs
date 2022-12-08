@@ -12,6 +12,7 @@ use mixnet_contract_common::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -159,5 +160,46 @@ impl MixNodeCostParams {
                 .attempt_convert_to_base_coin(self.interval_operating_cost)?
                 .into(),
         })
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct MixnodeNodeDetailsResponse {
+    pub identity_key: String,
+    pub sphinx_key: String,
+    pub owner_signature: String,
+    pub announce_address: String,
+    pub bind_address: String,
+    pub version: String,
+    pub mix_port: u16,
+    pub http_api_port: u16,
+    pub verlock_port: u16,
+    pub wallet_address: Option<String>,
+}
+
+impl fmt::Display for MixnodeNodeDetailsResponse {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let wallet_address = self.wallet_address.clone().unwrap_or_default();
+        writeln!(f, "Identity Key: {}", self.identity_key).expect("Could not write line");
+        writeln!(f, "Sphinx Key: {}", self.sphinx_key).expect("Could not write line");
+        writeln!(f, "Owner Signature: {}", self.owner_signature).expect("Could not write line");
+        writeln!(
+            f,
+            "Host: {} (bind address: {})",
+            self.announce_address, self.bind_address
+        )
+        .expect("Could not write line");
+        writeln!(f, "Version: {}", self.version).expect("Could not write line");
+        writeln!(
+            f,
+            "Mix Port: {}, Verloc port: {}, Http Port: {}\n",
+            self.mix_port, self.verlock_port, self.http_api_port
+        )
+        .expect("Could not write line");
+        writeln!(
+            f,
+            "You are bonding to wallet address: {}\n\n",
+            wallet_address
+        )
     }
 }

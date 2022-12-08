@@ -135,12 +135,22 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
 
     config.get_base_mut().with_gateway_endpoint(gateway);
 
-    let config_save_location = config.get_socks5().get_config_file_save_location();
     config.get_socks5().save_to_file(None).tap_err(|_| {
         log::error!("Failed to save the config file");
     })?;
 
-    log::info!("Saved configuration file to {:?}", config_save_location);
+    print_save_config(&config);
+
+    let address = client_core::init::get_client_address(config.get_base())?;
+    log::info!("The address of this client is: {}", address);
+    Ok(())
+}
+
+fn print_save_config(config: &Config) {
+    log::info!(
+        "Saved configuration file to {:?}",
+        config.get_socks5().get_config_file_save_location()
+    );
     log::info!("Gateway id: {}", config.get_base().get_gateway_id());
     log::info!("Gateway owner: {}", config.get_base().get_gateway_owner());
     log::info!(
@@ -157,8 +167,4 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         config.get_socks5().get_listening_port()
     );
     log::info!("Client configuration completed.");
-
-    let address = client_core::init::get_client_address(config.get_base())?;
-    println!("\nThe address of this client is: {}\n", address);
-    Ok(())
 }

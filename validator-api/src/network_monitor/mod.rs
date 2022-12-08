@@ -7,6 +7,7 @@ use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
 use std::sync::Arc;
 use task::ShutdownNotifier;
+use validator_client::nymd::SigningNymdClient;
 
 use crate::config::Config;
 use crate::contract_cache::ValidatorCache;
@@ -20,6 +21,7 @@ use crate::network_monitor::monitor::receiver::{
 use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::monitor::Monitor;
+use crate::nymd_client::Client;
 use crate::storage::ValidatorApiStorage;
 
 pub(crate) mod chunker;
@@ -32,6 +34,7 @@ pub(crate) const ROUTE_TESTING_TEST_NONCE: u64 = 0;
 
 pub(crate) struct NetworkMonitorBuilder<'a> {
     config: &'a Config,
+    _nymd_client: Client<SigningNymdClient>,
     system_version: String,
     node_status_storage: ValidatorApiStorage,
     validator_cache: ValidatorCache,
@@ -40,12 +43,14 @@ pub(crate) struct NetworkMonitorBuilder<'a> {
 impl<'a> NetworkMonitorBuilder<'a> {
     pub(crate) fn new(
         config: &'a Config,
+        _nymd_client: Client<SigningNymdClient>,
         system_version: &str,
         node_status_storage: ValidatorApiStorage,
         validator_cache: ValidatorCache,
     ) -> Self {
         NetworkMonitorBuilder {
             config,
+            _nymd_client,
             system_version: system_version.to_string(),
             node_status_storage,
             validator_cache,
@@ -74,11 +79,18 @@ impl<'a> NetworkMonitorBuilder<'a> {
         );
 
         #[cfg(feature = "coconut")]
-        let bandwidth_controller = BandwidthController::new(
-            credential_storage::initialise_storage(self.config.get_credentials_database_path())
-                .await,
-            self.config.get_all_validator_api_endpoints(),
-        );
+        let bandwidth_controller = {
+            let client = self._nymd_client.0.read().await;
+            let coconut_api_clients =
+                validator_client::CoconutApiClient::all_coconut_api_clients(&client)
+                    .await
+                    .expect("Could not query api clients");
+            BandwidthController::new(
+                credential_storage::initialise_storage(self.config.get_credentials_database_path())
+                    .await,
+                coconut_api_clients,
+            )
+        };
         #[cfg(not(feature = "coconut"))]
         let bandwidth_controller = BandwidthController::new(
             credential_storage::initialise_storage(self.config.get_credentials_database_path())

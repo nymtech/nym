@@ -5,7 +5,7 @@ use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressEr
 use nymsphinx_params::{PacketMode, PacketSize};
 use nymsphinx_types::SphinxPacket;
 use std::convert::TryFrom;
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
 
 #[derive(Debug)]
 pub enum MixPacketFormattingError {
@@ -48,6 +48,19 @@ pub struct MixPacket {
     next_hop: NymNodeRoutingAddress,
     sphinx_packet: SphinxPacket,
     packet_mode: PacketMode,
+}
+
+impl Debug for MixPacket {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "MixPacket to {:?} with packet_mode {:?}. Sphinx header: {:?}, payload length: {}",
+            self.next_hop,
+            self.packet_mode,
+            self.sphinx_packet.header,
+            self.sphinx_packet.payload.len()
+        )
+    }
 }
 
 impl MixPacket {

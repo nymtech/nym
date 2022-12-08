@@ -76,6 +76,7 @@ notice = "warn"
 ignore = [
      "RUSTSEC-2020-0159",
      "RUSTSEC-2020-0071",
+     "RUSTSEC-2021-0145",
 ]
 # Threshold for security vulnerabilities, any vulnerability with a CVSS score
 # lower than the range specified will be ignored. Note that ignored advisories

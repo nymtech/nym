@@ -4,10 +4,12 @@
 use crate::config::Config;
 use crate::epoch_operations::MixnodeToReward;
 use config::defaults::{NymNetworkDetails, DEFAULT_VALIDATOR_API_PORT};
+use mixnet_contract_common::families::{Family, FamilyHead};
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::RewardingParams;
 use mixnet_contract_common::{
-    CurrentIntervalResponse, ExecuteMsg, GatewayBond, MixId, RewardedSetNodeStatus,
+    CurrentIntervalResponse, ExecuteMsg, GatewayBond, IdentityKey, LayerAssignment, MixId,
+    RewardedSetNodeStatus,
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -26,10 +28,22 @@ use async_trait::async_trait;
 #[cfg(feature = "coconut")]
 use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
 #[cfg(feature = "coconut")]
-use multisig_contract_common::msg::ProposalResponse;
+use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
+#[cfg(feature = "coconut")]
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
+#[cfg(feature = "coconut")]
+use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
+#[cfg(feature = "coconut")]
+use contracts_common::dealings::ContractSafeBytes;
+#[cfg(feature = "coconut")]
+use cw3::ProposalResponse;
 #[cfg(feature = "coconut")]
 use validator_client::nymd::{
-    traits::{CoconutBandwidthQueryClient, MultisigQueryClient, MultisigSigningClient},
+    cosmwasm_client::types::ExecuteResult,
+    traits::{
+        CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, MultisigQueryClient,
+        MultisigSigningClient,
+    },
     AccountId, Fee,
 };
 
@@ -179,6 +193,23 @@ impl<C> Client<C> {
             .await
     }
 
+    #[allow(dead_code)]
+    pub(crate) async fn get_all_node_families(&self) -> Result<Vec<Family>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        self.0.read().await.get_all_node_families().await
+    }
+
+    pub(crate) async fn get_all_family_members(
+        &self,
+    ) -> Result<Vec<(IdentityKey, FamilyHead)>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        self.0.read().await.get_all_family_members().await
+    }
+
     pub(crate) async fn send_rewarding_messages(
         &self,
         nodes: &[MixnodeToReward],
@@ -225,7 +256,7 @@ impl<C> Client<C> {
 
     pub(crate) async fn advance_current_epoch(
         &self,
-        new_rewarded_set: Vec<MixId>,
+        new_rewarded_set: Vec<LayerAssignment>,
         expected_active_set_size: u32,
     ) -> Result<(), ValidatorClientError>
     where
@@ -281,6 +312,10 @@ where
         Ok(self.0.read().await.nymd.get_proposal(proposal_id).await?)
     }
 
+    async fn list_proposals(&self) -> crate::coconut::error::Result<Vec<ProposalResponse>> {
+        Ok(self.0.read().await.get_all_nymd_proposals().await?)
+    }
+
     async fn get_spent_credential(
         &self,
         blinded_serial_number: String,
@@ -291,6 +326,45 @@ where
             .await
             .nymd
             .get_spent_credential(blinded_serial_number)
+            .await?)
+    }
+
+    async fn get_current_epoch_state(&self) -> crate::coconut::error::Result<EpochState> {
+        Ok(self.0.read().await.nymd.get_current_epoch_state().await?)
+    }
+
+    async fn get_self_registered_dealer_details(
+        &self,
+    ) -> crate::coconut::error::Result<DealerDetailsResponse> {
+        let self_address = &self.address().await;
+        Ok(self
+            .0
+            .read()
+            .await
+            .nymd
+            .get_dealer_details(self_address)
+            .await?)
+    }
+
+    async fn get_current_dealers(&self) -> crate::coconut::error::Result<Vec<DealerDetails>> {
+        Ok(self.0.read().await.get_all_nymd_current_dealers().await?)
+    }
+
+    async fn get_dealings(
+        &self,
+        idx: usize,
+    ) -> crate::coconut::error::Result<Vec<ContractDealing>> {
+        Ok(self.0.read().await.get_all_nymd_epoch_dealings(idx).await?)
+    }
+
+    async fn get_verification_key_shares(
+        &self,
+    ) -> crate::coconut::error::Result<Vec<ContractVKShare>> {
+        Ok(self
+            .0
+            .read()
+            .await
+            .get_all_nymd_verification_key_shares()
             .await?)
     }
 
@@ -307,5 +381,55 @@ where
             .vote_proposal(proposal_id, vote_yes, fee)
             .await?;
         Ok(())
+    }
+
+    async fn execute_proposal(&self, proposal_id: u64) -> crate::coconut::error::Result<()> {
+        self.0
+            .read()
+            .await
+            .nymd
+            .execute_proposal(proposal_id, None)
+            .await?;
+        Ok(())
+    }
+
+    async fn register_dealer(
+        &self,
+        bte_key: EncodedBTEPublicKeyWithProof,
+        announce_address: String,
+    ) -> Result<ExecuteResult, CoconutError> {
+        Ok(self
+            .0
+            .write()
+            .await
+            .nymd
+            .register_dealer(bte_key, announce_address, None)
+            .await?)
+    }
+
+    async fn submit_dealing(
+        &self,
+        dealing_bytes: ContractSafeBytes,
+    ) -> Result<ExecuteResult, CoconutError> {
+        Ok(self
+            .0
+            .write()
+            .await
+            .nymd
+            .submit_dealing_bytes(dealing_bytes, None)
+            .await?)
+    }
+
+    async fn submit_verification_key_share(
+        &self,
+        share: VerificationKeyShare,
+    ) -> crate::coconut::error::Result<ExecuteResult> {
+        Ok(self
+            .0
+            .write()
+            .await
+            .nymd
+            .submit_verification_key_share(share, None)
+            .await?)
     }
 }

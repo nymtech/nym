@@ -1,15 +1,15 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use client_core::config::GatewayEndpoint;
+use client_core::config::GatewayEndpointConfig;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-pub async fn get_gateway(api_server: String, preferred: Option<String>) -> GatewayEndpoint {
-    let validator_client = validator_client::ApiClient::new(api_server.parse().unwrap());
+pub async fn get_gateway(api_server: String, preferred: Option<String>) -> GatewayEndpointConfig {
+    let validator_client = validator_client::client::ApiClient::new(api_server.parse().unwrap());
 
     let gateways = match validator_client.get_cached_gateways().await {
-        Err(err) => panic!("failed to obtain list of all gateways - {}", err),
+        Err(err) => panic!("failed to obtain list of all gateways - {err}"),
         Ok(gateways) => gateways,
     };
 
@@ -18,7 +18,7 @@ pub async fn get_gateway(api_server: String, preferred: Option<String>) -> Gatew
             .iter()
             .find(|g| g.gateway.identity_key == preferred)
         {
-            return GatewayEndpoint {
+            return GatewayEndpointConfig {
                 gateway_id: details.gateway.identity_key.clone(),
                 gateway_owner: details.owner.to_string(),
                 gateway_listener: format!(
@@ -33,7 +33,7 @@ pub async fn get_gateway(api_server: String, preferred: Option<String>) -> Gatew
         .first()
         .expect("current topology holds no gateways");
 
-    GatewayEndpoint {
+    GatewayEndpointConfig {
         gateway_id: details.gateway.identity_key.clone(),
         gateway_owner: details.owner.to_string(),
         gateway_listener: format!(

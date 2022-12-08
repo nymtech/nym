@@ -33,7 +33,7 @@ impl AcknowledgementListener {
     }
 
     async fn on_ack(&mut self, ack_content: Vec<u8>) {
-        debug!("Received an ack");
+        trace!("Received an ack");
         let frag_id = match recover_identifier(&self.ack_key, &ack_content)
             .map(FragmentIdentifier::try_from_bytes)
         {
@@ -70,7 +70,6 @@ impl AcknowledgementListener {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
         debug!("Started AcknowledgementListener with graceful shutdown support");
 
@@ -88,11 +87,12 @@ impl AcknowledgementListener {
                 }
             }
         }
-        assert!(shutdown.is_shutdown_poll());
+        shutdown.recv_timeout().await;
         log::debug!("AcknowledgementListener: Exiting");
     }
 
-    #[cfg(target_arch = "wasm32")]
+    // todo: think whether this is still required
+    #[allow(dead_code)]
     pub(super) async fn run(&mut self) {
         debug!("Started AcknowledgementListener without graceful shutdown support");
 

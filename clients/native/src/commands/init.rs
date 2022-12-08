@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::Args;
-use client_core::{config::GatewayEndpoint, error::ClientCoreError};
+use client_core::{config::GatewayEndpointConfig, error::ClientCoreError};
 use config::NymConfig;
 
 use crate::{
@@ -25,9 +25,13 @@ pub(crate) struct Init {
     #[clap(long)]
     force_register_gateway: bool,
 
-    /// Comma separated list of rest endpoints of the validators
+    /// Comma separated list of rest endpoints of the nymd validators
     #[clap(long)]
-    validators: Option<String>,
+    nymd_validators: Option<String>,
+
+    /// Comma separated list of rest endpoints of the API validators
+    #[clap(long)]
+    api_validators: Option<String>,
 
     /// Whether to not start the websocket
     #[clap(long)]
@@ -42,6 +46,10 @@ pub(crate) struct Init {
     #[clap(long, hidden = true)]
     fastmode: bool,
 
+    /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
+    #[clap(long, hidden = true)]
+    no_cover: bool,
+
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
     /// with bandwidth credential requirement.
     #[cfg(feature = "coconut")]
@@ -52,10 +60,12 @@ pub(crate) struct Init {
 impl From<Init> for OverrideConfig {
     fn from(init_config: Init) -> Self {
         OverrideConfig {
-            validators: init_config.validators,
+            nymd_validators: init_config.nymd_validators,
+            api_validators: init_config.api_validators,
             disable_socket: init_config.disable_socket,
             port: init_config.port,
             fastmode: init_config.fastmode,
+            no_cover: init_config.no_cover,
 
             #[cfg(feature = "coconut")]
             enabled_credentials_mode: init_config.enabled_credentials_mode,
@@ -127,7 +137,7 @@ async fn setup_gateway(
     register: bool,
     user_chosen_gateway_id: Option<&str>,
     config: &Config,
-) -> Result<GatewayEndpoint, ClientCoreError> {
+) -> Result<GatewayEndpointConfig, ClientCoreError> {
     if register {
         // Get the gateway details by querying the validator-api. Either pick one at random or use
         // the chosen one if it's among the available ones.

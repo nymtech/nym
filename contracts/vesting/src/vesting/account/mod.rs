@@ -16,6 +16,7 @@ use vesting_contract_common::{Period, PledgeCap, PledgeData};
 mod delegating_account;
 mod gateway_bonding_account;
 mod mixnode_bonding_account;
+mod node_families;
 mod vesting_account;
 
 fn generate_storage_key(storage: &mut dyn Storage) -> Result<u32, ContractError> {

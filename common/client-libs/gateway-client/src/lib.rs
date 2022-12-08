@@ -3,6 +3,9 @@
 
 use crate::error::GatewayClientError;
 pub use client::GatewayClient;
+use gateway_requests::registration::handshake::SharedKeys;
+use gateway_requests::BinaryResponse;
+use log::warn;
 pub use packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
 };
@@ -35,5 +38,23 @@ pub(crate) fn cleanup_socket_messages(
             .map(|msg| msg.map_err(GatewayClientError::NetworkError))
             .collect(),
         None => Err(GatewayClientError::ConnectionAbruptlyClosed),
+    }
+}
+
+pub(crate) fn try_decrypt_binary_message(
+    bin_msg: Vec<u8>,
+    shared_keys: &SharedKeys,
+) -> Option<Vec<u8>> {
+    match BinaryResponse::try_from_encrypted_tagged_bytes(bin_msg, shared_keys) {
+        Ok(bin_response) => match bin_response {
+            BinaryResponse::PushedMixMessage(plaintext) => Some(plaintext),
+        },
+        Err(err) => {
+            warn!(
+                "message received from the gateway was malformed! - {:?}",
+                err
+            );
+            None
+        }
     }
 }

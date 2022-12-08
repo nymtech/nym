@@ -8,7 +8,7 @@ use crate::client::{
     real_messages_control::real_traffic_stream::{BatchRealMessageSender, RealMessage},
     topology_control::TopologyAccessor,
 };
-use futures::StreamExt;
+use client_connections::TransmissionLane;
 use log::*;
 use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::preparer::MessagePreparer;
@@ -104,6 +104,7 @@ where
         content: Vec<u8>,
         with_reply_surb: bool,
     ) -> Option<Vec<RealMessage>> {
+        log::trace!("handling msg size: {}", content.len());
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = match topology_permit
             .try_get_valid_topology_ref(&self.ack_recipient, Some(&recipient))
@@ -164,37 +165,41 @@ where
     }
 
     async fn on_input_message(&mut self, msg: InputMessage) {
-        let real_messages = match msg {
+        let (real_messages, lane) = match msg {
             InputMessage::Fresh {
                 recipient,
                 data,
                 with_reply_surb,
-            } => {
+                lane,
+            } => (
                 self.handle_fresh_message(recipient, data, with_reply_surb)
+                    .await,
+                lane,
+            ),
+            InputMessage::Reply { reply_surb, data } => (
+                self.handle_reply(reply_surb, data)
                     .await
-            }
-            InputMessage::Reply { reply_surb, data } => self
-                .handle_reply(reply_surb, data)
-                .await
-                .map(|message| vec![message]),
+                    .map(|message| vec![message]),
+                TransmissionLane::Reply,
+            ),
         };
 
         // there's no point in trying to send nothing
         if let Some(real_messages) = real_messages {
             // tells real message sender (with the poisson timer) to send this to the mix network
             self.real_message_sender
-                .unbounded_send(real_messages)
-                .unwrap();
+                .send((real_messages, lane))
+                .await
+                .expect("BatchRealMessageReceiver has stopped receiving!");
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
         debug!("Started InputMessageListener with graceful shutdown support");
 
         while !shutdown.is_shutdown() {
             tokio::select! {
-                input_msg = self.input_receiver.next() => match input_msg {
+                input_msg = self.input_receiver.recv() => match input_msg {
                     Some(input_msg) => {
                         self.on_input_message(input_msg).await;
                     },
@@ -208,14 +213,15 @@ where
                 }
             }
         }
-        assert!(shutdown.is_shutdown_poll());
+        shutdown.recv_timeout().await;
         log::debug!("InputMessageListener: Exiting");
     }
 
-    #[cfg(target_arch = "wasm32")]
+    // todo: think whether this is still required
+    #[allow(dead_code)]
     pub(super) async fn run(&mut self) {
         debug!("Started InputMessageListener without graceful shutdown support");
-        while let Some(input_msg) = self.input_receiver.next().await {
+        while let Some(input_msg) = self.input_receiver.recv().await {
             self.on_input_message(input_msg).await;
         }
     }

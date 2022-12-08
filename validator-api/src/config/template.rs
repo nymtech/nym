@@ -16,6 +16,11 @@ id = '{{ base.id }}'
 # Validator server to which the API will be getting information about the network.
 local_validator = '{{ base.local_validator }}'
 
+# Address announced to the directory server for the clients to connect to.
+# It is useful, say, in NAT scenarios or wanting to more easily update actual IP address
+# later on by using name resolvable with a DNS query, such as `nymtech.net`.
+announce_address = '{{ base.announce_address }}'
+
 # Address of the validator contract managing the network.
 mixnet_contract_address = '{{ base.mixnet_contract_address }}'
 
@@ -90,20 +95,20 @@ minimum_interval_monitor_threshold = {{ rewarding.minimum_interval_monitor_thres
 
 [coconut_signer]
 
-# Specifies whether rewarding service is enabled in this process.
+# Specifies whether coconut signing protocol is enabled in this process.
 enabled = {{ coconut_signer.enabled }}
 
-# Path to the signing keypair
-keypair_path = '{{ coconut_signer.keypair_path }}'
+# Path to the coconut verification key
+verification_key_path = '{{ coconut_signer.verification_key_path }}'
 
-# Specifies list of all validators on the network issuing coconut credentials.
-# A special care must be taken to ensure they are in correct order.
-# The list must also contain THIS validator that is running the test
-all_validator_apis = [
-    {{#each coconut_signer.all_validator_apis }}
-        '{{this}}',
-    {{/each}}
-]
+# Path to the coconut verification key
+secret_key_path = '{{ coconut_signer.secret_key_path }}'
+
+# Path to the dkg dealer decryption key
+decryption_key_path = '{{ coconut_signer.decryption_key_path }}'
+
+# Path to the dkg dealer public key with proof
+public_key_with_proof_path = '{{ coconut_signer.public_key_with_proof_path }}'
 
 "#
 }

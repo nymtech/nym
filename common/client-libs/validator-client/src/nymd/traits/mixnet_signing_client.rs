@@ -11,7 +11,7 @@ use cosmrs::AccountId;
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use mixnet_contract_common::reward_params::{IntervalRewardingParamsUpdate, Performance};
 use mixnet_contract_common::{
-    ContractStateParams, ExecuteMsg as MixnetExecuteMsg, Gateway, MixId, MixNode,
+    ContractStateParams, ExecuteMsg as MixnetExecuteMsg, Gateway, LayerAssignment, MixId, MixNode,
 };
 
 #[async_trait]
@@ -108,7 +108,7 @@ pub trait MixnetSigningClient {
 
     async fn advance_current_epoch(
         &self,
-        new_rewarded_set: Vec<MixId>,
+        new_rewarded_set: Vec<LayerAssignment>,
         expected_active_set_size: u32,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NymdError> {
@@ -136,6 +136,147 @@ pub trait MixnetSigningClient {
         .await
     }
 
+    // family related
+    async fn create_family(
+        &self,
+        owner_signature: String,
+        label: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::CreateFamily {
+                owner_signature,
+                label,
+            },
+            vec![],
+        )
+        .await
+    }
+
+    async fn create_family_on_behalf(
+        &self,
+        owner_address: String,
+        owner_signature: String,
+        label: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::CreateFamilyOnBehalf {
+                owner_address,
+                owner_signature,
+                label,
+            },
+            vec![],
+        )
+        .await
+    }
+
+    async fn join_family(
+        &self,
+        signature: String,
+        family_head: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::JoinFamily {
+                signature,
+                family_head,
+            },
+            vec![],
+        )
+        .await
+    }
+
+    async fn join_family_on_behalf(
+        &self,
+        member_address: String,
+        signature: String,
+        family_head: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::JoinFamilyOnBehalf {
+                member_address,
+                signature,
+                family_head,
+            },
+            vec![],
+        )
+        .await
+    }
+
+    async fn leave_family(
+        &self,
+        signature: String,
+        family_head: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::LeaveFamily {
+                signature,
+                family_head,
+            },
+            vec![],
+        )
+        .await
+    }
+
+    async fn leave_family_on_behalf(
+        &self,
+        member_address: String,
+        signature: String,
+        family_head: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::LeaveFamilyOnBehalf {
+                member_address,
+                signature,
+                family_head,
+            },
+            vec![],
+        )
+        .await
+    }
+
+    async fn kick_family_member(
+        &self,
+        signature: String,
+        member: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::KickFamilyMember { signature, member },
+            vec![],
+        )
+        .await
+    }
+
+    async fn kick_family_member_on_behalf(
+        &self,
+        head_address: String,
+        signature: String,
+        member: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::KickFamilyMemberOnBehalf {
+                head_address,
+                signature,
+                member,
+            },
+            vec![],
+        )
+        .await
+    }
     // mixnode-related:
 
     async fn bond_mixnode(
@@ -176,6 +317,35 @@ pub trait MixnetSigningClient {
                 owner: owner.to_string(),
             },
             vec![pledge],
+        )
+        .await
+    }
+
+    async fn pledge_more(
+        &self,
+        additional_pledge: Coin,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::PledgeMore {},
+            vec![additional_pledge],
+        )
+        .await
+    }
+
+    async fn pledge_more_on_behalf(
+        &self,
+        owner: AccountId,
+        additional_pledge: Coin,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NymdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::PledgeMoreOnBehalf {
+                owner: owner.to_string(),
+            },
+            vec![additional_pledge],
         )
         .await
     }

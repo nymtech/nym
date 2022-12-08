@@ -45,7 +45,7 @@ export const DelegationItem = ({
           ) : (
             <Link
               target="_blank"
-              href={`${explorerUrl}/network-components/mixnode/${item.node_identity}`}
+              href={`${explorerUrl}/network-components/mixnode/${item.mix_id}`}
               text={`${item.node_identity.slice(0, 6)}...${item.node_identity.slice(-6)}`}
               color="text.primary"
               noIcon

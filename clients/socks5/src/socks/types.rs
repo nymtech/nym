@@ -1,7 +1,17 @@
 use snafu::Snafu;
-#[derive(Debug, Snafu)]
+
+/// SOCKS4 Response codes
+#[allow(dead_code)]
+pub(crate) enum ResponseCodeV4 {
+    Granted = 0x5a,
+    RequestRejected = 0x5b,
+    CannotConnectToIdent = 0x5c,
+    DifferentUserId = 0x5d,
+}
+
 /// Possible SOCKS5 Response Codes
-pub(crate) enum ResponseCode {
+#[derive(Debug, Snafu)]
+pub(crate) enum ResponseCodeV5 {
     Success = 0x00,
     #[snafu(display("SOCKS5 Server Failure"))]
     Failure = 0x01,
@@ -48,7 +58,7 @@ where
 }
 
 /// DST.addr variant types
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub(crate) enum AddrType {
     V4 = 0x01,
     Domain = 0x03,

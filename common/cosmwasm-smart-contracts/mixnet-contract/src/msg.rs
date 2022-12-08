@@ -8,7 +8,7 @@ use crate::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use crate::reward_params::{
     IntervalRewardParams, IntervalRewardingParamsUpdate, Performance, RewardingParams,
 };
-use crate::{delegation, ContractStateParams, MixId, Percent};
+use crate::{delegation, ContractStateParams, Layer, LayerAssignment, MixId, Percent};
 use crate::{Gateway, IdentityKey, MixNode};
 use cosmwasm_std::Decimal;
 use schemars::JsonSchema;
@@ -73,6 +73,51 @@ impl InitialRewardingParams {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
+    AssignNodeLayer {
+        mix_id: MixId,
+        layer: Layer,
+    },
+    // Families
+    /// Only owner of the node can crate the family with node as head
+    CreateFamily {
+        owner_signature: String,
+        label: String,
+    },
+    /// Family head needs to sign the joining node IdentityKey
+    JoinFamily {
+        signature: String,
+        family_head: IdentityKey,
+    },
+    LeaveFamily {
+        signature: String,
+        family_head: IdentityKey,
+    },
+    KickFamilyMember {
+        signature: String,
+        member: IdentityKey,
+    },
+    CreateFamilyOnBehalf {
+        owner_address: String,
+        owner_signature: String,
+        label: String,
+    },
+    /// Family head needs to sign the joining node IdentityKey
+    JoinFamilyOnBehalf {
+        member_address: String,
+        signature: String,
+        family_head: IdentityKey,
+    },
+    LeaveFamilyOnBehalf {
+        member_address: String,
+        signature: String,
+        family_head: IdentityKey,
+    },
+    KickFamilyMemberOnBehalf {
+        head_address: String,
+        signature: String,
+        member: IdentityKey,
+    },
+
     // state/sys-params-related
     UpdateRewardingValidatorAddress {
         address: String,
@@ -94,7 +139,8 @@ pub enum ExecuteMsg {
         force_immediately: bool,
     },
     AdvanceCurrentEpoch {
-        new_rewarded_set: Vec<MixId>,
+        new_rewarded_set: Vec<LayerAssignment>,
+        // families_in_layer: HashMap<String, Layer>,
         expected_active_set_size: u32,
     },
     ReconcileEpochEvents {
@@ -111,6 +157,10 @@ pub enum ExecuteMsg {
         mix_node: MixNode,
         cost_params: MixNodeCostParams,
         owner_signature: String,
+        owner: String,
+    },
+    PledgeMore {},
+    PledgeMoreOnBehalf {
         owner: String,
     },
     UnbondMixnode {},
@@ -190,6 +240,29 @@ pub enum ExecuteMsg {
 impl ExecuteMsg {
     pub fn default_memo(&self) -> String {
         match self {
+            ExecuteMsg::AssignNodeLayer { mix_id, layer } => {
+                format!("assigning mix {} for layer {:?}", mix_id, layer)
+            }
+            ExecuteMsg::CreateFamily { .. } => "crating node family with".to_string(),
+            ExecuteMsg::JoinFamily { family_head, .. } => {
+                format!("joining family {}", family_head)
+            }
+            ExecuteMsg::LeaveFamily { family_head, .. } => {
+                format!("leaving family {}", family_head)
+            }
+            ExecuteMsg::KickFamilyMember { member, .. } => {
+                format!("kicking {} from family", member)
+            }
+            ExecuteMsg::CreateFamilyOnBehalf { .. } => "crating node family with".to_string(),
+            ExecuteMsg::JoinFamilyOnBehalf { family_head, .. } => {
+                format!("joining family {}", family_head)
+            }
+            ExecuteMsg::LeaveFamilyOnBehalf { family_head, .. } => {
+                format!("leaving family {}", family_head)
+            }
+            ExecuteMsg::KickFamilyMemberOnBehalf { member, .. } => {
+                format!("kicking {} from family", member)
+            }
             ExecuteMsg::UpdateRewardingValidatorAddress { address } => {
                 format!("updating rewarding validator to {}", address)
             }
@@ -223,6 +296,8 @@ impl ExecuteMsg {
             ExecuteMsg::BondMixnodeOnBehalf { mix_node, .. } => {
                 format!("bonding mixnode {} on behalf", mix_node.identity_key)
             }
+            ExecuteMsg::PledgeMore {} => "pledging additional tokens".into(),
+            ExecuteMsg::PledgeMoreOnBehalf { .. } => "pledging additional tokens on behalf".into(),
             ExecuteMsg::UnbondMixnode { .. } => "unbonding mixnode".into(),
             ExecuteMsg::UnbondMixnodeOnBehalf { .. } => "unbonding mixnode on behalf".into(),
             ExecuteMsg::UpdateMixnodeCostParams { .. } => "updating mixnode cost parameters".into(),
@@ -280,6 +355,27 @@ impl ExecuteMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
+    // families
+    GetAllFamiliesPaged {
+        limit: Option<u32>,
+        start_after: Option<String>,
+    },
+    GetAllMembersPaged {
+        limit: Option<u32>,
+        start_after: Option<String>,
+    },
+    GetFamilyByHead {
+        head: String,
+    },
+    GetFamilyByLabel {
+        label: String,
+    },
+    GetFamilyMembersByHead {
+        head: String,
+    },
+    GetFamilyMembersByLabel {
+        label: String,
+    },
     // state/sys-params-related
     GetContractVersion {},
     GetRewardingValidatorAddress {},
@@ -334,7 +430,6 @@ pub enum QueryMsg {
         mix_identity: IdentityKey,
     },
     GetLayerDistribution {},
-
     // gateway-related:
     GetGateways {
         start_after: Option<IdentityKey>,
@@ -413,4 +508,6 @@ pub enum QueryMsg {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct MigrateMsg {}
+pub struct MigrateMsg {
+    pub vesting_contract_address: Option<String>,
+}

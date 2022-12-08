@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::{Coin, Decimal};
+use mixnet_contract_common::families::FamilyHead;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use mixnet_contract_common::rewarding::RewardEstimate;
@@ -100,6 +101,7 @@ pub struct MixNodeBondAnnotated {
     pub performance: Performance,
     pub estimated_operator_apy: Decimal,
     pub estimated_delegators_apy: Decimal,
+    pub family: Option<FamilyHead>,
 }
 
 impl MixNodeBondAnnotated {

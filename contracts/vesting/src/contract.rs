@@ -1,11 +1,11 @@
 use crate::errors::ContractError;
 use crate::queued_migrations::migrate_to_v2_mixnet_contract;
 use crate::storage::{
-    account_from_address, BlockTimestampSecs, ADMIN, DELEGATIONS, MIXNET_CONTRACT_ADDRESS,
-    MIX_DENOM,
+    account_from_address, save_account, BlockTimestampSecs, ADMIN, DELEGATIONS,
+    MIXNET_CONTRACT_ADDRESS, MIX_DENOM,
 };
 use crate::traits::{
-    DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
+    DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, NodeFamilies, VestingAccount,
 };
 use crate::vesting::{populate_vesting_periods, Account};
 use contracts_common::ContractBuildInformation;
@@ -60,6 +60,21 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
+        ExecuteMsg::CreateFamily {
+            owner_signature,
+            label,
+        } => try_create_family(info, deps, owner_signature, label),
+        ExecuteMsg::JoinFamily {
+            signature,
+            family_head,
+        } => try_join_family(info, deps, signature, family_head),
+        ExecuteMsg::LeaveFamily {
+            signature,
+            family_head,
+        } => try_leave_family(info, deps, signature, family_head),
+        ExecuteMsg::KickFamilyMember { signature, member } => {
+            try_kick_family_member(info, deps, signature, member)
+        }
         ExecuteMsg::UpdateLockedPledgeCap { address, cap } => {
             try_update_locked_pledge_cap(address, cap, info, deps)
         }
@@ -121,6 +136,7 @@ pub fn execute(
             env,
             deps,
         ),
+        ExecuteMsg::PledgeMore { amount } => try_pledge_more(deps, env, info, amount),
         ExecuteMsg::UnbondMixnode {} => try_unbond_mixnode(info, deps),
         ExecuteMsg::TrackUnbondMixnode { owner, amount } => {
             try_track_unbond_mixnode(&owner, amount, info, deps)
@@ -143,6 +159,43 @@ pub fn execute(
     }
 }
 
+pub fn try_create_family(
+    info: MessageInfo,
+    deps: DepsMut,
+    owner_signature: String,
+    label: String,
+) -> Result<Response, ContractError> {
+    let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;
+    account.try_create_family(deps.storage, owner_signature, label)
+}
+pub fn try_join_family(
+    info: MessageInfo,
+    deps: DepsMut,
+    signature: String,
+    family_head: String,
+) -> Result<Response, ContractError> {
+    let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;
+    account.try_join_family(deps.storage, signature, &family_head)
+}
+pub fn try_leave_family(
+    info: MessageInfo,
+    deps: DepsMut,
+    signature: String,
+    family_head: String,
+) -> Result<Response, ContractError> {
+    let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;
+    account.try_leave_family(deps.storage, signature, &family_head)
+}
+pub fn try_kick_family_member(
+    info: MessageInfo,
+    deps: DepsMut,
+    signature: String,
+    member: String,
+) -> Result<Response, ContractError> {
+    let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;
+    account.try_head_kick_member(deps.storage, signature, &member)
+}
+
 /// Update locked_pledge_cap, the hard cap for staking/bonding with unvested tokens.
 ///
 /// Callable by ADMIN only, see [instantiate].
@@ -158,7 +211,7 @@ pub fn try_update_locked_pledge_cap(
     let mut account = account_from_address(&address, deps.storage, deps.api)?;
 
     account.pledge_cap = Some(cap);
-    // update_locked_pledge_cap(amount, deps.storage)?;
+    save_account(&account, deps.storage)?;
     Ok(Response::default())
 }
 
@@ -329,6 +382,19 @@ pub fn try_bond_mixnode(
         &env,
         deps.storage,
     )
+}
+
+pub fn try_pledge_more(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    amount: Coin,
+) -> Result<Response, ContractError> {
+    let mix_denom = MIX_DENOM.load(deps.storage)?;
+    let additional_pledge = validate_funds(&[amount], mix_denom)?;
+
+    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    account.try_pledge_additional_tokens(additional_pledge, &env, deps.storage)
 }
 
 /// Unbond a mixnode, sends [mixnet_contract_common::ExecuteMsg::UnbondMixnodeOnBehalf] to [crate::storage::MIXNET_CONTRACT_ADDRESS].

@@ -50,7 +50,7 @@ fn long_version_static() -> &'static str {
 #[clap(author = "Nymtech", version, long_version = long_version_static(), about)]
 pub(crate) struct Cli {
     /// Path pointing to an env file that configures the client.
-    #[clap(long)]
+    #[clap(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
     #[clap(subcommand)]
@@ -75,10 +75,12 @@ pub(crate) enum Commands {
 
 // Configuration that can be overridden.
 pub(crate) struct OverrideConfig {
-    validators: Option<String>,
+    nymd_validators: Option<String>,
+    api_validators: Option<String>,
     disable_socket: bool,
     port: Option<u16>,
     fastmode: bool,
+    no_cover: bool,
 
     #[cfg(feature = "coconut")]
     enabled_credentials_mode: bool,
@@ -98,7 +100,18 @@ pub(crate) async fn execute(args: &Cli) -> Result<(), ClientError> {
 }
 
 pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
-    if let Some(raw_validators) = args.validators {
+    if let Some(raw_validators) = args.nymd_validators {
+        config
+            .get_base_mut()
+            .set_custom_validators(config::parse_validators(&raw_validators));
+    } else if std::env::var(network_defaults::var_names::CONFIGURED).is_ok() {
+        let raw_validators = std::env::var(network_defaults::var_names::NYMD_VALIDATOR)
+            .expect("nymd validator not set");
+        config
+            .get_base_mut()
+            .set_custom_validators(config::parse_validators(&raw_validators));
+    }
+    if let Some(raw_validators) = args.api_validators {
         config
             .get_base_mut()
             .set_custom_validator_apis(config::parse_validators(&raw_validators));
@@ -127,6 +140,10 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
 
     if args.fastmode {
         config.get_base_mut().set_high_default_traffic_volume();
+    }
+
+    if args.no_cover {
+        config.get_base_mut().set_no_cover_traffic();
     }
 
     config

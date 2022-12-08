@@ -37,8 +37,12 @@ export const IpAddressAndPort: React.FC<{
   return (
     <IpAddressAndPortContainer>
       <Box display="flex" justifyContent="space-between" color="rgba(255,255,255,0.6)">
-        <Typography fontSize="14px">{label}</Typography>
-        <Typography fontSize="14px">Port</Typography>
+        <Typography fontSize="14px" sx={{ color: 'grey.600' }}>
+          {label}
+        </Typography>
+        <Typography fontSize="14px" sx={{ color: 'grey.600' }}>
+          Port
+        </Typography>
       </Box>
       <Box display="flex" justifyContent="space-between">
         <Tooltip

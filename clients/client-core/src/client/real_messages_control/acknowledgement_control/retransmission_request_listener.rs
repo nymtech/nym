@@ -1,17 +1,21 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::action_controller::{Action, ActionSender};
-use super::PendingAcknowledgement;
-use super::RetransmissionRequestReceiver;
+use super::{
+    action_controller::{Action, ActionSender},
+    PendingAcknowledgement, RetransmissionRequestReceiver,
+};
 use crate::client::{
     real_messages_control::real_traffic_stream::{BatchRealMessageSender, RealMessage},
     topology_control::TopologyAccessor,
 };
+
+use client_connections::TransmissionLane;
 use futures::StreamExt;
 use log::*;
-use nymsphinx::preparer::MessagePreparer;
-use nymsphinx::{acknowledgements::AckKey, addressing::clients::Recipient};
+use nymsphinx::{
+    acknowledgements::AckKey, addressing::clients::Recipient, preparer::MessagePreparer,
+};
 use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
 
@@ -113,14 +117,14 @@ where
 
         // send to `OutQueueControl` to eventually send to the mix network
         self.real_message_sender
-            .unbounded_send(vec![RealMessage::new(
-                prepared_fragment.mix_packet,
-                frag_id,
-            )])
-            .unwrap();
+            .send((
+                vec![RealMessage::new(prepared_fragment.mix_packet, frag_id)],
+                TransmissionLane::Retransmission,
+            ))
+            .await
+            .expect("BatchRealMessageReceiver has stopped receiving!");
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
         debug!("Started RetransmissionRequestListener with graceful shutdown support");
 
@@ -138,11 +142,12 @@ where
                 }
             }
         }
-        assert!(shutdown.is_shutdown_poll());
+        shutdown.recv_timeout().await;
         log::debug!("RetransmissionRequestListener: Exiting");
     }
 
-    #[cfg(target_arch = "wasm32")]
+    // todo: think whether this is still required
+    #[allow(dead_code)]
     pub(super) async fn run(&mut self) {
         debug!("Started RetransmissionRequestListener without graceful shutdown support");
 

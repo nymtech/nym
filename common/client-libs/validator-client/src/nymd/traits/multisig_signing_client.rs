@@ -7,11 +7,11 @@ use crate::nymd::error::NymdError;
 use crate::nymd::{Fee, NymdClient};
 
 use coconut_bandwidth_contract_common::msg::ExecuteMsg as CoconutBandwidthExecuteMsg;
+use cw3::Vote;
 use multisig_contract_common::msg::ExecuteMsg;
 
 use async_trait::async_trait;
 use cosmwasm_std::{to_binary, Coin, CosmosMsg, WasmMsg};
-use cw3::Vote;
 
 #[async_trait]
 pub trait MultisigSigningClient {

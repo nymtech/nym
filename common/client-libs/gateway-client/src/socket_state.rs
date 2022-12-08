@@ -1,17 +1,15 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::cleanup_socket_messages;
 use crate::error::GatewayClientError;
 use crate::packet_router::PacketRouter;
+use crate::{cleanup_socket_messages, try_decrypt_binary_message};
 use futures::channel::oneshot;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use gateway_requests::registration::handshake::SharedKeys;
-use gateway_requests::BinaryResponse;
 use log::*;
 use std::sync::Arc;
-#[cfg(not(target_arch = "wasm32"))]
 use task::ShutdownListener;
 use tungstenite::Message;
 
@@ -50,21 +48,9 @@ impl PartiallyDelegated {
             match ws_msg {
                 Message::Binary(bin_msg) => {
                     // this function decrypts the request and checks the MAC
-                    let plaintext = match BinaryResponse::try_from_encrypted_tagged_bytes(
-                        bin_msg, shared_key,
-                    ) {
-                        Ok(bin_response) => match bin_response {
-                            BinaryResponse::PushedMixMessage(plaintext) => plaintext,
-                        },
-                        Err(err) => {
-                            warn!(
-                                "message received from the gateway was malformed! - {:?}",
-                                err
-                            );
-                            continue;
-                        }
-                    };
-                    plaintexts.push(plaintext)
+                    if let Some(plaintext) = try_decrypt_binary_message(bin_msg, shared_key) {
+                        plaintexts.push(plaintext)
+                    }
                 }
                 // I think that in the future we should perhaps have some sequence number system, i.e.
                 // so each request/response pair can be easily identified, so that if messages are
@@ -98,7 +84,7 @@ impl PartiallyDelegated {
         conn: WsConn,
         packet_router: PacketRouter,
         shared_key: Arc<SharedKeys>,
-        #[cfg(not(target_arch = "wasm32"))] shutdown: Option<ShutdownListener>,
+        mut shutdown: ShutdownListener,
     ) -> Self {
         // when called for, it NEEDS TO yield back the stream so that we could merge it and
         // read control request responses.
@@ -112,27 +98,9 @@ impl PartiallyDelegated {
             let mut chunk_stream = (&mut stream).ready_chunks(8);
             let mut packet_router = packet_router;
 
-            // Bit of an ugly workaround for selecting on an `Option` without having access to
-            // `tokio::select`
-            #[cfg(not(target_arch = "wasm32"))]
-            let shutdown = {
-                async {
-                    if let Some(mut s) = shutdown {
-                        s.recv().await
-                    } else {
-                        std::future::pending::<()>().await
-                    }
-                }
-            };
-            #[cfg(not(target_arch = "wasm32"))]
-            tokio::pin!(shutdown);
-
-            #[cfg(target_arch = "wasm32")]
-            let mut shutdown = std::future::pending::<()>();
-
             let ret_err = loop {
                 tokio::select! {
-                    _ = &mut shutdown => {
+                    _ = shutdown.recv() => {
                         log::trace!("GatewayClient listener: Received shutdown");
                         log::debug!("GatewayClient listener: Exiting");
                         return;
@@ -155,7 +123,10 @@ impl PartiallyDelegated {
 
             if match ret_err {
                 Err(err) => stream_sender.send(Err(err)),
-                Ok(_) => stream_sender.send(Ok(stream)),
+                Ok(_) => {
+                    shutdown.mark_as_success();
+                    stream_sender.send(Ok(stream))
+                }
             }
             .is_err()
             {

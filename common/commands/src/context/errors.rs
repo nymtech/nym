@@ -15,4 +15,10 @@ pub enum ContextError {
     // TODO: improve this to return known errors
     #[error("failed to create client - {0}")]
     NymdError(String),
+
+    #[error("{0}")]
+    NymdErrorPassthrough(#[from] validator_client::nymd::error::NymdError),
+
+    #[error("{0}")]
+    ValidatorClientError(#[from] validator_client::ValidatorClientError),
 }

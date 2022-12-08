@@ -43,6 +43,7 @@ async fn send_file_with_reply() {
         recipient,
         message: read_data,
         with_reply_surb: true,
+        connection_id: Some(0),
     };
 
     println!("sending content of 'dummy_file' over the mix network...");
@@ -91,6 +92,7 @@ async fn send_file_without_reply() {
         recipient,
         message: read_data,
         with_reply_surb: false,
+        connection_id: Some(0),
     };
 
     println!("sending content of 'dummy_file' over the mix network...");

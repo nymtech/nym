@@ -1,6 +1,6 @@
 [package]
 name = "client-core"
-version = "1.0.1"
+version = "1.1.2"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2021"
 
@@ -14,11 +14,14 @@ log = "0.4"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { version = "1.0", features = ["derive"] }
 sled = { version = "0.34", optional = true }
+tap = "1.0.1"
 thiserror = "1.0.34"
 url = { version ="2.2", features = ["serde"] }
+tokio = { version = "1.21.2", features = ["time", "macros"]}
 
 # internal
 config = { path = "../../common/config" }
+client-connections = { path = "../../common/client-connections" }
 crypto = { path = "../../common/crypto" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }
 #gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm", "coconut"] }
@@ -28,9 +31,11 @@ nymsphinx = { path = "../../common/nymsphinx" }
 pemstore = { path = "../../common/pemstore" }
 topology = { path = "../../common/topology" }
 validator-client = { path = "../../common/client-libs/validator-client", default-features = false }
-tap = "1.0.1"
+task = { path = "../../common/task" }
 
-tokio = { version = "1.21.2", features = ["time", "macros"]}
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
+version = "0.1.9"
+features = ["time"]
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen-futures]
 version = "0.4"
@@ -46,8 +51,8 @@ rev = "b9d1a54ad514c2f230a026afe0dde341e98cd7b6"
 version = "0.2.4"
 features = ["futures"]
 
-[target."cfg(not(target_arch = \"wasm32\"))".dependencies.task]
-path = "../../common/task"
+#[target."cfg(not(target_arch = \"wasm32\"))".dependencies.task]
+#path = "../../common/task"
 
 [dev-dependencies]
 tempfile = "3.1.0"
@@ -57,3 +62,4 @@ default = ["reply-surb"]
 wasm = ["gateway-client/wasm"]
 coconut = ["gateway-client/coconut", "gateway-requests/coconut"]
 reply-surb = ["sled"]
+

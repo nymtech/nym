@@ -90,15 +90,6 @@ struct FreshGatewayClientData {
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<identity::KeyPair>,
     gateway_response_timeout: Duration,
-
-    // I guess in the future this struct will require aggregated verification key and....
-    // ... something for obtaining actual credential
-
-    // TODO:
-    // SECURITY:
-    // for coconut bandwidth credentials we currently have no double spending protection, just to
-    // get things running we're re-using the same credential for all gateways all the time.
-    // THIS IS VERY BAD!!
     bandwidth_controller: BandwidthController<PersistentStorage>,
     disabled_credentials_mode: bool,
 }
@@ -140,8 +131,6 @@ pub(crate) struct PacketSender {
     // behaviour is unlikely.
     active_gateway_clients: ActiveGatewayClients,
 
-    // I guess that will be required later on if credentials are got per gateway
-    // aggregated_verification_key: Arc<VerificationKey>,
     fresh_gateway_client_data: Arc<FreshGatewayClientData>,
     gateway_connection_timeout: Duration,
     max_concurrent_clients: usize,
@@ -220,7 +209,7 @@ impl PacketSender {
             ack_sender,
             fresh_gateway_client_data.gateway_response_timeout,
             Some(fresh_gateway_client_data.bandwidth_controller.clone()),
-            None,
+            task::ShutdownListener::dummy(),
         );
 
         gateway_client

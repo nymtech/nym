@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::spawn_future;
+use futures::StreamExt;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
@@ -138,7 +139,7 @@ impl TopologyRefresherConfig {
 }
 
 pub struct TopologyRefresher {
-    validator_client: validator_client::ApiClient,
+    validator_client: validator_client::client::ApiClient,
     client_version: String,
 
     validator_api_urls: Vec<Url>,
@@ -154,7 +155,9 @@ impl TopologyRefresher {
         cfg.validator_api_urls.shuffle(&mut thread_rng());
 
         TopologyRefresher {
-            validator_client: validator_client::ApiClient::new(cfg.validator_api_urls[0].clone()),
+            validator_client: validator_client::client::ApiClient::new(
+                cfg.validator_api_urls[0].clone(),
+            ),
             client_version: cfg.client_version,
             validator_api_urls: cfg.validator_api_urls,
             topology_accessor,
@@ -184,13 +187,10 @@ impl TopologyRefresher {
     /// # Arguments
     ///
     /// * `topology`: active topology constructed from validator api data
-    /// * `mixnodes_count`: total number of active mixnodes
-    fn check_layer_distribution(
-        &self,
-        active_topology: &NymTopology,
-        mixnodes_count: usize,
-    ) -> bool {
+    fn check_layer_distribution(&self, active_topology: &NymTopology) -> bool {
         let mixes = active_topology.mixes();
+        let mixnodes_count = active_topology.num_mixnodes();
+
         if active_topology.gateways().is_empty() {
             return false;
         }
@@ -255,11 +255,10 @@ impl TopologyRefresher {
             Ok(gateways) => gateways,
         };
 
-        let mixnodes_count = mixnodes.len();
         let topology = nym_topology_from_detailed(mixnodes, gateways)
             .filter_system_version(&self.client_version);
 
-        if !self.check_layer_distribution(&topology, mixnodes_count) {
+        if !self.check_layer_distribution(&topology) {
             warn!("The current filtered active topology has extremely skewed layer distribution. It cannot be used.");
             None
         } else {
@@ -294,14 +293,22 @@ impl TopologyRefresher {
         self.topology_accessor.is_routable().await
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn start_with_shutdown(mut self, mut shutdown: task::ShutdownListener) {
         spawn_future(async move {
             debug!("Started TopologyRefresher with graceful shutdown support");
 
+            #[cfg(not(target_arch = "wasm32"))]
+            let mut interval = tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(
+                self.refresh_rate,
+            ));
+
+            #[cfg(target_arch = "wasm32")]
+            let mut interval =
+                gloo_timers::future::IntervalStream::new(self.refresh_rate.as_millis() as u32);
+
             while !shutdown.is_shutdown() {
                 tokio::select! {
-                    _ = tokio::time::sleep(self.refresh_rate) => {
+                    _ = interval.next() => {
                         self.refresh().await;
                     },
                     _ = shutdown.recv() => {
@@ -309,19 +316,23 @@ impl TopologyRefresher {
                     },
                 }
             }
-            assert!(shutdown.is_shutdown_poll());
+            shutdown.recv_timeout().await;
             log::debug!("TopologyRefresher: Exiting");
         })
     }
 
-    #[cfg(target_arch = "wasm32")]
     pub fn start(mut self) {
-        use futures::StreamExt;
-
         spawn_future(async move {
+            #[cfg(not(target_arch = "wasm32"))]
+            let mut interval = tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(
+                self.refresh_rate,
+            ));
+
+            #[cfg(target_arch = "wasm32")]
             let mut interval =
                 gloo_timers::future::IntervalStream::new(self.refresh_rate.as_millis() as u32);
-            while let Some(_) = interval.next().await {
+
+            while (interval.next().await).is_some() {
                 self.refresh().await;
             }
         })

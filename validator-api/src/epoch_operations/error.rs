@@ -25,6 +25,11 @@ pub enum RewardingError {
         #[from]
         source: std::num::TryFromIntError,
     },
+    #[error("{source}")]
+    WeightedError {
+        #[from]
+        source: rand::distributions::WeightedError,
+    },
 }
 
 impl From<NymdError> for RewardingError {

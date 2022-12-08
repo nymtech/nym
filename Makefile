@@ -92,6 +92,9 @@ build-wallet:
 build-connect:
 	cargo build --manifest-path nym-connect/Cargo.toml --workspace
 
+build-explorer-api:
+	cargo build --manifest-path explorer-api/Cargo.toml --workspace
+
 build-wasm-client:
 	cargo build --manifest-path clients/webassembly/Cargo.toml --workspace --target wasm32-unknown-unknown
 

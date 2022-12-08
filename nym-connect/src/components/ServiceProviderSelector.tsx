@@ -1,9 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import IconButton from '@mui/material/IconButton';
-import Menu from '@mui/material/Menu';
-import MenuItem from '@mui/material/MenuItem';
-import ArrowDropDownCircleIcon from '@mui/icons-material/ArrowDropDownCircle';
-import { Box, CircularProgress, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, CircularProgress, Stack, TextField, Tooltip, Typography, MenuItem, ListItemIcon } from '@mui/material';
 import { ServiceProvider, Service, Services } from '../types/directory';
 
 type ServiceWithRandomSp = {
@@ -17,11 +13,8 @@ export const ServiceProviderSelector: React.FC<{
   services?: Services;
   currentSp?: ServiceProvider;
 }> = ({ services, currentSp, onChange }) => {
-  const [service, setService] = React.useState<Service>();
+  const [service, setService] = React.useState<Service>({ id: '', description: '', items: [] });
   const [serviceProvider, setServiceProvider] = React.useState<ServiceProvider | undefined>(currentSp);
-  const textEl = React.useRef<null | HTMLElement>(null);
-  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
-  const open = Boolean(anchorEl);
 
   useEffect(() => {
     if (!serviceProvider && currentSp) {
@@ -32,38 +25,34 @@ export const ServiceProviderSelector: React.FC<{
   useEffect(() => {
     if (services && serviceProvider) {
       // retrieve the service corresponding to this service provider
-      setService(
-        services.find((s) =>
-          s.items.some(
-            ({ id, address, gateway }) =>
-              id === serviceProvider.id && address === serviceProvider.address && gateway === serviceProvider.gateway,
-          ),
+
+      const match = services.find((s) =>
+        s.items.some(
+          ({ id, address, gateway }) =>
+            id === serviceProvider.id && address === serviceProvider.address && gateway === serviceProvider.gateway,
         ),
       );
+
+      if (match) {
+        setService(match);
+      }
     }
   }, [serviceProvider, services]);
 
-  const handleClick = () => {
-    setAnchorEl(textEl.current);
-  };
-  const handleClose = (newServiceProvider?: ServiceProvider) => {
+  const handleSelectSp = (newServiceProvider?: ServiceProvider) => {
     if (newServiceProvider && newServiceProvider !== currentSp) {
       setServiceProvider(newServiceProvider);
       onChange?.(newServiceProvider);
     }
-    setAnchorEl(null);
   };
 
   if (!services) {
     return (
-      <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ mt: 3 }}>
+      <Box display="flex" alignItems="center" justifyContent="center" sx={{ my: 3 }}>
         <Typography fontSize={14} fontWeight={700} color={(theme) => theme.palette.common.white}>
           <CircularProgress size={14} sx={{ mr: 1 }} color="inherit" />
           Loading services...
         </Typography>
-        <IconButton id="service-provider-button" disabled>
-          <ArrowDropDownCircleIcon />
-        </IconButton>
       </Box>
     );
   }
@@ -78,49 +67,44 @@ export const ServiceProviderSelector: React.FC<{
     [services],
   );
 
+  if (!service) return null;
+
   return (
-    <>
-      <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ mt: 3 }}>
-        <Typography
-          ref={textEl}
-          fontSize={14}
-          fontWeight={700}
-          color={(theme) => (serviceProvider ? undefined : theme.palette.primary.main)}
-        >
-          {service ? service.description : 'Select a service'}
-        </Typography>
-        <IconButton
-          id="service-provider-button"
-          aria-controls={open ? 'basic-menu' : undefined}
-          aria-haspopup="true"
-          aria-expanded={open ? 'true' : undefined}
-          onClick={handleClick}
-        >
-          <ArrowDropDownCircleIcon />
-        </IconButton>
-      </Box>
-      <Menu
-        id="service-provider-menu"
-        anchorEl={anchorEl}
-        open={open}
-        onClose={() => handleClose()}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'right',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'left',
-        }}
-        MenuListProps={{
-          'aria-labelledby': 'service-provider-button',
+    <Box display="flex" alignItems="center" justifyContent="space-between" sx={{ my: 3 }}>
+      <TextField
+        variant="filled"
+        select
+        fullWidth
+        value={service.description}
+        label="Select a service"
+        InputLabelProps={{
           sx: {
-            minWidth: 160,
+            color: 'grey.500',
+            '&.Mui-focused': {
+              color: 'grey.500',
+            },
+          },
+        }}
+        SelectProps={{
+          MenuProps: {
+            PaperProps: {
+              sx: {
+                background: '#383C41',
+                borderTopLeftRadius: 0,
+                borderTopRightRadius: 0,
+                '&& .Mui-selected': {
+                  backgroundColor: '#FFFFFF33',
+                },
+                '&& .Mui-focusVisible': {
+                  backgroundColor: '#FFFFFF33',
+                },
+              },
+            },
           },
         }}
       >
         {servicesWithRandomSp.map(({ id, description, sp }) => (
-          <MenuItem dense key={id} sx={{ fontSize: 'small', fontWeight: 'bold' }} onClick={() => handleClose(sp)}>
+          <MenuItem key={id} value={description} onClick={() => handleSelectSp(sp)}>
             <Tooltip
               title={
                 <Stack direction="column">
@@ -145,7 +129,7 @@ export const ServiceProviderSelector: React.FC<{
             </Tooltip>
           </MenuItem>
         ))}
-      </Menu>
-    </>
+      </TextField>
+    </Box>
   );
 };

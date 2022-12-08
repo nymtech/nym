@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use config::NymConfig;
+use config::{NymConfig, DB_FILE_NAME};
 use nymsphinx::params::PacketSize;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
@@ -34,7 +34,7 @@ pub fn missing_string_value() -> String {
     MISSING_VALUE.to_string()
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config<T> {
     client: Client<T>,
@@ -42,17 +42,23 @@ pub struct Config<T> {
     #[serde(default)]
     logging: Logging,
     #[serde(default)]
-    debug: Debug,
+    debug: DebugConfig,
 }
 
-impl<T: NymConfig> Config<T> {
-    pub fn new<S: Into<String>>(id: S) -> Self {
+impl<T> Config<T> {
+    pub fn new<S: Into<String>>(id: S) -> Self
+    where
+        T: NymConfig,
+    {
         let mut cfg = Config::default();
         cfg.with_id(id);
         cfg
     }
 
-    pub fn with_id<S: Into<String>>(&mut self, id: S) {
+    pub fn with_id<S: Into<String>>(&mut self, id: S)
+    where
+        T: NymConfig,
+    {
         let id = id.into();
 
         // identity key setting
@@ -117,12 +123,16 @@ impl<T: NymConfig> Config<T> {
         self.client.disabled_credentials_mode = disabled_credentials_mode;
     }
 
-    pub fn with_gateway_endpoint(&mut self, gateway_endpoint: GatewayEndpoint) {
+    pub fn with_gateway_endpoint(&mut self, gateway_endpoint: GatewayEndpointConfig) {
         self.client.gateway_endpoint = gateway_endpoint;
     }
 
     pub fn with_gateway_id<S: Into<String>>(&mut self, id: S) {
         self.client.gateway_endpoint.gateway_id = id.into();
+    }
+
+    pub fn set_custom_validators(&mut self, validator_urls: Vec<Url>) {
+        self.client.validator_urls = validator_urls;
     }
 
     pub fn set_custom_validator_apis(&mut self, validator_api_urls: Vec<Url>) {
@@ -131,8 +141,15 @@ impl<T: NymConfig> Config<T> {
 
     pub fn set_high_default_traffic_volume(&mut self) {
         self.debug.average_packet_delay = Duration::from_millis(10);
-        self.debug.loop_cover_traffic_average_delay = Duration::from_millis(2_000_000); // basically don't really send cover messages
-        self.debug.message_sending_average_delay = Duration::from_millis(4); // 250 "real" messages / s
+        // basically don't really send cover messages
+        self.debug.loop_cover_traffic_average_delay = Duration::from_millis(2_000_000);
+        // 250 "real" messages / s
+        self.debug.message_sending_average_delay = Duration::from_millis(4);
+    }
+
+    pub fn set_no_cover_traffic(&mut self) {
+        self.debug.disable_loop_cover_traffic_stream = true;
+        self.debug.disable_main_poisson_packet_distribution = true;
     }
 
     pub fn set_custom_version(&mut self, version: &str) {
@@ -179,6 +196,10 @@ impl<T: NymConfig> Config<T> {
         self.client.ack_key_file.clone()
     }
 
+    pub fn get_validator_endpoints(&self) -> Vec<Url> {
+        self.client.validator_urls.clone()
+    }
+
     pub fn get_validator_api_endpoints(&self) -> Vec<Url> {
         self.client.validator_api_urls.clone()
     }
@@ -195,7 +216,11 @@ impl<T: NymConfig> Config<T> {
         self.client.gateway_endpoint.gateway_listener.clone()
     }
 
-    pub fn get_gateway_endpoint(&self) -> &GatewayEndpoint {
+    pub fn get_gateway_endpoint_config(&self) -> &GatewayEndpointConfig {
+        &self.client.gateway_endpoint
+    }
+
+    pub fn get_gateway_endpoint(&self) -> &GatewayEndpointConfig {
         &self.client.gateway_endpoint
     }
 
@@ -204,6 +229,10 @@ impl<T: NymConfig> Config<T> {
     }
 
     // Debug getters
+    pub fn get_debug_config(&self) -> &DebugConfig {
+        &self.debug
+    }
+
     pub fn get_average_packet_delay(&self) -> Duration {
         self.debug.average_packet_delay
     }
@@ -249,7 +278,7 @@ impl<T: NymConfig> Config<T> {
     }
 
     pub fn get_use_extended_packet_size(&self) -> Option<ExtendedPacketSize> {
-        self.debug.use_extended_packet_size.clone()
+        self.debug.use_extended_packet_size
     }
 
     pub fn get_version(&self) -> &str {
@@ -269,7 +298,7 @@ impl<T: NymConfig> Default for Config<T> {
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter_with_clone))]
-pub struct GatewayEndpoint {
+pub struct GatewayEndpointConfig {
     /// gateway_id specifies ID of the gateway to which the client should send messages.
     /// If initially omitted, a random gateway will be chosen from the available topology.
     pub gateway_id: String,
@@ -281,10 +310,10 @@ pub struct GatewayEndpoint {
     pub gateway_listener: String,
 }
 
-impl From<topology::gateway::Node> for GatewayEndpoint {
-    fn from(node: topology::gateway::Node) -> GatewayEndpoint {
+impl From<topology::gateway::Node> for GatewayEndpointConfig {
+    fn from(node: topology::gateway::Node) -> GatewayEndpointConfig {
         let gateway_listener = node.clients_address();
-        GatewayEndpoint {
+        GatewayEndpointConfig {
             gateway_id: node.identity_key.to_base58_string(),
             gateway_owner: node.owner,
             gateway_listener,
@@ -292,7 +321,7 @@ impl From<topology::gateway::Node> for GatewayEndpoint {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 pub struct Client<T> {
     /// Version of the client for which this configuration was created.
     #[serde(default = "missing_string_value")]
@@ -305,6 +334,10 @@ pub struct Client<T> {
     /// to claim bandwidth without presenting bandwidth credentials.
     #[serde(default)]
     disabled_credentials_mode: bool,
+
+    /// Addresses to nymd validators via which the client can communicate with the chain.
+    #[serde(default)]
+    validator_urls: Vec<Url>,
 
     /// Addresses to APIs running on validator from which the client gets the view of the network.
     validator_api_urls: Vec<Url>,
@@ -334,7 +367,7 @@ pub struct Client<T> {
     reply_encryption_key_store_path: PathBuf,
 
     /// Information regarding how the client should send data to gateway.
-    gateway_endpoint: GatewayEndpoint,
+    gateway_endpoint: GatewayEndpointConfig,
 
     /// Path to the database containing bandwidth credentials of this client.
     database_path: PathBuf,
@@ -354,6 +387,7 @@ impl<T: NymConfig> Default for Client<T> {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
             disabled_credentials_mode: true,
+            validator_urls: vec![],
             validator_api_urls: vec![],
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
@@ -399,17 +433,17 @@ impl<T: NymConfig> Client<T> {
         T::default_data_directory(Some(id)).join("reply_key_store")
     }
     fn default_database_path(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("db.sqlite")
+        T::default_data_directory(Some(id)).join(DB_FILE_NAME)
     }
 }
 
-#[derive(Debug, Default, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Logging {}
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
-pub struct Debug {
+pub struct DebugConfig {
     /// The parameter of Poisson distribution determining how long, on average,
     /// sent packet is going to be delayed at any given mix node.
     /// So for a packet going through three mix nodes, on average, it will take three times this value
@@ -475,7 +509,7 @@ pub struct Debug {
     pub use_extended_packet_size: Option<ExtendedPacketSize>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum ExtendedPacketSize {
     Extended8,
@@ -483,9 +517,9 @@ pub enum ExtendedPacketSize {
     Extended32,
 }
 
-impl Default for Debug {
+impl Default for DebugConfig {
     fn default() -> Self {
-        Debug {
+        DebugConfig {
             average_packet_delay: DEFAULT_AVERAGE_PACKET_DELAY,
             average_ack_delay: DEFAULT_AVERAGE_PACKET_DELAY,
             ack_wait_multiplier: DEFAULT_ACK_WAIT_MULTIPLIER,

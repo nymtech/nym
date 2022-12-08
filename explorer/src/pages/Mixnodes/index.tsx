@@ -149,7 +149,7 @@ export const PageMixnodes: React.FC = () => {
       renderHeader: () => (
         <CustomColumnHeading
           headingTitle="Stake Saturation"
-          tooltipInfo="Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is: 1 million NYM, computed as S/K where S is  total amount of tokens available to stakeholders and K is the number of nodes in the reward set."
+          tooltipInfo="Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is: 750k NYM, computed as S/K where S is  total amount of tokens available to stakeholders and K is the number of nodes in the reward set."
         />
       ),
       headerClassName: 'MuiDataGrid-header-override',
@@ -192,7 +192,7 @@ export const PageMixnodes: React.FC = () => {
       renderHeader: () => (
         <CustomColumnHeading
           headingTitle="Profit Margin"
-          tooltipInfo="Percentage of the delegates rewards that the operator takes as fee before rewards are distributed to the delegates."
+          tooltipInfo="Percentage of the delegators rewards that the operator takes as fee before rewards are distributed to the delegators."
         />
       ),
       headerClassName: 'MuiDataGrid-header-override',
@@ -210,10 +210,10 @@ export const PageMixnodes: React.FC = () => {
     },
     {
       field: 'operating_cost',
-      headerName: 'Operating cost',
+      headerName: 'Operating Cost',
       renderHeader: () => (
         <CustomColumnHeading
-          headingTitle="Operating cost"
+          headingTitle="Operating Cost"
           tooltipInfo="Monthly operational cost of running this node. This cost is set by the operator and it influences how the rewards are split between the operator and delegators."
         />
       ),

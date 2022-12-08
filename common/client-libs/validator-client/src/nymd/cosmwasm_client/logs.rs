@@ -6,18 +6,21 @@ use cosmrs::tendermint::abci;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 
+pub use coconut_bandwidth_contract_common::event_attributes::*;
+pub use coconut_dkg_common::event_attributes::*;
+
 // it seems that currently validators just emit stringified events (which are also returned as part of deliverTx response)
 // as theirs logs
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Log {
     #[serde(default)]
     // weird thing is that the first msg_index seems to always be undefined on the raw logs
-    msg_index: usize,
+    pub msg_index: usize,
     // unless I'm missing something obvious, the "log" type in cosmjs is always an empty string
     // and launchpad cosmos validator was setting it to what essentially is just the raw version of what
     // we received (and we don't care about launchpad, we, as the time of writing this, work on the stargate)
     // log: String,
-    events: Vec<cosmwasm_std::Event>,
+    pub events: Vec<cosmwasm_std::Event>,
 }
 
 /// Searches in logs for the first event of the given event type and in that event

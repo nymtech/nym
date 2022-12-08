@@ -1,6 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(feature = "reply-surb")]
+use crate::client::reply_key_storage::ReplyKeyStorageError;
 use crypto::asymmetric::identity::Ed25519RecoveryError;
 use gateway_client::error::GatewayClientError;
 use validator_client::ValidatorClientError;
@@ -16,6 +18,10 @@ pub enum ClientCoreError {
     #[error("Validator client error: {0}")]
     ValidatorClientError(#[from] ValidatorClientError),
 
+    #[cfg(feature = "reply-surb")]
+    #[error("Reply key storage error: {0}")]
+    ReplyKeyStorageError(#[from] ReplyKeyStorageError),
+
     #[error("No gateway with id: {0}")]
     NoGatewayWithId(String),
     #[error("No gateways on network")]
@@ -26,4 +32,7 @@ pub enum ClientCoreError {
     CouldNotLoadExistingGatewayConfiguration(std::io::Error),
     #[error("The current network topology seem to be insufficient to route any packets through")]
     InsufficientNetworkTopology,
+
+    #[error("Unexpected exit")]
+    UnexpectedExit,
 }

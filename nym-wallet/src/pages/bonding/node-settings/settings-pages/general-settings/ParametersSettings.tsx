@@ -14,17 +14,27 @@ import {
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { CurrencyDenom, MixNodeCostParams } from '@nymproject/types';
+import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { add, format, fromUnixTime } from 'date-fns';
 import { isMixnode } from 'src/types';
-import { getCurrentInterval, getPendingIntervalEvents, updateMixnodeCostParams } from 'src/requests';
-import { TBondedMixnode, TBondedGateway } from 'src/context/bonding';
+import {
+  getCurrentInterval,
+  getPendingIntervalEvents,
+  simulateUpdateMixnodeCostParams,
+  simulateVestingUpdateMixnodeCostParams,
+  updateMixnodeCostParams,
+  vestingUpdateMixnodeCostParams,
+} from 'src/requests';
+import { TBondedMixnode } from 'src/context/bonding';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { bondedNodeParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
 import { Console } from 'src/utils/console';
 import { Alert } from 'src/components/Alert';
 import { ChangeMixCostParams } from 'src/pages/bonding/types';
 import { AppContext } from 'src/context';
-import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
+import { useGetFee } from 'src/hooks/useGetFee';
+import { ConfirmTx } from 'src/components/ConfirmTX';
+import { LoadingModal } from 'src/components/Modals/LoadingModal';
 
 export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode }): JSX.Element => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
@@ -33,6 +43,8 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
   const [pendingUpdates, setPendingUpdates] = useState<MixNodeCostParams>();
   const { clientDetails } = useContext(AppContext);
   const theme = useTheme();
+
+  const { fee, getFee, resetFeeState } = useGetFee();
 
   const defaultValues = {
     operatorCost: bondedNode.operatorCost,
@@ -76,7 +88,11 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
 
   const getPendingEvents = async () => {
     const events = await getPendingIntervalEvents();
-    const latestEvent = events.reverse().find((evt) => 'ChangeMixCostParams' in evt.event) as unknown as
+    const latestEvent = events
+      .reverse()
+      .find(
+        (evt) => 'ChangeMixCostParams' in evt.event && evt.event.ChangeMixCostParams.mix_id === bondedNode.mixId,
+      ) as unknown as
       | {
           id: number;
           event: {
@@ -96,6 +112,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
   }, []);
 
   const onSubmit = async (data: { operatorCost: { amount: string; denom: CurrencyDenom }; profitMargin: string }) => {
+    resetFeeState();
     if (data.operatorCost && data.profitMargin) {
       const MixNodeCostParams = {
         profit_margin_percent: (+data.profitMargin / 100).toString(),
@@ -105,7 +122,11 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
         },
       };
       try {
-        await updateMixnodeCostParams(MixNodeCostParams);
+        if (bondedNode.proxy) {
+          await vestingUpdateMixnodeCostParams(MixNodeCostParams);
+        } else {
+          await updateMixnodeCostParams(MixNodeCostParams);
+        }
         await getPendingEvents();
         reset();
         setOpenConfirmationModal(true);
@@ -117,6 +138,17 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
 
   return (
     <Grid container xs item>
+      {fee && (
+        <ConfirmTx
+          open
+          header="Update cost parameters"
+          fee={fee}
+          onConfirm={handleSubmit((d) => onSubmit(d))}
+          onPrev={resetFeeState}
+          onClose={resetFeeState}
+        />
+      )}
+      {isSubmitting && <LoadingModal />}
       <Alert
         title={
           <>
@@ -129,7 +161,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
       />
       <Grid container direction="column">
         <Grid item container alignItems="left" justifyContent="space-between" padding={3} spacing={1}>
-          <Grid item>
+          <Grid item xl={6}>
             <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
               Profit Margin
             </Typography>
@@ -223,12 +255,16 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
             size="large"
             variant="contained"
             disabled={isSubmitting || !isDirty || !isValid}
-            onClick={handleSubmit(onSubmit)}
+            onClick={handleSubmit((data) => {
+              getFee(bondedNode.proxy ? simulateVestingUpdateMixnodeCostParams : simulateUpdateMixnodeCostParams, {
+                profit_margin_percent: (+data.profitMargin / 100).toString(),
+                interval_operating_cost: data.operatorCost,
+              });
+            })}
             type="submit"
-            sx={{ m: 3, width: '320px' }}
-            endIcon={isSubmitting && <CircularProgress size={20} />}
+            sx={{ m: 3 }}
           >
-            Save all display changes
+            Submit changes to the blockchain
           </Button>
         </Grid>
       </Grid>
@@ -236,7 +272,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
         open={openConfirmationModal}
         header="Your changes will take place
         in the next interval"
-        okLabel="close"
+        okLabel="Close"
         hideCloseIcon
         displayInfoIcon
         onOk={async () => {
@@ -256,7 +292,6 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
           textAlign: 'center',
           color: theme.palette.nym.nymWallet.text.blue,
           fontSize: 16,
-          textTransform: 'capitalize',
         }}
         subHeaderStyles={{
           m: 0,

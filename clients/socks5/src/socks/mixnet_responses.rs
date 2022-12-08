@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
@@ -18,9 +20,16 @@ pub(crate) struct MixnetResponseListener {
 
 impl Drop for MixnetResponseListener {
     fn drop(&mut self) {
-        self.buffer_requester
+        if let Err(err) = self
+            .buffer_requester
             .unbounded_send(ReceivedBufferMessage::ReceiverDisconnect)
-            .expect("the buffer request failed!")
+        {
+            if self.shutdown.is_shutdown_poll() {
+                log::debug!("The buffer request failed: {}", err);
+            } else {
+                log::error!("The buffer request failed: {}", err);
+            }
+        }
     }
 }
 
@@ -96,7 +105,10 @@ impl MixnetResponseListener {
                 }
             }
         }
-        assert!(self.shutdown.is_shutdown_poll());
+        #[cfg(not(target_arch = "wasm32"))]
+        tokio::time::timeout(Duration::from_secs(5), self.shutdown.recv())
+            .await
+            .expect("Task stopped without shutdown called");
         log::debug!("MixnetResponseListener: Exiting");
     }
 }

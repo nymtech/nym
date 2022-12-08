@@ -52,6 +52,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     isLoading,
     addDelegation,
     undelegate,
+    undelegateVesting,
     refresh: refreshDelegations,
   } = useDelegationContext();
 
@@ -206,7 +207,8 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   const handleUndelegate = async (
     mixId: number,
-    identityKey: string,
+    // identityKey is no longer used
+    _: string,
     usesVestingContractTokens: boolean,
     fee?: FeeDetails,
   ) => {
@@ -216,19 +218,28 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     });
     setShowUndelegateModal(false);
     setCurrentDelegationListActionItem(undefined);
-
+    let tx;
     try {
-      const txs = await undelegate(mixId, usesVestingContractTokens, fee);
+      if (usesVestingContractTokens) {
+        tx = await undelegateVesting(mixId);
+      } else {
+        tx = await undelegate(mixId, fee?.fee);
+      }
+
+      // const txs = await undelegate(mixId, usesVestingContractTokens, fee);
       const balances = await getAllBalances();
 
       setConfirmationModalProps({
         status: 'success',
         action: 'undelegate',
+        message: 'This operation can take up to one hour to process',
         ...balances,
-        transactions: txs.map((tx) => ({
-          url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
-          hash: tx.transaction_hash,
-        })),
+        transactions: [
+          {
+            url: `${urls(network).blockExplorer}/transaction/${tx.transaction_hash}`,
+            hash: tx.transaction_hash,
+          },
+        ],
       });
     } catch (e) {
       Console.error('Failed to undelegate', e);

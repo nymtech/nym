@@ -35,7 +35,7 @@ export const BondedMixnodeActions = ({
       )}
       <ActionsMenuItem
         title="Redeem rewards"
-        Icon={<Typography sx={{ pl: 1, fontWeight: 700 }}>R</Typography>}
+        Icon={<Typography sx={{ pl: 0.5, fontWeight: 700 }}>R</Typography>}
         onClick={() => handleActionClick('redeem')}
         disabled={disabledRedeemAndCompound}
       />

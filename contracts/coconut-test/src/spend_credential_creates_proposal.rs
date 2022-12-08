@@ -15,6 +15,7 @@ use multisig_contract_common::msg::InstantiateMsg as MultisigInstantiateMsg;
 pub const TEST_COIN_DENOM: &str = "unym";
 pub const TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
     "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
+pub const TEST_COCONUT_DKG_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 
 #[test]
 fn spend_credential_creates_proposal() {
@@ -46,6 +47,7 @@ fn spend_credential_creates_proposal() {
         },
         max_voting_period: Duration::Height(1000),
         coconut_bandwidth_contract_address: TEST_COCONUT_BANDWIDTH_CONTRACT_ADDRESS.to_string(),
+        coconut_dkg_contract_address: TEST_COCONUT_DKG_CONTRACT_ADDRESS.to_string(),
     };
     let multisig_contract_addr = app
         .instantiate_contract(
@@ -77,6 +79,7 @@ fn spend_credential_creates_proposal() {
 
     let msg = MigrateMsg {
         coconut_bandwidth_address: coconut_bandwidth_contract_addr.to_string(),
+        coconut_dkg_address: "".to_string(),
     };
     app.migrate_contract(
         Addr::unchecked(OWNER),

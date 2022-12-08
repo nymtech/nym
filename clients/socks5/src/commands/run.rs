@@ -31,13 +31,26 @@ pub(crate) struct Run {
     #[clap(long)]
     gateway: Option<String>,
 
-    /// Comma separated list of rest endpoints of the validators
+    /// Comma separated list of rest endpoints of the nymd validators
     #[clap(long)]
-    validators: Option<String>,
+    nymd_validators: Option<String>,
+
+    /// Comma separated list of rest endpoints of the API validators
+    #[clap(long)]
+    api_validators: Option<String>,
 
     /// Port for the socket to listen on
     #[clap(short, long)]
     port: Option<u16>,
+
+    /// Mostly debug-related option to increase default traffic rate so that you would not need to
+    /// modify config post init
+    #[clap(long, hidden = true)]
+    fastmode: bool,
+
+    /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
+    #[clap(long, hidden = true)]
+    no_cover: bool,
 
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
     /// with bandwidth credential requirement.
@@ -49,10 +62,11 @@ pub(crate) struct Run {
 impl From<Run> for OverrideConfig {
     fn from(run_config: Run) -> Self {
         OverrideConfig {
-            validators: run_config.validators,
+            nymd_validators: run_config.nymd_validators,
+            api_validators: run_config.api_validators,
             port: run_config.port,
-            fastmode: false,
-
+            fastmode: run_config.fastmode,
+            no_cover: run_config.no_cover,
             #[cfg(feature = "coconut")]
             enabled_credentials_mode: run_config.enabled_credentials_mode,
         }
@@ -81,14 +95,16 @@ fn version_check(cfg: &Config) -> bool {
     }
 }
 
-pub(crate) async fn execute(args: &Run) -> Result<(), Socks5ClientError> {
+pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn std::error::Error + Send>> {
     let id = &args.id;
 
     let mut config = match Config::load_from_file(Some(id)) {
         Ok(cfg) => cfg,
         Err(err) => {
             error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})", id, err);
-            return Err(Socks5ClientError::FailedToLoadConfig(id.to_string()));
+            return Err(Box::new(Socks5ClientError::FailedToLoadConfig(
+                id.to_string(),
+            )));
         }
     };
 
@@ -97,7 +113,7 @@ pub(crate) async fn execute(args: &Run) -> Result<(), Socks5ClientError> {
 
     if !version_check(&config) {
         error!("failed the local version check");
-        return Err(Socks5ClientError::FailedLocalVersionCheck);
+        return Err(Box::new(Socks5ClientError::FailedLocalVersionCheck));
     }
 
     NymClient::new(config).run_forever().await

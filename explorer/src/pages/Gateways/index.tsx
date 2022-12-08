@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Link as RRDLink } from 'react-router-dom';
-import { Box, Button, Card, Grid, Typography, Link as MuiLink } from '@mui/material';
+import { Box, Button, Card, Grid, Link as MuiLink } from '@mui/material';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { useMainContext } from '../../context/main';
@@ -12,6 +12,8 @@ import { Title } from '../../components/Title';
 import { cellStyles, UniversalDataGrid } from '../../components/Universal-DataGrid';
 import { currencyToString } from '../../utils/currency';
 import { Tooltip } from '../../components/Tooltip';
+import { BIG_DIPPER } from '../../api/constants';
+import { splice } from '../../utils';
 
 export const PageGateways: React.FC = () => {
   const { gateways } = useMainContext();
@@ -69,9 +71,14 @@ export const PageGateways: React.FC = () => {
       headerClassName: 'MuiDataGrid-header-override',
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles} data-testid="pledge-amount">
+        <MuiLink
+          sx={{ ...cellStyles }}
+          component={RRDLink}
+          to={`/network-components/gateway/${params.row.identityKey}`}
+          data-testid="pledge-amount"
+        >
           {currencyToString(params.value)}
-        </Typography>
+        </MuiLink>
       ),
     },
     {
@@ -81,9 +88,14 @@ export const PageGateways: React.FC = () => {
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles} data-testid="host">
+        <MuiLink
+          sx={{ ...cellStyles }}
+          component={RRDLink}
+          to={`/network-components/gateway/${params.row.identityKey}`}
+          data-testid="host"
+        >
           {params.value}
-        </Typography>
+        </MuiLink>
       ),
     },
     {
@@ -120,9 +132,14 @@ export const PageGateways: React.FC = () => {
       headerAlign: 'left',
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
-        <Typography sx={cellStyles} data-testid="owner">
-          {params.value}
-        </Typography>
+        <MuiLink
+          sx={{ ...cellStyles }}
+          href={`${BIG_DIPPER}/account/${params.value}`}
+          target="_blank"
+          data-testid="owner"
+        >
+          {splice(7, 29, params.value)}
+        </MuiLink>
       ),
     },
   ];

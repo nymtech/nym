@@ -31,7 +31,7 @@ export const BalanceCard = () => {
               sx={{
                 color: 'text.primary',
                 textTransform: 'uppercase',
-                fontWeight: (theme) => (theme.palette.mode === 'light' ? '600' : '400'),
+                fontWeight: '600',
                 fontSize: 28,
               }}
               variant="h5"

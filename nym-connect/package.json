@@ -1,6 +1,6 @@
 {
   "name": "@nym/nym-connect",
-  "version": "1.0.0",
+  "version": "1.1.2",
   "main": "index.js",
   "license": "MIT",
   "scripts": {
@@ -83,7 +83,7 @@
     "eslint-plugin-react": "^7.29.2",
     "eslint-plugin-react-hooks": "^4.3.0",
     "eslint-plugin-storybook": "^0.5.12",
-    "favicons": "^6.2.2",
+    "favicons": "^7.0.2",
     "favicons-webpack-plugin": "^5.0.2",
     "file-loader": "^6.2.0",
     "fork-ts-checker-webpack-plugin": "^7.2.1",

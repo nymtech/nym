@@ -42,7 +42,7 @@ const headers: Header[] = [
     header: 'Operator rewards',
     id: 'operator-rewards',
     tooltipText:
-      'This is your (operator) new rewards including the PM and cost. You can compound your rewards manually every epoch or unbond your node to redeem them.',
+      'This is your (operator) rewards including the PM and cost. Rewards are automatically compounded every epoch. You can redeem your rewards at any time.',
   },
   {
     header: 'No. delegators',
@@ -66,6 +66,7 @@ export const BondedMixnode = ({
   const navigate = useNavigate();
   const {
     name,
+    mixId,
     stake,
     bond,
     stakeSaturation,
@@ -113,7 +114,6 @@ export const BondedMixnode = ({
         <BondedMixnodeActions
           onActionSelect={onActionSelect}
           disabledRedeemAndCompound={(operatorRewards && Number(operatorRewards.amount) === 0) || false}
-          disabledBondMore // TODO for now disable bond more feature until backend is ready
         />
       ),
       id: 'actions-cell',
@@ -135,7 +135,7 @@ export const BondedMixnode = ({
             </Box>
             {name && (
               <Tooltip title={host} arrow>
-                <Typography fontWeight="regular" variant="h6">
+                <Typography fontWeight="regular" variant="h6" width="fit-content">
                   {name}
                 </Typography>
               </Tooltip>
@@ -165,7 +165,7 @@ export const BondedMixnode = ({
         {network && (
           <Typography sx={{ mt: 2, fontSize: 'small' }}>
             Check more stats of your node on the{' '}
-            <Link href={`${urls(network).networkExplorer}/network-components/mixnodes`} target="_blank">
+            <Link href={`${urls(network).networkExplorer}/network-components/mixnode/${mixId}`} target="_blank">
               explorer
             </Link>
           </Typography>

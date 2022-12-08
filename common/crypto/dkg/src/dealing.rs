@@ -3,9 +3,7 @@
 
 use crate::bte::proof_chunking::ProofOfChunking;
 use crate::bte::proof_sharing::ProofOfSecretSharing;
-use crate::bte::{
-    encrypt_shares, proof_chunking, proof_sharing, Ciphertexts, Epoch, Params, PublicKey,
-};
+use crate::bte::{encrypt_shares, proof_chunking, proof_sharing, Ciphertexts, Params, PublicKey};
 use crate::error::DkgError;
 use crate::interpolation::polynomial::{Polynomial, PublicCoefficients};
 use crate::interpolation::{
@@ -16,6 +14,13 @@ use bls12_381::{G2Projective, Scalar};
 use rand_core::RngCore;
 use std::collections::BTreeMap;
 use zeroize::Zeroize;
+
+#[derive(Debug)]
+#[cfg_attr(test, derive(PartialEq, Eq))]
+pub struct RecoveredVerificationKeys {
+    pub recovered_master: G2Projective,
+    pub recovered_partials: Vec<G2Projective>,
+}
 
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
@@ -34,7 +39,6 @@ impl Dealing {
         params: &Params,
         dealer_index: NodeIndex,
         threshold: Threshold,
-        epoch: Epoch,
         // BTreeMap ensures the keys are sorted by their indices
         receivers: &BTreeMap<NodeIndex, PublicKey>,
         prior_resharing_secret: Option<Scalar>,
@@ -58,8 +62,7 @@ impl Dealing {
             .collect::<Vec<_>>();
         let ordered_public_keys = receivers.values().copied().collect::<Vec<_>>();
 
-        let (ciphertexts, hazmat) =
-            encrypt_shares(&remote_share_key_pairs, epoch, params, &mut rng);
+        let (ciphertexts, hazmat) = encrypt_shares(&remote_share_key_pairs, params, &mut rng);
 
         // create proofs of knowledge
         let chunking_instance = proof_chunking::Instance::new(&ordered_public_keys, &ciphertexts);
@@ -108,7 +111,6 @@ impl Dealing {
     pub fn verify(
         &self,
         params: &Params,
-        epoch: Epoch,
         threshold: Threshold,
         receivers: &BTreeMap<NodeIndex, PublicKey>,
         prior_resharing_public: Option<G2Projective>,
@@ -134,7 +136,7 @@ impl Dealing {
             });
         }
 
-        if !self.ciphertexts.verify_integrity(params, epoch) {
+        if !self.ciphertexts.verify_integrity(params) {
             return Err(DkgError::FailedCiphertextIntegrityCheck);
         }
 
@@ -250,7 +252,7 @@ pub fn try_recover_verification_keys(
     dealings: &[Dealing],
     threshold: Threshold,
     receivers: &BTreeMap<NodeIndex, PublicKey>,
-) -> Result<(G2Projective, Vec<G2Projective>), DkgError> {
+) -> Result<RecoveredVerificationKeys, DkgError> {
     if dealings.is_empty() {
         return Err(DkgError::NoDealingsAvailable);
     }
@@ -297,7 +299,10 @@ pub fn try_recover_verification_keys(
         .map(|index| interpolated_coefficients.evaluate_at(&Scalar::from(*index)))
         .collect();
 
-    Ok((master_verification_key, verification_key_shares))
+    Ok(RecoveredVerificationKeys {
+        recovered_master: master_verification_key,
+        recovered_partials: verification_key_shares,
+    })
 }
 
 pub fn verify_verification_keys(
@@ -369,32 +374,18 @@ mod tests {
             full_keys.push((dk, pk))
         }
 
-        // start off in a defined epoch (i.e. not root);
-        let epoch = Epoch::new(2);
-
         let dealings = node_indices
             .iter()
             .map(|&dealer_index| {
-                Dealing::create(
-                    &mut rng,
-                    &params,
-                    dealer_index,
-                    threshold,
-                    epoch,
-                    &receivers,
-                    None,
-                )
-                .0
+                Dealing::create(&mut rng, &params, dealer_index, threshold, &receivers, None).0
             })
             .collect::<Vec<_>>();
 
         let mut derived_secrets = Vec::new();
         for (i, (ref mut dk, _)) in full_keys.iter_mut().enumerate() {
-            dk.try_update_to(epoch, &params, &mut rng).unwrap();
-
             let shares = dealings
                 .iter()
-                .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, epoch, None).unwrap())
+                .map(|dealing| decrypt_share(dk, i, &dealing.ciphertexts, None).unwrap())
                 .collect();
             derived_secrets.push(
                 combine_shares(shares, &receivers.keys().copied().collect::<Vec<_>>()).unwrap(),
@@ -408,8 +399,10 @@ mod tests {
         .unwrap();
 
         // END OF SETUP
-        let (recovered_master, recovered_partials) =
-            try_recover_verification_keys(&dealings, threshold, &receivers).unwrap();
+        let RecoveredVerificationKeys {
+            recovered_master,
+            recovered_partials,
+        } = try_recover_verification_keys(&dealings, threshold, &receivers).unwrap();
 
         let g2 = G2Projective::generator();
         assert_eq!(g2 * master_secret, recovered_master);
@@ -437,27 +430,17 @@ mod tests {
             full_keys.push((dk, pk))
         }
 
-        // start off in a defined epoch (i.e. not root);
-        let epoch = Epoch::new(2);
-
         let dealings = node_indices
             .iter()
             .map(|&dealer_index| {
-                Dealing::create(
-                    &mut rng,
-                    &params,
-                    dealer_index,
-                    threshold,
-                    epoch,
-                    &receivers,
-                    None,
-                )
-                .0
+                Dealing::create(&mut rng, &params, dealer_index, threshold, &receivers, None).0
             })
             .collect::<Vec<_>>();
 
-        let (recovered_master, recovered_partials) =
-            try_recover_verification_keys(&dealings, threshold, &receivers).unwrap();
+        let RecoveredVerificationKeys {
+            recovered_master,
+            recovered_partials,
+        } = try_recover_verification_keys(&dealings, threshold, &receivers).unwrap();
 
         assert!(verify_verification_keys(
             &recovered_master,
@@ -478,7 +461,6 @@ mod tests {
         let parties = 5;
         let threshold = ((parties as f32 * 2.) / 3. + 1.) as Threshold;
         let node_indices = (1..=parties).collect::<Vec<_>>();
-        let epoch = Epoch::new(2);
 
         let mut receivers = BTreeMap::new();
         for index in &node_indices {
@@ -491,7 +473,6 @@ mod tests {
             &params,
             node_indices[0],
             threshold,
-            epoch,
             &receivers,
             None,
         );

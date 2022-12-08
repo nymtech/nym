@@ -1,6 +1,6 @@
 [package]
 name = "nym-socks5-client"
-version = "1.0.2"
+version = "1.1.2"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 description = "A SOCKS5 localhost proxy that converts incoming messages to Sphinx and sends them to a Nym address"
 edition = "2021"
@@ -26,6 +26,7 @@ url = "2.2"
 
 # internal
 client-core = { path = "../client-core" }
+client-connections = { path = "../../common/client-connections" }
 coconut-interface = { path = "../../common/coconut-interface", optional = true }
 config = { path = "../../common/config" }
 completions = { path = "../../common/completions" }
@@ -45,6 +46,7 @@ task = { path = "../../common/task" }
 topology = { path = "../../common/topology" }
 validator-client = { path = "../../common/client-libs/validator-client", features = ["nymd-client"] }
 version-checker = { path = "../../common/version-checker" }
+tap = "1.0.1"
 
 [features]
 coconut = ["coconut-interface", "credentials", "gateway-requests/coconut", "gateway-client/coconut", "credentials/coconut", "client-core/coconut"]

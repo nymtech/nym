@@ -8,10 +8,13 @@ use nymsphinx::anonymous_replies::{
 };
 use std::path::Path;
 
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
 pub enum ReplyKeyStorageError {
+    #[error("DB Read Error: {0}")]
     DbReadError(sled::Error),
+    #[error("DB Write Error: {0}")]
     DbWriteError(sled::Error),
+    #[error("DB Open Error: {0}")]
     DbOpenError(sled::Error),
 }
 

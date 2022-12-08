@@ -22,7 +22,7 @@
     "eslint": "^8.10.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-prettier": "^4.0.0",
-    "favicons": "^6.2.2",
+    "favicons": "^7.0.2",
     "favicons-webpack-plugin": "^5.0.2",
     "file-loader": "^6.2.0",
     "fork-ts-checker-webpack-plugin": "^7.2.1",

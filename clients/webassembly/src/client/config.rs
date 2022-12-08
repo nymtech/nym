@@ -4,12 +4,15 @@
 // due to expansion of #[wasm_bindgen] macro on `Debug` Config struct
 #![allow(clippy::drop_non_drop)]
 
-use client_core::config::{Debug as ConfigDebug, ExtendedPacketSize, GatewayEndpoint};
+use client_core::config::{DebugConfig as ConfigDebug, ExtendedPacketSize, GatewayEndpointConfig};
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use url::Url;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Config {
     /// ID specifies the human readable ID of this particular client.
     pub(crate) id: String,
@@ -19,7 +22,7 @@ pub struct Config {
     pub(crate) disabled_credentials_mode: bool,
 
     /// Information regarding how the client should send data to gateway.
-    pub(crate) gateway_endpoint: GatewayEndpoint,
+    pub(crate) gateway_endpoint: GatewayEndpointConfig,
 
     pub(crate) debug: ConfigDebug,
 }
@@ -30,7 +33,7 @@ impl Config {
     pub fn new(
         id: String,
         validator_server: String,
-        gateway_endpoint: GatewayEndpoint,
+        gateway_endpoint: GatewayEndpointConfig,
         debug: Option<Debug>,
     ) -> Self {
         Config {

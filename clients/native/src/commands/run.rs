@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    client::{config::Config, NymClient},
+    client::{config::Config, SocketClient},
     commands::{override_config, OverrideConfig},
     error::ClientError,
 };
@@ -18,9 +18,13 @@ pub(crate) struct Run {
     #[clap(long)]
     id: String,
 
-    /// Comma separated list of rest endpoints of the validators
+    /// Comma separated list of rest endpoints of the nymd validators
     #[clap(long)]
-    validators: Option<String>,
+    nymd_validators: Option<String>,
+
+    /// Comma separated list of rest endpoints of the API validators
+    #[clap(long)]
+    api_validators: Option<String>,
 
     /// Id of the gateway we want to connect to. If overridden, it is user's responsibility to
     /// ensure prior registration happened
@@ -35,6 +39,15 @@ pub(crate) struct Run {
     #[clap(short, long)]
     port: Option<u16>,
 
+    /// Mostly debug-related option to increase default traffic rate so that you would not need to
+    /// modify config post init
+    #[clap(long, hidden = true)]
+    fastmode: bool,
+
+    /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
+    #[clap(long, hidden = true)]
+    no_cover: bool,
+
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
     /// with bandwidth credential requirement.
     #[cfg(feature = "coconut")]
@@ -45,10 +58,12 @@ pub(crate) struct Run {
 impl From<Run> for OverrideConfig {
     fn from(run_config: Run) -> Self {
         OverrideConfig {
-            validators: run_config.validators,
+            nymd_validators: run_config.nymd_validators,
+            api_validators: run_config.api_validators,
             disable_socket: run_config.disable_socket,
             port: run_config.port,
-            fastmode: false,
+            fastmode: run_config.fastmode,
+            no_cover: run_config.no_cover,
             #[cfg(feature = "coconut")]
             enabled_credentials_mode: run_config.enabled_credentials_mode,
         }
@@ -93,5 +108,5 @@ pub(crate) async fn execute(args: &Run) -> Result<(), ClientError> {
         return Err(ClientError::FailedLocalVersionCheck);
     }
 
-    NymClient::new(config).run_forever().await
+    SocketClient::new(config).run_socket_forever().await
 }

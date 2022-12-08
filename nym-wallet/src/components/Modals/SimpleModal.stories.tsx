@@ -225,3 +225,36 @@ export const withBackButton = () => {
     </BasePage>
   );
 };
+
+export const withBackButtonAndCustomLabel = () => {
+  const [open, setOpen] = React.useState<boolean>(false);
+  const handleClick = () => setOpen(true);
+
+  const theme = useTheme();
+
+  return (
+    <BasePage handleClick={handleClick}>
+      <SimpleModal
+        open={open}
+        hideCloseIcon
+        onClose={() => setOpen(false)}
+        onOk={async () => setOpen(false)}
+        header="This is a modal"
+        okLabel="Primary action"
+        onBack={() => setOpen(false)}
+        backLabel="Cancel"
+        backButtonFullWidth
+        {...storybookStyles(theme)}
+      >
+        <Typography sx={{ color: theme.palette.text.primary }}>
+          Tempor culpa est magna. Sit tempor cillum culpa sint ipsum nostrud ullamco voluptate exercitation dolore magna
+          elit ut mollit.
+        </Typography>
+        <ModalDivider />
+        <Typography sx={{ color: theme.palette.text.primary }}>
+          Veniam dolor laborum labore sit reprehenderit enim mollit magna nulla adipisicing fugiat. Est ex irure quis.
+        </Typography>
+      </SimpleModal>
+    </BasePage>
+  );
+};

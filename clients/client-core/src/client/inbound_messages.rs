@@ -1,9 +1,9 @@
-use futures::channel::mpsc;
+use client_connections::TransmissionLane;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::ReplySurb;
 
-pub type InputMessageSender = mpsc::UnboundedSender<InputMessage>;
-pub type InputMessageReceiver = mpsc::UnboundedReceiver<InputMessage>;
+pub type InputMessageSender = tokio::sync::mpsc::Sender<InputMessage>;
+pub type InputMessageReceiver = tokio::sync::mpsc::Receiver<InputMessage>;
 
 #[derive(Debug)]
 pub enum InputMessage {
@@ -11,6 +11,7 @@ pub enum InputMessage {
         recipient: Recipient,
         data: Vec<u8>,
         with_reply_surb: bool,
+        lane: TransmissionLane,
     },
     Reply {
         reply_surb: ReplySurb,
@@ -19,11 +20,17 @@ pub enum InputMessage {
 }
 
 impl InputMessage {
-    pub fn new_fresh(recipient: Recipient, data: Vec<u8>, with_reply_surb: bool) -> Self {
+    pub fn new_fresh(
+        recipient: Recipient,
+        data: Vec<u8>,
+        with_reply_surb: bool,
+        lane: TransmissionLane,
+    ) -> Self {
         InputMessage::Fresh {
             recipient,
             data,
             with_reply_surb,
+            lane,
         }
     }
 

@@ -257,10 +257,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bef38d45163c2f1dde094a7dfd33ccf595c92905c8f8f4fdc18d06fb1037718a"
 
 [[package]]
-name = "blake2"
-version = "0.10.4"
+name = "bitvec"
+version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b9cf849ee05b2ee5fba5e36f97ff8ec2533916700fc0758d40d92136a42f3388"
+checksum = "1bc2832c24239b0141d5674bb9174f9d68a8b5b3f2753311927c172ca46f7e9c"
+dependencies = [
+ "funty",
+ "radium",
+ "tap",
+ "wyz",
+]
+
+[[package]]
+name = "blake2"
+version = "0.10.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b12e5fd123190ce1c2e559308a94c9bacad77907d4c6005d9e58fe1a0689e55e"
 dependencies = [
  "digest 0.10.3",
 ]
@@ -319,16 +331,16 @@ checksum = "8d696c370c750c948ada61c69a0ee2cbbb9c50b1019ddb86d9317157a99c2cae"
 
 [[package]]
 name = "bls12_381"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54757888b09a69be70b5ec303e382a74227392086ba808cb01eeca29233a2397"
+version = "0.6.0"
+source = "git+https://github.com/jstuczyn/bls12_381?branch=gt-serialisation#10fb6f700bfda17c8475af3bfd31e3fec15f2278"
 dependencies = [
  "digest 0.9.0",
- "ff 0.10.1",
- "group 0.10.0",
+ "ff",
+ "group",
  "pairing",
  "rand_core 0.6.3",
  "subtle",
+ "zeroize",
 ]
 
 [[package]]
@@ -596,6 +608,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "coconut-dkg-common"
+version = "0.1.0"
+dependencies = [
+ "contracts-common",
+ "cosmwasm-std",
+ "cw-utils",
+ "multisig-contract-common",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "coconut-interface"
 version = "0.1.0"
 dependencies = [
@@ -667,6 +691,7 @@ checksum = "e4c78c047431fee22c1a7bb92e00ad095a02a983affe4d8a72e2a2c62c1b94f3"
 name = "contracts-common"
 version = "0.1.0"
 dependencies = [
+ "bs58",
  "cosmwasm-std",
  "schemars",
  "serde",
@@ -793,9 +818,9 @@ dependencies = [
 
 [[package]]
 name = "cpufeatures"
-version = "0.2.1"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95059428f66df56b63431fdb4e1947ed2190586af5c5a8a8b71122bdf5a7f469"
+checksum = "28d997bd5e24a5928dd43e46dc529867e207907fe0b239c3477d924f7f2ca320"
 dependencies = [
  "libc",
 ]
@@ -811,9 +836,9 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-channel"
-version = "0.5.2"
+version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e54ea8bc3fb1ee042f5aace6e3c6e025d3874866da222930f70ce62aceba0bfa"
+checksum = "c2dd04ddaf88237dc3b8d8f9a3c1004b506b54b3313403944054d23c0870c521"
 dependencies = [
  "cfg-if",
  "crossbeam-utils",
@@ -954,9 +979,9 @@ dependencies = [
 
 [[package]]
 name = "cw-utils"
-version = "0.13.2"
+version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "babd2c090f39d07ce5bf2556962305e795daa048ce20a93709eb591476e4a29e"
+checksum = "9dbaecb78c8e8abfd6b4258c7f4fbeb5c49a5e45ee4d910d3240ee8e1d714e1b"
 dependencies = [
  "cosmwasm-std",
  "schemars",
@@ -965,10 +990,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "cw3"
-version = "0.13.2"
+name = "cw2"
+version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f871854338a54c7bb094d16ffe17212b93b146d9659dbce4c9402a9b77e240ef"
+checksum = "04cf4639517490dd36b333bbd6c4fbd92e325fd0acf4683b41753bc5eb63bfc1"
+dependencies = [
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "cw3"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fe19462a7f644ba60c19d3443cb90d00c50d9b6b3b0a3a7fca93df8261af979b"
 dependencies = [
  "cosmwasm-std",
  "cw-utils",
@@ -977,10 +1014,26 @@ dependencies = [
 ]
 
 [[package]]
-name = "cw4"
-version = "0.13.2"
+name = "cw3-fixed-multisig"
+version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c4476d6a7c13c46ed9ff260bd0e1cf648dc37b13f483822e1ff2a431f0f6ee52"
+checksum = "df54aa54c13f405ec4ab36b6217538bc957d439eee58f89312db05a79caf6706"
+dependencies = [
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "cw-utils",
+ "cw2",
+ "cw3",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "cw4"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0acc3549d5ce11c6901b3a676f2e2628684722197054d97cd0101ea174ed5cbd"
 dependencies = [
  "cosmwasm-std",
  "cw-storage-plus",
@@ -1132,6 +1185,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd0c93bb4b0c6d9b77f4435b0ae98c24d17f1c45b2ff844c6151a07256ca923b"
 
 [[package]]
+name = "dkg"
+version = "0.1.0"
+dependencies = [
+ "bitvec",
+ "bls12_381",
+ "bs58",
+ "ff",
+ "group",
+ "lazy_static",
+ "pemstore",
+ "rand 0.8.5",
+ "rand_chacha 0.3.1",
+ "rand_core 0.6.3",
+ "serde",
+ "serde_derive",
+ "sha2 0.9.9",
+ "thiserror",
+ "zeroize",
+]
+
+[[package]]
 name = "dotenv"
 version = "0.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1172,9 +1246,9 @@ dependencies = [
 
 [[package]]
 name = "ed25519"
-version = "1.4.0"
+version = "1.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eed12bbf7b5312f8da1c2722bc06d8c6b12c2d86a7fb35a194c7f3e6fc2bbe39"
+checksum = "1e9c280362032ea4203659fc489832d0204ef09f247a0506f170dafcac08c369"
 dependencies = [
  "signature",
 ]
@@ -1221,9 +1295,9 @@ dependencies = [
  "base16ct",
  "crypto-bigint",
  "der",
- "ff 0.11.0",
+ "ff",
  "generic-array 0.14.5",
- "group 0.11.0",
+ "group",
  "rand_core 0.6.3",
  "sec1",
  "subtle",
@@ -1336,16 +1410,6 @@ dependencies = [
 
 [[package]]
 name = "ff"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d0f40b2dcd8bc322217a5f6559ae5f9e9d1de202a2ecee2e9eafcbece7562a4f"
-dependencies = [
- "rand_core 0.6.3",
- "subtle",
-]
-
-[[package]]
-name = "ff"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b2958d04124b9f27f175eaeb9a9f383d026098aa837eadd8ba22c11f13a05b9e"
@@ -1440,6 +1504,12 @@ name = "fuchsia-cprng"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a06f77d526c1a601b7c4cdd98f54b5eaabffc14d5f2f0296febdc7f357c6d3ba"
+
+[[package]]
+name = "funty"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6d5a32815ae3f33302d95fdcb2ce17862f8c65363dcfd29360480ba1001fc9c"
 
 [[package]]
 name = "futf"
@@ -1834,23 +1904,12 @@ dependencies = [
 
 [[package]]
 name = "group"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1c363a5301b8f153d80747126a04b3c82073b9fe3130571a9d170cacdeaf7912"
-dependencies = [
- "byteorder",
- "ff 0.10.1",
- "rand_core 0.6.3",
- "subtle",
-]
-
-[[package]]
-name = "group"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc5ac374b108929de78460075f3dc439fa66df9d8fc77e8f12caa5165fcf0c89"
 dependencies = [
- "ff 0.11.0",
+ "byteorder",
+ "ff",
  "rand_core 0.6.3",
  "subtle",
 ]
@@ -2646,6 +2705,7 @@ dependencies = [
  "cosmwasm-std",
  "cw-utils",
  "cw3",
+ "cw3-fixed-multisig",
  "cw4",
  "schemars",
  "serde",
@@ -2877,7 +2937,7 @@ dependencies = [
 
 [[package]]
 name = "nym_wallet"
-version = "1.0.9"
+version = "1.1.2"
 dependencies = [
  "aes-gcm",
  "argon2 0.3.4",
@@ -2933,10 +2993,12 @@ dependencies = [
  "bls12_381",
  "bs58",
  "digest 0.9.0",
- "ff 0.10.1",
+ "dkg",
+ "ff",
  "getrandom 0.2.5",
- "group 0.10.0",
+ "group",
  "itertools",
+ "pemstore",
  "rand 0.8.5",
  "serde",
  "serde_derive",
@@ -3052,11 +3114,11 @@ checksum = "8e22443d1643a904602595ba1cd8f7d896afe56d26712531c5ff73a15b2fbf64"
 
 [[package]]
 name = "pairing"
-version = "0.20.0"
+version = "0.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7de9d09263c9966e8196fe0380c9dbbc7ea114b5cf371ba29004bc1f9c6db7f3"
+checksum = "f2e415e349a3006dd7d9482cdab1c980a845bed1377777d768cb693a44540b42"
 dependencies = [
- "group 0.10.0",
+ "group",
 ]
 
 [[package]]
@@ -3207,6 +3269,24 @@ name = "peg-runtime"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c719dcf55f09a3a7e764c6649ab594c18a177e3599c467983cdf644bfc0a4088"
+
+[[package]]
+name = "pem"
+version = "0.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd56cbd21fea48d0c440b41cd69c589faacade08c992d9a54e471b79d0fd13eb"
+dependencies = [
+ "base64",
+ "once_cell",
+ "regex",
+]
+
+[[package]]
+name = "pemstore"
+version = "0.1.0"
+dependencies = [
+ "pem",
+]
 
 [[package]]
 name = "percent-encoding"
@@ -3578,6 +3658,12 @@ checksum = "864d3e96a899863136fc6e99f3d7cae289dafe43bf2c5ac19b70df7210c0a145"
 dependencies = [
  "proc-macro2",
 ]
+
+[[package]]
+name = "radium"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09"
 
 [[package]]
 name = "rand"
@@ -4638,6 +4724,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "tap"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
+
+[[package]]
 name = "tar"
 version = "0.4.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5327,6 +5419,7 @@ dependencies = [
  "base64",
  "bip39",
  "coconut-bandwidth-contract-common",
+ "coconut-dkg-common",
  "coconut-interface",
  "colored 2.0.0",
  "config",
@@ -5404,7 +5497,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "vesting-contract"
-version = "1.1.0"
+version = "1.1.2"
 dependencies = [
  "contracts-common",
  "cosmwasm-std",
@@ -5423,7 +5516,6 @@ version = "0.1.0"
 dependencies = [
  "contracts-common",
  "cosmwasm-std",
- "log",
  "mixnet-contract-common",
  "schemars",
  "serde",
@@ -5886,6 +5978,15 @@ dependencies = [
  "webview2-com",
  "windows",
  "windows-implement",
+]
+
+[[package]]
+name = "wyz"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "05f360fc0b24296329c78fda852a1e9ae82de9cf7b27dae4b7f62f118f77b9ed"
+dependencies = [
+ "tap",
 ]
 
 [[package]]

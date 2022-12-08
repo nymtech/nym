@@ -3376,6 +3376,7 @@ dependencies = [
  "proxy-helpers",
  "rand 0.7.3",
  "serde",
+ "serde_json",
  "snafu",
  "socks5-requests",
  "tap",
@@ -4818,9 +4819,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.85"
+version = "1.0.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e55a28e3aaef9d5ce0506d0a14dbba8054ddc7e499ef522dd8b26859ec9d4a44"
+checksum = "020ff22c755c2ed3f8cf162dbb41a7268d934702f3ed3631656ea597e08fc3db"
 dependencies = [
  "itoa 1.0.3",
  "ryu",
@@ -6300,7 +6301,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "vesting-contract"
-version = "1.1.0"
+version = "1.1.2"
 dependencies = [
  "contracts-common",
  "cosmwasm-std",

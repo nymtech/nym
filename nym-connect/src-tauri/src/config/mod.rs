@@ -159,7 +159,8 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     );
     log::info!("Client configuration completed.");
 
-    client_core::init::show_address(config.get_base())?;
+    let address = client_core::init::get_client_address(config.get_base())?;
+    println!("\nThe address of this client is: {}\n", address);
     Ok(())
 }
 

@@ -167,8 +167,6 @@ pub(crate) async fn execute(args: &Init) {
             Err(err) => eprintln!("Could not save {}: {}", output_file, err),
         }
     }
-
-    dbg!(&config);
 }
 
 async fn setup_gateway(

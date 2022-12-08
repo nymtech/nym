@@ -1,9 +1,13 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::fmt::Display;
+
 use clap::Args;
 use client_core::{config::GatewayEndpointConfig, error::ClientCoreError};
 use config::NymConfig;
+use nymsphinx::addressing::clients::Recipient;
+use serde::Serialize;
 
 use crate::{
     client::config::Config,
@@ -55,6 +59,10 @@ pub(crate) struct Init {
     #[cfg(feature = "coconut")]
     #[clap(long)]
     enabled_credentials_mode: bool,
+
+    /// Save a summary of the initialization to a json file
+    #[clap(long)]
+    output_json: bool,
 }
 
 impl From<Init> for OverrideConfig {
@@ -68,6 +76,29 @@ impl From<Init> for OverrideConfig {
             #[cfg(feature = "coconut")]
             enabled_credentials_mode: init_config.enabled_credentials_mode,
         }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct InitResults {
+    #[serde(flatten)]
+    client_core: client_core::init::InitResults,
+    socks5_listening_port: String,
+}
+
+impl InitResults {
+    pub fn new(config: &Config, address: &Recipient) -> Self {
+        Self {
+            client_core: client_core::init::InitResults::new(config.get_base(), address),
+            socks5_listening_port: config.get_listening_port().to_string(),
+        }
+    }
+}
+
+impl Display for InitResults {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{}", self.client_core)?;
+        write!(f, "SOCKS5 listening port: {}", self.socks5_listening_port)
     }
 }
 
@@ -123,12 +154,29 @@ pub(crate) async fn execute(args: &Init) {
         "Gateway listener: {}",
         config.get_base().get_gateway_listener()
     );
-    println!("Client configuration completed.");
+    println!("Client configuration completed.\n");
 
-    client_core::init::show_address(config.get_base()).unwrap_or_else(|err| {
-        eprintln!("Failed to show address\nError: {err}");
+    let address = client_core::init::get_client_address(config.get_base()).unwrap_or_else(|err| {
+        eprintln!("Failed to get address\nError: {err}");
         std::process::exit(1)
     });
+
+    let init_results = InitResults::new(&config, &address);
+    println!("{}", init_results);
+
+    // Output summary to a json file, if specified
+    if args.output_json {
+        let output_file = "socks5_client_init_results.json";
+        match std::fs::File::create(output_file) {
+            Ok(file) => match serde_json::to_writer_pretty(file, &init_results) {
+                Ok(_) => println!("Saved: {}", output_file),
+                Err(err) => eprintln!("Could not save {}: {}", output_file, err),
+            },
+            Err(err) => eprintln!("Could not save {}: {}", output_file, err),
+        }
+    }
+
+    println!("\nThe address of this client is: {}\n", address);
 }
 
 async fn setup_gateway(

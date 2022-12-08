@@ -3372,6 +3372,7 @@ dependencies = [
  "proxy-helpers",
  "rand 0.7.3",
  "serde",
+ "serde_json",
  "snafu 0.6.10",
  "socks5-requests",
  "tap",
@@ -5005,9 +5006,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.83"
+version = "1.0.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38dd04e3c8279e75b31ef29dbdceebfe5ad89f4d0937213c53f7d49d01b3d5a7"
+checksum = "020ff22c755c2ed3f8cf162dbb41a7268d934702f3ed3631656ea597e08fc3db"
 dependencies = [
  "itoa 1.0.1",
  "ryu",

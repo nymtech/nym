@@ -3603,6 +3603,7 @@ dependencies = [
  "serde",
  "thiserror",
  "topology",
+ "wasm-bindgen",
 ]
 
 [[package]]

@@ -29,12 +29,22 @@ pub struct ReconstructedMessage {
     pub sender_tag: Option<AnonymousSenderTag>,
 }
 
+impl From<ReconstructedMessage> for (Vec<u8>, Option<AnonymousSenderTag>) {
+    fn from(msg: ReconstructedMessage) -> Self {
+        (msg.message, msg.sender_tag)
+    }
+}
+
 impl ReconstructedMessage {
     pub fn new(message: Vec<u8>, sender_tag: AnonymousSenderTag) -> Self {
         Self {
             message,
             sender_tag: Some(sender_tag),
         }
+    }
+    
+    pub fn into_inner(self) -> (Vec<u8>, Option<AnonymousSenderTag>) {
+        self.into()
     }
 }
 

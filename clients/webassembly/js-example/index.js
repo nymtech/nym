@@ -97,8 +97,11 @@ function displaySend(message) {
  *
  * @param {Uint8Array} raw
  */
-function displayReceived(raw) {
-  const content = new TextDecoder().decode(new Uint8Array(raw));
+function displayReceived(raw, sender_tag) {
+  const content = new TextDecoder().decode(raw);
+  if (sender_tag !== undefined) {
+    console.log("this message also contained some surbs from", sender_tag)
+  }
 
   let timestamp = new Date().toISOString().substr(11, 12);
   let receivedDiv = document.createElement('div');

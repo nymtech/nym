@@ -5,9 +5,10 @@ use client_core::client::base_client::ClientOutput;
 use client_core::client::received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
 use futures::channel::mpsc;
 use futures::StreamExt;
+use js_sys::Uint8Array;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::spawn_local;
-use wasm_utils::console_log;
+use wasm_utils::console_error;
 
 pub(crate) struct ResponsePusher {
     reconstructed_receiver: ReconstructedMessagesReceiver,
@@ -38,16 +39,20 @@ impl ResponsePusher {
             let this = JsValue::null();
 
             while let Some(reconstructed) = self.reconstructed_receiver.next().await {
-                for msg in reconstructed {
-                    if msg.sender_tag.is_some() {
-                        console_log!("the received message contained a sender tag (meaning we also got some surbs!), but we do not know how to handle that (yet)")
-                    }
-                    let arg1 = serde_wasm_bindgen::to_value(&msg.message).unwrap();
+                for reconstructed_msg in reconstructed {
+                    let (msg, tag) = reconstructed_msg.into_inner();
+
+                    let msg_slice: &[u8] = &msg;
+                    let array = Uint8Array::from(msg_slice);
+                    let arg1 = JsValue::from(array);
+                    let arg2 = JsValue::from(tag);
                     self.on_message
-                        .call1(&this, &arg1)
+                        .call2(&this, &arg1, &arg2)
                         .expect("on binary message failed!");
                 }
             }
+
+            console_error!("we stopped receiving reconstructed messages!")
         })
     }
 }

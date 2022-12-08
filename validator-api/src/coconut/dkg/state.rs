@@ -30,6 +30,10 @@ impl TryFrom<DealerDetails> for DkgParticipant {
             .map_err(|_| ComplaintReason::MalformedBTEPublicKey)?
             .map_err(|_| ComplaintReason::MalformedBTEPublicKey)?;
 
+        if !bte_public_key_with_proof.verify() {
+            return Err(ComplaintReason::InvalidBTEPublicKey);
+        }
+
         Ok(DkgParticipant {
             _address: dealer.address,
             bte_public_key_with_proof,

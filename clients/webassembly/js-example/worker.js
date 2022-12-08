@@ -70,7 +70,7 @@ async function main() {
   let local_client = await clientBuilder.start_client();
   console.log('WASM client running!');
   
-  const selfAddress = local_client.self_address;
+  const selfAddress = local_client.self_address();
   
   // set the global (I guess we don't have to anymore?)
   client = local_client;

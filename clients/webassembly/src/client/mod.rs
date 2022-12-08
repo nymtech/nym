@@ -25,8 +25,7 @@ mod response_pusher;
 
 #[wasm_bindgen]
 pub struct NymClient {
-    #[wasm_bindgen(getter_with_clone)]
-    pub self_address: String,
+    self_address: String,
     client_input: Arc<ClientInput>,
 
     // even though we don't use graceful shutdowns, other components rely on existence of this struct
@@ -130,6 +129,10 @@ impl NymClientBuilder {
 
 #[wasm_bindgen]
 impl NymClient {
+    pub fn self_address(&self) -> String {
+        self.self_address.clone()
+    }
+
     fn parse_recipient(recipient: &str) -> Result<Recipient, JsValue> {
         match Recipient::try_from_base58_string(recipient) {
             Ok(recipient) => Ok(recipient),

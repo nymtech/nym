@@ -9,13 +9,32 @@ use coconut_dkg_common::types::EpochState;
 use cosmwasm_std::Addr;
 use dkg::bte::{keys::KeyPair as DkgKeyPair, PublicKey, PublicKeyWithProof};
 use dkg::{NodeIndex, RecoveredVerificationKeys, Threshold};
+use serde::de::Error;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::BTreeMap;
 use url::Url;
 
+fn bte_pk_serialize<'se, S: Serializer>(
+    val: &PublicKeyWithProof,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    val.to_bytes().serialize(serializer)
+}
+
+fn bte_pk_deserialize<'de, D>(deserializer: D) -> Result<PublicKeyWithProof, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let vec: Vec<u8> = Deserialize::deserialize(deserializer)?;
+    PublicKeyWithProof::try_from_bytes(&vec).map_err(|err| Error::custom(format_args!("{:?}", err)))
+}
+
 // note: each dealer is also a receiver which simplifies some logic significantly
-#[derive(Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub(crate) struct DkgParticipant {
     pub(crate) _address: Addr,
+    #[serde(serialize_with = "bte_pk_serialize")]
+    #[serde(deserialize_with = "bte_pk_deserialize")]
     pub(crate) bte_public_key_with_proof: PublicKeyWithProof,
     pub(crate) assigned_index: NodeIndex,
 }
@@ -71,20 +90,6 @@ pub(crate) trait ConsistentState {
     }
 }
 
-pub(crate) struct State {
-    announce_address: Url,
-    dkg_keypair: DkgKeyPair,
-    coconut_keypair: CoconutKeyPair,
-    node_index: Option<NodeIndex>,
-    dealers: BTreeMap<Addr, Result<DkgParticipant, ComplaintReason>>,
-    receiver_index: Option<usize>,
-    threshold: Option<Threshold>,
-    recovered_vks: Vec<RecoveredVerificationKeys>,
-    proposal_id: Option<u64>,
-    voted_vks: bool,
-    executed_proposal: bool,
-}
-
 #[async_trait]
 impl ConsistentState for State {
     fn node_index_value(&self) -> Result<NodeIndex, CoconutError> {
@@ -131,8 +136,58 @@ impl ConsistentState for State {
     }
 }
 
+fn vks_serialize<'se, S: Serializer>(
+    val: &[RecoveredVerificationKeys],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    let vec: Vec<Vec<u8>> = val.iter().map(|vk| vk.to_bytes()).collect();
+    vec.serialize(serializer)
+}
+
+fn vks_deserialize<'de, D>(deserializer: D) -> Result<Vec<RecoveredVerificationKeys>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let vec: Vec<Vec<u8>> = Deserialize::deserialize(deserializer)?;
+    vec.into_iter()
+        .map(|b| {
+            RecoveredVerificationKeys::try_from_bytes(&b)
+                .map_err(|err| D::Error::custom(format_args!("{:?}", err)))
+        })
+        .collect()
+}
+
+#[derive(Default, Deserialize, Serialize)]
+pub(crate) struct PersistentState {
+    node_index: Option<NodeIndex>,
+    dealers: BTreeMap<Addr, Result<DkgParticipant, ComplaintReason>>,
+    receiver_index: Option<usize>,
+    threshold: Option<Threshold>,
+    #[serde(serialize_with = "vks_serialize")]
+    #[serde(deserialize_with = "vks_deserialize")]
+    recovered_vks: Vec<RecoveredVerificationKeys>,
+    proposal_id: Option<u64>,
+    voted_vks: bool,
+    executed_proposal: bool,
+}
+
+pub(crate) struct State {
+    announce_address: Url,
+    dkg_keypair: DkgKeyPair,
+    coconut_keypair: CoconutKeyPair,
+    node_index: Option<NodeIndex>,
+    dealers: BTreeMap<Addr, Result<DkgParticipant, ComplaintReason>>,
+    receiver_index: Option<usize>,
+    threshold: Option<Threshold>,
+    recovered_vks: Vec<RecoveredVerificationKeys>,
+    proposal_id: Option<u64>,
+    voted_vks: bool,
+    executed_proposal: bool,
+}
+
 impl State {
     pub fn new(
+        persistent_state: PersistentState,
         announce_address: Url,
         dkg_keypair: DkgKeyPair,
         coconut_keypair: CoconutKeyPair,
@@ -141,14 +196,14 @@ impl State {
             announce_address,
             dkg_keypair,
             coconut_keypair,
-            node_index: None,
-            dealers: BTreeMap::new(),
-            receiver_index: None,
-            threshold: None,
-            recovered_vks: vec![],
-            proposal_id: None,
-            voted_vks: false,
-            executed_proposal: false,
+            node_index: persistent_state.node_index,
+            dealers: persistent_state.dealers,
+            receiver_index: persistent_state.receiver_index,
+            threshold: persistent_state.threshold,
+            recovered_vks: persistent_state.recovered_vks,
+            proposal_id: persistent_state.proposal_id,
+            voted_vks: persistent_state.voted_vks,
+            executed_proposal: persistent_state.executed_proposal,
         }
     }
 

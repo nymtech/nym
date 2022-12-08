@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::coconut::dkg::client::DkgClient;
-use crate::coconut::dkg::state::{ConsistentState, State};
+use crate::coconut::dkg::state::{ConsistentState, PersistentState, State};
 use crate::coconut::dkg::verification_key::{
     verification_key_finalization, verification_key_validation,
 };
@@ -63,12 +63,18 @@ impl<R: RngCore + Clone> DkgController<R> {
         )) {
             coconut_keypair.set(coconut_keypair_value).await;
         }
+        let persistent_state = PersistentState::default();
 
         Ok(DkgController {
             dkg_client: DkgClient::new(nymd_client),
             secret_key_path: config.secret_key_path(),
             verification_key_path: config.verification_key_path(),
-            state: State::new(config.get_announce_address(), dkg_keypair, coconut_keypair),
+            state: State::new(
+                persistent_state,
+                config.get_announce_address(),
+                dkg_keypair,
+                coconut_keypair,
+            ),
             rng,
             polling_rate: config.get_dkg_contract_polling_rate(),
         })

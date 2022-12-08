@@ -9,8 +9,10 @@ use crate::interpolation::polynomial::{Polynomial, PublicCoefficients};
 use crate::interpolation::{
     perform_lagrangian_interpolation_at_origin, perform_lagrangian_interpolation_at_x,
 };
+use crate::utils::deserialize_g2;
 use crate::{NodeIndex, Share, Threshold};
 use bls12_381::{G2Projective, Scalar};
+use group::GroupEncoding;
 use rand_core::RngCore;
 use std::collections::BTreeMap;
 use zeroize::Zeroize;
@@ -20,6 +22,64 @@ use zeroize::Zeroize;
 pub struct RecoveredVerificationKeys {
     pub recovered_master: G2Projective,
     pub recovered_partials: Vec<G2Projective>,
+}
+
+impl RecoveredVerificationKeys {
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let partials = self.recovered_partials.len();
+        let mut bytes = Vec::with_capacity(96 + 4 + 96 * partials);
+        bytes.extend_from_slice(self.recovered_master.to_bytes().as_ref());
+        bytes.extend_from_slice(&((partials as u32).to_be_bytes()));
+        for partial in &self.recovered_partials {
+            bytes.extend_from_slice(partial.to_bytes().as_ref());
+        }
+
+        bytes
+    }
+
+    pub fn try_from_bytes(b: &[u8]) -> Result<Self, DkgError> {
+        if b.len() < 96 + 4 {
+            return Err(DkgError::new_deserialization_failure(
+                "RecoveredVerificationKeys",
+                "insufficient number of bytes provided",
+            ));
+        }
+
+        let recovered_master = deserialize_g2(&b[..96]).ok_or_else(|| {
+            DkgError::new_deserialization_failure(
+                "RecoveredVerificationKeys.recovered_master",
+                "invalid curve point",
+            )
+        })?;
+
+        let partials = u32::from_be_bytes([b[96], b[97], b[98], b[99]]) as usize;
+        let mut recovered_partials = Vec::with_capacity(partials);
+
+        if b.len() != 96 + 4 + 96 * partials {
+            return Err(DkgError::new_deserialization_failure(
+                "RecoveredVerificationKeys",
+                "insufficient number of bytes provided",
+            ));
+        }
+
+        let mut i = 96 + 4;
+        for _ in 0..partials {
+            let partial = deserialize_g2(&b[i..i + 96]).ok_or_else(|| {
+                DkgError::new_deserialization_failure(
+                    "RecoveredVerificationKeys.recovered_partials",
+                    "invalid curve point",
+                )
+            })?;
+
+            recovered_partials.push(partial);
+            i += 96;
+        }
+
+        Ok(RecoveredVerificationKeys {
+            recovered_master,
+            recovered_partials,
+        })
+    }
 }
 
 #[derive(Debug)]

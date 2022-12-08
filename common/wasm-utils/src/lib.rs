@@ -5,8 +5,8 @@ use js_sys::Promise;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsValue;
 use wasm_bindgen_futures::JsFuture;
-use web_sys::window;
 
+#[cfg(feature = "websocket")]
 pub mod websocket;
 
 // will cause messages to be written as if console.log("...") was called
@@ -39,9 +39,10 @@ extern "C" {
     pub fn error(s: &str);
 }
 
+#[cfg(feature = "sleep")]
 pub async fn sleep(ms: i32) -> Result<(), JsValue> {
     let promise = Promise::new(&mut |yes, _| {
-        let win = window().expect("no window available!");
+        let win = web_sys::window().expect("no window available!");
         win.set_timeout_with_callback_and_timeout_and_arguments_0(&yes, ms)
             .unwrap();
     });

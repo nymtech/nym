@@ -8,6 +8,9 @@ use std::fmt::{Display, Formatter};
 use std::mem;
 use thiserror::Error;
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
 pub const SENDER_TAG_SIZE: usize = 16;
 
 #[derive(Debug, Error)]
@@ -22,6 +25,7 @@ pub enum InvalidAnonymousSenderTagRepresentation {
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 pub struct AnonymousSenderTag([u8; SENDER_TAG_SIZE]);
 
 impl From<[u8; SENDER_TAG_SIZE]> for AnonymousSenderTag {

@@ -17,7 +17,7 @@ pub enum InputMessage {
         lane: TransmissionLane,
     },
 
-    /// Create a message used for a duplex anonymous communication where the recipient
+    /// Creates a message used for a duplex anonymous communication where the recipient
     /// will never learn of our true identity. This is achieved by carefully sending `reply_surbs`.
     ///
     /// Note that if reply_surbs is set to zero then

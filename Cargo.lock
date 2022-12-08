@@ -610,7 +610,7 @@ dependencies = [
  "task",
  "tempfile",
  "thiserror",
- "time 0.3.14",
+ "time 0.3.17",
  "tokio",
  "tokio-stream",
  "topology",
@@ -619,6 +619,7 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-timer",
+ "wasm-utils",
 ]
 
 [[package]]
@@ -784,7 +785,7 @@ dependencies = [
  "rand 0.8.5",
  "sha2 0.10.2",
  "subtle 2.4.1",
- "time 0.3.14",
+ "time 0.3.17",
  "version_check",
 ]
 
@@ -2629,9 +2630,9 @@ dependencies = [
 
 [[package]]
 name = "js-sys"
-version = "0.3.55"
+version = "0.3.60"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7cc9ffccd38c451a86bf13657df244e9c3f37493cce8e5e21e940963777acc84"
+checksum = "49409df3e3bf0856b916e2ceaca09ee28e6871cf7d9ce97a692cacfdb2a25a47"
 dependencies = [
  "wasm-bindgen",
 ]
@@ -2937,7 +2938,7 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "thiserror",
- "time 0.3.14",
+ "time 0.3.17",
  "ts-rs",
 ]
 
@@ -3115,15 +3116,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "num_threads"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aba1801fb138d8e85e11d0fc70baf4fe1cdfffda7c6cd34a854905df588e5ed0"
-dependencies = [
- "libc",
-]
-
-[[package]]
 name = "nym-bity-integration"
 version = "0.1.0"
 dependencies = [
@@ -3185,7 +3177,7 @@ dependencies = [
  "serde_json",
  "tap",
  "thiserror",
- "time 0.3.14",
+ "time 0.3.17",
  "toml",
  "url",
  "validator-client",
@@ -3488,7 +3480,7 @@ dependencies = [
  "tap",
  "task",
  "thiserror",
- "time 0.3.14",
+ "time 0.3.17",
  "tokio",
  "tokio-stream",
  "topology",
@@ -3603,6 +3595,7 @@ dependencies = [
  "serde",
  "thiserror",
  "topology",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -4663,7 +4656,7 @@ dependencies = [
  "serde_json",
  "state",
  "tempfile",
- "time 0.3.14",
+ "time 0.3.17",
  "tokio",
  "tokio-stream",
  "tokio-util 0.7.3",
@@ -4725,7 +4718,7 @@ dependencies = [
  "smallvec 1.8.0",
  "stable-pattern",
  "state",
- "time 0.3.14",
+ "time 0.3.17",
  "tokio",
  "uncased",
 ]
@@ -5766,7 +5759,7 @@ dependencies = [
  "subtle 2.4.1",
  "subtle-encoding",
  "tendermint-proto",
- "time 0.3.14",
+ "time 0.3.17",
  "zeroize",
 ]
 
@@ -5799,7 +5792,7 @@ dependencies = [
  "serde",
  "serde_bytes",
  "subtle-encoding",
- "time 0.3.14",
+ "time 0.3.17",
 ]
 
 [[package]]
@@ -5827,7 +5820,7 @@ dependencies = [
  "tendermint-config",
  "tendermint-proto",
  "thiserror",
- "time 0.3.14",
+ "time 0.3.17",
  "tokio",
  "tracing",
  "url",
@@ -5901,22 +5894,31 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.3.14"
+version = "0.3.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c3f9a28b618c3a6b9251b6908e9c99e04b9e5c02e6581ccbb67d59c34ef7f9b"
+checksum = "a561bf4617eebd33bca6434b988f39ed798e527f51a1e797d0ee4f61c0a38376"
 dependencies = [
  "itoa 1.0.1",
- "libc",
- "num_threads",
+ "js-sys",
  "serde",
+ "time-core",
  "time-macros",
 ]
 
 [[package]]
-name = "time-macros"
-version = "0.2.4"
+name = "time-core"
+version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42657b1a6f4d817cda8e7a0ace261fe0cc946cf3a80314390b22cc61ae080792"
+checksum = "2e153e1f1acaef8acc537e68b44906d2db6436e2b35ac2c6b42640fff91f00fd"
+
+[[package]]
+name = "time-macros"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d967f99f534ca7e495c575c62638eebc2898a8c84c119b89e250477bc4ba16b2"
+dependencies = [
+ "time-core",
+]
 
 [[package]]
 name = "tinytemplate"
@@ -6580,7 +6582,7 @@ dependencies = [
  "rustc_version 0.4.0",
  "rustversion",
  "thiserror",
- "time 0.3.14",
+ "time 0.3.17",
 ]
 
 [[package]]

@@ -18,9 +18,8 @@ serde = { version = "1.0", features = ["derive"] }
 tap = "1.0.1"
 thiserror = "1.0.34"
 url = { version ="2.2", features = ["serde"] }
-sqlx = { version = "0.6.2", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"], optional = true }
-tokio = { version = "1.21.2", features = ["time", "macros"]}
-time = "0.3"
+tokio = { version = "1.21.2", features = ["macros"]}
+time = "0.3.17"
 
 # internal
 config = { path = "../../common/config" }
@@ -40,6 +39,15 @@ task = { path = "../../common/task" }
 version = "0.1.9"
 features = ["time"]
 
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
+version = "1.21.2"
+features = ["time"]
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
+version = "0.6.2"
+features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]
+optional = true
+
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen-futures]
 version = "0.4"
 
@@ -53,6 +61,13 @@ rev = "b9d1a54ad514c2f230a026afe0dde341e98cd7b6"
 [target."cfg(target_arch = \"wasm32\")".dependencies.gloo-timers]
 version = "0.2.4"
 features = ["futures"]
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.wasm-utils]
+path = "../../common/wasm-utils"
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.time]
+version = "0.3.17"
+features = ["wasm-bindgen"]
 
 [dev-dependencies]
 tempfile = "3.1.0"

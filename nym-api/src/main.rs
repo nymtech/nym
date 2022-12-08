@@ -113,13 +113,13 @@ fn long_version() -> String {
 
 fn parse_args() -> ArgMatches {
     let build_details = long_version();
-    let base_app = App::new("Nym Validator API")
+    let base_app = App::new("Nym API")
         .version(crate_version!())
         .long_version(&*build_details)
         .author("Nymtech")
         .arg(
             Arg::with_name(CONFIG_ENV_FILE)
-                .help("Path pointing to an env file that configures the validator API")
+                .help("Path pointing to an env file that configures the Nym API")
                 .long(CONFIG_ENV_FILE)
                 .short('c')
                 .takes_value(true)
@@ -145,13 +145,13 @@ fn parse_args() -> ArgMatches {
         )
         .arg(
             Arg::with_name(NYMD_VALIDATOR_ARG)
-                .help("Endpoint to nymd part of the validator from which the monitor will grab nodes to test")
+                .help("Endpoint to nymd instance from which the monitor will grab nodes to test")
                 .long(NYMD_VALIDATOR_ARG)
                 .takes_value(true)
         )
         .arg(Arg::with_name(MIXNET_CONTRACT_ARG)
                  .long(MIXNET_CONTRACT_ARG)
-                 .help("Address of the validator contract managing the network")
+                 .help("Address of the mixnet contract managing the network")
                  .takes_value(true),
         )
         .arg(Arg::with_name(MNEMONIC_ARG)
@@ -174,19 +174,19 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::with_name(MIN_MIXNODE_RELIABILITY_ARG)
                 .long(MIN_MIXNODE_RELIABILITY_ARG)
-                .help("Mixnodes with relialability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.")
+                .help("Mixnodes with reliability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.")
                 .takes_value(true)
         )
         .arg(
             Arg::with_name(MIN_GATEWAY_RELIABILITY_ARG)
                 .long(MIN_GATEWAY_RELIABILITY_ARG)
-                .help("Gateways with relialability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.")
+                .help("Gateways with reliability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.")
                 .takes_value(true)
         )
         .arg(
             Arg::with_name(ENABLED_CREDENTIALS_MODE_ARG_NAME)
                 .long(ENABLED_CREDENTIALS_MODE_ARG_NAME)
-                .help("Set this validator api to work in a enabled credentials that would attempt to use gateway with the bandwidth credential requirement")
+                .help("Set this nym api to work in a enabled credentials that would attempt to use gateway with the bandwidth credential requirement")
         );
 
     #[cfg(feature = "coconut")]
@@ -215,7 +215,7 @@ async fn wait_for_interrupt(mut shutdown: ShutdownNotifier) {
     log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
     shutdown.wait_for_shutdown().await;
 
-    log::info!("Stopping nym validator API");
+    log::info!("Stopping nym API");
 }
 
 #[cfg(unix)]

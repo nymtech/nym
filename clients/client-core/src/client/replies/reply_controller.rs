@@ -533,6 +533,7 @@ where
                 to_remove.push(*pending_reply_target);
                 continue
             };
+
             let diff = now - last_received_time;
 
             if diff > self.config.max_surb_waiting_period {
@@ -548,7 +549,6 @@ where
                 .surbs_storage_ref()
                 .reset_pending_reception(&pending_reply_target)
         }
-
         for to_remove in to_remove {
             self.pending_replies.remove(&to_remove);
         }

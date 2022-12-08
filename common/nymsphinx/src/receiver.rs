@@ -42,7 +42,7 @@ impl ReconstructedMessage {
             sender_tag: Some(sender_tag),
         }
     }
-    
+
     pub fn into_inner(self) -> (Vec<u8>, Option<AnonymousSenderTag>) {
         self.into()
     }

@@ -17,7 +17,7 @@ importScripts('nym_client_wasm.js');
 console.log('Initializing worker');
 
 // wasm_bindgen creates a global variable (with the exports attached) that is in scope after `importScripts`
-const { default_debug, NymClient, NymClientBuilder, set_panic_hook, Config, GatewayEndpointConfig } = wasm_bindgen;
+const { default_debug, NymClientBuilder, set_panic_hook, Config, GatewayEndpointConfig } = wasm_bindgen;
 
 let client = null;
 

@@ -88,7 +88,11 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
 
   const getPendingEvents = async () => {
     const events = await getPendingIntervalEvents();
-    const latestEvent = events.reverse().find((evt) => 'ChangeMixCostParams' in evt.event) as unknown as
+    const latestEvent = events
+      .reverse()
+      .find(
+        (evt) => 'ChangeMixCostParams' in evt.event && evt.event.ChangeMixCostParams.mix_id === bondedNode.mixId,
+      ) as unknown as
       | {
           id: number;
           event: {

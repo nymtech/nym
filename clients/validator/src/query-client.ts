@@ -1,23 +1,13 @@
-import { CosmWasmClient, JsonObject } from '@cosmjs/cosmwasm-stargate';
+import { CosmWasmClient } from '@cosmjs/cosmwasm-stargate';
 import { Tendermint34Client } from '@cosmjs/tendermint-rpc';
-import {
-  Account,
-  Block,
-  Coin,
-  DeliverTxResponse,
-  IndexedTx,
-  SearchTxFilter,
-  SearchTxQuery,
-  SequenceResponse,
-} from '@cosmjs/stargate';
-import { Code, CodeDetails, Contract, ContractCodeHistoryEntry } from '@cosmjs/cosmwasm-stargate/build/cosmwasmclient';
-// eslint-disable-next-line import/no-cycle
 import NymdQuerier from './nymd-querier';
 import {
   ContractStateParams,
   Delegation,
   GatewayBond,
   GatewayOwnershipResponse,
+  ICosmWasmQuery,
+  INymdQuery,
   LayerDistribution,
   MixnetContractVersion,
   MixOwnershipResponse,
@@ -148,7 +138,7 @@ export default class QueryClient extends CosmWasmClient implements IQueryClient 
     return this.nymdQuerier.getStakeSaturation(mixnetContractAddress, mixId);
   }
 
-  getMixnodeRewardingDetails(mixnetContractAddress: string, mixId: number): Promise<any> {
+  getMixnodeRewardingDetails(mixnetContractAddress: string, mixId: number): Promise<MixNodeRewarding> {
     return this.nymdQuerier.getMixnodeRewardingDetails(mixnetContractAddress, mixId);
   }
 

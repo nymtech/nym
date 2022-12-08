@@ -3,13 +3,11 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { JsonObject } from '@cosmjs/cosmwasm-stargate';
-// eslint-disable-next-line import/no-cycle
-import { INymdQuery } from './query-client';
 import {
   ContractStateParams,
   Delegation,
   GatewayOwnershipResponse,
+  INymdQuery,
   LayerDistribution,
   MixnetContractVersion,
   MixOwnershipResponse,
@@ -21,13 +19,10 @@ import {
   PagedMixNodeDetailsResponse,
   PagedUnbondedMixnodesResponse,
   RewardingStatus,
+  SmartContractQuery,
   StakeSaturation,
   UnbondedMixnodeResponse,
 } from './types';
-
-interface SmartContractQuery {
-  queryContractSmart(address: string, queryMsg: Record<string, unknown>): Promise<JsonObject>;
-}
 
 export default class NymdQuerier implements INymdQuery {
   client: SmartContractQuery;

@@ -10,7 +10,7 @@ const config = {
   denom: 'nym',
 };
 
-describe('Network queries', async () => {
+describe('Network queries', () => {
   let client: ValidatorClient;
 
   beforeEach(async () => {

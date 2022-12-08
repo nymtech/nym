@@ -1,5 +1,16 @@
-import { Coin } from '@cosmjs/stargate';
-import { UnbondedMixnode, MixNodeBond, MixNodeDetails } from '@nymproject/types';
+import { JsonObject } from '@cosmjs/cosmwasm-stargate';
+import { UnbondedMixnode, MixNodeBond, MixNodeDetails, MixNodeRewarding } from '@nymproject/types';
+import {
+  Account,
+  Block,
+  Coin,
+  DeliverTxResponse,
+  IndexedTx,
+  SearchTxFilter,
+  SearchTxQuery,
+  SequenceResponse,
+} from '@cosmjs/stargate';
+import { Code, CodeDetails, Contract, ContractCodeHistoryEntry } from '@cosmjs/cosmwasm-stargate/build/cosmwasmclient';
 
 // TODO: ideally we'd have re-exported those using that fancy crate that builds ts types from rust
 
@@ -168,3 +179,81 @@ export type PagedUnbondedMixnodesResponse = {
   per_page: number;
   start_next_after: string;
 };
+
+export interface SmartContractQuery {
+  queryContractSmart(address: string, queryMsg: Record<string, unknown>): Promise<JsonObject>;
+}
+
+export interface ICosmWasmQuery {
+  // methods exposed by `CosmWasmClient`
+  getChainId(): Promise<string>;
+  getHeight(): Promise<number>;
+  getAccount(searchAddress: string): Promise<Account | null>;
+  getSequence(address: string): Promise<SequenceResponse>;
+  getBlock(height?: number): Promise<Block>;
+  getBalance(address: string, searchDenom: string): Promise<Coin>;
+  getTx(id: string): Promise<IndexedTx | null>;
+  searchTx(query: SearchTxQuery, filter?: SearchTxFilter): Promise<readonly IndexedTx[]>;
+  disconnect(): void;
+  broadcastTx(tx: Uint8Array, timeoutMs?: number, pollIntervalMs?: number): Promise<DeliverTxResponse>;
+  getCodes(): Promise<readonly Code[]>;
+  getCodeDetails(codeId: number): Promise<CodeDetails>;
+  getContracts(codeId: number): Promise<readonly string[]>;
+  getContract(address: string): Promise<Contract>;
+  getContractCodeHistory(address: string): Promise<readonly ContractCodeHistoryEntry[]>;
+  queryContractRaw(address: string, key: Uint8Array): Promise<Uint8Array | null>;
+  queryContractSmart(address: string, queryMsg: Record<string, unknown>): Promise<JsonObject>;
+}
+export interface INymdQuery {
+  // nym-specific implemented inside NymQuerier
+  getContractVersion(mixnetContractAddress: string): Promise<MixnetContractVersion>;
+  getMixNodeBonds(
+    mixnetContractAddress: string,
+    limit?: number,
+    startAfter?: string,
+  ): Promise<PagedMixNodeBondResponse>;
+  getMixNodesDetailed(
+    mixnetContractAddress: string,
+    limit?: number,
+    startAfter?: string,
+  ): Promise<PagedMixNodeDetailsResponse>;
+  getGatewaysPaged(mixnetContractAddress: string, limit?: number, startAfter?: string): Promise<PagedGatewayResponse>;
+  getOwnedMixnode(mixnetContractAddress: string, address: string): Promise<MixOwnershipResponse>;
+  ownsGateway(mixnetContractAddress: string, address: string): Promise<GatewayOwnershipResponse>;
+  getStateParams(mixnetContractAddress: string): Promise<ContractStateParams>;
+  getAllNetworkDelegationsPaged(
+    mixnetContractAddress: string,
+    limit?: number,
+    startAfter?: [string, string],
+  ): Promise<PagedAllDelegationsResponse>;
+  getMixNodeDelegationsPaged(
+    mixnetContractAddress: string,
+    mixIdentity: string,
+    limit?: number,
+    startAfter?: string,
+  ): Promise<PagedMixDelegationsResponse>;
+  getDelegatorDelegationsPaged(
+    mixnetContractAddress: string,
+    delegator: string,
+    limit?: number,
+    startAfter?: string,
+  ): Promise<PagedDelegatorDelegationsResponse>;
+  getDelegationDetails(mixnetContractAddress: string, mixIdentity: string, delegator: string): Promise<Delegation>;
+  getLayerDistribution(mixnetContractAddress: string): Promise<LayerDistribution>;
+  getRewardPool(mixnetContractAddress: string): Promise<string>;
+  getCirculatingSupply(mixnetContractAddress: string): Promise<string>;
+  getIntervalRewardPercent(mixnetContractAddress: string): Promise<number>;
+  getSybilResistancePercent(mixnetContractAddress: string): Promise<number>;
+  getRewardingStatus(
+    mixnetContractAddress: string,
+    mixIdentity: string,
+    rewardingIntervalNonce: number,
+  ): Promise<RewardingStatus>;
+  getStakeSaturation(mixnetContractAddress: string, mixId: number): Promise<StakeSaturation>;
+  getUnbondedMixNodeInformation(mixnetContractAddress: string, mixId: number): Promise<UnbondedMixnodeResponse>;
+  getMixnodeRewardingDetails(mixnetContractAddress: string, mixId: number): Promise<MixNodeRewarding>;
+}
+
+export interface IVestingQuerier {
+  getVestingContractVersion(mixnetContractAddress: string): Promise<MixnetContractVersion>;
+}

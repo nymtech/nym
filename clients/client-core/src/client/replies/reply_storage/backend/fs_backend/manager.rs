@@ -153,10 +153,11 @@ impl StorageManager {
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO reply_key(key_digest, reply_key) VALUES (?, ?);
+                INSERT INTO reply_key(key_digest, reply_key, sent_at_timestamp) VALUES (?, ?, ?);
             "#,
             stored_reply_key.key_digest,
-            stored_reply_key.reply_key
+            stored_reply_key.reply_key,
+            stored_reply_key.sent_at_timestamp
         )
         .execute(&self.connection_pool)
         .await?;

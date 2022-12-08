@@ -26,6 +26,8 @@ pub enum ClientCoreError {
     NoGatewayWithId(String),
     #[error("No gateways on network")]
     NoGatewaysOnNetwork,
+    #[error("Failed to setup gateway")]
+    FailedToSetupGateway,
     #[error("List of validator apis is empty")]
     ListOfValidatorApisIsEmpty,
     #[error("Could not load existing gateway configuration: {0}")]

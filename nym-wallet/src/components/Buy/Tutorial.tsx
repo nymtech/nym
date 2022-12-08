@@ -90,7 +90,7 @@ export const Tutorial = () => {
         />
         <TutorialStep
           step={2}
-          title="Sign a message"
+          title="Sign message"
           icon={<BorderColorIcon fontSize="small" />}
           text={
             <Typography sx={{ color: (t) => t.palette.nym.text.muted }}>

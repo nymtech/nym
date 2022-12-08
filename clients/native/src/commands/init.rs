@@ -134,12 +134,20 @@ pub(crate) async fn execute(args: &Init) {
     let override_config_fields = OverrideConfig::from(args.clone());
     config = override_config(config, override_config_fields);
 
-    let gateway = setup_gateway(id, register_gateway, user_chosen_gateway_id, &config)
+    let gateway = if !register_gateway && user_chosen_gateway_id.is_none() {
+        reuse_gateway_config(id)
+    } else {
+        client_core::init::setup_gateway(
+            register_gateway,
+            user_chosen_gateway_id,
+            config.get_base(),
+        )
         .await
-        .unwrap_or_else(|err| {
-            eprintln!("Failed to setup gateway\nError: {err}");
-            std::process::exit(1)
-        });
+    }
+    .unwrap_or_else(|err| {
+        eprintln!("Failed to setup gateway\nError: {err}");
+        std::process::exit(1)
+    });
     config.get_base_mut().with_gateway_endpoint(gateway);
 
     let config_save_location = config.get_config_file_save_location();
@@ -180,45 +188,11 @@ pub(crate) async fn execute(args: &Init) {
     }
 }
 
-async fn setup_gateway(
-    id: &str,
-    register: bool,
-    user_chosen_gateway_id: Option<&str>,
-    config: &Config,
-) -> Result<GatewayEndpointConfig, ClientCoreError> {
-    if register {
-        // Get the gateway details by querying the validator-api. Either pick one at random or use
-        // the chosen one if it's among the available ones.
-        println!("Configuring gateway");
-        let gateway = client_core::init::query_gateway_details(
-            config.get_base().get_validator_api_endpoints(),
-            user_chosen_gateway_id,
-        )
-        .await?;
-        log::debug!("Querying gateway gives: {}", gateway);
-
-        // Registering with gateway by setting up and writing shared keys to disk
-        log::trace!("Registering gateway");
-        client_core::init::register_with_gateway_and_store_keys(gateway.clone(), config.get_base())
-            .await?;
-        println!("Saved all generated keys");
-
-        Ok(gateway.into())
-    } else if user_chosen_gateway_id.is_some() {
-        // Just set the config, don't register or create any keys
-        // This assumes that the user knows what they are doing, and that the existing keys are
-        // valid for the gateway being used
-        println!("Using gateway provided by user, keeping existing keys");
-        let gateway = client_core::init::query_gateway_details(
-            config.get_base().get_validator_api_endpoints(),
-            user_chosen_gateway_id,
-        )
-        .await?;
-        log::debug!("Querying gateway gives: {}", gateway);
-        Ok(gateway.into())
-    } else {
-        println!("Not registering gateway, will reuse existing config and keys");
-        let existing_config = Config::load_from_file(Some(id)).map_err(|err| {
+fn reuse_gateway_config(id: &str) -> Result<GatewayEndpointConfig, ClientCoreError> {
+    println!("Not registering gateway, will reuse existing config and keys");
+    Config::load_from_file(Some(id))
+        .map(|existing_config| existing_config.get_base().get_gateway_endpoint().clone())
+        .map_err(|err| {
             log::error!(
                 "Unable to configure gateway: {err}. \n
                 Seems like the client was already initialized but it was not possible to read \
@@ -227,8 +201,5 @@ async fn setup_gateway(
                 removing the existing configuration and starting over."
             );
             ClientCoreError::CouldNotLoadExistingGatewayConfiguration(err)
-        })?;
-
-        Ok(existing_config.get_base().get_gateway_endpoint().clone())
-    }
+        })
 }

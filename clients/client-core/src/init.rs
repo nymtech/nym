@@ -21,7 +21,7 @@ use url::Url;
 
 use crate::{
     client::key_manager::KeyManager,
-    config::{persistence::key_pathfinder::ClientKeyPathfinder, Config},
+    config::{persistence::key_pathfinder::ClientKeyPathfinder, Config, GatewayEndpointConfig},
     error::ClientCoreError,
 };
 
@@ -138,6 +138,41 @@ async fn register_with_gateway(
         .await
         .tap_err(|_| log::warn!("Failed to register with the gateway!"))?;
     Ok(shared_keys)
+}
+
+pub async fn setup_gateway<T: NymConfig>(
+    register: bool,
+    user_chosen_gateway_id: Option<&str>,
+    config: &Config<T>,
+) -> Result<GatewayEndpointConfig, ClientCoreError> {
+    if register {
+        // Get the gateway details by querying the validator-api. Either pick one at random or use
+        // the chosen one if it's among the available ones.
+        println!("Configuring gateway");
+        let gateway =
+            query_gateway_details(config.get_validator_api_endpoints(), user_chosen_gateway_id)
+                .await?;
+        log::debug!("Querying gateway gives: {}", gateway);
+
+        // Registering with gateway by setting up and writing shared keys to disk
+        log::trace!("Registering gateway");
+        register_with_gateway_and_store_keys(gateway.clone(), config).await?;
+        println!("Saved all generated keys");
+
+        Ok(gateway.into())
+    } else if user_chosen_gateway_id.is_some() {
+        // Just set the config, don't register or create any keys
+        // This assumes that the user knows what they are doing, and that the existing keys are
+        // valid for the gateway being used
+        println!("Using gateway provided by user, keeping existing keys");
+        let gateway =
+            query_gateway_details(config.get_validator_api_endpoints(), user_chosen_gateway_id)
+                .await?;
+        log::debug!("Querying gateway gives: {}", gateway);
+        Ok(gateway.into())
+    } else {
+        Err(ClientCoreError::FailedToSetupGateway)
+    }
 }
 
 pub fn get_client_address<T>(config: &Config<T>) -> Result<Recipient, ClientCoreError>

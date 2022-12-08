@@ -14,6 +14,7 @@ use nymsphinx::addressing::nodes::NodeIdentity;
 use rand::rngs::OsRng;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use serde::Serialize;
 use tap::TapFallible;
 use topology::{filter::VersionFilterable, gateway};
 use url::Url;
@@ -23,6 +24,32 @@ use crate::{
     config::{persistence::key_pathfinder::ClientKeyPathfinder, Config},
     error::ClientCoreError,
 };
+
+#[derive(Debug, Serialize)]
+pub struct InitResults {
+    version: String,
+    id: String,
+    identity_key: String,
+    sphinx_key: String,
+    gateway_id: String,
+    gateway_listener: String,
+}
+
+impl InitResults {
+    pub fn new<T>(config: &Config<T>, address: &Recipient) -> Self
+    where
+        T: NymConfig,
+    {
+        Self {
+            version: config.get_version().to_string(),
+            id: config.get_id(),
+            identity_key: address.identity().to_base58_string(),
+            sphinx_key: address.encryption_key().to_base58_string(),
+            gateway_id: config.get_gateway_id(),
+            gateway_listener: config.get_gateway_listener(),
+        }
+    }
+}
 
 pub async fn query_gateway_details(
     validator_servers: Vec<Url>,
@@ -102,7 +129,7 @@ async fn register_with_gateway(
     Ok(shared_keys)
 }
 
-pub fn show_address<T>(config: &Config<T>) -> Result<(), ClientCoreError>
+pub fn get_client_address<T>(config: &Config<T>) -> Result<Recipient, ClientCoreError>
 where
     T: config::NymConfig,
 {
@@ -142,6 +169,5 @@ where
         NodeIdentity::from_base58_string(config.get_gateway_id())?,
     );
 
-    println!("\nThe address of this client is: {}", client_recipient);
-    Ok(())
+    Ok(client_recipient)
 }

@@ -19,7 +19,9 @@ pin-project = "1.0"
 pretty_env_logger = "0.4"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { version = "1.0", features = ["derive"] } # for config serialization/deserialization
+serde_json = "1.0.89"
 snafu = "0.6"
+tap = "1.0.1"
 thiserror = "1.0.34"
 tokio = { version = "1.21.2", features = ["rt-multi-thread", "net", "signal"] }
 url = "2.2"
@@ -46,7 +48,6 @@ task = { path = "../../common/task" }
 topology = { path = "../../common/topology" }
 validator-client = { path = "../../common/client-libs/validator-client", features = ["nymd-client"] }
 version-checker = { path = "../../common/version-checker" }
-tap = "1.0.1"
 
 [features]
 coconut = ["coconut-interface", "credentials", "gateway-requests/coconut", "gateway-client/coconut", "credentials/coconut", "client-core/coconut"]

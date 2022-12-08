@@ -4,6 +4,8 @@
 use clap::Args;
 use client_core::{config::GatewayEndpointConfig, error::ClientCoreError};
 use config::NymConfig;
+use nymsphinx::addressing::clients::Recipient;
+use serde::Serialize;
 
 use crate::{
     client::config::Config,
@@ -55,6 +57,10 @@ pub(crate) struct Init {
     #[cfg(feature = "coconut")]
     #[clap(long)]
     enabled_credentials_mode: bool,
+
+    /// Save a summary of the initialization to a json file
+    #[clap(long)]
+    output_json: bool,
 }
 
 impl From<Init> for OverrideConfig {
@@ -69,6 +75,22 @@ impl From<Init> for OverrideConfig {
 
             #[cfg(feature = "coconut")]
             enabled_credentials_mode: init_config.enabled_credentials_mode,
+        }
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct InitResults {
+    #[serde(flatten)]
+    client_core: client_core::init::InitResults,
+    client_listening_port: String,
+}
+
+impl InitResults {
+    pub fn new(config: &Config, address: &Recipient) -> Self {
+        Self {
+            client_core: client_core::init::InitResults::new(config.get_base(), address),
+            client_listening_port: config.get_listening_port().to_string(),
         }
     }
 }
@@ -126,10 +148,27 @@ pub(crate) async fn execute(args: &Init) {
     );
     println!("Client configuration completed.");
 
-    client_core::init::show_address(config.get_base()).unwrap_or_else(|err| {
+    let address = client_core::init::get_client_address(config.get_base()).unwrap_or_else(|err| {
         eprintln!("Failed to show address\nError: {err}");
         std::process::exit(1)
     });
+
+    println!("\nThe address of this client is: {}", address);
+
+    // Output summary to a json file, if specified
+    if args.output_json {
+        let init_results = InitResults::new(&config, &address);
+        let output_file = "client_init_results.json";
+        match std::fs::File::create(output_file) {
+            Ok(file) => match serde_json::to_writer_pretty(file, &init_results) {
+                Ok(_) => println!("Saved: {}", output_file),
+                Err(err) => eprintln!("Could not save {}: {}", output_file, err),
+            },
+            Err(err) => eprintln!("Could not save {}: {}", output_file, err),
+        }
+    }
+
+    dbg!(&config);
 }
 
 async fn setup_gateway(

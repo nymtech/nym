@@ -126,7 +126,7 @@ pub(crate) async fn execute(args: &Init) {
     );
     println!("Client configuration completed.");
 
-    client_core::init::show_address(config.get_base()).unwrap_or_else(|err| {
+    client_core::init::get_client_address(config.get_base()).unwrap_or_else(|err| {
         eprintln!("Failed to show address\nError: {err}");
         std::process::exit(1)
     });

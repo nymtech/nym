@@ -4,10 +4,13 @@
 use clap::Args;
 use client_core::{config::GatewayEndpointConfig, error::ClientCoreError};
 use config::NymConfig;
+use nymsphinx::addressing::clients::Recipient;
+use serde::Serialize;
 
 use crate::{
     client::config::Config,
     commands::{override_config, OverrideConfig},
+    error::Socks5ClientError,
 };
 
 #[derive(Args, Clone)]
@@ -71,6 +74,22 @@ impl From<Init> for OverrideConfig {
     }
 }
 
+#[derive(Debug, Serialize)]
+pub struct InitResults {
+    #[serde(flatten)]
+    client_core: client_core::init::InitResults,
+    socks5_listening_port: String,
+}
+
+impl InitResults {
+    pub fn new(config: &Config, address: &Recipient) -> Self {
+        Self {
+            client_core: client_core::init::InitResults::new(config.get_base(), address),
+            socks5_listening_port: config.get_listening_port().to_string(),
+        }
+    }
+}
+
 pub(crate) async fn execute(args: &Init) {
     println!("Initialising client...");
 
@@ -125,10 +144,16 @@ pub(crate) async fn execute(args: &Init) {
     );
     println!("Client configuration completed.");
 
-    client_core::init::show_address(config.get_base()).unwrap_or_else(|err| {
+    let address = client_core::init::get_client_address(config.get_base()).unwrap_or_else(|err| {
         eprintln!("Failed to show address\nError: {err}");
         std::process::exit(1)
     });
+
+    let init_results = InitResults::new(&config, &address);
+    let init_results_json = serde_json::to_string_pretty(&init_results);
+    if let Ok(init_results) = init_results_json {
+        println!("{}", init_results);
+    }
 }
 
 async fn setup_gateway(

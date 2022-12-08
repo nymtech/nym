@@ -4,6 +4,7 @@
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) enum ComplaintReason {
     MalformedBTEPublicKey,
+    InvalidBTEPublicKey,
     MissingDealing,
     MalformedDealing,
     DealingVerificationError,

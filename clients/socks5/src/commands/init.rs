@@ -164,7 +164,7 @@ pub(crate) async fn execute(args: &Init) {
     );
     println!("Client configuration completed.\n");
 
-    let address = client_core::init::get_client_address(config.get_base()).unwrap_or_else(|err| {
+    let address = client_core::init::get_client_address_from_stored_keys(config.get_base()).unwrap_or_else(|err| {
         eprintln!("Failed to get address\nError: {err}");
         std::process::exit(1)
     });

@@ -72,6 +72,7 @@ export type MixnodesDetailed = {
   performance: string;
   estimated_operator_apy: string
   estimated_delegators_apy: string;
+  family: string
 };
 
 export type BlacklistedMixnodes = {

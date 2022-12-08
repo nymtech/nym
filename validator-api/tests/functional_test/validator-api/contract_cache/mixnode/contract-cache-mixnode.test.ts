@@ -78,6 +78,7 @@ describe("Get mixnode data", (): void => {
       expect(typeof mixnode.performance).toBe('string');
       expect(typeof mixnode.uncapped_stake_saturation).toBe('string');
       expect(typeof mixnode.stake_saturation).toBe('string');
+      expect(typeof mixnode.family).toBe('string');
 
       //mixnode details bond info
       expect(typeof mixnode.mixnode_details.bond_information.mix_id).toBe('number')

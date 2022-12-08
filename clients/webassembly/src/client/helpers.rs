@@ -15,7 +15,7 @@ pub(crate) trait InputSender {
 
 impl InputSender for Arc<ClientInput> {
     fn send_message(&self, message: InputMessage) -> Promise {
-        let this = Arc::clone(&self);
+        let this = Arc::clone(self);
         future_to_promise(async move {
             match this.input_sender.send(message).await {
                 Ok(_) => Ok(JsValue::null()),

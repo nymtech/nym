@@ -63,13 +63,15 @@ impl<R: RngCore + Clone> DkgController<R> {
         )) {
             coconut_keypair.set(coconut_keypair_value).await;
         }
-        let persistent_state = PersistentState::default();
+        let persistent_state =
+            PersistentState::load_from_file(config.persistent_state_path()).unwrap_or_default();
 
         Ok(DkgController {
             dkg_client: DkgClient::new(nymd_client),
             secret_key_path: config.secret_key_path(),
             verification_key_path: config.verification_key_path(),
             state: State::new(
+                config.persistent_state_path(),
                 persistent_state,
                 config.get_announce_address(),
                 dkg_keypair,
@@ -120,6 +122,13 @@ impl<R: RngCore + Clone> DkgController<R> {
                 };
                 if let Err(e) = ret {
                     warn!("Could not handle this iteration for the epoch state: {}", e);
+                } else {
+                    let persistent_state = PersistentState::from(&self.state);
+                    if let Err(e) =
+                        persistent_state.save_to_file(self.state.persistent_state_path())
+                    {
+                        warn!("Could not backup the state for this iteration: {}", e);
+                    }
                 }
             }
         }

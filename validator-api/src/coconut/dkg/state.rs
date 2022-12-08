@@ -12,6 +12,7 @@ use dkg::{NodeIndex, RecoveredVerificationKeys, Threshold};
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 use url::Url;
 
 fn bte_pk_serialize<'se, S: Serializer>(
@@ -30,7 +31,7 @@ where
 }
 
 // note: each dealer is also a receiver which simplifies some logic significantly
-#[derive(Deserialize, Debug, Serialize)]
+#[derive(Clone, Deserialize, Debug, Serialize)]
 pub(crate) struct DkgParticipant {
     pub(crate) _address: Addr,
     #[serde(serialize_with = "bte_pk_serialize")]
@@ -171,7 +172,34 @@ pub(crate) struct PersistentState {
     executed_proposal: bool,
 }
 
+impl From<&State> for PersistentState {
+    fn from(s: &State) -> Self {
+        PersistentState {
+            node_index: s.node_index,
+            dealers: s.dealers.clone(),
+            receiver_index: s.receiver_index,
+            threshold: s.threshold,
+            recovered_vks: s.recovered_vks.clone(),
+            proposal_id: s.proposal_id,
+            voted_vks: s.voted_vks,
+            executed_proposal: s.executed_proposal,
+        }
+    }
+}
+
+impl PersistentState {
+    pub fn save_to_file(&self, path: PathBuf) -> Result<(), CoconutError> {
+        std::fs::write(path, serde_json::to_string(self)?)?;
+        Ok(())
+    }
+
+    pub fn load_from_file(path: PathBuf) -> Result<Self, CoconutError> {
+        Ok(serde_json::from_str(&std::fs::read_to_string(path)?)?)
+    }
+}
+
 pub(crate) struct State {
+    persistent_state_path: PathBuf,
     announce_address: Url,
     dkg_keypair: DkgKeyPair,
     coconut_keypair: CoconutKeyPair,
@@ -187,12 +215,14 @@ pub(crate) struct State {
 
 impl State {
     pub fn new(
+        persistent_state_path: PathBuf,
         persistent_state: PersistentState,
         announce_address: Url,
         dkg_keypair: DkgKeyPair,
         coconut_keypair: CoconutKeyPair,
     ) -> Self {
         State {
+            persistent_state_path,
             announce_address,
             dkg_keypair,
             coconut_keypair,
@@ -205,6 +235,10 @@ impl State {
             voted_vks: persistent_state.voted_vks,
             executed_proposal: persistent_state.executed_proposal,
         }
+    }
+
+    pub fn persistent_state_path(&self) -> PathBuf {
+        self.persistent_state_path.clone()
     }
 
     pub fn announce_address(&self) -> &Url {

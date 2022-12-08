@@ -178,7 +178,7 @@ mod packet_encoding {
         ];
         SphinxPacketBuilder::new()
             .with_payload_size(size.payload_size())
-            .build_packet(b"foomp".to_vec(), &route, &destination, &delays)
+            .build_packet(b"foomp", &route, &destination, &delays)
             .unwrap()
     }
 

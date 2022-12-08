@@ -393,9 +393,10 @@ impl Handler {
                 }
                 // or a reconstructed mix message that we need to push back to the client
                 mix_messages = msg_receiver.next() => {
-                    let mix_messages = mix_messages.expect(
-                        "mix messages sender was unexpectedly closed! this shouldn't have ever happened!",
-                    );
+                    let Some(mix_messages) = mix_messages else {
+                        error!("mix messages sender was unexpectedly closed! this shouldn't have ever happened! (unless we're shutting down - TODO: implement proper graceful shutdown handler)");
+                        return
+                    };
                     if let Err(e) = self.push_websocket_received_plaintexts(mix_messages).await {
                         warn!("failed to send sphinx packets back to the client - {:?}, assuming the connection is dead", e);
                         break;

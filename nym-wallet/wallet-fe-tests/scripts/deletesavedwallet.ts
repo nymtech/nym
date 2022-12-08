@@ -1,9 +1,11 @@
-const { exec } = require("child_process")
+const { exec } = require('child_process');
+const os = require('os');
 
-const deleteSavedFile = exec("rm '/home/benedetta/.local/share/nym-wallet/saved-wallet.json'", (err, stdout, stderr) => {
-    if (err) {
-        console.error(`${err.message}`)
-        return
-    } else
-        console.log("File deleted")
-})
+let homedir = os.homedir();
+
+const doesFileExist = exec(`test -f ${homedir}/.local/share/nym-wallet/saved-wallet.json`, (err, stdout, stderr) => {
+  if (err) {
+    console.error(`${err.message}`);
+    return;
+  } else console.log('File deleted');
+});

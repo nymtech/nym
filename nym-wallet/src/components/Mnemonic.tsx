@@ -2,6 +2,7 @@ import React from 'react';
 import { Button, Stack, TextField, Typography } from '@mui/material';
 import { Check, ContentCopySharp } from '@mui/icons-material';
 import { Warning } from './Warning';
+import { MnemonicModal } from './Accounts/modals/MnemonicModal';
 
 export const Mnemonic = ({
   mnemonic,
@@ -14,18 +15,19 @@ export const Mnemonic = ({
 }) => (
   <Stack spacing={2} alignItems="center">
     <Warning>
-      <Typography sx={{ textAlign: 'center' }}>
+      <Typography sx={{ textAlign: 'center' }} data-testid="below24word">
         Below is your 24 word mnemonic, make sure to store it in a safe place for accessing your wallet in the future
       </Typography>
     </Warning>
     <TextField
       label="Mnemonic"
+      id="mnemonicPhrase"
       type="input"
       value={mnemonic}
       multiline
       autoFocus={false}
       fullWidth
-      inputProps={{
+      inputProps={{ 
         style: {
           height: '160px',
         },
@@ -39,6 +41,7 @@ export const Mnemonic = ({
     />
 
     <Button
+      data-testid="copyMnemonic"
       color="inherit"
       disableElevation
       size="large"

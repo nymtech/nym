@@ -1,86 +1,114 @@
-import Balance from '../test/pageobjects/balanceScreen'
-import Auth from '../test/pageobjects/authScreens'
-const userData = require("../common/user-data.json");
-const deleteScript = require("../scripts/deletesavedwallet")
-const savedWalletScript = require("../scripts/savedwalletexists")
-
+import Balance from '../test/pageobjects/balanceScreen';
+import Auth from '../test/pageobjects/authScreens';
+const userData = require('../common/user-data.json');
+const deleteScript = require('../scripts/deletesavedwallet');
+const savedWalletScript = require('../scripts/deletesavedwallet.ts');
 
 class Helpers {
-
-  // clear wallet data, login, and navigate to QA network 
+  // clear wallet data, login, and navigate to QA network
   freshMnemonicLoginQaNetwork = async () => {
-    await deleteScript
-    await savedWalletScript
-    await Auth.loginWithMnemonic(userData.mnemonic)
-    await Balance.selectQa()
-  }
+    await deleteScript;
+    await savedWalletScript;
+    // await Auth.loginWithMnemonic(userData.mnemonic)
+    await this.loginMnemonic();
+    await Balance.selectQa();
+  };
 
+  // login with a mnemonic
   loginMnemonic = async () => {
-    await Auth.loginWithMnemonic(userData.mnemonic)
-  }
+    var decodedmnemonic = this.decodeBase(userData.mnemonic);
+    await Auth.loginWithMnemonic(decodedmnemonic);
+  };
 
-  //helper to decode mnemonic so plain 24 character passphrase isn't in sight albeit it is presented when ruunning the scripts
-  // TO-DO figure out what's going on with the decoding bit
-  decodeBase = async (input) => {
-    var m = Buffer.from(input, "base64").toString();
-    return m;
-  }
+  // click the mnemonic words by index position
 
-  navigateAndClick = async (element) => {
-    await element.waitForClickable({ timeout: 6000 })
-    await element.click();
-  }
+  // TO-DO find the best approach
+  mnemonicWordTileIndex = async () => {
+    let mnemonic = await browser.execute(() => {
+      // @ts-ignore: Object is possibly 'null'.
+      return document.getElementById('mnemonicPhrase').innerHTML;
+    });
 
-  elementVisible = async (element) => {
-    await element.waitForDisplayed({ timeout: 6000 })
-  }
+    let arrayMnemonic = mnemonic.split(' ');
 
-  elementClickable = async (element) => {
-    await element.toBeClickable({ timeout: 8000 })
-  }
+    await this.navigateAndClick(Auth.copyMnemonic);
+    await this.navigateAndClick(Auth.iSavedMnemonic);
+    // verify the mnemonic words in the correct order
+    let mnemonicWordTiles = await Auth.mnemonicWordTile;
+    let wordTileIndex = await Auth.wordIndex;
 
-  addValueToTextField = async (element, value) => {
-    await element.addValue(value)
-  }
+    const wordsArray: any[] = [];
 
-  verifyStrictText = async (element, expectedText) => {
-    let error = await element.getText()
-    expect(error).toStrictEqual(expectedText)
-
-  }
-
-  verifyPartialText = async (element, expectedText) => {
-    let error = await element.getText()
-    expect(error).toContain(expectedText)
-  }
-
-  currentBalance = async (value) => {
-    return parseFloat(value.split(/\s+/)[0].toString()).toFixed(5)
-  }
-
-
-  calculateFees = async (beforeBalance, transactionFee, amount, isSend) => {
-    let fee
-
-    if (isSend) {
-      //send transaction
-      fee = transactionFee.split(/\s+/)[0]
-    } else {
-      //delegate transaction
-      fee = transactionFee.split(/\s+/)[3]
+    for (const word of mnemonicWordTiles) {
+      const wordText = await word.getText();
+      const index = arrayMnemonic.indexOf(wordText);
+      wordsArray.push({ word, index });
+    }
+    for (const index of wordTileIndex) {
+      const indexValue = await index.getText();
+      const match = wordsArray.find((word) => +word.index === +indexValue - 1);
+      if (match) {
+        await match.word.click();
+      }
     }
 
-    const currentBalance = beforeBalance.split(/\s+/)[0]
-    console.log("currenttttt 2 ............. = " + currentBalance)
-    const castCurrentBalance = parseFloat(currentBalance).toFixed(5)
-    console.log("castttt ............. " + castCurrentBalance)
-    const transCost = +parseFloat(amount) + +parseFloat(fee).toFixed(5)
-    console.log("trans ............." + transCost)
+    const nextButton = await Auth.nextToStep3;
+    //something needs checking over here
+    const isNextDisabled = await nextButton.getAttribute('disabled');
+    expect(isNextDisabled).toBe(null);
+    await this.navigateAndClick(Auth.nextToStep3);
+  };
 
-    let sum = +castCurrentBalance - transCost
-    return sum.toFixed(5)
+  // decode user data file
+  decodeBase = (input) => {
+    const m = Buffer.from(input, 'base64').toString();
+    return m;
+  };
+
+  // common actions
+  navigateAndClick = async (element) => {
+    await element.waitForClickable({ timeout: 6000 });
+    await element.click();
+  };
+
+  elementVisible = async (element) => {
+    await element.waitForDisplayed({ timeout: 6000 });
+  };
+
+  elementGetText = async (element) => {
+    await element.getText(element);
+  };
+
+  elementClickable = async (element) => {
+    await element.toBeClickable({ timeout: 8000 });
+  };
+
+  addValueToTextField = async (element, value) => {
+    await element.addValue(value);
+  };
+
+  verifyStrictText = async (element, expectedText) => {
+    let error = await element.getText();
+    expect(error).toStrictEqual(expectedText);
+  };
+
+  verifyPartialText = async (element, expectedText) => {
+    let error = await element.getText();
+    expect(error).toContain(expectedText);
+  };
+
+  getAccountAddress = async () => {
+    // fix this in the future to make it generic
+    
+    let address = await browser.execute(() => {
+      return document.querySelectorAll("[data-testid='wallet-address']")[0].innerHTML;
+    });
+    return address;
   }
+
+  //removed those nasty methods as we can now get the correct txs fee from estimation
+  //add cleaner approach
 
 }
 
-module.exports = new Helpers();
+export default new Helpers();

@@ -16,7 +16,7 @@ const NetworkItem: React.FC<{ title: string; isSelected: boolean; onSelect: () =
   isSelected,
   onSelect,
 }) => (
-  <ListItem button onClick={onSelect}>
+  <ListItem button onClick={onSelect} data-testid={title}>
     <ListItemIcon>{isSelected && <CheckSharp color="success" />}</ListItemIcon>
     <ListItemText>{title}</ListItemText>
   </ListItem>
@@ -38,6 +38,7 @@ export const NetworkSelector = () => {
   return (
     <>
       <Button
+        data-testid="networkEnv"
         variant="text"
         color="inherit"
         sx={{ color: 'text.primary', fontSize: 14 }}

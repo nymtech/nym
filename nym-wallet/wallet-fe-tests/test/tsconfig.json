@@ -1,12 +1,7 @@
 {
-    "compilerOptions": {
-        "moduleResolution": "node",
-        "types": [
-            "node",
-            "webdriverio/async",
-            "@wdio/mocha-framework",
-            "expect-webdriverio"
-        ],
-        "target": "ES5"
-    }
+  "compilerOptions": {
+    "moduleResolution": "node",
+    "types": ["node", "webdriverio/async", "@wdio/mocha-framework", "expect-webdriverio"],
+    "target": "ES5"
+  }
 }

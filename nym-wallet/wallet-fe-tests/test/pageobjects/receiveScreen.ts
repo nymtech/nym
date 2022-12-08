@@ -1,7 +1,7 @@
 class Receive {
-
-    get receiveNymTitle() { return $("[data-testid='Receive NYM']") }
-
+  get receiveNymTitle() {
+    return $("[data-testid='Receive NYM']");
+  }
 }
 
-export default new Receive()
+export default new Receive();

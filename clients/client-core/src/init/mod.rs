@@ -57,39 +57,41 @@ impl Display for InitResults {
     }
 }
 
-pub async fn setup_gateway<T: NymConfig>(
-    register: bool,
-    user_chosen_gateway_id: Option<&str>,
+// Get the gateway details by querying the validator-api. Either pick one at random or use
+// the chosen one if it's among the available ones.
+// Saves keys to disk, specified by the paths in `config`.
+pub async fn register_with_gateway<T: NymConfig>(
+    user_chosen_gateway_id: Option<String>,
     config: &Config<T>,
 ) -> Result<GatewayEndpointConfig, ClientCoreError> {
-    if register {
-        // Get the gateway details by querying the validator-api. Either pick one at random or use
-        // the chosen one if it's among the available ones.
-        println!("Configuring gateway");
-        let gateway =
-            query_gateway_details(config.get_validator_api_endpoints(), user_chosen_gateway_id)
-                .await?;
-        log::debug!("Querying gateway gives: {}", gateway);
+    println!("Configuring gateway");
+    let gateway =
+        query_gateway_details(config.get_validator_api_endpoints(), user_chosen_gateway_id).await?;
+    log::debug!("Querying gateway gives: {}", gateway);
 
-        // Registering with gateway by setting up and writing shared keys to disk
-        log::trace!("Registering gateway");
-        register_with_gateway_and_store_keys(gateway.clone(), config).await?;
-        println!("Saved all generated keys");
+    // Registering with gateway by setting up and writing shared keys to disk
+    log::trace!("Registering gateway");
+    register_with_gateway_and_store_keys(gateway.clone(), config).await?;
+    println!("Saved all generated keys");
 
-        Ok(gateway.into())
-    } else if user_chosen_gateway_id.is_some() {
-        // Just set the config, don't register or create any keys
-        // This assumes that the user knows what they are doing, and that the existing keys are
-        // valid for the gateway being used
-        println!("Using gateway provided by user, keeping existing keys");
-        let gateway =
-            query_gateway_details(config.get_validator_api_endpoints(), user_chosen_gateway_id)
-                .await?;
-        log::debug!("Querying gateway gives: {}", gateway);
-        Ok(gateway.into())
-    } else {
-        Err(ClientCoreError::FailedToSetupGateway)
-    }
+    Ok(gateway.into())
+}
+
+// Just set the config, don't register or create any keys
+// This assumes that the user knows what they are doing, and that the existing keys are
+// valid for the gateway being used
+pub async fn config_gateway_with_existing_keys<T: NymConfig>(
+    user_chosen_gateway_id: String,
+    config: &Config<T>,
+) -> Result<GatewayEndpointConfig, ClientCoreError> {
+    println!("Using gateway provided by user, keeping existing keys");
+    let gateway = query_gateway_details(
+        config.get_validator_api_endpoints(),
+        Some(user_chosen_gateway_id),
+    )
+    .await?;
+    log::debug!("Querying gateway gives: {}", gateway);
+    Ok(gateway.into())
 }
 
 pub fn get_client_address_from_stored_keys<T>(
@@ -135,4 +137,14 @@ where
     );
 
     Ok(client_recipient)
+}
+
+pub fn output_to_json<T: Serialize>(init_results: &T, output_file: &str) {
+    match std::fs::File::create(output_file) {
+        Ok(file) => match serde_json::to_writer_pretty(file, init_results) {
+            Ok(_) => println!("Saved: {}", output_file),
+            Err(err) => eprintln!("Could not save {}: {}", output_file, err),
+        },
+        Err(err) => eprintln!("Could not save {}: {}", output_file, err),
+    }
 }

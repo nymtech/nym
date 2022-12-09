@@ -18,7 +18,7 @@ use crate::{
 
 pub(super) async fn query_gateway_details(
     validator_servers: Vec<Url>,
-    chosen_gateway_id: Option<&str>,
+    chosen_gateway_id: Option<String>,
 ) -> Result<gateway::Node, ClientCoreError> {
     let validator_api = validator_servers
         .choose(&mut thread_rng())

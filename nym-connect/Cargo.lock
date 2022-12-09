@@ -647,6 +647,7 @@ dependencies = [
  "pemstore",
  "rand 0.7.3",
  "serde",
+ "serde_json",
  "sled",
  "tap",
  "task",

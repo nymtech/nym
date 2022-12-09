@@ -291,21 +291,4 @@ impl RealMessagesController<OsRng> {
 
         ack_control.start_with_shutdown(shutdown);
     }
-
-    #[cfg(target_arch = "wasm32")]
-    pub fn start(self) {
-        let mut out_queue_control = self.out_queue_control;
-        let ack_control = self.ack_control;
-        let mut reply_control = self.reply_control;
-
-        spawn_future(async move {
-            out_queue_control.run().await;
-            debug!("The out queue controller has finished execution!");
-        });
-        spawn_future(async move {
-            reply_control.run().await;
-            debug!("The reply controller has finished execution!");
-        });
-        ack_control.start();
-    }
 }

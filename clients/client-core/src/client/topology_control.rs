@@ -341,21 +341,4 @@ impl TopologyRefresher {
             log::debug!("TopologyRefresher: Exiting");
         })
     }
-
-    pub fn start(mut self) {
-        spawn_future(async move {
-            #[cfg(not(target_arch = "wasm32"))]
-            let mut interval = tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(
-                self.refresh_rate,
-            ));
-
-            #[cfg(target_arch = "wasm32")]
-            let mut interval =
-                gloo_timers::future::IntervalStream::new(self.refresh_rate.as_millis() as u32);
-
-            while (interval.next().await).is_some() {
-                self.refresh().await;
-            }
-        })
-    }
 }

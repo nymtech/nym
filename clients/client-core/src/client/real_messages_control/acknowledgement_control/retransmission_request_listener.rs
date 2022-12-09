@@ -250,14 +250,4 @@ where
         shutdown.recv_timeout().await;
         log::debug!("RetransmissionRequestListener: Exiting");
     }
-
-    // todo: think whether this is still required
-    #[allow(dead_code)]
-    pub(super) async fn run(&mut self) {
-        debug!("Started RetransmissionRequestListener without graceful shutdown support");
-
-        while let Some(timed_out_ack) = self.request_receiver.next().await {
-            self.on_retransmission_request(timed_out_ack).await;
-        }
-    }
 }

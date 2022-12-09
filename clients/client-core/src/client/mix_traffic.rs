@@ -101,14 +101,4 @@ impl MixTrafficController {
             log::debug!("MixTrafficController: Exiting");
         })
     }
-
-    pub fn start(mut self) {
-        spawn_future(async move {
-            debug!("Started MixTrafficController without graceful shutdown support");
-
-            while let Some(mix_packets) = self.mix_rx.recv().await {
-                self.on_messages(mix_packets).await;
-            }
-        })
-    }
 }

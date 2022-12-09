@@ -91,14 +91,4 @@ impl AcknowledgementListener {
         shutdown.recv_timeout().await;
         log::debug!("AcknowledgementListener: Exiting");
     }
-
-    // todo: think whether this is still required
-    #[allow(dead_code)]
-    pub(super) async fn run(&mut self) {
-        debug!("Started AcknowledgementListener without graceful shutdown support");
-
-        while let Some(acks) = self.ack_receiver.next().await {
-            self.handle_ack_receiver_item(acks).await
-        }
-    }
 }

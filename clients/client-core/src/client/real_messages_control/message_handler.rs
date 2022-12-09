@@ -305,7 +305,6 @@ where
         reply_surbs: Vec<ReplySurb>,
         lane: TransmissionLane,
     ) -> Result<(), SurbWrappedPreparationError> {
-        // this should never be reached!
         debug_assert_ne!(
             fragments.len(),
             reply_surbs.len(),

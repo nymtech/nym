@@ -274,17 +274,4 @@ impl ActionController {
             .expect("Task stopped without shutdown called");
         log::debug!("ActionController: Exiting");
     }
-
-    // todo: think whether this is still required
-    #[allow(dead_code)]
-    pub(super) async fn run(&mut self) {
-        debug!("Started ActionController without graceful shutdown support");
-
-        loop {
-            tokio::select! {
-                action = self.incoming_actions.next() => self.process_action(action.unwrap()),
-                expired_ack = self.pending_acks_timers.next() => self.handle_expired_ack_timer(expired_ack.unwrap())
-            }
-        }
-    }
 }

@@ -296,35 +296,4 @@ where
             debug!("The controller has finished execution!");
         });
     }
-
-    // todo: think whether this is still required
-    #[allow(dead_code)]
-    pub(super) fn start(self) {
-        let mut acknowledgement_listener = self.acknowledgement_listener;
-        let mut input_message_listener = self.input_message_listener;
-        let mut retransmission_request_listener = self.retransmission_request_listener;
-        let mut sent_notification_listener = self.sent_notification_listener;
-        let mut action_controller = self.action_controller;
-
-        spawn_future(async move {
-            acknowledgement_listener.run().await;
-            error!("The acknowledgement listener has finished execution!");
-        });
-        spawn_future(async move {
-            input_message_listener.run().await;
-            error!("The input listener has finished execution!");
-        });
-        spawn_future(async move {
-            retransmission_request_listener.run().await;
-            error!("The retransmission request listener has finished execution!");
-        });
-        spawn_future(async move {
-            sent_notification_listener.run().await;
-            error!("The sent notification listener has finished execution!");
-        });
-        spawn_future(async move {
-            action_controller.run().await;
-            error!("The controller has finished execution!");
-        });
-    }
 }

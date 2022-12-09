@@ -659,19 +659,4 @@ where
         assert!(shutdown.is_shutdown_poll());
         log::debug!("ReplyController: Exiting");
     }
-
-    #[cfg(target_arch = "wasm32")]
-    pub(crate) async fn run(&mut self) {
-        debug!("Started ReplyController without graceful shutdown support");
-
-        let polling_rate = Duration::from_secs(5);
-        let mut interval = Self::create_interval_stream(polling_rate);
-
-        loop {
-            tokio::select! {
-                req = self.request_receiver.next() => self.handle_request(req.unwrap()).await,
-                _ = interval.next() => self.inspect_stale_entries().await
-            }
-        }
-    }
 }

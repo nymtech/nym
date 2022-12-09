@@ -26,7 +26,7 @@ export const NodeUnbondPage = ({ bondedNode, onConfirm, onError }: Props) => {
           {isMixnode(bondedNode) && (
             <Grid item>
               <Typography variant="body2" sx={{ color: (theme) => theme.palette.nym.text.muted }}>
-                If you unbond you will loose all delegations!
+                If you unbond you will lose all delegations!
               </Typography>
             </Grid>
           )}

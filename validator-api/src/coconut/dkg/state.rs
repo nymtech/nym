@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use url::Url;
 
-fn bte_pk_serialize<'se, S: Serializer>(
+fn bte_pk_serialize<S: Serializer>(
     val: &PublicKeyWithProof,
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
@@ -137,7 +137,7 @@ impl ConsistentState for State {
     }
 }
 
-fn vks_serialize<'se, S: Serializer>(
+fn vks_serialize<S: Serializer>(
     val: &[RecoveredVerificationKeys],
     serializer: S,
 ) -> Result<S::Ok, S::Error> {

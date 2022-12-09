@@ -1,4 +1,4 @@
-use client_core::config::GatewayEndpointConfig;
+use client_core::config::{ClientCoreConfigTrait, GatewayEndpointConfig};
 use futures::channel::mpsc;
 use std::sync::Arc;
 use tap::TapFallible;

@@ -115,6 +115,9 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     // Future proofing. This flag exists for the other clients
     let user_wants_force_register = false;
 
+    // If the client was already initialized, don't generate new keys and don't re-register with
+    // the gateway (because this would create a new shared key).
+    // Unless the user really wants to.
     let register_gateway = !already_init || user_wants_force_register;
 
     log::trace!("Creating config for id: {}", id);
@@ -126,9 +129,10 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
             .set_custom_validator_apis(config_common::parse_validators(&raw_validators));
     }
 
-    let gateway = client_core::init::setup_gateway(
+    // Setup gateway by either registering a new one, or reusing exiting keys
+    let gateway = client_core::init::setup_gateway::<Socks5Config, _>(
         register_gateway,
-        Some(&chosen_gateway_id),
+        Some(chosen_gateway_id),
         config.get_base(),
     )
     .await?;
@@ -139,14 +143,14 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         log::error!("Failed to save the config file");
     })?;
 
-    print_save_config(&config);
+    print_saved_config(&config);
 
-    let address = client_core::init::get_client_address(config.get_base())?;
+    let address = client_core::init::get_client_address_from_stored_keys(config.get_base())?;
     log::info!("The address of this client is: {}", address);
     Ok(())
 }
 
-fn print_save_config(config: &Config) {
+fn print_saved_config(config: &Config) {
     log::info!(
         "Saved configuration file to {:?}",
         config.get_socks5().get_config_file_save_location()
@@ -157,7 +161,6 @@ fn print_save_config(config: &Config) {
         "Gateway listener: {}",
         config.get_base().get_gateway_listener()
     );
-
     log::info!(
         "Service provider address: {}",
         config.get_socks5().get_provider_mix_address()

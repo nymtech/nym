@@ -4,14 +4,15 @@
 use std::fmt::Display;
 
 use clap::Args;
-use client_core::{config::GatewayEndpointConfig, error::ClientCoreError};
 use config::NymConfig;
 use nymsphinx::addressing::clients::Recipient;
 use serde::Serialize;
+use tap::TapFallible;
 
 use crate::{
     client::config::Config,
     commands::{override_config, OverrideConfig},
+    error::ClientError,
 };
 
 #[derive(Args, Clone)]
@@ -89,7 +90,7 @@ pub struct InitResults {
 }
 
 impl InitResults {
-    pub fn new(config: &Config, address: &Recipient) -> Self {
+    fn new(config: &Config, address: &Recipient) -> Self {
         Self {
             client_core: client_core::init::InitResults::new(config.get_base(), address),
             client_listening_port: config.get_listening_port().to_string(),
@@ -104,7 +105,7 @@ impl Display for InitResults {
     }
 }
 
-pub(crate) async fn execute(args: &Init) {
+pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
     println!("Initialising client...");
 
     let id = &args.id;
@@ -128,33 +129,44 @@ pub(crate) async fn execute(args: &Init) {
     let register_gateway = !already_init || user_wants_force_register;
 
     // Attempt to use a user-provided gateway, if possible
-    let user_chosen_gateway_id = args.gateway.as_deref();
+    let user_chosen_gateway_id = args.gateway.clone();
 
-    let mut config = Config::new(id);
-    let override_config_fields = OverrideConfig::from(args.clone());
-    config = override_config(config, override_config_fields);
+    // Load and potentially override config
+    let mut config = override_config(Config::new(id), OverrideConfig::from(args.clone()));
 
-    let gateway = if !register_gateway && user_chosen_gateway_id.is_none() {
-        reuse_gateway_config(id)
-    } else {
-        client_core::init::setup_gateway(
-            register_gateway,
-            user_chosen_gateway_id,
-            config.get_base(),
-        )
-        .await
-    }
-    .unwrap_or_else(|err| {
-        eprintln!("Failed to setup gateway\nError: {err}");
-        std::process::exit(1)
-    });
+    // Setup gateway by either registering a new one, or creating a new config from the selected
+    // one but with keys kept, or reusing the gateway configuration.
+    let gateway = client_core::init::setup_gateway::<Config, _>(
+        register_gateway,
+        user_chosen_gateway_id,
+        config.get_base(),
+    )
+    .await
+    .tap_err(|err| eprintln!("Failed to setup gateway\nError: {err}"))?;
+
     config.get_base_mut().with_gateway_endpoint(gateway);
 
-    let config_save_location = config.get_config_file_save_location();
-    config
-        .save_to_file(None)
-        .expect("Failed to save the config file");
+    config.save_to_file(None).tap_err(|_| {
+        log::error!("Failed to save the config file");
+    })?;
 
+    print_saved_config(&config);
+
+    let address = client_core::init::get_client_address_from_stored_keys(config.get_base())?;
+    let init_results = InitResults::new(&config, &address);
+    println!("{}", init_results);
+
+    // Output summary to a json file, if specified
+    if args.output_json {
+        client_core::init::output_to_json(&init_results, "client_init_results.json");
+    }
+
+    println!("\nThe address of this client is: {}\n", address);
+    Ok(())
+}
+
+fn print_saved_config(config: &Config) {
+    let config_save_location = config.get_config_file_save_location();
     println!("Saved configuration file to {:?}", config_save_location);
     println!("Using gateway: {}", config.get_base().get_gateway_id());
     log::debug!("Gateway id: {}", config.get_base().get_gateway_id());
@@ -163,43 +175,5 @@ pub(crate) async fn execute(args: &Init) {
         "Gateway listener: {}",
         config.get_base().get_gateway_listener()
     );
-    println!("Client configuration completed.");
-
-    let address = client_core::init::get_client_address(config.get_base()).unwrap_or_else(|err| {
-        eprintln!("Failed to get address\nError: {err}");
-        std::process::exit(1)
-    });
-
-    println!("\nThe address of this client is: {}\n", address);
-
-    let init_results = InitResults::new(&config, &address);
-    println!("{}", init_results);
-
-    // Output summary to a json file, if specified
-    if args.output_json {
-        let output_file = "client_init_results.json";
-        match std::fs::File::create(output_file) {
-            Ok(file) => match serde_json::to_writer_pretty(file, &init_results) {
-                Ok(_) => println!("Saved: {}", output_file),
-                Err(err) => eprintln!("Could not save {}: {}", output_file, err),
-            },
-            Err(err) => eprintln!("Could not save {}: {}", output_file, err),
-        }
-    }
-}
-
-fn reuse_gateway_config(id: &str) -> Result<GatewayEndpointConfig, ClientCoreError> {
-    println!("Not registering gateway, will reuse existing config and keys");
-    Config::load_from_file(Some(id))
-        .map(|existing_config| existing_config.get_base().get_gateway_endpoint().clone())
-        .map_err(|err| {
-            log::error!(
-                "Unable to configure gateway: {err}. \n
-                Seems like the client was already initialized but it was not possible to read \
-                the existing configuration file. \n
-                CAUTION: Consider backing up your gateway keys and try force gateway registration, or \
-                removing the existing configuration and starting over."
-            );
-            ClientCoreError::CouldNotLoadExistingGatewayConfiguration(err)
-        })
+    println!("Client configuration completed.\n");
 }

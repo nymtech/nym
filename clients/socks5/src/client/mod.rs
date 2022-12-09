@@ -131,11 +131,8 @@ impl NymClient {
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
-    pub async fn run_forever(self) -> Result<(), Box<dyn Error + Send>> {
-        let mut shutdown = self
-            .start()
-            .await
-            .map_err(|err| Box::new(err) as Box<dyn Error + Send>)?;
+    pub async fn run_forever(self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let mut shutdown = self.start().await?;
 
         let res = wait_for_signal_and_error(&mut shutdown).await;
 
@@ -153,12 +150,9 @@ impl NymClient {
     pub async fn run_and_listen(
         self,
         mut receiver: Socks5ControlMessageReceiver,
-    ) -> Result<(), Box<dyn Error + Send>> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Start the main task
-        let mut shutdown = self
-            .start()
-            .await
-            .map_err(|err| Box::new(err) as Box<dyn Error + Send>)?;
+        let mut shutdown = self.start().await?;
 
         let res = tokio::select! {
             biased;

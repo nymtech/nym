@@ -23,7 +23,7 @@ use gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
     MixnetMessageSender,
 };
-use log::info;
+use log::{debug, info};
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 #[cfg(feature = "reply-surb")]
@@ -412,8 +412,8 @@ impl<'a> BaseClientBuilder<'a> {
             );
         }
 
-        info!("Client startup finished!");
-        info!("The address of this client is: {}", self.as_mix_recipient());
+        debug!("Core client startup finished!");
+        debug!("The address of this client is: {}", self.as_mix_recipient());
 
         Ok(BaseClient {
             client_input: ClientInputStatus::AwaitingProducer {

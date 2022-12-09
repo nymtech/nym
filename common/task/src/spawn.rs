@@ -22,7 +22,7 @@ pub fn spawn_with_report_error<F, T, E>(future: F, mut shutdown: ShutdownListene
 where
     F: Future<Output = Result<T, E>> + Send + 'static,
     T: 'static,
-    E: std::error::Error + Send + 'static,
+    E: std::error::Error + Send + Sync + 'static,
 {
     let future_that_sends = async move {
         if let Err(err) = future.await {

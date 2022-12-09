@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::template::config_template;
-use client_core::config::Config as BaseConfig;
 pub use client_core::config::MISSING_VALUE;
+use client_core::config::{ClientCoreConfigTrait, Config as BaseConfig};
 use config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
@@ -28,7 +28,7 @@ impl SocketType {
         }
     }
 
-    pub fn is_websocket(&self) -> bool {
+    pub fn is_websocket(self) -> bool {
         matches!(self, SocketType::WebSocket)
     }
 }
@@ -70,6 +70,12 @@ impl NymConfig for Config {
 
     fn data_directory(&self) -> PathBuf {
         self.root_directory().join(self.base.get_id()).join("data")
+    }
+}
+
+impl ClientCoreConfigTrait for Config {
+    fn get_gateway_endpoint(&self) -> &client_core::config::GatewayEndpointConfig {
+        self.base.get_gateway_endpoint()
     }
 }
 

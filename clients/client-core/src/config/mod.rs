@@ -34,6 +34,10 @@ pub fn missing_string_value() -> String {
     MISSING_VALUE.to_string()
 }
 
+pub trait ClientCoreConfigTrait {
+    fn get_gateway_endpoint(&self) -> &GatewayEndpointConfig;
+}
+
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config<T> {
@@ -43,6 +47,12 @@ pub struct Config<T> {
     logging: Logging,
     #[serde(default)]
     debug: DebugConfig,
+}
+
+impl<T> ClientCoreConfigTrait for Config<T> {
+    fn get_gateway_endpoint(&self) -> &GatewayEndpointConfig {
+        &self.client.gateway_endpoint
+    }
 }
 
 impl<T> Config<T> {
@@ -217,10 +227,6 @@ impl<T> Config<T> {
     }
 
     pub fn get_gateway_endpoint_config(&self) -> &GatewayEndpointConfig {
-        &self.client.gateway_endpoint
-    }
-
-    pub fn get_gateway_endpoint(&self) -> &GatewayEndpointConfig {
         &self.client.gateway_endpoint
     }
 

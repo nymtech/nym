@@ -7,7 +7,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 ### Changed
 
 - validator-api: can recover from shutdown during DKG process ([#1872])
-- client-core: deduplicate gateway inititialization, part of work towards a rust-sdk
+- clients: deduplicate gateway inititialization, part of work towards a rust-sdk
 - clients: keep all transmission lanes going at all times by making priority probabilistic
 
 ### Fixed

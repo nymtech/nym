@@ -21,11 +21,6 @@ export const MnemonicInput: React.FC<{
         autoFocus
         fullWidth
         multiline={showMnemonic}
-        inputProps={{
-          style: {
-            height: '160px',
-          },
-        }}
         InputLabelProps={{ shrink: true }}
         sx={{
           'input::-webkit-textfield-decoration-container': {

@@ -131,7 +131,7 @@ where
         }
 
         let Some(reply_surb) = maybe_reply_surb else {
-            warn!("we run out of reply surbs for {:?} to retransmit our dropped message...", recipient_tag);
+            warn!("we run out of reply surbs for {recipient_tag} to retransmit our dropped message...");
             return Err(PreparationError::NotEnoughSurbs { available: 0, required: 1 })
         };
 
@@ -143,7 +143,7 @@ where
             Ok(prepared_fragment) => Ok(prepared_fragment),
             Err(err) => {
                 let err = err.return_unused_surbs(&self.received_reply_surbs, &recipient_tag);
-                warn!("failed to prepare message for retransmission - {err}",);
+                warn!("failed to prepare message for retransmission - {err}");
                 Err(err)
             }
         }

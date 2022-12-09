@@ -75,11 +75,6 @@ impl fmt::Display for FragmentIdentifier {
 }
 
 impl FragmentIdentifier {
-    // and this one
-    pub fn is_reply(self) -> bool {
-        self.set_id > 0 && self.fragment_position == 0
-    }
-
     pub fn to_bytes(self) -> SerializedFragmentIdentifier {
         debug_assert_eq!(FRAG_ID_LEN, 5);
 

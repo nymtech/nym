@@ -122,7 +122,7 @@ impl<R: RngCore + Clone> DkgController<R> {
                 };
                 if let Err(e) = ret {
                     warn!("Could not handle this iteration for the epoch state: {}", e);
-                } else {
+                } else if epoch_state != EpochState::InProgress {
                     let persistent_state = PersistentState::from(&self.state);
                     if let Err(e) =
                         persistent_state.save_to_file(self.state.persistent_state_path())

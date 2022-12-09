@@ -95,7 +95,7 @@ fn version_check(cfg: &Config) -> bool {
     }
 }
 
-pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn std::error::Error + Send>> {
+pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let id = &args.id;
 
     let mut config = match Config::load_from_file(Some(id)) {

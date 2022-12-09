@@ -90,7 +90,7 @@ pub(crate) async fn execute(args: &Cli) -> Result<(), ClientError> {
     let bin_name = "nym-native-client";
 
     match &args.command {
-        Commands::Init(m) => init::execute(m).await,
+        Commands::Init(m) => init::execute(m).await?,
         Commands::Run(m) => run::execute(m).await?,
         Commands::Upgrade(m) => upgrade::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::into_app(), bin_name),

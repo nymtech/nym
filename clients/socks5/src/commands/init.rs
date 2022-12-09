@@ -8,10 +8,12 @@ use client_core::{config::GatewayEndpointConfig, error::ClientCoreError};
 use config::NymConfig;
 use nymsphinx::addressing::clients::Recipient;
 use serde::Serialize;
+use tap::TapFallible;
 
 use crate::{
     client::config::Config,
     commands::{override_config, OverrideConfig},
+    error::Socks5ClientError,
 };
 
 #[derive(Args, Clone)]
@@ -102,7 +104,7 @@ impl Display for InitResults {
     }
 }
 
-pub(crate) async fn execute(args: &Init) {
+pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
     println!("Initialising client...");
 
     let id = &args.id;
@@ -148,25 +150,17 @@ pub(crate) async fn execute(args: &Init) {
     } else {
         reuse_existing_gateway_config(id)
     }
-    .unwrap_or_else(|err| {
-        eprintln!("Failed to setup gateway\nError: {err}");
-        std::process::exit(1)
-    });
+    .tap_err(|err| eprintln!("Failed to setup gateway\nError: {err}"))?;
 
     config.get_base_mut().with_gateway_endpoint(gateway);
 
-    config
-        .save_to_file(None)
-        .expect("Failed to save the config file");
+    config.save_to_file(None).tap_err(|_| {
+        log::error!("Failed to save the config file");
+    })?;
 
     print_saved_config(&config);
 
-    let address = client_core::init::get_client_address_from_stored_keys(config.get_base())
-        .unwrap_or_else(|err| {
-            eprintln!("Failed to get address\nError: {err}");
-            std::process::exit(1)
-        });
-
+    let address = client_core::init::get_client_address_from_stored_keys(config.get_base())?;
     let init_results = InitResults::new(&config, &address);
     println!("{}", init_results);
 
@@ -176,6 +170,7 @@ pub(crate) async fn execute(args: &Init) {
     }
 
     println!("\nThe address of this client is: {}\n", address);
+    Ok(())
 }
 
 fn print_saved_config(config: &Config) {

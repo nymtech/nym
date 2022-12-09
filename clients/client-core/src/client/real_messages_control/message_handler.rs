@@ -7,7 +7,7 @@ use crate::client::real_messages_control::real_traffic_stream::{
 };
 use crate::client::real_messages_control::{AckActionSender, Action};
 use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, SentReplyKeys, UsedSenderTags};
-use crate::client::topology_control::{InvalidTopologyError, TopologyAccessor, TopologyReadPermit};
+use crate::client::topology_control::{TopologyAccessor, TopologyReadPermit};
 use client_connections::TransmissionLane;
 use log::{debug, error, info, trace, warn};
 use nymsphinx::acknowledgements::AckKey;
@@ -25,12 +25,8 @@ use thiserror::Error;
 use topology::{NymTopology, NymTopologyError};
 
 // TODO: move that error elsewhere since it seems to be contaminating different files
-// TODO2: attempt to unify `InvalidTopologyError` and `NymTopologyError`
 #[derive(Debug, Clone, Error)]
 pub enum PreparationError {
-    #[error(transparent)]
-    InvalidTopology(#[from] InvalidTopologyError),
-
     #[error(transparent)]
     NymTopologyError(#[from] NymTopologyError),
 

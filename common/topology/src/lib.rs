@@ -22,6 +22,15 @@ pub mod mix;
 
 #[derive(Debug, Clone, Error)]
 pub enum NymTopologyError {
+    #[error("The provided network topology is empty - there are no mixnodes and no gateways on it - the network request(s) probably failed")]
+    EmptyNetworkTopology,
+
+    #[error("The provided network topology has no gateways available")]
+    NoGatewaysAvailable,
+
+    #[error("The provided network topology has no mixnodes available")]
+    NoMixnodesAvailable,
+
     #[error("Gateway with identity key {identity_key} doesn't exist")]
     NonExistentGatewayError { identity_key: String },
 
@@ -29,7 +38,7 @@ pub enum NymTopologyError {
     InvalidNumberOfHopsError { available: usize, requested: usize },
 
     #[error("No mixnodes available on layer {layer}")]
-    NoMixesOnLayerAvailable { layer: MixLayer },
+    EmptyMixLayer { layer: MixLayer },
 }
 
 #[derive(Debug, Clone)]
@@ -146,13 +155,13 @@ impl NymTopology {
             let layer_mixes = self
                 .mixes
                 .get(&layer)
-                .ok_or(NymTopologyError::NoMixesOnLayerAvailable { layer })?;
+                .ok_or(NymTopologyError::EmptyMixLayer { layer })?;
 
             // choose a random mix from the above list
             // this can return a 'None' only if slice is empty
             let random_mix = layer_mixes
                 .choose(rng)
-                .ok_or(NymTopologyError::NoMixesOnLayerAvailable { layer })?;
+                .ok_or(NymTopologyError::EmptyMixLayer { layer })?;
             route.push(random_mix.into());
         }
 
@@ -190,29 +199,39 @@ impl NymTopology {
     }
 
     /// Checks if a mixnet path can be constructed using the specified number of hops
-    pub fn can_construct_path_through(&self, num_mix_hops: u8) -> bool {
-        // if there are no gateways present, we can't do anything
-        if self.gateways.is_empty() {
-            return false;
+    pub fn ensure_can_construct_path_through(
+        &self,
+        num_mix_hops: u8,
+    ) -> Result<(), NymTopologyError> {
+        let mixnodes = self.mixes();
+        // 1. is it completely empty?
+        if mixnodes.is_empty() && self.gateways().is_empty() {
+            return Err(NymTopologyError::EmptyNetworkTopology);
         }
 
-        // early termination
-        if self.mixes.is_empty() {
-            return false;
+        // 2. does it have any mixnode at all?
+        if mixnodes.is_empty() {
+            return Err(NymTopologyError::NoMixnodesAvailable);
         }
 
-        // make sure there's at least one mix per layer
-        for i in 1..=num_mix_hops {
-            match self.mixes.get(&i) {
-                None => return false,
-                Some(layer_entry) => {
-                    if layer_entry.is_empty() {
-                        return false;
+        // 3. does it have any gateways at all?
+        if self.gateways().is_empty() {
+            return Err(NymTopologyError::NoGatewaysAvailable);
+        }
+
+        // 4. does it have a mixnode on each layer?
+        for layer in 1..=num_mix_hops {
+            match mixnodes.get(&layer) {
+                None => return Err(NymTopologyError::EmptyMixLayer { layer }),
+                Some(layer_nodes) => {
+                    if layer_nodes.is_empty() {
+                        return Err(NymTopologyError::EmptyMixLayer { layer });
                     }
                 }
             }
         }
-        true
+
+        Ok(())
     }
 
     #[must_use]

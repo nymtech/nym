@@ -3519,6 +3519,7 @@ dependencies = [
  "nymsphinx-params",
  "nymsphinx-types",
  "rand 0.7.3",
+ "thiserror",
  "topology",
 ]
 

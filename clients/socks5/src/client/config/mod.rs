@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::template::config_template;
-use client_core::config::{Config as BaseConfig, ClientCoreConfigTrait};
 pub use client_core::config::MISSING_VALUE;
+use client_core::config::{ClientCoreConfigTrait, Config as BaseConfig};
 use config::defaults::DEFAULT_SOCKS5_LISTENING_PORT;
 use config::NymConfig;
 use nymsphinx::addressing::clients::Recipient;

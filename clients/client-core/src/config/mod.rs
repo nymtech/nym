@@ -230,10 +230,6 @@ impl<T> Config<T> {
         &self.client.gateway_endpoint
     }
 
-    //pub fn get_gateway_endpoint(&self) -> &GatewayEndpointConfig {
-    //    &self.client.gateway_endpoint
-    //}
-
     pub fn get_database_path(&self) -> PathBuf {
         self.client.database_path.clone()
     }

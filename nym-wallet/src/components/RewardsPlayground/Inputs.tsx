@@ -70,6 +70,7 @@ export const Inputs = ({
             InputProps={{
               endAdornment: <Typography sx={{ color: 'grey.600' }}>{field.isPercentage ? '%' : 'NYM'}</Typography>,
             }}
+            InputLabelProps={{ shrink: true }}
           />
         </Grid>
       ))}{' '}

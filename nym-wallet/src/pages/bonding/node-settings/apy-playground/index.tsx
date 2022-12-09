@@ -8,6 +8,7 @@ import { Inputs, CalculateArgs } from 'src/components/RewardsPlayground/Inputs';
 import { AppContext, TBondedMixnode } from 'src/context';
 import { computeEstimate, computeStakeSaturation, handleCalculatePeriodRewards } from './utils';
 import { useSnackbar } from 'notistack';
+import { LoadingModal } from 'src/components/Modals/LoadingModal';
 
 export type DefaultInputValues = {
   profitMargin: string;
@@ -28,6 +29,7 @@ export const ApyPlayground = ({ bondedNode }: { bondedNode: TBondedMixnode }) =>
 
   const [defaultInputValues, setDefaultInputValues] = useState<DefaultInputValues>();
   const [stakeSaturation, setStakeSaturation] = useState<string>();
+  const [isLoading, setIsLoading] = useState(true);
 
   const initialise = async (node: TBondedMixnode) => {
     try {
@@ -58,6 +60,7 @@ export const ApyPlayground = ({ bondedNode }: { bondedNode: TBondedMixnode }) =>
         delegations: delegations.total_delegations.amount,
         operatorCost: node.operatorCost.amount,
       });
+      setIsLoading(false);
     } catch (e) {
       enqueueSnackbar(e as string, { variant: 'error' });
     }
@@ -68,6 +71,8 @@ export const ApyPlayground = ({ bondedNode }: { bondedNode: TBondedMixnode }) =>
       initialise(bondedNode);
     }
   }, []);
+
+  if (isLoading) return <LoadingModal />;
 
   const handleCalculateEstimate = async ({ bond, delegations, uptime, profitMargin, operatorCost }: CalculateArgs) => {
     try {
@@ -91,7 +96,7 @@ export const ApyPlayground = ({ bondedNode }: { bondedNode: TBondedMixnode }) =>
         reward_params.interval.stake_saturation_point,
       );
 
-      setStakeSaturation(decimalToPercentage(computedStakeSaturation.toString()));
+      setStakeSaturation(computedStakeSaturation);
       setResults(estimationResult);
     } catch (e) {
       console.log(e);

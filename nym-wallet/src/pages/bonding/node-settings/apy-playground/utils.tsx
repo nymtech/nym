@@ -1,13 +1,11 @@
-import { percentToDecimal } from '@nymproject/types';
+import { decimalToPercentage, percentToDecimal } from '@nymproject/types';
 import { computeMixnodeRewardEstimation } from 'src/requests';
 
 const SCALE_FACTOR = 1_000_000;
 
 export const computeStakeSaturation = (bond: string, delegations: string, stakeSaturationPoint: string) => {
   const res = ((+bond + +delegations) * SCALE_FACTOR) / +stakeSaturationPoint;
-  console.log(bond, delegations, stakeSaturationPoint, res);
-
-  return res;
+  return decimalToPercentage(res.toFixed(18).toString());
 };
 
 export const computeEstimate = async ({
@@ -28,7 +26,6 @@ export const computeEstimate = async ({
   const computedEstimate = await computeMixnodeRewardEstimation({
     mixId: mixId,
     performance: percentToDecimal(uptime),
-    isActive: true,
     pledgeAmount: Math.round(+pledgeAmount * SCALE_FACTOR),
     totalDelegation: Math.round(+totalDelegation * SCALE_FACTOR),
     profitMarginPercent: percentToDecimal(profitMargin),

@@ -56,7 +56,6 @@ export const getGatewayReport = async (identity: string) =>
 export const computeMixnodeRewardEstimation = async (args: {
   mixId: number;
   performance: string;
-  isActive: boolean;
   pledgeAmount: number;
   totalDelegation: number;
   profitMarginPercent: string;

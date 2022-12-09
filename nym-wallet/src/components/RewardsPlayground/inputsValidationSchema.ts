@@ -3,7 +3,7 @@ import { isGreaterThan, isLessThan } from 'src/utils';
 
 export const inputValidationSchema = Yup.object().shape({
   profitMargin: Yup.string()
-    .required()
+    .required('profit margin is a required field')
     .test('Is valid profit margin value', (value, ctx) => {
       const stringValueToNumber = Math.round(Number(value));
 
@@ -31,9 +31,11 @@ export const inputValidationSchema = Yup.object().shape({
       return ctx.createError({ message: 'Delegations must be a valid number' });
     }),
   operatorCost: Yup.string()
-    .required()
+    .required('operator cost is a required field')
     .test('Is valid operator cost value', (value, ctx) => {
-      if (Number(value)) return true;
+      const stringValueToNumber = Math.round(Number(value));
+
+      if (isGreaterThan(stringValueToNumber, -1) && isLessThan(stringValueToNumber, 101)) return true;
       return ctx.createError({ message: 'Operator cost must be a valid number' });
     }),
 });

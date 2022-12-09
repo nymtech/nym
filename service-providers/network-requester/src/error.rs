@@ -7,4 +7,7 @@ pub enum NetworkRequesterError {
 
     #[error("Websocket error")]
     WebsocketConnectionError(#[from] WebsocketConnectionError),
+
+    #[error("Websocket connection closed")]
+    ConnectionClosed,
 }

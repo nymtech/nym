@@ -4,7 +4,6 @@
 use std::fmt::Display;
 
 use clap::Args;
-use client_core::{config::GatewayEndpointConfig, error::ClientCoreError};
 use config::NymConfig;
 use nymsphinx::addressing::clients::Recipient;
 use serde::Serialize;
@@ -137,17 +136,12 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
 
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
-    let gateway = if register_gateway {
-        client_core::init::register_with_gateway(user_chosen_gateway_id, config.get_base()).await
-    } else if let Some(user_chosen_gateway_id) = user_chosen_gateway_id {
-        client_core::init::config_gateway_with_existing_keys(
-            user_chosen_gateway_id,
-            config.get_base(),
-        )
-        .await
-    } else {
-        reuse_existing_gateway_config(id)
-    }
+    let gateway = client_core::init::setup_gateway::<Config, _>(
+        register_gateway,
+        user_chosen_gateway_id,
+        config.get_base(),
+    )
+    .await
     .tap_err(|err| eprintln!("Failed to setup gateway\nError: {err}"))?;
 
     config.get_base_mut().with_gateway_endpoint(gateway);
@@ -182,20 +176,4 @@ fn print_saved_config(config: &Config) {
         config.get_base().get_gateway_listener()
     );
     println!("Client configuration completed.");
-}
-
-fn reuse_existing_gateway_config(id: &str) -> Result<GatewayEndpointConfig, ClientCoreError> {
-    println!("Not registering gateway, will reuse existing config and keys");
-    Config::load_from_file(Some(id))
-        .map(|existing_config| existing_config.get_base().get_gateway_endpoint().clone())
-        .map_err(|err| {
-            log::error!(
-                "Unable to configure gateway: {err}. \n
-                Seems like the client was already initialized but it was not possible to read \
-                the existing configuration file. \n
-                CAUTION: Consider backing up your gateway keys and try force gateway registration, or \
-                removing the existing configuration and starting over."
-            );
-            ClientCoreError::CouldNotLoadExistingGatewayConfiguration(err)
-        })
 }

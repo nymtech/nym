@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::template::config_template;
-use client_core::config::Config as BaseConfig;
+use client_core::config::{Config as BaseConfig, ClientCoreConfigTrait};
 pub use client_core::config::MISSING_VALUE;
 use config::defaults::DEFAULT_SOCKS5_LISTENING_PORT;
 use config::NymConfig;
@@ -52,6 +52,12 @@ impl NymConfig for Config {
     }
 }
 
+impl ClientCoreConfigTrait for Config {
+    fn get_gateway_endpoint(&self) -> &client_core::config::GatewayEndpointConfig {
+        self.base.get_gateway_endpoint()
+    }
+}
+
 impl Config {
     pub fn new<S: Into<String>>(id: S, provider_mix_address: S) -> Self {
         Config {
@@ -60,11 +66,13 @@ impl Config {
         }
     }
 
+    #[must_use]
     pub fn with_port(mut self, port: u16) -> Self {
         self.socks5.listening_port = port;
         self
     }
 
+    #[must_use]
     pub fn with_provider_mix_address(mut self, address: String) -> Self {
         self.socks5.provider_mix_address = address;
         self

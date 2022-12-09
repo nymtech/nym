@@ -13,7 +13,10 @@ use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
 
 use crate::{
-    config::{persistence::key_pathfinder::ClientKeyPathfinder, Config, GatewayEndpointConfig},
+    config::{
+        persistence::key_pathfinder::ClientKeyPathfinder, ClientCoreConfigTrait, Config,
+        GatewayEndpointConfig,
+    },
     error::ClientCoreError,
     init::helpers::{query_gateway_details, register_with_gateway_and_store_keys},
 };
@@ -57,9 +60,26 @@ impl Display for InitResults {
     }
 }
 
-// Get the gateway details by querying the validator-api. Either pick one at random or use
-// the chosen one if it's among the available ones.
-// Saves keys to disk, specified by the paths in `config`.
+/// Convenience function for setting up the gateway for a client. Depending on the arguments given
+/// it will do the sensible thing.
+pub async fn setup_gateway<C: NymConfig + ClientCoreConfigTrait, T: NymConfig>(
+    register_gateway: bool,
+    user_chosen_gateway_id: Option<String>,
+    config: &Config<T>,
+) -> Result<GatewayEndpointConfig, ClientCoreError> {
+    let id = config.get_id();
+    if register_gateway {
+        register_with_gateway(user_chosen_gateway_id, config).await
+    } else if let Some(user_chosen_gateway_id) = user_chosen_gateway_id {
+        config_gateway_with_existing_keys(user_chosen_gateway_id, config).await
+    } else {
+        reuse_existing_gateway_config::<C>(&id)
+    }
+}
+
+/// Get the gateway details by querying the validator-api. Either pick one at random or use
+/// the chosen one if it's among the available ones.
+/// Saves keys to disk, specified by the paths in `config`.
 pub async fn register_with_gateway<T: NymConfig>(
     user_chosen_gateway_id: Option<String>,
     config: &Config<T>,
@@ -77,9 +97,10 @@ pub async fn register_with_gateway<T: NymConfig>(
     Ok(gateway.into())
 }
 
-// Just set the config, don't register or create any keys
-// This assumes that the user knows what they are doing, and that the existing keys are
-// valid for the gateway being used
+/// Set the gateway using the usual procedue of querying the validator-api, but don't register or
+/// create any keys.
+/// This assumes that the user knows what they are doing, and that the existing keys are valid for
+/// the gateway being used
 pub async fn config_gateway_with_existing_keys<T: NymConfig>(
     user_chosen_gateway_id: String,
     config: &Config<T>,
@@ -94,6 +115,26 @@ pub async fn config_gateway_with_existing_keys<T: NymConfig>(
     Ok(gateway.into())
 }
 
+/// Read and reuse the existing gateway configuration from a file that was generate earlier.
+pub fn reuse_existing_gateway_config<T: NymConfig + ClientCoreConfigTrait>(
+    id: &str,
+) -> Result<GatewayEndpointConfig, ClientCoreError> {
+    println!("Not registering gateway, will reuse existing config and keys");
+    T::load_from_file(Some(id))
+        .map(|existing_config| existing_config.get_gateway_endpoint().clone())
+        .map_err(|err| {
+            log::error!(
+                "Unable to configure gateway: {err}. \n
+                Seems like the client was already initialized but it was not possible to read \
+                the existing configuration file. \n
+                CAUTION: Consider backing up your gateway keys and try force gateway registration, or \
+                removing the existing configuration and starting over."
+            );
+            ClientCoreError::CouldNotLoadExistingGatewayConfiguration(err)
+        })
+}
+
+/// Get the client address by loading the keys from stored files.
 pub fn get_client_address_from_stored_keys<T>(
     config: &Config<T>,
 ) -> Result<Recipient, ClientCoreError>

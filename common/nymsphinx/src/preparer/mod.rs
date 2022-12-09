@@ -134,8 +134,10 @@ where
         ack_key: &AckKey,
         reply_surb: ReplySurb,
     ) -> Result<PreparedFragment, NymTopologyError> {
-        // TODO: pass that as an argument derived from the config
-        let expected_forward_delay = Delay::new_from_millis(300);
+        // this is not going to be accurate by any means. but that's the best estimation we can do
+        let expected_forward_delay = Delay::new_from_millis(
+            (self.average_packet_delay.as_millis() * self.num_mix_hops as u128) as u64,
+        );
 
         // create an ack
         let surb_ack = self.generate_surb_ack(fragment.fragment_identifier(), topology, ack_key)?;

@@ -7,6 +7,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 ### Changed
 
 - validator-api: can recover from shutdown during DKG process ([#1872])
+- client-core: deduplicate gateway inititialization, part of work towards a rust-sdk
 
 [#1872]: https://github.com/nymtech/nym/pull/1872
 

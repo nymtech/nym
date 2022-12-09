@@ -7,8 +7,6 @@ import {
   ContractStateParams,
   Delegation,
   GatewayOwnershipResponse,
-  INymdQuery,
-  LayerDistribution,
   MixnetContractVersion,
   MixOwnershipResponse,
   PagedAllDelegationsResponse,
@@ -19,10 +17,11 @@ import {
   PagedMixNodeDetailsResponse,
   PagedUnbondedMixnodesResponse,
   RewardingStatus,
-  SmartContractQuery,
-  StakeSaturation,
+  StakeSaturationResponse,
   UnbondedMixnodeResponse,
-} from './types';
+  LayerDistribution,
+} from '../compiledTypes';
+import { INymdQuery, SmartContractQuery } from './types';
 
 export default class NymdQuerier implements INymdQuery {
   client: SmartContractQuery;
@@ -62,7 +61,7 @@ export default class NymdQuerier implements INymdQuery {
     });
   }
 
-  getStakeSaturation(mixnetContractAddress: string, mixId: number): Promise<StakeSaturation> {
+  getStakeSaturation(mixnetContractAddress: string, mixId: number): Promise<StakeSaturationResponse> {
     return this.client.queryContractSmart(mixnetContractAddress, {
       get_stake_saturation: { mix_id: mixId },
     });
@@ -213,6 +212,12 @@ export default class NymdQuerier implements INymdQuery {
         mix_identity: mixIdentity,
         rewarding_interval_nonce: rewardingIntervalNonce,
       },
+    });
+  }
+
+  getSpendableCoins(vestingContractAddress: string, vestingAccountAddress: string): Promise<any> {
+    return this.client.queryContractSmart(vestingContractAddress, {
+      vesting_account_address: vestingAccountAddress,
     });
   }
 }

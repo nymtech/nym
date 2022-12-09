@@ -1,0 +1,1 @@
+{"version":3,"file":"MixnodeStatusResponse.d.ts","sourceRoot":"","sources":["../../../src/types/rust/MixnodeStatusResponse.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,aAAa,EAAE,MAAM,iBAAiB,CAAC;AAErD,MAAM,WAAW,qBAAqB;IACpC,MAAM,EAAE,aAAa,CAAC;CACvB"}

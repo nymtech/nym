@@ -6,8 +6,6 @@ import {
   Delegation,
   GatewayBond,
   GatewayOwnershipResponse,
-  ICosmWasmQuery,
-  INymdQuery,
   LayerDistribution,
   MixnetContractVersion,
   MixOwnershipResponse,
@@ -19,11 +17,12 @@ import {
   PagedMixNodeDetailsResponse,
   PagedUnbondedMixnodesResponse,
   RewardingStatus,
-  StakeSaturation,
+  StakeSaturationResponse,
   UnbondedMixnodeResponse,
-} from './types';
+} from '../compiledTypes';
 import ValidatorApiQuerier, { IValidatorApiQuery } from './validator-api-querier';
 import { MixNodeBond, MixNodeRewarding } from '@nymproject/types';
+import { ICosmWasmQuery, INymdQuery } from './types';
 
 export interface ICosmWasmQuery {
   // methods exposed by `CosmWasmClient`
@@ -134,7 +133,7 @@ export default class QueryClient extends CosmWasmClient implements IQueryClient 
     return this.nymdQuerier.getMixNodesDetailed(mixnetContractAddress, limit, startAfter);
   }
 
-  getStakeSaturation(mixnetContractAddress: string, mixId: number): Promise<StakeSaturation> {
+  getStakeSaturation(mixnetContractAddress: string, mixId: number): Promise<StakeSaturationResponse> {
     return this.nymdQuerier.getStakeSaturation(mixnetContractAddress, mixId);
   }
 
@@ -242,5 +241,9 @@ export default class QueryClient extends CosmWasmClient implements IQueryClient 
 
   getRewardedMixnodes(): Promise<MixNodeBond[]> {
     return this.nymApiQuerier.getRewardedMixnodes();
+  }
+
+  getSpendableCoins(vestingContractAddress: string, vestingAccountAddress: string): Promise<any> {
+    return this.getSpendableCoins(vestingContractAddress, vestingAccountAddress);
   }
 }

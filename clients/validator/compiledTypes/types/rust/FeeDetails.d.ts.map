@@ -1,0 +1,1 @@
+{"version":3,"file":"FeeDetails.d.ts","sourceRoot":"","sources":["../../../src/types/rust/FeeDetails.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,OAAO,EAAE,MAAM,WAAW,CAAC;AACzC,OAAO,KAAK,EAAE,GAAG,EAAE,MAAM,OAAO,CAAC;AAEjC,oBAAY,UAAU,GAAG;IAAE,MAAM,EAAE,OAAO,GAAG,IAAI,CAAC;IAAC,GAAG,EAAE,GAAG,CAAA;CAAE,CAAC"}

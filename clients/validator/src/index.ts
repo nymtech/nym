@@ -1,6 +1,3 @@
-import { Bip39, Random } from '@cosmjs/crypto';
-import { DirectSecp256k1HdWallet, EncodeObject } from '@cosmjs/proto-signing';
-import { coin as cosmosCoin, Coin, DeliverTxResponse, isDeliverTxFailure, StdFee } from '@cosmjs/stargate';
 import {
   ExecuteResult,
   InstantiateOptions,
@@ -8,7 +5,9 @@ import {
   MigrateResult,
   UploadResult,
 } from '@cosmjs/cosmwasm-stargate';
-import SigningClient, { ISigningClient } from './signing-client';
+import { Bip39, Random } from '@cosmjs/crypto';
+import { DirectSecp256k1HdWallet, EncodeObject } from '@cosmjs/proto-signing';
+import { Coin, coin as cosmosCoin, DeliverTxResponse, isDeliverTxFailure, StdFee } from '@cosmjs/stargate';
 import {
   ContractStateParams,
   Delegation,
@@ -16,6 +15,9 @@ import {
   GatewayBond,
   MixnetContractVersion,
   MixNode,
+  MixNodeBond,
+  MixNodeDetails,
+  MixNodeRewarding,
   PagedAllDelegationsResponse,
   PagedDelegatorDelegationsResponse,
   PagedGatewayResponse,
@@ -23,34 +25,11 @@ import {
   PagedMixNodeBondResponse,
   PagedMixNodeDetailsResponse,
   PagedUnbondedMixnodesResponse,
-  StakeSaturation,
+  StakeSaturationResponse,
   UnbondedMixnodeResponse,
-} from './types';
-import {
-  CoinMap,
-  displayAmountToNative,
-  MappedCoin,
-  nativeCoinToDisplay,
-  nativeToPrintable,
-  printableBalance,
-  printableCoin,
-} from './currency';
+} from '../compiledTypes';
 import QueryClient from './query-client';
-import { nymGasPrice } from './stargate-helper';
-import { MixNodeBond, MixNodeDetails, MixNodeRewarding, UnbondedMixnode } from '@nymproject/types';
-
-export { coins, coin } from '@cosmjs/stargate';
-export { Coin };
-export {
-  displayAmountToNative,
-  nativeCoinToDisplay,
-  printableCoin,
-  printableBalance,
-  nativeToPrintable,
-  MappedCoin,
-  CoinMap,
-};
-export { nymGasPrice };
+import SigningClient, { ISigningClient } from './signing-client';
 
 export interface INymClient {
   readonly mixnetContract: string;
@@ -163,7 +142,7 @@ export default class ValidatorClient implements INymClient {
     return this.client.getCachedMixnodes();
   }
 
-  async getStakeSaturation(mixId: number): Promise<StakeSaturation> {
+  async getStakeSaturation(mixId: number): Promise<StakeSaturationResponse> {
     return this.client.getStakeSaturation(this.mixnetContract, mixId);
   }
 
@@ -193,6 +172,14 @@ export default class ValidatorClient implements INymClient {
 
   public async getMixnetContractVersion(): Promise<MixnetContractVersion> {
     return this.client.getContractVersion(this.mixnetContract);
+  }
+
+  public async getVestingContractVersion(): Promise<MixnetContractVersion> {
+    return this.client.getContractVersion(this.vestingContract);
+  }
+
+  public async getSpendableCoins(vestingAccountAddress: string): Promise<MixnetContractVersion> {
+    return this.client.getSpendableCoins(this.vestingContract, vestingAccountAddress);
   }
 
   public async getRewardPool(): Promise<string> {

@@ -1,0 +1,1 @@
+{"version":3,"file":"DelegationResult.d.ts","sourceRoot":"","sources":["../../../src/types/rust/DelegationResult.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,OAAO,EAAE,MAAM,WAAW,CAAC;AAEzC,MAAM,WAAW,gBAAgB;IAC/B,cAAc,EAAE,MAAM,CAAC;IACvB,cAAc,EAAE,MAAM,CAAC;IACvB,MAAM,EAAE,OAAO,GAAG,IAAI,CAAC;CACxB"}

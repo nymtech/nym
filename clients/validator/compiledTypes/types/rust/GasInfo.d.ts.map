@@ -1,0 +1,1 @@
+{"version":3,"file":"GasInfo.d.ts","sourceRoot":"","sources":["../../../src/types/rust/GasInfo.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,GAAG,EAAE,MAAM,OAAO,CAAC;AAEjC,MAAM,WAAW,OAAO;IACtB,UAAU,EAAE,GAAG,CAAC;IAChB,QAAQ,EAAE,GAAG,CAAC;CACf"}

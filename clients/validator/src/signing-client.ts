@@ -366,6 +366,10 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     return this.nymApiQuerier.getRewardedMixnodes();
   }
 
+  getSpendableCoins(vestingContractAddress: string, vestingAccountAddress: string): Promise<any> {
+    return this.getSpendableCoins(vestingContractAddress, vestingAccountAddress);
+  }
+
   // signing related:
 
   bondMixNode(

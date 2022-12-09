@@ -2,10 +2,8 @@
  * Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
  * SPDX-License-Identifier: Apache-2.0
  */
-
-import { MixNodeBond } from '@nymproject/types';
 import axios from 'axios';
-import { GatewayBond } from './types';
+import { GatewayBond, MixNodeBond } from '../compiledTypes';
 
 export const NYM_API_VERSION = '/v1';
 export const NYM_API_GATEWAYS_PATH = `${NYM_API_VERSION}/gateways`;

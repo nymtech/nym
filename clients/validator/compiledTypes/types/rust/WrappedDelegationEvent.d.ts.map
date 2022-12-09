@@ -1,0 +1,1 @@
+{"version":3,"file":"WrappedDelegationEvent.d.ts","sourceRoot":"","sources":["../../../src/types/rust/WrappedDelegationEvent.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,eAAe,EAAE,MAAM,mBAAmB,CAAC;AAEzD,MAAM,WAAW,sBAAsB;IACrC,KAAK,EAAE,eAAe,CAAC;IACvB,aAAa,EAAE,MAAM,CAAC;CACvB"}

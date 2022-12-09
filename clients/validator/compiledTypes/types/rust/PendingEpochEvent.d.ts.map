@@ -1,0 +1,1 @@
+{"version":3,"file":"PendingEpochEvent.d.ts","sourceRoot":"","sources":["../../../src/types/rust/PendingEpochEvent.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAC,qBAAqB,EAAC,MAAM,yBAAyB,CAAC;AAEnE,MAAM,WAAW,iBAAiB;IAChC,EAAE,EAAE,MAAM,CAAC;IACX,UAAU,EAAE,MAAM,CAAC;IACnB,KAAK,EAAE,qBAAqB,CAAC;CAC9B"}

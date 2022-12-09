@@ -1,0 +1,1 @@
+{"version":3,"file":"PendingIntervalEvent.d.ts","sourceRoot":"","sources":["../../../src/types/rust/PendingIntervalEvent.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAC,wBAAwB,EAAC,MAAM,4BAA4B,CAAC;AAEzE,MAAM,WAAW,oBAAoB;IACnC,EAAE,EAAE,MAAM,CAAC;IACX,UAAU,EAAE,MAAM,CAAC;IACnB,KAAK,EAAE,wBAAwB,CAAC;CACjC"}

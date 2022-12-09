@@ -10,7 +10,7 @@ const config = {
   denom: 'nym',
 };
 
-describe('Network queries', () => {
+describe('Mixnet queries', () => {
   let client: ValidatorClient;
 
   beforeEach(async () => {
@@ -33,6 +33,11 @@ describe('Network queries', () => {
     const stakeSaturation = await client.getStakeSaturation(8);
     expect(stakeSaturation).toBeTruthy();
     expect(stakeSaturation?.current_saturation).toBeTruthy();
+  });
+
+  it('can query for contract version', async () => {
+    const contract = await client.getMixnetContractVersion();
+    expect(contract).toBeTruthy();
   });
 
   it('can query for unbonded mixnodes', async () => {

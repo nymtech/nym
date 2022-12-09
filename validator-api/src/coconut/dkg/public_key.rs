@@ -34,10 +34,12 @@ pub(crate) async fn public_key_submission(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::coconut::dkg::state::PersistentState;
     use crate::coconut::tests::DummyClient;
     use crate::coconut::KeyPair;
     use dkg::bte::keys::KeyPair as DkgKeyPair;
     use rand::rngs::OsRng;
+    use std::path::PathBuf;
     use std::str::FromStr;
     use url::Url;
     use validator_client::nymd::AccountId;
@@ -51,6 +53,8 @@ pub(crate) mod tests {
             AccountId::from_str(TEST_VALIDATOR_ADDRESS).unwrap(),
         ));
         let mut state = State::new(
+            PathBuf::default(),
+            PersistentState::default(),
             Url::parse("localhost:8000").unwrap(),
             DkgKeyPair::new(&dkg::bte::setup(), OsRng),
             KeyPair::new(),

@@ -249,6 +249,7 @@ pub(crate) mod tests {
     use super::*;
     use crate::coconut::dkg::dealing::dealing_exchange;
     use crate::coconut::dkg::public_key::public_key_submission;
+    use crate::coconut::dkg::state::PersistentState;
     use crate::coconut::tests::DummyClient;
     use crate::coconut::KeyPair;
     use coconut_dkg_common::dealer::DealerDetails;
@@ -259,6 +260,7 @@ pub(crate) mod tests {
     use rand::Rng;
     use std::collections::HashMap;
     use std::env::temp_dir;
+    use std::path::PathBuf;
     use std::str::FromStr;
     use std::sync::{Arc, RwLock};
     use url::Url;
@@ -289,6 +291,8 @@ pub(crate) mod tests {
             );
             let keypair = DkgKeyPair::new(&params, OsRng);
             let state = State::new(
+                PathBuf::default(),
+                PersistentState::default(),
                 Url::parse("localhost:8000").unwrap(),
                 keypair,
                 KeyPair::new(),

@@ -55,6 +55,7 @@ pub(crate) async fn dealing_exchange(
 pub(crate) mod tests {
     use super::*;
     use crate::coconut::dkg::complaints::ComplaintReason;
+    use crate::coconut::dkg::state::PersistentState;
     use crate::coconut::tests::DummyClient;
     use crate::coconut::KeyPair;
     use coconut_dkg_common::dealer::DealerDetails;
@@ -63,6 +64,7 @@ pub(crate) mod tests {
     use dkg::bte::Params;
     use rand::rngs::OsRng;
     use std::collections::HashMap;
+    use std::path::PathBuf;
     use std::str::FromStr;
     use std::sync::{Arc, RwLock};
     use url::Url;
@@ -110,6 +112,8 @@ pub(crate) mod tests {
         );
         let params = setup();
         let mut state = State::new(
+            PathBuf::default(),
+            PersistentState::default(),
             Url::parse("localhost:8000").unwrap(),
             DkgKeyPair::new(&params, OsRng),
             KeyPair::new(),
@@ -163,6 +167,8 @@ pub(crate) mod tests {
         );
         let params = setup();
         let mut state = State::new(
+            PathBuf::default(),
+            PersistentState::default(),
             Url::parse("localhost:8000").unwrap(),
             DkgKeyPair::new(&params, OsRng),
             KeyPair::new(),

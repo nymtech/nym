@@ -175,5 +175,5 @@ fn print_saved_config(config: &Config) {
         "Gateway listener: {}",
         config.get_base().get_gateway_listener()
     );
-    println!("Client configuration completed.");
+    println!("Client configuration completed.\n");
 }

@@ -63,7 +63,7 @@ pub async fn mixnode_reward_estimation(
 pub async fn compute_mixnode_reward_estimation(
     mix_id: u32,
     performance: Option<Performance>,
-    active_in_rewarded_set: Option<bool>,
+    _active_in_rewarded_set: Option<bool>,
     pledge_amount: Option<u64>,
     total_delegation: Option<u64>,
     interval_operating_cost: Option<Coin>,
@@ -72,7 +72,7 @@ pub async fn compute_mixnode_reward_estimation(
 ) -> Result<RewardEstimationResponse, BackendError> {
     let request_body = ComputeRewardEstParam {
         performance,
-        active_in_rewarded_set,
+        active_in_rewarded_set: Some(true),
         pledge_amount,
         total_delegation,
         interval_operating_cost,

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { Box, Card, CardContent, CardHeader, Grid, Typography } from '@mui/material';
 import { decimalToPercentage, percentToDecimal } from '@nymproject/types';
 import { ResultsTable } from 'src/components/RewardsPlayground/ResultsTable';
-import { computeMixnodeRewardEstimation, getDelegationSummary } from 'src/requests';
+import { getDelegationSummary } from 'src/requests';
 import { NodeDetails } from 'src/components/RewardsPlayground/NodeDetail';
 import { Inputs, CalculateArgs } from 'src/components/RewardsPlayground/Inputs';
 import { AppContext, TBondedMixnode } from 'src/context';

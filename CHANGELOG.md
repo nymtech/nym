@@ -8,7 +8,12 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 - validator-api: can recover from shutdown during DKG process ([#1872])
 
+### Fixed
+
+- network-requester: fix bug where websocket connection disconnect resulted in success error code
+
 [#1872]: https://github.com/nymtech/nym/pull/1872
+
 
 ## [v1.1.2]
 

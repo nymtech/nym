@@ -447,7 +447,7 @@ impl ServiceProvider {
                 .await
             else {
                 log::error!("The websocket stream has finished!");
-                return Ok(());
+                return Err(NetworkRequesterError::ConnectionClosed);
             };
 
             let raw_message = received.message;

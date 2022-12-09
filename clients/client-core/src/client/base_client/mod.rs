@@ -28,7 +28,6 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 #[cfg(feature = "reply-surb")]
 use std::path::PathBuf;
-#[cfg(feature = "reply-surb")]
 use tap::TapFallible;
 use task::{ShutdownListener, ShutdownNotifier};
 use url::Url;

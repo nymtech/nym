@@ -1,4 +1,4 @@
-import ValidatorClient from '../../dist';
+import ValidatorClient from '../../src';
 import expect from 'expect';
 
 const config = {

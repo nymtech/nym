@@ -35,6 +35,16 @@ pub enum ClientCoreError {
     #[error("The current network topology seem to be insufficient to route any packets through")]
     InsufficientNetworkTopology,
 
+    #[error("The gateway id is invalid - {0}")]
+    UnableToCreatePublicKeyFromGatewayId(Ed25519RecoveryError),
+
+    #[error("The identity of the gateway is unknwown - did you run init?")]
+    GatewayIdUnknown,
+    #[error("The owner of the gateway is unknown - did you run init?")]
+    GatewayOwnerUnknown,
+    #[error("The address of the gateway is unknown - did you run init?")]
+    GatwayAddressUnknown,
+
     #[error("Unexpected exit")]
     UnexpectedExit,
 }

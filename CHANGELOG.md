@@ -13,6 +13,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 ### Fixed
 
 - network-requester: fix bug where websocket connection disconnect resulted in success error code
+- clients: fix a few panics handling the gateway-client
 
 [#1872]: https://github.com/nymtech/nym/pull/1872
 

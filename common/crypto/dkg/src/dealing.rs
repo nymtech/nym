@@ -416,6 +416,17 @@ mod tests {
     use rand_core::SeedableRng;
 
     #[test]
+    fn recovered_verification_keys_serde() {
+        let keys = RecoveredVerificationKeys {
+            recovered_master: Default::default(),
+            recovered_partials: vec![Default::default(), Default::default()],
+        };
+        let bytes = keys.to_bytes();
+        let recovered_keys = RecoveredVerificationKeys::try_from_bytes(&bytes).unwrap();
+        assert_eq!(keys, recovered_keys);
+    }
+
+    #[test]
     #[ignore] // expensive test
     fn recovering_partial_verification_keys() {
         // START OF SETUP

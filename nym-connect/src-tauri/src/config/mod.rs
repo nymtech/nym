@@ -130,12 +130,12 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     }
 
     // Setup gateway by either registering a new one, or reusing exiting keys
-    let gateway = if register_gateway {
-        client_core::init::register_with_gateway(Some(chosen_gateway_id), config.get_base()).await
-    } else {
-        client_core::init::config_gateway_with_existing_keys(chosen_gateway_id, config.get_base())
-            .await
-    }?;
+    let gateway = client_core::init::setup_gateway::<Socks5Config, _>(
+        register_gateway,
+        Some(chosen_gateway_id),
+        config.get_base(),
+    )
+    .await?;
 
     config.get_base_mut().with_gateway_endpoint(gateway);
 

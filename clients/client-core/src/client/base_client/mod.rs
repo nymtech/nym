@@ -23,7 +23,7 @@ use gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
     MixnetMessageSender,
 };
-use log::{info, debug};
+use log::{debug, info};
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 #[cfg(feature = "reply-surb")]

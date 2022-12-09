@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Button, Typography, Grid, TextField } from '@mui/material';
+import { Box, Button, Typography, Grid, TextField, Stack } from '@mui/material';
 import { TBondedMixnode, TBondedGateway } from 'src/context/bonding';
 import { Error } from 'src/components/Error';
 import { UnbondModal } from 'src/components/Bonding/modals/UnbondModal';
@@ -15,38 +15,31 @@ export const NodeUnbondPage = ({ bondedNode, onConfirm, onError }: Props) => {
   const [isConfirmed, setIsConfirmed] = useState(false);
   //TODO: Check what happens with a gateway
   return (
-    <Box sx={{ pl: 3, minHeight: '450px' }}>
-      <Grid container direction="row" alignItems="start" justifyContent={'space-between'}>
-        <Grid item container direction={'column'} width={0.5} spacing={1} sx={{ pt: 3 }}>
-          <Grid item>
+    <Box sx={{ p: 3, minHeight: '450px' }}>
+      <Grid container justifyContent="space-between">
+        <Grid item xs={12} lg={4} sx={{ mb: 3 }}>
+          <Stack gap={1}>
             <Typography variant="body1" fontWeight={600}>
               Unbond
             </Typography>
-          </Grid>
-          {isMixnode(bondedNode) && (
-            <Grid item>
-              <Typography variant="body2" sx={{ color: (theme) => theme.palette.nym.text.muted }}>
-                If you unbond you will lose all delegations!
-              </Typography>
-            </Grid>
-          )}
+
+            {isMixnode(bondedNode) && (
+              <Grid item>
+                <Typography variant="body2" sx={{ color: (theme) => theme.palette.nym.text.muted }}>
+                  Remember you should only unbond if you want to remove your node from the network for good.
+                </Typography>
+              </Grid>
+            )}
+          </Stack>
         </Grid>
-        <Grid item container direction={'column'} spacing={2} width={0.5} padding={3}>
-          <Grid item>
-            <Box sx={{ mb: 1 }}>
-              <Error
-                message={`Remember you should only unbond if you want to remove your ${
-                  isMixnode(bondedNode) ? 'node' : 'gateway'
-                } from the network for good.`}
-              />
-            </Box>
+        <Grid item xs={12} lg={6}>
+          <Stack gap={3}>
             <Error
-              message={`Unbonding is irreversible and it won’t be possible to restore the current state of your ${
+              message={`Unbonding is irreversible. You will lose all your delegations. It won’t be possible to restore the current state of your ${
                 isMixnode(bondedNode) ? 'node' : 'gateway'
               } again.`}
             />
-          </Grid>
-          <Grid item>
+
             <Typography variant="body2">
               To unbond, type{' '}
               <Typography display="inline" component="span" sx={{ color: (t) => t.palette.nym.highlight }}>
@@ -54,16 +47,14 @@ export const NodeUnbondPage = ({ bondedNode, onConfirm, onError }: Props) => {
               </Typography>{' '}
               in the field below and click continue
             </Typography>
-          </Grid>
-          <Grid item>
+
             <TextField
               fullWidth
               value={confirmField}
               onChange={(e) => setConfirmField(e.target.value)}
               InputLabelProps={{ shrink: true }}
             />
-          </Grid>
-          <Grid item sx={{ mt: 2 }}>
+
             <Button
               size="large"
               variant="contained"
@@ -75,7 +66,7 @@ export const NodeUnbondPage = ({ bondedNode, onConfirm, onError }: Props) => {
             >
               Continue
             </Button>
-          </Grid>
+          </Stack>
         </Grid>
       </Grid>
       {isConfirmed && (

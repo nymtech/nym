@@ -6,7 +6,8 @@ pub mod shutdown;
 pub mod signal;
 pub mod spawn;
 
-pub use shutdown::{ShutdownListener, ShutdownNotifier};
+// WIP(JON): those both need to be public?
+pub use shutdown::{ShutdownListener, ShutdownNotifier, StatusReceiver, StatusSender};
 #[cfg(not(target_arch = "wasm32"))]
 pub use signal::{wait_for_signal, wait_for_signal_and_error};
 

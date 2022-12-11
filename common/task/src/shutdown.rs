@@ -3,7 +3,7 @@
 
 use std::{error::Error, time::Duration};
 
-use futures::{future::pending, FutureExt};
+use futures::{future::pending, FutureExt, SinkExt, StreamExt};
 use tokio::{
     sync::{
         mpsc,
@@ -14,9 +14,14 @@ use tokio::{
 
 const DEFAULT_SHUTDOWN_TIMER_SECS: u64 = 5;
 
+// WIP(JON): can these be from futures channel too?
 pub(crate) type SentError = Box<dyn Error + Send + Sync>;
 type ErrorSender = mpsc::UnboundedSender<SentError>;
 type ErrorReceiver = mpsc::UnboundedReceiver<SentError>;
+
+pub type SentStatus = Box<dyn Error + Send + Sync>;
+pub type StatusSender = futures::channel::mpsc::UnboundedSender<SentStatus>;
+pub type StatusReceiver = futures::channel::mpsc::UnboundedReceiver<SentStatus>;
 
 #[derive(thiserror::Error, Debug)]
 enum TaskError {
@@ -43,6 +48,11 @@ pub struct ShutdownNotifier {
     // didn't manage to reliably get the explicitly sent error (and not the error sent during drop)
     task_drop_tx: ErrorSender,
     task_drop_rx: Option<ErrorReceiver>,
+
+    // A task might also send non-fatal errors (effectively, warnings) while running that is not
+    // the result of exiting.
+    task_status_tx: StatusSender,
+    task_status_rx: Option<StatusReceiver>,
 }
 
 impl Default for ShutdownNotifier {
@@ -50,6 +60,7 @@ impl Default for ShutdownNotifier {
         let (notify_tx, notify_rx) = watch::channel(());
         let (task_halt_tx, task_halt_rx) = mpsc::unbounded_channel();
         let (task_drop_tx, task_drop_rx) = mpsc::unbounded_channel();
+        let (task_status_tx, task_status_rx) = futures::channel::mpsc::unbounded();
         Self {
             notify_tx,
             notify_rx: Some(notify_rx),
@@ -58,11 +69,17 @@ impl Default for ShutdownNotifier {
             task_return_error_rx: Some(task_halt_rx),
             task_drop_tx,
             task_drop_rx: Some(task_drop_rx),
+            task_status_tx,
+            task_status_rx: Some(task_status_rx),
         }
     }
 }
 
 impl ShutdownNotifier {
+    pub fn take_task_status_rx(&mut self) -> Option<StatusReceiver> {
+        self.task_status_rx.take()
+    }
+
     pub fn new(shutdown_timer_secs: u64) -> Self {
         Self {
             shutdown_timer_secs,
@@ -78,11 +95,32 @@ impl ShutdownNotifier {
                 .clone(),
             self.task_return_error_tx.clone(),
             self.task_drop_tx.clone(),
+            self.task_status_tx.clone(),
         )
     }
 
     pub fn signal_shutdown(&self) -> Result<(), SendError<()>> {
         self.notify_tx.send(())
+    }
+
+    pub fn start_status_listener(&mut self, mut sender: StatusSender) {
+        if let Some(mut task_status_rx) = self.task_status_rx.take() {
+            log::info!("Starting status message listener");
+            tokio::spawn(async move {
+                loop {
+                    if let Some(msg) = task_status_rx.next().await {
+                        log::trace!("Got msg: {}", msg);
+                        if sender.send(msg).await.is_err() {
+                            log::error!("Error sending status message");
+                        }
+                    } else {
+                        log::trace!("Stopping since channel closed");
+                        break;
+                    }
+                }
+                log::debug!("Status listener: Exiting");
+            });
+        }
     }
 
     pub async fn wait_for_error(&mut self) -> Option<SentError> {
@@ -149,6 +187,9 @@ pub struct ShutdownListener {
     // Also notify if we dropped without shutdown being registered
     drop_error: ErrorSender,
 
+    // Send non-exit messages
+    status_msg: StatusSender,
+
     // The current operating mode
     mode: ShutdownListenerMode,
 }
@@ -161,12 +202,14 @@ impl ShutdownListener {
         notify: watch::Receiver<()>,
         return_error: ErrorSender,
         drop_error: ErrorSender,
+        status_msg: StatusSender,
     ) -> ShutdownListener {
         ShutdownListener {
             shutdown: false,
             notify,
             return_error,
             drop_error,
+            status_msg,
             mode: ShutdownListenerMode::Listening,
         }
     }
@@ -176,11 +219,13 @@ impl ShutdownListener {
         let (_notify_tx, notify_rx) = watch::channel(());
         let (task_halt_tx, _task_halt_rx) = mpsc::unbounded_channel();
         let (task_drop_tx, _task_drop_rx) = mpsc::unbounded_channel();
+        let (task_status_tx, _task_status_rx) = futures::channel::mpsc::unbounded();
         ShutdownListener {
             shutdown: false,
             notify: notify_rx,
             return_error: task_halt_tx,
             drop_error: task_drop_tx,
+            status_msg: task_status_tx,
             mode: ShutdownListenerMode::Dummy,
         }
     }
@@ -255,6 +300,15 @@ impl ShutdownListener {
         if self.return_error.send(err).is_err() {
             log::error!("Failed to send back error message");
         }
+    }
+
+    pub async fn send_status_msg(&mut self, msg: SentStatus) {
+        if self.mode.is_dummy() {
+            return;
+        }
+        if self.status_msg.send(msg).await.is_err() {
+            log::error!("Failed to status message");
+        };
     }
 }
 

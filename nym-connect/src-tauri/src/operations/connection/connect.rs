@@ -11,14 +11,15 @@ pub async fn start_connecting(
     state: tauri::State<'_, Arc<RwLock<State>>>,
     window: tauri::Window<tauri::Wry>,
 ) -> Result<ConnectResult> {
-    let status_receiver = {
+    let (msg_receiver, status_receiver) = {
         let mut state_w = state.write().await;
         state_w.start_connecting(&window).await?
     };
 
     // Setup task for checking status
     let state = state.inner().clone();
-    tasks::start_disconnect_listener(state, window, status_receiver);
+    tasks::start_disconnect_listener(state, window.clone(), status_receiver);
+    tasks::start_status_listener(window, msg_receiver);
 
     Ok(ConnectResult {
         address: "PLACEHOLDER".to_string(),

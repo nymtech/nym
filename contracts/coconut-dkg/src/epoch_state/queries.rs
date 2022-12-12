@@ -31,4 +31,11 @@ pub(crate) mod test {
         let state = query_current_epoch_state(deps.as_mut().storage).unwrap();
         assert_eq!(state, EpochState::PublicKeySubmission);
     }
+
+    #[test]
+    fn query_threshold() {
+        let mut deps = init_contract();
+        let state = query_current_epoch_threshold(deps.as_mut().storage).unwrap();
+        assert!(state.is_none());
+    }
 }

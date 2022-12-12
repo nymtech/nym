@@ -35,8 +35,9 @@ pub(crate) fn advance_epoch_state(
 pub(crate) mod tests {
     use super::*;
     use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS};
-    use coconut_dkg_common::types::EpochState;
+    use coconut_dkg_common::types::{DealerDetails, EpochState};
     use cosmwasm_std::testing::mock_info;
+    use cosmwasm_std::Addr;
     use cw_controllers::AdminError;
 
     #[test]
@@ -84,6 +85,36 @@ pub(crate) mod tests {
         assert_eq!(
             CURRENT_EPOCH_STATE.load(deps.as_mut().storage).unwrap(),
             EpochState::PublicKeySubmission
+        );
+    }
+
+    #[test]
+    fn verify_threshold() {
+        let mut deps = init_contract();
+        let admin_info = mock_info(ADMIN_ADDRESS, &[]);
+
+        assert!(THRESHOLD.may_load(deps.as_mut().storage).unwrap().is_none());
+
+        for i in 1..101 {
+            let address = Addr::unchecked(format!("dealer{}", i));
+            current_dealers()
+                .save(
+                    deps.as_mut().storage,
+                    &address,
+                    &DealerDetails {
+                        address: address.clone(),
+                        bte_public_key_with_proof: "bte_public_key_with_proof".to_string(),
+                        announce_address: "127.0.0.1".to_string(),
+                        assigned_index: i,
+                    },
+                )
+                .unwrap();
+        }
+
+        advance_epoch_state(deps.as_mut(), admin_info.clone()).unwrap();
+        assert_eq!(
+            THRESHOLD.may_load(deps.as_mut().storage).unwrap().unwrap(),
+            67
         );
     }
 }

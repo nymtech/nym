@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
+use config::defaults::mainnet::MIXNET_CONTRACT_ADDRESS;
 use config::defaults::DEFAULT_VALIDATOR_API_PORT;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
@@ -119,7 +120,7 @@ impl Default for Base {
             id: String::default(),
             local_validator: default_validator,
             announce_address: default_announce_address,
-            mixnet_contract_address: String::default(),
+            mixnet_contract_address: MIXNET_CONTRACT_ADDRESS.to_string(),
             mnemonic: "exact antique hybrid width raise anchor puzzle degree fee quit long crack net vague hip despair write put useless civil mechanic broom music day".to_string(),
         }
     }

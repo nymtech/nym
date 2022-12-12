@@ -182,7 +182,7 @@ impl Config {
     }
 }
 
-pub struct RealMessagesController<R>
+pub(crate) struct RealMessagesController<R>
 where
     R: CryptoRng + Rng,
 {
@@ -195,7 +195,7 @@ where
 // generic `R`
 impl RealMessagesController<OsRng> {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub(crate) fn new(
         config: Config,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,

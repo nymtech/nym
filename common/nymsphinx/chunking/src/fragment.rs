@@ -58,7 +58,7 @@ pub const COVER_FRAG_ID: FragmentIdentifier = FragmentIdentifier {
 /// and u8 position of the `Fragment` in the set.
 // TODO: this should really be redesigned, especially how cover and reply messages are really
 // "abusing" this. They should work with it natively instead.
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct FragmentIdentifier {
     set_id: i32,
     fragment_position: u8,

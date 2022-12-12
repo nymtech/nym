@@ -462,13 +462,13 @@ impl FragmentedMessageReceiver {
     }
 }
 
-pub struct ReceivedMessagesBufferController {
+pub(crate) struct ReceivedMessagesBufferController {
     fragmented_message_receiver: FragmentedMessageReceiver,
     request_receiver: RequestReceiver,
 }
 
 impl ReceivedMessagesBufferController {
-    pub fn new(
+    pub(crate) fn new(
         local_encryption_keypair: Arc<encryption::KeyPair>,
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_packet_receiver: MixnetMessageReceiver,

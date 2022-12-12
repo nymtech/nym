@@ -102,6 +102,25 @@ impl PendingAcknowledgement {
         }
     }
 
+    pub(crate) fn is_extra_surb_request(&self) -> bool {
+        if let PacketDestination::Anonymous {
+            extra_surb_request, ..
+        } = self.destination
+        {
+            extra_surb_request
+        } else {
+            false
+        }
+    }
+
+    pub(crate) fn inner_fragment_identifier(&self) -> FragmentIdentifier {
+        self.message_chunk.fragment_identifier()
+    }
+
+    pub(crate) fn fragment_data(&self) -> Fragment {
+        self.message_chunk.clone()
+    }
+
     fn update_delay(&mut self, new_delay: SphinxDelay) {
         self.delay = new_delay;
     }
@@ -226,7 +245,7 @@ where
         let input_message_listener = InputMessageListener::new(
             connectors.input_receiver,
             message_handler.clone(),
-            reply_controller_sender,
+            reply_controller_sender.clone(),
         );
 
         // will listen for any ack timeouts and trigger retransmission
@@ -234,6 +253,7 @@ where
             connectors.ack_action_sender.clone(),
             message_handler,
             retransmission_rx,
+            reply_controller_sender,
             received_reply_surbs,
             config.retransmission_reply_surb_request_size,
         );

@@ -136,11 +136,17 @@ impl ActionController {
         trace!("{} is starting its timer", frag_id);
 
         if let Some((pending_ack_data, queue_key)) = self.pending_acks_data.get_mut(&frag_id) {
-            if queue_key.is_some() {
-                // this branch should be IMPOSSIBLE under ANY condition. It would imply starting
-                // timer TWICE for the SAME PendingAcknowledgement
-                panic!("Tried to start an already started ack timer!")
-            }
+            // the fact that this branch is now POSSIBLE is a sign of a need to refactor this whole
+            // retransmission procedure
+            //
+            // (it can happen as timer is started when ack expires to make sure it's not stuck in memory
+            // and the second instance can be fired when we finally get reply surbs for data we failed to retransmit)
+
+            // if queue_key.is_some() {
+            //     // this branch should be IMPOSSIBLE under ANY condition. It would imply starting
+            //     // timer TWICE for the SAME PendingAcknowledgement
+            //     panic!("Tried to start an already started ack timer!")
+            // }
             let timeout = (pending_ack_data.delay * self.config.ack_wait_multiplier).to_duration()
                 + self.config.ack_wait_addition;
 

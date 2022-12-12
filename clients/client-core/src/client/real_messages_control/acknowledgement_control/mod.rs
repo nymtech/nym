@@ -29,7 +29,6 @@ use std::{
     time::Duration,
 };
 
-use crate::client::replies::reply_storage::ReceivedReplySurbsMap;
 pub(crate) use action_controller::{AckActionSender, Action};
 
 mod acknowledgement_listener;
@@ -99,17 +98,6 @@ impl PendingAcknowledgement {
                 recipient_tag,
                 extra_surb_request,
             },
-        }
-    }
-
-    pub(crate) fn is_extra_surb_request(&self) -> bool {
-        if let PacketDestination::Anonymous {
-            extra_surb_request, ..
-        } = self.destination
-        {
-            extra_surb_request
-        } else {
-            false
         }
     }
 

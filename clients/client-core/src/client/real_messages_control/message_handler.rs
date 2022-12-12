@@ -34,11 +34,6 @@ pub enum PreparationError {
     #[error("The received message cannot be sent using a single reply surb. It ended up getting split into {fragments} fragments.")]
     MessageTooLongForSingleSurb { fragments: usize },
 
-    #[error(
-        "Never received any reply SURBs associated with the following sender tag: {sender_tag}"
-    )]
-    UnknownSurbSender { sender_tag: AnonymousSenderTag },
-
     #[error("Not enough reply SURBs to send the message. We have {available} available and require at least {required}.")]
     NotEnoughSurbs { available: usize, required: usize },
 }

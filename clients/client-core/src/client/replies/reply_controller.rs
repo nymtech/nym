@@ -14,6 +14,7 @@ use nymsphinx::anonymous_replies::ReplySurb;
 use nymsphinx::chunking::fragment::{Fragment, FragmentIdentifier};
 use rand::{CryptoRng, Rng};
 use std::cmp::{max, min};
+use std::collections::btree_map::Entry;
 use std::collections::{BTreeMap, HashMap, VecDeque};
 use std::sync::{Arc, Weak};
 use std::time::Duration;
@@ -216,6 +217,27 @@ where
         }
     }
 
+    fn re_insert_pending_retransmission(
+        &mut self,
+        recipient: &AnonymousSenderTag,
+        data: Vec<Arc<PendingAcknowledgement>>,
+    ) {
+        // the underlying entry MUST exist as we've just got data from there
+        let map_entry = self
+            .pending_retransmissions
+            .get_mut(recipient)
+            .expect("our pending retransmission entry is somehow gone!");
+
+        for pending in data {
+            // if it's 0, we don't need to do anything - we just got that ack!
+            if Arc::strong_count(&pending) > 1 {
+                let id = pending.inner_fragment_identifier();
+                let downgraded = Arc::downgrade(&pending);
+                map_entry.insert(id, downgraded);
+            }
+        }
+    }
+
     fn should_request_more_surbs(&self, target: &AnonymousSenderTag) -> bool {
         trace!("checking if we should request more surbs from {:?}", target);
 
@@ -302,6 +324,8 @@ where
                     &recipient_tag,
                 );
                 warn!("failed to send reply to {:?} - {err}", recipient_tag);
+
+                // TODO: should we buffer that data to try again?
             }
         } else {
             // we don't have enough surbs for this reply
@@ -368,7 +392,7 @@ where
         };
         trace!("we can clear up to {max_to_clear} entries");
 
-        let Some(mut pending) = self.pending_retransmissions.get_mut(&target) else {
+        let Some(pending) = self.pending_retransmissions.get_mut(&target) else {
             trace!("there are no pending retransmissions for {target}!");
             return;
         };
@@ -416,18 +440,12 @@ where
             .get_reply_surbs(&target, to_take.len());
 
         let Some(surbs_for_reply) = surbs_for_reply else {
-            // probably retransmission
-            debug!("somehow different task has stolen our reply surbs!");
-
-            // TODO: DEAL WITH THIS!!
-            // TODO: DEAL WITH THIS!!
-            // TODO: DEAL WITH THIS!!
-            // TODO: DEAL WITH THIS!!
-            // self.insert_pending_replies(&target, to_send);
+            error!("somehow different task has stolen our reply surbs! - this should have been impossible");
+            self.re_insert_pending_retransmission(&target, to_take);
             return;
         };
 
-        let to_send_vec = to_take.into_iter().map(|ack| ack.fragment_data()).collect();
+        let to_send_vec = to_take.iter().map(|ack| ack.fragment_data()).collect();
 
         if let Err(err) = self
             .message_handler
@@ -439,11 +457,8 @@ where
             .await
         {
             let err = err.return_unused_surbs(self.full_reply_storage.surbs_storage_ref(), &target);
-            // TODO: DEAL WITH THIS!!
-            // TODO: DEAL WITH THIS!!
-            // TODO: DEAL WITH THIS!!
-            // TODO: DEAL WITH THIS!!
-            // self.insert_pending_replies(&target, to_send);
+            self.re_insert_pending_retransmission(&target, to_take);
+
             warn!(
                 "failed to clear pending retransmission queue for {:?} - {err}",
                 target
@@ -509,8 +524,7 @@ where
                 .get_reply_surbs(&target, to_send_vec.len());
 
             let Some(surbs_for_reply) = surbs_for_reply else {
-                // probably retransmission
-                debug!("somehow different task has stolen our reply surbs!");
+                error!("somehow different task has stolen our reply surbs! - this should have been impossible");
                 self.insert_pending_replies(&target, to_send);
                 return;
             };
@@ -615,10 +629,10 @@ where
     ) {
         let frag_id = ack_ref.inner_fragment_identifier();
         if let Some(existing) = self.pending_retransmissions.get_mut(&recipient) {
-            if existing.contains_key(&frag_id) {
-                warn!("we're already trying to retransmit {frag_id}. We must be really behind in surbs!");
+            if let Entry::Vacant(e) = existing.entry(frag_id) {
+                e.insert(weak_ack_ref);
             } else {
-                existing.insert(frag_id, weak_ack_ref);
+                warn!("we're already trying to retransmit {frag_id}. We must be really behind in surbs!");
             }
         } else {
             let mut inner = BTreeMap::new();

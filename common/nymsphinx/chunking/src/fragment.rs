@@ -4,7 +4,7 @@
 use crate::ChunkingError;
 use nymsphinx_params::{SerializedFragmentIdentifier, FRAG_ID_LEN};
 use std::convert::TryInto;
-use std::fmt::{self, Formatter};
+use std::fmt::{self, Debug, Formatter};
 
 // Personal reflection: In hindsight I've spent too much time on relatively too little
 // gain here, as even though I might have saved couple of bytes per packet, the gain
@@ -108,10 +108,20 @@ impl FragmentIdentifier {
 /// Each `Fragment` after being marshaled is guaranteed to fit into a single sphinx packet.
 /// The `Fragment` itself consists of part, or whole of, message to be sent as well as additional
 /// header used to reconstruct the message after being received.
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone)]
 pub struct Fragment {
     header: FragmentHeader,
     payload: Vec<u8>,
+}
+
+// manual implementation to hide detailed payload that we don't care about
+impl Debug for Fragment {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Fragment")
+            .field("header", &self.header)
+            .field("payload length", &self.payload.len())
+            .finish()
+    }
 }
 
 impl Fragment {

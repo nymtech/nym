@@ -540,7 +540,7 @@ where
     }
 
     // tells real message sender (with the poisson timer) to send this to the mix network
-    pub(super) async fn forward_messages(
+    pub(crate) async fn forward_messages(
         &self,
         messages: Vec<RealMessage>,
         transmission_lane: TransmissionLane,

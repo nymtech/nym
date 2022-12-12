@@ -15,7 +15,7 @@ use nymsphinx::chunking::fragment::{Fragment, FragmentIdentifier};
 use rand::{CryptoRng, Rng};
 use std::cmp::{max, min};
 use std::collections::{BTreeMap, HashMap, VecDeque};
-use std::sync::Weak;
+use std::sync::{Arc, Weak};
 use std::time::Duration;
 use time::OffsetDateTime;
 
@@ -44,11 +44,13 @@ impl ReplyControllerSender {
         &self,
         recipient: AnonymousSenderTag,
         timed_out_ack: Weak<PendingAcknowledgement>,
+        extra_surb_request: bool,
     ) {
         self.0
-            .unbounded_send(ReplyControllerMessage::BufferRetransmission {
+            .unbounded_send(ReplyControllerMessage::RetransmitReply {
                 recipient,
                 timed_out_ack,
+                extra_surb_request,
             })
             .expect("ReplyControllerReceiver has died!")
     }
@@ -97,9 +99,10 @@ pub(crate) type ReplyControllerReceiver = mpsc::UnboundedReceiver<ReplyControlle
 
 #[derive(Debug)]
 pub(crate) enum ReplyControllerMessage {
-    BufferRetransmission {
+    RetransmitReply {
         recipient: AnonymousSenderTag,
         timed_out_ack: Weak<PendingAcknowledgement>,
+        extra_surb_request: bool,
     },
 
     SendReply {
@@ -172,6 +175,7 @@ pub struct ReplyController<R> {
 
     /// Retransmission packets that have already timed out and are waiting for additional reply SURBs
     /// so that they could be sent back to the network. Once we receive more SURBs, we should send them ASAP.
+    // TODO: when purging stale entries, we must take extra care to also purge all pending ACK data!!
     pending_retransmissions:
         HashMap<AnonymousSenderTag, BTreeMap<FragmentIdentifier, Weak<PendingAcknowledgement>>>,
 
@@ -212,35 +216,27 @@ where
         }
     }
 
-    // /// Inserts the pending reply into the FRONT of the queue,
-    // /// currently only retransmissions
-    // fn insert_priority_pending_reply(
-    //     &mut self,
-    //     recipient: &AnonymousSenderTag,
-    //     fragment: Fragment,
-    // ) {
-    //     if let Some(existing) = self.pending_replies.get_mut(recipient) {
-    //         existing.push_front(fragment)
-    //     } else {
-    //         error!("This branch shouldn't be reachable - we've got a priority reply insert without any prior data!. Please report it if you see this message!");
-    //         let mut new = VecDeque::new();
-    //         new.push_front(fragment);
-    //         self.pending_replies.insert(*recipient, new);
-    //     }
-    // }
-
-    #[deprecated]
-    // todo!("change logic here to account for retransmit");
     fn should_request_more_surbs(&self, target: &AnonymousSenderTag) -> bool {
-        // todo!("change logic here to account for retransmit");
         trace!("checking if we should request more surbs from {:?}", target);
 
-        // if we don't have any information associated with this target,
-        // then we definitely don't want any more surbs
-        let queue_size = match self.pending_replies.get(target) {
-            Some(pending_queue) => pending_queue.len(),
-            None => return false,
-        };
+        let pending_queue_size = self
+            .pending_replies
+            .get(target)
+            .map(|pending_queue| pending_queue.len())
+            .unwrap_or_default();
+
+        let retransmission_queue = self
+            .pending_retransmissions
+            .get(target)
+            .map(|pending_queue| pending_queue.len())
+            .unwrap_or_default();
+
+        let total_queue = pending_queue_size + retransmission_queue;
+
+        // simple as that - there's absolutely nothing to retransmit
+        if total_queue == 0 {
+            return false;
+        }
 
         let available_surbs = self
             .full_reply_storage
@@ -259,10 +255,10 @@ where
             .surbs_storage_ref()
             .max_surb_threshold();
 
-        debug!("queue size: {queue_size}, available surbs: {available_surbs} pending surbs: {pending_surbs} threshold range: {min_surbs_threshold}..{max_surbs_threshold}");
+        debug!("total queue size: {total_queue} = pending data {pending_queue_size} + pending retransmission {retransmission_queue}, available surbs: {available_surbs} pending surbs: {pending_surbs} threshold range: {min_surbs_threshold}..{max_surbs_threshold}");
 
         (pending_surbs + available_surbs) < max_surbs_threshold
-            && (pending_surbs + available_surbs) < (queue_size + min_surbs_threshold)
+            && (pending_surbs + available_surbs) < (total_queue + min_surbs_threshold)
     }
 
     async fn handle_send_reply(
@@ -611,10 +607,31 @@ where
         }
     }
 
-    async fn handle_buffer_retransmission(
+    fn buffer_pending_ack(
         &mut self,
         recipient: AnonymousSenderTag,
+        ack_ref: Arc<PendingAcknowledgement>,
+        weak_ack_ref: Weak<PendingAcknowledgement>,
+    ) {
+        let frag_id = ack_ref.inner_fragment_identifier();
+        if let Some(existing) = self.pending_retransmissions.get_mut(&recipient) {
+            if existing.contains_key(&frag_id) {
+                warn!("we're already trying to retransmit {frag_id}. We must be really behind in surbs!");
+            } else {
+                existing.insert(frag_id, weak_ack_ref);
+            }
+        } else {
+            let mut inner = BTreeMap::new();
+            inner.insert(frag_id, weak_ack_ref);
+            self.pending_retransmissions.insert(recipient, inner);
+        }
+    }
+
+    async fn handle_reply_retransmission(
+        &mut self,
+        recipient_tag: AnonymousSenderTag,
         timed_out_ack: Weak<PendingAcknowledgement>,
+        extra_surbs_request: bool,
     ) {
         // seems we got the ack in the end
         let ack_ref = match timed_out_ack.upgrade() {
@@ -625,27 +642,70 @@ where
             }
         };
 
-        let frag_id = ack_ref.inner_fragment_identifier();
-        if let Some(existing) = self.pending_retransmissions.get_mut(&recipient) {
-            if existing.contains_key(&frag_id) {
-                warn!("we're already trying to retransmit {frag_id}. We must be really behind in surbs!");
-            } else {
-                existing.insert(frag_id, timed_out_ack);
-            }
+        // if this is retransmission for obtaining additional reply surbs,
+        // we can dip below the storage threshold
+        let (maybe_reply_surb, _) = if extra_surbs_request {
+            self.full_reply_storage
+                .surbs_storage_ref()
+                .get_reply_surb_ignoring_threshold(&recipient_tag)
         } else {
-            let mut inner = BTreeMap::new();
-            inner.insert(frag_id, timed_out_ack);
-            self.pending_retransmissions.insert(recipient, inner);
+            self.full_reply_storage
+                .surbs_storage_ref()
+                .get_reply_surb(&recipient_tag)
+        }
+        .expect("attempted to retransmit a packet to an unknown recipient - we shouldn't have sent the original packet in the first place!");
+
+        if let Some(reply_surb) = maybe_reply_surb {
+            match self
+                .message_handler
+                .try_prepare_single_reply_chunk_for_sending(reply_surb, ack_ref.fragment_data())
+                .await
+            {
+                Ok(prepared) => {
+                    // drop the ack ref so that controller would not panic on `UpdateTimer` if that task
+                    // got to handle the action before this function terminated (which is very much
+                    // possible if `forward_messages` takes a while)
+                    drop(ack_ref);
+
+                    self.message_handler
+                        .update_ack_delay(prepared.fragment_identifier, prepared.total_delay);
+                    self.message_handler
+                        .forward_messages(vec![prepared.into()], TransmissionLane::Retransmission)
+                        .await;
+                }
+                Err(err) => {
+                    let err = err.return_unused_surbs(
+                        self.full_reply_storage.surbs_storage_ref(),
+                        &recipient_tag,
+                    );
+                    warn!("failed to prepare message for retransmission - {err}");
+                    // we buffer that packet and to try another day
+                    self.buffer_pending_ack(recipient_tag, ack_ref, timed_out_ack);
+
+                    if self.should_request_more_surbs(&recipient_tag) {
+                        self.request_reply_surbs_for_queue_clearing(recipient_tag)
+                            .await;
+                    }
+                }
+            };
+        } else {
+            self.buffer_pending_ack(recipient_tag, ack_ref, timed_out_ack);
+
+            if self.should_request_more_surbs(&recipient_tag) {
+                self.request_reply_surbs_for_queue_clearing(recipient_tag)
+                    .await;
+            }
         }
     }
 
     async fn handle_request(&mut self, request: ReplyControllerMessage) {
         match request {
-            ReplyControllerMessage::BufferRetransmission {
+            ReplyControllerMessage::RetransmitReply {
                 recipient,
                 timed_out_ack,
+                extra_surb_request,
             } => {
-                self.handle_buffer_retransmission(recipient, timed_out_ack)
+                self.handle_reply_retransmission(recipient, timed_out_ack, extra_surb_request)
                     .await
             }
             ReplyControllerMessage::SendReply {
@@ -667,28 +727,31 @@ where
         }
     }
 
-    #[deprecated]
-    // todo!("change logic here to account for retransmit");
     async fn request_reply_surbs_for_queue_clearing(&mut self, target: AnonymousSenderTag) {
-        // todo!("change logic here to account for retransmit");
-        trace!("requesting surbs for queue clearing");
+        trace!("requesting surbs for queues clearing");
 
-        let pending = match self.pending_replies.get(&target) {
-            Some(pending) => pending,
-            None => {
-                warn!("there are no pending replies for {:?}!", target);
-                return;
-            }
-        };
-        let queue_size = pending.len() as u32;
-        if queue_size == 0 {
-            trace!("the pending queue for {:?} is already empty", target);
+        let pending_queue_size = self
+            .pending_replies
+            .get(&target)
+            .map(|pending_queue| pending_queue.len())
+            .unwrap_or_default();
+
+        let retransmission_queue = self
+            .pending_retransmissions
+            .get(&target)
+            .map(|pending_queue| pending_queue.len())
+            .unwrap_or_default();
+
+        let total_queue = (pending_queue_size + retransmission_queue) as u32;
+
+        if total_queue == 0 {
+            trace!("the pending queues for {:?} are already empty", target);
             return;
         }
 
         let request_size = min(
             self.config.max_surb_request_size,
-            max(queue_size, self.config.min_surb_request_size),
+            max(total_queue, self.config.min_surb_request_size),
         );
 
         if let Err(err) = self

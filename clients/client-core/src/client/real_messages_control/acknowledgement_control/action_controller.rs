@@ -195,7 +195,8 @@ impl ActionController {
         trace!("{} is updating its delay", frag_id);
         // TODO: is it possible to solve this without either locking or temporarily removing the value?
         if let Some((pending_ack_data, queue_key)) = self.pending_acks_data.remove(&frag_id) {
-            // this Action is triggered by `RetransmissionRequestListener` which held the other potential
+            // this Action is triggered by `RetransmissionRequestListener` (for 'normal' packets)
+            // or `ReplyController` (for 'reply' packets) which held the other potential
             // reference to this Arc. HOWEVER, before the Action was pushed onto the queue, the reference
             // was dropped hence this unwrap is safe.
             let mut inner_data = Arc::try_unwrap(pending_ack_data).unwrap();

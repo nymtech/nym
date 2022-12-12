@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use super::{
@@ -8,17 +8,15 @@ use super::{
 use crate::client::real_messages_control::acknowledgement_control::PacketDestination;
 use crate::client::real_messages_control::message_handler::{MessageHandler, PreparationError};
 use crate::client::real_messages_control::real_traffic_stream::RealMessage;
-use crate::client::replies::reply_storage::ReceivedReplySurbsMap;
+use crate::client::replies::reply_controller::ReplyControllerSender;
 use client_connections::TransmissionLane;
 use futures::StreamExt;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::chunking::fragment::Fragment;
 use nymsphinx::preparer::PreparedFragment;
 use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
-use crate::client::replies::reply_controller::ReplyControllerSender;
 
 // responsible for packet retransmission upon fired timer
 pub(super) struct RetransmissionRequestListener<R> {
@@ -26,13 +24,6 @@ pub(super) struct RetransmissionRequestListener<R> {
     message_handler: MessageHandler<R>,
     request_receiver: RetransmissionRequestReceiver,
     reply_controller_sender: ReplyControllerSender,
-
-    // we're holding this for the purposes of retransmitting dropped reply message, but perhaps
-    // this work should be offloaded to the `ReplyController`?
-    #[deprecated]
-    received_reply_surbs: ReceivedReplySurbsMap,
-
-    reply_surb_request_size: u32,
 }
 
 impl<R> RetransmissionRequestListener<R>
@@ -44,16 +35,12 @@ where
         message_handler: MessageHandler<R>,
         request_receiver: RetransmissionRequestReceiver,
         reply_controller_sender: ReplyControllerSender,
-        received_reply_surbs: ReceivedReplySurbsMap,
-        reply_surb_request_size: u32,
     ) -> Self {
         RetransmissionRequestListener {
             action_sender,
             message_handler,
             request_receiver,
             reply_controller_sender,
-            received_reply_surbs,
-            reply_surb_request_size,
         }
     }
 
@@ -69,96 +56,10 @@ where
             .await
     }
 
-    async fn prepare_reply_retransmission_chunk(
+    async fn on_retransmission_request(
         &mut self,
-        recipient_tag: AnonymousSenderTag,
-        extra_surb_request: bool,
-        chunk_data: Fragment,
-    ) -> Result<PreparedFragment, PreparationError> {
-        debug!("retransmitting reply packet...");
-
-        // if this is retransmission for obtaining additional reply surbs,
-        // we can dip below the storage threshold
-        let (maybe_reply_surb, surbs_left) = if extra_surb_request {
-            self.received_reply_surbs
-                .get_reply_surb_ignoring_threshold(&recipient_tag)
-        } else {
-            self.received_reply_surbs.get_reply_surb(&recipient_tag)
-        }
-        .ok_or(PreparationError::UnknownSurbSender {
-            sender_tag: recipient_tag,
-        })?;
-
-        trace!("{surbs_left} surbs left");
-
-        // let min_surb_threshold = self.received_reply_surbs.min_surb_threshold();
-
-        // don't put any surb request logic here. instead offload it to the reply controller
-        // todo!()
-
-        // // but if it wasn't a retransmission for obtaining additional reply surbs
-        // // and we're now about to go below threshold, attempt to request additional surbs
-        // if !extra_surb_request && surbs_left <= (min_surb_threshold + 1) {
-        //     // if we're running low on surbs, we should request more (unless we've already requested them)
-        //     let pending_reception = self.received_reply_surbs.pending_reception(&recipient_tag);
-        //
-        //     if pending_reception < self.reply_surb_request_size {
-        //         trace!("requesting surbs from retransmission handler");
-        //
-        //         // TODO: is this logic for surb request possibly shared with other parts already?
-        //         if let Some(another_surb) = self
-        //             .received_reply_surbs
-        //             .get_reply_surb_ignoring_threshold(&recipient_tag)
-        //             .ok_or(PreparationError::UnknownSurbSender {
-        //                 sender_tag: recipient_tag,
-        //             })?
-        //             .0
-        //         {
-        //             if let Err(err) = self
-        //                 .message_handler
-        //                 .try_request_additional_reply_surbs(
-        //                     recipient_tag,
-        //                     another_surb,
-        //                     self.reply_surb_request_size,
-        //                 )
-        //                 .await
-        //             {
-        //                 let err =
-        //                     err.return_unused_surbs(&self.received_reply_surbs, &recipient_tag);
-        //                 warn!("we failed to ask for more surbs... - {err}");
-        //                 // TODO: should we return here instead?
-        //             }
-        //             self.received_reply_surbs
-        //                 .increment_pending_reception(&recipient_tag, self.reply_surb_request_size)
-        //                 .ok_or(PreparationError::UnknownSurbSender {
-        //                     sender_tag: recipient_tag,
-        //                 })?;
-        //         }
-        //     }
-        // }
-
-        let Some(reply_surb) = maybe_reply_surb else {
-            warn!("we run out of reply surbs for {recipient_tag} to retransmit our dropped message...");
-            
-            // TODO: if this was request for more surbs, dont bother retransmitting it, we'll just re-request it
-            return Err(PreparationError::NotEnoughSurbs { available: 0, required: 1 })
-        };
-
-        match self
-            .message_handler
-            .try_prepare_single_reply_chunk_for_sending(reply_surb, chunk_data)
-            .await
-        {
-            Ok(prepared_fragment) => Ok(prepared_fragment),
-            Err(err) => {
-                let err = err.return_unused_surbs(&self.received_reply_surbs, &recipient_tag);
-                warn!("failed to prepare message for retransmission - {err}");
-                Err(err)
-            }
-        }
-    }
-
-    async fn on_retransmission_request(&mut self, weak_timed_out_ack: Weak<PendingAcknowledgement>) {
+        weak_timed_out_ack: Weak<PendingAcknowledgement>,
+    ) {
         let timed_out_ack = match weak_timed_out_ack.upgrade() {
             Some(timed_out_ack) => timed_out_ack,
             None => {
@@ -167,43 +68,35 @@ where
             }
         };
 
-        let chunk_clone = timed_out_ack.message_chunk.clone();
-        let frag_id = chunk_clone.fragment_identifier();
-
-        // TODO: cleanup this if-mess
         let maybe_prepared_fragment = match &timed_out_ack.destination {
             PacketDestination::Anonymous {
                 recipient_tag,
                 extra_surb_request,
             } => {
-                let res = self.prepare_reply_retransmission_chunk(
+                // if this is retransmission for reply, offload it to the dedicated task
+                // that deals with all the surbs
+                return self.reply_controller_sender.send_retransmission_data(
                     *recipient_tag,
+                    weak_timed_out_ack,
                     *extra_surb_request,
-                    chunk_clone,
-                )
-                .await;
-                if res.is_err() {
-                    self.reply_controller_sender.send_retransmission_data(*recipient_tag, weak_timed_out_ack);
-                }
-                res
+                );
             }
             PacketDestination::KnownRecipient(recipient) => {
-                self.prepare_normal_retransmission_chunk(**recipient, chunk_clone)
-                    .await
+                self.prepare_normal_retransmission_chunk(
+                    **recipient,
+                    timed_out_ack.message_chunk.clone(),
+                )
+                .await
             }
         };
+
+        let frag_id = timed_out_ack.message_chunk.fragment_identifier();
 
         let prepared_fragment = match maybe_prepared_fragment {
             Ok(prepared_fragment) => prepared_fragment,
             Err(err) => {
                 warn!("Could not retransmit the packet - {err}");
                 // we NEED to start timer here otherwise we will have this guy permanently stuck in memory
-
-                // TODO: purge the entry from memory if it was an ack for reply packet and we're out of surbs
-                // self.action_sender
-                //     .unbounded_send(Action::new_remove(frag_id))
-                //     .unwrap();
-
                 self.action_sender
                     .unbounded_send(Action::new_start_timer(frag_id))
                     .unwrap();

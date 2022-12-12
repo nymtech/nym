@@ -79,9 +79,6 @@ pub struct Config {
     /// Defines the maximum number of reply surbs a remote party is allowed to request from this client at once.
     maximum_allowed_reply_surb_request_size: u32,
 
-    /// Defines the amount of reply surbs that the client is going to request when it runs out while attempting to retransmit packets.
-    retransmission_reply_surb_request_size: u32,
-
     /// Defines maximum amount of time the client is going to wait for reply surbs before explicitly asking
     /// for more even though in theory they wouldn't need to.
     maximum_reply_surb_waiting_period: Duration,
@@ -97,12 +94,8 @@ pub struct Config {
 
 impl<'a> From<&'a Config> for acknowledgement_control::Config {
     fn from(cfg: &'a Config) -> Self {
-        acknowledgement_control::Config::new(
-            cfg.ack_wait_addition,
-            cfg.ack_wait_multiplier,
-            cfg.retransmission_reply_surb_request_size,
-        )
-        .with_custom_packet_size(cfg.packet_size)
+        acknowledgement_control::Config::new(cfg.ack_wait_addition, cfg.ack_wait_multiplier)
+            .with_custom_packet_size(cfg.packet_size)
     }
 }
 
@@ -168,8 +161,6 @@ impl Config {
                 .maximum_reply_surb_request_size,
             maximum_allowed_reply_surb_request_size: base_client_debug_config
                 .maximum_allowed_reply_surb_request_size,
-            retransmission_reply_surb_request_size: base_client_debug_config
-                .retransmission_reply_surb_request_size,
             maximum_reply_surb_waiting_period: base_client_debug_config
                 .maximum_reply_surb_waiting_period,
             maximum_reply_surb_age: base_client_debug_config.maximum_reply_surb_age,
@@ -245,7 +236,6 @@ impl RealMessagesController<OsRng> {
             ack_controller_connectors,
             message_handler.clone(),
             reply_controller_sender,
-            reply_storage.surbs_storage(),
         );
 
         let reply_control = ReplyController::new(

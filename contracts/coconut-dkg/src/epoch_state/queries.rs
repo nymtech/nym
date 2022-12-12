@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::epoch_state::storage::CURRENT_EPOCH_STATE;
+use crate::epoch_state::storage::{CURRENT_EPOCH_STATE, THRESHOLD};
 use crate::error::ContractError;
 use coconut_dkg_common::types::EpochState;
 use cosmwasm_std::Storage;
@@ -12,6 +12,12 @@ pub(crate) fn query_current_epoch_state(
     CURRENT_EPOCH_STATE
         .load(storage)
         .map_err(|_| ContractError::EpochNotInitialised)
+}
+
+pub(crate) fn query_current_epoch_threshold(
+    storage: &dyn Storage,
+) -> Result<Option<u64>, ContractError> {
+    Ok(THRESHOLD.may_load(storage)?)
 }
 
 #[cfg(test)]

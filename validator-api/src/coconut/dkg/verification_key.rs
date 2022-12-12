@@ -266,28 +266,44 @@ pub(crate) mod tests {
     use url::Url;
     use validator_client::nymd::AccountId;
 
+    struct MockContractDb {
+        dealer_details_db: Arc<RwLock<HashMap<String, DealerDetails>>>,
+        dealings_db: Arc<RwLock<HashMap<String, Vec<ContractSafeBytes>>>>,
+        proposal_db: Arc<RwLock<HashMap<u64, ProposalResponse>>>,
+        verification_share_db: Arc<RwLock<HashMap<String, ContractVKShare>>>,
+        threshold_db: Arc<RwLock<Option<Threshold>>>,
+    }
+
+    impl MockContractDb {
+        pub fn new() -> Self {
+            MockContractDb {
+                dealer_details_db: Arc::new(Default::default()),
+                dealings_db: Arc::new(Default::default()),
+                proposal_db: Arc::new(Default::default()),
+                verification_share_db: Arc::new(Default::default()),
+                threshold_db: Arc::new(RwLock::new(Some(2))),
+            }
+        }
+    }
+
     const TEST_VALIDATORS_ADDRESS: [&str; 3] = [
         "n1aq9kakfgwqcufr23lsv644apavcntrsqsk4yus",
         "n1s9l3xr4g0rglvk4yctktmck3h4eq0gp6z2e20v",
         "n19kl4py32vsk297dm93ezem992cdyzdy4zuc2x6",
     ];
 
-    async fn prepare_clients_and_states(
-        dealer_details_db: &Arc<RwLock<HashMap<String, DealerDetails>>>,
-        dealings_db: &Arc<RwLock<HashMap<String, Vec<ContractSafeBytes>>>>,
-        proposal_db: &Arc<RwLock<HashMap<u64, ProposalResponse>>>,
-        verification_share_db: &Arc<RwLock<HashMap<String, ContractVKShare>>>,
-    ) -> Vec<(DkgClient, State)> {
+    async fn prepare_clients_and_states(db: &MockContractDb) -> Vec<(DkgClient, State)> {
         let params = setup();
         let mut clients_and_states = vec![];
 
         for addr in TEST_VALIDATORS_ADDRESS {
             let dkg_client = DkgClient::new(
                 DummyClient::new(AccountId::from_str(addr).unwrap())
-                    .with_dealer_details(dealer_details_db)
-                    .with_dealings(dealings_db)
-                    .with_proposal_db(proposal_db)
-                    .with_verification_share(verification_share_db),
+                    .with_dealer_details(&db.dealer_details_db)
+                    .with_dealings(&db.dealings_db)
+                    .with_proposal_db(&db.proposal_db)
+                    .with_verification_share(&db.verification_share_db)
+                    .with_threshold(&db.threshold_db),
             );
             let keypair = DkgKeyPair::new(&params, OsRng);
             let state = State::new(
@@ -309,18 +325,9 @@ pub(crate) mod tests {
     }
 
     async fn prepare_clients_and_states_with_submission(
-        dealer_details_db: &Arc<RwLock<HashMap<String, DealerDetails>>>,
-        dealings_db: &Arc<RwLock<HashMap<String, Vec<ContractSafeBytes>>>>,
-        proposal_db: &Arc<RwLock<HashMap<u64, ProposalResponse>>>,
-        verification_share_db: &Arc<RwLock<HashMap<String, ContractVKShare>>>,
+        db: &MockContractDb,
     ) -> Vec<(DkgClient, State)> {
-        let mut clients_and_states = prepare_clients_and_states(
-            dealer_details_db,
-            dealings_db,
-            proposal_db,
-            verification_share_db,
-        )
-        .await;
+        let mut clients_and_states = prepare_clients_and_states(db).await;
         for (dkg_client, state) in clients_and_states.iter_mut() {
             let random_file: usize = OsRng.gen();
             let private_key_path = temp_dir().join(format!("private{}.pem", random_file));
@@ -336,18 +343,9 @@ pub(crate) mod tests {
     }
 
     async fn prepare_clients_and_states_with_validation(
-        dealer_details_db: &Arc<RwLock<HashMap<String, DealerDetails>>>,
-        dealings_db: &Arc<RwLock<HashMap<String, Vec<ContractSafeBytes>>>>,
-        proposal_db: &Arc<RwLock<HashMap<u64, ProposalResponse>>>,
-        verification_share_db: &Arc<RwLock<HashMap<String, ContractVKShare>>>,
+        db: &MockContractDb,
     ) -> Vec<(DkgClient, State)> {
-        let mut clients_and_states = prepare_clients_and_states_with_submission(
-            dealer_details_db,
-            dealings_db,
-            proposal_db,
-            verification_share_db,
-        )
-        .await;
+        let mut clients_and_states = prepare_clients_and_states_with_submission(db).await;
         for (dkg_client, state) in clients_and_states.iter_mut() {
             verification_key_validation(dkg_client, state)
                 .await
@@ -357,18 +355,9 @@ pub(crate) mod tests {
     }
 
     async fn prepare_clients_and_states_with_finalization(
-        dealer_details_db: &Arc<RwLock<HashMap<String, DealerDetails>>>,
-        dealings_db: &Arc<RwLock<HashMap<String, Vec<ContractSafeBytes>>>>,
-        proposal_db: &Arc<RwLock<HashMap<u64, ProposalResponse>>>,
-        verification_share_db: &Arc<RwLock<HashMap<String, ContractVKShare>>>,
+        db: &MockContractDb,
     ) -> Vec<(DkgClient, State)> {
-        let mut clients_and_states = prepare_clients_and_states_with_validation(
-            dealer_details_db,
-            dealings_db,
-            proposal_db,
-            verification_share_db,
-        )
-        .await;
+        let mut clients_and_states = prepare_clients_and_states_with_validation(db).await;
         for (dkg_client, state) in clients_and_states.iter_mut() {
             verification_key_finalization(dkg_client, state)
                 .await
@@ -380,17 +369,8 @@ pub(crate) mod tests {
     #[tokio::test]
     #[ignore] // expensive test
     async fn check_dealers_filter_all_good() {
-        let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
-        let dealings_db = Arc::new(RwLock::new(HashMap::new()));
-        let proposal_db = Arc::new(RwLock::new(HashMap::new()));
-        let verification_share_db = Arc::new(RwLock::new(HashMap::new()));
-        let mut clients_and_states = prepare_clients_and_states(
-            &dealer_details_db,
-            &dealings_db,
-            &proposal_db,
-            &verification_share_db,
-        )
-        .await;
+        let db = MockContractDb::new();
+        let mut clients_and_states = prepare_clients_and_states(&db).await;
         for (dkg_client, state) in clients_and_states.iter_mut() {
             let filtered = deterministic_filter_dealers(dkg_client, state, 2)
                 .await
@@ -405,20 +385,11 @@ pub(crate) mod tests {
     #[tokio::test]
     #[ignore] // expensive test
     async fn check_dealers_filter_one_bad_dealing() {
-        let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
-        let dealings_db = Arc::new(RwLock::new(HashMap::new()));
-        let proposal_db = Arc::new(RwLock::new(HashMap::new()));
-        let verification_share_db = Arc::new(RwLock::new(HashMap::new()));
-        let mut clients_and_states = prepare_clients_and_states(
-            &dealer_details_db,
-            &dealings_db,
-            &proposal_db,
-            &verification_share_db,
-        )
-        .await;
+        let db = MockContractDb::new();
+        let mut clients_and_states = prepare_clients_and_states(&db).await;
 
         // corrupt just one dealing
-        dealings_db
+        db.dealings_db
             .write()
             .unwrap()
             .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
@@ -446,20 +417,11 @@ pub(crate) mod tests {
     #[tokio::test]
     #[ignore] // expensive test
     async fn check_dealers_filter_all_bad_dealings() {
-        let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
-        let dealings_db = Arc::new(RwLock::new(HashMap::new()));
-        let proposal_db = Arc::new(RwLock::new(HashMap::new()));
-        let verification_share_db = Arc::new(RwLock::new(HashMap::new()));
-        let mut clients_and_states = prepare_clients_and_states(
-            &dealer_details_db,
-            &dealings_db,
-            &proposal_db,
-            &verification_share_db,
-        )
-        .await;
+        let db = MockContractDb::new();
+        let mut clients_and_states = prepare_clients_and_states(&db).await;
 
         // corrupt all dealings of one address
-        dealings_db
+        db.dealings_db
             .write()
             .unwrap()
             .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
@@ -490,20 +452,11 @@ pub(crate) mod tests {
     #[tokio::test]
     #[ignore] // expensive test
     async fn check_dealers_filter_malformed_dealing() {
-        let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
-        let dealings_db = Arc::new(RwLock::new(HashMap::new()));
-        let proposal_db = Arc::new(RwLock::new(HashMap::new()));
-        let verification_share_db = Arc::new(RwLock::new(HashMap::new()));
-        let mut clients_and_states = prepare_clients_and_states(
-            &dealer_details_db,
-            &dealings_db,
-            &proposal_db,
-            &verification_share_db,
-        )
-        .await;
+        let db = MockContractDb::new();
+        let mut clients_and_states = prepare_clients_and_states(&db).await;
 
         // corrupt just one dealing
-        dealings_db
+        db.dealings_db
             .write()
             .unwrap()
             .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
@@ -536,20 +489,11 @@ pub(crate) mod tests {
     #[tokio::test]
     #[ignore] // expensive test
     async fn check_dealers_filter_dealing_verification_error() {
-        let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
-        let dealings_db = Arc::new(RwLock::new(HashMap::new()));
-        let proposal_db = Arc::new(RwLock::new(HashMap::new()));
-        let verification_share_db = Arc::new(RwLock::new(HashMap::new()));
-        let mut clients_and_states = prepare_clients_and_states(
-            &dealer_details_db,
-            &dealings_db,
-            &proposal_db,
-            &verification_share_db,
-        )
-        .await;
+        let db = MockContractDb::new();
+        let mut clients_and_states = prepare_clients_and_states(&db).await;
 
         // corrupt just one dealing
-        dealings_db
+        db.dealings_db
             .write()
             .unwrap()
             .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
@@ -583,17 +527,8 @@ pub(crate) mod tests {
     #[tokio::test]
     #[ignore] // expensive test
     async fn partial_keypair_derivation() {
-        let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
-        let dealings_db = Arc::new(RwLock::new(HashMap::new()));
-        let proposal_db = Arc::new(RwLock::new(HashMap::new()));
-        let verification_share_db = Arc::new(RwLock::new(HashMap::new()));
-        let mut clients_and_states = prepare_clients_and_states(
-            &dealer_details_db,
-            &dealings_db,
-            &proposal_db,
-            &verification_share_db,
-        )
-        .await;
+        let db = MockContractDb::new();
+        let mut clients_and_states = prepare_clients_and_states(&db).await;
         for (dkg_client, state) in clients_and_states.iter_mut() {
             let filtered = deterministic_filter_dealers(dkg_client, state, 2)
                 .await
@@ -605,20 +540,11 @@ pub(crate) mod tests {
     #[tokio::test]
     #[ignore] // expensive test
     async fn partial_keypair_derivation_with_threshold() {
-        let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
-        let dealings_db = Arc::new(RwLock::new(HashMap::new()));
-        let proposal_db = Arc::new(RwLock::new(HashMap::new()));
-        let verification_share_db = Arc::new(RwLock::new(HashMap::new()));
-        let mut clients_and_states = prepare_clients_and_states(
-            &dealer_details_db,
-            &dealings_db,
-            &proposal_db,
-            &verification_share_db,
-        )
-        .await;
+        let db = MockContractDb::new();
+        let mut clients_and_states = prepare_clients_and_states(&db).await;
 
         // corrupt just one dealing
-        dealings_db
+        db.dealings_db
             .write()
             .unwrap()
             .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
@@ -639,20 +565,12 @@ pub(crate) mod tests {
     #[tokio::test]
     #[ignore] // expensive test
     async fn submit_verification_key() {
-        let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
-        let dealings_db = Arc::new(RwLock::new(HashMap::new()));
-        let proposal_db = Arc::new(RwLock::new(HashMap::new()));
-        let verification_share_db = Arc::new(RwLock::new(HashMap::new()));
-        let mut clients_and_states = prepare_clients_and_states_with_submission(
-            &dealer_details_db,
-            &dealings_db,
-            &proposal_db,
-            &verification_share_db,
-        )
-        .await;
+        let db = MockContractDb::new();
+        let mut clients_and_states = prepare_clients_and_states_with_submission(&db).await;
 
         for (_, state) in clients_and_states.iter_mut() {
-            assert!(proposal_db
+            assert!(db
+                .proposal_db
                 .read()
                 .unwrap()
                 .contains_key(&state.proposal_id_value().unwrap()));
@@ -663,19 +581,11 @@ pub(crate) mod tests {
     #[tokio::test]
     #[ignore] // expensive test
     async fn validate_verification_key() {
-        let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
-        let dealings_db = Arc::new(RwLock::new(HashMap::new()));
-        let proposal_db = Arc::new(RwLock::new(HashMap::new()));
-        let verification_share_db = Arc::new(RwLock::new(HashMap::new()));
-        let mut clients_and_states = prepare_clients_and_states_with_validation(
-            &dealer_details_db,
-            &dealings_db,
-            &proposal_db,
-            &verification_share_db,
-        )
-        .await;
+        let db = MockContractDb::new();
+        let mut clients_and_states = prepare_clients_and_states_with_validation(&db).await;
         for (_, state) in clients_and_states.iter_mut() {
-            let proposal = proposal_db
+            let proposal = db
+                .proposal_db
                 .read()
                 .unwrap()
                 .get(&state.proposal_id_value().unwrap())
@@ -688,19 +598,10 @@ pub(crate) mod tests {
     #[tokio::test]
     #[ignore] // expensive test
     async fn validate_verification_key_malformed_share() {
-        let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
-        let dealings_db = Arc::new(RwLock::new(HashMap::new()));
-        let proposal_db = Arc::new(RwLock::new(HashMap::new()));
-        let verification_share_db = Arc::new(RwLock::new(HashMap::new()));
-        let mut clients_and_states = prepare_clients_and_states_with_submission(
-            &dealer_details_db,
-            &dealings_db,
-            &proposal_db,
-            &verification_share_db,
-        )
-        .await;
+        let db = MockContractDb::new();
+        let mut clients_and_states = prepare_clients_and_states_with_submission(&db).await;
 
-        verification_share_db
+        db.verification_share_db
             .write()
             .unwrap()
             .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
@@ -713,7 +614,8 @@ pub(crate) mod tests {
         }
 
         for (idx, (_, state)) in clients_and_states.iter().enumerate() {
-            let proposal = proposal_db
+            let proposal = db
+                .proposal_db
                 .read()
                 .unwrap()
                 .get(&state.proposal_id_value().unwrap())
@@ -730,26 +632,18 @@ pub(crate) mod tests {
     #[tokio::test]
     #[ignore] // expensive test
     async fn validate_verification_key_unpaired_share() {
-        let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
-        let dealings_db = Arc::new(RwLock::new(HashMap::new()));
-        let proposal_db = Arc::new(RwLock::new(HashMap::new()));
-        let verification_share_db = Arc::new(RwLock::new(HashMap::new()));
-        let mut clients_and_states = prepare_clients_and_states_with_submission(
-            &dealer_details_db,
-            &dealings_db,
-            &proposal_db,
-            &verification_share_db,
-        )
-        .await;
+        let db = MockContractDb::new();
+        let mut clients_and_states = prepare_clients_and_states_with_submission(&db).await;
 
-        let second_share = verification_share_db
+        let second_share = db
+            .verification_share_db
             .write()
             .unwrap()
             .get(TEST_VALIDATORS_ADDRESS[1])
             .unwrap()
             .share
             .clone();
-        verification_share_db
+        db.verification_share_db
             .write()
             .unwrap()
             .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
@@ -762,7 +656,8 @@ pub(crate) mod tests {
         }
 
         for (idx, (_, state)) in clients_and_states.iter().enumerate() {
-            let proposal = proposal_db
+            let proposal = db
+                .proposal_db
                 .read()
                 .unwrap()
                 .get(&state.proposal_id_value().unwrap())
@@ -779,20 +674,12 @@ pub(crate) mod tests {
     #[tokio::test]
     #[ignore] // expensive test
     async fn finalize_verification_key() {
-        let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
-        let dealings_db = Arc::new(RwLock::new(HashMap::new()));
-        let proposal_db = Arc::new(RwLock::new(HashMap::new()));
-        let verification_share_db = Arc::new(RwLock::new(HashMap::new()));
-        let clients_and_states = prepare_clients_and_states_with_finalization(
-            &dealer_details_db,
-            &dealings_db,
-            &proposal_db,
-            &verification_share_db,
-        )
-        .await;
+        let db = MockContractDb::new();
+        let clients_and_states = prepare_clients_and_states_with_finalization(&db).await;
 
         for (_, state) in clients_and_states.iter() {
-            let proposal = proposal_db
+            let proposal = db
+                .proposal_db
                 .read()
                 .unwrap()
                 .get(&state.proposal_id_value().unwrap())

@@ -333,8 +333,8 @@ impl State {
         self.receiver_index = receiver_index;
     }
 
-    pub fn set_threshold(&mut self, threshold: Threshold) {
-        self.threshold = Some(threshold);
+    pub fn set_threshold(&mut self, threshold: Option<Threshold>) {
+        self.threshold = threshold;
     }
 
     pub fn set_proposal_id(&mut self, proposal_id: u64) {

@@ -106,7 +106,7 @@ impl ShutdownNotifier {
     pub fn start_status_listener(&mut self, mut sender: StatusSender) {
         if let Some(mut task_status_rx) = self.task_status_rx.take() {
             log::info!("Starting status message listener");
-            tokio::spawn(async move {
+            crate::spawn::spawn(async move {
                 loop {
                     if let Some(msg) = task_status_rx.next().await {
                         log::trace!("Got msg: {}", msg);

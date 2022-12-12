@@ -4,6 +4,7 @@
 use crate::client::replies::reply_storage::ReplyStorageBackend;
 use crypto::asymmetric::identity::Ed25519RecoveryError;
 use gateway_client::error::GatewayClientError;
+use topology::NymTopologyError;
 use validator_client::ValidatorClientError;
 
 #[derive(thiserror::Error, Debug)]
@@ -26,7 +27,7 @@ pub enum ClientCoreError<B: ReplyStorageBackend> {
     #[error("Could not load existing gateway configuration: {0}")]
     CouldNotLoadExistingGatewayConfiguration(std::io::Error),
     #[error("The current network topology seem to be insufficient to route any packets through")]
-    InsufficientNetworkTopology,
+    InsufficientNetworkTopology(#[from] NymTopologyError),
 
     #[error("Unexpected exit")]
     UnexpectedExit,

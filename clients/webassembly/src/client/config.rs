@@ -123,9 +123,6 @@ pub struct Debug {
     /// Defines the maximum number of reply surbs a remote party is allowed to request from this client at once.
     pub maximum_allowed_reply_surb_request_size: u32,
 
-    /// Defines the amount of reply surbs that the client is going to request when it runs out while attempting to retransmit packets.
-    pub retransmission_reply_surb_request_size: u32,
-
     /// Defines maximum amount of time the client is going to wait for reply surbs before explicitly asking
     /// for more even though in theory they wouldn't need to.
     pub maximum_reply_surb_waiting_period_ms: u64,
@@ -171,7 +168,6 @@ impl From<Debug> for ConfigDebug {
             minimum_reply_surb_request_size: debug.minimum_reply_surb_request_size,
             maximum_reply_surb_request_size: debug.maximum_reply_surb_request_size,
             maximum_allowed_reply_surb_request_size: debug.maximum_allowed_reply_surb_request_size,
-            retransmission_reply_surb_request_size: debug.retransmission_reply_surb_request_size,
             maximum_reply_surb_waiting_period: Duration::from_millis(
                 debug.maximum_reply_surb_waiting_period_ms,
             ),
@@ -204,7 +200,6 @@ impl From<ConfigDebug> for Debug {
             minimum_reply_surb_request_size: debug.minimum_reply_surb_request_size,
             maximum_reply_surb_request_size: debug.maximum_reply_surb_request_size,
             maximum_allowed_reply_surb_request_size: debug.maximum_allowed_reply_surb_request_size,
-            retransmission_reply_surb_request_size: debug.retransmission_reply_surb_request_size,
             maximum_reply_surb_waiting_period_ms: debug
                 .maximum_reply_surb_waiting_period
                 .as_millis() as u64,

@@ -152,11 +152,11 @@ pub(crate) struct RealMessage {
     // TODO: add info about it being constructed with reply-surb
 }
 
-impl From<(PreparedFragment, FragmentIdentifier)> for RealMessage {
-    fn from((fragment, fragment_id): (PreparedFragment, FragmentIdentifier)) -> Self {
+impl From<PreparedFragment> for RealMessage {
+    fn from(fragment: PreparedFragment) -> Self {
         RealMessage {
             mix_packet: fragment.mix_packet,
-            fragment_id,
+            fragment_id: fragment.fragment_identifier,
         }
     }
 }
@@ -556,16 +556,6 @@ where
             }
         }
         log::debug!("OutQueueControl: Exiting");
-    }
-
-    // todo: think whether this is still required
-    #[allow(dead_code)]
-    pub(super) async fn run(&mut self) {
-        debug!("Started OutQueueControl without graceful shutdown support");
-
-        while let Some(next_message) = self.next().await {
-            self.on_message(next_message).await;
-        }
     }
 }
 

@@ -29,7 +29,6 @@ use std::{
     time::Duration,
 };
 
-use crate::client::replies::reply_storage::ReceivedReplySurbsMap;
 pub(crate) use action_controller::{AckActionSender, Action};
 
 mod acknowledgement_listener;
@@ -102,6 +101,14 @@ impl PendingAcknowledgement {
         }
     }
 
+    pub(crate) fn inner_fragment_identifier(&self) -> FragmentIdentifier {
+        self.message_chunk.fragment_identifier()
+    }
+
+    pub(crate) fn fragment_data(&self) -> Fragment {
+        self.message_chunk.clone()
+    }
+
     fn update_delay(&mut self, new_delay: SphinxDelay) {
         self.delay = new_delay;
     }
@@ -155,23 +162,15 @@ pub(super) struct Config {
     /// Given ack timeout in the form a * BASE_DELAY + b, it specifies the multiplier `a`
     ack_wait_multiplier: f64,
 
-    /// Defines the amount of reply surbs that the client is going to request when it runs out while attempting to retransmit packets.
-    retransmission_reply_surb_request_size: u32,
-
     /// Predefined packet size used for the encapsulated messages.
     packet_size: PacketSize,
 }
 
 impl Config {
-    pub(super) fn new(
-        ack_wait_addition: Duration,
-        ack_wait_multiplier: f64,
-        retransmission_reply_surb_request_size: u32,
-    ) -> Self {
+    pub(super) fn new(ack_wait_addition: Duration, ack_wait_multiplier: f64) -> Self {
         Config {
             ack_wait_addition,
             ack_wait_multiplier,
-            retransmission_reply_surb_request_size,
             packet_size: Default::default(),
         }
     }
@@ -203,7 +202,6 @@ where
         connectors: AcknowledgementControllerConnectors,
         message_handler: MessageHandler<R>,
         reply_controller_sender: ReplyControllerSender,
-        received_reply_surbs: ReceivedReplySurbsMap,
     ) -> Self {
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
 
@@ -226,7 +224,7 @@ where
         let input_message_listener = InputMessageListener::new(
             connectors.input_receiver,
             message_handler.clone(),
-            reply_controller_sender,
+            reply_controller_sender.clone(),
         );
 
         // will listen for any ack timeouts and trigger retransmission
@@ -234,8 +232,7 @@ where
             connectors.ack_action_sender.clone(),
             message_handler,
             retransmission_rx,
-            received_reply_surbs,
-            config.retransmission_reply_surb_request_size,
+            reply_controller_sender,
         );
 
         // will listen for events indicating the packet was sent through the network so that
@@ -294,37 +291,6 @@ where
         spawn_future(async move {
             action_controller.run_with_shutdown(shutdown).await;
             debug!("The controller has finished execution!");
-        });
-    }
-
-    // todo: think whether this is still required
-    #[allow(dead_code)]
-    pub(super) fn start(self) {
-        let mut acknowledgement_listener = self.acknowledgement_listener;
-        let mut input_message_listener = self.input_message_listener;
-        let mut retransmission_request_listener = self.retransmission_request_listener;
-        let mut sent_notification_listener = self.sent_notification_listener;
-        let mut action_controller = self.action_controller;
-
-        spawn_future(async move {
-            acknowledgement_listener.run().await;
-            error!("The acknowledgement listener has finished execution!");
-        });
-        spawn_future(async move {
-            input_message_listener.run().await;
-            error!("The input listener has finished execution!");
-        });
-        spawn_future(async move {
-            retransmission_request_listener.run().await;
-            error!("The retransmission request listener has finished execution!");
-        });
-        spawn_future(async move {
-            sent_notification_listener.run().await;
-            error!("The sent notification listener has finished execution!");
-        });
-        spawn_future(async move {
-            action_controller.run().await;
-            error!("The controller has finished execution!");
         });
     }
 }

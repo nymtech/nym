@@ -426,8 +426,7 @@ pub enum ReplyMessageContent {
 impl ReplyMessageContent {
     pub fn into_bytes(self) -> Vec<u8> {
         match self {
-            // TODO: a lot of unnecessary allocations
-            ReplyMessageContent::Data { message } => message.into_iter().collect(),
+            ReplyMessageContent::Data { message } => message,
             ReplyMessageContent::SurbRequest { recipient, amount } => recipient
                 .to_bytes()
                 .into_iter()

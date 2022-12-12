@@ -132,12 +132,6 @@ impl ReceivedMessagesBufferInner {
 // You should always use .clone() to create additional instances
 struct ReceivedMessagesBuffer {
     inner: Arc<Mutex<ReceivedMessagesBufferInner>>,
-    // Storage containing keys to all [`ReplySURB`]s ever sent out that we did not receive back.
-    // There's no need to put it behind a Mutex since it's already properly concurrent
-    // #[cfg(feature = "reply-surb")]
-    // reply_key_storage: ReplyKeyStorage,
-
-    //
     reply_key_storage: SentReplyKeys,
     reply_controller_sender: ReplyControllerSender,
 }
@@ -427,16 +421,6 @@ impl RequestReceiver {
         shutdown.recv_timeout().await;
         log::debug!("RequestReceiver: Exiting");
     }
-
-    // todo: think whether this is still required
-    #[allow(dead_code)]
-    async fn run(&mut self) {
-        debug!("Started RequestReceiver without graceful shutdown support");
-
-        while let Some(message) = self.query_receiver.next().await {
-            self.handle_message(message).await
-        }
-    }
 }
 
 struct FragmentedMessageReceiver {
@@ -476,25 +460,15 @@ impl FragmentedMessageReceiver {
         shutdown.recv_timeout().await;
         log::debug!("FragmentedMessageReceiver: Exiting");
     }
-
-    // todo: think whether this is still required
-    #[allow(dead_code)]
-    async fn run(&mut self) {
-        debug!("Started FragmentedMessageReceiver without graceful shutdown support");
-
-        while let Some(new_messages) = self.mixnet_packet_receiver.next().await {
-            self.received_buffer.handle_new_received(new_messages).await;
-        }
-    }
 }
 
-pub struct ReceivedMessagesBufferController {
+pub(crate) struct ReceivedMessagesBufferController {
     fragmented_message_receiver: FragmentedMessageReceiver,
     request_receiver: RequestReceiver,
 }
 
 impl ReceivedMessagesBufferController {
-    pub fn new(
+    pub(crate) fn new(
         local_encryption_keypair: Arc<encryption::KeyPair>,
         query_receiver: ReceivedBufferRequestReceiver,
         mixnet_packet_receiver: MixnetMessageReceiver,
@@ -528,18 +502,6 @@ impl ReceivedMessagesBufferController {
         });
         spawn_future(async move {
             request_receiver.run_with_shutdown(shutdown).await;
-        });
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub fn start(self) {
-        let mut fragmented_message_receiver = self.fragmented_message_receiver;
-        let mut request_receiver = self.request_receiver;
-        spawn_future(async move {
-            fragmented_message_receiver.run().await;
-        });
-        spawn_future(async move {
-            request_receiver.run().await;
         });
     }
 }

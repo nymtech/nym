@@ -31,12 +31,14 @@ pub struct PreparedFragment {
     /// address of the node to which the message should be sent, the actual 'chunk' of the message
     /// going through the mix network and also the 'mode' of the packet, i.e. VPN or Mix.
     pub mix_packet: MixPacket,
+
+    /// Identifier to uniquely identify a fragment.
+    pub fragment_identifier: FragmentIdentifier,
 }
 
 /// Prepares the message that is to be sent through the mix network by attaching
 /// an optional reply-SURB, padding it to appropriate length, encrypting its content,
 /// and chunking into appropriate size [`Fragment`]s.
-// #[cfg_attr(not(target_arch = "wasm32"), derive(Clone))]
 #[derive(Clone)]
 #[must_use]
 pub struct MessagePreparer<R> {
@@ -134,11 +136,15 @@ where
         ack_key: &AckKey,
         reply_surb: ReplySurb,
     ) -> Result<PreparedFragment, NymTopologyError> {
-        // TODO: pass that as an argument derived from the config
-        let expected_forward_delay = Delay::new_from_millis(300);
+        // this is not going to be accurate by any means. but that's the best estimation we can do
+        let expected_forward_delay = Delay::new_from_millis(
+            (self.average_packet_delay.as_millis() * self.num_mix_hops as u128) as u64,
+        );
+
+        let fragment_identifier = fragment.fragment_identifier();
 
         // create an ack
-        let surb_ack = self.generate_surb_ack(fragment.fragment_identifier(), topology, ack_key)?;
+        let surb_ack = self.generate_surb_ack(fragment_identifier, topology, ack_key)?;
         let ack_delay = surb_ack.expected_total_delay();
 
         let packet_payload = NymsphinxPayloadBuilder::new(fragment, surb_ack)
@@ -156,6 +162,7 @@ where
             // we don't know the delays inside the reply surbs so we use best-effort estimation from our poisson distribution
             total_delay: expected_forward_delay + ack_delay,
             mix_packet: MixPacket::new(first_hop_address, sphinx_packet, Default::default()),
+            fragment_identifier,
         })
     }
 
@@ -183,8 +190,10 @@ where
         ack_key: &AckKey,
         packet_recipient: &Recipient,
     ) -> Result<PreparedFragment, NymTopologyError> {
+        let fragment_identifier = fragment.fragment_identifier();
+
         // create an ack
-        let surb_ack = self.generate_surb_ack(fragment.fragment_identifier(), topology, ack_key)?;
+        let surb_ack = self.generate_surb_ack(fragment_identifier, topology, ack_key)?;
         let ack_delay = surb_ack.expected_total_delay();
 
         let packet_payload = NymsphinxPayloadBuilder::new(fragment, surb_ack)
@@ -218,6 +227,7 @@ where
             // note that the last hop of the packet is a gateway that does not do any delays
             total_delay: delays.iter().take(delays.len() - 1).sum::<Delay>() + ack_delay,
             mix_packet: MixPacket::new(first_hop_address, sphinx_packet, Default::default()),
+            fragment_identifier,
         })
     }
 

@@ -242,19 +242,4 @@ impl LoopCoverTrafficStream<OsRng> {
             log::debug!("LoopCoverTrafficStream: Exiting");
         })
     }
-
-    pub fn start(mut self) {
-        // we should set initial delay only when we actually start the stream
-        let sampled =
-            sample_poisson_duration(&mut self.rng, self.average_cover_message_sending_delay);
-        self.set_next_delay(sampled);
-
-        spawn_future(async move {
-            debug!("Started LoopCoverTrafficStream without graceful shutdown support");
-
-            while self.next().await.is_some() {
-                self.on_new_message().await;
-            }
-        })
-    }
 }

@@ -4,7 +4,7 @@
 use crate::ChunkingError;
 use nymsphinx_params::{SerializedFragmentIdentifier, FRAG_ID_LEN};
 use std::convert::TryInto;
-use std::fmt::{self, Formatter};
+use std::fmt::{self, Debug, Formatter};
 
 // Personal reflection: In hindsight I've spent too much time on relatively too little
 // gain here, as even though I might have saved couple of bytes per packet, the gain
@@ -58,7 +58,7 @@ pub const COVER_FRAG_ID: FragmentIdentifier = FragmentIdentifier {
 /// and u8 position of the `Fragment` in the set.
 // TODO: this should really be redesigned, especially how cover and reply messages are really
 // "abusing" this. They should work with it natively instead.
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct FragmentIdentifier {
     set_id: i32,
     fragment_position: u8,
@@ -75,11 +75,6 @@ impl fmt::Display for FragmentIdentifier {
 }
 
 impl FragmentIdentifier {
-    // and this one
-    pub fn is_reply(self) -> bool {
-        self.set_id > 0 && self.fragment_position == 0
-    }
-
     pub fn to_bytes(self) -> SerializedFragmentIdentifier {
         debug_assert_eq!(FRAG_ID_LEN, 5);
 
@@ -113,10 +108,20 @@ impl FragmentIdentifier {
 /// Each `Fragment` after being marshaled is guaranteed to fit into a single sphinx packet.
 /// The `Fragment` itself consists of part, or whole of, message to be sent as well as additional
 /// header used to reconstruct the message after being received.
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone)]
 pub struct Fragment {
     header: FragmentHeader,
     payload: Vec<u8>,
+}
+
+// manual implementation to hide detailed payload that we don't care about
+impl Debug for Fragment {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Fragment")
+            .field("header", &self.header)
+            .field("payload length", &self.payload.len())
+            .finish()
+    }
 }
 
 impl Fragment {

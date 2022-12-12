@@ -296,13 +296,12 @@ where
         info!("Obtaining initial network topology");
         topology_refresher.refresh().await;
 
-        // TODO: a slightly more graceful termination here
-        if !topology_refresher.is_topology_routable().await {
+        if let Err(err) = topology_refresher.ensure_topology_is_routable().await {
             log::error!(
                 "The current network topology seem to be insufficient to route any packets through \
-                - check if enough nodes and a gateway are online"
+                - check if enough nodes and a gateway are online - source: {err}"
             );
-            return Err(ClientCoreError::InsufficientNetworkTopology);
+            return Err(ClientCoreError::InsufficientNetworkTopology(err));
         }
 
         info!("Starting topology refresher...");

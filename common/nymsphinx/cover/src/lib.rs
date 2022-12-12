@@ -6,7 +6,7 @@ use crypto::symmetric::stream_cipher;
 use nymsphinx_acknowledgements::surb_ack::SurbAck;
 use nymsphinx_acknowledgements::AckKey;
 use nymsphinx_addressing::clients::Recipient;
-use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
+use nymsphinx_addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx_chunking::fragment::COVER_FRAG_ID;
 use nymsphinx_forwarding::packet::MixPacket;
 use nymsphinx_params::packet_sizes::PacketSize;
@@ -18,35 +18,18 @@ use nymsphinx_types::{delays, Error as SphinxError};
 use rand::{CryptoRng, RngCore};
 use std::convert::TryFrom;
 use std::time;
+use thiserror::Error;
 use topology::{NymTopology, NymTopologyError};
 
 pub const LOOP_COVER_MESSAGE_PAYLOAD: &[u8] = b"The cake is a lie!";
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum CoverMessageError {
-    NoValidProvidersError,
-    InvalidTopologyError,
-    SphinxError(SphinxError),
-    InvalidFirstMixAddress,
-}
+    #[error("Could not construct cover message due to invalid topology - {0}")]
+    InvalidTopologyError(#[from] NymTopologyError),
 
-impl From<SphinxError> for CoverMessageError {
-    fn from(err: SphinxError) -> Self {
-        CoverMessageError::SphinxError(err)
-    }
-}
-
-impl From<NymNodeRoutingAddressError> for CoverMessageError {
-    fn from(_: NymNodeRoutingAddressError) -> Self {
-        use CoverMessageError::*;
-        InvalidFirstMixAddress
-    }
-}
-
-impl From<NymTopologyError> for CoverMessageError {
-    fn from(_: NymTopologyError) -> Self {
-        CoverMessageError::InvalidTopologyError
-    }
+    #[error("Could not construct a valid sphinx packet - {0}")]
+    SphinxError(#[from] SphinxError),
 }
 
 pub fn generate_loop_cover_surb_ack<R>(

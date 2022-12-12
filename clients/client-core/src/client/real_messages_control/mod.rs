@@ -79,9 +79,6 @@ pub struct Config {
     /// Defines the maximum number of reply surbs a remote party is allowed to request from this client at once.
     maximum_allowed_reply_surb_request_size: u32,
 
-    /// Defines the amount of reply surbs that the client is going to request when it runs out while attempting to retransmit packets.
-    retransmission_reply_surb_request_size: u32,
-
     /// Defines maximum amount of time the client is going to wait for reply surbs before explicitly asking
     /// for more even though in theory they wouldn't need to.
     maximum_reply_surb_waiting_period: Duration,
@@ -97,12 +94,8 @@ pub struct Config {
 
 impl<'a> From<&'a Config> for acknowledgement_control::Config {
     fn from(cfg: &'a Config) -> Self {
-        acknowledgement_control::Config::new(
-            cfg.ack_wait_addition,
-            cfg.ack_wait_multiplier,
-            cfg.retransmission_reply_surb_request_size,
-        )
-        .with_custom_packet_size(cfg.packet_size)
+        acknowledgement_control::Config::new(cfg.ack_wait_addition, cfg.ack_wait_multiplier)
+            .with_custom_packet_size(cfg.packet_size)
     }
 }
 
@@ -168,8 +161,6 @@ impl Config {
                 .maximum_reply_surb_request_size,
             maximum_allowed_reply_surb_request_size: base_client_debug_config
                 .maximum_allowed_reply_surb_request_size,
-            retransmission_reply_surb_request_size: base_client_debug_config
-                .retransmission_reply_surb_request_size,
             maximum_reply_surb_waiting_period: base_client_debug_config
                 .maximum_reply_surb_waiting_period,
             maximum_reply_surb_age: base_client_debug_config.maximum_reply_surb_age,
@@ -182,7 +173,7 @@ impl Config {
     }
 }
 
-pub struct RealMessagesController<R>
+pub(crate) struct RealMessagesController<R>
 where
     R: CryptoRng + Rng,
 {
@@ -195,7 +186,7 @@ where
 // generic `R`
 impl RealMessagesController<OsRng> {
     #[allow(clippy::too_many_arguments)]
-    pub fn new(
+    pub(crate) fn new(
         config: Config,
         ack_receiver: AcknowledgementReceiver,
         input_receiver: InputMessageReceiver,
@@ -245,7 +236,6 @@ impl RealMessagesController<OsRng> {
             ack_controller_connectors,
             message_handler.clone(),
             reply_controller_sender,
-            reply_storage.surbs_storage(),
         );
 
         let reply_control = ReplyController::new(
@@ -290,22 +280,5 @@ impl RealMessagesController<OsRng> {
         });
 
         ack_control.start_with_shutdown(shutdown);
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub fn start(self) {
-        let mut out_queue_control = self.out_queue_control;
-        let ack_control = self.ack_control;
-        let mut reply_control = self.reply_control;
-
-        spawn_future(async move {
-            out_queue_control.run().await;
-            debug!("The out queue controller has finished execution!");
-        });
-        spawn_future(async move {
-            reply_control.run().await;
-            debug!("The reply controller has finished execution!");
-        });
-        ack_control.start();
     }
 }

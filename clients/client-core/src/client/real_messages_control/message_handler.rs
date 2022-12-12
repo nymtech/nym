@@ -7,17 +7,18 @@ use crate::client::real_messages_control::real_traffic_stream::{
 };
 use crate::client::real_messages_control::{AckActionSender, Action};
 use crate::client::replies::reply_storage::{ReceivedReplySurbsMap, SentReplyKeys, UsedSenderTags};
-use crate::client::topology_control::{InvalidTopologyError, TopologyAccessor, TopologyReadPermit};
+use crate::client::topology_control::{TopologyAccessor, TopologyReadPermit};
 use client_connections::TransmissionLane;
 use log::{debug, error, info, trace, warn};
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, RepliableMessage, ReplyMessage};
 use nymsphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey};
-use nymsphinx::chunking::fragment::Fragment;
+use nymsphinx::chunking::fragment::{Fragment, FragmentIdentifier};
 use nymsphinx::message::NymMessage;
 use nymsphinx::params::{PacketSize, DEFAULT_NUM_MIX_HOPS};
 use nymsphinx::preparer::{MessagePreparer, PreparedFragment};
+use nymsphinx::Delay;
 use rand::{CryptoRng, Rng};
 use std::sync::Arc;
 use std::time::Duration;
@@ -25,22 +26,13 @@ use thiserror::Error;
 use topology::{NymTopology, NymTopologyError};
 
 // TODO: move that error elsewhere since it seems to be contaminating different files
-// TODO2: attempt to unify `InvalidTopologyError` and `NymTopologyError`
 #[derive(Debug, Clone, Error)]
 pub enum PreparationError {
-    #[error(transparent)]
-    InvalidTopology(#[from] InvalidTopologyError),
-
     #[error(transparent)]
     NymTopologyError(#[from] NymTopologyError),
 
     #[error("The received message cannot be sent using a single reply surb. It ended up getting split into {fragments} fragments.")]
     MessageTooLongForSingleSurb { fragments: usize },
-
-    #[error(
-        "Never received any reply SURBs associated with the following sender tag: {sender_tag}"
-    )]
-    UnknownSurbSender { sender_tag: AnonymousSenderTag },
 
     #[error("Not enough reply SURBs to send the message. We have {available} available and require at least {required}.")]
     NotEnoughSurbs { available: usize, required: usize },
@@ -302,6 +294,30 @@ where
             )))
     }
 
+    // the only difference between this method and `try_send_reply_chunks` is that
+    // here we are not creating acks as acks are already in memory waiting to get cleared.
+    // we are only updating their existing delays
+    pub(crate) async fn try_send_retransmission_reply_chunks(
+        &mut self,
+        fragments: Vec<Fragment>,
+        reply_surbs: Vec<ReplySurb>,
+        lane: TransmissionLane,
+    ) -> Result<(), SurbWrappedPreparationError> {
+        let prepared_fragments = self
+            .prepare_reply_chunks_for_sending(fragments.clone(), reply_surbs)
+            .await?;
+
+        let mut real_messages = Vec::with_capacity(prepared_fragments.len());
+
+        for prepared in prepared_fragments {
+            self.update_ack_delay(prepared.fragment_identifier, prepared.total_delay);
+            real_messages.push(prepared.into())
+        }
+
+        self.forward_messages(real_messages, lane).await;
+        Ok(())
+    }
+
     pub(crate) async fn try_send_reply_chunks(
         &mut self,
         target: AnonymousSenderTag,
@@ -309,41 +325,17 @@ where
         reply_surbs: Vec<ReplySurb>,
         lane: TransmissionLane,
     ) -> Result<(), SurbWrappedPreparationError> {
-        // this should never be reached!
-        debug_assert_ne!(
-            fragments.len(),
-            reply_surbs.len(),
-            "attempted to send {} fragments with {} reply surbs",
-            fragments.len(),
-            reply_surbs.len()
-        );
-
-        let topology_permit = self.topology_access.get_read_permit().await;
-        let topology = match self.get_topology(&topology_permit) {
-            Ok(topology) => topology,
-            Err(err) => return Err(err.return_surbs(reply_surbs)),
-        };
+        let prepared_fragments = self
+            .prepare_reply_chunks_for_sending(fragments.clone(), reply_surbs)
+            .await?;
 
         let mut pending_acks = Vec::with_capacity(fragments.len());
         let mut real_messages = Vec::with_capacity(fragments.len());
-        for (fragment, reply_surb) in fragments.into_iter().zip(reply_surbs.into_iter()) {
-            // we need to clone it because we need to keep it in memory in case we had to retransmit
-            // it. And then we'd need to recreate entire ACK again.
-            let chunk_clone = fragment.clone();
-            let prepared_fragment = self
-                .message_preparer
-                .prepare_reply_chunk_for_sending(
-                    chunk_clone,
-                    topology,
-                    &self.config.ack_key,
-                    reply_surb,
-                )
-                .unwrap();
 
-            let real_message =
-                RealMessage::new(prepared_fragment.mix_packet, fragment.fragment_identifier());
-            let delay = prepared_fragment.total_delay;
-            let pending_ack = PendingAcknowledgement::new_anonymous(fragment, delay, target, false);
+        for (raw, prepared) in fragments.into_iter().zip(prepared_fragments.into_iter()) {
+            let real_message = RealMessage::new(prepared.mix_packet, prepared.fragment_identifier);
+            let delay = prepared.total_delay;
+            let pending_ack = PendingAcknowledgement::new_anonymous(raw, delay, target, false);
 
             real_messages.push(real_message);
             pending_acks.push(pending_ack);
@@ -475,6 +467,42 @@ where
         Ok(prepared_fragment)
     }
 
+    async fn prepare_reply_chunks_for_sending(
+        &mut self,
+        fragments: Vec<Fragment>,
+        reply_surbs: Vec<ReplySurb>,
+    ) -> Result<Vec<PreparedFragment>, SurbWrappedPreparationError> {
+        debug_assert_ne!(
+            fragments.len(),
+            reply_surbs.len(),
+            "attempted to send {} fragments with {} reply surbs",
+            fragments.len(),
+            reply_surbs.len()
+        );
+
+        let topology_permit = self.topology_access.get_read_permit().await;
+        let topology = match self.get_topology(&topology_permit) {
+            Ok(topology) => topology,
+            Err(err) => return Err(err.return_surbs(reply_surbs)),
+        };
+
+        Ok(fragments
+            .into_iter()
+            .zip(reply_surbs.into_iter())
+            .map(|(fragment, reply_surb)| {
+                // unwrap here is fine as we know we have a valid topology
+                self.message_preparer
+                    .prepare_reply_chunk_for_sending(
+                        fragment,
+                        topology,
+                        &self.config.ack_key,
+                        reply_surb,
+                    )
+                    .unwrap()
+            })
+            .collect())
+    }
+
     pub(crate) async fn try_prepare_single_reply_chunk_for_sending(
         &mut self,
         reply_surb: ReplySurb,
@@ -494,6 +522,12 @@ where
         Ok(prepared_fragment)
     }
 
+    pub(crate) fn update_ack_delay(&self, id: FragmentIdentifier, new_delay: Delay) {
+        self.action_sender
+            .unbounded_send(Action::UpdateDelay(id, new_delay))
+            .expect("action control task has died")
+    }
+
     pub(crate) fn insert_pending_acks(&self, pending_acks: Vec<PendingAcknowledgement>) {
         self.action_sender
             .unbounded_send(Action::new_insert(pending_acks))
@@ -501,7 +535,7 @@ where
     }
 
     // tells real message sender (with the poisson timer) to send this to the mix network
-    pub(super) async fn forward_messages(
+    pub(crate) async fn forward_messages(
         &self,
         messages: Vec<RealMessage>,
         transmission_lane: TransmissionLane,

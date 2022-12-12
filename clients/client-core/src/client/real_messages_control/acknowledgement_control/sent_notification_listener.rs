@@ -31,12 +31,6 @@ impl SentNotificationListener {
         if frag_id == COVER_FRAG_ID {
             trace!("sent off a cover message - no need to start retransmission timer!");
             return;
-        } else if frag_id.is_reply() {
-            error!("please let @jstuczyn know if you see this message");
-            debug!("sent off a reply message - no need to start retransmission timer!");
-            // TODO: probably there will need to be some extra procedure here, like it would
-            // be nice to know that our reply actually reached the recipient (i.e. we got the ack)
-            return;
         }
         self.action_sender
             .unbounded_send(Action::new_start_timer(frag_id))
@@ -64,15 +58,5 @@ impl SentNotificationListener {
         }
         assert!(shutdown.is_shutdown_poll());
         log::debug!("SentNotificationListener: Exiting");
-    }
-
-    // todo: think whether this is still required
-    #[allow(dead_code)]
-    pub(super) async fn run(&mut self) {
-        debug!("Started SentNotificationListener without graceful shutdown support");
-
-        while let Some(frag_id) = self.sent_notifier.next().await {
-            self.on_sent_message(frag_id).await;
-        }
     }
 }

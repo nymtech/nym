@@ -116,11 +116,11 @@ pub fn start_status_listener(
 pub fn start_disconnect_listener(
     state: Arc<RwLock<State>>,
     window: tauri::Window<tauri::Wry>,
-    status_receiver: ExitStatusReceiver,
+    exit_status_receiver: ExitStatusReceiver,
 ) {
     log::trace!("Starting disconnect listener");
     tokio::spawn(async move {
-        match status_receiver.await {
+        match exit_status_receiver.await {
             Ok(Socks5ExitStatusMessage::Stopped) => {
                 log::info!("SOCKS5 task reported it has finished");
                 window

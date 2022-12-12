@@ -111,9 +111,9 @@ impl State {
         }
 
         // Kick off the main task and get the channel for controlling it
-        let (msg_receiver, status_receiver) = self.start_nym_socks5_client()?;
+        let (msg_receiver, exit_status_receiver) = self.start_nym_socks5_client()?;
         self.set_state(ConnectionStatusKind::Connected, window);
-        Ok((msg_receiver, status_receiver))
+        Ok((msg_receiver, exit_status_receiver))
     }
 
     /// Create a configuration file
@@ -135,10 +135,11 @@ impl State {
     /// Spawn a new thread running the SOCKS5 client
     fn start_nym_socks5_client(&mut self) -> Result<(task::StatusReceiver, ExitStatusReceiver)> {
         let id = self.get_config_id()?;
-        let (control_tx, msg_rx, status_rx, used_gateway) = tasks::start_nym_socks5_client(&id)?;
+        let (control_tx, msg_rx, exit_status_rx, used_gateway) =
+            tasks::start_nym_socks5_client(&id)?;
         self.socks5_client_sender = Some(control_tx);
         self.gateway = Some(used_gateway.gateway_id);
-        Ok((msg_rx, status_rx))
+        Ok((msg_rx, exit_status_rx))
     }
 
     /// Disconnect by sending a message to the SOCKS5 client thread. Once it has finished and is

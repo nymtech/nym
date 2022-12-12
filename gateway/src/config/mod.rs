@@ -5,6 +5,7 @@ use crate::config::template::config_template;
 use config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
 use config::NymConfig;
 use log::error;
+use network_defaults::mainnet::{API_VALIDATOR, NYMD_VALIDATOR, STATISTICS_SERVICE_DOMAIN_ADDRESS};
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::path::PathBuf;
@@ -416,9 +417,9 @@ impl Default for Gateway {
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
             enabled_statistics: false,
-            statistics_service_url: Url::from_str("http://127.0.0.1").unwrap(),
-            validator_api_urls: vec![],
-            validator_nymd_urls: vec![],
+            statistics_service_url: Url::from_str(STATISTICS_SERVICE_DOMAIN_ADDRESS).expect("Invalid default statistics service URL"),
+            validator_api_urls: vec![Url::from_str(API_VALIDATOR).expect("Invalid default API URL")],
+            validator_nymd_urls: vec![Url::from_str(NYMD_VALIDATOR).expect("Invalid default nymd URL")],
             cosmos_mnemonic: bip39::Mnemonic::from_str("exact antique hybrid width raise anchor puzzle degree fee quit long crack net vague hip despair write put useless civil mechanic broom music day").unwrap(),
             nym_root_directory: Config::default_root_directory(),
             persistent_storage: Default::default(),

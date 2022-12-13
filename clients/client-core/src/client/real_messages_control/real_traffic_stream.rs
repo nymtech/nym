@@ -459,7 +459,9 @@ where
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn log_status(&self) {
+    fn log_status(&self, shutdown: &mut task::ShutdownListener) {
+        use crate::error::ClientCoreStatusMessage;
+
         let packets = self.transmission_buffer.total_size();
         let backlog = self.transmission_buffer.total_size_in_bytes() as f64 / 1024.0;
         let lanes = self.transmission_buffer.num_lanes();
@@ -482,6 +484,13 @@ where
             log::info!("{status_str}");
         } else {
             log::debug!("{status_str}");
+        }
+
+        // Send status message to whoever is listening (possibly UI)
+        if mult == self.sending_delay_controller.max_multiplier() {
+            shutdown.send_status_msg(Box::new(ClientCoreStatusMessage::GatewayIsVerySlow));
+        } else if mult > self.sending_delay_controller.min_multiplier() {
+            shutdown.send_status_msg(Box::new(ClientCoreStatusMessage::GatewayIsSlow));
         }
     }
 
@@ -510,7 +519,7 @@ where
                         log::trace!("OutQueueControl: Received shutdown");
                     }
                     _ = status_timer.tick() => {
-                        self.log_status();
+                        self.log_status(&mut shutdown);
                     }
                     _ = infrequent_status_timer.tick() => {
                         self.log_status_infrequent();

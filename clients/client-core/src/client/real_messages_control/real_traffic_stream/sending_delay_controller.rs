@@ -77,6 +77,14 @@ impl SendingDelayController {
         self.current_multiplier
     }
 
+    pub(crate) fn min_multiplier(&self) -> u32 {
+        self.lower_bound
+    }
+
+    pub(crate) fn max_multiplier(&self) -> u32 {
+        self.upper_bound
+    }
+
     pub(crate) fn increase_delay_multiplier(&mut self) {
         if self.current_multiplier < self.upper_bound {
             self.current_multiplier =

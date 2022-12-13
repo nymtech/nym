@@ -32,7 +32,7 @@ impl Listener {
         }
     }
 
-    pub(crate) async fn run(&mut self, handler: Handler) {
+    pub(crate) async fn run(&mut self, handler: Handler, mut task_client: task::TaskClient) {
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
             Ok(listener) => listener,
             Err(err) => {
@@ -45,9 +45,24 @@ impl Listener {
 
         loop {
             tokio::select! {
+                // When the handler finishes we check if shutdown is signalled
                 _ = notify.notified() => {
+                    if task_client.is_shutdown() {
+                        log::trace!("Websocket listener: detected shutdown after connection closed");
+                        break;
+                    }
                     // our connection terminated - we are open to a new one now!
                     self.state = State::AwaitingConnection;
+                }
+                // ... but when there is no connected client at the time of shutdown being
+                // signalled, we handle it here.
+                _ = task_client.recv() => {
+                    log::trace!("Websocket listener: received shutdown");
+                    if !self.state.is_connected() {
+                        log::trace!("Not connected: shutting down");
+                        break;
+                    }
+                    log::trace!("Connected: not shutting down");
                 }
                 new_conn = tcp_listener.accept() => {
                     match new_conn {
@@ -71,8 +86,9 @@ impl Listener {
                                 // hanging because the executor doesn't come back here
                                 let notify_clone = Arc::clone(&notify);
                                 let fresh_handler = handler.clone();
+                                let task_client_handler = task_client.clone();
                                 tokio::spawn(async move {
-                                    fresh_handler.handle_connection(socket).await;
+                                    fresh_handler.handle_connection(socket, task_client_handler).await;
                                     notify_clone.notify_one();
                                 });
                                 self.state = State::Connected;
@@ -83,11 +99,12 @@ impl Listener {
                 }
             }
         }
+        log::debug!("Websocket listener: Exiting");
     }
 
-    pub(crate) fn start(mut self, handler: Handler) -> JoinHandle<()> {
+    pub(crate) fn start(mut self, handler: Handler, shutdown: task::TaskClient) -> JoinHandle<()> {
         info!("Running websocket on {:?}", self.address.to_string());
 
-        tokio::spawn(async move { self.run(handler).await })
+        tokio::spawn(async move { self.run(handler, shutdown).await })
     }
 }

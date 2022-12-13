@@ -362,8 +362,12 @@ impl Handler {
         }
     }
 
-    async fn listen_for_requests(&mut self, mut msg_receiver: ReconstructedMessagesReceiver) {
-        loop {
+    async fn listen_for_requests(
+        &mut self,
+        mut msg_receiver: ReconstructedMessagesReceiver,
+        mut task_client: task::TaskClient,
+    ) {
+        while !task_client.is_shutdown() {
             tokio::select! {
                 // we can either get a client request from the websocket
                 socket_msg = self.next_websocket_request() => {
@@ -402,12 +406,24 @@ impl Handler {
                         break;
                     }
                 }
+                _ = task_client.recv() => {
+                    log::trace!("Websocket handler: Received shutdown");
+                }
             }
         }
+        log::debug!("Websocket handler: Exiting");
     }
 
     // consume self to make sure `drop` is called after this is done
-    pub(crate) async fn handle_connection(mut self, socket: TcpStream) {
+    pub(crate) async fn handle_connection(
+        mut self,
+        socket: TcpStream,
+        mut task_client: task::TaskClient,
+    ) {
+        // We don't want a crash in the connection handler to trigger a shutdown of the whole
+        // process.
+        task_client.mark_as_success();
+
         let ws_stream = match accept_async(socket).await {
             Ok(ws_stream) => ws_stream,
             Err(err) => {
@@ -426,7 +442,8 @@ impl Handler {
             ))
             .expect("the buffer request failed!");
 
-        self.listen_for_requests(reconstructed_receiver).await;
+        self.listen_for_requests(reconstructed_receiver, task_client)
+            .await;
     }
 }
 

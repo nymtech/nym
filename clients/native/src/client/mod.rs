@@ -87,16 +87,19 @@ impl SocketClient {
         client_input: ClientInput,
         client_output: ClientOutput,
         self_address: Recipient,
+        shutdown: task::TaskClient,
     ) {
         info!("Starting websocket listener...");
 
         let ClientInput {
-            shared_lane_queue_lengths,
             connection_command_sender,
             input_sender,
         } = client_input;
 
-        let received_buffer_request_sender = client_output.received_buffer_request_sender;
+        let ClientOutput {
+            shared_lane_queue_lengths,
+            received_buffer_request_sender,
+        } = client_output;
 
         let websocket_handler = websocket::Handler::new(
             input_sender,
@@ -106,7 +109,7 @@ impl SocketClient {
             shared_lane_queue_lengths,
         );
 
-        websocket::Listener::new(config.get_listening_port()).start(websocket_handler);
+        websocket::Listener::new(config.get_listening_port()).start(websocket_handler, shutdown);
     }
 
     /// blocking version of `start_socket` method. Will run forever (or until SIGINT is sent)
@@ -146,12 +149,18 @@ impl SocketClient {
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
 
-        Self::start_websocket_listener(&self.config, client_input, client_output, self_address);
+        Self::start_websocket_listener(
+            &self.config,
+            client_input,
+            client_output,
+            self_address,
+            started_client.task_manager.subscribe(),
+        );
 
         info!("Client startup finished!");
         info!("The address of this client is: {}", self_address);
 
-        Ok(started_client.shutdown_notifier)
+        Ok(started_client.task_manager)
     }
 
     pub async fn start_direct(self) -> Result<DirectClient, ClientError> {
@@ -188,7 +197,7 @@ impl SocketClient {
         Ok(DirectClient {
             client_input,
             reconstructed_receiver,
-            _shutdown_notifier: started_client.shutdown_notifier,
+            _shutdown_notifier: started_client.task_manager,
         })
     }
 }

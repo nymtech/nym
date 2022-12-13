@@ -103,12 +103,14 @@ impl NymClient {
         let allowed_users: Vec<User> = Vec::new();
 
         let ClientInput {
-            shared_lane_queue_lengths,
             connection_command_sender,
             input_sender,
         } = client_input;
 
-        let received_buffer_request_sender = client_output.received_buffer_request_sender;
+        let ClientOutput {
+            shared_lane_queue_lengths,
+            received_buffer_request_sender,
+        } = client_output;
 
         let authenticator = Authenticator::new(auth_methods, allowed_users);
         let mut sphinx_socks = SphinxSocksServer::new(
@@ -222,12 +224,12 @@ impl NymClient {
             client_input,
             client_output,
             self_address,
-            started_client.shutdown_notifier.subscribe(),
+            started_client.task_manager.subscribe(),
         );
 
         info!("Client startup finished!");
         info!("The address of this client is: {}", self_address);
 
-        Ok(started_client.shutdown_notifier)
+        Ok(started_client.task_manager)
     }
 }

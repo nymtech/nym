@@ -11,7 +11,7 @@ use std::{
     collections::{HashMap, HashSet},
     time::Duration,
 };
-use task::ShutdownListener;
+use task::TaskClient;
 use tokio::time;
 
 /// A generic message produced after reading from a socket/connection. It includes data that was
@@ -98,14 +98,14 @@ pub struct Controller {
     // un-order messages. Note we don't ever expect to have more than 1-2 messages per connection here
     pending_messages: HashMap<ConnectionId, Vec<(Vec<u8>, bool)>>,
 
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl Controller {
     pub fn new(
         client_connection_tx: ConnectionCommandSender,
         broadcast_connections: BroadcastActiveConnections,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> (Self, ControllerSender) {
         let (sender, receiver) = mpsc::unbounded();
         (

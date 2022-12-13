@@ -891,7 +891,7 @@ where
         return gloo_timers::future::IntervalStream::new(polling_rate.as_millis() as u32);
     }
 
-    pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+    pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
         debug!("Started ReplyController with graceful shutdown support");
 
         let polling_rate = Duration::from_secs(5);

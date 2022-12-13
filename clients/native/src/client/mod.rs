@@ -18,7 +18,7 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::receiver::ReconstructedMessage;
-use task::{wait_for_signal, ShutdownNotifier};
+use task::{wait_for_signal, TaskManager};
 
 pub(crate) mod config;
 
@@ -129,7 +129,7 @@ impl SocketClient {
         Ok(())
     }
 
-    pub async fn start_socket(self) -> Result<ShutdownNotifier, ClientError> {
+    pub async fn start_socket(self) -> Result<TaskManager, ClientError> {
         if !self.config.get_socket_type().is_websocket() {
             return Err(ClientError::InvalidSocketMode);
         }
@@ -202,7 +202,7 @@ pub struct DirectClient {
     reconstructed_receiver: ReconstructedMessagesReceiver,
 
     // we need to keep reference to this guy otherwise things will start dropping
-    _shutdown_notifier: ShutdownNotifier,
+    _shutdown_notifier: TaskManager,
 }
 
 impl DirectClient {

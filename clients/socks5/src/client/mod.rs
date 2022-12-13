@@ -19,7 +19,7 @@ use gateway_client::bandwidth::BandwidthController;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use std::error::Error;
-use task::{wait_for_signal_and_error, ShutdownListener, ShutdownNotifier};
+use task::{wait_for_signal_and_error, TaskClient, TaskManager};
 
 pub mod config;
 
@@ -96,7 +96,7 @@ impl NymClient {
         client_input: ClientInput,
         client_output: ClientOutput,
         self_address: Recipient,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) {
         info!("Starting socks5 listener...");
         let auth_methods = vec![AuthenticationMethods::NoAuth as u8];
@@ -200,7 +200,7 @@ impl NymClient {
         res
     }
 
-    pub async fn start(self) -> Result<ShutdownNotifier, Socks5ClientError> {
+    pub async fn start(self) -> Result<TaskManager, Socks5ClientError> {
         let base_builder = BaseClientBuilder::new_from_base_config(
             self.config.get_base(),
             self.key_manager,

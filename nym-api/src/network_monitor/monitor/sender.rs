@@ -24,7 +24,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
-use task::ShutdownListener;
+use task::TaskClient;
 
 use gateway_client::bandwidth::BandwidthController;
 
@@ -166,11 +166,7 @@ impl PacketSender {
         }
     }
 
-    pub(crate) fn spawn_gateways_pinger(
-        &self,
-        pinging_interval: Duration,
-        shutdown: ShutdownListener,
-    ) {
+    pub(crate) fn spawn_gateways_pinger(&self, pinging_interval: Duration, shutdown: TaskClient) {
         let gateway_pinger = GatewayPinger::new(
             self.active_gateway_clients.clone(),
             self.fresh_gateway_client_data
@@ -209,7 +205,7 @@ impl PacketSender {
             ack_sender,
             fresh_gateway_client_data.gateway_response_timeout,
             Some(fresh_gateway_client_data.bandwidth_controller.clone()),
-            task::ShutdownListener::dummy(),
+            task::TaskClient::dummy(),
         );
 
         gateway_client

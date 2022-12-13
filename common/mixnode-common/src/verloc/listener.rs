@@ -11,7 +11,7 @@ use std::fmt::{Display, Formatter};
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::{fmt, io, process};
-use task::ShutdownListener;
+use task::TaskClient;
 use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio_util::codec::{Decoder, Encoder, Framed};
@@ -19,14 +19,14 @@ use tokio_util::codec::{Decoder, Encoder, Framed};
 pub(crate) struct PacketListener {
     address: SocketAddr,
     connection_handler: Arc<ConnectionHandler>,
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl PacketListener {
     pub(crate) fn new(
         address: SocketAddr,
         identity: Arc<identity::KeyPair>,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> Self {
         PacketListener {
             address,
@@ -91,7 +91,7 @@ impl ConnectionHandler {
         self: Arc<Self>,
         conn: TcpStream,
         remote: SocketAddr,
-        mut shutdown_listener: ShutdownListener,
+        mut shutdown_listener: TaskClient,
     ) {
         debug!("Starting connection handler for {:?}", remote);
 

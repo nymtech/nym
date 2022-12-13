@@ -12,7 +12,7 @@ use rand::thread_rng;
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::sync::Arc;
 use std::time::Duration;
-use task::ShutdownListener;
+use task::TaskClient;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use url::Url;
@@ -168,7 +168,7 @@ pub struct VerlocMeasurer {
     config: Config,
     packet_sender: Arc<PacketSender>,
     packet_listener: Arc<PacketListener>,
-    shutdown_listener: ShutdownListener,
+    shutdown_listener: TaskClient,
 
     currently_used_api: usize,
 
@@ -184,7 +184,7 @@ impl VerlocMeasurer {
     pub fn new(
         mut config: Config,
         identity: Arc<identity::KeyPair>,
-        shutdown_listener: ShutdownListener,
+        shutdown_listener: TaskClient,
     ) -> Self {
         config.nym_api_urls.shuffle(&mut thread_rng());
 

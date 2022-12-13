@@ -12,7 +12,7 @@ use nym_api_requests::models::{MixNodeBondAnnotated, MixnodeStatus};
 use rocket::fairing::AdHoc;
 use std::collections::HashMap;
 use std::{sync::Arc, time::Duration};
-use task::ShutdownListener;
+use task::TaskClient;
 use tokio::sync::RwLockReadGuard;
 use tokio::{
     sync::{watch, RwLock},
@@ -174,7 +174,7 @@ impl NodeStatusCacheRefresher {
         }
     }
 
-    pub async fn run(&mut self, mut shutdown: ShutdownListener) {
+    pub async fn run(&mut self, mut shutdown: TaskClient) {
         let mut fallback_interval = time::interval(self.fallback_caching_interval);
         while !shutdown.is_shutdown() {
             tokio::select! {

@@ -399,7 +399,7 @@ impl RequestReceiver {
         }
     }
 
-    async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+    async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
         debug!("Started RequestReceiver with graceful shutdown support");
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -439,7 +439,7 @@ impl FragmentedMessageReceiver {
         }
     }
 
-    async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+    async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
         debug!("Started FragmentedMessageReceiver with graceful shutdown support");
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -490,7 +490,7 @@ impl ReceivedMessagesBufferController {
         }
     }
 
-    pub fn start_with_shutdown(self, shutdown: task::ShutdownListener) {
+    pub fn start_with_shutdown(self, shutdown: task::TaskClient) {
         let mut fragmented_message_receiver = self.fragmented_message_receiver;
         let mut request_receiver = self.request_receiver;
 

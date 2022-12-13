@@ -37,7 +37,7 @@ impl SentNotificationListener {
             .unwrap();
     }
 
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
         debug!("Started SentNotificationListener with graceful shutdown support");
 
         while !shutdown.is_shutdown() {

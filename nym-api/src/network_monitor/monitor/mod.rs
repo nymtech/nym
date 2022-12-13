@@ -12,7 +12,7 @@ use crate::storage::NymApiStorage;
 use log::{debug, error, info};
 use std::collections::{HashMap, HashSet};
 use std::process;
-use task::ShutdownListener;
+use task::TaskClient;
 use tokio::time::{sleep, Duration, Instant};
 
 pub(crate) mod gateway_clients_cache;
@@ -301,7 +301,7 @@ impl Monitor {
         self.test_nonce += 1;
     }
 
-    pub(crate) async fn run(&mut self, mut shutdown: ShutdownListener) {
+    pub(crate) async fn run(&mut self, mut shutdown: TaskClient) {
         self.received_processor.start_receiving();
 
         // wait for validator cache to be ready

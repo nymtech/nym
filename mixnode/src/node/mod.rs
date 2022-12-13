@@ -26,7 +26,7 @@ use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
-use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
+use task::{wait_for_signal, TaskClient, TaskManager};
 use version_checker::parse_version;
 
 mod http;
@@ -153,7 +153,7 @@ impl MixNode {
 
     fn start_node_stats_controller(
         &self,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> (SharedNodeStats, node_statistics::UpdateSender) {
         info!("Starting node stats controller...");
         let controller = node_statistics::Controller::new(
@@ -171,7 +171,7 @@ impl MixNode {
         &self,
         node_stats_update_sender: node_statistics::UpdateSender,
         delay_forwarding_channel: PacketDelayForwardSender,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) {
         info!("Starting socket listener...");
 
@@ -191,7 +191,7 @@ impl MixNode {
     fn start_packet_delay_forwarder(
         &mut self,
         node_stats_update_sender: node_statistics::UpdateSender,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> PacketDelayForwardSender {
         info!("Starting packet delay-forwarder...");
 
@@ -215,7 +215,7 @@ impl MixNode {
         packet_sender
     }
 
-    fn start_verloc_measurements(&self, shutdown: ShutdownListener) -> AtomicVerlocResult {
+    fn start_verloc_measurements(&self, shutdown: TaskClient) -> AtomicVerlocResult {
         info!("Starting the round-trip-time measurer...");
 
         // this is a sanity check to make sure we didn't mess up with the minimum version at some point
@@ -288,7 +288,7 @@ impl MixNode {
             .map(|node| node.bond_information.mix_node.identity_key.clone())
     }
 
-    async fn wait_for_interrupt(&self, mut shutdown: ShutdownNotifier) {
+    async fn wait_for_interrupt(&self, mut shutdown: TaskManager) {
         wait_for_signal().await;
 
         log::info!("Sending shutdown");
@@ -315,7 +315,7 @@ impl MixNode {
             }
         }
 
-        let shutdown = ShutdownNotifier::default();
+        let shutdown = TaskManager::default();
 
         let (node_stats_pointer, node_stats_update_sender) =
             self.start_node_stats_controller(shutdown.subscribe());

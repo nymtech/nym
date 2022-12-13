@@ -65,7 +65,7 @@ impl AcknowledgementListener {
         }
     }
 
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
         debug!("Started AcknowledgementListener with graceful shutdown support");
 
         while !shutdown.is_shutdown() {

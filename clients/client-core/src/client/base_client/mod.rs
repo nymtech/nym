@@ -36,7 +36,7 @@ use nymsphinx::addressing::nodes::NodeIdentity;
 use std::sync::Arc;
 use std::time::Duration;
 use tap::TapFallible;
-use task::{ShutdownListener, ShutdownNotifier};
+use task::{TaskClient, TaskManager};
 use url::Url;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
@@ -151,7 +151,7 @@ where
         self_address: Recipient,
         topology_accessor: TopologyAccessor,
         mix_tx: BatchMixMessageSender,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) {
         info!("Starting loop cover traffic stream...");
 
@@ -185,7 +185,7 @@ where
         reply_controller_receiver: ReplyControllerReceiver,
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) {
         info!("Starting real traffic stream...");
 
@@ -212,7 +212,7 @@ where
         mixnet_receiver: MixnetMessageReceiver,
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) {
         info!("Starting received messages buffer controller...");
         ReceivedMessagesBufferController::new(
@@ -229,7 +229,7 @@ where
         &mut self,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> Result<GatewayClient, ClientCoreError<B>> {
         let gateway_id = self.gateway_config.gateway_id.clone();
         if gateway_id.is_empty() {
@@ -284,7 +284,7 @@ where
         nym_api_urls: Vec<Url>,
         refresh_rate: Duration,
         topology_accessor: TopologyAccessor,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> Result<(), ClientCoreError<B>> {
         let topology_refresher_config = TopologyRefresherConfig::new(
             nym_api_urls,
@@ -317,7 +317,7 @@ where
     // requests?
     fn start_mix_traffic_controller(
         gateway_client: GatewayClient,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> BatchMixMessageSender {
         info!("Starting mix traffic controller...");
         let (mix_traffic_controller, mix_tx) = MixTrafficController::new(gateway_client);
@@ -327,7 +327,7 @@ where
 
     async fn setup_persistent_reply_storage(
         backend: B,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> Result<CombinedReplyStorage, ClientCoreError<B>> {
         let persistent_storage = PersistentReplyStorage::new(backend);
         let mem_store = persistent_storage
@@ -367,7 +367,7 @@ where
         let shared_topology_accessor = TopologyAccessor::new();
 
         // Shutdown notifier for signalling tasks to stop
-        let shutdown = ShutdownNotifier::default();
+        let shutdown = TaskManager::default();
 
         // channels responsible for dealing with reply-related fun
         let (reply_controller_sender, reply_controller_receiver) =
@@ -478,5 +478,5 @@ pub struct BaseClient {
     pub client_input: ClientInputStatus,
     pub client_output: ClientOutputStatus,
 
-    pub shutdown_notifier: ShutdownNotifier,
+    pub shutdown_notifier: TaskManager,
 }

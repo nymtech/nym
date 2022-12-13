@@ -8,17 +8,17 @@ use std::process;
 use tokio::net::TcpListener;
 use tokio::task::JoinHandle;
 
-use super::ShutdownListener;
+use super::TaskClient;
 
 pub(crate) mod connection_handler;
 
 pub(crate) struct Listener {
     address: SocketAddr,
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl Listener {
-    pub(crate) fn new(address: SocketAddr, shutdown: ShutdownListener) -> Self {
+    pub(crate) fn new(address: SocketAddr, shutdown: TaskClient) -> Self {
         Listener { address, shutdown }
     }
 

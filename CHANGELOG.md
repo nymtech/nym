@@ -4,6 +4,8 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [v1.1.3] (2022-12-13)
+
 ### Changed
 
 - validator-api: can recover from shutdown during DKG process ([#1872])

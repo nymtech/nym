@@ -17,18 +17,19 @@ use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use sqlx::Error;
 use std::convert::TryFrom;
-use std::fmt::{self, Display, Formatter};
+use thiserror::Error;
 use time::OffsetDateTime;
 use validator_api_requests::models::{
     GatewayStatusReportResponse, GatewayUptimeHistoryResponse, HistoricalUptimeResponse,
     MixnodeStatusReportResponse, MixnodeUptimeHistoryResponse, RequestError,
 };
 
-// todo: put into some error enum
-#[derive(Debug)]
-pub struct InvalidUptime;
+#[derive(Error, Debug)]
+#[error("Received uptime value was within 0-100 range (got {received})")]
+pub struct InvalidUptime {
+    received: isize,
+}
 
 // value in range 0-100
 #[derive(Clone, Copy, Serialize, Deserialize, Debug, Default, JsonSchema)]
@@ -56,7 +57,9 @@ impl Uptime {
         let uptime = ((numerator as f32 / denominator as f32) * 100.0).round() as u8;
 
         if uptime > 100 {
-            Err(InvalidUptime)
+            Err(InvalidUptime {
+                received: uptime as isize,
+            })
         } else {
             Ok(Uptime(uptime))
         }
@@ -70,7 +73,9 @@ impl Uptime {
         let uptime = (running_sum / count as f32).round() as u8;
 
         if uptime > 100 {
-            Err(InvalidUptime)
+            Err(InvalidUptime {
+                received: uptime as isize,
+            })
         } else {
             Ok(Uptime(uptime))
         }
@@ -92,7 +97,9 @@ impl TryFrom<u8> for Uptime {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         if value > 100 {
-            Err(InvalidUptime)
+            Err(InvalidUptime {
+                received: value as isize,
+            })
         } else {
             Ok(Uptime(value))
         }
@@ -104,7 +111,9 @@ impl TryFrom<i64> for Uptime {
 
     fn try_from(value: i64) -> Result<Self, Self::Error> {
         if !(0..=100).contains(&value) {
-            Err(InvalidUptime)
+            Err(InvalidUptime {
+                received: value as isize,
+            })
         } else {
             Ok(Uptime(value as u8))
         }
@@ -365,47 +374,27 @@ impl OpenApiResponderInner for ErrorResponse {
 
 #[derive(Debug, thiserror::Error)]
 pub enum ValidatorApiStorageError {
-    MixnodeReportNotFound(MixId),
-    GatewayReportNotFound(String),
-    MixnodeUptimeHistoryNotFound(MixId),
-    GatewayUptimeHistoryNotFound(String),
+    #[error("could not find status report associated with mixnode {mix_id}")]
+    MixnodeReportNotFound { mix_id: MixId },
+
+    #[error("Could not find status report associated with gateway {identity}")]
+    GatewayReportNotFound { identity: IdentityKey },
+
+    #[error("could not find uptime history associated with mixnode {mix_id}")]
+    MixnodeUptimeHistoryNotFound { mix_id: MixId },
+
+    #[error("could not find uptime history associated with gateway {identity}")]
+    GatewayUptimeHistoryNotFound { identity: IdentityKey },
 
     // I don't think we want to expose errors to the user about what really happened
-    InternalDatabaseError(String),
-}
+    #[error("experienced internal database error")]
+    InternalDatabaseError(#[from] sqlx::Error),
 
-impl From<sqlx::Error> for ValidatorApiStorageError {
-    fn from(err: Error) -> Self {
-        ValidatorApiStorageError::InternalDatabaseError(err.to_string())
-    }
-}
+    // the same is true here (also note that the message is subtly different so we would be able to distinguish them)
+    #[error("experienced internal storage error")]
+    DatabaseInconsistency { reason: String },
 
-impl Display for ValidatorApiStorageError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            ValidatorApiStorageError::MixnodeReportNotFound(mix_id) => write!(
-                f,
-                "Could not find status report associated with mixnode {}",
-                mix_id
-            ),
-            ValidatorApiStorageError::GatewayReportNotFound(identity) => write!(
-                f,
-                "Could not find status report associated with gateway {}",
-                identity
-            ),
-            ValidatorApiStorageError::MixnodeUptimeHistoryNotFound(mix_id) => write!(
-                f,
-                "Could not find uptime history associated with mixnode {}",
-                mix_id
-            ),
-            ValidatorApiStorageError::GatewayUptimeHistoryNotFound(identity) => write!(
-                f,
-                "Could not find uptime history associated with gateway {}",
-                identity
-            ),
-            ValidatorApiStorageError::InternalDatabaseError(err) => {
-                write!(f, "The internal database has experienced an issue: {err}")
-            }
-        }
-    }
+    // this one would never be returned to users since it's only possible on startup
+    #[error("failed to perform startup SQL migration - {0}")]
+    StartupMigrationFailure(#[from] sqlx::migrate::MigrateError),
 }

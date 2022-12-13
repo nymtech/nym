@@ -234,7 +234,7 @@ impl ServiceProvider {
                     continue;
                 }
                 ServerResponse::Error(err) => {
-                    panic!("received error from native client! - {}", err)
+                    panic!("received error from native client! - {err}")
                 }
                 _ => unimplemented!("probably should never be reached?"),
             };

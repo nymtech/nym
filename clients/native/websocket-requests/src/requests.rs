@@ -132,7 +132,7 @@ impl ClientRequest {
             Err(err) => {
                 return Err(error::Error::new(
                     ErrorKind::MalformedRequest,
-                    format!("malformed recipient: {:?}", err),
+                    format!("malformed recipient: {err}"),
                 ))
             }
         };
@@ -210,7 +210,7 @@ impl ClientRequest {
             Err(err) => {
                 return Err(error::Error::new(
                     ErrorKind::MalformedRequest,
-                    format!("malformed recipient: {:?}", err),
+                    format!("malformed recipient: {err}"),
                 ))
             }
         };

@@ -305,11 +305,11 @@ impl GatewayClient {
                             if let Some(shared_keys) = &self.shared_key {
                                 if let Some(plaintext) = try_decrypt_binary_message(bin_msg, shared_keys) {
                                     if let Err(err) = self.packet_router.route_received(vec![plaintext]) {
-                                        log::warn!("Route received failed: {:?}", err);
+                                        log::warn!("Route received failed: {err}");
                                     }
                                 }
                             } else if let Err(err) = self.packet_router.route_received(vec![bin_msg]) {
-                                log::warn!("Route received failed: {:?}", err);
+                                log::warn!("Route received failed: {err}");
                             }
                         }
                         Message::Text(txt_msg) => {

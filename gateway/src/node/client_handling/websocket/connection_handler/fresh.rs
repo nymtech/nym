@@ -586,7 +586,7 @@ where
             let msg = match msg {
                 Ok(msg) => msg,
                 Err(err) => {
-                    error!("failed to obtain message from websocket stream! stopping connection handler: {}", err);
+                    error!("failed to obtain message from websocket stream! stopping connection handler: {err}");
                     break;
                 }
             };
@@ -605,7 +605,7 @@ where
                             if let Err(err) =
                                 self.send_websocket_message(err.into_error_message()).await
                             {
-                                debug!("Failed to send authentication error response - {}", err);
+                                debug!("Failed to send authentication error response - {err}");
                                 return None;
                             }
                         }
@@ -614,7 +614,7 @@ where
                                 .send_websocket_message(auth_result.server_response.into())
                                 .await
                             {
-                                debug!("Failed to send authentication response - {}", err);
+                                debug!("Failed to send authentication response - {err}");
                                 return None;
                             }
 

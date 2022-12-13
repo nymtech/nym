@@ -51,8 +51,8 @@ impl MixTrafficController {
         };
 
         match result {
-            Err(e) => {
-                error!("Failed to send sphinx packet(s) to the gateway! - {:?}", e);
+            Err(err) => {
+                error!("Failed to send sphinx packet(s) to the gateway! - {err}");
                 self.consecutive_gateway_failure_count += 1;
                 if self.consecutive_gateway_failure_count == MAX_FAILURE_COUNT {
                     // todo: in the future this should initiate a 'graceful' shutdown or try

@@ -5,10 +5,10 @@ use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
-    #[error("{0}")]
+    #[error(transparent)]
     Std(#[from] StdError),
 
-    #[error("{0}")]
+    #[error(transparent)]
     Threshold(#[from] ThresholdError),
 
     #[error("Group contract invalid address '{addr}'")]

@@ -53,7 +53,7 @@ impl ActiveConnection {
         let ordered_message = match OrderedMessage::try_from_bytes(payload) {
             Ok(msg) => msg,
             Err(err) => {
-                error!("Malformed ordered message - {:?}", err);
+                error!("Malformed ordered message - {err}");
                 return;
             }
         };
@@ -158,9 +158,9 @@ impl Controller {
             .unbounded_send(ConnectionCommand::Close(conn_id))
         {
             if self.shutdown.is_shutdown_poll() {
-                log::debug!("Failed to send: {}", err);
+                log::debug!("Failed to send: {err}");
             } else {
-                log::error!("Failed to send: {}", err);
+                log::error!("Failed to send: {err}");
             }
         }
     }
@@ -197,7 +197,7 @@ impl Controller {
                         socket_closed: active_connection.is_closed,
                     })
                 {
-                    error!("WTF IS THIS: {:?}", err);
+                    error!("WTF IS THIS: {err}");
                 }
 
                 // TODO: ABOVE UNWRAP CAUSED A CRASH IN A NORMAL USE!!!!

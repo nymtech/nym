@@ -373,7 +373,7 @@ impl Handler {
                     let socket_msg = match socket_msg.unwrap() {
                         Ok(socket_msg) => socket_msg,
                         Err(err) => {
-                            warn!("failed to obtain message from websocket stream! stopping connection handler: {}", err);
+                            warn!("failed to obtain message from websocket stream! stopping connection handler: {err}");
                             break;
                         }
                     };
@@ -397,8 +397,8 @@ impl Handler {
                         error!("mix messages sender was unexpectedly closed! this shouldn't have ever happened! (unless we're shutting down - TODO: implement proper graceful shutdown handler)");
                         return
                     };
-                    if let Err(e) = self.push_websocket_received_plaintexts(mix_messages).await {
-                        warn!("failed to send sphinx packets back to the client - {:?}, assuming the connection is dead", e);
+                    if let Err(err) = self.push_websocket_received_plaintexts(mix_messages).await {
+                        warn!("failed to send sphinx packets back to the client - {err}, assuming the connection is dead");
                         break;
                     }
                 }
@@ -411,7 +411,7 @@ impl Handler {
         let ws_stream = match accept_async(socket).await {
             Ok(ws_stream) => ws_stream,
             Err(err) => {
-                warn!("error while performing the websocket handshake - {:?}", err);
+                warn!("error while performing the websocket handshake - {err}");
                 return;
             }
         };

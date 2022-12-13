@@ -2,45 +2,39 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::network_monitor::gateways_reader::GatewayMessages;
-use crate::network_monitor::test_packet::TestPacket;
+use crate::network_monitor::test_packet::{TestPacket, TestPacketError};
 use crate::network_monitor::ROUTE_TESTING_TEST_NONCE;
 use crypto::asymmetric::encryption;
 use futures::channel::mpsc;
 use futures::lock::{Mutex, MutexGuard};
 use futures::{SinkExt, StreamExt};
 use log::warn;
-use nymsphinx::receiver::MessageReceiver;
-use std::fmt::{self, Display, Formatter};
+use nymsphinx::receiver::{MessageReceiver, MessageRecoveryError};
 use std::mem;
 use std::sync::Arc;
+use thiserror::Error;
 
 pub(crate) type ReceivedProcessorSender = mpsc::UnboundedSender<GatewayMessages>;
 pub(crate) type ReceivedProcessorReceiver = mpsc::UnboundedReceiver<GatewayMessages>;
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 enum ProcessingError {
-    MalformedPacketReceived,
-    NonTestPacketReceived,
-    NonMatchingNonce(u64),
-    ReceivedOutsideTestRun,
-}
+    #[error(
+        "could not recover underlying data from the received packet since it was malformed - {0}"
+    )]
+    MalformedPacketReceived(#[from] MessageRecoveryError),
 
-impl Display for ProcessingError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            ProcessingError::MalformedPacketReceived => write!(f, "received malformed packet"),
-            ProcessingError::NonTestPacketReceived => write!(f, "received a non-test packet"),
-            ProcessingError::NonMatchingNonce(nonce) => write!(
-                f,
-                "received packet with nonce {} which is different than the expected",
-                nonce
-            ),
-            ProcessingError::ReceivedOutsideTestRun => write!(
-                f,
-                "received packet while the test is currently not in progress"
-            ),
-        }
-    }
+    #[error("received a mix packet that was NOT a proper network monitor test packet")]
+    NonTestPacketReceived,
+
+    #[error("the received test packet was malformed - {0}")]
+    MalformedTestPacket(#[from] TestPacketError),
+
+    #[error("received packet with an unexpected nonce. Got: {received}, expected: {expected}")]
+    NonMatchingNonce { received: u64, expected: u64 },
+
+    #[error("received a mix packet while no test run is currently in progress")]
+    ReceivedOutsideTestRun,
 }
 
 // we can't use Notify due to possible edge case where both notification are consumed at once
@@ -80,23 +74,20 @@ impl ReceivedProcessorInner {
             .recover_plaintext_from_regular_packet(
                 self.client_encryption_keypair.private_key(),
                 &mut message,
-            )
-            .map_err(|_| ProcessingError::MalformedPacketReceived)?;
-        let fragment = self
-            .message_receiver
-            .recover_fragment(plaintext)
-            .map_err(|_| ProcessingError::MalformedPacketReceived)?;
+            )?;
+        let fragment = self.message_receiver.recover_fragment(plaintext)?;
         let (recovered, _) = self
             .message_receiver
-            .insert_new_fragment(fragment)
-            .map_err(|_| ProcessingError::MalformedPacketReceived)?
+            .insert_new_fragment(fragment)?
             .ok_or(ProcessingError::NonTestPacketReceived)?; // if it's a test packet it MUST BE reconstructed with single fragment
-        let test_packet = TestPacket::try_from_bytes(&recovered.into_inner_data())
-            .map_err(|_| ProcessingError::MalformedPacketReceived)?;
+        let test_packet = TestPacket::try_from_bytes(&recovered.into_inner_data())?;
 
         // we know nonce is NOT none
         if test_packet.test_nonce() != self.test_nonce.unwrap() {
-            return Err(ProcessingError::NonMatchingNonce(test_packet.test_nonce()));
+            return Err(ProcessingError::NonMatchingNonce {
+                received: test_packet.test_nonce(),
+                expected: self.test_nonce.unwrap(),
+            });
         }
 
         self.received_packets.push(test_packet);
@@ -162,7 +153,7 @@ impl ReceivedProcessor {
                             Some(messages) => {
                                 for message in messages {
                                     if let Err(err) = inner.on_message(message) {
-                                        warn!(target: "Monitor", "failed to process received gateway message - {}", err)
+                                        warn!(target: "Monitor", "failed to process received gateway message - {err}")
                                     }
                                 }
                             }

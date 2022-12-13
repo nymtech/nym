@@ -54,7 +54,7 @@ where
         Some(data) => match data {
             Ok(data) => (data, false),
             Err(err) => {
-                error!(target: &*format!("({}) socks5 inbound", connection_id), "failed to read request from the socket - {}", err);
+                error!(target: &*format!("({}) socks5 inbound", connection_id), "failed to read request from the socket - {err}");
                 (Default::default(), true)
             }
         },

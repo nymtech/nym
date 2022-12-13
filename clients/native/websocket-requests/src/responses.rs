@@ -173,7 +173,7 @@ impl ServerResponse {
             Err(err) => {
                 return Err(error::Error::new(
                     ErrorKind::MalformedResponse,
-                    format!("malformed Recipient: {:?}", err),
+                    format!("malformed Recipient: {err}"),
                 ))
             }
         };
@@ -249,7 +249,7 @@ impl ServerResponse {
             Err(err) => {
                 return Err(error::Error::new(
                     ErrorKind::MalformedResponse,
-                    format!("malformed error message: {:?}", err),
+                    format!("malformed error message: {err}"),
                 ))
             }
         };

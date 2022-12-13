@@ -89,14 +89,14 @@ impl PacketRouter {
                 }
                 // This should never happen during ordinary operation the way it's currently used.
                 // Abort to be on the safe side
-                panic!("Failed to send mixnet message: {:?}", err);
+                panic!("Failed to send mixnet message: {err}");
             }
         }
 
         if !received_acks.is_empty() {
             trace!("routing acks");
-            if let Err(e) = self.ack_sender.unbounded_send(received_acks) {
-                error!("failed to send ack: {:?}", e);
+            if let Err(err) = self.ack_sender.unbounded_send(received_acks) {
+                error!("failed to send ack: {err}");
             };
         }
         Ok(())

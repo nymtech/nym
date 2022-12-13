@@ -25,9 +25,9 @@ impl Drop for MixnetResponseListener {
             .unbounded_send(ReceivedBufferMessage::ReceiverDisconnect)
         {
             if self.shutdown.is_shutdown_poll() {
-                log::debug!("The buffer request failed: {}", err);
+                log::debug!("The buffer request failed: {err}");
             } else {
-                log::error!("The buffer request failed: {}", err);
+                log::error!("The buffer request failed: {err}");
             }
         }
     }
@@ -60,7 +60,7 @@ impl MixnetResponseListener {
 
         let response = match Message::try_from_bytes(&raw_message) {
             Err(err) => {
-                warn!("failed to parse received response - {:?}", err);
+                warn!("failed to parse received response - {err}");
                 return;
             }
             Ok(Message::Request(_)) => {

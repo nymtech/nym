@@ -16,17 +16,17 @@ use crate::contract_cache::ValidatorCache;
 use crate::nymd_client::Client;
 use crate::storage::models::RewardingReport;
 use crate::storage::ValidatorApiStorage;
+use mixnet_contract_common::families::FamilyHead;
 use mixnet_contract_common::{
     reward_params::Performance, CurrentIntervalResponse, ExecuteMsg, Interval, MixId,
 };
-use mixnet_contract_common::{Layer, LayerAssignment};
+use mixnet_contract_common::{IdentityKey, Layer, LayerAssignment, MixNodeDetails};
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::time::Duration;
 use tokio::time::sleep;
-use validator_api_requests::models::MixNodeBondAnnotated;
 use validator_client::nymd::SigningNymdClient;
 
 pub(crate) mod error;
@@ -90,7 +90,7 @@ impl RewardedSetUpdater {
 
     async fn determine_layers(
         &self,
-        rewarded_set: &[MixNodeBondAnnotated],
+        rewarded_set: &[MixNodeDetails],
     ) -> Result<(Vec<LayerAssignment>, HashMap<String, Layer>), RewardingError> {
         let mut families_in_layer: HashMap<String, Layer> = HashMap::new();
         let mut assignments = vec![];
@@ -98,12 +98,16 @@ impl RewardedSetUpdater {
         let mut rng = OsRng;
         let layers = vec![Layer::One, Layer::Two, Layer::Three];
 
+        let mix_to_family = self.validator_cache.mix_to_family().await.to_vec();
+
+        let mix_to_family = mix_to_family
+            .into_iter()
+            .collect::<HashMap<IdentityKey, FamilyHead>>();
+
         for mix in rewarded_set {
+            let family = mix_to_family.get(&mix.bond_information.identity().to_owned());
             // Get layer already assigned to nodes family, if any
-            let family_layer = mix
-                .family
-                .as_ref()
-                .and_then(|h| families_in_layer.get(h.identity()));
+            let family_layer = family.and_then(|h| families_in_layer.get(h.identity()));
 
             // Same node families are always assigned to the same layer, otherwise layer selected by a random weighted choice
             let layer = if let Some(layer) = family_layer {
@@ -119,7 +123,7 @@ impl RewardedSetUpdater {
             // layer accounting
             let layer_entry = layer_assignments.entry(layer).or_insert(0.);
             *layer_entry += 1.;
-            if let Some(ref family) = mix.family {
+            if let Some(family) = family {
                 families_in_layer.insert(family.identity().to_string(), layer);
             }
         }
@@ -129,9 +133,9 @@ impl RewardedSetUpdater {
 
     fn determine_rewarded_set(
         &self,
-        mixnodes: &[MixNodeBondAnnotated],
+        mixnodes: &[MixNodeDetails],
         nodes_to_select: u32,
-    ) -> Result<Vec<MixNodeBondAnnotated>, RewardingError> {
+    ) -> Result<Vec<MixNodeDetails>, RewardingError> {
         if mixnodes.is_empty() {
             return Ok(Vec::new());
         }
@@ -142,7 +146,7 @@ impl RewardedSetUpdater {
         let choices = mixnodes
             .iter()
             .map(|mix| {
-                let total_stake = stake_to_f64(mix.mixnode_details.total_stake());
+                let total_stake = stake_to_f64(mix.total_stake());
                 (mix.to_owned(), total_stake)
             })
             .collect::<Vec<_>>();
@@ -206,7 +210,7 @@ impl RewardedSetUpdater {
             Err(err) => {
                 warn!("failed to obtain the current rewarded set - {}. falling back to the cached version", err);
                 self.validator_cache
-                    .rewarded_set_detailed()
+                    .rewarded_set()
                     .await
                     .into_inner()
                     .into_iter()
@@ -236,7 +240,7 @@ impl RewardedSetUpdater {
 
     async fn update_rewarded_set_and_advance_epoch(
         &self,
-        all_mixnodes: &[MixNodeBondAnnotated],
+        all_mixnodes: &[MixNodeDetails],
     ) -> Result<(), RewardingError> {
         // we grab rewarding parameters here as they might have gotten updated when performing epoch actions
         let rewarding_parameters = self.nymd_client.get_current_rewarding_parameters().await?;
@@ -273,7 +277,7 @@ impl RewardedSetUpdater {
 
         let epoch_end = interval.current_epoch_end();
 
-        let all_mixnodes = self.validator_cache.mixnodes_detailed().await;
+        let all_mixnodes = self.validator_cache.mixnodes().await;
         if all_mixnodes.is_empty() {
             log::warn!("there don't seem to be any mixnodes on the network!")
         }

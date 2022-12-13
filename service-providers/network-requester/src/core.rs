@@ -437,7 +437,7 @@ impl ServiceProvider {
             .await;
         });
 
-        println!("\nAll systems go. Press CTRL-C to stop the server.");
+        log::info!("All systems go. Press CTRL-C to stop the server.");
         // for each incoming message from the websocket... (which in 99.99% cases is going to be a mix message)
         loop {
             let Some(received) = Self::read_websocket_message(
@@ -447,7 +447,7 @@ impl ServiceProvider {
                 .await
             else {
                 log::error!("The websocket stream has finished!");
-                return Ok(());
+                return Err(NetworkRequesterError::ConnectionClosed);
             };
 
             let raw_message = received.message;

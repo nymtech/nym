@@ -249,6 +249,7 @@ pub(crate) mod tests {
     use super::*;
     use crate::coconut::dkg::dealing::dealing_exchange;
     use crate::coconut::dkg::public_key::public_key_submission;
+    use crate::coconut::dkg::state::PersistentState;
     use crate::coconut::tests::DummyClient;
     use crate::coconut::KeyPair;
     use coconut_dkg_common::dealer::DealerDetails;
@@ -259,6 +260,7 @@ pub(crate) mod tests {
     use rand::Rng;
     use std::collections::HashMap;
     use std::env::temp_dir;
+    use std::path::PathBuf;
     use std::str::FromStr;
     use std::sync::{Arc, RwLock};
     use url::Url;
@@ -289,6 +291,8 @@ pub(crate) mod tests {
             );
             let keypair = DkgKeyPair::new(&params, OsRng);
             let state = State::new(
+                PathBuf::default(),
+                PersistentState::default(),
                 Url::parse("localhost:8000").unwrap(),
                 keypair,
                 KeyPair::new(),
@@ -374,6 +378,7 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // expensive test
     async fn check_dealers_filter_all_good() {
         let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
         let dealings_db = Arc::new(RwLock::new(HashMap::new()));
@@ -398,6 +403,7 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // expensive test
     async fn check_dealers_filter_one_bad_dealing() {
         let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
         let dealings_db = Arc::new(RwLock::new(HashMap::new()));
@@ -438,6 +444,7 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // expensive test
     async fn check_dealers_filter_all_bad_dealings() {
         let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
         let dealings_db = Arc::new(RwLock::new(HashMap::new()));
@@ -481,6 +488,7 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // expensive test
     async fn check_dealers_filter_malformed_dealing() {
         let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
         let dealings_db = Arc::new(RwLock::new(HashMap::new()));
@@ -526,6 +534,7 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // expensive test
     async fn check_dealers_filter_dealing_verification_error() {
         let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
         let dealings_db = Arc::new(RwLock::new(HashMap::new()));
@@ -572,6 +581,7 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // expensive test
     async fn partial_keypair_derivation() {
         let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
         let dealings_db = Arc::new(RwLock::new(HashMap::new()));
@@ -593,6 +603,7 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // expensive test
     async fn partial_keypair_derivation_with_threshold() {
         let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
         let dealings_db = Arc::new(RwLock::new(HashMap::new()));
@@ -626,6 +637,7 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // expensive test
     async fn submit_verification_key() {
         let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
         let dealings_db = Arc::new(RwLock::new(HashMap::new()));
@@ -649,6 +661,7 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // expensive test
     async fn validate_verification_key() {
         let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
         let dealings_db = Arc::new(RwLock::new(HashMap::new()));
@@ -673,6 +686,7 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // expensive test
     async fn validate_verification_key_malformed_share() {
         let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
         let dealings_db = Arc::new(RwLock::new(HashMap::new()));
@@ -714,6 +728,7 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // expensive test
     async fn validate_verification_key_unpaired_share() {
         let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
         let dealings_db = Arc::new(RwLock::new(HashMap::new()));
@@ -762,6 +777,7 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // expensive test
     async fn finalize_verification_key() {
         let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
         let dealings_db = Arc::new(RwLock::new(HashMap::new()));

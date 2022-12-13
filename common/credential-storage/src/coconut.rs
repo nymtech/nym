@@ -36,8 +36,8 @@ impl CoconutCredentialManager {
         signature: String,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO coconut_credentials(voucher_value, voucher_info, serial_number, binding_number, signature) VALUES (?, ?, ?, ?, ?)",
-            voucher_value, voucher_info, serial_number, binding_number, signature
+            "INSERT INTO coconut_credentials(voucher_value, voucher_info, serial_number, binding_number, signature, consumed) VALUES (?, ?, ?, ?, ?, ?)",
+            voucher_value, voucher_info, serial_number, binding_number, signature, false
         )
         .execute(&self.connection_pool)
         .await?;
@@ -48,20 +48,26 @@ impl CoconutCredentialManager {
     pub(crate) async fn get_next_coconut_credential(
         &self,
     ) -> Result<CoconutCredential, sqlx::Error> {
-        sqlx::query_as!(CoconutCredential, "SELECT * FROM coconut_credentials")
-            .fetch_one(&self.connection_pool)
-            .await
+        sqlx::query_as!(
+            CoconutCredential,
+            "SELECT * FROM coconut_credentials WHERE NOT consumed"
+        )
+        .fetch_one(&self.connection_pool)
+        .await
     }
 
-    /// Removes from the database the specified credential.
+    /// Consumes in the database the specified credential.
     ///
     /// # Arguments
     ///
     /// * `id`: Database id.
-    pub(crate) async fn remove_coconut_credential(&self, id: i64) -> Result<(), sqlx::Error> {
-        sqlx::query!("DELETE FROM coconut_credentials WHERE id = ?", id)
-            .execute(&self.connection_pool)
-            .await?;
+    pub(crate) async fn consume_coconut_credential(&self, id: i64) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "UPDATE coconut_credentials SET consumed = TRUE WHERE id = ?",
+            id
+        )
+        .execute(&self.connection_pool)
+        .await?;
         Ok(())
     }
 }

@@ -63,7 +63,7 @@ impl Run {
                 .unwrap_or(&DEFAULT_WEBSOCKET_LISTENING_PORT.to_string())
         );
 
-        println!("Starting socks5 service provider:");
+        log::info!("Starting socks5 service provider");
         let mut server = core::ServiceProvider::new(
             uri,
             self.open_proxy,

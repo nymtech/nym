@@ -1,23 +1,33 @@
-use snafu::Snafu;
-#[derive(Debug, Snafu)]
+/// SOCKS4 Response codes
+#[allow(dead_code)]
+pub(crate) enum ResponseCodeV4 {
+    Granted = 0x5a,
+    RequestRejected = 0x5b,
+    CannotConnectToIdent = 0x5c,
+    DifferentUserId = 0x5d,
+}
+
 /// Possible SOCKS5 Response Codes
-pub(crate) enum ResponseCode {
+#[allow(dead_code)]
+#[derive(Debug, thiserror::Error)]
+pub(crate) enum ResponseCodeV5 {
+    #[error("SOCKS5 Server Success")]
     Success = 0x00,
-    #[snafu(display("SOCKS5 Server Failure"))]
+    #[error("SOCKS5 Server Failure")]
     Failure = 0x01,
-    #[snafu(display("SOCKS5 Rule failure"))]
+    #[error("SOCKS5 Rule failure")]
     RuleFailure = 0x02,
-    #[snafu(display("network unreachable"))]
+    #[error("network unreachable")]
     NetworkUnreachable = 0x03,
-    #[snafu(display("host unreachable"))]
+    #[error("host unreachable")]
     HostUnreachable = 0x04,
-    #[snafu(display("connection refused"))]
+    #[error("connection refused")]
     ConnectionRefused = 0x05,
-    #[snafu(display("TTL expired"))]
+    #[error("TTL expired")]
     TtlExpired = 0x06,
-    #[snafu(display("Command not supported"))]
+    #[error("Command not supported")]
     CommandNotSupported = 0x07,
-    #[snafu(display("Addr Type not supported"))]
+    #[error("Addr Type not supported")]
     AddrTypeNotSupported = 0x08,
 }
 
@@ -48,7 +58,7 @@ where
 }
 
 /// DST.addr variant types
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub(crate) enum AddrType {
     V4 = 0x01,
     Domain = 0x03,

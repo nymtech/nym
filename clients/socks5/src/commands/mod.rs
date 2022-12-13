@@ -83,16 +83,17 @@ pub(crate) struct OverrideConfig {
     api_validators: Option<String>,
     port: Option<u16>,
     fastmode: bool,
+    no_cover: bool,
 
     #[cfg(feature = "coconut")]
     enabled_credentials_mode: bool,
 }
 
-pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send>> {
+pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send + Sync>> {
     let bin_name = "nym-socks5-client";
 
     match &args.command {
-        Commands::Init(m) => init::execute(m).await,
+        Commands::Init(m) => init::execute(m).await?,
         Commands::Run(m) => run::execute(m).await?,
         Commands::Upgrade(m) => upgrade::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::into_app(), bin_name),
@@ -134,6 +135,10 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
 
     if args.fastmode {
         config.get_base_mut().set_high_default_traffic_volume();
+    }
+
+    if args.no_cover {
+        config.get_base_mut().set_no_cover_traffic();
     }
 
     config

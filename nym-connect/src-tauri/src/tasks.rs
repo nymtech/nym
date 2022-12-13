@@ -1,4 +1,4 @@
-use client_core::config::GatewayEndpoint;
+use client_core::config::{ClientCoreConfigTrait, GatewayEndpointConfig};
 use futures::channel::mpsc;
 use std::sync::Arc;
 use tap::TapFallible;
@@ -19,19 +19,23 @@ pub enum Socks5StatusMessage {
     /// The SOCKS5 task successfully stopped
     Stopped,
     /// The SOCKS5 task failed to start
-    FailedToStart,
+    Failed(Box<dyn std::error::Error + Send>),
 }
 
 /// The main SOCKS5 client task. It loads the configuration from file determined by the `id`.
 pub fn start_nym_socks5_client(
     id: &str,
-) -> Result<(Socks5ControlMessageSender, StatusReceiver, GatewayEndpoint)> {
+) -> Result<(
+    Socks5ControlMessageSender,
+    StatusReceiver,
+    GatewayEndpointConfig,
+)> {
     log::info!("Loading config from file: {id}");
     let config = Socks5Config::load_from_file(Some(id))
         .tap_err(|_| log::warn!("Failed to load configuration file"))?;
     let used_gateway = config.get_base().get_gateway_endpoint().clone();
 
-    let mut socks5_client = Socks5NymClient::new(config);
+    let socks5_client = Socks5NymClient::new(config);
     log::info!("Starting socks5 client");
 
     // Channel to send control messages to the socks5 client
@@ -52,7 +56,7 @@ pub fn start_nym_socks5_client(
         if let Err(err) = result {
             log::error!("SOCKS5 proxy failed: {err}");
             socks5_status_tx
-                .send(Socks5StatusMessage::FailedToStart)
+                .send(Socks5StatusMessage::Failed(err))
                 .expect("Failed to send status message back to main task");
             return;
         }
@@ -94,14 +98,14 @@ pub fn start_disconnect_listener(
                     )
                     .unwrap();
             }
-            Ok(Socks5StatusMessage::FailedToStart) => {
-                log::info!("SOCKS5 task reported it failed to start");
+            Ok(Socks5StatusMessage::Failed(err)) => {
+                log::info!("SOCKS5 task reported error: {}", err);
                 window
                     .emit(
                         "socks5-event",
                         Payload {
                             title: "SOCKS5 error".into(),
-                            message: "SOCKS5 failed to start".into(),
+                            message: format!("SOCKS5 failed: {}", err),
                         },
                     )
                     .unwrap();

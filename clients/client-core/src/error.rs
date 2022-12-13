@@ -1,6 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(feature = "reply-surb")]
+use crate::client::reply_key_storage::ReplyKeyStorageError;
 use crypto::asymmetric::identity::Ed25519RecoveryError;
 use gateway_client::error::GatewayClientError;
 use validator_client::ValidatorClientError;
@@ -16,16 +18,32 @@ pub enum ClientCoreError {
     #[error("Validator client error: {0}")]
     ValidatorClientError(#[from] ValidatorClientError),
 
+    #[cfg(feature = "reply-surb")]
+    #[error("Reply key storage error: {0}")]
+    ReplyKeyStorageError(#[from] ReplyKeyStorageError),
+
     #[error("No gateway with id: {0}")]
     NoGatewayWithId(String),
     #[error("No gateways on network")]
     NoGatewaysOnNetwork,
+    #[error("Failed to setup gateway")]
+    FailedToSetupGateway,
     #[error("List of validator apis is empty")]
     ListOfValidatorApisIsEmpty,
     #[error("Could not load existing gateway configuration: {0}")]
     CouldNotLoadExistingGatewayConfiguration(std::io::Error),
     #[error("The current network topology seem to be insufficient to route any packets through")]
     InsufficientNetworkTopology,
+
+    #[error("The gateway id is invalid - {0}")]
+    UnableToCreatePublicKeyFromGatewayId(Ed25519RecoveryError),
+
+    #[error("The identity of the gateway is unknwown - did you run init?")]
+    GatewayIdUnknown,
+    #[error("The owner of the gateway is unknown - did you run init?")]
+    GatewayOwnerUnknown,
+    #[error("The address of the gateway is unknown - did you run init?")]
+    GatwayAddressUnknown,
 
     #[error("Unexpected exit")]
     UnexpectedExit,

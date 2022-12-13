@@ -54,6 +54,8 @@ pub(crate) async fn dealing_exchange(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::coconut::dkg::complaints::ComplaintReason;
+    use crate::coconut::dkg::state::PersistentState;
     use crate::coconut::tests::DummyClient;
     use crate::coconut::KeyPair;
     use coconut_dkg_common::dealer::DealerDetails;
@@ -62,6 +64,7 @@ pub(crate) mod tests {
     use dkg::bte::Params;
     use rand::rngs::OsRng;
     use std::collections::HashMap;
+    use std::path::PathBuf;
     use std::str::FromStr;
     use std::sync::{Arc, RwLock};
     use url::Url;
@@ -97,6 +100,7 @@ pub(crate) mod tests {
     }
 
     #[tokio::test]
+    #[ignore] // expensive test
     async fn exchange_dealing() {
         let self_index = 2;
         let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
@@ -108,6 +112,8 @@ pub(crate) mod tests {
         );
         let params = setup();
         let mut state = State::new(
+            PathBuf::default(),
+            PersistentState::default(),
             Url::parse("localhost:8000").unwrap(),
             DkgKeyPair::new(&params, OsRng),
             KeyPair::new(),
@@ -146,5 +152,54 @@ pub(crate) mod tests {
             .unwrap()
             .clone();
         assert_eq!(dealings, new_dealings);
+    }
+
+    #[tokio::test]
+    #[ignore] // expensive test
+    async fn invalid_bte_proof_dealing_posted() {
+        let self_index = 2;
+        let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
+        let dealings_db = Arc::new(RwLock::new(HashMap::new()));
+        let dkg_client = DkgClient::new(
+            DummyClient::new(AccountId::from_str(TEST_VALIDATORS_ADDRESS[0]).unwrap())
+                .with_dealer_details(&dealer_details_db)
+                .with_dealings(&dealings_db),
+        );
+        let params = setup();
+        let mut state = State::new(
+            PathBuf::default(),
+            PersistentState::default(),
+            Url::parse("localhost:8000").unwrap(),
+            DkgKeyPair::new(&params, OsRng),
+            KeyPair::new(),
+        );
+        state.set_node_index(Some(self_index));
+        insert_dealers(&params, &dealer_details_db);
+
+        dealer_details_db
+            .write()
+            .unwrap()
+            .entry(TEST_VALIDATORS_ADDRESS[1].to_string())
+            .and_modify(|details| {
+                let mut bytes = bs58::decode(details.bte_public_key_with_proof.clone())
+                    .into_vec()
+                    .unwrap();
+                let last_byte = bytes.last_mut().unwrap();
+                *last_byte += 1;
+                details.bte_public_key_with_proof = bs58::encode(&bytes).into_string();
+            });
+
+        dealing_exchange(&dkg_client, &mut state, OsRng)
+            .await
+            .unwrap();
+        assert_eq!(
+            *state
+                .all_dealers()
+                .get(&Addr::unchecked(TEST_VALIDATORS_ADDRESS[1]))
+                .unwrap()
+                .as_ref()
+                .unwrap_err(),
+            ComplaintReason::InvalidBTEPublicKey
+        );
     }
 }

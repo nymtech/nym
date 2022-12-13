@@ -2,8 +2,8 @@
 
 use super::authentication::{AuthenticationMethods, Authenticator, User};
 use super::request::{SocksCommand, SocksRequest};
-use super::types::{ResponseCode, SocksProxyError};
-use super::{RESERVED, SOCKS_VERSION};
+use super::types::{ResponseCodeV4, ResponseCodeV5, SocksProxyError};
+use super::{SocksVersion, RESERVED, SOCKS4_VERSION, SOCKS5_VERSION};
 use client_connections::{LaneQueueLengths, TransmissionLane};
 use client_core::client::inbound_messages::{InputMessage, InputMessageSender};
 use futures::channel::mpsc;
@@ -129,13 +129,13 @@ impl AsyncWrite for StreamState {
 /// A client connecting to the Socks proxy server, because
 /// it wants to make a Nym-protected outbound request. Typically, this is
 /// something like e.g. a wallet app running on your laptop connecting to
-/// SphinxSocksServer.
+/// `SphinxSocksServer`.
 pub(crate) struct SocksClient {
     controller_sender: ControllerSender,
     stream: StreamState,
     auth_nmethods: u8,
     authenticator: Authenticator,
-    socks_version: u8,
+    socks_version: Option<SocksVersion>,
     input_sender: InputMessageSender,
     connection_id: ConnectionId,
     service_provider: Recipient,
@@ -158,15 +158,14 @@ impl Drop for SocksClient {
 }
 
 impl SocksClient {
-    /// Create a new SOCKClient
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         stream: TcpStream,
         authenticator: Authenticator,
         input_sender: InputMessageSender,
-        service_provider: Recipient,
+        service_provider: &Recipient,
         controller_sender: ControllerSender,
-        self_address: Recipient,
+        self_address: &Recipient,
         lane_queue_lengths: LaneQueueLengths,
         mut shutdown_listener: ShutdownListener,
     ) -> Self {
@@ -180,11 +179,11 @@ impl SocksClient {
             connection_id,
             stream: StreamState::Available(stream),
             auth_nmethods: 0,
-            socks_version: 0,
+            socks_version: None,
             authenticator,
             input_sender,
-            service_provider,
-            self_address,
+            service_provider: *service_provider,
+            self_address: *self_address,
             started_proxy: false,
             lane_queue_lengths,
             shutdown_listener,
@@ -196,13 +195,45 @@ impl SocksClient {
         rng.next_u64()
     }
 
+    pub async fn send_error(&mut self, err: SocksProxyError) -> Result<(), SocksProxyError> {
+        let error_text = format!("{}", err);
+        let Some(ref version) = self.socks_version else {
+            log::error!("Trying to send error without knowing the version");
+            return Ok(());
+        };
+
+        match version {
+            SocksVersion::V4 => {
+                let response = ResponseCodeV4::RequestRejected;
+                self.send_error_v4(response).await
+            }
+            SocksVersion::V5 => {
+                let response = if error_text.contains("Host") {
+                    ResponseCodeV5::HostUnreachable
+                } else if error_text.contains("Network") {
+                    ResponseCodeV5::NetworkUnreachable
+                } else if error_text.contains("ttl") {
+                    ResponseCodeV5::TtlExpired
+                } else {
+                    ResponseCodeV5::Failure
+                };
+                self.send_error_v5(response).await
+            }
+        }
+    }
+
     // Send an error back to the client
-    pub async fn error(&mut self, r: ResponseCode) -> Result<(), SocksProxyError> {
-        self.stream.write_all(&[5, r as u8]).await?;
+    pub async fn send_error_v4(&mut self, r: ResponseCodeV4) -> Result<(), SocksProxyError> {
+        self.stream.write_all(&[SOCKS4_VERSION, r as u8]).await?;
         Ok(())
     }
 
-    /// Shutdown the TcpStream to the client and end the session
+    pub async fn send_error_v5(&mut self, r: ResponseCodeV5) -> Result<(), SocksProxyError> {
+        self.stream.write_all(&[SOCKS5_VERSION, r as u8]).await?;
+        Ok(())
+    }
+
+    /// Shutdown the `TcpStream` to the client and end the session
     pub async fn shutdown(&mut self) -> Result<(), SocksProxyError> {
         info!("client is shutting down its TCP stream");
         self.stream.shutdown().await?;
@@ -214,25 +245,27 @@ impl SocksClient {
     /// is in use and that the client is authenticated, then runs the request.
     pub async fn run(&mut self) -> Result<(), SocksProxyError> {
         debug!("New connection from: {}", self.stream.peer_addr()?.ip());
-        let mut header = [0u8; 2];
+
         // Read a byte from the stream and determine the version being requested
+        let mut header = [0u8];
         self.stream.read_exact(&mut header).await?;
 
-        self.socks_version = header[0];
-        self.auth_nmethods = header[1];
+        self.socks_version = match SocksVersion::try_from(header[0]) {
+            Ok(version) => Some(version),
+            Err(_err) => {
+                warn!("Init: Unsupported version: SOCKS{}", header[0]);
+                return self.shutdown().await;
+            }
+        };
 
-        // Handle SOCKS4 requests
-        if header[0] != SOCKS_VERSION {
-            warn!("Init: Unsupported version: SOCKS{}", self.socks_version);
-            self.shutdown().await
+        if self.socks_version == Some(SocksVersion::V5) {
+            let mut auth = [0u8];
+            self.stream.read_exact(&mut auth).await?;
+            self.auth_nmethods = auth[0];
+            self.authenticate_socks5().await?;
         }
-        // Valid SOCKS5
-        else {
-            // Authenticate w/ client
-            self.authenticate().await?;
-            // Handle requests
-            self.handle_request().await
-        }
+
+        self.handle_request().await
     }
 
     async fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
@@ -295,8 +328,17 @@ impl SocksClient {
     async fn handle_request(&mut self) -> Result<(), SocksProxyError> {
         debug!("Handling CONNECT Command");
 
-        let request = SocksRequest::from_stream(&mut self.stream).await?;
-        let remote_address = request.to_string();
+        let version = self
+            .socks_version
+            .as_ref()
+            .expect("Must read version before parsing request");
+
+        let request = match version {
+            SocksVersion::V4 => SocksRequest::from_stream_socks4(&mut self.stream).await?,
+            SocksVersion::V5 => SocksRequest::from_stream_socks5(&mut self.stream).await?,
+        };
+
+        let remote_address = request.address_string();
 
         // setup for receiving from the mixnet
         let (mix_sender, mix_receiver) = mpsc::unbounded();
@@ -305,7 +347,10 @@ impl SocksClient {
             // Use the Proxy to connect to the specified addr/port
             SocksCommand::Connect => {
                 trace!("Connecting to: {:?}", remote_address.clone());
-                self.acknowledge_socks5().await;
+                match version {
+                    SocksVersion::V4 => self.acknowledge_socks4().await,
+                    SocksVersion::V5 => self.acknowledge_socks5().await,
+                }
 
                 self.started_proxy = true;
                 self.controller_sender
@@ -336,8 +381,8 @@ impl SocksClient {
     async fn acknowledge_socks5(&mut self) {
         self.stream
             .write_all(&[
-                SOCKS_VERSION,
-                ResponseCode::Success as u8,
+                SOCKS5_VERSION,
+                ResponseCodeV5::Success as u8,
                 RESERVED,
                 1,
                 127,
@@ -351,13 +396,30 @@ impl SocksClient {
             .unwrap();
     }
 
+    /// Writes a Socks4 header back to the requesting client's TCP stream,
+    async fn acknowledge_socks4(&mut self) {
+        self.stream
+            .write_all(&[
+                0, //SOCKS4_VERSION,
+                ResponseCodeV4::Granted as u8,
+                0,
+                0,
+                127,
+                0,
+                0,
+                1,
+            ])
+            .await
+            .unwrap();
+    }
+
     /// Authenticate the incoming request. Each request is checked for its
     /// authentication method. A user/password request will extract the
     /// username and password from the stream, then check with the Authenticator
     /// to see if the resulting user is allowed.
     ///
     /// A lot of this could probably be put into the `SocksRequest::from_stream()`
-    /// constructor, and/or cleaned up with tokio::codec. It's mostly just
+    /// constructor, and/or cleaned up with `tokio::codec`. It's mostly just
     /// read-a-byte-or-two. The bytes being extracted look like this:
     ///
     /// +----+------+----------+------+------------+
@@ -369,7 +431,7 @@ impl SocksClient {
     /// Pulling out the stream code into its own home, and moving the if/else logic
     /// into the Authenticator (where it'll be more easily testable)
     /// would be a good next step.
-    async fn authenticate(&mut self) -> Result<(), SocksProxyError> {
+    async fn authenticate_socks5(&mut self) -> Result<(), SocksProxyError> {
         debug!("Authenticating w/ {}", self.stream.peer_addr()?.ip());
         // Get valid auth methods
         let methods = self.get_available_methods().await?;
@@ -378,7 +440,7 @@ impl SocksClient {
         let mut response = [0u8; 2];
 
         // Set the version in the response
-        response[0] = SOCKS_VERSION;
+        response[0] = SOCKS5_VERSION;
         if methods.contains(&(AuthenticationMethods::UserPass as u8)) {
             // Set the default auth method (NO AUTH)
             response[1] = AuthenticationMethods::UserPass as u8;
@@ -414,11 +476,11 @@ impl SocksClient {
             // Authenticate passwords
             if self.authenticator.is_allowed(&user) {
                 debug!("Access Granted. User: {}", user.username);
-                let response = [1, ResponseCode::Success as u8];
+                let response = [1, ResponseCodeV5::Success as u8];
                 self.stream.write_all(&response).await?;
             } else {
                 debug!("Access Denied. User: {}", user.username);
-                let response = [1, ResponseCode::Failure as u8];
+                let response = [1, ResponseCodeV5::Failure as u8];
                 self.stream.write_all(&response).await?;
 
                 // Shutdown
@@ -437,7 +499,7 @@ impl SocksClient {
             response[1] = AuthenticationMethods::NoMethods as u8;
             self.stream.write_all(&response).await?;
             self.shutdown().await?;
-            Err(ResponseCode::Failure.into())
+            Err(ResponseCodeV5::Failure.into())
         }
     }
 

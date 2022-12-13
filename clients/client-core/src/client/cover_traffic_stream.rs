@@ -143,6 +143,16 @@ impl LoopCoverTrafficStream<OsRng> {
         self.packet_size = packet_size;
     }
 
+    fn set_next_delay(&mut self, amount: Duration) {
+        #[cfg(not(target_arch = "wasm32"))]
+        let next_delay = Box::pin(time::sleep(amount));
+
+        #[cfg(target_arch = "wasm32")]
+        let next_delay = Box::pin(wasm_timer::Delay::new(amount));
+
+        self.next_delay = next_delay;
+    }
+
     async fn on_new_message(&mut self) {
         trace!("next cover message!");
 
@@ -181,7 +191,7 @@ impl LoopCoverTrafficStream<OsRng> {
                     // However it's still useful to alert the user that the gateway or the link to
                     // the gateway can't keep up. Either due to insufficient bandwidth on the
                     // client side, or that the gateway is overloaded.
-                    log::warn!("Failed to send: gateway appears to not keep up");
+                    log::warn!("Failed to send sphinx packet - gateway or connection to gatway can't keep up");
                 }
                 TrySendError::Closed(_) => {
                     log::warn!("Failed to send cover message - channel closed");
@@ -202,12 +212,11 @@ impl LoopCoverTrafficStream<OsRng> {
         tokio::task::yield_now().await;
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub fn start_with_shutdown(mut self, mut shutdown: task::ShutdownListener) {
         // we should set initial delay only when we actually start the stream
         let sampled =
             sample_poisson_duration(&mut self.rng, self.average_cover_message_sending_delay);
-        self.next_delay = Box::pin(time::sleep(sampled));
+        self.set_next_delay(sampled);
 
         spawn_future(async move {
             debug!("Started LoopCoverTrafficStream with graceful shutdown support");
@@ -228,19 +237,16 @@ impl LoopCoverTrafficStream<OsRng> {
                     }
                 }
             }
-            tokio::time::timeout(Duration::from_secs(5), shutdown.recv())
-                .await
-                .expect("Task stopped without shutdown called");
+            shutdown.recv_timeout().await;
             log::debug!("LoopCoverTrafficStream: Exiting");
         })
     }
 
-    #[cfg(target_arch = "wasm32")]
     pub fn start(mut self) {
         // we should set initial delay only when we actually start the stream
         let sampled =
             sample_poisson_duration(&mut self.rng, self.average_cover_message_sending_delay);
-        self.next_delay = Box::pin(wasm_timer::Delay::new(sampled));
+        self.set_next_delay(sampled);
 
         spawn_future(async move {
             debug!("Started LoopCoverTrafficStream without graceful shutdown support");

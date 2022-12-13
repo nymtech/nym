@@ -2,6 +2,26 @@
 
 Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [v1.1.3] (2022-12-13)
+
+### Changed
+
+- validator-api: can recover from shutdown during DKG process ([#1872])
+- clients: deduplicate gateway inititialization, part of work towards a rust-sdk
+- clients: keep all transmission lanes going at all times by making priority probabilistic
+
+### Fixed
+
+- network-requester: fix bug where websocket connection disconnect resulted in success error code
+- clients: fix a few panics handling the gateway-client
+- mixnode, gateway, validator-api: Use mainnet values as defaults for URLs and mixnet contract  ([#1884])
+
+[#1872]: https://github.com/nymtech/nym/pull/1872
+[#1884]: https://github.com/nymtech/nym/pull/1884
+
+
 ## [v1.1.2]
 
 ### Changed

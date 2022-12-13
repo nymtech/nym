@@ -121,6 +121,7 @@ fn parse_args() -> ArgMatches {
             Arg::with_name(CONFIG_ENV_FILE)
                 .help("Path pointing to an env file that configures the validator API")
                 .long(CONFIG_ENV_FILE)
+                .short('c')
                 .takes_value(true)
         )
         .arg(
@@ -577,7 +578,6 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
             signing_nymd_client.clone(),
             config.get_caching_interval(),
             validator_cache.clone(),
-            Some(storage.clone()),
         );
         let validator_cache_listener = validator_cache_refresher.subscribe();
         let shutdown_listener = shutdown.subscribe();
@@ -599,7 +599,6 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
             nymd_client,
             config.get_caching_interval(),
             validator_cache.clone(),
-            None,
         );
         let validator_cache_listener = validator_cache_refresher.subscribe();
         let shutdown_listener = shutdown.subscribe();
@@ -611,11 +610,13 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
     // Spawn the node status cache refresher.
     // It is primarily refreshed in-sync with the validator cache, however provide a fallback
     // caching interval that is twice the validator cache
+    let storage = rocket.state::<ValidatorApiStorage>().cloned();
     let mut validator_api_cache_refresher = node_status_api::NodeStatusCacheRefresher::new(
         node_status_cache,
+        config.get_caching_interval().saturating_mul(2),
         validator_cache,
         validator_cache_listener,
-        config.get_caching_interval().saturating_mul(2),
+        storage,
     );
     let shutdown_listener = shutdown.subscribe();
     tokio::spawn(async move { validator_api_cache_refresher.run(shutdown_listener).await });

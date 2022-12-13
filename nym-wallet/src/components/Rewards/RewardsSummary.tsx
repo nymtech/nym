@@ -13,14 +13,14 @@ export const RewardsSummary: React.FC<{
     <Stack direction="row" justifyContent="space-between">
       <Stack direction="row" spacing={4}>
         <Stack direction="row" spacing={1} alignItems="center">
-          <InfoTooltip title="This is the total amount you have delgated across multiple nodes" />
+          <InfoTooltip title="This is the total amount you have delegated to node(s) in the network" />
           <Typography>Total delegations:</Typography>
           <Typography fontWeight={600} fontSize={16} textTransform="uppercase">
             {isLoading ? <CircularProgress size={theme.typography.fontSize} /> : totalDelegation || '-'}
           </Typography>
         </Stack>
         <Stack direction="row" spacing={1} alignItems="center">
-          <InfoTooltip title="Awaiting rewards accrue per epoch (hourly). You can redeem or compound them" />
+          <InfoTooltip title="This is the rewards you have accrued since the last time you redeemed your rewards. Rewards are automatically compounded. You can redeem your rewards at any time" />
           <Typography>New rewards:</Typography>
           <Typography fontWeight={600} fontSize={16} textTransform="uppercase">
             {isLoading ? <CircularProgress size={theme.typography.fontSize} /> : totalRewards || '-'}

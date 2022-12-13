@@ -39,7 +39,7 @@ pub trait Storage: Send + Sync {
 
     async fn get_next_coconut_credential(&self) -> Result<CoconutCredential, StorageError>;
 
-    async fn remove_coconut_credential(&self, id: i64) -> Result<(), StorageError>;
+    async fn consume_coconut_credential(&self, id: i64) -> Result<(), StorageError>;
 }
 
 #[async_trait]
@@ -59,7 +59,7 @@ impl Storage for PersistentStorage {
         Err(StorageError::WasmNotSupported)
     }
 
-    async fn remove_coconut_credential(&self, _id: i64) -> Result<(), StorageError> {
+    async fn consume_coconut_credential(&self, _id: i64) -> Result<(), StorageError> {
         Err(StorageError::WasmNotSupported)
     }
 }

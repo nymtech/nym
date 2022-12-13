@@ -20,8 +20,8 @@ type ErrorSender = mpsc::UnboundedSender<SentError>;
 type ErrorReceiver = mpsc::UnboundedReceiver<SentError>;
 
 pub type SentStatus = Box<dyn Error + Send + Sync>;
-pub type StatusSender = futures::channel::mpsc::UnboundedSender<SentStatus>;
-pub type StatusReceiver = futures::channel::mpsc::UnboundedReceiver<SentStatus>;
+pub type StatusSender = futures::channel::mpsc::Sender<SentStatus>;
+pub type StatusReceiver = futures::channel::mpsc::Receiver<SentStatus>;
 
 #[derive(thiserror::Error, Debug)]
 enum TaskError {
@@ -60,7 +60,9 @@ impl Default for ShutdownNotifier {
         let (notify_tx, notify_rx) = watch::channel(());
         let (task_halt_tx, task_halt_rx) = mpsc::unbounded_channel();
         let (task_drop_tx, task_drop_rx) = mpsc::unbounded_channel();
-        let (task_status_tx, task_status_rx) = futures::channel::mpsc::unbounded();
+        // The status channel is bounded (unlike the others), since it's not always the case that
+        // there is a listener.
+        let (task_status_tx, task_status_rx) = futures::channel::mpsc::channel(128);
         Self {
             notify_tx,
             notify_rx: Some(notify_rx),
@@ -219,7 +221,8 @@ impl ShutdownListener {
         let (_notify_tx, notify_rx) = watch::channel(());
         let (task_halt_tx, _task_halt_rx) = mpsc::unbounded_channel();
         let (task_drop_tx, _task_drop_rx) = mpsc::unbounded_channel();
-        let (task_status_tx, _task_status_rx) = futures::channel::mpsc::unbounded();
+        //let (task_status_tx, _task_status_rx) = futures::channel::mpsc::unbounded();
+        let (task_status_tx, _task_status_rx) = futures::channel::mpsc::channel(128);
         ShutdownListener {
             shutdown: false,
             notify: notify_rx,
@@ -302,13 +305,13 @@ impl ShutdownListener {
         }
     }
 
-    pub async fn send_status_msg(&mut self, msg: SentStatus) {
+    pub fn send_status_msg(&mut self, msg: SentStatus) {
         if self.mode.is_dummy() {
             return;
         }
-        if self.status_msg.send(msg).await.is_err() {
-            log::error!("Failed to status message");
-        };
+        // Since it's not always the case that anyone is listening, just try send and ignore any
+        // failures.
+        self.status_msg.try_send(msg).ok();
     }
 }
 

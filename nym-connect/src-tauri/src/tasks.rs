@@ -43,7 +43,7 @@ pub fn start_nym_socks5_client(
     let (socks5_ctrl_tx, socks5_ctrl_rx) = mpsc::unbounded();
 
     // Channel to send status update messages from the background socks5 task to the frontend.
-    let (socks5_status_tx, socks5_status_rx) = mpsc::unbounded();
+    let (socks5_status_tx, socks5_status_rx) = mpsc::channel(128);
 
     // Channel to signal back to the main task when the socks5 client finishes, and why
     let (socks5_exit_tx, socks5_exit_rx) = futures::channel::oneshot::channel();

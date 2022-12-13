@@ -459,7 +459,7 @@ where
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    async fn log_status(&self, shutdown: &mut task::ShutdownListener) {
+    fn log_status(&self, shutdown: &mut task::ShutdownListener) {
         use crate::error::ClientCoreStatusMessage;
 
         let packets = self.transmission_buffer.total_size();
@@ -488,13 +488,9 @@ where
 
         // Send status message to whoever is listening (possibly UI)
         if mult == self.sending_delay_controller.max_multiplier() {
-            shutdown
-                .send_status_msg(Box::new(ClientCoreStatusMessage::GatewayIsVerySlow))
-                .await;
+            shutdown.send_status_msg(Box::new(ClientCoreStatusMessage::GatewayIsVerySlow));
         } else if mult > self.sending_delay_controller.min_multiplier() {
-            shutdown
-                .send_status_msg(Box::new(ClientCoreStatusMessage::GatewayIsSlow))
-                .await;
+            shutdown.send_status_msg(Box::new(ClientCoreStatusMessage::GatewayIsSlow));
         }
     }
 
@@ -523,7 +519,7 @@ where
                         log::trace!("OutQueueControl: Received shutdown");
                     }
                     _ = status_timer.tick() => {
-                        self.log_status(&mut shutdown).await;
+                        self.log_status(&mut shutdown);
                     }
                     _ = infrequent_status_timer.tick() => {
                         self.log_status_infrequent();

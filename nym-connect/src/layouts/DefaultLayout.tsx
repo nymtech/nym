@@ -31,9 +31,14 @@ export const DefaultLayout: React.FC<{
     <Box pt={1}>
       {error && <InfoModal show title={error.title} description={error.message} onClose={clearError} />}
       <ConnectionStatus status={ConnectionStatusKind.disconnected} />
-      <Typography fontWeight="400" fontSize="16px" textAlign="center" pt={2}>
-        Connect to the Nym <br /> mixnet for privacy.
-      </Typography>
+      <Box px={2}>
+        <Typography fontWeight="400" fontSize="16px" textAlign="center" mb={1}>
+          Connect to the Nym mixnet
+        </Typography>
+        <Typography textAlign="center" fontSize="small" sx={{ color: 'grey.500' }}>
+          This is experimental software. Do not rely on it for strong anonymity (yet).
+        </Typography>
+      </Box>
       <ServiceProviderSelector services={services} onChange={handleServiceProviderChange} currentSp={currentSp} />
       <ConnectionTimer />
       <ConnectionButton

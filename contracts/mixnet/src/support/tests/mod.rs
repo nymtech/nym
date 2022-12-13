@@ -46,6 +46,7 @@ pub mod test_helpers {
     use cosmwasm_std::{Deps, OwnedDeps};
     use cosmwasm_std::{DepsMut, MessageInfo};
     use cosmwasm_std::{Env, Response, Timestamp, Uint128};
+    use crypto::asymmetric::identity::KeyPair;
     use mixnet_contract_common::events::{
         may_find_attribute, MixnetEventType, DELEGATES_REWARD_KEY, OPERATOR_REWARD_KEY,
     };
@@ -556,7 +557,7 @@ pub mod test_helpers {
     pub fn mixnode_with_signature(
         mut rng: impl RngCore + CryptoRng,
         sender: &str,
-    ) -> (MixNode, String) {
+    ) -> (MixNode, String, KeyPair) {
         let keypair = crypto::asymmetric::identity::KeyPair::new(&mut rng);
         let legit_sphinx_key = crypto::asymmetric::encryption::KeyPair::new(&mut rng);
         let owner_signature = keypair
@@ -574,6 +575,7 @@ pub mod test_helpers {
                 ..tests::fixtures::mix_node_fixture()
             },
             owner_signature,
+            keypair,
         )
     }
 

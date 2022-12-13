@@ -9,13 +9,33 @@ use coconut_dkg_common::types::EpochState;
 use cosmwasm_std::Addr;
 use dkg::bte::{keys::KeyPair as DkgKeyPair, PublicKey, PublicKeyWithProof};
 use dkg::{NodeIndex, RecoveredVerificationKeys, Threshold};
+use serde::de::Error;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 use url::Url;
 
+fn bte_pk_serialize<S: Serializer>(
+    val: &PublicKeyWithProof,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    val.to_bytes().serialize(serializer)
+}
+
+fn bte_pk_deserialize<'de, D>(deserializer: D) -> Result<PublicKeyWithProof, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let vec: Vec<u8> = Deserialize::deserialize(deserializer)?;
+    PublicKeyWithProof::try_from_bytes(&vec).map_err(|err| Error::custom(format_args!("{:?}", err)))
+}
+
 // note: each dealer is also a receiver which simplifies some logic significantly
-#[derive(Debug)]
+#[derive(Clone, Deserialize, Debug, Serialize)]
 pub(crate) struct DkgParticipant {
     pub(crate) _address: Addr,
+    #[serde(serialize_with = "bte_pk_serialize")]
+    #[serde(deserialize_with = "bte_pk_deserialize")]
     pub(crate) bte_public_key_with_proof: PublicKeyWithProof,
     pub(crate) assigned_index: NodeIndex,
 }
@@ -29,6 +49,10 @@ impl TryFrom<DealerDetails> for DkgParticipant {
             .map(|bytes| PublicKeyWithProof::try_from_bytes(&bytes))
             .map_err(|_| ComplaintReason::MalformedBTEPublicKey)?
             .map_err(|_| ComplaintReason::MalformedBTEPublicKey)?;
+
+        if !bte_public_key_with_proof.verify() {
+            return Err(ComplaintReason::InvalidBTEPublicKey);
+        }
 
         Ok(DkgParticipant {
             _address: dealer.address,
@@ -65,20 +89,6 @@ pub(crate) trait ConsistentState {
         }
         Ok(())
     }
-}
-
-pub(crate) struct State {
-    announce_address: Url,
-    dkg_keypair: DkgKeyPair,
-    coconut_keypair: CoconutKeyPair,
-    node_index: Option<NodeIndex>,
-    dealers: BTreeMap<Addr, Result<DkgParticipant, ComplaintReason>>,
-    receiver_index: Option<usize>,
-    threshold: Option<Threshold>,
-    recovered_vks: Vec<RecoveredVerificationKeys>,
-    proposal_id: Option<u64>,
-    voted_vks: bool,
-    executed_proposal: bool,
 }
 
 #[async_trait]
@@ -127,25 +137,108 @@ impl ConsistentState for State {
     }
 }
 
+fn vks_serialize<S: Serializer>(
+    val: &[RecoveredVerificationKeys],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    let vec: Vec<Vec<u8>> = val.iter().map(|vk| vk.to_bytes()).collect();
+    vec.serialize(serializer)
+}
+
+fn vks_deserialize<'de, D>(deserializer: D) -> Result<Vec<RecoveredVerificationKeys>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let vec: Vec<Vec<u8>> = Deserialize::deserialize(deserializer)?;
+    vec.into_iter()
+        .map(|b| {
+            RecoveredVerificationKeys::try_from_bytes(&b)
+                .map_err(|err| D::Error::custom(format_args!("{:?}", err)))
+        })
+        .collect()
+}
+
+#[derive(Default, Deserialize, Serialize)]
+pub(crate) struct PersistentState {
+    node_index: Option<NodeIndex>,
+    dealers: BTreeMap<Addr, Result<DkgParticipant, ComplaintReason>>,
+    receiver_index: Option<usize>,
+    threshold: Option<Threshold>,
+    #[serde(serialize_with = "vks_serialize")]
+    #[serde(deserialize_with = "vks_deserialize")]
+    recovered_vks: Vec<RecoveredVerificationKeys>,
+    proposal_id: Option<u64>,
+    voted_vks: bool,
+    executed_proposal: bool,
+}
+
+impl From<&State> for PersistentState {
+    fn from(s: &State) -> Self {
+        PersistentState {
+            node_index: s.node_index,
+            dealers: s.dealers.clone(),
+            receiver_index: s.receiver_index,
+            threshold: s.threshold,
+            recovered_vks: s.recovered_vks.clone(),
+            proposal_id: s.proposal_id,
+            voted_vks: s.voted_vks,
+            executed_proposal: s.executed_proposal,
+        }
+    }
+}
+
+impl PersistentState {
+    pub fn save_to_file(&self, path: PathBuf) -> Result<(), CoconutError> {
+        std::fs::write(path, serde_json::to_string(self)?)?;
+        Ok(())
+    }
+
+    pub fn load_from_file(path: PathBuf) -> Result<Self, CoconutError> {
+        Ok(serde_json::from_str(&std::fs::read_to_string(path)?)?)
+    }
+}
+
+pub(crate) struct State {
+    persistent_state_path: PathBuf,
+    announce_address: Url,
+    dkg_keypair: DkgKeyPair,
+    coconut_keypair: CoconutKeyPair,
+    node_index: Option<NodeIndex>,
+    dealers: BTreeMap<Addr, Result<DkgParticipant, ComplaintReason>>,
+    receiver_index: Option<usize>,
+    threshold: Option<Threshold>,
+    recovered_vks: Vec<RecoveredVerificationKeys>,
+    proposal_id: Option<u64>,
+    voted_vks: bool,
+    executed_proposal: bool,
+}
+
 impl State {
     pub fn new(
+        persistent_state_path: PathBuf,
+        persistent_state: PersistentState,
         announce_address: Url,
         dkg_keypair: DkgKeyPair,
         coconut_keypair: CoconutKeyPair,
     ) -> Self {
         State {
+            persistent_state_path,
             announce_address,
             dkg_keypair,
             coconut_keypair,
-            node_index: None,
-            dealers: BTreeMap::new(),
-            receiver_index: None,
-            threshold: None,
-            recovered_vks: vec![],
-            proposal_id: None,
-            voted_vks: false,
-            executed_proposal: false,
+            node_index: persistent_state.node_index,
+            dealers: persistent_state.dealers,
+            receiver_index: persistent_state.receiver_index,
+            threshold: persistent_state.threshold,
+            recovered_vks: persistent_state.recovered_vks,
+            proposal_id: persistent_state.proposal_id,
+            voted_vks: persistent_state.voted_vks,
+            executed_proposal: persistent_state.executed_proposal,
         }
+    }
+
+    pub fn persistent_state_path(&self) -> PathBuf {
+        self.persistent_state_path.clone()
     }
 
     pub fn announce_address(&self) -> &Url {
@@ -214,8 +307,8 @@ impl State {
         self.coconut_keypair.set(coconut_keypair).await
     }
 
-    pub fn set_node_index(&mut self, node_index: NodeIndex) {
-        self.node_index = Some(node_index);
+    pub fn set_node_index(&mut self, node_index: Option<NodeIndex>) {
+        self.node_index = node_index;
     }
 
     pub fn set_dealers(&mut self, dealers: Vec<DealerDetails>) {
@@ -254,5 +347,10 @@ impl State {
 
     pub fn set_executed_proposal(&mut self) {
         self.executed_proposal = true;
+    }
+
+    #[cfg(test)]
+    pub fn all_dealers(&self) -> &BTreeMap<Addr, Result<DkgParticipant, ComplaintReason>> {
+        &self.dealers
     }
 }

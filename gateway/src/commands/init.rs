@@ -51,10 +51,11 @@ pub struct Init {
     #[clap(long)]
     mnemonic: Option<String>,
 
-    /// Set this gateway to work in a enabled credentials mode that would disallow clients to bypass bandwidth credential requirement
+    /// Set this gateway to work only with coconut credentials; that would disallow clients to
+    /// bypass bandwidth credential requirement
     #[cfg(feature = "coconut")]
     #[clap(long)]
-    enabled_credentials_mode: Option<bool>,
+    only_coconut_credentials: bool,
 
     /// Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server
     #[clap(long)]
@@ -79,7 +80,7 @@ impl From<Init> for OverrideConfig {
             mnemonic: init_config.mnemonic,
 
             #[cfg(feature = "coconut")]
-            enabled_credentials_mode: init_config.enabled_credentials_mode,
+            only_coconut_credentials: init_config.only_coconut_credentials,
 
             enabled_statistics: init_config.enabled_statistics,
             statistics_service_url: init_config.statistics_service_url,
@@ -170,7 +171,7 @@ mod tests {
             statistics_service_url: None,
             enabled_statistics: None,
             #[cfg(feature = "coconut")]
-            enabled_credentials_mode: None,
+            only_coconut_credentials: false,
         };
         std::env::set_var(BECH32_PREFIX, "n");
 

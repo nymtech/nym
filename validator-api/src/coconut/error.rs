@@ -23,6 +23,9 @@ pub enum CoconutError {
     #[error("{0}")]
     IOError(#[from] std::io::Error),
 
+    #[error("{0}")]
+    SerdeJsonError(#[from] serde_json::Error),
+
     #[error("Could not parse Ed25519 data")]
     Ed25519ParseError(#[from] Ed25519RecoveryError),
 

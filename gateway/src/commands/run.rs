@@ -51,10 +51,11 @@ pub struct Run {
     #[clap(long)]
     mnemonic: Option<String>,
 
-    /// Set this gateway to work in a enabled credentials mode that would disallow clients to bypass bandwidth credential requirement
+    /// Set this gateway to work only with coconut credentials; that would disallow clients to
+    /// bypass bandwidth credential requirement
     #[cfg(feature = "coconut")]
     #[clap(long)]
-    enabled_credentials_mode: Option<bool>,
+    only_coconut_credentials: bool,
 
     /// Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server
     #[clap(long)]
@@ -79,7 +80,7 @@ impl From<Run> for OverrideConfig {
             mnemonic: run_config.mnemonic,
 
             #[cfg(feature = "coconut")]
-            enabled_credentials_mode: run_config.enabled_credentials_mode,
+            only_coconut_credentials: run_config.only_coconut_credentials,
 
             enabled_statistics: run_config.enabled_statistics,
             statistics_service_url: run_config.statistics_service_url,

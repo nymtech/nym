@@ -7,6 +7,7 @@ use crate::nymd::NymdClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use mixnet_contract_common::delegation::{MixNodeDelegationResponse, OwnerProxySubKey};
+use mixnet_contract_common::families::Family;
 use mixnet_contract_common::mixnode::{
     MixNodeDetails, MixnodeRewardingDetailsResponse, PagedMixnodesDetailsResponse,
     PagedUnbondedMixnodesResponse, StakeSaturationResponse, UnbondedMixnodeResponse,
@@ -20,9 +21,9 @@ use mixnet_contract_common::{
     CurrentIntervalResponse, EpochEventId, GatewayBondResponse, GatewayOwnershipResponse,
     IdentityKey, IntervalEventId, LayerDistribution, MixId, MixOwnershipResponse,
     MixnodeDetailsResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
-    PagedGatewayResponse, PagedMixNodeDelegationsResponse, PagedMixnodeBondsResponse,
-    PagedRewardedSetResponse, PendingEpochEventsResponse, PendingIntervalEventsResponse,
-    QueryMsg as MixnetQueryMsg,
+    PagedFamiliesResponse, PagedGatewayResponse, PagedMembersResponse,
+    PagedMixNodeDelegationsResponse, PagedMixnodeBondsResponse, PagedRewardedSetResponse,
+    PendingEpochEventsResponse, PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg,
 };
 use serde::Deserialize;
 
@@ -70,6 +71,24 @@ pub trait MixnetQueryClient {
         limit: Option<u32>,
     ) -> Result<PagedRewardedSetResponse, NymdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetRewardedSet { limit, start_after })
+            .await
+    }
+
+    async fn get_all_node_families_paged(
+        &self,
+        start_after: Option<String>,
+        limit: Option<u32>,
+    ) -> Result<PagedFamiliesResponse, NymdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetAllFamiliesPaged { limit, start_after })
+            .await
+    }
+
+    async fn get_all_family_members_paged(
+        &self,
+        start_after: Option<String>,
+        limit: Option<u32>,
+    ) -> Result<PagedMembersResponse, NymdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetAllMembersPaged { limit, start_after })
             .await
     }
 
@@ -354,6 +373,20 @@ pub trait MixnetQueryClient {
     ) -> Result<Option<MixNodeDetails>, NymdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetBondedMixnodeDetailsByIdentity {
             mix_identity,
+        })
+        .await
+    }
+
+    async fn get_node_family_by_label(&self, label: &str) -> Result<Option<Family>, NymdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetFamilyByLabel {
+            label: label.to_string(),
+        })
+        .await
+    }
+
+    async fn get_node_family_by_head(&self, head: &str) -> Result<Option<Family>, NymdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetFamilyByHead {
+            head: head.to_string(),
         })
         .await
     }

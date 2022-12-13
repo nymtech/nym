@@ -4,10 +4,12 @@
 use crate::config::Config;
 use crate::epoch_operations::MixnodeToReward;
 use config::defaults::{NymNetworkDetails, DEFAULT_VALIDATOR_API_PORT};
+use mixnet_contract_common::families::{Family, FamilyHead};
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::RewardingParams;
 use mixnet_contract_common::{
-    CurrentIntervalResponse, ExecuteMsg, GatewayBond, MixId, RewardedSetNodeStatus,
+    CurrentIntervalResponse, ExecuteMsg, GatewayBond, IdentityKey, LayerAssignment, MixId,
+    RewardedSetNodeStatus,
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -191,6 +193,23 @@ impl<C> Client<C> {
             .await
     }
 
+    #[allow(dead_code)]
+    pub(crate) async fn get_all_node_families(&self) -> Result<Vec<Family>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        self.0.read().await.get_all_node_families().await
+    }
+
+    pub(crate) async fn get_all_family_members(
+        &self,
+    ) -> Result<Vec<(IdentityKey, FamilyHead)>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync + Send,
+    {
+        self.0.read().await.get_all_family_members().await
+    }
+
     pub(crate) async fn send_rewarding_messages(
         &self,
         nodes: &[MixnodeToReward],
@@ -237,7 +256,7 @@ impl<C> Client<C> {
 
     pub(crate) async fn advance_current_epoch(
         &self,
-        new_rewarded_set: Vec<MixId>,
+        new_rewarded_set: Vec<LayerAssignment>,
         expected_active_set_size: u32,
     ) -> Result<(), ValidatorClientError>
     where

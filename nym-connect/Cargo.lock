@@ -639,7 +639,7 @@ dependencies = [
 
 [[package]]
 name = "client-core"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "async-trait",
  "client-connections",
@@ -658,6 +658,7 @@ dependencies = [
  "pemstore",
  "rand 0.7.3",
  "serde",
+ "serde_json",
  "sqlx 0.6.2",
  "tap",
  "task",
@@ -1441,12 +1442,6 @@ dependencies = [
  "thiserror",
  "zeroize",
 ]
-
-[[package]]
-name = "doc-comment"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fea41bba32d969b513997752735605054bc0dfa92b4c56bf1189f2e174be7a10"
 
 [[package]]
 name = "dotenv"
@@ -3345,7 +3340,7 @@ dependencies = [
 
 [[package]]
 name = "nym-connect"
-version = "1.1.0"
+version = "1.1.2"
 dependencies = [
  "bip39",
  "client-core",
@@ -3378,7 +3373,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "clap",
  "client-connections",
@@ -3402,7 +3397,7 @@ dependencies = [
  "proxy-helpers",
  "rand 0.7.3",
  "serde",
- "snafu",
+ "serde_json",
  "socks5-requests",
  "tap",
  "task",
@@ -4881,9 +4876,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.85"
+version = "1.0.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e55a28e3aaef9d5ce0506d0a14dbba8054ddc7e499ef522dd8b26859ec9d4a44"
+checksum = "020ff22c755c2ed3f8cf162dbb41a7268d934702f3ed3631656ea597e08fc3db"
 dependencies = [
  "itoa 1.0.3",
  "ryu",
@@ -5084,27 +5079,6 @@ name = "smallvec"
 version = "1.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2fd0db749597d91ff862fd1d55ea87f7855a744a8425a64695b6fca237d1dad1"
-
-[[package]]
-name = "snafu"
-version = "0.6.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eab12d3c261b2308b0d80c26fffb58d17eba81a4be97890101f416b478c79ca7"
-dependencies = [
- "doc-comment",
- "snafu-derive",
-]
-
-[[package]]
-name = "snafu-derive"
-version = "0.6.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1508efa03c362e23817f96cde18abed596a25219a8b2c66e8db33c03543d315b"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
 
 [[package]]
 name = "socket2"
@@ -6466,7 +6440,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "vesting-contract"
-version = "1.1.0"
+version = "1.1.2"
 dependencies = [
  "contracts-common",
  "cosmwasm-std",

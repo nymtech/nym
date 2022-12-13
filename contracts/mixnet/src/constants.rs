@@ -35,6 +35,9 @@ pub const INTERVAL_EVENTS_MAX_RETRIEVAL_LIMIT: u32 = 250;
 pub const REWARDED_SET_DEFAULT_RETRIEVAL_LIMIT: u32 = 500;
 pub const REWARDED_SET_MAX_RETRIEVAL_LIMIT: u32 = 1000;
 
+pub const FAMILIES_DEFAULT_RETRIEVAL_LIMIT: u32 = 10;
+pub const FAMILIES_MAX_RETRIEVAL_LIMIT: u32 = 20;
+
 // storage keys
 pub(crate) const DELEGATION_PK_NAMESPACE: &str = "dl";
 pub(crate) const DELEGATION_OWNER_IDX_NAMESPACE: &str = "dlo";
@@ -69,3 +72,7 @@ pub(crate) const UNBONDED_MIXNODES_IDENTITY_IDX_NAMESPACE: &str = "umi";
 pub(crate) const REWARDING_PARAMS_KEY: &str = "rparams";
 pub(crate) const PENDING_REWARD_POOL_KEY: &str = "prp";
 pub(crate) const MIXNODES_REWARDING_PK_NAMESPACE: &str = "mnr";
+
+pub(crate) const FAMILIES_INDEX_NAMESPACE: &str = "faml2";
+pub(crate) const FAMILIES_MAP_NAMESPACE: &str = "fam2";
+pub(crate) const MEMBERS_MAP_NAMESPACE: &str = "memb2";

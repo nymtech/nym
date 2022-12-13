@@ -1,7 +1,7 @@
 use cosmwasm_std::{Coin, Timestamp};
 use mixnet_contract_common::{
     mixnode::{MixNodeConfigUpdate, MixNodeCostParams},
-    Gateway, MixId, MixNode,
+    Gateway, IdentityKey, MixId, MixNode,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -57,6 +57,25 @@ impl VestingSpecification {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
+    // Families
+    /// Only owner of the node can crate the family with node as head
+    CreateFamily {
+        owner_signature: String,
+        label: String,
+    },
+    /// Family head needs to sign the joining node IdentityKey
+    JoinFamily {
+        signature: String,
+        family_head: IdentityKey,
+    },
+    LeaveFamily {
+        signature: String,
+        family_head: IdentityKey,
+    },
+    KickFamilyMember {
+        signature: String,
+        member: IdentityKey,
+    },
     TrackReward {
         amount: Coin,
         address: String,
@@ -134,6 +153,10 @@ pub enum ExecuteMsg {
 impl ExecuteMsg {
     pub fn name(&self) -> &str {
         match self {
+            ExecuteMsg::CreateFamily { .. } => "VestingExecuteMsg::CreateFamily",
+            ExecuteMsg::JoinFamily { .. } => "VestingExecuteMsg::JoinFamily",
+            ExecuteMsg::LeaveFamily { .. } => "VestingExecuteMsg::LeaveFamily",
+            ExecuteMsg::KickFamilyMember { .. } => "VestingExecuteMsg::KickFamilyMember",
             ExecuteMsg::TrackReward { .. } => "VestingExecuteMsg::TrackReward",
             ExecuteMsg::ClaimOperatorReward { .. } => "VestingExecuteMsg::ClaimOperatorReward",
             ExecuteMsg::ClaimDelegatorReward { .. } => "VestingExecuteMsg::ClaimDelegatorReward",

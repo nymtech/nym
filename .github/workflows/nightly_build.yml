@@ -5,7 +5,7 @@ on:
     - cron: '14 1 * * *'
 jobs:
   matrix_prep:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -25,7 +25,7 @@ jobs:
     steps:
       - name: Install Dependencies (Linux)
         run: sudo apt-get update && sudo apt-get install libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev libudev-dev squashfs-tools
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-20.04'
 
       - name: Check out repository code
         uses: actions/checkout@v2
@@ -96,7 +96,7 @@ jobs:
 
       - name: Reclaim some disk space
         uses: actions-rs/cargo@v1
-        if: ${{ matrix.os == 'windows-latest' || matrix.os == 'ubuntu-latest' }}
+        if: ${{ matrix.os == 'windows-latest' || matrix.os == 'ubuntu-20.04' }}
         with:
           command: clean
 
@@ -160,7 +160,7 @@ jobs:
 
   notification:
     needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     steps:
       - name: Collect jobs status
         uses: technote-space/workflow-conclusion-action@v2

@@ -19,9 +19,9 @@ version = '{{ gateway.version }}'
 # Human readable ID of this particular gateway.
 id = '{{ gateway.id }}'
 
-# Indicates whether this gateway is running in a disabled credentials mode, thus allowing clients
-# to claim bandwidth without presenting bandwidth credentials.
-disabled_credentials_mode = {{ gateway.disabled_credentials_mode }}
+# Indicates whether this gateway is accepting only coconut credentials for accessing the
+# the mixnet, or if it also accepts non-paying clients
+only_coconut_credentials = {{ gateway.only_coconut_credentials }}
 
 # Socket address to which this gateway will bind to and will be listening for packets.
 listening_address = '{{ gateway.listening_address }}'

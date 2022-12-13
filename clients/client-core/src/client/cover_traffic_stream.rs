@@ -192,7 +192,7 @@ impl LoopCoverTrafficStream<OsRng> {
                     // However it's still useful to alert the user that the gateway or the link to
                     // the gateway can't keep up. Either due to insufficient bandwidth on the
                     // client side, or that the gateway is overloaded.
-                    log::warn!("Failed to send: gateway appears to not keep up");
+                    log::warn!("Failed to send sphinx packet - gateway or connection to gatway can't keep up");
                 }
                 TrySendError::Closed(_) => {
                     log::warn!("Failed to send cover message - channel closed");

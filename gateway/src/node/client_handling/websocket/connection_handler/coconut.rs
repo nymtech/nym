@@ -87,7 +87,7 @@ impl CoconutVerifier {
             });
         }
 
-        let req = validator_api_requests::coconut::VerifyCredentialBody::new(
+        let req = nym_api_requests::coconut::VerifyCredentialBody::new(
             credential.clone(),
             proposal_id,
             self.nymd_client.nymd.address().clone(),

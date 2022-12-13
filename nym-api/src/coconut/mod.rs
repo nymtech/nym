@@ -30,7 +30,7 @@ use crypto::asymmetric::encryption;
 use crypto::shared_key::new_ephemeral_shared_key;
 use crypto::symmetric::stream_cipher;
 use keypair::KeyPair;
-use validator_api_requests::coconut::{
+use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_client::nymd::{Coin, Fee};

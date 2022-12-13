@@ -8,14 +8,14 @@ use crate::{NodeStatusCache, ValidatorCache};
 use cosmwasm_std::Decimal;
 use mixnet_contract_common::reward_params::Performance;
 use mixnet_contract_common::{Interval, MixId, RewardedSetNodeStatus};
-use rocket::http::Status;
-use rocket::State;
-use validator_api_requests::models::{
+use nym_api_requests::models::{
     AllInclusionProbabilitiesResponse, ComputeRewardEstParam, InclusionProbabilityResponse,
     MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
     MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
     StakeSaturationResponse, UptimeResponse,
 };
+use rocket::http::Status;
+use rocket::State;
 
 use super::reward_estimate::compute_reward_estimate;
 

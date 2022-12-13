@@ -1,9 +1,9 @@
 use contracts_common::truncate_decimal;
 use mixnet_contract_common::{MixId, MixNodeDetails, RewardingParams};
+use nym_api_requests::models::InclusionProbability;
 use serde::Serialize;
 use std::time::Duration;
 use tap::TapFallible;
-use validator_api_requests::models::InclusionProbability;
 
 const MAX_SIMULATION_SAMPLES: u64 = 5000;
 const MAX_SIMULATION_TIME_SEC: u64 = 15;

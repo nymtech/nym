@@ -1,5 +1,5 @@
+use nym_api_requests::models::RequestError;
 use thiserror::Error;
-use validator_api_requests::models::RequestError;
 
 #[derive(Error, Debug)]
 pub enum ValidatorAPIError {

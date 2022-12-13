@@ -8,7 +8,7 @@ use coconut_bandwidth_contract_common::events::{
 use credentials::coconut::bandwidth::BandwidthVoucher;
 use crypto::asymmetric::encryption;
 use crypto::asymmetric::identity::{self, Signature};
-use validator_api_requests::coconut::BlindSignRequestBody;
+use nym_api_requests::coconut::BlindSignRequestBody;
 use validator_client::nymd::TxResponse;
 
 use super::error::{CoconutError, Result};

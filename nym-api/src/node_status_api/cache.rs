@@ -8,6 +8,7 @@ use mixnet_contract_common::reward_params::Performance;
 use mixnet_contract_common::{
     IdentityKey, Interval, MixId, MixNodeDetails, RewardedSetNodeStatus, RewardingParams,
 };
+use nym_api_requests::models::{MixNodeBondAnnotated, MixnodeStatus};
 use rocket::fairing::AdHoc;
 use std::collections::HashMap;
 use std::{sync::Arc, time::Duration};
@@ -17,7 +18,6 @@ use tokio::{
     sync::{watch, RwLock},
     time,
 };
-use validator_api_requests::models::{MixNodeBondAnnotated, MixnodeStatus};
 
 use self::inclusion_probabilities::InclusionProbabilities;
 

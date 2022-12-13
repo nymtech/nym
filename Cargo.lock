@@ -962,9 +962,9 @@ dependencies = [
  "coconut-interface",
  "cosmrs",
  "crypto",
+ "nym-api-requests",
  "rand 0.7.3",
  "thiserror",
- "validator-api-requests",
  "validator-client",
 ]
 
@@ -3131,6 +3131,7 @@ dependencies = [
  "logging",
  "mixnet-contract-common",
  "multisig-contract-common",
+ "nym-api-requests",
  "nymcoconut",
  "nymsphinx",
  "okapi",
@@ -3156,10 +3157,24 @@ dependencies = [
  "topology",
  "ts-rs",
  "url",
- "validator-api-requests",
  "validator-client",
  "vergen 7.2.1",
  "version-checker",
+]
+
+[[package]]
+name = "nym-api-requests"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "coconut-interface",
+ "cosmrs",
+ "cosmwasm-std",
+ "getset",
+ "mixnet-contract-common",
+ "schemars",
+ "serde",
+ "ts-rs",
 ]
 
 [[package]]
@@ -3297,6 +3312,7 @@ dependencies = [
  "mixnet-client",
  "mixnode-common",
  "network-defaults",
+ "nym-api-requests",
  "nymsphinx",
  "once_cell",
  "pemstore",
@@ -3312,7 +3328,6 @@ dependencies = [
  "tokio-tungstenite 0.14.0",
  "tokio-util 0.7.3",
  "url",
- "validator-api-requests",
  "validator-client",
  "vergen 5.1.17",
  "version-checker",
@@ -6220,10 +6235,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "mixnet-contract-common",
+ "nym-api-requests",
  "nym-types",
  "nym-wallet-types",
  "ts-rs",
- "validator-api-requests",
  "validator-client",
  "vesting-contract-common",
  "walkdir",
@@ -6424,21 +6439,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
 
 [[package]]
-name = "validator-api-requests"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "coconut-interface",
- "cosmrs",
- "cosmwasm-std",
- "getset",
- "mixnet-contract-common",
- "schemars",
- "serde",
- "ts-rs",
-]
-
-[[package]]
 name = "validator-client"
 version = "0.1.0"
 dependencies = [
@@ -6462,6 +6462,7 @@ dependencies = [
  "mixnet-contract-common",
  "multisig-contract-common",
  "network-defaults",
+ "nym-api-requests",
  "prost 0.10.3",
  "reqwest",
  "serde",
@@ -6471,7 +6472,6 @@ dependencies = [
  "tokio",
  "ts-rs",
  "url",
- "validator-api-requests",
  "vesting-contract",
  "vesting-contract-common",
 ]

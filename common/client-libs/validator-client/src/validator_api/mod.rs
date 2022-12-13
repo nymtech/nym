@@ -5,18 +5,18 @@ use crate::validator_api::error::ValidatorAPIError;
 use crate::validator_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
-use reqwest::Response;
-use serde::{Deserialize, Serialize};
-use url::Url;
-use validator_api_requests::coconut::{
+use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
-use validator_api_requests::models::{
+use nym_api_requests::models::{
     GatewayCoreStatusResponse, GatewayStatusReportResponse, GatewayUptimeHistoryResponse,
     InclusionProbabilityResponse, MixNodeBondAnnotated, MixnodeCoreStatusResponse,
     MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RequestError,
     RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
 };
+use reqwest::Response;
+use serde::{Deserialize, Serialize};
+use url::Url;
 
 pub mod error;
 pub mod routes;

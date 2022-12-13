@@ -3,6 +3,11 @@ use mixnet_contract_common::{
     Interval as ContractInterval, IntervalRewardParams, IntervalRewardingParamsUpdate, MixNode,
     MixNodeConfigUpdate, RewardedSetNodeStatus, RewardingParams, UnbondedMixnode,
 };
+use nym_api_requests::models::{
+    GatewayCoreStatusResponse, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
+    MixnodeStatus, MixnodeStatusResponse, RewardEstimationResponse, SelectionChance,
+    StakeSaturationResponse,
+};
 use nym_types::account::{Account, AccountEntry, AccountWithMnemonic, Balance};
 use nym_types::currency::{CurrencyDenom, DecCoin};
 use nym_types::delegation::{
@@ -27,11 +32,6 @@ use nym_wallet_types::network::Network;
 use nym_wallet_types::network_config::{Validator, ValidatorUrl, ValidatorUrls};
 use std::path::Path;
 use ts_rs::TS;
-use validator_api_requests::models::{
-    GatewayCoreStatusResponse, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
-    MixnodeStatus, MixnodeStatusResponse, RewardEstimationResponse, SelectionChance,
-    StakeSaturationResponse,
-};
 use vesting_contract_common::Period;
 use walkdir::WalkDir;
 

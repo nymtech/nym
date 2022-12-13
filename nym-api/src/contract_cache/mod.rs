@@ -9,6 +9,7 @@ use mixnet_contract_common::{
     mixnode::MixNodeDetails, reward_params::RewardingParams, GatewayBond, IdentityKey, Interval,
     MixId, MixNodeBond, RewardedSetNodeStatus,
 };
+use nym_api_requests::models::MixnodeStatus;
 use okapi::openapi3::OpenApi;
 use rocket::fairing::AdHoc;
 use rocket::Route;
@@ -23,7 +24,6 @@ use std::time::Duration;
 use task::ShutdownListener;
 use tokio::sync::{watch, RwLock};
 use tokio::time;
-use validator_api_requests::models::MixnodeStatus;
 use validator_client::nymd::CosmWasmClient;
 
 pub(crate) mod routes;

@@ -13,17 +13,17 @@ use crate::node_status_api::models::ErrorResponse;
 use crate::storage::ValidatorApiStorage;
 use crate::ValidatorCache;
 use mixnet_contract_common::MixId;
-use rocket::http::Status;
-use rocket::serde::json::Json;
-use rocket::State;
-use rocket_okapi::openapi;
-use validator_api_requests::models::{
+use nym_api_requests::models::{
     AllInclusionProbabilitiesResponse, ComputeRewardEstParam, GatewayCoreStatusResponse,
     GatewayStatusReportResponse, GatewayUptimeHistoryResponse, InclusionProbabilityResponse,
     MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
     MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
     StakeSaturationResponse, UptimeResponse,
 };
+use rocket::http::Status;
+use rocket::serde::json::Json;
+use rocket::State;
+use rocket_okapi::openapi;
 
 #[openapi(tag = "status")]
 #[get("/gateway/<identity>/report")]

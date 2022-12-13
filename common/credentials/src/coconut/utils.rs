@@ -8,7 +8,7 @@ use coconut_interface::{
 use crypto::asymmetric::encryption::PublicKey;
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
-use validator_api_requests::coconut::BlindSignRequestBody;
+use nym_api_requests::coconut::BlindSignRequestBody;
 use validator_client::client::CoconutApiClient;
 
 use crate::coconut::bandwidth::{BandwidthVoucher, PRIVATE_ATTRIBUTES, PUBLIC_ATTRIBUTES};

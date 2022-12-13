@@ -19,12 +19,12 @@ use credentials::coconut::params::{
 };
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
+use nym_api_requests::coconut::{
+    BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
+};
 use nymcoconut::tests::helpers::theta_from_keys_and_attributes;
 use nymcoconut::{
     prepare_blind_sign, ttp_keygen, Base58, BlindSignRequest, BlindedSignature, Parameters,
-};
-use validator_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_client::nymd::Coin;
 use validator_client::nymd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};

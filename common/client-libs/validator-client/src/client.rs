@@ -13,15 +13,15 @@ use mixnet_contract_common::families::{Family, FamilyHead};
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef};
 use mixnet_contract_common::{IdentityKey, MixId};
-#[cfg(feature = "nymd-client")]
-use std::str::FromStr;
-use validator_api_requests::coconut::{
+use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
-use validator_api_requests::models::{
+use nym_api_requests::models::{
     GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
     RewardEstimationResponse, StakeSaturationResponse,
 };
+#[cfg(feature = "nymd-client")]
+use std::str::FromStr;
 
 #[cfg(feature = "nymd-client")]
 use crate::nymd::traits::{DkgQueryClient, MixnetQueryClient, MultisigQueryClient};
@@ -37,9 +37,9 @@ use mixnet_contract_common::{
 };
 #[cfg(feature = "nymd-client")]
 use network_defaults::NymNetworkDetails;
-use url::Url;
 #[cfg(feature = "nymd-client")]
-use validator_api_requests::models::MixNodeBondAnnotated;
+use nym_api_requests::models::MixNodeBondAnnotated;
+use url::Url;
 
 #[cfg(feature = "nymd-client")]
 #[must_use]

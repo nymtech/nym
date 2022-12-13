@@ -5,6 +5,10 @@ use crate::node_status_api::utils::NodeUptimes;
 use crate::storage::models::NodeStatus;
 use mixnet_contract_common::reward_params::Performance;
 use mixnet_contract_common::{IdentityKey, MixId};
+use nym_api_requests::models::{
+    GatewayStatusReportResponse, GatewayUptimeHistoryResponse, HistoricalUptimeResponse,
+    MixnodeStatusReportResponse, MixnodeUptimeHistoryResponse, RequestError,
+};
 use okapi::openapi3::{Responses, SchemaObject};
 use rocket::http::Status;
 use rocket::response::{self, Responder, Response};
@@ -21,10 +25,6 @@ use sqlx::Error;
 use std::convert::TryFrom;
 use std::fmt::{self, Display, Formatter};
 use time::OffsetDateTime;
-use validator_api_requests::models::{
-    GatewayStatusReportResponse, GatewayUptimeHistoryResponse, HistoricalUptimeResponse,
-    MixnodeStatusReportResponse, MixnodeUptimeHistoryResponse, RequestError,
-};
 
 // todo: put into some error enum
 #[derive(Debug)]

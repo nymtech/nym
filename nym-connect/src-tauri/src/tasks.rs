@@ -134,13 +134,13 @@ pub fn start_disconnect_listener(
                     .unwrap();
             }
             Ok(Socks5ExitStatusMessage::Failed(err)) => {
-                log::info!("SOCKS5 task reported error: {}", err);
+                log::info!("SOCKS5 task reported error: {err}");
                 window
                     .emit(
                         "socks5-event",
                         Payload {
                             title: "SOCKS5 error".into(),
-                            message: format!("SOCKS5 failed: {}", err),
+                            message: format!("SOCKS5 failed: {err}"),
                         },
                     )
                     .unwrap();

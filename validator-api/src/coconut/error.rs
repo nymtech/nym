@@ -26,10 +26,10 @@ pub enum CoconutError {
     #[error("{0}")]
     SerdeJsonError(#[from] serde_json::Error),
 
-    #[error("Could not parse Ed25519 data")]
+    #[error("Could not parse Ed25519 data - {0}")]
     Ed25519ParseError(#[from] Ed25519RecoveryError),
 
-    #[error("Could not parse X25519 data")]
+    #[error("Could not parse X25519 data - {0}")]
     X25519ParseError(#[from] KeyRecoveryError),
 
     #[error("Could not parse tx hash in request body")]

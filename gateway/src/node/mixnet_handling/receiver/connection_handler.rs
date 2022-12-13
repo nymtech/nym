@@ -142,7 +142,7 @@ impl<St: Storage> ConnectionHandler<St> {
                 .store_processed_packet_payload(client_address, unsent_plaintext)
                 .await
             {
-                Err(err) => error!("Failed to store client data - {}", err),
+                Err(err) => error!("Failed to store client data - {err}"),
                 Ok(_) => trace!("Stored packet for {}", client_address),
             },
             Ok(_) => trace!("Pushed received packet to {}", client_address),
@@ -163,8 +163,8 @@ impl<St: Storage> ConnectionHandler<St> {
 
         let processed_final_hop = match self.packet_processor.process_received(framed_sphinx_packet)
         {
-            Err(e) => {
-                debug!("We failed to process received sphinx packet - {:?}", e);
+            Err(err) => {
+                debug!("We failed to process received sphinx packet - {err}");
                 return;
             }
             Ok(processed_final_hop) => processed_final_hop,

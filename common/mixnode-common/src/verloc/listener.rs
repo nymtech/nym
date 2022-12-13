@@ -66,7 +66,7 @@ impl PacketListener {
 
                             tokio::spawn(connection_handler.handle_connection(socket, remote_addr, handler_shutdown_listener));
                         }
-                        Err(err) => warn!("Failed to accept incoming connection - {:?}", err),
+                        Err(err) => warn!("Failed to accept incoming connection - {err}"),
                     }
                 },
                 _ = shutdown_listener.recv() => {
@@ -141,9 +141,9 @@ enum EchoPacketCodecError {
 impl Display for EchoPacketCodecError {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            EchoPacketCodecError::IoError(err) => write!(f, "encountered io error - {}", err),
+            EchoPacketCodecError::IoError(err) => write!(f, "encountered io error - {err}"),
             EchoPacketCodecError::PacketRecoveryError(err) => {
-                write!(f, "failed to correctly decode an echo packet - {}", err)
+                write!(f, "failed to correctly decode an echo packet - {err}")
             }
         }
     }

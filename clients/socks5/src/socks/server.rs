@@ -103,7 +103,7 @@ impl SphinxSocksServer {
 
                     tokio::spawn(async move {
                         if let Err(err) = client.run().await {
-                            error!("Error! {}", err);
+                            error!("Error! {err}");
                             if client.send_error(err).await.is_err() {
                                 warn!("Failed to send error code");
                             };

@@ -209,8 +209,8 @@ pub fn output_to_json<T: Serialize>(init_results: &T, output_file: &str) {
     match std::fs::File::create(output_file) {
         Ok(file) => match serde_json::to_writer_pretty(file, init_results) {
             Ok(_) => println!("Saved: {}", output_file),
-            Err(err) => eprintln!("Could not save {}: {}", output_file, err),
+            Err(err) => eprintln!("Could not save {}: {err}", output_file),
         },
-        Err(err) => eprintln!("Could not save {}: {}", output_file, err),
+        Err(err) => eprintln!("Could not save {}: {err}", output_file),
     }
 }

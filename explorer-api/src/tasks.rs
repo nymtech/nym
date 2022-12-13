@@ -31,8 +31,8 @@ impl ExplorerApiTasks {
     {
         let bonds = match f(&self.state.inner.validator_client.0).await {
             Ok(result) => result,
-            Err(e) => {
-                error!("Unable to retrieve mixnode bonds: {:?}", e);
+            Err(err) => {
+                error!("Unable to retrieve mixnode bonds: {err}");
                 vec![]
             }
         };
@@ -115,8 +115,8 @@ impl ExplorerApiTasks {
     async fn update_validators_cache(&self) {
         match self.retrieve_all_validators().await {
             Ok(response) => self.state.inner.validators.update_cache(response).await,
-            Err(e) => {
-                error!("Failed to get validators: {:?}", e)
+            Err(err) => {
+                error!("Failed to get validators: {err}")
             }
         }
     }
@@ -124,8 +124,8 @@ impl ExplorerApiTasks {
     async fn update_gateways_cache(&self) {
         match self.retrieve_all_gateways().await {
             Ok(response) => self.state.inner.gateways.update_cache(response).await,
-            Err(e) => {
-                error!("Failed to get gateways: {:?}", e)
+            Err(err) => {
+                error!("Failed to get gateways: {err}")
             }
         }
     }

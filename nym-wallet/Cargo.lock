@@ -2875,6 +2875,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-api-requests"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "coconut-interface",
+ "cosmrs",
+ "cosmwasm-std",
+ "getset",
+ "mixnet-contract-common",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "nym-types"
 version = "1.0.0"
 dependencies = [
@@ -5398,20 +5412,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "validator-api-requests"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "coconut-interface",
- "cosmrs",
- "cosmwasm-std",
- "getset",
- "mixnet-contract-common",
- "schemars",
- "serde",
-]
-
-[[package]]
 name = "validator-client"
 version = "0.1.0"
 dependencies = [
@@ -5435,6 +5435,7 @@ dependencies = [
  "mixnet-contract-common",
  "multisig-contract-common",
  "network-defaults",
+ "nym-api-requests",
  "prost",
  "reqwest",
  "serde",
@@ -5443,7 +5444,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "url",
- "validator-api-requests",
  "vesting-contract",
  "vesting-contract-common",
 ]

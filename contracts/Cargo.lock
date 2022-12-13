@@ -197,8 +197,10 @@ dependencies = [
  "cosmwasm-std",
  "cosmwasm-storage",
  "cw-controllers",
+ "cw-multi-test",
  "cw-storage-plus",
  "cw4",
+ "cw4-group",
  "schemars",
  "serde",
  "thiserror",
@@ -231,6 +233,7 @@ dependencies = [
  "cw-multi-test",
  "cw-storage-plus",
  "cw-utils",
+ "cw3",
  "cw3-flex-multisig",
  "cw4",
  "cw4-group",
@@ -961,7 +964,7 @@ checksum = "a3e378b66a060d48947b590737b30a1be76706c8dd7b8ba0f2fe3989c68a853f"
 
 [[package]]
 name = "mixnet-contract"
-version = "1.1.0"
+version = "1.1.2"
 dependencies = [
  "bs58",
  "cosmwasm-schema",
@@ -1638,7 +1641,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "vesting-contract"
-version = "1.1.0"
+version = "1.1.2"
 dependencies = [
  "contracts-common",
  "cosmwasm-std",

@@ -586,7 +586,7 @@ dependencies = [
 
 [[package]]
 name = "client-core"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "async-trait",
  "client-connections",
@@ -605,6 +605,7 @@ dependencies = [
  "pemstore",
  "rand 0.7.3",
  "serde",
+ "serde_json",
  "sqlx 0.6.2",
  "tap",
  "task",
@@ -928,7 +929,6 @@ dependencies = [
 name = "credential"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "bip39",
  "cfg-if 0.1.10",
  "clap 3.2.8",
@@ -940,7 +940,6 @@ dependencies = [
  "crypto",
  "network-defaults",
  "pemstore",
- "pickledb",
  "rand 0.7.3",
  "serde",
  "thiserror",
@@ -1817,16 +1816,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8cbd1169bd7b4a0a20d92b9af7a7e0422888bd38a6f5ec29c1fd8c1558a272e"
 
 [[package]]
-name = "fs2"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9564fc758e15025b46aa6643b1b77d047d1a56a1aea6e01002ac0c7026876213"
-dependencies = [
- "libc",
- "winapi",
-]
-
-[[package]]
 name = "fuchsia-cprng"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1936,15 +1925,6 @@ dependencies = [
  "pin-project-lite",
  "pin-utils",
  "slab",
-]
-
-[[package]]
-name = "fxhash"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c31b6d751ae2c7f11320402d34e41349dd1016f8d5d45e48c4312bc8625af50c"
-dependencies = [
- "byteorder",
 ]
 
 [[package]]
@@ -2688,7 +2668,7 @@ checksum = "fe435806c197dfeaa5efcded5e623c4b8230fd28fdf1e91e7a86e40ef2acbf90"
 dependencies = [
  "arrayref",
  "no-std-compat",
- "snafu 0.7.3",
+ "snafu",
 ]
 
 [[package]]
@@ -2763,12 +2743,6 @@ dependencies = [
  "pkg-config",
  "vcpkg",
 ]
-
-[[package]]
-name = "linked-hash-map"
-version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7fb9b38af92608140b86b693604b9ffcc5824240a484d1ecd4795bacb2fe88f3"
 
 [[package]]
 name = "lioness"
@@ -3132,7 +3106,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "anyhow",
  "base64",
@@ -3186,7 +3160,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "clap 3.2.8",
  "client-connections",
@@ -3210,7 +3184,6 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "serde_json",
- "sled",
  "tap",
  "task",
  "thiserror",
@@ -3226,7 +3199,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3273,7 +3246,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "anyhow",
  "bs58",
@@ -3315,7 +3288,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "async-trait",
  "clap 3.2.8",
@@ -3347,7 +3320,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-statistics"
-version = "1.0.2"
+version = "1.1.2"
 dependencies = [
  "dirs",
  "log",
@@ -3363,7 +3336,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "clap 3.2.8",
  "client-connections",
@@ -3389,7 +3362,7 @@ dependencies = [
  "proxy-helpers",
  "rand 0.7.3",
  "serde",
- "snafu 0.6.10",
+ "serde_json",
  "socks5-requests",
  "tap",
  "task",
@@ -3430,7 +3403,7 @@ dependencies = [
 
 [[package]]
 name = "nym-validator-api"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3948,19 +3921,6 @@ checksum = "4a13a2fa9d0b63e5f22328828741e523766fff0ee9e779316902290dff3f824f"
 dependencies = [
  "fixedbitset",
  "indexmap",
-]
-
-[[package]]
-name = "pickledb"
-version = "0.4.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9161694d67f6c5163519d42be942ae36bbdb55f439460144f105bc4f9f7d1d61"
-dependencies = [
- "bincode",
- "serde",
- "serde_cbor",
- "serde_json",
- "serde_yaml",
 ]
 
 [[package]]
@@ -5041,9 +5001,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.83"
+version = "1.0.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38dd04e3c8279e75b31ef29dbdceebfe5ad89f4d0937213c53f7d49d01b3d5a7"
+checksum = "020ff22c755c2ed3f8cf162dbb41a7268d934702f3ed3631656ea597e08fc3db"
 dependencies = [
  "itoa 1.0.1",
  "ryu",
@@ -5071,18 +5031,6 @@ dependencies = [
  "itoa 1.0.1",
  "ryu",
  "serde",
-]
-
-[[package]]
-name = "serde_yaml"
-version = "0.8.23"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4a521f2940385c165a24ee286aa8599633d162077a54bdcae2a6fd5a7bfa7a0"
-dependencies = [
- "indexmap",
- "ryu",
- "serde",
- "yaml-rust",
 ]
 
 [[package]]
@@ -5213,22 +5161,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eb703cfe953bccee95685111adeedb76fabe4e97549a58d16f03ea7b9367bb32"
 
 [[package]]
-name = "sled"
-version = "0.34.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f96b4737c2ce5987354855aed3797279def4ebf734436c6aa4552cf8e169935"
-dependencies = [
- "crc32fast",
- "crossbeam-epoch",
- "crossbeam-utils",
- "fs2",
- "fxhash",
- "libc",
- "log",
- "parking_lot 0.11.2",
-]
-
-[[package]]
 name = "smallvec"
 version = "0.6.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5245,33 +5177,12 @@ checksum = "f2dd574626839106c320a323308629dcb1acfc96e32a8cba364ddc61ac23ee83"
 
 [[package]]
 name = "snafu"
-version = "0.6.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eab12d3c261b2308b0d80c26fffb58d17eba81a4be97890101f416b478c79ca7"
-dependencies = [
- "doc-comment",
- "snafu-derive 0.6.10",
-]
-
-[[package]]
-name = "snafu"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a152ba99b054b22972ee794cf04e5ef572da1229e33b65f3c57abbff0525a454"
 dependencies = [
  "doc-comment",
- "snafu-derive 0.7.3",
-]
-
-[[package]]
-name = "snafu-derive"
-version = "0.6.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1508efa03c362e23817f96cde18abed596a25219a8b2c66e8db33c03543d315b"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
+ "snafu-derive",
 ]
 
 [[package]]
@@ -6601,7 +6512,7 @@ checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
 
 [[package]]
 name = "vesting-contract"
-version = "1.1.0"
+version = "1.1.2"
 dependencies = [
  "contracts-common",
  "cosmwasm-std",
@@ -6984,15 +6895,6 @@ dependencies = [
  "rand_core 0.5.1",
  "serde",
  "zeroize",
-]
-
-[[package]]
-name = "yaml-rust"
-version = "0.4.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56c1936c4cc7a1c9ab21a1ebb602eb942ba868cbd44a99cb7cdc5892335e1c85"
-dependencies = [
- "linked-hash-map",
 ]
 
 [[package]]

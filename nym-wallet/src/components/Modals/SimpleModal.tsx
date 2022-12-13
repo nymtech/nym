@@ -20,6 +20,8 @@ export const SimpleModal: React.FC<{
   header: string | React.ReactNode;
   subHeader?: string;
   okLabel: string;
+  backLabel?: string;
+  backButtonFullWidth?: boolean;
   okDisabled?: boolean;
   sx?: SxProps;
   backdropProps?: object;
@@ -38,6 +40,8 @@ export const SimpleModal: React.FC<{
   header,
   subHeader,
   okLabel,
+  backLabel,
+  backButtonFullWidth,
   sx,
   children,
   backdropProps,
@@ -71,7 +75,7 @@ export const SimpleModal: React.FC<{
 
       {(onOk || onBack) && (
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 2, width: buttonFullWidth ? '100%' : null }}>
-          {onBack && <StyledBackButton onBack={onBack} />}
+          {onBack && <StyledBackButton onBack={onBack} label={backLabel} fullWidth={backButtonFullWidth} />}
           {onOk && (
             <Button variant="contained" fullWidth size="large" onClick={onOk} disabled={okDisabled}>
               {okLabel}

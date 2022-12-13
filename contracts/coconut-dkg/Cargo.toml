@@ -20,3 +20,7 @@ cw4 = { version = "0.13.4" }
 schemars = "0.8"
 serde = { version = "1.0.103", default-features = false, features = ["derive"] }
 thiserror = "1.0.23"
+
+[dev-dependencies]
+cw-multi-test = { version = "0.13.4" }
+cw4-group = { path = "../multisig/cw4-group" }

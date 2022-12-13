@@ -29,12 +29,13 @@ use gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
     MixnetMessageSender,
 };
-use log::info;
+use log::{debug, info};
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
 use std::sync::Arc;
 use std::time::Duration;
+use tap::TapFallible;
 use task::{ShutdownListener, ShutdownNotifier};
 use url::Url;
 
@@ -229,22 +230,22 @@ where
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         shutdown: ShutdownListener,
-    ) -> GatewayClient {
+    ) -> Result<GatewayClient, ClientCoreError<B>> {
         let gateway_id = self.gateway_config.gateway_id.clone();
         if gateway_id.is_empty() {
-            panic!("The identity of the gateway is unknown - did you run `nym-client` init?")
+            return Err(ClientCoreError::GatewayIdUnknown);
         }
         let gateway_owner = self.gateway_config.gateway_owner.clone();
         if gateway_owner.is_empty() {
-            panic!("The owner of the gateway is unknown - did you run `nym-client` init?")
+            return Err(ClientCoreError::GatewayOwnerUnknown);
         }
         let gateway_address = self.gateway_config.gateway_listener.clone();
         if gateway_address.is_empty() {
-            panic!("The address of the gateway is unknown - did you run `nym-client` init?")
+            return Err(ClientCoreError::GatwayAddressUnknown);
         }
 
         let gateway_identity = identity::PublicKey::from_base58_string(gateway_id)
-            .expect("provided gateway id is invalid!");
+            .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
 
         // disgusting wasm workaround since there's no key persistence there (nor `client init`)
         let shared_key = if self.key_manager.gateway_key_set() {
@@ -271,9 +272,10 @@ where
         gateway_client
             .authenticate_and_start()
             .await
-            .expect("could not authenticate and start up the gateway connection");
-
-        gateway_client
+            .tap_err(|err| {
+                log::error!("Could not authenticate and start up the gateway connection - {err}")
+            })?;
+        Ok(gateway_client)
     }
 
     // future responsible for periodically polling directory server and updating
@@ -377,7 +379,7 @@ where
         // do not change that.
         let gateway_client = self
             .start_gateway_client(mixnet_messages_sender, ack_sender, shutdown.subscribe())
-            .await;
+            .await?;
 
         let reply_storage =
             Self::setup_persistent_reply_storage(self.reply_storage_backend, shutdown.subscribe())
@@ -451,8 +453,8 @@ where
             );
         }
 
-        info!("Client startup finished!");
-        info!("The address of this client is: {self_address}");
+        debug!("Core client startup finished!");
+        debug!("The address of this client is: {self_address}");
 
         Ok(BaseClient {
             client_input: ClientInputStatus::AwaitingProducer {

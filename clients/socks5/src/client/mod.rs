@@ -57,8 +57,21 @@ impl NymClient {
         #[cfg(feature = "coconut")]
         let bandwidth_controller = {
             let details = network_defaults::NymNetworkDetails::new_from_env();
-            let client_config = validator_client::Config::try_from_nym_network_details(&details)
-                .expect("failed to construct validator client config");
+            let mut client_config =
+                validator_client::Config::try_from_nym_network_details(&details)
+                    .expect("failed to construct validator client config");
+            let nymd_url = config
+                .get_base()
+                .get_validator_endpoints()
+                .pop()
+                .expect("No nymd validator endpoint provided");
+            let api_url = config
+                .get_base()
+                .get_validator_api_endpoints()
+                .pop()
+                .expect("No validator api endpoint provided");
+            // overwrite env configuration with config URLs
+            client_config = client_config.with_urls(nymd_url, api_url);
             let client = validator_client::Client::new_query(client_config)
                 .expect("Could not construct query client");
             let coconut_api_clients =
@@ -126,11 +139,8 @@ impl NymClient {
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
-    pub async fn run_forever(self) -> Result<(), Box<dyn Error + Send>> {
-        let mut shutdown = self
-            .start()
-            .await
-            .map_err(|err| Box::new(err) as Box<dyn Error + Send>)?;
+    pub async fn run_forever(self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let mut shutdown = self.start().await?;
 
         let res = wait_for_signal_and_error(&mut shutdown).await;
 
@@ -148,12 +158,9 @@ impl NymClient {
     pub async fn run_and_listen(
         self,
         mut receiver: Socks5ControlMessageReceiver,
-    ) -> Result<(), Box<dyn Error + Send>> {
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Start the main task
-        let mut shutdown = self
-            .start()
-            .await
-            .map_err(|err| Box::new(err) as Box<dyn Error + Send>)?;
+        let mut shutdown = self.start().await?;
 
         let res = tokio::select! {
             biased;

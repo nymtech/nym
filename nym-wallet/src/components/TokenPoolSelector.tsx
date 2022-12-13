@@ -53,7 +53,6 @@ export const TokenPoolSelector: React.FC<{ disabled: boolean; onSelect: (pool: T
               secondary={`${
                 +tokenAllocation.locked + +tokenAllocation.spendable
               } ${clientDetails?.display_mix_denom.toUpperCase()}`}
-              sx={{ textTransform: 'uppercase' }}
             />
           )}
         </MenuItem>

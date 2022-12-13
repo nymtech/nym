@@ -1,7 +1,14 @@
 import React, { useState, useContext } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { List, ListItem, ListItemIcon, ListItemText } from '@mui/material';
-import { AccountBalanceWalletOutlined, ArrowBack, ArrowForward, Description, Settings } from '@mui/icons-material';
+import {
+  AccountBalanceWalletOutlined,
+  ArrowBack,
+  ArrowForward,
+  Description,
+  Settings,
+  Toll,
+} from '@mui/icons-material';
 import { AppContext } from '../context/main';
 import { Delegate, Bonding } from '../svg-icons';
 
@@ -53,6 +60,12 @@ export const Nav = () => {
       Icon: Settings,
       mode: 'admin',
       onClick: () => navigate('/admin'),
+    },
+    {
+      label: 'Buy',
+      route: '/buy',
+      Icon: Toll,
+      onClick: () => navigate('/buy'),
     },
   ]);
 

@@ -35,6 +35,7 @@ export const CopyToClipboard = ({ text = '', iconButton }: { text?: string; icon
           sx={{
             color: 'text.primary',
           }}
+          disabled={!text}
         >
           {!copied ? <ContentCopy sx={{ fontSize: 14 }} /> : <Check color="success" sx={{ fontSize: 14 }} />}
         </IconButton>
@@ -51,6 +52,7 @@ export const CopyToClipboard = ({ text = '', iconButton }: { text?: string; icon
       }}
       onClick={() => handleCopy(text)}
       endIcon={copied && <Check sx={{ color: (theme) => theme.palette.success.light }} />}
+      disabled={!text}
     >
       {!copied ? 'Copy' : 'Copied'}
     </Button>

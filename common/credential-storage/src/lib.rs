@@ -93,9 +93,9 @@ impl Storage for PersistentStorage {
         Ok(credential)
     }
 
-    async fn remove_coconut_credential(&self, id: i64) -> Result<(), StorageError> {
+    async fn consume_coconut_credential(&self, id: i64) -> Result<(), StorageError> {
         self.coconut_credential_manager
-            .remove_coconut_credential(id)
+            .consume_coconut_credential(id)
             .await?;
 
         Ok(())

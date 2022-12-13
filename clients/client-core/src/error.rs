@@ -11,27 +11,49 @@ use validator_client::ValidatorClientError;
 pub enum ClientCoreError<B: ReplyStorageBackend> {
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
+
     #[error("Gateway client error: {0}")]
     GatewayClientError(#[from] GatewayClientError),
+
     #[error("Ed25519 error: {0}")]
     Ed25519RecoveryError(#[from] Ed25519RecoveryError),
+
     #[error("Validator client error: {0}")]
     ValidatorClientError(#[from] ValidatorClientError),
 
     #[error("No gateway with id: {0}")]
     NoGatewayWithId(String),
+
     #[error("No gateways on network")]
     NoGatewaysOnNetwork,
+
+    #[error("Failed to setup gateway")]
+    FailedToSetupGateway,
+
     #[error("List of validator apis is empty")]
     ListOfValidatorApisIsEmpty,
+
     #[error("Could not load existing gateway configuration: {0}")]
     CouldNotLoadExistingGatewayConfiguration(std::io::Error),
+
     #[error("The current network topology seem to be insufficient to route any packets through")]
     InsufficientNetworkTopology(#[from] NymTopologyError),
 
-    #[error("Unexpected exit")]
-    UnexpectedExit,
-
     #[error("experienced a failure with our reply surb persistent storage: {source}")]
     SurbStorageError { source: B::StorageError },
+
+    #[error("The gateway id is invalid - {0}")]
+    UnableToCreatePublicKeyFromGatewayId(Ed25519RecoveryError),
+
+    #[error("The identity of the gateway is unknwown - did you run init?")]
+    GatewayIdUnknown,
+
+    #[error("The owner of the gateway is unknown - did you run init?")]
+    GatewayOwnerUnknown,
+
+    #[error("The address of the gateway is unknown - did you run init?")]
+    GatwayAddressUnknown,
+
+    #[error("Unexpected exit")]
+    UnexpectedExit,
 }

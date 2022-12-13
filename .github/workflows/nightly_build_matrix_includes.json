@@ -1,6 +1,6 @@
 [
   {
-    "os":"ubuntu-latest",
+    "os":"ubuntu-20.04",
     "rust":"stable",
     "runOnEvent":"schedule"
   },
@@ -17,7 +17,7 @@
   },
 
   {
-    "os":"ubuntu-latest",
+    "os":"ubuntu-20.04",
     "rust":"beta",
     "runOnEvent":"schedule"
   },
@@ -33,7 +33,7 @@
   },
 
   {
-    "os":"ubuntu-latest",
+    "os":"ubuntu-20.04",
     "rust":"nightly",
     "runOnEvent":"schedule"
   },

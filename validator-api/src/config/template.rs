@@ -95,7 +95,7 @@ minimum_interval_monitor_threshold = {{ rewarding.minimum_interval_monitor_thres
 
 [coconut_signer]
 
-# Specifies whether rewarding service is enabled in this process.
+# Specifies whether coconut signing protocol is enabled in this process.
 enabled = {{ coconut_signer.enabled }}
 
 # Path to the coconut verification key

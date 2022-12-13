@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::MixId;
+use crate::{IdentityKey, MixId};
 use cosmwasm_std::{Addr, Coin, Decimal};
 use thiserror::Error;
 
@@ -133,4 +133,40 @@ pub enum MixnetContractError {
 
     #[error("Mixnode {mix_id} appears multiple times in the provided rewarded set update!")]
     DuplicateRewardedSetNode { mix_id: MixId },
+
+    #[error("Family with head {head} does not exist!")]
+    FamilyDoesNotExist { head: String },
+
+    #[error("Family with label '{0}' already exists")]
+    FamilyWithLabelExists(String),
+
+    #[error("Invalid layer expected 1, 2 or 3, got {0}")]
+    InvalidLayer(u8),
+
+    #[error("Head already has a family")]
+    FamilyCanHaveOnlyOne,
+
+    #[error("Already member of family {0}")]
+    AlreadyMemberOfFamily(String),
+
+    #[error("Can't join own family, family head {head}, member {member}")]
+    CantJoinOwnFamily {
+        head: IdentityKey,
+        member: IdentityKey,
+    },
+
+    #[error("Can't leave own family, family head {head}, member {member}")]
+    CantLeaveOwnFamily {
+        head: IdentityKey,
+        member: IdentityKey,
+    },
+
+    #[error("{member} is not a member of family {head}")]
+    NotAMember {
+        head: IdentityKey,
+        member: IdentityKey,
+    },
+
+    #[error("Feature is not yet implemented")]
+    NotImplemented,
 }

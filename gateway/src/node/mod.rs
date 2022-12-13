@@ -192,7 +192,7 @@ where
         websocket::Listener::new(
             listening_address,
             Arc::clone(&self.identity_keypair),
-            self.config.get_disabled_credentials_mode(),
+            self.config.get_only_coconut_credentials(),
             #[cfg(feature = "coconut")]
             coconut_verifier,
         )

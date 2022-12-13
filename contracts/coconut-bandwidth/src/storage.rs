@@ -25,7 +25,7 @@ impl<'a> IndexList<SpendCredential> for SpendCredentialIndex<'a> {
     }
 }
 
-// gateways() is the storage access function.
+// spent_credentials() is the storage access function.
 pub(crate) fn spent_credentials<'a>(
 ) -> IndexedMap<'a, &'a str, SpendCredential, SpendCredentialIndex<'a>> {
     let indexes = SpendCredentialIndex {

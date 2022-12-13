@@ -45,8 +45,8 @@ pub(crate) enum RequestHandlingError {
     #[error("Provided bandwidth credential did not verify correctly on {0}")]
     InvalidBandwidthCredential(String),
 
-    #[error("This gateway is not running in the disabled credentials mode")]
-    NotInDisabledCredentialsMode,
+    #[error("This gateway is only accepting coconut credentials for bandwidth")]
+    OnlyCoconutCredentials,
 
     #[error("Nymd Error - {0}")]
     NymdError(#[from] validator_client::nymd::error::NymdError),
@@ -309,8 +309,8 @@ where
     async fn handle_claim_testnet_bandwidth(
         &mut self,
     ) -> Result<ServerResponse, RequestHandlingError> {
-        if !self.inner.disabled_credentials_mode {
-            return Err(RequestHandlingError::NotInDisabledCredentialsMode);
+        if self.inner.only_coconut_credentials {
+            return Err(RequestHandlingError::OnlyCoconutCredentials);
         }
 
         self.increase_bandwidth(FREE_TESTNET_BANDWIDTH_VALUE)

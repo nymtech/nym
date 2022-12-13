@@ -90,11 +90,11 @@ pub(crate) struct OverrideConfig {
     enabled_credentials_mode: bool,
 }
 
-pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send>> {
+pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send + Sync>> {
     let bin_name = "nym-socks5-client";
 
     match &args.command {
-        Commands::Init(m) => init::execute(m).await,
+        Commands::Init(m) => init::execute(m).await?,
         Commands::Run(m) => run::execute(m).await?,
         Commands::Upgrade(m) => upgrade::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::into_app(), bin_name),

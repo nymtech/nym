@@ -1,3 +1,9 @@
+## UNRELEASED
+
+## [nym-connect-v1.1.2](https://github.com/nymtech/nym/tree/nym-connect-v1.1.2) (2022-11-29)
+
+- socks5-client: fix error with client failing and disconnecting unnecessarily.
+
 ## [nym-connect-v1.1.1](https://github.com/nymtech/nym/tree/nym-connect-v1.1.1) (2022-11-29)
 
 - socks5-client: fix multiplex concurrent connections ([#1720], [#1777])

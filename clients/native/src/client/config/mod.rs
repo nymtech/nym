@@ -3,7 +3,7 @@
 
 use crate::client::config::template::config_template;
 pub use client_core::config::MISSING_VALUE;
-use client_core::config::{Config as BaseConfig, DebugConfig};
+use client_core::config::{ClientCoreConfigTrait, Config as BaseConfig, DebugConfig};
 use config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
@@ -70,6 +70,12 @@ impl NymConfig for Config {
 
     fn data_directory(&self) -> PathBuf {
         self.root_directory().join(self.base.get_id()).join("data")
+    }
+}
+
+impl ClientCoreConfigTrait for Config {
+    fn get_gateway_endpoint(&self) -> &client_core::config::GatewayEndpointConfig {
+        self.base.get_gateway_endpoint()
     }
 }
 

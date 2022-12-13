@@ -499,7 +499,7 @@ where
     fn log_status_infrequent(&self) {
         if self.sending_delay_controller.current_multiplier() > 1 {
             log::warn!(
-                "Unable to send packets fast enough - sending delay multiplier set to: {}",
+                "Unable to send packets at the default rate - rate reduced by setting the delay multiplier set to: {}",
                 self.sending_delay_controller.current_multiplier()
             );
         }

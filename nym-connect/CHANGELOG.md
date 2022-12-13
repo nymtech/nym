@@ -1,5 +1,9 @@
 ## UNRELEASED
 
+## [nym-connect-v1.1.3](https://github.com/nymtech/nym/tree/nym-connect-v1.1.3) (2022-12-13)
+
+- socks5-client: added support for socks4a.
+
 ## [nym-connect-v1.1.2](https://github.com/nymtech/nym/tree/nym-connect-v1.1.2) (2022-11-29)
 
 - socks5-client: fix error with client failing and disconnecting unnecessarily.

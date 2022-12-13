@@ -15,6 +15,7 @@ use cosmrs::AccountId;
 #[async_trait]
 pub trait DkgQueryClient {
     async fn get_current_epoch_state(&self) -> Result<EpochState, NymdError>;
+    async fn get_current_epoch_threshold(&self) -> Result<Option<u64>, NymdError>;
     async fn get_dealer_details(
         &self,
         address: &AccountId,
@@ -50,6 +51,12 @@ where
 {
     async fn get_current_epoch_state(&self) -> Result<EpochState, NymdError> {
         let request = DkgQueryMsg::GetCurrentEpochState {};
+        self.client
+            .query_contract_smart(self.coconut_dkg_contract_address(), &request)
+            .await
+    }
+    async fn get_current_epoch_threshold(&self) -> Result<Option<u64>, NymdError> {
+        let request = DkgQueryMsg::GetCurrentEpochThreshold {};
         self.client
             .query_contract_smart(self.coconut_dkg_contract_address(), &request)
             .await

@@ -333,6 +333,18 @@ where
         Ok(self.0.read().await.nymd.get_current_epoch_state().await?)
     }
 
+    async fn get_current_epoch_threshold(
+        &self,
+    ) -> crate::coconut::error::Result<Option<dkg::Threshold>> {
+        Ok(self
+            .0
+            .read()
+            .await
+            .nymd
+            .get_current_epoch_threshold()
+            .await?)
+    }
+
     async fn get_self_registered_dealer_details(
         &self,
     ) -> crate::coconut::error::Result<DealerDetailsResponse> {

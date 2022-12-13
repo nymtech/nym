@@ -20,10 +20,10 @@ pub type Result<T> = std::result::Result<T, CoconutError>;
 
 #[derive(Debug, Error)]
 pub enum CoconutError {
-    #[error("{0}")]
+    #[error(transparent)]
     IOError(#[from] std::io::Error),
 
-    #[error("{0}")]
+    #[error(transparent)]
     SerdeJsonError(#[from] serde_json::Error),
 
     #[error("Could not parse Ed25519 data - {0}")]

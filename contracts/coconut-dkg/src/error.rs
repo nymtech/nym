@@ -8,10 +8,10 @@ use thiserror::Error;
 /// Custom errors for contract failure conditions.
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
-    #[error("{0}")]
+    #[error(transparent)]
     Std(#[from] StdError),
 
-    #[error("{0}")]
+    #[error(transparent)]
     Admin(#[from] AdminError),
 
     #[error("Group contract invalid address '{addr}'")]

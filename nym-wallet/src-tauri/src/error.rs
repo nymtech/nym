@@ -110,7 +110,7 @@ pub enum BackendError {
     WalletUnexpectedMnemonicAccount,
     #[error("Failed to derive address from mnemonic")]
     FailedToDeriveAddress,
-    #[error("{0}")]
+    #[error(transparent)]
     ValueParseError(#[from] ParseIntError),
     #[error("The provided coin has an unknown denomination - {0}")]
     UnknownCoinDenom(String),

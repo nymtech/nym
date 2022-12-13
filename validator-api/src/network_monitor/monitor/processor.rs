@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::network_monitor::gateways_reader::GatewayMessages;
@@ -68,27 +68,30 @@ struct ReceivedProcessorInner {
 }
 
 impl ReceivedProcessorInner {
-    fn on_message(&mut self, message: Vec<u8>) -> Result<(), ProcessingError> {
+    fn on_message(&mut self, mut message: Vec<u8>) -> Result<(), ProcessingError> {
         // if the nonce is none it means the packet was received during the 'waiting' for the
         // next test run
         if self.test_nonce.is_none() {
             return Err(ProcessingError::ReceivedOutsideTestRun);
         }
 
-        let encrypted_bytes = self
+        let plaintext = self
             .message_receiver
-            .recover_plaintext(self.client_encryption_keypair.private_key(), message)
+            .recover_plaintext_from_regular_packet(
+                self.client_encryption_keypair.private_key(),
+                &mut message,
+            )
             .map_err(|_| ProcessingError::MalformedPacketReceived)?;
         let fragment = self
             .message_receiver
-            .recover_fragment(&encrypted_bytes)
+            .recover_fragment(plaintext)
             .map_err(|_| ProcessingError::MalformedPacketReceived)?;
         let (recovered, _) = self
             .message_receiver
             .insert_new_fragment(fragment)
             .map_err(|_| ProcessingError::MalformedPacketReceived)?
             .ok_or(ProcessingError::NonTestPacketReceived)?; // if it's a test packet it MUST BE reconstructed with single fragment
-        let test_packet = TestPacket::try_from_bytes(&recovered.message)
+        let test_packet = TestPacket::try_from_bytes(&recovered.into_inner_data())
             .map_err(|_| ProcessingError::MalformedPacketReceived)?;
 
         // we know nonce is NOT none

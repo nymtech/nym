@@ -3,7 +3,7 @@
 
 use std::{error::Error, time::Duration};
 
-use futures::FutureExt;
+use futures::{future::pending, FutureExt};
 use tokio::{
     sync::{
         mpsc,
@@ -14,7 +14,7 @@ use tokio::{
 
 const DEFAULT_SHUTDOWN_TIMER_SECS: u64 = 5;
 
-pub(crate) type SentError = Box<dyn Error + Send>;
+pub(crate) type SentError = Box<dyn Error + Send + Sync>;
 type ErrorSender = mpsc::UnboundedSender<SentError>;
 type ErrorReceiver = mpsc::UnboundedReceiver<SentError>;
 
@@ -31,6 +31,7 @@ pub struct ShutdownNotifier {
     // track of which tasks we are still waiting for.
     notify_tx: watch::Sender<()>,
     notify_rx: Option<watch::Receiver<()>>,
+    #[cfg_attr(target_arch = "wasm32", allow(dead_code))]
     shutdown_timer_secs: u64,
 
     // If any task failed, it needs to report separately
@@ -113,6 +114,11 @@ impl ShutdownNotifier {
             drop(notify_rx);
         }
 
+        // in wasm we'll never get our shutdown anyway...
+        #[cfg(target_arch = "wasm32")]
+        futures::future::pending::<()>().await;
+
+        #[cfg(not(target_arch = "wasm32"))]
         tokio::select! {
             _ = self.notify_tx.closed() => {
                 log::info!("All registered tasks succesfully shutdown");
@@ -143,12 +149,14 @@ pub struct ShutdownListener {
     // Also notify if we dropped without shutdown being registered
     drop_error: ErrorSender,
 
-    // Sometimes it's necessary to clone and drop the shutdown listener during normal operation,
-    // for those situations we need to explicitly not drop (and trigger shutdown).
-    set_not_drop: bool,
+    // The current operating mode
+    mode: ShutdownListenerMode,
 }
 
 impl ShutdownListener {
+    #[cfg(not(target_arch = "wasm32"))]
+    const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
+
     fn new(
         notify: watch::Receiver<()>,
         return_error: ErrorSender,
@@ -159,15 +167,40 @@ impl ShutdownListener {
             notify,
             return_error,
             drop_error,
-            set_not_drop: false,
+            mode: ShutdownListenerMode::Listening,
         }
     }
 
+    // Create a dummy that will never report that we should shutdown.
+    pub fn dummy() -> ShutdownListener {
+        let (_notify_tx, notify_rx) = watch::channel(());
+        let (task_halt_tx, _task_halt_rx) = mpsc::unbounded_channel();
+        let (task_drop_tx, _task_drop_rx) = mpsc::unbounded_channel();
+        ShutdownListener {
+            shutdown: false,
+            notify: notify_rx,
+            return_error: task_halt_tx,
+            drop_error: task_drop_tx,
+            mode: ShutdownListenerMode::Dummy,
+        }
+    }
+
+    pub fn is_dummy(&self) -> bool {
+        self.mode.is_dummy()
+    }
+
     pub fn is_shutdown(&self) -> bool {
-        self.shutdown
+        if self.mode.is_dummy() {
+            false
+        } else {
+            self.shutdown
+        }
     }
 
     pub async fn recv(&mut self) {
+        if self.mode.is_dummy() {
+            return pending().await;
+        }
         if self.shutdown {
             return;
         }
@@ -175,7 +208,20 @@ impl ShutdownListener {
         self.shutdown = true;
     }
 
+    pub async fn recv_timeout(&mut self) {
+        if self.mode.is_dummy() {
+            return pending().await;
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        tokio::time::timeout(Self::SHUTDOWN_TIMEOUT, self.recv())
+            .await
+            .expect("Task stopped without shutdown called");
+    }
+
     pub fn is_shutdown_poll(&mut self) -> bool {
+        if self.mode.is_dummy() {
+            return false;
+        }
         if self.shutdown {
             return true;
         }
@@ -194,27 +240,67 @@ impl ShutdownListener {
         }
     }
 
+    // This listener should to *not* notify the ShutdownNotifier to shutdown when dropped. For
+    // example when we clone the listener for a task handling connections, we often want to drop
+    // without signal failure.
+    pub fn mark_as_success(&mut self) {
+        self.mode.set_should_not_signal_on_drop();
+    }
+
     pub fn send_we_stopped(&mut self, err: SentError) {
+        if self.mode.is_dummy() {
+            return;
+        }
         log::trace!("Notifying we stopped: {:?}", err);
         if self.return_error.send(err).is_err() {
             log::error!("Failed to send back error message");
         }
     }
-
-    pub fn mark_as_success(&mut self) {
-        self.set_not_drop = true;
-    }
 }
 
 impl Drop for ShutdownListener {
     fn drop(&mut self) {
-        if !self.set_not_drop && !self.is_shutdown_poll() {
+        if !self.mode.should_signal_on_drop() {
+            return;
+        }
+        if !self.is_shutdown_poll() {
             log::trace!("Notifying stop on unexpected drop");
             // If we can't send, well then there is not much to do
             self.drop_error
                 .send(Box::new(TaskError::UnexpectedHalt))
                 .ok();
         }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum ShutdownListenerMode {
+    // Normal operations
+    Listening,
+    // Normal operations, but we don't report back if the we stop by getting dropped.
+    ListeningButDontReportHalt,
+    // Dummy mode, for when we don't do anything at all.
+    Dummy,
+}
+
+impl ShutdownListenerMode {
+    fn is_dummy(&self) -> bool {
+        self == &ShutdownListenerMode::Dummy
+    }
+
+    fn should_signal_on_drop(&self) -> bool {
+        match self {
+            ShutdownListenerMode::Listening => true,
+            ShutdownListenerMode::ListeningButDontReportHalt | ShutdownListenerMode::Dummy => false,
+        }
+    }
+
+    fn set_should_not_signal_on_drop(&mut self) {
+        use ShutdownListenerMode::{Dummy, Listening, ListeningButDontReportHalt};
+        *self = match &self {
+            ListeningButDontReportHalt | Listening => ListeningButDontReportHalt,
+            Dummy => Dummy,
+        };
     }
 }
 

@@ -1,6 +1,6 @@
 import React, { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FeeDetails } from '@nymproject/types';
+import { FeeDetails, decimalToFloatApproximation } from '@nymproject/types';
 import { Box } from '@mui/material';
 import { TPoolOption } from 'src/components';
 import { Bond } from 'src/components/Bonding/Bond';
@@ -8,28 +8,35 @@ import { BondedMixnode } from 'src/components/Bonding/BondedMixnode';
 import { TBondedMixnodeActions } from 'src/components/Bonding/BondedMixnodeActions';
 import { BondGatewayModal } from 'src/components/Bonding/modals/BondGatewayModal';
 import { BondMixnodeModal } from 'src/components/Bonding/modals/BondMixnodeModal';
+import { BondMoreModal } from 'src/components/Bonding/modals/BondMoreModal';
+import { BondOversaturatedModal } from 'src/components/Bonding/modals/BondOversaturatedModal';
 import { ConfirmationDetailProps, ConfirmationDetailsModal } from 'src/components/Bonding/modals/ConfirmationModal';
 import { ErrorModal } from 'src/components/Modals/ErrorModal';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { AppContext, urls } from 'src/context/main';
-import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs } from 'src/types';
+import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs, TBondMoreArgs } from 'src/types';
 import { BondedGateway } from 'src/components/Bonding/BondedGateway';
 import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsModal';
 import { BondingContextProvider, useBondingContext } from '../../context';
+import { getMixnodeStakeSaturation } from '../../requests';
 
 const Bonding = () => {
-  const [showModal, setShowModal] = useState<'bond-mixnode' | 'bond-gateway' | 'bond-more' | 'unbond' | 'redeem'>();
+  const [showModal, setShowModal] = useState<
+    'bond-mixnode' | 'bond-gateway' | 'bond-more' | 'bond-more-oversaturated' | 'unbond' | 'redeem'
+  >();
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
+  const [saturationPercentage, setSaturationPercentage] = useState<string | undefined>();
 
   const {
     network,
     clientDetails,
-    userBalance: { originalVesting },
+    userBalance: { originalVesting, balance },
   } = useContext(AppContext);
 
   const navigate = useNavigate();
 
-  const { bondedNode, bondMixnode, bondGateway, redeemRewards, isLoading, checkOwnership } = useBondingContext();
+  const { bondedNode, bondMixnode, bondGateway, redeemRewards, isLoading, checkOwnership, bondMore } =
+    useBondingContext();
 
   const handleCloseModal = async () => {
     setShowModal(undefined);
@@ -66,6 +73,16 @@ const Bonding = () => {
     });
   };
 
+  const handleBondMore = async (data: TBondMoreArgs, tokenPool: TPoolOption) => {
+    setShowModal(undefined);
+    const tx = await bondMore(data, tokenPool);
+    setConfirmationDetails({
+      status: 'success',
+      title: 'Bond More successful',
+      txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
+    });
+  };
+
   const handleRedeemReward = async (fee?: FeeDetails) => {
     setShowModal(undefined);
     const tx = await redeemRewards(fee);
@@ -76,9 +93,33 @@ const Bonding = () => {
     });
   };
 
-  const handleBondedMixnodeAction = (action: TBondedMixnodeActions) => {
+  const handleCheckStakeSaturation = async (newMixId: number) => {
+    try {
+      const newSaturation = decimalToFloatApproximation(
+        (await getMixnodeStakeSaturation(newMixId)).uncapped_saturation,
+      );
+      if (newSaturation && newSaturation > 1) {
+        const saturationPercentage = Math.round(newSaturation * 100);
+        return { isOverSaturated: true, saturationPercentage };
+      }
+      return { isOverSaturated: false, saturationPercentage: undefined };
+    } catch (e) {
+      console.error('Error fetching the saturation, error:', e);
+      return { isOverSaturated: false, saturationPercentage: undefined };
+    }
+  };
+
+  const handleBondedMixnodeAction = async (action: TBondedMixnodeActions) => {
     switch (action) {
       case 'bondMore': {
+        if (bondedNode && isMixnode(bondedNode)) {
+          const { isOverSaturated, saturationPercentage } = await handleCheckStakeSaturation(bondedNode.mixId);
+          if (isOverSaturated && saturationPercentage) {
+            setShowModal('bond-more-oversaturated');
+            setSaturationPercentage(saturationPercentage.toString());
+            break;
+          }
+        }
         setShowModal('bond-more');
         break;
       }
@@ -112,6 +153,7 @@ const Bonding = () => {
       {bondedNode && isGateway(bondedNode) && (
         <BondedGateway gateway={bondedNode} onActionSelect={handleBondedMixnodeAction} network={network} />
       )}
+
       {showModal === 'bond-mixnode' && (
         <BondMixnodeModal
           denom={clientDetails?.display_mix_denom || 'nym'}
@@ -129,6 +171,25 @@ const Bonding = () => {
           hasVestingTokens={Boolean(originalVesting)}
           onBondGateway={handleBondGateway}
           onSelectNodeType={() => setShowModal('bond-mixnode')}
+          onClose={() => setShowModal(undefined)}
+          onError={handleError}
+        />
+      )}
+
+      {showModal === 'bond-more-oversaturated' && saturationPercentage && (
+        <BondOversaturatedModal
+          open={true}
+          onClose={() => setShowModal(undefined)}
+          onContinue={() => setShowModal('bond-more')}
+          saturationPercentage={saturationPercentage}
+        />
+      )}
+
+      {showModal === 'bond-more' && bondedNode && isMixnode(bondedNode) && (
+        <BondMoreModal
+          node={bondedNode}
+          userBalance={balance?.printable_balance}
+          onBondMore={handleBondMore}
           onClose={() => setShowModal(undefined)}
           onError={handleError}
         />

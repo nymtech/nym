@@ -3,7 +3,7 @@
 
 use super::PendingAcknowledgement;
 use crate::client::real_messages_control::acknowledgement_control::RetransmissionRequestSender;
-use futures::channel::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
 use nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue, QueueKey};
@@ -13,7 +13,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-pub(crate) type ActionSender = UnboundedSender<Action>;
+pub(crate) type AckActionSender = mpsc::UnboundedSender<Action>;
+pub(crate) type AckActionReceiver = mpsc::UnboundedReceiver<Action>;
 
 // The actual data being sent off as well as potential key to the delay queue
 type PendingAckEntry = (Arc<PendingAcknowledgement>, Option<QueueKey>);
@@ -95,7 +96,7 @@ pub(super) struct ActionController {
     pending_acks_timers: NonExhaustiveDelayQueue<FragmentIdentifier>,
 
     /// Channel for receiving `Action`s from other modules.
-    incoming_actions: UnboundedReceiver<Action>,
+    incoming_actions: AckActionReceiver,
 
     /// Channel for notifying `RetransmissionRequestListener` about expired acknowledgements.
     retransmission_sender: RetransmissionRequestSender,
@@ -105,18 +106,15 @@ impl ActionController {
     pub(super) fn new(
         config: Config,
         retransmission_sender: RetransmissionRequestSender,
-    ) -> (Self, ActionSender) {
-        let (sender, receiver) = mpsc::unbounded();
-        (
-            ActionController {
-                config,
-                pending_acks_data: HashMap::new(),
-                pending_acks_timers: NonExhaustiveDelayQueue::new(),
-                incoming_actions: receiver,
-                retransmission_sender,
-            },
-            sender,
-        )
+        incoming_actions: AckActionReceiver,
+    ) -> Self {
+        ActionController {
+            config,
+            pending_acks_data: HashMap::new(),
+            pending_acks_timers: NonExhaustiveDelayQueue::new(),
+            incoming_actions,
+            retransmission_sender,
+        }
     }
 
     fn handle_insert(&mut self, pending_acks: Vec<PendingAcknowledgement>) {
@@ -138,13 +136,18 @@ impl ActionController {
         trace!("{} is starting its timer", frag_id);
 
         if let Some((pending_ack_data, queue_key)) = self.pending_acks_data.get_mut(&frag_id) {
-            if queue_key.is_some() {
-                // this branch should be IMPOSSIBLE under ANY condition. It would imply starting
-                // timer TWICE for the SAME PendingAcknowledgement
-                panic!("Tried to start an already started ack timer!")
-            }
-            let timeout = (pending_ack_data.delay.clone() * self.config.ack_wait_multiplier)
-                .to_duration()
+            // the fact that this branch is now POSSIBLE is a sign of a need to refactor this whole
+            // retransmission procedure
+            //
+            // (it can happen as timer is started when ack expires to make sure it's not stuck in memory
+            // and the second instance can be fired when we finally get reply surbs for data we failed to retransmit)
+
+            // if queue_key.is_some() {
+            //     // this branch should be IMPOSSIBLE under ANY condition. It would imply starting
+            //     // timer TWICE for the SAME PendingAcknowledgement
+            //     panic!("Tried to start an already started ack timer!")
+            // }
+            let timeout = (pending_ack_data.delay * self.config.ack_wait_multiplier).to_duration()
                 + self.config.ack_wait_addition;
 
             let new_queue_key = self.pending_acks_timers.insert(frag_id, timeout);
@@ -192,7 +195,8 @@ impl ActionController {
         trace!("{} is updating its delay", frag_id);
         // TODO: is it possible to solve this without either locking or temporarily removing the value?
         if let Some((pending_ack_data, queue_key)) = self.pending_acks_data.remove(&frag_id) {
-            // this Action is triggered by `RetransmissionRequestListener` which held the other potential
+            // this Action is triggered by `RetransmissionRequestListener` (for 'normal' packets)
+            // or `ReplyController` (for 'reply' packets) which held the other potential
             // reference to this Arc. HOWEVER, before the Action was pushed onto the queue, the reference
             // was dropped hence this unwrap is safe.
             let mut inner_data = Arc::try_unwrap(pending_ack_data).unwrap();
@@ -245,7 +249,6 @@ impl ActionController {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
         debug!("Started ActionController with graceful shutdown support");
 
@@ -272,21 +275,10 @@ impl ActionController {
                 }
             }
         }
+        #[cfg(not(target_arch = "wasm32"))]
         tokio::time::timeout(Duration::from_secs(5), shutdown.recv())
             .await
             .expect("Task stopped without shutdown called");
         log::debug!("ActionController: Exiting");
-    }
-
-    #[cfg(target_arch = "wasm32")]
-    pub(super) async fn run(&mut self) {
-        debug!("Started ActionController without graceful shutdown support");
-
-        loop {
-            tokio::select! {
-                action = self.incoming_actions.next() => self.process_action(action.unwrap()),
-                expired_ack = self.pending_acks_timers.next() => self.handle_expired_ack_timer(expired_ack.unwrap())
-            }
-        }
     }
 }

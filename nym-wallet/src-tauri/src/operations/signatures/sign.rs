@@ -13,7 +13,7 @@ use serde_json::json;
 pub struct SignatureOutputJson {
     pub account_id: String,
     pub public_key: PublicKey,
-    pub signature: String,
+    pub signature_as_hex: String,
 }
 
 #[tauri::command]
@@ -32,14 +32,14 @@ pub async fn sign(
 
     log::info!("<<< Signing message");
     let signature = wallet.sign_raw_with_account(account, message.as_bytes())?;
-    let signature_as_hex_string = signature.to_string();
     let output = SignatureOutputJson {
         account_id: account.address().to_string(),
         public_key: account.public_key(),
-        signature: signature_as_hex_string.to_string(),
+        signature_as_hex: signature.to_string(),
     };
-    log::info!(">>> Signing data {}", json!(output),);
-    Ok(signature_as_hex_string)
+    let output_json = json!(output).to_string();
+    log::info!(">>> Signing data {}", output_json);
+    Ok(output_json)
 }
 
 async fn get_pubkey_from_account_address(

@@ -22,6 +22,14 @@ pub(crate) struct Run {
     #[clap(long)]
     config: Option<String>,
 
+    /// Specifies whether this client is going to use an anonymous sender tag for communication with the service provider.
+    /// While this is going to hide its actual address information, it will make the actual communication
+    /// slower and consume nearly double the bandwidth as it will require sending reply SURBs.
+    ///
+    /// Note that some service providers might not support this.
+    #[clap(long)]
+    use_anonymous_sender_tag: bool,
+
     /// Address of the socks5 provider to send messages to.
     #[clap(long)]
     provider: Option<String>,
@@ -43,6 +51,15 @@ pub(crate) struct Run {
     #[clap(short, long)]
     port: Option<u16>,
 
+    /// Mostly debug-related option to increase default traffic rate so that you would not need to
+    /// modify config post init
+    #[clap(long, hidden = true)]
+    fastmode: bool,
+
+    /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
+    #[clap(long, hidden = true)]
+    no_cover: bool,
+
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
     /// with bandwidth credential requirement.
     #[cfg(feature = "coconut")]
@@ -56,8 +73,9 @@ impl From<Run> for OverrideConfig {
             nymd_validators: run_config.nymd_validators,
             api_validators: run_config.api_validators,
             port: run_config.port,
-            fastmode: false,
-
+            use_anonymous_sender_tag: run_config.use_anonymous_sender_tag,
+            fastmode: run_config.fastmode,
+            no_cover: run_config.no_cover,
             #[cfg(feature = "coconut")]
             enabled_credentials_mode: run_config.enabled_credentials_mode,
         }
@@ -86,7 +104,7 @@ fn version_check(cfg: &Config) -> bool {
     }
 }
 
-pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn std::error::Error + Send>> {
+pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let id = &args.id;
 
     let mut config = match Config::load_from_file(Some(id)) {

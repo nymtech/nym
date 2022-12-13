@@ -4,12 +4,15 @@
 // due to expansion of #[wasm_bindgen] macro on `Debug` Config struct
 #![allow(clippy::drop_non_drop)]
 
-use client_core::config::{Debug as ConfigDebug, ExtendedPacketSize, GatewayEndpoint};
+use client_core::config::{DebugConfig as ConfigDebug, ExtendedPacketSize, GatewayEndpointConfig};
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use url::Url;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
+#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Config {
     /// ID specifies the human readable ID of this particular client.
     pub(crate) id: String,
@@ -19,7 +22,7 @@ pub struct Config {
     pub(crate) disabled_credentials_mode: bool,
 
     /// Information regarding how the client should send data to gateway.
-    pub(crate) gateway_endpoint: GatewayEndpoint,
+    pub(crate) gateway_endpoint: GatewayEndpointConfig,
 
     pub(crate) debug: ConfigDebug,
 }
@@ -30,7 +33,7 @@ impl Config {
     pub fn new(
         id: String,
         validator_server: String,
-        gateway_endpoint: GatewayEndpoint,
+        gateway_endpoint: GatewayEndpointConfig,
         debug: Option<Debug>,
     ) -> Self {
         Config {
@@ -103,6 +106,34 @@ pub struct Debug {
 
     /// Controls whether the sent sphinx packet use the NON-DEFAULT bigger size.
     pub use_extended_packet_size: bool,
+
+    /// Defines the minimum number of reply surbs the client wants to keep in its storage at all times.
+    /// It can only allow to go below that value if its to request additional reply surbs.
+    pub minimum_reply_surb_storage_threshold: usize,
+
+    /// Defines the maximum number of reply surbs the client wants to keep in its storage at any times.
+    pub maximum_reply_surb_storage_threshold: usize,
+
+    /// Defines the minimum number of reply surbs the client would request.
+    pub minimum_reply_surb_request_size: u32,
+
+    /// Defines the maximum number of reply surbs the client would request.
+    pub maximum_reply_surb_request_size: u32,
+
+    /// Defines the maximum number of reply surbs a remote party is allowed to request from this client at once.
+    pub maximum_allowed_reply_surb_request_size: u32,
+
+    /// Defines maximum amount of time the client is going to wait for reply surbs before explicitly asking
+    /// for more even though in theory they wouldn't need to.
+    pub maximum_reply_surb_waiting_period_ms: u64,
+
+    /// Defines maximum amount of time given reply surb is going to be valid for.
+    /// This is going to be superseded by key rotation once implemented.
+    pub maximum_reply_surb_age_ms: u64,
+
+    /// Defines maximum amount of time given reply key is going to be valid for.
+    /// This is going to be superseded by key rotation once implemented.
+    pub maximum_reply_key_age_ms: u64,
 }
 
 impl From<Debug> for ConfigDebug {
@@ -132,6 +163,16 @@ impl From<Debug> for ConfigDebug {
             disable_main_poisson_packet_distribution: debug
                 .disable_main_poisson_packet_distribution,
             use_extended_packet_size,
+            minimum_reply_surb_storage_threshold: debug.minimum_reply_surb_storage_threshold,
+            maximum_reply_surb_storage_threshold: debug.maximum_reply_surb_storage_threshold,
+            minimum_reply_surb_request_size: debug.minimum_reply_surb_request_size,
+            maximum_reply_surb_request_size: debug.maximum_reply_surb_request_size,
+            maximum_allowed_reply_surb_request_size: debug.maximum_allowed_reply_surb_request_size,
+            maximum_reply_surb_waiting_period: Duration::from_millis(
+                debug.maximum_reply_surb_waiting_period_ms,
+            ),
+            maximum_reply_surb_age: Duration::from_millis(debug.maximum_reply_surb_age_ms),
+            maximum_reply_key_age: Duration::from_millis(debug.maximum_reply_key_age_ms),
         }
     }
 }
@@ -154,6 +195,16 @@ impl From<ConfigDebug> for Debug {
             disable_main_poisson_packet_distribution: debug
                 .disable_main_poisson_packet_distribution,
             use_extended_packet_size: debug.use_extended_packet_size.is_some(),
+            minimum_reply_surb_storage_threshold: debug.minimum_reply_surb_storage_threshold,
+            maximum_reply_surb_storage_threshold: debug.maximum_reply_surb_storage_threshold,
+            minimum_reply_surb_request_size: debug.minimum_reply_surb_request_size,
+            maximum_reply_surb_request_size: debug.maximum_reply_surb_request_size,
+            maximum_allowed_reply_surb_request_size: debug.maximum_allowed_reply_surb_request_size,
+            maximum_reply_surb_waiting_period_ms: debug
+                .maximum_reply_surb_waiting_period
+                .as_millis() as u64,
+            maximum_reply_surb_age_ms: debug.maximum_reply_surb_age.as_millis() as u64,
+            maximum_reply_key_age_ms: debug.maximum_reply_key_age.as_millis() as u64,
         }
     }
 }

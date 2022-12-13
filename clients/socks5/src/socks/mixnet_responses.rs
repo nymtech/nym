@@ -54,8 +54,8 @@ impl MixnetResponseListener {
 
     async fn on_message(&self, reconstructed_message: ReconstructedMessage) {
         let raw_message = reconstructed_message.message;
-        if reconstructed_message.reply_surb.is_some() {
-            warn!("this message had a surb - we didn't do anything with it");
+        if reconstructed_message.sender_tag.is_some() {
+            warn!("this message was sent anonymously - it couldn't have come from the service provider");
         }
 
         let response = match Message::try_from_bytes(&raw_message) {
@@ -105,6 +105,7 @@ impl MixnetResponseListener {
                 }
             }
         }
+        #[cfg(not(target_arch = "wasm32"))]
         tokio::time::timeout(Duration::from_secs(5), self.shutdown.recv())
             .await
             .expect("Task stopped without shutdown called");

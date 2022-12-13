@@ -17,38 +17,7 @@ importScripts('nym_client_wasm.js');
 console.log('Initializing worker');
 
 // wasm_bindgen creates a global variable (with the exports attached) that is in scope after `importScripts`
-const { default_debug, get_gateway, NymClient, set_panic_hook, Config } = wasm_bindgen;
-
-class ClientWrapper {
-  constructor(config, onMessageHandler) {
-    this.rustClient = new NymClient(config);
-    this.rustClient.set_on_message(onMessageHandler);
-    this.rustClient.set_on_gateway_connect(this.onConnect);
-  }
-
-  selfAddress = () => {
-    return this.rustClient.self_address();
-  };
-
-  onConnect = () => {
-    console.log('Established (and authenticated) gateway connection!');
-  };
-
-  start = async () => {
-    // this is current limitation of wasm in rust - for async methods you can't take self by reference...
-    // I'm trying to figure out if I can somehow hack my way around it, but for time being you have to re-assign
-    // the object (it's the same one)
-    this.rustClient = await this.rustClient.start();
-  };
-
-  sendMessage = async (recipient, message) => {
-    this.rustClient = await this.rustClient.send_message(recipient, message);
-  };
-
-  sendBinaryMessage = async (recipient, message) => {
-    this.rustClient = await this.rustClient.send_binary_message(recipient, message);
-  };
-}
+const { default_debug, NymClientBuilder, set_panic_hook, Config, GatewayEndpointConfig } = wasm_bindgen;
 
 let client = null;
 
@@ -61,19 +30,13 @@ async function main() {
   // sets up better stack traces in case of in-rust panics
   set_panic_hook();
 
-  console.error("the current mainnet is not compatible with v2! - either use the pre-merge branch or explicitly set the client to use one of V2 QA networks")
-  return
-
   // validator server we will use to get topology from
-  // MAINNET (V1):
-  const validator = 'https://validator.nymtech.net/api'; //"http://localhost:8081";
-  const preferredGateway = 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM';
-  // QA (V2):
-  // const validator = 'https://qa-validator-api.nymtech.net/api'; //"http://localhost:8081";
-  // const preferredGateway = 'CgQrYP8etksSBf4nALNqp93SHPpgFwEUyTsjBNNLj5WM';
-
-  const gatewayEndpoint = await get_gateway(validator, preferredGateway);
-  gatewayEndpoint.gateway_listener = "wss://gateway1.nymtech.net:443"; // this is needed if we want it to work on the web. However this gateway is a v1 gateway, we will need to change for v2 once we get there
+  const validator = 'https://qwerty-validator-api.qa.nymte.ch/api';
+  
+  const gatewayId = 'EVupP2tRUeZo5Y6RpBHAbm8kSntpgNyZNL6yCr7BDEoG';
+  const gatewayOwner = 'n1rmlew3euapuq7rs4s4j9apv00whrsazr764kl7';
+  const gatewayListener = 'ws://176.58.120.72:9000';
+  const gatewayEndpoint = new GatewayEndpointConfig(gatewayId, gatewayOwner, gatewayListener)
 
   // only really useful if you want to adjust some settings like traffic rate
   // (if not needed you can just pass a null)
@@ -101,12 +64,17 @@ async function main() {
   };
 
   console.log('Instantiating WASM client...');
-  client = new ClientWrapper(config, onMessageHandler);
+  
+  let clientBuilder = new NymClientBuilder(config, onMessageHandler)
   console.log('Web worker creating WASM client...');
-  await client.start();
+  let local_client = await clientBuilder.start_client();
   console.log('WASM client running!');
-
-  const selfAddress = client.rustClient.self_address();
+  
+  const selfAddress = local_client.self_address();
+  
+  // set the global (I guess we don't have to anymore?)
+  client = local_client;
+  
   console.log(`Client address is ${selfAddress}`);
   self.postMessage({
     kind: 'Ready',
@@ -121,7 +89,8 @@ async function main() {
       switch (event.data.kind) {
         case 'SendMessage': {
           const { message, recipient } = event.data.args;
-          await client.sendMessage(message, recipient);
+          let uint8Array = new TextEncoder().encode(message);
+          await client.send_regular_message(uint8Array, recipient);
         }
       }
     }

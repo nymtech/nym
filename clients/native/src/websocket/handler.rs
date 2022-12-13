@@ -14,7 +14,7 @@ use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::ReplySurb;
+use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::receiver::ReconstructedMessage;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
@@ -62,9 +62,13 @@ impl Clone for Handler {
 
 impl Drop for Handler {
     fn drop(&mut self) {
-        self.buffer_requester
+        if self
+            .buffer_requester
             .unbounded_send(ReceivedBufferMessage::ReceiverDisconnect)
-            .expect("the buffer request failed!")
+            .is_err()
+        {
+            error!("we failed to disconnect the receiver from the buffer! presumably the shutdown procedure has been initiated!")
+        }
     }
 }
 
@@ -73,14 +77,14 @@ impl Handler {
         msg_input: InputMessageSender,
         client_connection_tx: ConnectionCommandSender,
         buffer_requester: ReceivedBufferRequestSender,
-        self_full_address: &Recipient,
+        self_full_address: Recipient,
         lane_queue_lengths: LaneQueueLengths,
     ) -> Self {
         Handler {
             msg_input,
             client_connection_tx,
             buffer_requester,
-            self_full_address: *self_full_address,
+            self_full_address,
             socket: None,
             received_response_type: Default::default(),
             lane_queue_lengths,
@@ -89,18 +93,22 @@ impl Handler {
 
     async fn handle_send(
         &mut self,
-        recipient: &Recipient,
+        recipient: Recipient,
         message: Vec<u8>,
-        with_reply_surb: bool,
         connection_id: Option<u64>,
     ) -> Option<ServerResponse> {
+        info!(
+            "Attempting to send {:.2} kiB message to {recipient} on connection_id {connection_id:?}",
+            message.len() as f64 / 1024.0
+        );
+
         // We map the absence of a connection id as going into the general lane.
         let lane = connection_id.map_or(TransmissionLane::General, |id| {
             TransmissionLane::ConnectionId(id)
         });
 
         // the ack control is now responsible for chunking, etc.
-        let input_msg = InputMessage::new_fresh(*recipient, message, with_reply_surb, lane);
+        let input_msg = InputMessage::new_regular(recipient, message, lane);
         self.msg_input
             .send(input_msg)
             .await
@@ -109,53 +117,119 @@ impl Handler {
         // Only reply back with a `LaneQueueLength` if the sender providided a connection id
         let connection_id = match lane {
             TransmissionLane::General
-            | TransmissionLane::Reply
+            | TransmissionLane::ReplySurbRequest
             | TransmissionLane::Retransmission
-            | TransmissionLane::Control => return None,
+            | TransmissionLane::AdditionalReplySurbs => return None,
             TransmissionLane::ConnectionId(id) => id,
         };
 
         // on receiving a send, we reply back the current lane queue length for that connection id.
         // Note that this does _NOT_ take into account the packets that have been received but not
         // yet reach `OutQueueControl`, so it might be a tad low.
-        let Ok(lane_queue_lengths) = self.lane_queue_lengths.lock() else {
-            log::warn!(
-                "Failed to get the lane queue length lock, \
-                not responding back with the current queue length"
-            );
-            return None;
-        };
-
-        let queue_length = lane_queue_lengths.get(&lane).unwrap_or(0);
-        Some(ServerResponse::LaneQueueLength(connection_id, queue_length))
-    }
-
-    async fn handle_reply(
-        &mut self,
-        reply_surb: ReplySurb,
-        message: Vec<u8>,
-    ) -> Option<ServerResponse> {
-        if message.len() > ReplySurb::max_msg_len(Default::default()) {
-            return Some(
-                ServerResponse::new_error(
-                    format!(
-                        "too long message to put inside a reply SURB. Received: {} bytes and maximum is {} bytes",
-                        message.len(), ReplySurb::max_msg_len(Default::default()))
-                    )
-                );
+        if let Ok(lane_queue_lengths) = self.lane_queue_lengths.lock() {
+            let queue_length = lane_queue_lengths.get(&lane).unwrap_or(0);
+            return Some(ServerResponse::LaneQueueLength {
+                lane: connection_id,
+                queue_length,
+            });
         }
 
-        let input_msg = InputMessage::new_reply(reply_surb, message);
+        log::warn!("Failed to get the lane queue length lock, not responding back with the current queue length");
+        None
+    }
+
+    async fn handle_send_anonymous(
+        &mut self,
+        recipient: Recipient,
+        message: Vec<u8>,
+        reply_surbs: u32,
+        connection_id: Option<u64>,
+    ) -> Option<ServerResponse> {
+        info!(
+            "Attempting to anonymously send {:.2} kiB message to {recipient} on connection_id {connection_id:?} while attaching {reply_surbs} replySURBs.",
+            message.len() as f64 / 1024.0
+        );
+
+        // We map the absence of a connection id as going into the general lane.
+        let lane = connection_id.map_or(TransmissionLane::General, |id| {
+            TransmissionLane::ConnectionId(id)
+        });
+
+        let input_msg = InputMessage::new_anonymous(recipient, message, reply_surbs, lane);
         self.msg_input
             .send(input_msg)
             .await
             .expect("InputMessageReceiver has stopped receiving!");
 
+        // Only reply back with a `LaneQueueLength` if the sender providided a connection id
+        let connection_id = match lane {
+            TransmissionLane::General
+            | TransmissionLane::ReplySurbRequest
+            | TransmissionLane::Retransmission
+            | TransmissionLane::AdditionalReplySurbs => return None,
+            TransmissionLane::ConnectionId(id) => id,
+        };
+
+        // on receiving a send, we reply back the current lane queue length for that connection id.
+        // Note that this does _NOT_ take into account the packets that have been received but not
+        // yet reach `OutQueueControl`, so it might be a tad low.
+        if let Ok(lane_queue_lengths) = self.lane_queue_lengths.lock() {
+            let queue_length = lane_queue_lengths.get(&lane).unwrap_or(0);
+            return Some(ServerResponse::LaneQueueLength {
+                lane: connection_id,
+                queue_length,
+            });
+        }
+
+        log::warn!("Failed to get the lane queue length lock, not responding back with the current queue length");
+        None
+    }
+
+    async fn handle_reply(
+        &mut self,
+        recipient_tag: AnonymousSenderTag,
+        message: Vec<u8>,
+        connection_id: Option<u64>,
+    ) -> Option<ServerResponse> {
+        info!("Attempting to send {:.2} kiB reply message to {recipient_tag} on connection_id {connection_id:?}", message.len() as f64 / 1024.0);
+
+        // We map the absence of a connection id as going into the general lane.
+        let lane = connection_id.map_or(TransmissionLane::General, |id| {
+            TransmissionLane::ConnectionId(id)
+        });
+
+        let input_msg = InputMessage::new_reply(recipient_tag, message, lane);
+        self.msg_input
+            .send(input_msg)
+            .await
+            .expect("InputMessageReceiver has stopped receiving!");
+
+        // Only reply back with a `LaneQueueLength` if the sender providided a connection id
+        let connection_id = match lane {
+            TransmissionLane::General
+            | TransmissionLane::ReplySurbRequest
+            | TransmissionLane::Retransmission
+            | TransmissionLane::AdditionalReplySurbs => return None,
+            TransmissionLane::ConnectionId(id) => id,
+        };
+
+        // on receiving a send, we reply back the current lane queue length for that connection id.
+        // Note that this does _NOT_ take into account the packets that have been received but not
+        // yet reach `OutQueueControl`, so it might be a tad low.
+        if let Ok(lane_queue_lengths) = self.lane_queue_lengths.lock() {
+            let queue_length = lane_queue_lengths.get(&lane).unwrap_or(0);
+            return Some(ServerResponse::LaneQueueLength {
+                lane: connection_id,
+                queue_length,
+            });
+        }
+
+        log::warn!("Failed to get the lane queue length lock, not responding back with the current queue length");
         None
     }
 
     fn handle_self_address(&self) -> ServerResponse {
-        ServerResponse::SelfAddress(self.self_full_address)
+        ServerResponse::SelfAddress(Box::new(self.self_full_address))
     }
 
     fn handle_closed_connection(&self, connection_id: u64) -> Option<ServerResponse> {
@@ -175,7 +249,10 @@ impl Handler {
 
         let lane = TransmissionLane::ConnectionId(connection_id);
         let queue_length = lane_queue_lengths.get(&lane).unwrap_or(0);
-        Some(ServerResponse::LaneQueueLength(connection_id, queue_length))
+        Some(ServerResponse::LaneQueueLength {
+            lane: connection_id,
+            queue_length,
+        })
     }
 
     async fn handle_request(&mut self, request: ClientRequest) -> Option<ServerResponse> {
@@ -183,16 +260,25 @@ impl Handler {
             ClientRequest::Send {
                 recipient,
                 message,
-                with_reply_surb,
+                connection_id,
+            } => self.handle_send(recipient, message, connection_id).await,
+
+            ClientRequest::SendAnonymous {
+                recipient,
+                message,
+                reply_surbs,
                 connection_id,
             } => {
-                self.handle_send(&recipient, message, with_reply_surb, connection_id)
+                self.handle_send_anonymous(recipient, message, reply_surbs, connection_id)
                     .await
             }
+
             ClientRequest::Reply {
                 message,
-                reply_surb,
-            } => self.handle_reply(reply_surb, message).await,
+                sender_tag,
+                connection_id,
+            } => self.handle_reply(sender_tag, message, connection_id).await,
+
             ClientRequest::SelfAddress => Some(self.handle_self_address()),
             ClientRequest::ClosedConnection(id) => self.handle_closed_connection(id),
             ClientRequest::GetLaneQueueLength(id) => self.handle_get_lane_queue_length(id),
@@ -299,8 +385,7 @@ impl Handler {
                     if let Some(response) = self.handle_ws_request(socket_msg).await {
                         if let Err(err) = self.send_websocket_response(response).await {
                             warn!(
-                                "Failed to send message over websocket: {}. Assuming the connection is dead.",
-                                err
+                                "Failed to send message over websocket: {err}. Assuming the connection is dead.",
                             );
                             break;
                         }
@@ -308,9 +393,10 @@ impl Handler {
                 }
                 // or a reconstructed mix message that we need to push back to the client
                 mix_messages = msg_receiver.next() => {
-                    let mix_messages = mix_messages.expect(
-                        "mix messages sender was unexpectedly closed! this shouldn't have ever happened!",
-                    );
+                    let Some(mix_messages) = mix_messages else {
+                        error!("mix messages sender was unexpectedly closed! this shouldn't have ever happened! (unless we're shutting down - TODO: implement proper graceful shutdown handler)");
+                        return
+                    };
                     if let Err(e) = self.push_websocket_received_plaintexts(mix_messages).await {
                         warn!("failed to send sphinx packets back to the client - {:?}, assuming the connection is dead", e);
                         break;

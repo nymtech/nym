@@ -114,7 +114,6 @@ export const BondedMixnode = ({
         <BondedMixnodeActions
           onActionSelect={onActionSelect}
           disabledRedeemAndCompound={(operatorRewards && Number(operatorRewards.amount) === 0) || false}
-          disabledBondMore // TODO for now disable bond more feature until backend is ready
         />
       ),
       id: 'actions-cell',
@@ -136,7 +135,7 @@ export const BondedMixnode = ({
             </Box>
             {name && (
               <Tooltip title={host} arrow>
-                <Typography fontWeight="regular" variant="h6">
+                <Typography fontWeight="regular" variant="h6" width="fit-content">
                   {name}
                 </Typography>
               </Tooltip>

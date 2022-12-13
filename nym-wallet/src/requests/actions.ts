@@ -6,7 +6,7 @@ import {
   MixNodeConfigUpdate,
   MixNodeCostParams,
 } from '@nymproject/types';
-import { EnumNodeType, TBondGatewayArgs, TBondMixNodeArgs } from '../types';
+import { EnumNodeType, TBondGatewayArgs, TBondMixNodeArgs, TBondMoreArgs } from '../types';
 import { invokeWrapper } from './wrapper';
 
 export const bondGateway = async (args: TBondGatewayArgs) =>
@@ -32,3 +32,6 @@ export const unbond = async (type: EnumNodeType) => {
   if (type === EnumNodeType.mixnode) return unbondMixNode();
   return unbondGateway();
 };
+
+export const bondMore = async (args: TBondMoreArgs) =>
+  invokeWrapper<TransactionExecuteResult>('pledge_more', args);

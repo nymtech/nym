@@ -45,6 +45,7 @@ fn keygen() -> Result<(), CoconutError> {
 }
 
 #[test]
+#[ignore] // expensive test
 fn dkg() -> Result<(), CoconutError> {
     let params = setup(5)?;
     let node_indices = vec![15u64, 248, 33521];

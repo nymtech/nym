@@ -16,6 +16,7 @@ wasm-bindgen-futures = "0.4"
 [dependencies.tungstenite]
 version = "0.13"
 default-features = false
+optional = true
 
 [dependencies.web-sys]
 version = "0.3"
@@ -30,3 +31,9 @@ features = [
     "WebSocket",
     "Window",
 ]
+optional = true
+
+[features]
+default = ["sleep"]
+websocket = ["tungstenite", "web-sys"]
+sleep = ["web-sys"]

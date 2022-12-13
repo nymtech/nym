@@ -1,8 +1,9 @@
 use crate::error::Socks5ClientError;
 
-use super::authentication::Authenticator;
-use super::client::SocksClient;
-use super::{mixnet_responses::MixnetResponseListener, types::ResponseCode};
+use super::{
+    authentication::Authenticator, client::SocksClient, mixnet_responses::MixnetResponseListener,
+};
+use crate::socks::client;
 use client_connections::{ConnectionCommandSender, LaneQueueLengths};
 use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
@@ -21,6 +22,7 @@ pub struct SphinxSocksServer {
     listening_address: SocketAddr,
     service_provider: Recipient,
     self_address: Recipient,
+    client_config: client::Config,
     lane_queue_lengths: LaneQueueLengths,
     shutdown: ShutdownListener,
 }
@@ -33,6 +35,7 @@ impl SphinxSocksServer {
         service_provider: Recipient,
         self_address: Recipient,
         lane_queue_lengths: LaneQueueLengths,
+        client_config: client::Config,
         shutdown: ShutdownListener,
     ) -> Self {
         // hardcode ip as we (presumably) ONLY want to listen locally. If we change it, we can
@@ -44,6 +47,7 @@ impl SphinxSocksServer {
             listening_address: format!("{}:{}", ip, port).parse().unwrap(),
             service_provider,
             self_address,
+            client_config,
             lane_queue_lengths,
             shutdown,
         }
@@ -85,47 +89,27 @@ impl SphinxSocksServer {
         loop {
             tokio::select! {
                 Ok((stream, _remote)) = listener.accept() => {
-                    // TODO Optimize this
                     let mut client = SocksClient::new(
+                        self.client_config,
                         stream,
                         self.authenticator.clone(),
                         input_sender.clone(),
-                        self.service_provider,
+                        &self.service_provider,
                         controller_sender.clone(),
-                        self.self_address,
+                        &self.self_address,
                         self.lane_queue_lengths.clone(),
                         self.shutdown.clone(),
                     );
 
                     tokio::spawn(async move {
-                        {
-                            match client.run().await {
-                                Ok(_) => {}
-                                Err(error) => {
-                                    error!("Error! {}", error);
-                                    let error_text = format!("{}", error);
-
-                                    let response: ResponseCode;
-
-                                    if error_text.contains("Host") {
-                                        response = ResponseCode::HostUnreachable;
-                                    } else if error_text.contains("Network") {
-                                        response = ResponseCode::NetworkUnreachable;
-                                    } else if error_text.contains("ttl") {
-                                        response = ResponseCode::TtlExpired
-                                    } else {
-                                        response = ResponseCode::Failure
-                                    }
-
-                                    if client.error(response).await.is_err() {
-                                        warn!("Failed to send error code");
-                                    };
-                                    if client.shutdown().await.is_err() {
-                                        warn!("Failed to shutdown TcpStream");
-                                    };
-                                }
+                        if let Err(err) = client.run().await {
+                            error!("Error! {}", err);
+                            if client.send_error(err).await.is_err() {
+                                warn!("Failed to send error code");
                             };
-                            // client gets dropped here
+                            if client.shutdown().await.is_err() {
+                                warn!("Failed to shutdown TcpStream");
+                            };
                         }
                     });
                 },

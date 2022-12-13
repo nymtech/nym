@@ -2,66 +2,70 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::config::Config;
-use client_connections::{ConnectionCommandReceiver, LaneQueueLengths, TransmissionLane};
-use client_core::client::{
-    cover_traffic_stream::LoopCoverTrafficStream,
-    inbound_messages::{InputMessage, InputMessageReceiver, InputMessageSender},
-    key_manager::KeyManager,
-    mix_traffic::{BatchMixMessageSender, MixTrafficController},
-    real_messages_control::{self, RealMessagesController},
-    received_buffer::{
-        ReceivedBufferMessage, ReceivedBufferRequestReceiver, ReceivedBufferRequestSender,
-        ReceivedMessagesBufferController,
-    },
-    topology_control::{TopologyAccessor, TopologyRefresher, TopologyRefresherConfig},
-};
-use crypto::asymmetric::identity;
-use futures::channel::mpsc;
-use futures::StreamExt;
-use gateway_client::{
-    AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
-    MixnetMessageSender,
-};
+use crate::client::helpers::InputSender;
+use crate::client::response_pusher::ResponsePusher;
+use client_connections::TransmissionLane;
+use client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput};
+use client_core::client::replies::reply_storage::browser_backend;
+use client_core::client::{inbound_messages::InputMessage, key_manager::KeyManager};
+use gateway_client::bandwidth::BandwidthController;
+use js_sys::Promise;
 use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use rand::rngs::OsRng;
+use std::sync::Arc;
+use task::ShutdownNotifier;
 use wasm_bindgen::prelude::*;
-use wasm_bindgen_futures::spawn_local;
-use wasm_utils::console_log;
+use wasm_bindgen_futures::future_to_promise;
+use wasm_utils::{console_error, console_log};
 
 pub mod config;
+mod helpers;
+mod response_pusher;
 
 #[wasm_bindgen]
 pub struct NymClient {
+    self_address: String,
+    client_input: Arc<ClientInput>,
+
+    // even though we don't use graceful shutdowns, other components rely on existence of this struct
+    // and if it's dropped, everything will start going offline
+    _shutdown: ShutdownNotifier,
+}
+
+#[wasm_bindgen]
+pub struct NymClientBuilder {
     config: Config,
 
     /// KeyManager object containing smart pointers to all relevant keys used by the client.
     key_manager: KeyManager,
 
-    // TODO: this should be stored somewhere persistently
-    // received_keys: HashSet<SURBEncryptionKey>,
-    /// Channel used for transforming 'raw' messages into sphinx packets and sending them
-    /// through the mix network.
-    input_tx: Option<InputMessageSender>,
+    reply_surb_storage_backend: browser_backend::Backend,
 
-    // callbacks
-    on_message: Option<js_sys::Function>,
-    on_binary_message: Option<js_sys::Function>,
-    on_gateway_connect: Option<js_sys::Function>,
+    on_message: js_sys::Function,
+
+    // unimplemented:
+    bandwidth_controller: Option<BandwidthController>,
+    disabled_credentials: bool,
 }
 
 #[wasm_bindgen]
-impl NymClient {
+impl NymClientBuilder {
     #[wasm_bindgen(constructor)]
-    pub fn new(config: Config) -> Self {
-        Self {
+    pub fn new(config: Config, on_message: js_sys::Function) -> Self {
+        //, key_manager: Option<KeyManager>) {
+        NymClientBuilder {
+            reply_surb_storage_backend: Self::setup_reply_surb_storage_backend(&config),
             config,
             key_manager: Self::setup_key_manager(),
-            on_message: None,
-            on_binary_message: None,
-            on_gateway_connect: None,
-            input_tx: None,
+            on_message,
+            bandwidth_controller: None,
+            disabled_credentials: true,
         }
     }
+
+    // TODO: once we make keys persistent, we'll require some kind of `init` method to generate
+    // a prior shared keypair between the client and the gateway
 
     // perhaps this should be public?
     fn setup_key_manager() -> KeyManager {
@@ -71,337 +75,154 @@ impl NymClient {
         KeyManager::new(&mut rng)
     }
 
-    pub fn set_on_message(&mut self, on_message: js_sys::Function) {
-        self.on_message = Some(on_message);
-    }
-
-    pub fn set_on_binary_message(&mut self, on_binary_message: js_sys::Function) {
-        self.on_binary_message = Some(on_binary_message);
-    }
-
-    pub fn set_on_gateway_connect(&mut self, on_connect: js_sys::Function) {
-        self.on_gateway_connect = Some(on_connect)
-    }
-
-    fn as_mix_recipient(&self) -> Recipient {
-        Recipient::new(
-            *self.key_manager.identity_keypair().public_key(),
-            *self.key_manager.encryption_keypair().public_key(),
-            identity::PublicKey::from_base58_string(&self.config.gateway_endpoint.gateway_id)
-                .expect("no gateway has been selected"),
+    // don't get too excited about the name, under the hood it's just a big fat placeholder
+    // with no persistence
+    fn setup_reply_surb_storage_backend(config: &Config) -> browser_backend::Backend {
+        browser_backend::Backend::new(
+            config.debug.minimum_reply_surb_storage_threshold,
+            config.debug.maximum_reply_surb_storage_threshold,
         )
     }
 
-    pub fn self_address(&self) -> String {
-        self.as_mix_recipient().to_string()
+    fn start_reconstructed_pusher(client_output: ClientOutput, on_message: js_sys::Function) {
+        ResponsePusher::new(client_output, on_message).start()
     }
 
-    // future constantly pumping loop cover traffic at some specified average rate
-    // the pumped traffic goes to the MixTrafficController
-    fn start_cover_traffic_stream(
-        &self,
-        topology_accessor: TopologyAccessor,
-        mix_tx: BatchMixMessageSender,
-    ) {
-        console_log!("Starting loop cover traffic stream...");
+    pub async fn start_client(self) -> Promise {
+        future_to_promise(async move {
+            console_log!("Starting the wasm client");
 
-        let mut stream = LoopCoverTrafficStream::new(
-            self.key_manager.ack_key(),
-            self.config.debug.average_ack_delay,
-            self.config.debug.average_packet_delay,
-            self.config.debug.loop_cover_traffic_average_delay,
-            mix_tx,
-            self.as_mix_recipient(),
-            topology_accessor,
-        );
-
-        if let Some(size) = &self.config.debug.use_extended_packet_size {
-            stream.set_custom_packet_size(size.clone().into());
-        }
-
-        stream.start();
-    }
-
-    fn start_real_traffic_controller(
-        &self,
-        topology_accessor: TopologyAccessor,
-        ack_receiver: AcknowledgementReceiver,
-        input_receiver: InputMessageReceiver,
-        mix_sender: BatchMixMessageSender,
-        client_connection_rx: ConnectionCommandReceiver,
-        lane_queue_lengths: LaneQueueLengths,
-    ) {
-        let mut controller_config = real_messages_control::Config::new(
-            self.key_manager.ack_key(),
-            self.config.debug.ack_wait_multiplier,
-            self.config.debug.ack_wait_addition,
-            self.config.debug.average_ack_delay,
-            self.config.debug.message_sending_average_delay,
-            self.config.debug.average_packet_delay,
-            self.config.debug.disable_main_poisson_packet_distribution,
-            self.as_mix_recipient(),
-        );
-
-        if let Some(size) = &self.config.debug.use_extended_packet_size {
-            controller_config.set_custom_packet_size(size.clone().into());
-        }
-
-        console_log!("Starting real traffic stream...");
-
-        RealMessagesController::new(
-            controller_config,
-            ack_receiver,
-            input_receiver,
-            mix_sender,
-            topology_accessor,
-            lane_queue_lengths,
-            client_connection_rx,
-        )
-        .start();
-    }
-
-    // buffer controlling all messages fetched from provider
-    // required so that other components would be able to use them (say the websocket)
-    fn start_received_messages_buffer_controller(
-        &self,
-        query_receiver: ReceivedBufferRequestReceiver,
-        mixnet_receiver: MixnetMessageReceiver,
-    ) {
-        console_log!("Starting received messages buffer controller...");
-        ReceivedMessagesBufferController::new(
-            self.key_manager.encryption_keypair(),
-            query_receiver,
-            mixnet_receiver,
-        )
-        .start()
-    }
-
-    async fn start_gateway_client(
-        &mut self,
-        mixnet_message_sender: MixnetMessageSender,
-        ack_sender: AcknowledgementSender,
-    ) -> GatewayClient {
-        let gateway_id = self.config.gateway_endpoint.gateway_id.clone();
-        if gateway_id.is_empty() {
-            panic!("The identity of the gateway is unknown - did you run `get_gateway()`?")
-        }
-        let gateway_owner = self.config.gateway_endpoint.gateway_owner.clone();
-        if gateway_owner.is_empty() {
-            panic!("The owner of the gateway is unknown - did you run `get_gateway()`?")
-        }
-        let gateway_address = self.config.gateway_endpoint.gateway_listener.clone();
-        if gateway_address.is_empty() {
-            panic!("The address of the gateway is unknown - did you run `get_gateway()`?")
-        }
-
-        let gateway_identity = identity::PublicKey::from_base58_string(gateway_id)
-            .expect("provided gateway id is invalid!");
-
-        let mut gateway_client = GatewayClient::new(
-            gateway_address,
-            self.key_manager.identity_keypair(),
-            gateway_identity,
-            gateway_owner,
-            None,
-            mixnet_message_sender,
-            ack_sender,
-            self.config.debug.gateway_response_timeout,
-            None,
-        );
-
-        gateway_client.set_disabled_credentials_mode(self.config.disabled_credentials_mode);
-
-        let shared_keys = gateway_client
-            .authenticate_and_start()
-            .await
-            .expect("could not authenticate and start up the gateway connection");
-        self.key_manager.insert_gateway_shared_key(shared_keys);
-
-        match self.on_gateway_connect.as_ref() {
-            Some(callback) => {
-                callback
-                    .call0(&JsValue::null())
-                    .expect("on connect callback failed!");
-            }
-            None => console_log!("Gateway connection established - no callback specified"),
-        };
-
-        gateway_client
-    }
-
-    // future responsible for periodically polling directory server and updating
-    // the current global view of topology
-    async fn start_topology_refresher(&mut self, topology_accessor: TopologyAccessor) {
-        let topology_refresher_config = TopologyRefresherConfig::new(
-            vec![self.config.validator_api_url.clone()],
-            self.config.debug.topology_refresh_rate,
-            env!("CARGO_PKG_VERSION").to_string(),
-        );
-        let mut topology_refresher =
-            TopologyRefresher::new(topology_refresher_config, topology_accessor);
-        // before returning, block entire runtime to refresh the current network view so that any
-        // components depending on topology would see a non-empty view
-        console_log!("Obtaining initial network topology");
-        topology_refresher.refresh().await;
-
-        // TODO: a slightly more graceful termination here
-        if !topology_refresher.is_topology_routable().await {
-            panic!(
-                "The current network topology seem to be insufficient to route any packets through\
-                - check if enough nodes and a gateway are online"
+            let base_builder = BaseClientBuilder::new(
+                &self.config.gateway_endpoint,
+                &self.config.debug,
+                self.key_manager,
+                self.bandwidth_controller,
+                self.reply_surb_storage_backend,
+                self.disabled_credentials,
+                vec![self.config.validator_api_url.clone()],
             );
-        }
 
-        console_log!("Starting topology refresher...");
-
-        // TODO: re-enable
-        topology_refresher.start();
-    }
-
-    // controller for sending sphinx packets to mixnet (either real traffic or cover traffic)
-    // TODO: if we want to send control messages to gateway_client, this CAN'T take the ownership
-    // over it. Perhaps GatewayClient needs to be thread-shareable or have some channel for
-    // requests?
-    fn start_mix_traffic_controller(gateway_client: GatewayClient) -> BatchMixMessageSender {
-        console_log!("Starting mix traffic controller...");
-        let (mix_traffic_controller, mix_tx) = MixTrafficController::new(gateway_client);
-        mix_traffic_controller.start();
-        mix_tx
-    }
-
-    // TODO: this procedure is extremely overcomplicated, because it's based off native client's behaviour
-    // which doesn't fully apply in this case
-    fn start_reconstructed_pusher(
-        &mut self,
-        received_buffer_request_sender: ReceivedBufferRequestSender,
-    ) {
-        let on_message = self.on_message.take();
-        let on_binary_message = self.on_binary_message.take();
-
-        spawn_local(async move {
-            let (reconstructed_sender, mut reconstructed_receiver) = mpsc::unbounded();
-
-            // tell the buffer to start sending stuff to us
-            received_buffer_request_sender
-                .unbounded_send(ReceivedBufferMessage::ReceiverAnnounce(
-                    reconstructed_sender,
-                ))
-                .expect("the buffer request failed!");
-
-            let this = JsValue::null();
-
-            while let Some(reconstructed) = reconstructed_receiver.next().await {
-                for msg in reconstructed {
-                    if let Some(ref callback_binary) = on_binary_message {
-                        let arg1 = serde_wasm_bindgen::to_value(&msg.message).unwrap();
-                        callback_binary
-                            .call1(&this, &arg1)
-                            .expect("on binary message failed!");
-                    }
-                    if let Some(ref callback) = on_message {
-                        if msg.reply_surb.is_some() {
-                            console_log!("the received message contained a reply-surb that we do not know how to handle (yet)")
-                        }
-                        let stringified = String::from_utf8_lossy(&msg.message).into_owned();
-                        let arg1 = serde_wasm_bindgen::to_value(&stringified).unwrap();
-                        callback.call1(&this, &arg1).expect("on message failed!");
-                    }
+            let self_address = base_builder.as_mix_recipient().to_string();
+            let mut started_client = match base_builder.start_base().await {
+                Ok(base_client) => base_client,
+                Err(err) => {
+                    let error_msg = format!("failed to start the base client components - {err}");
+                    console_error!("{}", error_msg);
+                    let js_error = js_sys::Error::new(&error_msg);
+                    return Err(JsValue::from(js_error));
                 }
+            };
+
+            let client_input = started_client.client_input.register_producer();
+            let client_output = started_client.client_output.register_consumer();
+
+            Self::start_reconstructed_pusher(client_output, self.on_message);
+
+            Ok(JsValue::from(NymClient {
+                self_address,
+                client_input: Arc::new(client_input),
+                _shutdown: started_client.shutdown_notifier,
+            }))
+        })
+    }
+}
+
+#[wasm_bindgen]
+impl NymClient {
+    pub fn self_address(&self) -> String {
+        self.self_address.clone()
+    }
+
+    fn parse_recipient(recipient: &str) -> Result<Recipient, JsValue> {
+        match Recipient::try_from_base58_string(recipient) {
+            Ok(recipient) => Ok(recipient),
+            Err(err) => {
+                let error_msg = format!("{recipient} is not a valid Nym network recipient - {err}");
+                console_error!("{}", error_msg);
+                let js_error = js_sys::Error::new(&error_msg);
+                Err(JsValue::from(js_error))
             }
-        });
-    }
-
-    pub async fn start(mut self) -> NymClient {
-        console_log!("Starting wasm client '{}'", self.config.id);
-        // channels for inter-component communication
-        // TODO: make the channels be internally created by the relevant components
-        // rather than creating them here, so say for example the buffer controller would create the request channels
-        // and would allow anyone to clone the sender channel
-
-        // unwrapped_sphinx_sender is the transmitter of mixnet messages received from the gateway
-        // unwrapped_sphinx_receiver is the receiver for said messages - used by ReceivedMessagesBuffer
-        let (mixnet_messages_sender, mixnet_messages_receiver) = mpsc::unbounded();
-
-        // used for announcing connection or disconnection of a channel for pushing re-assembled messages to
-        let (received_buffer_request_sender, received_buffer_request_receiver) = mpsc::unbounded();
-
-        // channels responsible for controlling real messages
-        let (input_sender, input_receiver) = tokio::sync::mpsc::channel::<InputMessage>(1);
-
-        // channels responsible for controlling ack messages
-        let (ack_sender, ack_receiver) = mpsc::unbounded();
-        let shared_topology_accessor = TopologyAccessor::new();
-
-        // Channel that the real traffix controller can listed to for closing connections.
-        // Currently unused in the wasm client.
-        let (_client_connection_tx, client_connection_rx) = mpsc::unbounded();
-
-        // the components are started in very specific order. Unless you know what you are doing,
-        // do not change that.
-        self.start_topology_refresher(shared_topology_accessor.clone())
-            .await;
-        self.start_received_messages_buffer_controller(
-            received_buffer_request_receiver,
-            mixnet_messages_receiver,
-        );
-
-        let gateway_client = self
-            .start_gateway_client(mixnet_messages_sender, ack_sender)
-            .await;
-
-        // The sphinx_message_sender is the transmitter for any component generating sphinx packets
-        // that are to be sent to the mixnet. They are used by cover traffic stream and real
-        // traffic stream.
-        // The MixTrafficController then sends the actual traffic
-        let sphinx_message_sender = Self::start_mix_traffic_controller(gateway_client);
-
-        // Shared queue length data. Published by the `OutQueueController` in the client, and used
-        // primarily to throttle incoming connections
-        let shared_lane_queue_lengths = LaneQueueLengths::new();
-
-        self.start_real_traffic_controller(
-            shared_topology_accessor.clone(),
-            ack_receiver,
-            input_receiver,
-            sphinx_message_sender.clone(),
-            client_connection_rx,
-            shared_lane_queue_lengths,
-        );
-
-        if !self.config.debug.disable_loop_cover_traffic_stream {
-            self.start_cover_traffic_stream(shared_topology_accessor, sphinx_message_sender);
         }
-
-        self.start_reconstructed_pusher(received_buffer_request_sender);
-        self.input_tx = Some(input_sender);
-
-        self
     }
 
-    // Right now it's impossible to have async exported functions to take `&mut self` rather than mut self
-    // TODO: try Rc<RefCell<Self>> approach?
-    pub async fn send_message(self, message: String, recipient: String) -> Self {
-        console_log!("Sending {} to {}", message, recipient);
-
-        let message_bytes = message.into_bytes();
-        self.send_binary_message(message_bytes, recipient).await
+    fn parse_sender_tag(tag: &str) -> Result<AnonymousSenderTag, JsValue> {
+        match AnonymousSenderTag::try_from_base58_string(tag) {
+            Ok(tag) => Ok(tag),
+            Err(err) => {
+                let error_msg = format!("{tag} is not a valid Nym AnonymousSenderTag - {err}");
+                console_error!("{}", error_msg);
+                let js_error = js_sys::Error::new(&error_msg);
+                Err(JsValue::from(js_error))
+            }
+        }
     }
 
-    pub async fn send_binary_message(self, message: Vec<u8>, recipient: String) -> Self {
-        console_log!("Sending {} bytes to {}", message.len(), recipient);
+    /// The simplest message variant where no additional information is attached.
+    /// You're simply sending your `data` to specified `recipient` without any tagging.
+    ///
+    /// Ends up with `NymMessage::Plain` variant
+    pub fn send_regular_message(&self, message: Vec<u8>, recipient: String) -> Promise {
+        console_log!(
+            "Attempting to send {:.2} kiB message to {recipient}",
+            message.len() as f64 / 1024.0
+        );
 
-        let recipient = Recipient::try_from_base58_string(recipient).unwrap();
+        let recipient = match Self::parse_recipient(&recipient) {
+            Ok(recipient) => recipient,
+            Err(err) => return Promise::reject(&err),
+        };
         let lane = TransmissionLane::General;
 
-        let input_msg = InputMessage::new_fresh(recipient, message, false, lane);
+        let input_msg = InputMessage::new_regular(recipient, message, lane);
+        self.client_input.send_message(input_msg)
+    }
 
-        self.input_tx
-            .as_ref()
-            .expect("start method was not called before!")
-            .send(input_msg)
-            .await
-            .expect("InputMessageReceiver has stopped receiving!");
+    /// Creates a message used for a duplex anonymous communication where the recipient
+    /// will never learn of our true identity. This is achieved by carefully sending `reply_surbs`.
+    ///
+    /// Note that if reply_surbs is set to zero then
+    /// this variant requires the client having sent some reply_surbs in the past
+    /// (and thus the recipient also knowing our sender tag).
+    ///
+    /// Ends up with `NymMessage::Repliable` variant
+    pub fn send_anonymous_message(
+        &self,
+        message: Vec<u8>,
+        recipient: String,
+        reply_surbs: u32,
+    ) -> Promise {
+        console_log!(
+            "Attempting to anonymously send {:.2} kiB message to {recipient} while attaching {reply_surbs} replySURBs.",
+            message.len() as f64 / 1024.0
+        );
 
-        self
+        let recipient = match Self::parse_recipient(&recipient) {
+            Ok(recipient) => recipient,
+            Err(err) => return Promise::reject(&err),
+        };
+        let lane = TransmissionLane::General;
+
+        let input_msg = InputMessage::new_anonymous(recipient, message, reply_surbs, lane);
+        self.client_input.send_message(input_msg)
+    }
+
+    /// Attempt to use our internally received and stored `ReplySurb` to send the message back
+    /// to specified recipient whilst not knowing its full identity (or even gateway).
+    ///
+    /// Ends up with `NymMessage::Reply` variant
+    pub fn send_reply(&self, message: Vec<u8>, recipient_tag: String) -> Promise {
+        console_log!(
+            "Attempting to send {:.2} kiB reply message to {recipient_tag}",
+            message.len() as f64 / 1024.0
+        );
+
+        let sender_tag = match Self::parse_sender_tag(&recipient_tag) {
+            Ok(recipient) => recipient,
+            Err(err) => return Promise::reject(&err),
+        };
+        let lane = TransmissionLane::General;
+
+        let input_msg = InputMessage::new_reply(sender_tag, message, lane);
+        self.client_input.send_message(input_msg)
     }
 }

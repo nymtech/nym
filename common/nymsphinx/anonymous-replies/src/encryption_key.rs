@@ -16,7 +16,7 @@ pub type EncryptionKeyDigest =
 
 pub type SurbEncryptionKeySize = <ReplySurbEncryptionAlgorithm as KeySizeUser>::KeySize;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct SurbEncryptionKey(CipherKey<ReplySurbEncryptionAlgorithm>);
 
 #[derive(Debug)]

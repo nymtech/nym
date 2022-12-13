@@ -1,5 +1,14 @@
 # Changelog
 
+## [nym-wallet-v1.1.2](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.2) (2022-11-09)
+
+- wallet: Bity buy functionality
+
+## [nym-wallet-v1.1.1](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.1) (2022-11-09)
+
+- wallet: compatibility with nym-binaries-1.1.1
+
+
 ## [nym-wallet-v1.1.0](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.0) (2022-11-09)
 
 - wallet: Add window for showing logs for when the terminal is not available.

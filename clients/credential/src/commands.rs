@@ -68,7 +68,7 @@ pub(crate) async fn deposit(nymd_url: &str, mnemonic: &str, amount: u64) -> Resu
 
     let state = State {
         amount,
-        tx_hash: tx_hash.clone(),
+        tx_hash,
         signing_keypair,
         encryption_keypair,
     };
@@ -98,6 +98,7 @@ pub(crate) async fn get_credential(state: &State, shared_storage: PersistentStor
         &coconut_api_clients,
     )
     .await?;
+    println!("Signature: {:?}", signature.to_bs58());
     shared_storage
         .insert_coconut_credential(
             state.amount.to_string(),

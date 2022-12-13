@@ -10,7 +10,7 @@ pub use crate::packet_router::{
 use crate::socket_state::{PartiallyDelegated, SocketState};
 use crate::{cleanup_socket_message, try_decrypt_binary_message};
 use crypto::asymmetric::identity;
-use futures::{FutureExt, SinkExt, StreamExt};
+use futures::{SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use gateway_requests::iv::IV;
 use gateway_requests::registration::handshake::{client_handshake, SharedKeys};
@@ -22,6 +22,7 @@ use rand::rngs::OsRng;
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::time::Duration;
+use task::ShutdownListener;
 use tungstenite::protocol::Message;
 
 #[cfg(feature = "coconut")]
@@ -29,8 +30,6 @@ use coconut_interface::Credential;
 
 #[cfg(not(target_arch = "wasm32"))]
 use credential_storage::PersistentStorage;
-#[cfg(not(target_arch = "wasm32"))]
-use task::ShutdownListener;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;
 
@@ -67,9 +66,8 @@ pub struct GatewayClient {
     /// Delay between each subsequent reconnection attempt.
     reconnection_backoff: Duration,
 
-    #[cfg(not(target_arch = "wasm32"))]
     /// Listen to shutdown messages.
-    shutdown: Option<ShutdownListener>,
+    shutdown: ShutdownListener,
 }
 
 impl GatewayClient {
@@ -85,7 +83,7 @@ impl GatewayClient {
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
         bandwidth_controller: Option<BandwidthController<PersistentStorage>>,
-        #[cfg(not(target_arch = "wasm32"))] shutdown: Option<ShutdownListener>,
+        shutdown: ShutdownListener,
     ) -> Self {
         GatewayClient {
             authenticated: false,
@@ -97,18 +95,12 @@ impl GatewayClient {
             local_identity,
             shared_key,
             connection: SocketState::NotConnected,
-            packet_router: PacketRouter::new(
-                ack_sender,
-                mixnet_message_sender,
-                #[cfg(not(target_arch = "wasm32"))]
-                shutdown.clone(),
-            ),
+            packet_router: PacketRouter::new(ack_sender, mixnet_message_sender, shutdown.clone()),
             response_timeout_duration,
             bandwidth_controller,
             should_reconnect_on_failure: true,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
-            #[cfg(not(target_arch = "wasm32"))]
             shutdown,
         }
     }
@@ -136,7 +128,6 @@ impl GatewayClient {
         gateway_owner: String,
         local_identity: Arc<identity::KeyPair>,
         response_timeout_duration: Duration,
-        #[cfg(not(target_arch = "wasm32"))] shutdown: Option<ShutdownListener>,
     ) -> Self {
         use futures::channel::mpsc;
 
@@ -144,12 +135,8 @@ impl GatewayClient {
         // perfectly fine here, because it's not meant to be used
         let (ack_tx, _) = mpsc::unbounded();
         let (mix_tx, _) = mpsc::unbounded();
-        let packet_router = PacketRouter::new(
-            ack_tx,
-            mix_tx,
-            #[cfg(not(target_arch = "wasm32"))]
-            shutdown.clone(),
-        );
+        let shutdown = ShutdownListener::dummy();
+        let packet_router = PacketRouter::new(ack_tx, mix_tx, shutdown.clone());
 
         GatewayClient {
             authenticated: false,
@@ -167,7 +154,6 @@ impl GatewayClient {
             should_reconnect_on_failure: false,
             reconnection_attempts: DEFAULT_RECONNECTION_ATTEMPTS,
             reconnection_backoff: DEFAULT_RECONNECTION_BACKOFF,
-            #[cfg(not(target_arch = "wasm32"))]
             shutdown,
         }
     }
@@ -295,44 +281,19 @@ impl GatewayClient {
         // technically the `wasm_timer` also works outside wasm, but unless required,
         // I really prefer to just stick to tokio
         #[cfg(target_arch = "wasm32")]
-        let timeout = wasm_timer::Delay::new(self.response_timeout_duration);
-
-        let mut fused_timeout = timeout.fuse();
-        let mut fused_stream = conn.fuse();
-
-        // Bit of an ugly workaround for selecting on an `Option` without having access to
-        // `tokio::select`
-        #[cfg(not(target_arch = "wasm32"))]
-        let shutdown = {
-            let m_shutdown = self.shutdown.clone();
-            async {
-                if let Some(mut s) = m_shutdown {
-                    // TODO: fix this by marking as success _after_ the select
-                    s.mark_as_success();
-                    s.recv().await
-                } else {
-                    std::future::pending::<()>().await
-                }
-            }
-            .fuse()
-        };
-        #[cfg(not(target_arch = "wasm32"))]
-        tokio::pin!(shutdown);
-
-        #[cfg(target_arch = "wasm32")]
-        let mut shutdown = std::future::pending::<()>().fuse();
+        let mut timeout = wasm_timer::Delay::new(self.response_timeout_duration);
 
         loop {
-            futures::select! {
-                _ = shutdown => {
+            tokio::select! {
+                _ = self.shutdown.recv() => {
                     log::trace!("GatewayClient control response: Received shutdown");
                     log::debug!("GatewayClient control response: Exiting");
                     break Err(GatewayClientError::ConnectionClosedGatewayShutdown);
                 }
-                _ = &mut fused_timeout => {
+                _ = &mut timeout => {
                     break Err(GatewayClientError::Timeout);
                 }
-                msg = fused_stream.next() => {
+                msg = conn.next() => {
                     let ws_msg = match cleanup_socket_message(msg) {
                         Err(err) => break Err(err),
                         Ok(msg) => msg
@@ -403,13 +364,10 @@ impl GatewayClient {
                     .batch_send_without_response(messages)
                     .await
                 {
-                    error!("failed to batch send messages - {}...", err);
+                    error!("failed to batch send messages - {err}...");
                     // we must ensure we do not leave the task still active
                     if let Err(err) = self.recover_socket_connection().await {
-                        error!(
-                            "... and the delegated stream has also errored out - {}",
-                            err
-                        )
+                        error!("... and the delegated stream has also errored out - {err}")
                     }
                     Err(err)
                 } else {
@@ -429,13 +387,10 @@ impl GatewayClient {
             SocketState::Available(ref mut conn) => Ok(conn.send(msg).await?),
             SocketState::PartiallyDelegated(ref mut partially_delegated) => {
                 if let Err(err) = partially_delegated.send_without_response(msg).await {
-                    error!("failed to send message without response - {}...", err);
+                    error!("failed to send message without response - {err}...");
                     // we must ensure we do not leave the task still active
                     if let Err(err) = self.recover_socket_connection().await {
-                        error!(
-                            "... and the delegated stream has also errored out - {}",
-                            err
-                        )
+                        error!("... and the delegated stream has also errored out - {err}")
                     }
                     Err(err)
                 } else {
@@ -455,7 +410,7 @@ impl GatewayClient {
         match gateway_protocol {
             None => {
                 warn!("the gateway we're connected to has not specified its protocol version. It's probably running version < 1.1.X, but that's still fine for now. It will become a hard error in 1.2.0");
-                // note: in 1.2.0 we will have to return a hard error here
+                // note: in +1.2.0 we will have to return a hard error here
                 Ok(())
             }
             Some(v) if v != PROTOCOL_VERSION => {
@@ -632,7 +587,7 @@ impl GatewayClient {
         let _gateway_owner = self.gateway_owner.clone();
 
         #[cfg(feature = "coconut")]
-        let credential = self
+        let (credential, credential_id) = self
             .bandwidth_controller
             .as_ref()
             .unwrap()
@@ -642,7 +597,15 @@ impl GatewayClient {
         return self.try_claim_testnet_bandwidth().await;
 
         #[cfg(feature = "coconut")]
-        return self.claim_coconut_bandwidth(credential).await;
+        {
+            self.claim_coconut_bandwidth(credential).await?;
+            self.bandwidth_controller
+                .as_ref()
+                .unwrap()
+                .consume_credential(credential_id)
+                .await?;
+            Ok(())
+        }
     }
 
     fn estimate_required_bandwidth(&self, packets: &[MixPacket]) -> i64 {
@@ -788,7 +751,6 @@ impl GatewayClient {
                                 .as_ref()
                                 .expect("no shared key present even though we're authenticated!"),
                         ),
-                        #[cfg(not(target_arch = "wasm32"))]
                         self.shutdown.clone(),
                     )
                 }

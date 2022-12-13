@@ -22,6 +22,14 @@ pub(crate) struct Run {
     #[clap(long)]
     config: Option<String>,
 
+    /// Specifies whether this client is going to use an anonymous sender tag for communication with the service provider.
+    /// While this is going to hide its actual address information, it will make the actual communication
+    /// slower and consume nearly double the bandwidth as it will require sending reply SURBs.
+    ///
+    /// Note that some service providers might not support this.
+    #[clap(long)]
+    use_anonymous_sender_tag: bool,
+
     /// Address of the socks5 provider to send messages to.
     #[clap(long)]
     provider: Option<String>,
@@ -65,6 +73,7 @@ impl From<Run> for OverrideConfig {
             nymd_validators: run_config.nymd_validators,
             api_validators: run_config.api_validators,
             port: run_config.port,
+            use_anonymous_sender_tag: run_config.use_anonymous_sender_tag,
             fastmode: run_config.fastmode,
             no_cover: run_config.no_cover,
             #[cfg(feature = "coconut")]

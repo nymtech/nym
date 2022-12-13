@@ -16,6 +16,7 @@ use nymsphinx::chunking::fragment::FragmentIdentifier;
 use nymsphinx::cover::generate_loop_cover_packet;
 use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::params::PacketSize;
+use nymsphinx::preparer::PreparedFragment;
 use nymsphinx::utils::sample_poisson_duration;
 use rand::{CryptoRng, Rng};
 use std::pin::Pin;
@@ -47,6 +48,12 @@ fn get_time_now() -> wasm_timer::Instant {
 
 /// Configurable parameters of the `OutQueueControl`
 pub(crate) struct Config {
+    /// Key used to encrypt and decrypt content of an ACK packet.
+    ack_key: Arc<AckKey>,
+
+    /// Represents full address of this client.
+    our_full_destination: Recipient,
+
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
     average_ack_delay: Duration,
 
@@ -66,12 +73,16 @@ pub(crate) struct Config {
 
 impl Config {
     pub(crate) fn new(
+        ack_key: Arc<AckKey>,
+        our_full_destination: Recipient,
         average_ack_delay: Duration,
         average_packet_delay: Duration,
         average_message_sending_delay: Duration,
         disable_poisson_packet_distribution: bool,
     ) -> Self {
         Config {
+            ack_key,
+            our_full_destination,
             average_ack_delay,
             average_packet_delay,
             average_message_sending_delay,
@@ -92,9 +103,6 @@ where
 {
     /// Configurable parameters of the `ActionController`
     config: Config,
-
-    /// Key used to encrypt and decrypt content of an ACK packet.
-    ack_key: Arc<AckKey>,
 
     /// Channel used for notifying of a real packet being sent out. Used to start up retransmission timer.
     sent_notifier: SentPacketNotificationSender,
@@ -119,9 +127,6 @@ where
     /// before being sent out into the network.
     real_receiver: BatchRealMessageReceiver,
 
-    /// Represents full address of this client.
-    our_full_destination: Recipient,
-
     /// Instance of a cryptographically secure random number generator.
     rng: R,
 
@@ -144,6 +149,16 @@ where
 pub(crate) struct RealMessage {
     mix_packet: MixPacket,
     fragment_id: FragmentIdentifier,
+    // TODO: add info about it being constructed with reply-surb
+}
+
+impl From<PreparedFragment> for RealMessage {
+    fn from(fragment: PreparedFragment) -> Self {
+        RealMessage {
+            mix_packet: fragment.mix_packet,
+            fragment_id: fragment.fragment_identifier,
+        }
+    }
 }
 
 impl RealMessage {
@@ -175,25 +190,21 @@ where
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         config: Config,
-        ack_key: Arc<AckKey>,
+        rng: R,
         sent_notifier: SentPacketNotificationSender,
         mix_tx: BatchMixMessageSender,
         real_receiver: BatchRealMessageReceiver,
-        rng: R,
-        our_full_destination: Recipient,
         topology_access: TopologyAccessor,
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
     ) -> Self {
         OutQueueControl {
             config,
-            ack_key,
             sent_notifier,
             next_delay: None,
             sending_delay_controller: Default::default(),
             mix_tx,
             real_receiver,
-            our_full_destination,
             rng,
             topology_access,
             transmission_buffer: Default::default(),
@@ -220,24 +231,23 @@ where
                 // poisson delay, but is it really a problem?
                 let topology_permit = self.topology_access.get_read_permit().await;
                 // the ack is sent back to ourselves (and then ignored)
-                let topology_ref_option = topology_permit.try_get_valid_topology_ref(
-                    &self.our_full_destination,
-                    Some(&self.our_full_destination),
-                );
-                if topology_ref_option.is_none() {
-                    warn!(
-                        "No valid topology detected - won't send any loop cover message this time"
-                    );
-                    return;
-                }
-                let topology_ref = topology_ref_option.unwrap();
+                let topology_ref = match topology_permit.try_get_valid_topology_ref(
+                    &self.config.our_full_destination,
+                    Some(&self.config.our_full_destination),
+                ) {
+                    Ok(topology) => topology,
+                    Err(err) => {
+                        warn!("We're not going to send any loop cover message this time, as the current topology seem to be invalid - {err}");
+                        return;
+                    }
+                };
 
                 (
                     generate_loop_cover_packet(
                         &mut self.rng,
                         topology_ref,
-                        &self.ack_key,
-                        &self.our_full_destination,
+                        &self.config.ack_key,
+                        &self.config.our_full_destination,
                         self.config.average_ack_delay,
                         self.config.average_packet_delay,
                         self.config.cover_packet_size,
@@ -555,16 +565,6 @@ where
             }
         }
         log::debug!("OutQueueControl: Exiting");
-    }
-
-    // todo: think whether this is still required
-    #[allow(dead_code)]
-    pub(super) async fn run(&mut self) {
-        debug!("Started OutQueueControl without graceful shutdown support");
-
-        while let Some(next_message) = self.next().await {
-            self.on_message(next_message).await;
-        }
     }
 }
 

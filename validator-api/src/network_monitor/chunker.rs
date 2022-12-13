@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nymsphinx::forwarding::packet::MixPacket;
+use nymsphinx::message::NymMessage;
 use nymsphinx::{
     acknowledgements::AckKey, addressing::clients::Recipient, preparer::MessagePreparer,
 };
@@ -52,10 +53,9 @@ impl Chunker {
     ) -> Vec<MixPacket> {
         let ack_key: AckKey = AckKey::new(&mut self.rng);
 
-        let (split_message, _reply_keys) = self
+        let split_message = self
             .message_preparer
-            .prepare_and_split_message(message, false, topology)
-            .expect("failed to split the message");
+            .pad_and_split_message(NymMessage::new_plain(message));
 
         let mut mix_packets = Vec::with_capacity(split_message.len());
         for message_chunk in split_message {

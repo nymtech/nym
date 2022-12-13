@@ -5,7 +5,7 @@ use std::convert::TryFrom;
 use self::types::SocksProxyError;
 
 pub mod authentication;
-mod client;
+pub(crate) mod client;
 pub(crate) mod mixnet_responses;
 mod request;
 pub mod server;

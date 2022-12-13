@@ -9,6 +9,7 @@ edition = "2021"
 [dependencies]
 log = "0.4.8"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+thiserror = "1.0.37"
 
 nymsphinx-addressing = { path = "../addressing" }
 nymsphinx-params = { path = "../params" }

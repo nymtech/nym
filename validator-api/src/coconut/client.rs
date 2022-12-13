@@ -8,6 +8,7 @@ use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use contracts_common::dealings::ContractSafeBytes;
 use cw3::ProposalResponse;
+use dkg::Threshold;
 use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
 use validator_client::nymd::{AccountId, Fee, TxResponse};
 
@@ -22,6 +23,7 @@ pub trait Client {
         blinded_serial_number: String,
     ) -> Result<SpendCredentialResponse>;
     async fn get_current_epoch_state(&self) -> Result<EpochState>;
+    async fn get_current_epoch_threshold(&self) -> Result<Option<Threshold>>;
     async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse>;
     async fn get_current_dealers(&self) -> Result<Vec<DealerDetails>>;
     async fn get_dealings(&self, idx: usize) -> Result<Vec<ContractDealing>>;

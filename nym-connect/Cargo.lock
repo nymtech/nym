@@ -3358,6 +3358,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tap",
+ "task",
  "tauri",
  "tauri-build",
  "tauri-codegen",

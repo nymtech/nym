@@ -57,3 +57,12 @@ pub enum ClientCoreError<B: ReplyStorageBackend> {
     #[error("Unexpected exit")]
     UnexpectedExit,
 }
+
+/// Set of messages that the client can send to listeners via the task manager
+#[derive(thiserror::Error, Debug)]
+pub enum ClientCoreStatusMessage {
+    #[error("The connected gateway is slow, or the connection to it is slow")]
+    GatewayIsSlow,
+    #[error("The connected gateway is very slow, or the connection to it is very slow")]
+    GatewayIsVerySlow,
+}

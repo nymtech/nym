@@ -2,14 +2,21 @@
 
 Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## Unreleased (multi-surb branch breaking)
-
-### Added
-
--clients: ability to use multi-reply SURBs to send arbitrarily long messages fully anonymously whilst requesting additional reply blocks whenever they're about to run out ([#1796], [#1801], [#1804], [#1835], [#1858], [#1883]))
+## [Unreleased]
 
 ### Changed
 
+- validator-api: can recover from shutdown during DKG process ([#1872])
+- clients: deduplicate gateway inititialization, part of work towards a rust-sdk
+- clients: keep all transmission lanes going at all times by making priority probabilistic
+- clients: ability to use multi-reply SURBs to send arbitrarily long messages fully anonymously whilst requesting additional reply blocks whenever they're about to run out ([#1796], [#1801], [#1804], [#1835], [#1858], [#1883]))
+
+### Fixed
+
+- network-requester: fix bug where websocket connection disconnect resulted in success error code
+- clients: fix a few panics handling the gateway-client
+- mixnode, gateway, validator-api: Use mainnet values as defaults for URLs and mixnet contract  ([#1884])
+- socks5: fixed bug where connections sometimes where closed too early
 - clients: improve message logging when received message fails to get reconstructed ([#1803])
 
 [#1796]: https://github.com/nymtech/nym/pull/1796
@@ -18,25 +25,9 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1804]: https://github.com/nymtech/nym/pull/1804
 [#1835]: https://github.com/nymtech/nym/pull/1835
 [#1858]: https://github.com/nymtech/nym/pull/1858
-[#1883]: https://github.com/nymtech/nym/pull/1883
-
-## [Unreleased]
-
-### Changed
-
-- validator-api: can recover from shutdown during DKG process ([#1872])
-- clients: deduplicate gateway inititialization, part of work towards a rust-sdk
-- clients: keep all transmission lanes going at all times by making priority probabilistic
-
-### Fixed
-
-- network-requester: fix bug where websocket connection disconnect resulted in success error code
-- clients: fix a few panics handling the gateway-client
-- mixnode, gateway, validator-api: Use mainnet values as defaults for URLs and mixnet contract  ([#1884])
-
 [#1872]: https://github.com/nymtech/nym/pull/1872
+[#1883]: https://github.com/nymtech/nym/pull/1883
 [#1884]: https://github.com/nymtech/nym/pull/1884
-
 
 ## [v1.1.2]
 

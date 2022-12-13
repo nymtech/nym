@@ -158,9 +158,13 @@ impl NymClient {
     pub async fn run_and_listen(
         self,
         mut receiver: Socks5ControlMessageReceiver,
+        sender: task::StatusSender,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Start the main task
         let mut shutdown = self.start().await?;
+
+        // Listen to status messages from task, that we forward back to the caller
+        shutdown.start_status_listener(sender);
 
         let res = tokio::select! {
             biased;

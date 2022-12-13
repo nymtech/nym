@@ -10,22 +10,17 @@ export const MnemonicInput: React.FC<{
   error?: string;
   onUpdateMnemonic: (mnemonic: string) => void;
 }> = ({ mnemonic, error, onUpdateMnemonic }) => {
-  const [showPassword, setShowPassword] = useState(false);
+  const [showMnemonic, setShowMnemonic] = useState(false);
   return (
     <Stack spacing={2}>
       <TextField
         label="Mnemonic"
-        type="input"
-        value={showPassword ? mnemonic : mnemonic.replaceAll(/./g, '*')}
+        type={showMnemonic ? 'input' : 'password'}
+        value={mnemonic}
         onChange={(e) => onUpdateMnemonic(e.target.value)}
-        multiline
         autoFocus
         fullWidth
-        inputProps={{
-          style: {
-            height: '160px',
-          },
-        }}
+        multiline={showMnemonic}
         InputLabelProps={{ shrink: true }}
         sx={{
           'input::-webkit-textfield-decoration-container': {
@@ -34,7 +29,7 @@ export const MnemonicInput: React.FC<{
         }}
       />
       <FormControlLabel
-        control={<Checkbox checked={Boolean(showPassword)} onChange={() => setShowPassword((show) => !show)} />}
+        control={<Checkbox checked={Boolean(showMnemonic)} onChange={() => setShowMnemonic((show) => !show)} />}
         label="Reveal my mnemonic"
       />
       {error && <Error message={error} />}

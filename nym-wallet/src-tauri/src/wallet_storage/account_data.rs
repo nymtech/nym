@@ -15,7 +15,7 @@
 // instead treating as muliple accounts with one entry.
 
 use serde::{Deserialize, Serialize};
-use validator_client::nymd::bip32::DerivationPath;
+use validator_client::nyxd::bip32::DerivationPath;
 use zeroize::Zeroize;
 
 use crate::error::BackendError;
@@ -356,7 +356,7 @@ impl Drop for MnemonicAccount {
 
 mod display_hd_path {
     use serde::{Deserialize, Deserializer, Serializer};
-    use validator_client::nymd::bip32::DerivationPath;
+    use validator_client::nyxd::bip32::DerivationPath;
 
     pub fn serialize<S: Serializer>(
         hd_path: &DerivationPath,

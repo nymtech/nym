@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nymd::error::NymdError;
+use crate::nyxd::error::NyxdError;
 use cosmrs::tendermint::abci;
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
@@ -39,17 +39,17 @@ pub fn find_attribute<'a>(
 }
 
 // those two functions were separated so that the internal logic could actually be tested
-fn parse_raw_str_logs(raw: &str) -> Result<Vec<Log>, NymdError> {
-    let logs: Vec<Log> = serde_json::from_str(raw).map_err(|_| NymdError::MalformedLogString)?;
+fn parse_raw_str_logs(raw: &str) -> Result<Vec<Log>, NyxdError> {
+    let logs: Vec<Log> = serde_json::from_str(raw).map_err(|_| NyxdError::MalformedLogString)?;
     if logs.len() != logs.iter().unique_by(|log| log.msg_index).count() {
         // this check is only here because I don't yet fully understand raw log string generation and
         // the fact the first entry does not seem to have `msg_index` defined on it.
-        return Err(NymdError::MalformedLogString);
+        return Err(NyxdError::MalformedLogString);
     }
     Ok(logs)
 }
 
-pub fn parse_raw_logs(raw: abci::Log) -> Result<Vec<Log>, NymdError> {
+pub fn parse_raw_logs(raw: abci::Log) -> Result<Vec<Log>, NyxdError> {
     parse_raw_str_logs(raw.as_ref())
 }
 

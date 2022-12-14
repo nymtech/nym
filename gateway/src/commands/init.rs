@@ -10,7 +10,7 @@ use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
 use std::net::IpAddr;
 use std::path::PathBuf;
-use validator_client::nymd;
+use validator_client::nyxd;
 
 #[derive(Args, Clone)]
 pub struct Init {
@@ -24,7 +24,7 @@ pub struct Init {
 
     /// The wallet address you will use to bond this gateway, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9
     #[clap(long)]
-    wallet_address: nymd::AccountId,
+    wallet_address: nyxd::AccountId,
 
     /// The port on which the gateway will be listening for sphinx packets
     #[clap(long)]

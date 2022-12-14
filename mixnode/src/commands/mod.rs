@@ -11,7 +11,7 @@ use config::defaults::var_names::{API_VALIDATOR, BECH32_PREFIX, CONFIGURED};
 use crypto::bech32_address_validation;
 use std::net::IpAddr;
 use std::process;
-use validator_client::nymd;
+use validator_client::nyxd;
 
 mod describe;
 mod init;
@@ -51,7 +51,7 @@ pub(crate) enum Commands {
 struct OverrideConfig {
     id: String,
     host: Option<IpAddr>,
-    wallet_address: Option<nymd::AccountId>,
+    wallet_address: Option<nyxd::AccountId>,
     mix_port: Option<u16>,
     verloc_port: Option<u16>,
     http_api_port: Option<u16>,

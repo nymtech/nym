@@ -8,9 +8,9 @@ use log::info;
 
 use mixnet_contract_common::Coin;
 use network_defaults::NymNetworkDetails;
-use validator_client::nymd::AccountId;
-use validator_client::nymd::VestingSigningClient;
-use validator_client::nymd::{CosmosCoin, Denom};
+use validator_client::nyxd::AccountId;
+use validator_client::nyxd::VestingSigningClient;
+use validator_client::nyxd::{CosmosCoin, Denom};
 use vesting_contract_common::messages::VestingSpecification;
 use vesting_contract_common::PledgeCap;
 

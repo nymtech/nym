@@ -62,7 +62,7 @@ pub(crate) struct OverrideConfig {
     no_cover: bool,
 
     #[cfg(feature = "coconut")]
-    nymd_validators: Option<Vec<url::Url>>,
+    nyxd_validators: Option<Vec<url::Url>>,
     #[cfg(feature = "coconut")]
     enabled_credentials_mode: bool,
 }
@@ -99,10 +99,10 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
 
     #[cfg(feature = "coconut")]
     {
-        if let Some(nymd_validators) = args.nymd_validators {
-            config.get_base_mut().set_custom_validators(nymd_validators);
+        if let Some(nyxd_validators) = args.nyxd_validators {
+            config.get_base_mut().set_custom_validators(nyxd_validators);
         } else if let Ok(raw_validators) =
-            std::env::var(network_defaults::var_names::NYMD_VALIDATOR)
+            std::env::var(network_defaults::var_names::NYXD_VALIDATOR)
         {
             config
                 .get_base_mut()

@@ -42,7 +42,7 @@ pub(crate) mod tests {
     use std::path::PathBuf;
     use std::str::FromStr;
     use url::Url;
-    use validator_client::nymd::AccountId;
+    use validator_client::nyxd::AccountId;
 
     const TEST_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 

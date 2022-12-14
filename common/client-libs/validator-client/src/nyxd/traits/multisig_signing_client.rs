@@ -1,10 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
-use crate::nymd::cosmwasm_client::types::ExecuteResult;
-use crate::nymd::error::NymdError;
-use crate::nymd::{Fee, NymdClient};
+pub use crate::nyxd::cosmwasm_client::signing_client::SigningCosmWasmClient;
+use crate::nyxd::cosmwasm_client::types::ExecuteResult;
+use crate::nyxd::error::NyxdError;
+use crate::nyxd::{Fee, NyxdClient};
 
 use coconut_bandwidth_contract_common::msg::ExecuteMsg as CoconutBandwidthExecuteMsg;
 use cw3::Vote;
@@ -21,31 +21,31 @@ pub trait MultisigSigningClient {
         blinded_serial_number: String,
         voucher_value: u128,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
 
     async fn vote_proposal(
         &self,
         proposal_id: u64,
         yes: bool,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
 
     async fn execute_proposal(
         &self,
         proposal_id: u64,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
 }
 
 #[async_trait]
-impl<C: SigningCosmWasmClient + Sync + Send> MultisigSigningClient for NymdClient<C> {
+impl<C: SigningCosmWasmClient + Sync + Send> MultisigSigningClient for NyxdClient<C> {
     async fn propose_release_funds(
         &self,
         title: String,
         blinded_serial_number: String,
         voucher_value: u128,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let release_funds_req = CoconutBandwidthExecuteMsg::ReleaseFunds {
             funds: Coin::new(
@@ -81,7 +81,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> MultisigSigningClient for NymdClien
         proposal_id: u64,
         vote_yes: bool,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let vote = if vote_yes { Vote::Yes } else { Vote::No };
         let req = ExecuteMsg::Vote { proposal_id, vote };
@@ -101,7 +101,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> MultisigSigningClient for NymdClien
         &self,
         proposal_id: u64,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let req = ExecuteMsg::Execute { proposal_id };
         self.client

@@ -23,7 +23,7 @@ id = '{{ client.id }}'
 # to claim bandwidth without presenting bandwidth credentials.
 disabled_credentials_mode = {{ client.disabled_credentials_mode }}
 
-# Addresses to nymd validators via which the client can communicate with the chain.
+# Addresses to nyxd validators via which the client can communicate with the chain.
 validator_urls = [
     {{#each client.validator_urls }}
         '{{this}}',

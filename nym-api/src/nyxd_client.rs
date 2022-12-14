@@ -13,10 +13,10 @@ use mixnet_contract_common::{
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use validator_client::nymd::traits::{MixnetQueryClient, MixnetSigningClient};
-use validator_client::nymd::{
+use validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
+use validator_client::nyxd::{
     hash::{Hash, SHA256_HASH_SIZE},
-    Coin, CosmWasmClient, QueryNymdClient, SigningCosmWasmClient, SigningNymdClient,
+    Coin, CosmWasmClient, QueryNyxdClient, SigningCosmWasmClient, SigningNyxdClient,
     TendermintTime,
 };
 use validator_client::ValidatorClientError;
@@ -38,7 +38,7 @@ use contracts_common::dealings::ContractSafeBytes;
 #[cfg(feature = "coconut")]
 use cw3::ProposalResponse;
 #[cfg(feature = "coconut")]
-use validator_client::nymd::{
+use validator_client::nyxd::{
     cosmwasm_client::types::ExecuteResult,
     traits::{
         CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, MultisigQueryClient,
@@ -55,44 +55,44 @@ impl<C> Clone for Client<C> {
     }
 }
 
-impl Client<QueryNymdClient> {
+impl Client<QueryNyxdClient> {
     pub(crate) fn new_query(config: &Config) -> Self {
         // the api address is irrelevant here as **WE ARE THE API**
         // and we won't be talking on the socket here.
         let api_url = format!("http://localhost:{}", DEFAULT_NYM_API_PORT)
             .parse()
             .unwrap();
-        let nymd_url = config.get_nymd_validator_url();
+        let nyxd_url = config.get_nyxd_url();
 
         let details = NymNetworkDetails::new_from_env()
             .with_mixnet_contract(Some(config.get_mixnet_contract_address()));
 
         let client_config = validator_client::Config::try_from_nym_network_details(&details)
             .expect("failed to construct valid validator client config with the provided network")
-            .with_urls(nymd_url, api_url);
+            .with_urls(nyxd_url, api_url);
 
         let inner =
-            validator_client::Client::new_query(client_config).expect("Failed to connect to nymd!");
+            validator_client::Client::new_query(client_config).expect("Failed to connect to nyxd!");
 
         Client(Arc::new(RwLock::new(inner)))
     }
 }
 
-impl Client<SigningNymdClient> {
+impl Client<SigningNyxdClient> {
     pub(crate) fn new_signing(config: &Config) -> Self {
         // the api address is irrelevant here as **WE ARE THE API**
         // and we won't be talking on the socket here.
         let api_url = format!("http://localhost:{}", DEFAULT_NYM_API_PORT)
             .parse()
             .unwrap();
-        let nymd_url = config.get_nymd_validator_url();
+        let nyxd_url = config.get_nyxd_url();
 
         let details = NymNetworkDetails::new_from_env()
             .with_mixnet_contract(Some(config.get_mixnet_contract_address()));
 
         let client_config = validator_client::Config::try_from_nym_network_details(&details)
             .expect("failed to construct valid validator client config with the provided network")
-            .with_urls(nymd_url, api_url);
+            .with_urls(nyxd_url, api_url);
 
         let mnemonic = config
             .get_mnemonic()
@@ -100,7 +100,7 @@ impl Client<SigningNymdClient> {
             .expect("the mnemonic is invalid!");
 
         let inner = validator_client::Client::new_signing(client_config, mnemonic)
-            .expect("Failed to connect to nymd!");
+            .expect("Failed to connect to nyxd!");
 
         Client(Arc::new(RwLock::new(inner)))
     }
@@ -119,7 +119,7 @@ impl<C> Client<C> {
             .0
             .read()
             .await
-            .nymd
+            .nyxd
             .get_current_block_timestamp()
             .await?;
 
@@ -140,7 +140,7 @@ impl<C> Client<C> {
     where
         C: CosmWasmClient + Sync,
     {
-        let hash = match self.0.read().await.nymd.get_block_hash(height).await? {
+        let hash = match self.0.read().await.nyxd.get_block_hash(height).await? {
             Hash::Sha256(hash) => Some(hash),
             Hash::None => None,
         };
@@ -152,14 +152,14 @@ impl<C> Client<C> {
     where
         C: CosmWasmClient + Sync + Send,
     {
-        self.0.read().await.get_all_nymd_mixnodes_detailed().await
+        self.0.read().await.get_all_nyxd_mixnodes_detailed().await
     }
 
     pub(crate) async fn get_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync + Send,
     {
-        self.0.read().await.get_all_nymd_gateways().await
+        self.0.read().await.get_all_nyxd_gateways().await
     }
 
     pub(crate) async fn get_current_interval(
@@ -189,7 +189,7 @@ impl<C> Client<C> {
         self.0
             .read()
             .await
-            .get_all_nymd_rewarded_set_mixnodes()
+            .get_all_nyxd_rewarded_set_mixnodes()
             .await
     }
 
@@ -243,7 +243,7 @@ impl<C> Client<C> {
         self.0
             .write()
             .await
-            .nymd
+            .nyxd
             .execute_multiple(
                 &contract,
                 msgs,
@@ -265,7 +265,7 @@ impl<C> Client<C> {
         self.0
             .write()
             .await
-            .nymd
+            .nyxd
             .advance_current_epoch(new_rewarded_set, expected_active_set_size, None)
             .await?;
         Ok(())
@@ -278,7 +278,7 @@ impl<C> Client<C> {
         self.0
             .write()
             .await
-            .nymd
+            .nyxd
             .reconcile_epoch_events(None, None)
             .await?;
         Ok(())
@@ -292,28 +292,28 @@ where
     C: SigningCosmWasmClient + Sync + Send,
 {
     async fn address(&self) -> AccountId {
-        self.0.read().await.nymd.address().clone()
+        self.0.read().await.nyxd.address().clone()
     }
 
     async fn get_tx(
         &self,
         tx_hash: &str,
-    ) -> crate::coconut::error::Result<validator_client::nymd::TxResponse> {
+    ) -> crate::coconut::error::Result<validator_client::nyxd::TxResponse> {
         let tx_hash = tx_hash
-            .parse::<validator_client::nymd::tx::Hash>()
+            .parse::<validator_client::nyxd::tx::Hash>()
             .map_err(|_| CoconutError::TxHashParseError)?;
-        Ok(self.0.read().await.nymd.get_tx(tx_hash).await?)
+        Ok(self.0.read().await.nyxd.get_tx(tx_hash).await?)
     }
 
     async fn get_proposal(
         &self,
         proposal_id: u64,
     ) -> crate::coconut::error::Result<ProposalResponse> {
-        Ok(self.0.read().await.nymd.get_proposal(proposal_id).await?)
+        Ok(self.0.read().await.nyxd.get_proposal(proposal_id).await?)
     }
 
     async fn list_proposals(&self) -> crate::coconut::error::Result<Vec<ProposalResponse>> {
-        Ok(self.0.read().await.get_all_nymd_proposals().await?)
+        Ok(self.0.read().await.get_all_nyxd_proposals().await?)
     }
 
     async fn get_spent_credential(
@@ -324,13 +324,13 @@ where
             .0
             .read()
             .await
-            .nymd
+            .nyxd
             .get_spent_credential(blinded_serial_number)
             .await?)
     }
 
     async fn get_current_epoch(&self) -> crate::coconut::error::Result<Epoch> {
-        Ok(self.0.read().await.nymd.get_current_epoch().await?)
+        Ok(self.0.read().await.nyxd.get_current_epoch().await?)
     }
 
     async fn get_current_epoch_threshold(
@@ -340,7 +340,7 @@ where
             .0
             .read()
             .await
-            .nymd
+            .nyxd
             .get_current_epoch_threshold()
             .await?)
     }
@@ -353,20 +353,20 @@ where
             .0
             .read()
             .await
-            .nymd
+            .nyxd
             .get_dealer_details(self_address)
             .await?)
     }
 
     async fn get_current_dealers(&self) -> crate::coconut::error::Result<Vec<DealerDetails>> {
-        Ok(self.0.read().await.get_all_nymd_current_dealers().await?)
+        Ok(self.0.read().await.get_all_nyxd_current_dealers().await?)
     }
 
     async fn get_dealings(
         &self,
         idx: usize,
     ) -> crate::coconut::error::Result<Vec<ContractDealing>> {
-        Ok(self.0.read().await.get_all_nymd_epoch_dealings(idx).await?)
+        Ok(self.0.read().await.get_all_nyxd_epoch_dealings(idx).await?)
     }
 
     async fn get_verification_key_shares(
@@ -376,7 +376,7 @@ where
             .0
             .read()
             .await
-            .get_all_nymd_verification_key_shares()
+            .get_all_nyxd_verification_key_shares()
             .await?)
     }
 
@@ -389,7 +389,7 @@ where
         self.0
             .read()
             .await
-            .nymd
+            .nyxd
             .vote_proposal(proposal_id, vote_yes, fee)
             .await?;
         Ok(())
@@ -399,7 +399,7 @@ where
         self.0
             .read()
             .await
-            .nymd
+            .nyxd
             .execute_proposal(proposal_id, None)
             .await?;
         Ok(())
@@ -424,7 +424,7 @@ where
             .0
             .write()
             .await
-            .nymd
+            .nyxd
             .register_dealer(bte_key, announce_address, None)
             .await?)
     }
@@ -437,7 +437,7 @@ where
             .0
             .write()
             .await
-            .nymd
+            .nyxd
             .submit_dealing_bytes(dealing_bytes, None)
             .await?)
     }
@@ -450,7 +450,7 @@ where
             .0
             .write()
             .await
-            .nymd
+            .nyxd
             .submit_verification_key_share(share, None)
             .await?)
     }

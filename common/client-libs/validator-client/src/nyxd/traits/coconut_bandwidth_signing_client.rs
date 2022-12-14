@@ -1,10 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
-use crate::nymd::cosmwasm_client::types::ExecuteResult;
-use crate::nymd::error::NymdError;
-use crate::nymd::{Coin, Fee, NymdClient};
+pub use crate::nyxd::cosmwasm_client::signing_client::SigningCosmWasmClient;
+use crate::nyxd::cosmwasm_client::types::ExecuteResult;
+use crate::nyxd::error::NyxdError;
+use crate::nyxd::{Coin, Fee, NyxdClient};
 use coconut_bandwidth_contract_common::spend_credential::SpendCredentialData;
 use coconut_bandwidth_contract_common::{deposit::DepositData, msg::ExecuteMsg};
 
@@ -19,18 +19,18 @@ pub trait CoconutBandwidthSigningClient {
         verification_key: String,
         encryption_key: String,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
     async fn spend_credential(
         &self,
         funds: Coin,
         blinded_serial_number: String,
         gateway_cosmos_address: String,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
 }
 
 #[async_trait]
-impl<C: SigningCosmWasmClient + Sync + Send> CoconutBandwidthSigningClient for NymdClient<C> {
+impl<C: SigningCosmWasmClient + Sync + Send> CoconutBandwidthSigningClient for NyxdClient<C> {
     async fn deposit(
         &self,
         amount: Coin,
@@ -38,7 +38,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> CoconutBandwidthSigningClient for N
         verification_key: String,
         encryption_key: String,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let req = ExecuteMsg::DepositFunds {
             data: DepositData::new(info.to_string(), verification_key, encryption_key),
@@ -60,7 +60,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> CoconutBandwidthSigningClient for N
         blinded_serial_number: String,
         gateway_cosmos_address: String,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let req = ExecuteMsg::SpendCredential {
             data: SpendCredentialData::new(

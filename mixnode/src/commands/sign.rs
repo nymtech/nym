@@ -11,7 +11,7 @@ use clap::{ArgGroup, Args};
 use config::NymConfig;
 use crypto::asymmetric::identity;
 use log::error;
-use validator_client::nymd;
+use validator_client::nyxd;
 
 use super::version_check;
 
@@ -25,7 +25,7 @@ pub(crate) struct Sign {
     /// Signs your blockchain address with your identity key
     // the alias here is included for backwards compatibility (1.1.4 and before)
     #[clap(long, alias = "address")]
-    wallet_address: Option<nymd::AccountId>,
+    wallet_address: Option<nyxd::AccountId>,
 
     /// Signs an arbitrary piece of text with your identity key
     #[clap(long)]
@@ -34,7 +34,7 @@ pub(crate) struct Sign {
 
 enum SignedTarget {
     Text(String),
-    Address(nymd::AccountId),
+    Address(nyxd::AccountId),
 }
 
 impl TryFrom<Sign> for SignedTarget {
@@ -54,7 +54,7 @@ impl TryFrom<Sign> for SignedTarget {
     }
 }
 
-fn print_signed_address(private_key: &identity::PrivateKey, wallet_address: nymd::AccountId) {
+fn print_signed_address(private_key: &identity::PrivateKey, wallet_address: nyxd::AccountId) {
     // perform extra validation to ensure we have correct prefix
     validate_bech32_address_or_exit(wallet_address.as_ref());
 

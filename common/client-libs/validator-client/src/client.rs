@@ -15,41 +15,41 @@ use nym_api_requests::models::{
     RewardEstimationResponse, StakeSaturationResponse,
 };
 
-#[cfg(feature = "nymd-client")]
-use crate::nymd::traits::{DkgQueryClient, MixnetQueryClient, MultisigQueryClient};
-#[cfg(feature = "nymd-client")]
-use crate::nymd::{self, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient};
-#[cfg(feature = "nymd-client")]
+#[cfg(feature = "nyxd-client")]
+use crate::nyxd::traits::{DkgQueryClient, MixnetQueryClient, MultisigQueryClient};
+#[cfg(feature = "nyxd-client")]
+use crate::nyxd::{self, CosmWasmClient, NyxdClient, QueryNyxdClient, SigningNyxdClient};
+#[cfg(feature = "nyxd-client")]
 use coconut_dkg_common::{
     dealer::ContractDealing, types::DealerDetails, verification_key::ContractVKShare,
 };
-#[cfg(feature = "nymd-client")]
+#[cfg(feature = "nyxd-client")]
 use coconut_interface::Base58;
-#[cfg(feature = "nymd-client")]
+#[cfg(feature = "nyxd-client")]
 use cw3::ProposalResponse;
-#[cfg(feature = "nymd-client")]
+#[cfg(feature = "nyxd-client")]
 use mixnet_contract_common::{
     families::{Family, FamilyHead},
     mixnode::MixNodeBond,
     pending_events::{PendingEpochEvent, PendingIntervalEvent},
     Delegation, IdentityKey, RewardedSetNodeStatus, UnbondedMixnode,
 };
-#[cfg(feature = "nymd-client")]
+#[cfg(feature = "nyxd-client")]
 use network_defaults::NymNetworkDetails;
-#[cfg(feature = "nymd-client")]
+#[cfg(feature = "nyxd-client")]
 use nym_api_requests::models::MixNodeBondAnnotated;
-#[cfg(feature = "nymd-client")]
+#[cfg(feature = "nyxd-client")]
 use std::str::FromStr;
 use url::Url;
 
-#[cfg(feature = "nymd-client")]
+#[cfg(feature = "nyxd-client")]
 #[must_use]
 #[derive(Debug, Clone)]
 pub struct Config {
     api_url: Url,
-    nymd_url: Url,
+    nyxd_url: Url,
 
-    nymd_config: nymd::Config,
+    nyxd_config: nyxd::Config,
 
     mixnode_page_limit: Option<u32>,
     gateway_page_limit: Option<u32>,
@@ -60,7 +60,7 @@ pub struct Config {
     proposals_page_limit: Option<u32>,
 }
 
-#[cfg(feature = "nymd-client")]
+#[cfg(feature = "nyxd-client")]
 impl Config {
     pub fn try_from_nym_network_details(
         details: &NymNetworkDetails,
@@ -78,11 +78,11 @@ impl Config {
 
         Ok(Config {
             api_url: api_url.pop().unwrap(),
-            nymd_url: details.endpoints[0]
-                .nymd_url
+            nyxd_url: details.endpoints[0]
+                .nyxd_url
                 .parse()
                 .map_err(ValidatorClientError::MalformedUrlProvided)?,
-            nymd_config: nymd::Config::try_from_nym_network_details(details)?,
+            nyxd_config: nyxd::Config::try_from_nym_network_details(details)?,
             mixnode_page_limit: None,
             gateway_page_limit: None,
             mixnode_delegations_page_limit: None,
@@ -95,14 +95,14 @@ impl Config {
 
     // TODO: this method shouldn't really exist as all information should be included immediately
     // via `from_nym_network_details`, but it's here for, you guessed it, legacy compatibility
-    pub fn with_urls(mut self, nymd_url: Url, api_url: Url) -> Self {
-        self.nymd_url = nymd_url;
+    pub fn with_urls(mut self, nyxd_url: Url, api_url: Url) -> Self {
+        self.nyxd_url = nyxd_url;
         self.api_url = api_url;
         self
     }
 
-    pub fn with_nymd_url(mut self, nymd_url: Url) -> Self {
-        self.nymd_url = nymd_url;
+    pub fn with_nyxd_url(mut self, nyxd_url: Url) -> Self {
+        self.nyxd_url = nyxd_url;
         self
     }
 
@@ -127,7 +127,7 @@ impl Config {
     }
 }
 
-#[cfg(feature = "nymd-client")]
+#[cfg(feature = "nyxd-client")]
 pub struct Client<C> {
     // TODO: we really shouldn't be storing a mnemonic here, but removing it would be
     // non-trivial amount of work and it's out of scope of the current branch
@@ -143,19 +143,19 @@ pub struct Client<C> {
 
     // ideally they would have been read-only, but unfortunately rust doesn't have such features
     pub nym_api: nym_api::Client,
-    pub nymd: NymdClient<C>,
+    pub nyxd: NyxdClient<C>,
 }
 
-#[cfg(feature = "nymd-client")]
-impl Client<SigningNymdClient> {
+#[cfg(feature = "nyxd-client")]
+impl Client<SigningNyxdClient> {
     pub fn new_signing(
         config: Config,
         mnemonic: bip39::Mnemonic,
-    ) -> Result<Client<SigningNymdClient>, ValidatorClientError> {
+    ) -> Result<Client<SigningNyxdClient>, ValidatorClientError> {
         let nym_api_client = nym_api::Client::new(config.api_url.clone());
-        let nymd_client = NymdClient::connect_with_mnemonic(
-            config.nymd_config.clone(),
-            config.nymd_url.as_str(),
+        let nyxd_client = NyxdClient::connect_with_mnemonic(
+            config.nyxd_config.clone(),
+            config.nyxd_url.as_str(),
             mnemonic.clone(),
             None,
         )?;
@@ -170,13 +170,13 @@ impl Client<SigningNymdClient> {
             verification_key_page_limit: config.verification_key_page_limit,
             proposals_page_limit: config.proposals_page_limit,
             nym_api: nym_api_client,
-            nymd: nymd_client,
+            nyxd: nyxd_client,
         })
     }
 
-    pub fn change_nymd(&mut self, new_endpoint: Url) -> Result<(), ValidatorClientError> {
-        self.nymd = NymdClient::connect_with_mnemonic(
-            self.nymd.current_config().clone(),
+    pub fn change_nyxd(&mut self, new_endpoint: Url) -> Result<(), ValidatorClientError> {
+        self.nyxd = NyxdClient::connect_with_mnemonic(
+            self.nyxd.current_config().clone(),
             new_endpoint.as_ref(),
             self.mnemonic.clone().unwrap(),
             None,
@@ -184,17 +184,17 @@ impl Client<SigningNymdClient> {
         Ok(())
     }
 
-    pub fn set_nymd_simulated_gas_multiplier(&mut self, multiplier: f32) {
-        self.nymd.set_simulated_gas_multiplier(multiplier)
+    pub fn set_nyxd_simulated_gas_multiplier(&mut self, multiplier: f32) {
+        self.nyxd.set_simulated_gas_multiplier(multiplier)
     }
 }
 
-#[cfg(feature = "nymd-client")]
-impl Client<QueryNymdClient> {
-    pub fn new_query(config: Config) -> Result<Client<QueryNymdClient>, ValidatorClientError> {
+#[cfg(feature = "nyxd-client")]
+impl Client<QueryNyxdClient> {
+    pub fn new_query(config: Config) -> Result<Client<QueryNyxdClient>, ValidatorClientError> {
         let nym_api_client = nym_api::Client::new(config.api_url.clone());
-        let nymd_client =
-            NymdClient::connect(config.nymd_config.clone(), config.nymd_url.as_str())?;
+        let nyxd_client =
+            NyxdClient::connect(config.nyxd_config.clone(), config.nyxd_url.as_str())?;
 
         Ok(Client {
             mnemonic: None,
@@ -206,29 +206,29 @@ impl Client<QueryNymdClient> {
             verification_key_page_limit: config.verification_key_page_limit,
             proposals_page_limit: config.proposals_page_limit,
             nym_api: nym_api_client,
-            nymd: nymd_client,
+            nyxd: nyxd_client,
         })
     }
 
-    pub fn change_nymd(&mut self, new_endpoint: Url) -> Result<(), ValidatorClientError> {
-        self.nymd = NymdClient::connect(self.nymd.current_config().clone(), new_endpoint.as_ref())?;
+    pub fn change_nyxd(&mut self, new_endpoint: Url) -> Result<(), ValidatorClientError> {
+        self.nyxd = NyxdClient::connect(self.nyxd.current_config().clone(), new_endpoint.as_ref())?;
         Ok(())
     }
 }
 
-// nymd wrappers
-#[cfg(feature = "nymd-client")]
+// nyxd wrappers
+#[cfg(feature = "nyxd-client")]
 impl<C> Client<C> {
     // use case: somebody initialised client without a contract in order to upload and initialise one
     // and now they want to actually use it without making new client
 
     pub fn set_mixnet_contract_address(&mut self, mixnet_contract_address: cosmrs::AccountId) {
-        self.nymd
+        self.nyxd
             .set_mixnet_contract_address(mixnet_contract_address)
     }
 
     pub fn get_mixnet_contract_address(&self) -> cosmrs::AccountId {
-        self.nymd.mixnet_contract_address().clone()
+        self.nyxd.mixnet_contract_address().clone()
     }
 
     pub async fn get_all_node_families(&self) -> Result<Vec<Family>, ValidatorClientError>
@@ -240,7 +240,7 @@ impl<C> Client<C> {
 
         loop {
             let paged_response = self
-                .nymd
+                .nyxd
                 .get_all_node_families_paged(start_after.take(), None)
                 .await?;
             families.extend(paged_response.families);
@@ -266,7 +266,7 @@ impl<C> Client<C> {
 
         loop {
             let paged_response = self
-                .nymd
+                .nyxd
                 .get_all_family_members_paged(start_after.take(), None)
                 .await?;
             members.extend(paged_response.members);
@@ -282,7 +282,7 @@ impl<C> Client<C> {
     }
 
     // basically handles paging for us
-    pub async fn get_all_nymd_rewarded_set_mixnodes(
+    pub async fn get_all_nyxd_rewarded_set_mixnodes(
         &self,
     ) -> Result<Vec<(MixId, RewardedSetNodeStatus)>, ValidatorClientError>
     where
@@ -293,7 +293,7 @@ impl<C> Client<C> {
 
         loop {
             let mut paged_response = self
-                .nymd
+                .nyxd
                 .get_rewarded_set_paged(start_after.take(), self.rewarded_set_page_limit)
                 .await?;
             identities.append(&mut paged_response.nodes);
@@ -308,7 +308,7 @@ impl<C> Client<C> {
         Ok(identities)
     }
 
-    pub async fn get_all_nymd_mixnode_bonds(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
+    pub async fn get_all_nyxd_mixnode_bonds(&self) -> Result<Vec<MixNodeBond>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync + Send,
     {
@@ -316,7 +316,7 @@ impl<C> Client<C> {
         let mut start_after = None;
         loop {
             let mut paged_response = self
-                .nymd
+                .nyxd
                 .get_mixnode_bonds_paged(self.mixnode_page_limit, start_after.take())
                 .await?;
             mixnodes.append(&mut paged_response.nodes);
@@ -331,7 +331,7 @@ impl<C> Client<C> {
         Ok(mixnodes)
     }
 
-    pub async fn get_all_nymd_mixnodes_detailed(
+    pub async fn get_all_nyxd_mixnodes_detailed(
         &self,
     ) -> Result<Vec<MixNodeDetails>, ValidatorClientError>
     where
@@ -341,7 +341,7 @@ impl<C> Client<C> {
         let mut start_after = None;
         loop {
             let mut paged_response = self
-                .nymd
+                .nyxd
                 .get_mixnodes_detailed_paged(self.mixnode_page_limit, start_after.take())
                 .await?;
             mixnodes.append(&mut paged_response.nodes);
@@ -356,7 +356,7 @@ impl<C> Client<C> {
         Ok(mixnodes)
     }
 
-    pub async fn get_all_nymd_unbonded_mixnodes(
+    pub async fn get_all_nyxd_unbonded_mixnodes(
         &self,
     ) -> Result<Vec<(MixId, UnbondedMixnode)>, ValidatorClientError>
     where
@@ -366,7 +366,7 @@ impl<C> Client<C> {
         let mut start_after = None;
         loop {
             let mut paged_response = self
-                .nymd
+                .nyxd
                 .get_unbonded_paged(self.mixnode_page_limit, start_after.take())
                 .await?;
             mixnodes.append(&mut paged_response.nodes);
@@ -381,7 +381,7 @@ impl<C> Client<C> {
         Ok(mixnodes)
     }
 
-    pub async fn get_all_nymd_unbonded_mixnodes_by_owner(
+    pub async fn get_all_nyxd_unbonded_mixnodes_by_owner(
         &self,
         owner: &cosmrs::AccountId,
     ) -> Result<Vec<(MixId, UnbondedMixnode)>, ValidatorClientError>
@@ -392,7 +392,7 @@ impl<C> Client<C> {
         let mut start_after = None;
         loop {
             let mut paged_response = self
-                .nymd
+                .nyxd
                 .get_unbonded_by_owner_paged(owner, self.mixnode_page_limit, start_after.take())
                 .await?;
             mixnodes.append(&mut paged_response.nodes);
@@ -407,7 +407,7 @@ impl<C> Client<C> {
         Ok(mixnodes)
     }
 
-    pub async fn get_all_nymd_unbonded_mixnodes_by_identity(
+    pub async fn get_all_nyxd_unbonded_mixnodes_by_identity(
         &self,
         identity_key: String,
     ) -> Result<Vec<(MixId, UnbondedMixnode)>, ValidatorClientError>
@@ -418,7 +418,7 @@ impl<C> Client<C> {
         let mut start_after = None;
         loop {
             let mut paged_response = self
-                .nymd
+                .nyxd
                 .get_unbonded_by_identity_paged(
                     identity_key.clone(),
                     self.mixnode_page_limit,
@@ -437,7 +437,7 @@ impl<C> Client<C> {
         Ok(mixnodes)
     }
 
-    pub async fn get_all_nymd_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError>
+    pub async fn get_all_nyxd_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync + Send,
     {
@@ -445,7 +445,7 @@ impl<C> Client<C> {
         let mut start_after = None;
         loop {
             let mut paged_response = self
-                .nymd
+                .nyxd
                 .get_gateways_paged(start_after.take(), self.gateway_page_limit)
                 .await?;
             gateways.append(&mut paged_response.nodes);
@@ -460,7 +460,7 @@ impl<C> Client<C> {
         Ok(gateways)
     }
 
-    pub async fn get_all_nymd_single_mixnode_delegations(
+    pub async fn get_all_nyxd_single_mixnode_delegations(
         &self,
         mix_id: MixId,
     ) -> Result<Vec<Delegation>, ValidatorClientError>
@@ -471,7 +471,7 @@ impl<C> Client<C> {
         let mut start_after = None;
         loop {
             let mut paged_response = self
-                .nymd
+                .nyxd
                 .get_mixnode_delegations_paged(
                     mix_id,
                     start_after.take(),
@@ -501,7 +501,7 @@ impl<C> Client<C> {
         let mut start_after = None;
         loop {
             let mut paged_response = self
-                .nymd
+                .nyxd
                 .get_delegator_delegations_paged(
                     delegation_owner.to_string(),
                     start_after.take(),
@@ -528,7 +528,7 @@ impl<C> Client<C> {
         let mut start_after = None;
         loop {
             let mut paged_response = self
-                .nymd
+                .nyxd
                 .get_all_network_delegations_paged(
                     start_after.take(),
                     self.mixnode_delegations_page_limit,
@@ -546,7 +546,7 @@ impl<C> Client<C> {
         Ok(delegations)
     }
 
-    pub async fn get_all_nymd_pending_epoch_events(
+    pub async fn get_all_nyxd_pending_epoch_events(
         &self,
     ) -> Result<Vec<PendingEpochEvent>, ValidatorClientError>
     where
@@ -557,7 +557,7 @@ impl<C> Client<C> {
 
         loop {
             let mut paged_response = self
-                .nymd
+                .nyxd
                 .get_pending_epoch_events_paged(start_after.take(), self.rewarded_set_page_limit)
                 .await?;
             events.append(&mut paged_response.events);
@@ -572,7 +572,7 @@ impl<C> Client<C> {
         Ok(events)
     }
 
-    pub async fn get_all_nymd_pending_interval_events(
+    pub async fn get_all_nyxd_pending_interval_events(
         &self,
     ) -> Result<Vec<PendingIntervalEvent>, ValidatorClientError>
     where
@@ -583,7 +583,7 @@ impl<C> Client<C> {
 
         loop {
             let mut paged_response = self
-                .nymd
+                .nyxd
                 .get_pending_interval_events_paged(start_after.take(), self.rewarded_set_page_limit)
                 .await?;
             events.append(&mut paged_response.events);
@@ -598,7 +598,7 @@ impl<C> Client<C> {
         Ok(events)
     }
 
-    pub async fn get_all_nymd_current_dealers(
+    pub async fn get_all_nyxd_current_dealers(
         &self,
     ) -> Result<Vec<DealerDetails>, ValidatorClientError>
     where
@@ -608,7 +608,7 @@ impl<C> Client<C> {
         let mut start_after = None;
         loop {
             let mut paged_response = self
-                .nymd
+                .nyxd
                 .get_current_dealers_paged(start_after.take(), self.dealers_page_limit)
                 .await?;
             dealers.append(&mut paged_response.dealers);
@@ -623,7 +623,7 @@ impl<C> Client<C> {
         Ok(dealers)
     }
 
-    pub async fn get_all_nymd_past_dealers(
+    pub async fn get_all_nyxd_past_dealers(
         &self,
     ) -> Result<Vec<DealerDetails>, ValidatorClientError>
     where
@@ -633,7 +633,7 @@ impl<C> Client<C> {
         let mut start_after = None;
         loop {
             let mut paged_response = self
-                .nymd
+                .nyxd
                 .get_past_dealers_paged(start_after.take(), self.dealers_page_limit)
                 .await?;
             dealers.append(&mut paged_response.dealers);
@@ -648,7 +648,7 @@ impl<C> Client<C> {
         Ok(dealers)
     }
 
-    pub async fn get_all_nymd_epoch_dealings(
+    pub async fn get_all_nyxd_epoch_dealings(
         &self,
         idx: usize,
     ) -> Result<Vec<ContractDealing>, ValidatorClientError>
@@ -659,7 +659,7 @@ impl<C> Client<C> {
         let mut start_after = None;
         loop {
             let mut paged_response = self
-                .nymd
+                .nyxd
                 .get_dealings_paged(idx, start_after.take(), self.dealers_page_limit)
                 .await?;
             dealings.append(&mut paged_response.dealings);
@@ -674,7 +674,7 @@ impl<C> Client<C> {
         Ok(dealings)
     }
 
-    pub async fn get_all_nymd_verification_key_shares(
+    pub async fn get_all_nyxd_verification_key_shares(
         &self,
     ) -> Result<Vec<ContractVKShare>, ValidatorClientError>
     where
@@ -684,7 +684,7 @@ impl<C> Client<C> {
         let mut start_after = None;
         loop {
             let mut paged_response = self
-                .nymd
+                .nyxd
                 .get_vk_shares_paged(start_after.take(), self.verification_key_page_limit)
                 .await?;
             shares.append(&mut paged_response.shares);
@@ -699,7 +699,7 @@ impl<C> Client<C> {
         Ok(shares)
     }
 
-    pub async fn get_all_nymd_proposals(
+    pub async fn get_all_nyxd_proposals(
         &self,
     ) -> Result<Vec<ProposalResponse>, ValidatorClientError>
     where
@@ -710,7 +710,7 @@ impl<C> Client<C> {
 
         loop {
             let mut paged_response = self
-                .nymd
+                .nyxd
                 .list_proposals(start_after.take(), self.proposals_page_limit)
                 .await?;
 
@@ -729,7 +729,7 @@ impl<C> Client<C> {
 }
 
 // validator-api wrappers
-#[cfg(feature = "nymd-client")]
+#[cfg(feature = "nyxd-client")]
 impl<C> Client<C> {
     pub fn change_nym_api(&mut self, new_endpoint: Url) {
         self.nym_api.change_url(new_endpoint)
@@ -786,20 +786,20 @@ pub struct CoconutApiClient {
     pub api_client: ApiClient,
     pub verification_key: VerificationKey,
     pub node_id: NodeIndex,
-    #[cfg(feature = "nymd-client")]
+    #[cfg(feature = "nyxd-client")]
     pub cosmos_address: cosmrs::AccountId,
 }
 
-#[cfg(feature = "nymd-client")]
+#[cfg(feature = "nyxd-client")]
 impl CoconutApiClient {
     pub async fn all_coconut_api_clients<C>(
-        nymd_client: &Client<C>,
+        nyxd_client: &Client<C>,
     ) -> Result<Vec<Self>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync + Send,
     {
-        Ok(nymd_client
-            .get_all_nymd_verification_key_shares()
+        Ok(nyxd_client
+            .get_all_nyxd_verification_key_shares()
             .await?
             .into_iter()
             .filter_map(Self::try_from)

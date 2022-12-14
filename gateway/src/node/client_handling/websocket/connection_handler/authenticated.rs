@@ -48,8 +48,8 @@ pub(crate) enum RequestHandlingError {
     #[error("This gateway is only accepting coconut credentials for bandwidth")]
     OnlyCoconutCredentials,
 
-    #[error("Nymd Error - {0}")]
-    NymdError(#[from] validator_client::nymd::error::NymdError),
+    #[error("Nyxd Error - {0}")]
+    NyxdError(#[from] validator_client::nyxd::error::NyxdError),
 
     #[cfg(feature = "coconut")]
     #[error("Validator API error - {0}")]

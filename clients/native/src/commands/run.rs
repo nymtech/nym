@@ -21,10 +21,10 @@ pub(crate) struct Run {
     #[clap(long)]
     id: String,
 
-    /// Comma separated list of rest endpoints of the nymd validators
+    /// Comma separated list of rest endpoints of the nyxd validators
     #[cfg(feature = "coconut")]
     #[clap(long, value_delimiter = ',')]
-    nymd_validators: Option<Vec<url::Url>>,
+    nyxd_validators: Option<Vec<url::Url>>,
 
     /// Comma separated list of rest endpoints of the API validators
     #[clap(long, alias = "api_validators", value_delimiter = ',')]
@@ -70,7 +70,7 @@ impl From<Run> for OverrideConfig {
             no_cover: run_config.no_cover,
 
             #[cfg(feature = "coconut")]
-            nymd_validators: run_config.nymd_validators,
+            nyxd_validators: run_config.nyxd_validators,
             #[cfg(feature = "coconut")]
             enabled_credentials_mode: run_config.enabled_credentials_mode,
         }

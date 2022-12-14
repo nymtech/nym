@@ -420,7 +420,7 @@ pub struct Client<T> {
     #[serde(default)]
     disabled_credentials_mode: bool,
 
-    /// Addresses to nymd validators via which the client can communicate with the chain.
+    /// Addresses to nyxd validators via which the client can communicate with the chain.
     #[serde(default)]
     validator_urls: Vec<Url>,
 

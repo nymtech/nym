@@ -246,11 +246,11 @@ where
     }
 
     #[cfg(feature = "coconut")]
-    fn random_nymd_client(
+    fn random_nyxd_client(
         &self,
-    ) -> validator_client::Client<validator_client::nymd::SigningNymdClient> {
-        let endpoints = self.config.get_validator_nymd_endpoints();
-        let validator_nymd = endpoints
+    ) -> validator_client::Client<validator_client::nyxd::SigningNyxdClient> {
+        let endpoints = self.config.get_nyxd_urls();
+        let validator_nyxd = endpoints
             .choose(&mut thread_rng())
             .expect("The list of validators is empty");
 
@@ -263,8 +263,8 @@ where
         let mut client = Client::new_signing(client_config, self.config.get_cosmos_mnemonic())
             .expect("Could not connect with mnemonic");
         client
-            .change_nymd(validator_nymd.clone())
-            .expect("Could not use the random nymd URL");
+            .change_nyxd(validator_nyxd.clone())
+            .expect("Could not use the random nyxd URL");
         client
     }
 
@@ -305,8 +305,8 @@ where
 
         #[cfg(feature = "coconut")]
         let coconut_verifier = {
-            let nymd_client = self.random_nymd_client();
-            let api_clients = CoconutApiClient::all_coconut_api_clients(&nymd_client)
+            let nyxd_client = self.random_nyxd_client();
+            let api_clients = CoconutApiClient::all_coconut_api_clients(&nyxd_client)
                 .await
                 .expect("Could not query all api clients");
             let validators_verification_key = obtain_aggregate_verification_key(&api_clients)
@@ -314,7 +314,7 @@ where
                 .expect("failed to contact validators to obtain their verification keys");
             CoconutVerifier::new(
                 api_clients,
-                nymd_client,
+                nyxd_client,
                 std::env::var(network_defaults::var_names::MIX_DENOM)
                     .expect("mix denom base not set"),
                 validators_verification_key,

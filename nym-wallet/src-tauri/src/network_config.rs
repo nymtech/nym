@@ -7,12 +7,12 @@ use nym_wallet_types::network::Network as WalletNetwork;
 use nym_wallet_types::network_config::{Validator, ValidatorUrl, ValidatorUrls};
 
 #[tauri::command]
-pub async fn get_validator_nymd_urls(
+pub async fn get_nyxd_urls(
     network: WalletNetwork,
     state: tauri::State<'_, WalletState>,
 ) -> Result<ValidatorUrls, BackendError> {
     let state = state.read().await;
-    let urls: Vec<ValidatorUrl> = state.get_nymd_urls(network).collect();
+    let urls: Vec<ValidatorUrl> = state.get_nyxd_urls(network).collect();
     Ok(ValidatorUrls { urls })
 }
 
@@ -27,16 +27,13 @@ pub async fn get_nym_api_urls(
 }
 
 #[tauri::command]
-pub async fn select_validator_nymd_url(
+pub async fn select_nyxd_url(
     url: &str,
     network: WalletNetwork,
     state: tauri::State<'_, WalletState>,
 ) -> Result<(), BackendError> {
-    log::debug!("Selecting new validator nymd_url for {network}: {url}");
-    state
-        .write()
-        .await
-        .select_validator_nymd_url(url, network)?;
+    log::debug!("Selecting new nyxd url for {network}: {url}");
+    state.write().await.select_nyxd_url(url, network)?;
     Ok(())
 }
 
@@ -46,7 +43,7 @@ pub async fn select_nym_api_url(
     network: WalletNetwork,
     state: tauri::State<'_, WalletState>,
 ) -> Result<(), BackendError> {
-    log::debug!("Selecting new validator api_url for {network}: {url}");
+    log::debug!("Selecting new  nym api url for {network}: {url}");
     state.write().await.select_nym_api_url(url, network)?;
     Ok(())
 }

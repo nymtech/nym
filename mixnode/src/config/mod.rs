@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
-use validator_client::nymd;
+use validator_client::nyxd;
 
 pub mod persistence;
 mod template;
@@ -196,7 +196,7 @@ impl Config {
         self
     }
 
-    pub fn with_wallet_address(mut self, wallet_address: nymd::AccountId) -> Self {
+    pub fn with_wallet_address(mut self, wallet_address: nyxd::AccountId) -> Self {
         self.mixnode.wallet_address = Some(wallet_address);
         self
     }
@@ -310,7 +310,7 @@ impl Config {
         self.verloc.retry_timeout
     }
 
-    pub fn get_wallet_address(&self) -> Option<nymd::AccountId> {
+    pub fn get_wallet_address(&self) -> Option<nyxd::AccountId> {
         self.mixnode.wallet_address.clone()
     }
 }
@@ -371,7 +371,7 @@ struct MixNode {
 
     /// The Cosmos wallet address that will control this mixnode
     // the only reason this is an Option is because of the lack of existence of a sane default value
-    wallet_address: Option<nymd::AccountId>,
+    wallet_address: Option<nyxd::AccountId>,
 }
 
 impl MixNode {

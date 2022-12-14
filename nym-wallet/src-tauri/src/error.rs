@@ -5,7 +5,7 @@ use std::io;
 use std::num::ParseIntError;
 use thiserror::Error;
 use validator_client::nym_api::error::NymAPIError;
-use validator_client::{nymd::error::NymdError, ValidatorClientError};
+use validator_client::{nyxd::error::NyxdError, ValidatorClientError};
 
 #[derive(Error, Debug)]
 pub enum BackendError {
@@ -25,10 +25,10 @@ pub enum BackendError {
         source: tendermint_rpc::Error,
     },
     #[error("{pretty_error}")]
-    NymdError {
+    NyxdError {
         pretty_error: String,
         #[source]
-        source: NymdError,
+        source: NyxdError,
     },
     #[error("{source}")]
     CosmwasmStd {
@@ -132,27 +132,27 @@ impl Serialize for BackendError {
     }
 }
 
-impl From<NymdError> for BackendError {
-    fn from(source: NymdError) -> Self {
+impl From<NyxdError> for BackendError {
+    fn from(source: NyxdError) -> Self {
         match source {
-            NymdError::AbciError {
+            NyxdError::AbciError {
                 code: _,
                 log: _,
                 ref pretty_log,
             } => {
                 if let Some(pretty_log) = pretty_log {
-                    Self::NymdError {
+                    Self::NyxdError {
                         pretty_error: pretty_log.to_string(),
                         source,
                     }
                 } else {
-                    Self::NymdError {
+                    Self::NyxdError {
                         pretty_error: source.to_string(),
                         source,
                     }
                 }
             }
-            nymd_error => Self::NymdError {
+            nymd_error => Self::NyxdError {
                 pretty_error: nymd_error.to_string(),
                 source: nymd_error,
             },
@@ -165,7 +165,7 @@ impl From<ValidatorClientError> for BackendError {
         match e {
             ValidatorClientError::NymAPIError { source } => source.into(),
             ValidatorClientError::MalformedUrlProvided(e) => e.into(),
-            ValidatorClientError::NymdError(e) => e.into(),
+            ValidatorClientError::NyxdError(e) => e.into(),
             ValidatorClientError::NoAPIUrlAvailable => TypesError::NoNymApiUrlConfigured.into(),
         }
     }

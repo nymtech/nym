@@ -7,8 +7,8 @@ use network_defaults::{
     NymNetworkDetails,
 };
 use tap::prelude::*;
+pub use validator_client::nym_api::Client as ValidatorApiClient;
 use validator_client::nymd::{self, AccountId, NymdClient, QueryNymdClient, SigningNymdClient};
-pub use validator_client::validator_api::Client as ValidatorApiClient;
 
 use crate::context::errors::ContextError;
 

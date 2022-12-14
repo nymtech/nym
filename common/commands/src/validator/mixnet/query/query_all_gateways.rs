@@ -15,7 +15,7 @@ pub struct Args {
 }
 
 pub async fn query(args: Args, client: &QueryClientWithValidatorAPI) {
-    match client.validator_api.get_gateways().await {
+    match client.nym_api.get_gateways().await {
         Ok(res) => match args.identity_key {
             Some(identity_key) => {
                 let node = res.iter().find(|node| {

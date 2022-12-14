@@ -1,7 +1,7 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{validator_api, ValidatorClientError};
+use crate::{nym_api, ValidatorClientError};
 use coconut_dkg_common::types::NodeIndex;
 use coconut_interface::VerificationKey;
 use mixnet_contract_common::mixnode::MixNodeDetails;
@@ -142,7 +142,7 @@ pub struct Client<C> {
     proposals_page_limit: Option<u32>,
 
     // ideally they would have been read-only, but unfortunately rust doesn't have such features
-    pub validator_api: validator_api::Client,
+    pub nym_api: nym_api::Client,
     pub nymd: NymdClient<C>,
 }
 
@@ -152,7 +152,7 @@ impl Client<SigningNymdClient> {
         config: Config,
         mnemonic: bip39::Mnemonic,
     ) -> Result<Client<SigningNymdClient>, ValidatorClientError> {
-        let validator_api_client = validator_api::Client::new(config.api_url.clone());
+        let nym_api_client = nym_api::Client::new(config.api_url.clone());
         let nymd_client = NymdClient::connect_with_mnemonic(
             config.nymd_config.clone(),
             config.nymd_url.as_str(),
@@ -169,7 +169,7 @@ impl Client<SigningNymdClient> {
             dealers_page_limit: config.dealers_page_limit,
             verification_key_page_limit: config.verification_key_page_limit,
             proposals_page_limit: config.proposals_page_limit,
-            validator_api: validator_api_client,
+            nym_api: nym_api_client,
             nymd: nymd_client,
         })
     }
@@ -192,7 +192,7 @@ impl Client<SigningNymdClient> {
 #[cfg(feature = "nymd-client")]
 impl Client<QueryNymdClient> {
     pub fn new_query(config: Config) -> Result<Client<QueryNymdClient>, ValidatorClientError> {
-        let validator_api_client = validator_api::Client::new(config.api_url.clone());
+        let nym_api_client = nym_api::Client::new(config.api_url.clone());
         let nymd_client =
             NymdClient::connect(config.nymd_config.clone(), config.nymd_url.as_str())?;
 
@@ -205,7 +205,7 @@ impl Client<QueryNymdClient> {
             dealers_page_limit: config.dealers_page_limit,
             verification_key_page_limit: config.verification_key_page_limit,
             proposals_page_limit: config.proposals_page_limit,
-            validator_api: validator_api_client,
+            nym_api: nym_api_client,
             nymd: nymd_client,
         })
     }
@@ -732,52 +732,52 @@ impl<C> Client<C> {
 #[cfg(feature = "nymd-client")]
 impl<C> Client<C> {
     pub fn change_validator_api(&mut self, new_endpoint: Url) {
-        self.validator_api.change_url(new_endpoint)
+        self.nym_api.change_url(new_endpoint)
     }
 
     pub async fn get_cached_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.validator_api.get_mixnodes().await?)
+        Ok(self.nym_api.get_mixnodes().await?)
     }
 
     pub async fn get_cached_mixnodes_detailed(
         &self,
     ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
-        Ok(self.validator_api.get_mixnodes_detailed().await?)
+        Ok(self.nym_api.get_mixnodes_detailed().await?)
     }
 
     pub async fn get_cached_rewarded_mixnodes(
         &self,
     ) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.validator_api.get_rewarded_mixnodes().await?)
+        Ok(self.nym_api.get_rewarded_mixnodes().await?)
     }
 
     pub async fn get_cached_rewarded_mixnodes_detailed(
         &self,
     ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
-        Ok(self.validator_api.get_rewarded_mixnodes_detailed().await?)
+        Ok(self.nym_api.get_rewarded_mixnodes_detailed().await?)
     }
 
     pub async fn get_cached_active_mixnodes(
         &self,
     ) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.validator_api.get_active_mixnodes().await?)
+        Ok(self.nym_api.get_active_mixnodes().await?)
     }
 
     pub async fn get_cached_active_mixnodes_detailed(
         &self,
     ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
-        Ok(self.validator_api.get_active_mixnodes_detailed().await?)
+        Ok(self.nym_api.get_active_mixnodes_detailed().await?)
     }
 
     pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
-        Ok(self.validator_api.get_gateways().await?)
+        Ok(self.nym_api.get_gateways().await?)
     }
 
     pub async fn blind_sign(
         &self,
         request_body: &BlindSignRequestBody,
     ) -> Result<BlindedSignatureResponse, ValidatorClientError> {
-        Ok(self.validator_api.blind_sign(request_body).await?)
+        Ok(self.nym_api.blind_sign(request_body).await?)
     }
 }
 
@@ -827,17 +827,17 @@ impl CoconutApiClient {
 
 #[derive(Clone)]
 pub struct ApiClient {
-    pub validator_api: validator_api::Client,
+    pub validator_api: nym_api::Client,
     // TODO: perhaps if we really need it at some (currently I don't see any reasons for it)
     // we could re-implement the communication with the REST API on port 1317
 }
 
 impl ApiClient {
     pub fn new(api_url: Url) -> Self {
-        let validator_api_client = validator_api::Client::new(api_url);
+        let nym_api_client = nym_api::Client::new(api_url);
 
         ApiClient {
-            validator_api: validator_api_client,
+            validator_api: nym_api_client,
         }
     }
 

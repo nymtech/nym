@@ -1,8 +1,8 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::validator_api::error::ValidatorAPIError;
-use crate::validator_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
+use crate::nym_api::error::ValidatorAPIError;
+use crate::nym_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use nym_api_requests::coconut::{

@@ -1,7 +1,7 @@
 use serde::{Serialize, Serializer};
 use std::io;
 use thiserror::Error;
-use validator_client::validator_api::error::ValidatorAPIError;
+use validator_client::nym_api::error::ValidatorAPIError;
 use validator_client::{nymd::error::NymdError, ValidatorClientError};
 
 // TODO: ask @MS why this even exists

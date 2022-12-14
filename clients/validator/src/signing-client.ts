@@ -24,6 +24,8 @@ import {
   LayerDistribution,
   MixnetContractVersion,
   MixNode,
+  MixNodeBond,
+  MixNodeRewarding,
   MixOwnershipResponse,
   PagedAllDelegationsResponse,
   PagedDelegatorDelegationsResponse,
@@ -34,7 +36,7 @@ import {
   PagedUnbondedMixnodesResponse,
   RewardingStatus,
   UnbondedMixnodeResponse,
-} from './types';
+} from '../compiledTypes';
 import NymApiQuerier from './nym-api-querier';
 
 // methods exposed by `SigningCosmWasmClient`

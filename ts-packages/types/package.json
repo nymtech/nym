@@ -31,8 +31,8 @@
     "rimraf": "^3.0.2"
   },
   "scripts": {
-    "clean": "rimraf dist",
-    "build": "tsc --noEmit false",
+    "clean": "rimraf dist && rimraf ../../clients/validator/compiledTypes",
+    "build": "tsc --noEmit false && cp -R ./dist ../../clients/validator/compiledTypes",
     "watch": "tsc --noEmit false -w",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix"

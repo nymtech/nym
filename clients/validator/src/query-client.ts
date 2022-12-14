@@ -20,30 +20,9 @@ import {
   StakeSaturationResponse,
   UnbondedMixnodeResponse,
 } from '../compiledTypes';
-import ValidatorApiQuerier, { IValidatorApiQuery } from './validator-api-querier';
+import NymApiQuerier, { INymApiQuery } from './nym-api-querier';
 import { MixNodeBond, MixNodeRewarding } from '@nymproject/types';
-import { ICosmWasmQuery, INymdQuery } from './types';
-
-export interface ICosmWasmQuery {
-  // methods exposed by `CosmWasmClient`
-  getChainId(): Promise<string>;
-  getHeight(): Promise<number>;
-  getAccount(searchAddress: string): Promise<Account | null>;
-  getSequence(address: string): Promise<SequenceResponse>;
-  getBlock(height?: number): Promise<Block>;
-  getBalance(address: string, searchDenom: string): Promise<Coin>;
-  getTx(id: string): Promise<IndexedTx | null>;
-  searchTx(query: SearchTxQuery, filter?: SearchTxFilter): Promise<readonly IndexedTx[]>;
-  disconnect(): void;
-  broadcastTx(tx: Uint8Array, timeoutMs?: number, pollIntervalMs?: number): Promise<DeliverTxResponse>;
-  getCodes(): Promise<readonly Code[]>;
-  getCodeDetails(codeId: number): Promise<CodeDetails>;
-  getContracts(codeId: number): Promise<readonly string[]>;
-  getContract(address: string): Promise<Contract>;
-  getContractCodeHistory(address: string): Promise<readonly ContractCodeHistoryEntry[]>;
-  queryContractRaw(address: string, key: Uint8Array): Promise<Uint8Array | null>;
-  queryContractSmart(address: string, queryMsg: Record<string, unknown>): Promise<JsonObject>;
-}
+import { ICosmWasmQuery } from './types';
 
 export interface INymdQuery {
   // nym-specific implemented inside NymQuerier
@@ -90,7 +69,7 @@ export interface INymdQuery {
     mixIdentity: string,
     rewardingIntervalNonce: number,
   ): Promise<RewardingStatus>;
-  getStakeSaturation(mixnetContractAddress: string, mixId: number): Promise<StakeSaturation>;
+  getStakeSaturation(mixnetContractAddress: string, mixId: number): Promise<StakeSaturationResponse>;
   getUnbondedMixNodeInformation(mixnetContractAddress: string, mixId: number): Promise<UnbondedMixnodeResponse>;
   getMixnodeRewardingDetails(mixnetContractAddress: string, mixId: number): Promise<MixNodeRewarding>;
 }

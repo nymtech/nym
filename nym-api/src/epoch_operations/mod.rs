@@ -35,7 +35,7 @@ mod helpers;
 use crate::epoch_operations::helpers::stake_to_f64;
 use crate::node_status_api::ONE_DAY;
 use error::RewardingError;
-use task::ShutdownListener;
+use task::TaskClient;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct MixnodeToReward {
@@ -373,7 +373,7 @@ impl RewardedSetUpdater {
         Ok(())
     }
 
-    async fn wait_until_epoch_end(&mut self, shutdown: &mut ShutdownListener) -> Option<Interval> {
+    async fn wait_until_epoch_end(&mut self, shutdown: &mut TaskClient) -> Option<Interval> {
         const POLL_INTERVAL: Duration = Duration::from_secs(120);
 
         loop {
@@ -421,10 +421,7 @@ impl RewardedSetUpdater {
         }
     }
 
-    pub(crate) async fn run(
-        &mut self,
-        mut shutdown: ShutdownListener,
-    ) -> Result<(), RewardingError> {
+    pub(crate) async fn run(&mut self, mut shutdown: TaskClient) -> Result<(), RewardingError> {
         self.validator_cache.wait_for_initial_values().await;
 
         while !shutdown.is_shutdown() {

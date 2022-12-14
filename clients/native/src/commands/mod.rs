@@ -1,8 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::error::Error;
+
 use crate::client::config::{Config, SocketType};
-use crate::error::ClientError;
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
 use completions::{fig_generate, ArgShell};
@@ -86,7 +87,7 @@ pub(crate) struct OverrideConfig {
     enabled_credentials_mode: bool,
 }
 
-pub(crate) async fn execute(args: &Cli) -> Result<(), ClientError> {
+pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send + Sync>> {
     let bin_name = "nym-native-client";
 
     match &args.command {

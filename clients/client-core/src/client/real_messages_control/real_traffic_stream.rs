@@ -469,7 +469,7 @@ where
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn log_status(&self, shutdown: &mut task::ShutdownListener) {
+    fn log_status(&self, shutdown: &mut task::TaskClient) {
         use crate::error::ClientCoreStatusMessage;
 
         let packets = self.transmission_buffer.total_size();
@@ -514,7 +514,7 @@ where
         }
     }
 
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
         debug!("Started OutQueueControl with graceful shutdown support");
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -525,7 +525,7 @@ where
             while !shutdown.is_shutdown() {
                 tokio::select! {
                     biased;
-                    _ = shutdown.recv() => {
+                    _ = shutdown.recv_with_delay() => {
                         log::trace!("OutQueueControl: Received shutdown");
                     }
                     _ = status_timer.tick() => {

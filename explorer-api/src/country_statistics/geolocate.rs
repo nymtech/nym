@@ -4,15 +4,15 @@
 use crate::mix_nodes::location::Location;
 use crate::state::ExplorerApiStateContext;
 use log::{info, warn};
-use task::ShutdownListener;
+use task::TaskClient;
 
 pub(crate) struct GeoLocateTask {
     state: ExplorerApiStateContext,
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl GeoLocateTask {
-    pub(crate) fn new(state: ExplorerApiStateContext, shutdown: ShutdownListener) -> Self {
+    pub(crate) fn new(state: ExplorerApiStateContext, shutdown: TaskClient) -> Self {
         GeoLocateTask { state, shutdown }
     }
 

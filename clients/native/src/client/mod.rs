@@ -1,6 +1,8 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::error::Error;
+
 use crate::client::config::Config;
 use crate::error::ClientError;
 use crate::websocket;
@@ -18,7 +20,7 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::receiver::ReconstructedMessage;
-use task::{wait_for_signal, ShutdownNotifier};
+use task::TaskManager;
 
 pub(crate) mod config;
 
@@ -85,16 +87,19 @@ impl SocketClient {
         client_input: ClientInput,
         client_output: ClientOutput,
         self_address: Recipient,
+        shutdown: task::TaskClient,
     ) {
         info!("Starting websocket listener...");
 
         let ClientInput {
-            shared_lane_queue_lengths,
             connection_command_sender,
             input_sender,
         } = client_input;
 
-        let received_buffer_request_sender = client_output.received_buffer_request_sender;
+        let ClientOutput {
+            shared_lane_queue_lengths,
+            received_buffer_request_sender,
+        } = client_output;
 
         let websocket_handler = websocket::Handler::new(
             input_sender,
@@ -104,32 +109,26 @@ impl SocketClient {
             shared_lane_queue_lengths,
         );
 
-        websocket::Listener::new(config.get_listening_port()).start(websocket_handler);
+        websocket::Listener::new(config.get_listening_port()).start(websocket_handler, shutdown);
     }
 
     /// blocking version of `start_socket` method. Will run forever (or until SIGINT is sent)
-    pub async fn run_socket_forever(self) -> Result<(), ClientError> {
+    pub async fn run_socket_forever(self) -> Result<(), Box<dyn Error + Send + Sync>> {
         let mut shutdown = self.start_socket().await?;
-        wait_for_signal().await;
 
-        println!(
-            "Received signal - the client will terminate now (threads are not yet nicely stopped, if you see stack traces that's alright)."
-        );
+        let res = task::wait_for_signal_and_error(&mut shutdown).await;
 
         log::info!("Sending shutdown");
         shutdown.signal_shutdown().ok();
 
-        // Some of these components have shutdown signalling implemented as part of socks5 work,
-        // but since it's not fully implemented (yet) for all the components of the native client,
-        // we don't try to wait and instead just stop immediately.
         log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
         shutdown.wait_for_shutdown().await;
 
         log::info!("Stopping nym-client");
-        Ok(())
+        res
     }
 
-    pub async fn start_socket(self) -> Result<ShutdownNotifier, ClientError> {
+    pub async fn start_socket(self) -> Result<TaskManager, ClientError> {
         if !self.config.get_socket_type().is_websocket() {
             return Err(ClientError::InvalidSocketMode);
         }
@@ -150,12 +149,18 @@ impl SocketClient {
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
 
-        Self::start_websocket_listener(&self.config, client_input, client_output, self_address);
+        Self::start_websocket_listener(
+            &self.config,
+            client_input,
+            client_output,
+            self_address,
+            started_client.task_manager.subscribe(),
+        );
 
         info!("Client startup finished!");
         info!("The address of this client is: {}", self_address);
 
-        Ok(started_client.shutdown_notifier)
+        Ok(started_client.task_manager)
     }
 
     pub async fn start_direct(self) -> Result<DirectClient, ClientError> {
@@ -192,7 +197,7 @@ impl SocketClient {
         Ok(DirectClient {
             client_input,
             reconstructed_receiver,
-            _shutdown_notifier: started_client.shutdown_notifier,
+            _shutdown_notifier: started_client.task_manager,
         })
     }
 }
@@ -202,7 +207,7 @@ pub struct DirectClient {
     reconstructed_receiver: ReconstructedMessagesReceiver,
 
     // we need to keep reference to this guy otherwise things will start dropping
-    _shutdown_notifier: ShutdownNotifier,
+    _shutdown_notifier: TaskManager,
 }
 
 impl DirectClient {

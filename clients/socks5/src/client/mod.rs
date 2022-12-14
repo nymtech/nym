@@ -19,7 +19,7 @@ use gateway_client::bandwidth::BandwidthController;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use std::error::Error;
-use task::{wait_for_signal_and_error, ShutdownListener, ShutdownNotifier};
+use task::{wait_for_signal_and_error, TaskClient, TaskManager};
 
 pub mod config;
 
@@ -96,19 +96,21 @@ impl NymClient {
         client_input: ClientInput,
         client_output: ClientOutput,
         self_address: Recipient,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) {
         info!("Starting socks5 listener...");
         let auth_methods = vec![AuthenticationMethods::NoAuth as u8];
         let allowed_users: Vec<User> = Vec::new();
 
         let ClientInput {
-            shared_lane_queue_lengths,
             connection_command_sender,
             input_sender,
         } = client_input;
 
-        let received_buffer_request_sender = client_output.received_buffer_request_sender;
+        let ClientOutput {
+            shared_lane_queue_lengths,
+            received_buffer_request_sender,
+        } = client_output;
 
         let authenticator = Authenticator::new(auth_methods, allowed_users);
         let mut sphinx_socks = SphinxSocksServer::new(
@@ -200,7 +202,7 @@ impl NymClient {
         res
     }
 
-    pub async fn start(self) -> Result<ShutdownNotifier, Socks5ClientError> {
+    pub async fn start(self) -> Result<TaskManager, Socks5ClientError> {
         let base_builder = BaseClientBuilder::new_from_base_config(
             self.config.get_base(),
             self.key_manager,
@@ -222,12 +224,12 @@ impl NymClient {
             client_input,
             client_output,
             self_address,
-            started_client.shutdown_notifier.subscribe(),
+            started_client.task_manager.subscribe(),
         );
 
         info!("Client startup finished!");
         info!("The address of this client is: {}", self_address);
 
-        Ok(started_client.shutdown_notifier)
+        Ok(started_client.task_manager)
     }
 }

@@ -21,7 +21,7 @@ use std::ops::Deref;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use task::ShutdownListener;
+use task::TaskClient;
 use tokio::sync::{watch, RwLock};
 use tokio::time;
 use validator_client::nymd::CosmWasmClient;
@@ -198,7 +198,7 @@ impl<C> ValidatorCacheRefresher<C> {
         Ok(())
     }
 
-    pub(crate) async fn run(&self, mut shutdown: ShutdownListener)
+    pub(crate) async fn run(&self, mut shutdown: TaskClient)
     where
         C: CosmWasmClient + Sync + Send,
     {

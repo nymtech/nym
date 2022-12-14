@@ -8,7 +8,7 @@ use crate::node_status_api::ONE_DAY;
 use crate::storage::NymApiStorage;
 use log::error;
 use std::time::Duration;
-use task::ShutdownListener;
+use task::TaskClient;
 use time::{OffsetDateTime, PrimitiveDateTime, Time};
 use tokio::time::{interval, sleep};
 
@@ -68,7 +68,7 @@ impl HistoricalUptimeUpdater {
         Ok(())
     }
 
-    pub(crate) async fn run(&self, mut shutdown: ShutdownListener) {
+    pub(crate) async fn run(&self, mut shutdown: TaskClient) {
         // update uptimes at 23:00 UTC each day so that we'd have data from the actual [almost] whole day
         // and so that we would avoid the edge case of starting validator API at 23:59 and having some
         // nodes update for different days

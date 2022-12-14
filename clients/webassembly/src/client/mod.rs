@@ -14,7 +14,7 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use rand::rngs::OsRng;
 use std::sync::Arc;
-use task::ShutdownNotifier;
+use task::TaskManager;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_utils::{console_error, console_log};
@@ -30,7 +30,7 @@ pub struct NymClient {
 
     // even though we don't use graceful shutdowns, other components rely on existence of this struct
     // and if it's dropped, everything will start going offline
-    _shutdown: ShutdownNotifier,
+    _task_manager: TaskManager,
 }
 
 #[wasm_bindgen]
@@ -121,7 +121,7 @@ impl NymClientBuilder {
             Ok(JsValue::from(NymClient {
                 self_address,
                 client_input: Arc::new(client_input),
-                _shutdown: started_client.shutdown_notifier,
+                _task_manager: started_client.task_manager,
             }))
         })
     }

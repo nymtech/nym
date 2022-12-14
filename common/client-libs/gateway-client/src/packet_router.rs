@@ -9,7 +9,7 @@ use futures::channel::mpsc;
 use log::*;
 use nymsphinx::addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
 use nymsphinx::params::packet_sizes::PacketSize;
-use task::ShutdownListener;
+use task::TaskClient;
 
 pub type MixnetMessageSender = mpsc::UnboundedSender<Vec<Vec<u8>>>;
 pub type MixnetMessageReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
@@ -21,14 +21,14 @@ pub type AcknowledgementReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
 pub struct PacketRouter {
     ack_sender: AcknowledgementSender,
     mixnet_message_sender: MixnetMessageSender,
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl PacketRouter {
     pub fn new(
         ack_sender: AcknowledgementSender,
         mixnet_message_sender: MixnetMessageSender,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> Self {
         PacketRouter {
             ack_sender,

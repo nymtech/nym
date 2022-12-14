@@ -31,7 +31,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{fs, process};
-use task::ShutdownNotifier;
+use task::TaskManager;
 use tokio::sync::Notify;
 #[cfg(feature = "coconut")]
 use url::Url;
@@ -206,7 +206,7 @@ fn parse_args() -> ArgMatches {
     base_app.get_matches()
 }
 
-async fn wait_for_interrupt(mut shutdown: ShutdownNotifier) {
+async fn wait_for_interrupt(mut shutdown: TaskManager) {
     wait_for_signal().await;
 
     log::info!("Sending shutdown");
@@ -527,7 +527,7 @@ async fn run_nym_api(matches: ArgMatches) -> Result<()> {
 
     let liftoff_notify = Arc::new(Notify::new());
     // We need a bigger timeout
-    let shutdown = ShutdownNotifier::new(10);
+    let shutdown = TaskManager::new(10);
 
     #[cfg(feature = "coconut")]
     let coconut_keypair = coconut::keypair::KeyPair::new();

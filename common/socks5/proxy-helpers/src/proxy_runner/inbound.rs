@@ -15,7 +15,7 @@ use socks5_requests::ConnectionId;
 use std::fmt::Debug;
 use std::time::Duration;
 use std::{io, sync::Arc};
-use task::ShutdownListener;
+use task::TaskClient;
 use tokio::select;
 use tokio::{net::tcp::OwnedReadHalf, sync::Notify, time::sleep};
 
@@ -170,7 +170,7 @@ pub(super) async fn run_inbound<F, S>(
     adapter_fn: F,
     shutdown_notify: Arc<Notify>,
     lane_queue_lengths: Option<LaneQueueLengths>,
-    mut shutdown_listener: ShutdownListener,
+    mut shutdown_listener: TaskClient,
 ) -> OwnedReadHalf
 where
     F: Fn(ConnectionId, Vec<u8>, bool) -> S + Send + 'static,

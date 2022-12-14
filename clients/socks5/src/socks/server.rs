@@ -13,7 +13,7 @@ use nymsphinx::addressing::clients::Recipient;
 use proxy_helpers::connection_controller::{BroadcastActiveConnections, Controller};
 use std::net::SocketAddr;
 use tap::TapFallible;
-use task::ShutdownListener;
+use task::TaskClient;
 use tokio::net::TcpListener;
 
 /// A Socks5 server that listens for connections.
@@ -24,7 +24,7 @@ pub struct SphinxSocksServer {
     self_address: Recipient,
     client_config: client::Config,
     lane_queue_lengths: LaneQueueLengths,
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl SphinxSocksServer {
@@ -36,7 +36,7 @@ impl SphinxSocksServer {
         self_address: Recipient,
         lane_queue_lengths: LaneQueueLengths,
         client_config: client::Config,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> Self {
         // hardcode ip as we (presumably) ONLY want to listen locally. If we change it, we can
         // just modify the config

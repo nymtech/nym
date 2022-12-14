@@ -19,7 +19,7 @@ use rand::rngs::OsRng;
 use rand::RngCore;
 use std::path::PathBuf;
 use std::time::Duration;
-use task::ShutdownListener;
+use task::TaskClient;
 use tokio::time::interval;
 use validator_client::nymd::SigningNymdClient;
 
@@ -134,7 +134,7 @@ impl<R: RngCore + Clone> DkgController<R> {
         }
     }
 
-    pub(crate) async fn run(mut self, mut shutdown: ShutdownListener) {
+    pub(crate) async fn run(mut self, mut shutdown: TaskClient) {
         let mut interval = interval(self.polling_rate);
         while !shutdown.is_shutdown() {
             tokio::select! {

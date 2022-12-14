@@ -14,7 +14,6 @@ use tokio::{
 
 const DEFAULT_SHUTDOWN_TIMER_SECS: u64 = 5;
 
-// WIP(JON): can these be from futures channel too?
 pub(crate) type SentError = Box<dyn Error + Send + Sync>;
 type ErrorSender = mpsc::UnboundedSender<SentError>;
 type ErrorReceiver = mpsc::UnboundedReceiver<SentError>;
@@ -29,9 +28,10 @@ enum TaskError {
     UnexpectedHalt,
 }
 
-/// Used to notify other tasks to gracefully shutdown
+/// Listens to status and error messages from tasks, as well as notifying them to gracefully
+/// shutdown. Keeps track of if task stop unexpectedly, such as in a panic.
 #[derive(Debug)]
-pub struct ShutdownNotifier {
+pub struct TaskManager {
     // These channels have the dual purpose of signalling it's time to shutdown, but also to keep
     // track of which tasks we are still waiting for.
     notify_tx: watch::Sender<()>,
@@ -55,7 +55,7 @@ pub struct ShutdownNotifier {
     task_status_rx: Option<StatusReceiver>,
 }
 
-impl Default for ShutdownNotifier {
+impl Default for TaskManager {
     fn default() -> Self {
         let (notify_tx, notify_rx) = watch::channel(());
         let (task_halt_tx, task_halt_rx) = mpsc::unbounded_channel();
@@ -77,11 +77,7 @@ impl Default for ShutdownNotifier {
     }
 }
 
-impl ShutdownNotifier {
-    pub fn take_task_status_rx(&mut self) -> Option<StatusReceiver> {
-        self.task_status_rx.take()
-    }
-
+impl TaskManager {
     pub fn new(shutdown_timer_secs: u64) -> Self {
         Self {
             shutdown_timer_secs,
@@ -89,8 +85,8 @@ impl ShutdownNotifier {
         }
     }
 
-    pub fn subscribe(&self) -> ShutdownListener {
-        ShutdownListener::new(
+    pub fn subscribe(&self) -> TaskClient {
+        TaskClient::new(
             self.notify_rx
                 .as_ref()
                 .expect("Unable to subscribe to shutdown notifier that is already shutdown")
@@ -173,9 +169,10 @@ impl ShutdownNotifier {
     }
 }
 
-/// Listen for shutdown notifications
+/// Listen for shutdown notifications, and can send error and status messages back to the
+/// `TaskManager`
 #[derive(Clone, Debug)]
-pub struct ShutdownListener {
+pub struct TaskClient {
     // If a shutdown notification has been registered
     shutdown: bool,
 
@@ -193,10 +190,10 @@ pub struct ShutdownListener {
     status_msg: StatusSender,
 
     // The current operating mode
-    mode: ShutdownListenerMode,
+    mode: ClientOperatingMode,
 }
 
-impl ShutdownListener {
+impl TaskClient {
     #[cfg(not(target_arch = "wasm32"))]
     const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
 
@@ -205,31 +202,31 @@ impl ShutdownListener {
         return_error: ErrorSender,
         drop_error: ErrorSender,
         status_msg: StatusSender,
-    ) -> ShutdownListener {
-        ShutdownListener {
+    ) -> TaskClient {
+        TaskClient {
             shutdown: false,
             notify,
             return_error,
             drop_error,
             status_msg,
-            mode: ShutdownListenerMode::Listening,
+            mode: ClientOperatingMode::Listening,
         }
     }
 
     // Create a dummy that will never report that we should shutdown.
-    pub fn dummy() -> ShutdownListener {
+    pub fn dummy() -> TaskClient {
         let (_notify_tx, notify_rx) = watch::channel(());
         let (task_halt_tx, _task_halt_rx) = mpsc::unbounded_channel();
         let (task_drop_tx, _task_drop_rx) = mpsc::unbounded_channel();
         //let (task_status_tx, _task_status_rx) = futures::channel::mpsc::unbounded();
         let (task_status_tx, _task_status_rx) = futures::channel::mpsc::channel(128);
-        ShutdownListener {
+        TaskClient {
             shutdown: false,
             notify: notify_rx,
             return_error: task_halt_tx,
             drop_error: task_drop_tx,
             status_msg: task_status_tx,
-            mode: ShutdownListenerMode::Dummy,
+            mode: ClientOperatingMode::Dummy,
         }
     }
 
@@ -254,6 +251,15 @@ impl ShutdownListener {
         }
         let _ = self.notify.changed().await;
         self.shutdown = true;
+    }
+
+    pub async fn recv_with_delay(&mut self) {
+        self.recv()
+            .then(|msg| async move {
+                sleep(Duration::from_secs(1)).await;
+                msg
+            })
+            .await
     }
 
     pub async fn recv_timeout(&mut self) {
@@ -315,7 +321,7 @@ impl ShutdownListener {
     }
 }
 
-impl Drop for ShutdownListener {
+impl Drop for TaskClient {
     fn drop(&mut self) {
         if !self.mode.should_signal_on_drop() {
             return;
@@ -331,7 +337,7 @@ impl Drop for ShutdownListener {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-enum ShutdownListenerMode {
+enum ClientOperatingMode {
     // Normal operations
     Listening,
     // Normal operations, but we don't report back if the we stop by getting dropped.
@@ -340,20 +346,20 @@ enum ShutdownListenerMode {
     Dummy,
 }
 
-impl ShutdownListenerMode {
+impl ClientOperatingMode {
     fn is_dummy(&self) -> bool {
-        self == &ShutdownListenerMode::Dummy
+        self == &ClientOperatingMode::Dummy
     }
 
     fn should_signal_on_drop(&self) -> bool {
         match self {
-            ShutdownListenerMode::Listening => true,
-            ShutdownListenerMode::ListeningButDontReportHalt | ShutdownListenerMode::Dummy => false,
+            ClientOperatingMode::Listening => true,
+            ClientOperatingMode::ListeningButDontReportHalt | ClientOperatingMode::Dummy => false,
         }
     }
 
     fn set_should_not_signal_on_drop(&mut self) {
-        use ShutdownListenerMode::{Dummy, Listening, ListeningButDontReportHalt};
+        use ClientOperatingMode::{Dummy, Listening, ListeningButDontReportHalt};
         *self = match &self {
             ListeningButDontReportHalt | Listening => ListeningButDontReportHalt,
             Dummy => Dummy,
@@ -367,7 +373,7 @@ mod tests {
 
     #[tokio::test]
     async fn signal_shutdown() {
-        let shutdown = ShutdownNotifier::default();
+        let shutdown = TaskManager::default();
         let mut listener = shutdown.subscribe();
 
         let task = tokio::spawn(async move {

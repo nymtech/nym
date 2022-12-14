@@ -7,6 +7,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 ### Changed
 
 - all-binaries: improved error logging ([#2686])
+- native client: bring shutdown logic up to the same level as socks5-client
 
 [#2686]: https://github.com/nymtech/nym/pull/2686
 

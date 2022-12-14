@@ -4,7 +4,7 @@
 use std::future::Future;
 
 use mixnet_contract_common::GatewayBond;
-use task::ShutdownListener;
+use task::TaskClient;
 use validator_client::models::MixNodeBondAnnotated;
 use validator_client::nymd::error::NymdError;
 use validator_client::nymd::{Paging, QueryNymdClient, ValidatorResponse};
@@ -15,11 +15,11 @@ use crate::state::ExplorerApiStateContext;
 
 pub(crate) struct ExplorerApiTasks {
     state: ExplorerApiStateContext,
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl ExplorerApiTasks {
-    pub(crate) fn new(state: ExplorerApiStateContext, shutdown: ShutdownListener) -> Self {
+    pub(crate) fn new(state: ExplorerApiStateContext, shutdown: TaskClient) -> Self {
         ExplorerApiTasks { state, shutdown }
     }
 

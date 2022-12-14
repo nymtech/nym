@@ -9,13 +9,13 @@ use client_core::client::received_buffer::{ReceivedBufferMessage, ReceivedBuffer
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::{ControllerCommand, ControllerSender};
 use socks5_requests::Message;
-use task::ShutdownListener;
+use task::TaskClient;
 
 pub(crate) struct MixnetResponseListener {
     buffer_requester: ReceivedBufferRequestSender,
     mix_response_receiver: ReconstructedMessagesReceiver,
     controller_sender: ControllerSender,
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl Drop for MixnetResponseListener {
@@ -37,7 +37,7 @@ impl MixnetResponseListener {
     pub(crate) fn new(
         buffer_requester: ReceivedBufferRequestSender,
         controller_sender: ControllerSender,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> Self {
         let (mix_response_sender, mix_response_receiver) = mpsc::unbounded();
         buffer_requester

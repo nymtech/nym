@@ -100,7 +100,7 @@ impl PartiallyDelegated {
 
             let ret_err = loop {
                 tokio::select! {
-                    _ = shutdown.recv() => {
+                    _ = shutdown.recv_with_delay() => {
                         log::trace!("GatewayClient listener: Received shutdown");
                         log::debug!("GatewayClient listener: Exiting");
                         return;

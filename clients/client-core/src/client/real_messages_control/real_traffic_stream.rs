@@ -384,7 +384,10 @@ where
             match Pin::new(&mut self.real_receiver).poll_recv(cx) {
                 // in the case our real message channel stream was closed, we should also indicate we are closed
                 // (and whoever is using the stream should panic)
-                Poll::Ready(None) => Poll::Ready(None),
+                Poll::Ready(None) => {
+                    log::error!("real receiver ready(none)");
+                    Poll::Ready(None)
+                }
 
                 Poll::Ready(Some((real_messages, conn_id))) => {
                     log::trace!("handling real_messages: size: {}", real_messages.len());

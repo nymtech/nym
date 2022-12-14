@@ -255,7 +255,7 @@ impl Config {
         }
     }
 
-    pub fn select_validator_api_url(&mut self, api_url: Url, network: WalletNetwork) {
+    pub fn select_nym_api_url(&mut self, api_url: Url, network: WalletNetwork) {
         if let Some(net) = self.networks.get_mut(&network.as_key()) {
             net.selected_api_url = Some(api_url);
         } else {
@@ -275,7 +275,7 @@ impl Config {
             .and_then(|config| config.selected_nymd_url.clone())
     }
 
-    pub fn get_selected_validator_api_url(&self, network: &WalletNetwork) -> Option<Url> {
+    pub fn get_selected_nym_api_url(&self, network: &WalletNetwork) -> Option<Url> {
         self.networks
             .get(&network.as_key())
             .and_then(|config| config.selected_api_url.clone())

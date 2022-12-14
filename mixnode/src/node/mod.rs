@@ -245,7 +245,7 @@ impl MixNode {
             .tested_nodes_batch_size(self.config.get_measurement_tested_nodes_batch_size())
             .testing_interval(self.config.get_measurement_testing_interval())
             .retry_timeout(self.config.get_measurement_retry_timeout())
-            .validator_api_urls(self.config.get_validator_api_endpoints())
+            .nym_api_urls(self.config.get_nym_api_endpoints())
             .build();
 
         let mut verloc_measurer =
@@ -256,12 +256,12 @@ impl MixNode {
     }
 
     fn random_api_client(&self) -> validator_client::ApiClient {
-        let endpoints = self.config.get_validator_api_endpoints();
-        let validator_api = endpoints
+        let endpoints = self.config.get_nym_api_endpoints();
+        let nym_api = endpoints
             .choose(&mut thread_rng())
             .expect("The list of validator apis is empty");
 
-        validator_client::ApiClient::new(validator_api.clone())
+        validator_client::ApiClient::new(nym_api.clone())
     }
 
     // TODO: ask DH whether this function still makes sense in ^0.10

@@ -60,8 +60,8 @@ enabled_statistics = {{ gateway.enabled_statistics }}
 statistics_service_url = '{{ gateway.statistics_service_url }}'
 
 # Addresses to APIs running on validator from which the node gets the view of the network.
-validator_api_urls = [
-    {{#each gateway.validator_api_urls }}
+nym_api_urls = [
+    {{#each gateway.nym_api_urls }}
         '{{this}}',
     {{/each}}
 ]

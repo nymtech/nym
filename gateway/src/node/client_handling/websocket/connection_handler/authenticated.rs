@@ -56,8 +56,8 @@ pub(crate) enum RequestHandlingError {
     APIError(#[from] validator_client::ValidatorClientError),
 
     #[cfg(feature = "coconut")]
-    #[error("Not enough validator API endpoints provided. Needed {needed}, received {received}")]
-    NotEnoughValidatorAPIs { received: usize, needed: usize },
+    #[error("Not enough nym API endpoints provided. Needed {needed}, received {received}")]
+    NotEnoughNymAPIs { received: usize, needed: usize },
 
     #[cfg(feature = "coconut")]
     #[error("There was a problem with the proposal id: {reason}")]

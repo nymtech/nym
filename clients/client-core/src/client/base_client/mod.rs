@@ -85,7 +85,7 @@ pub struct BaseClientBuilder<'a, B> {
     gateway_config: &'a GatewayEndpointConfig,
     debug_config: &'a DebugConfig,
     disabled_credentials: bool,
-    validator_api_endpoints: Vec<Url>,
+    nym_api_endpoints: Vec<Url>,
     reply_storage_backend: B,
 
     bandwidth_controller: Option<BandwidthController>,
@@ -106,7 +106,7 @@ where
             gateway_config: base_config.get_gateway_endpoint_config(),
             debug_config: base_config.get_debug_config(),
             disabled_credentials: base_config.get_disabled_credentials_mode(),
-            validator_api_endpoints: base_config.get_validator_api_endpoints(),
+            nym_api_endpoints: base_config.get_nym_api_endpoints(),
             bandwidth_controller,
             reply_storage_backend,
             key_manager,
@@ -120,13 +120,13 @@ where
         bandwidth_controller: Option<BandwidthController>,
         reply_storage_backend: B,
         disabled_credentials: bool,
-        validator_api_endpoints: Vec<Url>,
+        nym_api_endpoints: Vec<Url>,
     ) -> BaseClientBuilder<'a, B> {
         BaseClientBuilder {
             gateway_config,
             debug_config,
             disabled_credentials,
-            validator_api_endpoints,
+            nym_api_endpoints,
             bandwidth_controller,
             reply_storage_backend,
             key_manager,
@@ -281,13 +281,13 @@ where
     // future responsible for periodically polling directory server and updating
     // the current global view of topology
     async fn start_topology_refresher(
-        validator_api_urls: Vec<Url>,
+        nym_api_urls: Vec<Url>,
         refresh_rate: Duration,
         topology_accessor: TopologyAccessor,
         shutdown: ShutdownListener,
     ) -> Result<(), ClientCoreError<B>> {
         let topology_refresher_config = TopologyRefresherConfig::new(
-            validator_api_urls,
+            nym_api_urls,
             refresh_rate,
             env!("CARGO_PKG_VERSION").to_string(),
         );
@@ -386,7 +386,7 @@ where
                 .await?;
 
         Self::start_topology_refresher(
-            self.validator_api_endpoints.clone(),
+            self.nym_api_endpoints.clone(),
             self.debug_config.topology_refresh_rate,
             shared_topology_accessor.clone(),
             shutdown.subscribe(),

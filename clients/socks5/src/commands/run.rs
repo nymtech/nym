@@ -43,9 +43,9 @@ pub(crate) struct Run {
     #[clap(long)]
     nymd_validators: Option<String>,
 
-    /// Comma separated list of rest endpoints of the API validators
+    /// Comma separated list of rest endpoints of the Nym APIs
     #[clap(long)]
-    api_validators: Option<String>,
+    nym_apis: Option<String>,
 
     /// Port for the socket to listen on
     #[clap(short, long)]
@@ -71,7 +71,7 @@ impl From<Run> for OverrideConfig {
     fn from(run_config: Run) -> Self {
         OverrideConfig {
             nymd_validators: run_config.nymd_validators,
-            api_validators: run_config.api_validators,
+            api_validators: run_config.nym_apis,
             port: run_config.port,
             use_anonymous_sender_tag: run_config.use_anonymous_sender_tag,
             fastmode: run_config.fastmode,

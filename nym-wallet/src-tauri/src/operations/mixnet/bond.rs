@@ -211,7 +211,7 @@ pub async fn get_mixnode_avg_uptime(
             let id = details.mix_id();
             log::trace!("  >>> Get average uptime percentage: mix_id = {}", id);
             let avg_uptime_percent = client
-                .validator_api
+                .nym_api
                 .get_mixnode_avg_uptime(id)
                 .await
                 .ok()

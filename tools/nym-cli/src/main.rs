@@ -36,7 +36,7 @@ pub(crate) struct Cli {
     #[clap(
         help = "Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file"
     )]
-    pub(crate) validator_api_url: Option<String>,
+    pub(crate) nym_api_url: Option<String>,
 
     #[clap(long, global = true)]
     #[clap(
@@ -77,7 +77,7 @@ pub(crate) enum Commands {
 async fn execute(cli: Cli) -> anyhow::Result<()> {
     let args = ClientArgs {
         nymd_url: cli.nymd_url,
-        validator_api_url: cli.validator_api_url,
+        nym_api_url: cli.nym_api_url,
         mnemonic: cli.mnemonic,
         mixnet_contract_address: cli.mixnet_contract_address,
         vesting_contract_address: cli.vesting_contract_address,

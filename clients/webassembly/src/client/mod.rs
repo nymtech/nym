@@ -99,7 +99,7 @@ impl NymClientBuilder {
                 self.bandwidth_controller,
                 self.reply_surb_storage_backend,
                 self.disabled_credentials,
-                vec![self.config.validator_api_url.clone()],
+                vec![self.config.nym_api_url.clone()],
             );
 
             let self_address = base_builder.as_mix_recipient().to_string();

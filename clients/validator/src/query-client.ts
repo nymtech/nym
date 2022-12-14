@@ -29,7 +29,7 @@ import {
   PagedMixnodeResponse,
   RewardingStatus,
 } from './types';
-import ValidatorApiQuerier, { IValidatorApiQuery } from './validator-api-querier';
+import NymApiQuerier, { INymApiQuery as INymApiQuery } from './nym-api-querier';
 
 export interface ICosmWasmQuery {
   // methods exposed by `CosmWasmClient`
@@ -93,22 +93,22 @@ export interface INymdQuery {
   ): Promise<RewardingStatus>;
 }
 
-export interface IQueryClient extends ICosmWasmQuery, INymdQuery, IValidatorApiQuery {}
+export interface IQueryClient extends ICosmWasmQuery, INymdQuery, INymApiQuery { }
 
 export default class QueryClient extends CosmWasmClient implements IQueryClient {
   private nymdQuerier: NymdQuerier;
 
-  private validatorApiQuerier: ValidatorApiQuerier;
+  private nymApiQuerier: NymApiQuerier;
 
-  private constructor(tmClient: Tendermint34Client, validatorApiUrl: string) {
+  private constructor(tmClient: Tendermint34Client, nymApiUrl: string) {
     super(tmClient);
     this.nymdQuerier = new NymdQuerier(this);
-    this.validatorApiQuerier = new ValidatorApiQuerier(validatorApiUrl);
+    this.nymApiQuerier = new NymApiQuerier(nymApiUrl);
   }
 
-  public static async connectWithNym(nymdUrl: string, validatorApiUrl: string): Promise<QueryClient> {
+  public static async connectWithNym(nymdUrl: string, nymApiUrl: string): Promise<QueryClient> {
     const tmClient = await Tendermint34Client.connect(nymdUrl);
-    return new QueryClient(tmClient, validatorApiUrl);
+    return new QueryClient(tmClient, nymApiUrl);
   }
 
   getContractVersion(mixnetContractAddress: string): Promise<MixnetContractVersion> {
@@ -194,18 +194,18 @@ export default class QueryClient extends CosmWasmClient implements IQueryClient 
   }
 
   getCachedGateways(): Promise<GatewayBond[]> {
-    return this.validatorApiQuerier.getCachedGateways();
+    return this.nymApiQuerier.getCachedGateways();
   }
 
   getCachedMixnodes(): Promise<MixNodeBond[]> {
-    return this.validatorApiQuerier.getCachedMixnodes();
+    return this.nymApiQuerier.getCachedMixnodes();
   }
 
   getActiveMixnodes(): Promise<MixNodeBond[]> {
-    return this.validatorApiQuerier.getActiveMixnodes();
+    return this.nymApiQuerier.getActiveMixnodes();
   }
 
   getRewardedMixnodes(): Promise<MixNodeBond[]> {
-    return this.validatorApiQuerier.getRewardedMixnodes();
+    return this.nymApiQuerier.getRewardedMixnodes();
   }
 }

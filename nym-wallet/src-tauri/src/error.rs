@@ -4,7 +4,7 @@ use serde::{Serialize, Serializer};
 use std::io;
 use std::num::ParseIntError;
 use thiserror::Error;
-use validator_client::validator_api::error::ValidatorAPIError;
+use validator_client::nym_api::error::NymAPIError;
 use validator_client::{nymd::error::NymdError, ValidatorClientError};
 
 #[derive(Error, Debug)]
@@ -40,9 +40,9 @@ pub enum BackendError {
         source: eyre::Report,
     },
     #[error("{source}")]
-    ValidatorApiError {
+    NymApiError {
         #[from]
-        source: ValidatorAPIError,
+        source: NymAPIError,
     },
     #[error("{source}")]
     KeyDerivationError {
@@ -134,12 +134,10 @@ impl Serialize for BackendError {
 impl From<ValidatorClientError> for BackendError {
     fn from(e: ValidatorClientError) -> Self {
         match e {
-            ValidatorClientError::ValidatorAPIError { source } => source.into(),
+            ValidatorClientError::NymAPIError { source } => source.into(),
             ValidatorClientError::MalformedUrlProvided(e) => e.into(),
             ValidatorClientError::NymdError(e) => e.into(),
-            ValidatorClientError::NoAPIUrlAvailable => {
-                TypesError::NoValidatorApiUrlConfigured.into()
-            }
+            ValidatorClientError::NoAPIUrlAvailable => TypesError::NoNymApiUrlConfigured.into(),
         }
     }
 }

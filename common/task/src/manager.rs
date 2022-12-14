@@ -269,7 +269,7 @@ impl TaskClient {
     pub async fn recv_with_delay(&mut self) {
         self.recv()
             .then(|msg| async move {
-                sleep(Duration::from_secs(1)).await;
+                sleep(Duration::from_secs(2)).await;
                 msg
             })
             .await

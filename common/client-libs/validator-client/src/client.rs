@@ -837,7 +837,7 @@ impl ApiClient {
         let nym_api_client = nym_api::Client::new(api_url);
 
         ApiClient {
-            nym_api_client: nym_api_client,
+            nym_api_client,
         }
     }
 

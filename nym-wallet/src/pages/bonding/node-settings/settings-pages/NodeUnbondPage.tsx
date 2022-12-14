@@ -35,9 +35,7 @@ export const NodeUnbondPage = ({ bondedNode, onConfirm, onError }: Props) => {
         <Grid item xs={12} lg={6}>
           <Stack gap={3}>
             {isMixnode(bondedNode) && (
-              <Error
-                message={`Unbonding is irreversible. You will lose all your delegations. It won’t be possible to restore the current state of your node again.`}
-              />
+              <Error message="Unbonding is irreversible. You will lose all your delegations. It won’t be possible to restore the current state of your node again." />
             )}
 
             <Typography variant="body2">

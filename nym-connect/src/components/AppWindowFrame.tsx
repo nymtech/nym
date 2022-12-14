@@ -9,10 +9,9 @@ export const AppWindowFrame: React.FC = ({ children }) => (
       display: 'grid',
       borderRadius: '12px',
       // screen height is 540px - These should add up to that
-      gridTemplateRows: '40px 470px 30px',
+      gridTemplateRows: '40px 1fr 30px',
       bgcolor: 'nym.background.dark',
       height: '100vh',
-      gridtemplateAreas: '"." "." "."',
     }}
   >
     <CustomTitleBar />

@@ -24,12 +24,12 @@ pub(super) async fn query_gateway_details<B>(
 where
     B: ReplyStorageBackend,
 {
-    let validator_api = validator_servers
+    let nym_api = validator_servers
         .choose(&mut thread_rng())
         .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
-    let validator_client = validator_client::client::ApiClient::new(validator_api.clone());
+    let validator_client = validator_client::client::ApiClient::new(nym_api.clone());
 
-    log::trace!("Fetching list of gateways from: {}", validator_api);
+    log::trace!("Fetching list of gateways from: {}", nym_api);
     let gateways = validator_client.get_cached_gateways().await?;
     let valid_gateways = gateways
         .into_iter()

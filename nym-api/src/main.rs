@@ -611,7 +611,7 @@ async fn run_nym_api(matches: ArgMatches) -> Result<()> {
     // It is primarily refreshed in-sync with the validator cache, however provide a fallback
     // caching interval that is twice the validator cache
     let storage = rocket.state::<NymApiStorage>().cloned();
-    let mut validator_api_cache_refresher = node_status_api::NodeStatusCacheRefresher::new(
+    let mut nym_api_cache_refresher = node_status_api::NodeStatusCacheRefresher::new(
         node_status_cache,
         config.get_caching_interval().saturating_mul(2),
         validator_cache,
@@ -619,7 +619,7 @@ async fn run_nym_api(matches: ArgMatches) -> Result<()> {
         storage,
     );
     let shutdown_listener = shutdown.subscribe();
-    tokio::spawn(async move { validator_api_cache_refresher.run(shutdown_listener).await });
+    tokio::spawn(async move { nym_api_cache_refresher.run(shutdown_listener).await });
 
     // launch the rocket!
     // Rocket handles shutdown on it's own, but its shutdown handling should be incorporated

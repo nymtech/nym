@@ -525,7 +525,7 @@ where
             while !shutdown.is_shutdown() {
                 tokio::select! {
                     biased;
-                    _ = shutdown.recv() => {
+                    _ = shutdown.recv_with_delay() => {
                         log::trace!("OutQueueControl: Received shutdown");
                     }
                     _ = status_timer.tick() => {

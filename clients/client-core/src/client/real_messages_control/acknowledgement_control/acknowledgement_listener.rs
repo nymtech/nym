@@ -77,7 +77,7 @@ impl AcknowledgementListener {
                         break;
                     }
                 },
-                _ = shutdown.recv() => {
+                _ = shutdown.recv_with_delay() => {
                     log::trace!("AcknowledgementListener: Received shutdown");
                 }
             }

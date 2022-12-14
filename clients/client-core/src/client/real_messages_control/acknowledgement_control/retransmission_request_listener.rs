@@ -149,7 +149,7 @@ where
                         break;
                     }
                 },
-                _ = shutdown.recv() => {
+                _ = shutdown.recv_with_delay() => {
                     log::trace!("RetransmissionRequestListener: Received shutdown");
                 }
             }

@@ -43,31 +43,19 @@ pub(crate) struct Handler {
     socket: Option<WebSocketStream<TcpStream>>,
     received_response_type: ReceivedResponseType,
     lane_queue_lengths: LaneQueueLengths,
-}
-
-// clone is used to use handler on a new connection, which initially is `None`
-impl Clone for Handler {
-    fn clone(&self) -> Self {
-        Handler {
-            msg_input: self.msg_input.clone(),
-            client_connection_tx: self.client_connection_tx.clone(),
-            buffer_requester: self.buffer_requester.clone(),
-            self_full_address: self.self_full_address,
-            socket: None,
-            received_response_type: Default::default(),
-            lane_queue_lengths: self.lane_queue_lengths.clone(),
-        }
-    }
+    is_active: bool,
 }
 
 impl Drop for Handler {
     fn drop(&mut self) {
-        if self
-            .buffer_requester
-            .unbounded_send(ReceivedBufferMessage::ReceiverDisconnect)
-            .is_err()
-        {
-            error!("we failed to disconnect the receiver from the buffer! presumably the shutdown procedure has been initiated!")
+        if self.is_active {
+            if self
+                .buffer_requester
+                .unbounded_send(ReceivedBufferMessage::ReceiverDisconnect)
+                .is_err()
+            {
+                error!("we failed to disconnect the receiver from the buffer! presumably the shutdown procedure has been initiated!")
+            }
         }
     }
 }
@@ -88,6 +76,22 @@ impl Handler {
             socket: None,
             received_response_type: Default::default(),
             lane_queue_lengths,
+            is_active: false,
+        }
+    }
+
+    // Used to use handler on a new connection, which initially is `None`
+    // TODO: make sure we only ever have one active handler
+    pub fn create_active_handler(&self) -> Self {
+        Handler {
+            msg_input: self.msg_input.clone(),
+            client_connection_tx: self.client_connection_tx.clone(),
+            buffer_requester: self.buffer_requester.clone(),
+            self_full_address: self.self_full_address,
+            socket: None,
+            received_response_type: Default::default(),
+            lane_queue_lengths: self.lane_queue_lengths.clone(),
+            is_active: true,
         }
     }
 

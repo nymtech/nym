@@ -904,7 +904,7 @@ where
         while !shutdown.is_shutdown() {
             tokio::select! {
                 biased;
-                _ = shutdown.recv() => {
+                _ = shutdown.recv_with_delay() => {
                     log::trace!("ReplyController: Received shutdown");
                 },
                 req = self.request_receiver.next() => match req {

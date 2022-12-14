@@ -57,12 +57,10 @@ impl Listener {
                 // ... but when there is no connected client at the time of shutdown being
                 // signalled, we handle it here.
                 _ = task_client.recv() => {
-                    log::trace!("Websocket listener: received shutdown");
                     if !self.state.is_connected() {
                         log::trace!("Not connected: shutting down");
                         break;
                     }
-                    log::trace!("Connected: not shutting down");
                 }
                 new_conn = tcp_listener.accept() => {
                     match new_conn {
@@ -85,7 +83,7 @@ impl Listener {
                                 // it's done so that any new connections to this listener could be rejected rather than left
                                 // hanging because the executor doesn't come back here
                                 let notify_clone = Arc::clone(&notify);
-                                let fresh_handler = handler.clone();
+                                let fresh_handler = handler.create_active_handler();
                                 let task_client_handler = task_client.clone();
                                 tokio::spawn(async move {
                                     fresh_handler.handle_connection(socket, task_client_handler).await;

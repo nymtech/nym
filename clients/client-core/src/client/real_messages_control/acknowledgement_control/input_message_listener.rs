@@ -123,7 +123,7 @@ where
                         break;
                     }
                 },
-                _ = shutdown.recv() => {
+                _ = shutdown.recv_with_delay() => {
                     log::trace!("InputMessageListener: Received shutdown");
                 }
             }

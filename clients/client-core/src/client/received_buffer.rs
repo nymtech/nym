@@ -404,16 +404,15 @@ impl RequestReceiver {
         while !shutdown.is_shutdown() {
             tokio::select! {
                 biased;
-                _ = shutdown.recv() => {
+                _ = shutdown.recv_with_delay() => {
                     log::trace!("RequestReceiver: Received shutdown");
                 }
                 request = self.query_receiver.next() => {
-                    match request {
-                        Some(message) => self.handle_message(message).await,
-                        None => {
-                            log::trace!("RequestReceiver: Stopping since channel closed");
-                            break;
-                        },
+                    if let Some(message) = request {
+                        self.handle_message(message).await
+                    } else {
+                        log::trace!("RequestReceiver: Stopping since channel closed");
+                        break;
                     }
                 },
             }
@@ -443,16 +442,15 @@ impl FragmentedMessageReceiver {
         debug!("Started FragmentedMessageReceiver with graceful shutdown support");
         while !shutdown.is_shutdown() {
             tokio::select! {
-                new_messages = self.mixnet_packet_receiver.next() => match new_messages {
-                    Some(new_messages) => {
+                new_messages = self.mixnet_packet_receiver.next() => {
+                    if let Some(new_messages) = new_messages {
                         self.received_buffer.handle_new_received(new_messages).await;
-                    }
-                    None => {
+                    } else {
                         log::trace!("FragmentedMessageReceiver: Stopping since channel closed");
                         break;
                     }
                 },
-                _ = shutdown.recv() => {
+                _ = shutdown.recv_with_delay() => {
                     log::trace!("FragmentedMessageReceiver: Received shutdown");
                 }
             }

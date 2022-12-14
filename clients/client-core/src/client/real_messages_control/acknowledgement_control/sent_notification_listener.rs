@@ -51,7 +51,7 @@ impl SentNotificationListener {
                         break;
                     }
                 },
-                _ = shutdown.recv() => {
+                _ = shutdown.recv_with_delay() => {
                     log::trace!("SentNotificationListener: Received shutdown");
                 }
             }

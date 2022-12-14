@@ -270,7 +270,7 @@ impl ActionController {
                         break;
                     }
                 },
-                _ = shutdown.recv() => {
+                _ = shutdown.recv_with_delay() => {
                     log::trace!("ActionController: Received shutdown");
                 }
             }

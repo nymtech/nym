@@ -4,6 +4,7 @@ import { ClientContext, TClientContext } from '../main';
 
 const mockValues: TClientContext = {
   mode: 'dark',
+  appVersion: '1.1.1',
   connectionStatus: ConnectionStatusKind.disconnected,
   services: [],
   showHelp: false,

@@ -9,6 +9,7 @@ import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ServiceProvider, Services } from '../types/directory';
 import { Error } from 'src/types/error';
 import { TauriEvent } from 'src/types/event';
+import { getVersion } from '@tauri-apps/api/app';
 
 const TAURI_EVENT_STATUS_CHANGED = 'app:connection-status-changed';
 
@@ -16,6 +17,7 @@ type ModeType = 'light' | 'dark';
 
 export type TClientContext = {
   mode: ModeType;
+  appVersion?: string;
   connectionStatus: ConnectionStatusKind;
   connectionStats?: ConnectionStatsItem[];
   connectedSince?: DateTime;
@@ -47,11 +49,13 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const [serviceProvider, setRawServiceProvider] = React.useState<ServiceProvider>();
   const [showHelp, setShowHelp] = useState(false);
   const [error, setError] = useState<Error>();
+  const [appVersion, setAppVersion] = useState<string>();
 
   useEffect(() => {
     invoke('get_services').then((result) => {
       setServices(result as Services);
     });
+    getAppVersion();
   }, []);
 
   useEffect(() => {
@@ -122,6 +126,11 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     }
   };
 
+  const getAppVersion = async () => {
+    const version = await getVersion();
+    setAppVersion(version);
+  };
+
   const handleShowHelp = () => setShowHelp((show) => !show);
 
   const clearError = () => setError(undefined);
@@ -149,6 +158,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const contextValue = useMemo(
     () => ({
       mode,
+      appVersion,
       setMode,
       error,
       clearError,
@@ -168,6 +178,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     }),
     [
       mode,
+      appVersion,
       error,
       connectedSince,
       showHelp,

@@ -115,7 +115,7 @@ impl PartiallyDelegated {
                         };
 
                         if let Err(err) = Self::route_socket_messages(ws_msgs, &mut packet_router, shared_key.as_ref()) {
-                            log::warn!("Route socket messages failed: {:?}", err);
+                            log::warn!("Route socket messages failed: {err}");
                         }
                     }
                 };

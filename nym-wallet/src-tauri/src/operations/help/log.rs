@@ -5,8 +5,8 @@ use tauri::Manager;
 pub fn help_log_toggle_window(app_handle: tauri::AppHandle) -> Result<(), BackendError> {
     if let Some(current_log_window) = app_handle.windows().get("log") {
         log::info!("Closing log window...");
-        if let Err(e) = current_log_window.close() {
-            log::error!("Unable to close log window: {:?}", e);
+        if let Err(err) = current_log_window.close() {
+            log::error!("Unable to close log window: {err}");
         }
         return Ok(());
     }
@@ -17,13 +17,13 @@ pub fn help_log_toggle_window(app_handle: tauri::AppHandle) -> Result<(), Backen
         .build()
     {
         Ok(window) => {
-            if let Err(e) = window.set_focus() {
-                log::error!("Unable to focus log window: {:?}", e);
+            if let Err(err) = window.set_focus() {
+                log::error!("Unable to focus log window: {err}");
             }
             Ok(())
         }
-        Err(e) => {
-            log::error!("Unable to create log window: {:?}", e);
+        Err(err) => {
+            log::error!("Unable to create log window: {err}");
             Err(BackendError::NewWindowError)
         }
     }

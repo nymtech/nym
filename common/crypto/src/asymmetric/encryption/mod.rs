@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use pemstore::traits::{PemStorableKey, PemStorableKeyPair};
+use std::fmt::{self, Display, Formatter};
+use thiserror::Error;
+
 #[cfg(feature = "rand")]
 use rand::{CryptoRng, RngCore};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use std::fmt::{self, Display, Formatter};
 
 /// Size of a X25519 private key
 pub const PRIVATE_KEY_SIZE: usize = 32;
@@ -17,31 +19,26 @@ pub const PUBLIC_KEY_SIZE: usize = 32;
 /// Size of a X25519 shared secret
 pub const SHARED_SECRET_SIZE: usize = 32;
 
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug, Error)]
 pub enum KeyRecoveryError {
-    InvalidPublicKeyBytes,
-    InvalidPrivateKeyBytes,
-    MalformedString(bs58::decode::Error),
-}
+    #[error("received public key of invalid size. Got: {received}, expected: {expected}")]
+    InvalidSizePublicKey { received: usize, expected: usize },
 
-impl From<bs58::decode::Error> for KeyRecoveryError {
-    fn from(err: bs58::decode::Error) -> Self {
-        KeyRecoveryError::MalformedString(err)
-    }
-}
+    #[error("received private key of invalid size. Got: {received}, expected: {expected}")]
+    InvalidSizePrivateKey { received: usize, expected: usize },
 
-// required for std::error::Error
-impl Display for KeyRecoveryError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            KeyRecoveryError::InvalidPrivateKeyBytes => write!(f, "Invalid private key bytes"),
-            KeyRecoveryError::InvalidPublicKeyBytes => write!(f, "Invalid public key bytes"),
-            KeyRecoveryError::MalformedString(err) => write!(f, "malformed string - {}", err),
-        }
-    }
-}
+    #[error("the base58 representation of the public key was malformed - {source}")]
+    MalformedPublicKeyString {
+        #[source]
+        source: bs58::decode::Error,
+    },
 
-impl std::error::Error for KeyRecoveryError {}
+    #[error("the base58 representation of the private key was malformed - {source}")]
+    MalformedPrivateKeyString {
+        #[source]
+        source: bs58::decode::Error,
+    },
+}
 
 pub struct KeyPair {
     pub(crate) private_key: PrivateKey,
@@ -112,7 +109,10 @@ impl PublicKey {
 
     pub fn from_bytes(b: &[u8]) -> Result<Self, KeyRecoveryError> {
         if b.len() != PUBLIC_KEY_SIZE {
-            return Err(KeyRecoveryError::InvalidPublicKeyBytes);
+            return Err(KeyRecoveryError::InvalidSizePublicKey {
+                received: b.len(),
+                expected: PUBLIC_KEY_SIZE,
+            });
         }
         let mut bytes = [0; PUBLIC_KEY_SIZE];
         bytes.copy_from_slice(&b[..PUBLIC_KEY_SIZE]);
@@ -124,7 +124,9 @@ impl PublicKey {
     }
 
     pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, KeyRecoveryError> {
-        let bytes = bs58::decode(val).into_vec()?;
+        let bytes = bs58::decode(val)
+            .into_vec()
+            .map_err(|source| KeyRecoveryError::MalformedPublicKeyString { source })?;
         Self::from_bytes(&bytes)
     }
 }
@@ -188,7 +190,10 @@ impl PrivateKey {
 
     pub fn from_bytes(b: &[u8]) -> Result<Self, KeyRecoveryError> {
         if b.len() != PRIVATE_KEY_SIZE {
-            return Err(KeyRecoveryError::InvalidPrivateKeyBytes);
+            return Err(KeyRecoveryError::InvalidSizePrivateKey {
+                received: b.len(),
+                expected: PRIVATE_KEY_SIZE,
+            });
         }
         let mut bytes = [0; 32];
         bytes.copy_from_slice(&b[..PRIVATE_KEY_SIZE]);
@@ -200,7 +205,9 @@ impl PrivateKey {
     }
 
     pub fn from_base58_string<I: AsRef<[u8]>>(val: I) -> Result<Self, KeyRecoveryError> {
-        let bytes = bs58::decode(val).into_vec()?;
+        let bytes = bs58::decode(val)
+            .into_vec()
+            .map_err(|source| KeyRecoveryError::MalformedPrivateKeyString { source })?;
         Self::from_bytes(&bytes)
     }
 

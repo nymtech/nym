@@ -99,7 +99,7 @@ impl fmt::Display for GatewayRequestsError {
             MalformedSphinxPacket => write!(f, "received sphinx packet was malformed"),
             MalformedEncryption => write!(f, "the received encrypted data was malformed"),
             InvalidPacketMode => write!(f, "provided packet mode is invalid"),
-            InvalidMixPacket(err) => write!(f, "provided mix packet was malformed - {}", err)
+            InvalidMixPacket(err) => write!(f, "provided mix packet was malformed - {err}")
         }
     }
 }

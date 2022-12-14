@@ -4,6 +4,13 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+### Changed
+
+- all-binaries: improved error logging ([#2686])
+
+[#2686]: https://github.com/nymtech/nym/pull/2686
+
+
 ## [v1.1.3] (2022-12-13)
 
 ### Changed

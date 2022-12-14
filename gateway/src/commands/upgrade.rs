@@ -57,7 +57,7 @@ fn unsupported_upgrade(current_version: &Version, config_version: &Version) -> !
 
 fn parse_config_version(config: &Config) -> Version {
     let version = Version::parse(config.get_version()).unwrap_or_else(|err| {
-        eprintln!("failed to parse client version! - {:?}", err);
+        eprintln!("failed to parse client version! - {err}");
         process::exit(1)
     });
 
@@ -106,7 +106,7 @@ fn minor_0_12_upgrade(
     let upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
-        eprintln!("failed to overwrite config file! - {:?}", err);
+        eprintln!("failed to overwrite config file! - {err}");
         print_failed_upgrade(config_version, &to_version);
         process::exit(1);
     });
@@ -140,7 +140,7 @@ pub async fn execute(args: &Upgrade) {
     let package_version = parse_package_version();
 
     let existing_config = Config::load_from_file(Some(&args.id)).unwrap_or_else(|err| {
-        eprintln!("failed to load existing config file! - {:?}", err);
+        eprintln!("failed to load existing config file! - {err}");
         process::exit(1)
     });
 

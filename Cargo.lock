@@ -1116,6 +1116,7 @@ dependencies = [
  "serde",
  "serde_bytes",
  "subtle-encoding",
+ "thiserror",
  "x25519-dalek",
 ]
 
@@ -2934,6 +2935,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "task",
+ "thiserror",
  "tokio",
  "tokio-util 0.7.3",
  "url",
@@ -3541,6 +3543,7 @@ dependencies = [
  "nymsphinx-types",
  "pemstore",
  "rand 0.7.3",
+ "thiserror",
  "topology",
 ]
 
@@ -3615,6 +3618,7 @@ dependencies = [
  "bytes",
  "nymsphinx-params",
  "nymsphinx-types",
+ "thiserror",
  "tokio-util 0.7.3",
 ]
 
@@ -3624,6 +3628,7 @@ version = "0.1.0"
 dependencies = [
  "crypto",
  "nymsphinx-types",
+ "thiserror",
 ]
 
 [[package]]
@@ -3707,6 +3712,7 @@ name = "ordered-buffer"
 version = "0.1.0"
 dependencies = [
  "log",
+ "thiserror",
 ]
 
 [[package]]

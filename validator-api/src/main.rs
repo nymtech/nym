@@ -278,7 +278,7 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     if let Some(raw_validator) = matches.value_of(NYMD_VALIDATOR_ARG) {
         let parsed = match raw_validator.parse() {
             Err(err) => {
-                error!("Passed validator argument is invalid - {}", err);
+                error!("Passed validator argument is invalid - {err}");
                 process::exit(1)
             }
             Ok(url) => url,
@@ -336,7 +336,7 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     if matches.is_present(WRITE_CONFIG_ARG) {
         info!("Saving the configuration to a file");
         if let Err(err) = config.save_to_file(None) {
-            error!("Failed to write config to a file - {}", err);
+            error!("Failed to write config to a file - {err}");
             process::exit(1)
         }
     }

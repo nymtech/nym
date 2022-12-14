@@ -299,7 +299,7 @@ impl ShutdownListener {
         if self.mode.is_dummy() {
             return;
         }
-        log::trace!("Notifying we stopped: {:?}", err);
+        log::trace!("Notifying we stopped: {err}");
         if self.return_error.send(err).is_err() {
             log::error!("Failed to send back error message");
         }

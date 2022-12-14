@@ -67,11 +67,11 @@ impl NymConfig for Config {
         dirs::home_dir()
             .expect("Failed to evaluate $HOME value")
             .join(".nym")
-            .join("../..")
+            .join("nym-api")
     }
 
     fn try_default_root_directory() -> Option<PathBuf> {
-        dirs::home_dir().map(|path| path.join(".nym").join("../.."))
+        dirs::home_dir().map(|path| path.join(".nym").join("nym-api"))
     }
 
     fn root_directory(&self) -> PathBuf {

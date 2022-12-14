@@ -48,7 +48,6 @@
     "react-hook-form": "^7.14.2",
     "react-router-dom": "6",
     "recharts": "^2.1.13",
-    "react-to-print": "^2.14.7",
     "semver": "^6.3.0",
     "string-to-color": "^2.2.2",
     "use-clipboard-copy": "^0.2.0",

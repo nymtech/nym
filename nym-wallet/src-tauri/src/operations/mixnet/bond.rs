@@ -351,7 +351,7 @@ pub async fn get_mixnode_uptime(
 
     let guard = state.read().await;
     let client = guard.current_client()?;
-    let uptime = client.validator_api.get_mixnode_avg_uptime(mix_id).await?;
+    let uptime = client.nym_api.get_mixnode_avg_uptime(mix_id).await?;
 
     log::info!(">>> Uptime response: {}", uptime.avg_uptime);
     Ok(uptime.avg_uptime)

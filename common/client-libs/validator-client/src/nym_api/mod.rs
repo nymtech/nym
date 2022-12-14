@@ -366,8 +366,8 @@ impl Client {
         &self,
         mix_id: MixId,
         request_body: &ComputeRewardEstParam,
-    ) -> Result<RewardEstimationResponse, ValidatorAPIError> {
-        self.post_validator_api(
+    ) -> Result<RewardEstimationResponse, NymAPIError> {
+        self.post_nym_api(
             &[
                 routes::API_VERSION,
                 routes::STATUS_ROUTES,

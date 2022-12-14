@@ -33,8 +33,8 @@ use keypair::KeyPair;
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
+use validator_client::nym_api::routes::{BANDWIDTH, COCONUT_ROUTES};
 use validator_client::nymd::{Coin, Fee};
-use validator_client::validator_api::routes::{BANDWIDTH, COCONUT_ROUTES};
 
 use getset::{CopyGetters, Getters};
 use rand_07::rngs::OsRng;
@@ -179,10 +179,7 @@ impl InternalSignRequest {
         AdHoc::on_ignite("Internal Sign Request Stage", |rocket| async {
             rocket.manage(state).mount(
                 // this format! is so ugly...
-                format!(
-                    "/{}/{}/{}",
-                    NYM_API_VERSION, COCONUT_ROUTES, BANDWIDTH
-                ),
+                format!("/{}/{}/{}", NYM_API_VERSION, COCONUT_ROUTES, BANDWIDTH),
                 routes![
                     post_blind_sign,
                     post_partial_bandwidth_credential,

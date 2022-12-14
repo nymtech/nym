@@ -26,12 +26,12 @@ use nymcoconut::tests::helpers::theta_from_keys_and_attributes;
 use nymcoconut::{
     prepare_blind_sign, ttp_keygen, Base58, BlindSignRequest, BlindedSignature, Parameters,
 };
-use validator_client::nymd::Coin;
-use validator_client::nymd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
-use validator_client::validator_api::routes::{
+use validator_client::nym_api::routes::{
     API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL,
     COCONUT_ROUTES, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
 };
+use validator_client::nymd::Coin;
+use validator_client::nymd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
 
 use crate::coconut::State;
 use crate::NymApiStorage;

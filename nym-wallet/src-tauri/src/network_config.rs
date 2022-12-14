@@ -47,7 +47,7 @@ pub async fn select_nym_api_url(
     state: tauri::State<'_, WalletState>,
 ) -> Result<(), BackendError> {
     log::debug!("Selecting new validator api_url for {network}: {url}");
-    state.write().await.select_validator_api_url(url, network)?;
+    state.write().await.select_nym_api_url(url, network)?;
     Ok(())
 }
 

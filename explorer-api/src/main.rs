@@ -54,8 +54,8 @@ impl ExplorerApi {
     async fn run(&mut self) {
         info!("Explorer API starting up...");
 
-        let validator_api_url = self.state.inner.validator_client.api_endpoint();
-        info!("Using validator API - {}", validator_api_url);
+        let nym_api_url = self.state.inner.validator_client.api_endpoint();
+        info!("Using validator API - {}", nym_api_url);
 
         let shutdown = ShutdownNotifier::default();
 

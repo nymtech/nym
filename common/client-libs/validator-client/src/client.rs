@@ -836,9 +836,7 @@ impl ApiClient {
     pub fn new(api_url: Url) -> Self {
         let nym_api_client = nym_api::Client::new(api_url);
 
-        ApiClient {
-            nym_api_client,
-        }
+        ApiClient { nym_api_client }
     }
 
     pub fn change_nym_api(&mut self, new_endpoint: Url) {

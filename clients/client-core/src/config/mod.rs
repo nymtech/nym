@@ -160,8 +160,8 @@ impl<T> Config<T> {
         self.client.validator_urls = validator_urls;
     }
 
-    pub fn set_custom_nym_apis(&mut self, validator_api_urls: Vec<Url>) {
-        self.client.nym_api_urls = validator_api_urls;
+    pub fn set_custom_nym_apis(&mut self, nym_api_urls: Vec<Url>) {
+        self.client.nym_api_urls = nym_api_urls;
     }
 
     pub fn set_high_default_traffic_volume(&mut self) {

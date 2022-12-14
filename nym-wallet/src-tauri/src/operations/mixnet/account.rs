@@ -222,7 +222,7 @@ fn create_clients(
             })
         };
 
-        let api_url = if let Some(url) = config.get_selected_validator_api_url(&network) {
+        let api_url = if let Some(url) = config.get_selected_nym_api_url(&network) {
             log::debug!("Using selected api_url for {network}: {url}");
             url.clone()
         } else {

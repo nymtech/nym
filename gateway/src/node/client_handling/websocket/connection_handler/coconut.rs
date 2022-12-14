@@ -21,7 +21,7 @@ const ONE_HOUR_SEC: u64 = 3600;
 const MAX_FEEGRANT_UNYM: u128 = 10000;
 
 pub(crate) struct CoconutVerifier {
-    api_clients: Vec<CoconutApiClient>,
+    nym_api_clients: Vec<CoconutApiClient>,
     nymd_client: Client<SigningNymdClient>,
     mix_denom_base: String,
     aggregated_verification_key: VerificationKey,
@@ -41,7 +41,7 @@ impl CoconutVerifier {
             });
         }
         Ok(CoconutVerifier {
-            api_clients,
+            nym_api_clients: api_clients,
             nymd_client,
             mix_denom_base,
             aggregated_verification_key,
@@ -92,7 +92,7 @@ impl CoconutVerifier {
             proposal_id,
             self.nymd_client.nymd.address().clone(),
         );
-        for client in self.api_clients.iter() {
+        for client in self.nym_api_clients.iter() {
             self.nymd_client
                 .nymd
                 .grant_allowance(
@@ -115,7 +115,7 @@ impl CoconutVerifier {
                 )
                 .await?;
             if !ret?.verification_result {
-                debug!("Validator {} didn't accept the credential. It will probably vote No on the spending proposal", client.api_client.validator_api.current_url());
+                debug!("Validator {} didn't accept the credential. It will probably vote No on the spending proposal", client.api_client.nym_api_client.current_url());
             }
         }
 

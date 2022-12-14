@@ -425,14 +425,10 @@ impl WalletStateInner {
         Ok(())
     }
 
-    pub fn select_nym_api_url(
-        &mut self,
-        url: &str,
-        network: Network,
-    ) -> Result<(), BackendError> {
-        self.config.select_validator_api_url(url.parse()?, network);
+    pub fn select_nym_api_url(&mut self, url: &str, network: Network) -> Result<(), BackendError> {
+        self.config.select_nym_api_url(url.parse()?, network);
         if let Ok(client) = self.client_mut(network) {
-            client.change_validator_api(url.parse()?);
+            client.change_nym_api(url.parse()?);
         }
         Ok(())
     }
@@ -489,7 +485,7 @@ macro_rules! nymd_client {
 #[macro_export]
 macro_rules! api_client {
     ($state:ident) => {
-        $state.read().await.current_client()?.validator_api
+        $state.read().await.current_client()?.nym_api
     };
 }
 

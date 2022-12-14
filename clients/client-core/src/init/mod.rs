@@ -120,11 +120,8 @@ where
     T: NymConfig,
 {
     println!("Using gateway provided by user, keeping existing keys");
-    let gateway = query_gateway_details(
-        config.get_nym_api_endpoints(),
-        Some(user_chosen_gateway_id),
-    )
-    .await?;
+    let gateway =
+        query_gateway_details(config.get_nym_api_endpoints(), Some(user_chosen_gateway_id)).await?;
     log::debug!("Querying gateway gives: {}", gateway);
     Ok(gateway.into())
 }

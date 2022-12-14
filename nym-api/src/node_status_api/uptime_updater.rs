@@ -30,8 +30,7 @@ impl HistoricalUptimeUpdater {
     async fn get_active_nodes(
         &self,
         now: OffsetDateTime,
-    ) -> Result<(Vec<MixnodeStatusReport>, Vec<GatewayStatusReport>), NymApiStorageError>
-    {
+    ) -> Result<(Vec<MixnodeStatusReport>, Vec<GatewayStatusReport>), NymApiStorageError> {
         let day_ago = (now - ONE_DAY).unix_timestamp();
         let active_mixnodes = self
             .storage

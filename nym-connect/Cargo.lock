@@ -1004,8 +1004,8 @@ dependencies = [
  "bls12_381 0.5.0",
  "coconut-interface",
  "crypto",
+ "nym-api-requests",
  "thiserror",
- "validator-api-requests",
  "validator-client",
 ]
 
@@ -3337,6 +3337,20 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "nym-api-requests"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "coconut-interface",
+ "cosmrs",
+ "cosmwasm-std",
+ "getset",
+ "mixnet-contract-common",
+ "schemars",
+ "serde",
 ]
 
 [[package]]
@@ -6340,20 +6354,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "validator-api-requests"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "coconut-interface",
- "cosmrs",
- "cosmwasm-std",
- "getset",
- "mixnet-contract-common",
- "schemars",
- "serde",
-]
-
-[[package]]
 name = "validator-client"
 version = "0.1.0"
 dependencies = [
@@ -6377,6 +6377,7 @@ dependencies = [
  "mixnet-contract-common",
  "multisig-contract-common",
  "network-defaults",
+ "nym-api-requests",
  "prost",
  "reqwest",
  "serde",
@@ -6385,7 +6386,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "url",
- "validator-api-requests",
  "vesting-contract",
  "vesting-contract-common",
 ]

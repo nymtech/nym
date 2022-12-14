@@ -75,10 +75,7 @@ async fn print_delegations(delegations: Vec<Delegation>, client: &SigningClientW
     println!("{table}");
 }
 
-async fn print_delegation_events(
-    events: Vec<PendingEpochEvent>,
-    client: &SigningClientWithNymd,
-) {
+async fn print_delegation_events(events: Vec<PendingEpochEvent>, client: &SigningClientWithNymd) {
     let mut table = Table::new();
 
     table.set_header(vec![

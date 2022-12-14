@@ -12,6 +12,6 @@ pub enum NymAPIError {
     #[error("Request failed with error message - {0}")]
     GenericRequestFailure(String),
 
-    #[error("The validator API has failed to resolve our request. It returned status code {status} and additional error message: {}", error.message())]
+    #[error("The nym API has failed to resolve our request. It returned status code {status} and additional error message: {}", error.message())]
     ApiRequestFailure { status: u16, error: RequestError },
 }

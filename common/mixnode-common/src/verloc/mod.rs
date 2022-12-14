@@ -132,8 +132,8 @@ impl ConfigBuilder {
         self
     }
 
-    pub fn nym_api_urls(mut self, validator_api_urls: Vec<Url>) -> Self {
-        self.0.nym_api_urls = validator_api_urls;
+    pub fn nym_api_urls(mut self, nym_api_urls: Vec<Url>) -> Self {
+        self.0.nym_api_urls = nym_api_urls;
         self
     }
 
@@ -204,9 +204,7 @@ impl VerlocMeasurer {
             )),
             shutdown_listener,
             currently_used_api: 0,
-            validator_client: validator_client::ApiClient::new(
-                config.nym_api_urls[0].clone(),
-            ),
+            validator_client: validator_client::ApiClient::new(config.nym_api_urls[0].clone()),
             config,
             results: AtomicVerlocResult::new(),
         }
@@ -218,8 +216,7 @@ impl VerlocMeasurer {
             return;
         }
 
-        self.currently_used_api =
-            (self.currently_used_api + 1) % self.config.nym_api_urls.len();
+        self.currently_used_api = (self.currently_used_api + 1) % self.config.nym_api_urls.len();
         self.validator_client
             .change_nym_api(self.config.nym_api_urls[self.currently_used_api].clone())
     }

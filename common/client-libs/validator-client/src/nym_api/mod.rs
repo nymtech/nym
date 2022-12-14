@@ -121,9 +121,7 @@ impl Client {
         if response.status().is_success() {
             Ok(response.json().await?)
         } else {
-            Err(NymAPIError::GenericRequestFailure(
-                response.text().await?,
-            ))
+            Err(NymAPIError::GenericRequestFailure(response.text().await?))
         }
     }
 
@@ -132,9 +130,7 @@ impl Client {
             .await
     }
 
-    pub async fn get_mixnodes_detailed(
-        &self,
-    ) -> Result<Vec<MixNodeBondAnnotated>, NymAPIError> {
+    pub async fn get_mixnodes_detailed(&self) -> Result<Vec<MixNodeBondAnnotated>, NymAPIError> {
         self.query_nym_api(
             &[
                 routes::API_VERSION,

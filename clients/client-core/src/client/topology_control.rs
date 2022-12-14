@@ -142,11 +142,7 @@ pub struct TopologyRefresherConfig {
 }
 
 impl TopologyRefresherConfig {
-    pub fn new(
-        nym_api_urls: Vec<Url>,
-        refresh_rate: Duration,
-        client_version: String,
-    ) -> Self {
+    pub fn new(nym_api_urls: Vec<Url>, refresh_rate: Duration, client_version: String) -> Self {
         TopologyRefresherConfig {
             nym_api_urls,
             refresh_rate,
@@ -172,9 +168,7 @@ impl TopologyRefresher {
         cfg.nym_api_urls.shuffle(&mut thread_rng());
 
         TopologyRefresher {
-            validator_client: validator_client::client::ApiClient::new(
-                cfg.nym_api_urls[0].clone(),
-            ),
+            validator_client: validator_client::client::ApiClient::new(cfg.nym_api_urls[0].clone()),
             client_version: cfg.client_version,
             nym_api_urls: cfg.nym_api_urls,
             topology_accessor,

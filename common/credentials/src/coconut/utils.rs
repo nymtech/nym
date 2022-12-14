@@ -12,9 +12,7 @@ use nym_api_requests::coconut::BlindSignRequestBody;
 use validator_client::client::CoconutApiClient;
 
 use crate::coconut::bandwidth::{BandwidthVoucher, PRIVATE_ATTRIBUTES, PUBLIC_ATTRIBUTES};
-use crate::coconut::params::{
-    NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
-};
+use crate::coconut::params::{NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm};
 use crate::error::Error;
 
 pub async fn obtain_aggregate_verification_key(

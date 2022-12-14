@@ -4,8 +4,8 @@
 use crate::network_monitor::monitor::summary_producer::{GatewayResult, MixnodeResult};
 use crate::network_monitor::test_route::TestRoute;
 use crate::node_status_api::models::{
-    GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport, MixnodeUptimeHistory, Uptime,
-    NymApiStorageError,
+    GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport, MixnodeUptimeHistory,
+    NymApiStorageError, Uptime,
 };
 use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
@@ -668,10 +668,7 @@ impl NymApiStorage {
     /// # Arguments
     ///
     /// * `until`: timestamp specifying the purge cutoff.
-    pub(crate) async fn purge_old_statuses(
-        &self,
-        until: i64,
-    ) -> Result<(), NymApiStorageError> {
+    pub(crate) async fn purge_old_statuses(&self, until: i64) -> Result<(), NymApiStorageError> {
         self.manager.purge_old_mixnode_statuses(until).await?;
         self.manager
             .purge_old_gateway_statuses(until)

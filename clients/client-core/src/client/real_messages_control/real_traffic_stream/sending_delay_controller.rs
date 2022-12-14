@@ -77,10 +77,12 @@ impl SendingDelayController {
         self.current_multiplier
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn min_multiplier(&self) -> u32 {
         self.lower_bound
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn max_multiplier(&self) -> u32 {
         self.upper_bound
     }

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Button, Stack, Typography, Grid, useMediaQuery, useTheme } from '@mui/material';
-import { Tune as TuneIcon, BorderColor as BorderColorIcon, Paid as PaidIcon } from '@mui/icons-material';
+import { Tune as TuneIcon, BorderColor as BorderColorIcon } from '@mui/icons-material';
+import { CoinMark } from '@nymproject/react/coins/CoinMark';
 import { NymCard } from '../NymCard';
 import { SignMessageModal } from './SignMessageModal';
 
@@ -27,8 +28,7 @@ const TutorialStep = ({
   <Grid
     item
     md={4}
-    pb={2}
-    pr={1}
+    p={3}
     sx={{
       borderRight: borderRight ? `1px solid ${borderColor}` : null,
       borderBottom: borderBottom ? `1px solid ${borderColor}` : null,
@@ -56,16 +56,18 @@ export const Tutorial = () => {
 
   return (
     <NymCard borderless title="Buy NYM with BTC without KYC" sx={{ mt: 4 }}>
-      <Typography mb={2}>
+      <Typography mb={2} fontSize={14}>
         Follow below 3 steps to quickly and easily buy NYM tokens. You can purchase up to 1000 Swiss Francs per day
         without KYC.
       </Typography>
       {showSignModal && <SignMessageModal onClose={() => setShowSignModal(false)} />}
       <Grid
         container
-        spacing={2}
-        mb={3}
+        spacing={3}
+        m={0}
         mt={3}
+        width={1}
+        flexWrap="nowrap"
         sx={{
           border: `1px solid ${borderColor}`,
           borderRadius: '8px',
@@ -76,7 +78,7 @@ export const Tutorial = () => {
           title="Define purchase details"
           icon={<TuneIcon fontSize="small" />}
           text={
-            <Typography sx={{ color: (t) => t.palette.nym.text.muted }}>
+            <Typography fontSize={14} lineHeight="24px" sx={{ color: (t) => t.palette.nym.text.muted }}>
               Click on{' '}
               <Typography display="inline" fontWeight={600}>
                 Buy NYM
@@ -90,10 +92,10 @@ export const Tutorial = () => {
         />
         <TutorialStep
           step={2}
-          title="Sign message"
+          title="Sign a message with your Nym wallet"
           icon={<BorderColorIcon fontSize="small" />}
           text={
-            <Typography sx={{ color: (t) => t.palette.nym.text.muted }}>
+            <Typography fontSize={14} lineHeight="24px" sx={{ color: (t) => t.palette.nym.text.muted }}>
               When asked for signature, copy the message and sign it using{' '}
               <Typography display="inline" fontWeight={600}>
                 Sign message
@@ -106,12 +108,11 @@ export const Tutorial = () => {
         />
         <TutorialStep
           step={3}
-          title="Send tx and receive NYM"
-          icon={<PaidIcon fontSize="small" />}
+          title="Make BTC tx and receive NYM"
+          icon={<CoinMark width={20} height={20} />}
           text={
-            <Typography sx={{ color: (t) => t.palette.nym.text.muted }}>
-              {`Send the defined BTC amount to Bity's address that's given to you. As soon as your BTC transaction has 4
-              confirmations, Bity will send the purchased NYM tokens to your wallet.`}
+            <Typography fontSize={14} lineHeight="24px" sx={{ color: (t) => t.palette.nym.text.muted }}>
+              {`Send BTC to the given address. When the transaction is confirmed your purchased NYM tokens will be transferred in your wallet.`}
             </Typography>
           }
         />

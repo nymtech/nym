@@ -80,7 +80,7 @@ export const Tutorial = () => {
           text={
             <Typography fontSize={14} lineHeight="24px" sx={{ color: (t) => t.palette.nym.text.muted }}>
               Click on{' '}
-              <Typography display="inline" fontWeight={600}>
+              <Typography display="inline" fontWeight={600} fontSize={14} lineHeight="24px">
                 Buy NYM
               </Typography>{' '}
               button and follow the steps in the browser window that opens. You will be asked for purchase details i.e.
@@ -97,7 +97,7 @@ export const Tutorial = () => {
           text={
             <Typography fontSize={14} lineHeight="24px" sx={{ color: (t) => t.palette.nym.text.muted }}>
               When asked for signature, copy the message and sign it using{' '}
-              <Typography display="inline" fontWeight={600}>
+              <Typography display="inline" fontWeight={600} fontSize={14} lineHeight="24px">
                 Sign message
               </Typography>{' '}
               button below. Then copy and paste your signature back in the browser window.

@@ -409,6 +409,7 @@ pub struct Client<T> {
     validator_urls: Vec<Url>,
 
     /// Addresses to APIs running on validator from which the client gets the view of the network.
+    #[serde(alias = "validator_api_urls")]
     nym_api_urls: Vec<Url>,
 
     /// Path to file containing private identity key.

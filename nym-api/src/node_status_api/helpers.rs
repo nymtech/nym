@@ -3,7 +3,7 @@
 
 use crate::contract_cache::Cache;
 use crate::node_status_api::models::ErrorResponse;
-use crate::storage::ValidatorApiStorage;
+use crate::storage::NymApiStorage;
 use crate::{NodeStatusCache, ValidatorCache};
 use cosmwasm_std::Decimal;
 use mixnet_contract_common::reward_params::Performance;
@@ -20,7 +20,7 @@ use rocket::State;
 use super::reward_estimate::compute_reward_estimate;
 
 pub(crate) async fn _mixnode_report(
-    storage: &ValidatorApiStorage,
+    storage: &NymApiStorage,
     mix_id: MixId,
 ) -> Result<MixnodeStatusReportResponse, ErrorResponse> {
     storage
@@ -31,7 +31,7 @@ pub(crate) async fn _mixnode_report(
 }
 
 pub(crate) async fn _mixnode_uptime_history(
-    storage: &ValidatorApiStorage,
+    storage: &NymApiStorage,
     mix_id: MixId,
 ) -> Result<MixnodeUptimeHistoryResponse, ErrorResponse> {
     storage
@@ -42,7 +42,7 @@ pub(crate) async fn _mixnode_uptime_history(
 }
 
 pub(crate) async fn _mixnode_core_status_count(
-    storage: &State<ValidatorApiStorage>,
+    storage: &State<NymApiStorage>,
     mix_id: MixId,
     since: Option<i64>,
 ) -> Result<MixnodeCoreStatusResponse, ErrorResponse> {
@@ -106,7 +106,7 @@ pub(crate) async fn _get_mixnode_reward_estimation(
 async fn average_mixnode_performance(
     mix_id: MixId,
     current_interval: Interval,
-    storage: &ValidatorApiStorage,
+    storage: &NymApiStorage,
 ) -> Result<Performance, ErrorResponse> {
     storage
         .get_average_mixnode_uptime_in_the_last_24hrs(
@@ -255,7 +255,7 @@ pub(crate) async fn _get_mixnode_inclusion_probability(
 
 pub(crate) async fn _get_mixnode_avg_uptime(
     cache: &ValidatorCache,
-    storage: &ValidatorApiStorage,
+    storage: &NymApiStorage,
     mix_id: MixId,
 ) -> Result<UptimeResponse, ErrorResponse> {
     let current_interval = cache

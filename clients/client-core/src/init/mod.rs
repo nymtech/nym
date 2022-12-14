@@ -96,7 +96,7 @@ where
 {
     println!("Configuring gateway");
     let gateway =
-        query_gateway_details(config.get_validator_api_endpoints(), user_chosen_gateway_id).await?;
+        query_gateway_details(config.get_nym_api_endpoints(), user_chosen_gateway_id).await?;
     log::debug!("Querying gateway gives: {}", gateway);
 
     // Registering with gateway by setting up and writing shared keys to disk
@@ -121,7 +121,7 @@ where
 {
     println!("Using gateway provided by user, keeping existing keys");
     let gateway = query_gateway_details(
-        config.get_validator_api_endpoints(),
+        config.get_nym_api_endpoints(),
         Some(user_chosen_gateway_id),
     )
     .await?;

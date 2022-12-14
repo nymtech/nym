@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::contract_cache::{Cache, CacheNotification, ValidatorCache};
-use crate::storage::ValidatorApiStorage;
+use crate::storage::NymApiStorage;
 use mixnet_contract_common::families::FamilyHead;
 use mixnet_contract_common::reward_params::Performance;
 use mixnet_contract_common::{
@@ -154,7 +154,7 @@ pub struct NodeStatusCacheRefresher {
     // Sources for when refreshing data
     contract_cache: ValidatorCache,
     contract_cache_listener: watch::Receiver<CacheNotification>,
-    storage: Option<ValidatorApiStorage>,
+    storage: Option<NymApiStorage>,
 }
 
 impl NodeStatusCacheRefresher {
@@ -163,7 +163,7 @@ impl NodeStatusCacheRefresher {
         fallback_caching_interval: Duration,
         contract_cache: ValidatorCache,
         contract_cache_listener: watch::Receiver<CacheNotification>,
-        storage: Option<ValidatorApiStorage>,
+        storage: Option<NymApiStorage>,
     ) -> Self {
         Self {
             cache,

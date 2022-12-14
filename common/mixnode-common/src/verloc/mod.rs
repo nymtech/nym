@@ -69,8 +69,8 @@ pub struct Config {
     /// due to being unable to get the list of nodes.
     retry_timeout: Duration,
 
-    /// URLs to the validator apis for obtaining network topology.
-    validator_api_urls: Vec<Url>,
+    /// URLs to the nym apis for obtaining network topology.
+    nym_api_urls: Vec<Url>,
 }
 
 impl Config {
@@ -132,15 +132,15 @@ impl ConfigBuilder {
         self
     }
 
-    pub fn validator_api_urls(mut self, validator_api_urls: Vec<Url>) -> Self {
-        self.0.validator_api_urls = validator_api_urls;
+    pub fn nym_api_urls(mut self, validator_api_urls: Vec<Url>) -> Self {
+        self.0.nym_api_urls = validator_api_urls;
         self
     }
 
     pub fn build(self) -> Config {
         // panics here are fine as those are only ever constructed at the initial setup
         assert!(
-            !self.0.validator_api_urls.is_empty(),
+            !self.0.nym_api_urls.is_empty(),
             "at least one validator endpoint must be provided",
         );
         self.0
@@ -159,7 +159,7 @@ impl Default for ConfigBuilder {
             tested_nodes_batch_size: DEFAULT_BATCH_SIZE,
             testing_interval: DEFAULT_TESTING_INTERVAL,
             retry_timeout: DEFAULT_RETRY_TIMEOUT,
-            validator_api_urls: vec![],
+            nym_api_urls: vec![],
         })
     }
 }
@@ -186,7 +186,7 @@ impl VerlocMeasurer {
         identity: Arc<identity::KeyPair>,
         shutdown_listener: ShutdownListener,
     ) -> Self {
-        config.validator_api_urls.shuffle(&mut thread_rng());
+        config.nym_api_urls.shuffle(&mut thread_rng());
 
         VerlocMeasurer {
             packet_sender: Arc::new(PacketSender::new(
@@ -205,23 +205,23 @@ impl VerlocMeasurer {
             shutdown_listener,
             currently_used_api: 0,
             validator_client: validator_client::ApiClient::new(
-                config.validator_api_urls[0].clone(),
+                config.nym_api_urls[0].clone(),
             ),
             config,
             results: AtomicVerlocResult::new(),
         }
     }
 
-    fn use_next_validator_api(&mut self) {
-        if self.config.validator_api_urls.len() == 1 {
+    fn use_next_nym_api(&mut self) {
+        if self.config.nym_api_urls.len() == 1 {
             warn!("There's only a single validator API available - it won't be possible to use a different one");
             return;
         }
 
         self.currently_used_api =
-            (self.currently_used_api + 1) % self.config.validator_api_urls.len();
+            (self.currently_used_api + 1) % self.config.nym_api_urls.len();
         self.validator_client
-            .change_validator_api(self.config.validator_api_urls[self.currently_used_api].clone())
+            .change_nym_api(self.config.nym_api_urls[self.currently_used_api].clone())
     }
 
     pub fn get_verloc_results_pointer(&self) -> AtomicVerlocResult {
@@ -308,7 +308,7 @@ impl VerlocMeasurer {
                         "failed to obtain list of mixnodes from the validator - {}. Going to attempt to use another validator API in the next run",
                         err
                     );
-                    self.use_next_validator_api();
+                    self.use_next_nym_api();
                     sleep(self.config.retry_timeout).await;
                     continue;
                 }

@@ -3,7 +3,7 @@
 
 use crate::config::Config;
 use crate::epoch_operations::MixnodeToReward;
-use config::defaults::{NymNetworkDetails, DEFAULT_VALIDATOR_API_PORT};
+use config::defaults::{NymNetworkDetails, DEFAULT_NYM_API_PORT};
 use mixnet_contract_common::families::{Family, FamilyHead};
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::RewardingParams;
@@ -59,7 +59,7 @@ impl Client<QueryNymdClient> {
     pub(crate) fn new_query(config: &Config) -> Self {
         // the api address is irrelevant here as **WE ARE THE API**
         // and we won't be talking on the socket here.
-        let api_url = format!("http://localhost:{}", DEFAULT_VALIDATOR_API_PORT)
+        let api_url = format!("http://localhost:{}", DEFAULT_NYM_API_PORT)
             .parse()
             .unwrap();
         let nymd_url = config.get_nymd_validator_url();
@@ -82,7 +82,7 @@ impl Client<SigningNymdClient> {
     pub(crate) fn new_signing(config: &Config) -> Self {
         // the api address is irrelevant here as **WE ARE THE API**
         // and we won't be talking on the socket here.
-        let api_url = format!("http://localhost:{}", DEFAULT_VALIDATOR_API_PORT)
+        let api_url = format!("http://localhost:{}", DEFAULT_NYM_API_PORT)
             .parse()
             .unwrap();
         let nymd_url = config.get_nymd_validator_url();

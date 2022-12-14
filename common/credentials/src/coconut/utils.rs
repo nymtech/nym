@@ -13,7 +13,7 @@ use validator_client::client::CoconutApiClient;
 
 use crate::coconut::bandwidth::{BandwidthVoucher, PRIVATE_ATTRIBUTES, PUBLIC_ATTRIBUTES};
 use crate::coconut::params::{
-    ValidatorApiCredentialEncryptionAlgorithm, ValidatorApiCredentialHkdfAlgorithm,
+    NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
 };
 use crate::error::Error;
 
@@ -66,11 +66,11 @@ async fn obtain_partial_credential(
     let remote_key = PublicKey::from_bytes(&response.remote_key)?;
 
     let encryption_key = recompute_shared_key::<
-        ValidatorApiCredentialEncryptionAlgorithm,
-        ValidatorApiCredentialHkdfAlgorithm,
+        NymApiCredentialEncryptionAlgorithm,
+        NymApiCredentialHkdfAlgorithm,
     >(&remote_key, attributes.encryption_key());
-    let zero_iv = stream_cipher::zero_iv::<ValidatorApiCredentialEncryptionAlgorithm>();
-    let blinded_signature_bytes = stream_cipher::decrypt::<ValidatorApiCredentialEncryptionAlgorithm>(
+    let zero_iv = stream_cipher::zero_iv::<NymApiCredentialEncryptionAlgorithm>();
+    let blinded_signature_bytes = stream_cipher::decrypt::<NymApiCredentialEncryptionAlgorithm>(
         &encryption_key,
         &zero_iv,
         &encrypted_signature,

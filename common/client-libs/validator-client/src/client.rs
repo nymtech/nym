@@ -731,7 +731,7 @@ impl<C> Client<C> {
 // validator-api wrappers
 #[cfg(feature = "nymd-client")]
 impl<C> Client<C> {
-    pub fn change_validator_api(&mut self, new_endpoint: Url) {
+    pub fn change_nym_api(&mut self, new_endpoint: Url) {
         self.nym_api.change_url(new_endpoint)
     }
 
@@ -827,7 +827,7 @@ impl CoconutApiClient {
 
 #[derive(Clone)]
 pub struct ApiClient {
-    pub validator_api: nym_api::Client,
+    pub nym_api_client: nym_api::Client,
     // TODO: perhaps if we really need it at some (currently I don't see any reasons for it)
     // we could re-implement the communication with the REST API on port 1317
 }
@@ -837,32 +837,32 @@ impl ApiClient {
         let nym_api_client = nym_api::Client::new(api_url);
 
         ApiClient {
-            validator_api: nym_api_client,
+            nym_api_client: nym_api_client,
         }
     }
 
-    pub fn change_validator_api(&mut self, new_endpoint: Url) {
-        self.validator_api.change_url(new_endpoint);
+    pub fn change_nym_api(&mut self, new_endpoint: Url) {
+        self.nym_api_client.change_url(new_endpoint);
     }
 
     pub async fn get_cached_active_mixnodes(
         &self,
     ) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.validator_api.get_active_mixnodes().await?)
+        Ok(self.nym_api_client.get_active_mixnodes().await?)
     }
 
     pub async fn get_cached_rewarded_mixnodes(
         &self,
     ) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.validator_api.get_rewarded_mixnodes().await?)
+        Ok(self.nym_api_client.get_rewarded_mixnodes().await?)
     }
 
     pub async fn get_cached_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.validator_api.get_mixnodes().await?)
+        Ok(self.nym_api_client.get_mixnodes().await?)
     }
 
     pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
-        Ok(self.validator_api.get_gateways().await?)
+        Ok(self.nym_api_client.get_gateways().await?)
     }
 
     pub async fn get_gateway_core_status_count(
@@ -871,7 +871,7 @@ impl ApiClient {
         since: Option<i64>,
     ) -> Result<GatewayCoreStatusResponse, ValidatorClientError> {
         Ok(self
-            .validator_api
+            .nym_api_client
             .get_gateway_core_status_count(identity, since)
             .await?)
     }
@@ -882,7 +882,7 @@ impl ApiClient {
         since: Option<i64>,
     ) -> Result<MixnodeCoreStatusResponse, ValidatorClientError> {
         Ok(self
-            .validator_api
+            .nym_api_client
             .get_mixnode_core_status_count(mix_id, since)
             .await?)
     }
@@ -891,7 +891,7 @@ impl ApiClient {
         &self,
         mix_id: MixId,
     ) -> Result<MixnodeStatusResponse, ValidatorClientError> {
-        Ok(self.validator_api.get_mixnode_status(mix_id).await?)
+        Ok(self.nym_api_client.get_mixnode_status(mix_id).await?)
     }
 
     pub async fn get_mixnode_reward_estimation(
@@ -899,7 +899,7 @@ impl ApiClient {
         mix_id: MixId,
     ) -> Result<RewardEstimationResponse, ValidatorClientError> {
         Ok(self
-            .validator_api
+            .nym_api_client
             .get_mixnode_reward_estimation(mix_id)
             .await?)
     }
@@ -909,7 +909,7 @@ impl ApiClient {
         mix_id: MixId,
     ) -> Result<StakeSaturationResponse, ValidatorClientError> {
         Ok(self
-            .validator_api
+            .nym_api_client
             .get_mixnode_stake_saturation(mix_id)
             .await?)
     }
@@ -918,7 +918,7 @@ impl ApiClient {
         &self,
         request_body: &BlindSignRequestBody,
     ) -> Result<BlindedSignatureResponse, ValidatorClientError> {
-        Ok(self.validator_api.blind_sign(request_body).await?)
+        Ok(self.nym_api_client.blind_sign(request_body).await?)
     }
 
     pub async fn partial_bandwidth_credential(
@@ -926,7 +926,7 @@ impl ApiClient {
         request_body: &str,
     ) -> Result<BlindedSignatureResponse, ValidatorClientError> {
         Ok(self
-            .validator_api
+            .nym_api_client
             .partial_bandwidth_credential(request_body)
             .await?)
     }
@@ -936,7 +936,7 @@ impl ApiClient {
         request_body: &VerifyCredentialBody,
     ) -> Result<VerifyCredentialResponse, ValidatorClientError> {
         Ok(self
-            .validator_api
+            .nym_api_client
             .verify_bandwidth_credential(request_body)
             .await?)
     }

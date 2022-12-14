@@ -4,7 +4,7 @@
 use clap::Parser;
 use comfy_table::Table;
 
-use crate::context::QueryClientWithValidatorAPI;
+use crate::context::QueryClientWithNymd;
 use crate::utils::{pretty_cosmwasm_coin, show_error};
 
 #[derive(Debug, Parser)]
@@ -14,7 +14,7 @@ pub struct Args {
     pub identity_key: Option<String>,
 }
 
-pub async fn query(args: Args, client: &QueryClientWithValidatorAPI) {
+pub async fn query(args: Args, client: &QueryClientWithNymd) {
     match client.nym_api.get_gateways().await {
         Ok(res) => match args.identity_key {
             Some(identity_key) => {

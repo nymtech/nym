@@ -3,7 +3,7 @@
 
 use crate::config::template::config_template;
 use config::defaults::mainnet::MIXNET_CONTRACT_ADDRESS;
-use config::defaults::DEFAULT_VALIDATOR_API_PORT;
+use config::defaults::DEFAULT_NYM_API_PORT;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -114,7 +114,7 @@ impl Default for Base {
             .expect("default local validator is malformed!");
         let mut default_announce_address = default_validator.clone();
         default_announce_address
-            .set_port(Some(DEFAULT_VALIDATOR_API_PORT))
+            .set_port(Some(DEFAULT_NYM_API_PORT))
             .expect("default local validator is malformed!");
         Base {
             id: String::default(),

@@ -15,7 +15,7 @@ use config::defaults::VOUCHER_INFO;
 use cosmwasm_std::{to_binary, Addr, CosmosMsg, Decimal, WasmMsg};
 use credentials::coconut::bandwidth::BandwidthVoucher;
 use credentials::coconut::params::{
-    ValidatorApiCredentialEncryptionAlgorithm, ValidatorApiCredentialHkdfAlgorithm,
+    NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
 };
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
@@ -34,7 +34,7 @@ use validator_client::validator_api::routes::{
 };
 
 use crate::coconut::State;
-use crate::ValidatorApiStorage;
+use crate::NymApiStorage;
 use async_trait::async_trait;
 use coconut_dkg_common::dealer::{
     ContractDealing, DealerDetails, DealerDetailsResponse, DealerType,
@@ -456,7 +456,7 @@ async fn signed_before() {
     let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
-    let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
+    let storage = NymApiStorage::init(db_dir).await.unwrap();
     let tx_db = Arc::new(RwLock::new(HashMap::new()));
     tx_db
         .write()
@@ -532,7 +532,7 @@ async fn state_functions() {
     let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
-    let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
+    let storage = NymApiStorage::init(db_dir).await.unwrap();
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
     staged_key_pair.set(key_pair).await;
@@ -601,11 +601,11 @@ async fn state_functions() {
         crypto::asymmetric::encryption::PublicKey::from_bytes(&response.remote_key).unwrap();
 
     let encryption_key = recompute_shared_key::<
-        ValidatorApiCredentialEncryptionAlgorithm,
-        ValidatorApiCredentialHkdfAlgorithm,
+        NymApiCredentialEncryptionAlgorithm,
+        NymApiCredentialHkdfAlgorithm,
     >(&remote_key, encryption_keypair.private_key());
-    let zero_iv = stream_cipher::zero_iv::<ValidatorApiCredentialEncryptionAlgorithm>();
-    let blinded_signature_bytes = stream_cipher::decrypt::<ValidatorApiCredentialEncryptionAlgorithm>(
+    let zero_iv = stream_cipher::zero_iv::<NymApiCredentialEncryptionAlgorithm>();
+    let blinded_signature_bytes = stream_cipher::decrypt::<NymApiCredentialEncryptionAlgorithm>(
         &encryption_key,
         &zero_iv,
         &response.encrypted_signature,
@@ -665,7 +665,7 @@ async fn blind_sign_correct() {
     let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
-    let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
+    let storage = NymApiStorage::init(db_dir).await.unwrap();
     let tx_db = Arc::new(RwLock::new(HashMap::new()));
 
     let mut tx_entry = tx_entry_fixture(&tx_hash.to_string());
@@ -776,7 +776,7 @@ async fn signature_test() {
     let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
-    let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
+    let storage = NymApiStorage::init(db_dir).await.unwrap();
     let nymd_client =
         DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap());
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
@@ -865,7 +865,7 @@ async fn verification_of_bandwidth_credential() {
         theta_from_keys_and_attributes(&params, &key_pairs, &indices, &public_attributes).unwrap();
     let key_pair = key_pairs.remove(0);
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
-    let storage1 = ValidatorApiStorage::init(db_dir).await.unwrap();
+    let storage1 = NymApiStorage::init(db_dir).await.unwrap();
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
     staged_key_pair.set(key_pair).await;

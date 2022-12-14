@@ -16,14 +16,14 @@ pub mod errors;
 
 pub type SigningClient = validator_client::nymd::NymdClient<SigningNymdClient>;
 pub type QueryClient = validator_client::nymd::NymdClient<QueryNymdClient>;
-pub type SigningClientWithValidatorAPI = validator_client::Client<SigningNymdClient>;
-pub type QueryClientWithValidatorAPI = validator_client::Client<QueryNymdClient>;
+pub type SigningClientWithNymd = validator_client::Client<SigningNymdClient>;
+pub type QueryClientWithNymd = validator_client::Client<QueryNymdClient>;
 
 #[derive(Debug)]
 pub struct ClientArgs {
     pub config_env_file: Option<std::path::PathBuf>,
     pub nymd_url: Option<String>,
-    pub validator_api_url: Option<String>,
+    pub nym_api_url: Option<String>,
     pub mnemonic: Option<bip39::Mnemonic>,
     pub mixnet_contract_address: Option<AccountId>,
     pub vesting_contract_address: Option<AccountId>,
@@ -38,8 +38,8 @@ pub fn get_network_details(args: &ClientArgs) -> Result<NymNetworkDetails, Conte
     if let Some(nymd_url) = args.nymd_url.as_ref() {
         std::env::set_var(NYMD_VALIDATOR, nymd_url);
     }
-    if let Some(validator_api_url) = args.validator_api_url.as_ref() {
-        std::env::set_var(API_VALIDATOR, validator_api_url);
+    if let Some(nym_api_url) = args.nym_api_url.as_ref() {
+        std::env::set_var(API_VALIDATOR, nym_api_url);
     }
     if let Some(mixnet_contract_address) = args.mixnet_contract_address.as_ref() {
         std::env::set_var(MIXNET_CONTRACT_ADDRESS, mixnet_contract_address.to_string());
@@ -103,10 +103,10 @@ pub fn create_query_client(
     }
 }
 
-pub fn create_signing_client_with_validator_api(
+pub fn create_signing_client_with_nym_api(
     args: ClientArgs,
     network_details: &NymNetworkDetails,
-) -> Result<SigningClientWithValidatorAPI, ContextError> {
+) -> Result<SigningClientWithNymd, ContextError> {
     let client_config = validator_client::Config::try_from_nym_network_details(network_details)
         .tap_err(|err| log::error!("Failed to get client config - {err}"))?;
 
@@ -126,9 +126,9 @@ pub fn create_signing_client_with_validator_api(
     }
 }
 
-pub fn create_query_client_with_validator_api(
+pub fn create_query_client_with_nym_api(
     network_details: &NymNetworkDetails,
-) -> Result<QueryClientWithValidatorAPI, ContextError> {
+) -> Result<QueryClientWithNymd, ContextError> {
     let client_config = validator_client::Config::try_from_nym_network_details(network_details)
         .tap_err(|err| log::error!("Failed to get client config - {err}"))?;
 

@@ -9,7 +9,7 @@ type Aes128Ctr = ctr::Ctr64LE<Aes128>;
 
 /// Hashing algorithm used during hkdf for ephemeral shared key generation per blinded signature
 /// response encryption.
-pub type ValidatorApiCredentialHkdfAlgorithm = blake3::Hasher;
+pub type NymApiCredentialHkdfAlgorithm = blake3::Hasher;
 
 /// Encryption algorithm used for end-to-end encryption of blinded signature response
-pub type ValidatorApiCredentialEncryptionAlgorithm = Aes128Ctr;
+pub type NymApiCredentialEncryptionAlgorithm = Aes128Ctr;

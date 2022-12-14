@@ -136,19 +136,19 @@ impl Default for TopologyAccessor {
 }
 
 pub struct TopologyRefresherConfig {
-    validator_api_urls: Vec<Url>,
+    nym_api_urls: Vec<Url>,
     refresh_rate: Duration,
     client_version: String,
 }
 
 impl TopologyRefresherConfig {
     pub fn new(
-        validator_api_urls: Vec<Url>,
+        nym_api_urls: Vec<Url>,
         refresh_rate: Duration,
         client_version: String,
     ) -> Self {
         TopologyRefresherConfig {
-            validator_api_urls,
+            nym_api_urls,
             refresh_rate,
             client_version,
         }
@@ -159,7 +159,7 @@ pub struct TopologyRefresher {
     validator_client: validator_client::client::ApiClient,
     client_version: String,
 
-    validator_api_urls: Vec<Url>,
+    nym_api_urls: Vec<Url>,
     topology_accessor: TopologyAccessor,
     refresh_rate: Duration,
 
@@ -169,14 +169,14 @@ pub struct TopologyRefresher {
 
 impl TopologyRefresher {
     pub fn new(mut cfg: TopologyRefresherConfig, topology_accessor: TopologyAccessor) -> Self {
-        cfg.validator_api_urls.shuffle(&mut thread_rng());
+        cfg.nym_api_urls.shuffle(&mut thread_rng());
 
         TopologyRefresher {
             validator_client: validator_client::client::ApiClient::new(
-                cfg.validator_api_urls[0].clone(),
+                cfg.nym_api_urls[0].clone(),
             ),
             client_version: cfg.client_version,
-            validator_api_urls: cfg.validator_api_urls,
+            nym_api_urls: cfg.nym_api_urls,
             topology_accessor,
             refresh_rate: cfg.refresh_rate,
             currently_used_api: 0,
@@ -184,15 +184,15 @@ impl TopologyRefresher {
         }
     }
 
-    fn use_next_validator_api(&mut self) {
-        if self.validator_api_urls.len() == 1 {
-            warn!("There's only a single validator API available - it won't be possible to use a different one");
+    fn use_next_nym_api(&mut self) {
+        if self.nym_api_urls.len() == 1 {
+            warn!("There's only a single nym API available - it won't be possible to use a different one");
             return;
         }
 
-        self.currently_used_api = (self.currently_used_api + 1) % self.validator_api_urls.len();
+        self.currently_used_api = (self.currently_used_api + 1) % self.nym_api_urls.len();
         self.validator_client
-            .change_validator_api(self.validator_api_urls[self.currently_used_api].clone())
+            .change_nym_api(self.nym_api_urls[self.currently_used_api].clone())
     }
 
     /// Verifies whether nodes a reasonably distributed among all mix layers.
@@ -288,7 +288,7 @@ impl TopologyRefresher {
         let new_topology = self.get_current_compatible_topology().await;
 
         if new_topology.is_none() {
-            self.use_next_validator_api();
+            self.use_next_nym_api();
         }
 
         if new_topology.is_none() && self.was_latest_valid {

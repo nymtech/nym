@@ -22,7 +22,7 @@ use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::monitor::Monitor;
 use crate::nymd_client::Client;
-use crate::storage::ValidatorApiStorage;
+use crate::storage::NymApiStorage;
 
 pub(crate) mod chunker;
 pub(crate) mod gateways_reader;
@@ -36,7 +36,7 @@ pub(crate) struct NetworkMonitorBuilder<'a> {
     config: &'a Config,
     _nymd_client: Client<SigningNymdClient>,
     system_version: String,
-    node_status_storage: ValidatorApiStorage,
+    node_status_storage: NymApiStorage,
     validator_cache: ValidatorCache,
 }
 
@@ -45,7 +45,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
         config: &'a Config,
         _nymd_client: Client<SigningNymdClient>,
         system_version: &str,
-        node_status_storage: ValidatorApiStorage,
+        node_status_storage: NymApiStorage,
         validator_cache: ValidatorCache,
     ) -> Self {
         NetworkMonitorBuilder {

@@ -9,7 +9,7 @@ use crate::contract_cache::ValidatorCacheRefresher;
 use crate::network_monitor::NetworkMonitorBuilder;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::nymd_client::Client;
-use crate::storage::ValidatorApiStorage;
+use crate::storage::NymApiStorage;
 use ::config::defaults::mainnet::read_var_if_not_default;
 use ::config::defaults::setup_env;
 use ::config::defaults::var_names::{CONFIGURED, MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
@@ -380,7 +380,7 @@ fn setup_network_monitor<'a>(
     }
 
     // get instances of managed states
-    let node_status_storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
+    let node_status_storage = rocket.state::<NymApiStorage>().unwrap().clone();
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 
     Some(NetworkMonitorBuilder::new(
@@ -433,7 +433,7 @@ async fn setup_rocket(
     // This is not a very nice approach. A lazy value would be more suitable, but that's still
     // a nightly feature: https://github.com/rust-lang/rust/issues/74465
     let storage = if cfg!(feature = "coconut") || config.get_network_monitor_enabled() {
-        Some(ValidatorApiStorage::init(config.get_node_status_api_database_path()).await?)
+        Some(NymApiStorage::init(config.get_node_status_api_database_path()).await?)
     } else {
         None
     };
@@ -453,7 +453,7 @@ async fn setup_rocket(
 
     // see if we should start up network monitor
     let rocket = if config.get_network_monitor_enabled() {
-        rocket.attach(storage::ValidatorApiStorage::stage(storage.unwrap()))
+        rocket.attach(storage::NymApiStorage::stage(storage.unwrap()))
     } else {
         rocket
     };
@@ -490,7 +490,7 @@ fn get_servers() -> Vec<rocket_okapi::okapi::openapi3::Server> {
     }]
 }
 
-async fn run_validator_api(matches: ArgMatches) -> Result<()> {
+async fn run_nym_api(matches: ArgMatches) -> Result<()> {
     let system_version = env!("CARGO_PKG_VERSION");
 
     // try to load config from the file, if it doesn't exist, use default values
@@ -565,7 +565,7 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
     // we're not starting signing client
     let validator_cache_listener = if config.get_network_monitor_enabled() {
         // Main storage
-        let storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
+        let storage = rocket.state::<NymApiStorage>().unwrap().clone();
 
         // setup our daily uptime updater. Note that if network monitor is disabled, then we have
         // no data for the updates and hence we don't need to start it up
@@ -610,7 +610,7 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
     // Spawn the node status cache refresher.
     // It is primarily refreshed in-sync with the validator cache, however provide a fallback
     // caching interval that is twice the validator cache
-    let storage = rocket.state::<ValidatorApiStorage>().cloned();
+    let storage = rocket.state::<NymApiStorage>().cloned();
     let mut validator_api_cache_refresher = node_status_api::NodeStatusCacheRefresher::new(
         node_status_cache,
         config.get_caching_interval().saturating_mul(2),
@@ -663,5 +663,5 @@ async fn main() -> Result<()> {
         .value_of(CONFIG_ENV_FILE)
         .map(|s| PathBuf::from_str(s).expect("invalid env config file"));
     setup_env(config_env_file);
-    run_validator_api(args).await
+    run_nym_api(args).await
 }

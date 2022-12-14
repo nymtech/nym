@@ -30,8 +30,8 @@ pub enum ClientCoreError<B: ReplyStorageBackend> {
     #[error("Failed to setup gateway")]
     FailedToSetupGateway,
 
-    #[error("List of validator apis is empty")]
-    ListOfValidatorApisIsEmpty,
+    #[error("List of nym apis is empty")]
+    ListOfNymApisIsEmpty,
 
     #[error("Could not load existing gateway configuration: {0}")]
     CouldNotLoadExistingGatewayConfiguration(std::io::Error),

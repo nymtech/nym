@@ -15,7 +15,7 @@
 use crate::contract_cache::ValidatorCache;
 use crate::nymd_client::Client;
 use crate::storage::models::RewardingReport;
-use crate::storage::ValidatorApiStorage;
+use crate::storage::NymApiStorage;
 use mixnet_contract_common::families::FamilyHead;
 use mixnet_contract_common::{
     reward_params::Performance, CurrentIntervalResponse, ExecuteMsg, Interval, MixId,
@@ -56,7 +56,7 @@ impl From<MixnodeToReward> for ExecuteMsg {
 pub struct RewardedSetUpdater {
     nymd_client: Client<SigningNymdClient>,
     validator_cache: ValidatorCache,
-    storage: ValidatorApiStorage,
+    storage: NymApiStorage,
 }
 
 // Weight of a layer being chose is reciprocal to current count in layer
@@ -79,7 +79,7 @@ impl RewardedSetUpdater {
     pub(crate) async fn new(
         nymd_client: Client<SigningNymdClient>,
         validator_cache: ValidatorCache,
-        storage: ValidatorApiStorage,
+        storage: NymApiStorage,
     ) -> Result<Self, RewardingError> {
         Ok(RewardedSetUpdater {
             nymd_client,

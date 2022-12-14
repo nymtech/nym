@@ -373,7 +373,7 @@ impl OpenApiResponderInner for ErrorResponse {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum ValidatorApiStorageError {
+pub enum NymApiStorageError {
     #[error("could not find status report associated with mixnode {mix_id}")]
     MixnodeReportNotFound { mix_id: MixId },
 

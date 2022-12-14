@@ -425,7 +425,7 @@ impl WalletStateInner {
         Ok(())
     }
 
-    pub fn select_validator_api_url(
+    pub fn select_nym_api_url(
         &mut self,
         url: &str,
         network: Network,

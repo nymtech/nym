@@ -40,7 +40,7 @@ pub enum BackendError {
         source: eyre::Report,
     },
     #[error("{source}")]
-    ValidatorApiError {
+    NymApiError {
         #[from]
         source: ValidatorAPIError,
     },

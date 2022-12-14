@@ -14,7 +14,7 @@ use crypto::asymmetric::{
 use dkg::error::DkgError;
 use validator_client::nymd::error::NymdError;
 
-use crate::node_status_api::models::ValidatorApiStorageError;
+use crate::node_status_api::models::NymApiStorageError;
 
 pub type Result<T> = std::result::Result<T, CoconutError>;
 
@@ -77,7 +77,7 @@ pub enum CoconutError {
     CoconutInterfaceError(#[from] coconut_interface::error::CoconutInterfaceError),
 
     #[error("Storage error - {0}")]
-    StorageError(#[from] ValidatorApiStorageError),
+    StorageError(#[from] NymApiStorageError),
 
     #[error("Credentials error - {0}")]
     CredentialsError(#[from] credentials::error::Error),

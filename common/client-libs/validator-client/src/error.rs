@@ -7,9 +7,9 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum ValidatorClientError {
     #[error("There was an issue with the validator api request - {source}")]
-    ValidatorAPIError {
+    NymAPIError {
         #[from]
-        source: nym_api::error::ValidatorAPIError,
+        source: nym_api::error::NymAPIError,
     },
 
     #[error("One of the provided URLs was malformed - {0}")]

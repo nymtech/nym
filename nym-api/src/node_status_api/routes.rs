@@ -10,7 +10,7 @@ use crate::node_status_api::helpers::{
     _mixnode_report, _mixnode_uptime_history,
 };
 use crate::node_status_api::models::ErrorResponse;
-use crate::storage::ValidatorApiStorage;
+use crate::storage::NymApiStorage;
 use crate::ValidatorCache;
 use mixnet_contract_common::MixId;
 use nym_api_requests::models::{
@@ -28,7 +28,7 @@ use rocket_okapi::openapi;
 #[openapi(tag = "status")]
 #[get("/gateway/<identity>/report")]
 pub(crate) async fn gateway_report(
-    storage: &State<ValidatorApiStorage>,
+    storage: &State<NymApiStorage>,
     identity: &str,
 ) -> Result<Json<GatewayStatusReportResponse>, ErrorResponse> {
     storage
@@ -42,7 +42,7 @@ pub(crate) async fn gateway_report(
 #[openapi(tag = "status")]
 #[get("/gateway/<identity>/history")]
 pub(crate) async fn gateway_uptime_history(
-    storage: &State<ValidatorApiStorage>,
+    storage: &State<NymApiStorage>,
     identity: &str,
 ) -> Result<Json<GatewayUptimeHistoryResponse>, ErrorResponse> {
     storage
@@ -56,7 +56,7 @@ pub(crate) async fn gateway_uptime_history(
 #[openapi(tag = "status")]
 #[get("/gateway/<identity>/core-status-count?<since>")]
 pub(crate) async fn gateway_core_status_count(
-    storage: &State<ValidatorApiStorage>,
+    storage: &State<NymApiStorage>,
     identity: &str,
     since: Option<i64>,
 ) -> Json<GatewayCoreStatusResponse> {
@@ -74,7 +74,7 @@ pub(crate) async fn gateway_core_status_count(
 #[openapi(tag = "status")]
 #[get("/mixnode/<mix_id>/report")]
 pub(crate) async fn mixnode_report(
-    storage: &State<ValidatorApiStorage>,
+    storage: &State<NymApiStorage>,
     mix_id: MixId,
 ) -> Result<Json<MixnodeStatusReportResponse>, ErrorResponse> {
     Ok(Json(_mixnode_report(storage, mix_id).await?))
@@ -83,7 +83,7 @@ pub(crate) async fn mixnode_report(
 #[openapi(tag = "status")]
 #[get("/mixnode/<mix_id>/history")]
 pub(crate) async fn mixnode_uptime_history(
-    storage: &State<ValidatorApiStorage>,
+    storage: &State<NymApiStorage>,
     mix_id: MixId,
 ) -> Result<Json<MixnodeUptimeHistoryResponse>, ErrorResponse> {
     Ok(Json(_mixnode_uptime_history(storage, mix_id).await?))
@@ -92,7 +92,7 @@ pub(crate) async fn mixnode_uptime_history(
 #[openapi(tag = "status")]
 #[get("/mixnode/<mix_id>/core-status-count?<since>")]
 pub(crate) async fn mixnode_core_status_count(
-    storage: &State<ValidatorApiStorage>,
+    storage: &State<NymApiStorage>,
     mix_id: MixId,
     since: Option<i64>,
 ) -> Result<Json<MixnodeCoreStatusResponse>, ErrorResponse> {
@@ -171,7 +171,7 @@ pub(crate) async fn get_mixnode_inclusion_probability(
 #[get("/mixnode/<mix_id>/avg_uptime")]
 pub(crate) async fn get_mixnode_avg_uptime(
     cache: &State<ValidatorCache>,
-    storage: &State<ValidatorApiStorage>,
+    storage: &State<NymApiStorage>,
     mix_id: MixId,
 ) -> Result<Json<UptimeResponse>, ErrorResponse> {
     Ok(Json(_get_mixnode_avg_uptime(cache, storage, mix_id).await?))

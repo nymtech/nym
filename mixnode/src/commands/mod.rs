@@ -96,10 +96,10 @@ fn override_config(mut config: Config, args: OverrideConfig) -> Config {
     }
 
     if let Some(ref raw_validators) = args.validators {
-        config = config.with_custom_validator_apis(parse_validators(raw_validators));
+        config = config.with_custom_nym_apis(parse_validators(raw_validators));
     } else if std::env::var(CONFIGURED).is_ok() {
         if let Some(raw_validators) = read_var_if_not_default(API_VALIDATOR) {
-            config = config.with_custom_validator_apis(::config::parse_validators(&raw_validators))
+            config = config.with_custom_nym_apis(::config::parse_validators(&raw_validators))
         }
     }
 

@@ -2,7 +2,7 @@ use nym_api_requests::models::RequestError;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
-pub enum ValidatorAPIError {
+pub enum NymAPIError {
     #[error("There was an issue with the REST request - {source}")]
     ReqwestClientError {
         #[from]

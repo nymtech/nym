@@ -144,8 +144,8 @@ impl Config {
         self
     }
 
-    pub fn with_custom_validator_apis(mut self, validator_api_urls: Vec<Url>) -> Self {
-        self.gateway.validator_api_urls = validator_api_urls;
+    pub fn with_custom_nym_apis(mut self, nym_api_urls: Vec<Url>) -> Self {
+        self.gateway.nym_api_urls = nym_api_urls;
         self
     }
 
@@ -240,8 +240,8 @@ impl Config {
         self.gateway.statistics_service_url.clone()
     }
 
-    pub fn get_validator_api_endpoints(&self) -> Vec<Url> {
-        self.gateway.validator_api_urls.clone()
+    pub fn get_nym_api_endpoints(&self) -> Vec<Url> {
+        self.gateway.nym_api_urls.clone()
     }
 
     #[cfg(feature = "coconut")]
@@ -359,8 +359,8 @@ pub struct Gateway {
     /// Domain address of the statistics service
     statistics_service_url: Url,
 
-    /// Addresses to APIs running on validator from which the node gets the view of the network.
-    validator_api_urls: Vec<Url>,
+    /// Addresses to APIs from which the node gets the view of the network.
+    nym_api_urls: Vec<Url>,
 
     /// Addresses to validators which the node uses to check for double spending of ERC20 tokens.
     validator_nymd_urls: Vec<Url>,
@@ -418,7 +418,7 @@ impl Default for Gateway {
             public_sphinx_key_file: Default::default(),
             enabled_statistics: false,
             statistics_service_url: Url::from_str(STATISTICS_SERVICE_DOMAIN_ADDRESS).expect("Invalid default statistics service URL"),
-            validator_api_urls: vec![Url::from_str(API_VALIDATOR).expect("Invalid default API URL")],
+            nym_api_urls: vec![Url::from_str(API_VALIDATOR).expect("Invalid default API URL")],
             validator_nymd_urls: vec![Url::from_str(NYMD_VALIDATOR).expect("Invalid default nymd URL")],
             cosmos_mnemonic: bip39::Mnemonic::from_str("exact antique hybrid width raise anchor puzzle degree fee quit long crack net vague hip despair write put useless civil mechanic broom music day").unwrap(),
             nym_root_directory: Config::default_root_directory(),

@@ -67,7 +67,7 @@ impl NymClient {
                 .expect("No nymd validator endpoint provided");
             let api_url = config
                 .get_base()
-                .get_validator_api_endpoints()
+                .get_nym_api_endpoints()
                 .pop()
                 .expect("No validator api endpoint provided");
             // overwrite env configuration with config URLs

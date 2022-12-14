@@ -35,7 +35,7 @@ impl CoconutVerifier {
         aggregated_verification_key: VerificationKey,
     ) -> Result<Self, RequestHandlingError> {
         if api_clients.is_empty() {
-            return Err(RequestHandlingError::NotEnoughValidatorAPIs {
+            return Err(RequestHandlingError::NotEnoughNymAPIs {
                 received: 0,
                 needed: 1,
             });

@@ -26,7 +26,7 @@ where
 {
     let validator_api = validator_servers
         .choose(&mut thread_rng())
-        .ok_or(ClientCoreError::ListOfValidatorApisIsEmpty)?;
+        .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
     let validator_client = validator_client::client::ApiClient::new(validator_api.clone());
 
     log::trace!("Fetching list of gateways from: {}", validator_api);

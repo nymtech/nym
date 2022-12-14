@@ -355,14 +355,14 @@ pub const DEFAULT_WEBSOCKET_LISTENING_PORT: u16 = 1977;
 // 'SOCKS5' CLIENT
 pub const DEFAULT_SOCKS5_LISTENING_PORT: u16 = 1080;
 
-// VALIDATOR-API
-pub const DEFAULT_VALIDATOR_API_PORT: u16 = 8080;
+// NYM-API
+pub const DEFAULT_NYM_API_PORT: u16 = 8080;
 
-pub const VALIDATOR_API_VERSION: &str = "v1";
+pub const NYM_API_VERSION: &str = "v1";
 
 // REWARDING
 
-/// We'll be assuming a few more things, profit margin and cost function. Since we don't have relialable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate interval costs to Nyms. We'll also assume a cost of 40$ per interval(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
+/// We'll be assuming a few more things, profit margin and cost function. Since we don't have reliable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate interval costs to Nyms. We'll also assume a cost of 40$ per interval(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
 // pub const DEFAULT_OPERATOR_INTERVAL_COST: u64 = 40_000_000; // 40$/(30 days) at 1 Nym == 1$
 // pub const DEFAULT_OPERATOR_INTERVAL_COST: u64 = 55_556; // 40$/1hr at 1 Nym == 1$
 // pub const DEFAULT_OPERATOR_INTERVAL_COST: u64 = 9259; // 40$/1hr/6 at 1 Nym == 1$

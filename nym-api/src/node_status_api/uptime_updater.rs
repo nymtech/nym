@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node_status_api::models::{
-    GatewayStatusReport, MixnodeStatusReport, ValidatorApiStorageError,
+    GatewayStatusReport, MixnodeStatusReport, NymApiStorageError,
 };
 use crate::node_status_api::ONE_DAY;
-use crate::storage::ValidatorApiStorage;
+use crate::storage::NymApiStorage;
 use log::error;
 use std::time::Duration;
 use task::ShutdownListener;
@@ -13,11 +13,11 @@ use time::{OffsetDateTime, PrimitiveDateTime, Time};
 use tokio::time::{interval, sleep};
 
 pub(crate) struct HistoricalUptimeUpdater {
-    storage: ValidatorApiStorage,
+    storage: NymApiStorage,
 }
 
 impl HistoricalUptimeUpdater {
-    pub(crate) fn new(storage: ValidatorApiStorage) -> Self {
+    pub(crate) fn new(storage: NymApiStorage) -> Self {
         HistoricalUptimeUpdater { storage }
     }
 
@@ -30,7 +30,7 @@ impl HistoricalUptimeUpdater {
     async fn get_active_nodes(
         &self,
         now: OffsetDateTime,
-    ) -> Result<(Vec<MixnodeStatusReport>, Vec<GatewayStatusReport>), ValidatorApiStorageError>
+    ) -> Result<(Vec<MixnodeStatusReport>, Vec<GatewayStatusReport>), NymApiStorageError>
     {
         let day_ago = (now - ONE_DAY).unix_timestamp();
         let active_mixnodes = self
@@ -46,7 +46,7 @@ impl HistoricalUptimeUpdater {
         Ok((active_mixnodes, active_gateways))
     }
 
-    async fn update_uptimes(&self) -> Result<(), ValidatorApiStorageError> {
+    async fn update_uptimes(&self) -> Result<(), NymApiStorageError> {
         let now = OffsetDateTime::now_utc();
         let today_iso_8601 = now.date().to_string();
 

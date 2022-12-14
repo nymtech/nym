@@ -13,7 +13,7 @@ pub(crate) mod tests;
 use crate::coconut::client::Client as LocalClient;
 use crate::coconut::deposit::extract_encryption_key;
 use crate::coconut::error::{CoconutError, Result};
-use crate::ValidatorApiStorage;
+use crate::NymApiStorage;
 
 use coconut_bandwidth_contract_common::spend_credential::{
     funds_from_cosmos_msgs, SpendCredentialStatus,
@@ -22,9 +22,9 @@ use coconut_interface::KeyPair as CoconutKeyPair;
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindedSignature, Parameters, VerificationKey,
 };
-use config::defaults::VALIDATOR_API_VERSION;
+use config::defaults::NYM_API_VERSION;
 use credentials::coconut::params::{
-    ValidatorApiCredentialEncryptionAlgorithm, ValidatorApiCredentialHkdfAlgorithm,
+    NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
 };
 use crypto::asymmetric::encryption;
 use crypto::shared_key::new_ephemeral_shared_key;
@@ -51,7 +51,7 @@ pub struct State {
     mix_denom: String,
     key_pair: KeyPair,
     comm_channel: Arc<dyn APICommunicationChannel + Send + Sync>,
-    storage: ValidatorApiStorage,
+    storage: NymApiStorage,
     rng: Arc<Mutex<OsRng>>,
 }
 
@@ -61,7 +61,7 @@ impl State {
         mix_denom: String,
         key_pair: KeyPair,
         comm_channel: D,
-        storage: ValidatorApiStorage,
+        storage: NymApiStorage,
     ) -> Self
     where
         C: LocalClient + Send + Sync + 'static,
@@ -100,16 +100,16 @@ impl State {
         let (keypair, shared_key) = {
             let mut rng = *self.rng.lock().await;
             new_ephemeral_shared_key::<
-                ValidatorApiCredentialEncryptionAlgorithm,
-                ValidatorApiCredentialHkdfAlgorithm,
+                NymApiCredentialEncryptionAlgorithm,
+                NymApiCredentialHkdfAlgorithm,
                 _,
             >(&mut rng, remote_key)
         };
 
         let chunk_data = signature.to_bytes();
 
-        let zero_iv = stream_cipher::zero_iv::<ValidatorApiCredentialEncryptionAlgorithm>();
-        let encrypted_data = stream_cipher::encrypt::<ValidatorApiCredentialEncryptionAlgorithm>(
+        let zero_iv = stream_cipher::zero_iv::<NymApiCredentialEncryptionAlgorithm>();
+        let encrypted_data = stream_cipher::encrypt::<NymApiCredentialEncryptionAlgorithm>(
             &shared_key,
             &zero_iv,
             &chunk_data,
@@ -169,7 +169,7 @@ impl InternalSignRequest {
         mix_denom: String,
         key_pair: KeyPair,
         comm_channel: D,
-        storage: ValidatorApiStorage,
+        storage: NymApiStorage,
     ) -> AdHoc
     where
         C: LocalClient + Send + Sync + 'static,
@@ -181,7 +181,7 @@ impl InternalSignRequest {
                 // this format! is so ugly...
                 format!(
                     "/{}/{}/{}",
-                    VALIDATOR_API_VERSION, COCONUT_ROUTES, BANDWIDTH
+                    NYM_API_VERSION, COCONUT_ROUTES, BANDWIDTH
                 ),
                 routes![
                     post_blind_sign,

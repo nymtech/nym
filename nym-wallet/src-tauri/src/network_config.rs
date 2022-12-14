@@ -17,7 +17,7 @@ pub async fn get_validator_nymd_urls(
 }
 
 #[tauri::command]
-pub async fn get_validator_api_urls(
+pub async fn get_nym_api_urls(
     network: WalletNetwork,
     state: tauri::State<'_, WalletState>,
 ) -> Result<ValidatorUrls, BackendError> {
@@ -41,7 +41,7 @@ pub async fn select_validator_nymd_url(
 }
 
 #[tauri::command]
-pub async fn select_validator_api_url(
+pub async fn select_nym_api_url(
     url: &str,
     network: WalletNetwork,
     state: tauri::State<'_, WalletState>,

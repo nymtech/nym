@@ -130,19 +130,19 @@ wasm_bindgen(wasmUrl)
     const startHandler = async (config: NymClientConfig) => {
       // fetch the gateway details (randomly chosen if no preferred gateway is set)
       const gatewayEndpoint = await wasm_bindgen.get_gateway(
-        config.validatorApiUrl,
+        config.nymApiUrl,
         config.preferredGatewayIdentityKey,
       );
-      
+
       // set a different gatewayListener in order to avoid workaround ws over https error
       if (config.gatewayListener)
-            gatewayEndpoint.gateway_listener  = config.gatewayListener;
-      
+        gatewayEndpoint.gateway_listener = config.gatewayListener;
+
       // create the client, passing handlers for events
       wrapper.init(
         new wasm_bindgen.Config(
           config.clientId,
-          config.validatorApiUrl,
+          config.nymApiUrl,
           gatewayEndpoint,
           config.debug || wasm_bindgen.default_debug(),
         ),

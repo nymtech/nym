@@ -92,7 +92,7 @@ export const Tutorial = () => {
         />
         <TutorialStep
           step={2}
-          title="Sign a message with your Nym wallet"
+          title="Sign message"
           icon={<BorderColorIcon fontSize="small" />}
           text={
             <Typography fontSize={14} lineHeight="24px" sx={{ color: (t) => t.palette.nym.text.muted }}>
@@ -108,11 +108,11 @@ export const Tutorial = () => {
         />
         <TutorialStep
           step={3}
-          title="Make BTC tx and receive NYM"
+          title="Send tx and receive NYM"
           icon={<CoinMark width={20} height={20} />}
           text={
             <Typography fontSize={14} lineHeight="24px" sx={{ color: (t) => t.palette.nym.text.muted }}>
-              {`Send BTC to the given address. When the transaction is confirmed your purchased NYM tokens will be transferred in your wallet.`}
+              {`Send the defined BTC amount to Bity's address that's given to you. As soon as your BTC tx has 4 confirmations, Bity will send the purchased NYM tokens to your wallet.`}
             </Typography>
           }
         />
@@ -121,7 +121,7 @@ export const Tutorial = () => {
         <Button variant="outlined" size="large" onClick={() => setShowSignModal(true)}>
           Sign message
         </Button>
-        <Button variant="contained" size="large" href={EXCHANGE_URL} target="_blank">
+        <Button variant="contained" size="large" sx={{ width: '148px' }} href={EXCHANGE_URL} target="_blank">
           Buy NYM
         </Button>
       </Stack>

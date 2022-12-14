@@ -48,14 +48,13 @@ pub(crate) struct Handler {
 
 impl Drop for Handler {
     fn drop(&mut self) {
-        if self.is_active {
-            if self
+        if self.is_active
+            && self
                 .buffer_requester
                 .unbounded_send(ReceivedBufferMessage::ReceiverDisconnect)
                 .is_err()
-            {
-                error!("we failed to disconnect the receiver from the buffer! presumably the shutdown procedure has been initiated!")
-            }
+        {
+            error!("we failed to disconnect the receiver from the buffer! presumably the shutdown procedure has been initiated!")
         }
     }
 }

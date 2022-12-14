@@ -4,9 +4,11 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+<<<<<<< HEAD
+- validator-api: renamed to nym-api ([#214])
+=======
 ### Changed
 
-- validator-api: renamed to nym-api ([#214])
 - validator-api: can recover from shutdown during DKG process ([#1872])
 - clients: deduplicate gateway inititialization, part of work towards a rust-sdk
 - clients: keep all transmission lanes going at all times by making priority probabilistic
@@ -20,8 +22,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#1872]: https://github.com/nymtech/nym/pull/1872
 [#1884]: https://github.com/nymtech/nym/pull/1884
 
-
-
+>>>>>>> develop
 
 ## [v1.1.2]
 

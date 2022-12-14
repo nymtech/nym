@@ -603,6 +603,7 @@ dependencies = [
  "pemstore",
  "rand 0.7.3",
  "serde",
+ "serde_json",
  "sled",
  "tap",
  "task",
@@ -2668,7 +2669,7 @@ checksum = "fe435806c197dfeaa5efcded5e623c4b8230fd28fdf1e91e7a86e40ef2acbf90"
 dependencies = [
  "arrayref",
  "no-std-compat",
- "snafu 0.7.1",
+ "snafu",
 ]
 
 [[package]]
@@ -3451,7 +3452,7 @@ dependencies = [
  "proxy-helpers",
  "rand 0.7.3",
  "serde",
- "snafu 0.6.10",
+ "serde_json",
  "socks5-requests",
  "tap",
  "task",
@@ -5020,9 +5021,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.83"
+version = "1.0.89"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38dd04e3c8279e75b31ef29dbdceebfe5ad89f4d0937213c53f7d49d01b3d5a7"
+checksum = "020ff22c755c2ed3f8cf162dbb41a7268d934702f3ed3631656ea597e08fc3db"
 dependencies = [
  "itoa 1.0.1",
  "ryu",
@@ -5212,33 +5213,12 @@ checksum = "f2dd574626839106c320a323308629dcb1acfc96e32a8cba364ddc61ac23ee83"
 
 [[package]]
 name = "snafu"
-version = "0.6.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eab12d3c261b2308b0d80c26fffb58d17eba81a4be97890101f416b478c79ca7"
-dependencies = [
- "doc-comment",
- "snafu-derive 0.6.10",
-]
-
-[[package]]
-name = "snafu"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5177903bf45656592d9eb5c0e22f408fc023aae51dbe2088889b71633ba451f2"
 dependencies = [
  "doc-comment",
- "snafu-derive 0.7.1",
-]
-
-[[package]]
-name = "snafu-derive"
-version = "0.6.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1508efa03c362e23817f96cde18abed596a25219a8b2c66e8db33c03543d315b"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
+ "snafu-derive",
 ]
 
 [[package]]

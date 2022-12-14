@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use client_connections::TransmissionLane;
-use rand::seq::SliceRandom;
+use rand::{seq::SliceRandom, Rng};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     time::Duration,
@@ -116,9 +116,15 @@ impl TransmissionBuffer {
         lanes.choose(&mut rand::thread_rng()).copied()
     }
 
+    // 2/3 chance to pick from the old lanes
     fn pick_random_old_lane(&self) -> Option<TransmissionLane> {
-        let lanes = self.get_oldest_set();
-        lanes.choose(&mut rand::thread_rng()).copied()
+        let rand = &mut rand::thread_rng();
+        if rand.gen_ratio(2, 3) {
+            let lanes = self.get_oldest_set();
+            lanes.choose(rand).copied()
+        } else {
+            self.pick_random_lane().copied()
+        }
     }
 
     fn pop_front_from_lane(&mut self, lane: &TransmissionLane) -> Option<RealMessage> {

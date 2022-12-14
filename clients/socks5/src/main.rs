@@ -13,7 +13,7 @@ pub mod error;
 pub mod socks;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send>> {
+async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     setup_logging();
     println!("{}", banner());
 

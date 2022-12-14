@@ -12,7 +12,7 @@ use tap::TapFallible;
 use crate::{
     client::config::Config,
     commands::{override_config, OverrideConfig},
-    error::ClientError,
+    error::Socks5ClientError,
 };
 
 #[derive(Args, Clone)]
@@ -20,6 +20,10 @@ pub(crate) struct Init {
     /// Id of the nym-mixnet-client we want to create config for.
     #[clap(long)]
     id: String,
+
+    /// Address of the socks5 provider to send messages to.
+    #[clap(long)]
+    provider: String,
 
     /// Id of the gateway we are going to connect to.
     #[clap(long)]
@@ -38,11 +42,7 @@ pub(crate) struct Init {
     #[clap(long)]
     api_validators: Option<String>,
 
-    /// Whether to not start the websocket
-    #[clap(long)]
-    disable_socket: bool,
-
-    /// Port for the socket (if applicable) to listen on in all subsequent runs
+    /// Port for the socket to listen on in all subsequent runs
     #[clap(short, long)]
     port: Option<u16>,
 
@@ -71,11 +71,9 @@ impl From<Init> for OverrideConfig {
         OverrideConfig {
             nymd_validators: init_config.nymd_validators,
             api_validators: init_config.api_validators,
-            disable_socket: init_config.disable_socket,
             port: init_config.port,
             fastmode: init_config.fastmode,
             no_cover: init_config.no_cover,
-
             #[cfg(feature = "coconut")]
             enabled_credentials_mode: init_config.enabled_credentials_mode,
         }
@@ -86,14 +84,14 @@ impl From<Init> for OverrideConfig {
 pub struct InitResults {
     #[serde(flatten)]
     client_core: client_core::init::InitResults,
-    client_listening_port: String,
+    socks5_listening_port: String,
 }
 
 impl InitResults {
     fn new(config: &Config, address: &Recipient) -> Self {
         Self {
             client_core: client_core::init::InitResults::new(config.get_base(), address),
-            client_listening_port: config.get_listening_port().to_string(),
+            socks5_listening_port: config.get_listening_port().to_string(),
         }
     }
 }
@@ -101,19 +99,20 @@ impl InitResults {
 impl Display for InitResults {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "{}", self.client_core)?;
-        write!(f, "Client listening port: {}", self.client_listening_port)
+        write!(f, "SOCKS5 listening port: {}", self.socks5_listening_port)
     }
 }
 
-pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
+pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
     println!("Initialising client...");
 
     let id = &args.id;
+    let provider_address = &args.provider;
 
     let already_init = Config::default_config_file_path(Some(id)).exists();
     if already_init {
         println!(
-            "Client \"{}\" was already initialised before! \
+            "SOCKS5 client \"{}\" was already initialised before! \
             Config information will be overwritten (but keys will be kept)!",
             id
         );
@@ -132,7 +131,10 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
     let user_chosen_gateway_id = args.gateway.clone();
 
     // Load and potentially override config
-    let mut config = override_config(Config::new(id), OverrideConfig::from(args.clone()));
+    let mut config = override_config(
+        Config::new(id, provider_address),
+        OverrideConfig::from(args.clone()),
+    );
 
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
@@ -158,7 +160,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
 
     // Output summary to a json file, if specified
     if args.output_json {
-        client_core::init::output_to_json(&init_results, "client_init_results.json");
+        client_core::init::output_to_json(&init_results, "socks5_client_init_results.json");
     }
 
     println!("\nThe address of this client is: {}\n", address);
@@ -175,5 +177,66 @@ fn print_saved_config(config: &Config) {
         "Gateway listener: {}",
         config.get_base().get_gateway_listener()
     );
+<<<<<<< HEAD
+    println!("Client configuration completed.");
+
+    client_core::init::show_address(config.get_base()).unwrap_or_else(|err| {
+        eprintln!("Failed to show address\nError: {err}");
+        std::process::exit(1)
+    });
+}
+
+async fn setup_gateway(
+    id: &str,
+    register: bool,
+    user_chosen_gateway_id: Option<&str>,
+    config: &Config,
+) -> Result<GatewayEndpointConfig, ClientCoreError> {
+    if register {
+        // Get the gateway details by querying the nym-api. Either pick one at random or use
+        // the chosen one if it's among the available ones.
+        println!("Configuring gateway");
+        let gateway = client_core::init::query_gateway_details(
+            config.get_base().get_validator_api_endpoints(),
+            user_chosen_gateway_id,
+        )
+        .await?;
+        log::debug!("Querying gateway gives: {}", gateway);
+
+        // Registering with gateway by setting up and writing shared keys to disk
+        log::trace!("Registering gateway");
+        client_core::init::register_with_gateway_and_store_keys(gateway.clone(), config.get_base())
+            .await?;
+        println!("Saved all generated keys");
+
+        Ok(gateway.into())
+    } else if user_chosen_gateway_id.is_some() {
+        // Just set the config, don't register or create any keys
+        // This assumes that the user knows what they are doing, and that the existing keys are
+        // valid for the gateway being used
+        println!("Using gateway provided by user, keeping existing keys");
+        let gateway = client_core::init::query_gateway_details(
+            config.get_base().get_validator_api_endpoints(),
+            user_chosen_gateway_id,
+        )
+        .await?;
+        log::debug!("Querying gateway gives: {}", gateway);
+        Ok(gateway.into())
+    } else {
+        println!("Not registering gateway, will reuse existing config and keys");
+        let existing_config = Config::load_from_file(Some(id)).map_err(|err| {
+            log::error!(
+                "Unable to configure gateway: {err}. \n
+                Seems like the client was already initialized but it was not possible to read \
+                the existing configuration file. \n
+                CAUTION: Consider backing up your gateway keys and try force gateway registration, or \
+                removing the existing configuration and starting over."
+            );
+            ClientCoreError::CouldNotLoadExistingGatewayConfiguration(err)
+        })?;
+        Ok(existing_config.get_base().get_gateway_endpoint().clone())
+    }
+=======
     println!("Client configuration completed.\n");
+>>>>>>> develop
 }

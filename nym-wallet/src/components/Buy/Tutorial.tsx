@@ -16,7 +16,6 @@ const TutorialStep = ({
   icon,
   borderRight,
   borderBottom,
-  fixTitleHeight,
 }: {
   step: number;
   title: string;
@@ -24,7 +23,6 @@ const TutorialStep = ({
   icon: React.ReactNode;
   borderRight?: boolean;
   borderBottom?: boolean;
-  fixTitleHeight?: boolean;
 }) => (
   <Grid
     item
@@ -43,13 +41,7 @@ const TutorialStep = ({
           {`STEP ${step}`}
         </Typography>
       </Stack>
-      <Typography
-        fontWeight={600}
-        variant="h6"
-        sx={{
-          minHeight: fixTitleHeight ? '40px' : undefined,
-        }}
-      >
+      <Typography fontWeight={600} variant="h6">
         {title}
       </Typography>
       {text}
@@ -61,7 +53,6 @@ export const Tutorial = () => {
   const [showSignModal, setShowSignModal] = useState(false);
   const theme = useTheme();
   const showBorder = useMediaQuery(theme.breakpoints.up('md'));
-  const fixTitleHeight = useMediaQuery(theme.breakpoints.down('lg'));
 
   return (
     <NymCard borderless title="Buy NYM with BTC without KYC" sx={{ mt: 4 }}>
@@ -96,11 +87,10 @@ export const Tutorial = () => {
           }
           borderRight={showBorder}
           borderBottom={!showBorder}
-          fixTitleHeight={fixTitleHeight}
         />
         <TutorialStep
           step={2}
-          title="Sign a message with your Nym wallet"
+          title="Sign message"
           icon={<BorderColorIcon fontSize="small" />}
           text={
             <Typography sx={{ color: (t) => t.palette.nym.text.muted }}>
@@ -113,19 +103,17 @@ export const Tutorial = () => {
           }
           borderRight={showBorder}
           borderBottom={!showBorder}
-          fixTitleHeight={fixTitleHeight}
         />
         <TutorialStep
           step={3}
-          title="Make BTC tx and receive NYM"
+          title="Send tx and receive NYM"
           icon={<PaidIcon fontSize="small" />}
           text={
             <Typography sx={{ color: (t) => t.palette.nym.text.muted }}>
-              Send BTC to the given address. When the transaction is confirmed your purchased NYM tokens will be
-              transferred in your wallet.
+              {`Send the defined BTC amount to Bity's address that's given to you. As soon as your BTC transaction has 4
+              confirmations, Bity will send the purchased NYM tokens to your wallet.`}
             </Typography>
           }
-          fixTitleHeight={fixTitleHeight}
         />
       </Grid>
       <Stack direction="row" gap={2} justifyContent="flex-end" mt={5}>

@@ -9,4 +9,5 @@ pub struct CoconutCredential {
     pub serial_number: String,
     pub binding_number: String,
     pub signature: String,
+    pub consumed: bool,
 }

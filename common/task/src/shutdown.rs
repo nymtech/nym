@@ -14,7 +14,7 @@ use tokio::{
 
 const DEFAULT_SHUTDOWN_TIMER_SECS: u64 = 5;
 
-pub(crate) type SentError = Box<dyn Error + Send>;
+pub(crate) type SentError = Box<dyn Error + Send + Sync>;
 type ErrorSender = mpsc::UnboundedSender<SentError>;
 type ErrorReceiver = mpsc::UnboundedReceiver<SentError>;
 

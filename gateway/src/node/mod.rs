@@ -236,13 +236,13 @@ where
         );
     }
 
-    fn random_api_client(&self) -> validator_client::ApiClient {
+    fn random_api_client(&self) -> validator_client::NymApiClient {
         let endpoints = self.config.get_nym_api_endpoints();
         let nym_api = endpoints
             .choose(&mut thread_rng())
             .expect("The list of validator apis is empty");
 
-        validator_client::ApiClient::new(nym_api.clone())
+        validator_client::NymApiClient::new(nym_api.clone())
     }
 
     #[cfg(feature = "coconut")]

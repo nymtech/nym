@@ -783,7 +783,7 @@ impl<C> Client<C> {
 
 #[derive(Clone)]
 pub struct CoconutApiClient {
-    pub api_client: ApiClient,
+    pub api_client: NymApiClient,
     pub verification_key: VerificationKey,
     pub node_id: NodeIndex,
     #[cfg(feature = "nyxd-client")]
@@ -812,7 +812,7 @@ impl CoconutApiClient {
                 if let Ok(verification_key) = VerificationKey::try_from_bs58(&share.share) {
                     if let Ok(cosmos_address) = cosmrs::AccountId::from_str(share.owner.as_str()) {
                         return Some(CoconutApiClient {
-                            api_client: ApiClient::new(url_address),
+                            api_client: NymApiClient::new(url_address),
                             verification_key,
                             node_id: share.node_index,
                             cosmos_address,
@@ -826,17 +826,17 @@ impl CoconutApiClient {
 }
 
 #[derive(Clone)]
-pub struct ApiClient {
+pub struct NymApiClient {
     pub nym_api_client: nym_api::Client,
     // TODO: perhaps if we really need it at some (currently I don't see any reasons for it)
     // we could re-implement the communication with the REST API on port 1317
 }
 
-impl ApiClient {
+impl NymApiClient {
     pub fn new(api_url: Url) -> Self {
         let nym_api_client = nym_api::Client::new(api_url);
 
-        ApiClient { nym_api_client }
+        NymApiClient { nym_api_client }
     }
 
     pub fn change_nym_api(&mut self, new_endpoint: Url) {

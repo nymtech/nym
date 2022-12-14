@@ -10,7 +10,7 @@ pub mod nym_api;
 pub mod nyxd;
 
 #[cfg(feature = "nyxd-client")]
-pub use crate::client::{ApiClient, CoconutApiClient};
+pub use crate::client::{CoconutApiClient, NymApiClient};
 pub use crate::error::ValidatorClientError;
 pub use nym_api_requests::*;
 

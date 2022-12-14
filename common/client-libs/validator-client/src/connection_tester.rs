@@ -1,6 +1,6 @@
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Config as ClientConfig, NyxdClient, QueryNyxdClient};
-use crate::ApiClient;
+use crate::NymApiClient;
 
 use crate::nyxd::traits::MixnetQueryClient;
 use colored::Colorize;
@@ -16,7 +16,7 @@ use url::Url;
 const MAX_URLS_TESTED: usize = 200;
 const CONNECTION_TEST_TIMEOUT_SEC: u64 = 2;
 
-// Run connection tests for all specified nyxd and api urls. These are all run concurrently.
+/// Run connection tests for all specified nyxd and api urls. These are all run concurrently.
 pub async fn run_validator_connection_test<H: BuildHasher + 'static>(
     nyxd_urls: impl Iterator<Item = (NymNetworkDetails, Url)>,
     api_urls: impl Iterator<Item = (NymNetworkDetails, Url)>,
@@ -72,7 +72,7 @@ fn setup_connection_tests<H: BuildHasher + 'static>(
     });
 
     let api_connection_test_clients = api_urls.map(|(network, url)| {
-        ClientForConnectionTest::Api(network, url.clone(), ApiClient::new(url))
+        ClientForConnectionTest::Api(network, url.clone(), NymApiClient::new(url))
     });
 
     nyxd_connection_test_clients.chain(api_connection_test_clients)
@@ -141,10 +141,10 @@ async fn test_nyxd_connection(
     ConnectionResult::Nyxd(network, url.clone(), result)
 }
 
-async fn test_api_connection(
+async fn test_nym_api_connection(
     network: NymNetworkDetails,
     url: &Url,
-    client: &ApiClient,
+    client: &NymApiClient,
 ) -> ConnectionResult {
     let result = match timeout(
         Duration::from_secs(CONNECTION_TEST_TIMEOUT_SEC),
@@ -170,7 +170,7 @@ async fn test_api_connection(
 
 enum ClientForConnectionTest {
     Nyxd(NymNetworkDetails, Url, Box<NyxdClient<QueryNyxdClient>>),
-    Api(NymNetworkDetails, Url, ApiClient),
+    Api(NymNetworkDetails, Url, NymApiClient),
 }
 
 impl ClientForConnectionTest {
@@ -180,7 +180,7 @@ impl ClientForConnectionTest {
                 test_nyxd_connection(network, url, client).await
             }
             ClientForConnectionTest::Api(network, ref url, ref client) => {
-                test_api_connection(network, url, client).await
+                test_nym_api_connection(network, url, client).await
             }
         }
     }

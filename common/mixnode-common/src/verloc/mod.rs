@@ -176,7 +176,7 @@ pub struct VerlocMeasurer {
     // It only does bunch of REST queries. If we update it at some point to a more sophisticated (maybe signing) client,
     // then it definitely cannot be constructed here and probably will need to be passed from outside,
     // as mixnodes/gateways would already be using an instance of said client.
-    validator_client: validator_client::ApiClient,
+    validator_client: validator_client::NymApiClient,
     results: AtomicVerlocResult,
 }
 
@@ -204,7 +204,7 @@ impl VerlocMeasurer {
             )),
             shutdown_listener,
             currently_used_api: 0,
-            validator_client: validator_client::ApiClient::new(config.nym_api_urls[0].clone()),
+            validator_client: validator_client::NymApiClient::new(config.nym_api_urls[0].clone()),
             config,
             results: AtomicVerlocResult::new(),
         }

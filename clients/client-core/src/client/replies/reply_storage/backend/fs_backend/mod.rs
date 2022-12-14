@@ -89,18 +89,21 @@ impl Backend {
         // (assuming no key rotation has happened)
         // but the way it's currently coded, everyone will purge old data
         let since_last_flush = OffsetDateTime::now_utc() - last_flush;
-        if since_last_flush.whole_days() > 0 {
-            info!("it's been over {} days and {} hours since we last used our data store. our reply surbs are already outdated - we're going to purge them now.", since_last_flush.whole_days(), since_last_flush.whole_hours());
+        let days = since_last_flush.whole_days();
+        let hours = since_last_flush.whole_hours() % 24;
+
+        if days > 0 {
+            info!("it's been over {days} days and {hours} hours since we last used our data store. our reply surbs are already outdated - we're going to purge them now.");
             manager.delete_all_reply_surb_data().await?;
         }
 
-        if since_last_flush.whole_days() > 1 {
-            info!("it's been over {} days and {} hours since we last used our data store. our reply keys are already outdated - we're going to purge them now.", since_last_flush.whole_days(), since_last_flush.whole_hours());
+        if days > 1 {
+            info!("it's been over {days} days and {hours} hours since we last used our data store. our reply keys are already outdated - we're going to purge them now.");
             manager.delete_all_reply_keys().await?;
         }
 
-        if since_last_flush.whole_days() > 2 {
-            info!("it's been over {} days and {} hours since we last used our data store. our used sender tags are already outdated - we're going to purge them now.", since_last_flush.whole_days(), since_last_flush.whole_hours());
+        if days > 2 {
+            info!("it's been over {days} days and {hours} hours since we last used our data store. our used sender tags are already outdated - we're going to purge them now.");
             manager.delete_all_tags().await?;
         }
 

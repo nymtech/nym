@@ -172,7 +172,7 @@ pub struct ReplyController<R> {
     // of surbs required to send the message through
     // expected_reliability: f32,
     request_receiver: ReplyControllerReceiver,
-    pending_replies: HashMap<AnonymousSenderTag, VecDeque<Fragment>>,
+    pending_replies: HashMap<AnonymousSenderTag, VecDeque<(Fragment, TransmissionLane)>>,
 
     /// Retransmission packets that have already timed out and are waiting for additional reply SURBs
     /// so that they could be sent back to the network. Once we receive more SURBs, we should send them ASAP.
@@ -204,8 +204,22 @@ where
         }
     }
 
-    /// Inserts the pending replies into the BACK of the queue fn insert_pending_replies<V: Into<VecDeque<Fragment>>>(
-    fn insert_pending_replies<V: Into<VecDeque<Fragment>>>(
+    fn insert_pending_replies<I: IntoIterator<Item = Fragment>>(
+        &mut self,
+        recipient: &AnonymousSenderTag,
+        fragments: I,
+        lane: TransmissionLane,
+    ) {
+        let iter = fragments.into_iter().map(|fragment| (fragment, lane));
+        if let Some(existing) = self.pending_replies.get_mut(recipient) {
+            existing.extend(iter)
+        } else {
+            self.pending_replies.insert(*recipient, iter.collect());
+        }
+    }
+
+    /// Inserts the pending replies into the BACK of the queue
+    fn re_insert_pending_replies<V: Into<VecDeque<(Fragment, TransmissionLane)>>>(
         &mut self,
         recipient: &AnonymousSenderTag,
         fragments: V,
@@ -316,7 +330,7 @@ where
         if let Some(reply_surbs) = surbs {
             if let Err(err) = self
                 .message_handler
-                .try_send_reply_chunks(recipient_tag, fragments, reply_surbs, lane)
+                .try_send_reply_chunks_on_lane(recipient_tag, fragments, reply_surbs, lane)
                 .await
             {
                 let err = err.return_unused_surbs(
@@ -329,7 +343,7 @@ where
             }
         } else {
             // we don't have enough surbs for this reply
-            self.insert_pending_replies(&recipient_tag, fragments);
+            self.insert_pending_replies(&recipient_tag, fragments, lane);
 
             if self.should_request_more_surbs(&recipient_tag) {
                 self.request_reply_surbs_for_queue_clearing(recipient_tag)
@@ -470,7 +484,7 @@ where
         &mut self,
         from: &AnonymousSenderTag,
         amount: usize,
-    ) -> Option<VecDeque<Fragment>> {
+    ) -> Option<VecDeque<(Fragment, TransmissionLane)>> {
         // if possible, pop all pending replies, if not, pop only entries for which we'd have a reply surb
         let total = self.pending_replies.get(from)?.len();
         trace!("pending queue has {total} elements");
@@ -525,23 +539,18 @@ where
 
             let Some(surbs_for_reply) = surbs_for_reply else {
                 error!("somehow different task has stolen our reply surbs! - this should have been impossible");
-                self.insert_pending_replies(&target, to_send);
+                self.re_insert_pending_replies(&target, to_send);
                 return;
             };
 
             if let Err(err) = self
                 .message_handler
-                .try_send_reply_chunks(
-                    target,
-                    to_send_vec,
-                    surbs_for_reply,
-                    TransmissionLane::General,
-                )
+                .try_send_reply_chunks(target, to_send_vec, surbs_for_reply)
                 .await
             {
                 let err =
                     err.return_unused_surbs(self.full_reply_storage.surbs_storage_ref(), &target);
-                self.insert_pending_replies(&target, to_send);
+                self.re_insert_pending_replies(&target, to_send);
                 warn!("failed to clear pending queue for {:?} - {err}", target);
             }
         } else {

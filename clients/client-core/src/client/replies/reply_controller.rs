@@ -313,42 +313,54 @@ where
         }
 
         trace!("handling reply to {:?}", recipient_tag);
-        let fragments = self.message_handler.split_reply_message(data);
+        let mut fragments = self.message_handler.split_reply_message(data);
+        let total_size = fragments.len();
+        trace!("This reply requires {:?} SURBs", total_size);
 
-        let required_surbs = fragments.len();
-        trace!("This reply requires {:?} SURBs", required_surbs);
+        let available_surbs = self
+            .full_reply_storage
+            .surbs_storage_ref()
+            .available_surbs(&recipient_tag);
+        let min_surbs_threshold = self
+            .full_reply_storage
+            .surbs_storage_ref()
+            .min_surb_threshold();
 
-        // TODO: edge case:
-        // we're making a lot of requests and have to request a lot of surbs
-        // (but at some point we run out of surbs for surb requests)
+        let max_to_send = if available_surbs > min_surbs_threshold {
+            available_surbs - min_surbs_threshold
+        } else {
+            0
+        };
 
         let (surbs, _surbs_left) = self
             .full_reply_storage
             .surbs_storage_ref()
-            .get_reply_surbs(&recipient_tag, required_surbs);
+            .get_reply_surbs(&recipient_tag, max_to_send);
 
         if let Some(reply_surbs) = surbs {
+            let to_send = fragments.drain(..max_to_send).collect::<Vec<_>>();
             if let Err(err) = self
                 .message_handler
-                .try_send_reply_chunks_on_lane(recipient_tag, fragments, reply_surbs, lane)
+                .try_send_reply_chunks_on_lane(recipient_tag, to_send.clone(), reply_surbs, lane)
                 .await
             {
                 let err = err.return_unused_surbs(
                     self.full_reply_storage.surbs_storage_ref(),
                     &recipient_tag,
                 );
-                warn!("failed to send reply to {:?} - {err}", recipient_tag);
-
-                // TODO: should we buffer that data to try again?
+                warn!("failed to send reply to {recipient_tag}: {err}");
+                self.insert_pending_replies(&recipient_tag, to_send, lane);
             }
-        } else {
-            // we don't have enough surbs for this reply
+        }
+
+        // if there's leftover data we didn't send because we didn't have enough (or any) surbs - buffer it
+        if !fragments.is_empty() {
             self.insert_pending_replies(&recipient_tag, fragments, lane);
+        }
 
-            if self.should_request_more_surbs(&recipient_tag) {
-                self.request_reply_surbs_for_queue_clearing(recipient_tag)
-                    .await;
-            }
+        if self.should_request_more_surbs(&recipient_tag) {
+            self.request_reply_surbs_for_queue_clearing(recipient_tag)
+                .await;
         }
     }
 

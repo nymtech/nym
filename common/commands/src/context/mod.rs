@@ -59,7 +59,7 @@ pub fn create_signing_client(
     network_details: &NymNetworkDetails,
 ) -> Result<SigningClient, ContextError> {
     let client_config = nymd::Config::try_from_nym_network_details(network_details)
-        .tap_err(|e| log::error!("Failed to get client config - {:?}", e))?;
+        .tap_err(|err| log::error!("Failed to get client config - {err}"))?;
 
     // get mnemonic
     let mnemonic = match std::env::var("MNEMONIC") {
@@ -88,7 +88,7 @@ pub fn create_query_client(
     network_details: &NymNetworkDetails,
 ) -> Result<QueryClient, ContextError> {
     let client_config = nymd::Config::try_from_nym_network_details(network_details)
-        .tap_err(|e| log::error!("Failed to get client config - {:?}", e))?;
+        .tap_err(|err| log::error!("Failed to get client config - {err}"))?;
 
     let nymd_url = network_details
         .endpoints
@@ -108,7 +108,7 @@ pub fn create_signing_client_with_validator_api(
     network_details: &NymNetworkDetails,
 ) -> Result<SigningClientWithValidatorAPI, ContextError> {
     let client_config = validator_client::Config::try_from_nym_network_details(network_details)
-        .tap_err(|e| log::error!("Failed to get client config - {:?}", e))?;
+        .tap_err(|err| log::error!("Failed to get client config - {err}"))?;
 
     // get mnemonic
     let mnemonic = match std::env::var("MNEMONIC") {
@@ -130,7 +130,7 @@ pub fn create_query_client_with_validator_api(
     network_details: &NymNetworkDetails,
 ) -> Result<QueryClientWithValidatorAPI, ContextError> {
     let client_config = validator_client::Config::try_from_nym_network_details(network_details)
-        .tap_err(|e| log::error!("Failed to get client config - {:?}", e))?;
+        .tap_err(|err| log::error!("Failed to get client config - {err}"))?;
 
     match validator_client::client::Client::new_query(client_config) {
         Ok(client) => Ok(client),

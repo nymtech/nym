@@ -122,7 +122,7 @@ impl Client {
         // We could have as well used conn.send_all(receiver.map(Ok)), but considering we don't care
         // about neither receiver nor the connection, it doesn't matter which one gets consumed
         if let Err(err) = receiver.map(Ok).forward(conn).await {
-            warn!("Failed to forward packets to {} - {:?}", address, err);
+            warn!("Failed to forward packets to {} - {err}", address);
         }
 
         debug!(

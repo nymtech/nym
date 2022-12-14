@@ -46,7 +46,7 @@ async fn initialise_storage(config: &Config) -> PersistentStorage {
     let path = config.get_persistent_store_path();
     let retrieval_limit = config.get_message_retrieval_limit();
     match PersistentStorage::init(path, retrieval_limit).await {
-        Err(err) => panic!("failed to initialise gateway storage - {}", err),
+        Err(err) => panic!("failed to initialise gateway storage - {err}"),
         Ok(storage) => storage,
     }
 }
@@ -269,7 +269,7 @@ where
         let existing_gateways = match validator_client.get_cached_gateways().await {
             Ok(gateways) => gateways,
             Err(err) => {
-                error!("failed to grab initial network gateways - {}\n Please try to startup again in few minutes", err);
+                error!("failed to grab initial network gateways - {err}\n Please try to startup again in few minutes");
                 process::exit(1);
             }
         };

@@ -1,5 +1,9 @@
 # Changelog
 
+## [nym-wallet-v1.1.3](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.3) (2022-12-13)
+
+- wallet: improved unbond screen.
+
 ## [nym-wallet-v1.1.2](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.2) (2022-11-09)
 
 - wallet: Bity buy functionality

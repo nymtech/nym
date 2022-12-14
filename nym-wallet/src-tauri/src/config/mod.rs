@@ -167,7 +167,7 @@ impl Config {
                     Some(global)
                 }
                 Err(err) => {
-                    log::trace!("Not loading {:#?}: {}", file, err);
+                    log::trace!("Not loading {:#?}: {err}", file);
                     None
                 }
             }
@@ -182,7 +182,7 @@ impl Config {
                     log::trace!("Loaded from file {:#?}", file);
                     networks.insert(network.as_key(), config);
                 }
-                Err(err) => log::trace!("Not loading {:#?}: {}", file, err),
+                Err(err) => log::trace!("Not loading {:#?}: {err}", file),
             };
         }
 

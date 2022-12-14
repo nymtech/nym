@@ -65,7 +65,6 @@ async function main() {
  *
  * Message and recipient are taken from the values in the user interface.
  *
- * @param {Client} nymClient the nym client to use for message sending
  */
 async function sendMessageTo() {
   const message = document.getElementById('message').value;
@@ -96,10 +95,13 @@ function displaySend(message) {
 /**
  * Display received text messages in the browser. Colour them green.
  *
- * @param {string} message
+ * @param {Uint8Array} raw
  */
-function displayReceived(message) {
-  const content = message;
+function displayReceived(raw, sender_tag) {
+  const content = new TextDecoder().decode(raw);
+  if (sender_tag !== undefined) {
+    console.log("this message also contained some surbs from", sender_tag)
+  }
 
   let timestamp = new Date().toISOString().substr(11, 12);
   let receivedDiv = document.createElement('div');
@@ -116,7 +118,7 @@ function displayReceived(message) {
 /**
  * Display the nymClient's sender address in the user interface
  *
- * @param {Client} nymClient
+ * @param {String} address
  */
 function displaySenderAddress(address) {
   document.getElementById('sender').value = address;

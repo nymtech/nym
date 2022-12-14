@@ -33,7 +33,7 @@ async fn deal_with_message(
 
     if let Err(err) = writer.write_all(&connection_message.payload).await {
         // the other half is probably going to blow up too (if not, this task also needs to notify the other one!!)
-        error!(target: &*format!("({}) socks5 outbound", connection_id), "failed to write response back to the socket - {}", err);
+        error!(target: &*format!("({}) socks5 outbound", connection_id), "failed to write response back to the socket - {err}");
         return true;
     }
     if connection_message.socket_closed {

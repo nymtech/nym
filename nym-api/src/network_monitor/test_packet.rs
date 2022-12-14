@@ -3,12 +3,14 @@
 
 use crate::network_monitor::monitor::preparer::TestedNode;
 use crypto::asymmetric::identity;
+use crypto::asymmetric::identity::Ed25519RecoveryError;
 use mixnet_contract_common::MixId;
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::mem;
 use std::str::Utf8Error;
+use thiserror::Error;
 use topology::{gateway, mix};
 
 const MIXNODE_TYPE: u8 = 0;
@@ -67,24 +69,25 @@ impl NodeType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub(crate) enum TestPacketError {
-    IncompletePacket,
+    #[error(
+        "the received packet was incomplete. Got {received} bytes but expected at least {min_expected}"
+    )]
+    IncompletePacket {
+        received: usize,
+        min_expected: usize,
+    },
+
+    // TODO: ideally this should contain more information but that'd require more refactoring than I'm willing to commit to now
+    #[error("the received packet did not contain a valid node type")]
     InvalidNodeType,
-    InvalidNodeKey,
-    InvalidOwner(Utf8Error),
-}
 
-impl From<identity::Ed25519RecoveryError> for TestPacketError {
-    fn from(_: identity::Ed25519RecoveryError) -> Self {
-        TestPacketError::InvalidNodeKey
-    }
-}
+    #[error("the received node identity key was malformed - {0}")]
+    InvalidNodeKey(#[from] Ed25519RecoveryError),
 
-impl From<Utf8Error> for TestPacketError {
-    fn from(err: Utf8Error) -> Self {
-        TestPacketError::InvalidOwner(err)
-    }
+    #[error("the received packet contained malformed owner data - {0}")]
+    InvalidOwner(#[from] Utf8Error),
 }
 
 #[derive(Eq, Clone, Debug)]
@@ -184,7 +187,10 @@ impl TestPacket {
         let n = mem::size_of::<u64>();
 
         if b.len() < 2 * n + 1 + identity::PUBLIC_KEY_LENGTH {
-            return Err(TestPacketError::IncompletePacket);
+            return Err(TestPacketError::IncompletePacket {
+                received: b.len(),
+                min_expected: 2 * n + 1 + identity::PUBLIC_KEY_LENGTH,
+            });
         }
 
         // those unwraps can't fail as we've already checked for the size

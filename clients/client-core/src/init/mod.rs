@@ -12,6 +12,7 @@ use tap::TapFallible;
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
 
+use crate::client::replies::reply_storage::ReplyStorageBackend;
 use crate::{
     config::{
         persistence::key_pathfinder::ClientKeyPathfinder, ClientCoreConfigTrait, Config,
@@ -62,28 +63,37 @@ impl Display for InitResults {
 
 /// Convenience function for setting up the gateway for a client. Depending on the arguments given
 /// it will do the sensible thing.
-pub async fn setup_gateway<C: NymConfig + ClientCoreConfigTrait, T: NymConfig>(
+pub async fn setup_gateway<B, C, T>(
     register_gateway: bool,
     user_chosen_gateway_id: Option<String>,
     config: &Config<T>,
-) -> Result<GatewayEndpointConfig, ClientCoreError> {
+) -> Result<GatewayEndpointConfig, ClientCoreError<B>>
+where
+    B: ReplyStorageBackend,
+    C: NymConfig + ClientCoreConfigTrait,
+    T: NymConfig,
+{
     let id = config.get_id();
     if register_gateway {
         register_with_gateway(user_chosen_gateway_id, config).await
     } else if let Some(user_chosen_gateway_id) = user_chosen_gateway_id {
         config_gateway_with_existing_keys(user_chosen_gateway_id, config).await
     } else {
-        reuse_existing_gateway_config::<C>(&id)
+        reuse_existing_gateway_config::<B, C>(&id)
     }
 }
 
 /// Get the gateway details by querying the validator-api. Either pick one at random or use
 /// the chosen one if it's among the available ones.
 /// Saves keys to disk, specified by the paths in `config`.
-pub async fn register_with_gateway<T: NymConfig>(
+pub async fn register_with_gateway<B, T>(
     user_chosen_gateway_id: Option<String>,
     config: &Config<T>,
-) -> Result<GatewayEndpointConfig, ClientCoreError> {
+) -> Result<GatewayEndpointConfig, ClientCoreError<B>>
+where
+    B: ReplyStorageBackend,
+    T: NymConfig,
+{
     println!("Configuring gateway");
     let gateway =
         query_gateway_details(config.get_validator_api_endpoints(), user_chosen_gateway_id).await?;
@@ -101,10 +111,14 @@ pub async fn register_with_gateway<T: NymConfig>(
 /// create any keys.
 /// This assumes that the user knows what they are doing, and that the existing keys are valid for
 /// the gateway being used
-pub async fn config_gateway_with_existing_keys<T: NymConfig>(
+pub async fn config_gateway_with_existing_keys<B, T>(
     user_chosen_gateway_id: String,
     config: &Config<T>,
-) -> Result<GatewayEndpointConfig, ClientCoreError> {
+) -> Result<GatewayEndpointConfig, ClientCoreError<B>>
+where
+    B: ReplyStorageBackend,
+    T: NymConfig,
+{
     println!("Using gateway provided by user, keeping existing keys");
     let gateway = query_gateway_details(
         config.get_validator_api_endpoints(),
@@ -116,9 +130,13 @@ pub async fn config_gateway_with_existing_keys<T: NymConfig>(
 }
 
 /// Read and reuse the existing gateway configuration from a file that was generate earlier.
-pub fn reuse_existing_gateway_config<T: NymConfig + ClientCoreConfigTrait>(
+pub fn reuse_existing_gateway_config<B, T>(
     id: &str,
-) -> Result<GatewayEndpointConfig, ClientCoreError> {
+) -> Result<GatewayEndpointConfig, ClientCoreError<B>>
+where
+    B: ReplyStorageBackend,
+    T: NymConfig + ClientCoreConfigTrait,
+{
     println!("Not registering gateway, will reuse existing config and keys");
     T::load_from_file(Some(id))
         .map(|existing_config| existing_config.get_gateway_endpoint().clone())
@@ -135,15 +153,19 @@ pub fn reuse_existing_gateway_config<T: NymConfig + ClientCoreConfigTrait>(
 }
 
 /// Get the client address by loading the keys from stored files.
-pub fn get_client_address_from_stored_keys<T>(
+pub fn get_client_address_from_stored_keys<B, T>(
     config: &Config<T>,
-) -> Result<Recipient, ClientCoreError>
+) -> Result<Recipient, ClientCoreError<B>>
 where
     T: config::NymConfig,
+    B: ReplyStorageBackend,
 {
-    fn load_identity_keys(
+    fn load_identity_keys<B>(
         pathfinder: &ClientKeyPathfinder,
-    ) -> Result<identity::KeyPair, ClientCoreError> {
+    ) -> Result<identity::KeyPair, ClientCoreError<B>>
+    where
+        B: ReplyStorageBackend,
+    {
         let identity_keypair: identity::KeyPair =
             pemstore::load_keypair(&pemstore::KeyPairPath::new(
                 pathfinder.private_identity_key().to_owned(),
@@ -153,9 +175,12 @@ where
         Ok(identity_keypair)
     }
 
-    fn load_sphinx_keys(
+    fn load_sphinx_keys<B>(
         pathfinder: &ClientKeyPathfinder,
-    ) -> Result<encryption::KeyPair, ClientCoreError> {
+    ) -> Result<encryption::KeyPair, ClientCoreError<B>>
+    where
+        B: ReplyStorageBackend,
+    {
         let sphinx_keypair: encryption::KeyPair =
             pemstore::load_keypair(&pemstore::KeyPairPath::new(
                 pathfinder.private_encryption_key().to_owned(),
@@ -184,8 +209,8 @@ pub fn output_to_json<T: Serialize>(init_results: &T, output_file: &str) {
     match std::fs::File::create(output_file) {
         Ok(file) => match serde_json::to_writer_pretty(file, init_results) {
             Ok(_) => println!("Saved: {}", output_file),
-            Err(err) => eprintln!("Could not save {}: {}", output_file, err),
+            Err(err) => eprintln!("Could not save {}: {err}", output_file),
         },
-        Err(err) => eprintln!("Could not save {}: {}", output_file, err),
+        Err(err) => eprintln!("Could not save {}: {err}", output_file),
     }
 }

@@ -22,6 +22,14 @@ pub(crate) struct Run {
     #[clap(long)]
     config: Option<String>,
 
+    /// Specifies whether this client is going to use an anonymous sender tag for communication with the service provider.
+    /// While this is going to hide its actual address information, it will make the actual communication
+    /// slower and consume nearly double the bandwidth as it will require sending reply SURBs.
+    ///
+    /// Note that some service providers might not support this.
+    #[clap(long)]
+    use_anonymous_sender_tag: bool,
+
     /// Address of the socks5 provider to send messages to.
     #[clap(long)]
     provider: Option<String>,
@@ -65,6 +73,7 @@ impl From<Run> for OverrideConfig {
             nymd_validators: run_config.nymd_validators,
             api_validators: run_config.api_validators,
             port: run_config.port,
+            use_anonymous_sender_tag: run_config.use_anonymous_sender_tag,
             fastmode: run_config.fastmode,
             no_cover: run_config.no_cover,
             #[cfg(feature = "coconut")]
@@ -101,7 +110,7 @@ pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn std::error::Error 
     let mut config = match Config::load_from_file(Some(id)) {
         Ok(cfg) => cfg,
         Err(err) => {
-            error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})", id, err);
+            error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {err})", id);
             return Err(Box::new(Socks5ClientError::FailedToLoadConfig(
                 id.to_string(),
             )));

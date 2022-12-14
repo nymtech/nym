@@ -1,17 +1,14 @@
-use std::path::PathBuf;
-
-use std::sync::Arc;
-use tap::TapFallible;
-use tokio::sync::RwLock;
-
-use client_core::config::Config as BaseConfig;
-use config_common::NymConfig;
-use nym_socks5::client::config::Config as Socks5Config;
-
 use crate::{
     error::{BackendError, Result},
     state::State,
 };
+use client_core::config::Config as BaseConfig;
+use config_common::NymConfig;
+use nym_socks5::client::config::Config as Socks5Config;
+use std::path::PathBuf;
+use std::sync::Arc;
+use tap::TapFallible;
+use tokio::sync::RwLock;
 
 static SOCKS5_CONFIG_ID: &str = "nym-connect";
 
@@ -130,7 +127,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     }
 
     // Setup gateway by either registering a new one, or reusing exiting keys
-    let gateway = client_core::init::setup_gateway::<Socks5Config, _>(
+    let gateway = client_core::init::setup_gateway::<_, Socks5Config, _>(
         register_gateway,
         Some(chosen_gateway_id),
         config.get_base(),

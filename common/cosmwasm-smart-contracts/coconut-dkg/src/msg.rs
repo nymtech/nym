@@ -42,6 +42,7 @@ pub enum ExecuteMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     GetCurrentEpochState {},
+    GetCurrentEpochThreshold {},
     GetDealerDetails {
         dealer_address: String,
     },

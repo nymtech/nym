@@ -1,25 +1,29 @@
-use std::{sync::Arc, time::Duration};
+// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
-use rand::{rngs::OsRng, seq::SliceRandom, thread_rng};
-use tap::TapFallible;
-use url::Url;
-
-use config::NymConfig;
-use crypto::asymmetric::identity;
-use gateway_client::GatewayClient;
-use gateway_requests::registration::handshake::SharedKeys;
-use topology::{filter::VersionFilterable, gateway};
-
+use crate::client::replies::reply_storage::ReplyStorageBackend;
 use crate::{
     client::key_manager::KeyManager,
     config::{persistence::key_pathfinder::ClientKeyPathfinder, Config},
     error::ClientCoreError,
 };
+use config::NymConfig;
+use crypto::asymmetric::identity;
+use gateway_client::GatewayClient;
+use gateway_requests::registration::handshake::SharedKeys;
+use rand::{rngs::OsRng, seq::SliceRandom, thread_rng};
+use std::{sync::Arc, time::Duration};
+use tap::TapFallible;
+use topology::{filter::VersionFilterable, gateway};
+use url::Url;
 
-pub(super) async fn query_gateway_details(
+pub(super) async fn query_gateway_details<B>(
     validator_servers: Vec<Url>,
     chosen_gateway_id: Option<String>,
-) -> Result<gateway::Node, ClientCoreError> {
+) -> Result<gateway::Node, ClientCoreError<B>>
+where
+    B: ReplyStorageBackend,
+{
     let validator_api = validator_servers
         .choose(&mut thread_rng())
         .ok_or(ClientCoreError::ListOfValidatorApisIsEmpty)?;
@@ -51,10 +55,13 @@ pub(super) async fn query_gateway_details(
     }
 }
 
-async fn register_with_gateway(
+async fn register_with_gateway<B>(
     gateway: &gateway::Node,
     our_identity: Arc<identity::KeyPair>,
-) -> Result<Arc<SharedKeys>, ClientCoreError> {
+) -> Result<Arc<SharedKeys>, ClientCoreError<B>>
+where
+    B: ReplyStorageBackend,
+{
     let timeout = Duration::from_millis(1500);
     let mut gateway_client = GatewayClient::new_init(
         gateway.clients_address(),
@@ -74,12 +81,13 @@ async fn register_with_gateway(
     Ok(shared_keys)
 }
 
-pub(super) async fn register_with_gateway_and_store_keys<T>(
+pub(super) async fn register_with_gateway_and_store_keys<T, B>(
     gateway_details: gateway::Node,
     config: &Config<T>,
-) -> Result<(), ClientCoreError>
+) -> Result<(), ClientCoreError<B>>
 where
     T: NymConfig,
+    B: ReplyStorageBackend,
 {
     let mut rng = OsRng;
     let mut key_manager = KeyManager::new(&mut rng);

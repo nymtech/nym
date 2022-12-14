@@ -16,9 +16,9 @@ pub enum ContextError {
     #[error("failed to create client - {0}")]
     NymdError(String),
 
-    #[error("{0}")]
+    #[error(transparent)]
     NymdErrorPassthrough(#[from] validator_client::nymd::error::NymdError),
 
-    #[error("{0}")]
+    #[error(transparent)]
     ValidatorClientError(#[from] validator_client::ValidatorClientError),
 }

@@ -51,7 +51,7 @@ impl SphinxPacketProcessor {
         packet: SphinxPacket,
     ) -> Result<ProcessedPacket, MixProcessingError> {
         packet.process(&self.sphinx_key).map_err(|err| {
-            debug!("Failed to unwrap Sphinx packet: {:?}", err);
+            debug!("Failed to unwrap Sphinx packet: {err}");
             MixProcessingError::SphinxProcessingError(err)
         })
     }
@@ -161,7 +161,7 @@ impl SphinxPacketProcessor {
     ) -> Result<MixProcessingResult, MixProcessingError> {
         match packet {
             ProcessedPacket::ForwardHop(packet, address, delay) => {
-                self.process_forward_hop(packet, address, delay, packet_mode)
+                self.process_forward_hop(*packet, address, delay, packet_mode)
             }
             // right now there's no use for the surb_id included in the header - probably it should get removed from the
             // sphinx all together?

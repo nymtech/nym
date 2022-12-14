@@ -1,9 +1,16 @@
-use std::cmp::Ordering;
+// Copyright 2020-2022 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
-#[derive(Debug, PartialEq, Eq)]
+use std::cmp::Ordering;
+use thiserror::Error;
+
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum MessageError {
+    #[error("the received message was empty")]
     NoData,
-    IndexTooShort,
+
+    #[error("could not extract message index. Received {received} bytes, but expected {expected}")]
+    IndexTooShort { received: usize, expected: usize },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -32,7 +39,10 @@ impl OrderedMessage {
         }
 
         if data.len() < 8 {
-            return Err(MessageError::IndexTooShort);
+            return Err(MessageError::IndexTooShort {
+                received: data.len(),
+                expected: 8,
+            });
         }
         let index = u64::from_be_bytes([
             data[0], data[1], data[2], data[3], data[4], data[5], data[6], data[7],
@@ -81,7 +91,13 @@ mod ordered_message_from_bytes {
     #[test]
     fn fails_when_data_is_too_short() {
         let result = OrderedMessage::try_from_bytes(vec![1, 2, 3]);
-        assert_eq!(Err(MessageError::IndexTooShort), result);
+        assert_eq!(
+            Err(MessageError::IndexTooShort {
+                received: 3,
+                expected: 8
+            }),
+            result
+        );
     }
 
     #[test]

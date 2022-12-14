@@ -1,4 +1,4 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{GatewayMacSize, GatewayRequestsError};
@@ -10,7 +10,7 @@ use crypto::hmac::{compute_keyed_hmac, recompute_keyed_hmac_and_verify_tag};
 use crypto::symmetric::stream_cipher::{self, CipherKey, KeySizeUser, IV};
 use nymsphinx::params::{GatewayEncryptionAlgorithm, GatewayIntegrityHmacAlgorithm};
 use pemstore::traits::PemStorableKey;
-use std::fmt::{self, Display, Formatter};
+use thiserror::Error;
 
 // shared key is as long as the encryption key and the MAC key combined.
 pub type SharedKeySize = Sum<EncryptionKeySize, MacKeySize>;
@@ -28,37 +28,23 @@ pub struct SharedKeys {
     mac_key: MacKey,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum SharedKeyConversionError {
-    DecodeError(bs58::decode::Error),
-    BytesOfInvalidLengthError,
-    StringOfInvalidLengthError,
+    #[error("the string representation of the shared keys was malformed - {0}")]
+    DecodeError(#[from] bs58::decode::Error),
+    #[error(
+        "the received shared keys had invalid size. Got: {received}, but expected: {expected}"
+    )]
+    InvalidSharedKeysSize { received: usize, expected: usize },
 }
-
-impl Display for SharedKeyConversionError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            SharedKeyConversionError::DecodeError(err) => write!(
-                f,
-                "encountered error while decoding the byte sequence: {}",
-                err
-            ),
-            SharedKeyConversionError::BytesOfInvalidLengthError => {
-                write!(f, "provided bytes have invalid length")
-            }
-            SharedKeyConversionError::StringOfInvalidLengthError => {
-                write!(f, "provided string has invalid length")
-            }
-        }
-    }
-}
-
-impl std::error::Error for SharedKeyConversionError {}
 
 impl SharedKeys {
     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, SharedKeyConversionError> {
         if bytes.len() != SharedKeySize::to_usize() {
-            return Err(SharedKeyConversionError::BytesOfInvalidLengthError);
+            return Err(SharedKeyConversionError::InvalidSharedKeysSize {
+                received: bytes.len(),
+                expected: SharedKeySize::to_usize(),
+            });
         }
 
         let encryption_key =
@@ -157,15 +143,7 @@ impl SharedKeys {
     pub fn try_from_base58_string<S: Into<String>>(
         val: S,
     ) -> Result<Self, SharedKeyConversionError> {
-        let decoded = match bs58::decode(val.into()).into_vec() {
-            Ok(decoded) => decoded,
-            Err(err) => return Err(SharedKeyConversionError::DecodeError(err)),
-        };
-
-        if decoded.len() != SharedKeySize::to_usize() {
-            return Err(SharedKeyConversionError::StringOfInvalidLengthError);
-        }
-
+        let decoded = bs58::decode(val.into()).into_vec()?;
         SharedKeys::try_from_bytes(&decoded)
     }
 

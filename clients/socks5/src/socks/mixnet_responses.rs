@@ -25,9 +25,9 @@ impl Drop for MixnetResponseListener {
             .unbounded_send(ReceivedBufferMessage::ReceiverDisconnect)
         {
             if self.shutdown.is_shutdown_poll() {
-                log::debug!("The buffer request failed: {}", err);
+                log::debug!("The buffer request failed: {err}");
             } else {
-                log::error!("The buffer request failed: {}", err);
+                log::error!("The buffer request failed: {err}");
             }
         }
     }
@@ -54,13 +54,13 @@ impl MixnetResponseListener {
 
     async fn on_message(&self, reconstructed_message: ReconstructedMessage) {
         let raw_message = reconstructed_message.message;
-        if reconstructed_message.reply_surb.is_some() {
-            warn!("this message had a surb - we didn't do anything with it");
+        if reconstructed_message.sender_tag.is_some() {
+            warn!("this message was sent anonymously - it couldn't have come from the service provider");
         }
 
         let response = match Message::try_from_bytes(&raw_message) {
             Err(err) => {
-                warn!("failed to parse received response - {:?}", err);
+                warn!("failed to parse received response - {err}");
                 return;
             }
             Ok(Message::Request(_)) => {

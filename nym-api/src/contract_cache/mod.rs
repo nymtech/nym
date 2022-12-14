@@ -192,7 +192,7 @@ impl<C> ValidatorCacheRefresher<C> {
             .await;
 
         if let Err(err) = self.update_notifier.send(CacheNotification::Updated) {
-            warn!("Failed to notify validator cache refresh: {}", err);
+            warn!("Failed to notify validator cache refresh: {err}");
         }
 
         Ok(())
@@ -213,7 +213,7 @@ impl<C> ValidatorCacheRefresher<C> {
                         }
                         ret = self.refresh_cache() => {
                             if let Err(err) = ret {
-                                error!("Failed to refresh validator cache - {}", err);
+                                error!("Failed to refresh validator cache - {err}");
                             } else {
                                 // relaxed memory ordering is fine here. worst case scenario network monitor
                                 // will just have to wait for an additional backoff to see the change.

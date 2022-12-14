@@ -126,11 +126,33 @@ impl AsyncWrite for StreamState {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
+pub(crate) struct Config {
+    use_surbs_for_responses: bool,
+    connection_start_surbs: u32,
+    per_request_surbs: u32,
+}
+
+impl Config {
+    pub(crate) fn new(
+        use_surbs_for_responses: bool,
+        connection_start_surbs: u32,
+        per_request_surbs: u32,
+    ) -> Self {
+        Self {
+            use_surbs_for_responses,
+            connection_start_surbs,
+            per_request_surbs,
+        }
+    }
+}
+
 /// A client connecting to the Socks proxy server, because
 /// it wants to make a Nym-protected outbound request. Typically, this is
 /// something like e.g. a wallet app running on your laptop connecting to
 /// `SphinxSocksServer`.
 pub(crate) struct SocksClient {
+    config: Config,
     controller_sender: ControllerSender,
     stream: StreamState,
     auth_nmethods: u8,
@@ -160,6 +182,7 @@ impl Drop for SocksClient {
 impl SocksClient {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
+        config: Config,
         stream: TcpStream,
         authenticator: Authenticator,
         input_sender: InputMessageSender,
@@ -175,6 +198,7 @@ impl SocksClient {
         let connection_id = Self::generate_random();
 
         SocksClient {
+            config,
             controller_sender,
             connection_id,
             stream: StreamState::Available(stream),
@@ -196,7 +220,7 @@ impl SocksClient {
     }
 
     pub async fn send_error(&mut self, err: SocksProxyError) -> Result<(), SocksProxyError> {
-        let error_text = format!("{}", err);
+        let error_text = format!("{err}");
         let Some(ref version) = self.socks_version else {
             log::error!("Trying to send error without knowing the version");
             return Ok(());
@@ -268,20 +292,44 @@ impl SocksClient {
         self.handle_request().await
     }
 
-    async fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
-        let req = Request::new_connect(self.connection_id, remote_address, self.self_address);
+    async fn send_anonymous_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
+        let req = Request::new_connect(self.connection_id, remote_address, None);
         let msg = Message::Request(req);
 
-        let input_message = InputMessage::new_fresh(
+        let input_message = InputMessage::new_anonymous(
             self.service_provider,
             msg.into_bytes(),
-            false,
+            self.config.connection_start_surbs,
             TransmissionLane::ConnectionId(self.connection_id),
         );
         self.input_sender
             .send(input_message)
             .await
             .expect("InputMessageReceiver has stopped receiving!");
+    }
+
+    async fn send_connect_to_mixnet_with_return_address(&mut self, remote_address: RemoteAddress) {
+        let req = Request::new_connect(self.connection_id, remote_address, Some(self.self_address));
+        let msg = Message::Request(req);
+
+        let input_message = InputMessage::new_regular(
+            self.service_provider,
+            msg.into_bytes(),
+            TransmissionLane::ConnectionId(self.connection_id),
+        );
+        self.input_sender
+            .send(input_message)
+            .await
+            .expect("InputMessageReceiver has stopped receiving!");
+    }
+
+    async fn send_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
+        if self.config.use_surbs_for_responses {
+            self.send_anonymous_connect_to_mixnet(remote_address).await
+        } else {
+            self.send_connect_to_mixnet_with_return_address(remote_address)
+                .await
+        }
     }
 
     async fn run_proxy(&mut self, conn_receiver: ConnectionReceiver, remote_proxy_target: String) {
@@ -300,6 +348,8 @@ impl SocksClient {
 
         let connection_id = self.connection_id;
         let input_sender = self.input_sender.clone();
+        let anonymous = self.config.use_surbs_for_responses;
+        let per_request_surbs = self.config.per_request_surbs;
 
         let recipient = self.service_provider;
         let (stream, _) = ProxyRunner::new(
@@ -316,7 +366,16 @@ impl SocksClient {
             let provider_request = Request::new_send(conn_id, read_data, socket_closed);
             let provider_message = Message::Request(provider_request);
             let lane = TransmissionLane::ConnectionId(conn_id);
-            InputMessage::new_fresh(recipient, provider_message.into_bytes(), false, lane)
+            if anonymous {
+                InputMessage::new_anonymous(
+                    recipient,
+                    provider_message.into_bytes(),
+                    per_request_surbs,
+                    lane,
+                )
+            } else {
+                InputMessage::new_regular(recipient, provider_message.into_bytes(), lane)
+            }
         })
         .await
         .into_inner();

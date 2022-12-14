@@ -36,7 +36,7 @@ impl Listener {
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
             Ok(listener) => listener,
             Err(err) => {
-                error!("Failed to bind to {} - {}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?", self.address, err);
+                error!("Failed to bind to {} - {err}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?", self.address);
                 process::exit(1);
             }
         };
@@ -54,9 +54,8 @@ impl Listener {
                         Ok((mut socket, remote_addr)) => {
                             debug!("Received connection from {:?}", remote_addr);
                             if self.state.is_connected() {
-                                warn!("tried to duplicate!");
+                                warn!("Tried to open a duplicate websocket connection. The request came from {}", remote_addr);
                                 // if we've already got a connection, don't allow another one
-                                debug!("but there was already a connection present!");
                                 // while we only ever want to accept a single connection, we don't want
                                 // to leave clients hanging (and also allow for reconnection if it somehow
                                 // was dropped)
@@ -64,7 +63,7 @@ impl Listener {
                                     Ok(_) => trace!(
                                         "closed the connection between attempting websocket handshake"
                                     ),
-                                    Err(e) => warn!("failed to cleanly close the connection - {:?}", e),
+                                    Err(err) => warn!("failed to cleanly close the connection - {err}"),
                                 };
                             } else {
                                 // even though we're spawning a new task with the handler here, we will only ever spawn a single one.
@@ -79,7 +78,7 @@ impl Listener {
                                 self.state = State::Connected;
                             }
                         }
-                        Err(e) => warn!("failed to get client: {:?}", e),
+                        Err(err) => warn!("failed to get client: {err}"),
                     }
                 }
             }

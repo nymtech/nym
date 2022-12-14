@@ -161,15 +161,16 @@ impl LoopCoverTrafficStream<OsRng> {
         // poisson delay, but is it really a problem?
         let topology_permit = self.topology_access.get_read_permit().await;
         // the ack is sent back to ourselves (and then ignored)
-        let topology_ref_option = topology_permit.try_get_valid_topology_ref(
+        let topology_ref = match topology_permit.try_get_valid_topology_ref(
             &self.our_full_destination,
             Some(&self.our_full_destination),
-        );
-        if topology_ref_option.is_none() {
-            warn!("No valid topology detected - won't send any loop cover message this time");
-            return;
-        }
-        let topology_ref = topology_ref_option.unwrap();
+        ) {
+            Ok(topology) => topology,
+            Err(err) => {
+                warn!("We're not going to send any loop cover message this time, as the current topology seem to be invalid - {err}");
+                return;
+            }
+        };
 
         let cover_message = generate_loop_cover_packet(
             &mut self.rng,
@@ -239,21 +240,6 @@ impl LoopCoverTrafficStream<OsRng> {
             }
             shutdown.recv_timeout().await;
             log::debug!("LoopCoverTrafficStream: Exiting");
-        })
-    }
-
-    pub fn start(mut self) {
-        // we should set initial delay only when we actually start the stream
-        let sampled =
-            sample_poisson_duration(&mut self.rng, self.average_cover_message_sending_delay);
-        self.set_next_delay(sampled);
-
-        spawn_future(async move {
-            debug!("Started LoopCoverTrafficStream without graceful shutdown support");
-
-            while self.next().await.is_some() {
-                self.on_new_message().await;
-            }
         })
     }
 }

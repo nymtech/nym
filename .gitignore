@@ -38,3 +38,4 @@ validator-config
 validator-api-config.toml
 dist
 storybook-static
+envs/qwerty.env

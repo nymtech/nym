@@ -75,6 +75,12 @@ impl Backend {
             manager.delete_all_reply_keys().await?;
         }
 
+        if let Err(err) = manager.get_reply_surb_storage_metadata().await {
+            // we can't recover here, we HAVE TO initialise fresh (because we don't know correct starting metadata)
+            error!("it seems the client has been shutdown gracefully - we're missing valid surb data dump. the existing database cannot be used");
+            return Err(err.into());
+        }
+
         let last_flush_timestamp = manager.get_previous_flush_timestamp().await?;
         let last_flush = match OffsetDateTime::from_unix_timestamp(last_flush_timestamp) {
             Ok(last_flush) => last_flush,

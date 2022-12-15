@@ -71,7 +71,7 @@ impl NodeStatusCache {
         active_set: Vec<MixNodeBondAnnotated>,
         inclusion_probabilities: InclusionProbabilities,
     ) {
-        match time::timeout(Duration::from_millis(CACHE_TIMOUT_MS), self.inner.write()).await {
+        match time::timeout(Duration::from_millis(CACHE_TIMEOUT_MS), self.inner.write()).await {
             Ok(mut cache) => {
                 cache.mixnodes_annotated.update(mixnodes);
                 cache.rewarded_set_annotated.update(rewarded_set);
@@ -88,7 +88,7 @@ impl NodeStatusCache {
         &self,
         fn_arg: impl FnOnce(RwLockReadGuard<'_, NodeStatusCacheInner>) -> Cache<T>,
     ) -> Option<Cache<T>> {
-        match time::timeout(Duration::from_millis(CACHE_TIMOUT_MS), self.inner.read()).await {
+        match time::timeout(Duration::from_millis(CACHE_TIMEOUT_MS), self.inner.read()).await {
             Ok(cache) => Some(fn_arg(cache)),
             Err(e) => {
                 error!("{e}");

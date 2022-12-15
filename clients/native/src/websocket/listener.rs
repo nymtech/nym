@@ -100,7 +100,11 @@ impl Listener {
         log::debug!("Websocket listener: Exiting");
     }
 
-    pub(crate) fn start(mut self, handler: HandlerBuilder, shutdown: task::TaskClient) -> JoinHandle<()> {
+    pub(crate) fn start(
+        mut self,
+        handler: HandlerBuilder,
+        shutdown: task::TaskClient,
+    ) -> JoinHandle<()> {
         info!("Running websocket on {:?}", self.address.to_string());
 
         tokio::spawn(async move { self.run(handler, shutdown).await })

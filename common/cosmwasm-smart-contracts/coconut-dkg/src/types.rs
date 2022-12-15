@@ -12,12 +12,13 @@ pub type EncodedBTEPublicKeyWithProof = String;
 pub type EncodedBTEPublicKeyWithProofRef<'a> = &'a str;
 pub type NodeIndex = u64;
 
-pub const PUBLIC_KEY_SUBMISSION_TIME_SECS: u64 = 10;
-pub const DEALING_EXCHANGE_TIME_SECS: u64 = 120;
-pub const VERIFICATION_KEY_SUBMISSION_TIME_SECS: u64 = 120;
-pub const VERIFICATION_KEY_VALIDATION_TIME_SECS: u64 = 30;
-pub const VERIFICATION_KEY_FINALIZATION_TIME_SECS: u64 = 10;
-// Basically the time an epoch lasts (2 weeks)
+// The time sign-up is open for dealers to join (2 minutes)
+pub const PUBLIC_KEY_SUBMISSION_TIME_SECS: u64 = 60 * 2;
+pub const DEALING_EXCHANGE_TIME_SECS: u64 = 60 * 5;
+pub const VERIFICATION_KEY_SUBMISSION_TIME_SECS: u64 = 60 * 5;
+pub const VERIFICATION_KEY_VALIDATION_TIME_SECS: u64 = 60;
+pub const VERIFICATION_KEY_FINALIZATION_TIME_SECS: u64 = 60;
+// The time an epoch lasts (2 weeks)
 pub const IN_PROGRESS_TIME_SECS: u64 = 60 * 60 * 24 * 14;
 
 // 2 public attributes, 2 private attributes, 1 fixed for coconut credential

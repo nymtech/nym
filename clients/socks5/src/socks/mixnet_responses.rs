@@ -54,7 +54,7 @@ impl MixnetResponseListener {
         }
     }
 
-    async fn on_message(
+    fn on_message(
         &self,
         reconstructed_message: ReconstructedMessage,
     ) -> Result<(), Socks5ClientError> {
@@ -99,15 +99,14 @@ impl MixnetResponseListener {
     pub(crate) async fn run(&mut self) {
         while !self.shutdown.is_shutdown() {
             tokio::select! {
-                received_responses = self.mix_response_receiver.next() => match received_responses {
-                    Some(received_responses) => {
+                received_responses = self.mix_response_receiver.next() => {
+                    if let Some(received_responses) = received_responses {
                         for reconstructed_message in received_responses {
-                            if let Err(err) = self.on_message(reconstructed_message).await {
+                            if let Err(err) = self.on_message(reconstructed_message) {
                                 self.shutdown.send_status_msg(Box::new(err));
                             }
                         }
-                    },
-                    None => {
+                    } else {
                         log::trace!("MixnetResponseListener: Stopping since channel closed");
                         break;
                     }

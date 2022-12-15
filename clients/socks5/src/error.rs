@@ -23,7 +23,7 @@ pub enum Socks5ClientError {
     #[error("Fail to bind address")]
     FailToBindAddress,
 
-    #[error("{connection_id}: {error}")]
+    #[error("Network requester: connection id {connection_id}: {error}")]
     NetworkRequesterError {
         connection_id: ConnectionId,
         error: String,

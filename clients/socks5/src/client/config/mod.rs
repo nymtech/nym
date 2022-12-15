@@ -143,6 +143,7 @@ pub struct Socks5 {
     /// slower and consume nearly double the bandwidth as it will require sending reply SURBs.
     ///
     /// Note that some service providers might not support this.
+    #[serde(default)]
     send_anonymously: bool,
 }
 

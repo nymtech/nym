@@ -120,6 +120,10 @@ pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn std::error::Error 
     let override_config_fields = OverrideConfig::from(args.clone());
     config = override_config(config, override_config_fields);
 
+    if config.get_base_mut().set_empty_fields_to_defaults() {
+        warn!("some of the core config options were left unset. the default values are going to get used instead.");
+    }
+
     if !version_check(&config) {
         error!("failed the local version check");
         return Err(Box::new(Socks5ClientError::FailedLocalVersionCheck));

@@ -334,18 +334,18 @@ impl WalletStateInner {
             .into_group_map()
     }
 
-    /// Fetch validator urls remotely. These are used to in addition to the base ones, and the user
+    /// Fetch nyxd urls remotely. These are used to in addition to the base ones, and the user
     /// configured ones.
-    pub async fn fetch_updated_validator_urls(&mut self) -> Result<(), BackendError> {
+    pub async fn fetch_updated_nyxd_urls(&mut self) -> Result<(), BackendError> {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(3))
             .build()?;
         log::debug!(
             "Fetching validator urls from: {}",
-            crate::config::REMOTE_SOURCE_OF_VALIDATOR_URLS
+            crate::config::REMOTE_SOURCE_OF_NYXD_URLS
         );
         let response = client
-            .get(crate::config::REMOTE_SOURCE_OF_VALIDATOR_URLS.to_string())
+            .get(crate::config::REMOTE_SOURCE_OF_NYXD_URLS.to_string())
             .send()
             .await?;
 

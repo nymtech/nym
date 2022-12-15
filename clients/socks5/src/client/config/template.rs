@@ -24,8 +24,8 @@ id = '{{ client.id }}'
 disabled_credentials_mode = {{ client.disabled_credentials_mode }}
 
 # Addresses to nyxd validators via which the client can communicate with the chain.
-validator_urls = [
-    {{#each client.validator_urls }}
+nyxd_urls = [
+    {{#each client.nyxd_urls }}
         '{{this}}',
     {{/each}}
 ]

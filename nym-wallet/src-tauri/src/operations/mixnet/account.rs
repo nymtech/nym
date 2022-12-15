@@ -96,7 +96,7 @@ async fn _connect_with_mnemonic(
         w_state.load_config_files();
     }
 
-    network_config::update_validator_urls(state.clone()).await?;
+    network_config::update_nyxd_urls(state.clone()).await?;
 
     let config = {
         let state = state.read().await;

@@ -20,7 +20,7 @@ use nym_wallet_types::network_config;
 use crate::error::BackendError;
 use crate::platform_constants::{CONFIG_DIR_NAME, CONFIG_FILENAME};
 
-pub const REMOTE_SOURCE_OF_VALIDATOR_URLS: &str =
+pub const REMOTE_SOURCE_OF_NYXD_URLS: &str =
     "https://nymtech.net/.wellknown/wallet/validators.json";
 
 const CURRENT_GLOBAL_CONFIG_VERSION: u32 = 1;
@@ -61,7 +61,7 @@ pub struct NetworkConfig {
 
     // Additional user provided validators.
     // It is an option for the purpose of file serialization.
-    validator_urls: Option<Vec<ValidatorConfigEntry>>,
+    nyxd_urls: Option<Vec<ValidatorConfigEntry>>,
 }
 
 impl Default for Base {
@@ -87,14 +87,14 @@ impl Default for NetworkConfig {
             version: Some(CURRENT_NETWORK_CONFIG_VERSION),
             selected_nyxd_url: None,
             selected_api_url: None,
-            validator_urls: None,
+            nyxd_urls: None,
         }
     }
 }
 
 impl NetworkConfig {
     fn validators(&self) -> impl Iterator<Item = &ValidatorConfigEntry> {
-        self.validator_urls.iter().flat_map(|v| v.iter())
+        self.nyxd_urls.iter().flat_map(|v| v.iter())
     }
 }
 
@@ -283,16 +283,16 @@ impl Config {
 
     pub fn add_validator_url(&mut self, url: ValidatorConfigEntry, network: WalletNetwork) {
         if let Some(network_config) = self.networks.get_mut(&network.as_key()) {
-            if let Some(ref mut urls) = network_config.validator_urls {
+            if let Some(ref mut urls) = network_config.nyxd_urls {
                 urls.push(url);
             } else {
-                network_config.validator_urls = Some(vec![url]);
+                network_config.nyxd_urls = Some(vec![url]);
             }
         } else {
             self.networks.insert(
                 network.as_key(),
                 NetworkConfig {
-                    validator_urls: Some(vec![url]),
+                    nyxd_urls: Some(vec![url]),
                     ..NetworkConfig::default()
                 },
             );
@@ -301,7 +301,7 @@ impl Config {
 
     pub fn remove_validator_url(&mut self, url: ValidatorConfigEntry, network: WalletNetwork) {
         if let Some(network_config) = self.networks.get_mut(&network.as_key()) {
-            if let Some(ref mut urls) = network_config.validator_urls {
+            if let Some(ref mut urls) = network_config.nyxd_urls {
                 // Removes duplicates too if there are any
                 urls.retain(|existing_url| existing_url != &url);
             }
@@ -513,7 +513,7 @@ mod tests {
             selected_nyxd_url: None,
             selected_api_url: Some("https://my_api_url.com".parse().unwrap()),
 
-            validator_urls: Some(vec![
+            nyxd_urls: Some(vec![
                 ValidatorConfigEntry {
                     nyxd_url: "https://foo".parse().unwrap(),
                     nyxd_name: Some("FooName".to_string()),
@@ -551,15 +551,15 @@ mod tests {
             r#"version = 1
 selected_api_url = 'https://my_api_url.com/'
 
-[[validator_urls]]
+[[nyxd_urls]]
 nyxd_url = 'https://foo/'
 nyxd_name = 'FooName'
 
-[[validator_urls]]
+[[nyxd_urls]]
 nyxd_url = 'https://bar/'
 api_url = 'https://bar/api'
 
-[[validator_urls]]
+[[nyxd_urls]]
 nyxd_url = 'https://baz/'
 api_url = 'https://baz/api'
 "#
@@ -577,7 +577,7 @@ api_url = 'https://baz/api'
   "version": 1,
   "selected_nyxd_url": null,
   "selected_api_url": "https://my_api_url.com/",
-  "validator_urls": [
+  "nyxd_urls": [
     {
       "nyxd_url": "https://foo/",
       "nyxd_name": "FooName",

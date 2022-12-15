@@ -74,10 +74,8 @@ pub async fn remove_validator(
 
 // Update the list of validators by fecthing additional ones remotely. If it fails, just ignore.
 #[tauri::command]
-pub async fn update_validator_urls(
-    state: tauri::State<'_, WalletState>,
-) -> Result<(), BackendError> {
+pub async fn update_nyxd_urls(state: tauri::State<'_, WalletState>) -> Result<(), BackendError> {
     let mut w_state = state.write().await;
-    let _r = w_state.fetch_updated_validator_urls().await;
+    let _r = w_state.fetch_updated_nyxd_urls().await;
     Ok(())
 }

@@ -108,6 +108,7 @@ fn dkg_proposal() {
     .unwrap();
 
     for _ in 0..2 {
+        app.update_block(|block| block.time = block.time.plus_seconds(1000));
         app.execute_contract(
             Addr::unchecked(OWNER),
             coconut_dkg_contract_addr.clone(),
@@ -174,6 +175,7 @@ fn dkg_proposal() {
     .unwrap();
 
     for _ in 0..2 {
+        app.update_block(|block| block.time = block.time.plus_seconds(1000));
         app.execute_contract(
             Addr::unchecked(OWNER),
             coconut_dkg_contract_addr.clone(),

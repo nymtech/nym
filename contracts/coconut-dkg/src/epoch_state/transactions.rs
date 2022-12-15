@@ -178,7 +178,7 @@ pub(crate) mod tests {
     #[test]
     fn verify_threshold() {
         let mut deps = init_contract();
-        let env = mock_env();
+        let mut env = mock_env();
 
         assert!(THRESHOLD.may_load(deps.as_mut().storage).unwrap().is_none());
 
@@ -198,6 +198,7 @@ pub(crate) mod tests {
                 .unwrap();
         }
 
+        env.block.time = env.block.time.plus_seconds(PUBLIC_KEY_SUBMISSION_TIME_SECS);
         advance_epoch_state(deps.as_mut(), env).unwrap();
         assert_eq!(
             THRESHOLD.may_load(deps.as_mut().storage).unwrap().unwrap(),

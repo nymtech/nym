@@ -25,7 +25,7 @@ use super::reward_estimate::{compute_apy_from_reward, compute_reward_estimate};
 
 mod inclusion_probabilities;
 
-const CACHE_TIMOUT_MS: u64 = 100;
+const CACHE_TIMEOUT_MS: u64 = 100;
 
 enum NodeStatusCacheError {
     SimulationFailed,

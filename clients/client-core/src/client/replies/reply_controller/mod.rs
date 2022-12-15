@@ -327,35 +327,18 @@ where
         };
 
         let mut to_take = Vec::new();
-        let mut to_remove = Vec::new();
 
-        // TODO: once rust 1.66.0 is stabilised on 15.12.22, just change it to
-        // `.pop_front()` to directly take ownership
-        for (k, data) in pending.iter() {
-            let upgraded = match data.upgrade() {
-                Some(upgraded) => upgraded,
-                None => {
-                    // we got the ack while the data was waiting in the queue
-                    to_remove.push(*k);
-                    continue;
+        while to_take.len() < max_to_clear {
+            if let Some((_, data)) = pending.pop_first() {
+                // no need to do anything if we failed to upgrade the reference,
+                // it means we got the ack while the data was waiting in the queue
+                if let Some(upgraded) = data.upgrade() {
+                    to_take.push(upgraded)
                 }
-            };
-
-            to_take.push(upgraded);
-
-            // we have taken as many entries as we could have
-            if to_take.len() >= max_to_clear {
+            } else {
+                // our map is empty!
                 break;
             }
-            // TODO: use if upgraded.is_extra_surb_request() to bypass the limit
-        }
-
-        for ack in &to_take {
-            pending.remove(&ack.inner_fragment_identifier());
-        }
-
-        for id in to_remove {
-            pending.remove(&id);
         }
 
         if to_take.is_empty() {

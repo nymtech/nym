@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::handler::Handler;
+use super::handler::HandlerBuilder;
 use log::*;
 use std::{net::SocketAddr, process, sync::Arc};
 use tokio::io::AsyncWriteExt;
@@ -32,7 +32,7 @@ impl Listener {
         }
     }
 
-    pub(crate) async fn run(&mut self, handler: Handler, mut task_client: task::TaskClient) {
+    pub(crate) async fn run(&mut self, handler: HandlerBuilder, mut task_client: task::TaskClient) {
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
             Ok(listener) => listener,
             Err(err) => {
@@ -100,7 +100,7 @@ impl Listener {
         log::debug!("Websocket listener: Exiting");
     }
 
-    pub(crate) fn start(mut self, handler: Handler, shutdown: task::TaskClient) -> JoinHandle<()> {
+    pub(crate) fn start(mut self, handler: HandlerBuilder, shutdown: task::TaskClient) -> JoinHandle<()> {
         info!("Running websocket on {:?}", self.address.to_string());
 
         tokio::spawn(async move { self.run(handler, shutdown).await })

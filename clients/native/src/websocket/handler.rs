@@ -35,53 +35,33 @@ impl Default for ReceivedResponseType {
     }
 }
 
-pub(crate) struct Handler {
+pub(crate) struct HandlerBuilder {
     msg_input: InputMessageSender,
     client_connection_tx: ConnectionCommandSender,
     buffer_requester: ReceivedBufferRequestSender,
     self_full_address: Recipient,
-    socket: Option<WebSocketStream<TcpStream>>,
-    received_response_type: ReceivedResponseType,
     lane_queue_lengths: LaneQueueLengths,
-    is_active: bool,
 }
 
-impl Drop for Handler {
-    fn drop(&mut self) {
-        if self.is_active
-            && self
-                .buffer_requester
-                .unbounded_send(ReceivedBufferMessage::ReceiverDisconnect)
-                .is_err()
-        {
-            error!("we failed to disconnect the receiver from the buffer! presumably the shutdown procedure has been initiated!")
-        }
-    }
-}
-
-impl Handler {
+impl HandlerBuilder {
     pub(crate) fn new(
         msg_input: InputMessageSender,
         client_connection_tx: ConnectionCommandSender,
         buffer_requester: ReceivedBufferRequestSender,
-        self_full_address: Recipient,
+        self_full_address: &Recipient,
         lane_queue_lengths: LaneQueueLengths,
     ) -> Self {
-        Handler {
+        Self {
             msg_input,
             client_connection_tx,
             buffer_requester,
-            self_full_address,
-            socket: None,
-            received_response_type: Default::default(),
+            self_full_address: *self_full_address,
             lane_queue_lengths,
-            is_active: false,
         }
     }
 
-    // Used to use handler on a new connection, which initially is `None`
     // TODO: make sure we only ever have one active handler
-    pub fn create_active_handler(&self) -> Self {
+    pub fn create_active_handler(&self) -> Handler {
         Handler {
             msg_input: self.msg_input.clone(),
             client_connection_tx: self.client_connection_tx.clone(),
@@ -90,10 +70,33 @@ impl Handler {
             socket: None,
             received_response_type: Default::default(),
             lane_queue_lengths: self.lane_queue_lengths.clone(),
-            is_active: true,
         }
     }
+}
 
+pub(crate) struct Handler {
+    msg_input: InputMessageSender,
+    client_connection_tx: ConnectionCommandSender,
+    buffer_requester: ReceivedBufferRequestSender,
+    self_full_address: Recipient,
+    socket: Option<WebSocketStream<TcpStream>>,
+    received_response_type: ReceivedResponseType,
+    lane_queue_lengths: LaneQueueLengths,
+}
+
+impl Drop for Handler {
+    fn drop(&mut self) {
+        if self
+            .buffer_requester
+            .unbounded_send(ReceivedBufferMessage::ReceiverDisconnect)
+            .is_err()
+        {
+            error!("we failed to disconnect the receiver from the buffer! presumably the shutdown procedure has been initiated!")
+        }
+    }
+}
+
+impl Handler {
     async fn handle_send(
         &mut self,
         recipient: Recipient,

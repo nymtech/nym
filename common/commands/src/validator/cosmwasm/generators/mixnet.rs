@@ -10,14 +10,14 @@ use std::time::Duration;
 
 #[derive(Debug, Parser)]
 pub struct Args {
-    #[clap(long, empty_values = false)]
-    pub rewarding_validator_address: String,
+    #[clap(long)]
+    pub rewarding_validator_address: Option<String>,
 
-    #[clap(long, empty_values = false)]
-    pub vesting_contract_address: String,
+    #[clap(long)]
+    pub vesting_contract_address: Option<String>,
 
-    #[clap(long, default_value = "unymt")]
-    pub rewarding_denom: String,
+    #[clap(long)]
+    pub rewarding_denom: Option<String>,
 
     #[clap(long, default_value_t = 720)]
     pub epochs_in_interval: u32,
@@ -76,10 +76,25 @@ pub async fn generate(args: Args) {
 
     debug!("initial_rewarding_params: {:?}", initial_rewarding_params);
 
+    let rewarding_validator_address = args.rewarding_validator_address.unwrap_or_else(|| {
+        std::env::var(network_defaults::var_names::REWARDING_VALIDATOR_ADDRESS)
+            .expect("Rewarding validator address has to be set")
+    });
+
+    let vesting_contract_address = args.vesting_contract_address.unwrap_or_else(|| {
+        std::env::var(network_defaults::var_names::VESTING_CONTRACT_ADDRESS)
+            .expect("Vesting contract address has to be set")
+    });
+
+    let rewarding_denom = args.rewarding_denom.unwrap_or_else(|| {
+        std::env::var(network_defaults::var_names::MIX_DENOM)
+            .expect("Rewarding (mix) denom has to be set")
+    });
+
     let instantiate_msg = InstantiateMsg {
-        rewarding_validator_address: args.rewarding_validator_address,
-        vesting_contract_address: args.vesting_contract_address,
-        rewarding_denom: args.rewarding_denom,
+        rewarding_validator_address,
+        vesting_contract_address,
+        rewarding_denom,
         epochs_in_interval: args.epochs_in_interval,
         epoch_duration: Duration::from_secs(args.epoch_duration),
         initial_rewarding_params,

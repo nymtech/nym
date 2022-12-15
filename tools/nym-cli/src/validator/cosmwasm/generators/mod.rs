@@ -9,6 +9,18 @@ pub(crate) async fn execute(
         nym_cli_commands::validator::cosmwasm::generators::GenerateMessageCommands::Vesting(
             args,
         ) => nym_cli_commands::validator::cosmwasm::generators::vesting::generate(args).await,
+
+        nym_cli_commands::validator::cosmwasm::generators::GenerateMessageCommands::CoconutBandwidth(
+            args,
+        ) => nym_cli_commands::validator::cosmwasm::generators::coconut_bandwidth::generate(args).await,
+
+        nym_cli_commands::validator::cosmwasm::generators::GenerateMessageCommands::CoconutDKG(
+            args,
+        ) => nym_cli_commands::validator::cosmwasm::generators::coconut_dkg::generate(args).await,
+
+        nym_cli_commands::validator::cosmwasm::generators::GenerateMessageCommands::Multisig(
+            args,
+        ) => nym_cli_commands::validator::cosmwasm::generators::multisig::generate(args).await,
     }
     Ok(())
 }

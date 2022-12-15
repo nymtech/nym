@@ -4,12 +4,18 @@
 use clap::Parser;
 use log::{debug, info};
 
-use vesting_contract_common::InitMsg;
+use coconut_dkg_common::msg::InstantiateMsg;
 
 #[derive(Debug, Parser)]
 pub struct Args {
+    #[clap(long, empty_values = false)]
+    pub group_addr: String,
+
+    #[clap(long, empty_values = false)]
+    pub admin: String,
+
     #[clap(long)]
-    pub mixnet_contract_address: Option<String>,
+    pub multisig_addr: Option<String>,
 
     #[clap(long)]
     pub mix_denom: Option<String>,
@@ -20,17 +26,19 @@ pub async fn generate(args: Args) {
 
     debug!("Received arguments: {:?}", args);
 
-    let mixnet_contract_address = args.mixnet_contract_address.unwrap_or_else(|| {
-        std::env::var(network_defaults::var_names::MIXNET_CONTRACT_ADDRESS)
-            .expect("Mixnet contract address has to be set")
+    let multisig_addr = args.multisig_addr.unwrap_or_else(|| {
+        std::env::var(network_defaults::var_names::REWARDING_VALIDATOR_ADDRESS)
+            .expect("Multisig address has to be set")
     });
 
     let mix_denom = args.mix_denom.unwrap_or_else(|| {
         std::env::var(network_defaults::var_names::MIX_DENOM).expect("Mix denom has to be set")
     });
 
-    let instantiate_msg = InitMsg {
-        mixnet_contract_address,
+    let instantiate_msg = InstantiateMsg {
+        group_addr: args.group_addr,
+        admin: args.admin,
+        multisig_addr,
         mix_denom,
     };
 

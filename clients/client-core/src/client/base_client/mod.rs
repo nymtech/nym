@@ -371,7 +371,7 @@ where
 
         // channels responsible for dealing with reply-related fun
         let (reply_controller_sender, reply_controller_receiver) =
-            reply_controller::new_control_channels();
+            reply_controller::requests::new_control_channels();
 
         let self_address = self.as_mix_recipient();
 

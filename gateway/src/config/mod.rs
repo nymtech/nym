@@ -346,16 +346,18 @@ pub struct Gateway {
     /// Path to file containing public sphinx key.
     public_sphinx_key_file: PathBuf,
 
-    /// Wheather gateway collects and sends anonymized statistics
+    /// Whether gateway collects and sends anonymized statistics
     enabled_statistics: bool,
 
     /// Domain address of the statistics service
     statistics_service_url: Url,
 
     /// Addresses to APIs from which the node gets the view of the network.
+    #[serde(alias = "validator_api_urls")]
     nym_api_urls: Vec<Url>,
 
     /// Addresses to validators which the node uses to check for double spending of ERC20 tokens.
+    #[serde(alias = "validator_nymd_urls")]
     nyxd_urls: Vec<Url>,
 
     /// Mnemonic of a cosmos wallet used in checking for double spending.

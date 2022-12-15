@@ -11,6 +11,8 @@ use proxy_helpers::connection_controller::{ControllerCommand, ControllerSender};
 use socks5_requests::Message;
 use task::TaskClient;
 
+use crate::error::Socks5ClientError;
+
 pub(crate) struct MixnetResponseListener {
     buffer_requester: ReceivedBufferRequestSender,
     mix_response_receiver: ReconstructedMessagesReceiver,
@@ -52,7 +54,10 @@ impl MixnetResponseListener {
         }
     }
 
-    async fn on_message(&self, reconstructed_message: ReconstructedMessage) {
+    async fn on_message(
+        &self,
+        reconstructed_message: ReconstructedMessage,
+    ) -> Result<(), Socks5ClientError> {
         let raw_message = reconstructed_message.message;
         if reconstructed_message.sender_tag.is_some() {
             warn!("this message was sent anonymously - it couldn't have come from the service provider");
@@ -61,11 +66,11 @@ impl MixnetResponseListener {
         let response = match Message::try_from_bytes(&raw_message) {
             Err(err) => {
                 warn!("failed to parse received response - {err}");
-                return;
+                return Ok(());
             }
             Ok(Message::Request(_)) => {
                 warn!("unexpected request");
-                return;
+                return Ok(());
             }
             Ok(Message::Response(data)) => data,
             Ok(Message::NetworkRequesterResponse(r)) => {
@@ -73,7 +78,10 @@ impl MixnetResponseListener {
                     "Network requester failed on connection id {} with error: {}",
                     r.connection_id, r.network_requester_error
                 );
-                return;
+                return Err(Socks5ClientError::NetworkRequesterError {
+                    connection_id: r.connection_id,
+                    error: r.network_requester_error,
+                });
             }
         };
 
@@ -84,6 +92,8 @@ impl MixnetResponseListener {
                 response.is_closed,
             ))
             .unwrap();
+
+        Ok(())
     }
 
     pub(crate) async fn run(&mut self) {
@@ -92,7 +102,9 @@ impl MixnetResponseListener {
                 received_responses = self.mix_response_receiver.next() => match received_responses {
                     Some(received_responses) => {
                         for reconstructed_message in received_responses {
-                            self.on_message(reconstructed_message).await;
+                            if let Err(err) = self.on_message(reconstructed_message).await {
+                                self.shutdown.send_status_msg(Box::new(err));
+                            }
                         }
                     },
                     None => {

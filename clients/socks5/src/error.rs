@@ -1,6 +1,7 @@
 use crate::socks::types::SocksProxyError;
 use client_core::client::replies::reply_storage::fs_backend;
 use client_core::error::ClientCoreError;
+use socks5_requests::ConnectionId;
 
 #[derive(thiserror::Error, Debug)]
 pub enum Socks5ClientError {
@@ -21,4 +22,10 @@ pub enum Socks5ClientError {
 
     #[error("Fail to bind address")]
     FailToBindAddress,
+
+    #[error("{connection_id}: {error}")]
+    NetworkRequesterError {
+        connection_id: ConnectionId,
+        error: String,
+    },
 }

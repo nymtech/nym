@@ -279,7 +279,7 @@ where
         reply_surb: ReplySurb,
         amount: u32,
     ) -> Result<(), SurbWrappedPreparationError> {
-        debug!("requesting {amount} reply SURBs from {from:?}");
+        debug!("requesting {amount} reply SURBs from {from}");
 
         let surbs_request =
             ReplyMessage::new_surb_request_message(self.config.sender_address, amount);

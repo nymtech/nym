@@ -1,7 +1,6 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub use self::error::StorageError;
 use crate::client::replies::reply_storage::backend::fs_backend::manager::StorageManager;
 use crate::client::replies::reply_storage::backend::fs_backend::models::{
     ReplySurbStorageMetadata, StoredReplyKey, StoredReplySurb, StoredSenderTag, StoredSurbSender,
@@ -16,6 +15,8 @@ use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use std::fs;
 use std::path::{Path, PathBuf};
 use time::OffsetDateTime;
+
+pub use self::error::StorageError;
 
 mod error;
 mod manager;

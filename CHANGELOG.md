@@ -4,6 +4,10 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+### Added
+
+- socks5: send status message for service ready, and network-requester error response
+
 ### Changed
 
 - all-binaries: improved error logging ([#2686])

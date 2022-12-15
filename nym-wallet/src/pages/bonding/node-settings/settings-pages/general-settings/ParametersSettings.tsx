@@ -1,17 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import {
-  Button,
-  Divider,
-  Typography,
-  TextField,
-  InputAdornment,
-  Grid,
-  CircularProgress,
-  Box,
-  FormHelperText,
-} from '@mui/material';
+import { Button, Divider, Typography, TextField, InputAdornment, Grid, Box, FormHelperText } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { CurrencyDenom, MixNodeCostParams } from '@nymproject/types';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
@@ -63,7 +53,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
 
   const getNextInterval = async () => {
     try {
-      const { intervalTime, nextEpoch } = await getIntervalAsDate();
+      const { intervalTime } = await getIntervalAsDate();
       setIntervalTime(intervalTime);
     } catch {
       console.log('cant retrieve next interval');

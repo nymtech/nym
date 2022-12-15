@@ -4,10 +4,12 @@
 #[macro_use]
 extern crate rocket;
 
+use crate::circulating_supply_api::cache::CirculatingSupplyCache;
 use crate::config::Config;
 use crate::contract_cache::ValidatorCacheRefresher;
 use crate::epoch_operations::RewardedSetUpdater;
 use crate::network_monitor::NetworkMonitorBuilder;
+use crate::node_status_api::cache::refresher::NodeStatusCacheRefresher;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::nyxd_client::Client;
 use crate::storage::NymApiStorage;
@@ -17,7 +19,8 @@ use ::config::{NymConfig, OptionalSet};
 use anyhow::Result;
 use build_information::BinaryBuildInformation;
 use clap::Parser;
-use contract_cache::ValidatorCache;
+use contract_cache::cache::refresher::ValidatorCacheRefresher;
+use contract_cache::cache::ValidatorCache;
 use lazy_static::lazy_static;
 use log::{info, warn};
 use logging::setup_logging;
@@ -45,6 +48,7 @@ use coconut::{
 #[cfg(feature = "coconut")]
 use rand::rngs::OsRng;
 
+mod circulating_supply_api;
 pub(crate) mod config;
 pub(crate) mod contract_cache;
 mod epoch_operations;
@@ -259,6 +263,9 @@ fn setup_network_monitor<'a>(
     ))
 }
 
+// fn setup_circulating_supply() -> Option<>
+// }
+
 // TODO: Remove if still unused
 #[allow(dead_code)]
 fn expected_monitor_test_runs(config: &Config, interval_length: Duration) -> usize {
@@ -288,6 +295,7 @@ async fn setup_rocket(
         "/" => custom_route_spec,
         "" => contract_cache::validator_cache_routes(&openapi_settings),
         "/status" => node_status_api::node_status_routes(&openapi_settings, config.get_network_monitor_enabled()),
+        "/circulating-supply" => circulating_supply_api::circulating_supply_routes(&openapi_settings),
     }
 
     let rocket = rocket
@@ -295,7 +303,8 @@ async fn setup_rocket(
         .attach(setup_cors()?)
         .attach(setup_liftoff_notify(liftoff_notify))
         .attach(ValidatorCache::stage())
-        .attach(NodeStatusCache::stage());
+        .attach(NodeStatusCache::stage())
+        .attach(CirculatingSupplyCache::stage());
 
     // This is not a very nice approach. A lazy value would be more suitable, but that's still
     // a nightly feature: https://github.com/rust-lang/rust/issues/74465
@@ -487,7 +496,7 @@ async fn run_nym_api(args: ApiArgs) -> Result<()> {
     // It is primarily refreshed in-sync with the validator cache, however provide a fallback
     // caching interval that is twice the validator cache
     let storage = rocket.state::<NymApiStorage>().cloned();
-    let mut nym_api_cache_refresher = node_status_api::NodeStatusCacheRefresher::new(
+    let mut nym_api_cache_refresher = NodeStatusCacheRefresher::new(
         node_status_cache,
         config.get_caching_interval().saturating_mul(2),
         validator_cache,
@@ -529,7 +538,7 @@ async fn main() -> Result<()> {
     println!("Starting validator api...");
 
     cfg_if::cfg_if! {if #[cfg(feature = "console-subscriber")] {
-        // instriment tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time
+        // instrument tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time
         console_subscriber::init();
     }}
 

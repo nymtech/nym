@@ -10,7 +10,7 @@ use task::TaskManager;
 use validator_client::nyxd::SigningNyxdClient;
 
 use crate::config::Config;
-use crate::contract_cache::ValidatorCache;
+use crate::contract_cache::cache::ValidatorCache;
 use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::{
     ReceivedProcessor, ReceivedProcessorReceiver, ReceivedProcessorSender,

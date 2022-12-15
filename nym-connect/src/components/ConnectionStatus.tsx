@@ -61,8 +61,6 @@ export const ConnectionStatus: React.FC<{
   connectedSince?: DateTime;
   serviceProvider?: ServiceProvider;
 }> = ({ status, serviceProvider }) => {
-  console.log(serviceProvider);
-
   const color =
     status === ConnectionStatusKind.connected || status === ConnectionStatusKind.disconnecting
       ? '#21D072'

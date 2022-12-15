@@ -39,7 +39,6 @@ import { getIntervalAsDate } from 'src/utils';
 export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode }): JSX.Element => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
   const [intervalTime, setIntervalTime] = useState<string>();
-  const [nextEpoch, setNextEpoch] = useState<string>();
   const [pendingUpdates, setPendingUpdates] = useState<MixNodeCostParams>();
   const { clientDetails } = useContext(AppContext);
   const theme = useTheme();
@@ -119,7 +118,16 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
   };
 
   return (
-    <Grid container xs item>
+    <Grid
+      container
+      xs
+      item
+      sx={{
+        '& .MuiGrid-item': {
+          pl: 0,
+        },
+      }}
+    >
       {fee && (
         <ConfirmTx
           open
@@ -134,9 +142,6 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
       <Alert
         title={
           <>
-            <Box component="span" sx={{ fontWeight: 600, mr: 2 }}>
-              {`Next epoch ${nextEpoch}`}
-            </Box>
             <Box component="span" sx={{ fontWeight: 600 }}>{`Next interval: ${intervalTime}`}</Box>
           </>
         }
@@ -188,7 +193,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
             </Grid>
           )}
         </Grid>
-        <Divider flexItem />
+        <Divider flexItem sx={{ position: 'relative', left: '-24px', width: 'calc(100% + 24px)' }} />
         <Grid item container direction="row" alignItems="left" justifyContent="space-between" padding={3} spacing={1}>
           <Grid item>
             <Typography variant="body1" sx={{ fontWeight: 600, mb: 1 }}>
@@ -231,7 +236,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
             </Grid>
           </Grid>
         </Grid>
-        <Divider flexItem />
+        <Divider flexItem sx={{ position: 'relative', left: '-24px', width: 'calc(100% + 24px)' }} />
         <Grid container justifyContent="end">
           <Button
             size="large"

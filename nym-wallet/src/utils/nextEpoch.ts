@@ -10,7 +10,7 @@ export const getIntervalAsDate = async () => {
         add(new Date(), {
             seconds: secondsToNextInterval,
         }),
-        'MM/dd/yyyy HH:mm',
+        'MM/dd/yyyy, HH:mm',
     );
     const nextEpoch = format(
         add(fromUnixTime(Number(interval.current_epoch_start_unix)), {

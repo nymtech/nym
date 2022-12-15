@@ -31,6 +31,7 @@ pub trait Client {
     async fn vote_proposal(&self, proposal_id: u64, vote_yes: bool, fee: Option<Fee>)
         -> Result<()>;
     async fn execute_proposal(&self, proposal_id: u64) -> Result<()>;
+    async fn advance_epoch_state(&self) -> Result<()>;
     async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,

@@ -405,6 +405,16 @@ where
         Ok(())
     }
 
+    async fn advance_epoch_state(&self) -> crate::coconut::error::Result<()> {
+        self.0
+            .write()
+            .await
+            .nymd
+            .advance_dkg_epoch_state(None)
+            .await?;
+        Ok(())
+    }
+
     async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,

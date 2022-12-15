@@ -273,6 +273,10 @@ impl super::client::Client for DummyClient {
         Ok(())
     }
 
+    async fn advance_epoch_state(&self) -> Result<()> {
+        todo!()
+    }
+
     async fn register_dealer(
         &self,
         bte_public_key_with_proof: EncodedBTEPublicKeyWithProof,

@@ -18,7 +18,7 @@ use dkg::bte::keys::KeyPair as DkgKeyPair;
 use rand::rngs::OsRng;
 use rand::RngCore;
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, SystemTime};
 use task::TaskClient;
 use tokio::time::interval;
 use validator_client::nymd::SigningNymdClient;
@@ -128,6 +128,15 @@ impl<R: RngCore + Clone> DkgController<R> {
                         persistent_state.save_to_file(self.state.persistent_state_path())
                     {
                         warn!("Could not backup the state for this iteration: {}", e);
+                    }
+                }
+                if let Ok(current_timestamp) =
+                    SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)
+                {
+                    if current_timestamp.as_secs() >= epoch.finish_timestamp.seconds() {
+                        // We try advancing the epoch state, on a best-effort basis
+                        info!("Trying to advance the epoch");
+                        self.dkg_client.advance_epoch_state().await.ok();
                     }
                 }
             }

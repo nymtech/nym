@@ -88,16 +88,25 @@ impl<T> Config<T> {
     where
         T: NymConfig,
     {
-        let id = id.into();
+        self.client.id = id.into();
+        self.set_empty_fields_to_defaults();
+        self
+    }
+
+    fn set_empty_fields_to_defaults(&mut self)
+    where
+        T: NymConfig,
+    {
+        let id = &self.client.id;
 
         // identity key setting
         if self.client.private_identity_key_file.as_os_str().is_empty() {
             self.client.private_identity_key_file =
-                self::Client::<T>::default_private_identity_key_file(&id);
+                self::Client::<T>::default_private_identity_key_file(id);
         }
         if self.client.public_identity_key_file.as_os_str().is_empty() {
             self.client.public_identity_key_file =
-                self::Client::<T>::default_public_identity_key_file(&id);
+                self::Client::<T>::default_public_identity_key_file(id);
         }
 
         // encryption key setting
@@ -108,7 +117,7 @@ impl<T> Config<T> {
             .is_empty()
         {
             self.client.private_encryption_key_file =
-                self::Client::<T>::default_private_encryption_key_file(&id);
+                self::Client::<T>::default_private_encryption_key_file(id);
         }
         if self
             .client
@@ -117,31 +126,28 @@ impl<T> Config<T> {
             .is_empty()
         {
             self.client.public_encryption_key_file =
-                self::Client::<T>::default_public_encryption_key_file(&id);
+                self::Client::<T>::default_public_encryption_key_file(id);
         }
 
         // shared gateway key setting
         if self.client.gateway_shared_key_file.as_os_str().is_empty() {
             self.client.gateway_shared_key_file =
-                self::Client::<T>::default_gateway_shared_key_file(&id);
+                self::Client::<T>::default_gateway_shared_key_file(id);
         }
 
         // ack key setting
         if self.client.ack_key_file.as_os_str().is_empty() {
-            self.client.ack_key_file = self::Client::<T>::default_ack_key_file(&id);
+            self.client.ack_key_file = self::Client::<T>::default_ack_key_file(id);
         }
 
         if self.client.reply_surb_database_path.as_os_str().is_empty() {
             self.client.reply_surb_database_path =
-                self::Client::<T>::default_reply_surb_database_path(&id);
+                self::Client::<T>::default_reply_surb_database_path(id);
         }
 
         if self.client.database_path.as_os_str().is_empty() {
-            self.client.database_path = self::Client::<T>::default_database_path(&id);
+            self.client.database_path = self::Client::<T>::default_database_path(id);
         }
-
-        self.client.id = id;
-        self
     }
 
     pub fn with_disabled_credentials(&mut self, disabled_credentials_mode: bool) {

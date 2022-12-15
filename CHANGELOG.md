@@ -10,6 +10,8 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ### Changed
 
+- renamed all references to validator_api to nym_api
+- renamed all references to nymd to nyxd
 - all-binaries: improved error logging ([#2686])
 - native client: bring shutdown logic up to the same level as socks5-client
 - nym-api, coconut-dkg contract: automatic, time-based dkg epoch state advancement ([#2670])

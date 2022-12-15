@@ -17,7 +17,6 @@ pub fn init_contract() -> OwnedDeps<MemoryStorage, MockApi, MockQuerier<Empty>> 
     let msg = InstantiateMsg {
         group_addr: String::from(GROUP_CONTRACT),
         multisig_addr: String::from(MULTISIG_CONTRACT),
-        admin: String::from(ADMIN_ADDRESS),
         mix_denom: TEST_MIX_DENOM.to_string(),
     };
     let env = mock_env();

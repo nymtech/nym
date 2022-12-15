@@ -42,7 +42,6 @@ pub(crate) mod tests {
     use crate::epoch_state::transactions::advance_epoch_state;
     use crate::support::tests::fixtures::dealing_bytes_fixture;
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::ADMIN_ADDRESS;
     use coconut_dkg_common::dealer::DealerDetails;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::Addr;
@@ -65,7 +64,7 @@ pub(crate) mod tests {
             }
         );
 
-        advance_epoch_state(deps.as_mut(), env, mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        advance_epoch_state(deps.as_mut(), env).unwrap();
 
         let ret =
             try_commit_dealings(deps.as_mut(), info.clone(), dealing_bytes.clone()).unwrap_err();

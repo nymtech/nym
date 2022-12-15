@@ -4,16 +4,20 @@
 use crate::dealers::storage::current_dealers;
 use crate::epoch_state::storage::{CURRENT_EPOCH, THRESHOLD};
 use crate::error::ContractError;
-use crate::state::ADMIN;
 use coconut_dkg_common::types::{Epoch, EpochState};
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Order, Response};
+use cosmwasm_std::{DepsMut, Env, Order, Response};
 
-pub(crate) fn advance_epoch_state(
-    deps: DepsMut<'_>,
-    env: Env,
-    info: MessageInfo,
-) -> Result<Response, ContractError> {
-    ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
+pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, ContractError> {
+    let epoch = CURRENT_EPOCH.load(deps.storage)?;
+    if epoch.finish_timestamp > env.block.time {
+        return Err(ContractError::EarlyEpochStateAdvancement(
+            epoch
+                .finish_timestamp
+                .minus_seconds(env.block.time.seconds())
+                .seconds(),
+        ));
+    }
+
     let current_epoch = CURRENT_EPOCH.update::<_, ContractError>(deps.storage, |mut epoch| {
         // TODO: When defaulting to the first state, some action will probably need to be taken on the
         // rest of the contract, as we're starting with a new set of signers
@@ -34,29 +38,39 @@ pub(crate) fn advance_epoch_state(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::support::tests::helpers::{init_contract, ADMIN_ADDRESS};
+    use crate::error::ContractError::EarlyEpochStateAdvancement;
+    use crate::support::tests::helpers::init_contract;
     use coconut_dkg_common::types::{
         DealerDetails, EpochState, DEALING_EXCHANGE_TIME_SECS, IN_PROGRESS_TIME_SECS,
         PUBLIC_KEY_SUBMISSION_TIME_SECS, VERIFICATION_KEY_FINALIZATION_TIME_SECS,
         VERIFICATION_KEY_SUBMISSION_TIME_SECS, VERIFICATION_KEY_VALIDATION_TIME_SECS,
     };
-    use cosmwasm_std::testing::{mock_env, mock_info};
+    use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::Addr;
-    use cw_controllers::AdminError;
 
     #[test]
     fn advance_state() {
         let mut deps = init_contract();
-        let env = mock_env();
-        let info = mock_info("requester", &[]);
-        let admin_info = mock_info(ADMIN_ADDRESS, &[]);
+        let mut env = mock_env();
 
+        let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
+        assert_eq!(epoch.state, EpochState::PublicKeySubmission);
         assert_eq!(
-            advance_epoch_state(deps.as_mut(), env.clone(), info).unwrap_err(),
-            ContractError::Admin(AdminError::NotAdmin {})
+            epoch.finish_timestamp,
+            env.block.time.plus_seconds(PUBLIC_KEY_SUBMISSION_TIME_SECS)
         );
 
-        advance_epoch_state(deps.as_mut(), env.clone(), admin_info.clone()).unwrap();
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(PUBLIC_KEY_SUBMISSION_TIME_SECS - 1);
+        assert_eq!(
+            advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
+            EarlyEpochStateAdvancement(1)
+        );
+
+        env.block.time = env.block.time.plus_seconds(1);
+        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
         assert_eq!(epoch.state, EpochState::DealingExchange);
         assert_eq!(
@@ -64,7 +78,14 @@ pub(crate) mod tests {
             env.block.time.plus_seconds(DEALING_EXCHANGE_TIME_SECS)
         );
 
-        advance_epoch_state(deps.as_mut(), env.clone(), admin_info.clone()).unwrap();
+        env.block.time = env.block.time.plus_seconds(DEALING_EXCHANGE_TIME_SECS - 2);
+        assert_eq!(
+            advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
+            EarlyEpochStateAdvancement(2)
+        );
+
+        env.block.time = env.block.time.plus_seconds(3);
+        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
         assert_eq!(epoch.state, EpochState::VerificationKeySubmission);
         assert_eq!(
@@ -74,7 +95,17 @@ pub(crate) mod tests {
                 .plus_seconds(VERIFICATION_KEY_SUBMISSION_TIME_SECS)
         );
 
-        advance_epoch_state(deps.as_mut(), env.clone(), admin_info.clone()).unwrap();
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(VERIFICATION_KEY_SUBMISSION_TIME_SECS - 2);
+        assert_eq!(
+            advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
+            EarlyEpochStateAdvancement(2)
+        );
+
+        env.block.time = env.block.time.plus_seconds(3);
+        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
         assert_eq!(epoch.state, EpochState::VerificationKeyValidation);
         assert_eq!(
@@ -84,7 +115,17 @@ pub(crate) mod tests {
                 .plus_seconds(VERIFICATION_KEY_VALIDATION_TIME_SECS)
         );
 
-        advance_epoch_state(deps.as_mut(), env.clone(), admin_info.clone()).unwrap();
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(VERIFICATION_KEY_VALIDATION_TIME_SECS - 3);
+        assert_eq!(
+            advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
+            EarlyEpochStateAdvancement(3)
+        );
+
+        env.block.time = env.block.time.plus_seconds(3);
+        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
         assert_eq!(epoch.state, EpochState::VerificationKeyFinalization);
         assert_eq!(
@@ -94,7 +135,17 @@ pub(crate) mod tests {
                 .plus_seconds(VERIFICATION_KEY_FINALIZATION_TIME_SECS)
         );
 
-        advance_epoch_state(deps.as_mut(), env.clone(), admin_info.clone()).unwrap();
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(VERIFICATION_KEY_FINALIZATION_TIME_SECS - 1);
+        assert_eq!(
+            advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
+            EarlyEpochStateAdvancement(1)
+        );
+
+        env.block.time = env.block.time.plus_seconds(1);
+        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
         assert_eq!(epoch.state, EpochState::InProgress);
         assert_eq!(
@@ -102,7 +153,20 @@ pub(crate) mod tests {
             env.block.time.plus_seconds(IN_PROGRESS_TIME_SECS)
         );
 
-        advance_epoch_state(deps.as_mut(), env.clone(), admin_info.clone()).unwrap();
+        env.block.time = env.block.time.plus_seconds(IN_PROGRESS_TIME_SECS - 100);
+        assert_eq!(
+            advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
+            EarlyEpochStateAdvancement(100)
+        );
+
+        env.block.time = env.block.time.plus_seconds(50);
+        assert_eq!(
+            advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
+            EarlyEpochStateAdvancement(50)
+        );
+
+        env.block.time = env.block.time.plus_seconds(100);
+        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
         assert_eq!(epoch.state, EpochState::PublicKeySubmission);
         assert_eq!(
@@ -115,7 +179,6 @@ pub(crate) mod tests {
     fn verify_threshold() {
         let mut deps = init_contract();
         let env = mock_env();
-        let admin_info = mock_info(ADMIN_ADDRESS, &[]);
 
         assert!(THRESHOLD.may_load(deps.as_mut().storage).unwrap().is_none());
 
@@ -135,7 +198,7 @@ pub(crate) mod tests {
                 .unwrap();
         }
 
-        advance_epoch_state(deps.as_mut(), env, admin_info.clone()).unwrap();
+        advance_epoch_state(deps.as_mut(), env).unwrap();
         assert_eq!(
             THRESHOLD.may_load(deps.as_mut().storage).unwrap().unwrap(),
             67

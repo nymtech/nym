@@ -11,7 +11,7 @@ use crate::epoch_state::queries::{query_current_epoch, query_current_epoch_thres
 use crate::epoch_state::storage::CURRENT_EPOCH;
 use crate::epoch_state::transactions::advance_epoch_state;
 use crate::error::ContractError;
-use crate::state::{State, ADMIN, MULTISIG, STATE};
+use crate::state::{State, MULTISIG, STATE};
 use crate::verification_key_shares::queries::query_vk_shares_paged;
 use crate::verification_key_shares::transactions::try_commit_verification_key_share;
 use crate::verification_key_shares::transactions::try_verify_verification_key_share;
@@ -34,9 +34,7 @@ pub fn instantiate(
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    let admin_addr = deps.api.addr_validate(&msg.admin)?;
     let multisig_addr = deps.api.addr_validate(&msg.multisig_addr)?;
-    ADMIN.set(deps.branch(), Some(admin_addr))?;
     MULTISIG.set(deps.branch(), Some(multisig_addr.clone()))?;
 
     let group_addr = Cw4Contract(deps.api.addr_validate(&msg.group_addr).map_err(|_| {
@@ -82,7 +80,7 @@ pub fn execute(
         ExecuteMsg::VerifyVerificationKeyShare { owner } => {
             try_verify_verification_key_share(deps, info, owner)
         }
-        ExecuteMsg::AdvanceEpochState {} => advance_epoch_state(deps, env, info),
+        ExecuteMsg::AdvanceEpochState {} => advance_epoch_state(deps, env),
     }
 }
 
@@ -165,7 +163,6 @@ mod tests {
         let msg = InstantiateMsg {
             group_addr: group_contract_addr.to_string(),
             multisig_addr: MULTISIG_CONTRACT.to_string(),
-            admin: Addr::unchecked(ADMIN_ADDRESS).to_string(),
             mix_denom: TEST_MIX_DENOM.to_string(),
         };
         app.instantiate_contract(
@@ -200,7 +197,6 @@ mod tests {
         let msg = InstantiateMsg {
             group_addr: "group_addr".to_string(),
             multisig_addr: "multisig_addr".to_string(),
-            admin: "admin".to_string(),
             mix_denom: "nym".to_string(),
         };
         let info = mock_info("creator", &[]);

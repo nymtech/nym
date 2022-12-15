@@ -7,6 +7,8 @@ import { TPoolOption } from 'src/components';
 import { getDefaultMixnodeCostParams, getLockedCoins, getSpendableCoins, userBalance } from '../requests';
 import { Console } from './console';
 
+export * from './nextEpoch';
+
 export const validateKey = (key: string, bytesLength: number): boolean => {
   // it must be a valid base58 key
   try {

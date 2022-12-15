@@ -15,10 +15,8 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { CurrencyDenom, MixNodeCostParams } from '@nymproject/types';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
-import { add, format, fromUnixTime } from 'date-fns';
 import { isMixnode } from 'src/types';
 import {
-  getCurrentInterval,
   getPendingIntervalEvents,
   simulateUpdateMixnodeCostParams,
   simulateVestingUpdateMixnodeCostParams,
@@ -29,6 +27,7 @@ import { TBondedMixnode } from 'src/context/bonding';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { bondedNodeParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
 import { Console } from 'src/utils/console';
+import { getIntervalAsDate } from 'src/utils';
 import { Alert } from 'src/components/Alert';
 import { ChangeMixCostParams } from 'src/pages/bonding/types';
 import { AppContext } from 'src/context';
@@ -63,27 +62,14 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
     defaultValues,
   });
 
-  const getIntervalAsDate = async () => {
-    const interval = await getCurrentInterval();
-    const secondsToNextInterval =
-      Number(interval.epochs_in_interval - interval.current_epoch_id) * Number(interval.epoch_length_seconds);
-
-    setIntervalTime(
-      format(
-        add(new Date(), {
-          seconds: secondsToNextInterval,
-        }),
-        'MM/dd/yyyy HH:mm',
-      ),
-    );
-    setNextEpoch(
-      format(
-        add(fromUnixTime(Number(interval.current_epoch_start_unix)), {
-          seconds: Number(interval.epoch_length_seconds),
-        }),
-        'HH:mm',
-      ),
-    );
+  const getNextInterval = async () => {
+    try {
+      const { intervalTime, nextEpoch } = await getIntervalAsDate();
+      setNextEpoch(nextEpoch);
+      setIntervalTime(intervalTime);
+    } catch {
+      console.log('cant retrieve next interval');
+    }
   };
 
   const getPendingEvents = async () => {
@@ -107,7 +93,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
   };
 
   useEffect(() => {
-    getIntervalAsDate();
+    getNextInterval();
     getPendingEvents();
   }, []);
 

@@ -66,6 +66,12 @@ impl Backend {
             return Err(StorageError::IncompleteDataFlush);
         }
 
+        let last_flush_timestamp = manager.get_previous_flush_timestamp().await?;
+        if last_flush_timestamp == 0 {
+            // either this client has been running since 1970 or the flush failed
+            return Err(StorageError::IncompleteDataFlush);
+        }
+
         // the process has gone down without full graceful shutdown,
         // meaning the database doesn't contain valid data anymore
         // so we have to purge it
@@ -81,7 +87,6 @@ impl Backend {
             return Err(err.into());
         }
 
-        let last_flush_timestamp = manager.get_previous_flush_timestamp().await?;
         let last_flush = match OffsetDateTime::from_unix_timestamp(last_flush_timestamp) {
             Ok(last_flush) => last_flush,
             Err(err) => {

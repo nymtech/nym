@@ -6,8 +6,6 @@ use rocket::Route;
 use rocket_okapi::openapi_get_routes_spec;
 use rocket_okapi::settings::OpenApiSettings;
 
-use self::cache::ValidatorCache;
-
 pub(crate) mod cache;
 pub(crate) mod routes;
 

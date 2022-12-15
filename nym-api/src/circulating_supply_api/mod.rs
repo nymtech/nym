@@ -1,7 +1,6 @@
 use okapi::openapi3::OpenApi;
 use rocket::Route;
 use rocket_okapi::{openapi_get_routes_spec, settings::OpenApiSettings};
-use validator_client::nymd::CosmWasmClient;
 
 pub(crate) mod cache;
 pub(crate) mod routes;

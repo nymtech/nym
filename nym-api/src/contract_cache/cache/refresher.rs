@@ -1,12 +1,12 @@
 use super::ValidatorCache;
-use crate::nymd_client::Client;
+use crate::nyxd_client::Client;
 use anyhow::Result;
 use mixnet_contract_common::{MixId, MixNodeDetails, RewardedSetNodeStatus};
 use std::{collections::HashMap, sync::atomic::Ordering, time::Duration};
 use task::TaskClient;
 use tokio::sync::watch;
 use tokio::time;
-use validator_client::nymd::CosmWasmClient;
+use validator_client::nyxd::CosmWasmClient;
 
 pub struct ValidatorCacheRefresher<C> {
     nymd_client: Client<C>,

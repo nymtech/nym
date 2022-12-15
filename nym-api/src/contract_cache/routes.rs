@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    contract_cache::ValidatorCache,
+    contract_cache::cache::ValidatorCache,
     node_status_api::{
         helpers::{_get_active_set_detailed, _get_mixnodes_detailed, _get_rewarded_set_detailed},
         NodeStatusCache,

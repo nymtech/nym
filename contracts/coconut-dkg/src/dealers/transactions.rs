@@ -73,18 +73,19 @@ pub(crate) mod tests {
     use crate::support::tests::fixtures::dealer_details_fixture;
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::ADMIN_ADDRESS;
-    use cosmwasm_std::testing::mock_info;
+    use cosmwasm_std::testing::{mock_env, mock_info};
 
     #[test]
     fn invalid_state() {
         let mut deps = helpers::init_contract();
         let owner = Addr::unchecked("owner");
+        let env = mock_env();
         let info = mock_info(owner.as_str(), &[]);
         let dealer_details = dealer_details_fixture(1);
         let bte_key_with_proof = String::from("bte_key_with_proof");
         let announce_address = String::from("localhost:8000");
 
-        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        advance_epoch_state(deps.as_mut(), env, mock_info(ADMIN_ADDRESS, &[])).unwrap();
 
         let ret = try_add_dealer(
             deps.as_mut(),

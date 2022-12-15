@@ -44,14 +44,14 @@ pub(crate) mod tests {
     use crate::support::tests::helpers;
     use crate::support::tests::helpers::ADMIN_ADDRESS;
     use coconut_dkg_common::dealer::DealerDetails;
-    use coconut_dkg_common::types::TOTAL_DEALINGS;
-    use cosmwasm_std::testing::mock_info;
+    use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::Addr;
 
     #[test]
     fn invalid_commit_dealing() {
         let mut deps = helpers::init_contract();
         let owner = Addr::unchecked("owner");
+        let env = mock_env();
         let info = mock_info(owner.as_str(), &[]);
         let dealing_bytes = dealing_bytes_fixture();
 
@@ -65,7 +65,7 @@ pub(crate) mod tests {
             }
         );
 
-        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        advance_epoch_state(deps.as_mut(), env, mock_info(ADMIN_ADDRESS, &[])).unwrap();
 
         let ret =
             try_commit_dealings(deps.as_mut(), info.clone(), dealing_bytes.clone()).unwrap_err();

@@ -40,7 +40,7 @@ use coconut_dkg_common::dealer::{
     ContractDealing, DealerDetails, DealerDetailsResponse, DealerType,
 };
 use coconut_dkg_common::event_attributes::{DKG_PROPOSAL_ID, NODE_INDEX};
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState, TOTAL_DEALINGS};
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch, TOTAL_DEALINGS};
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use contracts_common::dealings::ContractSafeBytes;
 use crypto::asymmetric::{encryption, identity};
@@ -66,7 +66,7 @@ pub(crate) struct DummyClient {
     proposal_db: Arc<RwLock<HashMap<u64, ProposalResponse>>>,
     spent_credential_db: Arc<RwLock<HashMap<String, SpendCredentialResponse>>>,
 
-    epoch_state: Arc<RwLock<EpochState>>,
+    epoch: Arc<RwLock<Epoch>>,
     dealer_details: Arc<RwLock<HashMap<String, DealerDetails>>>,
     threshold: Arc<RwLock<Option<Threshold>>>,
     dealings: Arc<RwLock<HashMap<String, Vec<ContractSafeBytes>>>>,
@@ -80,7 +80,7 @@ impl DummyClient {
             tx_db: Arc::new(RwLock::new(HashMap::new())),
             proposal_db: Arc::new(RwLock::new(HashMap::new())),
             spent_credential_db: Arc::new(RwLock::new(HashMap::new())),
-            epoch_state: Arc::new(RwLock::new(EpochState::default())),
+            epoch: Arc::new(RwLock::new(Epoch::default())),
             dealer_details: Arc::new(RwLock::new(HashMap::new())),
             threshold: Arc::new(RwLock::new(None)),
             dealings: Arc::new(RwLock::new(HashMap::new())),
@@ -109,8 +109,8 @@ impl DummyClient {
         self
     }
 
-    pub fn _with_epoch_state(mut self, epoch_state: &Arc<RwLock<EpochState>>) -> Self {
-        self.epoch_state = Arc::clone(epoch_state);
+    pub fn _with_epoch(mut self, epoch: &Arc<RwLock<Epoch>>) -> Self {
+        self.epoch = Arc::clone(epoch);
         self
     }
 
@@ -188,8 +188,8 @@ impl super::client::Client for DummyClient {
             })
     }
 
-    async fn get_current_epoch_state(&self) -> Result<EpochState> {
-        Ok(*self.epoch_state.read().unwrap())
+    async fn get_current_epoch(&self) -> Result<Epoch> {
+        Ok(*self.epoch.read().unwrap())
     }
 
     async fn get_current_epoch_threshold(&self) -> Result<Option<Threshold>> {

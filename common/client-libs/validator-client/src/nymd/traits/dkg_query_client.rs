@@ -8,13 +8,13 @@ use coconut_dkg_common::dealer::{
     DealerDetailsResponse, PagedDealerResponse, PagedDealingsResponse,
 };
 use coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
-use coconut_dkg_common::types::EpochState;
+use coconut_dkg_common::types::Epoch;
 use coconut_dkg_common::verification_key::PagedVKSharesResponse;
 use cosmrs::AccountId;
 
 #[async_trait]
 pub trait DkgQueryClient {
-    async fn get_current_epoch_state(&self) -> Result<EpochState, NymdError>;
+    async fn get_current_epoch(&self) -> Result<Epoch, NymdError>;
     async fn get_current_epoch_threshold(&self) -> Result<Option<u64>, NymdError>;
     async fn get_dealer_details(
         &self,
@@ -49,7 +49,7 @@ impl<C> DkgQueryClient for NymdClient<C>
 where
     C: CosmWasmClient + Send + Sync,
 {
-    async fn get_current_epoch_state(&self) -> Result<EpochState, NymdError> {
+    async fn get_current_epoch(&self) -> Result<Epoch, NymdError> {
         let request = DkgQueryMsg::GetCurrentEpochState {};
         self.client
             .query_contract_smart(self.coconut_dkg_contract_address(), &request)

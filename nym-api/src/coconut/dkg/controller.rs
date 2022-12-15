@@ -83,16 +83,16 @@ impl<R: RngCore + Clone> DkgController<R> {
     }
 
     pub(crate) async fn handle_epoch_state(&mut self) {
-        match self.dkg_client.get_current_epoch_state().await {
+        match self.dkg_client.get_current_epoch().await {
             Err(e) => warn!("Could not get current epoch state {}", e),
-            Ok(epoch_state) => {
-                if let Err(e) = self.state.is_consistent(epoch_state).await {
+            Ok(epoch) => {
+                if let Err(e) = self.state.is_consistent(epoch.state).await {
                     error!(
                         "Epoch state is corrupted - {}, the process should be terminated",
                         e
                     );
                 }
-                let ret = match epoch_state {
+                let ret = match epoch.state {
                     EpochState::PublicKeySubmission => {
                         public_key_submission(&self.dkg_client, &mut self.state).await
                     }
@@ -122,7 +122,7 @@ impl<R: RngCore + Clone> DkgController<R> {
                 };
                 if let Err(e) = ret {
                     warn!("Could not handle this iteration for the epoch state: {}", e);
-                } else if epoch_state != EpochState::InProgress {
+                } else if epoch.state != EpochState::InProgress {
                     let persistent_state = PersistentState::from(&self.state);
                     if let Err(e) =
                         persistent_state.save_to_file(self.state.persistent_state_path())

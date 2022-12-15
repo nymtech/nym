@@ -47,7 +47,7 @@ The release also include some additional work for distributed key generation in 
 ### Changed
 
 - validator-api: can recover from shutdown during DKG process ([#1872])
-- clients: deduplicate gateway inititialization, part of work towards a rust-sdk
+- clients: deduplicate gateway initialization, part of work towards a rust-sdk
 - clients: keep all transmission lanes going at all times by making priority probabilistic
 - clients: ability to use multi-reply SURBs to send arbitrarily long messages fully anonymously whilst requesting additional reply blocks whenever they're about to run out ([#1796], [#1801], [#1804], [#1835], [#1858], [#1883]))
 

@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use self::data::NodeStatusCacheInner;
+use self::data::NodeStatusCacheData;
 use self::inclusion_probabilities::InclusionProbabilities;
 use crate::contract_cache::cache::Cache;
 use mixnet_contract_common::MixId;
@@ -28,13 +28,13 @@ enum NodeStatusCacheError {
 // The cache can be triggered to update on contract cache changes, and/or periodically on a timer.
 #[derive(Clone)]
 pub struct NodeStatusCache {
-    inner: Arc<RwLock<NodeStatusCacheInner>>,
+    inner: Arc<RwLock<NodeStatusCacheData>>,
 }
 
 impl NodeStatusCache {
     fn new() -> Self {
         NodeStatusCache {
-            inner: Arc::new(RwLock::new(NodeStatusCacheInner::new())),
+            inner: Arc::new(RwLock::new(NodeStatusCacheData::new())),
         }
     }
 
@@ -66,7 +66,7 @@ impl NodeStatusCache {
 
     async fn get_cache<T>(
         &self,
-        fn_arg: impl FnOnce(RwLockReadGuard<'_, NodeStatusCacheInner>) -> Cache<T>,
+        fn_arg: impl FnOnce(RwLockReadGuard<'_, NodeStatusCacheData>) -> Cache<T>,
     ) -> Option<Cache<T>> {
         match time::timeout(Duration::from_millis(CACHE_TIMEOUT_MS), self.inner.read()).await {
             Ok(cache) => Some(fn_arg(cache)),

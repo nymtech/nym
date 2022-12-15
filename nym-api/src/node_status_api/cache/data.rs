@@ -5,7 +5,7 @@ use crate::contract_cache::cache::Cache;
 use super::inclusion_probabilities::InclusionProbabilities;
 
 #[derive(Default)]
-pub(crate) struct NodeStatusCacheInner {
+pub(crate) struct NodeStatusCacheData {
     pub(crate) mixnodes_annotated: Cache<Vec<MixNodeBondAnnotated>>,
     pub(crate) rewarded_set_annotated: Cache<Vec<MixNodeBondAnnotated>>,
     pub(crate) active_set_annotated: Cache<Vec<MixNodeBondAnnotated>>,
@@ -14,7 +14,7 @@ pub(crate) struct NodeStatusCacheInner {
     pub(crate) inclusion_probabilities: Cache<InclusionProbabilities>,
 }
 
-impl NodeStatusCacheInner {
+impl NodeStatusCacheData {
     pub fn new() -> Self {
         Self::default()
     }

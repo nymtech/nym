@@ -1,13 +1,4 @@
-use std::{collections::HashMap, time::Duration};
-
-use mixnet_contract_common::{
-    families::FamilyHead, reward_params::Performance, IdentityKey, Interval, MixId, MixNodeDetails,
-    RewardedSetNodeStatus, RewardingParams,
-};
-use nym_api_requests::models::MixNodeBondAnnotated;
-use task::TaskClient;
-use tokio::sync::watch;
-
+use super::NodeStatusCache;
 use crate::{
     contract_cache::cache::{refresher::CacheNotification, ValidatorCache},
     node_status_api::{
@@ -16,9 +7,15 @@ use crate::{
     },
     storage::NymApiStorage,
 };
+use mixnet_contract_common::{
+    families::FamilyHead, reward_params::Performance, IdentityKey, Interval, MixId, MixNodeDetails,
+    RewardedSetNodeStatus, RewardingParams,
+};
+use nym_api_requests::models::MixNodeBondAnnotated;
+use std::{collections::HashMap, time::Duration};
+use task::TaskClient;
+use tokio::sync::watch;
 use tokio::time;
-
-use super::NodeStatusCache;
 
 // Long running task responsible of keeping the cache up-to-date.
 pub struct NodeStatusCacheRefresher {
@@ -86,7 +83,7 @@ impl NodeStatusCacheRefresher {
             "Validator cache event detected: {:?}",
             &*self.contract_cache_listener.borrow(),
         );
-        let _ = self.refresh_cache().await;
+        let _ = self.refresh().await;
         fallback_interval.reset();
     }
 
@@ -96,7 +93,7 @@ impl NodeStatusCacheRefresher {
             *self.contract_cache_listener.borrow() != CacheNotification::Start;
 
         if have_contract_cache_data {
-            let _ = self.refresh_cache().await;
+            let _ = self.refresh().await;
         } else {
             log::trace!(
                 "Skipping updating node status cache, is the contract cache not yet available?"
@@ -104,7 +101,7 @@ impl NodeStatusCacheRefresher {
         }
     }
 
-    async fn refresh_cache(&self) -> Result<(), NodeStatusCacheError> {
+    async fn refresh(&self) -> Result<(), NodeStatusCacheError> {
         log::info!("Updating node status cache");
 
         // Fetch contract cache data to work with

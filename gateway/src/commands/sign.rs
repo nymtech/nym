@@ -12,7 +12,7 @@ use crypto::asymmetric::identity;
 use log::error;
 
 #[derive(Args, Clone)]
-#[clap(group(ArgGroup::new("sign").required(true).args(&["wallet_address", "text"])))]
+#[clap(group(ArgGroup::new("sign").required(true).args(&["wallet-address", "text"])))]
 pub struct Sign {
     /// The id of the mixnode you want to sign with
     #[clap(long)]

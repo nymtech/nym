@@ -24,9 +24,9 @@ pub enum BackendError {
         #[from]
         source: tendermint_rpc::Error,
     },
-    #[error("{parsed_error}")]
+    #[error("{pretty_error}")]
     NymdError {
-        parsed_error: String,
+        pretty_error: String,
         #[source]
         source: NymdError,
     },
@@ -139,18 +139,21 @@ impl From<NymdError> for BackendError {
                 code: _,
                 log: _,
                 ref pretty_log,
-            } => match pretty_log {
-                Some(pretty_log) => Self::NymdError {
-                    parsed_error: pretty_log.to_string(),
-                    source,
-                },
-                None => Self::NymdError {
-                    parsed_error: source.to_string(),
-                    source,
-                },
-            },
+            } => {
+                if let Some(pretty_log) = pretty_log {
+                    Self::NymdError {
+                        pretty_error: pretty_log.to_string(),
+                        source,
+                    }
+                } else {
+                    Self::NymdError {
+                        pretty_error: source.to_string(),
+                        source,
+                    }
+                }
+            }
             nymd_error => Self::NymdError {
-                parsed_error: nymd_error.to_string(),
+                pretty_error: nymd_error.to_string(),
                 source: nymd_error,
             },
         }

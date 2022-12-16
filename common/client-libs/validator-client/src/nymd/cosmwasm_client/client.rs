@@ -66,10 +66,9 @@ pub trait CosmWasmClient: rpc::Client {
         req.encode(&mut buf)?;
 
         let res = self.abci_query(path, buf, None, false).await?;
+        let res_success = nymd::error::parse_abci_query_result(res)?;
 
-        nymd::error::parse_abci_query_result(&res)?;
-
-        Ok(Res::decode(res.value.as_ref())?)
+        Ok(Res::decode(res_success.value.as_ref())?)
     }
 
     async fn get_chain_id(&self) -> Result<chain::Id, NymdError> {

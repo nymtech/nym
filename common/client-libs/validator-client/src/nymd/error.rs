@@ -148,9 +148,9 @@ pub enum NymdError {
 
 // The purpose of parsing the abci query result is that we want to generate the `pretty_log` if
 // possible.
-pub fn parse_abci_query_result(query_result: &AbciQuery) -> Result<(), NymdError> {
+pub fn parse_abci_query_result(query_result: AbciQuery) -> Result<AbciQuery, NymdError> {
     match query_result.code {
-        AbciCode::Ok => Ok(()),
+        AbciCode::Ok => Ok(query_result),
         AbciCode::Err(code) => Err(NymdError::AbciError {
             code,
             log: query_result.log.clone(),

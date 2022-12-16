@@ -44,6 +44,13 @@ impl Config {
         }
     }
 
+    #[allow(unused)]
+    pub fn new_with_port<S: Into<String>>(id: S, provider_mix_address: S, port: u16) -> Self {
+        Config {
+            socks5: Socks5Config::new(id, provider_mix_address).with_port(port),
+        }
+    }
+
     pub fn get_socks5(&self) -> &Socks5Config {
         &self.socks5
     }

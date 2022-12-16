@@ -30,6 +30,7 @@ const nymPalette: NymPalette = {
     light: '#F2F2F2',
     dark: '#1D2125',
   },
+  shipyard: '#817FFA',
 };
 
 const darkMode: NymPaletteVariant = {
@@ -44,6 +45,9 @@ const darkMode: NymPaletteVariant = {
   topNav: {
     background: '#111826',
   },
+  shipyard: {
+    main: '#817FFA',
+  },
 };
 
 const lightMode: NymPaletteVariant = {
@@ -57,6 +61,9 @@ const lightMode: NymPaletteVariant = {
   },
   topNav: {
     background: '#111826',
+  },
+  shipyard: {
+    main: '#817FFA',
   },
 };
 
@@ -104,6 +111,35 @@ const variantToMUIPalette = (variant: NymPaletteVariant): PaletteOptions => ({
 });
 
 /**
+ * Map a Nym palette variant onto the MUI palette for Shipyard
+ */
+const variantShipyardToMUIPalette = (variant: NymPaletteVariant): PaletteOptions => ({
+  text: {
+    primary: variant.text.main,
+  },
+  primary: {
+    main: nymPalette.shipyard,
+    contrastText: '#fff',
+  },
+  secondary: {
+    main: variant.mode === 'dark' ? nymPalette.background.light : nymPalette.background.dark,
+  },
+  success: {
+    main: nymPalette.success,
+  },
+  info: {
+    main: nymPalette.info,
+  },
+  warning: {
+    main: nymPalette.warning,
+  },
+  background: {
+    default: variant.background.main,
+    paper: variant.background.paper,
+  },
+});
+
+/**
  * Returns the Network Explorer palette for light mode.
  */
 const createLightModePalette = (): PaletteOptions => ({
@@ -123,6 +159,17 @@ const createDarkModePalette = (): PaletteOptions => ({
     ...nymMixnetPalette(darkMode),
   },
   ...variantToMUIPalette(darkMode),
+});
+
+/**
+ * Returns the Shipyard palette for dark mode.
+ */
+const createShipyardDarkModePalette = (): PaletteOptions => ({
+  nym: {
+    ...nymPalette,
+    ...nymMixnetPalette(darkMode),
+  },
+  ...variantShipyardToMUIPalette(darkMode),
 });
 
 /**
@@ -157,12 +204,19 @@ const createDarkModePalette = (): PaletteOptions => ({
  *
  * @param mode     The theme mode: 'light' or 'dark'
  */
-export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
-  // first, create the palette from user's choice of light or dark mode
+export const getDesignTokens = (mode: PaletteMode, isShipyard: boolean = false): ThemeOptions => {
+  let overrides;
+  if (isShipyard) {
+    overrides = createShipyardDarkModePalette();
+  } else {
+    overrides = mode === 'light' ? createLightModePalette() : createDarkModePalette();
+  }
+
+  // create the palette from user's choice of light or dark mode
   const { palette } = createTheme({
     palette: {
       mode,
-      ...(mode === 'light' ? createLightModePalette() : createDarkModePalette()),
+      ...overrides,
     },
   });
 

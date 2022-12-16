@@ -1,40 +1,26 @@
-use crate::window_toggle;
 use tauri::{
-    AppHandle, CustomMenuItem, Menu, SystemTray, SystemTrayEvent, SystemTrayMenu,
+    AppHandle, CustomMenuItem, Menu, Submenu, SystemTray, SystemTrayEvent, SystemTrayMenu,
     SystemTrayMenuItem, Wry,
 };
-#[cfg(target_os = "macos")]
-use tauri::{MenuItem, Submenu};
+
+use crate::window_toggle;
+
+pub const SHOW_LOG_WINDOW: &str = "show_log_window";
+pub const CLEAR_STORAGE: &str = "clear_storage";
 
 pub trait AddDefaultSubmenus {
-    fn add_default_app_submenu_if_macos(self) -> Self;
+    fn add_default_app_submenus(self) -> Self;
 }
 
 impl AddDefaultSubmenus for Menu {
-    fn add_default_app_submenu_if_macos(self) -> Menu {
-        #[cfg(target_os = "macos")]
-        return self
-            .add_submenu(Submenu::new(
-                "File",
-                Menu::new().add_native_item(MenuItem::Quit),
-            ))
-            .add_submenu(Submenu::new(
-                "Edit",
-                Menu::new()
-                    .add_native_item(MenuItem::Copy)
-                    .add_native_item(MenuItem::Cut)
-                    .add_native_item(MenuItem::Paste)
-                    .add_native_item(MenuItem::SelectAll),
-            ))
-            .add_submenu(Submenu::new(
-                "Window",
-                Menu::new()
-                    .add_native_item(MenuItem::Hide)
-                    .add_native_item(MenuItem::HideOthers)
-                    .add_native_item(MenuItem::ShowAll),
-            ));
-        #[cfg(not(target_os = "macos"))]
-        return self;
+    fn add_default_app_submenus(self) -> Self {
+        let submenu = Submenu::new(
+            "Help",
+            Menu::new()
+                .add_item(CustomMenuItem::new(SHOW_LOG_WINDOW, "Show logs"))
+                .add_item(CustomMenuItem::new(CLEAR_STORAGE, "Clear all settings")),
+        );
+        self.add_submenu(submenu)
     }
 }
 

@@ -66,3 +66,17 @@ export const amountSchema = Yup.object().shape({
       }),
   }),
 });
+
+export const updateGatewayValidationSchema = Yup.object().shape({
+  host: Yup.string()
+    .required('A host is required')
+    .test('valid-host', 'A valid host is required', (value) => (value ? isValidHostname(value) : false)),
+
+  mixPort: Yup.number()
+    .required('A mixport is required')
+    .test('valid-mixport', 'A valid mixport is required', (value) => (value ? validateRawPort(value) : false)),
+
+  httpApiPort: Yup.number()
+    .required('A clients port is required')
+    .test('valid-clients', 'A valid clients port is required', (value) => (value ? validateRawPort(value) : false)),
+});

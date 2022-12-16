@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::real_messages_control::acknowledgement_control::PendingAcknowledgement;
-use client_connections::TransmissionLane;
-use futures::channel::mpsc;
+use client_connections::{ConnectionId, TransmissionLane};
+use futures::channel::{mpsc, oneshot};
+use log::error;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::anonymous_replies::ReplySurb;
@@ -15,7 +16,7 @@ pub(crate) fn new_control_channels() -> (ReplyControllerSender, ReplyControllerR
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct ReplyControllerSender(mpsc::UnboundedSender<ReplyControllerMessage>);
+pub struct ReplyControllerSender(mpsc::UnboundedSender<ReplyControllerMessage>);
 
 impl From<mpsc::UnboundedSender<ReplyControllerMessage>> for ReplyControllerSender {
     fn from(inner: mpsc::UnboundedSender<ReplyControllerMessage>) -> Self {
@@ -77,6 +78,25 @@ impl ReplyControllerSender {
             })
             .expect("ReplyControllerReceiver has died!")
     }
+
+    pub async fn get_lane_queue_length(&self, connection_id: ConnectionId) -> usize {
+        let (response_tx, response_rx) = oneshot::channel();
+        self.0
+            .unbounded_send(ReplyControllerMessage::LaneQueueLength {
+                connection_id,
+                response_channel: response_tx,
+            })
+            .expect("ReplyControllerReceiver has died!");
+
+        match response_rx.await {
+            Ok(length) => length,
+            Err(_) => {
+                error!("The reply controller has dropped our response channel!");
+                // TODO: should we panic here instead? this message implies something weird and unrecoverable has happened
+                0
+            }
+        }
+    }
 }
 
 pub(crate) type ReplyControllerReceiver = mpsc::UnboundedReceiver<ReplyControllerMessage>;
@@ -99,6 +119,12 @@ pub(crate) enum ReplyControllerMessage {
         sender_tag: AnonymousSenderTag,
         reply_surbs: Vec<ReplySurb>,
         from_surb_request: bool,
+    },
+
+    // this one doesn't belong here either...
+    LaneQueueLength {
+        connection_id: ConnectionId,
+        response_channel: oneshot::Sender<usize>,
     },
 
     // Should this also be handled in here? it's technically a completely different side of the pipe

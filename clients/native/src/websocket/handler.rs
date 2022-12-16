@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use client_connections::{
-    ConnectionCommand, ConnectionCommandSender, LaneQueueLengths, TransmissionLane,
+    ConnectionCommand, ConnectionCommandSender, ConnectionId, LaneQueueLengths, TransmissionLane,
 };
+use client_core::client::replies::reply_controller::requests::ReplyControllerSender;
 use client_core::client::{
     inbound_messages::{InputMessage, InputMessageSender},
     received_buffer::{
@@ -41,6 +42,7 @@ pub(crate) struct HandlerBuilder {
     buffer_requester: ReceivedBufferRequestSender,
     self_full_address: Recipient,
     lane_queue_lengths: LaneQueueLengths,
+    reply_controller_sender: ReplyControllerSender,
 }
 
 impl HandlerBuilder {
@@ -50,6 +52,7 @@ impl HandlerBuilder {
         buffer_requester: ReceivedBufferRequestSender,
         self_full_address: &Recipient,
         lane_queue_lengths: LaneQueueLengths,
+        reply_controller_sender: ReplyControllerSender,
     ) -> Self {
         Self {
             msg_input,
@@ -57,6 +60,7 @@ impl HandlerBuilder {
             buffer_requester,
             self_full_address: *self_full_address,
             lane_queue_lengths,
+            reply_controller_sender,
         }
     }
 
@@ -70,6 +74,7 @@ impl HandlerBuilder {
             socket: None,
             received_response_type: Default::default(),
             lane_queue_lengths: self.lane_queue_lengths.clone(),
+            reply_controller_sender: self.reply_controller_sender.clone(),
         }
     }
 }
@@ -82,6 +87,7 @@ pub(crate) struct Handler {
     socket: Option<WebSocketStream<TcpStream>>,
     received_response_type: ReceivedResponseType,
     lane_queue_lengths: LaneQueueLengths,
+    reply_controller_sender: ReplyControllerSender,
 }
 
 impl Drop for Handler {
@@ -97,6 +103,32 @@ impl Drop for Handler {
 }
 
 impl Handler {
+    async fn get_lane_queue_length(&self, connection_id: ConnectionId) -> Option<ServerResponse> {
+        // get the base queue length
+        // Note that this does _NOT_ take into account the packets that have been received but not
+        // yet reach `OutQueueControl`, so it might be a tad low.
+        let conn_lane = TransmissionLane::ConnectionId(connection_id);
+        let Ok(base_length) = self
+            .lane_queue_lengths
+            .lock()
+            .map(|guard| guard.get(&conn_lane).unwrap_or_default()) else {
+            // I'd argue we should panic here as this error it not recoverable
+            error!("The lane queue length lock is poisoned!!");
+            return None
+        };
+
+        // get the number of pending replies waiting for reply surbs
+        let reply_queue_length = self
+            .reply_controller_sender
+            .get_lane_queue_length(connection_id)
+            .await;
+
+        Some(ServerResponse::LaneQueueLength {
+            lane: connection_id,
+            queue_length: base_length + reply_queue_length,
+        })
+    }
+
     async fn handle_send(
         &mut self,
         recipient: Recipient,
@@ -125,19 +157,7 @@ impl Handler {
           return None
         };
 
-        // on receiving a send, we reply back the current lane queue length for that connection id.
-        // Note that this does _NOT_ take into account the packets that have been received but not
-        // yet reach `OutQueueControl`, so it might be a tad low.
-        if let Ok(lane_queue_lengths) = self.lane_queue_lengths.lock() {
-            let queue_length = lane_queue_lengths.get(&lane).unwrap_or(0);
-            return Some(ServerResponse::LaneQueueLength {
-                lane: connection_id,
-                queue_length,
-            });
-        }
-
-        log::warn!("Failed to get the lane queue length lock, not responding back with the current queue length");
-        None
+        self.get_lane_queue_length(connection_id).await
     }
 
     async fn handle_send_anonymous(
@@ -168,19 +188,7 @@ impl Handler {
           return None
         };
 
-        // on receiving a send, we reply back the current lane queue length for that connection id.
-        // Note that this does _NOT_ take into account the packets that have been received but not
-        // yet reach `OutQueueControl`, so it might be a tad low.
-        if let Ok(lane_queue_lengths) = self.lane_queue_lengths.lock() {
-            let queue_length = lane_queue_lengths.get(&lane).unwrap_or(0);
-            return Some(ServerResponse::LaneQueueLength {
-                lane: connection_id,
-                queue_length,
-            });
-        }
-
-        log::warn!("Failed to get the lane queue length lock, not responding back with the current queue length");
-        None
+        self.get_lane_queue_length(connection_id).await
     }
 
     async fn handle_reply(
@@ -207,19 +215,7 @@ impl Handler {
           return None
         };
 
-        // on receiving a send, we reply back the current lane queue length for that connection id.
-        // Note that this does _NOT_ take into account the packets that have been received but not
-        // yet reach `OutQueueControl`, so it might be a tad low.
-        if let Ok(lane_queue_lengths) = self.lane_queue_lengths.lock() {
-            let queue_length = lane_queue_lengths.get(&lane).unwrap_or(0);
-            return Some(ServerResponse::LaneQueueLength {
-                lane: connection_id,
-                queue_length,
-            });
-        }
-
-        log::warn!("Failed to get the lane queue length lock, not responding back with the current queue length");
-        None
+        self.get_lane_queue_length(connection_id).await
     }
 
     fn handle_self_address(&self) -> ServerResponse {
@@ -233,20 +229,8 @@ impl Handler {
         None
     }
 
-    fn handle_get_lane_queue_length(&self, connection_id: u64) -> Option<ServerResponse> {
-        let Ok(lane_queue_lengths) = self.lane_queue_lengths.lock() else {
-            log::warn!(
-                "Failed to get the lane queue length lock, not responding back with the current queue length"
-            );
-            return None;
-        };
-
-        let lane = TransmissionLane::ConnectionId(connection_id);
-        let queue_length = lane_queue_lengths.get(&lane).unwrap_or(0);
-        Some(ServerResponse::LaneQueueLength {
-            lane: connection_id,
-            queue_length,
-        })
+    async fn handle_get_lane_queue_length(&self, connection_id: u64) -> Option<ServerResponse> {
+        self.get_lane_queue_length(connection_id).await
     }
 
     async fn handle_request(&mut self, request: ClientRequest) -> Option<ServerResponse> {
@@ -275,7 +259,7 @@ impl Handler {
 
             ClientRequest::SelfAddress => Some(self.handle_self_address()),
             ClientRequest::ClosedConnection(id) => self.handle_closed_connection(id),
-            ClientRequest::GetLaneQueueLength(id) => self.handle_get_lane_queue_length(id),
+            ClientRequest::GetLaneQueueLength(id) => self.handle_get_lane_queue_length(id).await,
         }
     }
 

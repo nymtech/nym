@@ -4,7 +4,8 @@
 use crate::client::real_messages_control::acknowledgement_control::PendingAcknowledgement;
 use crate::client::real_messages_control::message_handler::{MessageHandler, PreparationError};
 use crate::client::replies::reply_storage::CombinedReplyStorage;
-use client_connections::TransmissionLane;
+use client_connections::{ConnectionId, TransmissionLane};
+use futures::channel::oneshot;
 use futures::StreamExt;
 use log::{debug, error, info, trace, warn};
 use nymsphinx::addressing::clients::Recipient;
@@ -23,7 +24,7 @@ use crate::client::helpers::new_interval_stream;
 use crate::client::transmission_buffer::TransmissionBuffer;
 pub(crate) use requests::{ReplyControllerMessage, ReplyControllerReceiver, ReplyControllerSender};
 
-pub(crate) mod requests;
+pub mod requests;
 
 pub struct Config {
     min_surb_request_size: u32,
@@ -187,7 +188,7 @@ where
             .surbs_storage_ref()
             .max_surb_threshold();
 
-        debug!("total queue size: {total_queue} = pending data {pending_queue_size} + pending retransmission {retransmission_queue}, available surbs: {available_surbs} pending surbs: {pending_surbs} threshold range: {min_surbs_threshold}..{max_surbs_threshold}");
+        info!("total queue size: {total_queue} = pending data {pending_queue_size} + pending retransmission {retransmission_queue}, available surbs: {available_surbs} pending surbs: {pending_surbs} threshold range: {min_surbs_threshold}..{max_surbs_threshold}");
 
         (pending_surbs + available_surbs) < max_surbs_threshold
             && (pending_surbs + available_surbs) < (total_queue + min_surbs_threshold)
@@ -609,6 +610,26 @@ where
         }
     }
 
+    // to be honest this doesn't make a lot of sense in the context of `connection_id`,
+    // it should really be asked per tag
+    fn handle_lane_queue_length(
+        &self,
+        connection_id: ConnectionId,
+        response_channel: oneshot::Sender<usize>,
+    ) {
+        // TODO: if we ever have duplicate ids for different senders, it means our rng is super weak
+        // thus I don't think we have to worry about it?
+        let lane = TransmissionLane::ConnectionId(connection_id);
+        for buf in self.pending_replies.values() {
+            if let Some(length) = buf.lane_length(&lane) {
+                if response_channel.send(length).is_err() {
+                    error!("the requester for lane queue length has dropped the response channel!")
+                }
+                return;
+            }
+        }
+    }
+
     async fn handle_request(&mut self, request: ReplyControllerMessage) {
         match request {
             ReplyControllerMessage::RetransmitReply {
@@ -632,6 +653,10 @@ where
                 self.handle_received_surbs(sender_tag, reply_surbs, from_surb_request)
                     .await
             }
+            ReplyControllerMessage::LaneQueueLength {
+                connection_id,
+                response_channel,
+            } => self.handle_lane_queue_length(connection_id, response_channel),
             ReplyControllerMessage::AdditionalSurbsRequest { recipient, amount } => {
                 self.handle_surb_request(*recipient, amount).await
             }

@@ -188,7 +188,7 @@ where
             .surbs_storage_ref()
             .max_surb_threshold();
 
-        info!("total queue size: {total_queue} = pending data {pending_queue_size} + pending retransmission {retransmission_queue}, available surbs: {available_surbs} pending surbs: {pending_surbs} threshold range: {min_surbs_threshold}..{max_surbs_threshold}");
+        debug!("total queue size: {total_queue} = pending data {pending_queue_size} + pending retransmission {retransmission_queue}, available surbs: {available_surbs} pending surbs: {pending_surbs} threshold range: {min_surbs_threshold}..{max_surbs_threshold}");
 
         (pending_surbs + available_surbs) < max_surbs_threshold
             && (pending_surbs + available_surbs) < (total_queue + min_surbs_threshold)
@@ -678,6 +678,9 @@ where
         }
     }
 
+    // TODO: modify this method to more accurately determine the amount of surbs it needs to request
+    // it should take into consideration the average latency, sending rate and queue size.
+    // it should request as many surbs as it takes to saturate its sending rate before next batch arrives
     async fn request_reply_surbs_for_queue_clearing(&mut self, target: AnonymousSenderTag) {
         trace!("requesting surbs for queues clearing");
 
@@ -819,6 +822,11 @@ where
             self.full_reply_storage.key_storage().remove(to_remove)
         }
     }
+
+    // #[cfg(not(target_arch = "wasm32"))]
+    // async fn log_status(&self) {
+    //     todo!()
+    // }
 
     pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
         debug!("Started ReplyController with graceful shutdown support");

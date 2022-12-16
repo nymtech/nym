@@ -1,11 +1,12 @@
 use super::NodeStatusCache;
 use crate::{
-    contract_cache::cache::{refresher::CacheNotification, ValidatorCache},
+    contract_cache::cache::ValidatorCache,
     node_status_api::{
         cache::{inclusion_probabilities::InclusionProbabilities, NodeStatusCacheError},
         reward_estimate::{compute_apy_from_reward, compute_reward_estimate},
     },
     storage::NymApiStorage,
+    support::caching::CacheNotification,
 };
 use mixnet_contract_common::{
     families::FamilyHead, reward_params::Performance, IdentityKey, Interval, MixId, MixNodeDetails,
@@ -144,7 +145,7 @@ impl NodeStatusCacheRefresher {
             split_into_active_and_rewarded_set(&mixnodes_annotated, &rewarded_set_node_status);
 
         self.cache
-            .update_cache(
+            .update(
                 mixnodes_annotated,
                 rewarded_set,
                 active_set,

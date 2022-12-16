@@ -1,5 +1,6 @@
 use super::ValidatorCache;
 use crate::nyxd::Client;
+use crate::support::caching::CacheNotification;
 use anyhow::Result;
 use mixnet_contract_common::{MixId, MixNodeDetails, RewardedSetNodeStatus};
 use std::{collections::HashMap, sync::atomic::Ordering, time::Duration};
@@ -60,7 +61,7 @@ impl<C> ValidatorCacheRefresher<C> {
         );
 
         self.cache
-            .update_cache(
+            .update(
                 mixnodes,
                 gateways,
                 rewarded_set,
@@ -139,11 +140,4 @@ impl<C> ValidatorCacheRefresher<C> {
             }
         }
     }
-}
-
-// The cache can emit notifications to listeners about the current state
-#[derive(Debug, PartialEq, Eq)]
-pub enum CacheNotification {
-    Start,
-    Updated,
 }

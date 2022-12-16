@@ -41,7 +41,7 @@ impl ValidatorCache {
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn update_cache(
+    pub(crate) async fn update(
         &self,
         mixnodes: Vec<MixNodeDetails>,
         gateways: Vec<GatewayBond>,

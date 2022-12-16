@@ -23,17 +23,18 @@ enum NodeStatusCacheError {
     SourceDataMissing,
 }
 
-// A node status cache suitable for caching values computed in one sweep, such as active set
-// inclusion probabilities that are computed for all mixnodes at the same time.
-//
-// The cache can be triggered to update on contract cache changes, and/or periodically on a timer.
+/// A node status cache suitable for caching values computed in one sweep, such as active set
+/// inclusion probabilities that are computed for all mixnodes at the same time.
+///
+/// The cache can be triggered to update on contract cache changes, and/or periodically on a timer.
 #[derive(Clone)]
 pub struct NodeStatusCache {
     inner: Arc<RwLock<NodeStatusCacheData>>,
 }
 
 impl NodeStatusCache {
-    fn new() -> Self {
+    /// Creates a new cache with no data.
+    fn new() -> NodeStatusCache {
         NodeStatusCache {
             inner: Arc::new(RwLock::new(NodeStatusCacheData::new())),
         }
@@ -45,7 +46,8 @@ impl NodeStatusCache {
         })
     }
 
-    async fn update_cache(
+    /// Updates the cache with the latest data.
+    async fn update(
         &self,
         mixnodes: Vec<MixNodeBondAnnotated>,
         rewarded_set: Vec<MixNodeBondAnnotated>,
@@ -65,7 +67,8 @@ impl NodeStatusCache {
         }
     }
 
-    async fn get_cache<T>(
+    /// Returns a copy of the current cache data.
+    async fn get<T>(
         &self,
         fn_arg: impl FnOnce(RwLockReadGuard<'_, NodeStatusCacheData>) -> Cache<T>,
     ) -> Option<Cache<T>> {
@@ -79,19 +82,19 @@ impl NodeStatusCache {
     }
 
     pub(crate) async fn mixnodes_annotated(&self) -> Option<Cache<Vec<MixNodeBondAnnotated>>> {
-        self.get_cache(|c| c.mixnodes_annotated.clone()).await
+        self.get(|c| c.mixnodes_annotated.clone()).await
     }
 
     pub(crate) async fn rewarded_set_annotated(&self) -> Option<Cache<Vec<MixNodeBondAnnotated>>> {
-        self.get_cache(|c| c.rewarded_set_annotated.clone()).await
+        self.get(|c| c.rewarded_set_annotated.clone()).await
     }
 
     pub(crate) async fn active_set_annotated(&self) -> Option<Cache<Vec<MixNodeBondAnnotated>>> {
-        self.get_cache(|c| c.active_set_annotated.clone()).await
+        self.get(|c| c.active_set_annotated.clone()).await
     }
 
     pub(crate) async fn inclusion_probabilities(&self) -> Option<Cache<InclusionProbabilities>> {
-        self.get_cache(|c| c.inclusion_probabilities.clone()).await
+        self.get(|c| c.inclusion_probabilities.clone()).await
     }
 
     pub async fn mixnode_details(

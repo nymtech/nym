@@ -42,3 +42,10 @@ fn current_unix_timestamp() -> i64 {
     let now = OffsetDateTime::now_utc();
     now.unix_timestamp()
 }
+
+// The cache can emit notifications to listeners about the current state
+#[derive(Debug, PartialEq, Eq)]
+pub enum CacheNotification {
+    Start,
+    Updated,
+}

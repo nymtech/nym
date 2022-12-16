@@ -3,7 +3,7 @@ use std::time::Duration;
 use tokio::sync::watch;
 use validator_client::Client;
 
-use crate::contract_cache::cache::refresher::CacheNotification;
+use crate::support::caching::CacheNotification;
 
 use super::CirculatingSupplyCache;
 

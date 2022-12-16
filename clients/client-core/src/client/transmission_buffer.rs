@@ -1,21 +1,15 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::helpers::{get_time_now, Instant};
+use crate::client::real_messages_control::real_traffic_stream::RealMessage;
 use client_connections::TransmissionLane;
+use nymsphinx::chunking::fragment::Fragment;
 use rand::{seq::SliceRandom, Rng};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     time::Duration,
 };
-
-use nymsphinx::chunking::fragment::Fragment;
-#[cfg(not(target_arch = "wasm32"))]
-use tokio::time;
-
-#[cfg(target_arch = "wasm32")]
-use wasm_timer;
-
-use super::{get_time_now, RealMessage};
 
 // The number of lanes included in the oldest set. Used when we need to prioritize traffic.
 const OLDEST_LANE_SET_SIZE: usize = 4;
@@ -28,7 +22,7 @@ pub(crate) trait SizedData {
 
 impl SizedData for RealMessage {
     fn data_size(&self) -> usize {
-        self.mix_packet.sphinx_packet().len()
+        self.packet_size()
     }
 }
 
@@ -202,10 +196,7 @@ impl<T> TransmissionBuffer<T> {
 pub(crate) struct LaneBufferEntry<T> {
     pub items: VecDeque<T>,
     pub messages_transmitted: usize,
-    #[cfg(not(target_arch = "wasm32"))]
-    pub time_for_last_activity: time::Instant,
-    #[cfg(target_arch = "wasm32")]
-    pub time_for_last_activity: wasm_timer::Instant,
+    pub time_for_last_activity: Instant,
 }
 
 impl<T> LaneBufferEntry<T> {

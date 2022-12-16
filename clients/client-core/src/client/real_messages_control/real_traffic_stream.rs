@@ -319,7 +319,9 @@ where
 
     fn pop_next_message(&mut self) -> Option<RealMessage> {
         // Pop the next message from the transmission buffer
-        let (lane, real_next) = self.transmission_buffer.pop_next_message_at_random()?;
+        let (lane, real_next) = self
+            .transmission_buffer
+            .pop_next_message_at_random(&mut self.rng)?;
 
         // Update the published queue length
         let lane_length = self.transmission_buffer.lane_length(&lane);

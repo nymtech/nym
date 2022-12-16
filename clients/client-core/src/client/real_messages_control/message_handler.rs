@@ -330,7 +330,7 @@ where
         // is it really that bad?
         self.try_send_reply_chunks(
             target,
-            fragments.into_iter().map(|f| (f, lane)).collect(),
+            fragments.into_iter().map(|f| (lane, f)).collect(),
             reply_surbs,
         )
         .await
@@ -339,12 +339,12 @@ where
     pub(crate) async fn try_send_reply_chunks(
         &mut self,
         target: AnonymousSenderTag,
-        fragments: Vec<(Fragment, TransmissionLane)>,
+        fragments: Vec<(TransmissionLane, Fragment)>,
         reply_surbs: Vec<ReplySurb>,
     ) -> Result<(), SurbWrappedPreparationError> {
         let prepared_fragments = self
             .prepare_reply_chunks_for_sending(
-                fragments.iter().map(|(f, _)| f.clone()).collect(),
+                fragments.iter().map(|(_, f)| f.clone()).collect(),
                 reply_surbs,
             )
             .await?;
@@ -353,8 +353,8 @@ where
         let mut to_forward: HashMap<_, Vec<_>> = HashMap::new();
 
         for (raw, prepared) in fragments.into_iter().zip(prepared_fragments.into_iter()) {
-            let lane = raw.1;
-            let fragment = raw.0;
+            let lane = raw.0;
+            let fragment = raw.1;
 
             let real_message = RealMessage::new(prepared.mix_packet, prepared.fragment_identifier);
             let delay = prepared.total_delay;

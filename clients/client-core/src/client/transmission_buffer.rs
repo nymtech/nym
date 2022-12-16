@@ -114,38 +114,47 @@ impl<T> TransmissionBuffer<T> {
             .collect()
     }
 
-    pub(crate) fn store(&mut self, lane: &TransmissionLane, real_messages: Vec<T>) {
+    pub(crate) fn store<I: IntoIterator<Item = T>>(&mut self, lane: &TransmissionLane, items: I) {
         if let Some(lane_buffer_entry) = self.buffer.get_mut(lane) {
-            lane_buffer_entry.append(real_messages);
+            lane_buffer_entry.extend(items);
         } else {
             self.buffer
-                .insert(*lane, LaneBufferEntry::new(real_messages));
+                .insert(*lane, LaneBufferEntry::new(items.into_iter().collect()));
         }
     }
 
-    fn pick_random_lane(&self) -> Option<&TransmissionLane> {
-        let lanes: Vec<&TransmissionLane> = self.buffer.keys().collect();
-        lanes.choose(&mut rand::thread_rng()).copied()
+    pub(crate) fn store_multiple(&mut self, items: Vec<(TransmissionLane, T)>) {
+        for (lane, item) in items {
+            self.buffer
+                .entry(lane)
+                .or_insert_with(LaneBufferEntry::new_empty)
+                .push_item(item)
+        }
     }
 
-    fn pick_random_small_lane(&self) -> Option<&TransmissionLane> {
+    fn pick_random_lane<R: Rng + ?Sized>(&self, rng: &mut R) -> Option<&TransmissionLane> {
+        let lanes: Vec<&TransmissionLane> = self.buffer.keys().collect();
+        lanes.choose(rng).copied()
+    }
+
+    fn pick_random_small_lane<R: Rng + ?Sized>(&self, rng: &mut R) -> Option<&TransmissionLane> {
         let lanes: Vec<&TransmissionLane> = self
             .buffer
             .iter()
             .filter(|(_, v)| v.is_small())
             .map(|(k, _)| k)
             .collect();
-        lanes.choose(&mut rand::thread_rng()).copied()
+        lanes.choose(rng).copied()
     }
 
     // 2/3 chance to pick from the old lanes
-    fn pick_random_old_lane(&self) -> Option<TransmissionLane> {
+    fn pick_random_old_lane<R: Rng + ?Sized>(&self, rng: &mut R) -> Option<TransmissionLane> {
         let rand = &mut rand::thread_rng();
         if rand.gen_ratio(2, 3) {
             let lanes = self.get_oldest_set();
             lanes.choose(rand).copied()
         } else {
-            self.pick_random_lane().copied()
+            self.pick_random_lane(rng).copied()
         }
     }
 
@@ -159,19 +168,48 @@ impl<T> TransmissionBuffer<T> {
         Some(real_next)
     }
 
-    pub(crate) fn pop_next_message_at_random(&mut self) -> Option<(TransmissionLane, T)> {
+    pub(crate) fn pop_at_most_n_next_messages_at_random(
+        &mut self,
+        n: usize,
+    ) -> Option<Vec<(TransmissionLane, T)>> {
+        // let start = Instant::now();
+
+        if self.buffer.is_empty() {
+            return None;
+        }
+
+        let rng = &mut rand::thread_rng();
+        let mut items = Vec::with_capacity(n);
+
+        while items.len() < n {
+            let Some(next) = self.pop_next_message_at_random(rng) else {
+               break
+            };
+            items.push(next)
+        }
+
+        // todo!("time time taken");
+
+        Some(items)
+    }
+
+    pub(crate) fn pop_next_message_at_random<R: Rng + ?Sized>(
+        &mut self,
+        // turns out the caller always have access to some rng, so no point in instantiating new one
+        rng: &mut R,
+    ) -> Option<(TransmissionLane, T)> {
         if self.buffer.is_empty() {
             return None;
         }
 
         // Very basic heuristic where we prioritize according to small lanes first, the older lanes
         // to try to finish lanes when possible, then the rest.
-        let lane = if let Some(small_lane) = self.pick_random_small_lane() {
+        let lane = if let Some(small_lane) = self.pick_random_small_lane(rng) {
             *small_lane
-        } else if let Some(old_lane) = self.pick_random_old_lane() {
+        } else if let Some(old_lane) = self.pick_random_old_lane(rng) {
             old_lane
         } else {
-            *self.pick_random_lane()?
+            *self.pick_random_lane(rng)?
         };
 
         let msg = self.pop_front_from_lane(&lane)?;
@@ -200,16 +238,30 @@ pub(crate) struct LaneBufferEntry<T> {
 }
 
 impl<T> LaneBufferEntry<T> {
-    fn new(real_messages: Vec<T>) -> Self {
+    fn new_empty() -> Self {
         LaneBufferEntry {
-            items: real_messages.into(),
+            items: VecDeque::new(),
             messages_transmitted: 0,
             time_for_last_activity: get_time_now(),
         }
     }
 
-    fn append(&mut self, real_messages: Vec<T>) {
-        self.items.append(&mut real_messages.into());
+    fn new(items: VecDeque<T>) -> Self {
+        LaneBufferEntry {
+            items,
+            messages_transmitted: 0,
+            time_for_last_activity: get_time_now(),
+        }
+    }
+
+    fn push_item(&mut self, item: T) {
+        self.items.push_back(item);
+        // I'm not updating time here on purpose. This method is called just after `new_empty`,
+        // where the time is already set. Furthermore, this method is called there multiple times at once
+    }
+
+    fn extend<I: IntoIterator<Item = T>>(&mut self, items: I) {
+        self.items.extend(items);
         self.time_for_last_activity = get_time_now();
     }
 

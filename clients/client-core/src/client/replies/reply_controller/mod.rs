@@ -14,20 +14,16 @@ use nymsphinx::chunking::fragment::{Fragment, FragmentIdentifier};
 use rand::{CryptoRng, Rng};
 use std::cmp::{max, min};
 use std::collections::btree_map::Entry;
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 use time::OffsetDateTime;
 
+use crate::client::helpers::new_interval_stream;
+use crate::client::transmission_buffer::TransmissionBuffer;
 pub(crate) use requests::{ReplyControllerMessage, ReplyControllerReceiver, ReplyControllerSender};
 
 pub(crate) mod requests;
-
-#[cfg(not(target_arch = "wasm32"))]
-type IntervalStream = tokio_stream::wrappers::IntervalStream;
-
-#[cfg(target_arch = "wasm32")]
-type IntervalStream = gloo_timers::future::IntervalStream;
 
 pub struct Config {
     min_surb_request_size: u32,
@@ -75,7 +71,7 @@ pub struct ReplyController<R> {
     // of surbs required to send the message through
     // expected_reliability: f32,
     request_receiver: ReplyControllerReceiver,
-    pending_replies: HashMap<AnonymousSenderTag, VecDeque<(Fragment, TransmissionLane)>>,
+    pending_replies: HashMap<AnonymousSenderTag, TransmissionBuffer<Fragment>>,
 
     /// Retransmission packets that have already timed out and are waiting for additional reply SURBs
     /// so that they could be sent back to the network. Once we receive more SURBs, we should send them ASAP.
@@ -113,25 +109,22 @@ where
         fragments: I,
         lane: TransmissionLane,
     ) {
-        let iter = fragments.into_iter().map(|fragment| (fragment, lane));
-        if let Some(existing) = self.pending_replies.get_mut(recipient) {
-            existing.extend(iter)
-        } else {
-            self.pending_replies.insert(*recipient, iter.collect());
-        }
+        self.pending_replies
+            .entry(*recipient)
+            .or_insert_with(TransmissionBuffer::new)
+            .store(&lane, fragments)
     }
 
-    /// Inserts the pending replies into the BACK of the queue
-    fn re_insert_pending_replies<V: Into<VecDeque<(Fragment, TransmissionLane)>>>(
+    fn re_insert_pending_replies(
         &mut self,
         recipient: &AnonymousSenderTag,
-        fragments: V,
+        fragments: Vec<(TransmissionLane, Fragment)>,
     ) {
-        if let Some(existing) = self.pending_replies.get_mut(recipient) {
-            existing.append(&mut fragments.into())
-        } else {
-            self.pending_replies.insert(*recipient, fragments.into());
-        }
+        // the buffer should ALWAYS exist at this point, if it doesn't, it's a bug...
+        self.pending_replies
+            .entry(*recipient)
+            .or_insert_with(TransmissionBuffer::new)
+            .store_multiple(fragments)
     }
 
     fn re_insert_pending_retransmission(
@@ -161,7 +154,7 @@ where
         let pending_queue_size = self
             .pending_replies
             .get(target)
-            .map(|pending_queue| pending_queue.len())
+            .map(|pending_queue| pending_queue.total_size())
             .unwrap_or_default();
 
         let retransmission_queue = self
@@ -241,6 +234,10 @@ where
             .get_reply_surbs(&recipient_tag, max_to_send);
 
         if let Some(reply_surbs) = surbs {
+            if fragments.len() < max_to_send {
+                panic!("this has to be fixed")
+            }
+
             let to_send = fragments.drain(..max_to_send).collect::<Vec<_>>();
             if let Err(err) = self
                 .message_handler
@@ -382,23 +379,16 @@ where
         &mut self,
         from: &AnonymousSenderTag,
         amount: usize,
-    ) -> Option<VecDeque<(Fragment, TransmissionLane)>> {
+    ) -> Option<Vec<(TransmissionLane, Fragment)>> {
         // if possible, pop all pending replies, if not, pop only entries for which we'd have a reply surb
-        let total = self.pending_replies.get(from)?.len();
+        let total = self.pending_replies.get(from)?.total_size();
         trace!("pending queue has {total} elements");
         if total == 0 {
             return None;
         }
-        if total < amount {
-            self.pending_replies.remove(from)
-        } else {
-            Some(
-                self.pending_replies
-                    .get_mut(from)?
-                    .drain(..amount)
-                    .collect(),
-            )
-        }
+        self.pending_replies
+            .get_mut(from)?
+            .pop_at_most_n_next_messages_at_random(amount)
     }
 
     async fn try_clear_pending_queue(&mut self, target: AnonymousSenderTag) {
@@ -422,9 +412,9 @@ where
 
         // we're guaranteed to not get more entries than we have reply surbs for
         if let Some(to_send) = self.pop_at_most_pending_replies(&target, max_to_clear) {
-            let to_send_vec = to_send.iter().cloned().collect::<Vec<_>>();
+            let to_send_clone = to_send.clone();
 
-            if to_send_vec.is_empty() {
+            if to_send_clone.is_empty() {
                 panic!(
                     "please let the devs know if you ever see this message (reply_controller.rs)"
                 );
@@ -433,7 +423,7 @@ where
             let (surbs_for_reply, _) = self
                 .full_reply_storage
                 .surbs_storage_ref()
-                .get_reply_surbs(&target, to_send_vec.len());
+                .get_reply_surbs(&target, to_send_clone.len());
 
             let Some(surbs_for_reply) = surbs_for_reply else {
                 error!("somehow different task has stolen our reply surbs! - this should have been impossible");
@@ -443,7 +433,7 @@ where
 
             if let Err(err) = self
                 .message_handler
-                .try_send_reply_chunks(target, to_send_vec, surbs_for_reply)
+                .try_send_reply_chunks(target, to_send_clone, surbs_for_reply)
                 .await
             {
                 let err =
@@ -654,7 +644,7 @@ where
         let pending_queue_size = self
             .pending_replies
             .get(&target)
-            .map(|pending_queue| pending_queue.len())
+            .map(|pending_queue| pending_queue.total_size())
             .unwrap_or_default();
 
         let retransmission_queue = self
@@ -694,7 +684,7 @@ where
             }
 
             let Some(last_received) = self.full_reply_storage.surbs_storage_ref().surbs_last_received_at(pending_reply_target) else {
-                error!("we have {} pending replies for {pending_reply_target}, but we somehow never received any reply surbs from them!", vals.len());
+                error!("we have {} pending replies for {pending_reply_target}, but we somehow never received any reply surbs from them!", vals.total_size());
                 to_remove.push(*pending_reply_target);
                 continue;
             };
@@ -790,23 +780,15 @@ where
         }
     }
 
-    fn create_interval_stream(polling_rate: Duration) -> IntervalStream {
-        #[cfg(not(target_arch = "wasm32"))]
-        return tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(polling_rate));
-
-        #[cfg(target_arch = "wasm32")]
-        return gloo_timers::future::IntervalStream::new(polling_rate.as_millis() as u32);
-    }
-
     pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
         debug!("Started ReplyController with graceful shutdown support");
 
         let polling_rate = Duration::from_secs(5);
-        let mut stale_inspection = Self::create_interval_stream(polling_rate);
+        let mut stale_inspection = new_interval_stream(polling_rate);
 
         // this is in the order of hours/days so we don't have to poll it that often
         let polling_rate = Duration::from_secs(self.config.max_reply_surb_age.as_secs() / 10);
-        let mut invalidation_inspection = Self::create_interval_stream(polling_rate);
+        let mut invalidation_inspection = new_interval_stream(polling_rate);
 
         while !shutdown.is_shutdown() {
             tokio::select! {

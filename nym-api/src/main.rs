@@ -11,7 +11,7 @@ use crate::epoch_operations::RewardedSetUpdater;
 use crate::network_monitor::NetworkMonitorBuilder;
 use crate::node_status_api::cache::refresher::NodeStatusCacheRefresher;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
-use crate::storage::NymApiStorage;
+use crate::support::storage;
 use ::config::defaults::setup_env;
 use ::config::defaults::var_names::{MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
 use ::config::{NymConfig, OptionalSet};
@@ -24,7 +24,6 @@ use lazy_static::lazy_static;
 use log::{info, warn};
 use logging::setup_logging;
 use node_status_api::NodeStatusCache;
-use okapi::openapi3::OpenApi;
 use rocket::fairing::AdHoc;
 use rocket::http::Method;
 use rocket::{Ignite, Rocket};
@@ -55,8 +54,7 @@ mod epoch_operations;
 mod network_monitor;
 mod node_status_api;
 pub(crate) mod nyxd;
-pub(crate) mod storage;
-mod swagger;
+pub(crate) mod support;
 
 #[cfg(feature = "coconut")]
 mod coconut;
@@ -251,7 +249,7 @@ fn setup_network_monitor<'a>(
     }
 
     // get instances of managed states
-    let node_status_storage = rocket.state::<NymApiStorage>().unwrap().clone();
+    let node_status_storage = rocket.state::<storage::NymApiStorage>().unwrap().clone();
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 
     Some(NetworkMonitorBuilder::new(
@@ -309,7 +307,7 @@ async fn setup_rocket(
     // This is not a very nice approach. A lazy value would be more suitable, but that's still
     // a nightly feature: https://github.com/rust-lang/rust/issues/74465
     let storage = if cfg!(feature = "coconut") || config.get_network_monitor_enabled() {
-        Some(NymApiStorage::init(config.get_node_status_api_database_path()).await?)
+        Some(storage::NymApiStorage::init(config.get_node_status_api_database_path()).await?)
     } else {
         None
     };
@@ -448,7 +446,7 @@ async fn run_nym_api(args: ApiArgs) -> Result<()> {
     // we're not starting signing client
     let validator_cache_listener = if config.get_network_monitor_enabled() {
         // Main storage
-        let storage = rocket.state::<NymApiStorage>().unwrap().clone();
+        let storage = rocket.state::<storage::NymApiStorage>().unwrap().clone();
 
         // setup our daily uptime updater. Note that if network monitor is disabled, then we have
         // no data for the updates and hence we don't need to start it up
@@ -495,7 +493,7 @@ async fn run_nym_api(args: ApiArgs) -> Result<()> {
     // Spawn the node status cache refresher.
     // It is primarily refreshed in-sync with the validator cache, however provide a fallback
     // caching interval that is twice the validator cache
-    let storage = rocket.state::<NymApiStorage>().cloned();
+    let storage = rocket.state::<storage::NymApiStorage>().cloned();
     let mut nym_api_cache_refresher = NodeStatusCacheRefresher::new(
         node_status_cache,
         config.get_caching_interval().saturating_mul(2),

@@ -1,4 +1,3 @@
-use ::time::OffsetDateTime;
 use data::ValidatorCacheData;
 use mixnet_contract_common::{
     families::FamilyHead, GatewayBond, IdentityKey, Interval, MixId, MixNodeBond, MixNodeDetails,
@@ -6,10 +5,8 @@ use mixnet_contract_common::{
 };
 use nym_api_requests::models::MixnodeStatus;
 use rocket::fairing::AdHoc;
-use serde::Serialize;
 use std::{
     collections::HashSet,
-    ops::Deref,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -18,6 +15,8 @@ use std::{
 };
 use tokio::sync::RwLock;
 use tokio::time;
+
+use crate::caching_support::Cache;
 
 mod data;
 pub(crate) mod refresher;
@@ -306,45 +305,4 @@ impl ValidatorCache {
             }
         }
     }
-}
-
-#[derive(Default, Serialize, Clone)]
-pub struct Cache<T> {
-    pub value: T,
-    as_at: i64,
-}
-
-impl<T: Clone> Cache<T> {
-    pub(super) fn new(value: T) -> Self {
-        Cache {
-            value,
-            as_at: current_unix_timestamp(),
-        }
-    }
-
-    pub(crate) fn update(&mut self, value: T) {
-        self.value = value;
-        self.as_at = current_unix_timestamp()
-    }
-
-    pub fn timestamp(&self) -> i64 {
-        self.as_at
-    }
-
-    pub fn into_inner(self) -> T {
-        self.value
-    }
-}
-
-impl<T> Deref for Cache<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        &self.value
-    }
-}
-
-fn current_unix_timestamp() -> i64 {
-    let now = OffsetDateTime::now_utc();
-    now.unix_timestamp()
 }

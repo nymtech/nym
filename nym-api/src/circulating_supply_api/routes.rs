@@ -5,6 +5,6 @@ use rocket_okapi::openapi;
 
 #[openapi(tag = "circulating-supply")]
 #[get("/current")]
-pub(crate) fn get_circulating_supply(cache: &State<CirculatingSupplyCache>) -> &'static str {
-    cache.say_foomp()
+pub(crate) async fn get_circulating_supply(cache: &State<CirculatingSupplyCache>) -> String {
+    cache.say_foomp().await.unwrap().value
 }

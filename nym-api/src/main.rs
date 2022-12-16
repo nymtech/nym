@@ -48,6 +48,7 @@ use coconut::{
 #[cfg(feature = "coconut")]
 use rand::rngs::OsRng;
 
+mod caching_support;
 mod circulating_supply_api;
 pub(crate) mod config;
 pub(crate) mod contract_cache;

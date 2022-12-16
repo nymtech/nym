@@ -1,0 +1,17 @@
+[package]
+name = "storage2"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+cosmwasm-std = { version = "1.0.0-beta8", features = ["staking"] }
+serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+cw-storage-plus = "0.13.4"
+cw2 = { version = "0.16.0" }
+thiserror = "1"
+
+[dev-dependencies]
+cw-multi-test = "0.13.4"

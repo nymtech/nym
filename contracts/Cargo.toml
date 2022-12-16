@@ -1,5 +1,5 @@
 [workspace]
-members = ["coconut-bandwidth", "mixnet", "vesting", "multisig/cw3-flex-multisig", "multisig/cw4-group", "coconut-test", "coconut-dkg"]
+members = ["coconut-bandwidth", "mixnet", "vesting", "multisig/cw3-flex-multisig", "multisig/cw4-group", "coconut-test", "coconut-dkg", "service-provider-directory"]
 
 [profile.release]
 opt-level = 3

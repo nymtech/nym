@@ -1,28 +1,23 @@
-use super::{helpers::get_performance_from_storage, NodeStatusCache};
+use super::NodeStatusCache;
 use crate::{
     contract_cache::cache::ValidatorCache,
-    node_status_api::{
-        cache::{
-            helpers::{split_into_active_and_rewarded_set, to_rewarded_set_node_status},
-            inclusion_probabilities::InclusionProbabilities,
-            NodeStatusCacheError,
+    node_status_api::cache::{
+        helpers::{
+            annotate_node_with_details, split_into_active_and_rewarded_set,
+            to_rewarded_set_node_status,
         },
-        reward_estimate::{compute_apy_from_reward, compute_reward_estimate},
+        inclusion_probabilities::InclusionProbabilities,
+        NodeStatusCacheError,
     },
     storage::NymApiStorage,
     support::caching::CacheNotification,
 };
-use mixnet_contract_common::{
-    families::FamilyHead, IdentityKey, Interval, MixId, MixNodeDetails, RewardedSetNodeStatus,
-    RewardingParams,
-};
-use nym_api_requests::models::MixNodeBondAnnotated;
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 use task::TaskClient;
 use tokio::sync::watch;
 use tokio::time;
 
-// Long running task responsible of keeping the cache up-to-date.
+// Long running task responsible of keeping the node status cache up-to-date.
 pub struct NodeStatusCacheRefresher {
     // Main stored data
     cache: NodeStatusCache,
@@ -51,6 +46,7 @@ impl NodeStatusCacheRefresher {
         }
     }
 
+    /// Runs the cache refresher task.
     pub async fn run(&mut self, mut shutdown: TaskClient) {
         let mut fallback_interval = time::interval(self.fallback_caching_interval);
         while !shutdown.is_shutdown() {
@@ -83,6 +79,7 @@ impl NodeStatusCacheRefresher {
         log::info!("NodeStatusCacheRefresher: Exiting");
     }
 
+    /// Updates the node status cache when the contract cache / validator cache is updated
     async fn update_on_notify(&self, fallback_interval: &mut time::Interval) {
         log::debug!(
             "Validator cache event detected: {:?}",
@@ -92,6 +89,7 @@ impl NodeStatusCacheRefresher {
         fallback_interval.reset();
     }
 
+    /// Updates the node status cache when the fallback interval is reached
     async fn update_on_timer(&self) {
         log::debug!("Timed trigger for the node status cache");
         let have_contract_cache_data =
@@ -106,6 +104,7 @@ impl NodeStatusCacheRefresher {
         }
     }
 
+    /// Refreshes the node status cache by fetching the latest data from the contract cache
     async fn refresh(&self) -> Result<(), NodeStatusCacheError> {
         log::info!("Updating node status cache");
 
@@ -134,15 +133,15 @@ impl NodeStatusCacheRefresher {
 
         // Create annotated data
         let rewarded_set_node_status = to_rewarded_set_node_status(&rewarded_set, &active_set);
-        let mixnodes_annotated = self
-            .annotate_node_with_details(
-                mixnode_details,
-                interval_reward_params,
-                current_interval,
-                &rewarded_set_node_status,
-                mix_to_family.to_vec(),
-            )
-            .await;
+        let mixnodes_annotated = annotate_node_with_details(
+            &self.storage,
+            mixnode_details,
+            interval_reward_params,
+            current_interval,
+            &rewarded_set_node_status,
+            mix_to_family.to_vec(),
+        )
+        .await;
 
         // Create the annotated rewarded and active sets
         let (rewarded_set, active_set) =
@@ -157,65 +156,5 @@ impl NodeStatusCacheRefresher {
             )
             .await;
         Ok(())
-    }
-
-    async fn annotate_node_with_details(
-        &self,
-        mixnodes: Vec<MixNodeDetails>,
-        interval_reward_params: RewardingParams,
-        current_interval: Interval,
-        rewarded_set: &HashMap<MixId, RewardedSetNodeStatus>,
-        mix_to_family: Vec<(IdentityKey, FamilyHead)>,
-    ) -> Vec<MixNodeBondAnnotated> {
-        let mix_to_family = mix_to_family
-            .into_iter()
-            .collect::<HashMap<IdentityKey, FamilyHead>>();
-
-        let mut annotated = Vec::new();
-        for mixnode in mixnodes {
-            let stake_saturation = mixnode
-                .rewarding_details
-                .bond_saturation(&interval_reward_params);
-
-            let uncapped_stake_saturation = mixnode
-                .rewarding_details
-                .uncapped_bond_saturation(&interval_reward_params);
-
-            // If the performance can't be obtained, because the nym-api was not started with
-            // the monitoring (and hence, storage), then reward estimates will be all zero
-
-            let performance =
-                get_performance_from_storage(&self.storage, mixnode.mix_id(), current_interval)
-                    .await
-                    .unwrap_or_default();
-
-            let rewarded_set_status = rewarded_set.get(&mixnode.mix_id()).copied();
-
-            let reward_estimate = compute_reward_estimate(
-                &mixnode,
-                performance,
-                rewarded_set_status,
-                interval_reward_params,
-                current_interval,
-            );
-
-            let (estimated_operator_apy, estimated_delegators_apy) =
-                compute_apy_from_reward(&mixnode, reward_estimate, current_interval);
-
-            let family = mix_to_family
-                .get(&mixnode.bond_information.identity().to_string())
-                .cloned();
-
-            annotated.push(MixNodeBondAnnotated {
-                mixnode_details: mixnode,
-                stake_saturation,
-                uncapped_stake_saturation,
-                performance,
-                estimated_operator_apy,
-                estimated_delegators_apy,
-                family,
-            });
-        }
-        annotated
     }
 }

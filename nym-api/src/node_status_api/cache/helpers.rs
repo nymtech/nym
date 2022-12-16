@@ -1,6 +1,8 @@
+use crate::node_status_api::reward_estimate::{compute_apy_from_reward, compute_reward_estimate};
 use crate::support::storage::NymApiStorage;
+use mixnet_contract_common::families::FamilyHead;
 use mixnet_contract_common::{reward_params::Performance, Interval, MixId};
-use mixnet_contract_common::{MixNodeDetails, RewardedSetNodeStatus};
+use mixnet_contract_common::{IdentityKey, MixNodeDetails, RewardedSetNodeStatus, RewardingParams};
 use nym_api_requests::models::MixNodeBondAnnotated;
 use std::collections::HashMap;
 
@@ -55,4 +57,63 @@ pub(super) async fn get_performance_from_storage(
         .await
         .ok()
         .map(Into::into)
+}
+
+pub(super) async fn annotate_node_with_details(
+    storage: &Option<NymApiStorage>,
+    mixnodes: Vec<MixNodeDetails>,
+    interval_reward_params: RewardingParams,
+    current_interval: Interval,
+    rewarded_set: &HashMap<MixId, RewardedSetNodeStatus>,
+    mix_to_family: Vec<(IdentityKey, FamilyHead)>,
+) -> Vec<MixNodeBondAnnotated> {
+    let mix_to_family = mix_to_family
+        .into_iter()
+        .collect::<HashMap<IdentityKey, FamilyHead>>();
+
+    let mut annotated = Vec::new();
+    for mixnode in mixnodes {
+        let stake_saturation = mixnode
+            .rewarding_details
+            .bond_saturation(&interval_reward_params);
+
+        let uncapped_stake_saturation = mixnode
+            .rewarding_details
+            .uncapped_bond_saturation(&interval_reward_params);
+
+        // If the performance can't be obtained, because the nym-api was not started with
+        // the monitoring (and hence, storage), then reward estimates will be all zero
+
+        let performance = get_performance_from_storage(storage, mixnode.mix_id(), current_interval)
+            .await
+            .unwrap_or_default();
+
+        let rewarded_set_status = rewarded_set.get(&mixnode.mix_id()).copied();
+
+        let reward_estimate = compute_reward_estimate(
+            &mixnode,
+            performance,
+            rewarded_set_status,
+            interval_reward_params,
+            current_interval,
+        );
+
+        let (estimated_operator_apy, estimated_delegators_apy) =
+            compute_apy_from_reward(&mixnode, reward_estimate, current_interval);
+
+        let family = mix_to_family
+            .get(&mixnode.bond_information.identity().to_string())
+            .cloned();
+
+        annotated.push(MixNodeBondAnnotated {
+            mixnode_details: mixnode,
+            stake_saturation,
+            uncapped_stake_saturation,
+            performance,
+            estimated_operator_apy,
+            estimated_delegators_apy,
+            family,
+        });
+    }
+    annotated
 }

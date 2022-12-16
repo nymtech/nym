@@ -17,7 +17,9 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::receiver::ReconstructedMessage;
+use std::time::Duration;
 use tokio::net::TcpStream;
+use tokio::time::Instant;
 use tokio_tungstenite::{
     accept_async,
     tungstenite::{protocol::Message as WsMessage, Error as WsError},
@@ -104,6 +106,8 @@ impl Drop for Handler {
 
 impl Handler {
     async fn get_lane_queue_length(&self, connection_id: ConnectionId) -> Option<ServerResponse> {
+        let req_start = Instant::now();
+
         // get the base queue length
         // Note that this does _NOT_ take into account the packets that have been received but not
         // yet reach `OutQueueControl`, so it might be a tad low.
@@ -123,9 +127,23 @@ impl Handler {
             .get_lane_queue_length(connection_id)
             .await;
 
+        let queue_length = base_length + reply_queue_length;
+
+        let time_taken = req_start.elapsed();
+        let msg =
+            format!("it took {time_taken:?} to get lane length for connection {connection_id}. The length is: {queue_length} = {base_length} (already queued up) + {reply_queue_length} (waiting for reply SURBs)");
+
+        if time_taken > Duration::from_millis(1) {
+            info!("{msg}");
+        } else if time_taken > Duration::from_millis(10) {
+            warn!("{msg}");
+        } else if time_taken > Duration::from_millis(50) {
+            error!("{msg}");
+        }
+
         Some(ServerResponse::LaneQueueLength {
             lane: connection_id,
-            queue_length: base_length + reply_queue_length,
+            queue_length,
         })
     }
 

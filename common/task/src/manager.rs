@@ -158,7 +158,7 @@ impl TaskManager {
     }
 
     pub async fn wait_for_shutdown(&mut self) {
-        log::info!("Waiting for shutdown");
+        log::debug!("Waiting for shutdown");
         if let Some(notify_rx) = self.notify_rx.take() {
             drop(notify_rx);
         }

@@ -59,7 +59,7 @@ pub(super) async fn get_performance_from_storage(
         .map(Into::into)
 }
 
-pub(super) async fn annotate_node_with_details(
+pub(super) async fn annotate_nodes_with_details(
     storage: &Option<NymApiStorage>,
     mixnodes: Vec<MixNodeDetails>,
     interval_reward_params: RewardingParams,

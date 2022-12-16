@@ -2,11 +2,11 @@ use super::NodeStatusCache;
 use crate::{
     contract_cache::cache::ValidatorCache,
     node_status_api::cache::{
-        helpers::{
-            annotate_node_with_details, split_into_active_and_rewarded_set,
+        inclusion_probabilities::InclusionProbabilities,
+        node_sets::{
+            annotate_nodes_with_details, split_into_active_and_rewarded_set,
             to_rewarded_set_node_status,
         },
-        inclusion_probabilities::InclusionProbabilities,
         NodeStatusCacheError,
     },
     storage::NymApiStorage,
@@ -132,7 +132,7 @@ impl NodeStatusCacheRefresher {
 
         // Create annotated data
         let rewarded_set_node_status = to_rewarded_set_node_status(&rewarded_set, &active_set);
-        let mixnodes_annotated = annotate_node_with_details(
+        let mixnodes_annotated = annotate_nodes_with_details(
             &self.storage,
             mixnode_details,
             interval_reward_params,

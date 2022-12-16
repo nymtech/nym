@@ -59,13 +59,16 @@
         "startDragging": true,
         "close": true,
         "minimize": true
+      },
+      "notification": {
+        "all": true
       }
     },
     "windows": [
       {
         "title": "NymConnect",
         "width": 240,
-        "height": 575,
+        "height": 605,
         "resizable": false,
         "decorations": false,
         "transparent": true

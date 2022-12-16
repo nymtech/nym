@@ -14,9 +14,13 @@ export const CopyToClipboard = ({
 }) => {
   const [copied, setCopied] = useState(false);
 
-  const handleCopy = async (text: string) => {
+  const handleCopy = async (textToCopy: string) => {
     try {
-      await clipboard.writeText(text);
+      if (clipboard) {
+        await clipboard.writeText(textToCopy);
+      } else {
+        await navigator.clipboard.writeText(textToCopy);
+      }
       setCopied(true);
     } catch (e) {
       console.log(`failed to copy: ${e}`);

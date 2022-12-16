@@ -32,7 +32,7 @@ export type TClientContext = {
   setConnectionStatus: (connectionStatus: ConnectionStatusKind) => void;
   setConnectionStats: (connectionStats: ConnectionStatsItem[] | undefined) => void;
   setConnectedSince: (connectedSince: DateTime | undefined) => void;
-  setServiceProvider: (serviceProvider: ServiceProvider) => void;
+  setServiceProvider: (serviceProvider?: ServiceProvider) => void;
 
   startConnecting: () => Promise<void>;
   startDisconnecting: () => Promise<void>;
@@ -56,6 +56,14 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       setServices(result as Services);
     });
     getAppVersion();
+  }, []);
+
+  useEffect(() => {
+    // when mounting, load the connection state (needed for the Growth window, that checks the connection state)
+    (async () => {
+      const currentStatus: ConnectionStatusKind = await invoke('get_connection_status');
+      setConnectionStatus(currentStatus);
+    })();
   }, []);
 
   useEffect(() => {
@@ -107,10 +115,12 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     } as any)();
   };
 
-  const setServiceProvider = useCallback(async (newServiceProvider: ServiceProvider) => {
-    await invoke('set_gateway', { gateway: newServiceProvider.gateway });
-    await invoke('set_service_provider', { serviceProvider: newServiceProvider.address });
-    await setSpInStorage(newServiceProvider);
+  const setServiceProvider = useCallback(async (newServiceProvider?: ServiceProvider) => {
+    await invoke('set_gateway', { gateway: newServiceProvider?.gateway });
+    await invoke('set_service_provider', { serviceProvider: newServiceProvider?.address });
+    if (newServiceProvider) {
+      await setSpInStorage(newServiceProvider);
+    }
     setRawServiceProvider(newServiceProvider);
   }, []);
 
@@ -177,6 +187,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       handleShowHelp,
     }),
     [
+      appVersion,
       mode,
       appVersion,
       error,

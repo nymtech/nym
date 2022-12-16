@@ -8,6 +8,7 @@ use std::{
     time::Duration,
 };
 
+use nymsphinx::chunking::fragment::Fragment;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time;
 
@@ -21,18 +22,42 @@ const OLDEST_LANE_SET_SIZE: usize = 4;
 // As a way of prune connections we also check for timeouts.
 const MSG_CONSIDERED_STALE_AFTER_SECS: u64 = 10 * 60;
 
-#[derive(Default)]
-pub(crate) struct TransmissionBuffer {
-    buffer: HashMap<TransmissionLane, LaneBufferEntry>,
+pub(crate) trait SizedData {
+    fn data_size(&self) -> usize;
 }
 
-impl TransmissionBuffer {
+impl SizedData for RealMessage {
+    fn data_size(&self) -> usize {
+        self.mix_packet.sphinx_packet().len()
+    }
+}
+
+impl SizedData for Fragment {
+    fn data_size(&self) -> usize {
+        // note that raw `Fragment` is smaller than sphinx packet payload
+        // as it doesn't include surb-ack or the [shared] key materials
+        self.payload_size()
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct TransmissionBuffer<T> {
+    buffer: HashMap<TransmissionLane, LaneBufferEntry<T>>,
+}
+
+impl<T> TransmissionBuffer<T> {
+    pub(crate) fn new() -> Self {
+        TransmissionBuffer {
+            buffer: HashMap::new(),
+        }
+    }
+
     #[allow(unused)]
     pub(crate) fn is_empty(&self) -> bool {
         self.buffer.is_empty()
     }
 
-    pub(crate) fn remove(&mut self, lane: &TransmissionLane) -> Option<LaneBufferEntry> {
+    pub(crate) fn remove(&mut self, lane: &TransmissionLane) -> Option<LaneBufferEntry<T>> {
         self.buffer.remove(lane)
     }
 
@@ -63,14 +88,17 @@ impl TransmissionBuffer {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn total_size_in_bytes(&self) -> usize {
+    pub(crate) fn total_size_in_bytes(&self) -> usize
+    where
+        T: SizedData,
+    {
         self.buffer
             .values()
             .map(|lane_buffer_entry| {
                 lane_buffer_entry
-                    .real_messages
+                    .items
                     .iter()
-                    .map(|real_message| real_message.mix_packet.sphinx_packet().len())
+                    .map(|item| item.data_size())
                     .sum::<usize>()
             })
             .sum()
@@ -92,7 +120,7 @@ impl TransmissionBuffer {
             .collect()
     }
 
-    pub(crate) fn store(&mut self, lane: &TransmissionLane, real_messages: Vec<RealMessage>) {
+    pub(crate) fn store(&mut self, lane: &TransmissionLane, real_messages: Vec<T>) {
         if let Some(lane_buffer_entry) = self.buffer.get_mut(lane) {
             lane_buffer_entry.append(real_messages);
         } else {
@@ -127,7 +155,7 @@ impl TransmissionBuffer {
         }
     }
 
-    fn pop_front_from_lane(&mut self, lane: &TransmissionLane) -> Option<RealMessage> {
+    fn pop_front_from_lane(&mut self, lane: &TransmissionLane) -> Option<T> {
         let real_msgs_queued = self.buffer.get_mut(lane)?;
         let real_next = real_msgs_queued.pop_front()?;
         real_msgs_queued.messages_transmitted += 1;
@@ -137,7 +165,7 @@ impl TransmissionBuffer {
         Some(real_next)
     }
 
-    pub(crate) fn pop_next_message_at_random(&mut self) -> Option<(TransmissionLane, RealMessage)> {
+    pub(crate) fn pop_next_message_at_random(&mut self) -> Option<(TransmissionLane, T)> {
         if self.buffer.is_empty() {
             return None;
         }
@@ -171,8 +199,8 @@ impl TransmissionBuffer {
     }
 }
 
-pub(crate) struct LaneBufferEntry {
-    pub real_messages: VecDeque<RealMessage>,
+pub(crate) struct LaneBufferEntry<T> {
+    pub items: VecDeque<T>,
     pub messages_transmitted: usize,
     #[cfg(not(target_arch = "wasm32"))]
     pub time_for_last_activity: time::Instant,
@@ -180,26 +208,26 @@ pub(crate) struct LaneBufferEntry {
     pub time_for_last_activity: wasm_timer::Instant,
 }
 
-impl LaneBufferEntry {
-    fn new(real_messages: Vec<RealMessage>) -> Self {
+impl<T> LaneBufferEntry<T> {
+    fn new(real_messages: Vec<T>) -> Self {
         LaneBufferEntry {
-            real_messages: real_messages.into(),
+            items: real_messages.into(),
             messages_transmitted: 0,
             time_for_last_activity: get_time_now(),
         }
     }
 
-    fn append(&mut self, real_messages: Vec<RealMessage>) {
-        self.real_messages.append(&mut real_messages.into());
+    fn append(&mut self, real_messages: Vec<T>) {
+        self.items.append(&mut real_messages.into());
         self.time_for_last_activity = get_time_now();
     }
 
-    fn pop_front(&mut self) -> Option<RealMessage> {
-        self.real_messages.pop_front()
+    fn pop_front(&mut self) -> Option<T> {
+        self.items.pop_front()
     }
 
     fn is_small(&self) -> bool {
-        self.real_messages.len() < 100
+        self.items.len() < 100
     }
 
     fn is_stale(&self) -> bool {
@@ -208,10 +236,10 @@ impl LaneBufferEntry {
     }
 
     fn len(&self) -> usize {
-        self.real_messages.len()
+        self.items.len()
     }
 
     fn is_empty(&self) -> bool {
-        self.real_messages.is_empty()
+        self.items.is_empty()
     }
 }

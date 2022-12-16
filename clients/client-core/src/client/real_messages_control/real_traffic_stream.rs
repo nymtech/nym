@@ -135,7 +135,7 @@ where
 
     /// Buffer containing all incoming real messages keyed by transmission lane, that we will send
     /// out to the mixnet.
-    transmission_buffer: TransmissionBuffer,
+    transmission_buffer: TransmissionBuffer<RealMessage>,
 
     /// Incoming channel for being notified of closed connections, so that we can close lanes
     /// corresponding to connections. To avoid sending traffic unnecessary
@@ -207,7 +207,7 @@ where
             real_receiver,
             rng,
             topology_access,
-            transmission_buffer: Default::default(),
+            transmission_buffer: TransmissionBuffer::new(),
             client_connection_rx,
             lane_queue_lengths,
         }

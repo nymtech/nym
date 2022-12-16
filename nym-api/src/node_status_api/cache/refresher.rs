@@ -1,4 +1,4 @@
-use super::NodeStatusCache;
+use super::{helpers::get_performance_from_storage, NodeStatusCache};
 use crate::{
     contract_cache::cache::ValidatorCache,
     node_status_api::{
@@ -199,10 +199,11 @@ impl NodeStatusCacheRefresher {
 
             // If the performance can't be obtained, because the nym-api was not started with
             // the monitoring (and hence, storage), then reward estimates will be all zero
-            let performance = self
-                .get_performance_from_storage(mixnode.mix_id(), current_interval)
-                .await
-                .unwrap_or_default();
+
+            let performance =
+                get_performance_from_storage(&self.storage, mixnode.mix_id(), current_interval)
+                    .await
+                    .unwrap_or_default();
 
             let rewarded_set_status = rewarded_set.get(&mixnode.mix_id()).copied();
 

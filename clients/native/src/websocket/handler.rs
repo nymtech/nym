@@ -121,12 +121,8 @@ impl Handler {
             .expect("InputMessageReceiver has stopped receiving!");
 
         // Only reply back with a `LaneQueueLength` if the sender providided a connection id
-        let connection_id = match lane {
-            TransmissionLane::General
-            | TransmissionLane::ReplySurbRequest
-            | TransmissionLane::Retransmission
-            | TransmissionLane::AdditionalReplySurbs => return None,
-            TransmissionLane::ConnectionId(id) => id,
+        let TransmissionLane::ConnectionId(connection_id) = lane else {
+          return None
         };
 
         // on receiving a send, we reply back the current lane queue length for that connection id.
@@ -168,12 +164,8 @@ impl Handler {
             .expect("InputMessageReceiver has stopped receiving!");
 
         // Only reply back with a `LaneQueueLength` if the sender providided a connection id
-        let connection_id = match lane {
-            TransmissionLane::General
-            | TransmissionLane::ReplySurbRequest
-            | TransmissionLane::Retransmission
-            | TransmissionLane::AdditionalReplySurbs => return None,
-            TransmissionLane::ConnectionId(id) => id,
+        let TransmissionLane::ConnectionId(connection_id) = lane else {
+          return None
         };
 
         // on receiving a send, we reply back the current lane queue length for that connection id.
@@ -211,12 +203,8 @@ impl Handler {
             .expect("InputMessageReceiver has stopped receiving!");
 
         // Only reply back with a `LaneQueueLength` if the sender providided a connection id
-        let connection_id = match lane {
-            TransmissionLane::General
-            | TransmissionLane::ReplySurbRequest
-            | TransmissionLane::Retransmission
-            | TransmissionLane::AdditionalReplySurbs => return None,
-            TransmissionLane::ConnectionId(id) => id,
+        let TransmissionLane::ConnectionId(connection_id) = lane else {
+          return None
         };
 
         // on receiving a send, we reply back the current lane queue length for that connection id.

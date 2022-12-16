@@ -14,6 +14,7 @@ export type ConfirmationDetailProps = {
 export const ConfirmationDetailsModal = ({
   title,
   subtitle,
+  children,
   txUrl,
   status,
   onClose,
@@ -23,6 +24,7 @@ export const ConfirmationDetailsModal = ({
   onClose: () => void;
   sx?: SxProps;
   backdropProps?: object;
+  children?: React.ReactNode;
 }) => {
   if (status === 'error') {
     <ErrorModal open message={subtitle} onClose={onClose} />;
@@ -45,6 +47,7 @@ export const ConfirmationDetailsModal = ({
           {title}
         </Typography>
         <Typography>{subtitle}</Typography>
+        {children}
         {txUrl && <Link href={txUrl} target="_blank" sx={{ ml: 1 }} text="View on blockchain" />}
       </Stack>
     </ConfirmationModal>

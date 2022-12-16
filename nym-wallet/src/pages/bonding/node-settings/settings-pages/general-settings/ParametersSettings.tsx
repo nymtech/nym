@@ -18,7 +18,6 @@ import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField'
 import { add, format, fromUnixTime } from 'date-fns';
 import { isMixnode } from 'src/types';
 import {
-  getCurrentInterval,
   getPendingIntervalEvents,
   simulateUpdateMixnodeCostParams,
   simulateVestingUpdateMixnodeCostParams,
@@ -35,6 +34,7 @@ import { AppContext } from 'src/context';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
+import { getIntervalAsDate } from 'src/utils';
 
 export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode }): JSX.Element => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
@@ -63,27 +63,9 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
     defaultValues,
   });
 
-  const getIntervalAsDate = async () => {
-    const interval = await getCurrentInterval();
-    const secondsToNextInterval =
-      Number(interval.epochs_in_interval - interval.current_epoch_id) * Number(interval.epoch_length_seconds);
-
-    setIntervalTime(
-      format(
-        add(new Date(), {
-          seconds: secondsToNextInterval,
-        }),
-        'MM/dd/yyyy HH:mm',
-      ),
-    );
-    setNextEpoch(
-      format(
-        add(fromUnixTime(Number(interval.current_epoch_start_unix)), {
-          seconds: Number(interval.epoch_length_seconds),
-        }),
-        'HH:mm',
-      ),
-    );
+  const getCurrentInterval = async () => {
+    const { nextEpoch } = await getIntervalAsDate();
+    setNextEpoch(nextEpoch);
   };
 
   const getPendingEvents = async () => {
@@ -107,7 +89,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
   };
 
   useEffect(() => {
-    getIntervalAsDate();
+    getCurrentInterval();
     getPendingEvents();
   }, []);
 

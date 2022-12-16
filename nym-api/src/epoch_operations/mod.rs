@@ -14,8 +14,8 @@
 
 use crate::contract_cache::cache::ValidatorCache;
 use crate::nyxd::Client;
-use crate::storage::models::RewardingReport;
-use crate::storage::NymApiStorage;
+use crate::support::storage::models::RewardingReport;
+use crate::support::storage::NymApiStorage;
 use mixnet_contract_common::families::FamilyHead;
 use mixnet_contract_common::{
     reward_params::Performance, CurrentIntervalResponse, ExecuteMsg, Interval, MixId,

@@ -1,3 +1,4 @@
+use crate::support::caching::Cache;
 use data::ValidatorCacheData;
 use mixnet_contract_common::{
     families::FamilyHead, GatewayBond, IdentityKey, Interval, MixId, MixNodeBond, MixNodeDetails,
@@ -15,8 +16,6 @@ use std::{
 };
 use tokio::sync::RwLock;
 use tokio::time;
-
-use crate::support::caching::Cache;
 
 mod data;
 pub(crate) mod refresher;

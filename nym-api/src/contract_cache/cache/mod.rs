@@ -16,7 +16,7 @@ use std::{
 use tokio::sync::RwLock;
 use tokio::time;
 
-use crate::caching_support::Cache;
+use crate::support::caching::Cache;
 
 mod data;
 pub(crate) mod refresher;

@@ -1,4 +1,4 @@
-use crate::caching_support::Cache;
+use crate::support::caching::Cache;
 
 pub(crate) struct CirculatingSupplyCacheData {
     pub(crate) circulating_supply: Cache<String>,

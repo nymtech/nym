@@ -1,6 +1,5 @@
-use std::ops::Deref;
-
 use serde::Serialize;
+use std::ops::Deref;
 use time::OffsetDateTime;
 
 #[derive(Default, Serialize, Clone)]

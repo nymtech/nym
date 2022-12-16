@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::caching_support::Cache;
+use crate::support::caching::Cache;
 
 use self::data::NodeStatusCacheData;
 use self::inclusion_probabilities::InclusionProbabilities;

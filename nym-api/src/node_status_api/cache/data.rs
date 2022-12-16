@@ -1,6 +1,6 @@
 use nym_api_requests::models::MixNodeBondAnnotated;
 
-use crate::caching_support::Cache;
+use crate::support::caching::Cache;
 
 use super::inclusion_probabilities::InclusionProbabilities;
 

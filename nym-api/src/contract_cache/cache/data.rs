@@ -5,7 +5,7 @@ use mixnet_contract_common::{
     RewardingParams,
 };
 
-use super::Cache;
+use crate::support::caching::Cache;
 
 pub(crate) struct ValidatorCacheData {
     pub(crate) mixnodes: Cache<Vec<MixNodeDetails>>,

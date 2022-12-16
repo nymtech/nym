@@ -38,6 +38,9 @@ export const updateMixnodeCostParams = async (newCosts: MixNodeCostParams, fee?:
 export const updateMixnodeConfig = async (update: MixNodeConfigUpdate, fee?: Fee) =>
   invokeWrapper<TransactionExecuteResult>('update_mixnode_config', { update, fee });
 
+export const updateGatewayConfig = async (update: any, fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('update_gateway_config', { update, fee });
+
 export const send = async (args: { amount: DecCoin; address: string; memo: string; fee?: Fee }) =>
   invokeWrapper<SendTxResult>('send', args);
 

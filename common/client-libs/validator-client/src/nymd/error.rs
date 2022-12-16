@@ -2,16 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nymd::cosmwasm_client::types::ContractCodeId;
-use cosmrs::tendermint::{abci, block};
-use cosmrs::{bip32, tx, AccountId};
-use std::io;
-use std::time::Duration;
+use cosmrs::{
+    bip32,
+    rpc::endpoint::abci_query::AbciQuery,
+    tendermint::{
+        abci::{self, Code as AbciCode},
+        block,
+    },
+    tx, AccountId,
+};
 use thiserror::Error;
 
-pub use cosmrs::rpc::error::{
-    Error as TendermintRpcError, ErrorDetail as TendermintRpcErrorDetail,
+use std::{io, time::Duration};
+
+pub use cosmrs::rpc::{
+    error::{Error as TendermintRpcError, ErrorDetail as TendermintRpcErrorDetail},
+    response_error::{Code, ResponseError},
 };
-pub use cosmrs::rpc::response_error::{Code, ResponseError};
 
 #[derive(Debug, Error)]
 pub enum NymdError {
@@ -110,8 +117,12 @@ pub enum NymdError {
     #[error("Failed to estimate gas price for the transaction")]
     GasEstimationFailure,
 
-    #[error("Abci query failed with code {0} - {1}")]
-    AbciError(u32, abci::Log),
+    #[error("Abci query failed with code {code} - {log}")]
+    AbciError {
+        code: u32,
+        log: abci::Log,
+        pretty_log: Option<String>,
+    },
 
     #[error("Unsupported account type: {type_url}")]
     UnsupportedAccountType { type_url: String },
@@ -133,6 +144,32 @@ pub enum NymdError {
 
     #[error("Account had an unexpected bech32 prefix. Expected: {expected}, got: {got}")]
     UnexpectedBech32Prefix { got: String, expected: String },
+}
+
+// The purpose of parsing the abci query result is that we want to generate the `pretty_log` if
+// possible.
+pub fn parse_abci_query_result(query_result: &AbciQuery) -> Result<(), NymdError> {
+    match query_result.code {
+        AbciCode::Ok => Ok(()),
+        AbciCode::Err(code) => Err(NymdError::AbciError {
+            code,
+            log: query_result.log.clone(),
+            pretty_log: try_parse_abci_log(&query_result.log),
+        }),
+    }
+}
+
+// Some of the error strings returned by the query are a bit too technical to present to the
+// enduser. So we special case some commonly encountered errors.
+fn try_parse_abci_log(log: &abci::Log) -> Option<String> {
+    if log
+        .value()
+        .contains("Maximum amount of locked coins has already been pledged")
+    {
+        Some("Maximum amount of locked tokens has alredy been used. You can only use up tp 10% of your locked tokens for bonding and delegating.".to_string())
+    } else {
+        None
+    }
 }
 
 impl NymdError {

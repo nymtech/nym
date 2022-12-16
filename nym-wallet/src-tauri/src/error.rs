@@ -24,9 +24,10 @@ pub enum BackendError {
         #[from]
         source: tendermint_rpc::Error,
     },
-    #[error("{source}")]
+    #[error("{parsed_error}")]
     NymdError {
-        #[from]
+        parsed_error: String,
+        #[source]
         source: NymdError,
     },
     #[error("{source}")]
@@ -128,6 +129,31 @@ impl Serialize for BackendError {
         S: Serializer,
     {
         serializer.collect_str(self)
+    }
+}
+
+impl From<NymdError> for BackendError {
+    fn from(source: NymdError) -> Self {
+        match source {
+            NymdError::AbciError {
+                code: _,
+                log: _,
+                ref pretty_log,
+            } => match pretty_log {
+                Some(pretty_log) => Self::NymdError {
+                    parsed_error: pretty_log.to_string(),
+                    source,
+                },
+                None => Self::NymdError {
+                    parsed_error: source.to_string(),
+                    source,
+                },
+            },
+            nymd_error => Self::NymdError {
+                parsed_error: nymd_error.to_string(),
+                source: nymd_error,
+            },
+        }
     }
 }
 

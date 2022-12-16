@@ -17,7 +17,7 @@ use task::TaskClient;
 use tokio::sync::watch;
 use tokio::time;
 
-// Long running task responsible of keeping the node status cache up-to-date.
+// Long running task responsible for keeping the node status cache up-to-date.
 pub struct NodeStatusCacheRefresher {
     // Main stored data
     cache: NodeStatusCache,
@@ -46,7 +46,7 @@ impl NodeStatusCacheRefresher {
         }
     }
 
-    /// Runs the cache refresher task.
+    /// Runs the node status cache refresher task.
     pub async fn run(&mut self, mut shutdown: TaskClient) {
         let mut fallback_interval = time::interval(self.fallback_caching_interval);
         while !shutdown.is_shutdown() {
@@ -112,7 +112,6 @@ impl NodeStatusCacheRefresher {
         let mixnode_details = self.contract_cache.mixnodes().await;
         let interval_reward_params = self.contract_cache.interval_reward_params().await;
         let current_interval = self.contract_cache.current_interval().await;
-
         let rewarded_set = self.contract_cache.rewarded_set().await;
         let active_set = self.contract_cache.active_set().await;
         let mix_to_family = self.contract_cache.mix_to_family().await;
@@ -147,6 +146,7 @@ impl NodeStatusCacheRefresher {
         let (rewarded_set, active_set) =
             split_into_active_and_rewarded_set(&mixnodes_annotated, &rewarded_set_node_status);
 
+        // Update the cache
         self.cache
             .update(
                 mixnodes_annotated,

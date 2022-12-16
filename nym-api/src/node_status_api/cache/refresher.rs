@@ -13,8 +13,8 @@ use crate::{
     support::caching::CacheNotification,
 };
 use mixnet_contract_common::{
-    families::FamilyHead, reward_params::Performance, IdentityKey, Interval, MixId, MixNodeDetails,
-    RewardedSetNodeStatus, RewardingParams,
+    families::FamilyHead, IdentityKey, Interval, MixId, MixNodeDetails, RewardedSetNodeStatus,
+    RewardingParams,
 };
 use nym_api_requests::models::MixNodeBondAnnotated;
 use std::{collections::HashMap, time::Duration};
@@ -157,22 +157,6 @@ impl NodeStatusCacheRefresher {
             )
             .await;
         Ok(())
-    }
-
-    async fn get_performance_from_storage(
-        &self,
-        mix_id: MixId,
-        epoch: Interval,
-    ) -> Option<Performance> {
-        self.storage
-            .as_ref()?
-            .get_average_mixnode_uptime_in_the_last_24hrs(
-                mix_id,
-                epoch.current_epoch_end_unix_timestamp(),
-            )
-            .await
-            .ok()
-            .map(Into::into)
     }
 
     async fn annotate_node_with_details(

@@ -13,7 +13,7 @@
 //    and hence this might be a good place for it.
 
 use crate::contract_cache::cache::ValidatorCache;
-use crate::nyxd_client::Client;
+use crate::nyxd::Client;
 use crate::storage::models::RewardingReport;
 use crate::storage::NymApiStorage;
 use mixnet_contract_common::families::FamilyHead;

@@ -1,5 +1,5 @@
 use super::ValidatorCache;
-use crate::nyxd_client::Client;
+use crate::nyxd::Client;
 use anyhow::Result;
 use mixnet_contract_common::{MixId, MixNodeDetails, RewardedSetNodeStatus};
 use std::{collections::HashMap, sync::atomic::Ordering, time::Duration};

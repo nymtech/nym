@@ -21,7 +21,7 @@ use crate::network_monitor::monitor::receiver::{
 use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::monitor::Monitor;
-use crate::nyxd_client::Client;
+use crate::nyxd::Client;
 use crate::storage::NymApiStorage;
 
 pub(crate) mod chunker;

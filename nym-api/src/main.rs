@@ -11,7 +11,6 @@ use crate::epoch_operations::RewardedSetUpdater;
 use crate::network_monitor::NetworkMonitorBuilder;
 use crate::node_status_api::cache::refresher::NodeStatusCacheRefresher;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
-use crate::nyxd_client::Client;
 use crate::storage::NymApiStorage;
 use ::config::defaults::setup_env;
 use ::config::defaults::var_names::{MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
@@ -55,7 +54,7 @@ pub(crate) mod contract_cache;
 mod epoch_operations;
 mod network_monitor;
 mod node_status_api;
-pub(crate) mod nyxd_client;
+pub(crate) mod nyxd;
 pub(crate) mod storage;
 mod swagger;
 
@@ -243,7 +242,7 @@ fn setup_liftoff_notify(notify: Arc<Notify>) -> AdHoc {
 
 fn setup_network_monitor<'a>(
     config: &'a Config,
-    _nyxd_client: Client<SigningNyxdClient>,
+    _nyxd_client: nyxd::Client<SigningNyxdClient>,
     system_version: &str,
     rocket: &Rocket<Ignite>,
 ) -> Option<NetworkMonitorBuilder<'a>> {
@@ -281,7 +280,7 @@ async fn setup_rocket(
     config: &Config,
     _mix_denom: String,
     liftoff_notify: Arc<Notify>,
-    _nyxd_client: Client<SigningNyxdClient>,
+    _nyxd_client: nyxd::Client<SigningNyxdClient>,
     #[cfg(feature = "coconut")] coconut_keypair: coconut::keypair::KeyPair,
 ) -> Result<Rocket<Ignite>> {
     let openapi_settings = rocket_okapi::settings::OpenApiSettings::default();
@@ -407,7 +406,7 @@ async fn run_nym_api(args: ApiArgs) -> Result<()> {
 
     let mix_denom = std::env::var(MIX_DENOM).expect("mix denom not set");
 
-    let signing_nyxd_client = Client::new_signing(&config);
+    let signing_nyxd_client = nyxd::Client::new_signing(&config);
 
     let liftoff_notify = Arc::new(Notify::new());
     // We need a bigger timeout
@@ -480,7 +479,7 @@ async fn run_nym_api(args: ApiArgs) -> Result<()> {
         // Spawn the validator cache refresher.
         // When the network monitor is not enabled, we spawn the validator cache refresher task
         // with just a nyxd client, in contrast to a signing client.
-        let nyxd_client = Client::new_query(&config);
+        let nyxd_client = nyxd::Client::new_query(&config);
         let validator_cache_refresher = ValidatorCacheRefresher::new(
             nyxd_client,
             config.get_caching_interval(),

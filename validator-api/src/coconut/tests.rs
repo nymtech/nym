@@ -282,7 +282,7 @@ impl super::client::Client for DummyClient {
         self.dealer_details.write().unwrap().insert(
             self.validator_address.to_string(),
             DealerDetails {
-                address: Addr::unchecked(&self.validator_address.to_string()),
+                address: Addr::unchecked(self.validator_address.to_string()),
                 bte_public_key_with_proof,
                 announce_address,
                 assigned_index,

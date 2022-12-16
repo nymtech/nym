@@ -76,7 +76,6 @@ impl<T> TransmissionBuffer<T> {
             .collect()
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn total_size(&self) -> usize {
         self.buffer.values().map(LaneBufferEntry::len).sum()
     }

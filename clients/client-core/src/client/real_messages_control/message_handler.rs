@@ -295,19 +295,11 @@ where
             )))
     }
 
-    // the only difference between this method and `try_send_reply_chunks` is that
-    // here we are not creating acks as acks are already in memory waiting to get cleared.
-    // we are only updating their existing delays
-    pub(crate) async fn try_send_retransmission_reply_chunks(
+    pub(crate) async fn send_retransmission_reply_chunks(
         &mut self,
-        fragments: Vec<Fragment>,
-        reply_surbs: Vec<ReplySurb>,
+        prepared_fragments: Vec<PreparedFragment>,
         lane: TransmissionLane,
-    ) -> Result<(), SurbWrappedPreparationError> {
-        let prepared_fragments = self
-            .prepare_reply_chunks_for_sending(fragments.clone(), reply_surbs)
-            .await?;
-
+    ) {
         let mut real_messages = Vec::with_capacity(prepared_fragments.len());
 
         for prepared in prepared_fragments {
@@ -316,7 +308,6 @@ where
         }
 
         self.forward_messages(real_messages, lane).await;
-        Ok(())
     }
 
     pub(crate) async fn try_send_reply_chunks_on_lane(
@@ -494,7 +485,7 @@ where
         Ok(prepared_fragment)
     }
 
-    async fn prepare_reply_chunks_for_sending(
+    pub(crate) async fn prepare_reply_chunks_for_sending(
         &mut self,
         fragments: Vec<Fragment>,
         reply_surbs: Vec<ReplySurb>,

@@ -360,23 +360,31 @@ where
 
         let to_send_vec = to_take.iter().map(|ack| ack.fragment_data()).collect();
 
-        if let Err(err) = self
+        let prepared_fragments = match self
             .message_handler
-            .try_send_retransmission_reply_chunks(
-                to_send_vec,
-                surbs_for_reply,
-                TransmissionLane::Retransmission,
-            )
+            .prepare_reply_chunks_for_sending(to_send_vec, surbs_for_reply)
             .await
         {
-            let err = err.return_unused_surbs(self.full_reply_storage.surbs_storage_ref(), &target);
-            self.re_insert_pending_retransmission(&target, to_take);
+            Ok(prepared) => prepared,
+            Err(err) => {
+                let err =
+                    err.return_unused_surbs(self.full_reply_storage.surbs_storage_ref(), &target);
+                self.re_insert_pending_retransmission(&target, to_take);
 
-            warn!(
-                "failed to clear pending retransmission queue for {:?} - {err}",
-                target
-            );
-        }
+                warn!(
+                    "failed to clear pending retransmission queue for {:?} - {err}",
+                    target
+                );
+                return;
+            }
+        };
+
+        // we can't fail at this point, so drop all references to acks so that timer updates wouldn't blow up
+        drop(to_take);
+
+        self.message_handler
+            .send_retransmission_reply_chunks(prepared_fragments, TransmissionLane::Retransmission)
+            .await;
     }
 
     fn pop_at_most_pending_replies(

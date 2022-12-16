@@ -1,5 +1,9 @@
 # Changelog
 
+## UNRELEASED
+
+- wallet: present some cases of the more technical errors (abci, ..) in a more human readable form.
+
 ## [nym-wallet-v1.1.3](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.3) (2022-12-13)
 
 - wallet: improved unbond screen.

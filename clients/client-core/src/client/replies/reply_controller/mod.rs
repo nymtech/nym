@@ -631,6 +631,10 @@ where
                 return;
             }
         }
+        // make sure that if we didn't find that lane, we reply with 0
+        if response_channel.send(0).is_err() {
+            error!("the requester for lane queue length has dropped the response channel!")
+        }
     }
 
     async fn handle_request(&mut self, request: ReplyControllerMessage) {

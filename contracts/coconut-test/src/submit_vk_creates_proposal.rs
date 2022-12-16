@@ -71,7 +71,6 @@ fn dkg_proposal() {
     let msg = DkgInstantiateMsg {
         group_addr: group_contract_addr.to_string(),
         multisig_addr: multisig_contract_addr.to_string(),
-        admin: Addr::unchecked(OWNER).to_string(),
         mix_denom: TEST_COIN_DENOM.to_string(),
     };
     let coconut_dkg_contract_addr = app
@@ -109,6 +108,7 @@ fn dkg_proposal() {
     .unwrap();
 
     for _ in 0..2 {
+        app.update_block(|block| block.time = block.time.plus_seconds(1000));
         app.execute_contract(
             Addr::unchecked(OWNER),
             coconut_dkg_contract_addr.clone(),
@@ -175,6 +175,7 @@ fn dkg_proposal() {
     .unwrap();
 
     for _ in 0..2 {
+        app.update_block(|block| block.time = block.time.plus_seconds(1000));
         app.execute_contract(
             Addr::unchecked(OWNER),
             coconut_dkg_contract_addr.clone(),

@@ -23,6 +23,9 @@ pub enum ContractError {
     #[error("This sender is already a dealer for the epoch")]
     AlreadyADealer,
 
+    #[error("Too soon to advance epoch state. {0} more seconds until it can be advanced")]
+    EarlyEpochStateAdvancement(u64),
+
     #[error("Epoch hasn't been correctly initialised!")]
     EpochNotInitialised,
 

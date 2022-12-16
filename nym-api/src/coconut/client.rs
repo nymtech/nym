@@ -4,7 +4,7 @@
 use crate::coconut::error::Result;
 use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
 use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch};
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use contracts_common::dealings::ContractSafeBytes;
 use cw3::ProposalResponse;
@@ -22,7 +22,7 @@ pub trait Client {
         &self,
         blinded_serial_number: String,
     ) -> Result<SpendCredentialResponse>;
-    async fn get_current_epoch_state(&self) -> Result<EpochState>;
+    async fn get_current_epoch(&self) -> Result<Epoch>;
     async fn get_current_epoch_threshold(&self) -> Result<Option<Threshold>>;
     async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse>;
     async fn get_current_dealers(&self) -> Result<Vec<DealerDetails>>;
@@ -31,6 +31,7 @@ pub trait Client {
     async fn vote_proposal(&self, proposal_id: u64, vote_yes: bool, fee: Option<Fee>)
         -> Result<()>;
     async fn execute_proposal(&self, proposal_id: u64) -> Result<()>;
+    async fn advance_epoch_state(&self) -> Result<()>;
     async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,

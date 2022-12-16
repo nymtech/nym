@@ -2,7 +2,11 @@ use super::NodeStatusCache;
 use crate::{
     contract_cache::cache::ValidatorCache,
     node_status_api::{
-        cache::{inclusion_probabilities::InclusionProbabilities, NodeStatusCacheError},
+        cache::{
+            helpers::{split_into_active_and_rewarded_set, to_rewarded_set_node_status},
+            inclusion_probabilities::InclusionProbabilities,
+            NodeStatusCacheError,
+        },
         reward_estimate::{compute_apy_from_reward, compute_reward_estimate},
     },
     storage::NymApiStorage,
@@ -229,41 +233,4 @@ impl NodeStatusCacheRefresher {
         }
         annotated
     }
-}
-
-fn to_rewarded_set_node_status(
-    rewarded_set: &[MixNodeDetails],
-    active_set: &[MixNodeDetails],
-) -> HashMap<MixId, RewardedSetNodeStatus> {
-    let mut rewarded_set_node_status: HashMap<MixId, RewardedSetNodeStatus> = rewarded_set
-        .iter()
-        .map(|m| (m.mix_id(), RewardedSetNodeStatus::Standby))
-        .collect();
-    for mixnode in active_set {
-        *rewarded_set_node_status
-            .get_mut(&mixnode.mix_id())
-            .expect("All active nodes are rewarded nodes") = RewardedSetNodeStatus::Active;
-    }
-    rewarded_set_node_status
-}
-
-fn split_into_active_and_rewarded_set(
-    mixnodes_annotated: &[MixNodeBondAnnotated],
-    rewarded_set_node_status: &HashMap<u32, RewardedSetNodeStatus>,
-) -> (Vec<MixNodeBondAnnotated>, Vec<MixNodeBondAnnotated>) {
-    let rewarded_set: Vec<_> = mixnodes_annotated
-        .iter()
-        .filter(|mixnode| rewarded_set_node_status.get(&mixnode.mix_id()).is_some())
-        .cloned()
-        .collect();
-    let active_set: Vec<_> = rewarded_set
-        .iter()
-        .filter(|mixnode| {
-            rewarded_set_node_status
-                .get(&mixnode.mix_id())
-                .map_or(false, RewardedSetNodeStatus::is_active)
-        })
-        .cloned()
-        .collect();
-    (rewarded_set, active_set)
 }

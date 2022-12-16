@@ -1,0 +1,102 @@
+use std::collections::HashMap;
+
+use mixnet_contract_common::{MixId, MixNodeDetails, RewardedSetNodeStatus};
+use nym_api_requests::models::MixNodeBondAnnotated;
+
+// use super::storage;
+
+pub(super) fn to_rewarded_set_node_status(
+    rewarded_set: &[MixNodeDetails],
+    active_set: &[MixNodeDetails],
+) -> HashMap<MixId, RewardedSetNodeStatus> {
+    let mut rewarded_set_node_status: HashMap<MixId, RewardedSetNodeStatus> = rewarded_set
+        .iter()
+        .map(|m| (m.mix_id(), RewardedSetNodeStatus::Standby))
+        .collect();
+    for mixnode in active_set {
+        *rewarded_set_node_status
+            .get_mut(&mixnode.mix_id())
+            .expect("All active nodes are rewarded nodes") = RewardedSetNodeStatus::Active;
+    }
+    rewarded_set_node_status
+}
+
+pub(super) fn split_into_active_and_rewarded_set(
+    mixnodes_annotated: &[MixNodeBondAnnotated],
+    rewarded_set_node_status: &HashMap<u32, RewardedSetNodeStatus>,
+) -> (Vec<MixNodeBondAnnotated>, Vec<MixNodeBondAnnotated>) {
+    let rewarded_set: Vec<_> = mixnodes_annotated
+        .iter()
+        .filter(|mixnode| rewarded_set_node_status.get(&mixnode.mix_id()).is_some())
+        .cloned()
+        .collect();
+    let active_set: Vec<_> = rewarded_set
+        .iter()
+        .filter(|mixnode| {
+            rewarded_set_node_status
+                .get(&mixnode.mix_id())
+                .map_or(false, RewardedSetNodeStatus::is_active)
+        })
+        .cloned()
+        .collect();
+    (rewarded_set, active_set)
+}
+
+// pub(super) async fn annotate_node_with_details(
+//     storage: &Option<storage::NymApiStorage>,
+//     mixnodes: Vec<MixNodeDetails>,
+//     interval_reward_params: RewardingParams,
+//     current_interval: Interval,
+//     rewarded_set: &HashMap<MixId, RewardedSetNodeStatus>,
+//     mix_to_family: Vec<(IdentityKey, FamilyHead)>,
+// ) -> Vec<MixNodeBondAnnotated> {
+//     let mix_to_family = mix_to_family
+//         .into_iter()
+//         .collect::<HashMap<IdentityKey, FamilyHead>>();
+
+//     let mut annotated = Vec::new();
+//     for mixnode in mixnodes {
+//         let stake_saturation = mixnode
+//             .rewarding_details
+//             .bond_saturation(&interval_reward_params);
+
+//         let uncapped_stake_saturation = mixnode
+//             .rewarding_details
+//             .uncapped_bond_saturation(&interval_reward_params);
+
+//         // If the performance can't be obtained, because the nym-api was not started with
+//         // the monitoring (and hence, storage), then reward estimates will be all zero
+//         let performance =
+//             storage::get_performance_from_storage(storage, mixnode.mix_id(), current_interval)
+//                 .await
+//                 .unwrap_or_default();
+
+//         let rewarded_set_status = rewarded_set.get(&mixnode.mix_id()).copied();
+
+//         let reward_estimate = compute_reward_estimate(
+//             &mixnode,
+//             performance,
+//             rewarded_set_status,
+//             interval_reward_params,
+//             current_interval,
+//         );
+
+//         let (estimated_operator_apy, estimated_delegators_apy) =
+//             compute_apy_from_reward(&mixnode, reward_estimate, current_interval);
+
+//         let family = mix_to_family
+//             .get(&mixnode.bond_information.identity().to_string())
+//             .cloned();
+
+//         annotated.push(MixNodeBondAnnotated {
+//             mixnode_details: mixnode,
+//             stake_saturation,
+//             uncapped_stake_saturation,
+//             performance,
+//             estimated_operator_apy,
+//             estimated_delegators_apy,
+//             family,
+//         });
+//     }
+//     annotated
+// }

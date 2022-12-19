@@ -1,24 +1,40 @@
 use std::path::PathBuf;
 
+use examples_common::setup_logging;
 use nym_sdk::mixnet;
 
 #[tokio::main]
 async fn main() {
-    // specify some config options
-    let keys = Some(PathBuf::from("~/.nym/clients/superfoomp"));
-    let config = mixnet::Config { keys };
+    setup_logging();
 
-    let client = mixnet::Client::new(Some(config)); // passing a config allows the user to set values
+    // Specify some config options
+    let config_dir = PathBuf::from("/tmp/mixnet-client");
 
-    // let show_receive = move || println!("got a message from the mixnet: {}", message); // might need to bury this in a struct as a `FnOnce`, see https://stackoverflow.com/questions/41081240/idiomatic-callbacks-in-rust
-    // client.on_receive(show_receive); // have some way to pipe any received info to a function for processing
+    // Setting `KeyMode::Keep` will use existing keys, and existing config, if there is one.
+    // Regardles of `user_chosen_gateway`.
+    let keys = mixnet::KeyPaths::new_from_dir(mixnet::KeyMode::Keep, &config_dir);
 
-    // connect to the mixnet, now we're listening for incoming
-    client.connect_to_mixnet();
+    // Provide key paths for the client to read/write keys to.
+    let mut client = mixnet::Client::new(None, Some(keys)).unwrap();
 
-    // be able to get our client address
-    println!("Our client address is {}", client.nym_address);
+    // Connect to the mixnet, now we're listening for incoming
+    client.connect_to_mixnet().await;
 
-    // send important info up the pipe to a buddy
-    client.send_str("foo.bar@blah", "flappappa");
+    // Be able to get our client address
+    let our_address = client.nym_address().unwrap();
+    println!("Our client nym address is: {our_address}");
+
+    // Send a message throught the mixnet to ourselves
+    client
+        .send_str(&our_address.to_string(), "hello there")
+        .await;
+
+    println!("Waiting for message");
+    if let Some(received) = client.wait_for_messages().await {
+        for r in received {
+            println!("Received: {}", String::from_utf8_lossy(&r.message));
+        }
+    }
+
+    client.disconnect().await;
 }

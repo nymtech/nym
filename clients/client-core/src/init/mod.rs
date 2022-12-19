@@ -6,23 +6,26 @@
 use std::fmt::Display;
 
 use nymsphinx::addressing::{clients::Recipient, nodes::NodeIdentity};
+use rand::rngs::OsRng;
 use serde::Serialize;
 use tap::TapFallible;
 
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
+use url::Url;
 
+use crate::client::key_manager::KeyManager;
 use crate::{
     config::{
         persistence::key_pathfinder::ClientKeyPathfinder, ClientCoreConfigTrait, Config,
         GatewayEndpointConfig,
     },
     error::ClientCoreError,
-    init::helpers::{query_gateway_details, register_with_gateway_and_store_keys},
 };
 
 mod helpers;
 
+/// Struct describing the results of the client initialization procedure.
 #[derive(Debug, Serialize)]
 pub struct InitResults {
     version: String,
@@ -60,6 +63,12 @@ impl Display for InitResults {
     }
 }
 
+/// Create a new set of client keys.
+pub fn new_client_keys() -> KeyManager {
+    let mut rng = OsRng;
+    KeyManager::new(&mut rng)
+}
+
 /// Convenience function for setting up the gateway for a client. Depending on the arguments given
 /// it will do the sensible thing.
 pub async fn setup_gateway<C, T>(
@@ -74,7 +83,7 @@ where
 {
     let id = config.get_id();
     if register_gateway {
-        register_with_gateway(user_chosen_gateway_id, config).await
+        register_with_gateway_and_store(user_chosen_gateway_id, config).await
     } else if let Some(user_chosen_gateway_id) = user_chosen_gateway_id {
         config_gateway_with_existing_keys(user_chosen_gateway_id, config).await
     } else {
@@ -84,25 +93,49 @@ where
 
 /// Get the gateway details by querying the validator-api. Either pick one at random or use
 /// the chosen one if it's among the available ones.
+pub async fn register_with_gateway(
+    key_manager: &mut KeyManager,
+    nym_api_endpoints: Vec<Url>,
+    chosen_gateway_id: Option<String>,
+) -> Result<GatewayEndpointConfig, ClientCoreError> {
+    // Our identity is derived from our key
+    let our_identity = key_manager.identity_keypair();
+
+    // Get the gateway details of the gateway we will use
+    let gateway = helpers::query_gateway_details(nym_api_endpoints, chosen_gateway_id).await?;
+    log::debug!("Querying gateway gives: {}", gateway);
+
+    // Establish connection, authenticate and generate keys for talking with the gateway
+    let shared_keys = helpers::register_with_gateway(&gateway, our_identity).await?;
+    key_manager.insert_gateway_shared_key(shared_keys);
+
+    Ok(gateway.into())
+}
+
+/// Get the gateway details by querying the validator-api. Either pick one at random or use
+/// the chosen one if it's among the available ones.
 /// Saves keys to disk, specified by the paths in `config`.
-pub async fn register_with_gateway<T>(
-    user_chosen_gateway_id: Option<String>,
+pub async fn register_with_gateway_and_store<T>(
+    chosen_gateway_id: Option<String>,
     config: &Config<T>,
 ) -> Result<GatewayEndpointConfig, ClientCoreError>
 where
     T: NymConfig,
 {
     println!("Configuring gateway");
-    let gateway =
-        query_gateway_details(config.get_nym_api_endpoints(), user_chosen_gateway_id).await?;
-    log::debug!("Querying gateway gives: {}", gateway);
+    let mut key_manager = new_client_keys();
 
-    // Registering with gateway by setting up and writing shared keys to disk
-    log::trace!("Registering gateway");
-    register_with_gateway_and_store_keys(gateway.clone(), config).await?;
+    let gateway = register_with_gateway(
+        &mut key_manager,
+        config.get_nym_api_endpoints(),
+        chosen_gateway_id,
+    )
+    .await?;
+
+    helpers::store_keys(&key_manager, config)?;
     println!("Saved all generated keys");
 
-    Ok(gateway.into())
+    Ok(gateway)
 }
 
 /// Set the gateway using the usual procedue of querying the validator-api, but don't register or
@@ -117,8 +150,11 @@ where
     T: NymConfig,
 {
     println!("Using gateway provided by user, keeping existing keys");
-    let gateway =
-        query_gateway_details(config.get_nym_api_endpoints(), Some(user_chosen_gateway_id)).await?;
+    let gateway = helpers::query_gateway_details(
+        config.get_nym_api_endpoints(),
+        Some(user_chosen_gateway_id),
+    )
+    .await?;
     log::debug!("Querying gateway gives: {}", gateway);
     Ok(gateway.into())
 }
@@ -141,6 +177,20 @@ where
             );
             ClientCoreError::CouldNotLoadExistingGatewayConfiguration(err)
         })
+}
+
+/// Get the full client address from the client keys and the gateway identity
+pub fn get_client_address(
+    key_manager: &KeyManager,
+    gateway_config: &GatewayEndpointConfig,
+) -> Recipient {
+    Recipient::new(
+        *key_manager.identity_keypair().public_key(),
+        *key_manager.encryption_keypair().public_key(),
+        // TODO: below only works under assumption that gateway address == gateway id
+        // (which currently is true)
+        NodeIdentity::from_base58_string(&gateway_config.gateway_id).unwrap(),
+    )
 }
 
 /// Get the client address by loading the keys from stored files.

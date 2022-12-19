@@ -6,10 +6,12 @@ use async_trait::async_trait;
 use std::error::Error;
 use thiserror::Error;
 
-#[cfg(target_arch = "wasm32")]
+//#[cfg(target_arch = "wasm32")]
+//#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 pub mod browser_backend;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
+//#[cfg(target_arch = "wasm32")]
 pub mod fs_backend;
 
 // #[cfg(all(test, feature = "std"))]
@@ -19,10 +21,11 @@ pub mod fs_backend;
 #[error("no information provided")]
 pub struct UndefinedError;
 
+#[derive(Debug)]
 pub struct Empty {
     // we need to keep 'basic' metadata here to "load" the CombinedReplyStorage
-    min_surb_threshold: usize,
-    max_surb_threshold: usize,
+    pub min_surb_threshold: usize,
+    pub max_surb_threshold: usize,
 }
 
 #[async_trait]

@@ -1,22 +1,27 @@
+use examples_common::setup_logging;
 use nym_sdk::mixnet;
 
 #[tokio::main]
 async fn main() {
-    // here's what I'd actually like to write
-    let client = mixnet::Client::new(None); // passing no config makes the client fire up an ephemeral session and figure shit out on its own
+    setup_logging();
 
-    // let show_receive = move || println!("got a message from the mixnet: {}", message); // might need to bury this in a struct as a `FnMut`, see https://stackoverflow.com/questions/41081240/idiomatic-callbacks-in-rust
-    // connect to the mixnet, now we're listening for incoming
-    client.connect_to_mixnet();
+    // Passing no config makes the client fire up an ephemeral session and figure shit out on its own
+    let mut client = mixnet::Client::new(None, None).unwrap();
 
-    // be able to get our client address
-    println!("Our client address is {}", client.nym_address);
+    // Connect to the mixnet, now we're listening for incoming
+    client.connect_to_mixnet().await;
 
-    // send important string info up the pipe to a buddy
-    client.send_str("foo.bar@blah", "flappappa");
+    // Be able to get our client address
+    let our_address = client.nym_address().unwrap();
+    println!("Our client nym address is: {our_address}");
 
-    // send some bytes to a buddy
-    client.send_bytes("foo.bar@blah", "flappappa".as_bytes().to_vec());
+    // Send a message throught the mixnet to ourselves
+    client
+        .send_str(&our_address.to_string(), "hello there")
+        .await;
 
-    
+    println!("Waiting for message");
+    client
+        .on_messages(|msg| println!("Received: {}", String::from_utf8_lossy(&msg.message)))
+        .await;
 }

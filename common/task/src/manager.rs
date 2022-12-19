@@ -208,7 +208,7 @@ pub struct TaskClient {
 
 impl TaskClient {
     #[cfg(not(target_arch = "wasm32"))]
-    const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
+    const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(1);
 
     fn new(
         notify: watch::Receiver<()>,
@@ -300,8 +300,8 @@ impl TaskClient {
                 has_changed
             }
             Err(err) => {
-                log::debug!("Polling shutdown failed: {err}");
-                log::debug!("Assuming this means we should shutdown...");
+                log::error!("Polling shutdown failed: {err}");
+                log::error!("Assuming this means we should shutdown...");
                 true
             }
         }

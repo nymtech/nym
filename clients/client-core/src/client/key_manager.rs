@@ -17,6 +17,8 @@ use std::sync::Arc;
 // use the old key after new one was issued.
 
 // Remember that Arc<T> has Deref implementation for T
+// WIP(JON): let's try not to have the clone
+#[derive(Clone)]
 pub struct KeyManager {
     /// identity key associated with the client instance.
     identity_keypair: Arc<identity::KeyPair>,
@@ -57,6 +59,20 @@ impl KeyManager {
         }
     }
 
+    pub fn new_from_keys(
+        id_keypair: identity::KeyPair,
+        enc_keypair: encryption::KeyPair,
+        gateway_shared_key: SharedKeys,
+        ack_key: AckKey,
+    ) -> Self {
+        Self {
+            identity_keypair: Arc::new(id_keypair),
+            encryption_keypair: Arc::new(enc_keypair),
+            gateway_shared_key: Some(Arc::new(gateway_shared_key)),
+            ack_key: Arc::new(ack_key),
+        }
+    }
+
     // this is actually **NOT** dead code
     // I have absolutely no idea why the compiler insists it's unused. The call happens during client::init::execute
     #[allow(dead_code)]
@@ -65,8 +81,8 @@ impl KeyManager {
         self.gateway_shared_key = Some(gateway_shared_key)
     }
 
-    /// Loads previously stored keys from the disk.
-    pub fn load_keys(client_pathfinder: &ClientKeyPathfinder) -> io::Result<Self> {
+    /// Loads previously stored client keys from the disk.
+    fn load_keys_client_only(client_pathfinder: &ClientKeyPathfinder) -> io::Result<Self> {
         let identity_keypair: identity::KeyPair =
             pemstore::load_keypair(&pemstore::KeyPairPath::new(
                 client_pathfinder.private_identity_key().to_owned(),
@@ -78,19 +94,45 @@ impl KeyManager {
                 client_pathfinder.public_encryption_key().to_owned(),
             ))?;
 
-        let gateway_shared_key: SharedKeys =
-            pemstore::load_key(client_pathfinder.gateway_shared_key())?;
-
         let ack_key: AckKey = pemstore::load_key(client_pathfinder.ack_key())?;
 
-        // TODO: ack key is never stored so it is generated now. But perhaps it should be stored
-        // after all for consistency sake?
         Ok(KeyManager {
             identity_keypair: Arc::new(identity_keypair),
             encryption_keypair: Arc::new(encryption_keypair),
-            gateway_shared_key: Some(Arc::new(gateway_shared_key)),
+            gateway_shared_key: None,
             ack_key: Arc::new(ack_key),
         })
+    }
+
+    /// Loads previously stored keys from the disk. Fails if not all, including the shared gateway
+    /// key, is available.
+    pub fn load_keys(client_pathfinder: &ClientKeyPathfinder) -> io::Result<Self> {
+        let mut key_manager = Self::load_keys_client_only(client_pathfinder)?;
+
+        let gateway_shared_key: SharedKeys =
+            pemstore::load_key(client_pathfinder.gateway_shared_key())?;
+
+        key_manager.gateway_shared_key = Some(Arc::new(gateway_shared_key));
+
+        Ok(key_manager)
+    }
+
+    pub fn load_keys_maybe_gateway(client_pathfinder: &ClientKeyPathfinder) -> io::Result<Self> {
+        let mut key_manager = Self::load_keys_client_only(client_pathfinder)?;
+
+        let gateway_shared_key: Result<SharedKeys, io::Error> =
+            pemstore::load_key(client_pathfinder.gateway_shared_key());
+
+        // It's ok if the gateway key was not found
+        let gateway_shared_key = match gateway_shared_key {
+            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(None),
+            Err(err) => Err(err),
+            Ok(key) => Ok(Some(key)),
+        }?;
+
+        key_manager.gateway_shared_key = gateway_shared_key.map(Arc::new);
+
+        Ok(key_manager)
     }
 
     // this is actually **NOT** dead code
@@ -119,7 +161,21 @@ impl KeyManager {
         pemstore::store_key(self.ack_key.as_ref(), client_pathfinder.ack_key())?;
 
         match self.gateway_shared_key.as_ref() {
-            None => warn!("No gateway shared key available to store!"),
+            None => debug!("No gateway shared key available to store!"),
+            Some(gate_key) => {
+                pemstore::store_key(gate_key.as_ref(), client_pathfinder.gateway_shared_key())?
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn store_key_gateway_only(
+        &self,
+        client_pathfinder: &ClientKeyPathfinder,
+    ) -> io::Result<()> {
+        match self.gateway_shared_key.as_ref() {
+            None => panic!("WIP(JON)"),
             Some(gate_key) => {
                 pemstore::store_key(gate_key.as_ref(), client_pathfinder.gateway_shared_key())?
             }

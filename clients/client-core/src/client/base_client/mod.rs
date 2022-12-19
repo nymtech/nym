@@ -33,11 +33,14 @@ use log::{debug, info};
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;
+use nymsphinx::receiver::ReconstructedMessage;
 use std::sync::Arc;
 use std::time::Duration;
 use tap::TapFallible;
 use task::{TaskClient, TaskManager};
 use url::Url;
+
+use super::received_buffer::ReceivedBufferMessage;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 pub mod non_wasm_helpers;
@@ -48,8 +51,28 @@ pub struct ClientInput {
 }
 
 pub struct ClientOutput {
-    pub shared_lane_queue_lengths: LaneQueueLengths,
     pub received_buffer_request_sender: ReceivedBufferRequestSender,
+}
+
+impl ClientOutput {
+    pub fn register_receiver(
+        &mut self,
+    ) -> Result<mpsc::UnboundedReceiver<Vec<ReconstructedMessage>>, ClientCoreError> {
+        let (reconstructed_sender, reconstructed_receiver) = mpsc::unbounded();
+
+        self.received_buffer_request_sender
+            .unbounded_send(ReceivedBufferMessage::ReceiverAnnounce(
+                reconstructed_sender,
+            ))
+            .map_err(|_| ClientCoreError::FailedToRegisterReceiver)?;
+
+        Ok(reconstructed_receiver)
+    }
+}
+
+pub struct ClientState {
+    pub shared_lane_queue_lengths: LaneQueueLengths,
+    pub reply_controller_sender: ReplyControllerSender,
 }
 
 pub enum ClientInputStatus {
@@ -475,11 +498,13 @@ where
             },
             client_output: ClientOutputStatus::AwaitingConsumer {
                 client_output: ClientOutput {
-                    shared_lane_queue_lengths,
                     received_buffer_request_sender,
                 },
             },
-            reply_controller_sender,
+            client_state: ClientState {
+                shared_lane_queue_lengths,
+                reply_controller_sender,
+            },
             task_manager,
         })
     }
@@ -488,9 +513,7 @@ where
 pub struct BaseClient {
     pub client_input: ClientInputStatus,
     pub client_output: ClientOutputStatus,
-
-    // it feels very wrong to put this channel here, but I can't think of any other way of passing it to the native client
-    pub reply_controller_sender: ReplyControllerSender,
+    pub client_state: ClientState,
 
     pub task_manager: TaskManager,
 }

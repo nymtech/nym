@@ -55,6 +55,9 @@ pub enum ClientCoreError {
     #[error("The address of the gateway is unknown - did you run init?")]
     GatwayAddressUnknown,
 
+    #[error("failed to register receiver for reconstructed mixnet messages")]
+    FailedToRegisterReceiver,
+
     #[error("Unexpected exit")]
     UnexpectedExit,
 }

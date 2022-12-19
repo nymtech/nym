@@ -7,12 +7,12 @@ use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
 pub struct ClientKeyPathfinder {
-    identity_private_key: PathBuf,
-    identity_public_key: PathBuf,
-    encryption_private_key: PathBuf,
-    encryption_public_key: PathBuf,
-    gateway_shared_key: PathBuf,
-    ack_key: PathBuf,
+    pub identity_private_key: PathBuf,
+    pub identity_public_key: PathBuf,
+    pub encryption_private_key: PathBuf,
+    pub encryption_public_key: PathBuf,
+    pub gateway_shared_key: PathBuf,
+    pub ack_key: PathBuf,
 }
 
 impl ClientKeyPathfinder {
@@ -22,12 +22,24 @@ impl ClientKeyPathfinder {
         ClientKeyPathfinder {
             identity_private_key: config_dir.join("private_identity.pem"),
             identity_public_key: config_dir.join("public_identity.pem"),
-            encryption_private_key: config_dir.join("public_encryption.pem"),
-            encryption_public_key: config_dir.join("private_encryption.pem"),
+            encryption_private_key: config_dir.join("private_encryption.pem"),
+            encryption_public_key: config_dir.join("public_encryption.pem"),
             gateway_shared_key: config_dir.join("gateway_shared.pem"),
             ack_key: config_dir.join("ack_key.pem"),
         }
     }
+
+    //pub fn new_from_dir(config_dir: &PathBuf) -> Self {
+    //    dbg!(&config_dir);
+    //    ClientKeyPathfinder {
+    //        identity_private_key: config_dir.join("private_identity.pem"),
+    //        identity_public_key: config_dir.join("public_identity.pem"),
+    //        encryption_private_key: config_dir.join("public_encryption.pem"),
+    //        encryption_public_key: config_dir.join("private_encryption.pem"),
+    //        gateway_shared_key: config_dir.join("gateway_shared.pem"),
+    //        ack_key: config_dir.join("ack_key.pem"),
+    //    }
+    //}
 
     pub fn new_from_config<T: NymConfig>(config: &Config<T>) -> Self {
         ClientKeyPathfinder {
@@ -38,6 +50,19 @@ impl ClientKeyPathfinder {
             gateway_shared_key: config.get_gateway_shared_key_file(),
             ack_key: config.get_ack_key_file(),
         }
+    }
+
+    pub fn any_file_exists(&self) -> bool {
+        matches!(self.identity_public_key.try_exists(), Ok(true))
+            || matches!(self.identity_private_key.try_exists(), Ok(true))
+            || matches!(self.encryption_public_key.try_exists(), Ok(true))
+            || matches!(self.encryption_private_key.try_exists(), Ok(true))
+            || matches!(self.gateway_shared_key.try_exists(), Ok(true))
+            || matches!(self.ack_key.try_exists(), Ok(true))
+    }
+
+    pub fn gateway_key_file_exists(&self) -> bool {
+        matches!(self.gateway_shared_key.try_exists(), Ok(true))
     }
 
     pub fn private_identity_key(&self) -> &Path {

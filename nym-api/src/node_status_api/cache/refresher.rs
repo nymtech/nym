@@ -8,7 +8,7 @@ use crate::{
         },
         NodeStatusCacheError,
     },
-    nym_contract_cache::cache::ValidatorCache,
+    nym_contract_cache::cache::NymContractCache,
     storage::NymApiStorage,
     support::caching::CacheNotification,
 };
@@ -24,7 +24,7 @@ pub struct NodeStatusCacheRefresher {
     fallback_caching_interval: Duration,
 
     // Sources for when refreshing data
-    contract_cache: ValidatorCache,
+    contract_cache: NymContractCache,
     contract_cache_listener: watch::Receiver<CacheNotification>,
     storage: Option<NymApiStorage>,
 }
@@ -33,7 +33,7 @@ impl NodeStatusCacheRefresher {
     pub(crate) fn new(
         cache: NodeStatusCache,
         fallback_caching_interval: Duration,
-        contract_cache: ValidatorCache,
+        contract_cache: NymContractCache,
         contract_cache_listener: watch::Receiver<CacheNotification>,
         storage: Option<NymApiStorage>,
     ) -> Self {

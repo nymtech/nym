@@ -22,7 +22,7 @@ use log::{info, warn};
 use logging::setup_logging;
 use node_status_api::NodeStatusCache;
 use nym_contract_cache::cache::refresher::NymContractCacheRefresher;
-use nym_contract_cache::cache::ValidatorCache;
+use nym_contract_cache::cache::NymContractCache;
 use rocket::fairing::AdHoc;
 use rocket::http::Method;
 use rocket::{Ignite, Rocket};
@@ -249,14 +249,14 @@ fn setup_network_monitor<'a>(
 
     // get instances of managed states
     let node_status_storage = rocket.state::<storage::NymApiStorage>().unwrap().clone();
-    let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
+    let nym_contract_cache = rocket.state::<NymContractCache>().unwrap().clone();
 
     Some(NetworkMonitorBuilder::new(
         config,
         _nyxd_client,
         system_version,
         node_status_storage,
-        validator_cache,
+        nym_contract_cache,
     ))
 }
 
@@ -290,7 +290,7 @@ async fn setup_rocket(
         "/v1".to_owned(),
         openapi_settings,
         "/" => custom_route_spec,
-        "" => nym_contract_cache::validator_cache_routes(&openapi_settings),
+        "" => nym_contract_cache::nym_contract_cache_routes(&openapi_settings),
         "/status" => node_status_api::node_status_routes(&openapi_settings, config.get_network_monitor_enabled()),
         "/circulating-supply" => circulating_supply_api::circulating_supply_routes(&openapi_settings),
     }
@@ -299,7 +299,7 @@ async fn setup_rocket(
         .mount("/swagger", make_swagger_ui(&swagger::get_docs()))
         .attach(setup_cors()?)
         .attach(setup_liftoff_notify(liftoff_notify))
-        .attach(ValidatorCache::stage())
+        .attach(NymContractCache::stage())
         .attach(NodeStatusCache::stage())
         .attach(CirculatingSupplyCache::stage());
 
@@ -429,7 +429,7 @@ async fn run_nym_api(args: ApiArgs) -> Result<()> {
         &rocket,
     );
 
-    let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
+    let nym_contract_cache = rocket.state::<NymContractCache>().unwrap().clone();
     let node_status_cache = rocket.state::<NodeStatusCache>().unwrap().clone();
 
     #[cfg(feature = "coconut")]
@@ -443,7 +443,7 @@ async fn run_nym_api(args: ApiArgs) -> Result<()> {
 
     // if network monitor is disabled, we're not going to be sending any rewarding hence
     // we're not starting signing client
-    let validator_cache_listener = if config.get_network_monitor_enabled() {
+    let nym_contract_cache_listener = if config.get_network_monitor_enabled() {
         // Main storage
         let storage = rocket.state::<storage::NymApiStorage>().unwrap().clone();
 
@@ -453,51 +453,51 @@ async fn run_nym_api(args: ApiArgs) -> Result<()> {
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(async move { uptime_updater.run(shutdown_listener).await });
 
-        // spawn the validator cache refresher
-        let validator_cache_refresher = NymContractCacheRefresher::new(
+        // spawn the nym contract cache refresher
+        let nym_contract_cache_refresher = NymContractCacheRefresher::new(
             signing_nyxd_client.clone(),
             config.get_caching_interval(),
-            validator_cache.clone(),
+            nym_contract_cache.clone(),
         );
-        let validator_cache_listener = validator_cache_refresher.subscribe();
+        let nym_contract_cache_listener = nym_contract_cache_refresher.subscribe();
         let shutdown_listener = shutdown.subscribe();
-        tokio::spawn(async move { validator_cache_refresher.run(shutdown_listener).await });
+        tokio::spawn(async move { nym_contract_cache_refresher.run(shutdown_listener).await });
 
         // spawn rewarded set updater
         if config.get_rewarding_enabled() {
             let mut rewarded_set_updater =
-                RewardedSetUpdater::new(signing_nyxd_client, validator_cache.clone(), storage)
+                RewardedSetUpdater::new(signing_nyxd_client, nym_contract_cache.clone(), storage)
                     .await?;
             let shutdown_listener = shutdown.subscribe();
             tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await.unwrap() });
         }
-        validator_cache_listener
+        nym_contract_cache_listener
     } else {
-        // Spawn the validator cache refresher.
-        // When the network monitor is not enabled, we spawn the validator cache refresher task
+        // Spawn the nym contract cache refresher.
+        // When the network monitor is not enabled, we spawn the nym contract cache refresher task
         // with just a nyxd client, in contrast to a signing client.
         let nyxd_client = nyxd::Client::new_query(&config);
-        let validator_cache_refresher = NymContractCacheRefresher::new(
+        let nym_contract_cache_refresher = NymContractCacheRefresher::new(
             nyxd_client,
             config.get_caching_interval(),
-            validator_cache.clone(),
+            nym_contract_cache.clone(),
         );
-        let validator_cache_listener = validator_cache_refresher.subscribe();
+        let nym_contract_cache_listener = nym_contract_cache_refresher.subscribe();
         let shutdown_listener = shutdown.subscribe();
-        tokio::spawn(async move { validator_cache_refresher.run(shutdown_listener).await });
+        tokio::spawn(async move { nym_contract_cache_refresher.run(shutdown_listener).await });
 
-        validator_cache_listener
+        nym_contract_cache_listener
     };
 
     // Spawn the node status cache refresher.
-    // It is primarily refreshed in-sync with the validator cache, however provide a fallback
-    // caching interval that is twice the validator cache
+    // It is primarily refreshed in-sync with the nym contract cache, however provide a fallback
+    // caching interval that is twice the nym contract cache
     let storage = rocket.state::<storage::NymApiStorage>().cloned();
     let mut nym_api_cache_refresher = NodeStatusCacheRefresher::new(
         node_status_cache,
         config.get_caching_interval().saturating_mul(2),
-        validator_cache,
-        validator_cache_listener,
+        nym_contract_cache,
+        nym_contract_cache_listener,
         storage,
     );
     let shutdown_listener = shutdown.subscribe();
@@ -532,7 +532,7 @@ async fn run_nym_api(args: ApiArgs) -> Result<()> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    println!("Starting validator api...");
+    println!("Starting nym api...");
 
     cfg_if::cfg_if! {if #[cfg(feature = "console-subscriber")] {
         // instrument tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time

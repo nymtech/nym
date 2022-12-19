@@ -21,14 +21,14 @@ mod data;
 pub(crate) mod refresher;
 
 #[derive(Clone)]
-pub struct ValidatorCache {
+pub struct NymContractCache {
     pub(crate) initialised: Arc<AtomicBool>,
     pub(crate) inner: Arc<RwLock<ValidatorCacheData>>,
 }
 
-impl ValidatorCache {
+impl NymContractCache {
     fn new() -> Self {
-        ValidatorCache {
+        NymContractCache {
             initialised: Arc::new(AtomicBool::new(false)),
             inner: Arc::new(RwLock::new(ValidatorCacheData::new())),
         }

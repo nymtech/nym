@@ -20,7 +20,7 @@ use crate::network_monitor::monitor::receiver::{
 use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::monitor::Monitor;
-use crate::nym_contract_cache::cache::ValidatorCache;
+use crate::nym_contract_cache::cache::NymContractCache;
 use crate::nyxd::Client;
 use crate::storage::NymApiStorage;
 
@@ -37,7 +37,7 @@ pub(crate) struct NetworkMonitorBuilder<'a> {
     _nyxd_client: Client<SigningNyxdClient>,
     system_version: String,
     node_status_storage: NymApiStorage,
-    validator_cache: ValidatorCache,
+    validator_cache: NymContractCache,
 }
 
 impl<'a> NetworkMonitorBuilder<'a> {
@@ -46,7 +46,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
         _nyxd_client: Client<SigningNyxdClient>,
         system_version: &str,
         node_status_storage: NymApiStorage,
-        validator_cache: ValidatorCache,
+        validator_cache: NymContractCache,
     ) -> Self {
         NetworkMonitorBuilder {
             config,
@@ -154,7 +154,7 @@ impl NetworkMonitorRunnables {
 
 fn new_packet_preparer(
     system_version: &str,
-    validator_cache: ValidatorCache,
+    validator_cache: NymContractCache,
     per_node_test_packets: usize,
     self_public_identity: identity::PublicKey,
     self_public_encryption: encryption::PublicKey,

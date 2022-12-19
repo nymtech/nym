@@ -12,7 +12,7 @@
 // 3. Eventually this whole procedure is going to get expanded to allow for distribution of rewarded set generation
 //    and hence this might be a good place for it.
 
-use crate::nym_contract_cache::cache::ValidatorCache;
+use crate::nym_contract_cache::cache::NymContractCache;
 use crate::nyxd::Client;
 use crate::support::storage::models::RewardingReport;
 use crate::support::storage::NymApiStorage;
@@ -55,7 +55,7 @@ impl From<MixnodeToReward> for ExecuteMsg {
 
 pub struct RewardedSetUpdater {
     nyxd_client: Client<SigningNyxdClient>,
-    validator_cache: ValidatorCache,
+    validator_cache: NymContractCache,
     storage: NymApiStorage,
 }
 
@@ -78,7 +78,7 @@ impl RewardedSetUpdater {
 
     pub(crate) async fn new(
         nyxd_client: Client<SigningNyxdClient>,
-        validator_cache: ValidatorCache,
+        validator_cache: NymContractCache,
         storage: NymApiStorage,
     ) -> Result<Self, RewardingError> {
         Ok(RewardedSetUpdater {

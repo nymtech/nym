@@ -1,4 +1,4 @@
-use super::ValidatorCache;
+use super::NymContractCache;
 use crate::nyxd::Client;
 use crate::support::caching::CacheNotification;
 use anyhow::Result;
@@ -11,7 +11,7 @@ use validator_client::nyxd::CosmWasmClient;
 
 pub struct NymContractCacheRefresher<C> {
     nyxd_client: Client<C>,
-    cache: ValidatorCache,
+    cache: NymContractCache,
     caching_interval: Duration,
 
     // Notify listeners that the cache has been updated
@@ -22,7 +22,7 @@ impl<C> NymContractCacheRefresher<C> {
     pub(crate) fn new(
         nyxd_client: Client<C>,
         caching_interval: Duration,
-        cache: ValidatorCache,
+        cache: NymContractCache,
     ) -> Self {
         let (tx, _) = watch::channel(CacheNotification::Start);
         NymContractCacheRefresher {

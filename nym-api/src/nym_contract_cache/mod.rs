@@ -9,7 +9,7 @@ use rocket_okapi::settings::OpenApiSettings;
 pub(crate) mod cache;
 pub(crate) mod routes;
 
-pub(crate) fn validator_cache_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
+pub(crate) fn nym_contract_cache_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
     openapi_get_routes_spec![
         settings: routes::get_mixnodes,
         routes::get_mixnodes_detailed,

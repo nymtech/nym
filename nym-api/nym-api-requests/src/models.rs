@@ -114,7 +114,7 @@ impl MixNodeBondAnnotated {
     }
 }
 
-#[derive(Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ComputeRewardEstParam {
     pub performance: Option<Performance>,
     pub active_in_rewarded_set: Option<bool>,

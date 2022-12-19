@@ -1,4 +1,4 @@
-import { Fee, FeeDetails, TransactionExecuteResult } from '@nymproject/types';
+import { Fee, FeeDetails, RewardingParams, TransactionExecuteResult } from '@nymproject/types';
 import { invokeWrapper } from './wrapper';
 
 export const claimOperatorReward = async (fee?: Fee) =>
@@ -9,3 +9,6 @@ export const claimDelegatorRewards = async (mixId: number, fee?: FeeDetails) =>
     mixId,
     fee: fee?.fee,
   });
+
+export const getCurrentRewardingParameter = async () =>
+  invokeWrapper<RewardingParams>('get_current_rewarding_parameters', {});

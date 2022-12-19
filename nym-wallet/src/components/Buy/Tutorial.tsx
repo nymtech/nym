@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { Button, Stack, Typography, Grid, useMediaQuery, useTheme } from '@mui/material';
-import { Tune as TuneIcon, BorderColor as BorderColorIcon } from '@mui/icons-material';
+import { Tune as TuneIcon, BorderColor as BorderColorIcon, Paid as PaidIcon } from '@mui/icons-material';
 import { CoinMark } from '@nymproject/react/coins/CoinMark';
-import { NymCard } from '../NymCard';
+import { NymCard, ClientAddress } from '../../components';
 import { SignMessageModal } from './SignMessageModal';
+import { PoweredByBity } from 'src/svg-icons';
 
 // TODO retrieve this value from env
 const EXCHANGE_URL = 'https://buy.nymtech.net';
@@ -55,7 +56,7 @@ export const Tutorial = () => {
   const showBorder = useMediaQuery(theme.breakpoints.up('md'));
 
   return (
-    <NymCard borderless title="Buy NYM with BTC without KYC" sx={{ mt: 4 }}>
+    <NymCard borderless title="Buy NYM with BTC without KYC" sx={{ mt: 4 }} Action={<ClientAddress withCopy />}>
       <Typography mb={2} fontSize={14}>
         Follow below 3 steps to quickly and easily buy NYM tokens. You can purchase up to 1000 Swiss Francs per day
         without KYC.
@@ -117,13 +118,16 @@ export const Tutorial = () => {
           }
         />
       </Grid>
-      <Stack direction="row" gap={2} justifyContent="flex-end" mt={5}>
-        <Button variant="outlined" size="large" onClick={() => setShowSignModal(true)}>
-          Sign message
-        </Button>
-        <Button variant="contained" size="large" sx={{ width: '148px' }} href={EXCHANGE_URL} target="_blank">
-          Buy NYM
-        </Button>
+      <Stack direction="row" justifyContent="space-between" alignItems="flex-end" mt={5}>
+        <PoweredByBity sx={{ width: 126, height: 16 }} color="secondary" />
+        <Stack direction="row" gap={2} justifyContent="flex-end">
+          <Button variant="outlined" size="large" onClick={() => setShowSignModal(true)}>
+            Sign message
+          </Button>
+          <Button variant="contained" size="large" href={EXCHANGE_URL} target="_blank">
+            Buy NYM
+          </Button>
+        </Stack>
       </Stack>
     </NymCard>
   );

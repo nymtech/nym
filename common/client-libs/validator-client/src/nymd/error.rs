@@ -166,7 +166,7 @@ fn try_parse_abci_log(log: &abci::Log) -> Option<String> {
         .value()
         .contains("Maximum amount of locked coins has already been pledged")
     {
-        Some("Maximum amount of locked tokens has alredy been used. You can only use up tp 10% of your locked tokens for bonding and delegating.".to_string())
+        Some("Maximum amount of locked tokens has alredy been used. You can only use up to 10% of your locked tokens for bonding and delegating.".to_string())
     } else {
         None
     }

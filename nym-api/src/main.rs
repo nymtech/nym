@@ -5,12 +5,11 @@
 extern crate rocket;
 
 use crate::circulating_supply_api::cache::CirculatingSupplyCache;
-use crate::config::Config;
-use crate::contract_cache::ValidatorCacheRefresher;
-use crate::epoch_operations::RewardedSetUpdater;
 use crate::network_monitor::NetworkMonitorBuilder;
 use crate::node_status_api::cache::refresher::NodeStatusCacheRefresher;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
+use crate::support::config::Config;
+use crate::support::process_runner::wait_for_signal;
 use crate::support::storage;
 use ::config::defaults::setup_env;
 use ::config::defaults::var_names::{MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
@@ -42,17 +41,17 @@ use coconut::{
     dkg::controller::{init_keypair, DkgController},
     InternalSignRequest,
 };
+use logging::setup_logging;
 #[cfg(feature = "coconut")]
 use rand::rngs::OsRng;
+use support::{nyxd, openapi};
 
 mod caching_support;
 mod circulating_supply_api;
-pub(crate) mod config;
 mod epoch_operations;
 mod network_monitor;
 mod node_status_api;
 pub(crate) mod nym_contract_cache;
-pub(crate) mod nyxd;
 pub(crate) mod support;
 
 #[cfg(feature = "coconut")]

@@ -1,8 +1,8 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::Config;
 use crate::epoch_operations::MixnodeToReward;
+use crate::support::config::Config;
 use config::defaults::{NymNetworkDetails, DEFAULT_NYM_API_PORT};
 use mixnet_contract_common::families::{Family, FamilyHead};
 use mixnet_contract_common::mixnode::MixNodeDetails;

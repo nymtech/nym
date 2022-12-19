@@ -28,12 +28,11 @@ export const DelegationItem = ({
   onItemActionClick?: (item: DelegationWithEverything, action: DelegationListItemActions) => void;
 }) => {
   const operatingCost = isDelegation(item) && item.cost_params?.interval_operating_cost;
-  const usesVestingContractTokens = item.uses_vesting_contract_tokens;
 
   const tooltipText = () => {
     if (nodeIsUnbonded) {
       return 'This node has unbonded and it does not exist anymore. You need to undelegate from it to get your stake and outstanding rewards (if any) back.';
-    } else if (usesVestingContractTokens) {
+    } else if (item.uses_vesting_contract_tokens) {
       return 'Delegation made with locked tockens';
     } else {
       return '';

@@ -56,10 +56,9 @@ export const Tutorial = () => {
   const showBorder = useMediaQuery(theme.breakpoints.up('md'));
 
   return (
-    <NymCard borderless title="Buy NYM with BTC without KYC" sx={{ mt: 4 }} Action={<ClientAddress withCopy />}>
+    <NymCard borderless title="Buy NYM with BTC" sx={{ mt: 4 }} Action={<ClientAddress withCopy />}>
       <Typography mb={2} fontSize={14}>
-        Follow below 3 steps to quickly and easily buy NYM tokens. You can purchase up to 1000 Swiss Francs per day
-        without KYC.
+        Follow below 3 steps to quickly and easily buy NYM tokens. You can purchase up to 1000 Swiss Francs per day.
       </Typography>
       {showSignModal && <SignMessageModal onClose={() => setShowSignModal(false)} />}
       <Grid

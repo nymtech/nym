@@ -9,7 +9,7 @@ use tokio::sync::watch;
 use tokio::time;
 use validator_client::nyxd::CosmWasmClient;
 
-pub struct ValidatorCacheRefresher<C> {
+pub struct NymContractCacheRefresher<C> {
     nyxd_client: Client<C>,
     cache: ValidatorCache,
     caching_interval: Duration,
@@ -18,14 +18,14 @@ pub struct ValidatorCacheRefresher<C> {
     update_notifier: watch::Sender<CacheNotification>,
 }
 
-impl<C> ValidatorCacheRefresher<C> {
+impl<C> NymContractCacheRefresher<C> {
     pub(crate) fn new(
         nyxd_client: Client<C>,
         caching_interval: Duration,
         cache: ValidatorCache,
     ) -> Self {
         let (tx, _) = watch::channel(CacheNotification::Start);
-        ValidatorCacheRefresher {
+        NymContractCacheRefresher {
             nyxd_client,
             cache,
             caching_interval,

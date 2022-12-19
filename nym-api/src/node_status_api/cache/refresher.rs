@@ -1,6 +1,5 @@
 use super::NodeStatusCache;
 use crate::{
-    contract_cache::cache::ValidatorCache,
     node_status_api::cache::{
         inclusion_probabilities::InclusionProbabilities,
         node_sets::{
@@ -9,6 +8,7 @@ use crate::{
         },
         NodeStatusCacheError,
     },
+    nym_contract_cache::cache::ValidatorCache,
     storage::NymApiStorage,
     support::caching::CacheNotification,
 };

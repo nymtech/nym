@@ -10,7 +10,6 @@ use task::TaskManager;
 use validator_client::nyxd::SigningNyxdClient;
 
 use crate::config::Config;
-use crate::contract_cache::cache::ValidatorCache;
 use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::{
     ReceivedProcessor, ReceivedProcessorReceiver, ReceivedProcessorSender,
@@ -21,6 +20,7 @@ use crate::network_monitor::monitor::receiver::{
 use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::monitor::Monitor;
+use crate::nym_contract_cache::cache::ValidatorCache;
 use crate::nyxd::Client;
 use crate::storage::NymApiStorage;
 

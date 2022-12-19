@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    contract_cache::cache::ValidatorCache,
     node_status_api::{
         helpers::{_get_active_set_detailed, _get_mixnodes_detailed, _get_rewarded_set_detailed},
         NodeStatusCache,
     },
+    nym_contract_cache::cache::ValidatorCache,
 };
 use mixnet_contract_common::{
     mixnode::MixNodeDetails, reward_params::RewardingParams, GatewayBond, Interval, MixId,

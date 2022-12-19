@@ -17,13 +17,12 @@ use ::config::defaults::var_names::{MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
 use ::config::{NymConfig, OptionalSet};
 use anyhow::Result;
 use build_information::BinaryBuildInformation;
-use clap::Parser;
-use contract_cache::cache::refresher::ValidatorCacheRefresher;
-use contract_cache::cache::ValidatorCache;
-use lazy_static::lazy_static;
+use clap::{crate_version, App, Arg, ArgMatches};
 use log::{info, warn};
 use logging::setup_logging;
 use node_status_api::NodeStatusCache;
+use nym_contract_cache::cache::refresher::NymContractCacheRefresher;
+use nym_contract_cache::cache::ValidatorCache;
 use rocket::fairing::AdHoc;
 use rocket::http::Method;
 use rocket::{Ignite, Rocket};
@@ -49,10 +48,10 @@ use rand::rngs::OsRng;
 mod caching_support;
 mod circulating_supply_api;
 pub(crate) mod config;
-pub(crate) mod contract_cache;
 mod epoch_operations;
 mod network_monitor;
 mod node_status_api;
+pub(crate) mod nym_contract_cache;
 pub(crate) mod nyxd;
 pub(crate) mod support;
 
@@ -291,7 +290,7 @@ async fn setup_rocket(
         "/v1".to_owned(),
         openapi_settings,
         "/" => custom_route_spec,
-        "" => contract_cache::validator_cache_routes(&openapi_settings),
+        "" => nym_contract_cache::validator_cache_routes(&openapi_settings),
         "/status" => node_status_api::node_status_routes(&openapi_settings, config.get_network_monitor_enabled()),
         "/circulating-supply" => circulating_supply_api::circulating_supply_routes(&openapi_settings),
     }
@@ -455,7 +454,7 @@ async fn run_nym_api(args: ApiArgs) -> Result<()> {
         tokio::spawn(async move { uptime_updater.run(shutdown_listener).await });
 
         // spawn the validator cache refresher
-        let validator_cache_refresher = ValidatorCacheRefresher::new(
+        let validator_cache_refresher = NymContractCacheRefresher::new(
             signing_nyxd_client.clone(),
             config.get_caching_interval(),
             validator_cache.clone(),
@@ -478,7 +477,7 @@ async fn run_nym_api(args: ApiArgs) -> Result<()> {
         // When the network monitor is not enabled, we spawn the validator cache refresher task
         // with just a nyxd client, in contrast to a signing client.
         let nyxd_client = nyxd::Client::new_query(&config);
-        let validator_cache_refresher = ValidatorCacheRefresher::new(
+        let validator_cache_refresher = NymContractCacheRefresher::new(
             nyxd_client,
             config.get_caching_interval(),
             validator_cache.clone(),

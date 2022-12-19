@@ -12,7 +12,7 @@
 // 3. Eventually this whole procedure is going to get expanded to allow for distribution of rewarded set generation
 //    and hence this might be a good place for it.
 
-use crate::contract_cache::cache::ValidatorCache;
+use crate::nym_contract_cache::cache::ValidatorCache;
 use crate::nyxd::Client;
 use crate::support::storage::models::RewardingReport;
 use crate::support::storage::NymApiStorage;

@@ -1,11 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::contract_cache::cache::ValidatorCache;
 use crate::network_monitor::chunker::Chunker;
 use crate::network_monitor::monitor::sender::GatewayPackets;
 use crate::network_monitor::test_packet::{NodeType, TestPacket};
 use crate::network_monitor::test_route::TestRoute;
+use crate::nym_contract_cache::cache::ValidatorCache;
 use crypto::asymmetric::{encryption, identity};
 use log::info;
 use mixnet_contract_common::{Addr, GatewayBond, Layer, MixId, MixNodeBond};

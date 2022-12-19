@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // there is couple of reasons for putting this in a separate module:
-// 1. I didn't feel it fit well in validator "cache". It seems like purpose of cache is to just keep updating local data
+// 1. I didn't feel it fit well in nym contract "cache". It seems like purpose of cache is to just keep updating local data
 //    rather than attempting to change global view (i.e. the active set)
 //
-// 2. However, even if it was to exist in the validator cache refresher, we'd have to create a different "run"
+// 2. However, even if it was to exist in the nym contract cache refresher, we'd have to create a different "run"
 //    method as it doesn't have access to the signing client which we need in the case of updating rewarded sets
-//    (because validator cache can be run by anyone regardless of whether, say, network monitor exists)
+//    (because nym contract cache can be run by anyone regardless of whether, say, network monitor exists)
 //
 // 3. Eventually this whole procedure is going to get expanded to allow for distribution of rewarded set generation
 //    and hence this might be a good place for it.

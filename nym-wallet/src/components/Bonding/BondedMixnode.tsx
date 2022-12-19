@@ -66,7 +66,7 @@ export const BondedMixnode = ({
   network?: Network;
   onActionSelect: (action: TBondedMixnodeActions) => void;
 }) => {
-  const [nextEpoch, setNextEpoch] = useState<string | undefined | Error>();
+  const [nextEpoch, setNextEpoch] = useState<string | Error>();
   const navigate = useNavigate();
   const {
     name,

@@ -155,7 +155,11 @@ export const BondedMixnode = ({
                 {name}
               </Typography>
             )}
-            <IdentityKey identityKey={identityKey} tooltipTitle={host} />
+            <Tooltip title={host} placement="top" arrow>
+              <Box width="fit-content">
+                <IdentityKey identityKey={identityKey} />
+              </Box>
+            </Tooltip>
           </Stack>
         }
         Action={

@@ -55,7 +55,7 @@ impl From<MixnodeToReward> for ExecuteMsg {
 
 pub struct RewardedSetUpdater {
     nyxd_client: Client<SigningNyxdClient>,
-    validator_cache: NymContractCache,
+    nym_contract_cache: NymContractCache,
     storage: NymApiStorage,
 }
 
@@ -78,12 +78,12 @@ impl RewardedSetUpdater {
 
     pub(crate) async fn new(
         nyxd_client: Client<SigningNyxdClient>,
-        validator_cache: NymContractCache,
+        nym_contract_cache: NymContractCache,
         storage: NymApiStorage,
     ) -> Result<Self, RewardingError> {
         Ok(RewardedSetUpdater {
             nyxd_client,
-            validator_cache,
+            nym_contract_cache,
             storage,
         })
     }
@@ -98,7 +98,7 @@ impl RewardedSetUpdater {
         let mut rng = OsRng;
         let layers = vec![Layer::One, Layer::Two, Layer::Three];
 
-        let mix_to_family = self.validator_cache.mix_to_family().await.to_vec();
+        let mix_to_family = self.nym_contract_cache.mix_to_family().await.to_vec();
 
         let mix_to_family = mix_to_family
             .into_iter()
@@ -209,7 +209,7 @@ impl RewardedSetUpdater {
             Ok(nodes) => nodes.into_iter().map(|(id, _)| id).collect::<Vec<_>>(),
             Err(err) => {
                 warn!("failed to obtain the current rewarded set - {err}. falling back to the cached version");
-                self.validator_cache
+                self.nym_contract_cache
                     .rewarded_set()
                     .await
                     .into_inner()
@@ -277,7 +277,7 @@ impl RewardedSetUpdater {
 
         let epoch_end = interval.current_epoch_end();
 
-        let all_mixnodes = self.validator_cache.mixnodes().await;
+        let all_mixnodes = self.nym_contract_cache.mixnodes().await;
         if all_mixnodes.is_empty() {
             log::warn!("there don't seem to be any mixnodes on the network!")
         }
@@ -355,7 +355,7 @@ impl RewardedSetUpdater {
             }
         }
 
-        self.validator_cache
+        self.nym_contract_cache
             .update_mixnodes_blacklist(mix_blacklist_add, mix_blacklist_remove)
             .await;
 
@@ -367,7 +367,7 @@ impl RewardedSetUpdater {
             }
         }
 
-        self.validator_cache
+        self.nym_contract_cache
             .update_gateways_blacklist(gate_blacklist_add, gate_blacklist_remove)
             .await;
         Ok(())
@@ -422,7 +422,7 @@ impl RewardedSetUpdater {
     }
 
     pub(crate) async fn run(&mut self, mut shutdown: TaskClient) -> Result<(), RewardingError> {
-        self.validator_cache.wait_for_initial_values().await;
+        self.nym_contract_cache.wait_for_initial_values().await;
 
         while !shutdown.is_shutdown() {
             let interval_details = match self.wait_until_epoch_end(&mut shutdown).await {

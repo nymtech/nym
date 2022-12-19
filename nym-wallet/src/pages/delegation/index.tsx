@@ -36,10 +36,9 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   const [confirmationModalProps, setConfirmationModalProps] = useState<DelegationModalProps | undefined>();
   const [currentDelegationListActionItem, setCurrentDelegationListActionItem] = useState<DelegationWithEverything>();
   const [saturationError, setSaturationError] = useState<{ action: 'compound' | 'delegate'; saturation: string }>();
-  const [nextEpoch, setNextEpoch] = useState<string | undefined | Error>();
+  const [nextEpoch, setNextEpoch] = useState<string | Error>();
 
   const theme = useTheme();
-
   const {
     clientDetails,
     network,

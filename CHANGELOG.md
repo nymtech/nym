@@ -4,6 +4,16 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [v1.1.4] (2022-12-20)
+
+### Changed
+
+- Feature/dkg contract threshold by @neacsu in https://github.com/nymtech/nym/pull/1885
+- Multi-surbs by @jstuczyn in https://github.com/nymtech/nym/pull/2667
+- Fix multi-surb backwards compatibility in pre 1.1.4 client config files by @jstuczyn in https://github.com/nymtech/nym/pull/2703
+- fix: ignore corrupted surb storage and instead create fresh one by @jstuczyn in https://github.com/nymtech/nym/pull/2711
+- socks5: rework waiting in inbound.rs by @octol in https://github.com/nymtech/nym/pull/1880
+
 ## [v1.1.3] (2022-12-13)
 
 ### Changed

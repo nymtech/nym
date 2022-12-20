@@ -17,7 +17,7 @@ import { isMixnode } from 'src/types';
 import { getIntervalAsDate } from 'src/utils';
 import { NodeGeneralSettings } from './settings-pages/general-settings';
 import { NodeUnbondPage } from './settings-pages/NodeUnbondPage';
-import { navItems } from './node-settings.constant';
+import { makeNavItems } from './node-settings.constant';
 import { ApyPlayground } from './apy-playground';
 
 export const NodeSettings = () => {
@@ -87,7 +87,7 @@ export const NodeSettings = () => {
             </Box>
             <Box sx={{ width: '100%' }}>
               <Tabs
-                tabs={navItems}
+                tabs={makeNavItems(isMixnode(bondedNode))}
                 selectedTab={value}
                 onChange={handleChange}
                 tabSx={{

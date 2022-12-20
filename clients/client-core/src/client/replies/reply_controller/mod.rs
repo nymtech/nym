@@ -4,8 +4,8 @@
 use crate::client::real_messages_control::acknowledgement_control::PendingAcknowledgement;
 use crate::client::real_messages_control::message_handler::{MessageHandler, PreparationError};
 use crate::client::replies::reply_storage::CombinedReplyStorage;
-use client_connections::TransmissionLane;
-use futures::channel::mpsc;
+use client_connections::{ConnectionId, TransmissionLane};
+use futures::channel::oneshot;
 use futures::StreamExt;
 use log::{debug, error, info, trace, warn};
 use nymsphinx::addressing::clients::Recipient;
@@ -15,116 +15,16 @@ use nymsphinx::chunking::fragment::{Fragment, FragmentIdentifier};
 use rand::{CryptoRng, Rng};
 use std::cmp::{max, min};
 use std::collections::btree_map::Entry;
-use std::collections::{BTreeMap, HashMap, VecDeque};
+use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 use time::OffsetDateTime;
 
-#[cfg(not(target_arch = "wasm32"))]
-type IntervalStream = tokio_stream::wrappers::IntervalStream;
+use crate::client::helpers::new_interval_stream;
+use crate::client::transmission_buffer::TransmissionBuffer;
+pub(crate) use requests::{ReplyControllerMessage, ReplyControllerReceiver, ReplyControllerSender};
 
-#[cfg(target_arch = "wasm32")]
-type IntervalStream = gloo_timers::future::IntervalStream;
-
-pub(crate) fn new_control_channels() -> (ReplyControllerSender, ReplyControllerReceiver) {
-    let (tx, rx) = mpsc::unbounded();
-    (tx.into(), rx)
-}
-
-#[derive(Debug, Clone)]
-pub(crate) struct ReplyControllerSender(mpsc::UnboundedSender<ReplyControllerMessage>);
-
-impl From<mpsc::UnboundedSender<ReplyControllerMessage>> for ReplyControllerSender {
-    fn from(inner: mpsc::UnboundedSender<ReplyControllerMessage>) -> Self {
-        ReplyControllerSender(inner)
-    }
-}
-
-impl ReplyControllerSender {
-    pub(crate) fn send_retransmission_data(
-        &self,
-        recipient: AnonymousSenderTag,
-        timed_out_ack: Weak<PendingAcknowledgement>,
-        extra_surb_request: bool,
-    ) {
-        self.0
-            .unbounded_send(ReplyControllerMessage::RetransmitReply {
-                recipient,
-                timed_out_ack,
-                extra_surb_request,
-            })
-            .expect("ReplyControllerReceiver has died!")
-    }
-
-    pub(crate) fn send_reply(
-        &self,
-        recipient: AnonymousSenderTag,
-        message: Vec<u8>,
-        lane: TransmissionLane,
-    ) {
-        self.0
-            .unbounded_send(ReplyControllerMessage::SendReply {
-                recipient,
-                message,
-                lane,
-            })
-            .expect("ReplyControllerReceiver has died!")
-    }
-
-    pub(crate) fn send_additional_surbs(
-        &self,
-        sender_tag: AnonymousSenderTag,
-        reply_surbs: Vec<ReplySurb>,
-        from_surb_request: bool,
-    ) {
-        self.0
-            .unbounded_send(ReplyControllerMessage::AdditionalSurbs {
-                sender_tag,
-                reply_surbs,
-                from_surb_request,
-            })
-            .expect("ReplyControllerReceiver has died!")
-    }
-
-    pub(crate) fn send_additional_surbs_request(&self, recipient: Recipient, amount: u32) {
-        self.0
-            .unbounded_send(ReplyControllerMessage::AdditionalSurbsRequest {
-                recipient: Box::new(recipient),
-                amount,
-            })
-            .expect("ReplyControllerReceiver has died!")
-    }
-}
-
-pub(crate) type ReplyControllerReceiver = mpsc::UnboundedReceiver<ReplyControllerMessage>;
-
-#[derive(Debug)]
-pub(crate) enum ReplyControllerMessage {
-    RetransmitReply {
-        recipient: AnonymousSenderTag,
-        timed_out_ack: Weak<PendingAcknowledgement>,
-        extra_surb_request: bool,
-    },
-
-    SendReply {
-        recipient: AnonymousSenderTag,
-        message: Vec<u8>,
-        lane: TransmissionLane,
-    },
-
-    AdditionalSurbs {
-        sender_tag: AnonymousSenderTag,
-        reply_surbs: Vec<ReplySurb>,
-        from_surb_request: bool,
-    },
-
-    // Should this also be handled in here? it's technically a completely different side of the pipe
-    // let's see how it works when combined, might split it before creating PR
-    AdditionalSurbsRequest {
-        recipient: Box<Recipient>,
-        amount: u32,
-    },
-}
+pub mod requests;
 
 pub struct Config {
     min_surb_request_size: u32,
@@ -172,7 +72,7 @@ pub struct ReplyController<R> {
     // of surbs required to send the message through
     // expected_reliability: f32,
     request_receiver: ReplyControllerReceiver,
-    pending_replies: HashMap<AnonymousSenderTag, VecDeque<Fragment>>,
+    pending_replies: HashMap<AnonymousSenderTag, TransmissionBuffer<Fragment>>,
 
     /// Retransmission packets that have already timed out and are waiting for additional reply SURBs
     /// so that they could be sent back to the network. Once we receive more SURBs, we should send them ASAP.
@@ -204,17 +104,28 @@ where
         }
     }
 
-    /// Inserts the pending replies into the BACK of the queue fn insert_pending_replies<V: Into<VecDeque<Fragment>>>(
-    fn insert_pending_replies<V: Into<VecDeque<Fragment>>>(
+    fn insert_pending_replies<I: IntoIterator<Item = Fragment>>(
         &mut self,
         recipient: &AnonymousSenderTag,
-        fragments: V,
+        fragments: I,
+        lane: TransmissionLane,
     ) {
-        if let Some(existing) = self.pending_replies.get_mut(recipient) {
-            existing.append(&mut fragments.into())
-        } else {
-            self.pending_replies.insert(*recipient, fragments.into());
-        }
+        self.pending_replies
+            .entry(*recipient)
+            .or_insert_with(TransmissionBuffer::new)
+            .store(&lane, fragments)
+    }
+
+    fn re_insert_pending_replies(
+        &mut self,
+        recipient: &AnonymousSenderTag,
+        fragments: Vec<(TransmissionLane, Fragment)>,
+    ) {
+        // the buffer should ALWAYS exist at this point, if it doesn't, it's a bug...
+        self.pending_replies
+            .entry(*recipient)
+            .or_insert_with(TransmissionBuffer::new)
+            .store_multiple(fragments)
     }
 
     fn re_insert_pending_retransmission(
@@ -244,7 +155,7 @@ where
         let pending_queue_size = self
             .pending_replies
             .get(target)
-            .map(|pending_queue| pending_queue.len())
+            .map(|pending_queue| pending_queue.total_size())
             .unwrap_or_default();
 
         let retransmission_queue = self
@@ -299,42 +210,61 @@ where
         }
 
         trace!("handling reply to {:?}", recipient_tag);
-        let fragments = self.message_handler.split_reply_message(data);
+        let mut fragments = self.message_handler.split_reply_message(data);
+        let total_size = fragments.len();
+        trace!("This reply requires {:?} SURBs", total_size);
 
-        let required_surbs = fragments.len();
-        trace!("This reply requires {:?} SURBs", required_surbs);
-
-        // TODO: edge case:
-        // we're making a lot of requests and have to request a lot of surbs
-        // (but at some point we run out of surbs for surb requests)
-
-        let (surbs, _surbs_left) = self
+        let available_surbs = self
             .full_reply_storage
             .surbs_storage_ref()
-            .get_reply_surbs(&recipient_tag, required_surbs);
+            .available_surbs(&recipient_tag);
+        let min_surbs_threshold = self
+            .full_reply_storage
+            .surbs_storage_ref()
+            .min_surb_threshold();
 
-        if let Some(reply_surbs) = surbs {
-            if let Err(err) = self
-                .message_handler
-                .try_send_reply_chunks(recipient_tag, fragments, reply_surbs, lane)
-                .await
-            {
-                let err = err.return_unused_surbs(
-                    self.full_reply_storage.surbs_storage_ref(),
-                    &recipient_tag,
-                );
-                warn!("failed to send reply to {:?} - {err}", recipient_tag);
-
-                // TODO: should we buffer that data to try again?
-            }
+        let max_to_send = if available_surbs > min_surbs_threshold {
+            min(fragments.len(), available_surbs - min_surbs_threshold)
         } else {
-            // we don't have enough surbs for this reply
-            self.insert_pending_replies(&recipient_tag, fragments);
+            0
+        };
 
-            if self.should_request_more_surbs(&recipient_tag) {
-                self.request_reply_surbs_for_queue_clearing(recipient_tag)
-                    .await;
+        if max_to_send > 0 {
+            let (surbs, _surbs_left) = self
+                .full_reply_storage
+                .surbs_storage_ref()
+                .get_reply_surbs(&recipient_tag, max_to_send);
+
+            if let Some(reply_surbs) = surbs {
+                let to_send = fragments.drain(..max_to_send).collect::<Vec<_>>();
+                if let Err(err) = self
+                    .message_handler
+                    .try_send_reply_chunks_on_lane(
+                        recipient_tag,
+                        to_send.clone(),
+                        reply_surbs,
+                        lane,
+                    )
+                    .await
+                {
+                    let err = err.return_unused_surbs(
+                        self.full_reply_storage.surbs_storage_ref(),
+                        &recipient_tag,
+                    );
+                    warn!("failed to send reply to {recipient_tag}: {err}");
+                    self.insert_pending_replies(&recipient_tag, to_send, lane);
+                }
             }
+        }
+
+        // if there's leftover data we didn't send because we didn't have enough (or any) surbs - buffer it
+        if !fragments.is_empty() {
+            self.insert_pending_replies(&recipient_tag, fragments, lane);
+        }
+
+        if self.should_request_more_surbs(&recipient_tag) {
+            self.request_reply_surbs_for_queue_clearing(recipient_tag)
+                .await;
         }
     }
 
@@ -398,35 +328,18 @@ where
         };
 
         let mut to_take = Vec::new();
-        let mut to_remove = Vec::new();
 
-        // TODO: once rust 1.66.0 is stabilised on 15.12.22, just change it to
-        // `.pop_front()` to directly take ownership
-        for (k, data) in pending.iter() {
-            let upgraded = match data.upgrade() {
-                Some(upgraded) => upgraded,
-                None => {
-                    // we got the ack while the data was waiting in the queue
-                    to_remove.push(*k);
-                    continue;
+        while to_take.len() < max_to_clear {
+            if let Some((_, data)) = pending.pop_first() {
+                // no need to do anything if we failed to upgrade the reference,
+                // it means we got the ack while the data was waiting in the queue
+                if let Some(upgraded) = data.upgrade() {
+                    to_take.push(upgraded)
                 }
-            };
-
-            to_take.push(upgraded);
-
-            // we have taken as many entries as we could have
-            if to_take.len() >= max_to_clear {
+            } else {
+                // our map is empty!
                 break;
             }
-            // TODO: use if upgraded.is_extra_surb_request() to bypass the limit
-        }
-
-        for ack in &to_take {
-            pending.remove(&ack.inner_fragment_identifier());
-        }
-
-        for id in to_remove {
-            pending.remove(&id);
         }
 
         if to_take.is_empty() {
@@ -447,46 +360,47 @@ where
 
         let to_send_vec = to_take.iter().map(|ack| ack.fragment_data()).collect();
 
-        if let Err(err) = self
+        let prepared_fragments = match self
             .message_handler
-            .try_send_retransmission_reply_chunks(
-                to_send_vec,
-                surbs_for_reply,
-                TransmissionLane::Retransmission,
-            )
+            .prepare_reply_chunks_for_sending(to_send_vec, surbs_for_reply)
             .await
         {
-            let err = err.return_unused_surbs(self.full_reply_storage.surbs_storage_ref(), &target);
-            self.re_insert_pending_retransmission(&target, to_take);
+            Ok(prepared) => prepared,
+            Err(err) => {
+                let err =
+                    err.return_unused_surbs(self.full_reply_storage.surbs_storage_ref(), &target);
+                self.re_insert_pending_retransmission(&target, to_take);
 
-            warn!(
-                "failed to clear pending retransmission queue for {:?} - {err}",
-                target
-            );
-        }
+                warn!(
+                    "failed to clear pending retransmission queue for {:?} - {err}",
+                    target
+                );
+                return;
+            }
+        };
+
+        // we can't fail at this point, so drop all references to acks so that timer updates wouldn't blow up
+        drop(to_take);
+
+        self.message_handler
+            .send_retransmission_reply_chunks(prepared_fragments, TransmissionLane::Retransmission)
+            .await;
     }
 
     fn pop_at_most_pending_replies(
         &mut self,
         from: &AnonymousSenderTag,
         amount: usize,
-    ) -> Option<VecDeque<Fragment>> {
+    ) -> Option<Vec<(TransmissionLane, Fragment)>> {
         // if possible, pop all pending replies, if not, pop only entries for which we'd have a reply surb
-        let total = self.pending_replies.get(from)?.len();
+        let total = self.pending_replies.get(from)?.total_size();
         trace!("pending queue has {total} elements");
         if total == 0 {
             return None;
         }
-        if total < amount {
-            self.pending_replies.remove(from)
-        } else {
-            Some(
-                self.pending_replies
-                    .get_mut(from)?
-                    .drain(..amount)
-                    .collect(),
-            )
-        }
+        self.pending_replies
+            .get_mut(from)?
+            .pop_at_most_n_next_messages_at_random(amount)
     }
 
     async fn try_clear_pending_queue(&mut self, target: AnonymousSenderTag) {
@@ -510,9 +424,9 @@ where
 
         // we're guaranteed to not get more entries than we have reply surbs for
         if let Some(to_send) = self.pop_at_most_pending_replies(&target, max_to_clear) {
-            let to_send_vec = to_send.iter().cloned().collect::<Vec<_>>();
+            let to_send_clone = to_send.clone();
 
-            if to_send_vec.is_empty() {
+            if to_send_clone.is_empty() {
                 panic!(
                     "please let the devs know if you ever see this message (reply_controller.rs)"
                 );
@@ -521,27 +435,22 @@ where
             let (surbs_for_reply, _) = self
                 .full_reply_storage
                 .surbs_storage_ref()
-                .get_reply_surbs(&target, to_send_vec.len());
+                .get_reply_surbs(&target, to_send_clone.len());
 
             let Some(surbs_for_reply) = surbs_for_reply else {
                 error!("somehow different task has stolen our reply surbs! - this should have been impossible");
-                self.insert_pending_replies(&target, to_send);
+                self.re_insert_pending_replies(&target, to_send);
                 return;
             };
 
             if let Err(err) = self
                 .message_handler
-                .try_send_reply_chunks(
-                    target,
-                    to_send_vec,
-                    surbs_for_reply,
-                    TransmissionLane::General,
-                )
+                .try_send_reply_chunks(target, to_send_clone, surbs_for_reply)
                 .await
             {
                 let err =
                     err.return_unused_surbs(self.full_reply_storage.surbs_storage_ref(), &target);
-                self.insert_pending_replies(&target, to_send);
+                self.re_insert_pending_replies(&target, to_send);
                 warn!("failed to clear pending queue for {:?} - {err}", target);
             }
         } else {
@@ -712,6 +621,30 @@ where
         }
     }
 
+    // to be honest this doesn't make a lot of sense in the context of `connection_id`,
+    // it should really be asked per tag
+    fn handle_lane_queue_length(
+        &self,
+        connection_id: ConnectionId,
+        response_channel: oneshot::Sender<usize>,
+    ) {
+        // TODO: if we ever have duplicate ids for different senders, it means our rng is super weak
+        // thus I don't think we have to worry about it?
+        let lane = TransmissionLane::ConnectionId(connection_id);
+        for buf in self.pending_replies.values() {
+            if let Some(length) = buf.lane_length(&lane) {
+                if response_channel.send(length).is_err() {
+                    error!("the requester for lane queue length has dropped the response channel!")
+                }
+                return;
+            }
+        }
+        // make sure that if we didn't find that lane, we reply with 0
+        if response_channel.send(0).is_err() {
+            error!("the requester for lane queue length has dropped the response channel!")
+        }
+    }
+
     async fn handle_request(&mut self, request: ReplyControllerMessage) {
         match request {
             ReplyControllerMessage::RetransmitReply {
@@ -735,19 +668,26 @@ where
                 self.handle_received_surbs(sender_tag, reply_surbs, from_surb_request)
                     .await
             }
+            ReplyControllerMessage::LaneQueueLength {
+                connection_id,
+                response_channel,
+            } => self.handle_lane_queue_length(connection_id, response_channel),
             ReplyControllerMessage::AdditionalSurbsRequest { recipient, amount } => {
                 self.handle_surb_request(*recipient, amount).await
             }
         }
     }
 
+    // TODO: modify this method to more accurately determine the amount of surbs it needs to request
+    // it should take into consideration the average latency, sending rate and queue size.
+    // it should request as many surbs as it takes to saturate its sending rate before next batch arrives
     async fn request_reply_surbs_for_queue_clearing(&mut self, target: AnonymousSenderTag) {
         trace!("requesting surbs for queues clearing");
 
         let pending_queue_size = self
             .pending_replies
             .get(&target)
-            .map(|pending_queue| pending_queue.len())
+            .map(|pending_queue| pending_queue.total_size())
             .unwrap_or_default();
 
         let retransmission_queue = self
@@ -787,7 +727,7 @@ where
             }
 
             let Some(last_received) = self.full_reply_storage.surbs_storage_ref().surbs_last_received_at(pending_reply_target) else {
-                error!("we have {} pending replies for {pending_reply_target}, but we somehow never received any reply surbs from them!", vals.len());
+                error!("we have {} pending replies for {pending_reply_target}, but we somehow never received any reply surbs from them!", vals.total_size());
                 to_remove.push(*pending_reply_target);
                 continue;
             };
@@ -883,23 +823,20 @@ where
         }
     }
 
-    fn create_interval_stream(polling_rate: Duration) -> IntervalStream {
-        #[cfg(not(target_arch = "wasm32"))]
-        return tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(polling_rate));
-
-        #[cfg(target_arch = "wasm32")]
-        return gloo_timers::future::IntervalStream::new(polling_rate.as_millis() as u32);
-    }
+    // #[cfg(not(target_arch = "wasm32"))]
+    // async fn log_status(&self) {
+    //     todo!()
+    // }
 
     pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
         debug!("Started ReplyController with graceful shutdown support");
 
         let polling_rate = Duration::from_secs(5);
-        let mut stale_inspection = Self::create_interval_stream(polling_rate);
+        let mut stale_inspection = new_interval_stream(polling_rate);
 
         // this is in the order of hours/days so we don't have to poll it that often
         let polling_rate = Duration::from_secs(self.config.max_reply_surb_age.as_secs() / 10);
-        let mut invalidation_inspection = Self::create_interval_stream(polling_rate);
+        let mut invalidation_inspection = new_interval_stream(polling_rate);
 
         while !shutdown.is_shutdown() {
             tokio::select! {

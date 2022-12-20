@@ -13,6 +13,7 @@ use client_core::client::base_client::{
 use client_core::client::inbound_messages::InputMessage;
 use client_core::client::key_manager::KeyManager;
 use client_core::client::received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
+use client_core::client::replies::reply_controller::requests::ReplyControllerSender;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
@@ -87,6 +88,7 @@ impl SocketClient {
         client_input: ClientInput,
         client_output: ClientOutput,
         self_address: &Recipient,
+        reply_controller_sender: ReplyControllerSender,
         shutdown: task::TaskClient,
     ) {
         info!("Starting websocket listener...");
@@ -107,6 +109,7 @@ impl SocketClient {
             received_buffer_request_sender,
             self_address,
             shared_lane_queue_lengths,
+            reply_controller_sender,
         );
 
         websocket::Listener::new(config.get_listening_port()).start(websocket_handler, shutdown);
@@ -154,6 +157,7 @@ impl SocketClient {
             client_input,
             client_output,
             &self_address,
+            started_client.reply_controller_sender,
             started_client.task_manager.subscribe(),
         );
 

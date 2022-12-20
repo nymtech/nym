@@ -30,7 +30,7 @@ use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse
 #[cfg(feature = "coconut")]
 use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
 #[cfg(feature = "coconut")]
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch};
 #[cfg(feature = "coconut")]
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 #[cfg(feature = "coconut")]
@@ -329,8 +329,8 @@ where
             .await?)
     }
 
-    async fn get_current_epoch_state(&self) -> crate::coconut::error::Result<EpochState> {
-        Ok(self.0.read().await.nymd.get_current_epoch_state().await?)
+    async fn get_current_epoch(&self) -> crate::coconut::error::Result<Epoch> {
+        Ok(self.0.read().await.nymd.get_current_epoch().await?)
     }
 
     async fn get_current_epoch_threshold(
@@ -401,6 +401,16 @@ where
             .await
             .nymd
             .execute_proposal(proposal_id, None)
+            .await?;
+        Ok(())
+    }
+
+    async fn advance_epoch_state(&self) -> crate::coconut::error::Result<()> {
+        self.0
+            .write()
+            .await
+            .nymd
+            .advance_dkg_epoch_state(None)
             .await?;
         Ok(())
     }

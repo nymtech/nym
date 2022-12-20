@@ -10,7 +10,6 @@ use serde::{Deserialize, Serialize};
 
 // unique items
 pub const STATE: Item<State> = Item::new("state");
-pub const ADMIN: Admin = Admin::new("admin");
 pub const MULTISIG: Admin = Admin::new("multisig");
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, JsonSchema, Debug)]

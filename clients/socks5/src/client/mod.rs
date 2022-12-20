@@ -166,7 +166,7 @@ impl NymClient {
         let mut shutdown = self.start().await?;
 
         // Listen to status messages from task, that we forward back to the caller
-        shutdown.start_status_listener(sender);
+        shutdown.start_status_listener(sender).await;
 
         let res = tokio::select! {
             biased;

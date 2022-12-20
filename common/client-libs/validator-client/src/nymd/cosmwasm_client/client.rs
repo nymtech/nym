@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::nymd;
 use crate::nymd::coin::Coin;
 use crate::nymd::cosmwasm_client::helpers::{create_pagination, next_page_key};
 use crate::nymd::cosmwasm_client::types::{
@@ -23,7 +24,6 @@ use cosmrs::rpc::endpoint::broadcast;
 use cosmrs::rpc::endpoint::tx::Response as TxResponse;
 use cosmrs::rpc::query::Query;
 use cosmrs::rpc::{self, HttpClient, Order};
-use cosmrs::tendermint::abci::Code as AbciCode;
 use cosmrs::tendermint::abci::Transaction;
 use cosmrs::tendermint::{abci, block, chain};
 use cosmrs::{tx, AccountId, Coin as CosmosCoin, Tx};
@@ -66,13 +66,9 @@ pub trait CosmWasmClient: rpc::Client {
         req.encode(&mut buf)?;
 
         let res = self.abci_query(path, buf, None, false).await?;
+        let res_success = nymd::error::parse_abci_query_result(res)?;
 
-        match res.code {
-            AbciCode::Err(code) => return Err(NymdError::AbciError(code, res.log)),
-            AbciCode::Ok => (),
-        }
-
-        Ok(Res::decode(res.value.as_ref())?)
+        Ok(Res::decode(res_success.value.as_ref())?)
     }
 
     async fn get_chain_id(&self) -> Result<chain::Id, NymdError> {

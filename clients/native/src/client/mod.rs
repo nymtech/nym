@@ -86,7 +86,7 @@ impl SocketClient {
         config: &Config,
         client_input: ClientInput,
         client_output: ClientOutput,
-        self_address: Recipient,
+        self_address: &Recipient,
         shutdown: task::TaskClient,
     ) {
         info!("Starting websocket listener...");
@@ -101,7 +101,7 @@ impl SocketClient {
             received_buffer_request_sender,
         } = client_output;
 
-        let websocket_handler = websocket::Handler::new(
+        let websocket_handler = websocket::HandlerBuilder::new(
             input_sender,
             connection_command_sender,
             received_buffer_request_sender,
@@ -153,7 +153,7 @@ impl SocketClient {
             &self.config,
             client_input,
             client_output,
-            self_address,
+            &self_address,
             started_client.task_manager.subscribe(),
         );
 

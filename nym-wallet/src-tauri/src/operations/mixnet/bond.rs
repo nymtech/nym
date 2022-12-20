@@ -341,3 +341,18 @@ pub async fn get_mix_node_description(
         .json()
         .await?)
 }
+
+#[tauri::command]
+pub async fn get_mixnode_uptime(
+    mix_id: MixId,
+    state: tauri::State<'_, WalletState>,
+) -> Result<u8, BackendError> {
+    log::info!(">>> Get mixnode uptime");
+
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+    let uptime = client.nym_api.get_mixnode_avg_uptime(mix_id).await?;
+
+    log::info!(">>> Uptime response: {}", uptime.avg_uptime);
+    Ok(uptime.avg_uptime)
+}

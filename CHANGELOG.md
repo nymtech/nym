@@ -6,6 +6,12 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [v1.1.4] (2022-12-20)
 
+This release adds multiple Single Use Reply Blocks (SURBs) to allow arbitrarily-sized anonymized replies. 
+At the moment this is turned off by default, but available for use by application developers. 
+We will need to wait for network-requesters to upgrade to this new release, after which multi-SURB anonymization will become the default setting for the SOCKS proxy clients. 
+
+The release also include some additional work for distributed key generation in the Coconut signing authority nodes. 
+
 ### Changed
 
 - Feature/dkg contract threshold by @neacsu in https://github.com/nymtech/nym/pull/1885

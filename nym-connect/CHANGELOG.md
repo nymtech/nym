@@ -2,6 +2,8 @@
 
 ## [nym-connect-v1.1.4](https://github.com/nymtech/nym/tree/nym-connect-v1.1.4) (2022-12-20)
 
+This release contains the new opt-in Test & Earn program, and it uses a stress-tested directory of network requesters to improve reliability. It also has some bugfixes, performance improvements, and better error handling.
+
 - nym-connect: send status messages from socks5 task to tauri backend by @octol in https://github.com/nymtech/nym/pull/1882
 - socks5: rework waiting in inbound.rs by @octol in https://github.com/nymtech/nym/pull/1880
 - Test&Earn by @mmsinclair in https://github.com/nymtech/nym/pull/2729

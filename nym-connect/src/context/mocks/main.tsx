@@ -3,8 +3,8 @@ import { ConnectionStatusKind } from 'src/types';
 import { ClientContext, TClientContext } from '../main';
 
 const mockValues: TClientContext = {
+  appVersion: 'v1.x.x',
   mode: 'dark',
-  appVersion: '1.1.1',
   connectionStatus: ConnectionStatusKind.disconnected,
   services: [],
   showHelp: false,
@@ -20,6 +20,9 @@ const mockValues: TClientContext = {
   startDisconnecting: async () => {},
 };
 
-export const MockProvider = ({ children }: { children: React.ReactNode }) => {
-  return <ClientContext.Provider value={mockValues}>{children}</ClientContext.Provider>;
-};
+export const MockProvider: React.FC<{
+  children?: React.ReactNode;
+  connectionStatus?: ConnectionStatusKind;
+}> = ({ connectionStatus = ConnectionStatusKind.disconnected, children }) => (
+  <ClientContext.Provider value={{ ...mockValues, connectionStatus }}>{children}</ClientContext.Provider>
+);

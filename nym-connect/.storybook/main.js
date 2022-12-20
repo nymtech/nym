@@ -30,6 +30,19 @@ module.exports = {
       use: ['@svgr/webpack'],
     });
 
+    config.module.rules.unshift({
+      test: /\.ya?ml$/,
+      type: 'json',
+      use: [
+        {
+          loader: 'yaml-loader',
+          options: {
+            asJSON: true,
+          },
+        },
+      ],
+    });
+
     config.resolve.extensions = ['.tsx', '.ts', '.js'];
     config.resolve.plugins = [new TsconfigPathsPlugin()];
 

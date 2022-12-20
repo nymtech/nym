@@ -230,6 +230,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       gatewayPerformance,
     ],
   );
+  console.log(gatewayPerformance);
 
   return <ClientContext.Provider value={contextValue}>{children}</ClientContext.Provider>;
 };

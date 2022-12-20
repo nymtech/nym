@@ -4,6 +4,9 @@ import { invoke } from '@tauri-apps/api';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import { listen } from '@tauri-apps/api/event';
 import { forage } from '@tauri-apps/tauri-forage';
+import { ConnectionStatusKind, GatewayPerformance } from '../types';
+import { ConnectionStatsItem } from '../components/ConnectionStats';
+import { ServiceProvider, Services } from '../types/directory';
 import { Error } from 'src/types/error';
 import { TauriEvent } from 'src/types/event';
 import { getVersion } from '@tauri-apps/api/app';
@@ -25,7 +28,7 @@ export type TClientContext = {
   serviceProvider?: ServiceProvider;
   showHelp: boolean;
   error?: Error;
-
+  gatewayPerformance: GatewayPerformance;
   setMode: (mode: ModeType) => void;
   clearError: () => void;
   handleShowHelp: () => void;
@@ -50,6 +53,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const [showHelp, setShowHelp] = useState(false);
   const [error, setError] = useState<Error>();
   const [appVersion, setAppVersion] = useState<string>();
+  const [gatewayPerformance, setGatewayPerformance] = useState<GatewayPerformance>('Good');
 
   const getAppVersion = async () => {
     const version = await getVersion();
@@ -93,6 +97,16 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       unlisten.push(result);
     });
 
+    listen('socks5-status-event', (e: TauriEvent) => {
+      if (e.payload.message.includes('slow')) {
+        setGatewayPerformance('Poor');
+      } else {
+        setGatewayPerformance('Good');
+      }
+    }).then((result) => {
+      unlisten.push(result);
+    });
+
     return () => {
       unlisten.forEach((unsubscribe) => unsubscribe());
     };
@@ -110,6 +124,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const startDisconnecting = useCallback(async () => {
     try {
       await invoke('start_disconnecting');
+      setGatewayPerformance('Good');
     } catch (e) {
       console.log(e);
     }
@@ -187,6 +202,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       setServiceProvider,
       showHelp,
       handleShowHelp,
+      gatewayPerformance,
     }),
     [
       appVersion,
@@ -200,8 +216,10 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       connectedSince,
       services,
       serviceProvider,
+      gatewayPerformance,
     ],
   );
+  console.log(gatewayPerformance);
 
   return <ClientContext.Provider value={contextValue}>{children}</ClientContext.Provider>;
 };

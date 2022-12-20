@@ -74,6 +74,7 @@ export const App: React.FC = () => {
       onConnectClick={handleConnectClick}
       ipAddress="127.0.0.1"
       port={1080}
+      gatewayPerformance={context.gatewayPerformance}
       connectedSince={context.connectedSince}
       serviceProvider={context.serviceProvider}
       stats={[

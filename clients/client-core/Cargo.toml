@@ -1,24 +1,26 @@
 [package]
 name = "client-core"
-version = "1.1.3"
+version = "1.1.4"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-trait = { version = "0.1.58" }
 dirs = "4.0"
+dashmap = "5.4.0"
 futures = "0.3"
 humantime-serde = "1.0"
 log = "0.4"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.89"
-sled = { version = "0.34", optional = true }
 tap = "1.0.1"
 thiserror = "1.0.34"
-tokio = { version = "1.21.2", features = ["time", "macros"]}
 url = { version ="2.2", features = ["serde"] }
+tokio = { version = "1.21.2", features = ["macros"]}
+time = "0.3.17"
 
 # internal
 config = { path = "../../common/config" }
@@ -38,6 +40,15 @@ task = { path = "../../common/task" }
 version = "0.1.9"
 features = ["time"]
 
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
+version = "1.21.2"
+features = ["time"]
+
+[target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
+version = "0.6.2"
+features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]
+optional = true
+
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen-futures]
 version = "0.4"
 
@@ -52,15 +63,23 @@ rev = "b9d1a54ad514c2f230a026afe0dde341e98cd7b6"
 version = "0.2.4"
 features = ["futures"]
 
-#[target."cfg(not(target_arch = \"wasm32\"))".dependencies.task]
-#path = "../../common/task"
+[target."cfg(target_arch = \"wasm32\")".dependencies.wasm-utils]
+path = "../../common/wasm-utils"
+
+[target."cfg(target_arch = \"wasm32\")".dependencies.time]
+version = "0.3.17"
+features = ["wasm-bindgen"]
 
 [dev-dependencies]
 tempfile = "3.1.0"
 
+[build-dependencies]
+tokio = { version = "1.21.2", features = ["rt-multi-thread", "macros"] }
+sqlx = { version = "0.6.2", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+
 [features]
-default = ["reply-surb"]
+default = []
+fs-surb-storage = ["sqlx"]
 wasm = ["gateway-client/wasm"]
 coconut = ["gateway-client/coconut", "gateway-requests/coconut"]
-reply-surb = ["sled"]
 

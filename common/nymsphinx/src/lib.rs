@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+pub mod message;
 pub mod preparer;
 pub mod receiver;
 pub mod utils;
@@ -16,3 +17,6 @@ pub use nymsphinx_forwarding as forwarding;
 pub use nymsphinx_framing as framing;
 pub use nymsphinx_params as params;
 pub use nymsphinx_types::*;
+
+// TEMP UNTIL FURTHER REFACTORING
+pub use preparer::payload::NymsphinxPayloadBuilder;

@@ -9,6 +9,7 @@ import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ConnectionButton } from '../components/ConnectionButton';
 import { IpAddressAndPort } from '../components/IpAddressAndPort';
 import { ServiceProvider } from '../types/directory';
+import { TestAndEarnButtonArea } from '../components/Growth/TestAndEarnButtonArea';
 
 export const ConnectedLayout: React.FC<{
   status: ConnectionStatusKind;
@@ -44,5 +45,6 @@ export const ConnectedLayout: React.FC<{
     {/* <ConnectionStats stats={stats} /> */}
     <ConnectionTimer connectedSince={connectedSince} />
     <ConnectionButton status={status} busy={busy} onClick={onConnectClick} isError={isError} />
+    <TestAndEarnButtonArea />
   </>
 );

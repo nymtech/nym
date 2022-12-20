@@ -1,11 +1,13 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::Config;
 use crate::error::ClientError;
 use crate::websocket;
 use client_connections::TransmissionLane;
-use client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput};
+use client_core::client::base_client::{
+    non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput,
+};
 use client_core::client::inbound_messages::InputMessage;
 use client_core::client::key_manager::KeyManager;
 use client_core::client::received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
@@ -14,7 +16,7 @@ use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::ReplySurb;
+use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::receiver::ReconstructedMessage;
 use task::{wait_for_signal, ShutdownNotifier};
 
@@ -107,7 +109,7 @@ impl SocketClient {
 
     /// blocking version of `start_socket` method. Will run forever (or until SIGINT is sent)
     pub async fn run_socket_forever(self) -> Result<(), ClientError> {
-        let shutdown = self.start_socket().await?;
+        let mut shutdown = self.start_socket().await?;
         wait_for_signal().await;
 
         println!(
@@ -120,8 +122,8 @@ impl SocketClient {
         // Some of these components have shutdown signalling implemented as part of socks5 work,
         // but since it's not fully implemented (yet) for all the components of the native client,
         // we don't try to wait and instead just stop immediately.
-        //log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
-        //shutdown.wait_for_shutdown().await;
+        log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
+        shutdown.wait_for_shutdown().await;
 
         log::info!("Stopping nym-client");
         Ok(())
@@ -136,6 +138,11 @@ impl SocketClient {
             self.config.get_base(),
             self.key_manager,
             Some(Self::create_bandwidth_controller(&self.config).await),
+            non_wasm_helpers::setup_fs_reply_surb_backend(
+                self.config.get_base().get_reply_surb_database_path(),
+                self.config.get_debug_settings(),
+            )
+            .await?,
         );
 
         let self_address = base_builder.as_mix_recipient();
@@ -160,6 +167,11 @@ impl SocketClient {
             self.config.get_base(),
             self.key_manager,
             Some(Self::create_bandwidth_controller(&self.config).await),
+            non_wasm_helpers::setup_fs_reply_surb_backend(
+                self.config.get_base().get_reply_surb_database_path(),
+                self.config.get_debug_settings(),
+            )
+            .await?,
         );
 
         let mut started_client = base_client.start_base().await?;
@@ -197,14 +209,9 @@ impl DirectClient {
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
-    pub async fn send_message(
-        &mut self,
-        recipient: Recipient,
-        message: Vec<u8>,
-        with_reply_surb: bool,
-    ) {
+    pub async fn send_regular_message(&mut self, recipient: Recipient, message: Vec<u8>) {
         let lane = TransmissionLane::General;
-        let input_msg = InputMessage::new_fresh(recipient, message, with_reply_surb, lane);
+        let input_msg = InputMessage::new_regular(recipient, message, lane);
 
         self.client_input
             .input_sender
@@ -216,8 +223,28 @@ impl DirectClient {
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)
-    pub async fn send_reply(&mut self, reply_surb: ReplySurb, message: Vec<u8>) {
-        let input_msg = InputMessage::new_reply(reply_surb, message);
+    pub async fn send_anonymous_message(
+        &mut self,
+        recipient: Recipient,
+        message: Vec<u8>,
+        reply_surbs: u32,
+    ) {
+        let lane = TransmissionLane::General;
+        let input_msg = InputMessage::new_anonymous(recipient, message, reply_surbs, lane);
+
+        self.client_input
+            .input_sender
+            .send(input_msg)
+            .await
+            .expect("InputMessageReceiver has stopped receiving!");
+    }
+
+    /// EXPERIMENTAL DIRECT RUST API
+    /// It's untested and there are absolutely no guarantees about it (but seems to have worked
+    /// well enough in local tests)
+    pub async fn send_reply(&mut self, recipient_tag: AnonymousSenderTag, message: Vec<u8>) {
+        let lane = TransmissionLane::General;
+        let input_msg = InputMessage::new_reply(recipient_tag, message, lane);
 
         self.client_input
             .input_sender

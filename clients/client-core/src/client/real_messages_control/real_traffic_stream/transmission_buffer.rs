@@ -17,7 +17,7 @@ use wasm_timer;
 use super::{get_time_now, RealMessage};
 
 // The number of lanes included in the oldest set. Used when we need to prioritize traffic.
-const OLDEST_LANE_SET_SIZE: usize = 5;
+const OLDEST_LANE_SET_SIZE: usize = 4;
 // As a way of prune connections we also check for timeouts.
 const MSG_CONSIDERED_STALE_AFTER_SECS: u64 = 10 * 60;
 

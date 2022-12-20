@@ -10,6 +10,7 @@ use nymsphinx_types::Destination;
 use serde::de::{Error as SerdeError, Unexpected, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Formatter};
+use thiserror::Error;
 
 // Not entirely sure whether this is the correct place for those, but let's see how it's going
 // to work out
@@ -19,46 +20,25 @@ const CLIENT_ENCRYPTION_KEY_SIZE: usize = encryption::PUBLIC_KEY_SIZE;
 pub type ClientIdentity = identity::PublicKey;
 const CLIENT_IDENTITY_SIZE: usize = identity::PUBLIC_KEY_LENGTH;
 
-#[derive(Debug)]
+pub type RecipientBytes = [u8; Recipient::LEN];
+
+#[derive(Debug, Error)]
 pub enum RecipientFormattingError {
-    MalformedRecipientError,
+    #[error("recipient is malformed - {reason} ")]
+    MalformedRecipientError { reason: String },
+
+    #[error("recipient's identity key is malformed: {0}")]
     MalformedIdentityError(identity::Ed25519RecoveryError),
-    MalformedEncryptionKeyError(encryption::KeyRecoveryError),
+
+    #[error("recipient's encryption key is malformed: {0}")]
+    MalformedEncryptionKeyError(#[from] encryption::KeyRecoveryError),
+
+    #[error("recipient gateway's identity key is malformed: {0}")]
     MalformedGatewayError(identity::Ed25519RecoveryError),
 }
 
-impl fmt::Display for RecipientFormattingError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RecipientFormattingError::MalformedRecipientError => {
-                write!(f, "recipient is malformed")
-            }
-            RecipientFormattingError::MalformedIdentityError(id_err) => {
-                write!(f, "recipient's identity key is malformed: {}", id_err)
-            }
-            RecipientFormattingError::MalformedEncryptionKeyError(enc_err) => {
-                write!(f, "recipient's encryption key is malformed: {}", enc_err)
-            }
-            RecipientFormattingError::MalformedGatewayError(id_err) => write!(
-                f,
-                "recipient gateway's identity key is malformed: {}",
-                id_err
-            ),
-        }
-    }
-}
-
-// since we have Debug and Display might as well slap Error on top of it too
-impl std::error::Error for RecipientFormattingError {}
-
-impl From<encryption::KeyRecoveryError> for RecipientFormattingError {
-    fn from(err: encryption::KeyRecoveryError) -> Self {
-        RecipientFormattingError::MalformedEncryptionKeyError(err)
-    }
-}
-
 // TODO: this should a different home... somewhere, but where?
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Recipient {
     client_identity: ClientIdentity,
     client_encryption_key: ClientEncryptionKey,
@@ -154,7 +134,7 @@ impl Recipient {
         &self.gateway
     }
 
-    pub fn to_bytes(self) -> [u8; Self::LEN] {
+    pub fn to_bytes(self) -> RecipientBytes {
         let mut out = [0u8; Self::LEN];
         out[..CLIENT_IDENTITY_SIZE].copy_from_slice(&self.client_identity.to_bytes());
         out[CLIENT_IDENTITY_SIZE..CLIENT_IDENTITY_SIZE + CLIENT_ENCRYPTION_KEY_SIZE]
@@ -165,7 +145,7 @@ impl Recipient {
         out
     }
 
-    pub fn try_from_bytes(bytes: [u8; Self::LEN]) -> Result<Self, RecipientFormattingError> {
+    pub fn try_from_bytes(bytes: RecipientBytes) -> Result<Self, RecipientFormattingError> {
         let identity_bytes = &bytes[..CLIENT_IDENTITY_SIZE];
         let enc_key_bytes =
             &bytes[CLIENT_IDENTITY_SIZE..CLIENT_IDENTITY_SIZE + CLIENT_ENCRYPTION_KEY_SIZE];
@@ -196,14 +176,20 @@ impl Recipient {
         let string_address = full_address.into();
         let split: Vec<_> = string_address.split('@').collect();
         if split.len() != 2 {
-            return Err(RecipientFormattingError::MalformedRecipientError);
+            return Err(RecipientFormattingError::MalformedRecipientError {
+                reason: "the string address does not contain exactly a single '@' character"
+                    .to_string(),
+            });
         }
         let client_half = split[0];
         let gateway_half = split[1];
 
         let split_client: Vec<_> = client_half.split('.').collect();
         if split_client.len() != 2 {
-            return Err(RecipientFormattingError::MalformedRecipientError);
+            return Err(RecipientFormattingError::MalformedRecipientError {
+                reason: "the string address does not contain exactly a single '.' character"
+                    .to_string(),
+            });
         }
 
         let client_identity = match ClientIdentity::from_base58_string(split_client[0]) {

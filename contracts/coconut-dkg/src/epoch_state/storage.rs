@@ -5,3 +5,4 @@ use coconut_dkg_common::types::EpochState;
 use cw_storage_plus::Item;
 
 pub(crate) const CURRENT_EPOCH_STATE: Item<'_, EpochState> = Item::new("current_epoch_state");
+pub const THRESHOLD: Item<u64> = Item::new("threshold");

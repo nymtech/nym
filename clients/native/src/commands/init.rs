@@ -1,19 +1,17 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::fmt::Display;
-
-use clap::Args;
-use config::NymConfig;
-use nymsphinx::addressing::clients::Recipient;
-use serde::Serialize;
-use tap::TapFallible;
-
 use crate::{
     client::config::Config,
     commands::{override_config, OverrideConfig},
     error::ClientError,
 };
+use clap::Args;
+use config::NymConfig;
+use nymsphinx::addressing::clients::Recipient;
+use serde::Serialize;
+use std::fmt::Display;
+use tap::TapFallible;
 
 #[derive(Args, Clone)]
 pub(crate) struct Init {
@@ -136,7 +134,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
 
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
-    let gateway = client_core::init::setup_gateway::<Config, _>(
+    let gateway = client_core::init::setup_gateway::<_, Config, _>(
         register_gateway,
         user_chosen_gateway_id,
         config.get_base(),

@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
 import { Button, Stack, Typography, Grid, useMediaQuery, useTheme } from '@mui/material';
 import { Tune as TuneIcon, BorderColor as BorderColorIcon, Paid as PaidIcon } from '@mui/icons-material';
-import { NymCard } from '../NymCard';
+import { CoinMark } from '@nymproject/react/coins/CoinMark';
+import { NymCard, ClientAddress } from '../../components';
 import { SignMessageModal } from './SignMessageModal';
+import { PoweredByBity } from 'src/svg-icons';
 
 // TODO retrieve this value from env
 const EXCHANGE_URL = 'https://buy.nymtech.net';
@@ -27,8 +29,7 @@ const TutorialStep = ({
   <Grid
     item
     md={4}
-    pb={2}
-    pr={1}
+    p={3}
     sx={{
       borderRight: borderRight ? `1px solid ${borderColor}` : null,
       borderBottom: borderBottom ? `1px solid ${borderColor}` : null,
@@ -55,17 +56,18 @@ export const Tutorial = () => {
   const showBorder = useMediaQuery(theme.breakpoints.up('md'));
 
   return (
-    <NymCard borderless title="Buy NYM with BTC without KYC" sx={{ mt: 4 }}>
-      <Typography mb={2}>
-        Follow below 3 steps to quickly and easily buy NYM tokens. You can purchase up to 1000 Swiss Francs per day
-        without KYC.
+    <NymCard borderless title="Buy NYM with BTC" sx={{ mt: 4 }} Action={<ClientAddress withCopy />}>
+      <Typography mb={2} fontSize={14}>
+        Follow below 3 steps to quickly and easily buy NYM tokens. You can purchase up to 1000 Swiss Francs per day.
       </Typography>
       {showSignModal && <SignMessageModal onClose={() => setShowSignModal(false)} />}
       <Grid
         container
-        spacing={2}
-        mb={3}
+        spacing={3}
+        m={0}
         mt={3}
+        width={1}
+        flexWrap="nowrap"
         sx={{
           border: `1px solid ${borderColor}`,
           borderRadius: '8px',
@@ -76,9 +78,9 @@ export const Tutorial = () => {
           title="Define purchase details"
           icon={<TuneIcon fontSize="small" />}
           text={
-            <Typography sx={{ color: (t) => t.palette.nym.text.muted }}>
+            <Typography fontSize={14} lineHeight="24px" sx={{ color: (t) => t.palette.nym.text.muted }}>
               Click on{' '}
-              <Typography display="inline" fontWeight={600}>
+              <Typography display="inline" fontWeight={600} fontSize={14} lineHeight="24px">
                 Buy NYM
               </Typography>{' '}
               button and follow the steps in the browser window that opens. You will be asked for purchase details i.e.
@@ -93,9 +95,9 @@ export const Tutorial = () => {
           title="Sign message"
           icon={<BorderColorIcon fontSize="small" />}
           text={
-            <Typography sx={{ color: (t) => t.palette.nym.text.muted }}>
+            <Typography fontSize={14} lineHeight="24px" sx={{ color: (t) => t.palette.nym.text.muted }}>
               When asked for signature, copy the message and sign it using{' '}
-              <Typography display="inline" fontWeight={600}>
+              <Typography display="inline" fontWeight={600} fontSize={14} lineHeight="24px">
                 Sign message
               </Typography>{' '}
               button below. Then copy and paste your signature back in the browser window.
@@ -107,22 +109,24 @@ export const Tutorial = () => {
         <TutorialStep
           step={3}
           title="Send tx and receive NYM"
-          icon={<PaidIcon fontSize="small" />}
+          icon={<CoinMark width={20} height={20} />}
           text={
-            <Typography sx={{ color: (t) => t.palette.nym.text.muted }}>
-              {`Send the defined BTC amount to Bity's address that's given to you. As soon as your BTC transaction has 4
-              confirmations, Bity will send the purchased NYM tokens to your wallet.`}
+            <Typography fontSize={14} lineHeight="24px" sx={{ color: (t) => t.palette.nym.text.muted }}>
+              {`Send the defined BTC amount to Bity's address that's given to you. As soon as your BTC tx has 4 confirmations, Bity will send the purchased NYM tokens to your wallet.`}
             </Typography>
           }
         />
       </Grid>
-      <Stack direction="row" gap={2} justifyContent="flex-end" mt={5}>
-        <Button variant="outlined" size="large" onClick={() => setShowSignModal(true)}>
-          Sign message
-        </Button>
-        <Button variant="contained" size="large" href={EXCHANGE_URL} target="_blank">
-          Buy NYM
-        </Button>
+      <Stack direction="row" justifyContent="space-between" alignItems="flex-end" mt={5}>
+        <PoweredByBity sx={{ width: 126, height: 16 }} color="secondary" />
+        <Stack direction="row" gap={2} justifyContent="flex-end">
+          <Button variant="outlined" size="large" onClick={() => setShowSignModal(true)}>
+            Sign message
+          </Button>
+          <Button variant="contained" size="large" href={EXCHANGE_URL} target="_blank">
+            Buy NYM
+          </Button>
+        </Stack>
       </Stack>
     </NymCard>
   );

@@ -410,7 +410,7 @@ impl GatewayClient {
         match gateway_protocol {
             None => {
                 warn!("the gateway we're connected to has not specified its protocol version. It's probably running version < 1.1.X, but that's still fine for now. It will become a hard error in 1.2.0");
-                // note: in 1.2.0 we will have to return a hard error here
+                // note: in +1.2.0 we will have to return a hard error here
                 Ok(())
             }
             Some(v) if v != PROTOCOL_VERSION => {

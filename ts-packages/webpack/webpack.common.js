@@ -35,7 +35,7 @@ module.exports = (baseDir, htmlPath) => ({
         use: ['@svgr/webpack'],
       },
       {
-        test: /\.(png|jpe?g|gif|md)$/i,
+        test: /\.(png|jpe?g|gif|md|webp)$/i,
         // More information here https://webpack.js.org/guides/asset-modules/
         type: 'asset',
       },

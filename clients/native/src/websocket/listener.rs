@@ -54,9 +54,8 @@ impl Listener {
                         Ok((mut socket, remote_addr)) => {
                             debug!("Received connection from {:?}", remote_addr);
                             if self.state.is_connected() {
-                                warn!("tried to duplicate!");
+                                warn!("Tried to open a duplicate websocket connection. The request came from {}", remote_addr);
                                 // if we've already got a connection, don't allow another one
-                                debug!("but there was already a connection present!");
                                 // while we only ever want to accept a single connection, we don't want
                                 // to leave clients hanging (and also allow for reconnection if it somehow
                                 // was dropped)

@@ -2,59 +2,65 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::config::Config;
+use crate::client::helpers::InputSender;
 use crate::client::response_pusher::ResponsePusher;
 use client_connections::TransmissionLane;
 use client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput};
+use client_core::client::replies::reply_storage::browser_backend;
 use client_core::client::{inbound_messages::InputMessage, key_manager::KeyManager};
-use crypto::asymmetric::identity;
+use gateway_client::bandwidth::BandwidthController;
+use js_sys::Promise;
 use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use rand::rngs::OsRng;
+use std::sync::Arc;
 use task::ShutdownNotifier;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::future_to_promise;
 use wasm_utils::{console_error, console_log};
 
 pub mod config;
+mod helpers;
 mod response_pusher;
 
 #[wasm_bindgen]
 pub struct NymClient {
-    config: Config,
-
-    /// KeyManager object containing smart pointers to all relevant keys used by the client.
-    // due to disgusting workaround I had to wrap the key_manager in an Option
-    // so that the interface wouldn't change (i.e. both `start` and `new` would still return a `NymClient`)
-    key_manager: Option<KeyManager>,
-    self_address: Option<String>,
-
-    // TODO: this should be stored somewhere persistently
-    // received_keys: HashSet<SURBEncryptionKey>,
-    /// Channel used for transforming 'raw' messages into sphinx packets and sending them
-    /// through the mix network.
-    client_input: Option<ClientInput>,
-
-    // callbacks
-    on_message: Option<js_sys::Function>,
-    on_binary_message: Option<js_sys::Function>,
-    on_gateway_connect: Option<js_sys::Function>,
+    self_address: String,
+    client_input: Arc<ClientInput>,
 
     // even though we don't use graceful shutdowns, other components rely on existence of this struct
     // and if it's dropped, everything will start going offline
-    _shutdown: Option<ShutdownNotifier>,
+    _shutdown: ShutdownNotifier,
 }
 
 #[wasm_bindgen]
-impl NymClient {
+pub struct NymClientBuilder {
+    config: Config,
+
+    /// KeyManager object containing smart pointers to all relevant keys used by the client.
+    key_manager: KeyManager,
+
+    reply_surb_storage_backend: browser_backend::Backend,
+
+    on_message: js_sys::Function,
+
+    // unimplemented:
+    bandwidth_controller: Option<BandwidthController>,
+    disabled_credentials: bool,
+}
+
+#[wasm_bindgen]
+impl NymClientBuilder {
     #[wasm_bindgen(constructor)]
-    pub fn new(config: Config) -> Self {
-        Self {
+    pub fn new(config: Config, on_message: js_sys::Function) -> Self {
+        //, key_manager: Option<KeyManager>) {
+        NymClientBuilder {
+            reply_surb_storage_backend: Self::setup_reply_surb_storage_backend(&config),
             config,
-            key_manager: Some(Self::setup_key_manager()),
-            on_message: None,
-            on_binary_message: None,
-            on_gateway_connect: None,
-            client_input: None,
-            self_address: None,
-            _shutdown: None,
+            key_manager: Self::setup_key_manager(),
+            on_message,
+            bandwidth_controller: None,
+            disabled_credentials: true,
         }
     }
 
@@ -69,117 +75,154 @@ impl NymClient {
         KeyManager::new(&mut rng)
     }
 
-    pub fn set_on_message(&mut self, on_message: js_sys::Function) {
-        self.on_message = Some(on_message);
-    }
-
-    pub fn set_on_binary_message(&mut self, on_binary_message: js_sys::Function) {
-        self.on_binary_message = Some(on_binary_message);
-    }
-
-    pub fn set_on_gateway_connect(&mut self, on_connect: js_sys::Function) {
-        self.on_gateway_connect = Some(on_connect)
-    }
-
-    fn as_mix_recipient(&self) -> Recipient {
-        // another disgusting (and hopefully temporary) workaround
-        let key_manager_ref = self
-            .key_manager
-            .as_ref()
-            .expect("attempting to call 'as_mix_recipient' after 'start'");
-
-        Recipient::new(
-            *key_manager_ref.identity_keypair().public_key(),
-            *key_manager_ref.encryption_keypair().public_key(),
-            identity::PublicKey::from_base58_string(&self.config.gateway_endpoint.gateway_id)
-                .expect("no gateway has been selected"),
+    // don't get too excited about the name, under the hood it's just a big fat placeholder
+    // with no persistence
+    fn setup_reply_surb_storage_backend(config: &Config) -> browser_backend::Backend {
+        browser_backend::Backend::new(
+            config.debug.minimum_reply_surb_storage_threshold,
+            config.debug.maximum_reply_surb_storage_threshold,
         )
     }
 
+    fn start_reconstructed_pusher(client_output: ClientOutput, on_message: js_sys::Function) {
+        ResponsePusher::new(client_output, on_message).start()
+    }
+
+    pub async fn start_client(self) -> Promise {
+        future_to_promise(async move {
+            console_log!("Starting the wasm client");
+
+            let base_builder = BaseClientBuilder::new(
+                &self.config.gateway_endpoint,
+                &self.config.debug,
+                self.key_manager,
+                self.bandwidth_controller,
+                self.reply_surb_storage_backend,
+                self.disabled_credentials,
+                vec![self.config.validator_api_url.clone()],
+            );
+
+            let self_address = base_builder.as_mix_recipient().to_string();
+            let mut started_client = match base_builder.start_base().await {
+                Ok(base_client) => base_client,
+                Err(err) => {
+                    let error_msg = format!("failed to start the base client components - {err}");
+                    console_error!("{}", error_msg);
+                    let js_error = js_sys::Error::new(&error_msg);
+                    return Err(JsValue::from(js_error));
+                }
+            };
+
+            let client_input = started_client.client_input.register_producer();
+            let client_output = started_client.client_output.register_consumer();
+
+            Self::start_reconstructed_pusher(client_output, self.on_message);
+
+            Ok(JsValue::from(NymClient {
+                self_address,
+                client_input: Arc::new(client_input),
+                _shutdown: started_client.shutdown_notifier,
+            }))
+        })
+    }
+}
+
+#[wasm_bindgen]
+impl NymClient {
     pub fn self_address(&self) -> String {
-        if let Some(address) = &self.self_address {
-            address.clone()
-        } else {
-            self.as_mix_recipient().to_string()
+        self.self_address.clone()
+    }
+
+    fn parse_recipient(recipient: &str) -> Result<Recipient, JsValue> {
+        match Recipient::try_from_base58_string(recipient) {
+            Ok(recipient) => Ok(recipient),
+            Err(err) => {
+                let error_msg = format!("{recipient} is not a valid Nym network recipient - {err}");
+                console_error!("{}", error_msg);
+                let js_error = js_sys::Error::new(&error_msg);
+                Err(JsValue::from(js_error))
+            }
         }
     }
 
-    // Right now it's impossible to have async exported functions to take `&mut self` rather than mut self
-    // TODO: try Rc<RefCell<Self>> approach?
-    pub async fn send_message(self, message: String, recipient: String) -> Self {
-        console_log!("Sending {} to {}", message, recipient);
-
-        let message_bytes = message.into_bytes();
-        self.send_binary_message(message_bytes, recipient).await
+    fn parse_sender_tag(tag: &str) -> Result<AnonymousSenderTag, JsValue> {
+        match AnonymousSenderTag::try_from_base58_string(tag) {
+            Ok(tag) => Ok(tag),
+            Err(err) => {
+                let error_msg = format!("{tag} is not a valid Nym AnonymousSenderTag - {err}");
+                console_error!("{}", error_msg);
+                let js_error = js_sys::Error::new(&error_msg);
+                Err(JsValue::from(js_error))
+            }
+        }
     }
 
-    pub async fn send_binary_message(self, message: Vec<u8>, recipient: String) -> Self {
-        console_log!("Sending {} bytes to {}", message.len(), recipient);
-
-        let recipient = Recipient::try_from_base58_string(recipient).unwrap();
-        let lane = TransmissionLane::General;
-
-        let input_msg = InputMessage::new_fresh(recipient, message, false, lane);
-
-        self.client_input
-            .as_ref()
-            .expect("start method was not called before!")
-            .input_sender
-            .send(input_msg)
-            .await
-            .expect("InputMessageReceiver has stopped receiving!");
-
-        self
-    }
-
-    fn start_reconstructed_pusher(
-        client_output: ClientOutput,
-        on_message: Option<js_sys::Function>,
-        on_binary_message: Option<js_sys::Function>,
-    ) {
-        ResponsePusher::new(client_output, on_message, on_binary_message).start()
-    }
-
-    pub async fn start(mut self) -> NymClient {
-        console_log!("Starting the wasm client");
-
-        let base_builder = BaseClientBuilder::new(
-            &self.config.gateway_endpoint,
-            &self.config.debug,
-            self.key_manager.take().unwrap(),
-            None,
-            true,
-            vec![self.config.validator_api_url.clone()],
+    /// The simplest message variant where no additional information is attached.
+    /// You're simply sending your `data` to specified `recipient` without any tagging.
+    ///
+    /// Ends up with `NymMessage::Plain` variant
+    pub fn send_regular_message(&self, message: Vec<u8>, recipient: String) -> Promise {
+        console_log!(
+            "Attempting to send {:.2} kiB message to {recipient}",
+            message.len() as f64 / 1024.0
         );
 
-        self.self_address = Some(base_builder.as_mix_recipient().to_string());
-        let mut started_client = match base_builder.start_base().await {
-            Ok(base_client) => base_client,
-            Err(err) => {
-                console_error!("failed to start base client components - {}", err);
-                // proper error handling is left here as an exercise for the reader (hi Mark : ))
-                panic!("failed to start base client components - {err}")
-            }
+        let recipient = match Self::parse_recipient(&recipient) {
+            Ok(recipient) => recipient,
+            Err(err) => return Promise::reject(&err),
         };
-        match self.on_gateway_connect.as_ref() {
-            Some(callback) => {
-                callback
-                    .call0(&JsValue::null())
-                    .expect("on connect callback failed!");
-            }
-            None => console_log!("Gateway connection established - no callback specified"),
+        let lane = TransmissionLane::General;
+
+        let input_msg = InputMessage::new_regular(recipient, message, lane);
+        self.client_input.send_message(input_msg)
+    }
+
+    /// Creates a message used for a duplex anonymous communication where the recipient
+    /// will never learn of our true identity. This is achieved by carefully sending `reply_surbs`.
+    ///
+    /// Note that if reply_surbs is set to zero then
+    /// this variant requires the client having sent some reply_surbs in the past
+    /// (and thus the recipient also knowing our sender tag).
+    ///
+    /// Ends up with `NymMessage::Repliable` variant
+    pub fn send_anonymous_message(
+        &self,
+        message: Vec<u8>,
+        recipient: String,
+        reply_surbs: u32,
+    ) -> Promise {
+        console_log!(
+            "Attempting to anonymously send {:.2} kiB message to {recipient} while attaching {reply_surbs} replySURBs.",
+            message.len() as f64 / 1024.0
+        );
+
+        let recipient = match Self::parse_recipient(&recipient) {
+            Ok(recipient) => recipient,
+            Err(err) => return Promise::reject(&err),
         };
+        let lane = TransmissionLane::General;
 
-        // those should be moved to a completely different struct, but I don't want to break compatibility for now
-        let client_input = started_client.client_input.register_producer();
-        let client_output = started_client.client_output.register_consumer();
+        let input_msg = InputMessage::new_anonymous(recipient, message, reply_surbs, lane);
+        self.client_input.send_message(input_msg)
+    }
 
-        let on_message = self.on_message.take();
-        let on_binary_message = self.on_binary_message.take();
-        Self::start_reconstructed_pusher(client_output, on_message, on_binary_message);
-        self.client_input = Some(client_input);
-        self._shutdown = Some(started_client.shutdown_notifier);
+    /// Attempt to use our internally received and stored `ReplySurb` to send the message back
+    /// to specified recipient whilst not knowing its full identity (or even gateway).
+    ///
+    /// Ends up with `NymMessage::Reply` variant
+    pub fn send_reply(&self, message: Vec<u8>, recipient_tag: String) -> Promise {
+        console_log!(
+            "Attempting to send {:.2} kiB reply message to {recipient_tag}",
+            message.len() as f64 / 1024.0
+        );
 
-        self
+        let sender_tag = match Self::parse_sender_tag(&recipient_tag) {
+            Ok(recipient) => recipient,
+            Err(err) => return Promise::reject(&err),
+        };
+        let lane = TransmissionLane::General;
+
+        let input_msg = InputMessage::new_reply(sender_tag, message, lane);
+        self.client_input.send_message(input_msg)
     }
 }

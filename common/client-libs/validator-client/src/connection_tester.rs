@@ -108,7 +108,7 @@ async fn test_nymd_connection(
             log::debug!("Checking: nymd_url: {url}: {}: {}", "failed".red(), e);
             false
         }
-        Ok(Err(NymdError::AbciError(code, log))) => {
+        Ok(Err(NymdError::AbciError { code, log, .. })) => {
             // We accept the mixnet contract not found as ok from a connection standpoint. This happens
             // for example on a pre-launch network.
             log::debug!(

@@ -4,11 +4,12 @@ import { invoke } from '@tauri-apps/api';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import { listen } from '@tauri-apps/api/event';
 import { forage } from '@tauri-apps/tauri-forage';
+import { Error } from 'src/types/error';
+import { TauriEvent } from 'src/types/event';
+import { getVersion } from '@tauri-apps/api/app';
 import { ConnectionStatusKind } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ServiceProvider, Services } from '../types/directory';
-import { Error } from 'src/types/error';
-import { TauriEvent } from 'src/types/event';
 
 const TAURI_EVENT_STATUS_CHANGED = 'app:connection-status-changed';
 
@@ -16,6 +17,7 @@ type ModeType = 'light' | 'dark';
 
 export type TClientContext = {
   mode: ModeType;
+  appVersion?: string;
   connectionStatus: ConnectionStatusKind;
   connectionStats?: ConnectionStatsItem[];
   connectedSince?: DateTime;
@@ -30,7 +32,7 @@ export type TClientContext = {
   setConnectionStatus: (connectionStatus: ConnectionStatusKind) => void;
   setConnectionStats: (connectionStats: ConnectionStatsItem[] | undefined) => void;
   setConnectedSince: (connectedSince: DateTime | undefined) => void;
-  setServiceProvider: (serviceProvider: ServiceProvider) => void;
+  setServiceProvider: (serviceProvider?: ServiceProvider) => void;
 
   startConnecting: () => Promise<void>;
   startDisconnecting: () => Promise<void>;
@@ -47,11 +49,26 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const [serviceProvider, setRawServiceProvider] = React.useState<ServiceProvider>();
   const [showHelp, setShowHelp] = useState(false);
   const [error, setError] = useState<Error>();
+  const [appVersion, setAppVersion] = useState<string>();
+
+  const getAppVersion = async () => {
+    const version = await getVersion();
+    setAppVersion(version);
+  };
 
   useEffect(() => {
     invoke('get_services').then((result) => {
       setServices(result as Services);
     });
+    getAppVersion();
+  }, []);
+
+  useEffect(() => {
+    // when mounting, load the connection state (needed for the Growth window, that checks the connection state)
+    (async () => {
+      const currentStatus: ConnectionStatusKind = await invoke('get_connection_status');
+      setConnectionStatus(currentStatus);
+    })();
   }, []);
 
   useEffect(() => {
@@ -103,10 +120,12 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     } as any)();
   };
 
-  const setServiceProvider = useCallback(async (newServiceProvider: ServiceProvider) => {
-    await invoke('set_gateway', { gateway: newServiceProvider.gateway });
-    await invoke('set_service_provider', { serviceProvider: newServiceProvider.address });
-    await setSpInStorage(newServiceProvider);
+  const setServiceProvider = useCallback(async (newServiceProvider?: ServiceProvider) => {
+    await invoke('set_gateway', { gateway: newServiceProvider?.gateway });
+    await invoke('set_service_provider', { serviceProvider: newServiceProvider?.address });
+    if (newServiceProvider) {
+      await setSpInStorage(newServiceProvider);
+    }
     setRawServiceProvider(newServiceProvider);
   }, []);
 
@@ -149,6 +168,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   const contextValue = useMemo(
     () => ({
       mode,
+      appVersion,
       setMode,
       error,
       clearError,
@@ -167,6 +187,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       handleShowHelp,
     }),
     [
+      appVersion,
       mode,
       error,
       connectedSince,

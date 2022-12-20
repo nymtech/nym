@@ -1,20 +1,12 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
+
 use crate::{validator_api, ValidatorClientError};
 use coconut_dkg_common::types::NodeIndex;
-#[cfg(feature = "nymd-client")]
-use coconut_dkg_common::{
-    dealer::ContractDealing, types::DealerDetails, verification_key::ContractVKShare,
-};
-#[cfg(feature = "nymd-client")]
-use coconut_interface::Base58;
 use coconut_interface::VerificationKey;
-use mixnet_contract_common::families::{Family, FamilyHead};
 use mixnet_contract_common::mixnode::MixNodeDetails;
+use mixnet_contract_common::MixId;
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef};
-use mixnet_contract_common::{IdentityKey, MixId};
-#[cfg(feature = "nymd-client")]
-use std::str::FromStr;
 use validator_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
@@ -28,15 +20,24 @@ use crate::nymd::traits::{DkgQueryClient, MixnetQueryClient, MultisigQueryClient
 #[cfg(feature = "nymd-client")]
 use crate::nymd::{self, CosmWasmClient, NymdClient, QueryNymdClient, SigningNymdClient};
 #[cfg(feature = "nymd-client")]
+use coconut_dkg_common::{
+    dealer::ContractDealing, types::DealerDetails, verification_key::ContractVKShare,
+};
+#[cfg(feature = "nymd-client")]
+use coconut_interface::Base58;
+#[cfg(feature = "nymd-client")]
 use cw3::ProposalResponse;
 #[cfg(feature = "nymd-client")]
 use mixnet_contract_common::{
+    families::{Family, FamilyHead},
     mixnode::MixNodeBond,
     pending_events::{PendingEpochEvent, PendingIntervalEvent},
-    Delegation, RewardedSetNodeStatus, UnbondedMixnode,
+    Delegation, IdentityKey, RewardedSetNodeStatus, UnbondedMixnode,
 };
 #[cfg(feature = "nymd-client")]
 use network_defaults::NymNetworkDetails;
+#[cfg(feature = "nymd-client")]
+use std::str::FromStr;
 use url::Url;
 #[cfg(feature = "nymd-client")]
 use validator_api_requests::models::MixNodeBondAnnotated;

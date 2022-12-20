@@ -49,12 +49,11 @@ private_encryption_key_file = '{{ client.private_encryption_key_file }}'
 # Path to file containing public encryption key.
 public_encryption_key_file = '{{ client.public_encryption_key_file }}'
 
-# Full path to file containing reply encryption keys of all reply-SURBs we have ever
-# sent but not received back.
-reply_encryption_key_store_path = '{{ client.reply_encryption_key_store_path }}'
-
 # Path to the database containing bandwidth credentials
 database_path = '{{ client.database_path }}'
+
+# Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
+reply_surb_database_path = '{{ client.reply_surb_database_path }}'
 
 ##### additional client config options #####
 
@@ -92,6 +91,12 @@ provider_mix_address = '{{ socks5.provider_mix_address }}'
 # The port on which the client will be listening for incoming requests
 listening_port = {{ socks5.listening_port }}
 
+# Specifies whether this client is going to use an anonymous sender tag for communication with the service provider.
+# While this is going to hide its actual address information, it will make the actual communication
+# slower and consume nearly double the bandwidth as it will require sending reply SURBs.
+#
+# Note that some service providers might not support this.
+send_anonymously = {{ socks5.send_anonymously }}
 
 ##### logging configuration options #####
 
@@ -103,6 +108,9 @@ listening_port = {{ socks5.listening_port }}
 ##### debug configuration options #####
 # The following options should not be modified unless you know EXACTLY what you are doing
 # as if set incorrectly, they may impact your anonymity.
+
+# [socks5_debug]
+
 
 [debug]
 

@@ -8,6 +8,7 @@ edition = "2021"
 
 [dependencies]
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+thiserror = "1.0.37"
 
 crypto = { path = "../../crypto" }
 nymsphinx-acknowledgements = { path = "../acknowledgements" }

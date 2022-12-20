@@ -10,6 +10,7 @@ edition = "2021"
 bs58 = "0.4"
 log = "0.4"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
+thiserror = "1.0.37"
 
 ## internal
 crypto = { path = "../crypto" }

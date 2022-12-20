@@ -16,8 +16,7 @@ impl AddDefaultSubmenus for Menu {
     fn add_default_app_submenus(self) -> Self {
         let submenu = Submenu::new(
             "Help",
-            Menu::new()
-                .add_item(CustomMenuItem::new(SHOW_LOG_WINDOW, "Show logs"))
+            Menu::new().add_item(CustomMenuItem::new(SHOW_LOG_WINDOW, "Show logs")),
         );
         self.add_submenu(submenu)
     }

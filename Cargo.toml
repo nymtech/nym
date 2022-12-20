@@ -76,6 +76,7 @@ members = [
     "service-providers/network-statistics",
     "nym-api",
     "nym-api/nym-api-requests",
+    "nym-outfox",
     "tools/nym-cli",
     "tools/ts-rs-cli"
 ]

@@ -3,7 +3,6 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Button, Divider, Typography, TextField, Grid, CircularProgress, Box } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { isMixnode } from 'src/types';
 import { simulateUpdateGatewayConfig, updateGatewayConfig } from 'src/requests';
 import { TBondedGateway } from 'src/context/bonding';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
@@ -51,8 +50,6 @@ export const GeneralGatewaySettings = ({ bondedNode }: { bondedNode: TBondedGate
       Console.error(error);
     }
   };
-
-  console.log({ isSubmitting, isDirty, isValid, errors });
 
   return (
     <Grid container xs item>

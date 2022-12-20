@@ -18,7 +18,6 @@ impl AddDefaultSubmenus for Menu {
             "Help",
             Menu::new()
                 .add_item(CustomMenuItem::new(SHOW_LOG_WINDOW, "Show logs"))
-                .add_item(CustomMenuItem::new(CLEAR_STORAGE, "Clear all settings")),
         );
         self.add_submenu(submenu)
     }

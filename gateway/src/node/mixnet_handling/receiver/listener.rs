@@ -26,7 +26,7 @@ impl Listener {
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
             Ok(listener) => listener,
             Err(err) => {
-                error!("Failed to bind to {} - {}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?", self.address, err);
+                error!("Failed to bind to {} - {err}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?", self.address);
                 process::exit(1);
             }
         };
@@ -37,7 +37,7 @@ impl Listener {
                     let handler = connection_handler.clone();
                     tokio::spawn(handler.handle_connection(socket, remote_addr));
                 }
-                Err(e) => warn!("failed to get client: {:?}", e),
+                Err(err) => warn!("failed to get client: {err}"),
             }
         }
     }

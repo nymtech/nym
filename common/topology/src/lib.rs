@@ -276,7 +276,7 @@ pub fn nym_topology_from_detailed(
         match bond.try_into() {
             Ok(mix) => layer_entry.push(mix),
             Err(err) => {
-                warn!("Mix {} / {} is malformed - {}", mix_id, mix_identity, err);
+                warn!("Mix {} / {} is malformed - {err}", mix_id, mix_identity);
                 continue;
             }
         }
@@ -288,7 +288,7 @@ pub fn nym_topology_from_detailed(
         match bond.try_into() {
             Ok(gate) => gateways.push(gate),
             Err(err) => {
-                warn!("Gateway {} is malformed - {}", gate_id, err);
+                warn!("Gateway {} is malformed - {err}", gate_id);
                 continue;
             }
         }

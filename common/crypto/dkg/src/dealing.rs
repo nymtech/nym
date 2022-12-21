@@ -326,11 +326,6 @@ pub fn try_recover_verification_keys(
         return Err(DkgError::MismatchedDealings);
     }
 
-    // currently we expect every dealer to also be a receiver. This restriction might be relaxed in the future
-    if dealings.len() != receivers.len() {
-        return Err(DkgError::MismatchedDealings);
-    }
-
     let indices = receivers.keys().collect::<Vec<_>>();
 
     // Compute A0, ..., A_{t-1}

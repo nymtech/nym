@@ -1,4 +1,4 @@
-use crate::ShutdownListener;
+use crate::TaskClient;
 use std::future::Future;
 
 #[cfg(target_arch = "wasm32")]
@@ -18,7 +18,7 @@ where
     tokio::spawn(future);
 }
 
-pub fn spawn_with_report_error<F, T, E>(future: F, mut shutdown: ShutdownListener)
+pub fn spawn_with_report_error<F, T, E>(future: F, mut shutdown: TaskClient)
 where
     F: Future<Output = Result<T, E>> + Send + 'static,
     T: 'static,

@@ -1,5 +1,5 @@
-import { Typography, Box } from '@mui/material';
 import React from 'react';
+import { Typography, Box } from '@mui/material';
 import { useClientContext } from 'src/context/main';
 
 export const AppVersion = () => {

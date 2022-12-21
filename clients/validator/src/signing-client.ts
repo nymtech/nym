@@ -33,7 +33,7 @@ import {
   PagedMixnodeResponse,
   RewardingStatus,
 } from './types';
-import ValidatorApiQuerier from './validator-api-querier';
+import NymApiQuerier from './nym-api-querier';
 
 // methods exposed by `SigningCosmWasmClient`
 export interface ICosmWasmSigning {
@@ -199,13 +199,13 @@ export interface ISigningClient extends IQueryClient, ICosmWasmSigning, INymSign
 export default class SigningClient extends SigningCosmWasmClient implements ISigningClient {
   private nymdQuerier: NymdQuerier;
 
-  private validatorApiQuerier: ValidatorApiQuerier;
+  private nymApiQuerier: NymApiQuerier;
 
   clientAddress: string;
 
   private constructor(
     clientAddress: string,
-    validatorApiUrl: string,
+    nymApiUrl: string,
     tmClient: Tendermint34Client,
     wallet: DirectSecp256k1HdWallet,
     signerOptions: SigningCosmWasmClientOptions,
@@ -213,13 +213,13 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     super(tmClient, wallet, signerOptions);
     this.clientAddress = clientAddress;
     this.nymdQuerier = new NymdQuerier(this);
-    this.validatorApiQuerier = new ValidatorApiQuerier(validatorApiUrl);
+    this.nymApiQuerier = new NymApiQuerier(nymApiUrl);
   }
 
   public static async connectWithNymSigner(
     wallet: DirectSecp256k1HdWallet,
     nymdUrl: string,
-    validatorApiUrl: string,
+    nymApiUrl: string,
     prefix: string,
     denom: string,
   ): Promise<SigningClient> {
@@ -229,7 +229,7 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
       gasPrice: nymGasPrice(denom),
     };
     const tmClient = await Tendermint34Client.connect(nymdUrl);
-    return new SigningClient(address, validatorApiUrl, tmClient, wallet, signerOptions);
+    return new SigningClient(address, nymApiUrl, tmClient, wallet, signerOptions);
   }
 
   // query related:
@@ -317,19 +317,19 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
   }
 
   getCachedGateways(): Promise<GatewayBond[]> {
-    return this.validatorApiQuerier.getCachedGateways();
+    return this.nymApiQuerier.getCachedGateways();
   }
 
   getCachedMixnodes(): Promise<MixNodeBond[]> {
-    return this.validatorApiQuerier.getCachedMixnodes();
+    return this.nymApiQuerier.getCachedMixnodes();
   }
 
   getActiveMixnodes(): Promise<MixNodeBond[]> {
-    return this.validatorApiQuerier.getActiveMixnodes();
+    return this.nymApiQuerier.getActiveMixnodes();
   }
 
   getRewardedMixnodes(): Promise<MixNodeBond[]> {
-    return this.validatorApiQuerier.getRewardedMixnodes();
+    return this.nymApiQuerier.getRewardedMixnodes();
   }
 
   // signing related:

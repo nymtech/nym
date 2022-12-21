@@ -51,8 +51,8 @@ impl MixTrafficController {
         };
 
         match result {
-            Err(e) => {
-                error!("Failed to send sphinx packet(s) to the gateway! - {:?}", e);
+            Err(err) => {
+                error!("Failed to send sphinx packet(s) to the gateway! - {err}");
                 self.consecutive_gateway_failure_count += 1;
                 if self.consecutive_gateway_failure_count == MAX_FAILURE_COUNT {
                     // todo: in the future this should initiate a 'graceful' shutdown or try
@@ -67,11 +67,11 @@ impl MixTrafficController {
         }
     }
 
-    pub fn start_with_shutdown(mut self, mut shutdown: task::ShutdownListener) {
+    pub fn start_with_shutdown(mut self, mut shutdown: task::TaskClient) {
         spawn_future(async move {
             debug!("Started MixTrafficController with graceful shutdown support");
 
-            while !shutdown.is_shutdown() {
+            loop {
                 tokio::select! {
                     mix_packets = self.mix_rx.recv() => match mix_packets {
                         Some(mix_packets) => {
@@ -82,8 +82,9 @@ impl MixTrafficController {
                             break;
                         }
                     },
-                    _ = shutdown.recv() => {
+                    _ = shutdown.recv_with_delay() => {
                         log::trace!("MixTrafficController: Received shutdown");
+                        break;
                     }
                 }
             }

@@ -104,7 +104,7 @@ pub fn execute(args: &Sign) {
     let signed_target = match SignedTarget::try_from(args.clone()) {
         Ok(s) => s,
         Err(err) => {
-            error!("{}", err);
+            error!("{err}");
             return;
         }
     };

@@ -73,20 +73,21 @@ pub fn try_verify_verification_key_share(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::epoch_state::storage::CURRENT_EPOCH_STATE;
     use crate::epoch_state::transactions::advance_epoch_state;
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::{ADMIN_ADDRESS, MULTISIG_CONTRACT};
+    use crate::support::tests::helpers::MULTISIG_CONTRACT;
     use coconut_dkg_common::dealer::DealerDetails;
-    use coconut_dkg_common::types::EpochState;
+    use coconut_dkg_common::types::{
+        EpochState, DEALING_EXCHANGE_TIME_SECS, PUBLIC_KEY_SUBMISSION_TIME_SECS,
+        VERIFICATION_KEY_SUBMISSION_TIME_SECS, VERIFICATION_KEY_VALIDATION_TIME_SECS,
+    };
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::Storage;
     use cw_controllers::AdminError;
 
     #[test]
     fn commit_vk_share() {
         let mut deps = helpers::init_contract();
-        let env = mock_env();
+        let mut env = mock_env();
         let info = mock_info("requester", &[]);
         let share = "share".to_string();
 
@@ -104,8 +105,10 @@ mod tests {
                 expected_state: EpochState::VerificationKeySubmission.to_string()
             }
         );
-        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
-        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        env.block.time = env.block.time.plus_seconds(PUBLIC_KEY_SUBMISSION_TIME_SECS);
+        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        env.block.time = env.block.time.plus_seconds(DEALING_EXCHANGE_TIME_SECS);
+        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
         let ret = try_commit_verification_key_share(
             deps.as_mut(),
             env.clone(),
@@ -147,6 +150,7 @@ mod tests {
     #[test]
     fn invalid_verify_vk_share() {
         let mut deps = helpers::init_contract();
+        let mut env = mock_env();
         let info = mock_info("requester", &[]);
         let owner = Addr::unchecked("owner");
         let multisig_info = mock_info(MULTISIG_CONTRACT, &[]);
@@ -161,10 +165,20 @@ mod tests {
             }
         );
 
-        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
-        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
-        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
-        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        env.block.time = env.block.time.plus_seconds(PUBLIC_KEY_SUBMISSION_TIME_SECS);
+        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        env.block.time = env.block.time.plus_seconds(DEALING_EXCHANGE_TIME_SECS);
+        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(VERIFICATION_KEY_SUBMISSION_TIME_SECS);
+        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(VERIFICATION_KEY_VALIDATION_TIME_SECS);
+        advance_epoch_state(deps.as_mut(), env).unwrap();
 
         let ret =
             try_verify_verification_key_share(deps.as_mut(), info, owner.clone()).unwrap_err();
@@ -183,14 +197,16 @@ mod tests {
     #[test]
     fn verify_vk_share() {
         let mut deps = helpers::init_contract();
-        let env = mock_env();
+        let mut env = mock_env();
         let owner = Addr::unchecked("owner");
         let info = mock_info(owner.as_ref(), &[]);
         let share = "share".to_string();
         let multisig_info = mock_info(MULTISIG_CONTRACT, &[]);
 
-        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
-        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        env.block.time = env.block.time.plus_seconds(PUBLIC_KEY_SUBMISSION_TIME_SECS);
+        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        env.block.time = env.block.time.plus_seconds(DEALING_EXCHANGE_TIME_SECS);
+        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
 
         let dealer_details = DealerDetails {
             address: owner.clone(),
@@ -204,8 +220,16 @@ mod tests {
         try_commit_verification_key_share(deps.as_mut(), env.clone(), info.clone(), share.clone())
             .unwrap();
 
-        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
-        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(VERIFICATION_KEY_SUBMISSION_TIME_SECS);
+        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(VERIFICATION_KEY_VALIDATION_TIME_SECS);
+        advance_epoch_state(deps.as_mut(), env).unwrap();
 
         try_verify_verification_key_share(deps.as_mut(), multisig_info, owner.clone()).unwrap();
     }

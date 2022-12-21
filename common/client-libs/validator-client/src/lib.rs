@@ -5,14 +5,14 @@ pub mod client;
 #[cfg(feature = "nymd-client")]
 pub mod connection_tester;
 mod error;
+pub mod nym_api;
 #[cfg(feature = "nymd-client")]
 pub mod nymd;
-pub mod validator_api;
 
 #[cfg(feature = "nymd-client")]
 pub use crate::client::{ApiClient, CoconutApiClient};
 pub use crate::error::ValidatorClientError;
-pub use validator_api_requests::*;
+pub use nym_api_requests::*;
 
 #[cfg(feature = "nymd-client")]
 pub use client::{Client, Config};

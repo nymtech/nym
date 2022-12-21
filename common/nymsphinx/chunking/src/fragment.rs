@@ -208,6 +208,11 @@ impl Fragment {
         }
     }
 
+    /// Gets the size of payload contained in this `Fragment`.
+    pub fn payload_size(&self) -> usize {
+        self.payload.len()
+    }
+
     /// Extracts id of this `Fragment`.
     pub fn id(&self) -> i32 {
         self.header.id

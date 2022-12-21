@@ -157,7 +157,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
             </Typography>
           </Grid>
           {isMixnode(bondedNode) && (
-            <Grid item xs={12} xl={6}>
+            <Grid item xs={12} md={6}>
               <TextField
                 {...register('profitMargin')}
                 name="profitMargin"
@@ -203,30 +203,28 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
               Changes to cost will be applied in the next interval.
             </Typography>
           </Grid>
-          <Grid spacing={3} container item alignItems="center" xs={12} md={6}>
-            <Grid item width={1}>
-              <CurrencyFormField
-                required
-                fullWidth
-                label="Operating cost"
-                onChanged={(newValue) => {
-                  setValue('operatorCost', newValue, { shouldValidate: true, shouldDirty: true });
-                }}
-                validationError={errors.operatorCost?.amount?.message}
-                denom={clientDetails?.display_mix_denom || 'nym'}
-                initialValue={defaultValues.operatorCost.amount}
-              />
-              {pendingUpdates && (
-                <FormHelperText>
-                  Your last change to{' '}
-                  <Typography variant="caption" fontWeight="bold">
-                    {pendingUpdates.interval_operating_cost.amount}{' '}
-                    {pendingUpdates?.interval_operating_cost.denom.toUpperCase()}{' '}
-                  </Typography>
-                  will be applied in the next interval
-                </FormHelperText>
-              )}
-            </Grid>
+          <Grid item xs={12} md={6}>
+            <CurrencyFormField
+              required
+              fullWidth
+              label="Operating cost"
+              onChanged={(newValue) => {
+                setValue('operatorCost', newValue, { shouldValidate: true, shouldDirty: true });
+              }}
+              validationError={errors.operatorCost?.amount?.message}
+              denom={clientDetails?.display_mix_denom || 'nym'}
+              initialValue={defaultValues.operatorCost.amount}
+            />
+            {pendingUpdates && (
+              <FormHelperText>
+                Your last change to{' '}
+                <Typography variant="caption" fontWeight="bold">
+                  {pendingUpdates.interval_operating_cost.amount}{' '}
+                  {pendingUpdates?.interval_operating_cost.denom.toUpperCase()}{' '}
+                </Typography>
+                will be applied in the next interval
+              </FormHelperText>
+            )}
           </Grid>
         </Grid>
         <Divider flexItem sx={{ position: 'relative', left: '-24px', width: 'calc(100% + 24px)' }} />

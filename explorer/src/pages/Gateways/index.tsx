@@ -27,7 +27,6 @@ export const PageGateways: React.FC = () => {
 
   React.useEffect(() => {
     if (searchTerm === '' && gateways?.data) {
-      console.log('gateways?.data', gateways?.data);
       setFilteredGateways(gateways?.data);
     } else {
       const filtered = gateways?.data?.filter((g) => {

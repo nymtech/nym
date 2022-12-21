@@ -12,7 +12,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [github-runner-3]
+        platform: [custom-linux]
 
     runs-on: ${{ matrix.platform }}
     steps:

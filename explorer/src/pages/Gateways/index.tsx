@@ -10,7 +10,7 @@ import { TableToolbar } from '../../components/TableToolbar';
 import { CustomColumnHeading } from '../../components/CustomColumnHeading';
 import { Title } from '../../components/Title';
 import { cellStyles, UniversalDataGrid } from '../../components/Universal-DataGrid';
-import { currencyToString } from '../../utils/currency';
+import { unymToNym } from '../../utils/currency';
 import { Tooltip } from '../../components/Tooltip';
 import { BIG_DIPPER } from '../../api/constants';
 import { splice } from '../../utils';
@@ -77,7 +77,7 @@ export const PageGateways: React.FC = () => {
           to={`/network-components/gateway/${params.row.identityKey}`}
           data-testid="pledge-amount"
         >
-          {currencyToString(params.value)}
+          {unymToNym(params.value, 6)}
         </MuiLink>
       ),
     },

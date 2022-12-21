@@ -27,6 +27,7 @@ export const PageGateways: React.FC = () => {
 
   React.useEffect(() => {
     if (searchTerm === '' && gateways?.data) {
+      console.log('gateways?.data', gateways?.data);
       setFilteredGateways(gateways?.data);
     } else {
       const filtered = gateways?.data?.filter((g) => {
@@ -139,6 +140,25 @@ export const PageGateways: React.FC = () => {
           data-testid="owner"
         >
           {splice(7, 29, params.value)}
+        </MuiLink>
+      ),
+    },
+    ,
+    {
+      field: 'version',
+      headerName: 'Version',
+      renderHeader: () => <CustomColumnHeading headingTitle="Version" />,
+      width: 150,
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={{ ...cellStyles }}
+          href={`${BIG_DIPPER}/account/${params.value}`}
+          target="_blank"
+          data-testid="owner"
+        >
+          {params.value}
         </MuiLink>
       ),
     },

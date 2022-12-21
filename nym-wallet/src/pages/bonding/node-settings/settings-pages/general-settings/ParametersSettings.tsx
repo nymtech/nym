@@ -51,10 +51,10 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
     defaultValues,
   });
 
-  const getNextInterval = async () => {
+  const getCurrentInterval = async () => {
     try {
-      const { intervalTime } = await getIntervalAsDate();
-      setIntervalTime(intervalTime);
+      const { nextInterval } = await getIntervalAsDate();
+      setIntervalTime(nextInterval);
     } catch {
       console.log('cant retrieve next interval');
     }
@@ -81,7 +81,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
   };
 
   useEffect(() => {
-    getNextInterval();
+    getCurrentInterval();
     getPendingEvents();
   }, []);
 

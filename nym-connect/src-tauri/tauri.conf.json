@@ -1,7 +1,7 @@
 {
   "package": {
     "productName": "nym-connect",
-    "version": "1.1.2"
+    "version": "1.1.4"
   },
   "build": {
     "distDir": "../dist",
@@ -59,13 +59,16 @@
         "startDragging": true,
         "close": true,
         "minimize": true
+      },
+      "notification": {
+        "all": true
       }
     },
     "windows": [
       {
         "title": "NymConnect",
         "width": 240,
-        "height": 540,
+        "height": 675,
         "resizable": false,
         "decorations": false,
         "transparent": true

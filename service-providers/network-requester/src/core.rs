@@ -15,13 +15,15 @@ use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
+use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::{
     BroadcastActiveConnections, Controller, ControllerCommand, ControllerSender,
 };
 use proxy_helpers::proxy_runner::{MixProxyReader, MixProxySender};
 use socks5_requests::{
-    ConnectionId, Message as Socks5Message, NetworkRequesterResponse, Request, Response,
+    ConnectRequest, ConnectionId, Message as Socks5Message, NetworkRequesterResponse, Request,
+    Response,
 };
 use statistics_common::collector::StatisticsSender;
 use std::path::PathBuf;
@@ -39,6 +41,56 @@ pub struct ServiceProvider {
     open_proxy: bool,
     enable_statistics: bool,
     stats_provider_addr: Option<Recipient>,
+}
+
+// TODO: move elsewhere after things settle
+#[derive(Debug, Clone)]
+pub enum ReturnAddress {
+    Known(Box<Recipient>),
+    Anonymous(AnonymousSenderTag),
+}
+
+impl From<Recipient> for ReturnAddress {
+    fn from(recipient: Recipient) -> Self {
+        ReturnAddress::Known(Box::new(recipient))
+    }
+}
+
+impl From<AnonymousSenderTag> for ReturnAddress {
+    fn from(sender_tag: AnonymousSenderTag) -> Self {
+        ReturnAddress::Anonymous(sender_tag)
+    }
+}
+
+impl ReturnAddress {
+    fn new(
+        explicit_return_address: Option<Recipient>,
+        implicit_tag: Option<AnonymousSenderTag>,
+    ) -> Option<Self> {
+        // if somehow we received both, always prefer the explicit address since it's way easier to use
+        if let Some(recipient) = explicit_return_address {
+            return Some(ReturnAddress::Known(Box::new(recipient)));
+        }
+        if let Some(sender_tag) = implicit_tag {
+            return Some(ReturnAddress::Anonymous(sender_tag));
+        }
+        None
+    }
+
+    fn send_back_to(self, message: Vec<u8>, connection_id: u64) -> ClientRequest {
+        match self {
+            ReturnAddress::Known(recipient) => ClientRequest::Send {
+                recipient: *recipient,
+                message,
+                connection_id: Some(connection_id),
+            },
+            ReturnAddress::Anonymous(sender_tag) => ClientRequest::Reply {
+                message,
+                sender_tag,
+                connection_id: Some(connection_id),
+            },
+        }
+    }
 }
 
 impl ServiceProvider {
@@ -72,13 +124,12 @@ impl ServiceProvider {
     /// via the `websocket_writer`.
     async fn mixnet_response_listener(
         mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
-        mut mix_reader: MixProxyReader<(Socks5Message, Recipient)>,
+        mut mix_reader: MixProxyReader<(Socks5Message, ReturnAddress)>,
         stats_collector: Option<ServiceStatisticsCollector>,
         mut client_connection_rx: ConnectionCommandReceiver,
     ) {
         loop {
             tokio::select! {
-                // TODO: wire SURBs in here once they're available
                 socks5_msg = mix_reader.recv() => {
                     if let Some((msg, return_address)) = socks5_msg {
                         if let Some(stats_collector) = stats_collector.as_ref() {
@@ -95,15 +146,10 @@ impl ServiceProvider {
                                     .processed(remote_addr, msg.size() as u32);
                             }
                         }
-                        let conn_id = msg.conn_id();
 
                         // make 'request' to native-websocket client
-                        let response_message = ClientRequest::Send {
-                            recipient: return_address,
-                            message: msg.into_bytes(),
-                            with_reply_surb: false,
-                            connection_id: Some(conn_id),
-                        };
+                        let conn_id = msg.conn_id();
+                        let response_message = return_address.send_back_to(msg.into_bytes(), conn_id);
 
                         let message = Message::Binary(response_message.serialize());
                         websocket_writer.send(message).await.unwrap();
@@ -179,7 +225,7 @@ impl ServiceProvider {
 
             let received = match deserialized_message {
                 ServerResponse::Received(received) => received,
-                ServerResponse::LaneQueueLength(lane, queue_length) => {
+                ServerResponse::LaneQueueLength { lane, queue_length } => {
                     Self::handle_lane_queue_length_response(
                         &lane_queue_lengths,
                         lane,
@@ -200,33 +246,34 @@ impl ServiceProvider {
     async fn start_proxy(
         conn_id: ConnectionId,
         remote_addr: String,
-        return_address: Recipient,
+        return_address: ReturnAddress,
         controller_sender: ControllerSender,
-        mix_input_sender: MixProxySender<(Socks5Message, Recipient)>,
+        mix_input_sender: MixProxySender<(Socks5Message, ReturnAddress)>,
         lane_queue_lengths: LaneQueueLengths,
         shutdown: ShutdownListener,
     ) {
-        let mut conn = match Connection::new(conn_id, remote_addr.clone(), return_address).await {
-            Ok(conn) => conn,
-            Err(err) => {
-                error!(
-                    "error while connecting to {:?} ! - {:?}",
-                    remote_addr.clone(),
-                    err
-                );
+        let mut conn =
+            match Connection::new(conn_id, remote_addr.clone(), return_address.clone()).await {
+                Ok(conn) => conn,
+                Err(err) => {
+                    error!(
+                        "error while connecting to {:?} ! - {:?}",
+                        remote_addr.clone(),
+                        err
+                    );
 
-                // inform the remote that the connection is closed before it even was established
-                mix_input_sender
-                    .send((
-                        Socks5Message::Response(Response::new(conn_id, Vec::new(), true)),
-                        return_address,
-                    ))
-                    .await
-                    .expect("InputMessageReceiver has stopped receiving!");
+                    // inform the remote that the connection is closed before it even was established
+                    mix_input_sender
+                        .send((
+                            Socks5Message::Response(Response::new(conn_id, Vec::new(), true)),
+                            return_address,
+                        ))
+                        .await
+                        .expect("InputMessageReceiver has stopped receiving!");
 
-                return;
-            }
-        };
+                    return;
+                }
+            };
 
         // Connect implies it's a fresh connection - register it with our controller
         let (mix_sender, mix_receiver) = mpsc::unbounded();
@@ -262,13 +309,25 @@ impl ServiceProvider {
     async fn handle_proxy_connect(
         &mut self,
         controller_sender: &mut ControllerSender,
-        mix_input_sender: &MixProxySender<(Socks5Message, Recipient)>,
+        mix_input_sender: &MixProxySender<(Socks5Message, ReturnAddress)>,
         lane_queue_lengths: LaneQueueLengths,
-        conn_id: ConnectionId,
-        remote_addr: String,
-        return_address: Recipient,
+        sender_tag: Option<AnonymousSenderTag>,
+        connect_req: Box<ConnectRequest>,
         shutdown: ShutdownListener,
     ) {
+        let return_address = match ReturnAddress::new(connect_req.return_address, sender_tag) {
+            Some(address) => address,
+            None => {
+                log::warn!(
+                "attempted to start connection with no way of returning data back to the sender"
+            );
+                return;
+            }
+        };
+
+        let remote_addr = connect_req.remote_addr;
+        let conn_id = connect_req.conn_id;
+
         if !self.open_proxy && !self.outbound_request_filter.check(&remote_addr) {
             let log_msg = format!("Domain {:?} failed filter check", remote_addr);
             log::info!("{}", log_msg);
@@ -315,23 +374,24 @@ impl ServiceProvider {
 
     async fn handle_proxy_message(
         &mut self,
-        raw_request: &[u8],
+        message: ReconstructedMessage,
         controller_sender: &mut ControllerSender,
-        mix_input_sender: &MixProxySender<(Socks5Message, Recipient)>,
+        mix_input_sender: &MixProxySender<(Socks5Message, ReturnAddress)>,
         lane_queue_lengths: LaneQueueLengths,
         stats_collector: Option<ServiceStatisticsCollector>,
         shutdown: ShutdownListener,
     ) {
-        let deserialized_msg = match Socks5Message::try_from_bytes(raw_request) {
+        let deserialized_msg = match Socks5Message::try_from_bytes(&message.message) {
             Ok(msg) => msg,
             Err(err) => {
-                error!("Failed to deserialized received message! - {}", err);
+                error!("Failed to deserialized received message! - {err}");
                 return;
             }
         };
         match deserialized_msg {
             Socks5Message::Request(deserialized_request) => match deserialized_request {
                 Request::Connect(req) => {
+                    // TODO: stats might be invalid if connection fails to start
                     if let Some(stats_collector) = stats_collector {
                         stats_collector
                             .connected_services
@@ -343,9 +403,8 @@ impl ServiceProvider {
                         controller_sender,
                         mix_input_sender,
                         lane_queue_lengths,
-                        req.conn_id,
-                        req.remote_addr,
-                        req.return_address,
+                        message.sender_tag,
+                        req,
                         shutdown,
                     )
                     .await
@@ -383,7 +442,7 @@ impl ServiceProvider {
         // channels responsible for managing messages that are to be sent to the mix network. The receiver is
         // going to be used by `mixnet_response_listener`
         let (mix_input_sender, mix_input_receiver) =
-            tokio::sync::mpsc::channel::<(Socks5Message, Recipient)>(1);
+            tokio::sync::mpsc::channel::<(Socks5Message, ReturnAddress)>(1);
 
         // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
         let shutdown = task::ShutdownNotifier::default();
@@ -437,7 +496,7 @@ impl ServiceProvider {
             .await;
         });
 
-        println!("\nAll systems go. Press CTRL-C to stop the server.");
+        log::info!("All systems go. Press CTRL-C to stop the server.");
         // for each incoming message from the websocket... (which in 99.99% cases is going to be a mix message)
         loop {
             let Some(received) = Self::read_websocket_message(
@@ -447,14 +506,11 @@ impl ServiceProvider {
                 .await
             else {
                 log::error!("The websocket stream has finished!");
-                return Ok(());
+                return Err(NetworkRequesterError::ConnectionClosed);
             };
 
-            let raw_message = received.message;
-            // TODO: here be potential SURB (i.e. received.reply_SURB)
-
             self.handle_proxy_message(
-                &raw_message,
+                received,
                 &mut controller_sender,
                 &mix_input_sender,
                 shared_lane_queue_lengths.clone(),

@@ -3,11 +3,14 @@
 
 use crate::client::config::Config;
 use crate::error::Socks5ClientError;
+use crate::socks;
 use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
     server::SphinxSocksServer,
 };
-use client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput};
+use client_core::client::base_client::{
+    non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput,
+};
 use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use futures::channel::mpsc;
@@ -114,6 +117,11 @@ impl NymClient {
             config.get_provider_mix_address(),
             self_address,
             shared_lane_queue_lengths,
+            socks::client::Config::new(
+                config.get_send_anonymously(),
+                config.get_connection_start_surbs(),
+                config.get_per_request_surbs(),
+            ),
             shutdown.clone(),
         );
         task::spawn_with_report_error(
@@ -131,11 +139,8 @@ impl NymClient {
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
-    pub async fn run_forever(self) -> Result<(), Box<dyn Error + Send>> {
-        let mut shutdown = self
-            .start()
-            .await
-            .map_err(|err| Box::new(err) as Box<dyn Error + Send>)?;
+    pub async fn run_forever(self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let mut shutdown = self.start().await?;
 
         let res = wait_for_signal_and_error(&mut shutdown).await;
 
@@ -153,12 +158,13 @@ impl NymClient {
     pub async fn run_and_listen(
         self,
         mut receiver: Socks5ControlMessageReceiver,
-    ) -> Result<(), Box<dyn Error + Send>> {
+        sender: task::StatusSender,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Start the main task
-        let mut shutdown = self
-            .start()
-            .await
-            .map_err(|err| Box::new(err) as Box<dyn Error + Send>)?;
+        let mut shutdown = self.start().await?;
+
+        // Listen to status messages from task, that we forward back to the caller
+        shutdown.start_status_listener(sender);
 
         let res = tokio::select! {
             biased;
@@ -199,6 +205,11 @@ impl NymClient {
             self.config.get_base(),
             self.key_manager,
             Some(Self::create_bandwidth_controller(&self.config).await),
+            non_wasm_helpers::setup_fs_reply_surb_backend(
+                self.config.get_base().get_reply_surb_database_path(),
+                self.config.get_debug_settings(),
+            )
+            .await?,
         );
 
         let self_address = base_builder.as_mix_recipient();

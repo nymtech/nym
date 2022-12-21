@@ -72,6 +72,10 @@ impl SurbAck {
         PacketSize::AckPacket.size() + MAX_NODE_ADDRESS_UNPADDED_LEN
     }
 
+    pub fn expected_total_delay(&self) -> Delay {
+        self.expected_total_delay
+    }
+
     pub fn prepare_for_sending(self) -> (Delay, Vec<u8>) {
         // SURB_FIRST_HOP || SURB_ACK
         let surb_bytes: Vec<_> = self

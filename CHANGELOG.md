@@ -2,6 +2,51 @@
 
 Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [v1.1.4] (2022-12-20)
+
+This release adds multiple Single Use Reply Blocks (SURBs) to allow arbitrarily-sized anonymized replies. 
+At the moment this is turned off by default, but available for use by application developers. 
+We will need to wait for network-requesters to upgrade to this new release, after which multi-SURB anonymization will become the default setting for the SOCKS proxy clients. 
+
+The release also include some additional work for distributed key generation in the Coconut signing authority nodes. 
+
+### Changed
+
+- Feature/dkg contract threshold by @neacsu in https://github.com/nymtech/nym/pull/1885
+- Multi-surbs by @jstuczyn in https://github.com/nymtech/nym/pull/2667
+- Fix multi-surb backwards compatibility in pre 1.1.4 client config files by @jstuczyn in https://github.com/nymtech/nym/pull/2703
+- fix: ignore corrupted surb storage and instead create fresh one by @jstuczyn in https://github.com/nymtech/nym/pull/2711
+- socks5: rework waiting in inbound.rs by @octol in https://github.com/nymtech/nym/pull/1880
+
+## [v1.1.3] (2022-12-13)
+
+### Changed
+
+- validator-api: can recover from shutdown during DKG process ([#1872])
+- clients: deduplicate gateway inititialization, part of work towards a rust-sdk
+- clients: keep all transmission lanes going at all times by making priority probabilistic
+- clients: ability to use multi-reply SURBs to send arbitrarily long messages fully anonymously whilst requesting additional reply blocks whenever they're about to run out ([#1796], [#1801], [#1804], [#1835], [#1858], [#1883]))
+
+### Fixed
+
+- network-requester: fix bug where websocket connection disconnect resulted in success error code
+- clients: fix a few panics handling the gateway-client
+- mixnode, gateway, validator-api: Use mainnet values as defaults for URLs and mixnet contract  ([#1884])
+- socks5: fixed bug where connections sometimes where closed too early
+- clients: improve message logging when received message fails to get reconstructed ([#1803])
+
+[#1796]: https://github.com/nymtech/nym/pull/1796
+[#1801]: https://github.com/nymtech/nym/pull/1801
+[#1803]: https://github.com/nymtech/nym/pull/1803
+[#1804]: https://github.com/nymtech/nym/pull/1804
+[#1835]: https://github.com/nymtech/nym/pull/1835
+[#1858]: https://github.com/nymtech/nym/pull/1858
+[#1872]: https://github.com/nymtech/nym/pull/1872
+[#1883]: https://github.com/nymtech/nym/pull/1883
+[#1884]: https://github.com/nymtech/nym/pull/1884
+
 ## [v1.1.2]
 
 ### Changed

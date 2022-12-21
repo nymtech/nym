@@ -11,14 +11,15 @@ pub async fn start_connecting(
     state: tauri::State<'_, Arc<RwLock<State>>>,
     window: tauri::Window<tauri::Wry>,
 ) -> Result<ConnectResult> {
-    let status_receiver = {
+    let (msg_receiver, exit_status_receiver) = {
         let mut state_w = state.write().await;
         state_w.start_connecting(&window).await?
     };
 
     // Setup task for checking status
     let state = state.inner().clone();
-    tasks::start_disconnect_listener(state, window, status_receiver);
+    tasks::start_disconnect_listener(state, window.clone(), exit_status_receiver);
+    tasks::start_status_listener(window, msg_receiver);
 
     Ok(ConnectResult {
         address: "PLACEHOLDER".to_string(),
@@ -36,10 +37,10 @@ pub async fn get_service_provider(state: tauri::State<'_, Arc<RwLock<State>>>) -
 
 #[tauri::command]
 pub async fn set_service_provider(
-    service_provider: String,
+    service_provider: Option<String>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<()> {
-    log::trace!("Setting service_provider: {service_provider}");
+    log::trace!("Setting service_provider: {:?}", &service_provider);
     let mut guard = state.write().await;
     guard.set_service_provider(service_provider);
     Ok(())
@@ -56,10 +57,10 @@ pub async fn get_gateway(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<
 
 #[tauri::command]
 pub async fn set_gateway(
-    gateway: String,
+    gateway: Option<String>,
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<()> {
-    log::trace!("Setting gateway: {gateway}");
+    log::trace!("Setting gateway: {:?}", &gateway);
     let mut guard = state.write().await;
     guard.set_gateway(gateway);
     Ok(())

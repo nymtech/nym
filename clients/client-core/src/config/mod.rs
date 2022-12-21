@@ -30,8 +30,34 @@ const DEFAULT_TOPOLOGY_RESOLUTION_TIMEOUT: Duration = Duration::from_millis(5_00
 // bandwidth bridging protocol, we can come back to a smaller timeout value
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
 
+// reply-surbs related:
+
+// define when to request
+// clients/client-core/src/client/replies/reply_storage/surb_storage.rs
+const DEFAULT_MINIMUM_REPLY_SURB_STORAGE_THRESHOLD: usize = 10;
+const DEFAULT_MAXIMUM_REPLY_SURB_STORAGE_THRESHOLD: usize = 200;
+
+// define how much to request at once
+// clients/client-core/src/client/replies/reply_controller.rs
+const DEFAULT_MINIMUM_REPLY_SURB_REQUEST_SIZE: u32 = 10;
+const DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE: u32 = 100;
+
+const DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE: u32 = 500;
+
+const DEFAULT_MAXIMUM_REPLY_SURB_WAITING_PERIOD: Duration = Duration::from_secs(10);
+
+// 12 hours
+const DEFAULT_MAXIMUM_REPLY_SURB_AGE: Duration = Duration::from_secs(12 * 60 * 60);
+
+// 24 hours
+const DEFAULT_MAXIMUM_REPLY_KEY_AGE: Duration = Duration::from_secs(24 * 60 * 60);
+
 pub fn missing_string_value() -> String {
     MISSING_VALUE.to_string()
+}
+
+pub trait ClientCoreConfigTrait {
+    fn get_gateway_endpoint(&self) -> &GatewayEndpointConfig;
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
@@ -44,31 +70,46 @@ pub struct Config<T> {
     #[serde(default)]
     debug: DebugConfig,
 }
+impl<T> ClientCoreConfigTrait for Config<T> {
+    fn get_gateway_endpoint(&self) -> &GatewayEndpointConfig {
+        &self.client.gateway_endpoint
+    }
+}
 
 impl<T> Config<T> {
     pub fn new<S: Into<String>>(id: S) -> Self
     where
         T: NymConfig,
     {
-        let mut cfg = Config::default();
-        cfg.with_id(id);
-        cfg
+        Config::default().with_id(id)
     }
 
-    pub fn with_id<S: Into<String>>(&mut self, id: S)
+    pub fn with_id<S: Into<String>>(mut self, id: S) -> Self
     where
         T: NymConfig,
     {
-        let id = id.into();
+        self.client.id = id.into();
+        self.set_empty_fields_to_defaults();
+        self
+    }
+
+    pub fn set_empty_fields_to_defaults(&mut self) -> bool
+    where
+        T: NymConfig,
+    {
+        let id = &self.client.id;
+        let mut changes_made = false;
 
         // identity key setting
         if self.client.private_identity_key_file.as_os_str().is_empty() {
+            changes_made = true;
             self.client.private_identity_key_file =
-                self::Client::<T>::default_private_identity_key_file(&id);
+                self::Client::<T>::default_private_identity_key_file(id);
         }
         if self.client.public_identity_key_file.as_os_str().is_empty() {
+            changes_made = true;
             self.client.public_identity_key_file =
-                self::Client::<T>::default_public_identity_key_file(&id);
+                self::Client::<T>::default_public_identity_key_file(id);
         }
 
         // encryption key setting
@@ -78,8 +119,9 @@ impl<T> Config<T> {
             .as_os_str()
             .is_empty()
         {
+            changes_made = true;
             self.client.private_encryption_key_file =
-                self::Client::<T>::default_private_encryption_key_file(&id);
+                self::Client::<T>::default_private_encryption_key_file(id);
         }
         if self
             .client
@@ -87,36 +129,35 @@ impl<T> Config<T> {
             .as_os_str()
             .is_empty()
         {
+            changes_made = true;
             self.client.public_encryption_key_file =
-                self::Client::<T>::default_public_encryption_key_file(&id);
+                self::Client::<T>::default_public_encryption_key_file(id);
         }
 
         // shared gateway key setting
         if self.client.gateway_shared_key_file.as_os_str().is_empty() {
+            changes_made = true;
             self.client.gateway_shared_key_file =
-                self::Client::<T>::default_gateway_shared_key_file(&id);
+                self::Client::<T>::default_gateway_shared_key_file(id);
         }
 
         // ack key setting
         if self.client.ack_key_file.as_os_str().is_empty() {
-            self.client.ack_key_file = self::Client::<T>::default_ack_key_file(&id);
+            changes_made = true;
+            self.client.ack_key_file = self::Client::<T>::default_ack_key_file(id);
         }
 
-        if self
-            .client
-            .reply_encryption_key_store_path
-            .as_os_str()
-            .is_empty()
-        {
-            self.client.reply_encryption_key_store_path =
-                self::Client::<T>::default_reply_encryption_key_store_path(&id);
+        if self.client.reply_surb_database_path.as_os_str().is_empty() {
+            changes_made = true;
+            self.client.reply_surb_database_path =
+                self::Client::<T>::default_reply_surb_database_path(id);
         }
 
         if self.client.database_path.as_os_str().is_empty() {
-            self.client.database_path = self::Client::<T>::default_database_path(&id);
+            changes_made = true;
+            self.client.database_path = self::Client::<T>::default_database_path(id);
         }
-
-        self.client.id = id;
+        changes_made
     }
 
     pub fn with_disabled_credentials(&mut self, disabled_credentials_mode: bool) {
@@ -188,10 +229,6 @@ impl<T> Config<T> {
         self.client.gateway_shared_key_file.clone()
     }
 
-    pub fn get_reply_encryption_key_store_path(&self) -> PathBuf {
-        self.client.reply_encryption_key_store_path.clone()
-    }
-
     pub fn get_ack_key_file(&self) -> PathBuf {
         self.client.ack_key_file.clone()
     }
@@ -220,12 +257,16 @@ impl<T> Config<T> {
         &self.client.gateway_endpoint
     }
 
-    pub fn get_gateway_endpoint(&self) -> &GatewayEndpointConfig {
-        &self.client.gateway_endpoint
-    }
-
     pub fn get_database_path(&self) -> PathBuf {
         self.client.database_path.clone()
+    }
+
+    pub fn get_reply_surb_database_path(&self) -> PathBuf {
+        self.client.reply_surb_database_path.clone()
+    }
+
+    pub fn get_version(&self) -> &str {
+        &self.client.version
     }
 
     // Debug getters
@@ -281,8 +322,36 @@ impl<T> Config<T> {
         self.debug.use_extended_packet_size
     }
 
-    pub fn get_version(&self) -> &str {
-        &self.client.version
+    pub fn get_minimum_reply_surb_storage_threshold(&self) -> usize {
+        self.debug.minimum_reply_surb_storage_threshold
+    }
+
+    pub fn get_maximum_reply_surb_storage_threshold(&self) -> usize {
+        self.debug.maximum_reply_surb_storage_threshold
+    }
+
+    pub fn get_minimum_reply_surb_request_size(&self) -> u32 {
+        self.debug.minimum_reply_surb_request_size
+    }
+
+    pub fn get_maximum_reply_surb_request_size(&self) -> u32 {
+        self.debug.maximum_reply_surb_request_size
+    }
+
+    pub fn get_maximum_allowed_reply_surb_request_size(&self) -> u32 {
+        self.debug.maximum_allowed_reply_surb_request_size
+    }
+
+    pub fn get_maximum_reply_surb_waiting_period(&self) -> Duration {
+        self.debug.maximum_reply_surb_waiting_period
+    }
+
+    pub fn get_maximum_reply_surb_age(&self) -> Duration {
+        self.debug.maximum_reply_surb_age
+    }
+
+    pub fn get_maximum_reply_key_age(&self) -> Duration {
+        self.debug.maximum_reply_key_age
     }
 }
 
@@ -308,6 +377,22 @@ pub struct GatewayEndpointConfig {
 
     /// Address of the gateway listener to which all client requests should be sent.
     pub gateway_listener: String,
+}
+
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
+impl GatewayEndpointConfig {
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(constructor))]
+    pub fn new(
+        gateway_id: String,
+        gateway_owner: String,
+        gateway_listener: String,
+    ) -> GatewayEndpointConfig {
+        GatewayEndpointConfig {
+            gateway_id,
+            gateway_owner,
+            gateway_listener,
+        }
+    }
 }
 
 impl From<topology::gateway::Node> for GatewayEndpointConfig {
@@ -362,15 +447,18 @@ pub struct Client<T> {
     /// acknowledgement so that nobody besides the client knows which packet it refers to.
     ack_key_file: PathBuf,
 
-    /// Full path to file containing reply encryption keys of all reply-SURBs we have ever
-    /// sent but not received back.
-    reply_encryption_key_store_path: PathBuf,
-
     /// Information regarding how the client should send data to gateway.
     gateway_endpoint: GatewayEndpointConfig,
 
     /// Path to the database containing bandwidth credentials of this client.
     database_path: PathBuf,
+
+    /// Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
+    // this was set to use #[serde(default)] for the purposes of compatibility for multi-surbs introduced in 1.1.4.
+    // if you're reading this message and we have already introduced some breaking changes, feel free
+    // to remove that attribute since at this point the client configs should have gotten regenerated
+    #[serde(default)]
+    reply_surb_database_path: PathBuf,
 
     /// nym_home_directory specifies absolute path to the home nym Clients directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
@@ -395,9 +483,9 @@ impl<T: NymConfig> Default for Client<T> {
             public_encryption_key_file: Default::default(),
             gateway_shared_key_file: Default::default(),
             ack_key_file: Default::default(),
-            reply_encryption_key_store_path: Default::default(),
             gateway_endpoint: Default::default(),
             database_path: Default::default(),
+            reply_surb_database_path: Default::default(),
             nym_root_directory: T::default_root_directory(),
             super_struct: Default::default(),
         }
@@ -429,9 +517,10 @@ impl<T: NymConfig> Client<T> {
         T::default_data_directory(Some(id)).join("ack_key.pem")
     }
 
-    fn default_reply_encryption_key_store_path(id: &str) -> PathBuf {
-        T::default_data_directory(Some(id)).join("reply_key_store")
+    fn default_reply_surb_database_path(id: &str) -> PathBuf {
+        T::default_data_directory(Some(id)).join("persistent_reply_store.sqlite")
     }
+
     fn default_database_path(id: &str) -> PathBuf {
         T::default_data_directory(Some(id)).join(DB_FILE_NAME)
     }
@@ -507,6 +596,37 @@ pub struct DebugConfig {
 
     /// Controls whether the sent sphinx packet use a NON-DEFAULT bigger size.
     pub use_extended_packet_size: Option<ExtendedPacketSize>,
+
+    /// Defines the minimum number of reply surbs the client wants to keep in its storage at all times.
+    /// It can only allow to go below that value if its to request additional reply surbs.
+    pub minimum_reply_surb_storage_threshold: usize,
+
+    /// Defines the maximum number of reply surbs the client wants to keep in its storage at any times.
+    pub maximum_reply_surb_storage_threshold: usize,
+
+    /// Defines the minimum number of reply surbs the client would request.
+    pub minimum_reply_surb_request_size: u32,
+
+    /// Defines the maximum number of reply surbs the client would request.
+    pub maximum_reply_surb_request_size: u32,
+
+    /// Defines the maximum number of reply surbs a remote party is allowed to request from this client at once.
+    pub maximum_allowed_reply_surb_request_size: u32,
+
+    /// Defines maximum amount of time the client is going to wait for reply surbs before explicitly asking
+    /// for more even though in theory they wouldn't need to.
+    #[serde(with = "humantime_serde")]
+    pub maximum_reply_surb_waiting_period: Duration,
+
+    /// Defines maximum amount of time given reply surb is going to be valid for.
+    /// This is going to be superseded by key rotation once implemented.
+    #[serde(with = "humantime_serde")]
+    pub maximum_reply_surb_age: Duration,
+
+    /// Defines maximum amount of time given reply key is going to be valid for.
+    /// This is going to be superseded by key rotation once implemented.
+    #[serde(with = "humantime_serde")]
+    pub maximum_reply_key_age: Duration,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -532,6 +652,14 @@ impl Default for DebugConfig {
             disable_loop_cover_traffic_stream: false,
             disable_main_poisson_packet_distribution: false,
             use_extended_packet_size: None,
+            minimum_reply_surb_storage_threshold: DEFAULT_MINIMUM_REPLY_SURB_STORAGE_THRESHOLD,
+            maximum_reply_surb_storage_threshold: DEFAULT_MAXIMUM_REPLY_SURB_STORAGE_THRESHOLD,
+            minimum_reply_surb_request_size: DEFAULT_MINIMUM_REPLY_SURB_REQUEST_SIZE,
+            maximum_reply_surb_request_size: DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE,
+            maximum_allowed_reply_surb_request_size: DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE,
+            maximum_reply_surb_waiting_period: DEFAULT_MAXIMUM_REPLY_SURB_WAITING_PERIOD,
+            maximum_reply_surb_age: DEFAULT_MAXIMUM_REPLY_SURB_AGE,
+            maximum_reply_key_age: DEFAULT_MAXIMUM_REPLY_KEY_AGE,
         }
     }
 }

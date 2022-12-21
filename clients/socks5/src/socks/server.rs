@@ -3,6 +3,7 @@ use crate::error::Socks5ClientError;
 use super::{
     authentication::Authenticator, client::SocksClient, mixnet_responses::MixnetResponseListener,
 };
+use crate::socks::client;
 use client_connections::{ConnectionCommandSender, LaneQueueLengths};
 use client_core::client::{
     inbound_messages::InputMessageSender, received_buffer::ReceivedBufferRequestSender,
@@ -21,6 +22,7 @@ pub struct SphinxSocksServer {
     listening_address: SocketAddr,
     service_provider: Recipient,
     self_address: Recipient,
+    client_config: client::Config,
     lane_queue_lengths: LaneQueueLengths,
     shutdown: ShutdownListener,
 }
@@ -33,6 +35,7 @@ impl SphinxSocksServer {
         service_provider: Recipient,
         self_address: Recipient,
         lane_queue_lengths: LaneQueueLengths,
+        client_config: client::Config,
         shutdown: ShutdownListener,
     ) -> Self {
         // hardcode ip as we (presumably) ONLY want to listen locally. If we change it, we can
@@ -44,6 +47,7 @@ impl SphinxSocksServer {
             listening_address: format!("{}:{}", ip, port).parse().unwrap(),
             service_provider,
             self_address,
+            client_config,
             lane_queue_lengths,
             shutdown,
         }
@@ -86,6 +90,7 @@ impl SphinxSocksServer {
             tokio::select! {
                 Ok((stream, _remote)) = listener.accept() => {
                     let mut client = SocksClient::new(
+                        self.client_config,
                         stream,
                         self.authenticator.clone(),
                         input_sender.clone(),

@@ -1,18 +1,14 @@
-use std::path::PathBuf;
-
-use client_core::config::GatewayEndpointConfig;
-use std::sync::Arc;
-use tap::TapFallible;
-use tokio::sync::RwLock;
-
-use client_core::config::Config as BaseConfig;
-use config_common::NymConfig;
-use nym_socks5::client::config::Config as Socks5Config;
-
 use crate::{
     error::{BackendError, Result},
     state::State,
 };
+use client_core::config::Config as BaseConfig;
+use config_common::NymConfig;
+use nym_socks5::client::config::Config as Socks5Config;
+use std::path::PathBuf;
+use std::sync::Arc;
+use tap::TapFallible;
+use tokio::sync::RwLock;
 
 static SOCKS5_CONFIG_ID: &str = "nym-connect";
 
@@ -45,6 +41,13 @@ impl Config {
     pub fn new<S: Into<String>>(id: S, provider_mix_address: S) -> Self {
         Config {
             socks5: Socks5Config::new(id, provider_mix_address),
+        }
+    }
+
+    #[allow(unused)]
+    pub fn new_with_port<S: Into<String>>(id: S, provider_mix_address: S, port: u16) -> Self {
+        Config {
+            socks5: Socks5Config::new(id, provider_mix_address).with_port(port),
         }
     }
 
@@ -116,6 +119,9 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     // Future proofing. This flag exists for the other clients
     let user_wants_force_register = false;
 
+    // If the client was already initialized, don't generate new keys and don't re-register with
+    // the gateway (because this would create a new shared key).
+    // Unless the user really wants to.
     let register_gateway = !already_init || user_wants_force_register;
 
     log::trace!("Creating config for id: {}", id);
@@ -127,28 +133,38 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
             .set_custom_validator_apis(config_common::parse_validators(&raw_validators));
     }
 
-    let gateway = setup_gateway(
-        &id,
+    // Setup gateway by either registering a new one, or reusing exiting keys
+    let gateway = client_core::init::setup_gateway::<_, Socks5Config, _>(
         register_gateway,
-        Some(&chosen_gateway_id),
-        config.get_socks5(),
+        Some(chosen_gateway_id),
+        config.get_base(),
     )
     .await?;
+
     config.get_base_mut().with_gateway_endpoint(gateway);
 
-    let config_save_location = config.get_socks5().get_config_file_save_location();
     config.get_socks5().save_to_file(None).tap_err(|_| {
         log::error!("Failed to save the config file");
     })?;
 
-    log::info!("Saved configuration file to {:?}", config_save_location);
+    print_saved_config(&config);
+
+    let address = client_core::init::get_client_address_from_stored_keys(config.get_base())?;
+    log::info!("The address of this client is: {}", address);
+    Ok(())
+}
+
+fn print_saved_config(config: &Config) {
+    log::info!(
+        "Saved configuration file to {:?}",
+        config.get_socks5().get_config_file_save_location()
+    );
     log::info!("Gateway id: {}", config.get_base().get_gateway_id());
     log::info!("Gateway owner: {}", config.get_base().get_gateway_owner());
     log::info!(
         "Gateway listener: {}",
         config.get_base().get_gateway_listener()
     );
-
     log::info!(
         "Service provider address: {}",
         config.get_socks5().get_provider_mix_address()
@@ -158,60 +174,4 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         config.get_socks5().get_listening_port()
     );
     log::info!("Client configuration completed.");
-
-    client_core::init::show_address(config.get_base())?;
-    Ok(())
-}
-
-// TODO: deduplicate with same functions in other client
-async fn setup_gateway(
-    id: &str,
-    register: bool,
-    user_chosen_gateway_id: Option<&str>,
-    config: &Socks5Config,
-) -> Result<GatewayEndpointConfig> {
-    if register {
-        // Get the gateway details by querying the validator-api. Either pick one at random or use
-        // the chosen one if it's among the available ones.
-        println!("Configuring gateway");
-        let gateway = client_core::init::query_gateway_details(
-            config.get_base().get_validator_api_endpoints(),
-            user_chosen_gateway_id,
-        )
-        .await?;
-        log::debug!("Querying gateway gives: {}", gateway);
-
-        // Registering with gateway by setting up and writing shared keys to disk
-        log::trace!("Registering gateway");
-        client_core::init::register_with_gateway_and_store_keys(gateway.clone(), config.get_base())
-            .await?;
-        println!("Saved all generated keys");
-
-        Ok(gateway.into())
-    } else if user_chosen_gateway_id.is_some() {
-        // Just set the config, don't register or create any keys
-        // This assumes that the user knows what they are doing, and that the existing keys are
-        // valid for the gateway being used
-        println!("Using gateway provided by user, keeping existing keys");
-        let gateway = client_core::init::query_gateway_details(
-            config.get_base().get_validator_api_endpoints(),
-            user_chosen_gateway_id,
-        )
-        .await?;
-        log::debug!("Querying gateway gives: {}", gateway);
-        Ok(gateway.into())
-    } else {
-        println!("Not registering gateway, will reuse existing config and keys");
-        let existing_config = Socks5Config::load_from_file(Some(id)).map_err(|err| {
-            log::error!(
-                "Unable to configure gateway: {err}. \n
-                Seems like the client was already initialized but it was not possible to read \
-                the existing configuration file. \n
-                CAUTION: Consider backing up your gateway keys and try force gateway registration, or \
-                removing the existing configuration and starting over."
-            );
-            BackendError::CouldNotLoadExistingGatewayConfiguration(err)
-        })?;
-        Ok(existing_config.get_base().get_gateway_endpoint().clone())
-    }
 }

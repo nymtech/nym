@@ -1,5 +1,3 @@
-use snafu::Snafu;
-
 /// SOCKS4 Response codes
 #[allow(dead_code)]
 pub(crate) enum ResponseCodeV4 {
@@ -10,24 +8,26 @@ pub(crate) enum ResponseCodeV4 {
 }
 
 /// Possible SOCKS5 Response Codes
-#[derive(Debug, Snafu)]
+#[allow(dead_code)]
+#[derive(Debug, thiserror::Error)]
 pub(crate) enum ResponseCodeV5 {
+    #[error("SOCKS5 Server Success")]
     Success = 0x00,
-    #[snafu(display("SOCKS5 Server Failure"))]
+    #[error("SOCKS5 Server Failure")]
     Failure = 0x01,
-    #[snafu(display("SOCKS5 Rule failure"))]
+    #[error("SOCKS5 Rule failure")]
     RuleFailure = 0x02,
-    #[snafu(display("network unreachable"))]
+    #[error("network unreachable")]
     NetworkUnreachable = 0x03,
-    #[snafu(display("host unreachable"))]
+    #[error("host unreachable")]
     HostUnreachable = 0x04,
-    #[snafu(display("connection refused"))]
+    #[error("connection refused")]
     ConnectionRefused = 0x05,
-    #[snafu(display("TTL expired"))]
+    #[error("TTL expired")]
     TtlExpired = 0x06,
-    #[snafu(display("Command not supported"))]
+    #[error("Command not supported")]
     CommandNotSupported = 0x07,
-    #[snafu(display("Addr Type not supported"))]
+    #[error("Addr Type not supported")]
     AddrTypeNotSupported = 0x08,
 }
 

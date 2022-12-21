@@ -8,6 +8,5 @@ pub mod key_manager;
 pub mod mix_traffic;
 pub mod real_messages_control;
 pub mod received_buffer;
-#[cfg(feature = "reply-surb")]
-pub mod reply_key_storage;
+pub mod replies;
 pub mod topology_control;

@@ -57,6 +57,7 @@ version = "0.4"
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-utils]
 path = "../../wasm-utils"
+features = ["websocket"]
 
 # only import it in wasm. Prefer proper tokio timer in non-wasm
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-timer]

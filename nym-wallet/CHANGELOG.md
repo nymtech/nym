@@ -1,5 +1,21 @@
 # Changelog
 
+## UNRELEASED
+
+## [nym-wallet-v1.1.4](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.4) (2022-12-20)
+
+This release contains a bugfix for hiding and displaying the mnemonic, and displays the Bity wallet address in the buy page, as well as better error handling. 
+
+- wallet: present some cases of the more technical errors (abci, ..) in a more human readable form.
+- Bug fix/hide display mnemonic by @fmtabbara in https://github.com/nymtech/nym/pull/1874
+- adding bity icon and wallet address by @gala1234 in https://github.com/nymtech/nym/pull/2689
+- remove warning error message by @gala1234 in https://github.com/nymtech/nym/pull/2694
+- ui and copy changes by @gala1234 in https://github.com/nymtech/nym/pull/2691
+
+## [nym-wallet-v1.1.3](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.3) (2022-12-13)
+
+- wallet: improved unbond screen.
+
 ## [nym-wallet-v1.1.2](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.2) (2022-11-09)
 
 - wallet: Bity buy functionality

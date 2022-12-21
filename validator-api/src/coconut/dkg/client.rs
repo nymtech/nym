@@ -8,6 +8,7 @@ use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState, NodeIn
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use contracts_common::dealings::ContractSafeBytes;
 use cw3::ProposalResponse;
+use dkg::Threshold;
 use validator_client::nymd::cosmwasm_client::logs::{find_attribute, NODE_INDEX};
 use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
 use validator_client::nymd::AccountId;
@@ -43,6 +44,12 @@ impl DkgClient {
             ret = self.inner.get_current_epoch_state().await;
         }
         ret
+    }
+
+    pub(crate) async fn get_current_epoch_threshold(
+        &self,
+    ) -> Result<Option<Threshold>, CoconutError> {
+        self.inner.get_current_epoch_threshold().await
     }
 
     pub(crate) async fn get_self_registered_dealer_details(

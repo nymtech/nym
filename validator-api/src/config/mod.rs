@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
+use config::defaults::mainnet::MIXNET_CONTRACT_ADDRESS;
 use config::defaults::DEFAULT_VALIDATOR_API_PORT;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
@@ -119,7 +120,7 @@ impl Default for Base {
             id: String::default(),
             local_validator: default_validator,
             announce_address: default_announce_address,
-            mixnet_contract_address: String::default(),
+            mixnet_contract_address: MIXNET_CONTRACT_ADDRESS.to_string(),
             mnemonic: "exact antique hybrid width raise anchor puzzle degree fee quit long crack net vague hip despair write put useless civil mechanic broom music day".to_string(),
         }
     }
@@ -282,6 +283,9 @@ pub struct CoconutSigner {
     /// Specifies whether rewarding service is enabled in this process.
     enabled: bool,
 
+    /// Path to a JSON file where state is persisted between different stages of DKG.
+    dkg_persistent_state_path: PathBuf,
+
     /// Path to the coconut verification key.
     verification_key_path: PathBuf,
 
@@ -299,6 +303,7 @@ pub struct CoconutSigner {
 }
 
 impl CoconutSigner {
+    pub const DKG_PERSISTENT_STATE_FILE: &'static str = "dkg_persistent_state.json";
     pub const DKG_DECRYPTION_KEY_FILE: &'static str = "dkg_decryption_key.pem";
     pub const DKG_PUBLIC_KEY_WITH_PROOF_FILE: &'static str = "dkg_public_key_with_proof.pem";
     pub const COCONUT_VERIFICATION_KEY_FILE: &'static str = "coconut_verification_key.pem";
@@ -310,6 +315,10 @@ impl CoconutSigner {
 
     fn default_coconut_secret_key_path() -> PathBuf {
         Config::default_data_directory(None).join(Self::COCONUT_SECRET_KEY_FILE)
+    }
+
+    fn default_dkg_persistent_state_path() -> PathBuf {
+        Config::default_data_directory(None).join(Self::DKG_PERSISTENT_STATE_FILE)
     }
 
     fn default_dkg_decryption_key_path() -> PathBuf {
@@ -325,6 +334,7 @@ impl Default for CoconutSigner {
     fn default() -> Self {
         Self {
             enabled: Default::default(),
+            dkg_persistent_state_path: CoconutSigner::default_dkg_persistent_state_path(),
             verification_key_path: CoconutSigner::default_coconut_verification_key_path(),
             secret_key_path: CoconutSigner::default_coconut_secret_key_path(),
             decryption_key_path: CoconutSigner::default_dkg_decryption_key_path(),
@@ -345,6 +355,8 @@ impl Config {
             Config::default_data_directory(Some(id)).join(NodeStatusAPI::DB_FILE);
         self.network_monitor.credentials_database_path =
             Config::default_data_directory(Some(id)).join(NetworkMonitor::DB_FILE);
+        self.coconut_signer.dkg_persistent_state_path =
+            Config::default_data_directory(Some(id)).join(CoconutSigner::DKG_PERSISTENT_STATE_FILE);
         self.coconut_signer.verification_key_path = Config::default_data_directory(Some(id))
             .join(CoconutSigner::COCONUT_VERIFICATION_KEY_FILE);
         self.coconut_signer.secret_key_path =
@@ -507,6 +519,11 @@ impl Config {
 
     pub fn get_node_status_api_database_path(&self) -> PathBuf {
         self.node_status_api.database_path.clone()
+    }
+
+    #[cfg(feature = "coconut")]
+    pub fn persistent_state_path(&self) -> PathBuf {
+        self.coconut_signer.dkg_persistent_state_path.clone()
     }
 
     #[cfg(feature = "coconut")]

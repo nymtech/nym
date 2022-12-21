@@ -1,14 +1,17 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use clap::Args;
-use client_core::{config::GatewayEndpointConfig, error::ClientCoreError};
-use config::NymConfig;
-
 use crate::{
     client::config::Config,
     commands::{override_config, OverrideConfig},
+    error::Socks5ClientError,
 };
+use clap::Args;
+use config::NymConfig;
+use nymsphinx::addressing::clients::Recipient;
+use serde::Serialize;
+use std::fmt::Display;
+use tap::TapFallible;
 
 #[derive(Args, Clone)]
 pub(crate) struct Init {
@@ -19,6 +22,14 @@ pub(crate) struct Init {
     /// Address of the socks5 provider to send messages to.
     #[clap(long)]
     provider: String,
+
+    /// Specifies whether this client is going to use an anonymous sender tag for communication with the service provider.
+    /// While this is going to hide its actual address information, it will make the actual communication
+    /// slower and consume nearly double the bandwidth as it will require sending reply SURBs.
+    ///
+    /// Note that some service providers might not support this.
+    #[clap(long)]
+    use_anonymous_sender_tag: bool,
 
     /// Id of the gateway we are going to connect to.
     #[clap(long)]
@@ -55,6 +66,10 @@ pub(crate) struct Init {
     #[cfg(feature = "coconut")]
     #[clap(long)]
     enabled_credentials_mode: bool,
+
+    /// Save a summary of the initialization to a json file
+    #[clap(long)]
+    output_json: bool,
 }
 
 impl From<Init> for OverrideConfig {
@@ -63,6 +78,7 @@ impl From<Init> for OverrideConfig {
             nymd_validators: init_config.nymd_validators,
             api_validators: init_config.api_validators,
             port: init_config.port,
+            use_anonymous_sender_tag: init_config.use_anonymous_sender_tag,
             fastmode: init_config.fastmode,
             no_cover: init_config.no_cover,
             #[cfg(feature = "coconut")]
@@ -71,7 +87,30 @@ impl From<Init> for OverrideConfig {
     }
 }
 
-pub(crate) async fn execute(args: &Init) {
+#[derive(Debug, Serialize)]
+pub struct InitResults {
+    #[serde(flatten)]
+    client_core: client_core::init::InitResults,
+    socks5_listening_port: String,
+}
+
+impl InitResults {
+    fn new(config: &Config, address: &Recipient) -> Self {
+        Self {
+            client_core: client_core::init::InitResults::new(config.get_base(), address),
+            socks5_listening_port: config.get_listening_port().to_string(),
+        }
+    }
+}
+
+impl Display for InitResults {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "{}", self.client_core)?;
+        write!(f, "SOCKS5 listening port: {}", self.socks5_listening_port)
+    }
+}
+
+pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
     println!("Initialising client...");
 
     let id = &args.id;
@@ -96,25 +135,47 @@ pub(crate) async fn execute(args: &Init) {
     let register_gateway = !already_init || user_wants_force_register;
 
     // Attempt to use a user-provided gateway, if possible
-    let user_chosen_gateway_id = args.gateway.as_deref();
+    let user_chosen_gateway_id = args.gateway.clone();
 
-    let mut config = Config::new(id, provider_address);
-    let override_config_fields = OverrideConfig::from(args.clone());
-    config = override_config(config, override_config_fields);
+    // Load and potentially override config
+    let mut config = override_config(
+        Config::new(id, provider_address),
+        OverrideConfig::from(args.clone()),
+    );
 
-    let gateway = setup_gateway(id, register_gateway, user_chosen_gateway_id, &config)
-        .await
-        .unwrap_or_else(|err| {
-            eprintln!("Failed to setup gateway\nError: {err}");
-            std::process::exit(1)
-        });
+    // Setup gateway by either registering a new one, or creating a new config from the selected
+    // one but with keys kept, or reusing the gateway configuration.
+    let gateway = client_core::init::setup_gateway::<_, Config, _>(
+        register_gateway,
+        user_chosen_gateway_id,
+        config.get_base(),
+    )
+    .await
+    .tap_err(|err| eprintln!("Failed to setup gateway\nError: {err}"))?;
+
     config.get_base_mut().with_gateway_endpoint(gateway);
 
-    let config_save_location = config.get_config_file_save_location();
-    config
-        .save_to_file(None)
-        .expect("Failed to save the config file");
+    config.save_to_file(None).tap_err(|_| {
+        log::error!("Failed to save the config file");
+    })?;
 
+    print_saved_config(&config);
+
+    let address = client_core::init::get_client_address_from_stored_keys(config.get_base())?;
+    let init_results = InitResults::new(&config, &address);
+    println!("{}", init_results);
+
+    // Output summary to a json file, if specified
+    if args.output_json {
+        client_core::init::output_to_json(&init_results, "socks5_client_init_results.json");
+    }
+
+    println!("\nThe address of this client is: {}\n", address);
+    Ok(())
+}
+
+fn print_saved_config(config: &Config) {
+    let config_save_location = config.get_config_file_save_location();
     println!("Saved configuration file to {:?}", config_save_location);
     println!("Using gateway: {}", config.get_base().get_gateway_id());
     log::debug!("Gateway id: {}", config.get_base().get_gateway_id());
@@ -123,62 +184,5 @@ pub(crate) async fn execute(args: &Init) {
         "Gateway listener: {}",
         config.get_base().get_gateway_listener()
     );
-    println!("Client configuration completed.");
-
-    client_core::init::show_address(config.get_base()).unwrap_or_else(|err| {
-        eprintln!("Failed to show address\nError: {err}");
-        std::process::exit(1)
-    });
-}
-
-async fn setup_gateway(
-    id: &str,
-    register: bool,
-    user_chosen_gateway_id: Option<&str>,
-    config: &Config,
-) -> Result<GatewayEndpointConfig, ClientCoreError> {
-    if register {
-        // Get the gateway details by querying the validator-api. Either pick one at random or use
-        // the chosen one if it's among the available ones.
-        println!("Configuring gateway");
-        let gateway = client_core::init::query_gateway_details(
-            config.get_base().get_validator_api_endpoints(),
-            user_chosen_gateway_id,
-        )
-        .await?;
-        log::debug!("Querying gateway gives: {}", gateway);
-
-        // Registering with gateway by setting up and writing shared keys to disk
-        log::trace!("Registering gateway");
-        client_core::init::register_with_gateway_and_store_keys(gateway.clone(), config.get_base())
-            .await?;
-        println!("Saved all generated keys");
-
-        Ok(gateway.into())
-    } else if user_chosen_gateway_id.is_some() {
-        // Just set the config, don't register or create any keys
-        // This assumes that the user knows what they are doing, and that the existing keys are
-        // valid for the gateway being used
-        println!("Using gateway provided by user, keeping existing keys");
-        let gateway = client_core::init::query_gateway_details(
-            config.get_base().get_validator_api_endpoints(),
-            user_chosen_gateway_id,
-        )
-        .await?;
-        log::debug!("Querying gateway gives: {}", gateway);
-        Ok(gateway.into())
-    } else {
-        println!("Not registering gateway, will reuse existing config and keys");
-        let existing_config = Config::load_from_file(Some(id)).map_err(|err| {
-            log::error!(
-                "Unable to configure gateway: {err}. \n
-                Seems like the client was already initialized but it was not possible to read \
-                the existing configuration file. \n
-                CAUTION: Consider backing up your gateway keys and try force gateway registration, or \
-                removing the existing configuration and starting over."
-            );
-            ClientCoreError::CouldNotLoadExistingGatewayConfiguration(err)
-        })?;
-        Ok(existing_config.get_base().get_gateway_endpoint().clone())
-    }
+    println!("Client configuration completed.\n");
 }

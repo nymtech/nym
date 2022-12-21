@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::action_controller::{Action, ActionSender};
+use super::action_controller::{AckActionSender, Action};
 use super::SentPacketNotificationReceiver;
 use futures::StreamExt;
 use log::*;
@@ -13,13 +13,13 @@ use nymsphinx::chunking::fragment::{FragmentIdentifier, COVER_FRAG_ID};
 /// accidentally fire retransmission way quicker than we should have.
 pub(super) struct SentNotificationListener {
     sent_notifier: SentPacketNotificationReceiver,
-    action_sender: ActionSender,
+    action_sender: AckActionSender,
 }
 
 impl SentNotificationListener {
     pub(super) fn new(
         sent_notifier: SentPacketNotificationReceiver,
-        action_sender: ActionSender,
+        action_sender: AckActionSender,
     ) -> Self {
         SentNotificationListener {
             sent_notifier,
@@ -30,11 +30,6 @@ impl SentNotificationListener {
     async fn on_sent_message(&mut self, frag_id: FragmentIdentifier) {
         if frag_id == COVER_FRAG_ID {
             trace!("sent off a cover message - no need to start retransmission timer!");
-            return;
-        } else if frag_id.is_reply() {
-            debug!("sent off a reply message - no need to start retransmission timer!");
-            // TODO: probably there will need to be some extra procedure here, like it would
-            // be nice to know that our reply actually reached the recipient (i.e. we got the ack)
             return;
         }
         self.action_sender
@@ -63,15 +58,5 @@ impl SentNotificationListener {
         }
         assert!(shutdown.is_shutdown_poll());
         log::debug!("SentNotificationListener: Exiting");
-    }
-
-    // todo: think whether this is still required
-    #[allow(dead_code)]
-    pub(super) async fn run(&mut self) {
-        debug!("Started SentNotificationListener without graceful shutdown support");
-
-        while let Some(frag_id) = self.sent_notifier.next().await {
-            self.on_sent_message(frag_id).await;
-        }
     }
 }

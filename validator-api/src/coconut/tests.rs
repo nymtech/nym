@@ -45,6 +45,7 @@ use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare
 use contracts_common::dealings::ContractSafeBytes;
 use crypto::asymmetric::{encryption, identity};
 use cw3::ProposalResponse;
+use dkg::Threshold;
 use rand_07::rngs::OsRng;
 use rand_07::Rng;
 use rocket::http::Status;
@@ -67,6 +68,7 @@ pub(crate) struct DummyClient {
 
     epoch_state: Arc<RwLock<EpochState>>,
     dealer_details: Arc<RwLock<HashMap<String, DealerDetails>>>,
+    threshold: Arc<RwLock<Option<Threshold>>>,
     dealings: Arc<RwLock<HashMap<String, Vec<ContractSafeBytes>>>>,
     verification_share: Arc<RwLock<HashMap<String, ContractVKShare>>>,
 }
@@ -80,6 +82,7 @@ impl DummyClient {
             spent_credential_db: Arc::new(RwLock::new(HashMap::new())),
             epoch_state: Arc::new(RwLock::new(EpochState::default())),
             dealer_details: Arc::new(RwLock::new(HashMap::new())),
+            threshold: Arc::new(RwLock::new(None)),
             dealings: Arc::new(RwLock::new(HashMap::new())),
             verification_share: Arc::new(RwLock::new(HashMap::new())),
         }
@@ -116,6 +119,11 @@ impl DummyClient {
         dealer_details: &Arc<RwLock<HashMap<String, DealerDetails>>>,
     ) -> Self {
         self.dealer_details = Arc::clone(dealer_details);
+        self
+    }
+
+    pub fn with_threshold(mut self, threshold: &Arc<RwLock<Option<Threshold>>>) -> Self {
+        self.threshold = Arc::clone(threshold);
         self
     }
 
@@ -182,6 +190,10 @@ impl super::client::Client for DummyClient {
 
     async fn get_current_epoch_state(&self) -> Result<EpochState> {
         Ok(*self.epoch_state.read().unwrap())
+    }
+
+    async fn get_current_epoch_threshold(&self) -> Result<Option<Threshold>> {
+        Ok(*self.threshold.read().unwrap())
     }
 
     async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse> {
@@ -270,7 +282,7 @@ impl super::client::Client for DummyClient {
         self.dealer_details.write().unwrap().insert(
             self.validator_address.to_string(),
             DealerDetails {
-                address: Addr::unchecked(&self.validator_address.to_string()),
+                address: Addr::unchecked(self.validator_address.to_string()),
                 bte_public_key_with_proof,
                 announce_address,
                 assigned_index,

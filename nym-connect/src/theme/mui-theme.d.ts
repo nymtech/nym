@@ -38,6 +38,7 @@ declare module '@mui/material/styles' {
       light: string;
       dark: string;
     };
+    shipyard: string;
   }
 
   interface NymPaletteVariant {
@@ -51,6 +52,9 @@ declare module '@mui/material/styles' {
     };
     topNav: {
       background: string;
+    };
+    shipyard: {
+      main: string;
     };
   }
 

@@ -12,10 +12,11 @@ use validator_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_api_requests::models::{
-    GatewayCoreStatusResponse, GatewayStatusReportResponse, GatewayUptimeHistoryResponse,
-    InclusionProbabilityResponse, MixNodeBondAnnotated, MixnodeCoreStatusResponse,
-    MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RequestError,
-    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+    ComputeRewardEstParam, GatewayCoreStatusResponse, GatewayStatusReportResponse,
+    GatewayUptimeHistoryResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,
+    MixnodeCoreStatusResponse, MixnodeStatusReportResponse, MixnodeStatusResponse,
+    MixnodeUptimeHistoryResponse, RequestError, RewardEstimationResponse, StakeSaturationResponse,
+    UptimeResponse,
 };
 
 pub mod error;
@@ -361,6 +362,25 @@ impl Client {
                 routes::REWARD_ESTIMATION,
             ],
             NO_PARAMS,
+        )
+        .await
+    }
+
+    pub async fn compute_mixnode_reward_estimation(
+        &self,
+        mix_id: MixId,
+        request_body: &ComputeRewardEstParam,
+    ) -> Result<RewardEstimationResponse, ValidatorAPIError> {
+        self.post_validator_api(
+            &[
+                routes::API_VERSION,
+                routes::STATUS_ROUTES,
+                routes::MIXNODE,
+                &mix_id.to_string(),
+                routes::COMPUTE_REWARD_ESTIMATION,
+            ],
+            NO_PARAMS,
+            request_body,
         )
         .await
     }

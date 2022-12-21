@@ -20,9 +20,7 @@ pub(crate) async fn dealing_exchange(
     }
 
     let dealers = dkg_client.get_current_dealers().await?;
-    // note: ceiling in integer division can be achieved via q = (x + y - 1) / y;
-    let threshold = (2 * dealers.len() as u64 + 3 - 1) / 3;
-
+    let threshold = dkg_client.get_current_epoch_threshold().await?;
     state.set_dealers(dealers);
     state.set_threshold(threshold);
     let receivers = state.current_dealers_by_idx();
@@ -36,7 +34,7 @@ pub(crate) async fn dealing_exchange(
             rng.clone(),
             &params,
             dealer_index,
-            threshold,
+            state.threshold()?,
             &receivers,
             None,
         );
@@ -55,6 +53,7 @@ pub(crate) async fn dealing_exchange(
 pub(crate) mod tests {
     use super::*;
     use crate::coconut::dkg::complaints::ComplaintReason;
+    use crate::coconut::dkg::state::PersistentState;
     use crate::coconut::tests::DummyClient;
     use crate::coconut::KeyPair;
     use coconut_dkg_common::dealer::DealerDetails;
@@ -63,6 +62,7 @@ pub(crate) mod tests {
     use dkg::bte::Params;
     use rand::rngs::OsRng;
     use std::collections::HashMap;
+    use std::path::PathBuf;
     use std::str::FromStr;
     use std::sync::{Arc, RwLock};
     use url::Url;
@@ -103,13 +103,17 @@ pub(crate) mod tests {
         let self_index = 2;
         let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
         let dealings_db = Arc::new(RwLock::new(HashMap::new()));
+        let threshold_db = Arc::new(RwLock::new(Some(2)));
         let dkg_client = DkgClient::new(
             DummyClient::new(AccountId::from_str(TEST_VALIDATORS_ADDRESS[0]).unwrap())
                 .with_dealer_details(&dealer_details_db)
-                .with_dealings(&dealings_db),
+                .with_dealings(&dealings_db)
+                .with_threshold(&threshold_db),
         );
         let params = setup();
         let mut state = State::new(
+            PathBuf::default(),
+            PersistentState::default(),
             Url::parse("localhost:8000").unwrap(),
             DkgKeyPair::new(&params, OsRng),
             KeyPair::new(),
@@ -156,13 +160,17 @@ pub(crate) mod tests {
         let self_index = 2;
         let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
         let dealings_db = Arc::new(RwLock::new(HashMap::new()));
+        let threshold_db = Arc::new(RwLock::new(Some(2)));
         let dkg_client = DkgClient::new(
             DummyClient::new(AccountId::from_str(TEST_VALIDATORS_ADDRESS[0]).unwrap())
                 .with_dealer_details(&dealer_details_db)
-                .with_dealings(&dealings_db),
+                .with_dealings(&dealings_db)
+                .with_threshold(&threshold_db),
         );
         let params = setup();
         let mut state = State::new(
+            PathBuf::default(),
+            PersistentState::default(),
             Url::parse("localhost:8000").unwrap(),
             DkgKeyPair::new(&params, OsRng),
             KeyPair::new(),

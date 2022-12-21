@@ -8,7 +8,7 @@
     "webpack:dev": "yarn webpack serve --config webpack.dev.js",
     "webpack:prod": "yarn webpack --progress --config webpack.prod.js",
     "tauri:dev": "yarn tauri dev",
-    "tauri:build": "yarn tauri build",
+    "tauri:build": "yarn tauri build -d -v",
     "tsc": "tsc --noEmit true",
     "tsc:watch": "tsc --noEmit true --watch",
     "dev": "run-p tauri:dev webpack:dev",

@@ -1,8 +1,7 @@
-import React, { useContext } from 'react';
+import React from 'react';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { CssBaseline } from '@mui/material';
 import { getDesignTokens } from './theme';
-import { ClientContext } from '../context/main';
 import '../../../assets/fonts/non-variable/fonts.css';
 
 /**
@@ -10,6 +9,16 @@ import '../../../assets/fonts/non-variable/fonts.css';
  */
 export const NymMixnetTheme: React.FC<{ mode: 'light' | 'dark' }> = ({ children, mode }) => {
   const theme = React.useMemo(() => createTheme(getDesignTokens(mode)), [mode]);
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      {children}
+    </ThemeProvider>
+  );
+};
+
+export const NymShipyardTheme: React.FC<{ mode?: 'light' | 'dark' }> = ({ children, mode = 'dark' }) => {
+  const theme = React.useMemo(() => createTheme(getDesignTokens(mode, true)), [mode]);
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo } from 'react';
 import { Box, CircularProgress, Stack, TextField, Tooltip, Typography, MenuItem, ListItemIcon } from '@mui/material';
 import { ServiceProvider, Service, Services } from '../types/directory';
+import { useTauriEvents } from '../utils';
 
 type ServiceWithRandomSp = {
   id: string;
@@ -8,13 +9,31 @@ type ServiceWithRandomSp = {
   sp: ServiceProvider;
 };
 
+const defaultServiceValue = { id: '', description: '', items: [] };
+
 export const ServiceProviderSelector: React.FC<{
-  onChange?: (serviceProvider: ServiceProvider) => void;
+  onChange?: (serviceProvider?: ServiceProvider) => void;
   services?: Services;
   currentSp?: ServiceProvider;
 }> = ({ services, currentSp, onChange }) => {
-  const [service, setService] = React.useState<Service>({ id: '', description: '', items: [] });
+  const [service, setService] = React.useState<Service>(defaultServiceValue);
   const [serviceProvider, setServiceProvider] = React.useState<ServiceProvider | undefined>(currentSp);
+  const [resetTrigger, setResetTrigger] = React.useState(new Date().toISOString());
+
+  const handleSelectSp = (newServiceProvider?: ServiceProvider) => {
+    if (newServiceProvider && newServiceProvider !== currentSp) {
+      setServiceProvider(newServiceProvider);
+      onChange?.(newServiceProvider);
+    }
+  };
+
+  // when the user clears local storage, reset the selector
+  useTauriEvents('help://clear-storage', () => {
+    setService(defaultServiceValue);
+    setServiceProvider(undefined);
+    onChange?.(undefined);
+    setResetTrigger(new Date().toISOString());
+  });
 
   useEffect(() => {
     if (!serviceProvider && currentSp) {
@@ -39,13 +58,6 @@ export const ServiceProviderSelector: React.FC<{
     }
   }, [serviceProvider, services]);
 
-  const handleSelectSp = (newServiceProvider?: ServiceProvider) => {
-    if (newServiceProvider && newServiceProvider !== currentSp) {
-      setServiceProvider(newServiceProvider);
-      onChange?.(newServiceProvider);
-    }
-  };
-
   if (!services) {
     return (
       <Box display="flex" alignItems="center" justifyContent="center" sx={{ my: 3 }}>
@@ -64,7 +76,7 @@ export const ServiceProviderSelector: React.FC<{
         description,
         sp: items[Math.floor(Math.random() * items.length)],
       })),
-    [services],
+    [services, resetTrigger],
   );
 
   if (!service) return null;

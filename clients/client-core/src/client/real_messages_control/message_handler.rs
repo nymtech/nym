@@ -20,6 +20,7 @@ use nymsphinx::params::{PacketSize, DEFAULT_NUM_MIX_HOPS};
 use nymsphinx::preparer::{MessagePreparer, PreparedFragment};
 use nymsphinx::Delay;
 use rand::{CryptoRng, Rng};
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
@@ -278,7 +279,7 @@ where
         reply_surb: ReplySurb,
         amount: u32,
     ) -> Result<(), SurbWrappedPreparationError> {
-        debug!("requesting {amount} reply SURBs from {from:?}");
+        debug!("requesting {amount} reply SURBs from {from}");
 
         let surbs_request =
             ReplyMessage::new_surb_request_message(self.config.sender_address, amount);
@@ -294,19 +295,11 @@ where
             )))
     }
 
-    // the only difference between this method and `try_send_reply_chunks` is that
-    // here we are not creating acks as acks are already in memory waiting to get cleared.
-    // we are only updating their existing delays
-    pub(crate) async fn try_send_retransmission_reply_chunks(
+    pub(crate) async fn send_retransmission_reply_chunks(
         &mut self,
-        fragments: Vec<Fragment>,
-        reply_surbs: Vec<ReplySurb>,
+        prepared_fragments: Vec<PreparedFragment>,
         lane: TransmissionLane,
-    ) -> Result<(), SurbWrappedPreparationError> {
-        let prepared_fragments = self
-            .prepare_reply_chunks_for_sending(fragments.clone(), reply_surbs)
-            .await?;
-
+    ) {
         let mut real_messages = Vec::with_capacity(prepared_fragments.len());
 
         for prepared in prepared_fragments {
@@ -315,33 +308,58 @@ where
         }
 
         self.forward_messages(real_messages, lane).await;
-        Ok(())
     }
 
-    pub(crate) async fn try_send_reply_chunks(
+    pub(crate) async fn try_send_reply_chunks_on_lane(
         &mut self,
         target: AnonymousSenderTag,
         fragments: Vec<Fragment>,
         reply_surbs: Vec<ReplySurb>,
         lane: TransmissionLane,
     ) -> Result<(), SurbWrappedPreparationError> {
+        // TODO: technically this is performing an unnecessary cloning, but in the grand scheme of things
+        // is it really that bad?
+        self.try_send_reply_chunks(
+            target,
+            fragments.into_iter().map(|f| (lane, f)).collect(),
+            reply_surbs,
+        )
+        .await
+    }
+
+    pub(crate) async fn try_send_reply_chunks(
+        &mut self,
+        target: AnonymousSenderTag,
+        fragments: Vec<(TransmissionLane, Fragment)>,
+        reply_surbs: Vec<ReplySurb>,
+    ) -> Result<(), SurbWrappedPreparationError> {
         let prepared_fragments = self
-            .prepare_reply_chunks_for_sending(fragments.clone(), reply_surbs)
+            .prepare_reply_chunks_for_sending(
+                fragments.iter().map(|(_, f)| f.clone()).collect(),
+                reply_surbs,
+            )
             .await?;
 
         let mut pending_acks = Vec::with_capacity(fragments.len());
-        let mut real_messages = Vec::with_capacity(fragments.len());
+        let mut to_forward: HashMap<_, Vec<_>> = HashMap::new();
 
         for (raw, prepared) in fragments.into_iter().zip(prepared_fragments.into_iter()) {
+            let lane = raw.0;
+            let fragment = raw.1;
+
             let real_message = RealMessage::new(prepared.mix_packet, prepared.fragment_identifier);
             let delay = prepared.total_delay;
-            let pending_ack = PendingAcknowledgement::new_anonymous(raw, delay, target, false);
+            let pending_ack = PendingAcknowledgement::new_anonymous(fragment, delay, target, false);
 
-            real_messages.push(real_message);
+            let entry = to_forward.entry(lane).or_default();
+            entry.push(real_message);
             pending_acks.push(pending_ack);
         }
 
-        self.forward_messages(real_messages, lane).await;
+        for (lane, real_messages) in to_forward {
+            self.forward_messages(real_messages, lane).await;
+        }
+
         self.insert_pending_acks(pending_acks);
         Ok(())
     }
@@ -467,7 +485,7 @@ where
         Ok(prepared_fragment)
     }
 
-    async fn prepare_reply_chunks_for_sending(
+    pub(crate) async fn prepare_reply_chunks_for_sending(
         &mut self,
         fragments: Vec<Fragment>,
         reply_surbs: Vec<ReplySurb>,

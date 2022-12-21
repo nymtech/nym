@@ -12,6 +12,7 @@ use contracts_common::dealings::ContractSafeBytes;
 
 #[async_trait]
 pub trait DkgSigningClient {
+    async fn advance_dkg_epoch_state(&self, fee: Option<Fee>) -> Result<ExecuteResult, NymdError>;
     async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
@@ -37,6 +38,21 @@ impl<C> DkgSigningClient for NymdClient<C>
 where
     C: SigningCosmWasmClient + Send + Sync,
 {
+    async fn advance_dkg_epoch_state(&self, fee: Option<Fee>) -> Result<ExecuteResult, NymdError> {
+        let req = DkgExecuteMsg::AdvanceEpochState {};
+
+        self.client
+            .execute(
+                self.address(),
+                self.coconut_dkg_contract_address(),
+                &req,
+                fee.unwrap_or_default(),
+                "advancing DKG state",
+                vec![],
+            )
+            .await
+    }
+
     async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,

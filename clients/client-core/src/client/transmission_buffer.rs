@@ -1,38 +1,57 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::helpers::{get_time_now, Instant};
+use crate::client::real_messages_control::real_traffic_stream::RealMessage;
 use client_connections::TransmissionLane;
+use nymsphinx::chunking::fragment::Fragment;
 use rand::{seq::SliceRandom, Rng};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     time::Duration,
 };
 
-#[cfg(not(target_arch = "wasm32"))]
-use tokio::time;
-
-#[cfg(target_arch = "wasm32")]
-use wasm_timer;
-
-use super::{get_time_now, RealMessage};
-
 // The number of lanes included in the oldest set. Used when we need to prioritize traffic.
 const OLDEST_LANE_SET_SIZE: usize = 4;
 // As a way of prune connections we also check for timeouts.
 const MSG_CONSIDERED_STALE_AFTER_SECS: u64 = 10 * 60;
 
-#[derive(Default)]
-pub(crate) struct TransmissionBuffer {
-    buffer: HashMap<TransmissionLane, LaneBufferEntry>,
+pub(crate) trait SizedData {
+    fn data_size(&self) -> usize;
 }
 
-impl TransmissionBuffer {
+impl SizedData for RealMessage {
+    fn data_size(&self) -> usize {
+        self.packet_size()
+    }
+}
+
+impl SizedData for Fragment {
+    fn data_size(&self) -> usize {
+        // note that raw `Fragment` is smaller than sphinx packet payload
+        // as it doesn't include surb-ack or the [shared] key materials
+        self.payload_size()
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct TransmissionBuffer<T> {
+    buffer: HashMap<TransmissionLane, LaneBufferEntry<T>>,
+}
+
+impl<T> TransmissionBuffer<T> {
+    pub(crate) fn new() -> Self {
+        TransmissionBuffer {
+            buffer: HashMap::new(),
+        }
+    }
+
     #[allow(unused)]
     pub(crate) fn is_empty(&self) -> bool {
         self.buffer.is_empty()
     }
 
-    pub(crate) fn remove(&mut self, lane: &TransmissionLane) -> Option<LaneBufferEntry> {
+    pub(crate) fn remove(&mut self, lane: &TransmissionLane) -> Option<LaneBufferEntry<T>> {
         self.buffer.remove(lane)
     }
 
@@ -57,20 +76,22 @@ impl TransmissionBuffer {
             .collect()
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn total_size(&self) -> usize {
         self.buffer.values().map(LaneBufferEntry::len).sum()
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub(crate) fn total_size_in_bytes(&self) -> usize {
+    pub(crate) fn total_size_in_bytes(&self) -> usize
+    where
+        T: SizedData,
+    {
         self.buffer
             .values()
             .map(|lane_buffer_entry| {
                 lane_buffer_entry
-                    .real_messages
+                    .items
                     .iter()
-                    .map(|real_message| real_message.mix_packet.sphinx_packet().len())
+                    .map(|item| item.data_size())
                     .sum::<usize>()
             })
             .sum()
@@ -92,42 +113,51 @@ impl TransmissionBuffer {
             .collect()
     }
 
-    pub(crate) fn store(&mut self, lane: &TransmissionLane, real_messages: Vec<RealMessage>) {
+    pub(crate) fn store<I: IntoIterator<Item = T>>(&mut self, lane: &TransmissionLane, items: I) {
         if let Some(lane_buffer_entry) = self.buffer.get_mut(lane) {
-            lane_buffer_entry.append(real_messages);
+            lane_buffer_entry.extend(items);
         } else {
             self.buffer
-                .insert(*lane, LaneBufferEntry::new(real_messages));
+                .insert(*lane, LaneBufferEntry::new(items.into_iter().collect()));
         }
     }
 
-    fn pick_random_lane(&self) -> Option<&TransmissionLane> {
-        let lanes: Vec<&TransmissionLane> = self.buffer.keys().collect();
-        lanes.choose(&mut rand::thread_rng()).copied()
+    pub(crate) fn store_multiple(&mut self, items: Vec<(TransmissionLane, T)>) {
+        for (lane, item) in items {
+            self.buffer
+                .entry(lane)
+                .or_insert_with(LaneBufferEntry::new_empty)
+                .push_item(item)
+        }
     }
 
-    fn pick_random_small_lane(&self) -> Option<&TransmissionLane> {
+    fn pick_random_lane<R: Rng + ?Sized>(&self, rng: &mut R) -> Option<&TransmissionLane> {
+        let lanes: Vec<&TransmissionLane> = self.buffer.keys().collect();
+        lanes.choose(rng).copied()
+    }
+
+    fn pick_random_small_lane<R: Rng + ?Sized>(&self, rng: &mut R) -> Option<&TransmissionLane> {
         let lanes: Vec<&TransmissionLane> = self
             .buffer
             .iter()
             .filter(|(_, v)| v.is_small())
             .map(|(k, _)| k)
             .collect();
-        lanes.choose(&mut rand::thread_rng()).copied()
+        lanes.choose(rng).copied()
     }
 
     // 2/3 chance to pick from the old lanes
-    fn pick_random_old_lane(&self) -> Option<TransmissionLane> {
+    fn pick_random_old_lane<R: Rng + ?Sized>(&self, rng: &mut R) -> Option<TransmissionLane> {
         let rand = &mut rand::thread_rng();
         if rand.gen_ratio(2, 3) {
             let lanes = self.get_oldest_set();
             lanes.choose(rand).copied()
         } else {
-            self.pick_random_lane().copied()
+            self.pick_random_lane(rng).copied()
         }
     }
 
-    fn pop_front_from_lane(&mut self, lane: &TransmissionLane) -> Option<RealMessage> {
+    fn pop_front_from_lane(&mut self, lane: &TransmissionLane) -> Option<T> {
         let real_msgs_queued = self.buffer.get_mut(lane)?;
         let real_next = real_msgs_queued.pop_front()?;
         real_msgs_queued.messages_transmitted += 1;
@@ -137,19 +167,48 @@ impl TransmissionBuffer {
         Some(real_next)
     }
 
-    pub(crate) fn pop_next_message_at_random(&mut self) -> Option<(TransmissionLane, RealMessage)> {
+    pub(crate) fn pop_at_most_n_next_messages_at_random(
+        &mut self,
+        n: usize,
+    ) -> Option<Vec<(TransmissionLane, T)>> {
+        // let start = Instant::now();
+
+        if self.buffer.is_empty() {
+            return None;
+        }
+
+        let rng = &mut rand::thread_rng();
+        let mut items = Vec::with_capacity(n);
+
+        while items.len() < n {
+            let Some(next) = self.pop_next_message_at_random(rng) else {
+               break
+            };
+            items.push(next)
+        }
+
+        // todo!("time time taken");
+
+        Some(items)
+    }
+
+    pub(crate) fn pop_next_message_at_random<R: Rng + ?Sized>(
+        &mut self,
+        // turns out the caller always have access to some rng, so no point in instantiating new one
+        rng: &mut R,
+    ) -> Option<(TransmissionLane, T)> {
         if self.buffer.is_empty() {
             return None;
         }
 
         // Very basic heuristic where we prioritize according to small lanes first, the older lanes
         // to try to finish lanes when possible, then the rest.
-        let lane = if let Some(small_lane) = self.pick_random_small_lane() {
+        let lane = if let Some(small_lane) = self.pick_random_small_lane(rng) {
             *small_lane
-        } else if let Some(old_lane) = self.pick_random_old_lane() {
+        } else if let Some(old_lane) = self.pick_random_old_lane(rng) {
             old_lane
         } else {
-            *self.pick_random_lane()?
+            *self.pick_random_lane(rng)?
         };
 
         let msg = self.pop_front_from_lane(&lane)?;
@@ -171,35 +230,46 @@ impl TransmissionBuffer {
     }
 }
 
-pub(crate) struct LaneBufferEntry {
-    pub real_messages: VecDeque<RealMessage>,
+pub(crate) struct LaneBufferEntry<T> {
+    pub items: VecDeque<T>,
     pub messages_transmitted: usize,
-    #[cfg(not(target_arch = "wasm32"))]
-    pub time_for_last_activity: time::Instant,
-    #[cfg(target_arch = "wasm32")]
-    pub time_for_last_activity: wasm_timer::Instant,
+    pub time_for_last_activity: Instant,
 }
 
-impl LaneBufferEntry {
-    fn new(real_messages: Vec<RealMessage>) -> Self {
+impl<T> LaneBufferEntry<T> {
+    fn new_empty() -> Self {
         LaneBufferEntry {
-            real_messages: real_messages.into(),
+            items: VecDeque::new(),
             messages_transmitted: 0,
             time_for_last_activity: get_time_now(),
         }
     }
 
-    fn append(&mut self, real_messages: Vec<RealMessage>) {
-        self.real_messages.append(&mut real_messages.into());
+    fn new(items: VecDeque<T>) -> Self {
+        LaneBufferEntry {
+            items,
+            messages_transmitted: 0,
+            time_for_last_activity: get_time_now(),
+        }
+    }
+
+    fn push_item(&mut self, item: T) {
+        self.items.push_back(item);
+        // I'm not updating time here on purpose. This method is called just after `new_empty`,
+        // where the time is already set. Furthermore, this method is called there multiple times at once
+    }
+
+    fn extend<I: IntoIterator<Item = T>>(&mut self, items: I) {
+        self.items.extend(items);
         self.time_for_last_activity = get_time_now();
     }
 
-    fn pop_front(&mut self) -> Option<RealMessage> {
-        self.real_messages.pop_front()
+    fn pop_front(&mut self) -> Option<T> {
+        self.items.pop_front()
     }
 
     fn is_small(&self) -> bool {
-        self.real_messages.len() < 100
+        self.items.len() < 100
     }
 
     fn is_stale(&self) -> bool {
@@ -208,10 +278,10 @@ impl LaneBufferEntry {
     }
 
     fn len(&self) -> usize {
-        self.real_messages.len()
+        self.items.len()
     }
 
     fn is_empty(&self) -> bool {
-        self.real_messages.is_empty()
+        self.items.is_empty()
     }
 }

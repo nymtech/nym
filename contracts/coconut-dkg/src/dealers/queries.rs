@@ -72,8 +72,7 @@ pub(crate) mod tests {
     use crate::dealers::storage::{DEALERS_PAGE_DEFAULT_LIMIT, DEALERS_PAGE_MAX_LIMIT};
     use crate::support::tests::fixtures::dealer_details_fixture;
     use crate::support::tests::helpers::init_contract;
-    use cosmwasm_std::testing::mock_env;
-    use cosmwasm_std::{Addr, DepsMut};
+    use cosmwasm_std::DepsMut;
 
     fn fill_dealers(deps: DepsMut<'_>, mapping: &IndexedDealersMap<'_>, size: usize) {
         for n in 0..size {
@@ -95,8 +94,7 @@ pub(crate) mod tests {
 
     #[test]
     fn dealers_empty_on_init() {
-        let mut deps = init_contract();
-        let env = mock_env();
+        let deps = init_contract();
 
         for mapping in [storage::current_dealers(), storage::past_dealers()] {
             let page1 = query_dealers(deps.as_ref(), None, None, &mapping).unwrap();
@@ -107,8 +105,6 @@ pub(crate) mod tests {
     #[test]
     fn dealers_paged_retrieval_obeys_limits() {
         let mut deps = init_contract();
-        let env = mock_env();
-        let owner = Addr::unchecked("owner");
         let limit = 2;
 
         for mapping in [storage::current_dealers(), storage::past_dealers()] {
@@ -124,7 +120,6 @@ pub(crate) mod tests {
     #[test]
     fn dealers_paged_retrieval_has_default_limit() {
         let mut deps = init_contract();
-        let env = mock_env();
 
         for mapping in [storage::current_dealers(), storage::past_dealers()] {
             fill_dealers(deps.as_mut(), &mapping, 1000);
@@ -141,7 +136,6 @@ pub(crate) mod tests {
     #[test]
     fn dealers_paged_retrieval_has_max_limit() {
         let mut deps = init_contract();
-        let env = mock_env();
 
         // query with a crazily high limit in an attempt to use too many resources
         let crazy_limit = 1000 * DEALERS_PAGE_MAX_LIMIT;
@@ -163,7 +157,6 @@ pub(crate) mod tests {
     #[test]
     fn dealers_pagination_works() {
         let mut deps = init_contract();
-        let env = mock_env();
 
         let per_page = 2;
 

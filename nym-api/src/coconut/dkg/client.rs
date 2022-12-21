@@ -4,7 +4,7 @@
 use crate::coconut::client::Client;
 use crate::coconut::error::CoconutError;
 use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState, NodeIndex};
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch, NodeIndex};
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use contracts_common::dealings::ContractSafeBytes;
 use cw3::ProposalResponse;
@@ -35,13 +35,13 @@ impl DkgClient {
         self.inner.address().await
     }
 
-    pub(crate) async fn get_current_epoch_state(&self) -> Result<EpochState, CoconutError> {
-        let mut ret = self.inner.get_current_epoch_state().await;
+    pub(crate) async fn get_current_epoch(&self) -> Result<Epoch, CoconutError> {
+        let mut ret = self.inner.get_current_epoch().await;
         for _ in 0..Self::RETRIES {
             if ret.is_ok() {
                 return ret;
             }
-            ret = self.inner.get_current_epoch_state().await;
+            ret = self.inner.get_current_epoch().await;
         }
         ret
     }
@@ -84,6 +84,10 @@ impl DkgClient {
 
     pub(crate) async fn list_proposals(&self) -> Result<Vec<ProposalResponse>, CoconutError> {
         self.inner.list_proposals().await
+    }
+
+    pub(crate) async fn advance_epoch_state(&self) -> Result<(), CoconutError> {
+        self.inner.advance_epoch_state().await
     }
 
     pub(crate) async fn register_dealer(

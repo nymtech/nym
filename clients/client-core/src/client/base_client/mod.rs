@@ -371,7 +371,7 @@ where
 
         // channels responsible for dealing with reply-related fun
         let (reply_controller_sender, reply_controller_receiver) =
-            reply_controller::new_control_channels();
+            reply_controller::requests::new_control_channels();
 
         let self_address = self.as_mix_recipient();
 
@@ -437,7 +437,7 @@ where
             input_receiver,
             sphinx_message_sender.clone(),
             reply_storage,
-            reply_controller_sender,
+            reply_controller_sender.clone(),
             reply_controller_receiver,
             shared_lane_queue_lengths.clone(),
             client_connection_rx,
@@ -471,6 +471,7 @@ where
                     received_buffer_request_sender,
                 },
             },
+            reply_controller_sender,
             task_manager,
         })
     }
@@ -479,6 +480,9 @@ where
 pub struct BaseClient {
     pub client_input: ClientInputStatus,
     pub client_output: ClientOutputStatus,
+
+    // it feels very wrong to put this channel here, but I can't think of any other way of passing it to the native client
+    pub reply_controller_sender: ReplyControllerSender,
 
     pub task_manager: TaskManager,
 }

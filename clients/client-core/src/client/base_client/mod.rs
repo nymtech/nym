@@ -48,8 +48,12 @@ pub struct ClientInput {
 }
 
 pub struct ClientOutput {
-    pub shared_lane_queue_lengths: LaneQueueLengths,
     pub received_buffer_request_sender: ReceivedBufferRequestSender,
+}
+
+pub struct ClientState {
+    pub shared_lane_queue_lengths: LaneQueueLengths,
+    pub reply_controller_sender: ReplyControllerSender,
 }
 
 pub enum ClientInputStatus {
@@ -467,11 +471,13 @@ where
             },
             client_output: ClientOutputStatus::AwaitingConsumer {
                 client_output: ClientOutput {
-                    shared_lane_queue_lengths,
                     received_buffer_request_sender,
                 },
             },
-            reply_controller_sender,
+            client_state: ClientState {
+                shared_lane_queue_lengths,
+                reply_controller_sender,
+            },
             task_manager,
         })
     }
@@ -480,9 +486,7 @@ where
 pub struct BaseClient {
     pub client_input: ClientInputStatus,
     pub client_output: ClientOutputStatus,
-
-    // it feels very wrong to put this channel here, but I can't think of any other way of passing it to the native client
-    pub reply_controller_sender: ReplyControllerSender,
+    pub client_state: ClientState,
 
     pub task_manager: TaskManager,
 }

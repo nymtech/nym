@@ -9,7 +9,7 @@ use crate::socks::{
     server::SphinxSocksServer,
 };
 use client_core::client::base_client::{
-    non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput,
+    non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
 use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
@@ -95,6 +95,7 @@ impl NymClient {
         config: &Config,
         client_input: ClientInput,
         client_output: ClientOutput,
+        client_status: ClientState,
         self_address: Recipient,
         shutdown: TaskClient,
     ) {
@@ -108,9 +109,13 @@ impl NymClient {
         } = client_input;
 
         let ClientOutput {
-            shared_lane_queue_lengths,
             received_buffer_request_sender,
         } = client_output;
+
+        let ClientState {
+            shared_lane_queue_lengths,
+            reply_controller_sender: _,
+        } = client_status;
 
         let authenticator = Authenticator::new(auth_methods, allowed_users);
         let mut sphinx_socks = SphinxSocksServer::new(
@@ -218,11 +223,13 @@ impl NymClient {
         let mut started_client = base_builder.start_base().await?;
         let client_input = started_client.client_input.register_producer();
         let client_output = started_client.client_output.register_consumer();
+        let client_state = started_client.client_state;
 
         Self::start_socks5_listener(
             &self.config,
             client_input,
             client_output,
+            client_state,
             self_address,
             started_client.task_manager.subscribe(),
         );

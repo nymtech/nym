@@ -54,7 +54,7 @@ jobs:
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
 
       - name: Build app
-        run: yarn build
+        run: yarn build &> output-log.txt
         env:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}

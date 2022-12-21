@@ -35,12 +35,20 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 16
+
+      - name: Install yarn
+        uses: mskelton/setup-yarn@v1
+        with:
+          node-version: '16.x'
+
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
+
       - name: Install app dependencies
         run: yarn
+
       - name: Create env file
         uses: timheuer/base64-to-file@v1.1
         with:

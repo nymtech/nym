@@ -1,8 +1,9 @@
 import React from 'react';
-import { Box, CircularProgress, Typography } from '@mui/material';
+import { Box, CircularProgress, Divider, Stack, Tooltip, Typography } from '@mui/material';
 import { DateTime } from 'luxon';
 import { ConnectionStatusKind } from '../types';
 import { ServiceProvider } from '../types/directory';
+import { ServiceProviderInfo } from './ServiceProviderInfo';
 
 const FONT_SIZE = '10px';
 const FONT_WEIGHT = '600';
@@ -14,8 +15,8 @@ const ConnectionStatusContent: React.FC<{
   switch (status) {
     case ConnectionStatusKind.connected:
       return (
-        <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} textAlign="center">
-          Connected
+        <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} fontSize="14px">
+          Connected to
         </Typography>
       );
     case ConnectionStatusKind.disconnecting:
@@ -44,7 +45,7 @@ const ConnectionStatusContent: React.FC<{
           ml={1}
           textTransform="uppercase"
           textAlign="center"
-          fontSize="10px"
+          fontSize={FONT_SIZE}
           sx={{ wordSpacing: 3, letterSpacing: 2 }}
         >
           You are not protected
@@ -59,7 +60,7 @@ export const ConnectionStatus: React.FC<{
   status: ConnectionStatusKind;
   connectedSince?: DateTime;
   serviceProvider?: ServiceProvider;
-}> = ({ status, connectedSince, serviceProvider }) => {
+}> = ({ status, serviceProvider }) => {
   const color =
     status === ConnectionStatusKind.connected || status === ConnectionStatusKind.disconnecting
       ? '#21D072'
@@ -70,13 +71,13 @@ export const ConnectionStatus: React.FC<{
       <Box color={color} fontSize={FONT_SIZE} sx={{ mb: 1 }}>
         <ConnectionStatusContent status={status} />
       </Box>
-      <Box>
-        {serviceProvider && (
-          <Typography fontSize={12} textAlign="center">
-            To {serviceProvider.description}
-          </Typography>
-        )}
-      </Box>
+      {serviceProvider ? (
+        <Tooltip title={<ServiceProviderInfo serviceProvider={serviceProvider} />}>
+          <Box sx={{ cursor: 'pointer' }}>
+            {serviceProvider && <Typography>{serviceProvider.description}</Typography>}
+          </Box>
+        </Tooltip>
+      ) : null}
     </>
   );
 };

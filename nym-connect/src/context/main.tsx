@@ -86,6 +86,8 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       .catch((e) => console.log(e));
 
     listen('socks5-event', (e: TauriEvent) => {
+      console.log(e);
+
       setError(e.payload);
     }).then((result) => {
       unlisten.push(result);

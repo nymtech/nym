@@ -1,5 +1,6 @@
 name: Publish Nym Wallet (Ubuntu)
 on:
+  workflow_dispatch:
   release:
     types: [created]
 
@@ -12,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [custom-linux]
+        platform: [self-hosted, custom-linux]
 
     runs-on: ${{ matrix.platform }}
     steps:

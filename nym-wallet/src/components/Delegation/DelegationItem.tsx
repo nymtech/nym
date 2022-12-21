@@ -39,16 +39,6 @@ export const DelegationItem = ({
     }
   };
 
-  const tooltipText = () => {
-    if (nodeIsUnbonded) {
-      return 'This node has unbonded and it does not exist anymore. You need to undelegate from it to get your stake and outstanding rewards (if any) back.';
-    } else if (item.uses_vesting_contract_tokens) {
-      return 'Delegation made with locked tockens';
-    } else {
-      return '';
-    }
-  };
-
   return (
     <Tooltip arrow title={tooltipText()}>
       <TableRow key={item.node_identity} sx={{ color: !item.node_identity ? 'error.main' : 'inherit' }}>

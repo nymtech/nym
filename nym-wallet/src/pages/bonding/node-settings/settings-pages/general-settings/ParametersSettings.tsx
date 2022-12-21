@@ -223,7 +223,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
               Changes to cost will be applied in the next interval.
             </Typography>
           </Grid>
-          <Grid spacing={3} container item alignItems="center" xs={12} md={6}>
+          <Grid spacing={3} container item alignItems="center" xs={12} xl={6}>
             <Grid item width={1}>
               <CurrencyFormField
                 required

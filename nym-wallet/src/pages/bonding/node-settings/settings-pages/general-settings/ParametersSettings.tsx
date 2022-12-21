@@ -24,6 +24,7 @@ import { AppContext } from 'src/context';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
+import { getIntervalAsDate } from 'src/utils';
 
 export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode }): JSX.Element => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
@@ -51,14 +52,14 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
     defaultValues,
   });
 
-  const getNextInterval = async () => {
+
+  const getCurrentInterval = async () => {
     try {
       const { intervalTime } = await getIntervalAsDate();
       setIntervalTime(intervalTime);
     } catch {
       console.log('cant retrieve next interval');
     }
-  };
 
   const getPendingEvents = async () => {
     const events = await getPendingIntervalEvents();
@@ -81,7 +82,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
   };
 
   useEffect(() => {
-    getNextInterval();
+    getCurrentInterval();
     getPendingEvents();
   }, []);
 
@@ -203,7 +204,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
               Changes to cost will be applied in the next interval.
             </Typography>
           </Grid>
-          <Grid spacing={3} container item alignItems="center" xs={12} md={6}>
+          <Grid spacing={3} container item alignItems="center" xs={12} xl={6}>
             <Grid item width={1}>
               <CurrencyFormField
                 required

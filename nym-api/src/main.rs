@@ -4,19 +4,17 @@
 #[macro_use]
 extern crate rocket;
 
-use crate::circulating_supply_api::cache::CirculatingSupplyCache;
 use crate::network_monitor::NetworkMonitorBuilder;
 use crate::node_status_api::cache::refresher::NodeStatusCacheRefresher;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::support::config::Config;
-use crate::support::process_runner::wait_for_signal;
 use crate::support::storage;
 use ::config::defaults::setup_env;
 use ::config::defaults::var_names::{MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
 use ::config::{NymConfig, OptionalSet};
 use anyhow::Result;
 use build_information::BinaryBuildInformation;
-use clap::{crate_version, App, Arg, ArgMatches};
+use clap::ArgMatches;
 use log::{info, warn};
 use logging::setup_logging;
 use node_status_api::NodeStatusCache;
@@ -35,6 +33,9 @@ use task::{wait_for_signal, TaskManager};
 use tokio::sync::Notify;
 use validator_client::nyxd::{self, SigningNyxdClient};
 
+use crate::epoch_operations::RewardedSetUpdater;
+use crate::support::cli;
+use crate::support::http::openapi;
 #[cfg(feature = "coconut")]
 use coconut::{
     comm::QueryCommunicationChannel,
@@ -44,13 +45,14 @@ use coconut::{
 use logging::setup_logging;
 #[cfg(feature = "coconut")]
 use rand::rngs::OsRng;
+use support::{http, nyxd, process_runner};
 use support::{nyxd, openapi};
 
 mod caching_support;
 mod circulating_supply_api;
 mod epoch_operations;
 mod network_monitor;
-mod node_status_api;
+pub(crate) mod node_status_api;
 pub(crate) mod nym_contract_cache;
 pub(crate) mod support;
 
@@ -272,96 +274,6 @@ fn expected_monitor_test_runs(config: &Config, interval_length: Duration) -> usi
     (interval_length.as_secs() / test_delay.as_secs()) as usize
 }
 
-async fn setup_rocket(
-    config: &Config,
-    _mix_denom: String,
-    liftoff_notify: Arc<Notify>,
-    _nyxd_client: nyxd::Client<SigningNyxdClient>,
-    #[cfg(feature = "coconut")] coconut_keypair: coconut::keypair::KeyPair,
-) -> Result<Rocket<Ignite>> {
-    let openapi_settings = rocket_okapi::settings::OpenApiSettings::default();
-    let mut rocket = rocket::build();
-
-    let custom_route_spec = (vec![], custom_openapi_spec());
-
-    mount_endpoints_and_merged_docs! {
-        rocket,
-        "/v1".to_owned(),
-        openapi_settings,
-        "/" => custom_route_spec,
-        "" => nym_contract_cache::nym_contract_cache_routes(&openapi_settings),
-        "/status" => node_status_api::node_status_routes(&openapi_settings, config.get_network_monitor_enabled()),
-        "/circulating-supply" => circulating_supply_api::circulating_supply_routes(&openapi_settings),
-    }
-
-    let rocket = rocket
-        .mount("/swagger", make_swagger_ui(&swagger::get_docs()))
-        .attach(setup_cors()?)
-        .attach(setup_liftoff_notify(liftoff_notify))
-        .attach(NymContractCache::stage())
-        .attach(NodeStatusCache::stage())
-        .attach(CirculatingSupplyCache::stage());
-
-    // This is not a very nice approach. A lazy value would be more suitable, but that's still
-    // a nightly feature: https://github.com/rust-lang/rust/issues/74465
-    let storage = if cfg!(feature = "coconut") || config.get_network_monitor_enabled() {
-        Some(storage::NymApiStorage::init(config.get_node_status_api_database_path()).await?)
-    } else {
-        None
-    };
-
-    #[cfg(feature = "coconut")]
-    let rocket = if config.get_coconut_signer_enabled() {
-        rocket.attach(InternalSignRequest::stage(
-            _nyxd_client.clone(),
-            _mix_denom,
-            coconut_keypair,
-            QueryCommunicationChannel::new(_nyxd_client),
-            storage.clone().unwrap(),
-        ))
-    } else {
-        rocket
-    };
-
-    // see if we should start up network monitor
-    let rocket = if config.get_network_monitor_enabled() {
-        rocket.attach(storage::NymApiStorage::stage(storage.unwrap()))
-    } else {
-        rocket
-    };
-
-    Ok(rocket.ignite().await?)
-}
-
-fn custom_openapi_spec() -> OpenApi {
-    use rocket_okapi::okapi::openapi3::*;
-    OpenApi {
-        openapi: OpenApi::default_version(),
-        info: Info {
-            title: "Validator API".to_owned(),
-            description: None,
-            terms_of_service: None,
-            contact: None,
-            license: None,
-            version: env!("CARGO_PKG_VERSION").to_owned(),
-            ..Default::default()
-        },
-        servers: get_servers(),
-        ..Default::default()
-    }
-}
-
-fn get_servers() -> Vec<rocket_okapi::okapi::openapi3::Server> {
-    if std::env::var_os("CARGO").is_some() {
-        return vec![];
-    }
-    vec![rocket_okapi::okapi::openapi3::Server {
-        url: std::env::var("OPEN_API_BASE").unwrap_or_else(|_| "/api/v1/".to_owned()),
-        description: Some("API".to_owned()),
-        ..Default::default()
-    }]
-}
-
 async fn run_nym_api(args: ApiArgs) -> Result<()> {
     let system_version = env!("CARGO_PKG_VERSION");
 
@@ -412,7 +324,7 @@ async fn run_nym_api(args: ApiArgs) -> Result<()> {
     let coconut_keypair = coconut::keypair::KeyPair::new();
 
     // let's build our rocket!
-    let rocket = setup_rocket(
+    let rocket = http::setup_rocket(
         &config,
         mix_denom,
         Arc::clone(&liftoff_notify),
@@ -523,7 +435,7 @@ async fn run_nym_api(args: ApiArgs) -> Result<()> {
         info!("Network monitoring is disabled.");
     }
 
-    wait_for_interrupt(shutdown).await;
+    process_runner::wait_for_interrupt(shutdown).await;
     shutdown_handle.notify();
 
     Ok(())

@@ -1,0 +1,16 @@
+pub const ID: &str = "id";
+pub const CONFIG_ENV_FILE: &str = "config-env-file";
+pub const MONITORING_ENABLED: &str = "enable-monitor";
+pub const REWARDING_ENABLED: &str = "enable-rewarding";
+pub const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
+pub const MNEMONIC_ARG: &str = "mnemonic";
+pub const WRITE_CONFIG_ARG: &str = "save-config";
+pub const NYXD_VALIDATOR_ARG: &str = "nyxd-validator";
+pub const ENABLED_CREDENTIALS_MODE_ARG_NAME: &str = "enabled-credentials-mode";
+#[cfg(feature = "coconut")]
+pub const ANNOUNCE_ADDRESS: &str = "announce-address";
+#[cfg(feature = "coconut")]
+pub const COCONUT_ENABLED: &str = "enable-coconut";
+pub const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
+pub const MIN_MIXNODE_RELIABILITY_ARG: &str = "min_mixnode_reliability";
+pub const MIN_GATEWAY_RELIABILITY_ARG: &str = "min_gateway_reliability";

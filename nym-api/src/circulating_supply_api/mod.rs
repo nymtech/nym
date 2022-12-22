@@ -5,7 +5,7 @@ use rocket_okapi::{openapi_get_routes_spec, settings::OpenApiSettings};
 pub(crate) mod cache;
 pub(crate) mod routes;
 
-// Merges the routes with openapi information and returns it to Rocket for serving
+// Merges the routes with http information and returns it to Rocket for serving
 pub(crate) fn circulating_supply_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
     openapi_get_routes_spec![settings: routes::get_circulating_supply]
 }

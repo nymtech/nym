@@ -31,17 +31,10 @@ type MobileNavProps = {
 
 export const MobileNav: React.FC<{ children: React.ReactNode }> = ({ children }: MobileNavProps) => {
   const theme = useTheme();
-  const { navState, updateNavState, environment } = useMainContext();
+  const { navState, updateNavState } = useMainContext();
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   // Set maintenance banner to false by default to don't display it
   const [openMaintenance, setOpenMaintenance] = React.useState(false);
-
-  const explorerName =
-    `${environment && environment.charAt(0).toUpperCase() + environment.slice(1)} Explorer` || 'Mainnet Explorer';
-
-  const switchNetworkText = environment === 'mainnet' ? 'Switch to Testnet' : 'Switch to Mainnet';
-  const switchNetworkLink =
-    environment === 'mainnet' ? 'https://sandbox-explorer.nymtech.net' : 'https://explorer.nymtech.net';
 
   const toggleDrawer = () => {
     setDrawerOpen(!drawerOpen);
@@ -83,7 +76,7 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({ children }:
             }}
           >
             <IconButton component="a" href={NYM_WEBSITE} target="_blank">
-              <NymLogo height="24px" width="24px" />
+              <NymLogo height="40px" width="40px" />
             </IconButton>
             <Typography
               variant="h6"
@@ -92,26 +85,18 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({ children }:
                 color: theme.palette.nym.networkExplorer.nav.text,
                 fontSize: '18px',
                 fontWeight: 600,
+                ml: 2,
               }}
             >
-              <MuiLink component={Link} to="/overview" underline="none" color="inherit" fontSize={14} fontWeight={700}>
-                {explorerName}
+              <MuiLink component={Link} to="/overview" underline="none" color="inherit">
+                Network Explorer
               </MuiLink>
-              <Button
-                size="small"
-                variant="outlined"
-                color="inherit"
-                href={switchNetworkLink}
-                sx={{ textTransform: 'none', width: 114, fontSize: '12px', fontWeight: 600, ml: 1 }}
-              >
-                {switchNetworkText}
-              </Button>
             </Typography>
           </Box>
 
-          <Box sx={{ mr: 1 }}>
+          <Box>
             <DarkLightSwitchMobile />
-            <Button onClick={toggleDrawer} sx={{ p: 0, minWidth: 0 }}>
+            <Button onClick={toggleDrawer}>
               <Menu sx={{ color: theme.palette.primary.contrastText }} />
             </Button>
           </Box>

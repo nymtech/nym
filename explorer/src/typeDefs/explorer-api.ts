@@ -224,5 +224,3 @@ export type MixNodeEconomicDynamicsStatsResponse = {
   estimated_delegators_reward: number;
   current_interval_uptime: number;
 };
-
-export type Environment = 'mainnet' | 'sandbox' | 'qa';

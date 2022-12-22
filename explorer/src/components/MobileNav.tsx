@@ -70,6 +70,7 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({ children }:
           sx={{
             display: 'flex',
             justifyContent: 'space-between',
+            alignItems: 'center',
             width: '100%',
           }}
         >
@@ -111,7 +112,7 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({ children }:
 
           <Box sx={{ mr: 1 }}>
             <DarkLightSwitchMobile />
-            <Button onClick={toggleDrawer} sx={{ p: 0, minWidth: 0 }}>
+            <Button onClick={toggleDrawer}>
               <Menu sx={{ color: theme.palette.primary.contrastText }} />
             </Button>
           </Box>

@@ -55,7 +55,7 @@ export const UptimeChart: React.FC<ChartProps> = ({ title, xLabel, yLabel, uptim
             uptimeStory.data
               ? formattedChartData
               : [
-                  ['Date', 'Routing Score'],
+                  ['Date', 'Uptime'],
                   [format(new Date(Date.now()), 'MMM dd'), 0],
                 ]
           }

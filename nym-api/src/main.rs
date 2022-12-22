@@ -27,7 +27,6 @@ use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::Arc;
-use std::time::Duration;
 use task::{wait_for_signal, TaskManager};
 use tokio::sync::Notify;
 use validator_client::nyxd::{self, SigningNyxdClient};

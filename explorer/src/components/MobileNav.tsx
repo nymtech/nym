@@ -43,13 +43,6 @@ export const MobileNav: React.FC<{ children: React.ReactNode }> = ({ children }:
   const switchNetworkLink =
     environment === 'mainnet' ? 'https://sandbox-explorer.nymtech.net' : 'https://explorer.nymtech.net';
 
-  const explorerName =
-    `${environment && environment.charAt(0).toUpperCase() + environment.slice(1)} Explorer` || 'Mainnet Explorer';
-
-  const switchNetworkText = environment === 'mainnet' ? 'Switch to Testnet' : 'Switch to Mainnet';
-  const switchNetworkLink =
-    environment === 'mainnet' ? 'https://sandbox-explorer.nymtech.net' : 'https://explorer.nymtech.net';
-
   const toggleDrawer = () => {
     setDrawerOpen(!drawerOpen);
   };

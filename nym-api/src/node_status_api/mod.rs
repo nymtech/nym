@@ -6,6 +6,14 @@ use okapi::openapi3::OpenApi;
 use rocket::Route;
 use rocket_okapi::{openapi_get_routes_spec, settings::OpenApiSettings};
 use std::time::Duration;
+use task::TaskManager;
+
+use crate::{
+    nym_contract_cache::cache::NymContractCache,
+    support::{self, config::Config, storage},
+};
+
+use self::cache::refresher::NodeStatusCacheRefresher;
 pub(crate) mod cache;
 pub(crate) mod helpers;
 pub(crate) mod local_guard;
@@ -55,4 +63,28 @@ pub(crate) fn node_status_routes(
             routes::get_active_set_detailed,
         ]
     }
+}
+
+/// Spawn the node status cache refresher.
+///
+/// It is primarily refreshed in-sync with the nym contract cache, however provide a fallback
+/// caching interval that is twice the nym contract cache
+pub(crate) fn start_cache_refresh(
+    rocket: &rocket::Rocket<rocket::Ignite>,
+    node_status_cache: NodeStatusCache,
+    config: &Config,
+    nym_contract_cache: NymContractCache,
+    nym_contract_cache_listener: tokio::sync::watch::Receiver<support::caching::CacheNotification>,
+    shutdown: &TaskManager,
+) {
+    let storage = rocket.state::<storage::NymApiStorage>().cloned();
+    let mut nym_api_cache_refresher = NodeStatusCacheRefresher::new(
+        node_status_cache,
+        config.get_caching_interval().saturating_mul(2),
+        nym_contract_cache,
+        nym_contract_cache_listener,
+        storage,
+    );
+    let shutdown_listener = shutdown.subscribe();
+    tokio::spawn(async move { nym_api_cache_refresher.run(shutdown_listener).await });
 }

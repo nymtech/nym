@@ -5,6 +5,7 @@ use credential_storage::PersistentStorage;
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
+use rocket::{Ignite, Rocket};
 use std::sync::Arc;
 use task::TaskManager;
 use validator_client::nyxd::SigningNyxdClient;
@@ -23,6 +24,7 @@ use crate::nym_contract_cache::cache::NymContractCache;
 use crate::nyxd::Client;
 use crate::storage::NymApiStorage;
 use crate::support::config::Config;
+use crate::support::{nyxd, storage};
 
 pub(crate) mod chunker;
 pub(crate) mod gateways_reader;
@@ -31,6 +33,29 @@ pub(crate) mod test_packet;
 pub(crate) mod test_route;
 
 pub(crate) const ROUTE_TESTING_TEST_NONCE: u64 = 0;
+
+pub(crate) fn setup<'a>(
+    config: &'a Config,
+    _nyxd_client: nyxd::Client<SigningNyxdClient>,
+    system_version: &str,
+    rocket: &Rocket<Ignite>,
+) -> Option<NetworkMonitorBuilder<'a>> {
+    if !config.get_network_monitor_enabled() {
+        return None;
+    }
+
+    // get instances of managed states
+    let node_status_storage = rocket.state::<storage::NymApiStorage>().unwrap().clone();
+    let nym_contract_cache = rocket.state::<NymContractCache>().unwrap().clone();
+
+    Some(NetworkMonitorBuilder::new(
+        config,
+        _nyxd_client,
+        system_version,
+        node_status_storage,
+        nym_contract_cache,
+    ))
+}
 
 pub(crate) struct NetworkMonitorBuilder<'a> {
     config: &'a Config,

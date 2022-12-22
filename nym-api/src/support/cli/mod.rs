@@ -15,7 +15,29 @@ use args::{ANNOUNCE_ADDRESS, COCONUT_ENABLED};
 
 use super::config::Config;
 
-pub fn parse_args() -> ArgMatches {
+pub(crate) fn build_config(cli_args: &ArgMatches) -> (&str, Config) {
+    let system_version = env!("CARGO_PKG_VERSION");
+    // try to load config from the file, if it doesn't exist, use default values
+    let id = cli_args.value_of(args::ID);
+    let (config_from_file, _already_initialized) = match Config::load_from_file(id) {
+        Ok(cfg) => (cfg, true),
+        Err(_) => {
+            let config_path = Config::default_config_file_path(id)
+                .into_os_string()
+                .into_string()
+                .unwrap();
+            warn!(
+                "Could not load the configuration file from {}. Either the file did not exist or was malformed. Using the default values instead",
+                config_path
+            );
+            (Config::new(), false)
+        }
+    };
+    let config = override_config(config_from_file, cli_args);
+    (system_version, config)
+}
+
+pub(crate) fn parse_args() -> ArgMatches {
     let build_details = long_version();
     let base_app = App::new("Nym API")
         .version(crate_version!())

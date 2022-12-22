@@ -14,6 +14,8 @@ import {
 } from '../requests';
 import { Console } from './console';
 
+export * from './nextEpoch';
+
 export const validateKey = (key: string, bytesLength: number): boolean => {
   // it must be a valid base58 key
   try {
@@ -215,7 +217,7 @@ export const getIntervalAsDate = async () => {
     add(new Date(), {
       seconds: secondsToNextInterval,
     }),
-    'MM/dd/yyyy HH:mm',
+    'dd/MM/yyyy, HH:mm',
   );
 
   const nextEpoch = format(

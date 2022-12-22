@@ -24,18 +24,16 @@ use rocket::fairing::AdHoc;
 use rocket::http::Method;
 use rocket::{Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
-use rocket_okapi::mount_endpoints_and_merged_docs;
-use rocket_okapi::swagger_ui::make_swagger_ui;
+use std::path::PathBuf;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
-use std::{fs, process};
 use task::{wait_for_signal, TaskManager};
 use tokio::sync::Notify;
 use validator_client::nyxd::{self, SigningNyxdClient};
 
 use crate::epoch_operations::RewardedSetUpdater;
 use crate::support::cli;
-use crate::support::http::openapi;
 #[cfg(feature = "coconut")]
 use coconut::{
     comm::QueryCommunicationChannel,
@@ -96,11 +94,11 @@ struct ApiArgs {
 
     /// Specifies whether network monitoring is enabled on this API
     #[clap(short = 'm', long)]
-    enable_monitor: Option<bool>,
+    enable_monitor: bool,
 
     /// Specifies whether network rewarding is enabled on this API
     #[clap(short = 'r', long, requires = "enable_monitor", requires = "mnemonic")]
-    enable_rewarding: Option<bool>,
+    enable_rewarding: bool,
 
     /// Endpoint to nyxd instance from which the monitor will grab nodes to test
     #[clap(long)]
@@ -134,7 +132,7 @@ struct ApiArgs {
 
     /// Set this nym api to work in a enabled credentials that would attempt to use gateway with the bandwidth credential requirement
     #[clap(long)]
-    enabled_credentials_mode: Option<bool>,
+    enabled_credentials_mode: bool,
 
     /// Announced address where coconut clients will connect.
     #[cfg(feature = "coconut")]
@@ -144,7 +142,7 @@ struct ApiArgs {
     /// Flag to indicate whether coconut signer authority is enabled on this API
     #[cfg(feature = "coconut")]
     #[clap(long, requires = "mnemonic", requires = "announce-address")]
-    enable_coconut: Option<bool>,
+    enable_coconut: bool,
 }
 
 async fn wait_for_interrupt(mut shutdown: TaskManager) {
@@ -152,66 +150,6 @@ async fn wait_for_interrupt(mut shutdown: TaskManager) {
 
     log::info!("Sending shutdown");
     shutdown.signal_shutdown().ok();
-
-    log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
-    shutdown.wait_for_shutdown().await;
-
-    log::info!("Stopping nym API");
-}
-
-fn override_config(mut config: Config, args: ApiArgs) -> Config {
-    if let Some(id) = args.id {
-        fs::create_dir_all(Config::default_config_directory(Some(&id)))
-            .expect("Could not create config directory");
-        fs::create_dir_all(Config::default_data_directory(Some(&id)))
-            .expect("Could not create data directory");
-        config = config.with_id(&id);
-    }
-
-    config = config
-        .with_optional(Config::with_custom_nyxd_validator, args.nyxd_validator)
-        .with_optional_env(
-            Config::with_custom_mixnet_contract,
-            args.mixnet_contract,
-            MIXNET_CONTRACT_ADDRESS,
-        )
-        .with_optional(Config::with_mnemonic, args.mnemonic)
-        .with_optional(
-            Config::with_minimum_interval_monitor_threshold,
-            args.monitor_threshold,
-        )
-        .with_optional(
-            Config::with_min_mixnode_reliability,
-            args.min_mixnode_reliability,
-        )
-        .with_optional(
-            Config::with_min_gateway_reliability,
-            args.min_gateway_reliability,
-        )
-        .with_optional(Config::with_network_monitor_enabled, args.enable_monitor)
-        .with_optional(Config::with_rewarding_enabled, args.enable_rewarding)
-        .with_optional(
-            Config::with_disabled_credentials_mode,
-            args.enabled_credentials_mode.map(|b| !b),
-        );
-
-    #[cfg(feature = "coconut")]
-    {
-        config = config
-            .with_optional(Config::with_announce_address, args.announce_address)
-            .with_optional(Config::with_coconut_signer_enabled, args.enable_coconut);
-    }
-
-    if args.save_config {
-        info!("Saving the configuration to a file");
-        if let Err(err) = config.save_to_file(None) {
-            error!("Failed to write config to a file - {err}");
-            process::exit(1)
-        }
-    }
-
-    config
-}
 
 fn setup_cors() -> Result<Cors> {
     let allowed_origins = AllowedOrigins::all();
@@ -264,16 +202,6 @@ fn setup_network_monitor<'a>(
 // fn setup_circulating_supply() -> Option<>
 // }
 
-// TODO: Remove if still unused
-#[allow(dead_code)]
-fn expected_monitor_test_runs(config: &Config, interval_length: Duration) -> usize {
-    let test_delay = config.get_network_monitor_run_interval();
-
-    // this is just a rough estimate. In real world there will be slightly fewer test runs
-    // as they are not instantaneous and hence do not happen exactly every test_delay
-    (interval_length.as_secs() / test_delay.as_secs()) as usize
-}
-
 async fn run_nym_api(args: ApiArgs) -> Result<()> {
     let system_version = env!("CARGO_PKG_VERSION");
 
@@ -294,7 +222,7 @@ async fn run_nym_api(args: ApiArgs) -> Result<()> {
     };
 
     let save_to_file = args.save_config;
-    let config = override_config(config, args);
+    let config = cli::override_config(config, args);
 
     #[cfg(feature = "coconut")]
     if !_already_inited {

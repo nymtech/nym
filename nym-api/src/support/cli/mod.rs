@@ -1,17 +1,22 @@
 pub(crate) mod args;
 
+use ::config::defaults::var_names::{CONFIGURED, MIXNET_CONTRACT_ADDRESS};
 use args::{
     CONFIG_ENV_FILE, ENABLED_CREDENTIALS_MODE_ARG_NAME, ID, MIN_GATEWAY_RELIABILITY_ARG,
     MIN_MIXNODE_RELIABILITY_ARG, MIXNET_CONTRACT_ARG, MNEMONIC_ARG, MONITORING_ENABLED,
     NYXD_VALIDATOR_ARG, REWARDING_ENABLED, REWARDING_MONITOR_THRESHOLD_ARG, WRITE_CONFIG_ARG,
 };
 use clap::{crate_version, App, Arg, ArgMatches};
+use config::{defaults::mainnet::read_var_if_not_default, NymConfig};
+use std::{fs, process};
 
 #[cfg(feature = "coconut")]
 use args::{ANNOUNCE_ADDRESS, COCONUT_ENABLED};
 
+use super::config::Config;
+
 pub fn parse_args() -> ArgMatches {
-    let build_details = crate::long_version();
+    let build_details = long_version();
     let base_app = App::new("Nym API")
         .version(crate_version!())
         .long_version(&*build_details)
@@ -103,4 +108,133 @@ pub fn parse_args() -> ArgMatches {
                 .long(COCONUT_ENABLED),
         );
     base_app.get_matches()
+}
+
+fn long_version() -> String {
+    format!(
+        r#"
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+{:<20}{}
+"#,
+        "Build Timestamp:",
+        env!("VERGEN_BUILD_TIMESTAMP"),
+        "Build Version:",
+        env!("VERGEN_BUILD_SEMVER"),
+        "Commit SHA:",
+        env!("VERGEN_GIT_SHA"),
+        "Commit Date:",
+        env!("VERGEN_GIT_COMMIT_TIMESTAMP"),
+        "Commit Branch:",
+        env!("VERGEN_GIT_BRANCH"),
+        "rustc Version:",
+        env!("VERGEN_RUSTC_SEMVER"),
+        "rustc Channel:",
+        env!("VERGEN_RUSTC_CHANNEL"),
+        "cargo Profile:",
+        env!("VERGEN_CARGO_PROFILE")
+    )
+}
+
+pub(crate) fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
+    if let Some(id) = matches.value_of(args::ID) {
+        fs::create_dir_all(Config::default_config_directory(Some(id)))
+            .expect("Could not create config directory");
+        fs::create_dir_all(Config::default_data_directory(Some(id)))
+            .expect("Could not create data directory");
+        config = config.with_id(id);
+    }
+
+    if matches.is_present(args::MONITORING_ENABLED) {
+        config = config.with_network_monitor_enabled(true)
+    }
+
+    if matches.is_present(args::REWARDING_ENABLED) {
+        config = config.with_rewarding_enabled(true)
+    }
+
+    #[cfg(feature = "coconut")]
+    if matches.is_present(args::COCONUT_ENABLED) {
+        config = config.with_coconut_signer_enabled(true)
+    }
+
+    #[cfg(feature = "coconut")]
+    if let Some(announce_address) = matches.value_of(args::ANNOUNCE_ADDRESS) {
+        config = config.with_announce_address(
+            Url::parse(announce_address).expect("Could not parse announce address"),
+        );
+    }
+
+    if let Some(raw_validator) = matches.value_of(args::NYXD_VALIDATOR_ARG) {
+        let parsed = match raw_validator.parse() {
+            Err(err) => {
+                error!("Passed validator argument is invalid - {err}");
+                process::exit(1)
+            }
+            Ok(url) => url,
+        };
+        config = config.with_custom_nyxd_validator(parsed);
+    }
+
+    if let Some(mixnet_contract) = matches.value_of(args::MIXNET_CONTRACT_ARG) {
+        config = config.with_custom_mixnet_contract(mixnet_contract)
+    } else if std::env::var(CONFIGURED).is_ok() {
+        if let Some(mixnet_contract) = read_var_if_not_default(MIXNET_CONTRACT_ADDRESS) {
+            config = config.with_custom_mixnet_contract(mixnet_contract)
+        }
+    }
+
+    if let Some(mnemonic) = matches.value_of(args::MNEMONIC_ARG) {
+        config = config.with_mnemonic(mnemonic)
+    }
+
+    if let Some(monitor_threshold) = matches
+        .value_of(args::REWARDING_MONITOR_THRESHOLD_ARG)
+        .map(|t| t.parse::<u8>())
+    {
+        let monitor_threshold =
+            monitor_threshold.expect("Provided monitor threshold is not a number!");
+        assert!(
+            monitor_threshold <= 100,
+            "Provided monitor threshold is greater than 100!"
+        );
+        config = config.with_minimum_interval_monitor_threshold(monitor_threshold)
+    }
+
+    if let Some(reliability) = matches
+        .value_of(args::MIN_MIXNODE_RELIABILITY_ARG)
+        .map(|t| t.parse::<u8>())
+    {
+        config = config.with_min_mixnode_reliability(
+            reliability.expect("Provided reliability is not a u8 number!"),
+        )
+    }
+
+    if let Some(reliability) = matches
+        .value_of(args::MIN_GATEWAY_RELIABILITY_ARG)
+        .map(|t| t.parse::<u8>())
+    {
+        config = config.with_min_gateway_reliability(
+            reliability.expect("Provided reliability is not a u8 number!"),
+        )
+    }
+
+    if matches.is_present(args::ENABLED_CREDENTIALS_MODE_ARG_NAME) {
+        config = config.with_disabled_credentials_mode(false)
+    }
+
+    if matches.is_present(args::WRITE_CONFIG_ARG) {
+        info!("Saving the configuration to a file");
+        if let Err(err) = config.save_to_file(None) {
+            error!("Failed to write config to a file - {err}");
+            process::exit(1)
+        }
+    }
+
+    config
 }

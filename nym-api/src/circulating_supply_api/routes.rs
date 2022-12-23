@@ -8,6 +8,6 @@ use rocket_okapi::openapi;
 pub(crate) async fn get_circulating_supply(cache: &State<CirculatingSupplyCache>) -> String {
     match cache.get_circulating_supply().await {
         Some(cache) => cache.value,
-        None => String::from("0nym"),
+        None => String::from(format!("0{}", "unym")), // TODO unym magic string should be a constant
     }
 }

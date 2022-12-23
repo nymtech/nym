@@ -1,6 +1,7 @@
 use super::CirculatingSupplyCache;
 use crate::support::nyxd::Client;
 use anyhow::Result;
+use config::defaults::mainnet::{MIXNET_CONTRACT_ADDRESS, VESTING_CONTRACT_ADDRESS}; // TODO: where should I pick these up? Hardcoding to mainnet must be wrong.
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use task::TaskClient;
@@ -73,10 +74,7 @@ impl<C> CirculatingSupplyCacheRefresher<C> {
             .await?
             .unwrap();
 
-        let mixmining_contract_account =
-            "n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr"
-                .parse::<AccountId>()
-                .unwrap();
+        let mixmining_contract_account = MIXNET_CONTRACT_ADDRESS.parse::<AccountId>().unwrap();
 
         let mixmining_contract = self
             .nyxd_client
@@ -84,10 +82,7 @@ impl<C> CirculatingSupplyCacheRefresher<C> {
             .await?
             .unwrap();
 
-        let vesting_contract_account =
-            "n1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq73f2nw"
-                .parse::<AccountId>()
-                .unwrap();
+        let vesting_contract_account = VESTING_CONTRACT_ADDRESS.parse::<AccountId>().unwrap();
 
         let vesting_contract = self
             .nyxd_client
@@ -140,11 +135,11 @@ impl<C> CirculatingSupplyCacheRefresher<C> {
                 - company1.amount
                 - company2.amount
                 - investors.amount,
-            "unym",
+            "unym", //TODO: this should be a constant
         );
 
         log::info!(
-            "Updating circulating supply cache. Circulating supply is now: {} unym",
+            "Updating circulating supply cache. Circulating supply is now: {}",
             circulating_supply
         );
 

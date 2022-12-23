@@ -40,9 +40,9 @@ pub(crate) async fn setup_rocket(
         "/v1".to_owned(),
         openapi_settings,
         "/" => custom_route_spec,
+        "" => circulating_supply_api::circulating_supply_routes(&openapi_settings),
         "" => nym_contract_cache::nym_contract_cache_routes(&openapi_settings),
         "/status" => node_status_api::node_status_routes(&openapi_settings, config.get_network_monitor_enabled()),
-        "/circulating-supply" => circulating_supply_api::circulating_supply_routes(&openapi_settings),
     }
 
     let rocket = rocket

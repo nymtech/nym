@@ -7,10 +7,7 @@ use rocket_okapi::openapi;
 #[get("/current")]
 pub(crate) async fn get_circulating_supply(cache: &State<CirculatingSupplyCache>) -> String {
     match cache.say_foomp().await {
-        Some(cache) => {
-            println!("cache.value: {}", cache.value);
-            cache.value
-        }
+        Some(cache) => cache.value,
         None => String::from("0nym"),
     }
 }

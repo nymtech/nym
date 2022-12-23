@@ -1,21 +1,17 @@
 use super::CirculatingSupplyCache;
-use crate::support::{caching::CacheNotification, nyxd::Client};
+use crate::support::nyxd::Client;
 use anyhow::Result;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use task::TaskClient;
-use tokio::sync::watch;
 use tokio::time;
-use validator_client::nyxd::CosmWasmClient;
+use validator_client::nyxd::{Coin, CosmWasmClient};
 use validator_client::AccountId;
 
 pub(crate) struct CirculatingSupplyCacheRefresher<C> {
     nyxd_client: Client<C>,
     cache: CirculatingSupplyCache,
     caching_interval: Duration,
-
-    // Notify listeners that the cache has been updated
-    update_notifier: watch::Sender<CacheNotification>,
 }
 
 impl<C> CirculatingSupplyCacheRefresher<C> {
@@ -24,18 +20,11 @@ impl<C> CirculatingSupplyCacheRefresher<C> {
         cache: CirculatingSupplyCache,
         caching_interval: Duration,
     ) -> Self {
-        let (tx, _) = watch::channel(CacheNotification::Start);
-
         CirculatingSupplyCacheRefresher {
             nyxd_client,
             cache,
             caching_interval,
-            update_notifier: tx,
         }
-    }
-
-    pub(crate) fn subscribe(&self) -> watch::Receiver<CacheNotification> {
-        self.update_notifier.subscribe()
     }
 
     pub(crate) async fn run(&self, mut shutdown: TaskClient)
@@ -74,23 +63,92 @@ impl<C> CirculatingSupplyCacheRefresher<C> {
     where
         C: CosmWasmClient + Sync + Send,
     {
-        let acc = "n1299fhjdafamwc2gha723nkkewvu56u5xn78t9j"
+        let mixmining_temp_account = "n1299fhjdafamwc2gha723nkkewvu56u5xn78t9j"
             .parse::<AccountId>()
             .unwrap();
-        // let account = AccountId("n1299fhjdafamwc2gha723nkkewvu56u5xn78t9j").unwrap();
-        let mixmining_temp = self.nyxd_client.get_balance(acc).await?.unwrap();
 
-        info!(
-            "Updating circulating supply cache. Circulating supply is now: {} unym",
-            mixmining_temp.amount
+        let mixmining_temp = self
+            .nyxd_client
+            .get_balance(mixmining_temp_account)
+            .await?
+            .unwrap();
+
+        let mixmining_contract_account =
+            "n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr"
+                .parse::<AccountId>()
+                .unwrap();
+
+        let mixmining_contract = self
+            .nyxd_client
+            .get_balance(mixmining_contract_account)
+            .await?
+            .unwrap();
+
+        let vesting_contract_account =
+            "n1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq73f2nw"
+                .parse::<AccountId>()
+                .unwrap();
+
+        let vesting_contract = self
+            .nyxd_client
+            .get_balance(vesting_contract_account)
+            .await?
+            .unwrap();
+
+        let team_account = "n10fe8degw253uhezlfwaw555tw846u78waa8tc6"
+            .parse::<AccountId>()
+            .unwrap();
+
+        let team = self.nyxd_client.get_balance(team_account).await?.unwrap();
+
+        let company_account1 = "n104glfyskvrnx9u4upgqnz67axma72m5we3qaj4"
+            .parse::<AccountId>()
+            .unwrap();
+
+        let company1 = self
+            .nyxd_client
+            .get_balance(company_account1)
+            .await?
+            .unwrap();
+
+        let company_account2 = "n1yuagfmwvwyjn0g4q6vx8was35kc7tqner7lyq8"
+            .parse::<AccountId>()
+            .unwrap();
+
+        let company2 = self
+            .nyxd_client
+            .get_balance(company_account2)
+            .await?
+            .unwrap();
+
+        let investors_account = "n1rp46vs4kddfjufx38cl6etyxtcqpjfhg5mmqey"
+            .parse::<AccountId>()
+            .unwrap();
+
+        let investors = self
+            .nyxd_client
+            .get_balance(investors_account)
+            .await?
+            .unwrap();
+
+        let circulating_supply = Coin::new(
+            1_000_000_000_000_000
+                - mixmining_temp.amount
+                - mixmining_contract.amount
+                - vesting_contract.amount
+                - team.amount
+                - company1.amount
+                - company2.amount
+                - investors.amount,
+            "unym",
         );
 
-        self.cache.update(mixmining_temp).await;
+        log::info!(
+            "Updating circulating supply cache. Circulating supply is now: {} unym",
+            circulating_supply
+        );
 
-        if let Err(err) = self.update_notifier.send(CacheNotification::Updated) {
-            warn!("Failed to notify circulating supply cache refresh: {err}");
-        }
-
+        self.cache.update(circulating_supply).await;
         Ok(())
     }
 }

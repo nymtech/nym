@@ -32,7 +32,7 @@ fn get_servers() -> Vec<rocket_okapi::okapi::openapi3::Server> {
 
 pub(crate) fn get_docs() -> SwaggerUIConfig {
     SwaggerUIConfig {
-        url: "../v1/http.json".to_owned(),
+        url: "../v1/openapi.json".to_owned(),
         ..SwaggerUIConfig::default()
     }
 }

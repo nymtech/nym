@@ -3,6 +3,7 @@
 
 use crate::epoch_operations::MixnodeToReward;
 use crate::support::config::Config;
+use anyhow::Result;
 use config::defaults::{NymNetworkDetails, DEFAULT_NYM_API_PORT};
 use mixnet_contract_common::families::{Family, FamilyHead};
 use mixnet_contract_common::mixnode::MixNodeDetails;
@@ -121,6 +122,23 @@ impl<C> Client<C> {
             .await?;
 
         Ok(time)
+    }
+
+    pub(crate) async fn get_balance(
+        &self,
+        address: &cosmrs::base::AccountId,
+    ) -> Result<Option<Coin>, ValidatorClientError>
+    where
+        C: CosmWasmClient + Sync,
+    {
+        let balance = self
+            .0
+            .read()
+            .await
+            .nyxd
+            .get_balance(&address, "unym".to_string())
+            .await?;
+        Ok(balance)
     }
 
     /// Obtains the hash of a block specified by the provided height.

@@ -11,7 +11,7 @@ use crate::support::caching::Cache;
 use self::data::CirculatingSupplyCacheData;
 
 mod data;
-mod refresher;
+pub(crate) mod refresher;
 
 #[derive(Clone)]
 pub(crate) struct CirculatingSupplyCache {
@@ -41,5 +41,12 @@ impl CirculatingSupplyCache {
         AdHoc::on_ignite("Circulating Supply Cache Stage", |rocket| async {
             rocket.manage(Self::new())
         })
+    }
+
+    pub(crate) async fn update(&self, mixmining_temp: validator_client::nyxd::Coin) {
+        let mut cache = self.data.write().await;
+        cache.circulating_supply = Cache::new(mixmining_temp.to_string());
+        self.initialised
+            .store(true, std::sync::atomic::Ordering::Relaxed);
     }
 }

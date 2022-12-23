@@ -13,6 +13,7 @@ pub mod nyxd;
 pub use crate::client::{CoconutApiClient, NymApiClient};
 pub use crate::error::ValidatorClientError;
 pub use nym_api_requests::*;
+pub use nyxd::AccountId;
 
 #[cfg(feature = "nyxd-client")]
 pub use client::{Client, Config};

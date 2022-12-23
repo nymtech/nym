@@ -10,6 +10,7 @@ use ::config::defaults::setup_env;
 use ::config::defaults::var_names::MIX_DENOM;
 use anyhow::Result;
 use build_information::BinaryBuildInformation;
+use circulating_supply_api::cache::CirculatingSupplyCache;
 use clap::ArgMatches;
 #[cfg(feature = "coconut")]
 use coconut::{
@@ -199,6 +200,7 @@ async fn run_nym_api(cli_args: ApiArgs) -> Result<()> {
 
     let nym_contract_cache_state = rocket.state::<NymContractCache>().unwrap().clone();
     let node_status_cache_state = rocket.state::<NodeStatusCache>().unwrap().clone();
+    let circulating_supply_cache_state = rocket.state::<CirculatingSupplyCache>().unwrap().clone();
 
     #[cfg(feature = "coconut")]
     {
@@ -230,6 +232,12 @@ async fn run_nym_api(cli_args: ApiArgs) -> Result<()> {
         &config,
         nym_contract_cache_state,
         nym_contract_cache_listener,
+        &shutdown,
+    );
+
+    circulating_supply_api::start_cache_refresh(
+        &config,
+        &circulating_supply_cache_state,
         &shutdown,
     );
 

@@ -20,7 +20,7 @@ use validator_client::nyxd::{
     Coin, CosmWasmClient, QueryNyxdClient, SigningCosmWasmClient, SigningNyxdClient,
     TendermintTime,
 };
-use validator_client::ValidatorClientError;
+use validator_client::{AccountId, ValidatorClientError};
 
 #[cfg(feature = "coconut")]
 use crate::coconut::error::CoconutError;
@@ -126,7 +126,7 @@ impl<C> Client<C> {
 
     pub(crate) async fn get_balance(
         &self,
-        address: &cosmrs::base::AccountId,
+        address: AccountId,
     ) -> Result<Option<Coin>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync,

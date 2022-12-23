@@ -1,13 +1,13 @@
 use super::CirculatingSupplyCache;
 use crate::support::{caching::CacheNotification, nyxd::Client};
 use anyhow::Result;
-use cosmwasm_std::Addr;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use task::TaskClient;
 use tokio::sync::watch;
 use tokio::time;
 use validator_client::nyxd::CosmWasmClient;
+use validator_client::AccountId;
 
 pub(crate) struct CirculatingSupplyCacheRefresher<C> {
     nyxd_client: Client<C>,
@@ -74,14 +74,15 @@ impl<C> CirculatingSupplyCacheRefresher<C> {
     where
         C: CosmWasmClient + Sync + Send,
     {
-        let mixmining_temp = self
-            .nyxd_client
-            .get_balance(Addr::unchecked("n1299fhjdafamwc2gha723nkkewvu56u5xn78t9j").into())
-            .await?;
+        let acc = "n1299fhjdafamwc2gha723nkkewvu56u5xn78t9j"
+            .parse::<AccountId>()
+            .unwrap();
+        // let account = AccountId("n1299fhjdafamwc2gha723nkkewvu56u5xn78t9j").unwrap();
+        let mixmining_temp = self.nyxd_client.get_balance(acc).await?.unwrap();
 
         info!(
             "Updating circulating supply cache. Circulating supply is now: {} unym",
-            mixmining_temp,
+            mixmining_temp.amount
         );
 
         self.cache.update(mixmining_temp).await;

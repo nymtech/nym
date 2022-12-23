@@ -6,7 +6,7 @@ pub fn custom_openapi_spec() -> OpenApi {
     OpenApi {
         openapi: OpenApi::default_version(),
         info: Info {
-            title: "Validator API".to_owned(),
+            title: "Nym API".to_owned(),
             description: None,
             terms_of_service: None,
             contact: None,

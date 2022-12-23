@@ -27,11 +27,11 @@ impl CirculatingSupplyCache {
         }
     }
 
-    pub(crate) async fn say_foomp(&self) -> Option<Cache<String>> {
+    pub(crate) async fn get_circulating_supply(&self) -> Option<Cache<String>> {
         match time::timeout(Duration::from_millis(100), self.data.read()).await {
             Ok(cache) => Some(cache.circulating_supply.clone()),
             Err(e) => {
-                error!("{}", e);
+                error!("Failed to get circulating supply: {}", e);
                 Some(Cache::new(String::from("0nym")))
             }
         }

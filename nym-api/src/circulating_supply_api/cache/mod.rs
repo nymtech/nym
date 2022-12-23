@@ -13,6 +13,11 @@ use self::data::CirculatingSupplyCacheData;
 mod data;
 pub(crate) mod refresher;
 
+/// A cache for the circulating supply of the network. Circulating supply is calculated by
+/// taking the initial supply of 1bn coins, and subtracting the amount of coins that are
+/// in the staking pool, company accounts, and tied up in vesting.
+///
+/// The cache is quite simple and does not include an update listener that the other caches have.
 #[derive(Clone)]
 pub(crate) struct CirculatingSupplyCache {
     initialised: Arc<AtomicBool>,

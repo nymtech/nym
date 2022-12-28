@@ -1,13 +1,12 @@
 use crate::error::ContractError;
-use crate::msg::{GreetResp, QueryMsg, InstantiateMsg, ExecuteMsg, ServicesListResp};
-use crate::state::{ADMINS, SERVICES, Service};
+use crate::msg::{QueryMsg, InstantiateMsg, ExecuteMsg, ServicesListResp, ConfigResponse};
+use crate::state::{SERVICES, Service, CONFIG, Config};
 use cosmwasm_std::{
     to_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdResult, Order
 };
 use cw2::set_contract_version;
 use cosmwasm_std::Addr;
 
-// version info for migration info
 const CONTRACT_NAME: &str = "service-storage-poc";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -18,12 +17,13 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> StdResult<Response> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-    let admins: StdResult<Vec<_>> = msg
-        .admins
-        .into_iter()
-        .map(|addr| deps.api.addr_validate(&addr))
-        .collect();
-    ADMINS.save(deps.storage, &admins?)?;
+
+    let config = Config { 
+        updater_role: msg.updater_role, 
+        admin: msg.admin
+    };  
+
+    CONFIG.save(deps.storage, &config)?; 
     
     // TODO add proper responses 
     Ok(Response::new())
@@ -60,9 +60,9 @@ mod exec {
         
         let new_service = Service { 
             client_address: client_address.clone(), 
-            whitelist: whitelist, 
+            whitelist, 
             uptime_score: 0, // init @ 0 - no score on new service 
-            owner: owner
+            owner
         }; 
 
         SERVICES.save(deps.storage, &info.sender, &new_service)?; 
@@ -72,6 +72,7 @@ mod exec {
         )   
     }
 
+    // delete currently just removes the service mapped to the address of the contract caller - this is assuming a one-service per address model like mix nodes
     pub fn delete( 
         deps: DepsMut, 
         info: MessageInfo, 
@@ -91,8 +92,8 @@ pub fn query(_deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
     use QueryMsg::*;
 
     match msg {
-        Greet {} => to_binary(&query::greet()?),
-        QueryAll {} => to_binary(&query::query_all(_deps, _env)?)
+        QueryAll {} => to_binary(&query::query_all(_deps, _env)?), 
+        QueryConfig {} => to_binary(&query::query_config(_deps, _env)?)
     }
 }
 
@@ -101,12 +102,6 @@ mod query {
 
     use super::*;
 
-    pub fn greet() -> StdResult<GreetResp> {
-        let resp = GreetResp {
-            message: "Hello World".to_owned(),
-        };
-        Ok(resp)
-    }
 
     pub fn query_all(
         deps: Deps,
@@ -115,13 +110,25 @@ mod query {
         let services = SERVICES
             .range(deps.storage, None, None, Order::Ascending)
             .map(|item| {
-                item.map(|( owner, services) | ServicesInfo {
+                item.map(|(owner, services)| ServicesInfo {
                     owner: owner.into(),
-                    services: services
+                    services
                 })
             }) 
             .collect::<StdResult<Vec<_>>>()?;           
         let resp = ServicesListResp{ services }; 
+        Ok(resp)
+    }
+
+    pub fn query_config(
+        _deps: Deps, 
+        _env: Env, 
+    ) -> StdResult<ConfigResponse> {
+        let config = CONFIG.load(_deps.storage)?; 
+        let resp = ConfigResponse { 
+            updater_role: config.updater_role, 
+            admin: config.admin 
+        };
         Ok(resp)
     }
 
@@ -135,7 +142,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn greet_query() {
+    fn set_config() {
         let mut app = App::default();
         let code = ContractWrapper::new(execute, instantiate, query);
         let code_id = app.store_code(Box::new(code));
@@ -144,22 +151,23 @@ mod tests {
             .instantiate_contract(
                 code_id,
                 Addr::unchecked("owner"),
-                &InstantiateMsg { admins: vec![] }, 
+                &InstantiateMsg { updater_role: Addr::unchecked("updater"), admin: Addr::unchecked("admin") }, 
                 &[],
                 "Contract",
                 None,
             )
             .unwrap();
-
-        let resp: GreetResp = app
+        
+        let resp: ConfigResponse = app
             .wrap()
-            .query_wasm_smart(addr, &QueryMsg::Greet {})
+            .query_wasm_smart(addr, &QueryMsg::QueryConfig {})
             .unwrap();
 
         assert_eq!(
             resp,
-            GreetResp {
-                message: "Hello World".to_owned()
+            ConfigResponse {
+                updater_role: Addr::unchecked("updater"), 
+                admin: Addr::unchecked("admin")
             }
         );
     }
@@ -173,7 +181,7 @@ mod tests {
             .instantiate_contract(
                 code_id,
                 Addr::unchecked("owner"),
-                &InstantiateMsg { admins: vec![]}, 
+                &InstantiateMsg{ updater_role: Addr::unchecked("updater"), admin: Addr::unchecked("admin") }, 
                 &[],
                 "Contract",
                 None,
@@ -238,14 +246,14 @@ mod tests {
             .instantiate_contract(
                 code_id,
                 Addr::unchecked("owner"),
-                &InstantiateMsg { admins: vec![]}, 
+                &InstantiateMsg{ updater_role: Addr::unchecked("updater"), admin: Addr::unchecked("admin") }, 
                 &[],
                 "Contract",
                 None,
             )
             .unwrap();
 
-        let resp = app
+        app
             .execute_contract(
                 Addr::unchecked("owner"),
                 addr.clone(), 
@@ -257,20 +265,10 @@ mod tests {
                 &[],
             )
             .unwrap();
-
-            let wasm = resp.events.iter().find(|ev| ev.ty == "wasm").unwrap();
-            assert_eq!(
-                wasm.attributes
-                        .iter()
-                        .find(|attr| attr.key == "action")
-                        .unwrap()
-                        .value,
-                "service announced"
-            );
     
             let query: ServicesListResp = app.wrap()
-            .query_wasm_smart(addr.clone(), &QueryMsg::QueryAll {  })
-            .unwrap(); 
+                .query_wasm_smart(addr.clone(), &QueryMsg::QueryAll {  })
+                .unwrap(); 
     
             let test_service: Service = Service {
                 client_address: Addr::unchecked("client address"),
@@ -293,7 +291,7 @@ mod tests {
                 }
             );
 
-        app
+        let delete_resp = app
             .execute_contract(
                 Addr::unchecked("owner"),
                 addr.clone(), 
@@ -301,7 +299,17 @@ mod tests {
                 &[],
             )
             .unwrap();
-
+            
+            let wasm = delete_resp.events.iter().find(|ev| ev.ty == "wasm").unwrap();
+            assert_eq!(
+                wasm.attributes
+                        .iter()
+                        .find(|attr| attr.key == "action")
+                        .unwrap()
+                        .value,
+                "service deleted"
+            );
+ 
             let query: ServicesListResp = app.wrap()
             .query_wasm_smart(addr.clone(), &QueryMsg::QueryAll {  })
             .unwrap(); 

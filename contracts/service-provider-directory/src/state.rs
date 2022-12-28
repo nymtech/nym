@@ -10,6 +10,13 @@ pub struct Service {
     pub owner: Addr
 }
 
-pub const ADMINS: Item<Vec<Addr>> = Item::new("admins");
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+pub struct Config {
+    pub updater_role: Addr, 
+    pub admin: Addr
+}
+
+// pub const ADMINS: Item<Vec<Addr>> = Item::new("admins");
+pub const CONFIG: Item<Config> = Item::new("config"); 
 // pub const SERVICES: Item<Vec<Service>> = Item::new("services");
 pub const SERVICES: Map<&Addr, Service> = Map::new("services"); 

@@ -4,8 +4,8 @@ use crate::state::Service;
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub enum QueryMsg {
-    Greet {},
     QueryAll {},
+    QueryConfig {},
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -15,7 +15,8 @@ pub struct GreetResp {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub struct InstantiateMsg {
-    pub admins: Vec<String>,
+    pub updater_role: Addr, 
+    pub admin: Addr
 }
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
@@ -34,3 +35,11 @@ pub struct ServicesInfo {
 pub struct ServicesListResp {
     pub services: Vec<ServicesInfo>,
 }
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct ConfigResponse {
+    pub updater_role: Addr, 
+    pub admin: Addr
+} 
+
+

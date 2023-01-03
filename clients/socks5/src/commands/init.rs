@@ -28,8 +28,9 @@ pub(crate) struct Init {
     /// slower and consume nearly double the bandwidth as it will require sending reply SURBs.
     ///
     /// Note that some service providers might not support this.
-    #[clap(long)]
-    use_anonymous_sender_tag: bool,
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    #[clap(long, alias = "use_anonymous_sender_tag")]
+    use_reply_surbs: bool,
 
     /// Id of the gateway we are going to connect to.
     #[clap(long)]
@@ -78,7 +79,7 @@ impl From<Init> for OverrideConfig {
             nymd_validators: init_config.nymd_validators,
             api_validators: init_config.api_validators,
             port: init_config.port,
-            use_anonymous_sender_tag: init_config.use_anonymous_sender_tag,
+            use_anonymous_replies: init_config.use_reply_surbs,
             fastmode: init_config.fastmode,
             no_cover: init_config.no_cover,
             #[cfg(feature = "coconut")]

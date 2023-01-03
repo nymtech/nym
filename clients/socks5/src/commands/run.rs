@@ -27,8 +27,9 @@ pub(crate) struct Run {
     /// slower and consume nearly double the bandwidth as it will require sending reply SURBs.
     ///
     /// Note that some service providers might not support this.
-    #[clap(long)]
-    use_anonymous_sender_tag: bool,
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    #[clap(long, alias = "use_anonymous_sender_tag")]
+    use_anonymous_replies: bool,
 
     /// Address of the socks5 provider to send messages to.
     #[clap(long)]
@@ -73,7 +74,7 @@ impl From<Run> for OverrideConfig {
             nymd_validators: run_config.nymd_validators,
             api_validators: run_config.nym_apis,
             port: run_config.port,
-            use_anonymous_sender_tag: run_config.use_anonymous_sender_tag,
+            use_anonymous_replies: run_config.use_anonymous_replies,
             fastmode: run_config.fastmode,
             no_cover: run_config.no_cover,
             #[cfg(feature = "coconut")]

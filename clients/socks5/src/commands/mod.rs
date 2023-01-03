@@ -82,7 +82,7 @@ pub(crate) struct OverrideConfig {
     nymd_validators: Option<String>,
     api_validators: Option<String>,
     port: Option<u16>,
-    use_anonymous_sender_tag: bool,
+    use_anonymous_replies: bool,
     fastmode: bool,
     no_cover: bool,
 
@@ -123,7 +123,7 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
             .set_custom_nym_apis(parse_urls(&raw_validators));
     }
 
-    if args.use_anonymous_sender_tag {
+    if args.use_anonymous_replies {
         config = config.with_anonymous_replies(true)
     }
 

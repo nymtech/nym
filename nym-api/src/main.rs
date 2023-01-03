@@ -584,11 +584,13 @@ async fn run_nym_api(matches: ArgMatches) -> Result<()> {
         tokio::spawn(async move { validator_cache_refresher.run(shutdown_listener).await });
 
         // spawn rewarded set updater
-        let mut rewarded_set_updater =
-            RewardedSetUpdater::new(signing_nymd_client, validator_cache.clone(), storage).await?;
-        let shutdown_listener = shutdown.subscribe();
-        tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await.unwrap() });
-
+        if config.get_rewarding_enabled() {
+            let mut rewarded_set_updater =
+                RewardedSetUpdater::new(signing_nymd_client, validator_cache.clone(), storage)
+                    .await?;
+            let shutdown_listener = shutdown.subscribe();
+            tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await.unwrap() });
+        }
         validator_cache_listener
     } else {
         // Spawn the validator cache refresher.

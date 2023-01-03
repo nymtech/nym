@@ -446,8 +446,6 @@ impl Config {
         self.network_monitor.credentials_database_path.clone()
     }
 
-    // TODO: Remove if still unused
-    #[allow(dead_code)]
     pub fn get_rewarding_enabled(&self) -> bool {
         self.rewarding.enabled
     }

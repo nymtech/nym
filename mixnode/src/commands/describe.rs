@@ -1,3 +1,6 @@
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::config::Config;
 use crate::node::node_description::NodeDescription;
 use clap::Args;
@@ -11,9 +14,32 @@ pub(crate) struct Describe {
     /// The id of the mixnode you want to describe
     #[clap(long)]
     id: String,
+
+    /// Human readable name of this node
+    #[clap(long)]
+    name: Option<String>,
+
+    /// Description of this node
+    #[clap(long)]
+    description: Option<String>,
+
+    /// Link associated with this node, for example `https://mixnode.yourdomain.com`
+    #[clap(long)]
+    link: Option<String>,
+
+    /// Physical location of this node, for example `City: London, Country: UK`
+    #[clap(long)]
+    location: Option<String>,
 }
 
-pub(crate) fn execute(args: &Describe) {
+fn read_user_input() -> String {
+    io::stdout().flush().unwrap();
+    let mut buf = String::new();
+    io::stdin().read_line(&mut buf).unwrap();
+    buf.trim().to_string()
+}
+
+pub(crate) fn execute(args: Describe) {
     // ensure that the mixnode has in fact been initialized
     match Config::load_from_file(Some(&args.id)) {
         Ok(cfg) => cfg,
@@ -23,33 +49,29 @@ pub(crate) fn execute(args: &Describe) {
         }
     };
 
-    // get input from the user
-    print!("name: ");
-    io::stdout().flush().unwrap();
-    let mut name_buf = String::new();
-    io::stdin().read_line(&mut name_buf).unwrap();
-    let name = name_buf.trim().to_string();
-
-    print!("description: ");
-    io::stdout().flush().unwrap();
-    let mut desc_buf = String::new();
-    io::stdin().read_line(&mut desc_buf).unwrap();
-    let description = desc_buf.trim().to_string();
-
     let example_url = "https://mixnode.yourdomain.com".bright_cyan();
     let example_location = "City: London, Country: UK";
 
-    print!("link, e.g. {}: ", example_url);
-    io::stdout().flush().unwrap();
-    let mut link_buf = String::new();
-    io::stdin().read_line(&mut link_buf).unwrap();
-    let link = link_buf.trim().to_string();
+    // get input from the user if not provided via the arguments
+    let name = args.name.unwrap_or_else(|| {
+        print!("name: ");
+        read_user_input()
+    });
 
-    print!("location, e.g. {}: ", example_location);
-    io::stdout().flush().unwrap();
-    let mut location_buf = String::new();
-    io::stdin().read_line(&mut location_buf).unwrap();
-    let location = location_buf.trim().to_string();
+    let description = args.description.unwrap_or_else(|| {
+        print!("description: ");
+        read_user_input()
+    });
+
+    let link = args.link.unwrap_or_else(|| {
+        print!("link, e.g. {example_url}: ");
+        read_user_input()
+    });
+
+    let location = args.location.unwrap_or_else(|| {
+        print!("location, e.g. {example_location}: ");
+        read_user_input()
+    });
 
     let node_description = NodeDescription {
         name,

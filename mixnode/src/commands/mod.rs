@@ -64,13 +64,13 @@ struct OverrideConfig {
 pub(crate) async fn execute(args: Cli) {
     let bin_name = "nym-mixnode";
 
-    match &args.command {
+    match args.command {
         Commands::Describe(m) => describe::execute(m),
-        Commands::Init(m) => init::execute(m),
-        Commands::Run(m) => run::execute(m).await,
-        Commands::Sign(m) => sign::execute(m),
-        Commands::Upgrade(m) => upgrade::execute(m),
-        Commands::NodeDetails(m) => node_details::execute(m),
+        Commands::Init(m) => init::execute(&m),
+        Commands::Run(m) => run::execute(&m).await,
+        Commands::Sign(m) => sign::execute(&m),
+        Commands::Upgrade(m) => upgrade::execute(&m),
+        Commands::NodeDetails(m) => node_details::execute(&m),
         Commands::Completions(s) => s.generate(&mut crate::Cli::into_app(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::into_app(), bin_name),
     }

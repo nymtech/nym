@@ -39,9 +39,10 @@ pub(crate) struct Run {
     #[clap(long)]
     announce_host: Option<String>,
 
-    /// Comma separated list of rest endpoints of the validators
-    #[clap(long)]
-    validators: Option<String>,
+    /// Comma separated list of nym-api endpoints of the validators
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    #[clap(long, alias = "validators")]
+    nym_apis: Option<String>,
 }
 
 impl From<Run> for OverrideConfig {
@@ -54,7 +55,7 @@ impl From<Run> for OverrideConfig {
             verloc_port: run_config.verloc_port,
             http_api_port: run_config.http_api_port,
             announce_host: run_config.announce_host,
-            validators: run_config.validators,
+            nym_apis: run_config.nym_apis,
         }
     }
 }

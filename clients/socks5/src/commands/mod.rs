@@ -7,7 +7,7 @@ use crate::client::config::Config;
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
 use completions::{fig_generate, ArgShell};
-use config::parse_validators;
+use config::parse_urls;
 
 pub mod init;
 pub(crate) mod run;
@@ -107,20 +107,20 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
     if let Some(raw_validators) = args.nymd_validators {
         config
             .get_base_mut()
-            .set_custom_validators(parse_validators(&raw_validators));
+            .set_custom_validators(parse_urls(&raw_validators));
     } else if let Ok(raw_validators) = std::env::var(network_defaults::var_names::NYMD_VALIDATOR) {
         config
             .get_base_mut()
-            .set_custom_validators(parse_validators(&raw_validators));
+            .set_custom_validators(parse_urls(&raw_validators));
     }
     if let Some(raw_validators) = args.api_validators {
         config
             .get_base_mut()
-            .set_custom_nym_apis(parse_validators(&raw_validators));
+            .set_custom_nym_apis(parse_urls(&raw_validators));
     } else if let Ok(raw_validators) = std::env::var(network_defaults::var_names::API_VALIDATOR) {
         config
             .get_base_mut()
-            .set_custom_nym_apis(parse_validators(&raw_validators));
+            .set_custom_nym_apis(parse_urls(&raw_validators));
     }
 
     if args.use_anonymous_sender_tag {

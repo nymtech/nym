@@ -11,7 +11,7 @@ use completions::{fig_generate, ArgShell};
 use config::defaults::mainnet::read_var_if_not_default;
 use config::{
     defaults::var_names::{API_VALIDATOR, BECH32_PREFIX, CONFIGURED},
-    parse_validators,
+    parse_urls,
 };
 use crypto::bech32_address_validation;
 
@@ -58,7 +58,7 @@ struct OverrideConfig {
     verloc_port: Option<u16>,
     http_api_port: Option<u16>,
     announce_host: Option<String>,
-    validators: Option<String>,
+    nym_apis: Option<String>,
 }
 
 pub(crate) async fn execute(args: Cli) {
@@ -95,11 +95,11 @@ fn override_config(mut config: Config, args: OverrideConfig) -> Config {
         config = config.with_http_api_port(port);
     }
 
-    if let Some(ref raw_validators) = args.validators {
-        config = config.with_custom_nym_apis(parse_validators(raw_validators));
+    if let Some(ref raw_validators) = args.nym_apis {
+        config = config.with_custom_nym_apis(parse_urls(raw_validators));
     } else if std::env::var(CONFIGURED).is_ok() {
         if let Some(raw_validators) = read_var_if_not_default(API_VALIDATOR) {
-            config = config.with_custom_nym_apis(::config::parse_validators(&raw_validators))
+            config = config.with_custom_nym_apis(::config::parse_urls(&raw_validators))
         }
     }
 

@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use std::error::Error;
@@ -22,11 +22,13 @@ pub(crate) struct Run {
 
     /// Comma separated list of rest endpoints of the nymd validators
     #[clap(long)]
+    #[cfg(feature = "coconut")]
     nymd_validators: Option<String>,
 
     /// Comma separated list of rest endpoints of the API validators
-    #[clap(long)]
-    api_validators: Option<String>,
+    #[clap(long, alias = "api_validators")]
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    nym_apis: Option<String>,
 
     /// Id of the gateway we want to connect to. If overridden, it is user's responsibility to
     /// ensure prior registration happened
@@ -60,12 +62,14 @@ pub(crate) struct Run {
 impl From<Run> for OverrideConfig {
     fn from(run_config: Run) -> Self {
         OverrideConfig {
-            nymd_validators: run_config.nymd_validators,
-            api_validators: run_config.api_validators,
+            nym_apis: run_config.nym_apis,
             disable_socket: run_config.disable_socket,
             port: run_config.port,
             fastmode: run_config.fastmode,
             no_cover: run_config.no_cover,
+
+            #[cfg(feature = "coconut")]
+            nymd_validators: run_config.nymd_validators,
             #[cfg(feature = "coconut")]
             enabled_credentials_mode: run_config.enabled_credentials_mode,
         }

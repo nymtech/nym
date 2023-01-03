@@ -48,7 +48,7 @@ pub struct Run {
     #[cfg(feature = "coconut")]
     #[clap(long, alias = "validators")]
     // the alias here is included for backwards compatibility (1.1.4 and before)
-    nymd_endpoints: Option<String>,
+    nymd_validators: Option<String>,
 
     /// Cosmos wallet mnemonic
     #[clap(long)]
@@ -85,7 +85,7 @@ impl From<Run> for OverrideConfig {
             statistics_service_url: run_config.statistics_service_url,
 
             #[cfg(feature = "coconut")]
-            nymd_endpoints: run_config.nymd_endpoints,
+            nymd_validators: run_config.nymd_validators,
             #[cfg(feature = "coconut")]
             only_coconut_credentials: run_config.only_coconut_credentials,
         }

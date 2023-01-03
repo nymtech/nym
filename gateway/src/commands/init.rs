@@ -48,7 +48,7 @@ pub struct Init {
     #[cfg(feature = "coconut")]
     #[clap(long, alias = "validators")]
     // the alias here is included for backwards compatibility (1.1.4 and before)
-    nymd_endpoints: Option<String>,
+    nymd_validators: Option<String>,
 
     /// Cosmos wallet mnemonic needed for double spending protection
     #[clap(long)]
@@ -85,7 +85,7 @@ impl From<Init> for OverrideConfig {
             statistics_service_url: init_config.statistics_service_url,
 
             #[cfg(feature = "coconut")]
-            nymd_endpoints: init_config.nymd_endpoints,
+            nymd_validators: init_config.nymd_validators,
             #[cfg(feature = "coconut")]
             only_coconut_credentials: init_config.only_coconut_credentials,
         }
@@ -170,7 +170,7 @@ mod tests {
             announce_host: Some("foo-announce-host".to_string()),
             datastore: Some("foo-datastore".to_string()),
             nym_apis: None,
-            nymd_endpoints: None,
+            nymd_validators: None,
             mnemonic: None,
             statistics_service_url: None,
             enabled_statistics: None,

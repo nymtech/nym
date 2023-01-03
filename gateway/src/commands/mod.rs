@@ -56,7 +56,7 @@ pub(crate) struct OverrideConfig {
     enabled_statistics: Option<bool>,
     statistics_service_url: Option<String>,
     nym_apis: Option<String>,
-    nymd_endpoints: Option<String>,
+    nymd_validators: Option<String>,
     mnemonic: Option<String>,
 
     #[cfg(feature = "coconut")]
@@ -127,7 +127,7 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
         }
     }
 
-    if let Some(ref raw_validators) = args.nymd_endpoints {
+    if let Some(ref raw_validators) = args.nymd_validators {
         config = config.with_custom_validator_nymd(parse_urls(raw_validators));
     } else if std::env::var(CONFIGURED).is_ok() {
         if let Some(raw_validators) = read_var_if_not_default(NYMD_VALIDATOR) {

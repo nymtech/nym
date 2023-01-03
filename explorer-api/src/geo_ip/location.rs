@@ -10,8 +10,6 @@ use std::{
     sync::Arc,
 };
 
-use crate::guards::location;
-
 const DEFAULT_DATABASE_PATH: &str = "./geo_ip/GeoLite2-City.mmdb";
 const FAKE_PORT: u16 = 1234;
 

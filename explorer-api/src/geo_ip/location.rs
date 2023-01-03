@@ -3,14 +3,16 @@
 
 use isocountry::CountryCode;
 use log::warn;
-use maxminddb::{geoip2::Country, MaxMindDBError, Reader};
+use maxminddb::{geoip2::City, MaxMindDBError, Reader};
 use std::{
     net::{IpAddr, ToSocketAddrs},
     str::FromStr,
     sync::Arc,
 };
 
-const DEFAULT_DATABASE_PATH: &str = "./geo_ip/GeoLite2-Country.mmdb";
+use crate::guards::location;
+
+const DEFAULT_DATABASE_PATH: &str = "./geo_ip/GeoLite2-City.mmdb";
 const FAKE_PORT: u16 = 1234;
 
 #[derive(Debug)]
@@ -38,6 +40,8 @@ pub(crate) struct Location {
     pub(crate) iso_alpha3: String,
     /// English country short name (ISO 3166-1)
     pub(crate) name: String,
+    pub(crate) latitude: Option<f64>,
+    pub(crate) longitude: Option<f64>,
 }
 
 impl GeoIp {
@@ -86,7 +90,7 @@ impl GeoIp {
                 error!("No registered GeoIP database");
                 GeoIpError::InternalError
             })?
-            .lookup::<Country>(ip);
+            .lookup::<City>(ip);
         match &result {
             Ok(v) => Ok(Some(
                 Location::try_from(v).map_err(|_| GeoIpError::InternalError)?,
@@ -99,11 +103,11 @@ impl GeoIp {
     }
 }
 
-impl<'a> TryFrom<&Country<'a>> for Location {
+impl<'a> TryFrom<&City<'a>> for Location {
     type Error = String;
 
-    fn try_from(country: &Country) -> Result<Self, Self::Error> {
-        let data = country.country.as_ref().ok_or_else(|| {
+    fn try_from(city: &City) -> Result<Self, Self::Error> {
+        let data = city.country.as_ref().ok_or_else(|| {
             warn!("No Country data found");
             "No Country data found"
         })?;
@@ -119,10 +123,13 @@ impl<'a> TryFrom<&Country<'a>> for Location {
             warn!("{}", &message);
             message
         })?;
+
         Ok(Location {
             iso_alpha2,
             iso_alpha3: String::from(iso_codes.alpha3()),
             name: String::from(iso_codes.name()),
+            latitude: city.location.as_ref().and_then(|l| l.latitude),
+            longitude: city.location.as_ref().and_then(|l| l.longitude),
         })
     }
 }

@@ -36,6 +36,8 @@ pub(crate) struct Location {
     pub(crate) two_letter_iso_country_code: String,
     pub(crate) three_letter_iso_country_code: String,
     pub(crate) country_name: String,
+    pub(crate) latitude: Option<f64>,
+    pub(crate) longitude: Option<f64>,
 }
 
 impl Location {
@@ -44,6 +46,8 @@ impl Location {
             country_name: location.name,
             two_letter_iso_country_code: location.iso_alpha2,
             three_letter_iso_country_code: location.iso_alpha3,
+            latitude: location.latitude,
+            longitude: location.longitude,
         }
     }
 }

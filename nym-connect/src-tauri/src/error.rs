@@ -1,4 +1,3 @@
-use client_core::client::replies::reply_storage::fs_backend;
 use client_core::error::ClientCoreError;
 use serde::{Serialize, Serializer};
 use thiserror::Error;
@@ -39,7 +38,7 @@ pub enum BackendError {
     #[error("{source}")]
     ClientCoreError {
         #[from]
-        source: ClientCoreError<fs_backend::Backend>,
+        source: ClientCoreError,
     },
     #[error("{source}")]
     ApiClientError {

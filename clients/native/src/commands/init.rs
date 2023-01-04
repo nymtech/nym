@@ -137,7 +137,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
 
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
-    let gateway = client_core::init::setup_gateway::<_, Config, _>(
+    let gateway = client_core::init::setup_gateway::<Config, _>(
         register_gateway,
         user_chosen_gateway_id,
         config.get_base(),
@@ -155,14 +155,14 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
 
     let address = client_core::init::get_client_address_from_stored_keys(config.get_base())?;
     let init_results = InitResults::new(&config, &address);
-    println!("{}", init_results);
+    println!("{init_results}");
 
     // Output summary to a json file, if specified
     if args.output_json {
         client_core::init::output_to_json(&init_results, "client_init_results.json");
     }
 
-    println!("\nThe address of this client is: {}\n", address);
+    println!("\nThe address of this client is: {address}\n");
     Ok(())
 }
 

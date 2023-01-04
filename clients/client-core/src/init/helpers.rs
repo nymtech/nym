@@ -1,7 +1,6 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::replies::reply_storage::ReplyStorageBackend;
 use crate::{
     client::key_manager::KeyManager,
     config::{persistence::key_pathfinder::ClientKeyPathfinder, Config},
@@ -17,13 +16,10 @@ use tap::TapFallible;
 use topology::{filter::VersionFilterable, gateway};
 use url::Url;
 
-pub(super) async fn query_gateway_details<B>(
+pub(super) async fn query_gateway_details(
     validator_servers: Vec<Url>,
     chosen_gateway_id: Option<String>,
-) -> Result<gateway::Node, ClientCoreError<B>>
-where
-    B: ReplyStorageBackend,
-{
+) -> Result<gateway::Node, ClientCoreError> {
     let nym_api = validator_servers
         .choose(&mut thread_rng())
         .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
@@ -55,13 +51,10 @@ where
     }
 }
 
-async fn register_with_gateway<B>(
+async fn register_with_gateway(
     gateway: &gateway::Node,
     our_identity: Arc<identity::KeyPair>,
-) -> Result<Arc<SharedKeys>, ClientCoreError<B>>
-where
-    B: ReplyStorageBackend,
-{
+) -> Result<Arc<SharedKeys>, ClientCoreError> {
     let timeout = Duration::from_millis(1500);
     let mut gateway_client = GatewayClient::new_init(
         gateway.clients_address(),
@@ -81,13 +74,12 @@ where
     Ok(shared_keys)
 }
 
-pub(super) async fn register_with_gateway_and_store_keys<T, B>(
+pub(super) async fn register_with_gateway_and_store_keys<T>(
     gateway_details: gateway::Node,
     config: &Config<T>,
-) -> Result<(), ClientCoreError<B>>
+) -> Result<(), ClientCoreError>
 where
     T: NymConfig,
-    B: ReplyStorageBackend,
 {
     let mut rng = OsRng;
     let mut key_manager = KeyManager::new(&mut rng);

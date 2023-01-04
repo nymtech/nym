@@ -1,14 +1,13 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::replies::reply_storage::ReplyStorageBackend;
 use crypto::asymmetric::identity::Ed25519RecoveryError;
 use gateway_client::error::GatewayClientError;
 use topology::NymTopologyError;
 use validator_client::ValidatorClientError;
 
 #[derive(thiserror::Error, Debug)]
-pub enum ClientCoreError<B: ReplyStorageBackend> {
+pub enum ClientCoreError {
     #[error("I/O error: {0}")]
     IoError(#[from] std::io::Error),
 
@@ -40,7 +39,9 @@ pub enum ClientCoreError<B: ReplyStorageBackend> {
     InsufficientNetworkTopology(#[from] NymTopologyError),
 
     #[error("experienced a failure with our reply surb persistent storage: {source}")]
-    SurbStorageError { source: B::StorageError },
+    SurbStorageError {
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
 
     #[error("The gateway id is invalid - {0}")]
     UnableToCreatePublicKeyFromGatewayId(Ed25519RecoveryError),

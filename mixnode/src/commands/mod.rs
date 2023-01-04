@@ -1,19 +1,15 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::process;
-
 use crate::{config::Config, Cli};
 use clap::CommandFactory;
 use clap::Subcommand;
 use colored::Colorize;
 use completions::{fig_generate, ArgShell};
 use config::defaults::mainnet::read_var_if_not_default;
-use config::{
-    defaults::var_names::{API_VALIDATOR, BECH32_PREFIX, CONFIGURED},
-    parse_urls,
-};
+use config::defaults::var_names::{API_VALIDATOR, BECH32_PREFIX, CONFIGURED};
 use crypto::bech32_address_validation;
+use std::process;
 
 mod describe;
 mod init;
@@ -58,7 +54,7 @@ struct OverrideConfig {
     verloc_port: Option<u16>,
     http_api_port: Option<u16>,
     announce_host: Option<String>,
-    nym_apis: Option<String>,
+    nym_apis: Option<Vec<url::Url>>,
 }
 
 pub(crate) async fn execute(args: Cli) {
@@ -95,8 +91,8 @@ fn override_config(mut config: Config, args: OverrideConfig) -> Config {
         config = config.with_http_api_port(port);
     }
 
-    if let Some(ref raw_validators) = args.nym_apis {
-        config = config.with_custom_nym_apis(parse_urls(raw_validators));
+    if let Some(nym_apis) = args.nym_apis {
+        config = config.with_custom_nym_apis(nym_apis);
     } else if std::env::var(CONFIGURED).is_ok() {
         if let Some(raw_validators) = read_var_if_not_default(API_VALIDATOR) {
             config = config.with_custom_nym_apis(::config::parse_urls(&raw_validators))

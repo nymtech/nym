@@ -118,6 +118,7 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
     }
 }
 
+// this function is only used for parsing values from the network defaults and thus the "expect" there are fine
 pub fn parse_urls(raw: &str) -> Vec<url::Url> {
     raw.split(',')
         .map(|raw_url| {

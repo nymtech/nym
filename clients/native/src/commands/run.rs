@@ -21,14 +21,14 @@ pub(crate) struct Run {
     id: String,
 
     /// Comma separated list of rest endpoints of the nymd validators
-    #[clap(long)]
     #[cfg(feature = "coconut")]
-    nymd_validators: Option<String>,
+    #[clap(long, value_delimiter = ',')]
+    nymd_validators: Option<Vec<url::Url>>,
 
     /// Comma separated list of rest endpoints of the API validators
-    #[clap(long, alias = "api_validators")]
+    #[clap(long, alias = "api_validators", value_delimiter = ',')]
     // the alias here is included for backwards compatibility (1.1.4 and before)
-    nym_apis: Option<String>,
+    nym_apis: Option<Vec<url::Url>>,
 
     /// Id of the gateway we want to connect to. If overridden, it is user's responsibility to
     /// ensure prior registration happened

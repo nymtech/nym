@@ -52,14 +52,14 @@ pub(crate) enum Commands {
 
 // Configuration that can be overridden.
 pub(crate) struct OverrideConfig {
-    nym_apis: Option<String>,
+    nym_apis: Option<Vec<url::Url>>,
     disable_socket: bool,
     port: Option<u16>,
     fastmode: bool,
     no_cover: bool,
 
     #[cfg(feature = "coconut")]
-    nymd_validators: Option<String>,
+    nymd_validators: Option<Vec<url::Url>>,
     #[cfg(feature = "coconut")]
     enabled_credentials_mode: bool,
 }
@@ -78,10 +78,8 @@ pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send + Syn
 }
 
 pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
-    if let Some(raw_validators) = args.nym_apis {
-        config
-            .get_base_mut()
-            .set_custom_nym_apis(config::parse_urls(&raw_validators));
+    if let Some(nym_apis) = args.nym_apis {
+        config.get_base_mut().set_custom_nym_apis(nym_apis);
     } else if std::env::var(network_defaults::var_names::CONFIGURED).is_ok() {
         let raw_validators = std::env::var(network_defaults::var_names::API_VALIDATOR)
             .expect("api validator not set");
@@ -100,10 +98,8 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
 
     #[cfg(feature = "coconut")]
     {
-        if let Some(raw_validators) = args.nymd_validators {
-            config
-                .get_base_mut()
-                .set_custom_validators(config::parse_urls(&raw_validators));
+        if let Some(nymd_validators) = args.nymd_validators {
+            config.get_base_mut().set_custom_validators(nymd_validators);
         } else if std::env::var(network_defaults::var_names::CONFIGURED).is_ok() {
             let raw_validators = std::env::var(network_defaults::var_names::NYMD_VALIDATOR)
                 .expect("nymd validator not set");

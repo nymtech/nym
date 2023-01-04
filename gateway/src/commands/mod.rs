@@ -8,7 +8,6 @@ use clap::CommandFactory;
 use clap::Subcommand;
 use colored::Colorize;
 use completions::{fig_generate, ArgShell};
-use config::parse_urls;
 use crypto::bech32_address_validation;
 use network_defaults::mainnet::read_var_if_not_default;
 use network_defaults::var_names::{
@@ -55,11 +54,11 @@ pub(crate) struct OverrideConfig {
     announce_host: Option<String>,
     enabled_statistics: Option<bool>,
     statistics_service_url: Option<String>,
-    nym_apis: Option<String>,
+    nym_apis: Option<Vec<url::Url>>,
     mnemonic: Option<String>,
 
     #[cfg(feature = "coconut")]
-    nymd_validators: Option<String>,
+    nymd_validators: Option<Vec<url::Url>>,
     #[cfg(feature = "coconut")]
     only_coconut_credentials: bool,
 }
@@ -120,8 +119,8 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
         }
     }
 
-    if let Some(raw_validators) = args.nym_apis {
-        config = config.with_custom_nym_apis(parse_urls(&raw_validators));
+    if let Some(nym_apis) = args.nym_apis {
+        config = config.with_custom_nym_apis(nym_apis);
     } else if std::env::var(CONFIGURED).is_ok() {
         if let Some(raw_validators) = read_var_if_not_default(API_VALIDATOR) {
             config = config.with_custom_nym_apis(::config::parse_urls(&raw_validators))

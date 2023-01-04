@@ -40,15 +40,15 @@ pub struct Init {
     datastore: Option<String>,
 
     /// Comma separated list of endpoints of nym APIs
-    #[clap(long, alias = "validator_apis")]
+    #[clap(long, alias = "validator_apis", value_delimiter = ',')]
     // the alias here is included for backwards compatibility (1.1.4 and before)
-    nym_apis: Option<String>,
+    nym_apis: Option<Vec<url::Url>>,
 
     /// Comma separated list of endpoints of the validator
     #[cfg(feature = "coconut")]
-    #[clap(long, alias = "validators")]
+    #[clap(long, alias = "validators", value_delimiter = ',')]
     // the alias here is included for backwards compatibility (1.1.4 and before)
-    nymd_validators: Option<String>,
+    nymd_validators: Option<Vec<url::Url>>,
 
     /// Cosmos wallet mnemonic needed for double spending protection
     #[clap(long)]

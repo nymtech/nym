@@ -41,8 +41,8 @@ pub(crate) struct Run {
 
     /// Comma separated list of nym-api endpoints of the validators
     // the alias here is included for backwards compatibility (1.1.4 and before)
-    #[clap(long, alias = "validators")]
-    nym_apis: Option<String>,
+    #[clap(long, alias = "validators", value_delimiter = ',')]
+    nym_apis: Option<Vec<url::Url>>,
 }
 
 impl From<Run> for OverrideConfig {

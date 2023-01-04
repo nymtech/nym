@@ -42,12 +42,12 @@ pub(crate) struct Run {
 
     /// Comma separated list of rest endpoints of the nymd validators
     #[cfg(feature = "coconut")]
-    #[clap(long)]
-    nymd_validators: Option<String>,
+    #[clap(long, value_delimiter = ',')]
+    nymd_validators: Option<Vec<url::Url>>,
 
     /// Comma separated list of rest endpoints of the Nym APIs
-    #[clap(long)]
-    nym_apis: Option<String>,
+    #[clap(long, value_delimiter = ',')]
+    nym_apis: Option<Vec<url::Url>>,
 
     /// Port for the socket to listen on
     #[clap(short, long)]

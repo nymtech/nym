@@ -12,7 +12,6 @@ use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
 use validator_client::nymd;
-use validator_client::nymd::AccountId;
 
 pub mod persistence;
 mod template;
@@ -372,7 +371,7 @@ pub struct Gateway {
 
     /// The Cosmos wallet address that will control this gateway
     // the only reason this is an Option is because of the lack of existence of a sane default value
-    wallet_address: Option<AccountId>,
+    wallet_address: Option<nymd::AccountId>,
 }
 
 impl Gateway {

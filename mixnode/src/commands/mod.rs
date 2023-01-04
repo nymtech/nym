@@ -9,7 +9,9 @@ use completions::{fig_generate, ArgShell};
 use config::defaults::mainnet::read_var_if_not_default;
 use config::defaults::var_names::{API_VALIDATOR, BECH32_PREFIX, CONFIGURED};
 use crypto::bech32_address_validation;
+use std::net::IpAddr;
 use std::process;
+use validator_client::nymd;
 
 mod describe;
 mod init;
@@ -48,8 +50,8 @@ pub(crate) enum Commands {
 // Configuration that can be overridden.
 struct OverrideConfig {
     id: String,
-    host: Option<String>,
-    wallet_address: Option<String>,
+    host: Option<IpAddr>,
+    wallet_address: Option<nymd::AccountId>,
     mix_port: Option<u16>,
     verloc_port: Option<u16>,
     http_api_port: Option<u16>,
@@ -106,10 +108,10 @@ fn override_config(mut config: Config, args: OverrideConfig) -> Config {
         config = config.announce_address_from_listening_address()
     }
 
-    if let Some(ref wallet_address) = args.wallet_address {
-        let trimmed = wallet_address.trim();
-        validate_bech32_address_or_exit(trimmed);
-        config = config.with_wallet_address(trimmed);
+    if let Some(wallet_address) = args.wallet_address {
+        // perform extra validation to ensure we have correct prefix
+        validate_bech32_address_or_exit(wallet_address.as_ref());
+        config = config.with_wallet_address(wallet_address);
     }
 
     config

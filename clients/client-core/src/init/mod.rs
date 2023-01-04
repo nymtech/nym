@@ -12,7 +12,6 @@ use tap::TapFallible;
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
 
-use crate::client::replies::reply_storage::ReplyStorageBackend;
 use crate::{
     config::{
         persistence::key_pathfinder::ClientKeyPathfinder, ClientCoreConfigTrait, Config,

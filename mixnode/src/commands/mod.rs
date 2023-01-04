@@ -71,8 +71,8 @@ pub(crate) async fn execute(args: Cli) {
         Commands::Sign(m) => sign::execute(&m),
         Commands::Upgrade(m) => upgrade::execute(&m),
         Commands::NodeDetails(m) => node_details::execute(&m),
-        Commands::Completions(s) => s.generate(&mut crate::Cli::into_app(), bin_name),
-        Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::into_app(), bin_name),
+        Commands::Completions(s) => s.generate(&mut crate::Cli::command(), bin_name),
+        Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::command(), bin_name),
     }
 }
 

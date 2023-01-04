@@ -15,7 +15,7 @@ use ::config::defaults::setup_env;
 use ::config::defaults::var_names::{CONFIGURED, MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
 use ::config::NymConfig;
 use anyhow::Result;
-use clap::{crate_version, App, Arg, ArgMatches};
+use clap::{crate_version, Arg, ArgMatches, Command};
 use contract_cache::ValidatorCache;
 use log::{info, warn};
 use node_status_api::NodeStatusCache;
@@ -113,78 +113,78 @@ fn long_version() -> String {
 
 fn parse_args() -> ArgMatches {
     let build_details = long_version();
-    let base_app = App::new("Nym API")
+    let base_app = Command::new("Nym API")
         .version(crate_version!())
         .long_version(&*build_details)
         .author("Nymtech")
         .arg(
-            Arg::with_name(CONFIG_ENV_FILE)
+            Arg::new(CONFIG_ENV_FILE)
                 .help("Path pointing to an env file that configures the Nym API")
                 .long(CONFIG_ENV_FILE)
                 .short('c')
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name(ID)
+            Arg::new(ID)
                 .help("Id of the nym-api we want to run")
                 .long(ID)
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name(MONITORING_ENABLED)
+            Arg::new(MONITORING_ENABLED)
                 .help("specifies whether a network monitoring is enabled on this API")
                 .long(MONITORING_ENABLED)
                 .short('m')
         )
         .arg(
-            Arg::with_name(REWARDING_ENABLED)
+            Arg::new(REWARDING_ENABLED)
                 .help("specifies whether a network rewarding is enabled on this API")
                 .long(REWARDING_ENABLED)
                 .short('r')
                 .requires_all(&[MONITORING_ENABLED, MNEMONIC_ARG])
         )
         .arg(
-            Arg::with_name(NYMD_VALIDATOR_ARG)
+            Arg::new(NYMD_VALIDATOR_ARG)
                 .help("Endpoint to nymd instance from which the monitor will grab nodes to test")
                 .long(NYMD_VALIDATOR_ARG)
                 .takes_value(true)
         )
-        .arg(Arg::with_name(MIXNET_CONTRACT_ARG)
+        .arg(Arg::new(MIXNET_CONTRACT_ARG)
                  .long(MIXNET_CONTRACT_ARG)
                  .help("Address of the mixnet contract managing the network")
                  .takes_value(true),
         )
-        .arg(Arg::with_name(MNEMONIC_ARG)
+        .arg(Arg::new(MNEMONIC_ARG)
                  .long(MNEMONIC_ARG)
                  .help("Mnemonic of the network monitor used for rewarding operators")
                  .takes_value(true)
         )
         .arg(
-            Arg::with_name(WRITE_CONFIG_ARG)
+            Arg::new(WRITE_CONFIG_ARG)
                 .help("specifies whether a config file based on provided arguments should be saved to a file")
                 .long(WRITE_CONFIG_ARG)
                 .short('w')
         )
         .arg(
-            Arg::with_name(REWARDING_MONITOR_THRESHOLD_ARG)
+            Arg::new(REWARDING_MONITOR_THRESHOLD_ARG)
                 .help("Specifies the minimum percentage of monitor test run data present in order to distribute rewards for given interval.")
                 .takes_value(true)
                 .long(REWARDING_MONITOR_THRESHOLD_ARG)
         )
         .arg(
-            Arg::with_name(MIN_MIXNODE_RELIABILITY_ARG)
+            Arg::new(MIN_MIXNODE_RELIABILITY_ARG)
                 .long(MIN_MIXNODE_RELIABILITY_ARG)
                 .help("Mixnodes with reliability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.")
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name(MIN_GATEWAY_RELIABILITY_ARG)
+            Arg::new(MIN_GATEWAY_RELIABILITY_ARG)
                 .long(MIN_GATEWAY_RELIABILITY_ARG)
                 .help("Gateways with reliability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.")
                 .takes_value(true)
         )
         .arg(
-            Arg::with_name(ENABLED_CREDENTIALS_MODE_ARG_NAME)
+            Arg::new(ENABLED_CREDENTIALS_MODE_ARG_NAME)
                 .long(ENABLED_CREDENTIALS_MODE_ARG_NAME)
                 .help("Set this nym api to work in a enabled credentials that would attempt to use gateway with the bandwidth credential requirement")
         );
@@ -192,13 +192,13 @@ fn parse_args() -> ArgMatches {
     #[cfg(feature = "coconut")]
     let base_app = base_app
         .arg(
-            Arg::with_name(ANNOUNCE_ADDRESS)
+            Arg::new(ANNOUNCE_ADDRESS)
                 .help("Announced address where coconut clients will connect.")
                 .long(ANNOUNCE_ADDRESS)
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name(COCONUT_ENABLED)
+            Arg::new(COCONUT_ENABLED)
                 .help("Flag to indicate whether coconut signer authority is enabled on this API")
                 .requires_all(&[MNEMONIC_ARG, ANNOUNCE_ADDRESS])
                 .long(COCONUT_ENABLED),
@@ -247,7 +247,7 @@ async fn wait_for_signal() {
 }
 
 fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
-    if let Some(id) = matches.value_of(ID) {
+    if let Some(id) = matches.get_one::<String>(ID) {
         fs::create_dir_all(Config::default_config_directory(Some(id)))
             .expect("Could not create config directory");
         fs::create_dir_all(Config::default_data_directory(Some(id)))
@@ -255,27 +255,27 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         config = config.with_id(id);
     }
 
-    if matches.is_present(MONITORING_ENABLED) {
+    if matches.contains_id(MONITORING_ENABLED) {
         config = config.with_network_monitor_enabled(true)
     }
 
-    if matches.is_present(REWARDING_ENABLED) {
+    if matches.contains_id(REWARDING_ENABLED) {
         config = config.with_rewarding_enabled(true)
     }
 
     #[cfg(feature = "coconut")]
-    if matches.is_present(COCONUT_ENABLED) {
+    if matches.contains_id(COCONUT_ENABLED) {
         config = config.with_coconut_signer_enabled(true)
     }
 
     #[cfg(feature = "coconut")]
-    if let Some(announce_address) = matches.value_of(ANNOUNCE_ADDRESS) {
+    if let Some(announce_address) = matches.get_one::<String>(ANNOUNCE_ADDRESS) {
         config = config.with_announce_address(
             Url::parse(announce_address).expect("Could not parse announce address"),
         );
     }
 
-    if let Some(raw_validator) = matches.value_of(NYMD_VALIDATOR_ARG) {
+    if let Some(raw_validator) = matches.get_one::<String>(NYMD_VALIDATOR_ARG) {
         let parsed = match raw_validator.parse() {
             Err(err) => {
                 error!("Passed validator argument is invalid - {err}");
@@ -286,7 +286,7 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         config = config.with_custom_nymd_validator(parsed);
     }
 
-    if let Some(mixnet_contract) = matches.value_of(MIXNET_CONTRACT_ARG) {
+    if let Some(mixnet_contract) = matches.get_one::<String>(MIXNET_CONTRACT_ARG) {
         config = config.with_custom_mixnet_contract(mixnet_contract)
     } else if std::env::var(CONFIGURED).is_ok() {
         if let Some(mixnet_contract) = read_var_if_not_default(MIXNET_CONTRACT_ADDRESS) {
@@ -294,12 +294,12 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         }
     }
 
-    if let Some(mnemonic) = matches.value_of(MNEMONIC_ARG) {
+    if let Some(mnemonic) = matches.get_one::<String>(MNEMONIC_ARG) {
         config = config.with_mnemonic(mnemonic)
     }
 
     if let Some(monitor_threshold) = matches
-        .value_of(REWARDING_MONITOR_THRESHOLD_ARG)
+        .get_one::<String>(REWARDING_MONITOR_THRESHOLD_ARG)
         .map(|t| t.parse::<u8>())
     {
         let monitor_threshold =
@@ -312,7 +312,7 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     }
 
     if let Some(reliability) = matches
-        .value_of(MIN_MIXNODE_RELIABILITY_ARG)
+        .get_one::<String>(MIN_MIXNODE_RELIABILITY_ARG)
         .map(|t| t.parse::<u8>())
     {
         config = config.with_min_mixnode_reliability(
@@ -321,7 +321,7 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     }
 
     if let Some(reliability) = matches
-        .value_of(MIN_GATEWAY_RELIABILITY_ARG)
+        .get_one::<String>(MIN_GATEWAY_RELIABILITY_ARG)
         .map(|t| t.parse::<u8>())
     {
         config = config.with_min_gateway_reliability(
@@ -329,11 +329,11 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
         )
     }
 
-    if matches.is_present(ENABLED_CREDENTIALS_MODE_ARG_NAME) {
+    if matches.contains_id(ENABLED_CREDENTIALS_MODE_ARG_NAME) {
         config = config.with_disabled_credentials_mode(false)
     }
 
-    if matches.is_present(WRITE_CONFIG_ARG) {
+    if matches.contains_id(WRITE_CONFIG_ARG) {
         info!("Saving the configuration to a file");
         if let Err(err) = config.save_to_file(None) {
             error!("Failed to write config to a file - {err}");
@@ -494,7 +494,7 @@ async fn run_nym_api(matches: ArgMatches) -> Result<()> {
     let system_version = env!("CARGO_PKG_VERSION");
 
     // try to load config from the file, if it doesn't exist, use default values
-    let id = matches.value_of(ID);
+    let id = matches.get_one::<String>(ID).map(|s| s.as_str());
     let (config, _already_inited) = match Config::load_from_file(id) {
         Ok(cfg) => (cfg, true),
         Err(_) => {
@@ -518,7 +518,7 @@ async fn run_nym_api(matches: ArgMatches) -> Result<()> {
     }
 
     // if we just wanted to write data to the config, exit
-    if matches.is_present(WRITE_CONFIG_ARG) {
+    if matches.contains_id(WRITE_CONFIG_ARG) {
         return Ok(());
     }
     let mix_denom = std::env::var(MIX_DENOM).expect("mix denom not set");
@@ -662,7 +662,7 @@ async fn main() -> Result<()> {
     setup_logging();
     let args = parse_args();
     let config_env_file = args
-        .value_of(CONFIG_ENV_FILE)
+        .get_one::<String>(CONFIG_ENV_FILE)
         .map(|s| PathBuf::from_str(s).expect("invalid env config file"));
     setup_env(config_env_file);
     run_nym_api(args).await

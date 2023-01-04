@@ -45,11 +45,11 @@ pub(crate) struct Run {
 
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
-    #[clap(long, hidden = true)]
+    #[clap(long, hide = true)]
     fastmode: bool,
 
     /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
-    #[clap(long, hidden = true)]
+    #[clap(long, hide = true)]
     no_cover: bool,
 
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway

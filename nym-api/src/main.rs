@@ -33,7 +33,7 @@ use rocket_okapi::swagger_ui::make_swagger_ui;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{fs, process};
-use task::TaskManager;
+use task::{wait_for_signal, TaskManager};
 use tokio::sync::Notify;
 use validator_client::nymd::{self, SigningNymdClient};
 
@@ -156,34 +156,6 @@ async fn wait_for_interrupt(mut shutdown: TaskManager) {
     shutdown.wait_for_shutdown().await;
 
     log::info!("Stopping nym API");
-}
-
-#[cfg(unix)]
-async fn wait_for_signal() {
-    use tokio::signal::unix::{signal, SignalKind};
-    let mut sigterm = signal(SignalKind::terminate()).expect("Failed to setup SIGTERM channel");
-    let mut sigquit = signal(SignalKind::quit()).expect("Failed to setup SIGQUIT channel");
-
-    tokio::select! {
-        _ = tokio::signal::ctrl_c() => {
-            log::info!("Received SIGINT");
-        },
-        _ = sigterm.recv() => {
-            log::info!("Received SIGTERM");
-        }
-        _ = sigquit.recv() => {
-            log::info!("Received SIGQUIT");
-        }
-    }
-}
-
-#[cfg(not(unix))]
-async fn wait_for_signal() {
-    tokio::select! {
-        _ = tokio::signal::ctrl_c() => {
-            log::info!("Received SIGINT");
-        },
-    }
 }
 
 fn override_config(mut config: Config, args: ApiArgs) -> Config {

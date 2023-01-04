@@ -5,7 +5,7 @@ use crate::node::listener::connection_handler::packet_processing::{
     MixProcessingResult, PacketProcessor,
 };
 use crate::node::packet_delayforwarder::PacketDelayForwardSender;
-use crate::node::ShutdownListener;
+use crate::node::TaskClient;
 use futures::StreamExt;
 use log::{error, info};
 use nymsphinx::forwarding::packet::MixPacket;
@@ -58,7 +58,7 @@ impl ConnectionHandler {
         // all processing such, key caching, etc. was done.
         // however, if it was a forward hop, we still need to delay it
         match self.packet_processor.process_received(framed_sphinx_packet) {
-            Err(e) => debug!("We failed to process received sphinx packet - {:?}", e),
+            Err(err) => debug!("We failed to process received sphinx packet - {err}"),
             Ok(res) => match res {
                 MixProcessingResult::ForwardHop(forward_packet, delay) => {
                     self.delay_and_forward_packet(forward_packet, delay)
@@ -74,7 +74,7 @@ impl ConnectionHandler {
         self,
         conn: TcpStream,
         remote: SocketAddr,
-        mut shutdown: ShutdownListener,
+        mut shutdown: TaskClient,
     ) {
         debug!("Starting connection handler for {:?}", remote);
         let mut framed_conn = Framed::new(conn, SphinxCodec);

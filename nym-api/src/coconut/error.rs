@@ -14,22 +14,22 @@ use crypto::asymmetric::{
 use dkg::error::DkgError;
 use validator_client::nymd::error::NymdError;
 
-use crate::node_status_api::models::ValidatorApiStorageError;
+use crate::node_status_api::models::NymApiStorageError;
 
 pub type Result<T> = std::result::Result<T, CoconutError>;
 
 #[derive(Debug, Error)]
 pub enum CoconutError {
-    #[error("{0}")]
+    #[error(transparent)]
     IOError(#[from] std::io::Error),
 
-    #[error("{0}")]
+    #[error(transparent)]
     SerdeJsonError(#[from] serde_json::Error),
 
-    #[error("Could not parse Ed25519 data")]
+    #[error("Could not parse Ed25519 data - {0}")]
     Ed25519ParseError(#[from] Ed25519RecoveryError),
 
-    #[error("Could not parse X25519 data")]
+    #[error("Could not parse X25519 data - {0}")]
     X25519ParseError(#[from] KeyRecoveryError),
 
     #[error("Could not parse tx hash in request body")]
@@ -77,7 +77,7 @@ pub enum CoconutError {
     CoconutInterfaceError(#[from] coconut_interface::error::CoconutInterfaceError),
 
     #[error("Storage error - {0}")]
-    StorageError(#[from] ValidatorApiStorageError),
+    StorageError(#[from] NymApiStorageError),
 
     #[error("Credentials error - {0}")]
     CredentialsError(#[from] credentials::error::Error),

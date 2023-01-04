@@ -11,7 +11,7 @@ use thiserror::Error;
 /// Look at https://docs.rs/thiserror/1.0.21/thiserror/ for details.
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
-    #[error("{0}")]
+    #[error(transparent)]
     Std(#[from] StdError),
 
     #[error("Received multiple coin types")]
@@ -29,6 +29,6 @@ pub enum ContractError {
     #[error("Credential already spent or in process of spending")]
     DuplicateBlindedSerialNumber,
 
-    #[error("{0}")]
+    #[error(transparent)]
     Admin(#[from] AdminError),
 }

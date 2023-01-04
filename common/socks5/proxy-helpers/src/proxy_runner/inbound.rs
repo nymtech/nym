@@ -15,7 +15,7 @@ use socks5_requests::ConnectionId;
 use std::fmt::Debug;
 use std::time::Duration;
 use std::{io, sync::Arc};
-use task::ShutdownListener;
+use task::TaskClient;
 use tokio::select;
 use tokio::{net::tcp::OwnedReadHalf, sync::Notify, time::sleep};
 
@@ -54,7 +54,7 @@ where
         Some(data) => match data {
             Ok(data) => (data, false),
             Err(err) => {
-                error!(target: &*format!("({}) socks5 inbound", connection_id), "failed to read request from the socket - {}", err);
+                error!(target: &*format!("({}) socks5 inbound", connection_id), "failed to read request from the socket - {err}");
                 (Default::default(), true)
             }
         },
@@ -170,7 +170,7 @@ pub(super) async fn run_inbound<F, S>(
     adapter_fn: F,
     shutdown_notify: Arc<Notify>,
     lane_queue_lengths: Option<LaneQueueLengths>,
-    mut shutdown_listener: ShutdownListener,
+    mut shutdown_listener: TaskClient,
 ) -> OwnedReadHalf
 where
     F: Fn(ConnectionId, Vec<u8>, bool) -> S + Send + 'static,

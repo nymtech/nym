@@ -11,7 +11,7 @@ use crate::{
 use mixnet_contract_common::{
     mixnode::MixNodeDetails, reward_params::RewardingParams, GatewayBond, Interval, MixId,
 };
-use validator_api_requests::models::MixNodeBondAnnotated;
+use nym_api_requests::models::MixNodeBondAnnotated;
 
 use rocket::{serde::json::Json, State};
 use rocket_okapi::openapi;

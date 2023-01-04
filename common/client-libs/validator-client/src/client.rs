@@ -1,16 +1,16 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{validator_api, ValidatorClientError};
+use crate::{nym_api, ValidatorClientError};
 use coconut_dkg_common::types::NodeIndex;
 use coconut_interface::VerificationKey;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::MixId;
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef};
-use validator_api_requests::coconut::{
+use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
-use validator_api_requests::models::{
+use nym_api_requests::models::{
     GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
     RewardEstimationResponse, StakeSaturationResponse,
 };
@@ -37,10 +37,10 @@ use mixnet_contract_common::{
 #[cfg(feature = "nymd-client")]
 use network_defaults::NymNetworkDetails;
 #[cfg(feature = "nymd-client")]
+use nym_api_requests::models::MixNodeBondAnnotated;
+#[cfg(feature = "nymd-client")]
 use std::str::FromStr;
 use url::Url;
-#[cfg(feature = "nymd-client")]
-use validator_api_requests::models::MixNodeBondAnnotated;
 
 #[cfg(feature = "nymd-client")]
 #[must_use]
@@ -142,7 +142,7 @@ pub struct Client<C> {
     proposals_page_limit: Option<u32>,
 
     // ideally they would have been read-only, but unfortunately rust doesn't have such features
-    pub validator_api: validator_api::Client,
+    pub nym_api: nym_api::Client,
     pub nymd: NymdClient<C>,
 }
 
@@ -152,7 +152,7 @@ impl Client<SigningNymdClient> {
         config: Config,
         mnemonic: bip39::Mnemonic,
     ) -> Result<Client<SigningNymdClient>, ValidatorClientError> {
-        let validator_api_client = validator_api::Client::new(config.api_url.clone());
+        let nym_api_client = nym_api::Client::new(config.api_url.clone());
         let nymd_client = NymdClient::connect_with_mnemonic(
             config.nymd_config.clone(),
             config.nymd_url.as_str(),
@@ -169,7 +169,7 @@ impl Client<SigningNymdClient> {
             dealers_page_limit: config.dealers_page_limit,
             verification_key_page_limit: config.verification_key_page_limit,
             proposals_page_limit: config.proposals_page_limit,
-            validator_api: validator_api_client,
+            nym_api: nym_api_client,
             nymd: nymd_client,
         })
     }
@@ -192,7 +192,7 @@ impl Client<SigningNymdClient> {
 #[cfg(feature = "nymd-client")]
 impl Client<QueryNymdClient> {
     pub fn new_query(config: Config) -> Result<Client<QueryNymdClient>, ValidatorClientError> {
-        let validator_api_client = validator_api::Client::new(config.api_url.clone());
+        let nym_api_client = nym_api::Client::new(config.api_url.clone());
         let nymd_client =
             NymdClient::connect(config.nymd_config.clone(), config.nymd_url.as_str())?;
 
@@ -205,7 +205,7 @@ impl Client<QueryNymdClient> {
             dealers_page_limit: config.dealers_page_limit,
             verification_key_page_limit: config.verification_key_page_limit,
             proposals_page_limit: config.proposals_page_limit,
-            validator_api: validator_api_client,
+            nym_api: nym_api_client,
             nymd: nymd_client,
         })
     }
@@ -731,53 +731,53 @@ impl<C> Client<C> {
 // validator-api wrappers
 #[cfg(feature = "nymd-client")]
 impl<C> Client<C> {
-    pub fn change_validator_api(&mut self, new_endpoint: Url) {
-        self.validator_api.change_url(new_endpoint)
+    pub fn change_nym_api(&mut self, new_endpoint: Url) {
+        self.nym_api.change_url(new_endpoint)
     }
 
     pub async fn get_cached_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.validator_api.get_mixnodes().await?)
+        Ok(self.nym_api.get_mixnodes().await?)
     }
 
     pub async fn get_cached_mixnodes_detailed(
         &self,
     ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
-        Ok(self.validator_api.get_mixnodes_detailed().await?)
+        Ok(self.nym_api.get_mixnodes_detailed().await?)
     }
 
     pub async fn get_cached_rewarded_mixnodes(
         &self,
     ) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.validator_api.get_rewarded_mixnodes().await?)
+        Ok(self.nym_api.get_rewarded_mixnodes().await?)
     }
 
     pub async fn get_cached_rewarded_mixnodes_detailed(
         &self,
     ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
-        Ok(self.validator_api.get_rewarded_mixnodes_detailed().await?)
+        Ok(self.nym_api.get_rewarded_mixnodes_detailed().await?)
     }
 
     pub async fn get_cached_active_mixnodes(
         &self,
     ) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.validator_api.get_active_mixnodes().await?)
+        Ok(self.nym_api.get_active_mixnodes().await?)
     }
 
     pub async fn get_cached_active_mixnodes_detailed(
         &self,
     ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
-        Ok(self.validator_api.get_active_mixnodes_detailed().await?)
+        Ok(self.nym_api.get_active_mixnodes_detailed().await?)
     }
 
     pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
-        Ok(self.validator_api.get_gateways().await?)
+        Ok(self.nym_api.get_gateways().await?)
     }
 
     pub async fn blind_sign(
         &self,
         request_body: &BlindSignRequestBody,
     ) -> Result<BlindedSignatureResponse, ValidatorClientError> {
-        Ok(self.validator_api.blind_sign(request_body).await?)
+        Ok(self.nym_api.blind_sign(request_body).await?)
     }
 }
 
@@ -827,42 +827,40 @@ impl CoconutApiClient {
 
 #[derive(Clone)]
 pub struct ApiClient {
-    pub validator_api: validator_api::Client,
+    pub nym_api_client: nym_api::Client,
     // TODO: perhaps if we really need it at some (currently I don't see any reasons for it)
     // we could re-implement the communication with the REST API on port 1317
 }
 
 impl ApiClient {
     pub fn new(api_url: Url) -> Self {
-        let validator_api_client = validator_api::Client::new(api_url);
+        let nym_api_client = nym_api::Client::new(api_url);
 
-        ApiClient {
-            validator_api: validator_api_client,
-        }
+        ApiClient { nym_api_client }
     }
 
-    pub fn change_validator_api(&mut self, new_endpoint: Url) {
-        self.validator_api.change_url(new_endpoint);
+    pub fn change_nym_api(&mut self, new_endpoint: Url) {
+        self.nym_api_client.change_url(new_endpoint);
     }
 
     pub async fn get_cached_active_mixnodes(
         &self,
     ) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.validator_api.get_active_mixnodes().await?)
+        Ok(self.nym_api_client.get_active_mixnodes().await?)
     }
 
     pub async fn get_cached_rewarded_mixnodes(
         &self,
     ) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.validator_api.get_rewarded_mixnodes().await?)
+        Ok(self.nym_api_client.get_rewarded_mixnodes().await?)
     }
 
     pub async fn get_cached_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
-        Ok(self.validator_api.get_mixnodes().await?)
+        Ok(self.nym_api_client.get_mixnodes().await?)
     }
 
     pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
-        Ok(self.validator_api.get_gateways().await?)
+        Ok(self.nym_api_client.get_gateways().await?)
     }
 
     pub async fn get_gateway_core_status_count(
@@ -871,7 +869,7 @@ impl ApiClient {
         since: Option<i64>,
     ) -> Result<GatewayCoreStatusResponse, ValidatorClientError> {
         Ok(self
-            .validator_api
+            .nym_api_client
             .get_gateway_core_status_count(identity, since)
             .await?)
     }
@@ -882,7 +880,7 @@ impl ApiClient {
         since: Option<i64>,
     ) -> Result<MixnodeCoreStatusResponse, ValidatorClientError> {
         Ok(self
-            .validator_api
+            .nym_api_client
             .get_mixnode_core_status_count(mix_id, since)
             .await?)
     }
@@ -891,7 +889,7 @@ impl ApiClient {
         &self,
         mix_id: MixId,
     ) -> Result<MixnodeStatusResponse, ValidatorClientError> {
-        Ok(self.validator_api.get_mixnode_status(mix_id).await?)
+        Ok(self.nym_api_client.get_mixnode_status(mix_id).await?)
     }
 
     pub async fn get_mixnode_reward_estimation(
@@ -899,7 +897,7 @@ impl ApiClient {
         mix_id: MixId,
     ) -> Result<RewardEstimationResponse, ValidatorClientError> {
         Ok(self
-            .validator_api
+            .nym_api_client
             .get_mixnode_reward_estimation(mix_id)
             .await?)
     }
@@ -909,7 +907,7 @@ impl ApiClient {
         mix_id: MixId,
     ) -> Result<StakeSaturationResponse, ValidatorClientError> {
         Ok(self
-            .validator_api
+            .nym_api_client
             .get_mixnode_stake_saturation(mix_id)
             .await?)
     }
@@ -918,7 +916,7 @@ impl ApiClient {
         &self,
         request_body: &BlindSignRequestBody,
     ) -> Result<BlindedSignatureResponse, ValidatorClientError> {
-        Ok(self.validator_api.blind_sign(request_body).await?)
+        Ok(self.nym_api_client.blind_sign(request_body).await?)
     }
 
     pub async fn partial_bandwidth_credential(
@@ -926,7 +924,7 @@ impl ApiClient {
         request_body: &str,
     ) -> Result<BlindedSignatureResponse, ValidatorClientError> {
         Ok(self
-            .validator_api
+            .nym_api_client
             .partial_bandwidth_credential(request_body)
             .await?)
     }
@@ -936,7 +934,7 @@ impl ApiClient {
         request_body: &VerifyCredentialBody,
     ) -> Result<VerifyCredentialResponse, ValidatorClientError> {
         Ok(self
-            .validator_api
+            .nym_api_client
             .verify_bandwidth_credential(request_body)
             .await?)
     }

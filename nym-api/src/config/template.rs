@@ -6,11 +6,11 @@ pub(crate) fn config_template() -> &'static str {
 # This is a TOML config file.
 # For more information, see https://github.com/toml-lang/toml
 
-##### main base validator-api config options #####
+##### main base nym-api config options #####
 
 [base]
 
-# ID specifies the human readable ID of this particular validator-api.
+# ID specifies the human readable ID of this particular nym-api.
 id = '{{ base.id }}'
 
 # Validator server to which the API will be getting information about the network.

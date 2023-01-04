@@ -31,8 +31,8 @@ validator_urls = [
 ]
 
 # Addresses to APIs running on validator from which the client gets the view of the network.
-validator_api_urls = [
-    {{#each client.validator_api_urls }}
+nym_api_urls = [
+    {{#each client.nym_api_urls }}
         '{{this}}',
     {{/each}}
 ]

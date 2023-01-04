@@ -18,8 +18,8 @@ use dkg::bte::keys::KeyPair as DkgKeyPair;
 use rand::rngs::OsRng;
 use rand::RngCore;
 use std::path::PathBuf;
-use std::time::Duration;
-use task::ShutdownListener;
+use std::time::{Duration, SystemTime};
+use task::TaskClient;
 use tokio::time::interval;
 use validator_client::nymd::SigningNymdClient;
 
@@ -83,16 +83,16 @@ impl<R: RngCore + Clone> DkgController<R> {
     }
 
     pub(crate) async fn handle_epoch_state(&mut self) {
-        match self.dkg_client.get_current_epoch_state().await {
+        match self.dkg_client.get_current_epoch().await {
             Err(e) => warn!("Could not get current epoch state {}", e),
-            Ok(epoch_state) => {
-                if let Err(e) = self.state.is_consistent(epoch_state).await {
+            Ok(epoch) => {
+                if let Err(e) = self.state.is_consistent(epoch.state).await {
                     error!(
                         "Epoch state is corrupted - {}, the process should be terminated",
                         e
                     );
                 }
-                let ret = match epoch_state {
+                let ret = match epoch.state {
                     EpochState::PublicKeySubmission => {
                         public_key_submission(&self.dkg_client, &mut self.state).await
                     }
@@ -122,7 +122,7 @@ impl<R: RngCore + Clone> DkgController<R> {
                 };
                 if let Err(e) = ret {
                     warn!("Could not handle this iteration for the epoch state: {}", e);
-                } else if epoch_state != EpochState::InProgress {
+                } else if epoch.state != EpochState::InProgress {
                     let persistent_state = PersistentState::from(&self.state);
                     if let Err(e) =
                         persistent_state.save_to_file(self.state.persistent_state_path())
@@ -130,11 +130,20 @@ impl<R: RngCore + Clone> DkgController<R> {
                         warn!("Could not backup the state for this iteration: {}", e);
                     }
                 }
+                if let Ok(current_timestamp) =
+                    SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)
+                {
+                    if current_timestamp.as_secs() >= epoch.finish_timestamp.seconds() {
+                        // We try advancing the epoch state, on a best-effort basis
+                        info!("Trying to advance the epoch");
+                        self.dkg_client.advance_epoch_state().await.ok();
+                    }
+                }
             }
         }
     }
 
-    pub(crate) async fn run(mut self, mut shutdown: ShutdownListener) {
+    pub(crate) async fn run(mut self, mut shutdown: TaskClient) {
         let mut interval = interval(self.polling_rate);
         while !shutdown.is_shutdown() {
             tokio::select! {

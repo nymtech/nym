@@ -176,8 +176,8 @@ impl<T> Config<T> {
         self.client.validator_urls = validator_urls;
     }
 
-    pub fn set_custom_validator_apis(&mut self, validator_api_urls: Vec<Url>) {
-        self.client.validator_api_urls = validator_api_urls;
+    pub fn set_custom_nym_apis(&mut self, nym_api_urls: Vec<Url>) {
+        self.client.nym_api_urls = nym_api_urls;
     }
 
     pub fn set_high_default_traffic_volume(&mut self) {
@@ -237,8 +237,8 @@ impl<T> Config<T> {
         self.client.validator_urls.clone()
     }
 
-    pub fn get_validator_api_endpoints(&self) -> Vec<Url> {
-        self.client.validator_api_urls.clone()
+    pub fn get_nym_api_endpoints(&self) -> Vec<Url> {
+        self.client.nym_api_urls.clone()
     }
 
     pub fn get_gateway_id(&self) -> String {
@@ -425,7 +425,8 @@ pub struct Client<T> {
     validator_urls: Vec<Url>,
 
     /// Addresses to APIs running on validator from which the client gets the view of the network.
-    validator_api_urls: Vec<Url>,
+    #[serde(alias = "validator_api_urls")]
+    nym_api_urls: Vec<Url>,
 
     /// Path to file containing private identity key.
     private_identity_key_file: PathBuf,
@@ -476,7 +477,7 @@ impl<T: NymConfig> Default for Client<T> {
             id: "".to_string(),
             disabled_credentials_mode: true,
             validator_urls: vec![],
-            validator_api_urls: vec![],
+            nym_api_urls: vec![],
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),
             private_encryption_key_file: Default::default(),

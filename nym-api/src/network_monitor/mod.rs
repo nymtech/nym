@@ -6,7 +6,7 @@ use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
 use std::sync::Arc;
-use task::ShutdownNotifier;
+use task::TaskManager;
 use validator_client::nymd::SigningNymdClient;
 
 use crate::config::Config;
@@ -22,7 +22,7 @@ use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::monitor::Monitor;
 use crate::nymd_client::Client;
-use crate::storage::ValidatorApiStorage;
+use crate::storage::NymApiStorage;
 
 pub(crate) mod chunker;
 pub(crate) mod gateways_reader;
@@ -36,7 +36,7 @@ pub(crate) struct NetworkMonitorBuilder<'a> {
     config: &'a Config,
     _nymd_client: Client<SigningNymdClient>,
     system_version: String,
-    node_status_storage: ValidatorApiStorage,
+    node_status_storage: NymApiStorage,
     validator_cache: ValidatorCache,
 }
 
@@ -45,7 +45,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
         config: &'a Config,
         _nymd_client: Client<SigningNymdClient>,
         system_version: &str,
-        node_status_storage: ValidatorApiStorage,
+        node_status_storage: NymApiStorage,
         validator_cache: ValidatorCache,
     ) -> Self {
         NetworkMonitorBuilder {
@@ -142,7 +142,7 @@ impl NetworkMonitorRunnables {
     // TODO: note, that is not exactly doing what we want, because when
     // `ReceivedProcessor` is constructed, it already spawns a future
     // this needs to be refactored!
-    pub(crate) fn spawn_tasks(self, shutdown: &ShutdownNotifier) {
+    pub(crate) fn spawn_tasks(self, shutdown: &TaskManager) {
         let mut packet_receiver = self.packet_receiver;
         let mut monitor = self.monitor;
         let shutdown_listener = shutdown.subscribe();

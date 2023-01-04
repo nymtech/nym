@@ -18,7 +18,7 @@ pub(crate) fn execute(args: &Describe) {
     match Config::load_from_file(Some(&args.id)) {
         Ok(cfg) => cfg,
         Err(err) => {
-            error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})", &args.id, err);
+            error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {err})", &args.id);
             return;
         }
     };

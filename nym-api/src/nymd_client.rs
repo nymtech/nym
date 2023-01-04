@@ -3,7 +3,7 @@
 
 use crate::config::Config;
 use crate::epoch_operations::MixnodeToReward;
-use config::defaults::{NymNetworkDetails, DEFAULT_VALIDATOR_API_PORT};
+use config::defaults::{NymNetworkDetails, DEFAULT_NYM_API_PORT};
 use mixnet_contract_common::families::{Family, FamilyHead};
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::RewardingParams;
@@ -30,7 +30,7 @@ use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse
 #[cfg(feature = "coconut")]
 use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
 #[cfg(feature = "coconut")]
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState};
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch};
 #[cfg(feature = "coconut")]
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 #[cfg(feature = "coconut")]
@@ -59,7 +59,7 @@ impl Client<QueryNymdClient> {
     pub(crate) fn new_query(config: &Config) -> Self {
         // the api address is irrelevant here as **WE ARE THE API**
         // and we won't be talking on the socket here.
-        let api_url = format!("http://localhost:{}", DEFAULT_VALIDATOR_API_PORT)
+        let api_url = format!("http://localhost:{}", DEFAULT_NYM_API_PORT)
             .parse()
             .unwrap();
         let nymd_url = config.get_nymd_validator_url();
@@ -82,7 +82,7 @@ impl Client<SigningNymdClient> {
     pub(crate) fn new_signing(config: &Config) -> Self {
         // the api address is irrelevant here as **WE ARE THE API**
         // and we won't be talking on the socket here.
-        let api_url = format!("http://localhost:{}", DEFAULT_VALIDATOR_API_PORT)
+        let api_url = format!("http://localhost:{}", DEFAULT_NYM_API_PORT)
             .parse()
             .unwrap();
         let nymd_url = config.get_nymd_validator_url();
@@ -329,8 +329,8 @@ where
             .await?)
     }
 
-    async fn get_current_epoch_state(&self) -> crate::coconut::error::Result<EpochState> {
-        Ok(self.0.read().await.nymd.get_current_epoch_state().await?)
+    async fn get_current_epoch(&self) -> crate::coconut::error::Result<Epoch> {
+        Ok(self.0.read().await.nymd.get_current_epoch().await?)
     }
 
     async fn get_current_epoch_threshold(
@@ -401,6 +401,16 @@ where
             .await
             .nymd
             .execute_proposal(proposal_id, None)
+            .await?;
+        Ok(())
+    }
+
+    async fn advance_epoch_state(&self) -> crate::coconut::error::Result<()> {
+        self.0
+            .write()
+            .await
+            .nymd
+            .advance_dkg_epoch_state(None)
             .await?;
         Ok(())
     }

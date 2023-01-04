@@ -59,7 +59,7 @@ impl PacketForwarder {
                 self.mixnet_client
                     .send_without_response(next_hop, sphinx_packet, packet_mode)
             {
-                debug!("failed to forward the packet - {}", err)
+                debug!("failed to forward the packet - {err}")
             }
         }
     }

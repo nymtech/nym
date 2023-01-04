@@ -8,7 +8,7 @@ use coconut_bandwidth_contract_common::events::{
 use credentials::coconut::bandwidth::BandwidthVoucher;
 use crypto::asymmetric::encryption;
 use crypto::asymmetric::identity::{self, Signature};
-use validator_api_requests::coconut::BlindSignRequestBody;
+use nym_api_requests::coconut::BlindSignRequestBody;
 use validator_client::nymd::TxResponse;
 
 use super::error::{CoconutError, Result};
@@ -164,17 +164,13 @@ mod test {
         let err = extract_encryption_key(&req, tx_entry.clone())
             .await
             .unwrap_err();
-        assert_eq!(
-            err.to_string(),
+
+        assert!(matches!(
+            err,
             CoconutError::Ed25519ParseError(
-                // this is really just a useless, dummy error value needed to generate the error type
-                // and get its string representation
-                crypto::asymmetric::identity::Ed25519RecoveryError::MalformedBytes(
-                    crypto::asymmetric::identity::SignatureError::new(),
-                ),
+                crypto::asymmetric::identity::Ed25519RecoveryError::MalformedSignatureString { .. }
             )
-            .to_string()
-        );
+        ));
 
         let correct_request = BlindSignRequestBody::new(
             &blind_sign_req,
@@ -279,17 +275,13 @@ mod test {
         let err = extract_encryption_key(&correct_request, tx_entry.clone())
             .await
             .unwrap_err();
-        assert_eq!(
-            err.to_string(),
+
+        assert!(matches!(
+            err,
             CoconutError::Ed25519ParseError(
-                // this is really just a useless, dummy error value needed to generate the error type
-                // and get its string representation
-                crypto::asymmetric::identity::Ed25519RecoveryError::MalformedBytes(
-                    crypto::asymmetric::identity::SignatureError::new(),
-                ),
+                crypto::asymmetric::identity::Ed25519RecoveryError::MalformedPublicKeyString { .. }
             )
-            .to_string(),
-        );
+        ));
 
         tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![
             Tag {
@@ -338,15 +330,13 @@ mod test {
         let err = extract_encryption_key(&correct_request, tx_entry.clone())
             .await
             .unwrap_err();
-        assert_eq!(
-            err.to_string(),
+
+        assert!(matches!(
+            err,
             CoconutError::X25519ParseError(
-                // this is really just a useless, dummy error value needed to generate the error type
-                // and get its string representation
-                crypto::asymmetric::encryption::KeyRecoveryError::InvalidPublicKeyBytes,
+                crypto::asymmetric::encryption::KeyRecoveryError::MalformedPublicKeyString { .. }
             )
-            .to_string(),
-        );
+        ));
 
         let expected_encryption_key = "HxnTpWTkgigSTAysVKLE8pEiUULHdTT1BxFfzfJvQRi6";
         tx_entry.tx_result.events.get_mut(0).unwrap().attributes = vec![

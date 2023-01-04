@@ -155,8 +155,8 @@ impl Config {
         self
     }
 
-    pub fn with_custom_validator_apis(mut self, validator_api_urls: Vec<Url>) -> Self {
-        self.mixnode.validator_api_urls = validator_api_urls;
+    pub fn with_custom_nym_apis(mut self, nym_api_urls: Vec<Url>) -> Self {
+        self.mixnode.nym_api_urls = nym_api_urls;
         self
     }
 
@@ -233,8 +233,8 @@ impl Config {
         self.mixnode.public_sphinx_key_file.clone()
     }
 
-    pub fn get_validator_api_endpoints(&self) -> Vec<Url> {
-        self.mixnode.validator_api_urls.clone()
+    pub fn get_nym_api_endpoints(&self) -> Vec<Url> {
+        self.mixnode.nym_api_urls.clone()
     }
 
     pub fn get_node_stats_logging_delay(&self) -> Duration {
@@ -369,8 +369,8 @@ struct MixNode {
     /// Path to file containing public sphinx key.
     public_sphinx_key_file: PathBuf,
 
-    /// Addresses to APIs running on validator from which the node gets the view of the network.
-    validator_api_urls: Vec<Url>,
+    /// Addresses to nym APIs from which the node gets the view of the network.
+    nym_api_urls: Vec<Url>,
 
     /// nym_home_directory specifies absolute path to the home nym MixNodes directory.
     /// It is expected to use default value and hence .toml file should not redefine this field.
@@ -412,7 +412,7 @@ impl Default for MixNode {
             public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
-            validator_api_urls: vec![Url::from_str(API_VALIDATOR).expect("Invalid default API URL")],
+            nym_api_urls: vec![Url::from_str(API_VALIDATOR).expect("Invalid default API URL")],
             nym_root_directory: Config::default_root_directory(),
             wallet_address: "nymXXXXXXXX".to_string(),
         }

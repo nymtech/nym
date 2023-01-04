@@ -13,31 +13,26 @@ pub(crate) async fn retrieve_mixnode_econ_stats(
 ) -> Option<EconomicDynamicsStats> {
     let stake_saturation = client
         .0
-        .validator_api
+        .nym_api
         .get_mixnode_stake_saturation(mix_id)
         .await
         .ok()?;
 
     let inclusion_probability = client
         .0
-        .validator_api
+        .nym_api
         .get_mixnode_inclusion_probability(mix_id)
         .await
         .ok()?;
 
     let reward_estimation = client
         .0
-        .validator_api
+        .nym_api
         .get_mixnode_reward_estimation(mix_id)
         .await
         .ok()?;
 
-    let uptime_response = client
-        .0
-        .validator_api
-        .get_mixnode_avg_uptime(mix_id)
-        .await
-        .ok()?;
+    let uptime_response = client.0.nym_api.get_mixnode_avg_uptime(mix_id).await.ok()?;
 
     Some(EconomicDynamicsStats {
         stake_saturation: best_effort_small_dec_to_f64(stake_saturation.saturation) as f32,

@@ -3,7 +3,7 @@
 
 use network_defaults::NymNetworkDetails;
 use nym_cli_commands::context::{
-    create_signing_client, create_signing_client_with_validator_api, ClientArgs,
+    create_signing_client, create_signing_client_with_nym_api, ClientArgs,
 };
 
 pub(crate) mod rewards;
@@ -24,7 +24,7 @@ pub(crate) async fn execute(
             nym_cli_commands::validator::mixnet::delegators::undelegate_from_mixnode::undelegate_from_mixnode(args, create_signing_client(global_args, network_details)?).await
         }
         nym_cli_commands::validator::mixnet::delegators::MixnetDelegatorsCommands::List(args) => {
-            nym_cli_commands::validator::mixnet::delegators::query_for_delegations::execute(args, create_signing_client_with_validator_api(global_args, network_details)?).await
+            nym_cli_commands::validator::mixnet::delegators::query_for_delegations::execute(args, create_signing_client_with_nym_api(global_args, network_details)?).await
         }
         _ => unreachable!(),
     }

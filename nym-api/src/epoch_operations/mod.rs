@@ -15,7 +15,7 @@
 use crate::contract_cache::ValidatorCache;
 use crate::nymd_client::Client;
 use crate::storage::models::RewardingReport;
-use crate::storage::ValidatorApiStorage;
+use crate::storage::NymApiStorage;
 use mixnet_contract_common::families::FamilyHead;
 use mixnet_contract_common::{
     reward_params::Performance, CurrentIntervalResponse, ExecuteMsg, Interval, MixId,
@@ -35,7 +35,7 @@ mod helpers;
 use crate::epoch_operations::helpers::stake_to_f64;
 use crate::node_status_api::ONE_DAY;
 use error::RewardingError;
-use task::ShutdownListener;
+use task::TaskClient;
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct MixnodeToReward {
@@ -56,7 +56,7 @@ impl From<MixnodeToReward> for ExecuteMsg {
 pub struct RewardedSetUpdater {
     nymd_client: Client<SigningNymdClient>,
     validator_cache: ValidatorCache,
-    storage: ValidatorApiStorage,
+    storage: NymApiStorage,
 }
 
 // Weight of a layer being chose is reciprocal to current count in layer
@@ -79,7 +79,7 @@ impl RewardedSetUpdater {
     pub(crate) async fn new(
         nymd_client: Client<SigningNymdClient>,
         validator_cache: ValidatorCache,
-        storage: ValidatorApiStorage,
+        storage: NymApiStorage,
     ) -> Result<Self, RewardingError> {
         Ok(RewardedSetUpdater {
             nymd_client,
@@ -208,7 +208,7 @@ impl RewardedSetUpdater {
         let rewarded_set: Vec<MixId> = match self.nymd_client.get_rewarded_set_mixnodes().await {
             Ok(nodes) => nodes.into_iter().map(|(id, _)| id).collect::<Vec<_>>(),
             Err(err) => {
-                warn!("failed to obtain the current rewarded set - {}. falling back to the cached version", err);
+                warn!("failed to obtain the current rewarded set - {err}. falling back to the cached version");
                 self.validator_cache
                     .rewarded_set()
                     .await
@@ -285,7 +285,7 @@ impl RewardedSetUpdater {
         // Reward all the nodes in the still current, soon to be previous rewarded set
         log::info!("Rewarding the current rewarded set...");
         if let Err(err) = self.reward_current_rewarded_set(interval).await {
-            log::error!("FAILED to reward rewarded set - {}", err);
+            log::error!("FAILED to reward rewarded set - {err}");
             // since we haven't advanced the epoch yet, we will attempt to reward those nodes again
             // next time we enter this function (i.e. within 2min or so)
             //
@@ -303,7 +303,7 @@ impl RewardedSetUpdater {
 
         log::info!("Reconciling all pending epoch events...");
         if let Err(err) = self.nymd_client.reconcile_epoch_events().await {
-            log::error!("FAILED to reconcile epoch events... - {}", err);
+            log::error!("FAILED to reconcile epoch events... - {err}");
             return Err(err.into());
         } else {
             log::info!("Reconciled all pending epoch events... SUCCESS");
@@ -314,7 +314,7 @@ impl RewardedSetUpdater {
             .update_rewarded_set_and_advance_epoch(&all_mixnodes)
             .await
         {
-            log::error!("FAILED to advance the current epoch... - {}", err);
+            log::error!("FAILED to advance the current epoch... - {err}");
             return Err(err);
         } else {
             log::info!("Advanced the epoch and updated the rewarded set... SUCCESS");
@@ -373,7 +373,7 @@ impl RewardedSetUpdater {
         Ok(())
     }
 
-    async fn wait_until_epoch_end(&mut self, shutdown: &mut ShutdownListener) -> Option<Interval> {
+    async fn wait_until_epoch_end(&mut self, shutdown: &mut TaskClient) -> Option<Interval> {
         const POLL_INTERVAL: Duration = Duration::from_secs(120);
 
         loop {
@@ -421,10 +421,7 @@ impl RewardedSetUpdater {
         }
     }
 
-    pub(crate) async fn run(
-        &mut self,
-        mut shutdown: ShutdownListener,
-    ) -> Result<(), RewardingError> {
+    pub(crate) async fn run(&mut self, mut shutdown: TaskClient) -> Result<(), RewardingError> {
         self.validator_cache.wait_for_initial_values().await;
 
         while !shutdown.is_shutdown() {
@@ -434,11 +431,11 @@ impl RewardedSetUpdater {
                 Some(interval) => interval,
             };
             if let Err(err) = self.update_blacklist(&interval_details).await {
-                error!("failed to update the node blacklist - {}", err);
+                error!("failed to update the node blacklist - {err}");
                 continue;
             }
             if let Err(err) = self.perform_epoch_operations(interval_details).await {
-                error!("failed to perform epoch operations - {}", err);
+                error!("failed to perform epoch operations - {err}");
                 sleep(Duration::from_secs(30)).await;
             }
         }

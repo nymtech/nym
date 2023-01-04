@@ -15,32 +15,32 @@ use config::defaults::VOUCHER_INFO;
 use cosmwasm_std::{to_binary, Addr, CosmosMsg, Decimal, WasmMsg};
 use credentials::coconut::bandwidth::BandwidthVoucher;
 use credentials::coconut::params::{
-    ValidatorApiCredentialEncryptionAlgorithm, ValidatorApiCredentialHkdfAlgorithm,
+    NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
 };
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
+use nym_api_requests::coconut::{
+    BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
+};
 use nymcoconut::tests::helpers::theta_from_keys_and_attributes;
 use nymcoconut::{
     prepare_blind_sign, ttp_keygen, Base58, BlindSignRequest, BlindedSignature, Parameters,
 };
-use validator_api_requests::coconut::{
-    BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
-};
-use validator_client::nymd::Coin;
-use validator_client::nymd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
-use validator_client::validator_api::routes::{
+use validator_client::nym_api::routes::{
     API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL,
     COCONUT_ROUTES, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
 };
+use validator_client::nymd::Coin;
+use validator_client::nymd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
 
 use crate::coconut::State;
-use crate::ValidatorApiStorage;
+use crate::NymApiStorage;
 use async_trait::async_trait;
 use coconut_dkg_common::dealer::{
     ContractDealing, DealerDetails, DealerDetailsResponse, DealerType,
 };
 use coconut_dkg_common::event_attributes::{DKG_PROPOSAL_ID, NODE_INDEX};
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState, TOTAL_DEALINGS};
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch, TOTAL_DEALINGS};
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use contracts_common::dealings::ContractSafeBytes;
 use crypto::asymmetric::{encryption, identity};
@@ -66,7 +66,7 @@ pub(crate) struct DummyClient {
     proposal_db: Arc<RwLock<HashMap<u64, ProposalResponse>>>,
     spent_credential_db: Arc<RwLock<HashMap<String, SpendCredentialResponse>>>,
 
-    epoch_state: Arc<RwLock<EpochState>>,
+    epoch: Arc<RwLock<Epoch>>,
     dealer_details: Arc<RwLock<HashMap<String, DealerDetails>>>,
     threshold: Arc<RwLock<Option<Threshold>>>,
     dealings: Arc<RwLock<HashMap<String, Vec<ContractSafeBytes>>>>,
@@ -80,7 +80,7 @@ impl DummyClient {
             tx_db: Arc::new(RwLock::new(HashMap::new())),
             proposal_db: Arc::new(RwLock::new(HashMap::new())),
             spent_credential_db: Arc::new(RwLock::new(HashMap::new())),
-            epoch_state: Arc::new(RwLock::new(EpochState::default())),
+            epoch: Arc::new(RwLock::new(Epoch::default())),
             dealer_details: Arc::new(RwLock::new(HashMap::new())),
             threshold: Arc::new(RwLock::new(None)),
             dealings: Arc::new(RwLock::new(HashMap::new())),
@@ -109,8 +109,8 @@ impl DummyClient {
         self
     }
 
-    pub fn _with_epoch_state(mut self, epoch_state: &Arc<RwLock<EpochState>>) -> Self {
-        self.epoch_state = Arc::clone(epoch_state);
+    pub fn _with_epoch(mut self, epoch: &Arc<RwLock<Epoch>>) -> Self {
+        self.epoch = Arc::clone(epoch);
         self
     }
 
@@ -188,8 +188,8 @@ impl super::client::Client for DummyClient {
             })
     }
 
-    async fn get_current_epoch_state(&self) -> Result<EpochState> {
-        Ok(*self.epoch_state.read().unwrap())
+    async fn get_current_epoch(&self) -> Result<Epoch> {
+        Ok(*self.epoch.read().unwrap())
     }
 
     async fn get_current_epoch_threshold(&self) -> Result<Option<Threshold>> {
@@ -271,6 +271,10 @@ impl super::client::Client for DummyClient {
                 }
             });
         Ok(())
+    }
+
+    async fn advance_epoch_state(&self) -> Result<()> {
+        todo!()
     }
 
     async fn register_dealer(
@@ -456,7 +460,7 @@ async fn signed_before() {
     let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
-    let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
+    let storage = NymApiStorage::init(db_dir).await.unwrap();
     let tx_db = Arc::new(RwLock::new(HashMap::new()));
     tx_db
         .write()
@@ -532,7 +536,7 @@ async fn state_functions() {
     let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
-    let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
+    let storage = NymApiStorage::init(db_dir).await.unwrap();
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
     staged_key_pair.set(key_pair).await;
@@ -601,11 +605,11 @@ async fn state_functions() {
         crypto::asymmetric::encryption::PublicKey::from_bytes(&response.remote_key).unwrap();
 
     let encryption_key = recompute_shared_key::<
-        ValidatorApiCredentialEncryptionAlgorithm,
-        ValidatorApiCredentialHkdfAlgorithm,
+        NymApiCredentialEncryptionAlgorithm,
+        NymApiCredentialHkdfAlgorithm,
     >(&remote_key, encryption_keypair.private_key());
-    let zero_iv = stream_cipher::zero_iv::<ValidatorApiCredentialEncryptionAlgorithm>();
-    let blinded_signature_bytes = stream_cipher::decrypt::<ValidatorApiCredentialEncryptionAlgorithm>(
+    let zero_iv = stream_cipher::zero_iv::<NymApiCredentialEncryptionAlgorithm>();
+    let blinded_signature_bytes = stream_cipher::decrypt::<NymApiCredentialEncryptionAlgorithm>(
         &encryption_key,
         &zero_iv,
         &response.encrypted_signature,
@@ -665,7 +669,7 @@ async fn blind_sign_correct() {
     let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
-    let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
+    let storage = NymApiStorage::init(db_dir).await.unwrap();
     let tx_db = Arc::new(RwLock::new(HashMap::new()));
 
     let mut tx_entry = tx_entry_fixture(&tx_hash.to_string());
@@ -776,7 +780,7 @@ async fn signature_test() {
     let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
-    let storage = ValidatorApiStorage::init(db_dir).await.unwrap();
+    let storage = NymApiStorage::init(db_dir).await.unwrap();
     let nymd_client =
         DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap());
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
@@ -865,7 +869,7 @@ async fn verification_of_bandwidth_credential() {
         theta_from_keys_and_attributes(&params, &key_pairs, &indices, &public_attributes).unwrap();
     let key_pair = key_pairs.remove(0);
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
-    let storage1 = ValidatorApiStorage::init(db_dir).await.unwrap();
+    let storage1 = NymApiStorage::init(db_dir).await.unwrap();
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
     staged_key_pair.set(key_pair).await;

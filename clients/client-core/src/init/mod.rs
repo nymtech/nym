@@ -96,7 +96,7 @@ where
 {
     println!("Configuring gateway");
     let gateway =
-        query_gateway_details(config.get_validator_api_endpoints(), user_chosen_gateway_id).await?;
+        query_gateway_details(config.get_nym_api_endpoints(), user_chosen_gateway_id).await?;
     log::debug!("Querying gateway gives: {}", gateway);
 
     // Registering with gateway by setting up and writing shared keys to disk
@@ -120,11 +120,8 @@ where
     T: NymConfig,
 {
     println!("Using gateway provided by user, keeping existing keys");
-    let gateway = query_gateway_details(
-        config.get_validator_api_endpoints(),
-        Some(user_chosen_gateway_id),
-    )
-    .await?;
+    let gateway =
+        query_gateway_details(config.get_nym_api_endpoints(), Some(user_chosen_gateway_id)).await?;
     log::debug!("Querying gateway gives: {}", gateway);
     Ok(gateway.into())
 }
@@ -209,8 +206,8 @@ pub fn output_to_json<T: Serialize>(init_results: &T, output_file: &str) {
     match std::fs::File::create(output_file) {
         Ok(file) => match serde_json::to_writer_pretty(file, init_results) {
             Ok(_) => println!("Saved: {}", output_file),
-            Err(err) => eprintln!("Could not save {}: {}", output_file, err),
+            Err(err) => eprintln!("Could not save {}: {err}", output_file),
         },
-        Err(err) => eprintln!("Could not save {}: {}", output_file, err),
+        Err(err) => eprintln!("Could not save {}: {err}", output_file),
     }
 }

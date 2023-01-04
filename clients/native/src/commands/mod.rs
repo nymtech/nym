@@ -1,8 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::error::Error;
+
 use crate::client::config::{Config, SocketType};
-use crate::error::ClientError;
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
 use completions::{fig_generate, ArgShell};
@@ -86,7 +87,7 @@ pub(crate) struct OverrideConfig {
     enabled_credentials_mode: bool,
 }
 
-pub(crate) async fn execute(args: &Cli) -> Result<(), ClientError> {
+pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send + Sync>> {
     let bin_name = "nym-native-client";
 
     match &args.command {
@@ -114,13 +115,13 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
     if let Some(raw_validators) = args.api_validators {
         config
             .get_base_mut()
-            .set_custom_validator_apis(config::parse_validators(&raw_validators));
+            .set_custom_nym_apis(config::parse_validators(&raw_validators));
     } else if std::env::var(network_defaults::var_names::CONFIGURED).is_ok() {
         let raw_validators = std::env::var(network_defaults::var_names::API_VALIDATOR)
             .expect("api validator not set");
         config
             .get_base_mut()
-            .set_custom_validator_apis(config::parse_validators(&raw_validators));
+            .set_custom_nym_apis(config::parse_validators(&raw_validators));
     }
 
     if args.disable_socket {

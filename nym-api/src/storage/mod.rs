@@ -4,8 +4,8 @@
 use crate::network_monitor::monitor::summary_producer::{GatewayResult, MixnodeResult};
 use crate::network_monitor::test_route::TestRoute;
 use crate::node_status_api::models::{
-    GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport, MixnodeUptimeHistory, Uptime,
-    ValidatorApiStorageError,
+    GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport, MixnodeUptimeHistory,
+    NymApiStorageError, Uptime,
 };
 use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
@@ -23,13 +23,13 @@ pub(crate) mod models;
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
-pub(crate) struct ValidatorApiStorage {
+pub(crate) struct NymApiStorage {
     pub manager: StorageManager,
 }
 
-impl ValidatorApiStorage {
-    pub async fn init(database_path: PathBuf) -> Result<Self, ValidatorApiStorageError> {
-        // TODO: we can inject here more stuff based on our validator-api global config
+impl NymApiStorage {
+    pub async fn init(database_path: PathBuf) -> Result<Self, NymApiStorageError> {
+        // TODO: we can inject here more stuff based on our nym-api global config
         // struct. Maybe different pool size or timeout intervals?
         let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(&database_path)
@@ -41,31 +41,27 @@ impl ValidatorApiStorage {
 
         let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {
             Ok(db) => db,
-            Err(e) => {
-                error!("Failed to connect to SQLx database: {}", e);
-                return Err(ValidatorApiStorageError::InternalDatabaseError(
-                    e.to_string(),
-                ));
+            Err(err) => {
+                error!("Failed to connect to SQLx database: {err}");
+                return Err(err.into());
             }
         };
 
-        if let Err(e) = sqlx::migrate!("./migrations").run(&connection_pool).await {
-            error!("Failed to initialize SQLx database: {}", e);
-            return Err(ValidatorApiStorageError::InternalDatabaseError(
-                e.to_string(),
-            ));
+        if let Err(err) = sqlx::migrate!("./migrations").run(&connection_pool).await {
+            error!("Failed to initialize SQLx database: {err}");
+            return Err(err.into());
         }
 
         info!("Database migration finished!");
 
-        let storage = ValidatorApiStorage {
+        let storage = NymApiStorage {
             manager: StorageManager { connection_pool },
         };
 
         Ok(storage)
     }
 
-    pub(crate) fn stage(storage: ValidatorApiStorage) -> AdHoc {
+    pub(crate) fn stage(storage: NymApiStorage) -> AdHoc {
         AdHoc::try_on_ignite("SQLx Database", |rocket| async {
             Ok(rocket.manage(storage))
         })
@@ -75,7 +71,7 @@ impl ValidatorApiStorage {
     pub(crate) async fn mix_identity_to_mix_ids(
         &self,
         identity: &str,
-    ) -> Result<Vec<MixId>, ValidatorApiStorageError> {
+    ) -> Result<Vec<MixId>, NymApiStorageError> {
         Ok(self
             .manager
             .get_mixnode_mix_ids_by_identity(identity)
@@ -86,7 +82,7 @@ impl ValidatorApiStorage {
     pub(crate) async fn mix_identity_to_latest_mix_id(
         &self,
         identity: &str,
-    ) -> Result<Option<MixId>, ValidatorApiStorageError> {
+    ) -> Result<Option<MixId>, NymApiStorageError> {
         Ok(self
             .mix_identity_to_mix_ids(identity)
             .await?
@@ -97,7 +93,7 @@ impl ValidatorApiStorage {
     pub(crate) async fn get_all_avg_gateway_reliability_in_last_24hr(
         &self,
         end_ts_secs: i64,
-    ) -> Result<Vec<AvgGatewayReliability>, ValidatorApiStorageError> {
+    ) -> Result<Vec<AvgGatewayReliability>, NymApiStorageError> {
         let result = self
             .manager
             .get_all_avg_gateway_reliability_in_last_24hr(end_ts_secs)
@@ -109,7 +105,7 @@ impl ValidatorApiStorage {
     pub(crate) async fn get_all_avg_mix_reliability_in_last_24hr(
         &self,
         end_ts_secs: i64,
-    ) -> Result<Vec<AvgMixnodeReliability>, ValidatorApiStorageError> {
+    ) -> Result<Vec<AvgMixnodeReliability>, NymApiStorageError> {
         let result = self
             .manager
             .get_all_avg_mix_reliability_in_last_24hr(end_ts_secs)
@@ -129,7 +125,7 @@ impl ValidatorApiStorage {
         &self,
         mix_id: MixId,
         since: i64,
-    ) -> Result<Vec<NodeStatus>, ValidatorApiStorageError> {
+    ) -> Result<Vec<NodeStatus>, NymApiStorageError> {
         let statuses = self
             .manager
             .get_mixnode_statuses_since(mix_id, since)
@@ -149,7 +145,7 @@ impl ValidatorApiStorage {
         &self,
         identity: &str,
         since: i64,
-    ) -> Result<Vec<NodeStatus>, ValidatorApiStorageError> {
+    ) -> Result<Vec<NodeStatus>, NymApiStorageError> {
         let statuses = self
             .manager
             .get_gateway_statuses_since(identity, since)
@@ -166,7 +162,7 @@ impl ValidatorApiStorage {
     pub(crate) async fn construct_mixnode_report(
         &self,
         mix_id: MixId,
-    ) -> Result<MixnodeStatusReport, ValidatorApiStorageError> {
+    ) -> Result<MixnodeStatusReport, NymApiStorageError> {
         let now = OffsetDateTime::now_utc();
         let day_ago = (now - ONE_DAY).unix_timestamp();
         let hour_ago = (now - ONE_HOUR).unix_timestamp();
@@ -175,7 +171,7 @@ impl ValidatorApiStorage {
 
         // if we have no statuses, the node doesn't exist (or monitor is down), but either way, we can't make a report
         if statuses.is_empty() {
-            return Err(ValidatorApiStorageError::MixnodeReportNotFound(mix_id));
+            return Err(NymApiStorageError::MixnodeReportNotFound { mix_id });
         }
 
         // determine the number of runs the mixnode should have been online for
@@ -210,7 +206,7 @@ impl ValidatorApiStorage {
     pub(crate) async fn construct_gateway_report(
         &self,
         identity: &str,
-    ) -> Result<GatewayStatusReport, ValidatorApiStorageError> {
+    ) -> Result<GatewayStatusReport, NymApiStorageError> {
         let now = OffsetDateTime::now_utc();
         let day_ago = (now - ONE_DAY).unix_timestamp();
         let hour_ago = (now - ONE_HOUR).unix_timestamp();
@@ -219,9 +215,9 @@ impl ValidatorApiStorage {
 
         // if we have no statuses, the node doesn't exist (or monitor is down), but either way, we can't make a report
         if statuses.is_empty() {
-            return Err(ValidatorApiStorageError::GatewayReportNotFound(
-                identity.to_owned(),
-            ));
+            return Err(NymApiStorageError::GatewayReportNotFound {
+                identity: identity.to_owned(),
+            });
         }
 
         // determine the number of runs the gateway should have been online for
@@ -249,13 +245,11 @@ impl ValidatorApiStorage {
     pub(crate) async fn get_mixnode_uptime_history(
         &self,
         mix_id: MixId,
-    ) -> Result<MixnodeUptimeHistory, ValidatorApiStorageError> {
+    ) -> Result<MixnodeUptimeHistory, NymApiStorageError> {
         let history = self.manager.get_mixnode_historical_uptimes(mix_id).await?;
 
         if history.is_empty() {
-            return Err(ValidatorApiStorageError::MixnodeUptimeHistoryNotFound(
-                mix_id,
-            ));
+            return Err(NymApiStorageError::MixnodeUptimeHistoryNotFound { mix_id });
         }
 
         let mixnode_owner =
@@ -279,16 +273,16 @@ impl ValidatorApiStorage {
     pub(crate) async fn get_gateway_uptime_history(
         &self,
         identity: &str,
-    ) -> Result<GatewayUptimeHistory, ValidatorApiStorageError> {
+    ) -> Result<GatewayUptimeHistory, NymApiStorageError> {
         let history = self
             .manager
             .get_gateway_historical_uptimes(identity)
             .await?;
 
         if history.is_empty() {
-            return Err(ValidatorApiStorageError::GatewayUptimeHistoryNotFound(
-                identity.to_owned(),
-            ));
+            return Err(NymApiStorageError::GatewayUptimeHistoryNotFound {
+                identity: identity.to_owned(),
+            });
         }
 
         let gateway_owner =
@@ -307,7 +301,7 @@ impl ValidatorApiStorage {
         &self,
         mix_id: MixId,
         end_ts_secs: i64,
-    ) -> Result<Uptime, ValidatorApiStorageError> {
+    ) -> Result<Uptime, NymApiStorageError> {
         let start = end_ts_secs - 86400;
         self.get_average_mixnode_uptime_in_time_interval(mix_id, start, end_ts_secs)
             .await
@@ -326,7 +320,7 @@ impl ValidatorApiStorage {
         mix_id: MixId,
         start: i64,
         end: i64,
-    ) -> Result<Uptime, ValidatorApiStorageError> {
+    ) -> Result<Uptime, NymApiStorageError> {
         let mixnode_database_id = match self.manager.get_mixnode_database_id(mix_id).await? {
             Some(id) => id,
             None => return Ok(Uptime::zero()),
@@ -356,7 +350,7 @@ impl ValidatorApiStorage {
         &self,
         start: i64,
         end: i64,
-    ) -> Result<Vec<MixnodeStatusReport>, ValidatorApiStorageError> {
+    ) -> Result<Vec<MixnodeStatusReport>, NymApiStorageError> {
         if (end - start) as u64 != ONE_DAY.as_secs() {
             warn!("Our current interval length breaks the 24h length assumption")
         }
@@ -400,7 +394,7 @@ impl ValidatorApiStorage {
         &self,
         start: i64,
         end: i64,
-    ) -> Result<Vec<GatewayStatusReport>, ValidatorApiStorageError> {
+    ) -> Result<Vec<GatewayStatusReport>, NymApiStorageError> {
         if (end - start) as u64 != ONE_DAY.as_secs() {
             warn!("Our current interval length breaks the 24h length assumption")
         }
@@ -441,36 +435,42 @@ impl ValidatorApiStorage {
         &self,
         monitor_run_db_id: i64,
         test_route: TestRoute,
-    ) -> Result<(), ValidatorApiStorageError> {
+    ) -> Result<(), NymApiStorageError> {
         // we MUST have those entries in the database, otherwise the route wouldn't have been chosen
         // in the first place
         let layer1_mix_db_id = self
             .manager
             .get_mixnode_database_id(test_route.layer_one_mix().mix_id)
-            .await
-            .map_err(|_| ValidatorApiStorageError::InternalDatabaseError("".to_string()))?
-            .ok_or_else(|| ValidatorApiStorageError::InternalDatabaseError("".to_string()))?;
+            .await?
+            .ok_or_else(|| NymApiStorageError::DatabaseInconsistency {
+                reason: format!("could not get db id for layer1 mixnode from network monitor run {monitor_run_db_id}"),
+            })?;
 
         let layer2_mix_db_id = self
             .manager
             .get_mixnode_database_id(test_route.layer_two_mix().mix_id)
-            .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?
-            .ok_or_else(|| ValidatorApiStorageError::InternalDatabaseError("".to_string()))?;
+            .await?
+            .ok_or_else(|| NymApiStorageError::DatabaseInconsistency {
+                reason: format!("could not get db id for layer2 mixnode from network monitor run {monitor_run_db_id}"),
+            })?;
 
         let layer3_mix_db_id = self
             .manager
             .get_mixnode_database_id(test_route.layer_three_mix().mix_id)
-            .await
-            .map_err(|_| ValidatorApiStorageError::InternalDatabaseError("".to_string()))?
-            .ok_or_else(|| ValidatorApiStorageError::InternalDatabaseError("".to_string()))?;
+            .await?
+            .ok_or_else(|| NymApiStorageError::DatabaseInconsistency {
+                reason: format!("could not get db id for layer3 mixnode from network monitor run {monitor_run_db_id}"),
+            })?;
 
         let gateway_db_id = self
             .manager
             .get_gateway_id(&test_route.gateway().identity_key.to_base58_string())
-            .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?
-            .ok_or_else(|| ValidatorApiStorageError::InternalDatabaseError("".to_string()))?;
+            .await?
+            .ok_or_else(|| NymApiStorageError::DatabaseInconsistency {
+                reason: format!(
+                    "could not get db id for gateway from network monitor run {monitor_run_db_id}"
+                ),
+            })?;
 
         self.manager
             .submit_testing_route_used(TestingRoute {
@@ -480,8 +480,7 @@ impl ValidatorApiStorage {
                 layer3_mix_db_id,
                 monitor_run_db_id,
             })
-            .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?;
+            .await?;
         Ok(())
     }
 
@@ -497,12 +496,8 @@ impl ValidatorApiStorage {
         &self,
         mix_id: MixId,
         since: Option<i64>,
-    ) -> Result<i32, ValidatorApiStorageError> {
-        let db_id = self
-            .manager
-            .get_mixnode_database_id(mix_id)
-            .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?;
+    ) -> Result<i32, NymApiStorageError> {
+        let db_id = self.manager.get_mixnode_database_id(mix_id).await?;
 
         if let Some(node_id) = db_id {
             let since = since
@@ -511,7 +506,7 @@ impl ValidatorApiStorage {
             self.manager
                 .get_mixnode_testing_route_presence_count_since(node_id, since)
                 .await
-                .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
+                .map_err(|err| err.into())
         } else {
             Ok(0)
         }
@@ -529,12 +524,8 @@ impl ValidatorApiStorage {
         &self,
         identity: &str,
         since: Option<i64>,
-    ) -> Result<i32, ValidatorApiStorageError> {
-        let node_id = self
-            .manager
-            .get_gateway_id(identity)
-            .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?;
+    ) -> Result<i32, NymApiStorageError> {
+        let node_id = self.manager.get_gateway_id(identity).await?;
 
         if let Some(node_id) = node_id {
             let since = since
@@ -543,7 +534,7 @@ impl ValidatorApiStorage {
             self.manager
                 .get_gateway_testing_route_presence_count_since(node_id, since)
                 .await
-                .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
+                .map_err(|err| err.into())
         } else {
             Ok(0)
         }
@@ -562,26 +553,20 @@ impl ValidatorApiStorage {
         mixnode_results: Vec<MixnodeResult>,
         gateway_results: Vec<GatewayResult>,
         test_routes: Vec<TestRoute>,
-    ) -> Result<(), ValidatorApiStorageError> {
+    ) -> Result<(), NymApiStorageError> {
         info!("Submitting new node results to the database. There are {} mixnode results and {} gateway results", mixnode_results.len(), gateway_results.len());
 
         let now = OffsetDateTime::now_utc().unix_timestamp();
 
-        let monitor_run_id = self
-            .manager
-            .insert_monitor_run(now)
-            .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?;
+        let monitor_run_id = self.manager.insert_monitor_run(now).await?;
 
         self.manager
             .submit_mixnode_statuses(now, mixnode_results)
-            .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?;
+            .await?;
 
         self.manager
             .submit_gateway_statuses(now, gateway_results)
-            .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?;
+            .await?;
 
         for test_route in test_routes {
             self.insert_test_route(monitor_run_id, test_route).await?;
@@ -600,14 +585,14 @@ impl ValidatorApiStorage {
         &self,
         since: i64,
         until: i64,
-    ) -> Result<usize, ValidatorApiStorageError> {
+    ) -> Result<usize, NymApiStorageError> {
         let run_count = self.manager.get_monitor_runs_count(since, until).await?;
 
         if run_count < 0 {
             // I don't think it's ever possible for SQL to return a negative value from COUNT?
-            return Err(ValidatorApiStorageError::InternalDatabaseError(
-                "Negative run count".to_string(),
-            ));
+            return Err(NymApiStorageError::DatabaseInconsistency {
+                reason: "Negative run count".to_string(),
+            });
         }
         Ok(run_count as usize)
     }
@@ -625,16 +610,11 @@ impl ValidatorApiStorage {
         today_iso_8601: &str,
         mixnode_reports: &[MixnodeStatusReport],
         gateway_reports: &[GatewayStatusReport],
-    ) -> Result<(), ValidatorApiStorageError> {
+    ) -> Result<(), NymApiStorageError> {
         for report in mixnode_reports {
             // if this ever fails, we have a super weird error because we just constructed report for that node
             // and we never delete node data!
-            let node_id = match self
-                .manager
-                .get_mixnode_database_id(report.mix_id)
-                .await
-                .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?
-            {
+            let node_id = match self.manager.get_mixnode_database_id(report.mix_id).await? {
                 Some(node_id) => node_id,
                 None => {
                     error!(
@@ -647,19 +627,13 @@ impl ValidatorApiStorage {
 
             self.manager
                 .insert_mixnode_historical_uptime(node_id, today_iso_8601, report.last_day.u8())
-                .await
-                .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?;
+                .await?;
         }
 
         for report in gateway_reports {
             // if this ever fails, we have a super weird error because we just constructed report for that node
             // and we never delete node data!
-            let node_id = match self
-                .manager
-                .get_gateway_id(&report.identity)
-                .await
-                .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?
-            {
+            let node_id = match self.manager.get_gateway_id(&report.identity).await? {
                 Some(node_id) => node_id,
                 None => {
                     error!(
@@ -672,8 +646,7 @@ impl ValidatorApiStorage {
 
             self.manager
                 .insert_gateway_historical_uptime(node_id, today_iso_8601, report.last_day.u8())
-                .await
-                .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?;
+                .await?;
         }
 
         Ok(())
@@ -682,11 +655,11 @@ impl ValidatorApiStorage {
     pub(crate) async fn check_if_historical_uptimes_exist_for_date(
         &self,
         date_iso_8601: &str,
-    ) -> Result<bool, ValidatorApiStorageError> {
+    ) -> Result<bool, NymApiStorageError> {
         self.manager
             .check_for_historical_uptime_existence(date_iso_8601)
             .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
+            .map_err(|err| err.into())
     }
 
     /// Removes all ipv4 and ipv6 statuses for all mixnodes and gateways that are older than the
@@ -695,49 +668,43 @@ impl ValidatorApiStorage {
     /// # Arguments
     ///
     /// * `until`: timestamp specifying the purge cutoff.
-    pub(crate) async fn purge_old_statuses(
-        &self,
-        until: i64,
-    ) -> Result<(), ValidatorApiStorageError> {
-        self.manager
-            .purge_old_mixnode_statuses(until)
-            .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))?;
+    pub(crate) async fn purge_old_statuses(&self, until: i64) -> Result<(), NymApiStorageError> {
+        self.manager.purge_old_mixnode_statuses(until).await?;
         self.manager
             .purge_old_gateway_statuses(until)
             .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
+            .map_err(|err| err.into())
     }
 
     pub(crate) async fn insert_rewarding_report(
         &self,
         report: RewardingReport,
-    ) -> Result<(), ValidatorApiStorageError> {
+    ) -> Result<(), NymApiStorageError> {
         self.manager
             .insert_rewarding_report(report)
             .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
+            .map_err(|err| err.into())
     }
 
     pub(crate) async fn get_rewarding_report(
         &self,
         absolute_epoch_id: EpochId,
-    ) -> Result<Option<RewardingReport>, ValidatorApiStorageError> {
+    ) -> Result<Option<RewardingReport>, NymApiStorageError> {
         self.manager
             .get_rewarding_report(absolute_epoch_id)
             .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
+            .map_err(|err| err.into())
     }
 
     #[cfg(feature = "coconut")]
     pub(crate) async fn get_blinded_signature_response(
         &self,
         tx_hash: &str,
-    ) -> Result<Option<String>, ValidatorApiStorageError> {
+    ) -> Result<Option<String>, NymApiStorageError> {
         self.manager
             .get_blinded_signature_response(tx_hash)
             .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
+            .map_err(|err| err.into())
     }
 
     #[cfg(feature = "coconut")]
@@ -745,10 +712,10 @@ impl ValidatorApiStorage {
         &self,
         tx_hash: &str,
         blinded_signature_response: &str,
-    ) -> Result<(), ValidatorApiStorageError> {
+    ) -> Result<(), NymApiStorageError> {
         self.manager
             .insert_blinded_signature_response(tx_hash, blinded_signature_response)
             .await
-            .map_err(|e| ValidatorApiStorageError::InternalDatabaseError(e.to_string()))
+            .map_err(|err| err.into())
     }
 }

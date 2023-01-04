@@ -45,7 +45,6 @@ pub(crate) mod tests {
     use crate::verification_key_shares::storage::{
         VERIFICATION_KEY_SHARES_PAGE_DEFAULT_LIMIT, VERIFICATION_KEY_SHARES_PAGE_MAX_LIMIT,
     };
-    use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::Addr;
 
     #[test]
@@ -58,7 +57,6 @@ pub(crate) mod tests {
     #[test]
     fn vk_shares_paged_retrieval_obeys_limits() {
         let mut deps = init_contract();
-        let env = mock_env();
         let limit = 2;
         for n in 0..1000 {
             let vk_share = vk_share_fixture(n);
@@ -75,7 +73,6 @@ pub(crate) mod tests {
     #[test]
     fn vk_shares_paged_retrieval_has_default_limit() {
         let mut deps = init_contract();
-        let env = mock_env();
         for n in 0..1000 {
             let vk_share = vk_share_fixture(n);
             let sender = Addr::unchecked(format!("owner{}", n));
@@ -96,7 +93,6 @@ pub(crate) mod tests {
     #[test]
     fn vk_shares_paged_retrieval_has_max_limit() {
         let mut deps = init_contract();
-        let env = mock_env();
         for n in 0..1000 {
             let vk_share = vk_share_fixture(n);
             let sender = Addr::unchecked(format!("owner{}", n));
@@ -117,7 +113,6 @@ pub(crate) mod tests {
     #[test]
     fn vk_shares_pagination_works() {
         let mut deps = init_contract();
-        let env = mock_env();
 
         let vk_share = vk_share_fixture(1);
         let sender = Addr::unchecked(format!("owner{}", 1));

@@ -59,7 +59,7 @@ pub(crate) struct Upgrade {
 
 fn parse_config_version(config: &Config) -> Version {
     let version = Version::parse(config.get_base().get_version()).unwrap_or_else(|err| {
-        eprintln!("failed to parse client version! - {:?}", err);
+        eprintln!("failed to parse client version! - {err}");
         process::exit(1)
     });
 
@@ -110,7 +110,7 @@ fn minor_0_12_upgrade(
         .set_custom_version(to_version.to_string().as_ref());
 
     config.save_to_file(None).unwrap_or_else(|err| {
-        eprintln!("failed to overwrite config file! - {:?}", err);
+        eprintln!("failed to overwrite config file! - {err}");
         print_failed_upgrade(config_version, &to_version);
         process::exit(1);
     });
@@ -146,7 +146,7 @@ pub(crate) fn execute(args: &Upgrade) {
     let id = &args.id;
 
     let existing_config = Config::load_from_file(Some(id)).unwrap_or_else(|err| {
-        eprintln!("failed to load existing config file! - {:?}", err);
+        eprintln!("failed to load existing config file! - {err}");
         process::exit(1)
     });
 

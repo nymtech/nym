@@ -189,6 +189,7 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     [
       appVersion,
       mode,
+      appVersion,
       error,
       connectedSince,
       showHelp,

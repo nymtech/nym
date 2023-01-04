@@ -408,7 +408,7 @@ pub mod tests {
             let env = test.env();
 
             // note: we don't have to test for cases where `is_unbonding` is set to true on a mixnode
-            // since before performing the validator-api should clear out the event queue
+            // since before performing the nym-api should clear out the event queue
 
             // manually adjust delegation info as to indicate the rewarding information shouldnt get removed
             let mut rewarding_details = storage::MIXNODE_REWARDING

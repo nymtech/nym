@@ -18,7 +18,7 @@ import { createNymMixnetClient } from '@nymproject/sdk';
 const main = async () => {
   const nym = await createNymMixnetClient();
 
-  const validatorApiUrl = 'https://validator.nymtech.net/api';
+  const nymApiUrl = 'https://validator.nymtech.net/api';
 
   // show message payload content when received 
   nym.events.subscribeToTextMessageReceivedEvent((e) => {
@@ -28,7 +28,7 @@ const main = async () => {
   // start the client and connect to a gateway
   await nym.client.start({
     clientId: 'My awesome client',
-    validatorApiUrl,
+    nymApiUrl,
   });
 
   // send a message to yourself

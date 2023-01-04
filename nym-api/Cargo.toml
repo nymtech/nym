@@ -84,7 +84,7 @@ nymsphinx = { path = "../common/nymsphinx" }
 pemstore = { path = "../common/pemstore", optional = true }
 task = { path = "../common/task" }
 topology = { path = "../common/topology" }
-validator-api-requests = { path = "validator-api-requests" }
+nym-api-requests = { path = "nym-api-requests" }
 validator-client = { path = "../common/client-libs/validator-client", features = [
     "nymd-client",
 ] }
@@ -97,7 +97,7 @@ coconut = [
     "cw3",
     "gateway-client/coconut",
     "credentials/coconut",
-    "validator-api-requests/coconut",
+    "nym-api-requests/coconut",
     "nymcoconut",
     "coconut-dkg-common",
     "dkg",

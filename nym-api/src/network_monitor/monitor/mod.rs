@@ -8,11 +8,11 @@ use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::{SummaryProducer, TestSummary};
 use crate::network_monitor::test_packet::TestPacket;
 use crate::network_monitor::test_route::TestRoute;
-use crate::storage::ValidatorApiStorage;
+use crate::storage::NymApiStorage;
 use log::{debug, error, info};
 use std::collections::{HashMap, HashSet};
 use std::process;
-use task::ShutdownListener;
+use task::TaskClient;
 use tokio::time::{sleep, Duration, Instant};
 
 pub(crate) mod gateway_clients_cache;
@@ -29,7 +29,7 @@ pub(super) struct Monitor {
     packet_sender: PacketSender,
     received_processor: ReceivedProcessor,
     summary_producer: SummaryProducer,
-    node_status_storage: ValidatorApiStorage,
+    node_status_storage: NymApiStorage,
     run_interval: Duration,
     gateway_ping_interval: Duration,
     packet_delivery_timeout: Duration,
@@ -52,7 +52,7 @@ impl Monitor {
         packet_sender: PacketSender,
         received_processor: ReceivedProcessor,
         summary_producer: SummaryProducer,
-        node_status_storage: ValidatorApiStorage,
+        node_status_storage: NymApiStorage,
     ) -> Self {
         Monitor {
             test_nonce: 1,
@@ -301,7 +301,7 @@ impl Monitor {
         self.test_nonce += 1;
     }
 
-    pub(crate) async fn run(&mut self, mut shutdown: ShutdownListener) {
+    pub(crate) async fn run(&mut self, mut shutdown: TaskClient) {
         self.received_processor.start_receiving();
 
         // wait for validator cache to be ready

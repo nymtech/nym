@@ -54,8 +54,8 @@ verloc_port = {{ mixnode.verloc_port }}
 http_api_port = {{ mixnode.http_api_port }}
 
 # Addresses to APIs running on validator from which the node gets the view of the network.
-validator_api_urls = [
-    {{#each mixnode.validator_api_urls }}
+nym_api_urls = [
+    {{#each mixnode.nym_api_urls }}
         '{{this}}',
     {{/each}}
 ]

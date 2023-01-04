@@ -632,7 +632,7 @@ dependencies = [
 
 [[package]]
 name = "client-core"
-version = "1.1.3"
+version = "1.1.4"
 dependencies = [
  "async-trait",
  "client-connections",
@@ -1008,8 +1008,8 @@ dependencies = [
  "bls12_381 0.5.0",
  "coconut-interface",
  "crypto",
+ "nym-api-requests",
  "thiserror",
- "validator-api-requests",
  "validator-client",
 ]
 
@@ -1067,6 +1067,7 @@ dependencies = [
  "pemstore",
  "rand 0.7.3",
  "subtle-encoding",
+ "thiserror",
  "x25519-dalek",
 ]
 
@@ -3380,8 +3381,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-api-requests"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "coconut-interface",
+ "cosmrs",
+ "cosmwasm-std",
+ "getset",
+ "mixnet-contract-common",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "nym-connect"
-version = "1.1.3"
+version = "1.1.4"
 dependencies = [
  "anyhow",
  "bip39",
@@ -3423,7 +3438,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.3"
+version = "1.1.4"
 dependencies = [
  "clap",
  "client-connections",
@@ -3511,6 +3526,7 @@ dependencies = [
  "nymsphinx-types",
  "pemstore",
  "rand 0.7.3",
+ "thiserror",
  "topology",
 ]
 
@@ -3584,6 +3600,7 @@ dependencies = [
  "bytes",
  "nymsphinx-params",
  "nymsphinx-types",
+ "thiserror",
  "tokio-util",
 ]
 
@@ -3593,6 +3610,7 @@ version = "0.1.0"
 dependencies = [
  "crypto",
  "nymsphinx-types",
+ "thiserror",
 ]
 
 [[package]]
@@ -3719,6 +3737,7 @@ name = "ordered-buffer"
 version = "0.1.0"
 dependencies = [
  "log",
+ "thiserror",
 ]
 
 [[package]]
@@ -6462,20 +6481,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "validator-api-requests"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "coconut-interface",
- "cosmrs",
- "cosmwasm-std",
- "getset",
- "mixnet-contract-common",
- "schemars",
- "serde",
-]
-
-[[package]]
 name = "validator-client"
 version = "0.1.0"
 dependencies = [
@@ -6499,6 +6504,7 @@ dependencies = [
  "mixnet-contract-common",
  "multisig-contract-common",
  "network-defaults",
+ "nym-api-requests",
  "prost",
  "reqwest",
  "serde",
@@ -6507,7 +6513,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "url",
- "validator-api-requests",
  "vesting-contract",
  "vesting-contract-common",
 ]

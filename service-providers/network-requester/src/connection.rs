@@ -7,7 +7,7 @@ use proxy_helpers::connection_controller::ConnectionReceiver;
 use proxy_helpers::proxy_runner::{MixProxySender, ProxyRunner};
 use socks5_requests::{ConnectionId, Message as Socks5Message, RemoteAddress, Response};
 use std::io;
-use task::ShutdownListener;
+use task::TaskClient;
 use tokio::net::TcpStream;
 
 /// A TCP connection between the Socks5 service provider, which makes
@@ -42,7 +42,7 @@ impl Connection {
         mix_receiver: ConnectionReceiver,
         mix_sender: MixProxySender<(Socks5Message, ReturnAddress)>,
         lane_queue_lengths: LaneQueueLengths,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) {
         let stream = self.conn.take().unwrap();
         let remote_source_address = "???".to_string(); // we don't know ip address of requester

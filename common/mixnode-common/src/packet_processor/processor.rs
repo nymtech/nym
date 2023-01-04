@@ -51,7 +51,7 @@ impl SphinxPacketProcessor {
         packet: SphinxPacket,
     ) -> Result<ProcessedPacket, MixProcessingError> {
         packet.process(&self.sphinx_key).map_err(|err| {
-            debug!("Failed to unwrap Sphinx packet: {:?}", err);
+            debug!("Failed to unwrap Sphinx packet: {err}");
             MixProcessingError::SphinxProcessingError(err)
         })
     }

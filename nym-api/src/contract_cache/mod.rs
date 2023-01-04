@@ -9,6 +9,7 @@ use mixnet_contract_common::{
     mixnode::MixNodeDetails, reward_params::RewardingParams, GatewayBond, IdentityKey, Interval,
     MixId, MixNodeBond, RewardedSetNodeStatus,
 };
+use nym_api_requests::models::MixnodeStatus;
 use okapi::openapi3::OpenApi;
 use rocket::fairing::AdHoc;
 use rocket::Route;
@@ -20,10 +21,9 @@ use std::ops::Deref;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
-use task::ShutdownListener;
+use task::TaskClient;
 use tokio::sync::{watch, RwLock};
 use tokio::time;
-use validator_api_requests::models::MixnodeStatus;
 use validator_client::nymd::CosmWasmClient;
 
 pub(crate) mod routes;
@@ -192,13 +192,13 @@ impl<C> ValidatorCacheRefresher<C> {
             .await;
 
         if let Err(err) = self.update_notifier.send(CacheNotification::Updated) {
-            warn!("Failed to notify validator cache refresh: {}", err);
+            warn!("Failed to notify validator cache refresh: {err}");
         }
 
         Ok(())
     }
 
-    pub(crate) async fn run(&self, mut shutdown: ShutdownListener)
+    pub(crate) async fn run(&self, mut shutdown: TaskClient)
     where
         C: CosmWasmClient + Sync + Send,
     {
@@ -213,7 +213,7 @@ impl<C> ValidatorCacheRefresher<C> {
                         }
                         ret = self.refresh_cache() => {
                             if let Err(err) = ret {
-                                error!("Failed to refresh validator cache - {}", err);
+                                error!("Failed to refresh validator cache - {err}");
                             } else {
                                 // relaxed memory ordering is fine here. worst case scenario network monitor
                                 // will just have to wait for an additional backoff to see the change.

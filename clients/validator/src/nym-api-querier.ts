@@ -6,13 +6,13 @@
 import axios from 'axios';
 import { GatewayBond, MixNodeBond } from './types';
 
-export const VALIDATOR_API_VERSION = '/v1';
-export const VALIDATOR_API_GATEWAYS_PATH = `${VALIDATOR_API_VERSION}/gateways`;
-export const VALIDATOR_API_MIXNODES_PATH = `${VALIDATOR_API_VERSION}/mixnodes`;
-export const VALIDATOR_API_ACTIVE_MIXNODES_PATH = `${VALIDATOR_API_VERSION}/mixnodes/active`;
-export const VALIDATOR_API_REWARDED_MIXNODES_PATH = `${VALIDATOR_API_VERSION}/mixnodes/rewarded`;
+export const NYM_API_VERSION = '/v1';
+export const NYM_API_GATEWAYS_PATH = `${NYM_API_VERSION}/gateways`;
+export const NYM_API_MIXNODES_PATH = `${NYM_API_VERSION}/mixnodes`;
+export const NYM_API_ACTIVE_MIXNODES_PATH = `${NYM_API_VERSION}/mixnodes/active`;
+export const NYM_API_REWARDED_MIXNODES_PATH = `${NYM_API_VERSION}/mixnodes/rewarded`;
 
-export interface IValidatorApiQuery {
+export interface INymApiQuery {
   getCachedMixnodes(): Promise<MixNodeBond[]>;
 
   getCachedGateways(): Promise<GatewayBond[]>;
@@ -22,16 +22,16 @@ export interface IValidatorApiQuery {
   getRewardedMixnodes(): Promise<MixNodeBond[]>;
 }
 
-export default class ValidatorApiQuerier implements IValidatorApiQuery {
-  validatorApiUrl: string;
+export default class NymApiQuerier implements INymApiQuery {
+  nymApiUrl: string;
 
-  constructor(validatorApiUrl: string) {
-    this.validatorApiUrl = validatorApiUrl;
+  constructor(nymApiUrl: string) {
+    this.nymApiUrl = nymApiUrl;
   }
 
   async getCachedMixnodes(): Promise<MixNodeBond[]> {
-    const url = new URL(this.validatorApiUrl);
-    url.pathname += VALIDATOR_API_MIXNODES_PATH;
+    const url = new URL(this.nymApiUrl);
+    url.pathname += NYM_API_MIXNODES_PATH;
 
     const response = await axios.get(url.toString());
     if (response.status === 200) {
@@ -41,8 +41,8 @@ export default class ValidatorApiQuerier implements IValidatorApiQuery {
   }
 
   async getCachedGateways(): Promise<GatewayBond[]> {
-    const url = new URL(this.validatorApiUrl);
-    url.pathname += VALIDATOR_API_GATEWAYS_PATH;
+    const url = new URL(this.nymApiUrl);
+    url.pathname += NYM_API_GATEWAYS_PATH;
 
     const response = await axios.get(url.toString());
     if (response.status === 200) {
@@ -52,8 +52,8 @@ export default class ValidatorApiQuerier implements IValidatorApiQuery {
   }
 
   async getActiveMixnodes(): Promise<MixNodeBond[]> {
-    const url = new URL(this.validatorApiUrl);
-    url.pathname += VALIDATOR_API_ACTIVE_MIXNODES_PATH;
+    const url = new URL(this.nymApiUrl);
+    url.pathname += NYM_API_ACTIVE_MIXNODES_PATH;
 
     const response = await axios.get(url.toString());
     if (response.status === 200) {
@@ -63,8 +63,8 @@ export default class ValidatorApiQuerier implements IValidatorApiQuery {
   }
 
   async getRewardedMixnodes(): Promise<MixNodeBond[]> {
-    const url = new URL(this.validatorApiUrl);
-    url.pathname += VALIDATOR_API_REWARDED_MIXNODES_PATH;
+    const url = new URL(this.nymApiUrl);
+    url.pathname += NYM_API_REWARDED_MIXNODES_PATH;
 
     const response = await axios.get(url.toString());
     if (response.status === 200) {

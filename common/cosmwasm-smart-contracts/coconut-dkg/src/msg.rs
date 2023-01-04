@@ -11,7 +11,6 @@ use serde::{Deserialize, Serialize};
 pub struct InstantiateMsg {
     pub group_addr: String,
     pub multisig_addr: String,
-    pub admin: String,
     pub mix_denom: String,
 }
 

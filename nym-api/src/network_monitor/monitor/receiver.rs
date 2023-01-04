@@ -7,7 +7,7 @@ use crypto::asymmetric::identity;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use gateway_client::{AcknowledgementReceiver, MixnetMessageReceiver};
-use task::ShutdownListener;
+use task::TaskClient;
 
 pub(crate) type GatewayClientUpdateSender = mpsc::UnboundedSender<GatewayClientUpdate>;
 pub(crate) type GatewayClientUpdateReceiver = mpsc::UnboundedReceiver<GatewayClientUpdate>;
@@ -56,7 +56,7 @@ impl PacketReceiver {
             .expect("packet processor seems to have crashed!");
     }
 
-    pub(crate) async fn run(&mut self, mut shutdown: ShutdownListener) {
+    pub(crate) async fn run(&mut self, mut shutdown: TaskClient) {
         while !shutdown.is_shutdown() {
             tokio::select! {
                 biased;

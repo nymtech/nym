@@ -3,7 +3,7 @@
 
 use crate::config::template::config_template;
 use config::defaults::mainnet::MIXNET_CONTRACT_ADDRESS;
-use config::defaults::DEFAULT_VALIDATOR_API_PORT;
+use config::defaults::DEFAULT_NYM_API_PORT;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -67,11 +67,11 @@ impl NymConfig for Config {
         dirs::home_dir()
             .expect("Failed to evaluate $HOME value")
             .join(".nym")
-            .join("validator-api")
+            .join("nym-api")
     }
 
     fn try_default_root_directory() -> Option<PathBuf> {
-        dirs::home_dir().map(|path| path.join(".nym").join("validator-api"))
+        dirs::home_dir().map(|path| path.join(".nym").join("nym-api"))
     }
 
     fn root_directory(&self) -> PathBuf {
@@ -90,7 +90,7 @@ impl NymConfig for Config {
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 pub struct Base {
-    /// ID specifies the human readable ID of this particular validator-api.
+    /// ID specifies the human readable ID of this particular nym-api.
     id: String,
 
     local_validator: Url,
@@ -114,7 +114,7 @@ impl Default for Base {
             .expect("default local validator is malformed!");
         let mut default_announce_address = default_validator.clone();
         default_announce_address
-            .set_port(Some(DEFAULT_VALIDATOR_API_PORT))
+            .set_port(Some(DEFAULT_NYM_API_PORT))
             .expect("default local validator is malformed!");
         Base {
             id: String::default(),

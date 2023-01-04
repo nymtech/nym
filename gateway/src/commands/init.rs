@@ -39,9 +39,9 @@ pub struct Init {
     #[clap(long)]
     datastore: Option<String>,
 
-    /// Comma separated list of endpoints of the validators APIs
+    /// Comma separated list of endpoints of nym APIs
     #[clap(long)]
-    validator_apis: Option<String>,
+    nym_apis: Option<String>,
 
     /// Comma separated list of endpoints of the validator
     #[clap(long)]
@@ -75,7 +75,7 @@ impl From<Init> for OverrideConfig {
             clients_port: init_config.clients_port,
             datastore: init_config.datastore,
             announce_host: init_config.announce_host,
-            validator_apis: init_config.validator_apis,
+            nym_apis: init_config.nym_apis,
             validators: init_config.validators,
             mnemonic: init_config.mnemonic,
 
@@ -165,7 +165,7 @@ mod tests {
             clients_port: Some(43),
             announce_host: Some("foo-announce-host".to_string()),
             datastore: Some("foo-datastore".to_string()),
-            validator_apis: None,
+            nym_apis: None,
             validators: None,
             mnemonic: None,
             statistics_service_url: None,

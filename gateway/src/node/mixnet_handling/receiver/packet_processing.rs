@@ -6,19 +6,15 @@ use mixnode_common::packet_processor::error::MixProcessingError;
 pub use mixnode_common::packet_processor::processor::MixProcessingResult;
 use mixnode_common::packet_processor::processor::{ProcessedFinalHop, SphinxPacketProcessor};
 use nymsphinx::framing::packet::FramedSphinxPacket;
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum GatewayProcessingError {
-    PacketProcessingError(MixProcessingError),
+    #[error("failed to process received mix packet - {0}")]
+    PacketProcessingError(#[from] MixProcessingError),
+
+    #[error("received a forward hop mix packet")]
     ForwardHopReceivedError,
-}
-
-impl From<MixProcessingError> for GatewayProcessingError {
-    fn from(e: MixProcessingError) -> Self {
-        use GatewayProcessingError::*;
-
-        PacketProcessingError(e)
-    }
 }
 
 // PacketProcessor contains all data required to correctly unwrap and store sphinx packets

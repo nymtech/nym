@@ -4,7 +4,7 @@ use serde::{Serialize, Serializer};
 use std::io;
 use std::num::ParseIntError;
 use thiserror::Error;
-use validator_client::validator_api::error::ValidatorAPIError;
+use validator_client::nym_api::error::NymAPIError;
 use validator_client::{nymd::error::NymdError, ValidatorClientError};
 
 #[derive(Error, Debug)]
@@ -41,9 +41,9 @@ pub enum BackendError {
         source: eyre::Report,
     },
     #[error("{source}")]
-    ValidatorApiError {
+    NymApiError {
         #[from]
-        source: ValidatorAPIError,
+        source: NymAPIError,
     },
     #[error("{source}")]
     KeyDerivationError {
@@ -111,7 +111,7 @@ pub enum BackendError {
     WalletUnexpectedMnemonicAccount,
     #[error("Failed to derive address from mnemonic")]
     FailedToDeriveAddress,
-    #[error("{0}")]
+    #[error(transparent)]
     ValueParseError(#[from] ParseIntError),
     #[error("The provided coin has an unknown denomination - {0}")]
     UnknownCoinDenom(String),
@@ -163,12 +163,10 @@ impl From<NymdError> for BackendError {
 impl From<ValidatorClientError> for BackendError {
     fn from(e: ValidatorClientError) -> Self {
         match e {
-            ValidatorClientError::ValidatorAPIError { source } => source.into(),
+            ValidatorClientError::NymAPIError { source } => source.into(),
             ValidatorClientError::MalformedUrlProvided(e) => e.into(),
             ValidatorClientError::NymdError(e) => e.into(),
-            ValidatorClientError::NoAPIUrlAvailable => {
-                TypesError::NoValidatorApiUrlConfigured.into()
-            }
+            ValidatorClientError::NoAPIUrlAvailable => TypesError::NoNymApiUrlConfigured.into(),
         }
     }
 }

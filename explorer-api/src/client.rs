@@ -21,7 +21,7 @@ impl ThreadsafeValidatorClient {
     }
 
     pub(crate) fn api_endpoint(&self) -> &Url {
-        self.0.validator_api.current_url()
+        self.0.nym_api.current_url()
     }
 }
 

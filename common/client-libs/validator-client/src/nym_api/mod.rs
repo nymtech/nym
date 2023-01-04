@@ -1,23 +1,23 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::validator_api::error::ValidatorAPIError;
-use crate::validator_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
+use crate::nym_api::error::NymAPIError;
+use crate::nym_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
-use reqwest::Response;
-use serde::{Deserialize, Serialize};
-use url::Url;
-use validator_api_requests::coconut::{
+use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
-use validator_api_requests::models::{
+use nym_api_requests::models::{
     ComputeRewardEstParam, GatewayCoreStatusResponse, GatewayStatusReportResponse,
     GatewayUptimeHistoryResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,
     MixnodeCoreStatusResponse, MixnodeStatusReportResponse, MixnodeStatusResponse,
     MixnodeUptimeHistoryResponse, RequestError, RewardEstimationResponse, StakeSaturationResponse,
     UptimeResponse,
 };
+use reqwest::Response;
+use serde::{Deserialize, Serialize};
+use url::Url;
 
 pub mod error;
 pub mod routes;
@@ -54,7 +54,7 @@ impl Client {
         &self,
         path: PathSegments<'_>,
         params: Params<'_, K, V>,
-    ) -> Result<Response, ValidatorAPIError>
+    ) -> Result<Response, NymAPIError>
     where
         K: AsRef<str>,
         V: AsRef<str>,
@@ -63,11 +63,11 @@ impl Client {
         Ok(self.reqwest_client.get(url).send().await?)
     }
 
-    async fn query_validator_api<T, K, V>(
+    async fn query_nym_api<T, K, V>(
         &self,
         path: PathSegments<'_>,
         params: Params<'_, K, V>,
-    ) -> Result<T, ValidatorAPIError>
+    ) -> Result<T, NymAPIError>
     where
         for<'a> T: Deserialize<'a>,
         K: AsRef<str>,
@@ -77,16 +77,16 @@ impl Client {
         if res.status().is_success() {
             Ok(res.json().await?)
         } else {
-            Err(ValidatorAPIError::GenericRequestFailure(res.text().await?))
+            Err(NymAPIError::GenericRequestFailure(res.text().await?))
         }
     }
 
     // This works for endpoints returning Result<Json<T>, ErrorResponse>
-    async fn query_validator_api_fallible<T, K, V>(
+    async fn query_nym_api_fallible<T, K, V>(
         &self,
         path: PathSegments<'_>,
         params: Params<'_, K, V>,
-    ) -> Result<T, ValidatorAPIError>
+    ) -> Result<T, NymAPIError>
     where
         for<'a> T: Deserialize<'a>,
         K: AsRef<str>,
@@ -98,19 +98,19 @@ impl Client {
             Ok(res.json().await?)
         } else {
             let request_error: RequestError = res.json().await?;
-            Err(ValidatorAPIError::ApiRequestFailure {
+            Err(NymAPIError::ApiRequestFailure {
                 status: status.as_u16(),
                 error: request_error,
             })
         }
     }
 
-    async fn post_validator_api<B, T, K, V>(
+    async fn post_nym_api<B, T, K, V>(
         &self,
         path: PathSegments<'_>,
         params: Params<'_, K, V>,
         json_body: &B,
-    ) -> Result<T, ValidatorAPIError>
+    ) -> Result<T, NymAPIError>
     where
         B: Serialize + ?Sized,
         for<'a> T: Deserialize<'a>,
@@ -122,21 +122,17 @@ impl Client {
         if response.status().is_success() {
             Ok(response.json().await?)
         } else {
-            Err(ValidatorAPIError::GenericRequestFailure(
-                response.text().await?,
-            ))
+            Err(NymAPIError::GenericRequestFailure(response.text().await?))
         }
     }
 
-    pub async fn get_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorAPIError> {
-        self.query_validator_api(&[routes::API_VERSION, routes::MIXNODES], NO_PARAMS)
+    pub async fn get_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NymAPIError> {
+        self.query_nym_api(&[routes::API_VERSION, routes::MIXNODES], NO_PARAMS)
             .await
     }
 
-    pub async fn get_mixnodes_detailed(
-        &self,
-    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorAPIError> {
-        self.query_validator_api(
+    pub async fn get_mixnodes_detailed(&self) -> Result<Vec<MixNodeBondAnnotated>, NymAPIError> {
+        self.query_nym_api(
             &[
                 routes::API_VERSION,
                 routes::STATUS,
@@ -148,13 +144,13 @@ impl Client {
         .await
     }
 
-    pub async fn get_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorAPIError> {
-        self.query_validator_api(&[routes::API_VERSION, routes::GATEWAYS], NO_PARAMS)
+    pub async fn get_gateways(&self) -> Result<Vec<GatewayBond>, NymAPIError> {
+        self.query_nym_api(&[routes::API_VERSION, routes::GATEWAYS], NO_PARAMS)
             .await
     }
 
-    pub async fn get_active_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorAPIError> {
-        self.query_validator_api(
+    pub async fn get_active_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NymAPIError> {
+        self.query_nym_api(
             &[routes::API_VERSION, routes::MIXNODES, routes::ACTIVE],
             NO_PARAMS,
         )
@@ -163,8 +159,8 @@ impl Client {
 
     pub async fn get_active_mixnodes_detailed(
         &self,
-    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorAPIError> {
-        self.query_validator_api(
+    ) -> Result<Vec<MixNodeBondAnnotated>, NymAPIError> {
+        self.query_nym_api(
             &[
                 routes::API_VERSION,
                 routes::STATUS,
@@ -177,8 +173,8 @@ impl Client {
         .await
     }
 
-    pub async fn get_rewarded_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorAPIError> {
-        self.query_validator_api(
+    pub async fn get_rewarded_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NymAPIError> {
+        self.query_nym_api(
             &[routes::API_VERSION, routes::MIXNODES, routes::REWARDED],
             NO_PARAMS,
         )
@@ -188,8 +184,8 @@ impl Client {
     pub async fn get_mixnode_report(
         &self,
         mix_id: MixId,
-    ) -> Result<MixnodeStatusReportResponse, ValidatorAPIError> {
-        self.query_validator_api(
+    ) -> Result<MixnodeStatusReportResponse, NymAPIError> {
+        self.query_nym_api(
             &[
                 routes::API_VERSION,
                 routes::STATUS,
@@ -205,8 +201,8 @@ impl Client {
     pub async fn get_gateway_report(
         &self,
         identity: IdentityKeyRef<'_>,
-    ) -> Result<GatewayStatusReportResponse, ValidatorAPIError> {
-        self.query_validator_api(
+    ) -> Result<GatewayStatusReportResponse, NymAPIError> {
+        self.query_nym_api(
             &[
                 routes::API_VERSION,
                 routes::STATUS,
@@ -222,8 +218,8 @@ impl Client {
     pub async fn get_mixnode_history(
         &self,
         mix_id: MixId,
-    ) -> Result<MixnodeUptimeHistoryResponse, ValidatorAPIError> {
-        self.query_validator_api(
+    ) -> Result<MixnodeUptimeHistoryResponse, NymAPIError> {
+        self.query_nym_api(
             &[
                 routes::API_VERSION,
                 routes::STATUS,
@@ -239,8 +235,8 @@ impl Client {
     pub async fn get_gateway_history(
         &self,
         identity: IdentityKeyRef<'_>,
-    ) -> Result<GatewayUptimeHistoryResponse, ValidatorAPIError> {
-        self.query_validator_api(
+    ) -> Result<GatewayUptimeHistoryResponse, NymAPIError> {
+        self.query_nym_api(
             &[
                 routes::API_VERSION,
                 routes::STATUS,
@@ -255,8 +251,8 @@ impl Client {
 
     pub async fn get_rewarded_mixnodes_detailed(
         &self,
-    ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorAPIError> {
-        self.query_validator_api(
+    ) -> Result<Vec<MixNodeBondAnnotated>, NymAPIError> {
+        self.query_nym_api(
             &[
                 routes::API_VERSION,
                 routes::STATUS,
@@ -273,9 +269,9 @@ impl Client {
         &self,
         identity: IdentityKeyRef<'_>,
         since: Option<i64>,
-    ) -> Result<GatewayCoreStatusResponse, ValidatorAPIError> {
+    ) -> Result<GatewayCoreStatusResponse, NymAPIError> {
         if let Some(since) = since {
-            self.query_validator_api(
+            self.query_nym_api(
                 &[
                     routes::API_VERSION,
                     routes::STATUS_ROUTES,
@@ -287,7 +283,7 @@ impl Client {
             )
             .await
         } else {
-            self.query_validator_api(
+            self.query_nym_api(
                 &[
                     routes::API_VERSION,
                     routes::STATUS_ROUTES,
@@ -304,9 +300,9 @@ impl Client {
         &self,
         mix_id: MixId,
         since: Option<i64>,
-    ) -> Result<MixnodeCoreStatusResponse, ValidatorAPIError> {
+    ) -> Result<MixnodeCoreStatusResponse, NymAPIError> {
         if let Some(since) = since {
-            self.query_validator_api(
+            self.query_nym_api(
                 &[
                     routes::API_VERSION,
                     routes::STATUS_ROUTES,
@@ -318,7 +314,7 @@ impl Client {
             )
             .await
         } else {
-            self.query_validator_api(
+            self.query_nym_api(
                 &[
                     routes::API_VERSION,
                     routes::STATUS_ROUTES,
@@ -335,8 +331,8 @@ impl Client {
     pub async fn get_mixnode_status(
         &self,
         mix_id: MixId,
-    ) -> Result<MixnodeStatusResponse, ValidatorAPIError> {
-        self.query_validator_api(
+    ) -> Result<MixnodeStatusResponse, NymAPIError> {
+        self.query_nym_api(
             &[
                 routes::API_VERSION,
                 routes::STATUS_ROUTES,
@@ -352,8 +348,8 @@ impl Client {
     pub async fn get_mixnode_reward_estimation(
         &self,
         mix_id: MixId,
-    ) -> Result<RewardEstimationResponse, ValidatorAPIError> {
-        self.query_validator_api_fallible(
+    ) -> Result<RewardEstimationResponse, NymAPIError> {
+        self.query_nym_api_fallible(
             &[
                 routes::API_VERSION,
                 routes::STATUS_ROUTES,
@@ -370,8 +366,8 @@ impl Client {
         &self,
         mix_id: MixId,
         request_body: &ComputeRewardEstParam,
-    ) -> Result<RewardEstimationResponse, ValidatorAPIError> {
-        self.post_validator_api(
+    ) -> Result<RewardEstimationResponse, NymAPIError> {
+        self.post_nym_api(
             &[
                 routes::API_VERSION,
                 routes::STATUS_ROUTES,
@@ -388,8 +384,8 @@ impl Client {
     pub async fn get_mixnode_stake_saturation(
         &self,
         mix_id: MixId,
-    ) -> Result<StakeSaturationResponse, ValidatorAPIError> {
-        self.query_validator_api_fallible(
+    ) -> Result<StakeSaturationResponse, NymAPIError> {
+        self.query_nym_api_fallible(
             &[
                 routes::API_VERSION,
                 routes::STATUS_ROUTES,
@@ -405,8 +401,8 @@ impl Client {
     pub async fn get_mixnode_inclusion_probability(
         &self,
         mix_id: MixId,
-    ) -> Result<InclusionProbabilityResponse, ValidatorAPIError> {
-        self.query_validator_api_fallible(
+    ) -> Result<InclusionProbabilityResponse, NymAPIError> {
+        self.query_nym_api_fallible(
             &[
                 routes::API_VERSION,
                 routes::STATUS_ROUTES,
@@ -422,8 +418,8 @@ impl Client {
     pub async fn get_mixnode_avg_uptime(
         &self,
         mix_id: MixId,
-    ) -> Result<UptimeResponse, ValidatorAPIError> {
-        self.query_validator_api_fallible(
+    ) -> Result<UptimeResponse, NymAPIError> {
+        self.query_nym_api_fallible(
             &[
                 routes::API_VERSION,
                 routes::STATUS_ROUTES,
@@ -439,8 +435,8 @@ impl Client {
     pub async fn blind_sign(
         &self,
         request_body: &BlindSignRequestBody,
-    ) -> Result<BlindedSignatureResponse, ValidatorAPIError> {
-        self.post_validator_api(
+    ) -> Result<BlindedSignatureResponse, NymAPIError> {
+        self.post_nym_api(
             &[
                 routes::API_VERSION,
                 routes::COCONUT_ROUTES,
@@ -456,8 +452,8 @@ impl Client {
     pub async fn partial_bandwidth_credential(
         &self,
         request_body: &str,
-    ) -> Result<BlindedSignatureResponse, ValidatorAPIError> {
-        self.post_validator_api(
+    ) -> Result<BlindedSignatureResponse, NymAPIError> {
+        self.post_nym_api(
             &[
                 routes::API_VERSION,
                 routes::COCONUT_ROUTES,
@@ -473,8 +469,8 @@ impl Client {
     pub async fn verify_bandwidth_credential(
         &self,
         request_body: &VerifyCredentialBody,
-    ) -> Result<VerifyCredentialResponse, ValidatorAPIError> {
-        self.post_validator_api(
+    ) -> Result<VerifyCredentialResponse, NymAPIError> {
+        self.post_nym_api(
             &[
                 routes::API_VERSION,
                 routes::COCONUT_ROUTES,

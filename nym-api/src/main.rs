@@ -9,7 +9,7 @@ use crate::contract_cache::ValidatorCacheRefresher;
 use crate::network_monitor::NetworkMonitorBuilder;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::nymd_client::Client;
-use crate::storage::ValidatorApiStorage;
+use crate::storage::NymApiStorage;
 use ::config::defaults::mainnet::read_var_if_not_default;
 use ::config::defaults::setup_env;
 use ::config::defaults::var_names::{CONFIGURED, MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
@@ -31,7 +31,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{fs, process};
-use task::ShutdownNotifier;
+use task::TaskManager;
 use tokio::sync::Notify;
 #[cfg(feature = "coconut")]
 use url::Url;
@@ -113,20 +113,20 @@ fn long_version() -> String {
 
 fn parse_args() -> ArgMatches {
     let build_details = long_version();
-    let base_app = App::new("Nym Validator API")
+    let base_app = App::new("Nym API")
         .version(crate_version!())
         .long_version(&*build_details)
         .author("Nymtech")
         .arg(
             Arg::with_name(CONFIG_ENV_FILE)
-                .help("Path pointing to an env file that configures the validator API")
+                .help("Path pointing to an env file that configures the Nym API")
                 .long(CONFIG_ENV_FILE)
                 .short('c')
                 .takes_value(true)
         )
         .arg(
             Arg::with_name(ID)
-                .help("Id of the validator-api we want to run")
+                .help("Id of the nym-api we want to run")
                 .long(ID)
                 .takes_value(true)
         )
@@ -145,13 +145,13 @@ fn parse_args() -> ArgMatches {
         )
         .arg(
             Arg::with_name(NYMD_VALIDATOR_ARG)
-                .help("Endpoint to nymd part of the validator from which the monitor will grab nodes to test")
+                .help("Endpoint to nymd instance from which the monitor will grab nodes to test")
                 .long(NYMD_VALIDATOR_ARG)
                 .takes_value(true)
         )
         .arg(Arg::with_name(MIXNET_CONTRACT_ARG)
                  .long(MIXNET_CONTRACT_ARG)
-                 .help("Address of the validator contract managing the network")
+                 .help("Address of the mixnet contract managing the network")
                  .takes_value(true),
         )
         .arg(Arg::with_name(MNEMONIC_ARG)
@@ -174,19 +174,19 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::with_name(MIN_MIXNODE_RELIABILITY_ARG)
                 .long(MIN_MIXNODE_RELIABILITY_ARG)
-                .help("Mixnodes with relialability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.")
+                .help("Mixnodes with reliability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.")
                 .takes_value(true)
         )
         .arg(
             Arg::with_name(MIN_GATEWAY_RELIABILITY_ARG)
                 .long(MIN_GATEWAY_RELIABILITY_ARG)
-                .help("Gateways with relialability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.")
+                .help("Gateways with reliability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.")
                 .takes_value(true)
         )
         .arg(
             Arg::with_name(ENABLED_CREDENTIALS_MODE_ARG_NAME)
                 .long(ENABLED_CREDENTIALS_MODE_ARG_NAME)
-                .help("Set this validator api to work in a enabled credentials that would attempt to use gateway with the bandwidth credential requirement")
+                .help("Set this nym api to work in a enabled credentials that would attempt to use gateway with the bandwidth credential requirement")
         );
 
     #[cfg(feature = "coconut")]
@@ -206,7 +206,7 @@ fn parse_args() -> ArgMatches {
     base_app.get_matches()
 }
 
-async fn wait_for_interrupt(mut shutdown: ShutdownNotifier) {
+async fn wait_for_interrupt(mut shutdown: TaskManager) {
     wait_for_signal().await;
 
     log::info!("Sending shutdown");
@@ -215,7 +215,7 @@ async fn wait_for_interrupt(mut shutdown: ShutdownNotifier) {
     log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
     shutdown.wait_for_shutdown().await;
 
-    log::info!("Stopping nym validator API");
+    log::info!("Stopping nym API");
 }
 
 #[cfg(unix)]
@@ -278,7 +278,7 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     if let Some(raw_validator) = matches.value_of(NYMD_VALIDATOR_ARG) {
         let parsed = match raw_validator.parse() {
             Err(err) => {
-                error!("Passed validator argument is invalid - {}", err);
+                error!("Passed validator argument is invalid - {err}");
                 process::exit(1)
             }
             Ok(url) => url,
@@ -336,7 +336,7 @@ fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
     if matches.is_present(WRITE_CONFIG_ARG) {
         info!("Saving the configuration to a file");
         if let Err(err) = config.save_to_file(None) {
-            error!("Failed to write config to a file - {}", err);
+            error!("Failed to write config to a file - {err}");
             process::exit(1)
         }
     }
@@ -380,7 +380,7 @@ fn setup_network_monitor<'a>(
     }
 
     // get instances of managed states
-    let node_status_storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
+    let node_status_storage = rocket.state::<NymApiStorage>().unwrap().clone();
     let validator_cache = rocket.state::<ValidatorCache>().unwrap().clone();
 
     Some(NetworkMonitorBuilder::new(
@@ -433,7 +433,7 @@ async fn setup_rocket(
     // This is not a very nice approach. A lazy value would be more suitable, but that's still
     // a nightly feature: https://github.com/rust-lang/rust/issues/74465
     let storage = if cfg!(feature = "coconut") || config.get_network_monitor_enabled() {
-        Some(ValidatorApiStorage::init(config.get_node_status_api_database_path()).await?)
+        Some(NymApiStorage::init(config.get_node_status_api_database_path()).await?)
     } else {
         None
     };
@@ -453,7 +453,7 @@ async fn setup_rocket(
 
     // see if we should start up network monitor
     let rocket = if config.get_network_monitor_enabled() {
-        rocket.attach(storage::ValidatorApiStorage::stage(storage.unwrap()))
+        rocket.attach(storage::NymApiStorage::stage(storage.unwrap()))
     } else {
         rocket
     };
@@ -490,7 +490,7 @@ fn get_servers() -> Vec<rocket_okapi::okapi::openapi3::Server> {
     }]
 }
 
-async fn run_validator_api(matches: ArgMatches) -> Result<()> {
+async fn run_nym_api(matches: ArgMatches) -> Result<()> {
     let system_version = env!("CARGO_PKG_VERSION");
 
     // try to load config from the file, if it doesn't exist, use default values
@@ -527,7 +527,7 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
 
     let liftoff_notify = Arc::new(Notify::new());
     // We need a bigger timeout
-    let shutdown = ShutdownNotifier::new(10);
+    let shutdown = TaskManager::new(10);
 
     #[cfg(feature = "coconut")]
     let coconut_keypair = coconut::keypair::KeyPair::new();
@@ -565,7 +565,7 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
     // we're not starting signing client
     let validator_cache_listener = if config.get_network_monitor_enabled() {
         // Main storage
-        let storage = rocket.state::<ValidatorApiStorage>().unwrap().clone();
+        let storage = rocket.state::<NymApiStorage>().unwrap().clone();
 
         // setup our daily uptime updater. Note that if network monitor is disabled, then we have
         // no data for the updates and hence we don't need to start it up
@@ -610,8 +610,8 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
     // Spawn the node status cache refresher.
     // It is primarily refreshed in-sync with the validator cache, however provide a fallback
     // caching interval that is twice the validator cache
-    let storage = rocket.state::<ValidatorApiStorage>().cloned();
-    let mut validator_api_cache_refresher = node_status_api::NodeStatusCacheRefresher::new(
+    let storage = rocket.state::<NymApiStorage>().cloned();
+    let mut nym_api_cache_refresher = node_status_api::NodeStatusCacheRefresher::new(
         node_status_cache,
         config.get_caching_interval().saturating_mul(2),
         validator_cache,
@@ -619,12 +619,12 @@ async fn run_validator_api(matches: ArgMatches) -> Result<()> {
         storage,
     );
     let shutdown_listener = shutdown.subscribe();
-    tokio::spawn(async move { validator_api_cache_refresher.run(shutdown_listener).await });
+    tokio::spawn(async move { nym_api_cache_refresher.run(shutdown_listener).await });
 
     // launch the rocket!
     // Rocket handles shutdown on it's own, but its shutdown handling should be incorporated
     // with that of the rest of the tasks.
-    // Currently it's runtime is forcefully terminated once the validator-api exits.
+    // Currently it's runtime is forcefully terminated once the nym-api exits.
     let shutdown_handle = rocket.shutdown();
     tokio::spawn(rocket.launch());
 
@@ -663,5 +663,5 @@ async fn main() -> Result<()> {
         .value_of(CONFIG_ENV_FILE)
         .map(|s| PathBuf::from_str(s).expect("invalid env config file"));
     setup_env(config_env_file);
-    run_validator_api(args).await
+    run_nym_api(args).await
 }

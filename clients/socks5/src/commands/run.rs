@@ -43,9 +43,9 @@ pub(crate) struct Run {
     #[clap(long)]
     nymd_validators: Option<String>,
 
-    /// Comma separated list of rest endpoints of the API validators
+    /// Comma separated list of rest endpoints of the Nym APIs
     #[clap(long)]
-    api_validators: Option<String>,
+    nym_apis: Option<String>,
 
     /// Port for the socket to listen on
     #[clap(short, long)]
@@ -71,7 +71,7 @@ impl From<Run> for OverrideConfig {
     fn from(run_config: Run) -> Self {
         OverrideConfig {
             nymd_validators: run_config.nymd_validators,
-            api_validators: run_config.api_validators,
+            api_validators: run_config.nym_apis,
             port: run_config.port,
             use_anonymous_sender_tag: run_config.use_anonymous_sender_tag,
             fastmode: run_config.fastmode,
@@ -110,7 +110,7 @@ pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn std::error::Error 
     let mut config = match Config::load_from_file(Some(id)) {
         Ok(cfg) => cfg,
         Err(err) => {
-            error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})", id, err);
+            error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {err})", id);
             return Err(Box::new(Socks5ClientError::FailedToLoadConfig(
                 id.to_string(),
             )));

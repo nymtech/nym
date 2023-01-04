@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::contract_cache::{Cache, CacheNotification, ValidatorCache};
-use crate::storage::ValidatorApiStorage;
+use crate::storage::NymApiStorage;
 use mixnet_contract_common::families::FamilyHead;
 use mixnet_contract_common::reward_params::Performance;
 use mixnet_contract_common::{
     IdentityKey, Interval, MixId, MixNodeDetails, RewardedSetNodeStatus, RewardingParams,
 };
+use nym_api_requests::models::{MixNodeBondAnnotated, MixnodeStatus};
 use rocket::fairing::AdHoc;
 use std::collections::HashMap;
 use std::{sync::Arc, time::Duration};
-use task::ShutdownListener;
+use task::TaskClient;
 use tokio::sync::RwLockReadGuard;
 use tokio::{
     sync::{watch, RwLock},
     time,
 };
-use validator_api_requests::models::{MixNodeBondAnnotated, MixnodeStatus};
 
 use self::inclusion_probabilities::InclusionProbabilities;
 
@@ -154,7 +154,7 @@ pub struct NodeStatusCacheRefresher {
     // Sources for when refreshing data
     contract_cache: ValidatorCache,
     contract_cache_listener: watch::Receiver<CacheNotification>,
-    storage: Option<ValidatorApiStorage>,
+    storage: Option<NymApiStorage>,
 }
 
 impl NodeStatusCacheRefresher {
@@ -163,7 +163,7 @@ impl NodeStatusCacheRefresher {
         fallback_caching_interval: Duration,
         contract_cache: ValidatorCache,
         contract_cache_listener: watch::Receiver<CacheNotification>,
-        storage: Option<ValidatorApiStorage>,
+        storage: Option<NymApiStorage>,
     ) -> Self {
         Self {
             cache,
@@ -174,7 +174,7 @@ impl NodeStatusCacheRefresher {
         }
     }
 
-    pub async fn run(&mut self, mut shutdown: ShutdownListener) {
+    pub async fn run(&mut self, mut shutdown: TaskClient) {
         let mut fallback_interval = time::interval(self.fallback_caching_interval);
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -320,7 +320,7 @@ impl NodeStatusCacheRefresher {
                 .rewarding_details
                 .uncapped_bond_saturation(&interval_reward_params);
 
-            // If the performance can't be obtained, because the validator-api was not started with
+            // If the performance can't be obtained, because the nym-api was not started with
             // the monitoring (and hence, storage), then reward estimates will be all zero
             let performance = self
                 .get_performance_from_storage(mixnode.mix_id(), current_interval)

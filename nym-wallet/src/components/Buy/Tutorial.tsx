@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { Button, Stack, Typography, Grid, useMediaQuery, useTheme } from '@mui/material';
-import { Tune as TuneIcon, BorderColor as BorderColorIcon, Paid as PaidIcon } from '@mui/icons-material';
+import { Tune as TuneIcon, BorderColor as BorderColorIcon } from '@mui/icons-material';
 import { CoinMark } from '@nymproject/react/coins/CoinMark';
 import { NymCard, ClientAddress } from '../../components';
 import { SignMessageModal } from './SignMessageModal';
 import { PoweredByBity } from 'src/svg-icons';
+import { AppContext } from 'src/context';
 
 // TODO retrieve this value from env
 const EXCHANGE_URL = 'https://buy.nymtech.net';
@@ -51,6 +52,7 @@ const TutorialStep = ({
 );
 
 export const Tutorial = () => {
+  const { clientDetails } = useContext(AppContext);
   const [showSignModal, setShowSignModal] = useState(false);
   const theme = useTheme();
   const showBorder = useMediaQuery(theme.breakpoints.up('md'));
@@ -123,7 +125,12 @@ export const Tutorial = () => {
           <Button variant="outlined" size="large" onClick={() => setShowSignModal(true)}>
             Sign message
           </Button>
-          <Button variant="contained" size="large" href={EXCHANGE_URL} target="_blank">
+          <Button
+            variant="contained"
+            size="large"
+            href={`${EXCHANGE_URL}/?wallet_address=${clientDetails!.client_address}`}
+            target="_blank"
+          >
             Buy NYM
           </Button>
         </Stack>

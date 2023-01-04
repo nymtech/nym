@@ -35,7 +35,7 @@ async fn main() {
     dotenv().ok();
     setup_logging();
     let args = commands::Cli::parse();
-    setup_env(args.config_env_file);
+    setup_env(args.config_env_file.as_ref());
     let mut explorer_api = ExplorerApi::new();
     explorer_api.run().await;
 }

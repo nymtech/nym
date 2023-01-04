@@ -41,7 +41,7 @@ async fn main() {
     println!("{}", banner());
 
     let args = Cli::parse();
-    setup_env(args.config_env_file.clone());
+    setup_env(args.config_env_file.as_ref());
     commands::execute(args).await;
 }
 

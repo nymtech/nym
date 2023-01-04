@@ -32,7 +32,7 @@ pub struct ClientArgs {
 pub fn get_network_details(args: &ClientArgs) -> Result<NymNetworkDetails, ContextError> {
     // let the network defaults crate handle setting up the env vars if the file arg is set, otherwise
     // it will default to what is already in env vars, falling back to mainnet
-    setup_env(args.config_env_file.clone());
+    setup_env(args.config_env_file.as_ref());
 
     // override the env vars with user supplied arguments, if set
     if let Some(nymd_url) = args.nymd_url.as_ref() {

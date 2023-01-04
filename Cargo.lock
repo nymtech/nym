@@ -3256,6 +3256,7 @@ version = "1.1.4"
 dependencies = [
  "anyhow",
  "async-trait",
+ "bip39",
  "bs58",
  "build-information",
  "cfg-if 1.0.0",

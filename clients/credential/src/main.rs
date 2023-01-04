@@ -31,7 +31,7 @@ cfg_if::cfg_if! {
         #[tokio::main]
         async fn main() -> Result<()> {
             let args = Cli::parse();
-            setup_env(args.config_env_file.clone());
+            setup_env(args.config_env_file.as_ref());
             let bin_name = "nym-credential-client";
 
             match args.command {

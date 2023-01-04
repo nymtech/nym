@@ -111,24 +111,27 @@ fn long_version() -> String {
     )
 }
 
+fn long_version_static() -> &'static str {
+    Box::leak(long_version().into_boxed_str())
+}
+
 fn parse_args() -> ArgMatches {
-    let build_details = long_version();
     let base_app = Command::new("Nym API")
         .version(crate_version!())
-        .long_version(&*build_details)
+        .long_version( long_version_static())
         .author("Nymtech")
         .arg(
             Arg::new(CONFIG_ENV_FILE)
                 .help("Path pointing to an env file that configures the Nym API")
                 .long(CONFIG_ENV_FILE)
                 .short('c')
-                .takes_value(true)
+                .num_args(1)
         )
         .arg(
             Arg::new(ID)
                 .help("Id of the nym-api we want to run")
                 .long(ID)
-                .takes_value(true)
+                .num_args(1)
         )
         .arg(
             Arg::new(MONITORING_ENABLED)
@@ -147,17 +150,17 @@ fn parse_args() -> ArgMatches {
             Arg::new(NYMD_VALIDATOR_ARG)
                 .help("Endpoint to nymd instance from which the monitor will grab nodes to test")
                 .long(NYMD_VALIDATOR_ARG)
-                .takes_value(true)
+                .num_args(1)
         )
         .arg(Arg::new(MIXNET_CONTRACT_ARG)
                  .long(MIXNET_CONTRACT_ARG)
                  .help("Address of the mixnet contract managing the network")
-                 .takes_value(true),
+                 .num_args(1),
         )
         .arg(Arg::new(MNEMONIC_ARG)
                  .long(MNEMONIC_ARG)
                  .help("Mnemonic of the network monitor used for rewarding operators")
-                 .takes_value(true)
+                 .num_args(1)
         )
         .arg(
             Arg::new(WRITE_CONFIG_ARG)
@@ -168,20 +171,20 @@ fn parse_args() -> ArgMatches {
         .arg(
             Arg::new(REWARDING_MONITOR_THRESHOLD_ARG)
                 .help("Specifies the minimum percentage of monitor test run data present in order to distribute rewards for given interval.")
-                .takes_value(true)
+                .num_args(1)
                 .long(REWARDING_MONITOR_THRESHOLD_ARG)
         )
         .arg(
             Arg::new(MIN_MIXNODE_RELIABILITY_ARG)
                 .long(MIN_MIXNODE_RELIABILITY_ARG)
                 .help("Mixnodes with reliability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.")
-                .takes_value(true)
+                .num_args(1)
         )
         .arg(
             Arg::new(MIN_GATEWAY_RELIABILITY_ARG)
                 .long(MIN_GATEWAY_RELIABILITY_ARG)
                 .help("Gateways with reliability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.")
-                .takes_value(true)
+                .num_args(1)
         )
         .arg(
             Arg::new(ENABLED_CREDENTIALS_MODE_ARG_NAME)
@@ -195,7 +198,7 @@ fn parse_args() -> ArgMatches {
             Arg::new(ANNOUNCE_ADDRESS)
                 .help("Announced address where coconut clients will connect.")
                 .long(ANNOUNCE_ADDRESS)
-                .takes_value(true),
+                .num_args(1),
         )
         .arg(
             Arg::new(COCONUT_ENABLED)

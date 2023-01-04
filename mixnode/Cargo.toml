@@ -18,7 +18,7 @@ rust-version = "1.58.1"
 [dependencies]
 anyhow = "1.0.40"
 bs58 = "0.4.0"
-clap = { version = "3.2", features = ["cargo", "derive"] }
+clap = { version = "4.0", features = ["cargo", "derive"] }
 colored = "2.0"
 cupid = "0.6.1"
 dirs = "4.0"

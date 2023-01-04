@@ -1,5 +1,5 @@
 use clap::builder::Command;
-use clap::clap_derive::ArgEnum;
+use clap::clap_derive::ValueEnum;
 use clap::Args;
 use clap_complete::generator::generate;
 use clap_complete::Shell as ClapShell;
@@ -14,7 +14,7 @@ pub fn fig_generate(command: &mut Command, name: &str) {
     )
 }
 
-#[derive(ArgEnum, Copy, Clone)]
+#[derive(ValueEnum, Copy, Clone)]
 pub enum Shell {
     Bash,
     Elvish,
@@ -25,7 +25,7 @@ pub enum Shell {
 
 #[derive(Args, Copy, Clone)]
 pub struct ArgShell {
-    #[clap(arg_enum, value_name = "SHELL")]
+    #[clap(value_enum, value_name = "SHELL")]
     shell: Shell,
 }
 

@@ -20,7 +20,7 @@ futures = "0.3" # bunch of futures stuff, however, now that I think about it, it
 # and the single instance of abortable we have should really be refactored anyway
 url = "2.2"
 
-clap = { version = "3.2", features = ["cargo", "derive"] }
+clap = { version = "4.0", features = ["cargo", "derive"] }
 dirs = "4.0"
 log = "0.4" # self explanatory
 pretty_env_logger = "0.4" # for formatting log messages

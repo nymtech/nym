@@ -11,7 +11,7 @@ name = "nym_socks5"
 path = "src/lib.rs"
 
 [dependencies]
-clap = { version = "3.2", features = ["cargo", "derive"] }
+clap = { version = "4.0", features = ["cargo", "derive"] }
 dirs = "4.0"
 futures = "0.3"
 log = "0.4"

@@ -65,6 +65,7 @@ impl Display for InitResults {
 /// it will do the sensible thing.
 pub async fn setup_gateway<B, C, T>(
     register_gateway: bool,
+    // TODO: this should get refactored to instead take Option<identity::PublicKey>
     user_chosen_gateway_id: Option<String>,
     config: &Config<T>,
 ) -> Result<GatewayEndpointConfig, ClientCoreError<B>>

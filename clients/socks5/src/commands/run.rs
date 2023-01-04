@@ -10,6 +10,8 @@ use crate::{
 use clap::Args;
 use config::NymConfig;
 use log::*;
+use crypto::asymmetric::identity;
+use nymsphinx::addressing::clients::Recipient;
 use version_checker::is_minor_version_compatible;
 
 #[derive(Args, Clone)]
@@ -33,12 +35,12 @@ pub(crate) struct Run {
 
     /// Address of the socks5 provider to send messages to.
     #[clap(long)]
-    provider: Option<String>,
+    provider: Option<Recipient>,
 
     /// Id of the gateway we want to connect to. If overridden, it is user's responsibility to
     /// ensure prior registration happened
     #[clap(long)]
-    gateway: Option<String>,
+    gateway: Option<identity::PublicKey>,
 
     /// Comma separated list of rest endpoints of the nymd validators
     #[cfg(feature = "coconut")]

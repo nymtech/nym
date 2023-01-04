@@ -170,10 +170,11 @@ mod tests {
             announce_host: Some("foo-announce-host".to_string()),
             datastore: Some("foo-datastore".to_string()),
             nym_apis: None,
-            nymd_validators: None,
             mnemonic: None,
             statistics_service_url: None,
             enabled_statistics: None,
+            #[cfg(feature = "coconut")]
+            nymd_validators: None,
             #[cfg(feature = "coconut")]
             only_coconut_credentials: false,
         };

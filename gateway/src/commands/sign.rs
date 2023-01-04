@@ -14,7 +14,7 @@ use log::error;
 use validator_client::nymd;
 
 #[derive(Args, Clone)]
-#[clap(group(ArgGroup::new("sign").required(true).args(&["wallet-address", "text"])))]
+#[clap(group(ArgGroup::new("sign").required(true).args(&["wallet_address", "text"])))]
 pub struct Sign {
     /// The id of the mixnode you want to sign with
     #[clap(long)]

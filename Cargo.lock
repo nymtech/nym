@@ -427,6 +427,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "build-information"
+version = "0.1.0"
+dependencies = [
+ "vergen 7.2.1",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3250,6 +3257,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bs58",
+ "build-information",
  "cfg-if 1.0.0",
  "clap 4.0.26",
  "coconut-bandwidth-contract-common",
@@ -3272,6 +3280,7 @@ dependencies = [
  "getset",
  "humantime-serde",
  "inclusion-probability",
+ "lazy_static",
  "log",
  "logging",
  "mixnet-contract-common",
@@ -3303,7 +3312,6 @@ dependencies = [
  "ts-rs",
  "url",
  "validator-client",
- "vergen 7.2.1",
  "version-checker",
 ]
 
@@ -3395,6 +3403,7 @@ dependencies = [
 name = "nym-client"
 version = "1.1.4"
 dependencies = [
+ "build-information",
  "clap 4.0.26",
  "client-connections",
  "client-core",
@@ -3408,6 +3417,7 @@ dependencies = [
  "futures",
  "gateway-client",
  "gateway-requests",
+ "lazy_static",
  "log",
  "logging",
  "network-defaults",
@@ -3425,7 +3435,6 @@ dependencies = [
  "topology",
  "url",
  "validator-client",
- "vergen 5.1.17",
  "version-checker",
  "websocket-requests",
 ]
@@ -3438,6 +3447,7 @@ dependencies = [
  "async-trait",
  "bip39",
  "bs58",
+ "build-information",
  "clap 4.0.26",
  "coconut-interface",
  "colored",
@@ -3451,6 +3461,7 @@ dependencies = [
  "futures",
  "gateway-requests",
  "humantime-serde",
+ "lazy_static",
  "log",
  "logging",
  "mixnet-client",
@@ -3473,7 +3484,6 @@ dependencies = [
  "tokio-util 0.7.3",
  "url",
  "validator-client",
- "vergen 5.1.17",
  "version-checker",
 ]
 
@@ -3483,6 +3493,7 @@ version = "1.1.4"
 dependencies = [
  "anyhow",
  "bs58",
+ "build-information",
  "clap 4.0.26",
  "colored",
  "completions",
@@ -3515,7 +3526,6 @@ dependencies = [
  "topology",
  "url",
  "validator-client",
- "vergen 5.1.17",
  "version-checker",
 ]
 
@@ -3587,6 +3597,7 @@ dependencies = [
 name = "nym-socks5-client"
 version = "1.1.4"
 dependencies = [
+ "build-information",
  "clap 4.0.26",
  "client-connections",
  "client-core",
@@ -3600,6 +3611,7 @@ dependencies = [
  "futures",
  "gateway-client",
  "gateway-requests",
+ "lazy_static",
  "log",
  "logging",
  "network-defaults",
@@ -3620,7 +3632,6 @@ dependencies = [
  "topology",
  "url",
  "validator-client",
- "vergen 5.1.17",
  "version-checker",
 ]
 

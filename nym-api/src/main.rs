@@ -15,8 +15,10 @@ use ::config::defaults::setup_env;
 use ::config::defaults::var_names::{CONFIGURED, MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
 use ::config::NymConfig;
 use anyhow::Result;
+use build_information::BinaryBuildInformation;
 use clap::{crate_version, Arg, ArgMatches, Command};
 use contract_cache::ValidatorCache;
+use lazy_static::lazy_static;
 use log::{info, warn};
 use node_status_api::NodeStatusCache;
 use okapi::openapi3::OpenApi;
@@ -80,45 +82,20 @@ const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
 const MIN_MIXNODE_RELIABILITY_ARG: &str = "min_mixnode_reliability";
 const MIN_GATEWAY_RELIABILITY_ARG: &str = "min_gateway_reliability";
 
-fn long_version() -> String {
-    format!(
-        r#"
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-"#,
-        "Build Timestamp:",
-        env!("VERGEN_BUILD_TIMESTAMP"),
-        "Build Version:",
-        env!("VERGEN_BUILD_SEMVER"),
-        "Commit SHA:",
-        env!("VERGEN_GIT_SHA"),
-        "Commit Date:",
-        env!("VERGEN_GIT_COMMIT_TIMESTAMP"),
-        "Commit Branch:",
-        env!("VERGEN_GIT_BRANCH"),
-        "rustc Version:",
-        env!("VERGEN_RUSTC_SEMVER"),
-        "rustc Channel:",
-        env!("VERGEN_RUSTC_CHANNEL"),
-        "cargo Profile:",
-        env!("VERGEN_CARGO_PROFILE")
-    )
+lazy_static! {
+    pub static ref PRETTY_BUILD_INFORMATION: String =
+        BinaryBuildInformation::new(env!("CARGO_PKG_VERSION")).pretty_print();
 }
 
-fn long_version_static() -> &'static str {
-    Box::leak(long_version().into_boxed_str())
+// Helper for passing LONG_VERSION to clap
+fn pretty_build_info_static() -> &'static str {
+    &PRETTY_BUILD_INFORMATION
 }
 
 fn parse_args() -> ArgMatches {
     let base_app = Command::new("Nym API")
         .version(crate_version!())
-        .long_version( long_version_static())
+        .long_version( pretty_build_info_static())
         .author("Nymtech")
         .arg(
             Arg::new(CONFIG_ENV_FILE)

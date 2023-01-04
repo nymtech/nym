@@ -14,6 +14,7 @@ path = "src/lib.rs"
 clap = { version = "4.0", features = ["cargo", "derive"] }
 dirs = "4.0"
 futures = "0.3"
+lazy_static = "1.4.0"
 log = "0.4"
 pin-project = "1.0"
 pretty_env_logger = "0.4"
@@ -26,6 +27,7 @@ tokio = { version = "1.21.2", features = ["rt-multi-thread", "net", "signal"] }
 url = "2.2"
 
 # internal
+build-information = { path = "../../common/build-information" }
 client-core = { path = "../client-core", features = ["fs-surb-storage"] }
 client-connections = { path = "../../common/client-connections" }
 coconut-interface = { path = "../../common/coconut-interface", optional = true }
@@ -51,6 +53,3 @@ version-checker = { path = "../../common/version-checker" }
 [features]
 coconut = ["coconut-interface", "credentials", "gateway-requests/coconut", "gateway-client/coconut", "credentials/coconut", "client-core/coconut"]
 eth = []
-
-[build-dependencies]
-vergen = { version = "5", default-features = false, features = ["build", "git", "rustc", "cargo"] }

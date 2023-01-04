@@ -24,6 +24,7 @@ dirs = "4.0"
 dotenv = "0.15.0"
 futures = "0.3.24"
 humantime-serde = "1.0"
+lazy_static = "1.4.0"
 log = "0.4.17"
 pin-project = "1.0"
 pretty_env_logger = "0.4.0"
@@ -63,6 +64,7 @@ rocket_okapi = { version = "0.8.0-rc.2", features = ["swagger"] }
 schemars = { version = "0.8", features = ["preserve_order"] }
 
 ## internal
+build-information = { path = "../common/build-information" }
 coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg", optional = true }
 coconut-interface = { path = "../common/coconut-interface", optional = true }
@@ -114,12 +116,6 @@ sqlx = { version = "0.6.2", features = [
     "sqlite",
     "macros",
     "migrate",
-] }
-vergen = { version = "7", default-features = false, features = [
-    "build",
-    "git",
-    "rustc",
-    "cargo",
 ] }
 
 [dev-dependencies]

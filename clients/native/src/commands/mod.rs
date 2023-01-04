@@ -1,54 +1,30 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::error::Error;
-
 use crate::client::config::{Config, SocketType};
+use build_information::BinaryBuildInformation;
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
 use completions::{fig_generate, ArgShell};
+use lazy_static::lazy_static;
+use std::error::Error;
 
 pub(crate) mod init;
 pub(crate) mod run;
 pub(crate) mod upgrade;
 
-fn long_version() -> String {
-    format!(
-        r#"
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-"#,
-        "Build Timestamp:",
-        env!("VERGEN_BUILD_TIMESTAMP"),
-        "Build Version:",
-        env!("VERGEN_BUILD_SEMVER"),
-        "Commit SHA:",
-        env!("VERGEN_GIT_SHA"),
-        "Commit Date:",
-        env!("VERGEN_GIT_COMMIT_TIMESTAMP"),
-        "Commit Branch:",
-        env!("VERGEN_GIT_BRANCH"),
-        "rustc Version:",
-        env!("VERGEN_RUSTC_SEMVER"),
-        "rustc Channel:",
-        env!("VERGEN_RUSTC_CHANNEL"),
-        "cargo Profile:",
-        env!("VERGEN_CARGO_PROFILE"),
-    )
+lazy_static! {
+    pub static ref PRETTY_BUILD_INFORMATION: String =
+        BinaryBuildInformation::new(env!("CARGO_PKG_VERSION")).pretty_print();
 }
 
-fn long_version_static() -> &'static str {
-    Box::leak(long_version().into_boxed_str())
+// Helper for passing LONG_VERSION to clap
+fn pretty_build_info_static() -> &'static str {
+    &PRETTY_BUILD_INFORMATION
 }
 
 #[derive(Parser)]
-#[clap(author = "Nymtech", version, long_version = long_version_static(), about)]
+#[clap(author = "Nymtech", version, long_version = pretty_build_info_static(), about)]
 pub(crate) struct Cli {
     /// Path pointing to an env file that configures the client.
     #[clap(short, long)]

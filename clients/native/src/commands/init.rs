@@ -8,6 +8,7 @@ use crate::{
 };
 use clap::Args;
 use config::NymConfig;
+use crypto::asymmetric::identity;
 use nymsphinx::addressing::clients::Recipient;
 use serde::Serialize;
 use std::fmt::Display;
@@ -21,7 +22,7 @@ pub(crate) struct Init {
 
     /// Id of the gateway we are going to connect to.
     #[clap(long)]
-    gateway: Option<String>,
+    gateway: Option<identity::PublicKey>,
 
     /// Force register gateway. WARNING: this will overwrite any existing keys for the given id,
     /// potentially causing loss of access.
@@ -130,7 +131,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
     let register_gateway = !already_init || user_wants_force_register;
 
     // Attempt to use a user-provided gateway, if possible
-    let user_chosen_gateway_id = args.gateway.clone();
+    let user_chosen_gateway_id = args.gateway;
 
     // Load and potentially override config
     let mut config = override_config(Config::new(id), OverrideConfig::from(args.clone()));
@@ -139,7 +140,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
     // one but with keys kept, or reusing the gateway configuration.
     let gateway = client_core::init::setup_gateway::<_, Config, _>(
         register_gateway,
-        user_chosen_gateway_id,
+        user_chosen_gateway_id.map(|id| id.to_base58_string()),
         config.get_base(),
     )
     .await

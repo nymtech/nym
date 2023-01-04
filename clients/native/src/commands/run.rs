@@ -11,6 +11,7 @@ use crate::{
 
 use clap::Args;
 use config::NymConfig;
+use crypto::asymmetric::identity;
 use log::*;
 use version_checker::is_minor_version_compatible;
 
@@ -33,7 +34,7 @@ pub(crate) struct Run {
     /// Id of the gateway we want to connect to. If overridden, it is user's responsibility to
     /// ensure prior registration happened
     #[clap(long)]
-    gateway: Option<String>,
+    gateway: Option<identity::PublicKey>,
 
     /// Whether to not start the websocket
     #[clap(long)]

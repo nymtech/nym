@@ -1,7 +1,5 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
-use std::{process, str::FromStr};
 
 use crate::{config::Config, Cli};
 use clap::CommandFactory;
@@ -13,6 +11,10 @@ use network_defaults::mainnet::read_var_if_not_default;
 use network_defaults::var_names::{
     API_VALIDATOR, BECH32_PREFIX, CONFIGURED, STATISTICS_SERVICE_DOMAIN_ADDRESS,
 };
+use std::net::IpAddr;
+use std::path::PathBuf;
+use std::process;
+use validator_client::nymd::{self};
 
 pub(crate) mod init;
 pub(crate) mod node_details;
@@ -46,16 +48,16 @@ pub(crate) enum Commands {
 
 // Configuration that can be overridden.
 pub(crate) struct OverrideConfig {
-    host: Option<String>,
-    wallet_address: Option<String>,
+    host: Option<IpAddr>,
+    wallet_address: Option<nymd::AccountId>,
     mix_port: Option<u16>,
     clients_port: Option<u16>,
-    datastore: Option<String>,
+    datastore: Option<PathBuf>,
     announce_host: Option<String>,
     enabled_statistics: Option<bool>,
-    statistics_service_url: Option<String>,
+    statistics_service_url: Option<url::Url>,
     nym_apis: Option<Vec<url::Url>>,
-    mnemonic: Option<String>,
+    mnemonic: Option<bip39::Mnemonic>,
 
     #[cfg(feature = "coconut")]
     nymd_validators: Option<Vec<url::Url>>,
@@ -103,12 +105,8 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
         config = config.with_enabled_statistics(enabled_statistics);
     }
 
-    if let Some(raw_url) = args.statistics_service_url {
-        config = config.with_custom_statistics_service_url(
-            raw_url
-                .parse()
-                .expect("the provided statistics service url is invalid!"),
-        );
+    if let Some(url) = args.statistics_service_url {
+        config = config.with_custom_statistics_service_url(url);
     } else if std::env::var(CONFIGURED).is_ok() {
         if let Some(raw_url) = read_var_if_not_default(STATISTICS_SERVICE_DOMAIN_ADDRESS) {
             config = config.with_custom_statistics_service_url(
@@ -128,9 +126,9 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
     }
 
     if let Some(wallet_address) = args.wallet_address {
-        let trimmed = wallet_address.trim();
-        validate_bech32_address_or_exit(trimmed);
-        config = config.with_wallet_address(trimmed);
+        // perform extra validation to ensure we have correct prefix
+        validate_bech32_address_or_exit(wallet_address.as_ref());
+        config = config.with_wallet_address(wallet_address);
     }
 
     if let Some(datastore_path) = args.datastore {
@@ -138,17 +136,15 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
     }
 
     if let Some(cosmos_mnemonic) = args.mnemonic {
-        config = config.with_cosmos_mnemonic(
-            bip39::Mnemonic::from_str(&cosmos_mnemonic).expect("Provided mnemonic is invalid"),
-        );
+        config = config.with_cosmos_mnemonic(cosmos_mnemonic);
     }
 
     #[cfg(feature = "coconut")]
     {
         use network_defaults::var_names::NYMD_VALIDATOR;
 
-        if let Some(ref raw_validators) = args.nymd_validators {
-            config = config.with_custom_validator_nymd(parse_urls(raw_validators));
+        if let Some(nymd_validators) = args.nymd_validators {
+            config = config.with_custom_validator_nymd(nymd_validators);
         } else if std::env::var(CONFIGURED).is_ok() {
             if let Some(raw_validators) = read_var_if_not_default(NYMD_VALIDATOR) {
                 config = config.with_custom_validator_nymd(::config::parse_urls(&raw_validators))

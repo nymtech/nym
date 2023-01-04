@@ -103,7 +103,7 @@ fn minor_0_12_upgrade(
 
     print_start_upgrade(config_version, &to_version);
 
-    let upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
+    let upgraded_config = config.with_custom_version(to_version.to_string());
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {err}");

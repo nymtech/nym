@@ -1,8 +1,9 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::commands::validate_bech32_address_or_exit;
 use crate::{
-    commands::{validate_bech32_address_or_exit, version_check},
+    commands::version_check,
     config::{persistence::pathfinder::GatewayPathfinder, Config},
 };
 use anyhow::{anyhow, Result};
@@ -10,6 +11,7 @@ use clap::{ArgGroup, Args};
 use config::NymConfig;
 use crypto::asymmetric::identity;
 use log::error;
+use validator_client::nymd;
 
 #[derive(Args, Clone)]
 #[clap(group(ArgGroup::new("sign").required(true).args(&["wallet-address", "text"])))]
@@ -20,7 +22,7 @@ pub struct Sign {
 
     /// Signs your blockchain address with your identity key
     #[clap(long)]
-    wallet_address: Option<String>,
+    wallet_address: Option<nymd::AccountId>,
 
     /// Signs an arbitrary piece of text with your identity key
     #[clap(long)]
@@ -29,7 +31,7 @@ pub struct Sign {
 
 enum SignedTarget {
     Text(String),
-    Address(String),
+    Address(nymd::AccountId),
 }
 
 impl TryFrom<Sign> for SignedTarget {
@@ -58,15 +60,12 @@ pub fn load_identity_keys(pathfinder: &GatewayPathfinder) -> identity::KeyPair {
     identity_keypair
 }
 
-fn print_signed_address(private_key: &identity::PrivateKey, raw_address: &str) {
-    let trimmed = raw_address.trim();
-    validate_bech32_address_or_exit(trimmed);
-    let signature = private_key.sign_text(trimmed);
+fn print_signed_address(private_key: &identity::PrivateKey, wallet_address: nymd::AccountId) {
+    // perform extra validation to ensure we have correct prefix
+    validate_bech32_address_or_exit(wallet_address.as_ref());
 
-    println!(
-        "The base58-encoded signature on '{}' is: {}",
-        trimmed, signature
-    );
+    let signature = private_key.sign_text(wallet_address.as_ref());
+    println!("The base58-encoded signature on '{wallet_address}' is: {signature}",);
 }
 
 fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {
@@ -113,6 +112,6 @@ pub fn execute(args: &Sign) {
 
     match signed_target {
         SignedTarget::Text(text) => print_signed_text(identity_keypair.private_key(), &text),
-        SignedTarget::Address(addr) => print_signed_address(identity_keypair.private_key(), &addr),
+        SignedTarget::Address(addr) => print_signed_address(identity_keypair.private_key(), addr),
     }
 }

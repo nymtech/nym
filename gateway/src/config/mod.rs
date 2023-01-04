@@ -4,7 +4,6 @@
 use crate::config::template::config_template;
 use config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
 use config::NymConfig;
-use log::error;
 use network_defaults::mainnet::{API_VALIDATOR, NYMD_VALIDATOR, STATISTICS_SERVICE_DOMAIN_ADDRESS};
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
@@ -12,6 +11,8 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
+use validator_client::nymd;
+use validator_client::nymd::AccountId;
 
 pub mod persistence;
 mod template;
@@ -160,16 +161,8 @@ impl Config {
         self
     }
 
-    pub fn with_listening_address<S: Into<String>>(mut self, listening_address: S) -> Self {
-        let listening_address_string = listening_address.into();
-        if let Ok(ip_addr) = listening_address_string.parse() {
-            self.gateway.listening_address = ip_addr;
-        } else {
-            error!(
-                "failed to change listening address. the provided value ({}) was invalid",
-                listening_address_string
-            );
-        }
+    pub fn with_listening_address(mut self, listening_address: IpAddr) -> Self {
+        self.gateway.listening_address = listening_address;
         self
     }
 
@@ -193,18 +186,18 @@ impl Config {
         self
     }
 
-    pub fn with_custom_persistent_store<S: Into<String>>(mut self, store_dir: S) -> Self {
-        self.gateway.persistent_storage = PathBuf::from(store_dir.into());
+    pub fn with_custom_persistent_store(mut self, store_dir: PathBuf) -> Self {
+        self.gateway.persistent_storage = store_dir;
         self
     }
 
-    pub fn with_custom_version(mut self, version: &str) -> Self {
-        self.gateway.version = version.to_string();
+    pub fn with_custom_version<S: Into<String>>(mut self, version: S) -> Self {
+        self.gateway.version = version.into();
         self
     }
 
-    pub fn with_wallet_address(mut self, wallet_address: &str) -> Self {
-        self.gateway.wallet_address = wallet_address.to_string();
+    pub fn with_wallet_address(mut self, wallet_address: nymd::AccountId) -> Self {
+        self.gateway.wallet_address = Some(wallet_address);
         self
     }
 
@@ -303,8 +296,8 @@ impl Config {
         &self.gateway.version
     }
 
-    pub fn get_wallet_address(&self) -> &str {
-        &self.gateway.wallet_address
+    pub fn get_wallet_address(&self) -> Option<nymd::AccountId> {
+        self.gateway.wallet_address.clone()
     }
 }
 
@@ -378,7 +371,8 @@ pub struct Gateway {
     persistent_storage: PathBuf,
 
     /// The Cosmos wallet address that will control this gateway
-    wallet_address: String,
+    // the only reason this is an Option is because of the lack of existence of a sane default value
+    wallet_address: Option<AccountId>,
 }
 
 impl Gateway {
@@ -424,7 +418,7 @@ impl Default for Gateway {
             cosmos_mnemonic: bip39::Mnemonic::from_str("exact antique hybrid width raise anchor puzzle degree fee quit long crack net vague hip despair write put useless civil mechanic broom music day").unwrap(),
             nym_root_directory: Config::default_root_directory(),
             persistent_storage: Default::default(),
-            wallet_address: "nymXXXXXXXX".to_string(),
+            wallet_address: None,
         }
     }
 }

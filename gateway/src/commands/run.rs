@@ -1,4 +1,4 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
@@ -8,6 +8,9 @@ use crate::{
 use clap::Args;
 use config::NymConfig;
 use log::*;
+use std::net::IpAddr;
+use std::path::PathBuf;
+use validator_client::nymd;
 
 #[derive(Args, Clone)]
 pub struct Run {
@@ -17,11 +20,11 @@ pub struct Run {
 
     /// The custom host on which the gateway will be running for receiving sphinx packets
     #[clap(long)]
-    host: Option<String>,
+    host: Option<IpAddr>,
 
     /// The wallet address you will use to bond this gateway, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9
     #[clap(long)]
-    wallet_address: Option<String>,
+    wallet_address: Option<nymd::AccountId>,
 
     /// The port on which the gateway will be listening for sphinx packets
     #[clap(long)]
@@ -33,11 +36,12 @@ pub struct Run {
 
     /// The host that will be reported to the directory server
     #[clap(long)]
+    // TODO: could this be changed to `Option<url::Url>`?
     announce_host: Option<String>,
 
     /// Path to sqlite database containing all gateway persistent data
     #[clap(long)]
-    datastore: Option<String>,
+    datastore: Option<PathBuf>,
 
     /// Comma separated list of endpoints of nym APIs
     #[clap(long, alias = "validator_apis", value_delimiter = ',')]
@@ -52,7 +56,7 @@ pub struct Run {
 
     /// Cosmos wallet mnemonic
     #[clap(long)]
-    mnemonic: Option<String>,
+    mnemonic: Option<bip39::Mnemonic>,
 
     /// Set this gateway to work only with coconut credentials; that would disallow clients to
     /// bypass bandwidth credential requirement
@@ -66,7 +70,7 @@ pub struct Run {
 
     /// URL where a statistics aggregator is running. The default value is a Nym aggregator server
     #[clap(long)]
-    statistics_service_url: Option<String>,
+    statistics_service_url: Option<url::Url>,
 }
 
 impl From<Run> for OverrideConfig {

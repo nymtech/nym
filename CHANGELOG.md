@@ -13,6 +13,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - all-binaries: improved error logging ([#2686])
 - native client: bring shutdown logic up to the same level as socks5-client
 - nym-api, coconut-dkg contract: automatic, time-based dkg epoch state advancement ([#2670])
+- all-binaries: standarised argument names (note: old names should still be accepted) ([#2762]
 
 ### Fixed
 
@@ -21,6 +22,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#2686]: https://github.com/nymtech/nym/pull/2686
 [#2670]: https://github.com/nymtech/nym/pull/2670
 [#2753]: https://github.com/nymtech/nym/pull/2753
+[#2762]: https://github.com/nymtech/nym/pull/2762
 
 ## [v1.1.4] (2022-12-20)
 

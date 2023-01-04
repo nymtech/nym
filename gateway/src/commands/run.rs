@@ -39,13 +39,16 @@ pub struct Run {
     #[clap(long)]
     datastore: Option<String>,
 
-    /// Comma separated list of endpoints of the nym APIs
-    #[clap(long)]
+    /// Comma separated list of endpoints of nym APIs
+    #[clap(long, alias = "validator_apis")]
+    // the alias here is included for backwards compatibility (1.1.4 and before)
     nym_apis: Option<String>,
 
     /// Comma separated list of endpoints of the validator
-    #[clap(long)]
-    validators: Option<String>,
+    #[cfg(feature = "coconut")]
+    #[clap(long, alias = "validators")]
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    nymd_validators: Option<String>,
 
     /// Cosmos wallet mnemonic
     #[clap(long)]
@@ -76,14 +79,15 @@ impl From<Run> for OverrideConfig {
             datastore: run_config.datastore,
             announce_host: run_config.announce_host,
             nym_apis: run_config.nym_apis,
-            validators: run_config.validators,
             mnemonic: run_config.mnemonic,
-
-            #[cfg(feature = "coconut")]
-            only_coconut_credentials: run_config.only_coconut_credentials,
 
             enabled_statistics: run_config.enabled_statistics,
             statistics_service_url: run_config.statistics_service_url,
+
+            #[cfg(feature = "coconut")]
+            nymd_validators: run_config.nymd_validators,
+            #[cfg(feature = "coconut")]
+            only_coconut_credentials: run_config.only_coconut_credentials,
         }
     }
 }

@@ -76,13 +76,14 @@ pub(crate) enum Commands {
 
 // Configuration that can be overridden.
 pub(crate) struct OverrideConfig {
-    nymd_validators: Option<String>,
-    api_validators: Option<String>,
+    nym_apis: Option<String>,
     disable_socket: bool,
     port: Option<u16>,
     fastmode: bool,
     no_cover: bool,
 
+    #[cfg(feature = "coconut")]
+    nymd_validators: Option<String>,
     #[cfg(feature = "coconut")]
     enabled_credentials_mode: bool,
 }
@@ -101,27 +102,16 @@ pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send + Syn
 }
 
 pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
-    if let Some(raw_validators) = args.nymd_validators {
+    if let Some(raw_validators) = args.nym_apis {
         config
             .get_base_mut()
-            .set_custom_validators(config::parse_validators(&raw_validators));
-    } else if std::env::var(network_defaults::var_names::CONFIGURED).is_ok() {
-        let raw_validators = std::env::var(network_defaults::var_names::NYMD_VALIDATOR)
-            .expect("nymd validator not set");
-        config
-            .get_base_mut()
-            .set_custom_validators(config::parse_validators(&raw_validators));
-    }
-    if let Some(raw_validators) = args.api_validators {
-        config
-            .get_base_mut()
-            .set_custom_nym_apis(config::parse_validators(&raw_validators));
+            .set_custom_nym_apis(config::parse_urls(&raw_validators));
     } else if std::env::var(network_defaults::var_names::CONFIGURED).is_ok() {
         let raw_validators = std::env::var(network_defaults::var_names::API_VALIDATOR)
             .expect("api validator not set");
         config
             .get_base_mut()
-            .set_custom_nym_apis(config::parse_validators(&raw_validators));
+            .set_custom_nym_apis(config::parse_urls(&raw_validators));
     }
 
     if args.disable_socket {
@@ -134,6 +124,17 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
 
     #[cfg(feature = "coconut")]
     {
+        if let Some(raw_validators) = args.nymd_validators {
+            config
+                .get_base_mut()
+                .set_custom_validators(config::parse_urls(&raw_validators));
+        } else if std::env::var(network_defaults::var_names::CONFIGURED).is_ok() {
+            let raw_validators = std::env::var(network_defaults::var_names::NYMD_VALIDATOR)
+                .expect("nymd validator not set");
+            config
+                .get_base_mut()
+                .set_custom_validators(config::parse_urls(&raw_validators));
+        }
         if args.enabled_credentials_mode {
             config.get_base_mut().with_disabled_credentials(false)
         }

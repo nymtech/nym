@@ -40,12 +40,15 @@ pub struct Init {
     datastore: Option<String>,
 
     /// Comma separated list of endpoints of nym APIs
-    #[clap(long)]
+    #[clap(long, alias = "validator_apis")]
+    // the alias here is included for backwards compatibility (1.1.4 and before)
     nym_apis: Option<String>,
 
     /// Comma separated list of endpoints of the validator
-    #[clap(long)]
-    validators: Option<String>,
+    #[cfg(feature = "coconut")]
+    #[clap(long, alias = "validators")]
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    nymd_validators: Option<String>,
 
     /// Cosmos wallet mnemonic needed for double spending protection
     #[clap(long)]
@@ -76,14 +79,15 @@ impl From<Init> for OverrideConfig {
             datastore: init_config.datastore,
             announce_host: init_config.announce_host,
             nym_apis: init_config.nym_apis,
-            validators: init_config.validators,
             mnemonic: init_config.mnemonic,
-
-            #[cfg(feature = "coconut")]
-            only_coconut_credentials: init_config.only_coconut_credentials,
 
             enabled_statistics: init_config.enabled_statistics,
             statistics_service_url: init_config.statistics_service_url,
+
+            #[cfg(feature = "coconut")]
+            nymd_validators: init_config.nymd_validators,
+            #[cfg(feature = "coconut")]
+            only_coconut_credentials: init_config.only_coconut_credentials,
         }
     }
 }
@@ -166,7 +170,7 @@ mod tests {
             announce_host: Some("foo-announce-host".to_string()),
             datastore: Some("foo-datastore".to_string()),
             nym_apis: None,
-            validators: None,
+            nymd_validators: None,
             mnemonic: None,
             statistics_service_url: None,
             enabled_statistics: None,

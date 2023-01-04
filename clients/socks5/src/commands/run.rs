@@ -27,8 +27,9 @@ pub(crate) struct Run {
     /// slower and consume nearly double the bandwidth as it will require sending reply SURBs.
     ///
     /// Note that some service providers might not support this.
-    #[clap(long)]
-    use_anonymous_sender_tag: bool,
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    #[clap(long, alias = "use_anonymous_sender_tag")]
+    use_anonymous_replies: bool,
 
     /// Address of the socks5 provider to send messages to.
     #[clap(long)]
@@ -40,6 +41,7 @@ pub(crate) struct Run {
     gateway: Option<String>,
 
     /// Comma separated list of rest endpoints of the nymd validators
+    #[cfg(feature = "coconut")]
     #[clap(long)]
     nymd_validators: Option<String>,
 
@@ -70,12 +72,14 @@ pub(crate) struct Run {
 impl From<Run> for OverrideConfig {
     fn from(run_config: Run) -> Self {
         OverrideConfig {
-            nymd_validators: run_config.nymd_validators,
-            api_validators: run_config.nym_apis,
+            nym_apis: run_config.nym_apis,
             port: run_config.port,
-            use_anonymous_sender_tag: run_config.use_anonymous_sender_tag,
+            use_anonymous_replies: run_config.use_anonymous_replies,
             fastmode: run_config.fastmode,
             no_cover: run_config.no_cover,
+
+            #[cfg(feature = "coconut")]
+            nymd_validators: run_config.nymd_validators,
             #[cfg(feature = "coconut")]
             enabled_credentials_mode: run_config.enabled_credentials_mode,
         }

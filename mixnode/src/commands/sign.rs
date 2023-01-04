@@ -1,4 +1,4 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use std::convert::TryFrom;
@@ -15,15 +15,16 @@ use log::error;
 use super::version_check;
 
 #[derive(Args, Clone)]
-#[clap(group(ArgGroup::new("sign").required(true).args(&["address", "text"])))]
+#[clap(group(ArgGroup::new("sign").required(true).args(&["wallet-address", "text"])))]
 pub(crate) struct Sign {
     /// The id of the mixnode you want to sign with
     #[clap(long)]
     id: String,
 
     /// Signs your blockchain address with your identity key
-    #[clap(long)]
-    address: Option<String>,
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    #[clap(long, alias = "address")]
+    wallet_address: Option<String>,
 
     /// Signs an arbitrary piece of text with your identity key
     #[clap(long)]
@@ -41,7 +42,7 @@ impl TryFrom<Sign> for SignedTarget {
     fn try_from(args: Sign) -> Result<Self, Self::Error> {
         if let Some(text) = args.text {
             Ok(SignedTarget::Text(text))
-        } else if let Some(address) = args.address {
+        } else if let Some(address) = args.wallet_address {
             Ok(SignedTarget::Address(address))
         } else {
             // This is unreachable, and hopefully clap will support it explicitly by outputting an

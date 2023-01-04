@@ -149,6 +149,7 @@ impl Config {
         self
     }
 
+    #[cfg(feature = "coconut")]
     pub fn with_custom_validator_nymd(mut self, validator_nymd_urls: Vec<Url>) -> Self {
         self.gateway.validator_nymd_urls = validator_nymd_urls;
         self

@@ -1,4 +1,4 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::Config;
@@ -40,9 +40,10 @@ pub(crate) struct Init {
     #[clap(long)]
     announce_host: Option<String>,
 
-    /// Comma separated list of rest endpoints of the validators
-    #[clap(long)]
-    validators: Option<String>,
+    /// Comma separated list of nym-api endpoints of the validators
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    #[clap(long, alias = "validators")]
+    nym_apis: Option<String>,
 }
 
 impl From<Init> for OverrideConfig {
@@ -55,7 +56,7 @@ impl From<Init> for OverrideConfig {
             verloc_port: init_config.verloc_port,
             http_api_port: init_config.http_api_port,
             announce_host: init_config.announce_host,
-            validators: init_config.validators,
+            nym_apis: init_config.nym_apis,
         }
     }
 }

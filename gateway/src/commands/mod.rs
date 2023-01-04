@@ -8,11 +8,11 @@ use clap::CommandFactory;
 use clap::Subcommand;
 use colored::Colorize;
 use completions::{fig_generate, ArgShell};
-use config::parse_validators;
+use config::parse_urls;
 use crypto::bech32_address_validation;
 use network_defaults::mainnet::read_var_if_not_default;
 use network_defaults::var_names::{
-    API_VALIDATOR, BECH32_PREFIX, CONFIGURED, NYMD_VALIDATOR, STATISTICS_SERVICE_DOMAIN_ADDRESS,
+    API_VALIDATOR, BECH32_PREFIX, CONFIGURED, STATISTICS_SERVICE_DOMAIN_ADDRESS,
 };
 
 pub(crate) mod init;
@@ -56,9 +56,10 @@ pub(crate) struct OverrideConfig {
     enabled_statistics: Option<bool>,
     statistics_service_url: Option<String>,
     nym_apis: Option<String>,
-    validators: Option<String>,
     mnemonic: Option<String>,
 
+    #[cfg(feature = "coconut")]
+    nymd_validators: Option<String>,
     #[cfg(feature = "coconut")]
     only_coconut_credentials: bool,
 }
@@ -120,18 +121,10 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
     }
 
     if let Some(raw_validators) = args.nym_apis {
-        config = config.with_custom_nym_apis(parse_validators(&raw_validators));
+        config = config.with_custom_nym_apis(parse_urls(&raw_validators));
     } else if std::env::var(CONFIGURED).is_ok() {
         if let Some(raw_validators) = read_var_if_not_default(API_VALIDATOR) {
-            config = config.with_custom_nym_apis(::config::parse_validators(&raw_validators))
-        }
-    }
-
-    if let Some(ref raw_validators) = args.validators {
-        config = config.with_custom_validator_nymd(parse_validators(raw_validators));
-    } else if std::env::var(CONFIGURED).is_ok() {
-        if let Some(raw_validators) = read_var_if_not_default(NYMD_VALIDATOR) {
-            config = config.with_custom_validator_nymd(::config::parse_validators(&raw_validators))
+            config = config.with_custom_nym_apis(::config::parse_urls(&raw_validators))
         }
     }
 
@@ -153,6 +146,15 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
 
     #[cfg(feature = "coconut")]
     {
+        use network_defaults::var_names::NYMD_VALIDATOR;
+
+        if let Some(ref raw_validators) = args.nymd_validators {
+            config = config.with_custom_validator_nymd(parse_urls(raw_validators));
+        } else if std::env::var(CONFIGURED).is_ok() {
+            if let Some(raw_validators) = read_var_if_not_default(NYMD_VALIDATOR) {
+                config = config.with_custom_validator_nymd(::config::parse_urls(&raw_validators))
+            }
+        }
         config = config.with_only_coconut_credentials(args.only_coconut_credentials);
     }
 

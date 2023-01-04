@@ -7,7 +7,7 @@ use crate::client::config::Config;
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
 use completions::{fig_generate, ArgShell};
-use config::parse_validators;
+use config::parse_urls;
 
 pub mod init;
 pub(crate) mod run;
@@ -79,13 +79,14 @@ pub(crate) enum Commands {
 
 // Configuration that can be overridden.
 pub(crate) struct OverrideConfig {
-    nymd_validators: Option<String>,
-    api_validators: Option<String>,
+    nym_apis: Option<String>,
     port: Option<u16>,
-    use_anonymous_sender_tag: bool,
+    use_anonymous_replies: bool,
     fastmode: bool,
     no_cover: bool,
 
+    #[cfg(feature = "coconut")]
+    nymd_validators: Option<String>,
     #[cfg(feature = "coconut")]
     enabled_credentials_mode: bool,
 }
@@ -104,26 +105,17 @@ pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send + Syn
 }
 
 pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
-    if let Some(raw_validators) = args.nymd_validators {
+    if let Some(raw_validators) = args.nym_apis {
         config
             .get_base_mut()
-            .set_custom_validators(parse_validators(&raw_validators));
-    } else if let Ok(raw_validators) = std::env::var(network_defaults::var_names::NYMD_VALIDATOR) {
-        config
-            .get_base_mut()
-            .set_custom_validators(parse_validators(&raw_validators));
-    }
-    if let Some(raw_validators) = args.api_validators {
-        config
-            .get_base_mut()
-            .set_custom_nym_apis(parse_validators(&raw_validators));
+            .set_custom_nym_apis(parse_urls(&raw_validators));
     } else if let Ok(raw_validators) = std::env::var(network_defaults::var_names::API_VALIDATOR) {
         config
             .get_base_mut()
-            .set_custom_nym_apis(parse_validators(&raw_validators));
+            .set_custom_nym_apis(parse_urls(&raw_validators));
     }
 
-    if args.use_anonymous_sender_tag {
+    if args.use_anonymous_replies {
         config = config.with_anonymous_replies(true)
     }
 
@@ -133,6 +125,17 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
 
     #[cfg(feature = "coconut")]
     {
+        if let Some(raw_validators) = args.nymd_validators {
+            config
+                .get_base_mut()
+                .set_custom_validators(parse_urls(&raw_validators));
+        } else if let Ok(raw_validators) =
+            std::env::var(network_defaults::var_names::NYMD_VALIDATOR)
+        {
+            config
+                .get_base_mut()
+                .set_custom_validators(parse_urls(&raw_validators));
+        }
         if args.enabled_credentials_mode {
             config.get_base_mut().with_disabled_credentials(false)
         }

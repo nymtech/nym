@@ -28,8 +28,9 @@ pub(crate) struct Init {
     /// slower and consume nearly double the bandwidth as it will require sending reply SURBs.
     ///
     /// Note that some service providers might not support this.
-    #[clap(long)]
-    use_anonymous_sender_tag: bool,
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    #[clap(long, alias = "use_anonymous_sender_tag")]
+    use_reply_surbs: bool,
 
     /// Id of the gateway we are going to connect to.
     #[clap(long)]
@@ -41,12 +42,14 @@ pub(crate) struct Init {
     force_register_gateway: bool,
 
     /// Comma separated list of rest endpoints of the nymd validators
+    #[cfg(feature = "coconut")]
     #[clap(long)]
     nymd_validators: Option<String>,
 
     /// Comma separated list of rest endpoints of the API validators
-    #[clap(long)]
-    api_validators: Option<String>,
+    #[clap(long, alias = "api_validators")]
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    nym_apis: Option<String>,
 
     /// Port for the socket to listen on in all subsequent runs
     #[clap(short, long)]
@@ -75,12 +78,14 @@ pub(crate) struct Init {
 impl From<Init> for OverrideConfig {
     fn from(init_config: Init) -> Self {
         OverrideConfig {
-            nymd_validators: init_config.nymd_validators,
-            api_validators: init_config.api_validators,
+            nym_apis: init_config.nym_apis,
             port: init_config.port,
-            use_anonymous_sender_tag: init_config.use_anonymous_sender_tag,
+            use_anonymous_replies: init_config.use_reply_surbs,
             fastmode: init_config.fastmode,
             no_cover: init_config.no_cover,
+
+            #[cfg(feature = "coconut")]
+            nymd_validators: init_config.nymd_validators,
             #[cfg(feature = "coconut")]
             enabled_credentials_mode: init_config.enabled_credentials_mode,
         }

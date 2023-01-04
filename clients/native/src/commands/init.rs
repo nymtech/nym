@@ -30,11 +30,13 @@ pub(crate) struct Init {
 
     /// Comma separated list of rest endpoints of the nymd validators
     #[clap(long)]
+    #[cfg(feature = "coconut")]
     nymd_validators: Option<String>,
 
     /// Comma separated list of rest endpoints of the API validators
-    #[clap(long)]
-    api_validators: Option<String>,
+    #[clap(long, alias = "api_validators")]
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    nym_apis: Option<String>,
 
     /// Whether to not start the websocket
     #[clap(long)]
@@ -67,13 +69,14 @@ pub(crate) struct Init {
 impl From<Init> for OverrideConfig {
     fn from(init_config: Init) -> Self {
         OverrideConfig {
-            nymd_validators: init_config.nymd_validators,
-            api_validators: init_config.api_validators,
+            nym_apis: init_config.nym_apis,
             disable_socket: init_config.disable_socket,
             port: init_config.port,
             fastmode: init_config.fastmode,
             no_cover: init_config.no_cover,
 
+            #[cfg(feature = "coconut")]
+            nymd_validators: init_config.nymd_validators,
             #[cfg(feature = "coconut")]
             enabled_credentials_mode: init_config.enabled_credentials_mode,
         }

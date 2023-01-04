@@ -1,4 +1,4 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 #[macro_use]
@@ -6,6 +6,7 @@ extern crate rocket;
 
 use crate::config::Config;
 use crate::contract_cache::ValidatorCacheRefresher;
+use crate::epoch_operations::RewardedSetUpdater;
 use crate::network_monitor::NetworkMonitorBuilder;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::nymd_client::Client;
@@ -20,6 +21,7 @@ use clap::{crate_version, Arg, ArgMatches, Command};
 use contract_cache::ValidatorCache;
 use lazy_static::lazy_static;
 use log::{info, warn};
+use logging::setup_logging;
 use node_status_api::NodeStatusCache;
 use okapi::openapi3::OpenApi;
 use rocket::fairing::AdHoc;
@@ -35,20 +37,18 @@ use std::time::Duration;
 use std::{fs, process};
 use task::TaskManager;
 use tokio::sync::Notify;
-#[cfg(feature = "coconut")]
-use url::Url;
 use validator_client::nymd::SigningNymdClient;
 
-use crate::epoch_operations::RewardedSetUpdater;
 #[cfg(feature = "coconut")]
 use coconut::{
     comm::QueryCommunicationChannel,
     dkg::controller::{init_keypair, DkgController},
     InternalSignRequest,
 };
-use logging::setup_logging;
 #[cfg(feature = "coconut")]
-use validator_client::nymd::bip32::secp256k1::elliptic_curve::rand_core::OsRng;
+use rand::rngs::OsRng;
+#[cfg(feature = "coconut")]
+use url::Url;
 
 pub(crate) mod config;
 pub(crate) mod contract_cache;

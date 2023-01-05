@@ -11,10 +11,9 @@ use crate::network_monitor::NetworkMonitorBuilder;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::nyxd_client::Client;
 use crate::storage::NymApiStorage;
-use ::config::defaults::mainnet::read_var_if_not_default;
 use ::config::defaults::setup_env;
-use ::config::defaults::var_names::{CONFIGURED, MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
-use ::config::NymConfig;
+use ::config::defaults::var_names::{MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
+use ::config::{NymConfig, OptionalSet};
 use anyhow::Result;
 use build_information::BinaryBuildInformation;
 use clap::Parser;
@@ -168,41 +167,33 @@ fn override_config(mut config: Config, args: ApiArgs) -> Config {
     }
 
     config = config
+        .with_optional(Config::with_custom_nyxd_validator, args.nyxd_validator)
+        .with_optional_env(
+            Config::with_custom_mixnet_contract,
+            args.mixnet_contract,
+            MIXNET_CONTRACT_ADDRESS,
+        )
+        .with_optional(Config::with_mnemonic, args.mnemonic)
+        .with_optional(
+            Config::with_minimum_interval_monitor_threshold,
+            args.monitor_threshold,
+        )
+        .with_optional(
+            Config::with_min_mixnode_reliability,
+            args.min_mixnode_reliability,
+        )
+        .with_optional(
+            Config::with_min_gateway_reliability,
+            args.min_gateway_reliability,
+        )
         .with_network_monitor_enabled(args.enable_monitor)
         .with_rewarding_enabled(args.enable_rewarding)
         .with_disabled_credentials_mode(!args.enabled_credentials_mode);
 
-    if let Some(nyxd_validator) = args.nyxd_validator {
-        config = config.with_custom_nyxd_validator(nyxd_validator);
-    }
-
-    if let Some(mixnet_contract) = args.mixnet_contract {
-        config = config.with_custom_mixnet_contract(mixnet_contract.to_string())
-    } else if std::env::var(CONFIGURED).is_ok() {
-        if let Some(mixnet_contract) = read_var_if_not_default(MIXNET_CONTRACT_ADDRESS) {
-            config = config.with_custom_mixnet_contract(mixnet_contract)
-        }
-    }
-    if let Some(mnemonic) = args.mnemonic {
-        config = config.with_mnemonic(mnemonic.to_string())
-    }
-
-    if let Some(monitor_threshold) = args.monitor_threshold {
-        config = config.with_minimum_interval_monitor_threshold(monitor_threshold)
-    }
-
-    if let Some(reliability) = args.min_mixnode_reliability {
-        config = config.with_min_mixnode_reliability(reliability)
-    }
-
-    if let Some(reliability) = args.min_gateway_reliability {
-        config = config.with_min_gateway_reliability(reliability)
-    }
-
     #[cfg(feature = "coconut")]
-    if let Some(announce_address) = args.announce_address {
+    {
         config = config
-            .with_announce_address(announce_address)
+            .with_optional(Config::with_announce_address, args.announce_address)
             .with_coconut_signer_enabled(args.enable_coconut);
     }
 

@@ -71,7 +71,7 @@ pub struct Run {
 
     /// Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server
     #[clap(long)]
-    enabled_statistics: Option<bool>,
+    enabled_statistics: bool,
 
     /// URL where a statistics aggregator is running. The default value is a Nym aggregator server
     #[clap(long)]

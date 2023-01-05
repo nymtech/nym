@@ -8,7 +8,7 @@ async fn main() {
     let mut client = mixnet::Client::new(None, None).unwrap();
 
     // Connect to the mixnet, now we're listening for incoming
-    client.connect_to_mixnet().await;
+    client.connect_to_mixnet().await.unwrap();
 
     // Be able to get our client address
     let our_address = client.nym_address().unwrap();

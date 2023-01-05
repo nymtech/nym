@@ -17,7 +17,7 @@ async fn main() {
     // Checks if we have a shared gateway key loaded
     let first_run = true;
     if first_run {
-        client.register_with_gateway().await;
+        client.register_with_gateway().await.unwrap();
         write_to_storage(client.get_keys(), client.get_gateway_endpoint().unwrap());
     } else {
         let (keys, gateway_config) = read_from_storage();
@@ -26,7 +26,7 @@ async fn main() {
     }
 
     // Connect to the mixnet, now we're listening for incoming
-    client.connect_to_mixnet().await;
+    client.connect_to_mixnet().await.unwrap();
 
     // Be able to get our client address
     println!("Our client address is {}", client.nym_address().unwrap());

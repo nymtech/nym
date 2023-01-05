@@ -101,8 +101,8 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
         if let Some(nyxd_urls) = args.nyxd_urls {
             config.get_base_mut().set_custom_nyxd(nyxd_urls);
         } else if std::env::var(network_defaults::var_names::CONFIGURED).is_ok() {
-            let raw_validators = std::env::var(network_defaults::var_names::NYXD_VALIDATOR)
-                .expect("nyxd validator not set");
+            let raw_validators =
+                std::env::var(network_defaults::var_names::NYXD).expect("nyxd validator not set");
             config
                 .get_base_mut()
                 .set_custom_nyxd(config::parse_urls(&raw_validators));

@@ -111,7 +111,7 @@ impl Client {
         self.connection_state.gateway_endpoint_config()
     }
 
-    pub async fn register_with_gateway(&mut self) {
+    pub async fn register_with_gateway(&mut self) -> Result<()> {
         assert!(
             matches!(self.connection_state, ConnectionState::New),
             "can only setup gateway when in `New` connection state"
@@ -122,8 +122,7 @@ impl Client {
             self.config.nym_api_endpoints.clone(),
             self.config.user_chosen_gateway.clone(),
         )
-        .await
-        .expect("WIP");
+        .await?;
 
         let nym_address = client_core::init::get_client_address(&self.key_manager, &gateway_config);
 
@@ -131,21 +130,21 @@ impl Client {
             gateway_endpoint_config: gateway_config,
             nym_address,
         };
+        Ok(())
     }
 
-    fn write_gateway_key(&self, key_mode: &GatewayKeyMode) {
+    fn write_gateway_key(&self, key_mode: &GatewayKeyMode) -> Result<()> {
         let key_paths = self.key_paths.as_ref().unwrap().clone();
 
         let path_finder = ClientKeyPathfinder::from(key_paths);
         if path_finder.gateway_key_file_exists() && key_mode.is_keep() {
-            todo!("WIP");
+            return Err(Error::DontOverwriteGatewayKey);
         };
-        self.key_manager
-            .store_key_gateway_only(&path_finder)
-            .expect("WIP");
+        self.key_manager.store_key_gateway_only(&path_finder)?;
+        Ok(())
     }
 
-    fn write_gateway_endpoint_config(&self) {
+    fn write_gateway_endpoint_config(&self) -> Result<()> {
         let key_paths = self.key_paths.as_ref().unwrap().clone();
         let gateway_endpoint_config_path = key_paths.gateway_endpoint_config;
         let gateway_endpoint_config =
@@ -153,17 +152,17 @@ impl Client {
 
         // Ensure the whole directory structure exists
         if let Some(parent_dir) = gateway_endpoint_config_path.parent() {
-            std::fs::create_dir_all(parent_dir).expect("WIP");
+            std::fs::create_dir_all(parent_dir)?;
         }
-        std::fs::write(gateway_endpoint_config_path, gateway_endpoint_config).expect("WIP");
+        std::fs::write(gateway_endpoint_config_path, gateway_endpoint_config)?;
+        Ok(())
     }
 
-    fn read_gateway_endpoint_config(&mut self) {
+    fn read_gateway_endpoint_config(&mut self) -> Result<()> {
         let key_paths = self.key_paths.as_ref().unwrap().clone();
-        let gateway_endpoint_config: GatewayEndpointConfig = toml::from_str(
-            &std::fs::read_to_string(key_paths.gateway_endpoint_config).expect("WIP"),
-        )
-        .expect("WIP");
+        let gateway_endpoint_config: GatewayEndpointConfig =
+            std::fs::read_to_string(key_paths.gateway_endpoint_config)
+                .map(|str| toml::from_str(&str))??;
 
         let nym_address =
             client_core::init::get_client_address(&self.key_manager, &gateway_endpoint_config);
@@ -172,10 +171,11 @@ impl Client {
             gateway_endpoint_config,
             nym_address,
         };
+        Ok(())
     }
 
     /// Connects to the mixnet via the gateway in the client config
-    pub async fn connect_to_mixnet(&mut self) {
+    pub async fn connect_to_mixnet(&mut self) -> Result<()> {
         // For some simple cases we can figure how to setup gateway without it having to have been
         // called in advance.
         if matches!(self.connection_state, ConnectionState::New) {
@@ -184,18 +184,18 @@ impl Client {
                     // If we have a gateway key from client, then we can just read the corresponding
                     // config
                     println!("Has gateway key: loading");
-                    self.read_gateway_endpoint_config();
+                    self.read_gateway_endpoint_config()?;
                 } else {
                     // If we didn't find any shared gateway key during creation, that means we first
                     // need to register a gateway
                     println!("NO gateway key: registering new");
-                    self.register_with_gateway().await;
-                    self.write_gateway_key(&GatewayKeyMode::Overwrite);
-                    self.write_gateway_endpoint_config();
+                    self.register_with_gateway().await?;
+                    self.write_gateway_key(&GatewayKeyMode::Overwrite)?;
+                    self.write_gateway_endpoint_config()?;
                 }
             } else {
                 // If we don't have any key paths, just use ephemeral keys
-                self.register_with_gateway().await;
+                self.register_with_gateway().await?;
             }
         }
 
@@ -243,6 +243,7 @@ impl Client {
             reconstructed_receiver,
             task_manager: started_client.task_manager,
         };
+        Ok(())
     }
 
     /// Sends stringy data to the supplied Nym address

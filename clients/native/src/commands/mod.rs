@@ -1,7 +1,7 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::config::{BaseConfig, Config, SocketType};
+use crate::client::config::{BaseConfig, Config};
 use build_information::BinaryBuildInformation;
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
@@ -79,19 +79,10 @@ pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send + Syn
 }
 
 pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
-    if args.disable_socket {
-        config = config.with_socket(SocketType::None);
-    }
-
-    if args.fastmode {
-        config.get_base_mut().set_high_default_traffic_volume();
-    }
-
-    if args.no_cover {
-        config.get_base_mut().set_no_cover_traffic();
-    }
-
     config = config
+        .with_disabled_socket(args.disable_socket)
+        .with_base(BaseConfig::with_high_default_traffic_volume, args.fastmode)
+        .with_base(BaseConfig::with_disabled_cover_traffic, args.no_cover)
         .with_optional(Config::with_port, args.port)
         .with_optional_custom_env_ext(
             BaseConfig::with_custom_nym_apis,

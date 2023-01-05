@@ -95,6 +95,15 @@ impl Config {
         self
     }
 
+    pub fn with_disabled_socket(mut self, disabled: bool) -> Self {
+        if disabled {
+            self.socket.socket_type = SocketType::None;
+        } else {
+            self.socket.socket_type = SocketType::WebSocket;
+        }
+        self
+    }
+
     pub fn with_port(mut self, port: u16) -> Self {
         self.socket.listening_port = port;
         self

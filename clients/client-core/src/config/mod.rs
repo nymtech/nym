@@ -196,12 +196,26 @@ impl<T> Config<T> {
         self.client.nym_api_urls = nym_api_urls;
     }
 
+    pub fn with_high_default_traffic_volume(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.set_high_default_traffic_volume();
+        }
+        self
+    }
+
     pub fn set_high_default_traffic_volume(&mut self) {
         self.debug.average_packet_delay = Duration::from_millis(10);
         // basically don't really send cover messages
         self.debug.loop_cover_traffic_average_delay = Duration::from_millis(2_000_000);
         // 250 "real" messages / s
         self.debug.message_sending_average_delay = Duration::from_millis(4);
+    }
+
+    pub fn with_disabled_cover_traffic(mut self, disabled: bool) -> Self {
+        if disabled {
+            self.set_no_cover_traffic()
+        }
+        self
     }
 
     pub fn set_no_cover_traffic(&mut self) {

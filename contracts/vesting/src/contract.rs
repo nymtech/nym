@@ -1,5 +1,4 @@
 use crate::errors::ContractError;
-use crate::queued_migrations::migrate_to_v2_mixnet_contract;
 use crate::storage::{
     account_from_address, save_account, BlockTimestampSecs, ACCOUNTS, ADMIN, DELEGATIONS,
     MIXNET_CONTRACT_ADDRESS, MIX_DENOM,
@@ -49,8 +48,8 @@ pub fn instantiate(
 }
 
 #[entry_point]
-pub fn migrate(deps: DepsMut<'_>, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
-    migrate_to_v2_mixnet_contract(deps, msg)
+pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    Ok(Response::new())
 }
 
 #[entry_point]

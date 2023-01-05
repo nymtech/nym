@@ -52,4 +52,6 @@ pub enum ContractError {
     LockedPledgeCapReached { current: Uint128, cap: Uint128 },
     #[error("VESTING: ({}: Account owned by {owner} has unpopulated vesting periods!", line!())]
     UnpopulatedVestingPeriods { owner: Addr },
+    #[error("VESTING: Vesting account associated with {0} already exists, only addresses with not existing vesting accounts can be added as staking addresses")]
+    StakingAccountExists(String),
 }

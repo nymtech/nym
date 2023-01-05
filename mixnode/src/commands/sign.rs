@@ -11,11 +11,12 @@ use clap::{ArgGroup, Args};
 use config::NymConfig;
 use crypto::asymmetric::identity;
 use log::error;
+use validator_client::nymd;
 
 use super::version_check;
 
 #[derive(Args, Clone)]
-#[clap(group(ArgGroup::new("sign").required(true).args(&["wallet-address", "text"])))]
+#[clap(group(ArgGroup::new("sign").required(true).args(&["wallet_address", "text"])))]
 pub(crate) struct Sign {
     /// The id of the mixnode you want to sign with
     #[clap(long)]
@@ -24,7 +25,7 @@ pub(crate) struct Sign {
     /// Signs your blockchain address with your identity key
     // the alias here is included for backwards compatibility (1.1.4 and before)
     #[clap(long, alias = "address")]
-    wallet_address: Option<String>,
+    wallet_address: Option<nymd::AccountId>,
 
     /// Signs an arbitrary piece of text with your identity key
     #[clap(long)]
@@ -33,7 +34,7 @@ pub(crate) struct Sign {
 
 enum SignedTarget {
     Text(String),
-    Address(String),
+    Address(nymd::AccountId),
 }
 
 impl TryFrom<Sign> for SignedTarget {
@@ -53,15 +54,12 @@ impl TryFrom<Sign> for SignedTarget {
     }
 }
 
-fn print_signed_address(private_key: &identity::PrivateKey, raw_address: &str) {
-    let trimmed = raw_address.trim();
-    validate_bech32_address_or_exit(trimmed);
-    let signature = private_key.sign_text(trimmed);
+fn print_signed_address(private_key: &identity::PrivateKey, wallet_address: nymd::AccountId) {
+    // perform extra validation to ensure we have correct prefix
+    validate_bech32_address_or_exit(wallet_address.as_ref());
 
-    println!(
-        "The base58-encoded signature on '{}' is: {}",
-        trimmed, signature
-    );
+    let signature = private_key.sign_text(wallet_address.as_ref());
+    println!("The base58-encoded signature on '{wallet_address}' is: {signature}",);
 }
 
 fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {
@@ -108,6 +106,6 @@ pub(crate) fn execute(args: &Sign) {
 
     match signed_target {
         SignedTarget::Text(text) => print_signed_text(identity_keypair.private_key(), &text),
-        SignedTarget::Address(addr) => print_signed_address(identity_keypair.private_key(), &addr),
+        SignedTarget::Address(addr) => print_signed_address(identity_keypair.private_key(), addr),
     }
 }

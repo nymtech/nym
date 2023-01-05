@@ -11,6 +11,7 @@ use crate::{
 
 use clap::Args;
 use config::NymConfig;
+use crypto::asymmetric::identity;
 use log::*;
 use version_checker::is_minor_version_compatible;
 
@@ -21,19 +22,19 @@ pub(crate) struct Run {
     id: String,
 
     /// Comma separated list of rest endpoints of the nymd validators
-    #[clap(long)]
     #[cfg(feature = "coconut")]
-    nymd_validators: Option<String>,
+    #[clap(long, value_delimiter = ',')]
+    nymd_validators: Option<Vec<url::Url>>,
 
     /// Comma separated list of rest endpoints of the API validators
-    #[clap(long, alias = "api_validators")]
+    #[clap(long, alias = "api_validators", value_delimiter = ',')]
     // the alias here is included for backwards compatibility (1.1.4 and before)
-    nym_apis: Option<String>,
+    nym_apis: Option<Vec<url::Url>>,
 
     /// Id of the gateway we want to connect to. If overridden, it is user's responsibility to
     /// ensure prior registration happened
     #[clap(long)]
-    gateway: Option<String>,
+    gateway: Option<identity::PublicKey>,
 
     /// Whether to not start the websocket
     #[clap(long)]
@@ -45,11 +46,11 @@ pub(crate) struct Run {
 
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
-    #[clap(long, hidden = true)]
+    #[clap(long, hide = true)]
     fastmode: bool,
 
     /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
-    #[clap(long, hidden = true)]
+    #[clap(long, hide = true)]
     no_cover: bool,
 
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway

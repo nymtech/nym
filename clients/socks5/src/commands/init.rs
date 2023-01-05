@@ -8,6 +8,7 @@ use crate::{
 };
 use clap::Args;
 use config::NymConfig;
+use crypto::asymmetric::identity;
 use nymsphinx::addressing::clients::Recipient;
 use serde::Serialize;
 use std::fmt::Display;
@@ -21,7 +22,7 @@ pub(crate) struct Init {
 
     /// Address of the socks5 provider to send messages to.
     #[clap(long)]
-    provider: String,
+    provider: Recipient,
 
     /// Specifies whether this client is going to use an anonymous sender tag for communication with the service provider.
     /// While this is going to hide its actual address information, it will make the actual communication
@@ -34,7 +35,7 @@ pub(crate) struct Init {
 
     /// Id of the gateway we are going to connect to.
     #[clap(long)]
-    gateway: Option<String>,
+    gateway: Option<identity::PublicKey>,
 
     /// Force register gateway. WARNING: this will overwrite any existing keys for the given id,
     /// potentially causing loss of access.
@@ -43,13 +44,13 @@ pub(crate) struct Init {
 
     /// Comma separated list of rest endpoints of the nymd validators
     #[cfg(feature = "coconut")]
-    #[clap(long)]
-    nymd_validators: Option<String>,
+    #[clap(long, value_delimiter = ',')]
+    nymd_validators: Option<Vec<url::Url>>,
 
     /// Comma separated list of rest endpoints of the API validators
-    #[clap(long, alias = "api_validators")]
+    #[clap(long, alias = "api_validators", value_delimiter = ',')]
     // the alias here is included for backwards compatibility (1.1.4 and before)
-    nym_apis: Option<String>,
+    nym_apis: Option<Vec<url::Url>>,
 
     /// Port for the socket to listen on in all subsequent runs
     #[clap(short, long)]
@@ -57,11 +58,11 @@ pub(crate) struct Init {
 
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
-    #[clap(long, hidden = true)]
+    #[clap(long, hide = true)]
     fastmode: bool,
 
     /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
-    #[clap(long, hidden = true)]
+    #[clap(long, hide = true)]
     no_cover: bool,
 
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
@@ -140,11 +141,11 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
     let register_gateway = !already_init || user_wants_force_register;
 
     // Attempt to use a user-provided gateway, if possible
-    let user_chosen_gateway_id = args.gateway.clone();
+    let user_chosen_gateway_id = args.gateway;
 
     // Load and potentially override config
     let mut config = override_config(
-        Config::new(id, provider_address),
+        Config::new(id, &provider_address.to_string()),
         OverrideConfig::from(args.clone()),
     );
 
@@ -152,7 +153,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
     // one but with keys kept, or reusing the gateway configuration.
     let gateway = client_core::init::setup_gateway::<Config, _>(
         register_gateway,
-        user_chosen_gateway_id,
+        user_chosen_gateway_id.map(|id| id.to_base58_string()),
         config.get_base(),
     )
     .await

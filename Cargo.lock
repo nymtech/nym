@@ -427,6 +427,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "build-information"
+version = "0.1.0"
+dependencies = [
+ "vergen 7.2.1",
+]
+
+[[package]]
 name = "bumpalo"
 version = "3.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -598,41 +605,51 @@ version = "3.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "190814073e85d238f31ff738fcb0bf6910cedeb73376c87cd69291028966fd83"
 dependencies = [
- "atty",
  "bitflags",
- "clap_derive",
- "clap_lex",
+ "clap_lex 0.2.4",
  "indexmap",
- "once_cell",
- "strsim",
- "termcolor",
  "textwrap 0.15.0",
 ]
 
 [[package]]
-name = "clap_complete"
-version = "3.2.4"
+name = "clap"
+version = "4.0.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e4179da71abd56c26b54dd0c248cc081c1f43b0a1a7e8448e28e57a29baa993d"
+checksum = "2148adefda54e14492fb9bddcc600b4344c5d1a3123bd666dcb939c6f0e0e57e"
 dependencies = [
- "clap 3.2.8",
+ "atty",
+ "bitflags",
+ "clap_derive",
+ "clap_lex 0.3.0",
+ "once_cell",
+ "strsim",
+ "termcolor",
+]
+
+[[package]]
+name = "clap_complete"
+version = "4.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10861370d2ba66b0f5989f83ebf35db6421713fd92351790e7fdd6c36774c56b"
+dependencies = [
+ "clap 4.0.26",
 ]
 
 [[package]]
 name = "clap_complete_fig"
-version = "3.2.4"
+version = "4.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed37b4c0c1214673eba6ad8ea31666626bf72be98ffb323067d973c48b4964b9"
+checksum = "46b30e010e669cd021e5004f3be26cff6b7c08d2a8a0d65b48d43a8cc0efd6c3"
 dependencies = [
- "clap 3.2.8",
+ "clap 4.0.26",
  "clap_complete",
 ]
 
 [[package]]
 name = "clap_derive"
-version = "3.2.7"
+version = "4.0.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "759bf187376e1afa7b85b959e6a664a3e7a95203415dba952ad19139e798f902"
+checksum = "0177313f9f02afc995627906bbd8967e2be069f5261954222dac78290c2b9014"
 dependencies = [
  "heck 0.4.0",
  "proc-macro-error",
@@ -646,6 +663,15 @@ name = "clap_lex"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2850f2f5a82cbf437dd5af4d49848fbdfc27c157c3d010345776f952765261c5"
+dependencies = [
+ "os_str_bytes",
+]
+
+[[package]]
+name = "clap_lex"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0d4198f73e42b4936b35b5bb248d81d2b595ecb170da0bac7655c54eedfa8da8"
 dependencies = [
  "os_str_bytes",
 ]
@@ -766,7 +792,7 @@ dependencies = [
 name = "completions"
 version = "0.1.0"
 dependencies = [
- "clap 3.2.8",
+ "clap 4.0.26",
  "clap_complete",
  "clap_complete_fig",
 ]
@@ -1005,7 +1031,7 @@ version = "0.1.0"
 dependencies = [
  "bip39",
  "cfg-if 0.1.10",
- "clap 3.2.8",
+ "clap 4.0.26",
  "coconut-interface",
  "completions",
  "config",
@@ -1765,7 +1791,7 @@ name = "explorer-api"
 version = "1.1.1"
 dependencies = [
  "chrono",
- "clap 3.2.8",
+ "clap 4.0.26",
  "contracts-common",
  "dotenv",
  "humantime-serde",
@@ -3211,9 +3237,11 @@ version = "1.1.4"
 dependencies = [
  "anyhow",
  "async-trait",
+ "bip39",
  "bs58",
+ "build-information",
  "cfg-if 1.0.0",
- "clap 3.2.8",
+ "clap 4.0.26",
  "coconut-bandwidth-contract-common",
  "coconut-dkg-common",
  "coconut-interface",
@@ -3234,6 +3262,7 @@ dependencies = [
  "getset",
  "humantime-serde",
  "inclusion-probability",
+ "lazy_static",
  "log",
  "logging",
  "mixnet-contract-common",
@@ -3265,7 +3294,6 @@ dependencies = [
  "ts-rs",
  "url",
  "validator-client",
- "vergen 7.2.1",
  "version-checker",
 ]
 
@@ -3307,7 +3335,7 @@ dependencies = [
  "base64",
  "bip39",
  "bs58",
- "clap 3.2.8",
+ "clap 4.0.26",
  "clap_complete",
  "clap_complete_fig",
  "dotenv",
@@ -3331,7 +3359,7 @@ dependencies = [
  "bip39",
  "bs58",
  "cfg-if 1.0.0",
- "clap 3.2.8",
+ "clap 4.0.26",
  "comfy-table",
  "cosmrs",
  "cosmwasm-std",
@@ -3357,7 +3385,8 @@ dependencies = [
 name = "nym-client"
 version = "1.1.4"
 dependencies = [
- "clap 3.2.8",
+ "build-information",
+ "clap 4.0.26",
  "client-connections",
  "client-core",
  "coconut-interface",
@@ -3370,6 +3399,7 @@ dependencies = [
  "futures",
  "gateway-client",
  "gateway-requests",
+ "lazy_static",
  "log",
  "logging",
  "network-defaults",
@@ -3387,7 +3417,6 @@ dependencies = [
  "topology",
  "url",
  "validator-client",
- "vergen 5.1.17",
  "version-checker",
  "websocket-requests",
 ]
@@ -3400,7 +3429,8 @@ dependencies = [
  "async-trait",
  "bip39",
  "bs58",
- "clap 3.2.8",
+ "build-information",
+ "clap 4.0.26",
  "coconut-interface",
  "colored",
  "completions",
@@ -3413,6 +3443,7 @@ dependencies = [
  "futures",
  "gateway-requests",
  "humantime-serde",
+ "lazy_static",
  "log",
  "logging",
  "mixnet-client",
@@ -3435,7 +3466,6 @@ dependencies = [
  "tokio-util 0.7.3",
  "url",
  "validator-client",
- "vergen 5.1.17",
  "version-checker",
 ]
 
@@ -3445,7 +3475,8 @@ version = "1.1.4"
 dependencies = [
  "anyhow",
  "bs58",
- "clap 3.2.8",
+ "build-information",
+ "clap 4.0.26",
  "colored",
  "completions",
  "config",
@@ -3477,7 +3508,6 @@ dependencies = [
  "topology",
  "url",
  "validator-client",
- "vergen 5.1.17",
  "version-checker",
 ]
 
@@ -3486,7 +3516,7 @@ name = "nym-network-requester"
 version = "1.1.4"
 dependencies = [
  "async-trait",
- "clap 3.2.8",
+ "clap 4.0.26",
  "client-connections",
  "completions",
  "dirs",
@@ -3549,7 +3579,8 @@ dependencies = [
 name = "nym-socks5-client"
 version = "1.1.4"
 dependencies = [
- "clap 3.2.8",
+ "build-information",
+ "clap 4.0.26",
  "client-connections",
  "client-core",
  "coconut-interface",
@@ -3562,6 +3593,7 @@ dependencies = [
  "futures",
  "gateway-client",
  "gateway-requests",
+ "lazy_static",
  "log",
  "logging",
  "network-defaults",
@@ -3582,7 +3614,6 @@ dependencies = [
  "topology",
  "url",
  "validator-client",
- "vergen 5.1.17",
  "version-checker",
 ]
 

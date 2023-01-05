@@ -1,14 +1,15 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use super::OverrideConfig;
 use crate::config::Config;
 use crate::node::MixNode;
 use crate::{commands::override_config, config::persistence::pathfinder::MixNodePathfinder};
 use clap::Args;
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
-
-use super::OverrideConfig;
+use std::net::IpAddr;
+use validator_client::nymd;
 
 #[derive(Args, Clone)]
 pub(crate) struct Init {
@@ -18,11 +19,11 @@ pub(crate) struct Init {
 
     /// The host on which the mixnode will be running
     #[clap(long)]
-    host: String,
+    host: IpAddr,
 
     /// The wallet address you will use to bond this mixnode, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9
     #[clap(long)]
-    wallet_address: String,
+    wallet_address: nymd::AccountId,
 
     /// The port on which the mixnode will be listening for mix packets
     #[clap(long)]
@@ -42,8 +43,8 @@ pub(crate) struct Init {
 
     /// Comma separated list of nym-api endpoints of the validators
     // the alias here is included for backwards compatibility (1.1.4 and before)
-    #[clap(long, alias = "validators")]
-    nym_apis: Option<String>,
+    #[clap(long, alias = "validators", value_delimiter = ',')]
+    nym_apis: Option<Vec<url::Url>>,
 }
 
 impl From<Init> for OverrideConfig {

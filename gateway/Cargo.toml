@@ -19,13 +19,14 @@ anyhow = "1.0.53"
 async-trait = { version = "0.1.51" }
 bip39 = "1.0.1"
 bs58 = "0.4.0"
-clap = { version = "3.2", features = ["cargo", "derive"] }
+clap = { version = "4.0", features = ["cargo", "derive"] }
 colored = "2.0"
 dashmap = "4.0"
 dirs = "4.0"
 dotenv = "0.15.0"
 futures = "0.3"
 humantime-serde = "1.0.1"
+lazy_static = "1.4.0"
 log = "0.4"
 once_cell = "1.7.2"
 pretty_env_logger = "0.4"
@@ -51,6 +52,7 @@ tokio-util = { version = "0.7.3", features = ["codec"] }
 url = { version = "2.2", features = ["serde"] }
 
 # internal
+build-information = { path = "../common/build-information" }
 coconut-interface = { path = "../common/coconut-interface", optional = true }
 credentials = { path = "../common/credentials" }
 config = { path = "../common/config" }
@@ -85,10 +87,4 @@ sqlx = { version = "0.5", features = [
     "sqlite",
     "macros",
     "migrate",
-] }
-vergen = { version = "5", default-features = false, features = [
-    "build",
-    "git",
-    "rustc",
-    "cargo",
 ] }

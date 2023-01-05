@@ -208,7 +208,7 @@ pub struct TaskClient {
 
 impl TaskClient {
     #[cfg(not(target_arch = "wasm32"))]
-    const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(1);
+    const SHUTDOWN_TIMEOUT_WAITING_FOR_SIGNAL_ON_EXIT: Duration = Duration::from_secs(5);
 
     fn new(
         notify: watch::Receiver<()>,
@@ -231,7 +231,6 @@ impl TaskClient {
         let (_notify_tx, notify_rx) = watch::channel(());
         let (task_halt_tx, _task_halt_rx) = mpsc::unbounded_channel();
         let (task_drop_tx, _task_drop_rx) = mpsc::unbounded_channel();
-        //let (task_status_tx, _task_status_rx) = futures::channel::mpsc::unbounded();
         let (task_status_tx, _task_status_rx) = futures::channel::mpsc::channel(128);
         TaskClient {
             shutdown: false,
@@ -280,9 +279,12 @@ impl TaskClient {
             return pending().await;
         }
         #[cfg(not(target_arch = "wasm32"))]
-        tokio::time::timeout(Self::SHUTDOWN_TIMEOUT, self.recv())
-            .await
-            .expect("Task stopped without shutdown called");
+        tokio::time::timeout(
+            Self::SHUTDOWN_TIMEOUT_WAITING_FOR_SIGNAL_ON_EXIT,
+            self.recv(),
+        )
+        .await
+        .expect("Task stopped without shutdown called");
     }
 
     pub fn is_shutdown_poll(&mut self) -> bool {

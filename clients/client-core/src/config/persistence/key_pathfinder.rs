@@ -29,18 +29,6 @@ impl ClientKeyPathfinder {
         }
     }
 
-    //pub fn new_from_dir(config_dir: &PathBuf) -> Self {
-    //    dbg!(&config_dir);
-    //    ClientKeyPathfinder {
-    //        identity_private_key: config_dir.join("private_identity.pem"),
-    //        identity_public_key: config_dir.join("public_identity.pem"),
-    //        encryption_private_key: config_dir.join("public_encryption.pem"),
-    //        encryption_public_key: config_dir.join("private_encryption.pem"),
-    //        gateway_shared_key: config_dir.join("gateway_shared.pem"),
-    //        ack_key: config_dir.join("ack_key.pem"),
-    //    }
-    //}
-
     pub fn new_from_config<T: NymConfig>(config: &Config<T>) -> Self {
         ClientKeyPathfinder {
             identity_private_key: config.get_private_identity_key_file(),

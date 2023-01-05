@@ -6,12 +6,10 @@ use async_trait::async_trait;
 use std::error::Error;
 use thiserror::Error;
 
-//#[cfg(target_arch = "wasm32")]
-//#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
+#[cfg(target_arch = "wasm32")]
 pub mod browser_backend;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
-//#[cfg(target_arch = "wasm32")]
 pub mod fs_backend;
 
 // #[cfg(all(test, feature = "std"))]

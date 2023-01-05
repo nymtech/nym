@@ -1779,14 +1779,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
-name = "examples-common"
-version = "0.1.0"
-dependencies = [
- "log",
- "pretty_env_logger",
-]
-
-[[package]]
 name = "execute"
 version = "0.1.0"
 dependencies = [
@@ -3590,11 +3582,11 @@ dependencies = [
  "client-connections",
  "client-core",
  "crypto",
- "examples-common",
  "futures",
  "gateway-client",
  "gateway-requests",
  "log",
+ "logging",
  "network-defaults",
  "nymsphinx",
  "pretty_env_logger",

@@ -1,11 +1,10 @@
 use std::path::PathBuf;
 
-use examples_common::setup_logging;
 use nym_sdk::mixnet;
 
 #[tokio::main]
 async fn main() {
-    setup_logging();
+    logging::setup_logging();
 
     // Specify some config options
     let config_dir = PathBuf::from("/tmp/mixnet-client");

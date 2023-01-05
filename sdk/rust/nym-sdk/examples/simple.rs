@@ -1,9 +1,8 @@
-use examples_common::setup_logging;
 use nym_sdk::mixnet;
 
 #[tokio::main]
 async fn main() {
-    setup_logging();
+    logging::setup_logging();
 
     // Passing no config makes the client fire up an ephemeral session and figure shit out on its own
     let mut client = mixnet::Client::new(None, None).unwrap();

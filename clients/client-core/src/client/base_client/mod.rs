@@ -103,6 +103,32 @@ impl ClientOutputStatus {
     }
 }
 
+#[derive(PartialEq, Eq)]
+pub enum CredentialsToggle {
+    Enabled,
+    Disabled,
+}
+
+impl CredentialsToggle {
+    pub fn is_enabled(&self) -> bool {
+        self == &CredentialsToggle::Enabled
+    }
+
+    pub fn is_disabled(&self) -> bool {
+        self == &CredentialsToggle::Disabled
+    }
+}
+
+impl From<bool> for CredentialsToggle {
+    fn from(value: bool) -> Self {
+        if value {
+            CredentialsToggle::Enabled
+        } else {
+            CredentialsToggle::Disabled
+        }
+    }
+}
+
 pub struct BaseClientBuilder<'a, B> {
     // due to wasm limitations I had to split it like this : (
     gateway_config: &'a GatewayEndpointConfig,
@@ -142,13 +168,13 @@ where
         key_manager: KeyManager,
         bandwidth_controller: Option<BandwidthController>,
         reply_storage_backend: B,
-        disabled_credentials: bool,
+        credentials_toggle: CredentialsToggle,
         nym_api_endpoints: Vec<Url>,
     ) -> BaseClientBuilder<'a, B> {
         BaseClientBuilder {
             gateway_config,
             debug_config,
-            disabled_credentials,
+            disabled_credentials: credentials_toggle.is_disabled(),
             nym_api_endpoints,
             reply_storage_backend,
             bandwidth_controller,

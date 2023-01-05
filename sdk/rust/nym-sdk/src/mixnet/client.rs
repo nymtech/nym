@@ -8,7 +8,7 @@ use tap::TapOptional;
 use client_connections::TransmissionLane;
 use client_core::{
     client::{
-        base_client::{non_wasm_helpers, BaseClientBuilder},
+        base_client::{non_wasm_helpers, BaseClientBuilder, CredentialsToggle},
         inbound_messages::InputMessage,
         key_manager::KeyManager,
     },
@@ -206,14 +206,14 @@ impl Client {
             ConnectionState::Registered { .. }
         ));
 
+        let gateway_config = self.connection_state.gateway_endpoint_config().unwrap();
+
+        // TODO: we currently don't support having a bandwidth controller
         let bandwidth_controller = None;
 
+        // TODO: currently we only support in-memory reply surb storage.
         let reply_storage_backend =
             non_wasm_helpers::setup_empty_reply_surb_backend(&self.config.debug_config);
-
-        let disabled_credentials = true;
-
-        let gateway_config = self.connection_state.gateway_endpoint_config().unwrap();
 
         let base_builder = BaseClientBuilder::new(
             gateway_config,
@@ -221,7 +221,7 @@ impl Client {
             self.key_manager.clone(),
             bandwidth_controller,
             reply_storage_backend,
-            disabled_credentials,
+            CredentialsToggle::Disabled,
             self.config.nym_api_endpoints.clone(),
         );
 

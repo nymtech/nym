@@ -535,9 +535,7 @@ where
                     }
                 }
             }
-            tokio::time::timeout(Duration::from_secs(5), shutdown.recv())
-                .await
-                .expect("Task stopped without shutdown called");
+            shutdown.recv_timeout().await;
         }
 
         #[cfg(target_arch = "wasm32")]

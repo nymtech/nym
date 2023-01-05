@@ -175,7 +175,12 @@ impl KeyManager {
         client_pathfinder: &ClientKeyPathfinder,
     ) -> io::Result<()> {
         match self.gateway_shared_key.as_ref() {
-            None => panic!("WIP(JON)"),
+            None => {
+                return Err(io::Error::new(
+                    io::ErrorKind::Other,
+                    "trying to store a non-existing key",
+                ))
+            }
             Some(gate_key) => {
                 pemstore::store_key(gate_key.as_ref(), client_pathfinder.gateway_shared_key())?
             }

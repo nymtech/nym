@@ -1,9 +1,8 @@
-use examples_common::setup_logging;
 use nym_sdk::mixnet;
 
 #[tokio::main]
 async fn main() {
-    setup_logging();
+    logging::setup_logging();
 
     // We can set a few options
     let user_chosen_gateway_id = None;

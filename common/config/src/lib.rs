@@ -129,3 +129,19 @@ pub fn parse_urls(raw: &str) -> Vec<url::Url> {
         })
         .collect()
 }
+
+pub trait OptionalSet {
+    fn with_optional<F, T>(self, f: F, val: Option<T>) -> Self
+    where
+        F: Fn(Self, T) -> Self,
+        Self: Sized,
+    {
+        if let Some(val) = val {
+            f(self, val)
+        } else {
+            self
+        }
+    }
+}
+
+impl<T> OptionalSet for T where T: NymConfig {}

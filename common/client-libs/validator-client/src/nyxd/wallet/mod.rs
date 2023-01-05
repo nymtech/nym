@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nymd::error::NymdError;
+use crate::nyxd::error::NyxdError;
 use config::defaults;
 use cosmrs::bip32::{DerivationPath, XPrv};
 use cosmrs::crypto::secp256k1::{Signature, SigningKey};
@@ -62,16 +62,16 @@ impl DirectSecp256k1HdWallet {
     }
 
     /// Restores a wallet from the given BIP39 mnemonic using default options.
-    pub fn from_mnemonic(prefix: &str, mnemonic: bip39::Mnemonic) -> Result<Self, NymdError> {
+    pub fn from_mnemonic(prefix: &str, mnemonic: bip39::Mnemonic) -> Result<Self, NyxdError> {
         DirectSecp256k1HdWalletBuilder::new(prefix).build(mnemonic)
     }
 
-    pub fn generate(prefix: &str, word_count: usize) -> Result<Self, NymdError> {
+    pub fn generate(prefix: &str, word_count: usize) -> Result<Self, NyxdError> {
         let mneomonic = bip39::Mnemonic::generate(word_count)?;
         Self::from_mnemonic(prefix, mneomonic)
     }
 
-    fn derive_keypair(&self, hd_path: &DerivationPath) -> Result<Secp256k1Keypair, NymdError> {
+    fn derive_keypair(&self, hd_path: &DerivationPath) -> Result<Secp256k1Keypair, NyxdError> {
         let extended_private_key = XPrv::derive_from_path(self.seed, hd_path)?;
 
         let private_key: SigningKey = extended_private_key.into();
@@ -80,7 +80,7 @@ impl DirectSecp256k1HdWallet {
         Ok((private_key, public_key))
     }
 
-    pub fn try_derive_accounts(&self) -> Result<Vec<AccountData>, NymdError> {
+    pub fn try_derive_accounts(&self) -> Result<Vec<AccountData>, NyxdError> {
         let mut accounts = Vec::with_capacity(self.accounts.len());
         for derivation_info in &self.accounts {
             let keypair = self.derive_keypair(&derivation_info.hd_path)?;
@@ -89,7 +89,7 @@ impl DirectSecp256k1HdWallet {
             let address = keypair
                 .1
                 .account_id(&derivation_info.prefix)
-                .map_err(|_| NymdError::AccountDerivationError)?;
+                .map_err(|_| NyxdError::AccountDerivationError)?;
 
             accounts.push(AccountData {
                 address,
@@ -109,36 +109,36 @@ impl DirectSecp256k1HdWallet {
         &self,
         signer: &AccountData,
         message: &[u8],
-    ) -> Result<Signature, NymdError> {
+    ) -> Result<Signature, NyxdError> {
         signer
             .private_key
             .sign(message)
-            .map_err(|_| NymdError::SigningFailure)
+            .map_err(|_| NyxdError::SigningFailure)
     }
 
     pub fn sign_direct_with_account(
         &self,
         signer: &AccountData,
         sign_doc: SignDoc,
-    ) -> Result<tx::Raw, NymdError> {
-        // ideally I'd prefer to have the entire error put into the NymdError::SigningFailure
+    ) -> Result<tx::Raw, NyxdError> {
+        // ideally I'd prefer to have the entire error put into the NyxdError::SigningFailure
         // but I'm super hesitant to trying to downcast the eyre::Report to cosmrs::error::Error
         sign_doc
             .sign(&signer.private_key)
-            .map_err(|_| NymdError::SigningFailure)
+            .map_err(|_| NyxdError::SigningFailure)
     }
 
     pub fn sign_direct(
         &self,
         signer_address: &AccountId,
         sign_doc: SignDoc,
-    ) -> Result<tx::Raw, NymdError> {
+    ) -> Result<tx::Raw, NyxdError> {
         // I hate deriving accounts at every sign here so much : (
         let accounts = self.try_derive_accounts()?;
         let account = accounts
             .iter()
             .find(|account| &account.address == signer_address)
-            .ok_or_else(|| NymdError::SigningAccountNotFound(signer_address.clone()))?;
+            .ok_or_else(|| NyxdError::SigningAccountNotFound(signer_address.clone()))?;
 
         self.sign_direct_with_account(account, sign_doc)
     }
@@ -185,7 +185,7 @@ impl DirectSecp256k1HdWalletBuilder {
         self
     }
 
-    pub fn build(self, mnemonic: bip39::Mnemonic) -> Result<DirectSecp256k1HdWallet, NymdError> {
+    pub fn build(self, mnemonic: bip39::Mnemonic) -> Result<DirectSecp256k1HdWallet, NyxdError> {
         let seed = mnemonic.to_seed(&self.bip39_password);
         let prefix = self.prefix;
         let accounts = self

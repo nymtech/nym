@@ -14,8 +14,8 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use strum::IntoEnumIterator;
 use url::Url;
-use validator_client::nymd::wallet::{AccountData, DirectSecp256k1HdWallet};
-use validator_client::{nymd::SigningNymdClient, Client};
+use validator_client::nyxd::wallet::{AccountData, DirectSecp256k1HdWallet};
+use validator_client::{nyxd::SigningNyxdClient, Client};
 
 #[tauri::command]
 pub async fn connect_with_mnemonic(
@@ -30,12 +30,12 @@ pub async fn connect_with_mnemonic(
 pub async fn get_balance(state: tauri::State<'_, WalletState>) -> Result<Balance, BackendError> {
     let guard = state.read().await;
     let client = guard.current_client()?;
-    let address = client.nymd.address();
+    let address = client.nyxd.address();
     let network = guard.current_network();
     let base_mix_denom = network.base_mix_denom();
 
     match client
-        .nymd
+        .nyxd
         .get_balance(address, base_mix_denom.to_string())
         .await?
     {
@@ -67,7 +67,7 @@ pub async fn switch_network(
         let client = r_state.client(network)?;
         let denom = network.mix_denom();
 
-        Account::new(client.nymd.address().to_string(), denom)
+        Account::new(client.nyxd.address().to_string(), denom)
     };
 
     let mut w_state = state.write().await;
@@ -96,7 +96,7 @@ async fn _connect_with_mnemonic(
         w_state.load_config_files();
     }
 
-    network_config::update_validator_urls(state.clone()).await?;
+    network_config::update_nyxd_urls(state.clone()).await?;
 
     let config = {
         let state = state.read().await;
@@ -115,11 +115,11 @@ async fn _connect_with_mnemonic(
     };
 
     // Get all the urls needed for the connection test
-    let (untested_nymd_urls, untested_api_urls) = {
+    let (untested_nyxd_urls, untested_api_urls) = {
         let state = state.read().await;
-        (state.get_all_nymd_urls(), state.get_all_api_urls())
+        (state.get_all_nyxd_urls(), state.get_all_api_urls())
     };
-    let default_nymd_urls: HashMap<WalletNetwork, Url> = untested_nymd_urls
+    let default_nyxd_urls: HashMap<WalletNetwork, Url> = untested_nyxd_urls
         .iter()
         .map(|(network, urls)| (*network, urls.iter().next().unwrap().clone()))
         .collect();
@@ -128,15 +128,15 @@ async fn _connect_with_mnemonic(
         .map(|(network, urls)| (*network, urls.iter().next().unwrap().clone()))
         .collect();
 
-    // Run connection tests on all nymd and nym-api endpoints
-    let (nymd_urls, api_urls) =
-        run_connection_test(untested_nymd_urls, untested_api_urls, &config).await;
+    // Run connection tests on all nyxd and nym-api endpoints
+    let (nyxd_urls, api_urls) =
+        run_connection_test(untested_nyxd_urls, untested_api_urls, &config).await;
 
     // Create clients for all networks
     let clients = create_clients(
-        &nymd_urls,
+        &nyxd_urls,
         &api_urls,
-        &default_nymd_urls,
+        &default_nyxd_urls,
         &default_api_urls,
         &config,
         &mnemonic,
@@ -149,7 +149,7 @@ async fn _connect_with_mnemonic(
         .find(|(network, _)| *network == default_network);
     let account_for_default_network = match client_for_default_network {
         Some((_, client)) => Ok(Account::new(
-            client.nymd.address().to_string(),
+            client.nyxd.address().to_string(),
             default_network.mix_denom(),
         )),
         None => Err(BackendError::NetworkNotSupported),
@@ -170,7 +170,7 @@ async fn _connect_with_mnemonic(
 }
 
 async fn run_connection_test(
-    untested_nymd_urls: HashMap<WalletNetwork, Vec<Url>>,
+    untested_nyxd_urls: HashMap<WalletNetwork, Vec<Url>>,
     untested_api_urls: HashMap<WalletNetwork, Vec<Url>>,
     config: &Config,
 ) -> (
@@ -181,7 +181,7 @@ async fn run_connection_test(
         .map(|network| (network.into(), config.get_mixnet_contract_address(network)))
         .collect::<HashMap<_, _>>();
 
-    let untested_nymd_urls = untested_nymd_urls
+    let untested_nyxd_urls = untested_nyxd_urls
         .into_iter()
         .flat_map(|(net, urls)| urls.into_iter().map(move |url| (net.into(), url)));
 
@@ -190,7 +190,7 @@ async fn run_connection_test(
         .flat_map(|(net, urls)| urls.into_iter().map(move |url| (net.into(), url)));
 
     validator_client::connection_tester::run_validator_connection_test(
-        untested_nymd_urls,
+        untested_nyxd_urls,
         untested_api_urls,
         mixnet_contract_address,
     )
@@ -198,27 +198,27 @@ async fn run_connection_test(
 }
 
 fn create_clients(
-    nymd_urls: &HashMap<NymNetworkDetails, Vec<(Url, bool)>>,
+    nyxd_urls: &HashMap<NymNetworkDetails, Vec<(Url, bool)>>,
     api_urls: &HashMap<NymNetworkDetails, Vec<(Url, bool)>>,
-    default_nymd_urls: &HashMap<WalletNetwork, Url>,
+    default_nyxd_urls: &HashMap<WalletNetwork, Url>,
     default_api_urls: &HashMap<WalletNetwork, Url>,
     config: &Config,
     mnemonic: &Mnemonic,
-) -> Result<Vec<(WalletNetwork, Client<SigningNymdClient>)>, BackendError> {
+) -> Result<Vec<(WalletNetwork, Client<SigningNyxdClient>)>, BackendError> {
     let mut clients = Vec::new();
     for network in WalletNetwork::iter() {
-        let nymd_url = if let Some(url) = config.get_selected_validator_nymd_url(network) {
-            log::debug!("Using selected nymd_url for {network}: {url}");
+        let nyxd_url = if let Some(url) = config.get_selected_validator_nyxd_url(network) {
+            log::debug!("Using selected nyxd_url for {network}: {url}");
             url.clone()
         } else {
-            let default_nymd_url = default_nymd_urls
+            let default_nyxd_url = default_nyxd_urls
                 .get(&network)
-                .expect("Expected at least one nymd_url");
-            select_random_responding_url(nymd_urls, network).unwrap_or_else(|| {
+                .expect("Expected at least one nyxd_url");
+            select_random_responding_url(nyxd_urls, network).unwrap_or_else(|| {
                 log::debug!(
-                    "No successful nymd_urls for {network}: using default: {default_nymd_url}"
+                    "No successful nyxd_urls for {network}: using default: {default_nyxd_url}"
                 );
-                default_nymd_url.clone()
+                default_nyxd_url.clone()
             })
         };
 
@@ -235,7 +235,7 @@ fn create_clients(
             })
         };
 
-        log::info!("Connecting to: nymd_url: {nymd_url} for {network}");
+        log::info!("Connecting to: nyxd_url: {nyxd_url} for {network}");
         log::info!("Connecting to: api_url: {api_url} for {network}");
 
         let network_details = NymNetworkDetails::from(network)
@@ -249,10 +249,10 @@ fn create_clients(
             ));
 
         let config = validator_client::Config::try_from_nym_network_details(&network_details)?
-            .with_urls(nymd_url, api_url);
+            .with_urls(nyxd_url, api_url);
 
         let mut client = validator_client::Client::new_signing(config, mnemonic.clone())?;
-        client.set_nymd_simulated_gas_multiplier(CUSTOM_SIMULATED_GAS_MULTIPLIER);
+        client.set_nyxd_simulated_gas_multiplier(CUSTOM_SIMULATED_GAS_MULTIPLIER);
         clients.push((network, client));
     }
     Ok(clients)

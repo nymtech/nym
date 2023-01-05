@@ -389,7 +389,7 @@ impl Config {
         self
     }
 
-    pub fn with_custom_nymd_validator(mut self, validator: Url) -> Self {
+    pub fn with_custom_nyxd_validator(mut self, validator: Url) -> Self {
         self.base.local_validator = validator;
         self
     }
@@ -450,7 +450,7 @@ impl Config {
         self.rewarding.enabled
     }
 
-    pub fn get_nymd_validator_url(&self) -> Url {
+    pub fn get_nyxd_url(&self) -> Url {
         self.base.local_validator.clone()
     }
 

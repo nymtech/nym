@@ -1,8 +1,8 @@
-use crate::nymd::error::NymdError;
-use crate::nymd::{Config as ClientConfig, NymdClient, QueryNymdClient};
-use crate::ApiClient;
+use crate::nyxd::error::NyxdError;
+use crate::nyxd::{Config as ClientConfig, NyxdClient, QueryNyxdClient};
+use crate::NymApiClient;
 
-use crate::nymd::traits::MixnetQueryClient;
+use crate::nyxd::traits::MixnetQueryClient;
 use colored::Colorize;
 use core::fmt;
 use itertools::Itertools;
@@ -16,9 +16,9 @@ use url::Url;
 const MAX_URLS_TESTED: usize = 200;
 const CONNECTION_TEST_TIMEOUT_SEC: u64 = 2;
 
-// Run connection tests for all specified nymd and api urls. These are all run concurrently.
+/// Run connection tests for all specified nyxd and api urls. These are all run concurrently.
 pub async fn run_validator_connection_test<H: BuildHasher + 'static>(
-    nymd_urls: impl Iterator<Item = (NymNetworkDetails, Url)>,
+    nyxd_urls: impl Iterator<Item = (NymNetworkDetails, Url)>,
     api_urls: impl Iterator<Item = (NymNetworkDetails, Url)>,
     mixnet_contract_address: HashMap<NymNetworkDetails, cosmrs::AccountId, H>,
 ) -> (
@@ -27,7 +27,7 @@ pub async fn run_validator_connection_test<H: BuildHasher + 'static>(
 ) {
     // Setup all the clients for the connection tests
     let connection_test_clients =
-        setup_connection_tests(nymd_urls, api_urls, mixnet_contract_address);
+        setup_connection_tests(nyxd_urls, api_urls, mixnet_contract_address);
 
     // Run all tests concurrently
     let connection_results = futures::future::join_all(
@@ -40,28 +40,28 @@ pub async fn run_validator_connection_test<H: BuildHasher + 'static>(
 
     // Seperate and collect results into HashMaps
     (
-        extract_and_collect_results_into_map(&connection_results, &UrlType::Nymd),
-        extract_and_collect_results_into_map(&connection_results, &UrlType::Api),
+        extract_and_collect_results_into_map(&connection_results, &UrlType::Nyxd),
+        extract_and_collect_results_into_map(&connection_results, &UrlType::NymApi),
     )
 }
 
 fn setup_connection_tests<H: BuildHasher + 'static>(
-    nymd_urls: impl Iterator<Item = (NymNetworkDetails, Url)>,
+    nyxd_urls: impl Iterator<Item = (NymNetworkDetails, Url)>,
     api_urls: impl Iterator<Item = (NymNetworkDetails, Url)>,
     mixnet_contract_address: HashMap<NymNetworkDetails, cosmrs::AccountId, H>,
 ) -> impl Iterator<Item = ClientForConnectionTest> {
-    let nymd_connection_test_clients = nymd_urls.filter_map(move |(network, url)| {
+    let nyxd_connection_test_clients = nyxd_urls.filter_map(move |(network, url)| {
         let address = mixnet_contract_address
             .get(&network)
             .expect("No configured contract address")
             .clone();
         let config = ClientConfig::try_from_nym_network_details(&network)
-            .expect("failed to create valid nymd client config");
+            .expect("failed to create valid nyxd client config");
 
-        if let Ok(mut client) = NymdClient::<QueryNymdClient>::connect(config, url.as_str()) {
+        if let Ok(mut client) = NyxdClient::<QueryNyxdClient>::connect(config, url.as_str()) {
             // possibly redundant, but lets just leave it here
             client.set_mixnet_contract_address(address);
-            Some(ClientForConnectionTest::Nymd(
+            Some(ClientForConnectionTest::Nyxd(
                 network,
                 url,
                 Box::new(client),
@@ -72,10 +72,10 @@ fn setup_connection_tests<H: BuildHasher + 'static>(
     });
 
     let api_connection_test_clients = api_urls.map(|(network, url)| {
-        ClientForConnectionTest::Api(network, url.clone(), ApiClient::new(url))
+        ClientForConnectionTest::Api(network, url.clone(), NymApiClient::new(url))
     });
 
-    nymd_connection_test_clients.chain(api_connection_test_clients)
+    nyxd_connection_test_clients.chain(api_connection_test_clients)
 }
 
 fn extract_and_collect_results_into_map(
@@ -92,10 +92,10 @@ fn extract_and_collect_results_into_map(
         .into_group_map()
 }
 
-async fn test_nymd_connection(
+async fn test_nyxd_connection(
     network: NymNetworkDetails,
     url: &Url,
-    client: &NymdClient<QueryNymdClient>,
+    client: &NyxdClient<QueryNyxdClient>,
 ) -> ConnectionResult {
     let result = match timeout(
         Duration::from_secs(CONNECTION_TEST_TIMEOUT_SEC),
@@ -103,48 +103,48 @@ async fn test_nymd_connection(
     )
     .await
     {
-        Ok(Err(NymdError::TendermintError(e))) => {
+        Ok(Err(NyxdError::TendermintError(e))) => {
             // If we get a tendermint-rpc error, we classify the node as not contactable
-            log::debug!("Checking: nymd_url: {url}: {}: {}", "failed".red(), e);
+            log::debug!("Checking: nyxd url: {url}: {}: {}", "failed".red(), e);
             false
         }
-        Ok(Err(NymdError::AbciError { code, log, .. })) => {
+        Ok(Err(NyxdError::AbciError { code, log, .. })) => {
             // We accept the mixnet contract not found as ok from a connection standpoint. This happens
             // for example on a pre-launch network.
             log::debug!(
-                "Checking: nymd_url: {url}: {}, but with abci error: {code}: {log}",
+                "Checking: nyxd url: {url}: {}, but with abci error: {code}: {log}",
                 "success".green()
             );
             code == 18
         }
-        Ok(Err(error @ NymdError::NoContractAddressAvailable)) => {
-            log::debug!("Checking: nymd_url: {url}: {}: {error}", "failed".red());
+        Ok(Err(error @ NyxdError::NoContractAddressAvailable)) => {
+            log::debug!("Checking: nyxd url: {url}: {}: {error}", "failed".red());
             false
         }
         Ok(Err(e)) => {
             // For any other error, we're optimistic and just try anyway.
             log::debug!(
-                "Checking: nymd_url: {url}: {}, but with error: {e}",
+                "Checking: nyxd_url: {url}: {}, but with error: {e}",
                 "success".green()
             );
             true
         }
         Ok(Ok(_)) => {
-            log::debug!("Checking: nymd_url: {url}: {}", "success".green());
+            log::debug!("Checking: nyxd_url: {url}: {}", "success".green());
             true
         }
         Err(e) => {
-            log::debug!("Checking: nymd_url: {url}: {}: {e}", "failed".red());
+            log::debug!("Checking: nyxd_url: {url}: {}: {e}", "failed".red());
             false
         }
     };
-    ConnectionResult::Nymd(network, url.clone(), result)
+    ConnectionResult::Nyxd(network, url.clone(), result)
 }
 
-async fn test_api_connection(
+async fn test_nym_api_connection(
     network: NymNetworkDetails,
     url: &Url,
-    client: &ApiClient,
+    client: &NymApiClient,
 ) -> ConnectionResult {
     let result = match timeout(
         Duration::from_secs(CONNECTION_TEST_TIMEOUT_SEC),
@@ -169,18 +169,18 @@ async fn test_api_connection(
 }
 
 enum ClientForConnectionTest {
-    Nymd(NymNetworkDetails, Url, Box<NymdClient<QueryNymdClient>>),
-    Api(NymNetworkDetails, Url, ApiClient),
+    Nyxd(NymNetworkDetails, Url, Box<NyxdClient<QueryNyxdClient>>),
+    Api(NymNetworkDetails, Url, NymApiClient),
 }
 
 impl ClientForConnectionTest {
     async fn run_connection_check(self) -> ConnectionResult {
         match self {
-            ClientForConnectionTest::Nymd(network, ref url, ref client) => {
-                test_nymd_connection(network, url, client).await
+            ClientForConnectionTest::Nyxd(network, ref url, ref client) => {
+                test_nyxd_connection(network, url, client).await
             }
             ClientForConnectionTest::Api(network, ref url, ref client) => {
-                test_api_connection(network, url, client).await
+                test_nym_api_connection(network, url, client).await
             }
         }
     }
@@ -188,37 +188,37 @@ impl ClientForConnectionTest {
 
 #[derive(Debug, PartialEq, Eq)]
 enum UrlType {
-    Nymd,
-    Api,
+    Nyxd,
+    NymApi,
 }
 
 impl fmt::Display for UrlType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            UrlType::Nymd => write!(f, "nymd"),
-            UrlType::Api => write!(f, "api"),
+            UrlType::Nyxd => write!(f, "nyxd"),
+            UrlType::NymApi => write!(f, "api"),
         }
     }
 }
 
 #[derive(Debug)]
 enum ConnectionResult {
-    Nymd(NymNetworkDetails, Url, bool),
+    Nyxd(NymNetworkDetails, Url, bool),
     Api(NymNetworkDetails, Url, bool),
 }
 
 impl ConnectionResult {
     fn result(&self) -> (&NymNetworkDetails, &Url, &bool) {
         match self {
-            ConnectionResult::Nymd(network, url, result)
+            ConnectionResult::Nyxd(network, url, result)
             | ConnectionResult::Api(network, url, result) => (network, url, result),
         }
     }
 
     fn url_type(&self) -> UrlType {
         match self {
-            ConnectionResult::Nymd(..) => UrlType::Nymd,
-            ConnectionResult::Api(..) => UrlType::Api,
+            ConnectionResult::Nyxd(..) => UrlType::Nyxd,
+            ConnectionResult::Api(..) => UrlType::NymApi,
         }
     }
 }

@@ -3,9 +3,9 @@
 
 // TODO: There's a significant argument to pull those out of the package and make a PR on https://github.com/cosmos/cosmos-rust/
 
-use crate::nymd::cosmwasm_client::helpers::parse_proto_coin_vec;
-use crate::nymd::cosmwasm_client::logs::Log;
-use crate::nymd::error::NymdError;
+use crate::nyxd::cosmwasm_client::helpers::parse_proto_coin_vec;
+use crate::nyxd::cosmwasm_client::logs::Log;
+use crate::nyxd::error::NyxdError;
 use cosmrs::crypto::PublicKey;
 use cosmrs::proto::cosmos::auth::v1beta1::{
     BaseAccount as ProtoBaseAccount, ModuleAccount as ProtoModuleAccount,
@@ -57,19 +57,19 @@ pub struct BaseAccount {
 }
 
 impl TryFrom<ProtoBaseAccount> for BaseAccount {
-    type Error = NymdError;
+    type Error = NyxdError;
 
     fn try_from(value: ProtoBaseAccount) -> Result<Self, Self::Error> {
         let address: AccountId = value
             .address
             .parse()
-            .map_err(|_| NymdError::MalformedAccountAddress(value.address.clone()))?;
+            .map_err(|_| NyxdError::MalformedAccountAddress(value.address.clone()))?;
 
         let pubkey = value
             .pub_key
             .map(PublicKey::try_from)
             .transpose()
-            .map_err(|_| NymdError::InvalidPublicKey(address.clone()))?;
+            .map_err(|_| NyxdError::InvalidPublicKey(address.clone()))?;
 
         Ok(BaseAccount {
             address,
@@ -89,7 +89,7 @@ pub struct ModuleAccount {
 }
 
 impl TryFrom<ProtoModuleAccount> for ModuleAccount {
-    type Error = NymdError;
+    type Error = NyxdError;
 
     fn try_from(value: ProtoModuleAccount) -> Result<Self, Self::Error> {
         let base_account = value.base_account.map(TryFrom::try_from).transpose()?;
@@ -114,7 +114,7 @@ pub struct BaseVestingAccount {
 }
 
 impl TryFrom<ProtoBaseVestingAccount> for BaseVestingAccount {
-    type Error = NymdError;
+    type Error = NyxdError;
 
     fn try_from(value: ProtoBaseVestingAccount) -> Result<Self, Self::Error> {
         let base_account = value.base_account.map(TryFrom::try_from).transpose()?;
@@ -142,7 +142,7 @@ pub struct ContinuousVestingAccount {
 }
 
 impl TryFrom<ProtoContinuousVestingAccount> for ContinuousVestingAccount {
-    type Error = NymdError;
+    type Error = NyxdError;
 
     fn try_from(value: ProtoContinuousVestingAccount) -> Result<Self, Self::Error> {
         let base_vesting_account = value
@@ -166,7 +166,7 @@ pub struct DelayedVestingAccount {
 }
 
 impl TryFrom<ProtoDelayedVestingAccount> for DelayedVestingAccount {
-    type Error = NymdError;
+    type Error = NyxdError;
 
     fn try_from(value: ProtoDelayedVestingAccount) -> Result<Self, Self::Error> {
         let base_vesting_account = value
@@ -188,7 +188,7 @@ pub struct Period {
 }
 
 impl TryFrom<ProtoPeriod> for Period {
-    type Error = NymdError;
+    type Error = NyxdError;
 
     fn try_from(value: ProtoPeriod) -> Result<Self, Self::Error> {
         Ok(Period {
@@ -208,7 +208,7 @@ pub struct PeriodicVestingAccount {
 }
 
 impl TryFrom<ProtoPeriodicVestingAccount> for PeriodicVestingAccount {
-    type Error = NymdError;
+    type Error = NyxdError;
 
     fn try_from(value: ProtoPeriodicVestingAccount) -> Result<Self, Self::Error> {
         let base_vesting_account = value
@@ -239,7 +239,7 @@ pub struct PermanentLockedAccount {
 }
 
 impl TryFrom<ProtoPermanentLockedAccount> for PermanentLockedAccount {
-    type Error = NymdError;
+    type Error = NyxdError;
 
     fn try_from(value: ProtoPermanentLockedAccount) -> Result<Self, Self::Error> {
         let base_vesting_account = value
@@ -265,43 +265,43 @@ pub enum Account {
 }
 
 impl Account {
-    pub fn try_get_base_account(&self) -> Result<&BaseAccount, NymdError> {
+    pub fn try_get_base_account(&self) -> Result<&BaseAccount, NyxdError> {
         match self {
             Account::Base(acc) => Ok(acc),
             Account::Module(acc) => acc
                 .base_account
                 .as_ref()
-                .ok_or(NymdError::NoBaseAccountInformationAvailable),
+                .ok_or(NyxdError::NoBaseAccountInformationAvailable),
             Account::BaseVesting(acc) => acc
                 .base_account
                 .as_ref()
-                .ok_or(NymdError::NoBaseAccountInformationAvailable),
+                .ok_or(NyxdError::NoBaseAccountInformationAvailable),
             Account::ContinuousVesting(acc) => acc
                 .base_vesting_account
                 .as_ref()
                 .and_then(|vesting_acc| vesting_acc.base_account.as_ref())
-                .ok_or(NymdError::NoBaseAccountInformationAvailable),
+                .ok_or(NyxdError::NoBaseAccountInformationAvailable),
             Account::DelayedVesting(acc) => acc
                 .base_vesting_account
                 .as_ref()
                 .and_then(|vesting_acc| vesting_acc.base_account.as_ref())
-                .ok_or(NymdError::NoBaseAccountInformationAvailable),
+                .ok_or(NyxdError::NoBaseAccountInformationAvailable),
             Account::PeriodicVesting(acc) => acc
                 .base_vesting_account
                 .as_ref()
                 .and_then(|vesting_acc| vesting_acc.base_account.as_ref())
-                .ok_or(NymdError::NoBaseAccountInformationAvailable),
+                .ok_or(NyxdError::NoBaseAccountInformationAvailable),
             Account::PermanentLockedVesting(acc) => acc
                 .base_vesting_account
                 .as_ref()
                 .and_then(|vesting_acc| vesting_acc.base_account.as_ref())
-                .ok_or(NymdError::NoBaseAccountInformationAvailable),
+                .ok_or(NyxdError::NoBaseAccountInformationAvailable),
         }
     }
 }
 
 impl TryFrom<Any> for Account {
-    type Error = NymdError;
+    type Error = NyxdError;
 
     fn try_from(raw_account: Any) -> Result<Self, Self::Error> {
         match raw_account.type_url.as_ref() {
@@ -328,7 +328,7 @@ impl TryFrom<Any> for Account {
                     ProtoPermanentLockedAccount::decode(raw_account.value.as_ref())?.try_into()?,
                 ))
             }
-            _ => Err(NymdError::UnsupportedAccountType {
+            _ => Err(NyxdError::UnsupportedAccountType {
                 type_url: raw_account.type_url,
             }),
         }
@@ -347,7 +347,7 @@ pub struct Code {
 }
 
 impl TryFrom<CodeInfoResponse> for Code {
-    type Error = NymdError;
+    type Error = NyxdError;
 
     fn try_from(value: CodeInfoResponse) -> Result<Self, Self::Error> {
         let CodeInfoResponse {
@@ -358,7 +358,7 @@ impl TryFrom<CodeInfoResponse> for Code {
 
         let creator = creator
             .parse()
-            .map_err(|_| NymdError::MalformedAccountAddress(creator))?;
+            .map_err(|_| NyxdError::MalformedAccountAddress(creator))?;
 
         Ok(Code {
             code_id,
@@ -391,7 +391,7 @@ pub(crate) struct ContractInfo {
 }
 
 impl TryFrom<ProtoContractInfo> for ContractInfo {
-    type Error = NymdError;
+    type Error = NyxdError;
 
     fn try_from(value: ProtoContractInfo) -> Result<Self, Self::Error> {
         let ProtoContractInfo {
@@ -408,7 +408,7 @@ impl TryFrom<ProtoContractInfo> for ContractInfo {
             Some(
                 admin
                     .parse()
-                    .map_err(|_| NymdError::MalformedAccountAddress(admin))?,
+                    .map_err(|_| NyxdError::MalformedAccountAddress(admin))?,
             )
         };
 
@@ -416,7 +416,7 @@ impl TryFrom<ProtoContractInfo> for ContractInfo {
             code_id,
             creator: creator
                 .parse()
-                .map_err(|_| NymdError::MalformedAccountAddress(creator))?,
+                .map_err(|_| NyxdError::MalformedAccountAddress(creator))?,
             admin,
             label,
         })
@@ -466,14 +466,14 @@ pub struct ContractCodeHistoryEntry {
 }
 
 impl TryFrom<ProtoContractCodeHistoryEntry> for ContractCodeHistoryEntry {
-    type Error = NymdError;
+    type Error = NyxdError;
 
     fn try_from(value: ProtoContractCodeHistoryEntry) -> Result<Self, Self::Error> {
         let operation = match ContractCodeHistoryOperationType::from_i32(value.operation)
-            .ok_or(NymdError::InvalidContractHistoryOperation)?
+            .ok_or(NyxdError::InvalidContractHistoryOperation)?
         {
             ContractCodeHistoryOperationType::Unspecified => {
-                return Err(NymdError::InvalidContractHistoryOperation)
+                return Err(NyxdError::InvalidContractHistoryOperation)
             }
             ContractCodeHistoryOperationType::Init => ContractCodeHistoryEntryOperation::Init,
             ContractCodeHistoryOperationType::Genesis => ContractCodeHistoryEntryOperation::Genesis,
@@ -484,7 +484,7 @@ impl TryFrom<ProtoContractCodeHistoryEntry> for ContractCodeHistoryEntry {
             operation,
             code_id: value.code_id,
             msg_json: String::from_utf8(value.msg)
-                .map_err(|_| NymdError::DeserializationError("Contract history msg".to_owned()))?,
+                .map_err(|_| NyxdError::DeserializationError("Contract history msg".to_owned()))?,
         })
     }
 }
@@ -532,7 +532,7 @@ pub struct AbciResult {
 }
 
 impl TryFrom<ProtoAbciResult> for AbciResult {
-    type Error = NymdError;
+    type Error = NyxdError;
 
     fn try_from(value: ProtoAbciResult) -> Result<Self, Self::Error> {
         let mut events = Vec::with_capacity(value.events.len());
@@ -543,9 +543,9 @@ impl TryFrom<ProtoAbciResult> for AbciResult {
             let mut attributes = Vec::with_capacity(proto_event.attributes.len());
             for proto_attribute in proto_event.attributes.into_iter() {
                 let stringified_ked = String::from_utf8(proto_attribute.key)
-                    .map_err(|_| NymdError::DeserializationError("EventAttributeKey".to_owned()))?;
+                    .map_err(|_| NyxdError::DeserializationError("EventAttributeKey".to_owned()))?;
                 let stringified_value = String::from_utf8(proto_attribute.value)
-                    .map_err(|_| NymdError::DeserializationError("EventAttributeKey".to_owned()))?;
+                    .map_err(|_| NyxdError::DeserializationError("EventAttributeKey".to_owned()))?;
 
                 attributes.push(abci::tag::Tag {
                     key: stringified_ked.parse().unwrap(),
@@ -574,7 +574,7 @@ pub struct SimulateResponse {
 }
 
 impl TryFrom<ProtoSimulateResponse> for SimulateResponse {
-    type Error = NymdError;
+    type Error = NyxdError;
 
     fn try_from(value: ProtoSimulateResponse) -> Result<Self, Self::Error> {
         Ok(SimulateResponse {

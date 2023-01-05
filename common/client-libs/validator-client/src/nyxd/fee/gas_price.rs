@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nymd::error::NymdError;
+use crate::nyxd::error::NyxdError;
 use config::defaults;
 use cosmrs::tx::Gas;
 use cosmrs::Coin;
@@ -55,7 +55,7 @@ impl<'a> Mul<Gas> for &'a GasPrice {
 }
 
 impl FromStr for GasPrice {
-    type Err = NymdError;
+    type Err = NyxdError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let possible_amount = s
@@ -65,7 +65,7 @@ impl FromStr for GasPrice {
         let amount_len = possible_amount.len();
         let amount = possible_amount
             .parse()
-            .map_err(|_| NymdError::MalformedGasPrice)?;
+            .map_err(|_| NyxdError::MalformedGasPrice)?;
         let possible_denom = s.chars().skip(amount_len).collect::<String>();
         let denom = possible_denom.trim().to_string();
 
@@ -74,7 +74,7 @@ impl FromStr for GasPrice {
 }
 
 impl GasPrice {
-    pub fn new_with_default_price(denom: &str) -> Result<Self, NymdError> {
+    pub fn new_with_default_price(denom: &str) -> Result<Self, NyxdError> {
         format!("{}{}", defaults::GAS_PRICE_AMOUNT, denom).parse()
     }
 }

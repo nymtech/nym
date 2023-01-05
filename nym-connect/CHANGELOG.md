@@ -44,7 +44,7 @@ This release contains the new opt-in Test & Earn program, and it uses a stress-t
 - native-client/socks5-client: `disable_main_poisson_packet_distribution` Debug config option to make the client ignore poisson distribution in the main packet stream and ONLY send real message (and as fast as they come) ([#1664])
 - native-client/socks5-client: `use_extended_packet_size` Debug config option to make the client use 'ExtendedPacketSize' for its traffic (32kB as opposed to 2kB in 1.0.2) ([#1671])
 - network-requester: added additional Blockstream Green wallet endpoint to `example.allowed.list` ([#1611])
-- validator-client: added `query_contract_smart` and `query_contract_raw` on `NymdClient` ([#1558])
+- validator-client: added `query_contract_smart` and `query_contract_raw` on `NyxdClient` ([#1558])
 
 [#1472]: https://github.com/nymtech/nym/pull/1472
 [#1558]: https://github.com/nymtech/nym/pull/1558

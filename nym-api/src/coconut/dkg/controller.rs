@@ -11,7 +11,7 @@ use crate::coconut::dkg::{
     verification_key::verification_key_submission,
 };
 use crate::coconut::keypair::KeyPair as CoconutKeyPair;
-use crate::{nymd_client, Config};
+use crate::{nyxd_client, Config};
 use anyhow::Result;
 use coconut_dkg_common::types::EpochState;
 use dkg::bte::keys::KeyPair as DkgKeyPair;
@@ -21,7 +21,7 @@ use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 use task::TaskClient;
 use tokio::time::interval;
-use validator_client::nymd::SigningNymdClient;
+use validator_client::nyxd::SigningNyxdClient;
 
 pub(crate) fn init_keypair(config: &Config) -> Result<()> {
     let mut rng = OsRng;
@@ -49,7 +49,7 @@ pub(crate) struct DkgController<R> {
 impl<R: RngCore + Clone> DkgController<R> {
     pub(crate) async fn new(
         config: &Config,
-        nymd_client: nymd_client::Client<SigningNymdClient>,
+        nyxd_client: nyxd_client::Client<SigningNyxdClient>,
         coconut_keypair: CoconutKeyPair,
         rng: R,
     ) -> Result<Self> {
@@ -67,7 +67,7 @@ impl<R: RngCore + Clone> DkgController<R> {
             PersistentState::load_from_file(config.persistent_state_path()).unwrap_or_default();
 
         Ok(DkgController {
-            dkg_client: DkgClient::new(nymd_client),
+            dkg_client: DkgClient::new(nyxd_client),
             secret_key_path: config.secret_key_path(),
             verification_key_path: config.verification_key_path(),
             state: State::new(

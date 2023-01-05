@@ -34,7 +34,7 @@ use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
 use validator_client::nym_api::routes::{BANDWIDTH, COCONUT_ROUTES};
-use validator_client::nymd::{Coin, Fee};
+use validator_client::nyxd::{Coin, Fee};
 
 use getset::{CopyGetters, Getters};
 use rand_07::rngs::OsRng;

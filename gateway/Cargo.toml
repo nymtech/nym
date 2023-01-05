@@ -68,7 +68,7 @@ pemstore = { path = "../common/pemstore" }
 statistics-common = { path = "../common/statistics" }
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
 validator-client = { path = "../common/client-libs/validator-client", features = [
-    "nymd-client",
+    "nyxd-client",
 ] }
 version-checker = { path = "../common/version-checker" }
 

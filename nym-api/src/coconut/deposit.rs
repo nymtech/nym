@@ -9,7 +9,7 @@ use credentials::coconut::bandwidth::BandwidthVoucher;
 use crypto::asymmetric::encryption;
 use crypto::asymmetric::identity::{self, Signature};
 use nym_api_requests::coconut::BlindSignRequestBody;
-use validator_client::nymd::TxResponse;
+use validator_client::nyxd::TxResponse;
 
 use super::error::{CoconutError, Result};
 
@@ -99,8 +99,8 @@ mod test {
     use nymcoconut::{prepare_blind_sign, BlindSignRequest, Parameters};
     use rand_07::rngs::OsRng;
     use std::str::FromStr;
-    use validator_client::nymd::tx::Hash;
-    use validator_client::nymd::{Event, Tag};
+    use validator_client::nyxd::tx::Hash;
+    use validator_client::nyxd::{Event, Tag};
 
     #[tokio::test]
     async fn extract_encryption_key_test() {

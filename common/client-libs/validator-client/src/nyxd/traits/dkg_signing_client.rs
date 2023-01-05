@@ -1,9 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nymd::cosmwasm_client::types::ExecuteResult;
-use crate::nymd::error::NymdError;
-use crate::nymd::{Fee, NymdClient, SigningCosmWasmClient};
+use crate::nyxd::cosmwasm_client::types::ExecuteResult;
+use crate::nyxd::error::NyxdError;
+use crate::nyxd::{Fee, NyxdClient, SigningCosmWasmClient};
 use async_trait::async_trait;
 use coconut_dkg_common::msg::ExecuteMsg as DkgExecuteMsg;
 use coconut_dkg_common::types::EncodedBTEPublicKeyWithProof;
@@ -12,33 +12,33 @@ use contracts_common::dealings::ContractSafeBytes;
 
 #[async_trait]
 pub trait DkgSigningClient {
-    async fn advance_dkg_epoch_state(&self, fee: Option<Fee>) -> Result<ExecuteResult, NymdError>;
+    async fn advance_dkg_epoch_state(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError>;
     async fn register_dealer(
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
         announce_address: String,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
 
     async fn submit_dealing_bytes(
         &self,
         commitment: ContractSafeBytes,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
 
     async fn submit_verification_key_share(
         &self,
         share: VerificationKeyShare,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
 }
 
 #[async_trait]
-impl<C> DkgSigningClient for NymdClient<C>
+impl<C> DkgSigningClient for NyxdClient<C>
 where
     C: SigningCosmWasmClient + Send + Sync,
 {
-    async fn advance_dkg_epoch_state(&self, fee: Option<Fee>) -> Result<ExecuteResult, NymdError> {
+    async fn advance_dkg_epoch_state(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
         let req = DkgExecuteMsg::AdvanceEpochState {};
 
         self.client
@@ -58,7 +58,7 @@ where
         bte_key: EncodedBTEPublicKeyWithProof,
         announce_address: String,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         let req = DkgExecuteMsg::RegisterDealer {
             bte_key_with_proof: bte_key,
             announce_address,
@@ -80,7 +80,7 @@ where
         &self,
         dealing_bytes: ContractSafeBytes,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         let req = DkgExecuteMsg::CommitDealing { dealing_bytes };
 
         self.client
@@ -99,7 +99,7 @@ where
         &self,
         share: VerificationKeyShare,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         let req = DkgExecuteMsg::CommitVerificationKeyShare { share };
 
         self.client

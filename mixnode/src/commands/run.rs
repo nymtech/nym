@@ -8,7 +8,7 @@ use crate::node::MixNode;
 use clap::Args;
 use config::NymConfig;
 use std::net::IpAddr;
-use validator_client::nymd;
+use validator_client::nyxd;
 
 #[derive(Args, Clone)]
 pub(crate) struct Run {
@@ -22,7 +22,7 @@ pub(crate) struct Run {
 
     /// The wallet address you will use to bond this mixnode, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9
     #[clap(long)]
-    wallet_address: Option<nymd::AccountId>,
+    wallet_address: Option<nyxd::AccountId>,
 
     /// The port on which the mixnode will be listening for mix packets
     #[clap(long)]

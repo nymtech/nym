@@ -172,8 +172,8 @@ impl<T> Config<T> {
         self.client.gateway_endpoint.gateway_id = id.into();
     }
 
-    pub fn set_custom_validators(&mut self, validator_urls: Vec<Url>) {
-        self.client.validator_urls = validator_urls;
+    pub fn set_custom_nyxd(&mut self, nyxd_urls: Vec<Url>) {
+        self.client.nyxd_urls = nyxd_urls;
     }
 
     pub fn set_custom_nym_apis(&mut self, nym_api_urls: Vec<Url>) {
@@ -234,7 +234,7 @@ impl<T> Config<T> {
     }
 
     pub fn get_validator_endpoints(&self) -> Vec<Url> {
-        self.client.validator_urls.clone()
+        self.client.nyxd_urls.clone()
     }
 
     pub fn get_nym_api_endpoints(&self) -> Vec<Url> {
@@ -420,9 +420,9 @@ pub struct Client<T> {
     #[serde(default)]
     disabled_credentials_mode: bool,
 
-    /// Addresses to nymd validators via which the client can communicate with the chain.
-    #[serde(default)]
-    validator_urls: Vec<Url>,
+    /// Addresses to nyxd validators via which the client can communicate with the chain.
+    #[serde(alias = "validator_urls")]
+    nyxd_urls: Vec<Url>,
 
     /// Addresses to APIs running on validator from which the client gets the view of the network.
     #[serde(alias = "validator_api_urls")]
@@ -476,7 +476,7 @@ impl<T: NymConfig> Default for Client<T> {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
             disabled_credentials_mode: true,
-            validator_urls: vec![],
+            nyxd_urls: vec![],
             nym_api_urls: vec![],
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),

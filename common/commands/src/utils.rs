@@ -6,7 +6,7 @@ use std::fmt::Display;
 
 use cosmwasm_std::{Coin as CosmWasmCoin, Decimal};
 use log::error;
-use validator_client::nymd::Coin;
+use validator_client::nyxd::Coin;
 
 pub fn pretty_coin(coin: &Coin) -> String {
     let amount = Decimal::from_ratio(coin.amount, 1_000_000u128);

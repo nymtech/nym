@@ -7,11 +7,11 @@ use clap::Subcommand;
 use colored::Colorize;
 use completions::{fig_generate, ArgShell};
 use config::defaults::mainnet::read_var_if_not_default;
-use config::defaults::var_names::{API_VALIDATOR, BECH32_PREFIX, CONFIGURED};
+use config::defaults::var_names::{BECH32_PREFIX, CONFIGURED, NYM_API};
 use crypto::bech32_address_validation;
 use std::net::IpAddr;
 use std::process;
-use validator_client::nymd;
+use validator_client::nyxd;
 
 mod describe;
 mod init;
@@ -51,7 +51,7 @@ pub(crate) enum Commands {
 struct OverrideConfig {
     id: String,
     host: Option<IpAddr>,
-    wallet_address: Option<nymd::AccountId>,
+    wallet_address: Option<nyxd::AccountId>,
     mix_port: Option<u16>,
     verloc_port: Option<u16>,
     http_api_port: Option<u16>,
@@ -96,7 +96,7 @@ fn override_config(mut config: Config, args: OverrideConfig) -> Config {
     if let Some(nym_apis) = args.nym_apis {
         config = config.with_custom_nym_apis(nym_apis);
     } else if std::env::var(CONFIGURED).is_ok() {
-        if let Some(raw_validators) = read_var_if_not_default(API_VALIDATOR) {
+        if let Some(raw_validators) = read_var_if_not_default(NYM_API) {
             config = config.with_custom_nym_apis(::config::parse_urls(&raw_validators))
         }
     }

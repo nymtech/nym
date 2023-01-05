@@ -13,7 +13,7 @@
 //    and hence this might be a good place for it.
 
 use crate::contract_cache::ValidatorCache;
-use crate::nymd_client::Client;
+use crate::nyxd_client::Client;
 use crate::storage::models::RewardingReport;
 use crate::storage::NymApiStorage;
 use mixnet_contract_common::families::FamilyHead;
@@ -27,7 +27,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::time::Duration;
 use tokio::time::sleep;
-use validator_client::nymd::SigningNymdClient;
+use validator_client::nyxd::SigningNyxdClient;
 
 pub(crate) mod error;
 mod helpers;
@@ -54,7 +54,7 @@ impl From<MixnodeToReward> for ExecuteMsg {
 }
 
 pub struct RewardedSetUpdater {
-    nymd_client: Client<SigningNymdClient>,
+    nyxd_client: Client<SigningNyxdClient>,
     validator_cache: ValidatorCache,
     storage: NymApiStorage,
 }
@@ -73,16 +73,16 @@ impl RewardedSetUpdater {
     pub(crate) async fn current_interval_details(
         &self,
     ) -> Result<CurrentIntervalResponse, RewardingError> {
-        Ok(self.nymd_client.get_current_interval().await?)
+        Ok(self.nyxd_client.get_current_interval().await?)
     }
 
     pub(crate) async fn new(
-        nymd_client: Client<SigningNymdClient>,
+        nyxd_client: Client<SigningNyxdClient>,
         validator_cache: ValidatorCache,
         storage: NymApiStorage,
     ) -> Result<Self, RewardingError> {
         Ok(RewardedSetUpdater {
-            nymd_client,
+            nyxd_client,
             validator_cache,
             storage,
         })
@@ -179,7 +179,7 @@ impl RewardedSetUpdater {
 
         if to_reward.is_empty() {
             info!("There are no nodes to reward in this epoch");
-        } else if let Err(err) = self.nymd_client.send_rewarding_messages(&to_reward).await {
+        } else if let Err(err) = self.nyxd_client.send_rewarding_messages(&to_reward).await {
             error!(
                 "failed to perform mixnode rewarding for epoch {}! Error encountered: {}",
                 current_interval.current_epoch_absolute_id(),
@@ -205,7 +205,7 @@ impl RewardedSetUpdater {
     async fn nodes_to_reward(&self, interval: Interval) -> Vec<MixnodeToReward> {
         // try to get current up to date view of the network bypassing the cache
         // in case the epochs were significantly shortened for the purposes of testing
-        let rewarded_set: Vec<MixId> = match self.nymd_client.get_rewarded_set_mixnodes().await {
+        let rewarded_set: Vec<MixId> = match self.nyxd_client.get_rewarded_set_mixnodes().await {
             Ok(nodes) => nodes.into_iter().map(|(id, _)| id).collect::<Vec<_>>(),
             Err(err) => {
                 warn!("failed to obtain the current rewarded set - {err}. falling back to the cached version");
@@ -243,7 +243,7 @@ impl RewardedSetUpdater {
         all_mixnodes: &[MixNodeDetails],
     ) -> Result<(), RewardingError> {
         // we grab rewarding parameters here as they might have gotten updated when performing epoch actions
-        let rewarding_parameters = self.nymd_client.get_current_rewarding_parameters().await?;
+        let rewarding_parameters = self.nyxd_client.get_current_rewarding_parameters().await?;
 
         let new_rewarded_set =
             self.determine_rewarded_set(all_mixnodes, rewarding_parameters.rewarded_set_size)?;
@@ -251,7 +251,7 @@ impl RewardedSetUpdater {
         let (layer_assignments, _families_in_layer) =
             self.determine_layers(&new_rewarded_set).await?;
 
-        self.nymd_client
+        self.nyxd_client
             .advance_current_epoch(layer_assignments, rewarding_parameters.active_set_size)
             .await?;
 
@@ -302,7 +302,7 @@ impl RewardedSetUpdater {
         // as separate transactions
 
         log::info!("Reconciling all pending epoch events...");
-        if let Err(err) = self.nymd_client.reconcile_epoch_events().await {
+        if let Err(err) = self.nyxd_client.reconcile_epoch_events().await {
             log::error!("FAILED to reconcile epoch events... - {err}");
             return Err(err.into());
         } else {

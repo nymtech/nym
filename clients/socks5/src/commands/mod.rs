@@ -62,7 +62,7 @@ pub(crate) struct OverrideConfig {
     no_cover: bool,
 
     #[cfg(feature = "coconut")]
-    nymd_validators: Option<Vec<url::Url>>,
+    nyxd_urls: Option<Vec<url::Url>>,
     #[cfg(feature = "coconut")]
     enabled_credentials_mode: bool,
 }
@@ -83,7 +83,7 @@ pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send + Syn
 pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
     if let Some(nym_apis) = args.nym_apis {
         config.get_base_mut().set_custom_nym_apis(nym_apis);
-    } else if let Ok(raw_validators) = std::env::var(network_defaults::var_names::API_VALIDATOR) {
+    } else if let Ok(raw_validators) = std::env::var(network_defaults::var_names::NYM_API) {
         config
             .get_base_mut()
             .set_custom_nym_apis(parse_urls(&raw_validators));
@@ -99,14 +99,12 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
 
     #[cfg(feature = "coconut")]
     {
-        if let Some(nymd_validators) = args.nymd_validators {
-            config.get_base_mut().set_custom_validators(nymd_validators);
-        } else if let Ok(raw_validators) =
-            std::env::var(network_defaults::var_names::NYMD_VALIDATOR)
-        {
+        if let Some(nyxd_urls) = args.nyxd_urls {
+            config.get_base_mut().set_custom_nyxd(nyxd_urls);
+        } else if let Ok(raw_validators) = std::env::var(network_defaults::var_names::NYXD) {
             config
                 .get_base_mut()
-                .set_custom_validators(parse_urls(&raw_validators));
+                .set_custom_nyxd(parse_urls(&raw_validators));
         }
         if args.enabled_credentials_mode {
             config.get_base_mut().with_disabled_credentials(false)

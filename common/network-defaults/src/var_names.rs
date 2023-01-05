@@ -18,5 +18,9 @@ pub const MULTISIG_CONTRACT_ADDRESS: &str = "MULTISIG_CONTRACT_ADDRESS";
 pub const COCONUT_DKG_CONTRACT_ADDRESS: &str = "COCONUT_DKG_CONTRACT_ADDRESS";
 pub const REWARDING_VALIDATOR_ADDRESS: &str = "REWARDING_VALIDATOR_ADDRESS";
 pub const STATISTICS_SERVICE_DOMAIN_ADDRESS: &str = "STATISTICS_SERVICE_DOMAIN_ADDRESS";
-pub const NYMD_VALIDATOR: &str = "NYMD_VALIDATOR";
-pub const API_VALIDATOR: &str = "API_VALIDATOR";
+pub const NYXD: &str = "NYXD";
+pub const NYM_API: &str = "NYM_API";
+
+// we don't want to explicitly tag those with `#[deprecated]` because then our CI would be red and sad : (
+pub const DEPRECATED_NYMD_VALIDATOR: &str = "NYMD_VALIDATOR";
+pub const DEPRECATED_API_VALIDATOR: &str = "API_VALIDATOR";

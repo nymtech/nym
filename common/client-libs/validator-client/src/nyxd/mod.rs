@@ -1,14 +1,14 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nymd::cosmwasm_client::signing_client;
-use crate::nymd::cosmwasm_client::types::{
+use crate::nyxd::cosmwasm_client::signing_client;
+use crate::nyxd::cosmwasm_client::types::{
     Account, ChangeAdminResult, ContractCodeId, ExecuteResult, InstantiateOptions,
     InstantiateResult, MigrateResult, SequenceResponse, SimulateResponse, UploadResult,
 };
-use crate::nymd::error::NymdError;
-use crate::nymd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
-use crate::nymd::wallet::DirectSecp256k1HdWallet;
+use crate::nyxd::error::NyxdError;
+use crate::nyxd::fee::DEFAULT_SIMULATED_GAS_MULTIPLIER;
+use crate::nyxd::wallet::DirectSecp256k1HdWallet;
 use cosmrs::cosmwasm;
 use cosmrs::rpc::endpoint::block::Response as BlockResponse;
 use cosmrs::rpc::query::Query;
@@ -22,14 +22,14 @@ use std::convert::TryInto;
 use std::time::SystemTime;
 use vesting_contract_common::ExecuteMsg as VestingExecuteMsg;
 
-pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
-pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
-pub use crate::nymd::fee::Fee;
+pub use crate::nyxd::cosmwasm_client::client::CosmWasmClient;
+pub use crate::nyxd::cosmwasm_client::signing_client::SigningCosmWasmClient;
+pub use crate::nyxd::fee::Fee;
 pub use coin::Coin;
 pub use cosmrs::bank::MsgSend;
 pub use cosmrs::rpc::endpoint::tx::Response as TxResponse;
 pub use cosmrs::rpc::endpoint::validators::Response as ValidatorResponse;
-pub use cosmrs::rpc::HttpClient as QueryNymdClient;
+pub use cosmrs::rpc::HttpClient as QueryNyxdClient;
 pub use cosmrs::rpc::Paging;
 pub use cosmrs::tendermint::abci::responses::{DeliverTx, Event};
 pub use cosmrs::tendermint::abci::tag::Tag;
@@ -43,7 +43,7 @@ pub use cosmrs::{bip32, AccountId, Decimal, Denom};
 pub use cosmwasm_std::Coin as CosmWasmCoin;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
 use mixnet_contract_common::MixId;
-pub use signing_client::Client as SigningNymdClient;
+pub use signing_client::Client as SigningNyxdClient;
 pub use traits::{VestingQueryClient, VestingSigningClient};
 use vesting_contract_common::PledgeCap;
 
@@ -74,13 +74,13 @@ impl Config {
     fn parse_optional_account(
         raw: Option<&String>,
         expected_prefix: &str,
-    ) -> Result<Option<AccountId>, NymdError> {
+    ) -> Result<Option<AccountId>, NyxdError> {
         if let Some(address) = raw {
             let parsed: AccountId = address
                 .parse()
-                .map_err(|_| NymdError::MalformedAccountAddress(address.clone()))?;
+                .map_err(|_| NyxdError::MalformedAccountAddress(address.clone()))?;
             if parsed.prefix() != expected_prefix {
-                Err(NymdError::UnexpectedBech32Prefix {
+                Err(NyxdError::UnexpectedBech32Prefix {
                     got: parsed.prefix().into(),
                     expected: expected_prefix.into(),
                 })
@@ -92,7 +92,7 @@ impl Config {
         }
     }
 
-    pub fn try_from_nym_network_details(details: &NymNetworkDetails) -> Result<Self, NymdError> {
+    pub fn try_from_nym_network_details(details: &NymNetworkDetails) -> Result<Self, NyxdError> {
         let prefix = &details.chain_details.bech32_account_prefix;
         Ok(Config {
             chain_details: details.chain_details.clone(),
@@ -128,20 +128,20 @@ impl Config {
 }
 
 #[derive(Debug)]
-pub struct NymdClient<C> {
+pub struct NyxdClient<C> {
     client: C,
     config: Config,
     client_address: Option<Vec<AccountId>>,
     simulated_gas_multiplier: f32,
 }
 
-impl NymdClient<QueryNymdClient> {
-    pub fn connect<U>(config: Config, endpoint: U) -> Result<NymdClient<QueryNymdClient>, NymdError>
+impl NyxdClient<QueryNyxdClient> {
+    pub fn connect<U>(config: Config, endpoint: U) -> Result<NyxdClient<QueryNyxdClient>, NyxdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
-        Ok(NymdClient {
-            client: QueryNymdClient::new(endpoint)?,
+        Ok(NyxdClient {
+            client: QueryNyxdClient::new(endpoint)?,
             config,
             client_address: None,
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
@@ -149,7 +149,7 @@ impl NymdClient<QueryNymdClient> {
     }
 }
 
-impl NymdClient<SigningNymdClient> {
+impl NyxdClient<SigningNyxdClient> {
     // maybe the wallet could be made into a generic, but for now, let's just have this one implementation
     pub fn connect_with_signer<U: Clone>(
         config: Config,
@@ -157,7 +157,7 @@ impl NymdClient<SigningNymdClient> {
         endpoint: U,
         signer: DirectSecp256k1HdWallet,
         gas_price: Option<GasPrice>,
-    ) -> Result<NymdClient<SigningNymdClient>, NymdError>
+    ) -> Result<NyxdClient<SigningNyxdClient>, NyxdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
@@ -169,8 +169,8 @@ impl NymdClient<SigningNymdClient> {
             .collect();
         let gas_price = gas_price.unwrap_or(GasPrice::new_with_default_price(&denom)?);
 
-        Ok(NymdClient {
-            client: SigningNymdClient::connect_with_signer(endpoint, signer, gas_price)?,
+        Ok(NyxdClient {
+            client: SigningNyxdClient::connect_with_signer(endpoint, signer, gas_price)?,
             config,
             client_address: Some(client_address),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
@@ -182,7 +182,7 @@ impl NymdClient<SigningNymdClient> {
         endpoint: U,
         mnemonic: bip39::Mnemonic,
         gas_price: Option<GasPrice>,
-    ) -> Result<NymdClient<SigningNymdClient>, NymdError>
+    ) -> Result<NyxdClient<SigningNyxdClient>, NyxdError>
     where
         U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
     {
@@ -196,8 +196,8 @@ impl NymdClient<SigningNymdClient> {
             .collect();
         let gas_price = gas_price.unwrap_or(GasPrice::new_with_default_price(denom)?);
 
-        Ok(NymdClient {
-            client: SigningNymdClient::connect_with_signer(endpoint, wallet, gas_price)?,
+        Ok(NyxdClient {
+            client: SigningNyxdClient::connect_with_signer(endpoint, wallet, gas_price)?,
             config,
             client_address: Some(client_address),
             simulated_gas_multiplier: DEFAULT_SIMULATED_GAS_MULTIPLIER,
@@ -205,7 +205,7 @@ impl NymdClient<SigningNymdClient> {
     }
 }
 
-impl<C> NymdClient<C> {
+impl<C> NyxdClient<C> {
     pub fn current_config(&self) -> &Config {
         &self.config
     }
@@ -234,7 +234,7 @@ impl<C> NymdClient<C> {
         self.config.multisig_contract_address = Some(address);
     }
 
-    // TODO: this should get changed into Result<&AccountId, NymdError> (or Option<&AccountId> in future commits
+    // TODO: this should get changed into Result<&AccountId, NyxdError> (or Option<&AccountId> in future commits
     // note: what unwrap is doing here is just moving a failure that would have normally
     // occurred in `connect` when attempting to parse an empty address,
     // so it's not introducing new source of failure (just moves it)
@@ -242,7 +242,7 @@ impl<C> NymdClient<C> {
         self.config.mixnet_contract_address.as_ref().unwrap()
     }
 
-    // TODO: this should get changed into Result<&AccountId, NymdError> (or Option<&AccountId> in future commits
+    // TODO: this should get changed into Result<&AccountId, NyxdError> (or Option<&AccountId> in future commits
     // note: what unwrap is doing here is just moving a failure that would have normally
     // occurred in `connect` when attempting to parse an empty address,
     // so it's not introducing new source of failure (just moves it)
@@ -250,7 +250,7 @@ impl<C> NymdClient<C> {
         self.config.vesting_contract_address.as_ref().unwrap()
     }
 
-    // TODO: this should get changed into Result<&AccountId, NymdError> (or Option<&AccountId> in future commits
+    // TODO: this should get changed into Result<&AccountId, NyxdError> (or Option<&AccountId> in future commits
     // note: what unwrap is doing here is just moving a failure that would have normally
     // occurred in `connect` when attempting to parse an empty address,
     // so it's not introducing new source of failure (just moves it)
@@ -261,7 +261,7 @@ impl<C> NymdClient<C> {
             .unwrap()
     }
 
-    // TODO: this should get changed into Result<&AccountId, NymdError> (or Option<&AccountId> in future commits
+    // TODO: this should get changed into Result<&AccountId, NyxdError> (or Option<&AccountId> in future commits
     // note: what unwrap is doing here is just moving a failure that would have normally
     // occurred in `connect` when attempting to parse an empty address,
     // so it's not introducing new source of failure (just moves it)
@@ -272,7 +272,7 @@ impl<C> NymdClient<C> {
             .unwrap()
     }
 
-    // TODO: this should get changed into Result<&AccountId, NymdError> (or Option<&AccountId> in future commits
+    // TODO: this should get changed into Result<&AccountId, NyxdError> (or Option<&AccountId> in future commits
     // note: what unwrap is doing here is just moving a failure that would have normally
     // occurred in `connect` when attempting to parse an empty address,
     // so it's not introducing new source of failure (just moves it)
@@ -280,7 +280,7 @@ impl<C> NymdClient<C> {
         self.config.multisig_contract_address.as_ref().unwrap()
     }
 
-    // TODO: this should get changed into Result<&AccountId, NymdError> (or Option<&AccountId> in future commits
+    // TODO: this should get changed into Result<&AccountId, NyxdError> (or Option<&AccountId> in future commits
     // note: what unwrap is doing here is just moving a failure that would have normally
     // occurred in `connect` when attempting to parse an empty address,
     // so it's not introducing new source of failure (just moves it)
@@ -296,7 +296,7 @@ impl<C> NymdClient<C> {
         &self,
         contract: &AccountId,
         query_msg: &M,
-    ) -> Result<T, NymdError>
+    ) -> Result<T, NyxdError>
     where
         C: CosmWasmClient + Sync,
         M: ?Sized + Serialize + Sync,
@@ -309,7 +309,7 @@ impl<C> NymdClient<C> {
         &self,
         contract: &AccountId,
         query_data: Vec<u8>,
-    ) -> Result<Vec<u8>, NymdError>
+    ) -> Result<Vec<u8>, NyxdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -321,7 +321,7 @@ impl<C> NymdClient<C> {
         contract_address: &AccountId,
         msg: &M,
         funds: Vec<Coin>,
-    ) -> Result<cosmwasm::MsgExecuteContract, NymdError>
+    ) -> Result<cosmwasm::MsgExecuteContract, NyxdError>
     where
         C: SigningCosmWasmClient,
         M: ?Sized + Serialize,
@@ -366,7 +366,7 @@ impl<C> NymdClient<C> {
 
     // CHAIN QUERIES
 
-    pub async fn account_sequence(&self) -> Result<SequenceResponse, NymdError>
+    pub async fn account_sequence(&self) -> Result<SequenceResponse, NyxdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -376,7 +376,7 @@ impl<C> NymdClient<C> {
     pub async fn get_account_details(
         &self,
         address: &AccountId,
-    ) -> Result<Option<Account>, NymdError>
+    ) -> Result<Option<Account>, NyxdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -386,7 +386,7 @@ impl<C> NymdClient<C> {
     pub async fn get_account_public_key(
         &self,
         address: &AccountId,
-    ) -> Result<Option<cosmrs::crypto::PublicKey>, NymdError>
+    ) -> Result<Option<cosmrs::crypto::PublicKey>, NyxdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -398,7 +398,7 @@ impl<C> NymdClient<C> {
         Ok(None)
     }
 
-    pub async fn get_current_block_timestamp(&self) -> Result<TendermintTime, NymdError>
+    pub async fn get_current_block_timestamp(&self) -> Result<TendermintTime, NyxdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -408,21 +408,21 @@ impl<C> NymdClient<C> {
     pub async fn get_block_timestamp(
         &self,
         height: Option<u32>,
-    ) -> Result<TendermintTime, NymdError>
+    ) -> Result<TendermintTime, NyxdError>
     where
         C: CosmWasmClient + Sync,
     {
         Ok(self.client.get_block(height).await?.block.header.time)
     }
 
-    pub async fn get_block(&self, height: Option<u32>) -> Result<BlockResponse, NymdError>
+    pub async fn get_block(&self, height: Option<u32>) -> Result<BlockResponse, NyxdError>
     where
         C: CosmWasmClient + Sync,
     {
         self.client.get_block(height).await
     }
 
-    pub async fn get_current_block_height(&self) -> Result<Height, NymdError>
+    pub async fn get_current_block_height(&self) -> Result<Height, NyxdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -434,7 +434,7 @@ impl<C> NymdClient<C> {
     /// # Arguments
     ///
     /// * `height`: height of the block for which we want to obtain the hash.
-    pub async fn get_block_hash(&self, height: u32) -> Result<hash::Hash, NymdError>
+    pub async fn get_block_hash(&self, height: u32) -> Result<hash::Hash, NyxdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -448,7 +448,7 @@ impl<C> NymdClient<C> {
         &self,
         height: u64,
         paging: Paging,
-    ) -> Result<ValidatorResponse, NymdError>
+    ) -> Result<ValidatorResponse, NyxdError>
     where
         C: CosmWasmClient + Sync,
     {
@@ -459,42 +459,42 @@ impl<C> NymdClient<C> {
         &self,
         address: &AccountId,
         denom: String,
-    ) -> Result<Option<Coin>, NymdError>
+    ) -> Result<Option<Coin>, NyxdError>
     where
         C: CosmWasmClient + Sync,
     {
         self.client.get_balance(address, denom).await
     }
 
-    pub async fn get_all_balances(&self, address: &AccountId) -> Result<Vec<Coin>, NymdError>
+    pub async fn get_all_balances(&self, address: &AccountId) -> Result<Vec<Coin>, NyxdError>
     where
         C: CosmWasmClient + Sync,
     {
         self.client.get_all_balances(address).await
     }
 
-    pub async fn get_tx(&self, id: tx::Hash) -> Result<TxResponse, NymdError>
+    pub async fn get_tx(&self, id: tx::Hash) -> Result<TxResponse, NyxdError>
     where
         C: CosmWasmClient + Sync,
     {
         self.client.get_tx(id).await
     }
 
-    pub async fn search_tx(&self, query: Query) -> Result<Vec<TxResponse>, NymdError>
+    pub async fn search_tx(&self, query: Query) -> Result<Vec<TxResponse>, NyxdError>
     where
         C: CosmWasmClient + Sync,
     {
         self.client.search_tx(query).await
     }
 
-    pub async fn get_total_supply(&self) -> Result<Vec<Coin>, NymdError>
+    pub async fn get_total_supply(&self) -> Result<Vec<Coin>, NyxdError>
     where
         C: CosmWasmClient + Sync,
     {
         self.client.get_total_supply().await
     }
 
-    pub async fn simulate<I, M>(&self, messages: I) -> Result<SimulateResponse, NymdError>
+    pub async fn simulate<I, M>(&self, messages: I) -> Result<SimulateResponse, NyxdError>
     where
         C: SigningCosmWasmClient + Sync,
         I: IntoIterator<Item = M> + Send,
@@ -508,7 +508,7 @@ impl<C> NymdClient<C> {
                     .map(|msg| msg.into_any())
                     .collect::<Result<Vec<_>, _>>()
                     .map_err(|_| {
-                        NymdError::SerializationError("custom simulate messages".to_owned())
+                        NyxdError::SerializationError("custom simulate messages".to_owned())
                     })?,
                 "simulating execution of transactions",
             )
@@ -522,7 +522,7 @@ impl<C> NymdClient<C> {
         amount: Vec<Coin>,
         memo: impl Into<String> + Send + 'static,
         fee: Option<Fee>,
-    ) -> Result<TxResponse, NymdError>
+    ) -> Result<TxResponse, NyxdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -538,7 +538,7 @@ impl<C> NymdClient<C> {
         msgs: Vec<(AccountId, Vec<Coin>)>,
         memo: impl Into<String> + Send + 'static,
         fee: Option<Fee>,
-    ) -> Result<TxResponse, NymdError>
+    ) -> Result<TxResponse, NyxdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -557,7 +557,7 @@ impl<C> NymdClient<C> {
         allowed_messages: Vec<String>,
         memo: impl Into<String> + Send + 'static,
         fee: Option<Fee>,
-    ) -> Result<TxResponse, NymdError>
+    ) -> Result<TxResponse, NyxdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -581,7 +581,7 @@ impl<C> NymdClient<C> {
         grantee: &AccountId,
         memo: impl Into<String> + Send + 'static,
         fee: Option<Fee>,
-    ) -> Result<TxResponse, NymdError>
+    ) -> Result<TxResponse, NyxdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -598,7 +598,7 @@ impl<C> NymdClient<C> {
         fee: Option<Fee>,
         memo: impl Into<String> + Send + 'static,
         funds: Vec<Coin>,
-    ) -> Result<ExecuteResult, NymdError>
+    ) -> Result<ExecuteResult, NyxdError>
     where
         C: SigningCosmWasmClient + Sync,
         M: ?Sized + Serialize + Sync,
@@ -615,7 +615,7 @@ impl<C> NymdClient<C> {
         msgs: I,
         fee: Option<Fee>,
         memo: impl Into<String> + Send + 'static,
-    ) -> Result<ExecuteResult, NymdError>
+    ) -> Result<ExecuteResult, NyxdError>
     where
         C: SigningCosmWasmClient + Sync,
         I: IntoIterator<Item = (M, Vec<Coin>)> + Send,
@@ -632,7 +632,7 @@ impl<C> NymdClient<C> {
         wasm_code: Vec<u8>,
         memo: impl Into<String> + Send + 'static,
         fee: Option<Fee>,
-    ) -> Result<UploadResult, NymdError>
+    ) -> Result<UploadResult, NyxdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -650,7 +650,7 @@ impl<C> NymdClient<C> {
         memo: impl Into<String> + Send + 'static,
         options: Option<InstantiateOptions>,
         fee: Option<Fee>,
-    ) -> Result<InstantiateResult, NymdError>
+    ) -> Result<InstantiateResult, NyxdError>
     where
         C: SigningCosmWasmClient + Sync,
         M: ?Sized + Serialize + Sync,
@@ -667,7 +667,7 @@ impl<C> NymdClient<C> {
         new_admin: &AccountId,
         memo: impl Into<String> + Send + 'static,
         fee: Option<Fee>,
-    ) -> Result<ChangeAdminResult, NymdError>
+    ) -> Result<ChangeAdminResult, NyxdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -682,7 +682,7 @@ impl<C> NymdClient<C> {
         contract_address: &AccountId,
         memo: impl Into<String> + Send + 'static,
         fee: Option<Fee>,
-    ) -> Result<ChangeAdminResult, NymdError>
+    ) -> Result<ChangeAdminResult, NyxdError>
     where
         C: SigningCosmWasmClient + Sync,
     {
@@ -699,7 +699,7 @@ impl<C> NymdClient<C> {
         msg: &M,
         memo: impl Into<String> + Send + 'static,
         fee: Option<Fee>,
-    ) -> Result<MigrateResult, NymdError>
+    ) -> Result<MigrateResult, NyxdError>
     where
         C: SigningCosmWasmClient + Sync,
         M: ?Sized + Serialize + Sync,

@@ -314,6 +314,13 @@ fn try_update_staking_address(
     info: MessageInfo,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
+    if let Some(ref to_address) = to_address {
+        if account_from_address(to_address, deps.storage, deps.api).is_ok() {
+            // do not allow setting staking address to an existing account's address
+            return Err(ContractError::StakingAccountExists(to_address.to_string()));
+        }
+    }
+
     let address = info.sender.clone();
     let to_address = to_address.and_then(|x| deps.api.addr_validate(&x).ok());
     let mut account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;

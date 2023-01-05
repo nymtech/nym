@@ -37,6 +37,7 @@ pub fn populate_vesting_periods(
 #[cfg(test)]
 mod tests {
     use crate::contract::*;
+    use crate::errors::ContractError;
     use crate::storage::*;
     use crate::support::tests::helpers::vesting_account_percent_fixture;
     use crate::support::tests::helpers::{
@@ -47,7 +48,7 @@ mod tests {
     use crate::traits::{GatewayBondingAccount, MixnodeBondingAccount};
     use crate::vesting::{populate_vesting_periods, Account};
     use cosmwasm_std::testing::{mock_env, mock_info};
-    use cosmwasm_std::{coins, Addr, Coin, Timestamp, Uint128};
+    use cosmwasm_std::{coin, coins, Addr, Coin, Timestamp, Uint128};
     use mixnet_contract_common::mixnode::MixNodeCostParams;
     use mixnet_contract_common::{Gateway, MixNode, Percent};
     use vesting_contract_common::messages::{ExecuteMsg, VestingSpecification};
@@ -170,6 +171,71 @@ mod tests {
         let response = execute(deps.as_mut(), env.clone(), info, msg.clone());
         // Only owner can withdraw
         assert!(response.is_err());
+    }
+
+    #[test]
+    fn test_staking_account_transfer() {
+        let mut deps = init_contract();
+        let env = mock_env();
+
+        let amount1 = coin(1000000000, "unym");
+        let amount2 = coin(100, "unym");
+
+        // create the accounts
+        let msg1 = ExecuteMsg::CreateAccount {
+            owner_address: "vesting1".to_string(),
+            staking_address: None,
+            vesting_spec: None,
+            cap: None,
+        };
+        let res1 = execute(
+            deps.as_mut(),
+            env.clone(),
+            mock_info("admin", &[amount1.clone()]),
+            msg1,
+        );
+        assert!(res1.is_ok());
+
+        let msg2 = ExecuteMsg::CreateAccount {
+            owner_address: "vesting2".to_string(),
+            staking_address: None,
+            vesting_spec: None,
+            cap: None,
+        };
+        let res2 = execute(
+            deps.as_mut(),
+            env.clone(),
+            mock_info("admin", &[amount2.clone()]),
+            msg2,
+        );
+        assert!(res2.is_ok());
+
+        let vesting1 = try_get_vesting_coins("vesting1", None, env.clone(), deps.as_ref()).unwrap();
+        assert_eq!(vesting1, amount1);
+
+        let vesting2 = try_get_vesting_coins("vesting2", None, env.clone(), deps.as_ref()).unwrap();
+        assert_eq!(vesting2, amount2);
+
+        let staking_address_change = ExecuteMsg::UpdateStakingAddress {
+            to_address: Some("vesting1".to_string()),
+        };
+        let res = execute(
+            deps.as_mut(),
+            env.clone(),
+            mock_info("vesting2", &[]),
+            staking_address_change,
+        );
+        assert_eq!(
+            Err(ContractError::StakingAccountExists("vesting1".to_string())),
+            res
+        );
+
+        // ensure nothing has changed!
+        let vesting1 = try_get_vesting_coins("vesting1", None, env.clone(), deps.as_ref()).unwrap();
+        assert_eq!(vesting1, amount1);
+
+        let vesting2 = try_get_vesting_coins("vesting2", None, env, deps.as_ref()).unwrap();
+        assert_eq!(vesting2, amount2);
     }
 
     #[test]

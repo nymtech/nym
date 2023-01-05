@@ -2,11 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use handlebars::Handlebars;
+use network_defaults::mainnet::read_var_if_not_default;
+use network_defaults::var_names::CONFIGURED;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use std::any::type_name;
+use std::fmt::Debug;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::{fs, io};
 
 pub mod defaults;
@@ -141,6 +146,53 @@ pub trait OptionalSet {
         } else {
             self
         }
+    }
+
+    fn with_optional_env<F, T>(self, f: F, val: Option<T>, env_var: &str) -> Self
+    where
+        F: Fn(Self, T) -> Self,
+        T: FromStr,
+        <T as FromStr>::Err: Debug,
+        Self: Sized,
+    {
+        if let Some(val) = val {
+            return f(self, val);
+        } else if std::env::var(CONFIGURED).is_ok() {
+            if let Some(raw) = read_var_if_not_default(env_var) {
+                return f(
+                    self,
+                    raw.parse().unwrap_or_else(|_| {
+                        panic!(
+                            "failed to parse value of {raw} into type {}",
+                            type_name::<T>()
+                        )
+                    }),
+                );
+            }
+        }
+        self
+    }
+
+    fn with_optional_custom_env<F, T, G>(
+        self,
+        f: F,
+        val: Option<T>,
+        env_var: &str,
+        parser: G,
+    ) -> Self
+    where
+        F: Fn(Self, T) -> Self,
+        G: Fn(&str) -> T,
+        Self: Sized,
+    {
+        if let Some(val) = val {
+            return f(self, val);
+        } else if std::env::var(CONFIGURED).is_ok() {
+            if let Some(raw) = read_var_if_not_default(env_var) {
+                return f(self, parser(&raw));
+            }
+        }
+        self
     }
 }
 

@@ -8,6 +8,7 @@ use nym_types::transaction::TransactionExecuteResult;
 use validator_client::nymd::Fee;
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn vesting_claim_operator_reward(
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
@@ -28,6 +29,7 @@ pub async fn vesting_claim_operator_reward(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn vesting_claim_delegator_reward(
     mix_id: MixId,
     fee: Option<Fee>,

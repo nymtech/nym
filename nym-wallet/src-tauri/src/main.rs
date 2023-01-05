@@ -172,4 +172,6 @@ fn main() {
         .setup(|app| Ok(log::setup_logging(app.app_handle())?))
         .run(context)
         .expect("error while running tauri application");
+
+    opentelemetry::global::shutdown_tracer_provider();
 }

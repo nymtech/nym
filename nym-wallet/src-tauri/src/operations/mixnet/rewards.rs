@@ -7,6 +7,7 @@ use validator_client::nymd::traits::{MixnetQueryClient, MixnetSigningClient};
 use validator_client::nymd::Fee;
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn claim_operator_reward(
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
@@ -28,6 +29,7 @@ pub async fn claim_operator_reward(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn claim_delegator_reward(
     mix_id: MixId,
     fee: Option<Fee>,
@@ -49,6 +51,7 @@ pub async fn claim_delegator_reward(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn claim_locked_and_unlocked_delegator_reward(
     mix_id: MixId,
     fee: Option<Fee>,
@@ -97,6 +100,7 @@ pub async fn claim_locked_and_unlocked_delegator_reward(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn get_current_rewarding_parameters(
     state: tauri::State<'_, WalletState>,
 ) -> Result<RewardingParams, BackendError> {

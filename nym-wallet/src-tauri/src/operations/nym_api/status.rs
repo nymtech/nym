@@ -12,6 +12,7 @@ use validator_client::models::{
 };
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn mixnode_core_node_status(
     mix_id: MixId,
     since: Option<i64>,
@@ -23,6 +24,7 @@ pub async fn mixnode_core_node_status(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn gateway_core_node_status(
     identity: IdentityKeyRef<'_>,
     since: Option<i64>,
@@ -34,6 +36,7 @@ pub async fn gateway_core_node_status(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn gateway_report(
     identity: IdentityKeyRef<'_>,
     state: tauri::State<'_, WalletState>,
@@ -42,6 +45,7 @@ pub async fn gateway_report(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn mixnode_status(
     mix_id: MixId,
     state: tauri::State<'_, WalletState>,
@@ -50,6 +54,7 @@ pub async fn mixnode_status(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn mixnode_reward_estimation(
     mix_id: MixId,
     state: tauri::State<'_, WalletState>,
@@ -60,6 +65,7 @@ pub async fn mixnode_reward_estimation(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn compute_mixnode_reward_estimation(
     mix_id: u32,
     performance: Option<Performance>,
@@ -83,6 +89,7 @@ pub async fn compute_mixnode_reward_estimation(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn mixnode_stake_saturation(
     mix_id: MixId,
     state: tauri::State<'_, WalletState>,
@@ -93,6 +100,7 @@ pub async fn mixnode_stake_saturation(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn mixnode_inclusion_probability(
     mix_id: MixId,
     state: tauri::State<'_, WalletState>,

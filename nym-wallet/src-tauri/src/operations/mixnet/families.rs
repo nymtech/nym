@@ -5,6 +5,7 @@ use validator_client::nymd::traits::MixnetSigningClient;
 use validator_client::nymd::Fee;
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn create_family(
     signature: String,
     label: String,
@@ -24,6 +25,7 @@ pub async fn create_family(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn join_family(
     signature: String,
     family_head: String,
@@ -43,6 +45,7 @@ pub async fn join_family(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn leave_family(
     signature: String,
     family_head: String,
@@ -62,6 +65,7 @@ pub async fn leave_family(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn kick_family_member(
     signature: String,
     member: String,

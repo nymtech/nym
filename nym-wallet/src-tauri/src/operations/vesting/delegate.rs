@@ -9,6 +9,7 @@ use nym_types::transaction::TransactionExecuteResult;
 use validator_client::nymd::{Fee, VestingSigningClient};
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn vesting_delegate_to_mixnode(
     mix_id: MixId,
     amount: DecCoin,
@@ -39,6 +40,7 @@ pub async fn vesting_delegate_to_mixnode(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn vesting_undelegate_from_mixnode(
     mix_id: MixId,
     fee: Option<Fee>,

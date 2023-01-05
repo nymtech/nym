@@ -24,6 +24,7 @@ pub(crate) struct SimulateResult {
 }
 
 impl SimulateResult {
+    #[tracing::instrument]
     pub fn new(
         gas_info: Option<GasInfo>,
         gas_price: GasPrice,

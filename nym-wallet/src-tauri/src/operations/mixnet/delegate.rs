@@ -144,6 +144,7 @@ pub async fn undelegate_all_from_mixnode(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn get_all_mix_delegations(
     state: tauri::State<'_, WalletState>,
 ) -> Result<Vec<DelegationWithEverything>, BackendError> {

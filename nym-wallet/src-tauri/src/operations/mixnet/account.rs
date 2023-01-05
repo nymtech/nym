@@ -27,6 +27,7 @@ pub async fn connect_with_mnemonic(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn get_balance(state: tauri::State<'_, WalletState>) -> Result<Balance, BackendError> {
     let guard = state.read().await;
     let client = guard.current_client()?;
@@ -48,16 +49,19 @@ pub async fn get_balance(state: tauri::State<'_, WalletState>) -> Result<Balance
 }
 
 #[tauri::command]
+#[tracing::instrument]
 pub fn create_new_mnemonic() -> String {
     random_mnemonic().to_string()
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(mnemonic))]
 pub fn validate_mnemonic(mnemonic: &str) -> bool {
     Mnemonic::from_str(mnemonic).is_ok()
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn switch_network(
     state: tauri::State<'_, WalletState>,
     network: WalletNetwork,
@@ -77,16 +81,19 @@ pub async fn switch_network(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn logout(state: tauri::State<'_, WalletState>) -> Result<(), BackendError> {
     state.write().await.logout();
     Ok(())
 }
 
+#[tracing::instrument()]
 fn random_mnemonic() -> Mnemonic {
     let mut rng = rand::thread_rng();
     Mnemonic::generate_in_with(&mut rng, Language::English, 24).unwrap()
 }
 
+#[tracing::instrument(skip(state, mnemonic))]
 async fn _connect_with_mnemonic(
     mnemonic: Mnemonic,
     state: tauri::State<'_, WalletState>,
@@ -169,6 +176,7 @@ async fn _connect_with_mnemonic(
     account_for_default_network
 }
 
+#[tracing::instrument]
 async fn run_connection_test(
     untested_nymd_urls: HashMap<WalletNetwork, Vec<Url>>,
     untested_api_urls: HashMap<WalletNetwork, Vec<Url>>,
@@ -197,6 +205,7 @@ async fn run_connection_test(
     .await
 }
 
+#[tracing::instrument(skip(mnemonic))]
 fn create_clients(
     nymd_urls: &HashMap<NymNetworkDetails, Vec<(Url, bool)>>,
     api_urls: &HashMap<NymNetworkDetails, Vec<(Url, bool)>>,
@@ -258,6 +267,7 @@ fn create_clients(
     Ok(clients)
 }
 
+#[tracing::instrument()]
 fn select_random_responding_url(
     urls: &HashMap<NymNetworkDetails, Vec<(Url, bool)>>,
     network: WalletNetwork,
@@ -283,6 +293,7 @@ fn select_first_responding_url(
 }
 
 #[tauri::command]
+#[tracing::instrument]
 pub fn does_password_file_exist() -> Result<bool, BackendError> {
     log::info!("Checking wallet file");
     let file = wallet_storage::wallet_login_filepath()?;
@@ -296,6 +307,7 @@ pub fn does_password_file_exist() -> Result<bool, BackendError> {
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(mnemonic, password))]
 pub fn create_password(mnemonic: &str, password: String) -> Result<(), BackendError> {
     if does_password_file_exist()? {
         return Err(BackendError::WalletFileAlreadyExists);
@@ -311,6 +323,7 @@ pub fn create_password(mnemonic: &str, password: String) -> Result<(), BackendEr
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state, password))]
 pub async fn sign_in_with_password(
     password: String,
     state: tauri::State<'_, WalletState>,
@@ -330,6 +343,7 @@ pub async fn sign_in_with_password(
     _connect_with_mnemonic(mnemonic, state).await
 }
 
+#[tracing::instrument(skip(stored_login))]
 fn extract_first_mnemonic(
     stored_login: &wallet_storage::StoredLogin,
 ) -> Result<Mnemonic, BackendError> {
@@ -350,6 +364,7 @@ fn extract_first_mnemonic(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state, password))]
 pub async fn sign_in_with_password_and_account_id(
     account_id: &str,
     password: &str,
@@ -371,6 +386,7 @@ pub async fn sign_in_with_password_and_account_id(
     _connect_with_mnemonic(mnemonic, state).await
 }
 
+#[tracing::instrument(skip(stored_login))]
 fn extract_mnemonic(
     stored_login: &wallet_storage::StoredLogin,
     account_id: &wallet_storage::AccountId,
@@ -389,6 +405,7 @@ fn extract_mnemonic(
 }
 
 #[tauri::command]
+#[tracing::instrument]
 pub fn remove_password() -> Result<(), BackendError> {
     log::info!("Removing password");
     let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
@@ -396,11 +413,13 @@ pub fn remove_password() -> Result<(), BackendError> {
 }
 
 #[tauri::command]
+#[tracing::instrument]
 pub fn archive_wallet_file() -> Result<(), BackendError> {
     wallet_storage::archive_wallet_file()
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state, mnemonic, password))]
 pub async fn add_account_for_password(
     mnemonic: &str,
     password: &str,
@@ -444,6 +463,7 @@ pub async fn add_account_for_password(
 }
 
 // The first `AccoundId` when converting is the `LoginId` for the entry that was loaded.
+#[tracing::instrument(skip(state, stored_login))]
 async fn set_state_with_all_accounts(
     stored_login: wallet_storage::StoredLogin,
     first_id_when_converting: wallet_storage::AccountId,
@@ -489,6 +509,7 @@ async fn set_state_with_all_accounts(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state, password))]
 pub async fn remove_account_for_password(
     password: &str,
     account_id: &str,
@@ -509,6 +530,7 @@ pub async fn remove_account_for_password(
     set_state_with_all_accounts(stored_login, first_account_id_when_converting, state).await
 }
 
+#[tracing::instrument(skip(mnemonic, prefix))]
 fn derive_address(
     mnemonic: bip39::Mnemonic,
     prefix: &str,
@@ -522,6 +544,7 @@ fn derive_address(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn list_accounts(
     state: tauri::State<'_, WalletState>,
 ) -> Result<Vec<AccountEntry>, BackendError> {
@@ -545,6 +568,7 @@ pub async fn list_accounts(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(password))]
 pub fn show_mnemonic_for_account_in_password(
     account_id: String,
     password: String,
@@ -557,6 +581,7 @@ pub fn show_mnemonic_for_account_in_password(
     Ok(mnemonic.to_string())
 }
 
+#[tracing::instrument(skip(password))]
 fn _show_mnemonic_for_account_in_password(
     login_id: &wallet_storage::LoginId,
     account_id: &wallet_storage::AccountId,

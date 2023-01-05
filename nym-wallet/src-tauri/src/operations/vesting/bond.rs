@@ -10,6 +10,7 @@ use nym_types::transaction::TransactionExecuteResult;
 use validator_client::nymd::{Fee, VestingSigningClient};
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn vesting_bond_gateway(
     gateway: Gateway,
     pledge: DecCoin,
@@ -41,6 +42,7 @@ pub async fn vesting_bond_gateway(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn vesting_unbond_gateway(
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
@@ -60,6 +62,7 @@ pub async fn vesting_unbond_gateway(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn vesting_bond_mixnode(
     mixnode: MixNode,
     cost_params: MixNodeCostParams,
@@ -94,6 +97,7 @@ pub async fn vesting_bond_mixnode(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn vesting_pledge_more(
     fee: Option<Fee>,
     additional_pledge: DecCoin,
@@ -121,6 +125,7 @@ pub async fn vesting_pledge_more(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn vesting_unbond_mixnode(
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
@@ -144,6 +149,7 @@ pub async fn vesting_unbond_mixnode(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn withdraw_vested_coins(
     amount: DecCoin,
     fee: Option<Fee>,
@@ -172,6 +178,7 @@ pub async fn withdraw_vested_coins(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn vesting_update_mixnode_cost_params(
     new_costs: MixNodeCostParams,
     fee: Option<Fee>,
@@ -200,6 +207,7 @@ pub async fn vesting_update_mixnode_cost_params(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn vesting_update_mixnode_config(
     update: MixNodeConfigUpdate,
     fee: Option<Fee>,

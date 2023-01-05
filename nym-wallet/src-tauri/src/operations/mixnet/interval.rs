@@ -9,6 +9,7 @@ use nym_wallet_types::interval::Interval;
 use validator_client::nymd::traits::MixnetQueryClient;
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn get_current_interval(
     state: tauri::State<'_, WalletState>,
 ) -> Result<Interval, BackendError> {
@@ -19,6 +20,7 @@ pub async fn get_current_interval(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn get_pending_epoch_events(
     state: tauri::State<'_, WalletState>,
 ) -> Result<Vec<PendingEpochEvent>, BackendError> {
@@ -38,6 +40,7 @@ pub async fn get_pending_epoch_events(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn get_pending_interval_events(
     state: tauri::State<'_, WalletState>,
 ) -> Result<Vec<PendingIntervalEvent>, BackendError> {

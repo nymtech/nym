@@ -10,6 +10,7 @@ use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
 use vesting_contract_common::ExecuteMsg;
 
+#[tracing::instrument(skip(state))]
 async fn simulate_vesting_operation(
     msg: ExecuteMsg,
     raw_funds: Option<DecCoin>,
@@ -37,6 +38,7 @@ async fn simulate_vesting_operation(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_vesting_bond_gateway(
     gateway: Gateway,
     pledge: DecCoin,
@@ -59,6 +61,7 @@ pub async fn simulate_vesting_bond_gateway(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_vesting_unbond_gateway(
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
@@ -66,6 +69,7 @@ pub async fn simulate_vesting_unbond_gateway(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_vesting_bond_mixnode(
     mixnode: MixNode,
     cost_params: MixNodeCostParams,
@@ -92,6 +96,7 @@ pub async fn simulate_vesting_bond_mixnode(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_vesting_pledge_more(
     additional_pledge: DecCoin,
     state: tauri::State<'_, WalletState>,
@@ -105,6 +110,7 @@ pub async fn simulate_vesting_pledge_more(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_vesting_unbond_mixnode(
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
@@ -112,6 +118,7 @@ pub async fn simulate_vesting_unbond_mixnode(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_vesting_update_mixnode_cost_params(
     new_costs: MixNodeCostParams,
     state: tauri::State<'_, WalletState>,
@@ -129,6 +136,7 @@ pub async fn simulate_vesting_update_mixnode_cost_params(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_vesting_update_mixnode_config(
     update: MixNodeConfigUpdate,
     state: tauri::State<'_, WalletState>,
@@ -142,6 +150,7 @@ pub async fn simulate_vesting_update_mixnode_config(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_vesting_delegate_to_mixnode(
     mix_id: MixId,
     amount: DecCoin,
@@ -159,6 +168,7 @@ pub async fn simulate_vesting_delegate_to_mixnode(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_vesting_undelegate_from_mixnode(
     mix_id: MixId,
     state: tauri::State<'_, WalletState>,
@@ -167,6 +177,7 @@ pub async fn simulate_vesting_undelegate_from_mixnode(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_withdraw_vested_coins(
     amount: DecCoin,
     state: tauri::State<'_, WalletState>,
@@ -177,6 +188,7 @@ pub async fn simulate_withdraw_vested_coins(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_vesting_claim_operator_reward(
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
@@ -184,6 +196,7 @@ pub async fn simulate_vesting_claim_operator_reward(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_vesting_claim_delegator_reward(
     mix_id: MixId,
     state: tauri::State<'_, WalletState>,

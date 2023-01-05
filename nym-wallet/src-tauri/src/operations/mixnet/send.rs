@@ -6,6 +6,7 @@ use std::str::FromStr;
 use validator_client::nymd::{AccountId, Fee};
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn send(
     address: &str,
     amount: DecCoin,

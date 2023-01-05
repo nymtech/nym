@@ -17,6 +17,7 @@ pub struct SignatureOutputJson {
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn sign(
     message: String,
     state: tauri::State<'_, WalletState>,
@@ -42,6 +43,7 @@ pub async fn sign(
     Ok(output_json)
 }
 
+#[tracing::instrument(skip(state))]
 async fn get_pubkey_from_account_address(
     address: &AccountId,
     state: &tauri::State<'_, WalletState>,
@@ -74,6 +76,7 @@ enum VerifyInputKind {
 impl TryFrom<Option<String>> for VerifyInputKind {
     type Error = BackendError;
 
+    #[tracing::instrument]
     fn try_from(value: Option<String>) -> Result<Self, Self::Error> {
         let key = match value {
             Some(key) => key,
@@ -100,6 +103,7 @@ impl TryFrom<Option<String>> for VerifyInputKind {
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn verify(
     public_key_as_json_or_account_address: Option<String>,
     signature_as_hex: String,

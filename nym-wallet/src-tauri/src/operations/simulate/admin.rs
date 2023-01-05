@@ -8,6 +8,7 @@ use mixnet_contract_common::{ContractStateParams, ExecuteMsg};
 use nym_wallet_types::admin::TauriContractStateParams;
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_update_contract_settings(
     params: TauriContractStateParams,
     state: tauri::State<'_, WalletState>,

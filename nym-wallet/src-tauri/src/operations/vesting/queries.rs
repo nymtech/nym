@@ -173,6 +173,7 @@ pub async fn delegated_free(
 
 /// Returns the total amount of delegated tokens that have vested
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn delegated_vesting(
     block_time: Option<u64>,
     vesting_account_address: &str,
@@ -196,6 +197,7 @@ pub async fn delegated_vesting(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn vesting_get_mixnode_pledge(
     address: &str,
     state: tauri::State<'_, WalletState>,
@@ -217,6 +219,7 @@ pub async fn vesting_get_mixnode_pledge(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn vesting_get_gateway_pledge(
     address: &str,
     state: tauri::State<'_, WalletState>,
@@ -238,6 +241,7 @@ pub async fn vesting_get_gateway_pledge(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn get_current_vesting_period(
     address: &str,
     state: tauri::State<'_, WalletState>,
@@ -251,6 +255,7 @@ pub async fn get_current_vesting_period(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn get_account_info(
     address: &str,
     state: tauri::State<'_, WalletState>,

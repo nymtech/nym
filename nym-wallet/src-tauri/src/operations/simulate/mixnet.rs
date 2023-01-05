@@ -9,6 +9,7 @@ use mixnet_contract_common::{ExecuteMsg, Gateway, MixId, MixNode};
 use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
 
+#[tracing::instrument(skip(state))]
 async fn simulate_mixnet_operation(
     msg: ExecuteMsg,
     raw_funds: Option<DecCoin>,
@@ -36,6 +37,7 @@ async fn simulate_mixnet_operation(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_bond_gateway(
     gateway: Gateway,
     pledge: DecCoin,
@@ -54,6 +56,7 @@ pub async fn simulate_bond_gateway(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_unbond_gateway(
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
@@ -61,6 +64,7 @@ pub async fn simulate_unbond_gateway(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_bond_mixnode(
     mixnode: MixNode,
     cost_params: MixNodeCostParams,
@@ -85,6 +89,7 @@ pub async fn simulate_bond_mixnode(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_pledge_more(
     additional_pledge: DecCoin,
     state: tauri::State<'_, WalletState>,
@@ -93,6 +98,7 @@ pub async fn simulate_pledge_more(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_unbond_mixnode(
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
@@ -100,6 +106,7 @@ pub async fn simulate_unbond_mixnode(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_update_mixnode_cost_params(
     new_costs: MixNodeCostParams,
     state: tauri::State<'_, WalletState>,
@@ -117,6 +124,7 @@ pub async fn simulate_update_mixnode_cost_params(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_update_mixnode_config(
     update: MixNodeConfigUpdate,
     state: tauri::State<'_, WalletState>,
@@ -130,6 +138,7 @@ pub async fn simulate_update_mixnode_config(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_delegate_to_mixnode(
     mix_id: MixId,
     amount: DecCoin,
@@ -144,6 +153,7 @@ pub async fn simulate_delegate_to_mixnode(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_undelegate_from_mixnode(
     mix_id: MixId,
     state: tauri::State<'_, WalletState>,
@@ -152,6 +162,7 @@ pub async fn simulate_undelegate_from_mixnode(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_claim_operator_reward(
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
@@ -159,6 +170,7 @@ pub async fn simulate_claim_operator_reward(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn simulate_claim_delegator_reward(
     mix_id: MixId,
     state: tauri::State<'_, WalletState>,

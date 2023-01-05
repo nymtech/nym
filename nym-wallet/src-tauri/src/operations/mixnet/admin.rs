@@ -10,6 +10,7 @@ use validator_client::nymd::traits::{MixnetQueryClient, MixnetSigningClient};
 use validator_client::nymd::Fee;
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn get_contract_settings(
     state: tauri::State<'_, WalletState>,
 ) -> Result<TauriContractStateParams, BackendError> {
@@ -26,6 +27,7 @@ pub async fn get_contract_settings(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn update_contract_settings(
     params: TauriContractStateParams,
     fee: Option<Fee>,

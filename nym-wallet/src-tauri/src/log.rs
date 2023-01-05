@@ -4,47 +4,68 @@ use fern::colors::ColoredLevelConfig;
 use serde::Serialize;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use tauri::Manager;
+use tracing_subscriber::EnvFilter;
+use tracing_subscriber::Registry;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_tree::HierarchicalLayer;
 
 pub fn setup_logging(app_handle: tauri::AppHandle) -> Result<(), log::SetLoggerError> {
-    let colors = ColoredLevelConfig::new();
-    let base_config = fern::Dispatch::new()
-        .level(global_level())
-        .filter_lowlevel_external_components()
-        .show_operations();
+    let tracer = opentelemetry_jaeger::new_agent_pipeline()
+        .with_service_name("nym-wallet")
+        .install_simple()
+        .unwrap();
 
-    let stdout_config = fern::Dispatch::new()
-        .format(move |out, message, record| {
-            out.finish(format_args!(
-                "{}[{}][{}] {}",
-                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
-                record.target(),
-                colors.color(record.level()),
-                message,
-            ))
-        })
-        .chain(std::io::stdout());
+    let telemetry = tracing_opentelemetry::layer().with_tracer(tracer);
 
-    let tauri_event_config = fern::Dispatch::new()
-        .format(move |out, message, record| {
-            out.finish(format_args!(
-                "{}[{}] {}",
-                chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
-                record.target(),
-                message,
-            ))
-        })
-        .chain(fern::Output::call(move |record| {
-            let msg = LogMessage {
-                message: record.args().to_string(),
-                level: record.level().into(),
-            };
-            app_handle.emit_all("log://log", msg).unwrap();
-        }));
+    Registry::default()
+        .with(EnvFilter::from_default_env())
+        .with(
+            HierarchicalLayer::new(4)
+                .with_targets(true)
+                .with_bracketed_fields(true),
+        )
+        .with(telemetry)
+        .init();
+    // let colors = ColoredLevelConfig::new();
+    // let base_config = fern::Dispatch::new()
+    //     .level(global_level())
+    //     .filter_lowlevel_external_components()
+    //     .show_operations();
 
-    base_config
-        .chain(stdout_config)
-        .chain(tauri_event_config)
-        .apply()
+    // let stdout_config = fern::Dispatch::new()
+    //     .format(move |out, message, record| {
+    //         out.finish(format_args!(
+    //             "{}[{}][{}] {}",
+    //             chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+    //             record.target(),
+    //             colors.color(record.level()),
+    //             message,
+    //         ))
+    //     })
+    //     .chain(std::io::stdout());
+
+    // let tauri_event_config = fern::Dispatch::new()
+    //     .format(move |out, message, record| {
+    //         out.finish(format_args!(
+    //             "{}[{}] {}",
+    //             chrono::Local::now().format("[%Y-%m-%d][%H:%M:%S]"),
+    //             record.target(),
+    //             message,
+    //         ))
+    //     })
+    //     .chain(fern::Output::call(move |record| {
+    //         let msg = LogMessage {
+    //             message: record.args().to_string(),
+    //             level: record.level().into(),
+    //         };
+    //         app_handle.emit_all("log://log", msg).unwrap();
+    //     }));
+
+    // base_config
+    //     .chain(stdout_config)
+    //     .chain(tauri_event_config)
+    //     .apply()
+    Ok(())
 }
 
 trait FernExt {

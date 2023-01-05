@@ -23,6 +23,7 @@ pub struct NodeDescription {
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn bond_gateway(
     gateway: Gateway,
     pledge: DecCoin,
@@ -54,6 +55,7 @@ pub async fn bond_gateway(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn unbond_gateway(
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
@@ -70,6 +72,7 @@ pub async fn unbond_gateway(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn bond_mixnode(
     mixnode: MixNode,
     cost_params: MixNodeCostParams,
@@ -103,6 +106,7 @@ pub async fn bond_mixnode(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn pledge_more(
     fee: Option<Fee>,
     additional_pledge: DecCoin,
@@ -130,6 +134,7 @@ pub async fn pledge_more(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn unbond_mixnode(
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
@@ -146,6 +151,7 @@ pub async fn unbond_mixnode(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn update_mixnode_cost_params(
     new_costs: MixNodeCostParams,
     fee: Option<Fee>,
@@ -173,6 +179,7 @@ pub async fn update_mixnode_cost_params(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn update_mixnode_config(
     update: MixNodeConfigUpdate,
     fee: Option<Fee>,
@@ -198,6 +205,7 @@ pub async fn update_mixnode_config(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn get_mixnode_avg_uptime(
     state: tauri::State<'_, WalletState>,
 ) -> Result<Option<u8>, BackendError> {
@@ -224,6 +232,7 @@ pub async fn get_mixnode_avg_uptime(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn mixnode_bond_details(
     state: tauri::State<'_, WalletState>,
 ) -> Result<Option<MixNodeDetails>, BackendError> {
@@ -252,6 +261,7 @@ pub async fn mixnode_bond_details(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn gateway_bond_details(
     state: tauri::State<'_, WalletState>,
 ) -> Result<Option<GatewayBond>, BackendError> {
@@ -278,6 +288,7 @@ pub async fn gateway_bond_details(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn get_pending_operator_rewards(
     address: String,
     state: tauri::State<'_, WalletState>,
@@ -315,6 +326,7 @@ pub async fn get_pending_operator_rewards(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn get_number_of_mixnode_delegators(
     mix_id: MixId,
     state: tauri::State<'_, WalletState>,
@@ -328,6 +340,7 @@ pub async fn get_number_of_mixnode_delegators(
 }
 
 #[tauri::command]
+#[tracing::instrument]
 pub async fn get_mix_node_description(
     host: &str,
     port: u16,
@@ -343,6 +356,7 @@ pub async fn get_mix_node_description(
 }
 
 #[tauri::command]
+#[tracing::instrument(skip(state))]
 pub async fn get_mixnode_uptime(
     mix_id: MixId,
     state: tauri::State<'_, WalletState>,

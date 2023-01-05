@@ -181,7 +181,7 @@ mod tests {
             nym_apis: None,
             mnemonic: None,
             statistics_service_url: None,
-            enabled_statistics: None,
+            enabled_statistics: false,
             #[cfg(feature = "coconut")]
             nyxd_urls: None,
             #[cfg(feature = "coconut")]

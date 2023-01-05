@@ -8,9 +8,7 @@ use colored::Colorize;
 use completions::{fig_generate, ArgShell};
 use config::OptionalSet;
 use crypto::bech32_address_validation;
-use network_defaults::var_names::{
-    BECH32_PREFIX, NYM_API, STATISTICS_SERVICE_DOMAIN_ADDRESS,
-};
+use network_defaults::var_names::{BECH32_PREFIX, NYM_API, STATISTICS_SERVICE_DOMAIN_ADDRESS};
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::process;

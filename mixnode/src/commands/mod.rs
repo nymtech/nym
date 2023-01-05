@@ -6,7 +6,7 @@ use clap::CommandFactory;
 use clap::Subcommand;
 use colored::Colorize;
 use completions::{fig_generate, ArgShell};
-use config::defaults::var_names::{NYM_API, BECH32_PREFIX};
+use config::defaults::var_names::{BECH32_PREFIX, NYM_API};
 use config::OptionalSet;
 use crypto::bech32_address_validation;
 use std::net::IpAddr;

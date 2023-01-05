@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use config::{NymConfig, DB_FILE_NAME};
+use config::{NymConfig, OptionalSet, DB_FILE_NAME};
 use nymsphinx::params::PacketSize;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
@@ -70,11 +70,14 @@ pub struct Config<T> {
     #[serde(default)]
     debug: DebugConfig,
 }
+
 impl<T> ClientCoreConfigTrait for Config<T> {
     fn get_gateway_endpoint(&self) -> &GatewayEndpointConfig {
         &self.client.gateway_endpoint
     }
 }
+
+impl<T> OptionalSet for Config<T> where T: NymConfig {}
 
 impl<T> Config<T> {
     pub fn new<S: Into<String>>(id: S) -> Self
@@ -160,8 +163,9 @@ impl<T> Config<T> {
         changes_made
     }
 
-    pub fn with_disabled_credentials(&mut self, disabled_credentials_mode: bool) {
+    pub fn with_disabled_credentials(mut self, disabled_credentials_mode: bool) -> Self {
         self.client.disabled_credentials_mode = disabled_credentials_mode;
+        self
     }
 
     pub fn with_gateway_endpoint(&mut self, gateway_endpoint: GatewayEndpointConfig) {
@@ -172,10 +176,22 @@ impl<T> Config<T> {
         self.client.gateway_endpoint.gateway_id = id.into();
     }
 
+    pub fn with_custom_nyxd(mut self, urls: Vec<Url>) -> Self {
+        self.client.nyxd_urls = urls;
+        self
+    }
+
+    #[deprecated]
     pub fn set_custom_nyxd(&mut self, nyxd_urls: Vec<Url>) {
         self.client.nyxd_urls = nyxd_urls;
     }
 
+    pub fn with_custom_nym_apis(mut self, nym_api_urls: Vec<Url>) -> Self {
+        self.client.nym_api_urls = nym_api_urls;
+        self
+    }
+
+    #[deprecated]
     pub fn set_custom_nym_apis(&mut self, nym_api_urls: Vec<Url>) {
         self.client.nym_api_urls = nym_api_urls;
     }

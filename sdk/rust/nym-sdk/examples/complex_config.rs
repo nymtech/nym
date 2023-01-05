@@ -11,7 +11,7 @@ async fn main() {
 
     // Setting `KeyMode::Keep` will use existing keys, and existing config, if there is one.
     // Regardles of `user_chosen_gateway`.
-    let keys = mixnet::KeyPaths::new_from_dir(mixnet::KeyMode::Keep, &config_dir);
+    let keys = mixnet::StoragePaths::new_from_dir(mixnet::KeyMode::Keep, &config_dir);
 
     // Provide key paths for the client to read/write keys to.
     let mut client = mixnet::Client::new(None, Some(keys)).unwrap();

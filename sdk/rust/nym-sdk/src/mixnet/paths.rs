@@ -35,7 +35,7 @@ impl GatewayKeyMode {
 }
 
 #[derive(Clone, Debug)]
-pub struct KeyPaths {
+pub struct StoragePaths {
     // Determines how to handle existing key files found.
     pub operating_mode: KeyMode,
 
@@ -56,32 +56,14 @@ pub struct KeyPaths {
     // The key isn't much use without knowing which entity it refers to.
     pub gateway_endpoint_config: PathBuf,
 
+    // The database containing credentials
     pub credential_database_path: PathBuf,
 
+    // The database storing reply surbs in-between sessions
     pub reply_surb_database_path: PathBuf,
 }
 
-pub struct Keys {
-    pub identity_keypair: identity::KeyPair,
-    pub encryption_keypair: encryption::KeyPair,
-    pub ack_key: AckKey,
-    pub gateway_shared_key: SharedKeys,
-}
-
-//#[derive(Clone, Debug)]
-//pub struct GatewaySetup {
-//    pub gateway_shared_key: PathBuf,
-//    pub gateway_endpoint_config: GatewayEndpointConfig,
-//    //pub gateway_endpoint_config: GatewayConfig,
-//}
-
-//#[derive(Clone, Debug)]
-//pub enum GatewayConfig {
-//    File(PathBuf),
-//    Struct(GatewayEndpointConfig),
-//}
-
-impl KeyPaths {
+impl StoragePaths {
     pub fn new_from_dir(operating_mode: KeyMode, dir: &Path) -> Self {
         assert!(!dir.is_file(), "WIP");
         Self {
@@ -101,8 +83,8 @@ impl KeyPaths {
     }
 }
 
-impl From<KeyPaths> for ClientKeyPathfinder {
-    fn from(paths: KeyPaths) -> Self {
+impl From<StoragePaths> for ClientKeyPathfinder {
+    fn from(paths: StoragePaths) -> Self {
         Self {
             identity_private_key: paths.private_identity,
             identity_public_key: paths.public_identity,
@@ -112,6 +94,13 @@ impl From<KeyPaths> for ClientKeyPathfinder {
             ack_key: paths.ack_key,
         }
     }
+}
+
+pub struct Keys {
+    pub identity_keypair: identity::KeyPair,
+    pub encryption_keypair: encryption::KeyPair,
+    pub ack_key: AckKey,
+    pub gateway_shared_key: SharedKeys,
 }
 
 impl From<Keys> for KeyManager {
@@ -124,16 +113,3 @@ impl From<Keys> for KeyManager {
         )
     }
 }
-
-//pub struct GatewayConfigPath {
-//    pub path: PathBuf,
-//}
-//
-//impl GatewayConfigPath {
-//    pub fn new_from_dir(dir: PathBuf) -> Self {
-//        assert!(!dir.is_file(), "WIP");
-//        Self {
-//            path: dir.join("gateway_endpoint_config.toml"),
-//        }
-//    }
-//}

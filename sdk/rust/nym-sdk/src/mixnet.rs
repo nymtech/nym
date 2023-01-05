@@ -1,7 +1,7 @@
 mod client;
 mod config;
 mod connection_state;
-mod key_paths;
+mod paths;
 
 pub use client_core::config::GatewayEndpointConfig;
 pub use nymsphinx::{
@@ -9,7 +9,7 @@ pub use nymsphinx::{
     receiver::ReconstructedMessage,
 };
 
-pub use key_paths::{GatewayKeyMode, KeyMode, KeyPaths, Keys};
+pub use paths::{GatewayKeyMode, KeyMode, Keys, StoragePaths};
 
 pub use client::Client;
 pub use config::Config;

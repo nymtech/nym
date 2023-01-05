@@ -19,7 +19,7 @@ use client_core::{
 
 use crate::error::{Error, Result};
 
-use super::{connection_state::ConnectionState, Config, GatewayKeyMode, KeyPaths, Keys};
+use super::{connection_state::ConnectionState, Config, GatewayKeyMode, StoragePaths, Keys};
 
 pub struct Client {
     /// Keys handled by the client
@@ -29,7 +29,7 @@ pub struct Client {
     config: Config,
 
     /// Paths for client keys, including identity, encryption, ack and shared gateway keys.
-    key_paths: Option<KeyPaths>,
+    storage_paths: Option<StoragePaths>,
 
     /// The client can be in one of multiple states, depending on how it is created and if it's
     /// connected to the mixnet.
@@ -42,20 +42,20 @@ impl Client {
     ///
     /// Callers have the option of supplying futher parameters to store persistent identities at a
     /// location on-disk, if desired.
-    pub fn new(config_option: Option<Config>, key_paths: Option<KeyPaths>) -> Result<Client> {
+    pub fn new(config_option: Option<Config>, paths: Option<StoragePaths>) -> Result<Client> {
         let config = config_option.unwrap_or_default();
 
         // If we are provided paths to keys, use them if they are available. And if they are
         // not, write the generated keys back to storage.
-        let key_manager = if let Some(ref key_paths) = key_paths {
-            let path_finder = ClientKeyPathfinder::from(key_paths.clone());
+        let key_manager = if let Some(ref paths) = paths {
+            let path_finder = ClientKeyPathfinder::from(paths.clone());
 
             // Try load keys
             match KeyManager::load_keys_maybe_gateway(&path_finder) {
                 Ok(key_manager) => key_manager,
                 Err(err) => {
                     log::debug!("Not loading keys: {err}");
-                    if path_finder.any_file_exists() && key_paths.operating_mode.is_keep() {
+                    if path_finder.any_file_exists() && paths.operating_mode.is_keep() {
                         return Err(Error::DontOverwrite);
                     }
 
@@ -74,7 +74,7 @@ impl Client {
         Ok(Client {
             key_manager,
             config,
-            key_paths,
+            storage_paths: paths,
             connection_state: ConnectionState::New,
         })
     }
@@ -135,8 +135,8 @@ impl Client {
         Ok(())
     }
 
-    fn write_gateway_key(&self, key_paths: KeyPaths, key_mode: &GatewayKeyMode) -> Result<()> {
-        let path_finder = ClientKeyPathfinder::from(key_paths);
+    fn write_gateway_key(&self, paths: StoragePaths, key_mode: &GatewayKeyMode) -> Result<()> {
+        let path_finder = ClientKeyPathfinder::from(paths);
         if path_finder.gateway_key_file_exists() && key_mode.is_keep() {
             return Err(Error::DontOverwriteGatewayKey);
         };
@@ -175,20 +175,20 @@ impl Client {
         // For some simple cases we can figure how to setup gateway without it having to have been
         // called in advance.
         if matches!(self.connection_state, ConnectionState::New) {
-            if let Some(key_paths) = &self.key_paths {
-                let key_paths = key_paths.clone();
+            if let Some(paths) = &self.storage_paths {
+                let paths = paths.clone();
                 if self.has_gateway_key() {
                     // If we have a gateway key from client, then we can just read the corresponding
                     // config
                     println!("Has gateway key: loading");
-                    self.read_gateway_endpoint_config(&key_paths.gateway_endpoint_config)?;
+                    self.read_gateway_endpoint_config(&paths.gateway_endpoint_config)?;
                 } else {
                     // If we didn't find any shared gateway key during creation, that means we first
                     // need to register a gateway
                     println!("NO gateway key: registering new");
                     self.register_with_gateway().await?;
-                    self.write_gateway_key(key_paths.clone(), &GatewayKeyMode::Overwrite)?;
-                    Self::write_gateway_endpoint_config(&key_paths.gateway_endpoint_config)?;
+                    self.write_gateway_key(paths.clone(), &GatewayKeyMode::Overwrite)?;
+                    Self::write_gateway_endpoint_config(&paths.gateway_endpoint_config)?;
                 }
             } else {
                 // If we don't have any key paths, just use ephemeral keys

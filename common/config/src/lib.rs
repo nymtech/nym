@@ -161,10 +161,11 @@ pub trait OptionalSet {
             if let Some(raw) = read_var_if_not_default(env_var) {
                 return f(
                     self,
-                    raw.parse().unwrap_or_else(|_| {
+                    raw.parse().unwrap_or_else(|err| {
                         panic!(
-                            "failed to parse value of {raw} into type {}",
-                            type_name::<T>()
+                            "failed to parse value of {raw} into type {}. the error was {:?}",
+                            type_name::<T>(),
+                            err
                         )
                     }),
                 );

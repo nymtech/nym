@@ -83,7 +83,7 @@ pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send + Syn
 pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
     if let Some(nym_apis) = args.nym_apis {
         config.get_base_mut().set_custom_nym_apis(nym_apis);
-    } else if let Ok(raw_validators) = std::env::var(network_defaults::var_names::API_VALIDATOR) {
+    } else if let Ok(raw_validators) = std::env::var(network_defaults::var_names::NYM_API) {
         config
             .get_base_mut()
             .set_custom_nym_apis(parse_urls(&raw_validators));

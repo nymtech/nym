@@ -3,7 +3,7 @@
 
 use network_defaults::{
     setup_env,
-    var_names::{API_VALIDATOR, MIXNET_CONTRACT_ADDRESS, NYXD_VALIDATOR, VESTING_CONTRACT_ADDRESS},
+    var_names::{MIXNET_CONTRACT_ADDRESS, NYM_API, NYXD, VESTING_CONTRACT_ADDRESS},
     NymNetworkDetails,
 };
 use tap::prelude::*;
@@ -36,10 +36,10 @@ pub fn get_network_details(args: &ClientArgs) -> Result<NymNetworkDetails, Conte
 
     // override the env vars with user supplied arguments, if set
     if let Some(nyxd_url) = args.nyxd_url.as_ref() {
-        std::env::set_var(NYXD_VALIDATOR, nyxd_url);
+        std::env::set_var(NYXD, nyxd_url);
     }
     if let Some(nym_api_url) = args.nym_api_url.as_ref() {
-        std::env::set_var(API_VALIDATOR, nym_api_url);
+        std::env::set_var(NYM_API, nym_api_url);
     }
     if let Some(mixnet_contract_address) = args.mixnet_contract_address.as_ref() {
         std::env::set_var(MIXNET_CONTRACT_ADDRESS, mixnet_contract_address.to_string());

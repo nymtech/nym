@@ -1,6 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::var_names::{DEPRECATED_API_VALIDATOR, DEPRECATED_NYMD_VALIDATOR, NYM_API, NYXD};
 use serde::{Deserialize, Serialize};
 use std::{env::var, ops::Not, path::PathBuf};
 use url::Url;
@@ -77,8 +78,8 @@ impl NymNetworkDetails {
                     .expect("denomination exponent is not u32"),
             })
             .with_validator_endpoint(ValidatorDetails::new(
-                var(var_names::NYXD_VALIDATOR).expect("nyxd validator not set"),
-                Some(var(var_names::API_VALIDATOR).expect("api validator not set")),
+                var(var_names::NYXD).expect("nyxd validator not set"),
+                Some(var(var_names::NYM_API).expect("nym api not set")),
             ))
             .with_mixnet_contract(Some(
                 var(var_names::MIXNET_CONTRACT_ADDRESS).expect("mixnet contract not set"),
@@ -289,6 +290,20 @@ impl ValidatorDetails {
     }
 }
 
+fn fix_deprecated_environmental_variables() {
+    // if we're using the outdated environmental variables, set the updated ones to preserve compatibility
+    if let Ok(nyxd) = std::env::var(DEPRECATED_NYMD_VALIDATOR) {
+        if std::env::var(NYXD).is_err() {
+            std::env::set_var(NYXD, nyxd)
+        }
+    }
+    if let Ok(nym_apis) = std::env::var(DEPRECATED_API_VALIDATOR) {
+        if std::env::var(NYM_API).is_err() {
+            std::env::set_var(NYM_API, nym_apis)
+        }
+    }
+}
+
 pub fn setup_env(config_env_file: Option<&PathBuf>) {
     match std::env::var(var_names::CONFIGURED) {
         // if the configuration is not already set in the env vars
@@ -296,6 +311,7 @@ pub fn setup_env(config_env_file: Option<&PathBuf>) {
             if let Some(config_env_file) = config_env_file {
                 dotenv::from_path(config_env_file)
                     .expect("Invalid path to environment configuration file");
+                fix_deprecated_environmental_variables();
             } else {
                 // if nothing is set, the use mainnet defaults
                 // if the user has not set `CONFIGURED`, then even if they set any of the env variables,
@@ -304,7 +320,9 @@ pub fn setup_env(config_env_file: Option<&PathBuf>) {
             }
         }
         Err(_) => crate::mainnet::export_to_env(),
-        _ => {}
+        _ => {
+            fix_deprecated_environmental_variables();
+        }
     }
 
     // if we haven't explicitly defined any of the constants, fallback to defaults

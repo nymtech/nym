@@ -9,7 +9,7 @@ use completions::{fig_generate, ArgShell};
 use crypto::bech32_address_validation;
 use network_defaults::mainnet::read_var_if_not_default;
 use network_defaults::var_names::{
-    API_VALIDATOR, BECH32_PREFIX, CONFIGURED, STATISTICS_SERVICE_DOMAIN_ADDRESS,
+    BECH32_PREFIX, CONFIGURED, NYM_API, STATISTICS_SERVICE_DOMAIN_ADDRESS,
 };
 use std::net::IpAddr;
 use std::path::PathBuf;
@@ -120,7 +120,7 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
     if let Some(nym_apis) = args.nym_apis {
         config = config.with_custom_nym_apis(nym_apis);
     } else if std::env::var(CONFIGURED).is_ok() {
-        if let Some(raw_validators) = read_var_if_not_default(API_VALIDATOR) {
+        if let Some(raw_validators) = read_var_if_not_default(NYM_API) {
             config = config.with_custom_nym_apis(::config::parse_urls(&raw_validators))
         }
     }
@@ -141,12 +141,12 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
 
     #[cfg(feature = "coconut")]
     {
-        use network_defaults::var_names::NYXD_VALIDATOR;
+        use network_defaults::var_names::NYXD;
 
         if let Some(nyxd_urls) = args.nyxd_urls {
             config = config.with_custom_validator_nyxd(nyxd_urls);
         } else if std::env::var(CONFIGURED).is_ok() {
-            if let Some(raw_validators) = read_var_if_not_default(NYXD_VALIDATOR) {
+            if let Some(raw_validators) = read_var_if_not_default(NYXD) {
                 config = config.with_custom_validator_nyxd(::config::parse_urls(&raw_validators))
             }
         }

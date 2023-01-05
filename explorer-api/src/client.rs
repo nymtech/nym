@@ -1,5 +1,5 @@
 use network_defaults::{
-    var_names::{API_VALIDATOR, NYXD_VALIDATOR},
+    var_names::{NYM_API, NYXD},
     NymNetworkDetails,
 };
 use reqwest::Url;
@@ -26,9 +26,9 @@ impl ThreadsafeValidatorClient {
 }
 
 pub(crate) fn new_validator_client() -> ThreadsafeValidatorClient {
-    let nyxd_url = Url::from_str(&std::env::var(NYXD_VALIDATOR).expect("nyxd validator not set"))
+    let nyxd_url = Url::from_str(&std::env::var(NYXD).expect("nyxd validator not set"))
         .expect("nyxd validator not in url format");
-    let api_url = Url::from_str(&std::env::var(API_VALIDATOR).expect("nyxd validator not set"))
+    let api_url = Url::from_str(&std::env::var(NYM_API).expect("nyxd validator not set"))
         .expect("nyxd validator not in url format");
 
     let details = NymNetworkDetails::new_from_env();

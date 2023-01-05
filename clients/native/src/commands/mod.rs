@@ -81,8 +81,8 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
     if let Some(nym_apis) = args.nym_apis {
         config.get_base_mut().set_custom_nym_apis(nym_apis);
     } else if std::env::var(network_defaults::var_names::CONFIGURED).is_ok() {
-        let raw_validators = std::env::var(network_defaults::var_names::API_VALIDATOR)
-            .expect("api validator not set");
+        let raw_validators =
+            std::env::var(network_defaults::var_names::NYM_API).expect("api validator not set");
         config
             .get_base_mut()
             .set_custom_nym_apis(config::parse_urls(&raw_validators));

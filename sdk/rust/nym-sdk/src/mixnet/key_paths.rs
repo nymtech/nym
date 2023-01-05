@@ -54,9 +54,6 @@ pub struct KeyPaths {
     pub gateway_shared_key: PathBuf,
 
     // The key isn't much use without knowing which entity it refers to.
-    // This is an `Option` in case the end user might want to read write keys to storage, but
-    // handle the gateway configuration manually through `set_gateway_endpoint`.
-    // WIP(JON): make it an option?
     pub gateway_endpoint_config: PathBuf,
 
     pub credential_database_path: PathBuf,

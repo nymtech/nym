@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use futures::StreamExt;
 use nymsphinx::{
     addressing::clients::{ClientIdentity, Recipient},
@@ -133,9 +135,7 @@ impl Client {
         Ok(())
     }
 
-    fn write_gateway_key(&self, key_mode: &GatewayKeyMode) -> Result<()> {
-        let key_paths = self.key_paths.as_ref().unwrap().clone();
-
+    fn write_gateway_key(&self, key_paths: KeyPaths, key_mode: &GatewayKeyMode) -> Result<()> {
         let path_finder = ClientKeyPathfinder::from(key_paths);
         if path_finder.gateway_key_file_exists() && key_mode.is_keep() {
             return Err(Error::DontOverwriteGatewayKey);
@@ -144,11 +144,8 @@ impl Client {
         Ok(())
     }
 
-    fn write_gateway_endpoint_config(&self) -> Result<()> {
-        let key_paths = self.key_paths.as_ref().unwrap().clone();
-        let gateway_endpoint_config_path = key_paths.gateway_endpoint_config;
-        let gateway_endpoint_config =
-            toml::to_string(self.get_gateway_endpoint().unwrap()).unwrap();
+    fn write_gateway_endpoint_config(gateway_endpoint_config_path: &Path) -> Result<()> {
+        let gateway_endpoint_config = toml::to_string(gateway_endpoint_config_path)?;
 
         // Ensure the whole directory structure exists
         if let Some(parent_dir) = gateway_endpoint_config_path.parent() {
@@ -158,10 +155,9 @@ impl Client {
         Ok(())
     }
 
-    fn read_gateway_endpoint_config(&mut self) -> Result<()> {
-        let key_paths = self.key_paths.as_ref().unwrap().clone();
+    fn read_gateway_endpoint_config(&mut self, gateway_endpoint_config_path: &Path) -> Result<()> {
         let gateway_endpoint_config: GatewayEndpointConfig =
-            std::fs::read_to_string(key_paths.gateway_endpoint_config)
+            std::fs::read_to_string(gateway_endpoint_config_path)
                 .map(|str| toml::from_str(&str))??;
 
         let nym_address =
@@ -179,19 +175,20 @@ impl Client {
         // For some simple cases we can figure how to setup gateway without it having to have been
         // called in advance.
         if matches!(self.connection_state, ConnectionState::New) {
-            if self.key_paths.is_some() {
+            if let Some(key_paths) = &self.key_paths {
+                let key_paths = key_paths.clone();
                 if self.has_gateway_key() {
                     // If we have a gateway key from client, then we can just read the corresponding
                     // config
                     println!("Has gateway key: loading");
-                    self.read_gateway_endpoint_config()?;
+                    self.read_gateway_endpoint_config(&key_paths.gateway_endpoint_config)?;
                 } else {
                     // If we didn't find any shared gateway key during creation, that means we first
                     // need to register a gateway
                     println!("NO gateway key: registering new");
                     self.register_with_gateway().await?;
-                    self.write_gateway_key(&GatewayKeyMode::Overwrite)?;
-                    self.write_gateway_endpoint_config()?;
+                    self.write_gateway_key(key_paths.clone(), &GatewayKeyMode::Overwrite)?;
+                    Self::write_gateway_endpoint_config(&key_paths.gateway_endpoint_config)?;
                 }
             } else {
                 // If we don't have any key paths, just use ephemeral keys

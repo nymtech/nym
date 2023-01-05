@@ -181,7 +181,6 @@ impl<T> Config<T> {
         self
     }
 
-    #[deprecated]
     pub fn set_custom_nyxd(&mut self, nyxd_urls: Vec<Url>) {
         self.client.nyxd_urls = nyxd_urls;
     }
@@ -191,7 +190,6 @@ impl<T> Config<T> {
         self
     }
 
-    #[deprecated]
     pub fn set_custom_nym_apis(&mut self, nym_api_urls: Vec<Url>) {
         self.client.nym_api_urls = nym_api_urls;
     }

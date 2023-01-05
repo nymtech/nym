@@ -1,9 +1,6 @@
 use crate::errors::ContractError;
 use crate::queued_migrations::migrate_to_v2_mixnet_contract;
-use crate::storage::{
-    account_from_address, save_account, BlockTimestampSecs, ADMIN, DELEGATIONS,
-    MIXNET_CONTRACT_ADDRESS, MIX_DENOM,
-};
+use crate::storage::{account_from_address, save_account, BlockTimestampSecs, ADMIN, DELEGATIONS, MIXNET_CONTRACT_ADDRESS, MIX_DENOM, ACCOUNTS};
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, NodeFamilies, VestingAccount,
 };
@@ -688,6 +685,54 @@ pub fn get_contract_version() -> ContractBuildInformation {
         rustc_version: env!("VERGEN_RUSTC_SEMVER").to_string(),
     }
 }
+
+pub fn try_get_all_accounts(deps: Deps<'_>, start_after: Option<String>, limit: Option<u32>) {
+    let limit = limit.unwrap_or(100).min(200) as usize;
+
+    let start = start_after.map(Bound::exclusive);
+
+    let accounts = ACCOUNTS.range(deps.storage, start, None, Order::Ascending).take(limit).map(|a| )
+    todo!()
+}
+
+/*
+
+pub fn try_get_all_delegations(
+    deps: Deps<'_>,
+    start_after: Option<(u32, MixId, BlockTimestampSecs)>,
+    limit: Option<u32>,
+) -> Result<AllDelegationsResponse, ContractError> {
+    let limit = limit.unwrap_or(100).min(200) as usize;
+
+    let start = start_after.map(Bound::exclusive);
+    let delegations = DELEGATIONS
+        .range(deps.storage, start, None, Order::Ascending)
+        .map(|kv| {
+            kv.map(
+                |((account_id, mix_id, block_timestamp), amount)| VestingDelegation {
+                    account_id,
+                    mix_id,
+                    block_timestamp,
+                    amount,
+                },
+            )
+        })
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = if delegations.len() < limit {
+        None
+    } else {
+        delegations
+            .last()
+            .map(|delegation| delegation.storage_key())
+    };
+
+    Ok(AllDelegationsResponse {
+        delegations,
+        start_next_after,
+    })
+}
+ */
 
 /// Gets currently locked coins, see [crate::traits::VestingAccount::locked_coins]
 pub fn try_get_locked_coins(

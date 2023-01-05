@@ -8,7 +8,7 @@ use vesting_contract_common::PledgeData;
 pub(crate) type BlockTimestampSecs = u64;
 
 pub const KEY: Item<'_, u32> = Item::new("key");
-const ACCOUNTS: Map<'_, String, Account> = Map::new("acc");
+pub const ACCOUNTS: Map<'_, String, Account> = Map::new("acc");
 // Holds data related to individual accounts
 const BALANCES: Map<'_, u32, Uint128> = Map::new("blc");
 const WITHDRAWNS: Map<'_, u32, Uint128> = Map::new("wthd");

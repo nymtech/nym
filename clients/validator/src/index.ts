@@ -479,29 +479,29 @@ export default class ValidatorClient implements INymClient {
   }
 
   public async delegateToMixNode(
-    mixIdentity: string,
+    mixId: string,
     amount: Coin,
     fee?: StdFee | 'auto' | number,
     memo?: string,
   ): Promise<ExecuteResult> {
     this.assertSigning();
-    return (this.client as ISigningClient).delegateToMixNode(this.mixnetContract, mixIdentity, amount, fee, memo);
+    return (this.client as ISigningClient).delegateToMixNode(this.mixnetContract, mixId, amount, fee, memo);
   }
 
   public async undelegateFromMixNode(
-    mixIdentity: string,
+    mixId: string,
     fee?: StdFee | 'auto' | number,
     memo?: string,
   ): Promise<ExecuteResult> {
-    return (this.client as ISigningClient).undelegateFromMixNode(this.mixnetContract, mixIdentity, fee, memo);
+    return (this.client as ISigningClient).undelegateFromMixNode(this.mixnetContract, mixId, fee, memo);
   }
 
   public async updateMixnodeConfig(
-    mixIdentity: string,
+    mixId: string,
     fee: StdFee | 'auto' | number,
     profitPercentage: number,
   ): Promise<ExecuteResult> {
-    return (this.client as ISigningClient).updateMixnodeConfig(this.mixnetContract, mixIdentity, profitPercentage, fee);
+    return (this.client as ISigningClient).updateMixnodeConfig(this.mixnetContract, mixId, profitPercentage, fee);
   }
 
   public async updateContractStateParams(

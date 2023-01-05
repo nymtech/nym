@@ -1,26 +1,20 @@
-import ValidatorClient from '../../src';
 import expect from 'expect';
+import ValidatorClient from '../../src';
+const dotenv = require('dotenv');
 
-const config = {
-  rpcAddress: 'https://qwerty-validator.qa.nymte.ch',
-  validatorAddress: 'https://qwerty-validator-api.qa.nymte.ch/api',
-  prefix: 'n',
-  mixnetContractAddress: 'n14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sjyvg3g',
-  vestingContractAddress: 'n1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq73f2nw',
-  denom: 'nym',
-};
+dotenv.config();
 
 describe('Vesting queries', () => {
   let client: ValidatorClient;
 
   beforeEach(async () => {
     client = await ValidatorClient.connectForQuery(
-      config.rpcAddress,
-      config.validatorAddress,
-      config.prefix,
-      config.mixnetContractAddress,
-      config.vestingContractAddress,
-      config.denom,
+      process.env.rpcAddress,
+      process.env.validatorAddress,
+      process.env.prefix,
+      process.env.mixnetContractAddress,
+      process.env.vestingContractAddress,
+      process.env.denom,
     );
   });
 

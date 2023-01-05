@@ -7,11 +7,13 @@
     "declaration": true,
     "outDir": "./dist",
     "skipLibCheck": true,
-    "noImplicitAny": true
+    "noImplicitAny": true,
+    "typeRoots": ["./types/global.d.ts"]
   },
   "typedocOptions": {
     "entryPoints": ["src/index.ts"],
     "out": "docs"
   },
-  "exclude": ["dist", "examples", "tests", "node_modules"]
+
+  "exclude": ["dist", "examples", "tests", "node_modules", "types"]
 }

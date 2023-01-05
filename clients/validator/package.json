@@ -46,6 +46,7 @@
     "@cosmjs/stargate": "^0.28.0",
     "@cosmjs/tendermint-rpc": "^0.28.0",
     "axios": "^0.26.1",
-    "cosmjs-types": "^0.4.1"
+    "cosmjs-types": "^0.4.1",
+    "dotenv": "^16.0.3"
   }
 }

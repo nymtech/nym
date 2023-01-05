@@ -168,7 +168,7 @@ export interface ISigningClient extends IQueryClient, ICosmWasmSigning, INymSign
 
   delegateToMixNode(
     mixnetContractAddress: string,
-    mixIdentity: string,
+    mixId: string,
     amount: Coin,
     fee?: StdFee | 'auto' | number,
     memo?: string,
@@ -176,14 +176,14 @@ export interface ISigningClient extends IQueryClient, ICosmWasmSigning, INymSign
 
   undelegateFromMixNode(
     mixnetContractAddress: string,
-    mixIdentity: string,
+    mixId: string,
     fee?: StdFee | 'auto' | number,
     memo?: string,
   ): Promise<ExecuteResult>;
 
   updateMixnodeConfig(
     mixnetContractAddress: string,
-    mixIdentity: string,
+    mixId: string,
     profitMarginPercent: number,
     fee: StdFee | 'auto' | number,
   ): Promise<ExecuteResult>;
@@ -454,7 +454,7 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
 
   delegateToMixNode(
     mixnetContractAddress: string,
-    mixIdentity: string,
+    mixId: string,
     amount: Coin,
     fee: StdFee | 'auto' | number = 'auto',
     memo = 'Default MixNode Delegation from Typescript',
@@ -464,7 +464,7 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
       mixnetContractAddress,
       {
         delegate_to_mixnode: {
-          mix_identity: mixIdentity,
+          mix_id: mixId,
         },
       },
       fee,
@@ -475,7 +475,7 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
 
   undelegateFromMixNode(
     mixnetContractAddress: string,
-    mixIdentity: string,
+    mixId: string,
     fee: StdFee | 'auto' | number = 'auto',
     memo = 'Default MixNode Undelegation from Typescript',
   ): Promise<ExecuteResult> {
@@ -484,7 +484,7 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
       mixnetContractAddress,
       {
         undelegate_from_mixnode: {
-          mix_identity: mixIdentity,
+          mix_identity: mixId,
         },
       },
       fee,
@@ -494,14 +494,14 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
 
   updateMixnodeConfig(
     mixnetContractAddress: string,
-    mixIdentity: string,
+    mixId: string,
     profitMarginPercent: number,
     fee: StdFee | 'auto' | number,
   ): Promise<ExecuteResult> {
     return this.execute(
       this.clientAddress,
       mixnetContractAddress,
-      { update_mixnode_config: { profit_margin_percent: profitMarginPercent, mix_identity: mixIdentity } },
+      { update_mixnode_config: { profit_margin_percent: profitMarginPercent, mix_identity: mixId } },
       fee,
     );
   }

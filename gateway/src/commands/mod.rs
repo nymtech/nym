@@ -60,7 +60,7 @@ pub(crate) struct OverrideConfig {
     mnemonic: Option<bip39::Mnemonic>,
 
     #[cfg(feature = "coconut")]
-    nyxd_validators: Option<Vec<url::Url>>,
+    nyxd_urls: Option<Vec<url::Url>>,
     #[cfg(feature = "coconut")]
     only_coconut_credentials: bool,
 }
@@ -143,8 +143,8 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
     {
         use network_defaults::var_names::NYXD_VALIDATOR;
 
-        if let Some(nyxd_validators) = args.nyxd_validators {
-            config = config.with_custom_validator_nyxd(nyxd_validators);
+        if let Some(nyxd_urls) = args.nyxd_urls {
+            config = config.with_custom_validator_nyxd(nyxd_urls);
         } else if std::env::var(CONFIGURED).is_ok() {
             if let Some(raw_validators) = read_var_if_not_default(NYXD_VALIDATOR) {
                 config = config.with_custom_validator_nyxd(::config::parse_urls(&raw_validators))

@@ -152,9 +152,9 @@ impl From<NyxdError> for BackendError {
                     }
                 }
             }
-            nymd_error => Self::NyxdError {
-                pretty_error: nymd_error.to_string(),
-                source: nymd_error,
+            nyxd_error => Self::NyxdError {
+                pretty_error: nyxd_error.to_string(),
+                source: nyxd_error,
             },
         }
     }

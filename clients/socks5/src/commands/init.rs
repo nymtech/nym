@@ -44,8 +44,8 @@ pub(crate) struct Init {
 
     /// Comma separated list of rest endpoints of the nyxd validators
     #[cfg(feature = "coconut")]
-    #[clap(long, value_delimiter = ',')]
-    nyxd_validators: Option<Vec<url::Url>>,
+    #[clap(long, alias = "nymd_validators", value_delimiter = ',')]
+    nyxd_urls: Option<Vec<url::Url>>,
 
     /// Comma separated list of rest endpoints of the API validators
     #[clap(long, alias = "api_validators", value_delimiter = ',')]
@@ -86,7 +86,7 @@ impl From<Init> for OverrideConfig {
             no_cover: init_config.no_cover,
 
             #[cfg(feature = "coconut")]
-            nyxd_validators: init_config.nyxd_validators,
+            nyxd_urls: init_config.nyxd_urls,
             #[cfg(feature = "coconut")]
             enabled_credentials_mode: init_config.enabled_credentials_mode,
         }

@@ -105,7 +105,7 @@ pub async fn get_current_rewarding_parameters(
     let guard = state.read().await;
     let client = guard.current_client()?;
 
-    let reward_params = client.nymd.get_rewarding_parameters().await?;
+    let reward_params = client.nyxd.get_rewarding_parameters().await?;
 
     Ok(reward_params)
 }

@@ -28,7 +28,7 @@ pub(crate) struct Cli {
 
     #[clap(long, global = true)]
     #[clap(
-        help = "Overrides the nyxd URL provided either as an environment variable NYMD_VALIDATOR or in a config file"
+        help = "Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file"
     )]
     pub(crate) nyxd_url: Option<String>,
 

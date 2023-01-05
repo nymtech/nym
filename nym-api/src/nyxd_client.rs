@@ -409,7 +409,7 @@ where
         self.0
             .write()
             .await
-            .nymd
+            .nyxd
             .advance_dkg_epoch_state(None)
             .await?;
         Ok(())

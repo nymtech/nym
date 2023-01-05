@@ -172,8 +172,8 @@ impl<T> Config<T> {
         self.client.gateway_endpoint.gateway_id = id.into();
     }
 
-    pub fn set_custom_validators(&mut self, validator_urls: Vec<Url>) {
-        self.client.nyxd_urls = validator_urls;
+    pub fn set_custom_nyxd(&mut self, nyxd_urls: Vec<Url>) {
+        self.client.nyxd_urls = nyxd_urls;
     }
 
     pub fn set_custom_nym_apis(&mut self, nym_api_urls: Vec<Url>) {

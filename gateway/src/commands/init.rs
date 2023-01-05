@@ -50,9 +50,14 @@ pub struct Init {
 
     /// Comma separated list of endpoints of the validator
     #[cfg(feature = "coconut")]
-    #[clap(long, alias = "validators", value_delimiter = ',')]
+    #[clap(
+        long,
+        alias = "validators",
+        alias = "nymd_validators",
+        value_delimiter = ','
+    )]
     // the alias here is included for backwards compatibility (1.1.4 and before)
-    nymd_validators: Option<Vec<url::Url>>,
+    nyxd_urls: Option<Vec<url::Url>>,
 
     /// Cosmos wallet mnemonic needed for double spending protection
     #[clap(long)]
@@ -89,7 +94,7 @@ impl From<Init> for OverrideConfig {
             statistics_service_url: init_config.statistics_service_url,
 
             #[cfg(feature = "coconut")]
-            nymd_validators: init_config.nymd_validators,
+            nyxd_urls: init_config.nyxd_urls,
             #[cfg(feature = "coconut")]
             only_coconut_credentials: init_config.only_coconut_credentials,
         }
@@ -178,7 +183,7 @@ mod tests {
             statistics_service_url: None,
             enabled_statistics: None,
             #[cfg(feature = "coconut")]
-            nymd_validators: None,
+            nyxd_urls: None,
             #[cfg(feature = "coconut")]
             only_coconut_credentials: false,
         };

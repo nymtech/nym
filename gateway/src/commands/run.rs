@@ -50,9 +50,14 @@ pub struct Run {
 
     /// Comma separated list of endpoints of the validator
     #[cfg(feature = "coconut")]
-    #[clap(long, alias = "validators", value_delimiter = ',')]
+    #[clap(
+        long,
+        alias = "validators",
+        alias = "nymd_validators",
+        value_delimiter = ','
+    )]
     // the alias here is included for backwards compatibility (1.1.4 and before)
-    nymd_validators: Option<Vec<url::Url>>,
+    nyxd_urls: Option<Vec<url::Url>>,
 
     /// Cosmos wallet mnemonic
     #[clap(long)]
@@ -89,7 +94,7 @@ impl From<Run> for OverrideConfig {
             statistics_service_url: run_config.statistics_service_url,
 
             #[cfg(feature = "coconut")]
-            nymd_validators: run_config.nymd_validators,
+            nyxd_urls: run_config.nyxd_urls,
             #[cfg(feature = "coconut")]
             only_coconut_credentials: run_config.only_coconut_credentials,
         }

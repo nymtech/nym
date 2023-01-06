@@ -29,12 +29,13 @@ export type EstimatedReward = {
 };
 
 export type StakeSaturation = {
-  saturation: number;
+  saturation: string;
+  uncapped_saturation: string;
   as_at: number;
 };
 
 export type AvgUptime = {
-  identity: string;
+  mix_id: number;
   avg_uptime: number;
 };
 
@@ -57,12 +58,14 @@ export type History = {
 };
 
 export type NodeHistory = {
+  mix_id: number,
   identity: string;
   owner: string;
   history: History[];
 };
 
 export type CoreCount = {
+  mix_id: number,
   identity: string;
   count: number;
 };

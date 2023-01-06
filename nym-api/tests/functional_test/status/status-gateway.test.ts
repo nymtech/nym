@@ -1,5 +1,5 @@
-import Status from "../../../src/endpoints/Status";
-import ConfigHandler from "../../../src/config/configHandler";
+import Status from "../../src/endpoints/Status";
+import ConfigHandler from "../../src/config/configHandler";
 
 let status: Status;
 let config: ConfigHandler;

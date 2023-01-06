@@ -9,7 +9,7 @@ use crate::traits::{
 use crate::vesting::{populate_vesting_periods, Account};
 use contracts_common::ContractBuildInformation;
 use cosmwasm_std::{
-    coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Order,
+    coin, entry_point, to_binary, Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Order,
     QueryResponse, Response, StdResult, Timestamp, Uint128,
 };
 use cw_storage_plus::Bound;
@@ -97,12 +97,15 @@ pub fn execute(
         ExecuteMsg::UpdateMixnetAddress { address } => {
             try_update_mixnet_address(address, info, deps)
         }
-        ExecuteMsg::DelegateToMixnode { mix_id, amount } => {
-            try_delegate_to_mixnode(mix_id, amount, info, env, deps)
-        }
-        ExecuteMsg::UndelegateFromMixnode { mix_id } => {
-            try_undelegate_from_mixnode(mix_id, info, deps)
-        }
+        ExecuteMsg::DelegateToMixnode {
+            on_behalf_of,
+            mix_id,
+            amount,
+        } => try_delegate_to_mixnode(on_behalf_of, mix_id, amount, info, env, deps),
+        ExecuteMsg::UndelegateFromMixnode {
+            on_behalf_of,
+            mix_id,
+        } => try_undelegate_from_mixnode(on_behalf_of, mix_id, info, deps),
         ExecuteMsg::CreateAccount {
             owner_address,
             staking_address,
@@ -464,6 +467,7 @@ fn try_track_undelegation(
 
 /// Delegate to mixnode, sends [mixnet_contract_common::ExecuteMsg::DelegateToMixnodeOnBehalf] to [crate::storage::MIXNET_CONTRACT_ADDRESS]..
 fn try_delegate_to_mixnode(
+    on_behalf_of: Option<String>,
     mix_id: MixId,
     amount: Coin,
     info: MessageInfo,
@@ -472,7 +476,16 @@ fn try_delegate_to_mixnode(
 ) -> Result<Response, ContractError> {
     let mix_denom = MIX_DENOM.load(deps.storage)?;
     let amount = validate_funds(&[amount], mix_denom)?;
-    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+
+    let account = match on_behalf_of {
+        Some(account_owner) => {
+            let account = account_from_address(&account_owner, deps.storage, deps.api)?;
+            ensure_staking_permission(&info.sender, &account)?;
+            account
+        }
+        // you're the owner, you can do what you want
+        None => account_from_address(info.sender.as_str(), deps.storage, deps.api)?,
+    };
 
     account.try_delegate_to_mixnode(mix_id, amount, &env, deps.storage)
 }
@@ -499,11 +512,20 @@ fn try_claim_delegator_reward(
 
 /// Undelegates from a mixnode, sends [mixnet_contract_common::ExecuteMsg::UndelegateFromMixnodeOnBehalf] to [crate::storage::MIXNET_CONTRACT_ADDRESS].
 fn try_undelegate_from_mixnode(
+    on_behalf_of: Option<String>,
     mix_id: MixId,
     info: MessageInfo,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
-    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    let account = match on_behalf_of {
+        Some(account_owner) => {
+            let account = account_from_address(&account_owner, deps.storage, deps.api)?;
+            ensure_staking_permission(&info.sender, &account)?;
+            account
+        }
+        // you're the owner, you can do what you want
+        None => account_from_address(info.sender.as_str(), deps.storage, deps.api)?,
+    };
 
     account.try_undelegate_from_mixnode(mix_id, deps.storage)
 }
@@ -945,4 +967,16 @@ fn validate_funds(funds: &[Coin], mix_denom: String) -> Result<Coin, ContractErr
     }
 
     Ok(funds[0].clone())
+}
+
+fn ensure_staking_permission(addr: &Addr, account: &Account) -> Result<(), ContractError> {
+    if let Some(staking_address) = account.staking_address() {
+        if staking_address == addr {
+            return Ok(());
+        }
+    }
+    Err(ContractError::InvalidStakingAccount {
+        address: addr.clone(),
+        for_account: account.owner_address(),
+    })
 }

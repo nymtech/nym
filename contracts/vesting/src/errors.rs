@@ -54,4 +54,7 @@ pub enum ContractError {
     UnpopulatedVestingPeriods { owner: Addr },
     #[error("VESTING: Vesting account associated with {0} already exists, only addresses with not existing vesting accounts can be added as staking addresses")]
     StakingAccountExists(String),
+
+    #[error("VESTING: {address} is not permitted to perform staking on behalf of {for_account}")]
+    InvalidStakingAccount { address: Addr, for_account: Addr },
 }

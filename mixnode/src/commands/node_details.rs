@@ -14,7 +14,7 @@ pub(crate) struct NodeDetails {
     id: String,
 }
 
-pub(crate) fn execute(args: &NodeDetails, output: &OutputFormat) {
+pub(crate) fn execute(args: &NodeDetails, output: OutputFormat) {
     let config = match Config::load_from_file(Some(&args.id)) {
         Ok(cfg) => cfg,
         Err(err) => {

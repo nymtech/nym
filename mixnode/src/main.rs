@@ -44,10 +44,20 @@ struct Cli {
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
     #[clap(short, long)]
-    pub(crate) output: OutputFormat,
+    pub(crate) output: Option<OutputFormat>,
 
     #[clap(subcommand)]
     command: commands::Commands,
+}
+
+impl Cli {
+    fn output(&self) -> OutputFormat {
+        if let Some(ref output) = self.output {
+            output.clone()
+        } else {
+            OutputFormat::Text
+        }
+    }
 }
 
 #[tokio::main]

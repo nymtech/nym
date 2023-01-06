@@ -63,7 +63,7 @@ impl From<Init> for OverrideConfig {
     }
 }
 
-pub(crate) fn execute(args: &Init, output: &OutputFormat) {
+pub(crate) fn execute(args: &Init, output: OutputFormat) {
     let override_config_fields = OverrideConfig::from(args.clone());
     let id = &override_config_fields.id;
     eprintln!("Initialising mixnode {}...", id);

@@ -77,7 +77,7 @@ fn special_addresses() -> Vec<&'static str> {
     vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
 }
 
-pub(crate) async fn execute(args: &Run, output: &OutputFormat) {
+pub(crate) async fn execute(args: &Run, output: OutputFormat) {
     eprintln!("Starting mixnode {}...", args.id);
 
     let mut config = match Config::load_from_file(Some(&args.id)) {

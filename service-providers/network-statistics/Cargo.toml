@@ -13,10 +13,10 @@ rocket = { version = "0.5.0-rc.2", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "chrono"]}
 thiserror = "1"
-tokio = { version = "1.4", features = [ "net", "rt-multi-thread", "macros", "time" ] }
+tokio = { version = "1.23", features = [ "net", "rt-multi-thread", "macros", "time" ] }
 logging = { path = "../../common/logging"}
 statistics-common = { path = "../../common/statistics" }
 
 [build-dependencies]
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
-tokio = { version = "1.4", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.23", features = ["rt-multi-thread", "macros"] }

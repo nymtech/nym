@@ -3,7 +3,7 @@ use crate::errors::ContractError;
 use crate::storage::{
     load_balance, load_bond_pledge, load_gateway_pledge, load_withdrawn, remove_bond_pledge,
     remove_delegation, remove_gateway_pledge, save_account, save_balance, save_bond_pledge,
-    save_gateway_pledge, save_withdrawn, BlockTimestampSecs, DELEGATIONS, KEY,
+    save_gateway_pledge, save_withdrawn, AccountStorageKey, BlockTimestampSecs, DELEGATIONS, KEY,
 };
 use crate::traits::VestingAccount;
 use cosmwasm_std::{Addr, Coin, Order, Storage, Timestamp, Uint128};
@@ -19,7 +19,7 @@ mod mixnode_bonding_account;
 mod node_families;
 mod vesting_account;
 
-fn generate_storage_key(storage: &mut dyn Storage) -> Result<u32, ContractError> {
+fn generate_storage_key(storage: &mut dyn Storage) -> Result<AccountStorageKey, ContractError> {
     let key = KEY.may_load(storage)?.unwrap_or(0) + 1;
     KEY.save(storage, &key)?;
     Ok(key)
@@ -32,7 +32,7 @@ pub struct Account {
     pub start_time: Timestamp,
     pub periods: Vec<VestingPeriod>,
     pub coin: Coin,
-    storage_key: u32,
+    storage_key: AccountStorageKey,
     #[serde(default)]
     pub pledge_cap: Option<PledgeCap>,
 }

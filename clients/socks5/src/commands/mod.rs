@@ -1,12 +1,12 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::config::Config;
+use crate::client::config::{BaseConfig, Config};
 use build_information::BinaryBuildInformation;
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
 use completions::{fig_generate, ArgShell};
-use config::parse_urls;
+use config::OptionalSet;
 use lazy_static::lazy_static;
 use std::error::Error;
 
@@ -81,42 +81,31 @@ pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send + Syn
 }
 
 pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
-    if let Some(nym_apis) = args.nym_apis {
-        config.get_base_mut().set_custom_nym_apis(nym_apis);
-    } else if let Ok(raw_validators) = std::env::var(network_defaults::var_names::NYM_API) {
-        config
-            .get_base_mut()
-            .set_custom_nym_apis(parse_urls(&raw_validators));
-    }
-
-    if args.use_anonymous_replies {
-        config = config.with_anonymous_replies(true)
-    }
-
-    if let Some(port) = args.port {
-        config = config.with_port(port);
-    }
+    config = config
+        .with_base(BaseConfig::with_high_default_traffic_volume, args.fastmode)
+        .with_base(BaseConfig::with_disabled_cover_traffic, args.no_cover)
+        .with_anonymous_replies(args.use_anonymous_replies)
+        .with_optional(Config::with_port, args.port)
+        .with_optional_custom_env_ext(
+            BaseConfig::with_custom_nym_apis,
+            args.nym_apis,
+            network_defaults::var_names::NYM_API,
+            config::parse_urls,
+        );
 
     #[cfg(feature = "coconut")]
     {
-        if let Some(nyxd_urls) = args.nyxd_urls {
-            config.get_base_mut().set_custom_nyxd(nyxd_urls);
-        } else if let Ok(raw_validators) = std::env::var(network_defaults::var_names::NYXD) {
-            config
-                .get_base_mut()
-                .set_custom_nyxd(parse_urls(&raw_validators));
-        }
-        if args.enabled_credentials_mode {
-            config.get_base_mut().with_disabled_credentials(false)
-        }
-    }
-
-    if args.fastmode {
-        config.get_base_mut().set_high_default_traffic_volume();
-    }
-
-    if args.no_cover {
-        config.get_base_mut().set_no_cover_traffic();
+        config = config
+            .with_optional_custom_env_ext(
+                BaseConfig::with_custom_nyxd,
+                args.nyxd_urls,
+                network_defaults::var_names::NYXD,
+                config::parse_urls,
+            )
+            .with_base(
+                BaseConfig::with_disabled_credentials,
+                !args.enabled_credentials_mode,
+            );
     }
 
     config

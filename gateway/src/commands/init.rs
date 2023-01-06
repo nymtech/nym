@@ -71,7 +71,7 @@ pub struct Init {
 
     /// Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server
     #[clap(long)]
-    enabled_statistics: Option<bool>,
+    enabled_statistics: bool,
 
     /// URL where a statistics aggregator is running. The default value is a Nym aggregator server
     #[clap(long)]
@@ -181,7 +181,7 @@ mod tests {
             nym_apis: None,
             mnemonic: None,
             statistics_service_url: None,
-            enabled_statistics: None,
+            enabled_statistics: false,
             #[cfg(feature = "coconut")]
             nyxd_urls: None,
             #[cfg(feature = "coconut")]

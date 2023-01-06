@@ -65,7 +65,7 @@ impl Client<QueryNyxdClient> {
         let nyxd_url = config.get_nyxd_url();
 
         let details = NymNetworkDetails::new_from_env()
-            .with_mixnet_contract(Some(config.get_mixnet_contract_address()));
+            .with_mixnet_contract(Some(config.get_mixnet_contract_address().as_ref()));
 
         let client_config = validator_client::Config::try_from_nym_network_details(&details)
             .expect("failed to construct valid validator client config with the provided network")
@@ -88,16 +88,13 @@ impl Client<SigningNyxdClient> {
         let nyxd_url = config.get_nyxd_url();
 
         let details = NymNetworkDetails::new_from_env()
-            .with_mixnet_contract(Some(config.get_mixnet_contract_address()));
+            .with_mixnet_contract(Some(config.get_mixnet_contract_address().as_ref()));
 
         let client_config = validator_client::Config::try_from_nym_network_details(&details)
             .expect("failed to construct valid validator client config with the provided network")
             .with_urls(nyxd_url, api_url);
 
-        let mnemonic = config
-            .get_mnemonic()
-            .parse()
-            .expect("the mnemonic is invalid!");
+        let mnemonic = config.get_mnemonic();
 
         let inner = validator_client::Client::new_signing(client_config, mnemonic)
             .expect("Failed to connect to nyxd!");

@@ -5,7 +5,6 @@ use rocket::{Build, Request, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins};
 use rocket_okapi::swagger_ui::make_swagger_ui;
 
-use crate::buy_terms::http::nym_terms_make_default_routes;
 use crate::country_statistics::http::country_statistics_make_default_routes;
 use crate::gateways::http::gateways_make_default_routes;
 use crate::http::swagger::get_docs;
@@ -57,7 +56,6 @@ fn configure_rocket(state: ExplorerApiStateContext) -> Rocket<Build> {
         "/overview" => overview_make_default_routes(&openapi_settings),
         "/ping" => ping_make_default_routes(&openapi_settings),
         "/validators" => validators_make_default_routes(&openapi_settings),
-        "/terms" => nym_terms_make_default_routes(&openapi_settings),
     };
 
     building_rocket

@@ -58,6 +58,12 @@ const columns: ColumnsType[] = [
     headerAlign: 'left',
     flex: 1,
   },
+  {
+    field: 'version',
+    title: 'Version',
+    headerAlign: 'left',
+    flex: 1,
+  },
 ];
 
 /**

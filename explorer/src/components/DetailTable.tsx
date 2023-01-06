@@ -5,7 +5,7 @@ import { Tooltip } from '@nymproject/react/tooltip/Tooltip';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { Box } from '@mui/system';
 import { cellStyles } from './Universal-DataGrid';
-import { currencyToString } from '../utils/currency';
+import { unymToNym } from '../utils/currency';
 import { GatewayEnrichedRowType } from './Gateways';
 import { MixnodeRowType } from './MixNodes';
 
@@ -38,7 +38,7 @@ function formatCellValues(val: string | number, field: string) {
     );
   }
   if (field === 'bond') {
-    return currencyToString(val.toString());
+    return unymToNym(val, 6);
   }
   return val;
 }

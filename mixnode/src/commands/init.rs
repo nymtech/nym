@@ -4,6 +4,7 @@
 use super::OverrideConfig;
 use crate::config::Config;
 use crate::node::MixNode;
+use crate::OutputFormat;
 use crate::{commands::override_config, config::persistence::pathfinder::MixNodePathfinder};
 use clap::Args;
 use config::NymConfig;
@@ -62,13 +63,13 @@ impl From<Init> for OverrideConfig {
     }
 }
 
-pub(crate) fn execute(args: &Init) {
+pub(crate) fn execute(args: &Init, output: &OutputFormat) {
     let override_config_fields = OverrideConfig::from(args.clone());
     let id = &override_config_fields.id;
-    println!("Initialising mixnode {}...", id);
+    eprintln!("Initialising mixnode {}...", id);
 
     let already_init = if Config::default_config_file_path(Some(id)).exists() {
-        println!("Mixnode \"{}\" was already initialised before! Config information will be overwritten (but keys will be kept)!", id);
+        eprintln!("Mixnode \"{}\" was already initialised before! Config information will be overwritten (but keys will be kept)!", id);
         true
     } else {
         false
@@ -101,16 +102,15 @@ pub(crate) fn execute(args: &Init) {
             ),
         )
         .expect("Failed to save sphinx keys");
-
-        println!("Saved mixnet identity and sphinx keypairs");
+        eprintln!("Saved mixnet identity and sphinx keypairs");
     }
 
     let config_save_location = config.get_config_file_save_location();
     config
         .save_to_file(None)
         .expect("Failed to save the config file");
-    println!("Saved configuration file to {:?}", config_save_location);
-    println!("Mixnode configuration completed.\n\n\n");
+    eprintln!("Saved configuration file to {:?}", config_save_location);
+    eprintln!("Mixnode configuration completed.\n\n\n");
 
-    MixNode::new(config).print_node_details()
+    MixNode::new(config).print_node_details(output)
 }

@@ -5,6 +5,7 @@ use super::OverrideConfig;
 use crate::commands::{override_config, version_check};
 use crate::config::Config;
 use crate::node::MixNode;
+use crate::OutputFormat;
 use clap::Args;
 use config::NymConfig;
 use std::net::IpAddr;
@@ -76,8 +77,8 @@ fn special_addresses() -> Vec<&'static str> {
     vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
 }
 
-pub(crate) async fn execute(args: &Run) {
-    println!("Starting mixnode {}...", args.id);
+pub(crate) async fn execute(args: &Run, output: &OutputFormat) {
+    eprintln!("Starting mixnode {}...", args.id);
 
     let mut config = match Config::load_from_file(Some(&args.id)) {
         Ok(cfg) => cfg,
@@ -104,10 +105,10 @@ pub(crate) async fn execute(args: &Run) {
 
     let mut mixnode = MixNode::new(config);
 
-    println!(
+    eprintln!(
         "\nTo bond your mixnode you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
          Select the correct version and install it to your machine. You will need to provide the following: \n ");
-    mixnode.print_node_details();
+    mixnode.print_node_details(output);
 
     mixnode.run().await
 }

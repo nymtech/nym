@@ -6,7 +6,7 @@ extern crate rocket;
 
 use ::config::defaults::setup_env;
 use build_information::BinaryBuildInformation;
-use clap::{crate_version, Parser};
+use clap::{crate_version, Parser, ValueEnum};
 use lazy_static::lazy_static;
 use logging::setup_logging;
 
@@ -24,12 +24,27 @@ fn pretty_build_info_static() -> &'static str {
     &PRETTY_BUILD_INFORMATION
 }
 
+#[derive(Clone, ValueEnum)]
+enum OutputFormat {
+    Json,
+    Text,
+}
+
+impl Default for OutputFormat {
+    fn default() -> Self {
+        OutputFormat::Text
+    }
+}
+
 #[derive(Parser)]
 #[clap(author = "Nymtech", version, about, long_version = pretty_build_info_static())]
 struct Cli {
     /// Path pointing to an env file that configures the mixnode.
     #[clap(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
+
+    #[clap(short, long)]
+    pub(crate) output: OutputFormat,
 
     #[clap(subcommand)]
     command: commands::Commands,
@@ -38,7 +53,9 @@ struct Cli {
 #[tokio::main]
 async fn main() {
     setup_logging();
-    println!("{}", banner());
+    if atty::is(atty::Stream::Stdout) {
+        println!("{}", banner());
+    }
 
     let args = Cli::parse();
     setup_env(args.config_env_file.as_ref());

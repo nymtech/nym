@@ -64,11 +64,11 @@ pub(crate) async fn execute(args: Cli) {
 
     match args.command {
         Commands::Describe(m) => describe::execute(m),
-        Commands::Init(m) => init::execute(&m),
-        Commands::Run(m) => run::execute(&m).await,
+        Commands::Init(m) => init::execute(&m, &args.output),
+        Commands::Run(m) => run::execute(&m, &args.output).await,
         Commands::Sign(m) => sign::execute(&m),
         Commands::Upgrade(m) => upgrade::execute(&m),
-        Commands::NodeDetails(m) => node_details::execute(&m),
+        Commands::NodeDetails(m) => node_details::execute(&m, &args.output),
         Commands::Completions(s) => s.generate(&mut crate::Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::command(), bin_name),
     }
@@ -115,8 +115,8 @@ pub(crate) fn validate_bech32_address_or_exit(address: &str) {
         bech32_address_validation::try_bech32_decode(address)
     {
         let error_message = format!("Error: wallet address decoding failed: {err}").red();
-        println!("{}", error_message);
-        println!("Exiting...");
+        error!("{}", error_message);
+        error!("Exiting...");
         process::exit(1);
     }
 
@@ -124,8 +124,8 @@ pub(crate) fn validate_bech32_address_or_exit(address: &str) {
         bech32_address_validation::validate_bech32_prefix(&prefix, address)
     {
         let error_message = format!("Error: wallet address type is wrong, {err}").red();
-        println!("{}", error_message);
-        println!("Exiting...");
+        error!("{}", error_message);
+        error!("Exiting...");
         process::exit(1);
     }
 }

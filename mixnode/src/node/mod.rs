@@ -17,6 +17,7 @@ use crate::node::listener::Listener;
 use crate::node::node_description::NodeDescription;
 use crate::node::node_statistics::SharedNodeStats;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
+use crate::OutputFormat;
 use ::crypto::asymmetric::{encryption, identity};
 use colored::Colorize;
 use config::NymConfig;
@@ -101,7 +102,7 @@ impl MixNode {
     }
 
     /// Prints relevant node details to the console
-    pub(crate) fn print_node_details(&self) {
+    pub(crate) fn print_node_details(&self, output: &OutputFormat) {
         let node_details = nym_types::mixnode::MixnodeNodeDetailsResponse {
             identity_key: self.identity_keypair.public_key().to_base58_string(),
             sphinx_key: self.sphinx_keypair.public_key().to_base58_string(),
@@ -115,17 +116,14 @@ impl MixNode {
             wallet_address: self.config.get_wallet_address().map(|x| x.to_string()),
         };
 
-        println!("{}", node_details);
-
-        match std::fs::File::create("node_details_info.json") {
-            Ok(file) => match serde_json::to_writer_pretty(file, &node_details) {
-                Ok(_) => {
-                    info!("Saved node_details_info.json")
-                }
-                Err(e) => error!("Could not save node_details_info.json: {e}"),
-            },
-            Err(e) => error!("Could not save node_details_info.json: {e}"),
-        };
+        match output {
+            OutputFormat::Json => println!(
+                "{}",
+                serde_json::to_string(&node_details)
+                    .unwrap_or_else(|_| "Could not serialize node details".to_string())
+            ),
+            OutputFormat::Text => println!("{}", node_details),
+        }
     }
 
     fn start_http_api(

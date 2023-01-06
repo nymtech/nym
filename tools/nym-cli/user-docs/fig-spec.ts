@@ -34,10 +34,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -100,10 +100,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -170,10 +170,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -251,10 +251,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -317,10 +317,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -373,10 +373,10 @@ const completion: Fig.Spec = {
           },
         },
         {
-          name: "--nymd-url",
-          description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+          name: "--nyxd-url",
+          description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
           args: {
-            name: "nymd-url",
+            name: "nyxd-url",
             isOptional: true,
           },
         },
@@ -435,10 +435,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -496,10 +496,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -565,10 +565,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -621,10 +621,10 @@ const completion: Fig.Spec = {
           },
         },
         {
-          name: "--nymd-url",
-          description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+          name: "--nyxd-url",
+          description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
           args: {
-            name: "nymd-url",
+            name: "nyxd-url",
             isOptional: true,
           },
         },
@@ -683,10 +683,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -744,10 +744,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -805,10 +805,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -863,10 +863,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -919,10 +919,10 @@ const completion: Fig.Spec = {
           },
         },
         {
-          name: "--nymd-url",
-          description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+          name: "--nyxd-url",
+          description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
           args: {
-            name: "nymd-url",
+            name: "nyxd-url",
             isOptional: true,
           },
         },
@@ -994,10 +994,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -1095,10 +1095,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -1176,10 +1176,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -1252,10 +1252,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -1322,10 +1322,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -1378,10 +1378,10 @@ const completion: Fig.Spec = {
           },
         },
         {
-          name: "--nymd-url",
-          description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+          name: "--nyxd-url",
+          description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
           args: {
-            name: "nymd-url",
+            name: "nyxd-url",
             isOptional: true,
           },
         },
@@ -1440,10 +1440,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -1501,10 +1501,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -1562,10 +1562,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -1618,10 +1618,10 @@ const completion: Fig.Spec = {
           },
         },
         {
-          name: "--nymd-url",
-          description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+          name: "--nyxd-url",
+          description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
           args: {
-            name: "nymd-url",
+            name: "nyxd-url",
             isOptional: true,
           },
         },
@@ -1720,10 +1720,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -1778,10 +1778,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -1840,10 +1840,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -1902,10 +1902,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -1963,10 +1963,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -2019,10 +2019,10 @@ const completion: Fig.Spec = {
           },
         },
         {
-          name: "--nymd-url",
-          description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+          name: "--nyxd-url",
+          description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
           args: {
-            name: "nymd-url",
+            name: "nyxd-url",
             isOptional: true,
           },
         },
@@ -2085,10 +2085,10 @@ const completion: Fig.Spec = {
                   },
                 },
                 {
-                  name: "--nymd-url",
-                  description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                  name: "--nyxd-url",
+                  description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                   args: {
-                    name: "nymd-url",
+                    name: "nyxd-url",
                     isOptional: true,
                   },
                 },
@@ -2147,10 +2147,10 @@ const completion: Fig.Spec = {
                   },
                 },
                 {
-                  name: "--nymd-url",
-                  description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                  name: "--nyxd-url",
+                  description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                   args: {
-                    name: "nymd-url",
+                    name: "nyxd-url",
                     isOptional: true,
                   },
                 },
@@ -2209,10 +2209,10 @@ const completion: Fig.Spec = {
                   },
                 },
                 {
-                  name: "--nymd-url",
-                  description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                  name: "--nyxd-url",
+                  description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                   args: {
-                    name: "nymd-url",
+                    name: "nyxd-url",
                     isOptional: true,
                   },
                 },
@@ -2265,10 +2265,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -2327,10 +2327,10 @@ const completion: Fig.Spec = {
                   },
                 },
                 {
-                  name: "--nymd-url",
-                  description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                  name: "--nyxd-url",
+                  description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                   args: {
-                    name: "nymd-url",
+                    name: "nyxd-url",
                     isOptional: true,
                   },
                 },
@@ -2395,10 +2395,10 @@ const completion: Fig.Spec = {
                       },
                     },
                     {
-                      name: "--nymd-url",
-                      description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                      name: "--nyxd-url",
+                      description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                       args: {
-                        name: "nymd-url",
+                        name: "nyxd-url",
                         isOptional: true,
                       },
                     },
@@ -2459,10 +2459,10 @@ const completion: Fig.Spec = {
                       },
                     },
                     {
-                      name: "--nymd-url",
-                      description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                      name: "--nyxd-url",
+                      description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                       args: {
-                        name: "nymd-url",
+                        name: "nyxd-url",
                         isOptional: true,
                       },
                     },
@@ -2517,10 +2517,10 @@ const completion: Fig.Spec = {
                       },
                     },
                     {
-                      name: "--nymd-url",
-                      description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                      name: "--nyxd-url",
+                      description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                       args: {
-                        name: "nymd-url",
+                        name: "nyxd-url",
                         isOptional: true,
                       },
                     },
@@ -2573,10 +2573,10 @@ const completion: Fig.Spec = {
                   },
                 },
                 {
-                  name: "--nymd-url",
-                  description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                  name: "--nyxd-url",
+                  description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                   args: {
-                    name: "nymd-url",
+                    name: "nyxd-url",
                     isOptional: true,
                   },
                 },
@@ -2643,10 +2643,10 @@ const completion: Fig.Spec = {
                   },
                 },
                 {
-                  name: "--nymd-url",
-                  description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                  name: "--nyxd-url",
+                  description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                   args: {
-                    name: "nymd-url",
+                    name: "nyxd-url",
                     isOptional: true,
                   },
                 },
@@ -2707,10 +2707,10 @@ const completion: Fig.Spec = {
                   },
                 },
                 {
-                  name: "--nymd-url",
-                  description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                  name: "--nyxd-url",
+                  description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                   args: {
-                    name: "nymd-url",
+                    name: "nyxd-url",
                     isOptional: true,
                   },
                 },
@@ -2777,10 +2777,10 @@ const completion: Fig.Spec = {
                   },
                 },
                 {
-                  name: "--nymd-url",
-                  description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                  name: "--nyxd-url",
+                  description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                   args: {
-                    name: "nymd-url",
+                    name: "nyxd-url",
                     isOptional: true,
                   },
                 },
@@ -2841,10 +2841,10 @@ const completion: Fig.Spec = {
                   },
                 },
                 {
-                  name: "--nymd-url",
-                  description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                  name: "--nyxd-url",
+                  description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                   args: {
-                    name: "nymd-url",
+                    name: "nyxd-url",
                     isOptional: true,
                   },
                 },
@@ -2899,10 +2899,10 @@ const completion: Fig.Spec = {
                   },
                 },
                 {
-                  name: "--nymd-url",
-                  description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                  name: "--nyxd-url",
+                  description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                   args: {
-                    name: "nymd-url",
+                    name: "nyxd-url",
                     isOptional: true,
                   },
                 },
@@ -2955,10 +2955,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -3031,10 +3031,10 @@ const completion: Fig.Spec = {
                           },
                         },
                         {
-                          name: "--nymd-url",
-                          description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                          name: "--nyxd-url",
+                          description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                           args: {
-                            name: "nymd-url",
+                            name: "nyxd-url",
                             isOptional: true,
                           },
                         },
@@ -3089,10 +3089,10 @@ const completion: Fig.Spec = {
                           },
                         },
                         {
-                          name: "--nymd-url",
-                          description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                          name: "--nyxd-url",
+                          description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                           args: {
-                            name: "nymd-url",
+                            name: "nyxd-url",
                             isOptional: true,
                           },
                         },
@@ -3145,10 +3145,10 @@ const completion: Fig.Spec = {
                       },
                     },
                     {
-                      name: "--nymd-url",
-                      description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                      name: "--nyxd-url",
+                      description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                       args: {
-                        name: "nymd-url",
+                        name: "nyxd-url",
                         isOptional: true,
                       },
                     },
@@ -3207,10 +3207,10 @@ const completion: Fig.Spec = {
                           },
                         },
                         {
-                          name: "--nymd-url",
-                          description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                          name: "--nyxd-url",
+                          description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                           args: {
-                            name: "nymd-url",
+                            name: "nyxd-url",
                             isOptional: true,
                           },
                         },
@@ -3272,10 +3272,10 @@ const completion: Fig.Spec = {
                           },
                         },
                         {
-                          name: "--nymd-url",
-                          description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                          name: "--nyxd-url",
+                          description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                           args: {
-                            name: "nymd-url",
+                            name: "nyxd-url",
                             isOptional: true,
                           },
                         },
@@ -3330,10 +3330,10 @@ const completion: Fig.Spec = {
                           },
                         },
                         {
-                          name: "--nymd-url",
-                          description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                          name: "--nyxd-url",
+                          description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                           args: {
-                            name: "nymd-url",
+                            name: "nyxd-url",
                             isOptional: true,
                           },
                         },
@@ -3386,10 +3386,10 @@ const completion: Fig.Spec = {
                       },
                     },
                     {
-                      name: "--nymd-url",
-                      description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                      name: "--nyxd-url",
+                      description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                       args: {
-                        name: "nymd-url",
+                        name: "nyxd-url",
                         isOptional: true,
                       },
                     },
@@ -3454,10 +3454,10 @@ const completion: Fig.Spec = {
                           },
                         },
                         {
-                          name: "--nymd-url",
-                          description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                          name: "--nyxd-url",
+                          description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                           args: {
-                            name: "nymd-url",
+                            name: "nyxd-url",
                             isOptional: true,
                           },
                         },
@@ -3525,10 +3525,10 @@ const completion: Fig.Spec = {
                           },
                         },
                         {
-                          name: "--nymd-url",
-                          description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                          name: "--nyxd-url",
+                          description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                           args: {
-                            name: "nymd-url",
+                            name: "nyxd-url",
                             isOptional: true,
                           },
                         },
@@ -3583,10 +3583,10 @@ const completion: Fig.Spec = {
                           },
                         },
                         {
-                          name: "--nymd-url",
-                          description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                          name: "--nyxd-url",
+                          description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                           args: {
-                            name: "nymd-url",
+                            name: "nyxd-url",
                             isOptional: true,
                           },
                         },
@@ -3639,10 +3639,10 @@ const completion: Fig.Spec = {
                       },
                     },
                     {
-                      name: "--nymd-url",
-                      description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                      name: "--nyxd-url",
+                      description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                       args: {
-                        name: "nymd-url",
+                        name: "nyxd-url",
                         isOptional: true,
                       },
                     },
@@ -3762,10 +3762,10 @@ const completion: Fig.Spec = {
                       },
                     },
                     {
-                      name: "--nymd-url",
-                      description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                      name: "--nyxd-url",
+                      description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                       args: {
-                        name: "nymd-url",
+                        name: "nyxd-url",
                         isOptional: true,
                       },
                     },
@@ -3823,10 +3823,10 @@ const completion: Fig.Spec = {
                       },
                     },
                     {
-                      name: "--nymd-url",
-                      description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                      name: "--nyxd-url",
+                      description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                       args: {
-                        name: "nymd-url",
+                        name: "nyxd-url",
                         isOptional: true,
                       },
                     },
@@ -3953,10 +3953,10 @@ const completion: Fig.Spec = {
                       },
                     },
                     {
-                      name: "--nymd-url",
-                      description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                      name: "--nyxd-url",
+                      description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                       args: {
-                        name: "nymd-url",
+                        name: "nyxd-url",
                         isOptional: true,
                       },
                     },
@@ -4021,10 +4021,10 @@ const completion: Fig.Spec = {
                       },
                     },
                     {
-                      name: "--nymd-url",
-                      description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                      name: "--nyxd-url",
+                      description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                       args: {
-                        name: "nymd-url",
+                        name: "nyxd-url",
                         isOptional: true,
                       },
                     },
@@ -4079,10 +4079,10 @@ const completion: Fig.Spec = {
                       },
                     },
                     {
-                      name: "--nymd-url",
-                      description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                      name: "--nyxd-url",
+                      description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                       args: {
-                        name: "nymd-url",
+                        name: "nyxd-url",
                         isOptional: true,
                       },
                     },
@@ -4135,10 +4135,10 @@ const completion: Fig.Spec = {
                   },
                 },
                 {
-                  name: "--nymd-url",
-                  description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                  name: "--nyxd-url",
+                  description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                   args: {
-                    name: "nymd-url",
+                    name: "nyxd-url",
                     isOptional: true,
                   },
                 },
@@ -4255,10 +4255,10 @@ const completion: Fig.Spec = {
                       },
                     },
                     {
-                      name: "--nymd-url",
-                      description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                      name: "--nyxd-url",
+                      description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                       args: {
-                        name: "nymd-url",
+                        name: "nyxd-url",
                         isOptional: true,
                       },
                     },
@@ -4316,10 +4316,10 @@ const completion: Fig.Spec = {
                       },
                     },
                     {
-                      name: "--nymd-url",
-                      description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                      name: "--nyxd-url",
+                      description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                       args: {
-                        name: "nymd-url",
+                        name: "nyxd-url",
                         isOptional: true,
                       },
                     },
@@ -4432,10 +4432,10 @@ const completion: Fig.Spec = {
                       },
                     },
                     {
-                      name: "--nymd-url",
-                      description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                      name: "--nyxd-url",
+                      description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                       args: {
-                        name: "nymd-url",
+                        name: "nyxd-url",
                         isOptional: true,
                       },
                     },
@@ -4493,10 +4493,10 @@ const completion: Fig.Spec = {
                       },
                     },
                     {
-                      name: "--nymd-url",
-                      description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                      name: "--nyxd-url",
+                      description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                       args: {
-                        name: "nymd-url",
+                        name: "nyxd-url",
                         isOptional: true,
                       },
                     },
@@ -4551,10 +4551,10 @@ const completion: Fig.Spec = {
                       },
                     },
                     {
-                      name: "--nymd-url",
-                      description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                      name: "--nyxd-url",
+                      description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                       args: {
-                        name: "nymd-url",
+                        name: "nyxd-url",
                         isOptional: true,
                       },
                     },
@@ -4607,10 +4607,10 @@ const completion: Fig.Spec = {
                   },
                 },
                 {
-                  name: "--nymd-url",
-                  description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                  name: "--nyxd-url",
+                  description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                   args: {
-                    name: "nymd-url",
+                    name: "nyxd-url",
                     isOptional: true,
                   },
                 },
@@ -4665,10 +4665,10 @@ const completion: Fig.Spec = {
                   },
                 },
                 {
-                  name: "--nymd-url",
-                  description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+                  name: "--nyxd-url",
+                  description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
                   args: {
-                    name: "nymd-url",
+                    name: "nyxd-url",
                     isOptional: true,
                   },
                 },
@@ -4721,10 +4721,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -4779,10 +4779,10 @@ const completion: Fig.Spec = {
               },
             },
             {
-              name: "--nymd-url",
-              description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+              name: "--nyxd-url",
+              description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
               args: {
-                name: "nymd-url",
+                name: "nyxd-url",
                 isOptional: true,
               },
             },
@@ -4835,10 +4835,10 @@ const completion: Fig.Spec = {
           },
         },
         {
-          name: "--nymd-url",
-          description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+          name: "--nyxd-url",
+          description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
           args: {
-            name: "nymd-url",
+            name: "nyxd-url",
             isOptional: true,
           },
         },
@@ -4893,10 +4893,10 @@ const completion: Fig.Spec = {
           },
         },
         {
-          name: "--nymd-url",
-          description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+          name: "--nyxd-url",
+          description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
           args: {
-            name: "nymd-url",
+            name: "nyxd-url",
             isOptional: true,
           },
         },
@@ -4951,10 +4951,10 @@ const completion: Fig.Spec = {
           },
         },
         {
-          name: "--nymd-url",
-          description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+          name: "--nyxd-url",
+          description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
           args: {
-            name: "nymd-url",
+            name: "nyxd-url",
             isOptional: true,
           },
         },
@@ -5007,10 +5007,10 @@ const completion: Fig.Spec = {
       },
     },
     {
-      name: "--nymd-url",
-      description: "Overrides the nymd URL provided either as an environment variable NYMD_VALIDATOR or in a config file",
+      name: "--nyxd-url",
+      description: "Overrides the nyxd URL provided either as an environment variable nyxd_VALIDATOR or in a config file",
       args: {
-        name: "nymd-url",
+        name: "nyxd-url",
         isOptional: true,
       },
     },

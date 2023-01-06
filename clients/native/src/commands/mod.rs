@@ -1,54 +1,30 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::error::Error;
-
 use crate::client::config::{Config, SocketType};
+use build_information::BinaryBuildInformation;
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
 use completions::{fig_generate, ArgShell};
+use lazy_static::lazy_static;
+use std::error::Error;
 
 pub(crate) mod init;
 pub(crate) mod run;
 pub(crate) mod upgrade;
 
-fn long_version() -> String {
-    format!(
-        r#"
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-"#,
-        "Build Timestamp:",
-        env!("VERGEN_BUILD_TIMESTAMP"),
-        "Build Version:",
-        env!("VERGEN_BUILD_SEMVER"),
-        "Commit SHA:",
-        env!("VERGEN_GIT_SHA"),
-        "Commit Date:",
-        env!("VERGEN_GIT_COMMIT_TIMESTAMP"),
-        "Commit Branch:",
-        env!("VERGEN_GIT_BRANCH"),
-        "rustc Version:",
-        env!("VERGEN_RUSTC_SEMVER"),
-        "rustc Channel:",
-        env!("VERGEN_RUSTC_CHANNEL"),
-        "cargo Profile:",
-        env!("VERGEN_CARGO_PROFILE"),
-    )
+lazy_static! {
+    pub static ref PRETTY_BUILD_INFORMATION: String =
+        BinaryBuildInformation::new(env!("CARGO_PKG_VERSION")).pretty_print();
 }
 
-fn long_version_static() -> &'static str {
-    Box::leak(long_version().into_boxed_str())
+// Helper for passing LONG_VERSION to clap
+fn pretty_build_info_static() -> &'static str {
+    &PRETTY_BUILD_INFORMATION
 }
 
 #[derive(Parser)]
-#[clap(author = "Nymtech", version, long_version = long_version_static(), about)]
+#[clap(author = "Nymtech", version, long_version = pretty_build_info_static(), about)]
 pub(crate) struct Cli {
     /// Path pointing to an env file that configures the client.
     #[clap(short, long)]
@@ -76,13 +52,14 @@ pub(crate) enum Commands {
 
 // Configuration that can be overridden.
 pub(crate) struct OverrideConfig {
-    nymd_validators: Option<String>,
-    api_validators: Option<String>,
+    nym_apis: Option<Vec<url::Url>>,
     disable_socket: bool,
     port: Option<u16>,
     fastmode: bool,
     no_cover: bool,
 
+    #[cfg(feature = "coconut")]
+    nyxd_urls: Option<Vec<url::Url>>,
     #[cfg(feature = "coconut")]
     enabled_credentials_mode: bool,
 }
@@ -94,34 +71,21 @@ pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send + Syn
         Commands::Init(m) => init::execute(m).await?,
         Commands::Run(m) => run::execute(m).await?,
         Commands::Upgrade(m) => upgrade::execute(m),
-        Commands::Completions(s) => s.generate(&mut Cli::into_app(), bin_name),
-        Commands::GenerateFigSpec => fig_generate(&mut Cli::into_app(), bin_name),
+        Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),
+        Commands::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),
     }
     Ok(())
 }
 
 pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
-    if let Some(raw_validators) = args.nymd_validators {
-        config
-            .get_base_mut()
-            .set_custom_validators(config::parse_validators(&raw_validators));
+    if let Some(nym_apis) = args.nym_apis {
+        config.get_base_mut().set_custom_nym_apis(nym_apis);
     } else if std::env::var(network_defaults::var_names::CONFIGURED).is_ok() {
-        let raw_validators = std::env::var(network_defaults::var_names::NYMD_VALIDATOR)
-            .expect("nymd validator not set");
+        let raw_validators =
+            std::env::var(network_defaults::var_names::NYM_API).expect("api validator not set");
         config
             .get_base_mut()
-            .set_custom_validators(config::parse_validators(&raw_validators));
-    }
-    if let Some(raw_validators) = args.api_validators {
-        config
-            .get_base_mut()
-            .set_custom_nym_apis(config::parse_validators(&raw_validators));
-    } else if std::env::var(network_defaults::var_names::CONFIGURED).is_ok() {
-        let raw_validators = std::env::var(network_defaults::var_names::API_VALIDATOR)
-            .expect("api validator not set");
-        config
-            .get_base_mut()
-            .set_custom_nym_apis(config::parse_validators(&raw_validators));
+            .set_custom_nym_apis(config::parse_urls(&raw_validators));
     }
 
     if args.disable_socket {
@@ -134,6 +98,15 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
 
     #[cfg(feature = "coconut")]
     {
+        if let Some(nyxd_urls) = args.nyxd_urls {
+            config.get_base_mut().set_custom_nyxd(nyxd_urls);
+        } else if std::env::var(network_defaults::var_names::CONFIGURED).is_ok() {
+            let raw_validators =
+                std::env::var(network_defaults::var_names::NYXD).expect("nyxd validator not set");
+            config
+                .get_base_mut()
+                .set_custom_nyxd(config::parse_urls(&raw_validators));
+        }
         if args.enabled_credentials_mode {
             config.get_base_mut().with_disabled_credentials(false)
         }

@@ -88,16 +88,28 @@ impl<T> Config<T> {
     where
         T: NymConfig,
     {
-        let id = id.into();
+        self.client.id = id.into();
+        self.set_empty_fields_to_defaults();
+        self
+    }
+
+    pub fn set_empty_fields_to_defaults(&mut self) -> bool
+    where
+        T: NymConfig,
+    {
+        let id = &self.client.id;
+        let mut changes_made = false;
 
         // identity key setting
         if self.client.private_identity_key_file.as_os_str().is_empty() {
+            changes_made = true;
             self.client.private_identity_key_file =
-                self::Client::<T>::default_private_identity_key_file(&id);
+                self::Client::<T>::default_private_identity_key_file(id);
         }
         if self.client.public_identity_key_file.as_os_str().is_empty() {
+            changes_made = true;
             self.client.public_identity_key_file =
-                self::Client::<T>::default_public_identity_key_file(&id);
+                self::Client::<T>::default_public_identity_key_file(id);
         }
 
         // encryption key setting
@@ -107,8 +119,9 @@ impl<T> Config<T> {
             .as_os_str()
             .is_empty()
         {
+            changes_made = true;
             self.client.private_encryption_key_file =
-                self::Client::<T>::default_private_encryption_key_file(&id);
+                self::Client::<T>::default_private_encryption_key_file(id);
         }
         if self
             .client
@@ -116,32 +129,35 @@ impl<T> Config<T> {
             .as_os_str()
             .is_empty()
         {
+            changes_made = true;
             self.client.public_encryption_key_file =
-                self::Client::<T>::default_public_encryption_key_file(&id);
+                self::Client::<T>::default_public_encryption_key_file(id);
         }
 
         // shared gateway key setting
         if self.client.gateway_shared_key_file.as_os_str().is_empty() {
+            changes_made = true;
             self.client.gateway_shared_key_file =
-                self::Client::<T>::default_gateway_shared_key_file(&id);
+                self::Client::<T>::default_gateway_shared_key_file(id);
         }
 
         // ack key setting
         if self.client.ack_key_file.as_os_str().is_empty() {
-            self.client.ack_key_file = self::Client::<T>::default_ack_key_file(&id);
+            changes_made = true;
+            self.client.ack_key_file = self::Client::<T>::default_ack_key_file(id);
         }
 
         if self.client.reply_surb_database_path.as_os_str().is_empty() {
+            changes_made = true;
             self.client.reply_surb_database_path =
-                self::Client::<T>::default_reply_surb_database_path(&id);
+                self::Client::<T>::default_reply_surb_database_path(id);
         }
 
         if self.client.database_path.as_os_str().is_empty() {
-            self.client.database_path = self::Client::<T>::default_database_path(&id);
+            changes_made = true;
+            self.client.database_path = self::Client::<T>::default_database_path(id);
         }
-
-        self.client.id = id;
-        self
+        changes_made
     }
 
     pub fn with_disabled_credentials(&mut self, disabled_credentials_mode: bool) {
@@ -156,8 +172,8 @@ impl<T> Config<T> {
         self.client.gateway_endpoint.gateway_id = id.into();
     }
 
-    pub fn set_custom_validators(&mut self, validator_urls: Vec<Url>) {
-        self.client.validator_urls = validator_urls;
+    pub fn set_custom_nyxd(&mut self, nyxd_urls: Vec<Url>) {
+        self.client.nyxd_urls = nyxd_urls;
     }
 
     pub fn set_custom_nym_apis(&mut self, nym_api_urls: Vec<Url>) {
@@ -218,7 +234,7 @@ impl<T> Config<T> {
     }
 
     pub fn get_validator_endpoints(&self) -> Vec<Url> {
-        self.client.validator_urls.clone()
+        self.client.nyxd_urls.clone()
     }
 
     pub fn get_nym_api_endpoints(&self) -> Vec<Url> {
@@ -404,9 +420,9 @@ pub struct Client<T> {
     #[serde(default)]
     disabled_credentials_mode: bool,
 
-    /// Addresses to nymd validators via which the client can communicate with the chain.
-    #[serde(default)]
-    validator_urls: Vec<Url>,
+    /// Addresses to nyxd validators via which the client can communicate with the chain.
+    #[serde(alias = "validator_urls")]
+    nyxd_urls: Vec<Url>,
 
     /// Addresses to APIs running on validator from which the client gets the view of the network.
     #[serde(alias = "validator_api_urls")]
@@ -439,6 +455,10 @@ pub struct Client<T> {
     database_path: PathBuf,
 
     /// Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
+    // this was set to use #[serde(default)] for the purposes of compatibility for multi-surbs introduced in 1.1.4.
+    // if you're reading this message and we have already introduced some breaking changes, feel free
+    // to remove that attribute since at this point the client configs should have gotten regenerated
+    #[serde(default)]
     reply_surb_database_path: PathBuf,
 
     /// nym_home_directory specifies absolute path to the home nym Clients directory.
@@ -456,7 +476,7 @@ impl<T: NymConfig> Default for Client<T> {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
             disabled_credentials_mode: true,
-            validator_urls: vec![],
+            nyxd_urls: vec![],
             nym_api_urls: vec![],
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),

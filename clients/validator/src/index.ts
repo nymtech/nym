@@ -68,7 +68,7 @@ export default class ValidatorClient implements INymClient {
 
   static async connect(
     mnemonic: string,
-    nymdUrl: string,
+    nyxdUrl: string,
     nymApiUrl: string,
     prefix: string,
     mixnetContract: string,
@@ -77,19 +77,19 @@ export default class ValidatorClient implements INymClient {
   ): Promise<ValidatorClient> {
     const wallet = await ValidatorClient.buildWallet(mnemonic, prefix);
 
-    const signingClient = await SigningClient.connectWithNymSigner(wallet, nymdUrl, nymApiUrl, prefix, denom);
+    const signingClient = await SigningClient.connectWithNymSigner(wallet, nyxdUrl, nymApiUrl, prefix, denom);
     return new ValidatorClient(signingClient, prefix, mixnetContract, vestingContract, denom);
   }
 
   static async connectForQuery(
-    nymdUrl: string,
+    nyxdUrl: string,
     nymApiUrl: string,
     prefix: string,
     mixnetContract: string,
     vestingContract: string,
     denom: string,
   ): Promise<ValidatorClient> {
-    const queryClient = await QueryClient.connectWithNym(nymdUrl, nymApiUrl);
+    const queryClient = await QueryClient.connectWithNym(nyxdUrl, nymApiUrl);
     return new ValidatorClient(queryClient, prefix, mixnetContract, vestingContract, denom);
   }
 
@@ -265,7 +265,7 @@ export default class ValidatorClient implements INymClient {
     return mixNodes;
   }
 
-  public async getAllNymdGateways(): Promise<GatewayBond[]> {
+  public async getAllNyxdGateways(): Promise<GatewayBond[]> {
     let gateways: GatewayBond[] = [];
     const limit = 50;
     let startAfter;
@@ -288,7 +288,7 @@ export default class ValidatorClient implements INymClient {
    *
    * @param mixIdentity identity of the node to which the delegation was sent
    */
-  public async getAllNymdSingleMixnodeDelegations(mixIdentity: string): Promise<Delegation[]> {
+  public async getAllNyxdSingleMixnodeDelegations(mixIdentity: string): Promise<Delegation[]> {
     let delegations: Delegation[] = [];
     const limit = 250;
     let startAfter;
@@ -311,7 +311,7 @@ export default class ValidatorClient implements INymClient {
     return delegations;
   }
 
-  public async getAllNymdDelegatorDelegations(delegator: string): Promise<Delegation[]> {
+  public async getAllNyxdDelegatorDelegations(delegator: string): Promise<Delegation[]> {
     let delegations: Delegation[] = [];
     const limit = 250;
     let startAfter;
@@ -334,7 +334,7 @@ export default class ValidatorClient implements INymClient {
     return delegations;
   }
 
-  public async getAllNymdNetworkDelegations(): Promise<Delegation[]> {
+  public async getAllNyxdNetworkDelegations(): Promise<Delegation[]> {
     let delegations: Delegation[] = [];
     const limit = 250;
     let startAfter;

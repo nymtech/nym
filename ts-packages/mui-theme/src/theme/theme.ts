@@ -84,6 +84,7 @@ export const getDesignTokens = (mode: PaletteMode): ThemeOptions => {
       ].join(','),
       fontSize: 14,
       fontWeightRegular: 500,
+      fontWeightMedium: 600,
       button: {
         textTransform: 'none',
         fontWeight: '600',

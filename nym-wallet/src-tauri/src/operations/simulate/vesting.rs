@@ -26,13 +26,13 @@ async fn simulate_vesting_operation(
     };
 
     let client = guard.current_client()?;
-    let vesting_contract = client.nymd.vesting_contract_address();
+    let vesting_contract = client.nyxd.vesting_contract_address();
 
     let msg = client
-        .nymd
+        .nyxd
         .wrap_contract_execute_message(vesting_contract, &msg, funds)?;
 
-    let result = client.nymd.simulate(vec![msg]).await?;
+    let result = client.nyxd.simulate(vec![msg]).await?;
     guard.create_detailed_fee(result)
 }
 

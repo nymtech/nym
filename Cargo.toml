@@ -30,6 +30,7 @@ members = [
     "common/coconut-interface",
     "common/commands",
     "common/config",
+    "common/build-information",
     "common/cosmwasm-smart-contracts/coconut-bandwidth-contract",
     "common/cosmwasm-smart-contracts/coconut-dkg",
     "common/cosmwasm-smart-contracts/contracts-common",
@@ -76,6 +77,7 @@ members = [
     "service-providers/network-statistics",
     "nym-api",
     "nym-api/nym-api-requests",
+    "nym-outfox",
     "tools/nym-cli",
     "tools/ts-rs-cli"
 ]

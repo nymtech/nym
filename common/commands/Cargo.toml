@@ -10,7 +10,7 @@ bip39 = "1.0.1"
 bs58 = "0.4"
 comfy-table = "6.0.0"
 cfg-if = "1.0.0"
-clap = { version = "3.2", features = ["derive"] }
+clap = { version = "4.0", features = ["derive"] }
 handlebars = "3.0.1"
 humantime-serde = "1.0"
 k256 = { version = "0.10", features = ["ecdsa", "sha256"] }
@@ -27,7 +27,7 @@ tap = "1"
 cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support" }
 cosmwasm-std = { version = "1.0.0" }
 
-validator-client = { path = "../client-libs/validator-client", features = ["nymd-client"] }
+validator-client = { path = "../client-libs/validator-client", features = ["nyxd-client"] }
 network-defaults = { path = "../network-defaults" }
 mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 vesting-contract-common = { path = "../cosmwasm-smart-contracts/vesting-contract" }

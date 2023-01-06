@@ -118,13 +118,14 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
     }
 }
 
-pub fn parse_validators(raw: &str) -> Vec<url::Url> {
+// this function is only used for parsing values from the network defaults and thus the "expect" there are fine
+pub fn parse_urls(raw: &str) -> Vec<url::Url> {
     raw.split(',')
-        .map(|raw_validator| {
-            raw_validator
+        .map(|raw_url| {
+            raw_url
                 .trim()
                 .parse()
-                .expect("one of the provided validator api urls is invalid")
+                .expect("one of the provided nym api urls is invalid")
         })
         .collect()
 }

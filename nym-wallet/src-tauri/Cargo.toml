@@ -1,6 +1,6 @@
 [package]
 name = "nym_wallet"
-version = "1.1.3"
+version = "1.1.5"
 description = "Nym Native Wallet"
 authors = ["Nym Technologies SA"]
 license = ""
@@ -13,10 +13,10 @@ rust-version = "1.58"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [build-dependencies]
-tauri-build = { version = "=1.0.4", features = [] }
+tauri-build = { version = "=1.2.1", features = [] }
 
-tauri-codegen = "=1.0.4"
-tauri-macros = "=1.0.4"
+tauri-codegen = "=1.2.1"
+tauri-macros = "=1.2.1"
 
 [dependencies]
 bip39 = "1.0"
@@ -38,7 +38,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_repr = "0.1"
 strum = { version = "0.23", features = ["derive"] }
-tauri = { version = "=1.0.5", features = ["clipboard-all", "shell-open", "updater", "window-maximize"] }
+tauri = { version = "=1.2.2", features = ["clipboard-all", "shell-open", "updater", "window-maximize"] }
 tendermint-rpc = "0.23.0"
 thiserror = "1.0"
 tokio = { version = "1.10", features = ["full"] }
@@ -55,7 +55,7 @@ cosmwasm-std = "1.0.0"
 cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support" }
 
 validator-client = { path = "../../common/client-libs/validator-client", features = [
-    "nymd-client",
+    "nyxd-client",
 ] }
 mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }

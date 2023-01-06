@@ -1,19 +1,20 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
-use std::{process, str::FromStr};
 
 use crate::{config::Config, Cli};
 use clap::CommandFactory;
 use clap::Subcommand;
 use colored::Colorize;
 use completions::{fig_generate, ArgShell};
-use config::parse_validators;
 use crypto::bech32_address_validation;
 use network_defaults::mainnet::read_var_if_not_default;
 use network_defaults::var_names::{
-    API_VALIDATOR, BECH32_PREFIX, CONFIGURED, NYMD_VALIDATOR, STATISTICS_SERVICE_DOMAIN_ADDRESS,
+    BECH32_PREFIX, CONFIGURED, NYM_API, STATISTICS_SERVICE_DOMAIN_ADDRESS,
 };
+use std::net::IpAddr;
+use std::path::PathBuf;
+use std::process;
+use validator_client::nyxd::{self};
 
 pub(crate) mod init;
 pub(crate) mod node_details;
@@ -47,18 +48,19 @@ pub(crate) enum Commands {
 
 // Configuration that can be overridden.
 pub(crate) struct OverrideConfig {
-    host: Option<String>,
-    wallet_address: Option<String>,
+    host: Option<IpAddr>,
+    wallet_address: Option<nyxd::AccountId>,
     mix_port: Option<u16>,
     clients_port: Option<u16>,
-    datastore: Option<String>,
+    datastore: Option<PathBuf>,
     announce_host: Option<String>,
     enabled_statistics: Option<bool>,
-    statistics_service_url: Option<String>,
-    nym_apis: Option<String>,
-    validators: Option<String>,
-    mnemonic: Option<String>,
+    statistics_service_url: Option<url::Url>,
+    nym_apis: Option<Vec<url::Url>>,
+    mnemonic: Option<bip39::Mnemonic>,
 
+    #[cfg(feature = "coconut")]
+    nyxd_urls: Option<Vec<url::Url>>,
     #[cfg(feature = "coconut")]
     only_coconut_credentials: bool,
 }
@@ -72,8 +74,8 @@ pub(crate) async fn execute(args: Cli) {
         Commands::Run(m) => run::execute(m).await,
         Commands::Sign(m) => sign::execute(m),
         Commands::Upgrade(m) => upgrade::execute(m).await,
-        Commands::Completions(s) => s.generate(&mut crate::Cli::into_app(), bin_name),
-        Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::into_app(), bin_name),
+        Commands::Completions(s) => s.generate(&mut crate::Cli::command(), bin_name),
+        Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::command(), bin_name),
     }
 }
 
@@ -103,12 +105,8 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
         config = config.with_enabled_statistics(enabled_statistics);
     }
 
-    if let Some(raw_url) = args.statistics_service_url {
-        config = config.with_custom_statistics_service_url(
-            raw_url
-                .parse()
-                .expect("the provided statistics service url is invalid!"),
-        );
+    if let Some(url) = args.statistics_service_url {
+        config = config.with_custom_statistics_service_url(url);
     } else if std::env::var(CONFIGURED).is_ok() {
         if let Some(raw_url) = read_var_if_not_default(STATISTICS_SERVICE_DOMAIN_ADDRESS) {
             config = config.with_custom_statistics_service_url(
@@ -119,26 +117,18 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
         }
     }
 
-    if let Some(raw_validators) = args.nym_apis {
-        config = config.with_custom_nym_apis(parse_validators(&raw_validators));
+    if let Some(nym_apis) = args.nym_apis {
+        config = config.with_custom_nym_apis(nym_apis);
     } else if std::env::var(CONFIGURED).is_ok() {
-        if let Some(raw_validators) = read_var_if_not_default(API_VALIDATOR) {
-            config = config.with_custom_nym_apis(::config::parse_validators(&raw_validators))
-        }
-    }
-
-    if let Some(ref raw_validators) = args.validators {
-        config = config.with_custom_validator_nymd(parse_validators(raw_validators));
-    } else if std::env::var(CONFIGURED).is_ok() {
-        if let Some(raw_validators) = read_var_if_not_default(NYMD_VALIDATOR) {
-            config = config.with_custom_validator_nymd(::config::parse_validators(&raw_validators))
+        if let Some(raw_validators) = read_var_if_not_default(NYM_API) {
+            config = config.with_custom_nym_apis(::config::parse_urls(&raw_validators))
         }
     }
 
     if let Some(wallet_address) = args.wallet_address {
-        let trimmed = wallet_address.trim();
-        validate_bech32_address_or_exit(trimmed);
-        config = config.with_wallet_address(trimmed);
+        // perform extra validation to ensure we have correct prefix
+        validate_bech32_address_or_exit(wallet_address.as_ref());
+        config = config.with_wallet_address(wallet_address);
     }
 
     if let Some(datastore_path) = args.datastore {
@@ -146,13 +136,20 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
     }
 
     if let Some(cosmos_mnemonic) = args.mnemonic {
-        config = config.with_cosmos_mnemonic(
-            bip39::Mnemonic::from_str(&cosmos_mnemonic).expect("Provided mnemonic is invalid"),
-        );
+        config = config.with_cosmos_mnemonic(cosmos_mnemonic);
     }
 
     #[cfg(feature = "coconut")]
     {
+        use network_defaults::var_names::NYXD;
+
+        if let Some(nyxd_urls) = args.nyxd_urls {
+            config = config.with_custom_validator_nyxd(nyxd_urls);
+        } else if std::env::var(CONFIGURED).is_ok() {
+            if let Some(raw_validators) = read_var_if_not_default(NYXD) {
+                config = config.with_custom_validator_nyxd(::config::parse_urls(&raw_validators))
+            }
+        }
         config = config.with_only_coconut_credentials(args.only_coconut_credentials);
     }
 

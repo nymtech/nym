@@ -1,10 +1,10 @@
 use crate::error::BackendError;
 use crate::state::WalletState;
 use crate::vesting::rewards::vesting_claim_delegator_reward;
-use mixnet_contract_common::MixId;
+use mixnet_contract_common::{MixId, RewardingParams};
 use nym_types::transaction::TransactionExecuteResult;
-use validator_client::nymd::traits::{MixnetQueryClient, MixnetSigningClient};
-use validator_client::nymd::Fee;
+use validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
+use validator_client::nyxd::Fee;
 
 #[tauri::command]
 pub async fn claim_operator_reward(
@@ -17,7 +17,7 @@ pub async fn claim_operator_reward(
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .withdraw_operator_reward(fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
@@ -38,7 +38,7 @@ pub async fn claim_delegator_reward(
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .withdraw_delegator_reward(mix_id, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
@@ -63,11 +63,11 @@ pub async fn claim_locked_and_unlocked_delegator_reward(
     let client = guard.current_client()?;
 
     log::trace!(">>> Get delegations: mix_id = {}", mix_id);
-    let address = client.nymd.address();
+    let address = client.nyxd.address();
     let delegations = client.get_all_delegator_delegations(address).await?;
     log::trace!("<<< {} delegations", delegations.len());
 
-    let vesting_contract = client.nymd.vesting_contract_address().to_string();
+    let vesting_contract = client.nyxd.vesting_contract_address().to_string();
     let liquid_delegation = client.get_delegation_details(mix_id, address, None).await?;
     let vesting_delegation = client
         .get_delegation_details(mix_id, address, Some(vesting_contract))
@@ -94,4 +94,18 @@ pub async fn claim_locked_and_unlocked_delegator_reward(
     }
     log::trace!("<<< {:?}", res);
     Ok(res)
+}
+
+#[tauri::command]
+pub async fn get_current_rewarding_parameters(
+    state: tauri::State<'_, WalletState>,
+) -> Result<RewardingParams, BackendError> {
+    log::info!(">>> Get current rewarding params",);
+
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let reward_params = client.nyxd.get_rewarding_parameters().await?;
+
+    Ok(reward_params)
 }

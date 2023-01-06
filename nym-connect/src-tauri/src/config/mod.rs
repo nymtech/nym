@@ -44,6 +44,13 @@ impl Config {
         }
     }
 
+    #[allow(unused)]
+    pub fn new_with_port<S: Into<String>>(id: S, provider_mix_address: S, port: u16) -> Self {
+        Config {
+            socks5: Socks5Config::new(id, provider_mix_address).with_port(port),
+        }
+    }
+
     pub fn get_socks5(&self) -> &Socks5Config {
         &self.socks5
     }
@@ -120,14 +127,14 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     log::trace!("Creating config for id: {}", id);
     let mut config = Config::new(id.as_str(), &provider_address);
 
-    if let Ok(raw_validators) = std::env::var(config_common::defaults::var_names::API_VALIDATOR) {
+    if let Ok(raw_validators) = std::env::var(config_common::defaults::var_names::NYM_API) {
         config
             .get_base_mut()
-            .set_custom_nym_apis(config_common::parse_validators(&raw_validators));
+            .set_custom_nym_apis(config_common::parse_urls(&raw_validators));
     }
 
     // Setup gateway by either registering a new one, or reusing exiting keys
-    let gateway = client_core::init::setup_gateway::<_, Socks5Config, _>(
+    let gateway = client_core::init::setup_gateway::<Socks5Config, _>(
         register_gateway,
         Some(chosen_gateway_id),
         config.get_base(),

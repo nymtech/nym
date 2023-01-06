@@ -1,15 +1,27 @@
 import React, { useEffect } from 'react';
 import { DateTime } from 'luxon';
+import { forage } from '@tauri-apps/tauri-forage';
 import { ConnectionStatusKind } from './types';
 import { useClientContext } from './context/main';
 import { DefaultLayout } from './layouts/DefaultLayout';
 import { ConnectedLayout } from './layouts/ConnectedLayout';
 import { HelpGuideLayout } from './layouts/HelpGuideLayout';
+import { useTauriEvents } from './utils';
 
 export const App: React.FC = () => {
   const context = useClientContext();
   const [busy, setBusy] = React.useState<boolean>();
   const [showInfoModal, setShowInfoModal] = React.useState(false);
+  useTauriEvents('help://clear-storage', (_event) => {
+    console.log('About to clear local storage...');
+    // clear local storage
+    try {
+      forage.clear()();
+      console.log('Local storage cleared');
+    } catch (e) {
+      console.error('Failed to clear local storage', e);
+    }
+  });
 
   const handleConnectClick = React.useCallback(async () => {
     const currentStatus = context.connectionStatus;
@@ -49,7 +61,6 @@ export const App: React.FC = () => {
         busy={busy}
         onConnectClick={handleConnectClick}
         services={context.services}
-        onServiceProviderChange={context.setServiceProvider}
       />
     );
   }

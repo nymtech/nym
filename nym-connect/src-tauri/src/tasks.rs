@@ -100,7 +100,7 @@ pub fn start_status_listener(
             log::info!("SOCKS5 proxy sent status message: {}", msg);
             window
                 .emit(
-                    "socks5-event",
+                    "socks5-status-event",
                     Payload {
                         title: "SOCKS5 update".into(),
                         message: msg.to_string(),

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::Parser;
-use validator_client::nymd::wallet::DirectSecp256k1HdWallet;
+use validator_client::nyxd::wallet::DirectSecp256k1HdWallet;
 
 #[derive(Debug, Parser)]
 pub struct Args {

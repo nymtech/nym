@@ -389,7 +389,7 @@ impl Config {
         self
     }
 
-    pub fn with_custom_nymd_validator(mut self, validator: Url) -> Self {
+    pub fn with_custom_nyxd_validator(mut self, validator: Url) -> Self {
         self.base.local_validator = validator;
         self
     }
@@ -446,13 +446,11 @@ impl Config {
         self.network_monitor.credentials_database_path.clone()
     }
 
-    // TODO: Remove if still unused
-    #[allow(dead_code)]
     pub fn get_rewarding_enabled(&self) -> bool {
         self.rewarding.enabled
     }
 
-    pub fn get_nymd_validator_url(&self) -> Url {
+    pub fn get_nyxd_url(&self) -> Url {
         self.base.local_validator.clone()
     }
 

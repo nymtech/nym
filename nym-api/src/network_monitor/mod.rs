@@ -7,7 +7,7 @@ use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
 use std::sync::Arc;
 use task::TaskManager;
-use validator_client::nymd::SigningNymdClient;
+use validator_client::nyxd::SigningNyxdClient;
 
 use crate::config::Config;
 use crate::contract_cache::ValidatorCache;
@@ -21,7 +21,7 @@ use crate::network_monitor::monitor::receiver::{
 use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::monitor::Monitor;
-use crate::nymd_client::Client;
+use crate::nyxd_client::Client;
 use crate::storage::NymApiStorage;
 
 pub(crate) mod chunker;
@@ -34,7 +34,7 @@ pub(crate) const ROUTE_TESTING_TEST_NONCE: u64 = 0;
 
 pub(crate) struct NetworkMonitorBuilder<'a> {
     config: &'a Config,
-    _nymd_client: Client<SigningNymdClient>,
+    _nyxd_client: Client<SigningNyxdClient>,
     system_version: String,
     node_status_storage: NymApiStorage,
     validator_cache: ValidatorCache,
@@ -43,14 +43,14 @@ pub(crate) struct NetworkMonitorBuilder<'a> {
 impl<'a> NetworkMonitorBuilder<'a> {
     pub(crate) fn new(
         config: &'a Config,
-        _nymd_client: Client<SigningNymdClient>,
+        _nyxd_client: Client<SigningNyxdClient>,
         system_version: &str,
         node_status_storage: NymApiStorage,
         validator_cache: ValidatorCache,
     ) -> Self {
         NetworkMonitorBuilder {
             config,
-            _nymd_client,
+            _nyxd_client,
             system_version: system_version.to_string(),
             node_status_storage,
             validator_cache,
@@ -80,7 +80,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
 
         #[cfg(feature = "coconut")]
         let bandwidth_controller = {
-            let client = self._nymd_client.0.read().await;
+            let client = self._nyxd_client.0.read().await;
             let coconut_api_clients =
                 validator_client::CoconutApiClient::all_coconut_api_clients(&client)
                     .await

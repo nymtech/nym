@@ -30,8 +30,8 @@ use validator_client::nym_api::routes::{
     API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL,
     COCONUT_ROUTES, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
 };
-use validator_client::nymd::Coin;
-use validator_client::nymd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
+use validator_client::nyxd::Coin;
+use validator_client::nyxd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
 
 use crate::coconut::State;
 use crate::NymApiStorage;
@@ -40,7 +40,7 @@ use coconut_dkg_common::dealer::{
     ContractDealing, DealerDetails, DealerDetailsResponse, DealerType,
 };
 use coconut_dkg_common::event_attributes::{DKG_PROPOSAL_ID, NODE_INDEX};
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, EpochState, TOTAL_DEALINGS};
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch, TOTAL_DEALINGS};
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use contracts_common::dealings::ContractSafeBytes;
 use crypto::asymmetric::{encryption, identity};
@@ -53,8 +53,8 @@ use rocket::local::asynchronous::Client;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
-use validator_client::nymd::cosmwasm_client::logs::Log;
-use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
+use validator_client::nyxd::cosmwasm_client::logs::Log;
+use validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 
 const TEST_COIN_DENOM: &str = "unym";
 const TEST_REWARDING_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
@@ -66,7 +66,7 @@ pub(crate) struct DummyClient {
     proposal_db: Arc<RwLock<HashMap<u64, ProposalResponse>>>,
     spent_credential_db: Arc<RwLock<HashMap<String, SpendCredentialResponse>>>,
 
-    epoch_state: Arc<RwLock<EpochState>>,
+    epoch: Arc<RwLock<Epoch>>,
     dealer_details: Arc<RwLock<HashMap<String, DealerDetails>>>,
     threshold: Arc<RwLock<Option<Threshold>>>,
     dealings: Arc<RwLock<HashMap<String, Vec<ContractSafeBytes>>>>,
@@ -80,7 +80,7 @@ impl DummyClient {
             tx_db: Arc::new(RwLock::new(HashMap::new())),
             proposal_db: Arc::new(RwLock::new(HashMap::new())),
             spent_credential_db: Arc::new(RwLock::new(HashMap::new())),
-            epoch_state: Arc::new(RwLock::new(EpochState::default())),
+            epoch: Arc::new(RwLock::new(Epoch::default())),
             dealer_details: Arc::new(RwLock::new(HashMap::new())),
             threshold: Arc::new(RwLock::new(None)),
             dealings: Arc::new(RwLock::new(HashMap::new())),
@@ -109,8 +109,8 @@ impl DummyClient {
         self
     }
 
-    pub fn _with_epoch_state(mut self, epoch_state: &Arc<RwLock<EpochState>>) -> Self {
-        self.epoch_state = Arc::clone(epoch_state);
+    pub fn _with_epoch(mut self, epoch: &Arc<RwLock<Epoch>>) -> Self {
+        self.epoch = Arc::clone(epoch);
         self
     }
 
@@ -188,8 +188,8 @@ impl super::client::Client for DummyClient {
             })
     }
 
-    async fn get_current_epoch_state(&self) -> Result<EpochState> {
-        Ok(*self.epoch_state.read().unwrap())
+    async fn get_current_epoch(&self) -> Result<Epoch> {
+        Ok(*self.epoch.read().unwrap())
     }
 
     async fn get_current_epoch_threshold(&self) -> Result<Option<Threshold>> {
@@ -273,6 +273,10 @@ impl super::client::Client for DummyClient {
         Ok(())
     }
 
+    async fn advance_epoch_state(&self) -> Result<()> {
+        todo!()
+    }
+
     async fn register_dealer(
         &self,
         bte_public_key_with_proof: EncodedBTEPublicKeyWithProof,
@@ -282,7 +286,7 @@ impl super::client::Client for DummyClient {
         self.dealer_details.write().unwrap().insert(
             self.validator_address.to_string(),
             DealerDetails {
-                address: Addr::unchecked(&self.validator_address.to_string()),
+                address: Addr::unchecked(self.validator_address.to_string()),
                 bte_public_key_with_proof,
                 announce_address,
                 assigned_index,
@@ -462,7 +466,7 @@ async fn signed_before() {
         .write()
         .unwrap()
         .insert(tx_hash.to_string(), tx_entry.clone());
-    let nymd_client =
+    let nyxd_client =
         DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap())
             .with_tx_db(&tx_db);
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
@@ -470,7 +474,7 @@ async fn signed_before() {
     staged_key_pair.set(key_pair).await;
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
-        nymd_client,
+        nyxd_client,
         TEST_COIN_DENOM.to_string(),
         staged_key_pair,
         comm_channel,
@@ -526,7 +530,7 @@ async fn signed_before() {
 
 #[tokio::test]
 async fn state_functions() {
-    let nymd_client =
+    let nyxd_client =
         DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap());
     let params = Parameters::new(4).unwrap();
     let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
@@ -537,7 +541,7 @@ async fn state_functions() {
     let staged_key_pair = crate::coconut::KeyPair::new();
     staged_key_pair.set(key_pair).await;
     let state = State::new(
-        nymd_client,
+        nyxd_client,
         TEST_COIN_DENOM.to_string(),
         staged_key_pair,
         comm_channel,
@@ -699,7 +703,7 @@ async fn blind_sign_correct() {
         .write()
         .unwrap()
         .insert(tx_hash.to_string(), tx_entry.clone());
-    let nymd_client =
+    let nyxd_client =
         DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap())
             .with_tx_db(&tx_db);
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
@@ -707,7 +711,7 @@ async fn blind_sign_correct() {
     staged_key_pair.set(key_pair).await;
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
-        nymd_client,
+        nyxd_client,
         TEST_COIN_DENOM.to_string(),
         staged_key_pair,
         comm_channel,
@@ -777,14 +781,14 @@ async fn signature_test() {
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage = NymApiStorage::init(db_dir).await.unwrap();
-    let nymd_client =
+    let nyxd_client =
         DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap());
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
     staged_key_pair.set(key_pair).await;
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
-        nymd_client,
+        nyxd_client,
         TEST_COIN_DENOM.to_string(),
         staged_key_pair,
         comm_channel,
@@ -844,7 +848,7 @@ async fn verification_of_bandwidth_credential() {
     let validator_address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
     let proposal_db = Arc::new(RwLock::new(HashMap::new()));
     let spent_credential_db = Arc::new(RwLock::new(HashMap::new()));
-    let nymd_client = DummyClient::new(validator_address.clone())
+    let nyxd_client = DummyClient::new(validator_address.clone())
         .with_proposal_db(&proposal_db)
         .with_spent_credential_db(&spent_credential_db);
     let mut db_dir = std::env::temp_dir();
@@ -870,7 +874,7 @@ async fn verification_of_bandwidth_credential() {
     let staged_key_pair = crate::coconut::KeyPair::new();
     staged_key_pair.set(key_pair).await;
     let rocket = rocket::build().attach(InternalSignRequest::stage(
-        nymd_client.clone(),
+        nyxd_client.clone(),
         TEST_COIN_DENOM.to_string(),
         staged_key_pair,
         comm_channel.clone(),

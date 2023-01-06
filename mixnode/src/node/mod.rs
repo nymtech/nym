@@ -18,6 +18,7 @@ use crate::node::node_description::NodeDescription;
 use crate::node::node_statistics::SharedNodeStats;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
 use ::crypto::asymmetric::{encryption, identity};
+use colored::Colorize;
 use config::NymConfig;
 use log::{error, info, warn};
 use mixnode_common::verloc::{self, AtomicVerlocResult, VerlocMeasurer};
@@ -87,9 +88,15 @@ impl MixNode {
     fn generate_owner_signature(&self) -> String {
         let pathfinder = MixNodePathfinder::new_from_config(&self.config);
         let identity_keypair = Self::load_identity_keys(&pathfinder);
-        let address = self.config.get_wallet_address();
-        validate_bech32_address_or_exit(address);
-        let verification_code = identity_keypair.private_key().sign_text(address);
+        let Some(address) = self.config.get_wallet_address() else {
+            let error_message = "Error: mixnode hasn't set its wallet address".red();
+            println!("{error_message}");
+            println!("Exiting...");
+            process::exit(1);
+        };
+        // perform extra validation to ensure we have correct prefix
+        validate_bech32_address_or_exit(address.as_ref());
+        let verification_code = identity_keypair.private_key().sign_text(address.as_ref());
         verification_code
     }
 
@@ -118,7 +125,10 @@ impl MixNode {
         );
         println!(
             "You are bonding to wallet address: {}\n\n",
-            self.config.get_wallet_address()
+            self.config
+                .get_wallet_address()
+                .map(|addr| addr.to_string())
+                .unwrap_or_else(|| "UNSPECIFIED".to_string())
         );
     }
 
@@ -255,13 +265,13 @@ impl MixNode {
         atomic_verloc_results
     }
 
-    fn random_api_client(&self) -> validator_client::ApiClient {
+    fn random_api_client(&self) -> validator_client::NymApiClient {
         let endpoints = self.config.get_nym_api_endpoints();
         let nym_api = endpoints
             .choose(&mut thread_rng())
             .expect("The list of validator apis is empty");
 
-        validator_client::ApiClient::new(nym_api.clone())
+        validator_client::NymApiClient::new(nym_api.clone())
     }
 
     // TODO: ask DH whether this function still makes sense in ^0.10

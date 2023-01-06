@@ -1,10 +1,11 @@
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 #[macro_use]
 extern crate rocket;
 
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
-
 use ::config::defaults::setup_env;
+use build_information::BinaryBuildInformation;
 use clap::{crate_version, Parser};
 use lazy_static::lazy_static;
 use logging::setup_logging;
@@ -14,16 +15,17 @@ mod config;
 mod node;
 
 lazy_static! {
-    pub static ref LONG_VERSION: String = long_version();
+    pub static ref PRETTY_BUILD_INFORMATION: String =
+        BinaryBuildInformation::new(env!("CARGO_PKG_VERSION")).pretty_print();
 }
 
 // Helper for passing LONG_VERSION to clap
-fn long_version_static() -> &'static str {
-    &LONG_VERSION
+fn pretty_build_info_static() -> &'static str {
+    &PRETTY_BUILD_INFORMATION
 }
 
 #[derive(Parser)]
-#[clap(author = "Nymtech", version, about, long_version = long_version_static())]
+#[clap(author = "Nymtech", version, about, long_version = pretty_build_info_static())]
 struct Cli {
     /// Path pointing to an env file that configures the mixnode.
     #[clap(short, long)]
@@ -39,7 +41,7 @@ async fn main() {
     println!("{}", banner());
 
     let args = Cli::parse();
-    setup_env(args.config_env_file.clone());
+    setup_env(args.config_env_file.as_ref());
     commands::execute(args).await;
 }
 
@@ -57,37 +59,6 @@ fn banner() -> String {
 
     "#,
         crate_version!()
-    )
-}
-
-fn long_version() -> String {
-    format!(
-        r#"
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-"#,
-        "Build Timestamp:",
-        env!("VERGEN_BUILD_TIMESTAMP"),
-        "Build Version:",
-        env!("VERGEN_BUILD_SEMVER"),
-        "Commit SHA:",
-        env!("VERGEN_GIT_SHA"),
-        "Commit Date:",
-        env!("VERGEN_GIT_COMMIT_TIMESTAMP"),
-        "Commit Branch:",
-        env!("VERGEN_GIT_BRANCH"),
-        "rustc Version:",
-        env!("VERGEN_RUSTC_SEMVER"),
-        "rustc Channel:",
-        env!("VERGEN_RUSTC_CHANNEL"),
-        "cargo Profile:",
-        env!("VERGEN_CARGO_PROFILE")
     )
 }
 

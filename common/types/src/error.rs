@@ -2,15 +2,15 @@ use serde::{Serialize, Serializer};
 use std::io;
 use thiserror::Error;
 use validator_client::nym_api::error::NymAPIError;
-use validator_client::{nymd::error::NymdError, ValidatorClientError};
+use validator_client::{nyxd::error::NyxdError, ValidatorClientError};
 
 // TODO: ask @MS why this even exists
 #[derive(Error, Debug)]
 pub enum TypesError {
     #[error("{source}")]
-    NymdError {
+    NyxdError {
         #[from]
-        source: NymdError,
+        source: NyxdError,
     },
     #[error("{source}")]
     CosmwasmStd {
@@ -90,7 +90,7 @@ impl From<ValidatorClientError> for TypesError {
         match e {
             ValidatorClientError::NymAPIError { source } => source.into(),
             ValidatorClientError::MalformedUrlProvided(e) => e.into(),
-            ValidatorClientError::NymdError(e) => e.into(),
+            ValidatorClientError::NyxdError(e) => e.into(),
             ValidatorClientError::NoAPIUrlAvailable => TypesError::NoNymApiUrlConfigured,
         }
     }

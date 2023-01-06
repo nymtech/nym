@@ -1,7 +1,6 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub use self::error::StorageError;
 use crate::client::replies::reply_storage::backend::fs_backend::manager::StorageManager;
 use crate::client::replies::reply_storage::backend::fs_backend::models::{
     ReplySurbStorageMetadata, StoredReplyKey, StoredReplySurb, StoredSenderTag, StoredSurbSender,
@@ -16,6 +15,8 @@ use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use std::fs;
 use std::path::{Path, PathBuf};
 use time::OffsetDateTime;
+
+pub use self::error::StorageError;
 
 mod error;
 mod manager;
@@ -66,6 +67,12 @@ impl Backend {
             return Err(StorageError::IncompleteDataFlush);
         }
 
+        let last_flush_timestamp = manager.get_previous_flush_timestamp().await?;
+        if last_flush_timestamp == 0 {
+            // either this client has been running since 1970 or the flush failed
+            return Err(StorageError::IncompleteDataFlush);
+        }
+
         // the process has gone down without full graceful shutdown,
         // meaning the database doesn't contain valid data anymore
         // so we have to purge it
@@ -75,7 +82,12 @@ impl Backend {
             manager.delete_all_reply_keys().await?;
         }
 
-        let last_flush_timestamp = manager.get_previous_flush_timestamp().await?;
+        if let Err(err) = manager.get_reply_surb_storage_metadata().await {
+            // we can't recover here, we HAVE TO initialise fresh (because we don't know correct starting metadata)
+            error!("it seems the client has been shutdown gracefully - we're missing valid surb data dump. the existing database cannot be used");
+            return Err(err.into());
+        }
+
         let last_flush = match OffsetDateTime::from_unix_timestamp(last_flush_timestamp) {
             Ok(last_flush) => last_flush,
             Err(err) => {

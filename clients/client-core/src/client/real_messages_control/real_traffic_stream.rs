@@ -1,9 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use self::sending_delay_controller::SendingDelayController;
 use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
+use crate::client::transmission_buffer::TransmissionBuffer;
 use client_connections::{
     ConnectionCommand, ConnectionCommandReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
 };
@@ -29,22 +31,7 @@ use tokio::time;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
 
-use self::{
-    sending_delay_controller::SendingDelayController, transmission_buffer::TransmissionBuffer,
-};
-
 mod sending_delay_controller;
-mod transmission_buffer;
-
-#[cfg(not(target_arch = "wasm32"))]
-fn get_time_now() -> time::Instant {
-    time::Instant::now()
-}
-
-#[cfg(target_arch = "wasm32")]
-fn get_time_now() -> wasm_timer::Instant {
-    wasm_timer::Instant::now()
-}
 
 /// Configurable parameters of the `OutQueueControl`
 pub(crate) struct Config {
@@ -135,7 +122,7 @@ where
 
     /// Buffer containing all incoming real messages keyed by transmission lane, that we will send
     /// out to the mixnet.
-    transmission_buffer: TransmissionBuffer,
+    transmission_buffer: TransmissionBuffer<RealMessage>,
 
     /// Incoming channel for being notified of closed connections, so that we can close lanes
     /// corresponding to connections. To avoid sending traffic unnecessary
@@ -162,6 +149,10 @@ impl From<PreparedFragment> for RealMessage {
 }
 
 impl RealMessage {
+    pub(crate) fn packet_size(&self) -> usize {
+        self.mix_packet.sphinx_packet().len()
+    }
+
     pub(crate) fn new(mix_packet: MixPacket, fragment_id: FragmentIdentifier) -> Self {
         RealMessage {
             mix_packet,
@@ -207,7 +198,7 @@ where
             real_receiver,
             rng,
             topology_access,
-            transmission_buffer: Default::default(),
+            transmission_buffer: TransmissionBuffer::new(),
             client_connection_rx,
             lane_queue_lengths,
         }
@@ -328,7 +319,9 @@ where
 
     fn pop_next_message(&mut self) -> Option<RealMessage> {
         // Pop the next message from the transmission buffer
-        let (lane, real_next) = self.transmission_buffer.pop_next_message_at_random()?;
+        let (lane, real_next) = self
+            .transmission_buffer
+            .pop_next_message_at_random(&mut self.rng)?;
 
         // Update the published queue length
         let lane_length = self.transmission_buffer.lane_length(&lane);

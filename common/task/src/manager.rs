@@ -28,6 +28,13 @@ enum TaskError {
     UnexpectedHalt,
 }
 
+// TODO: possibly we should create a `Status` trait instead of reusing `Error`
+#[derive(thiserror::Error, Debug)]
+pub enum TaskStatus {
+    #[error("Ready")]
+    Ready,
+}
+
 /// Listens to status and error messages from tasks, as well as notifying them to gracefully
 /// shutdown. Keeps track of if task stop unexpectedly, such as in a panic.
 #[derive(Debug)]
@@ -101,15 +108,21 @@ impl TaskManager {
         self.notify_tx.send(())
     }
 
-    pub fn start_status_listener(&mut self, mut sender: StatusSender) {
+    pub async fn start_status_listener(&mut self, mut sender: StatusSender) {
+        // Announce that we are operational. This means that in the application where this is used,
+        // everything is up and running and ready to go.
+        if let Err(msg) = sender.send(Box::new(TaskStatus::Ready)).await {
+            log::error!("Error sending status message: {}", msg);
+        };
+
         if let Some(mut task_status_rx) = self.task_status_rx.take() {
             log::info!("Starting status message listener");
             crate::spawn::spawn(async move {
                 loop {
                     if let Some(msg) = task_status_rx.next().await {
                         log::trace!("Got msg: {}", msg);
-                        if sender.send(msg).await.is_err() {
-                            log::error!("Error sending status message");
+                        if let Err(msg) = sender.send(msg).await {
+                            log::error!("Error sending status message: {}", msg);
                         }
                     } else {
                         log::trace!("Stopping since channel closed");
@@ -145,7 +158,7 @@ impl TaskManager {
     }
 
     pub async fn wait_for_shutdown(&mut self) {
-        log::info!("Waiting for shutdown");
+        log::debug!("Waiting for shutdown");
         if let Some(notify_rx) = self.notify_rx.take() {
             drop(notify_rx);
         }
@@ -256,7 +269,7 @@ impl TaskClient {
     pub async fn recv_with_delay(&mut self) {
         self.recv()
             .then(|msg| async move {
-                sleep(Duration::from_secs(1)).await;
+                sleep(Duration::from_secs(2)).await;
                 msg
             })
             .await

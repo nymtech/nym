@@ -1,10 +1,18 @@
 ## UNRELEASED
 
+## [nym-connect-v1.1.4](https://github.com/nymtech/nym/tree/nym-connect-v1.1.4) (2022-12-20)
+
+This release contains the new opt-in Test & Earn program, and it uses a stress-tested directory of network requesters to improve reliability. It also has some bugfixes, performance improvements, and better error handling.
+
+- nym-connect: send status messages from socks5 task to tauri backend by @octol in https://github.com/nymtech/nym/pull/1882
+- socks5: rework waiting in inbound.rs by @octol in https://github.com/nymtech/nym/pull/1880
+- Test&Earn by @mmsinclair in https://github.com/nymtech/nym/pull/2729
+
 ## [nym-connect-v1.1.3](https://github.com/nymtech/nym/tree/nym-connect-v1.1.3) (2022-12-13)
 
 - socks5-client: added support for socks4a.
 
-## [nym-connect-v1.1.2](https://github.com/nymtech/nym/tree/nym-connect-v1.1.2) (2022-11-29)
+## [nym-connect-v1.1.2](https://github.com/nymtech/nym/tree/nym-connect-v1.1.2) (2022-12-06)
 
 - socks5-client: fix error with client failing and disconnecting unnecessarily.
 
@@ -36,7 +44,7 @@
 - native-client/socks5-client: `disable_main_poisson_packet_distribution` Debug config option to make the client ignore poisson distribution in the main packet stream and ONLY send real message (and as fast as they come) ([#1664])
 - native-client/socks5-client: `use_extended_packet_size` Debug config option to make the client use 'ExtendedPacketSize' for its traffic (32kB as opposed to 2kB in 1.0.2) ([#1671])
 - network-requester: added additional Blockstream Green wallet endpoint to `example.allowed.list` ([#1611])
-- validator-client: added `query_contract_smart` and `query_contract_raw` on `NymdClient` ([#1558])
+- validator-client: added `query_contract_smart` and `query_contract_raw` on `NyxdClient` ([#1558])
 
 [#1472]: https://github.com/nymtech/nym/pull/1472
 [#1558]: https://github.com/nymtech/nym/pull/1558

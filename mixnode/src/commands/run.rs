@@ -1,13 +1,14 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use super::OverrideConfig;
 use crate::commands::{override_config, version_check};
 use crate::config::Config;
 use crate::node::MixNode;
 use clap::Args;
 use config::NymConfig;
-
-use super::OverrideConfig;
+use std::net::IpAddr;
+use validator_client::nyxd;
 
 #[derive(Args, Clone)]
 pub(crate) struct Run {
@@ -17,11 +18,11 @@ pub(crate) struct Run {
 
     /// The custom host on which the mixnode will be running
     #[clap(long)]
-    host: Option<String>,
+    host: Option<IpAddr>,
 
     /// The wallet address you will use to bond this mixnode, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9
     #[clap(long)]
-    wallet_address: Option<String>,
+    wallet_address: Option<nyxd::AccountId>,
 
     /// The port on which the mixnode will be listening for mix packets
     #[clap(long)]
@@ -39,9 +40,10 @@ pub(crate) struct Run {
     #[clap(long)]
     announce_host: Option<String>,
 
-    /// Comma separated list of rest endpoints of the validators
-    #[clap(long)]
-    validators: Option<String>,
+    /// Comma separated list of nym-api endpoints of the validators
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    #[clap(long, alias = "validators", value_delimiter = ',')]
+    nym_apis: Option<Vec<url::Url>>,
 }
 
 impl From<Run> for OverrideConfig {
@@ -54,7 +56,7 @@ impl From<Run> for OverrideConfig {
             verloc_port: run_config.verloc_port,
             http_api_port: run_config.http_api_port,
             announce_host: run_config.announce_host,
-            validators: run_config.validators,
+            nym_apis: run_config.nym_apis,
         }
     }
 }

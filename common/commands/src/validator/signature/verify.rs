@@ -8,7 +8,7 @@ use cosmrs::crypto::PublicKey;
 use log::{error, info};
 use serde_json::json;
 
-use validator_client::nymd::AccountId;
+use validator_client::nyxd::AccountId;
 
 use crate::context::QueryClient;
 use crate::validator::signature::helpers::secp256k1_verify_with_public_key;

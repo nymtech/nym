@@ -230,7 +230,7 @@ where
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         shutdown: TaskClient,
-    ) -> Result<GatewayClient, ClientCoreError<B>> {
+    ) -> Result<GatewayClient, ClientCoreError> {
         let gateway_id = self.gateway_config.gateway_id.clone();
         if gateway_id.is_empty() {
             return Err(ClientCoreError::GatewayIdUnknown);
@@ -285,7 +285,7 @@ where
         refresh_rate: Duration,
         topology_accessor: TopologyAccessor,
         shutdown: TaskClient,
-    ) -> Result<(), ClientCoreError<B>> {
+    ) -> Result<(), ClientCoreError> {
         let topology_refresher_config = TopologyRefresherConfig::new(
             nym_api_urls,
             refresh_rate,
@@ -328,12 +328,17 @@ where
     async fn setup_persistent_reply_storage(
         backend: B,
         shutdown: TaskClient,
-    ) -> Result<CombinedReplyStorage, ClientCoreError<B>> {
+    ) -> Result<CombinedReplyStorage, ClientCoreError>
+    where
+        <B as ReplyStorageBackend>::StorageError: Sync + Send,
+    {
         let persistent_storage = PersistentReplyStorage::new(backend);
         let mem_store = persistent_storage
             .load_state_from_backend()
             .await
-            .map_err(|err| ClientCoreError::SurbStorageError { source: err })?;
+            .map_err(|err| ClientCoreError::SurbStorageError {
+                source: Box::new(err),
+            })?;
 
         let store_clone = mem_store.clone();
         spawn_future(async move {
@@ -345,7 +350,10 @@ where
         Ok(mem_store)
     }
 
-    pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError<B>> {
+    pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError>
+    where
+        <B as ReplyStorageBackend>::StorageError: Sync + Send,
+    {
         info!("Starting nym client");
         // channels for inter-component communication
         // TODO: make the channels be internally created by the relevant components
@@ -371,7 +379,7 @@ where
 
         // channels responsible for dealing with reply-related fun
         let (reply_controller_sender, reply_controller_receiver) =
-            reply_controller::new_control_channels();
+            reply_controller::requests::new_control_channels();
 
         let self_address = self.as_mix_recipient();
 
@@ -437,7 +445,7 @@ where
             input_receiver,
             sphinx_message_sender.clone(),
             reply_storage,
-            reply_controller_sender,
+            reply_controller_sender.clone(),
             reply_controller_receiver,
             shared_lane_queue_lengths.clone(),
             client_connection_rx,
@@ -471,6 +479,7 @@ where
                     received_buffer_request_sender,
                 },
             },
+            reply_controller_sender,
             task_manager,
         })
     }
@@ -479,6 +488,9 @@ where
 pub struct BaseClient {
     pub client_input: ClientInputStatus,
     pub client_output: ClientOutputStatus,
+
+    // it feels very wrong to put this channel here, but I can't think of any other way of passing it to the native client
+    pub reply_controller_sender: ReplyControllerSender,
 
     pub task_manager: TaskManager,
 }

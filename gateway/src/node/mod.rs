@@ -1,19 +1,20 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use self::storage::PersistentStorage;
 use crate::commands::sign::load_identity_keys;
 use crate::commands::validate_bech32_address_or_exit;
+use crate::config::persistence::pathfinder::GatewayPathfinder;
 use crate::config::Config;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
+use colored::Colorize;
 use crypto::asymmetric::{encryption, identity};
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
-#[cfg(feature = "coconut")]
-use network_defaults::NymNetworkDetails;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use statistics_common::collector::StatisticsSender;
@@ -21,15 +22,14 @@ use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
 
-use crate::config::persistence::pathfinder::GatewayPathfinder;
 #[cfg(feature = "coconut")]
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 #[cfg(feature = "coconut")]
 use credentials::coconut::utils::obtain_aggregate_verification_key;
 #[cfg(feature = "coconut")]
+use network_defaults::NymNetworkDetails;
+#[cfg(feature = "coconut")]
 use validator_client::{Client, CoconutApiClient};
-
-use self::storage::PersistentStorage;
 
 pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
@@ -117,9 +117,15 @@ where
     fn generate_owner_signature(&self) -> String {
         let pathfinder = GatewayPathfinder::new_from_config(&self.config);
         let identity_keypair = load_identity_keys(&pathfinder);
-        let address = self.config.get_wallet_address();
-        validate_bech32_address_or_exit(address);
-        let verification_code = identity_keypair.private_key().sign_text(address);
+        let Some(address) = self.config.get_wallet_address() else {
+            let error_message = "Error: gateway hasn't set its wallet address".red();
+            println!("{error_message}");
+            println!("Exiting...");
+            process::exit(1);
+        };
+        // perform extra validation to ensure we have correct prefix
+        validate_bech32_address_or_exit(address.as_ref());
+        let verification_code = identity_keypair.private_key().sign_text(address.as_ref());
         verification_code
     }
 
@@ -230,21 +236,21 @@ where
         );
     }
 
-    fn random_api_client(&self) -> validator_client::ApiClient {
+    fn random_api_client(&self) -> validator_client::NymApiClient {
         let endpoints = self.config.get_nym_api_endpoints();
         let nym_api = endpoints
             .choose(&mut thread_rng())
             .expect("The list of validator apis is empty");
 
-        validator_client::ApiClient::new(nym_api.clone())
+        validator_client::NymApiClient::new(nym_api.clone())
     }
 
     #[cfg(feature = "coconut")]
-    fn random_nymd_client(
+    fn random_nyxd_client(
         &self,
-    ) -> validator_client::Client<validator_client::nymd::SigningNymdClient> {
-        let endpoints = self.config.get_validator_nymd_endpoints();
-        let validator_nymd = endpoints
+    ) -> validator_client::Client<validator_client::nyxd::SigningNyxdClient> {
+        let endpoints = self.config.get_nyxd_urls();
+        let validator_nyxd = endpoints
             .choose(&mut thread_rng())
             .expect("The list of validators is empty");
 
@@ -257,8 +263,8 @@ where
         let mut client = Client::new_signing(client_config, self.config.get_cosmos_mnemonic())
             .expect("Could not connect with mnemonic");
         client
-            .change_nymd(validator_nymd.clone())
-            .expect("Could not use the random nymd URL");
+            .change_nyxd(validator_nyxd.clone())
+            .expect("Could not use the random nyxd URL");
         client
     }
 
@@ -299,8 +305,8 @@ where
 
         #[cfg(feature = "coconut")]
         let coconut_verifier = {
-            let nymd_client = self.random_nymd_client();
-            let api_clients = CoconutApiClient::all_coconut_api_clients(&nymd_client)
+            let nyxd_client = self.random_nyxd_client();
+            let api_clients = CoconutApiClient::all_coconut_api_clients(&nyxd_client)
                 .await
                 .expect("Could not query all api clients");
             let validators_verification_key = obtain_aggregate_verification_key(&api_clients)
@@ -308,7 +314,7 @@ where
                 .expect("failed to contact validators to obtain their verification keys");
             CoconutVerifier::new(
                 api_clients,
-                nymd_client,
+                nyxd_client,
                 std::env::var(network_defaults::var_names::MIX_DENOM)
                     .expect("mix denom base not set"),
                 validators_verification_key,

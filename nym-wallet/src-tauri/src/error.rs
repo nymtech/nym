@@ -5,7 +5,7 @@ use std::io;
 use std::num::ParseIntError;
 use thiserror::Error;
 use validator_client::nym_api::error::NymAPIError;
-use validator_client::{nymd::error::NymdError, ValidatorClientError};
+use validator_client::{nyxd::error::NyxdError, ValidatorClientError};
 
 #[derive(Error, Debug)]
 pub enum BackendError {
@@ -24,10 +24,11 @@ pub enum BackendError {
         #[from]
         source: tendermint_rpc::Error,
     },
-    #[error("{source}")]
-    NymdError {
-        #[from]
-        source: NymdError,
+    #[error("{pretty_error}")]
+    NyxdError {
+        pretty_error: String,
+        #[source]
+        source: NyxdError,
     },
     #[error("{source}")]
     CosmwasmStd {
@@ -131,12 +132,40 @@ impl Serialize for BackendError {
     }
 }
 
+impl From<NyxdError> for BackendError {
+    fn from(source: NyxdError) -> Self {
+        match source {
+            NyxdError::AbciError {
+                code: _,
+                log: _,
+                ref pretty_log,
+            } => {
+                if let Some(pretty_log) = pretty_log {
+                    Self::NyxdError {
+                        pretty_error: pretty_log.to_string(),
+                        source,
+                    }
+                } else {
+                    Self::NyxdError {
+                        pretty_error: source.to_string(),
+                        source,
+                    }
+                }
+            }
+            nyxd_error => Self::NyxdError {
+                pretty_error: nyxd_error.to_string(),
+                source: nyxd_error,
+            },
+        }
+    }
+}
+
 impl From<ValidatorClientError> for BackendError {
     fn from(e: ValidatorClientError) -> Self {
         match e {
             ValidatorClientError::NymAPIError { source } => source.into(),
             ValidatorClientError::MalformedUrlProvided(e) => e.into(),
-            ValidatorClientError::NymdError(e) => e.into(),
+            ValidatorClientError::NyxdError(e) => e.into(),
             ValidatorClientError::NoAPIUrlAvailable => TypesError::NoNymApiUrlConfigured.into(),
         }
     }

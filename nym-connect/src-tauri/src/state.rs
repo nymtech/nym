@@ -64,16 +64,16 @@ impl State {
         &self.service_provider
     }
 
-    pub fn set_service_provider(&mut self, provider: String) {
-        self.service_provider = Some(provider);
+    pub fn set_service_provider(&mut self, provider: Option<String>) {
+        self.service_provider = provider;
     }
 
     pub fn get_gateway(&self) -> &Option<String> {
         &self.gateway
     }
 
-    pub fn set_gateway(&mut self, gateway: String) {
-        self.gateway = Some(gateway);
+    pub fn set_gateway(&mut self, gateway: Option<String>) {
+        self.gateway = gateway;
     }
 
     /// The effective config id is the static config id appended with the id of the gateway

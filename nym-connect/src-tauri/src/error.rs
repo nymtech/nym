@@ -1,4 +1,3 @@
-use client_core::client::replies::reply_storage::fs_backend;
 use client_core::error::ClientCoreError;
 use serde::{Serialize, Serializer};
 use thiserror::Error;
@@ -27,6 +26,11 @@ pub enum BackendError {
         source: tauri::Error,
     },
     #[error("{source}")]
+    TauriApiError {
+        #[from]
+        source: tauri::api::Error,
+    },
+    #[error("{source}")]
     SerdeJsonError {
         #[from]
         source: serde_json::Error,
@@ -34,7 +38,12 @@ pub enum BackendError {
     #[error("{source}")]
     ClientCoreError {
         #[from]
-        source: ClientCoreError<fs_backend::Backend>,
+        source: ClientCoreError,
+    },
+    #[error("{source}")]
+    ApiClientError {
+        #[from]
+        source: crate::operations::growth::api_client::ApiClientError,
     },
 
     #[error("Could not send disconnect signal to the SOCKS5 client")]
@@ -57,6 +66,8 @@ pub enum BackendError {
     CouldNotGetConfigFilename,
     #[error("Could not load existing gateway configuration")]
     CouldNotLoadExistingGatewayConfiguration(std::io::Error),
+    #[error("Unable to open a new window")]
+    NewWindowError,
 }
 
 impl Serialize for BackendError {

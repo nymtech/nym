@@ -18,7 +18,7 @@ use chrono::Local;
 use std::ffi::OsString;
 use std::fs::{self, create_dir_all, OpenOptions};
 use std::path::{Path, PathBuf};
-use validator_client::nymd::bip32::DerivationPath;
+use validator_client::nyxd::bip32::DerivationPath;
 
 #[cfg(test)]
 use self::account_data::MnemonicAccount;

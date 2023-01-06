@@ -15,9 +15,9 @@ pub enum ValidatorClientError {
     #[error("One of the provided URLs was malformed - {0}")]
     MalformedUrlProvided(#[from] url::ParseError),
 
-    #[cfg(feature = "nymd-client")]
-    #[error("There was an issue with the Nymd client - {0}")]
-    NymdError(#[from] crate::nymd::error::NymdError),
+    #[cfg(feature = "nyxd-client")]
+    #[error("There was an issue with the Nyxd client - {0}")]
+    NyxdError(#[from] crate::nyxd::error::NyxdError),
 
     #[error("No validator API url has been provided")]
     NoAPIUrlAvailable,

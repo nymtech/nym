@@ -5,8 +5,8 @@ use clap::Parser;
 use log::info;
 
 use mixnet_contract_common::{Coin, MixId};
-use validator_client::nymd::traits::MixnetQueryClient;
-use validator_client::nymd::VestingSigningClient;
+use validator_client::nyxd::traits::MixnetQueryClient;
+use validator_client::nyxd::VestingSigningClient;
 
 use crate::context::SigningClient;
 

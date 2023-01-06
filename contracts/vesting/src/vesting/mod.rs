@@ -75,18 +75,41 @@ mod tests {
         let created_account = load_account(Addr::unchecked("owner"), &deps.storage)
             .unwrap()
             .unwrap();
-        let created_account_test_by_staking =
-            load_account(Addr::unchecked("staking"), &deps.storage)
-                .unwrap()
-                .unwrap();
-        assert_eq!(created_account_test_by_staking, created_account);
+
         assert_eq!(
             created_account.load_balance(&deps.storage).unwrap(),
             // One was liquidated
             Uint128::new(1_000_000_000_000)
         );
+
+        // nothing is saved for "staking" account!
+        let created_account_test_by_staking =
+            load_account(Addr::unchecked("staking"), &deps.storage).unwrap();
+        assert!(created_account_test_by_staking.is_none());
+
+        // but we can stake on its behalf!
+        let stake_msg = ExecuteMsg::DelegateToMixnode {
+            on_behalf_of: Some("owner".to_string()),
+            mix_id: 42,
+            amount: coin(500, TEST_COIN_DENOM),
+        };
+
+        let response = execute(
+            deps.as_mut(),
+            env.clone(),
+            mock_info("staking", &[]),
+            stake_msg,
+        );
+        assert!(response.is_ok());
+
+        assert_eq!(
+            created_account.load_balance(&deps.storage).unwrap(),
+            // One was liquidated
+            Uint128::new(999_999_999_500)
+        );
+
         // Try create the same account again
-        let _response = execute(deps.as_mut(), env.clone(), info, msg.clone());
+        let response = execute(deps.as_mut(), env.clone(), info, msg);
         assert!(response.is_err());
 
         let account_again = vesting_account_new_fixture(&mut deps.storage, &env);
@@ -100,6 +123,7 @@ mod tests {
         let mut env = mock_env();
         let info = mock_info("owner", &[]);
         let account = vesting_account_new_fixture(&mut deps.storage, &env);
+        let staker = account.staking_address().unwrap();
         let msg = ExecuteMsg::TransferOwnership {
             to_address: "new_owner".to_string(),
         };
@@ -120,18 +144,38 @@ mod tests {
         let response = execute(deps.as_mut(), env.clone(), info.clone(), msg);
         assert!(response.is_err());
 
+        // can't stake on behalf of the original owner anymore, but we can do it for the new one!
+        let stake_msg = ExecuteMsg::DelegateToMixnode {
+            on_behalf_of: Some("owner".to_string()),
+            mix_id: 42,
+            amount: coin(500, TEST_COIN_DENOM),
+        };
+        let response = execute(
+            deps.as_mut(),
+            env.clone(),
+            mock_info(staker.as_ref(), &[]),
+            stake_msg,
+        );
+        assert!(response.is_err());
+
+        let new_stake_msg = ExecuteMsg::DelegateToMixnode {
+            on_behalf_of: Some("new_owner".to_string()),
+            mix_id: 42,
+            amount: coin(500, TEST_COIN_DENOM),
+        };
+        let response = execute(
+            deps.as_mut(),
+            env.clone(),
+            mock_info(staker.as_ref(), &[]),
+            new_stake_msg,
+        );
+        assert!(response.is_ok());
+
         let info = mock_info("new_owner", &[]);
         let msg = ExecuteMsg::UpdateStakingAddress {
             to_address: Some("new_staking".to_string()),
         };
         let _response = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-        let new_staking_account = load_account(Addr::unchecked("new_staking"), &deps.storage)
-            .unwrap()
-            .unwrap();
-        assert_eq!(new_staking_account.owner_address(), "new_owner".to_string());
-
-        let old_staking_account = load_account(Addr::unchecked("staking"), &deps.storage).unwrap();
-        assert!(old_staking_account.is_none());
 
         let msg = ExecuteMsg::WithdrawVestedCoins {
             amount: Coin {
@@ -171,6 +215,52 @@ mod tests {
         let response = execute(deps.as_mut(), env.clone(), info, msg.clone());
         // Only owner can withdraw
         assert!(response.is_err());
+    }
+
+    #[test]
+    fn test_staking_address_change() {
+        let mut deps = init_contract();
+        let env = mock_env();
+        let account = vesting_account_new_fixture(&mut deps.storage, &env);
+        let original_staker = account.staking_address().unwrap();
+
+        // can stake on behalf without an issue
+        let stake_msg = ExecuteMsg::DelegateToMixnode {
+            on_behalf_of: Some("owner".to_string()),
+            mix_id: 42,
+            amount: coin(500, TEST_COIN_DENOM),
+        };
+        let response = execute(
+            deps.as_mut(),
+            env.clone(),
+            mock_info(original_staker.as_ref(), &[]),
+            stake_msg.clone(),
+        );
+        assert!(response.is_ok());
+
+        let info = mock_info("owner", &[]);
+        let msg = ExecuteMsg::UpdateStakingAddress {
+            to_address: Some("new_staking".to_string()),
+        };
+        let _response = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
+
+        // the old staking account can't do any staking anymore!
+        let response = execute(
+            deps.as_mut(),
+            env.clone(),
+            mock_info(original_staker.as_ref(), &[]),
+            stake_msg.clone(),
+        );
+        assert!(response.is_err());
+
+        // but the new one can
+        let response = execute(
+            deps.as_mut(),
+            env.clone(),
+            mock_info("new_staking", &[]),
+            stake_msg,
+        );
+        assert!(response.is_ok());
     }
 
     #[test]

@@ -72,11 +72,11 @@ mod tests {
 
         let info = mock_info("admin", &coins(1_000_000_000_000, TEST_COIN_DENOM));
         let _response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
-        let created_account = load_account(&Addr::unchecked("owner"), &deps.storage)
+        let created_account = load_account(Addr::unchecked("owner"), &deps.storage)
             .unwrap()
             .unwrap();
         let created_account_test_by_staking =
-            load_account(&Addr::unchecked("staking"), &deps.storage)
+            load_account(Addr::unchecked("staking"), &deps.storage)
                 .unwrap()
                 .unwrap();
         assert_eq!(created_account_test_by_staking, created_account);
@@ -104,7 +104,7 @@ mod tests {
             to_address: "new_owner".to_string(),
         };
         let _response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone()).unwrap();
-        let new_owner_account = load_account(&Addr::unchecked("new_owner"), &deps.storage)
+        let new_owner_account = load_account(Addr::unchecked("new_owner"), &deps.storage)
             .unwrap()
             .unwrap();
         assert_eq!(
@@ -113,7 +113,7 @@ mod tests {
         );
 
         // Check old account is gone
-        let old_owner_account = load_account(&Addr::unchecked("owner"), &deps.storage).unwrap();
+        let old_owner_account = load_account(Addr::unchecked("owner"), &deps.storage).unwrap();
         assert!(old_owner_account.is_none());
 
         // Not the owner
@@ -125,12 +125,12 @@ mod tests {
             to_address: Some("new_staking".to_string()),
         };
         let _response = execute(deps.as_mut(), env.clone(), info, msg).unwrap();
-        let new_staking_account = load_account(&Addr::unchecked("new_staking"), &deps.storage)
+        let new_staking_account = load_account(Addr::unchecked("new_staking"), &deps.storage)
             .unwrap()
             .unwrap();
         assert_eq!(new_staking_account.owner_address(), "new_owner".to_string());
 
-        let old_staking_account = load_account(&Addr::unchecked("staking"), &deps.storage).unwrap();
+        let old_staking_account = load_account(Addr::unchecked("staking"), &deps.storage).unwrap();
         assert!(old_staking_account.is_none());
 
         let msg = ExecuteMsg::WithdrawVestedCoins {
@@ -527,7 +527,7 @@ mod tests {
         let info = mock_info("admin", &coins(1_000_000_000_000, TEST_COIN_DENOM));
 
         let _response = execute(deps.as_mut(), env.clone(), info.clone(), msg.clone());
-        let account = load_account(&Addr::unchecked("owner"), &deps.storage)
+        let account = load_account(Addr::unchecked("owner"), &deps.storage)
             .unwrap()
             .unwrap();
 
@@ -584,7 +584,7 @@ mod tests {
         let total_delegations = account.total_delegations_for_mix(1, &deps.storage).unwrap();
         assert_eq!(Uint128::new(90_000_000_000), total_delegations);
 
-        let account = load_account(&Addr::unchecked("owner"), &deps.storage)
+        let account = load_account(Addr::unchecked("owner"), &deps.storage)
             .unwrap()
             .unwrap();
 

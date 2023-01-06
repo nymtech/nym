@@ -40,9 +40,12 @@ pub fn instantiate(
     info: MessageInfo,
     msg: InitMsg,
 ) -> Result<Response, ContractError> {
-    //! ADMIN is set to the address that instantiated the contract
-    ADMIN.save(deps.storage, &info.sender.to_string())?;
-    MIXNET_CONTRACT_ADDRESS.save(deps.storage, &msg.mixnet_contract_address)?;
+    // validate the received mixnet contract address
+    let mixnet_contract_address = deps.api.addr_validate(&msg.mixnet_contract_address)?;
+
+    // ADMIN is set to the address that instantiated the contract
+    ADMIN.save(deps.storage, &info.sender)?;
+    MIXNET_CONTRACT_ADDRESS.save(deps.storage, &mixnet_contract_address)?;
     MIX_DENOM.save(deps.storage, &msg.mix_denom)?;
     Ok(Response::default())
 }
@@ -245,7 +248,9 @@ pub fn try_update_mixnet_address(
     if info.sender != ADMIN.load(deps.storage)? {
         return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
     }
-    MIXNET_CONTRACT_ADDRESS.save(deps.storage, &address)?;
+    let mixnet_contract_address = deps.api.addr_validate(&address)?;
+
+    MIXNET_CONTRACT_ADDRESS.save(deps.storage, &mixnet_contract_address)?;
     Ok(Response::default())
 }
 
@@ -716,7 +721,9 @@ pub fn try_get_all_accounts(
 ) -> Result<AccountsResponse, ContractError> {
     let limit = limit.unwrap_or(150).min(250) as usize;
 
-    let start = start_after.map(Bound::exclusive);
+    let start = start_after
+        .map(|raw| deps.api.addr_validate(&raw).map(Bound::exclusive))
+        .transpose()?;
 
     let accounts = ACCOUNTS
         .range(deps.storage, start, None, Order::Ascending)
@@ -745,7 +752,9 @@ pub fn try_get_all_accounts_locked_coins(
 ) -> Result<VestingCoinsResponse, ContractError> {
     let limit = limit.unwrap_or(150).min(250) as usize;
 
-    let start = start_after.map(Bound::exclusive);
+    let start = start_after
+        .map(|raw| deps.api.addr_validate(&raw).map(Bound::exclusive))
+        .transpose()?;
 
     let accounts = ACCOUNTS
         .range(deps.storage, start, None, Order::Ascending)

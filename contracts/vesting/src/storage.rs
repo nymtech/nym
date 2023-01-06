@@ -8,7 +8,7 @@ use vesting_contract_common::PledgeData;
 pub(crate) type BlockTimestampSecs = u64;
 
 pub const KEY: Item<'_, u32> = Item::new("key");
-pub const ACCOUNTS: Map<'_, String, Account> = Map::new("acc");
+pub const ACCOUNTS: Map<'_, Addr, Account> = Map::new("acc");
 // Holds data related to individual accounts
 const BALANCES: Map<'_, u32, Uint128> = Map::new("blc");
 const WITHDRAWNS: Map<'_, u32, Uint128> = Map::new("wthd");
@@ -17,8 +17,8 @@ const GATEWAY_PLEDGES: Map<'_, u32, PledgeData> = Map::new("gtw");
 pub const _OLD_DELEGATIONS: Map<'_, (u32, IdentityKey, BlockTimestampSecs), Uint128> =
     Map::new("dlg");
 pub const DELEGATIONS: Map<'_, (u32, MixId, BlockTimestampSecs), Uint128> = Map::new("dlg_v2");
-pub const ADMIN: Item<'_, String> = Item::new("adm");
-pub const MIXNET_CONTRACT_ADDRESS: Item<'_, String> = Item::new("mix");
+pub const ADMIN: Item<'_, Addr> = Item::new("adm");
+pub const MIXNET_CONTRACT_ADDRESS: Item<'_, Addr> = Item::new("mix");
 pub const MIX_DENOM: Item<'_, String> = Item::new("den");
 
 pub fn save_delegation(
@@ -38,8 +38,8 @@ pub fn remove_delegation(
     Ok(())
 }
 
-pub fn delete_account(address: &Addr, storage: &mut dyn Storage) -> Result<(), ContractError> {
-    ACCOUNTS.remove(storage, address.to_owned().to_string());
+pub fn delete_account(address: Addr, storage: &mut dyn Storage) -> Result<(), ContractError> {
+    ACCOUNTS.remove(storage, address);
     Ok(())
 }
 
@@ -120,24 +120,22 @@ pub fn remove_gateway_pledge(key: u32, storage: &mut dyn Storage) -> Result<(), 
 pub fn save_account(account: &Account, storage: &mut dyn Storage) -> Result<(), ContractError> {
     // This is a bit dirty, but its a simple way to allow for both staking account and owner to load it from storage
     if let Some(staking_address) = account.staking_address() {
-        ACCOUNTS.save(storage, staking_address.to_owned().to_string(), account)?;
+        ACCOUNTS.save(storage, staking_address.to_owned(), account)?;
     }
-    ACCOUNTS.save(storage, account.owner_address().to_string(), account)?;
+    ACCOUNTS.save(storage, account.owner_address(), account)?;
     Ok(())
 }
 
 pub fn load_account(
-    address: &Addr,
+    address: Addr,
     storage: &dyn Storage,
 ) -> Result<Option<Account>, ContractError> {
-    Ok(ACCOUNTS
-        .may_load(storage, address.to_owned().to_string())
-        .unwrap_or(None))
+    Ok(ACCOUNTS.may_load(storage, address).unwrap_or(None))
 }
 
-fn validate_account(address: &Addr, storage: &dyn Storage) -> Result<Account, ContractError> {
-    load_account(address, storage)?
-        .ok_or_else(|| ContractError::NoAccountForAddress(address.as_str().to_string()))
+fn validate_account(address: Addr, storage: &dyn Storage) -> Result<Account, ContractError> {
+    load_account(address.clone(), storage)?
+        .ok_or_else(|| ContractError::NoAccountForAddress(address.into_string()))
 }
 
 pub fn account_from_address(
@@ -145,5 +143,5 @@ pub fn account_from_address(
     storage: &dyn Storage,
     api: &dyn Api,
 ) -> Result<Account, ContractError> {
-    validate_account(&api.addr_validate(address)?, storage)
+    validate_account(api.addr_validate(address)?, storage)
 }

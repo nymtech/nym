@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 pub struct Service {
-    pub client_address: Addr, 
+    pub client_address: String, 
     pub whitelist: Vec<String>, 
     pub uptime_score: u8,
     pub owner: Addr
@@ -19,4 +19,4 @@ pub struct Config {
 // pub const ADMINS: Item<Vec<Addr>> = Item::new("admins");
 pub const CONFIG: Item<Config> = Item::new("config"); 
 // pub const SERVICES: Item<Vec<Service>> = Item::new("services");
-pub const SERVICES: Map<&Addr, Service> = Map::new("services"); 
+pub const SERVICES: Map<String, Service> = Map::new("services"); 

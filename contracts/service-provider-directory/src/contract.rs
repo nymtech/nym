@@ -40,10 +40,7 @@ pub fn execute(
     match msg {
         Announce { client_address, whitelist, owner } => exec::announce(_deps, _info, client_address, whitelist, owner ),
         Delete { } => exec::delete(_deps, _info),
-        /* TODO 
-         * UpdateScore()
-         * Edit { client_address, whitelist, owner } => exec::edit(_deps, _info, client_address, whitelist, owner),
-        */
+        // UpdateScore { } => exec::update_score(_deps, _info, ) // TODO once changed mapping from info.sender to client address ¬
     }
 }
 
@@ -73,6 +70,7 @@ mod exec {
     }
 
     // delete currently just removes the service mapped to the address of the contract caller - this is assuming a one-service per address model like mix nodes
+    // TODO change this to a one acct -> many services model 
     pub fn delete( 
         deps: DepsMut, 
         info: MessageInfo, 

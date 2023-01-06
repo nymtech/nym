@@ -40,7 +40,7 @@ tap = "1.0.1"
 tauri = { version = "^1.2.2", features = ["clipboard-write-text", "macos-private-api", "notification-all", "shell-open", "system-tray", "updater", "window-close", "window-minimize", "window-start-dragging"] }
 tendermint-rpc = "0.23.0"
 thiserror = "1.0"
-tokio = { version = "1.21.2", features = ["sync", "time"] }
+tokio = { version = "1.23.1", features = ["sync", "time"] }
 url = "2.2"
 yaml-rust = "0.4"
 

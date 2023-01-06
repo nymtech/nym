@@ -39,8 +39,8 @@ pub fn execute(
 
     match msg {
         Announce { client_address, whitelist, owner } => exec::announce(_deps, _info, client_address, whitelist, owner ),
-        Delete { } => exec::delete(_deps, _info),
-        // UpdateScore { } => exec::update_score(_deps, _info, ) // TODO once changed mapping from info.sender to client address ¬
+        Delete { client_address } => exec::delete(_deps, _info, client_address), // TODO fix in line with the comment 
+        UpdateScore { client_address, new_score } => exec::update_score(_deps, _info, client_address, new_score) // TODO once changed mapping from info.sender to client address ¬
     }
 }
 
@@ -50,7 +50,7 @@ mod exec {
     pub fn announce(
         deps: DepsMut, 
         info: MessageInfo, 
-        client_address: Addr, 
+        client_address: String, 
         whitelist: Vec<String>, 
         owner: Addr 
     ) -> Result<Response, ContractError> {
@@ -62,21 +62,44 @@ mod exec {
             owner
         }; 
 
-        SERVICES.save(deps.storage, &info.sender, &new_service)?; 
+        SERVICES.save(deps.storage, client_address.clone(), &new_service)?; 
 
         Ok(Response::new()
             .add_attribute("action", "service announced")
         )   
     }
 
-    // delete currently just removes the service mapped to the address of the contract caller - this is assuming a one-service per address model like mix nodes
-    // TODO change this to a one acct -> many services model 
+    pub fn update_score( 
+        deps: DepsMut, 
+        info: MessageInfo, 
+        client_address: String, 
+        new_score: i8
+    ) -> Result<Response, ContractError> {
+
+        let to_update = SERVICES.load(deps.storage, client_address.clone())?;
+
+        // update score & save 
+
+        Ok(Response::new()
+            .add_attribute("action", "service updated")
+        )
+
+    }
+
+    /* 
+     * TODO change this so that it requires 
+     *  
+     *  - that it comes from the updator role 
+     */ 
     pub fn delete( 
         deps: DepsMut, 
         info: MessageInfo, 
+        client_address: String
     ) -> Result<Response, ContractError> {
 
-        SERVICES.remove(deps.storage, &info.sender); 
+        // ACL: check function call is coming from service.owner, if ! then fail 
+
+        SERVICES.remove(deps.storage, client_address.clone()); 
 
         Ok(Response::new()
             .add_attribute("action", "service deleted")
@@ -100,7 +123,6 @@ mod query {
 
     use super::*;
 
-
     pub fn query_all(
         deps: Deps,
         _env: Env,
@@ -109,7 +131,7 @@ mod query {
             .range(deps.storage, None, None, Order::Ascending)
             .map(|item| {
                 item.map(|(owner, services)| ServicesInfo {
-                    owner: owner.into(),
+                    owner,
                     services
                 })
             }) 
@@ -191,7 +213,7 @@ mod tests {
                 Addr::unchecked("owner"),
                 addr.clone(), 
                 &ExecuteMsg::Announce {
-                    client_address: Addr::unchecked("client address"), 
+                    client_address: "nymAddress".to_owned(),
                     whitelist: vec!["domain.url".to_owned(), "domain2.url".to_owned()], 
                     owner: Addr::unchecked("owner") 
                 }, 
@@ -214,7 +236,7 @@ mod tests {
         .unwrap(); 
 
         let test_service: Service = Service {
-            client_address: Addr::unchecked("client address"),
+            client_address: "nymAddress".to_string(), 
             whitelist: vec!["domain.url".to_owned(), "domain2.url".to_owned()], 
             owner: Addr::unchecked("owner"),
             uptime_score: 0
@@ -222,7 +244,7 @@ mod tests {
 
         let expected = vec![
             ServicesInfo {
-                owner: Addr::unchecked("owner"), 
+                owner: "nymAddress".to_string(), 
                 services: test_service,
             }
         ];
@@ -256,7 +278,7 @@ mod tests {
                 Addr::unchecked("owner"),
                 addr.clone(), 
                 &ExecuteMsg::Announce {
-                    client_address: Addr::unchecked("client address"), 
+                    client_address: "nymAddress".to_string(), 
                     whitelist: vec!["domain.url".to_owned(), "domain2.url".to_owned()], 
                     owner: Addr::unchecked("owner") 
                 }, 
@@ -269,7 +291,7 @@ mod tests {
                 .unwrap(); 
     
             let test_service: Service = Service {
-                client_address: Addr::unchecked("client address"),
+                client_address: "nymAddress".to_string(), 
                 whitelist: vec!["domain.url".to_owned(), "domain2.url".to_owned()], 
                 owner: Addr::unchecked("owner"),
                 uptime_score: 0
@@ -277,7 +299,7 @@ mod tests {
     
             let expected = vec![
                 ServicesInfo {
-                    owner: Addr::unchecked("owner"), 
+                    owner: "nymAddress".to_string(), 
                     services: test_service,
                 }
             ];
@@ -293,7 +315,9 @@ mod tests {
             .execute_contract(
                 Addr::unchecked("owner"),
                 addr.clone(), 
-                &ExecuteMsg::Delete {  }, 
+                &ExecuteMsg::Delete { 
+                    client_address: "nymAddress".to_string() 
+                }, 
                 &[],
             )
             .unwrap();

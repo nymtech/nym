@@ -98,7 +98,7 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
         config = config
             .with_optional_custom_env_ext(
                 BaseConfig::with_custom_nyxd,
-                args.nymd_validators,
+                args.nyxd_urls,
                 network_defaults::var_names::NYXD,
                 config::parse_urls,
             )

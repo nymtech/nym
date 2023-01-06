@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Duration;
 use url::Url;
-use validator_client::nymd;
+use validator_client::nyxd;
 
 mod template;
 
@@ -102,7 +102,7 @@ pub struct Base {
     announce_address: Url,
 
     /// Address of the validator contract managing the network
-    mixnet_contract_address: nymd::AccountId,
+    mixnet_contract_address: nyxd::AccountId,
 
     /// Mnemonic used for rewarding and/or multisig operations
     mnemonic: bip39::Mnemonic,
@@ -402,7 +402,7 @@ impl Config {
         self
     }
 
-    pub fn with_custom_mixnet_contract(mut self, mixnet_contract: nymd::AccountId) -> Self {
+    pub fn with_custom_mixnet_contract(mut self, mixnet_contract: nyxd::AccountId) -> Self {
         self.base.mixnet_contract_address = mixnet_contract;
         self
     }
@@ -461,7 +461,7 @@ impl Config {
         self.base.announce_address.clone()
     }
 
-    pub fn get_mixnet_contract_address(&self) -> nymd::AccountId {
+    pub fn get_mixnet_contract_address(&self) -> nyxd::AccountId {
         self.base.mixnet_contract_address.clone()
     }
 

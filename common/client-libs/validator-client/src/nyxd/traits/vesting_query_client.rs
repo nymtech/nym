@@ -12,8 +12,9 @@ use mixnet_contract_common::MixId;
 use serde::Deserialize;
 use vesting_contract::vesting::Account;
 use vesting_contract_common::{
-    messages::QueryMsg as VestingQueryMsg, AllDelegationsResponse, DelegationTimesResponse,
-    OriginalVestingResponse, Period, PledgeData, VestingDelegation,
+    messages::QueryMsg as VestingQueryMsg, AccountsResponse, AllDelegationsResponse,
+    DelegationTimesResponse, OriginalVestingResponse, Period, PledgeData, VestingCoinsResponse,
+    VestingDelegation,
 };
 
 #[async_trait]
@@ -25,6 +26,30 @@ pub trait VestingQueryClient {
     async fn get_vesting_contract_version(&self) -> Result<ContractBuildInformation, NyxdError> {
         self.query_vesting_contract(VestingQueryMsg::GetContractVersion {})
             .await
+    }
+
+    async fn get_all_accounts_paged(
+        &self,
+        start_next_after: Option<String>,
+        limit: Option<u32>,
+    ) -> Result<AccountsResponse, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetAccountsPaged {
+            start_next_after,
+            limit,
+        })
+        .await
+    }
+
+    async fn get_all_accounts_locked_coins_paged(
+        &self,
+        start_next_after: Option<String>,
+        limit: Option<u32>,
+    ) -> Result<VestingCoinsResponse, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetAccountsLockedCoinsPaged {
+            start_next_after,
+            limit,
+        })
+        .await
     }
 
     async fn locked_coins(

@@ -576,7 +576,7 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetAccountsLockedCoinsPaged {
             start_next_after,
             limit,
-        } => to_binary(&try_get_all_account_locked_coins(
+        } => to_binary(&try_get_all_accounts_locked_coins(
             deps,
             env,
             start_next_after,
@@ -731,7 +731,7 @@ pub fn try_get_all_accounts(
     })
 }
 
-pub fn try_get_all_account_locked_coins(
+pub fn try_get_all_accounts_locked_coins(
     deps: Deps<'_>,
     env: Env,
     start_after: Option<String>,

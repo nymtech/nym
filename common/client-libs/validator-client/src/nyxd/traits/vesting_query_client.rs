@@ -12,9 +12,9 @@ use mixnet_contract_common::MixId;
 use serde::Deserialize;
 use vesting_contract::vesting::Account;
 use vesting_contract_common::{
-    messages::QueryMsg as VestingQueryMsg, AccountsResponse, AllDelegationsResponse,
-    DelegationTimesResponse, OriginalVestingResponse, Period, PledgeData, VestingCoinsResponse,
-    VestingDelegation,
+    messages::QueryMsg as VestingQueryMsg, AccountVestingCoins, AccountsResponse,
+    AllDelegationsResponse, BaseVestingAccountInfo, DelegationTimesResponse,
+    OriginalVestingResponse, Period, PledgeData, VestingCoinsResponse, VestingDelegation,
 };
 
 #[async_trait]
@@ -227,6 +227,44 @@ pub trait VestingQueryClient {
         }
 
         Ok(delegations)
+    }
+
+    async fn get_all_accounts_info(&self) -> Result<Vec<BaseVestingAccountInfo>, NyxdError> {
+        let mut accounts = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .get_all_accounts_paged(start_after.take(), None)
+                .await?;
+            accounts.append(&mut paged_response.accounts);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res.into_string())
+            } else {
+                break;
+            }
+        }
+
+        Ok(accounts)
+    }
+
+    async fn get_all_accounts_vesting_coins(&self) -> Result<Vec<AccountVestingCoins>, NyxdError> {
+        let mut accounts = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .get_all_accounts_vesting_coins_paged(start_after.take(), None)
+                .await?;
+            accounts.append(&mut paged_response.accounts);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res.into_string())
+            } else {
+                break;
+            }
+        }
+
+        Ok(accounts)
     }
 }
 

@@ -173,29 +173,27 @@ pub struct MixnodeNodeDetailsResponse {
     pub version: String,
     pub mix_port: u16,
     pub http_api_port: u16,
-    pub verlock_port: u16,
+    pub verloc_port: u16,
     pub wallet_address: Option<String>,
 }
 
 impl fmt::Display for MixnodeNodeDetailsResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let wallet_address = self.wallet_address.clone().unwrap_or_default();
-        writeln!(f, "Identity Key: {}", self.identity_key).expect("Could not write line");
-        writeln!(f, "Sphinx Key: {}", self.sphinx_key).expect("Could not write line");
-        writeln!(f, "Owner Signature: {}", self.owner_signature).expect("Could not write line");
+        writeln!(f, "Identity Key: {}", self.identity_key)?;
+        writeln!(f, "Sphinx Key: {}", self.sphinx_key)?;
+        writeln!(f, "Owner Signature: {}", self.owner_signature)?;
         writeln!(
             f,
             "Host: {} (bind address: {})",
             self.announce_address, self.bind_address
-        )
-        .expect("Could not write line");
-        writeln!(f, "Version: {}", self.version).expect("Could not write line");
+        )?;
+        writeln!(f, "Version: {}", self.version)?;
         writeln!(
             f,
             "Mix Port: {}, Verloc port: {}, Http Port: {}\n",
-            self.mix_port, self.verlock_port, self.http_api_port
-        )
-        .expect("Could not write line");
+            self.mix_port, self.verloc_port, self.http_api_port
+        )?;
         writeln!(
             f,
             "You are bonding to wallet address: {}\n\n",

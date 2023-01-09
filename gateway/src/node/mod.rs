@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::storage::PersistentStorage;
-use crate::commands::sign::load_identity_keys;
 use crate::commands::validate_bech32_address_or_exit;
 use crate::config::persistence::pathfinder::GatewayPathfinder;
 use crate::config::Config;
@@ -11,6 +10,7 @@ use crate::node::client_handling::websocket;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
+use crate::{commands::sign::load_identity_keys, OutputFormat};
 use colored::Colorize;
 use crypto::asymmetric::{encryption, identity};
 use log::*;
@@ -129,7 +129,7 @@ where
         verification_code
     }
 
-    pub(crate) fn print_node_details(&self) {
+    pub(crate) fn print_node_details(&self, output: OutputFormat) {
         let node_details = nym_types::gateway::GatewayNodeDetailsResponse {
             identity_key: self.identity_keypair.public_key().to_base58_string(),
             sphinx_key: self.sphinx_keypair.public_key().to_base58_string(),
@@ -147,15 +147,14 @@ where
                 .to_string(),
         };
 
-        println!("{}", node_details);
-
-        match std::fs::File::create("node_details_info.json") {
-            Ok(file) => match serde_json::to_writer_pretty(file, &node_details) {
-                Ok(_) => println!("Saved node_details_info.json"),
-                Err(e) => println!("Could not save node_details_info.json: {e}"),
-            },
-            Err(e) => println!("Could not save node_details_info.json: {e}"),
-        };
+        match output {
+            OutputFormat::Json => println!(
+                "{}",
+                serde_json::to_string(&node_details)
+                    .unwrap_or_else(|_| "Could not serialize node details".to_string())
+            ),
+            OutputFormat::Text => println!("{}", node_details),
+        }
     }
 
     fn start_mix_socket_listener(

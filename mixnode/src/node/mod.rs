@@ -112,7 +112,7 @@ impl MixNode {
             version: self.config.get_version().to_string(),
             mix_port: self.config.get_mix_port(),
             http_api_port: self.config.get_http_api_port(),
-            verlock_port: self.config.get_verloc_port(),
+            verloc_port: self.config.get_verloc_port(),
             wallet_address: self.config.get_wallet_address().map(|x| x.to_string()),
         };
 

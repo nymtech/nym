@@ -55,7 +55,7 @@ impl Cli {
         if let Some(ref output) = self.output {
             output.clone()
         } else {
-            OutputFormat::Text
+            OutputFormat::default()
         }
     }
 }

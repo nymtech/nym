@@ -92,22 +92,20 @@ pub struct GatewayNodeDetailsResponse {
 
 impl fmt::Display for GatewayNodeDetailsResponse {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        writeln!(f, "Identity Key: {}", self.identity_key).expect("Could not write line");
-        writeln!(f, "Sphinx Key: {}", self.sphinx_key).expect("Could not write line");
-        writeln!(f, "Owner Signature: {}", self.owner_signature).expect("Could not write line");
+        writeln!(f, "Identity Key: {}", self.identity_key)?;
+        writeln!(f, "Sphinx Key: {}", self.sphinx_key)?;
+        writeln!(f, "Owner Signature: {}", self.owner_signature)?;
         writeln!(
             f,
             "Host: {} (bind address: {})",
             self.announce_address, self.bind_address
-        )
-        .expect("Could not write line");
-        writeln!(f, "Version: {}", self.version).expect("Could not write line");
+        )?;
+        writeln!(f, "Version: {}", self.version)?;
         writeln!(
             f,
             "Mix Port: {}, Clients port: {}",
             self.mix_port, self.clients_port
-        )
-        .expect("Could not write line");
+        )?;
 
         writeln!(f, "Data store is at: {}", self.data_store)
     }

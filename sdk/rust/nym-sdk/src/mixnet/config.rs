@@ -16,7 +16,7 @@ pub struct Config {
 
 impl Default for Config {
     fn default() -> Self {
-        let nym_api_endpoints = vec![mainnet::API_VALIDATOR.to_string().parse().unwrap()];
+        let nym_api_endpoints = vec![mainnet::NYM_API.to_string().parse().unwrap()];
         Self {
             user_chosen_gateway: Default::default(),
             nym_api_endpoints,

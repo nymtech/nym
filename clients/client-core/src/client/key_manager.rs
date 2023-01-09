@@ -17,7 +17,6 @@ use std::sync::Arc;
 // use the old key after new one was issued.
 
 // Remember that Arc<T> has Deref implementation for T
-// WIP(JON): let's try not to have the clone
 #[derive(Clone)]
 pub struct KeyManager {
     /// identity key associated with the client instance.
@@ -59,7 +58,7 @@ impl KeyManager {
         }
     }
 
-    pub fn new_from_keys(
+    pub fn from_keys(
         id_keypair: identity::KeyPair,
         enc_keypair: encryption::KeyPair,
         gateway_shared_key: SharedKeys,
@@ -82,7 +81,7 @@ impl KeyManager {
     }
 
     /// Loads previously stored client keys from the disk.
-    fn load_keys_client_only(client_pathfinder: &ClientKeyPathfinder) -> io::Result<Self> {
+    fn load_client_keys(client_pathfinder: &ClientKeyPathfinder) -> io::Result<Self> {
         let identity_keypair: identity::KeyPair =
             pemstore::load_keypair(&pemstore::KeyPairPath::new(
                 client_pathfinder.private_identity_key().to_owned(),
@@ -107,7 +106,7 @@ impl KeyManager {
     /// Loads previously stored keys from the disk. Fails if not all, including the shared gateway
     /// key, is available.
     pub fn load_keys(client_pathfinder: &ClientKeyPathfinder) -> io::Result<Self> {
-        let mut key_manager = Self::load_keys_client_only(client_pathfinder)?;
+        let mut key_manager = Self::load_client_keys(client_pathfinder)?;
 
         let gateway_shared_key: SharedKeys =
             pemstore::load_key(client_pathfinder.gateway_shared_key())?;
@@ -117,8 +116,12 @@ impl KeyManager {
         Ok(key_manager)
     }
 
-    pub fn load_keys_maybe_gateway(client_pathfinder: &ClientKeyPathfinder) -> io::Result<Self> {
-        let mut key_manager = Self::load_keys_client_only(client_pathfinder)?;
+    /// Loads previously stored keys from the disk. Fails if client keys are not availabe, but the
+    /// shared gateway key is optional.
+    pub fn load_keys_but_gateway_is_optional(
+        client_pathfinder: &ClientKeyPathfinder,
+    ) -> io::Result<Self> {
+        let mut key_manager = Self::load_client_keys(client_pathfinder)?;
 
         let gateway_shared_key: Result<SharedKeys, io::Error> =
             pemstore::load_key(client_pathfinder.gateway_shared_key());
@@ -170,10 +173,7 @@ impl KeyManager {
         Ok(())
     }
 
-    pub fn store_key_gateway_only(
-        &self,
-        client_pathfinder: &ClientKeyPathfinder,
-    ) -> io::Result<()> {
+    pub fn store_gateway_key(&self, client_pathfinder: &ClientKeyPathfinder) -> io::Result<()> {
         match self.gateway_shared_key.as_ref() {
             None => {
                 return Err(io::Error::new(

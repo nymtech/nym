@@ -51,7 +51,7 @@ impl Client {
             let path_finder = ClientKeyPathfinder::from(paths.clone());
 
             // Try load keys
-            match KeyManager::load_keys_maybe_gateway(&path_finder) {
+            match KeyManager::load_keys_but_gateway_is_optional(&path_finder) {
                 Ok(key_manager) => key_manager,
                 Err(err) => {
                     log::debug!("Not loading keys: {err}");
@@ -140,12 +140,15 @@ impl Client {
         if path_finder.gateway_key_file_exists() && key_mode.is_keep() {
             return Err(Error::DontOverwriteGatewayKey);
         };
-        self.key_manager.store_key_gateway_only(&path_finder)?;
+        self.key_manager.store_gateway_key(&path_finder)?;
         Ok(())
     }
 
-    fn write_gateway_endpoint_config(gateway_endpoint_config_path: &Path) -> Result<()> {
-        let gateway_endpoint_config = toml::to_string(gateway_endpoint_config_path)?;
+    fn write_gateway_endpoint_config(&self, gateway_endpoint_config_path: &Path) -> Result<()> {
+        let gateway_endpoint_config = toml::to_string(
+            self.get_gateway_endpoint()
+                .ok_or(Error::GatewayNotAvailableForWriting)?,
+        )?;
 
         // Ensure the whole directory structure exists
         if let Some(parent_dir) = gateway_endpoint_config_path.parent() {
@@ -180,15 +183,15 @@ impl Client {
                 if self.has_gateway_key() {
                     // If we have a gateway key from client, then we can just read the corresponding
                     // config
-                    println!("Has gateway key: loading");
+                    log::trace!("Gateway key found: loading");
                     self.read_gateway_endpoint_config(&paths.gateway_endpoint_config)?;
                 } else {
                     // If we didn't find any shared gateway key during creation, that means we first
                     // need to register a gateway
-                    println!("NO gateway key: registering new");
+                    log::trace!("Gateway key NOT found: registering new");
                     self.register_with_gateway().await?;
                     self.write_gateway_key(paths.clone(), &GatewayKeyMode::Overwrite)?;
-                    Self::write_gateway_endpoint_config(&paths.gateway_endpoint_config)?;
+                    self.write_gateway_endpoint_config(&paths.gateway_endpoint_config)?;
                 }
             } else {
                 // If we don't have any key paths, just use ephemeral keys

@@ -12,6 +12,8 @@ pub enum Error {
     DontOverwrite,
     #[error("shared gateway key file encountered that we don't want to overwrite")]
     DontOverwriteGatewayKey,
+    #[error("no gateway config available for writing")]
+    GatewayNotAvailableForWriting,
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

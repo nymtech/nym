@@ -12,7 +12,7 @@ pub struct Keys {
 
 impl From<Keys> for KeyManager {
     fn from(keys: Keys) -> Self {
-        KeyManager::new_from_keys(
+        KeyManager::from_keys(
             keys.identity_keypair,
             keys.encryption_keypair,
             keys.gateway_shared_key,

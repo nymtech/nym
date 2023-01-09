@@ -8,7 +8,7 @@ use coconut_bandwidth_contract_common::msg::InstantiateMsg;
 
 #[derive(Debug, Parser)]
 pub struct Args {
-    #[clap(long, empty_values = false)]
+    #[clap(long)]
     pub pool_addr: String,
 
     #[clap(long)]

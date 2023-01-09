@@ -10,7 +10,7 @@ use multisig_contract_common::msg::InstantiateMsg;
 
 #[derive(Debug, Parser)]
 pub struct Args {
-    #[clap(long, empty_values = false)]
+    #[clap(long)]
     pub group_addr: String,
 
     #[clap(long, default_value_t = 67)]

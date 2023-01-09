@@ -8,11 +8,8 @@ use coconut_dkg_common::msg::InstantiateMsg;
 
 #[derive(Debug, Parser)]
 pub struct Args {
-    #[clap(long, empty_values = false)]
+    #[clap(long)]
     pub group_addr: String,
-
-    #[clap(long, empty_values = false)]
-    pub admin: String,
 
     #[clap(long)]
     pub multisig_addr: Option<String>,
@@ -37,7 +34,6 @@ pub async fn generate(args: Args) {
 
     let instantiate_msg = InstantiateMsg {
         group_addr: args.group_addr,
-        admin: args.admin,
         multisig_addr,
         mix_denom,
     };

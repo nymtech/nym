@@ -19,7 +19,7 @@ use client_core::{
 
 use crate::error::{Error, Result};
 
-use super::{connection_state::ConnectionState, Config, GatewayKeyMode, StoragePaths, Keys};
+use super::{connection_state::ConnectionState, Config, GatewayKeyMode, Keys, StoragePaths};
 
 pub struct Client {
     /// Keys handled by the client

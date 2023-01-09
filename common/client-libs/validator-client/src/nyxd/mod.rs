@@ -81,7 +81,7 @@ impl Config {
             debug!("Expected prefix:{:?}", expected_prefix);
             let parsed: AccountId = address
                 .parse()
-                .map_err(|_| NymdError::MalformedAccountAddress(address.clone()))?;
+                .map_err(|_| NyxdError::MalformedAccountAddress(address.clone()))?;
             debug!("Parsed prefix:{:?}", parsed);
             if parsed.prefix() != expected_prefix {
                 Err(NyxdError::UnexpectedBech32Prefix {

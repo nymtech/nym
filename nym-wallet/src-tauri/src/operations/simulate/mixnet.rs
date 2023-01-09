@@ -25,13 +25,13 @@ async fn simulate_mixnet_operation(
     };
 
     let client = guard.current_client()?;
-    let mixnet_contract = client.nymd.mixnet_contract_address();
+    let mixnet_contract = client.nyxd.mixnet_contract_address();
 
     let msg = client
-        .nymd
+        .nyxd
         .wrap_contract_execute_message(mixnet_contract, &msg, funds)?;
 
-    let result = client.nymd.simulate(vec![msg]).await?;
+    let result = client.nyxd.simulate(vec![msg]).await?;
     guard.create_detailed_fee(result)
 }
 

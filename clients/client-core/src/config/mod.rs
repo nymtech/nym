@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use config::{NymConfig, DB_FILE_NAME};
+use config::{NymConfig, OptionalSet, DB_FILE_NAME};
 use nymsphinx::params::PacketSize;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
@@ -70,11 +70,14 @@ pub struct Config<T> {
     #[serde(default)]
     debug: DebugConfig,
 }
+
 impl<T> ClientCoreConfigTrait for Config<T> {
     fn get_gateway_endpoint(&self) -> &GatewayEndpointConfig {
         &self.client.gateway_endpoint
     }
 }
+
+impl<T> OptionalSet for Config<T> where T: NymConfig {}
 
 impl<T> Config<T> {
     pub fn new<S: Into<String>>(id: S) -> Self
@@ -160,8 +163,9 @@ impl<T> Config<T> {
         changes_made
     }
 
-    pub fn with_disabled_credentials(&mut self, disabled_credentials_mode: bool) {
+    pub fn with_disabled_credentials(mut self, disabled_credentials_mode: bool) -> Self {
         self.client.disabled_credentials_mode = disabled_credentials_mode;
+        self
     }
 
     pub fn with_gateway_endpoint(&mut self, gateway_endpoint: GatewayEndpointConfig) {
@@ -172,12 +176,29 @@ impl<T> Config<T> {
         self.client.gateway_endpoint.gateway_id = id.into();
     }
 
-    pub fn set_custom_validators(&mut self, validator_urls: Vec<Url>) {
-        self.client.validator_urls = validator_urls;
+    pub fn with_custom_nyxd(mut self, urls: Vec<Url>) -> Self {
+        self.client.nyxd_urls = urls;
+        self
+    }
+
+    pub fn set_custom_nyxd(&mut self, nyxd_urls: Vec<Url>) {
+        self.client.nyxd_urls = nyxd_urls;
+    }
+
+    pub fn with_custom_nym_apis(mut self, nym_api_urls: Vec<Url>) -> Self {
+        self.client.nym_api_urls = nym_api_urls;
+        self
     }
 
     pub fn set_custom_nym_apis(&mut self, nym_api_urls: Vec<Url>) {
         self.client.nym_api_urls = nym_api_urls;
+    }
+
+    pub fn with_high_default_traffic_volume(mut self, enabled: bool) -> Self {
+        if enabled {
+            self.set_high_default_traffic_volume();
+        }
+        self
     }
 
     pub fn set_high_default_traffic_volume(&mut self) {
@@ -186,6 +207,13 @@ impl<T> Config<T> {
         self.debug.loop_cover_traffic_average_delay = Duration::from_millis(2_000_000);
         // 250 "real" messages / s
         self.debug.message_sending_average_delay = Duration::from_millis(4);
+    }
+
+    pub fn with_disabled_cover_traffic(mut self, disabled: bool) -> Self {
+        if disabled {
+            self.set_no_cover_traffic()
+        }
+        self
     }
 
     pub fn set_no_cover_traffic(&mut self) {
@@ -234,7 +262,7 @@ impl<T> Config<T> {
     }
 
     pub fn get_validator_endpoints(&self) -> Vec<Url> {
-        self.client.validator_urls.clone()
+        self.client.nyxd_urls.clone()
     }
 
     pub fn get_nym_api_endpoints(&self) -> Vec<Url> {
@@ -420,9 +448,9 @@ pub struct Client<T> {
     #[serde(default)]
     disabled_credentials_mode: bool,
 
-    /// Addresses to nymd validators via which the client can communicate with the chain.
-    #[serde(default)]
-    validator_urls: Vec<Url>,
+    /// Addresses to nyxd validators via which the client can communicate with the chain.
+    #[serde(alias = "validator_urls")]
+    nyxd_urls: Vec<Url>,
 
     /// Addresses to APIs running on validator from which the client gets the view of the network.
     #[serde(alias = "validator_api_urls")]
@@ -476,7 +504,7 @@ impl<T: NymConfig> Default for Client<T> {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
             disabled_credentials_mode: true,
-            validator_urls: vec![],
+            nyxd_urls: vec![],
             nym_api_urls: vec![],
             private_identity_key_file: Default::default(),
             public_identity_key_file: Default::default(),

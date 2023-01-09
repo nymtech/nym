@@ -18,7 +18,7 @@ services:
     container_name: genesis_validator
     volumes:
       - "genesis_volume:/genesis_volume"
-      - "genesis_nymd:/root/.nymd"
+      - "genesis_nyxd:/root/.nyxd"
     environment: *NETWORK
     networks:
       localnet:
@@ -34,7 +34,7 @@ services:
       - "2317:1317"
     volumes:
       - "genesis_volume:/genesis_volume"
-      - "secondary_nymd:/root/.nymd"
+      - "secondary_nyxd:/root/.nyxd"
     environment: *NETWORK
     networks:
       localnet:
@@ -120,8 +120,8 @@ services:
 
 volumes:
   genesis_volume:
-  genesis_nymd:
-  secondary_nymd:
+  genesis_nyxd:
+  secondary_nyxd:
 
 #        contract_volume:
 #        mongo_data:

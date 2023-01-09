@@ -4,14 +4,14 @@
 use crate::config::template::config_template;
 use config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
 use config::NymConfig;
-use network_defaults::mainnet::{API_VALIDATOR, NYMD_VALIDATOR, STATISTICS_SERVICE_DOMAIN_ADDRESS};
+use network_defaults::mainnet::{NYM_API, NYXD_URL, STATISTICS_SERVICE_DOMAIN_ADDRESS};
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
-use validator_client::nymd;
+use validator_client::nyxd;
 
 pub mod persistence;
 mod template;
@@ -150,8 +150,8 @@ impl Config {
     }
 
     #[cfg(feature = "coconut")]
-    pub fn with_custom_validator_nymd(mut self, validator_nymd_urls: Vec<Url>) -> Self {
-        self.gateway.validator_nymd_urls = validator_nymd_urls;
+    pub fn with_custom_validator_nyxd(mut self, validator_nyxd_urls: Vec<Url>) -> Self {
+        self.gateway.nyxd_urls = validator_nyxd_urls;
         self
     }
 
@@ -195,7 +195,7 @@ impl Config {
         self
     }
 
-    pub fn with_wallet_address(mut self, wallet_address: nymd::AccountId) -> Self {
+    pub fn with_wallet_address(mut self, wallet_address: nyxd::AccountId) -> Self {
         self.gateway.wallet_address = Some(wallet_address);
         self
     }
@@ -238,8 +238,8 @@ impl Config {
     }
 
     #[cfg(feature = "coconut")]
-    pub fn get_validator_nymd_endpoints(&self) -> Vec<Url> {
-        self.gateway.validator_nymd_urls.clone()
+    pub fn get_nyxd_urls(&self) -> Vec<Url> {
+        self.gateway.nyxd_urls.clone()
     }
 
     #[cfg(feature = "coconut")]
@@ -295,7 +295,7 @@ impl Config {
         &self.gateway.version
     }
 
-    pub fn get_wallet_address(&self) -> Option<nymd::AccountId> {
+    pub fn get_wallet_address(&self) -> Option<nyxd::AccountId> {
         self.gateway.wallet_address.clone()
     }
 }
@@ -346,17 +346,19 @@ pub struct Gateway {
     /// Path to file containing public sphinx key.
     public_sphinx_key_file: PathBuf,
 
-    /// Wheather gateway collects and sends anonymized statistics
+    /// Whether gateway collects and sends anonymized statistics
     enabled_statistics: bool,
 
     /// Domain address of the statistics service
     statistics_service_url: Url,
 
     /// Addresses to APIs from which the node gets the view of the network.
+    #[serde(alias = "validator_api_urls")]
     nym_api_urls: Vec<Url>,
 
     /// Addresses to validators which the node uses to check for double spending of ERC20 tokens.
-    validator_nymd_urls: Vec<Url>,
+    #[serde(alias = "validator_nymd_urls")]
+    nyxd_urls: Vec<Url>,
 
     /// Mnemonic of a cosmos wallet used in checking for double spending.
     cosmos_mnemonic: bip39::Mnemonic,
@@ -371,7 +373,7 @@ pub struct Gateway {
 
     /// The Cosmos wallet address that will control this gateway
     // the only reason this is an Option is because of the lack of existence of a sane default value
-    wallet_address: Option<nymd::AccountId>,
+    wallet_address: Option<nyxd::AccountId>,
 }
 
 impl Gateway {
@@ -412,8 +414,8 @@ impl Default for Gateway {
             public_sphinx_key_file: Default::default(),
             enabled_statistics: false,
             statistics_service_url: Url::from_str(STATISTICS_SERVICE_DOMAIN_ADDRESS).expect("Invalid default statistics service URL"),
-            nym_api_urls: vec![Url::from_str(API_VALIDATOR).expect("Invalid default API URL")],
-            validator_nymd_urls: vec![Url::from_str(NYMD_VALIDATOR).expect("Invalid default nymd URL")],
+            nym_api_urls: vec![Url::from_str(NYM_API).expect("Invalid default API URL")],
+            nyxd_urls: vec![Url::from_str(NYXD_URL).expect("Invalid default nyxd URL")],
             cosmos_mnemonic: bip39::Mnemonic::from_str("exact antique hybrid width raise anchor puzzle degree fee quit long crack net vague hip despair write put useless civil mechanic broom music day").unwrap(),
             nym_root_directory: Config::default_root_directory(),
             persistent_storage: Default::default(),

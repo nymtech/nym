@@ -10,7 +10,7 @@ use config::NymConfig;
 use log::*;
 use std::net::IpAddr;
 use std::path::PathBuf;
-use validator_client::nymd;
+use validator_client::nyxd;
 
 #[derive(Args, Clone)]
 pub struct Run {
@@ -24,7 +24,7 @@ pub struct Run {
 
     /// The wallet address you will use to bond this gateway, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9
     #[clap(long)]
-    wallet_address: Option<nymd::AccountId>,
+    wallet_address: Option<nyxd::AccountId>,
 
     /// The port on which the gateway will be listening for sphinx packets
     #[clap(long)]
@@ -50,9 +50,14 @@ pub struct Run {
 
     /// Comma separated list of endpoints of the validator
     #[cfg(feature = "coconut")]
-    #[clap(long, alias = "validators", value_delimiter = ',')]
+    #[clap(
+        long,
+        alias = "validators",
+        alias = "nymd_validators",
+        value_delimiter = ','
+    )]
     // the alias here is included for backwards compatibility (1.1.4 and before)
-    nymd_validators: Option<Vec<url::Url>>,
+    nyxd_urls: Option<Vec<url::Url>>,
 
     /// Cosmos wallet mnemonic
     #[clap(long)]
@@ -66,7 +71,7 @@ pub struct Run {
 
     /// Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server
     #[clap(long)]
-    enabled_statistics: Option<bool>,
+    enabled_statistics: bool,
 
     /// URL where a statistics aggregator is running. The default value is a Nym aggregator server
     #[clap(long)]
@@ -89,7 +94,7 @@ impl From<Run> for OverrideConfig {
             statistics_service_url: run_config.statistics_service_url,
 
             #[cfg(feature = "coconut")]
-            nymd_validators: run_config.nymd_validators,
+            nyxd_urls: run_config.nyxd_urls,
             #[cfg(feature = "coconut")]
             only_coconut_credentials: run_config.only_coconut_credentials,
         }

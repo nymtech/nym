@@ -51,7 +51,7 @@ nymsphinx = { path = "../../common/nymsphinx" }
 pemstore = { path = "../../common/pemstore" }
 task = { path = "../../common/task" }
 topology = { path = "../../common/topology" }
-validator-client = { path = "../../common/client-libs/validator-client", features = ["nymd-client"] }
+validator-client = { path = "../../common/client-libs/validator-client", features = ["nyxd-client"] }
 version-checker = { path = "../../common/version-checker" }
 websocket-requests = { path = "websocket-requests" }
 

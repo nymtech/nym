@@ -1,10 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub use crate::nymd::cosmwasm_client::signing_client::SigningCosmWasmClient;
-use crate::nymd::cosmwasm_client::types::ExecuteResult;
-use crate::nymd::error::NymdError;
-use crate::nymd::{Coin, Fee, NymdClient};
+pub use crate::nyxd::cosmwasm_client::signing_client::SigningCosmWasmClient;
+use crate::nyxd::cosmwasm_client::types::ExecuteResult;
+use crate::nyxd::error::NyxdError;
+use crate::nyxd::{Coin, Fee, NyxdClient};
 use async_trait::async_trait;
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use mixnet_contract_common::{Gateway, MixId, MixNode};
@@ -18,25 +18,25 @@ pub trait VestingSigningClient {
         fee: Option<Fee>,
         msg: VestingExecuteMsg,
         funds: Vec<Coin>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
 
     async fn vesting_update_mixnode_cost_params(
         &self,
         new_costs: MixNodeCostParams,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
 
     async fn vesting_update_mixnode_config(
         &self,
         new_config: MixNodeConfigUpdate,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
 
     async fn update_mixnet_address(
         &self,
         address: &str,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
 
     async fn vesting_bond_gateway(
         &self,
@@ -44,16 +44,16 @@ pub trait VestingSigningClient {
         owner_signature: &str,
         pledge: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
 
-    async fn vesting_unbond_gateway(&self, fee: Option<Fee>) -> Result<ExecuteResult, NymdError>;
+    async fn vesting_unbond_gateway(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError>;
 
     async fn vesting_track_unbond_gateway(
         &self,
         owner: &str,
         amount: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
 
     async fn vesting_bond_mixnode(
         &self,
@@ -62,13 +62,13 @@ pub trait VestingSigningClient {
         owner_signature: &str,
         pledge: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
 
     async fn vesting_pledge_more(
         &self,
         additional_pledge: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_vesting_contract(
             fee,
             VestingExecuteMsg::PledgeMore {
@@ -79,20 +79,20 @@ pub trait VestingSigningClient {
         .await
     }
 
-    async fn vesting_unbond_mixnode(&self, fee: Option<Fee>) -> Result<ExecuteResult, NymdError>;
+    async fn vesting_unbond_mixnode(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError>;
 
     async fn vesting_track_unbond_mixnode(
         &self,
         owner: &str,
         amount: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
 
     async fn withdraw_vested_coins(
         &self,
         amount: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
 
     async fn vesting_track_undelegation(
         &self,
@@ -100,20 +100,20 @@ pub trait VestingSigningClient {
         mix_id: MixId,
         amount: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
 
     async fn vesting_delegate_to_mixnode(
         &self,
         mix_id: MixId,
         amount: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
 
     async fn vesting_undelegate_from_mixnode(
         &self,
         mix_id: MixId,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
 
     async fn create_periodic_vesting_account(
         &self,
@@ -123,17 +123,17 @@ pub trait VestingSigningClient {
         amount: Coin,
         cap: Option<PledgeCap>,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
 }
 
 #[async_trait]
-impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient<C> {
+impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NyxdClient<C> {
     async fn execute_vesting_contract(
         &self,
         fee: Option<Fee>,
         msg: VestingExecuteMsg,
         funds: Vec<Coin>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let memo = msg.name().to_string();
         self.client
@@ -152,7 +152,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         &self,
         new_costs: MixNodeCostParams,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_vesting_contract(
             fee,
             VestingExecuteMsg::UpdateMixnodeCostParams { new_costs },
@@ -165,7 +165,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         &self,
         new_config: MixNodeConfigUpdate,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let req = VestingExecuteMsg::UpdateMixnodeConfig { new_config };
         self.client
@@ -184,7 +184,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         &self,
         address: &str,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let req = VestingExecuteMsg::UpdateMixnetAddress {
             address: address.to_string(),
@@ -207,7 +207,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         owner_signature: &str,
         pledge: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let req = VestingExecuteMsg::BondGateway {
             gateway,
@@ -226,7 +226,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
             .await
     }
 
-    async fn vesting_unbond_gateway(&self, fee: Option<Fee>) -> Result<ExecuteResult, NymdError> {
+    async fn vesting_unbond_gateway(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let req = VestingExecuteMsg::UnbondGateway {};
         self.client
@@ -246,7 +246,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         owner: &str,
         amount: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let req = VestingExecuteMsg::TrackUnbondGateway {
             owner: owner.to_string(),
@@ -271,7 +271,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         owner_signature: &str,
         pledge: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_vesting_contract(
             fee,
             VestingExecuteMsg::BondMixnode {
@@ -285,7 +285,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         .await
     }
 
-    async fn vesting_unbond_mixnode(&self, fee: Option<Fee>) -> Result<ExecuteResult, NymdError> {
+    async fn vesting_unbond_mixnode(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let req = VestingExecuteMsg::UnbondMixnode {};
         self.client
@@ -305,7 +305,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         owner: &str,
         amount: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let req = VestingExecuteMsg::TrackUnbondMixnode {
             owner: owner.to_string(),
@@ -327,7 +327,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         &self,
         amount: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let req = VestingExecuteMsg::WithdrawVestedCoins {
             amount: amount.into(),
@@ -350,7 +350,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         mix_id: MixId,
         amount: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_vesting_contract(
             fee,
             VestingExecuteMsg::TrackUndelegation {
@@ -368,7 +368,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         mix_id: MixId,
         amount: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_vesting_contract(
             fee,
             VestingExecuteMsg::DelegateToMixnode {
@@ -384,7 +384,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         &self,
         mix_id: MixId,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_vesting_contract(
             fee,
             VestingExecuteMsg::UndelegateFromMixnode { mix_id },
@@ -401,7 +401,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NymdClient
         amount: Coin,
         cap: Option<PledgeCap>,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let req = VestingExecuteMsg::CreateAccount {
             owner_address: owner_address.to_string(),

@@ -27,7 +27,7 @@ tap = "1"
 cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support" }
 cosmwasm-std = { version = "1.0.0" }
 
-validator-client = { path = "../client-libs/validator-client", features = ["nymd-client"] }
+validator-client = { path = "../client-libs/validator-client", features = ["nyxd-client"] }
 network-defaults = { path = "../network-defaults" }
 mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 vesting-contract-common = { path = "../cosmwasm-smart-contracts/vesting-contract" }

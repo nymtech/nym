@@ -1,8 +1,8 @@
 use crate::error::BackendError;
 use crate::state::WalletState;
 use nym_types::transaction::TransactionExecuteResult;
-use validator_client::nymd::traits::MixnetSigningClient;
-use validator_client::nymd::Fee;
+use validator_client::nyxd::traits::MixnetSigningClient;
+use validator_client::nyxd::Fee;
 
 #[tauri::command]
 pub async fn create_family(
@@ -15,7 +15,7 @@ pub async fn create_family(
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .create_family(signature, label, fee)
         .await?;
     Ok(TransactionExecuteResult::from_execute_result(
@@ -34,7 +34,7 @@ pub async fn join_family(
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .join_family(signature, family_head, fee)
         .await?;
     Ok(TransactionExecuteResult::from_execute_result(
@@ -53,7 +53,7 @@ pub async fn leave_family(
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .leave_family(signature, family_head, fee)
         .await?;
     Ok(TransactionExecuteResult::from_execute_result(
@@ -72,7 +72,7 @@ pub async fn kick_family_member(
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .kick_family_member(signature, member, fee)
         .await?;
     Ok(TransactionExecuteResult::from_execute_result(

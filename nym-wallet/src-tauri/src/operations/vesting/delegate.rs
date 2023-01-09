@@ -6,7 +6,7 @@ use crate::state::WalletState;
 use mixnet_contract_common::MixId;
 use nym_types::currency::DecCoin;
 use nym_types::transaction::TransactionExecuteResult;
-use validator_client::nymd::{Fee, VestingSigningClient};
+use validator_client::nyxd::{Fee, VestingSigningClient};
 
 #[tauri::command]
 pub async fn vesting_delegate_to_mixnode(
@@ -28,7 +28,7 @@ pub async fn vesting_delegate_to_mixnode(
     );
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .vesting_delegate_to_mixnode(mix_id, delegation, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
@@ -53,7 +53,7 @@ pub async fn vesting_undelegate_from_mixnode(
     );
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .vesting_undelegate_from_mixnode(mix_id, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);

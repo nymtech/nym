@@ -9,12 +9,11 @@ use crate::contract_cache::ValidatorCacheRefresher;
 use crate::epoch_operations::RewardedSetUpdater;
 use crate::network_monitor::NetworkMonitorBuilder;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
-use crate::nymd_client::Client;
+use crate::nyxd_client::Client;
 use crate::storage::NymApiStorage;
-use ::config::defaults::mainnet::read_var_if_not_default;
 use ::config::defaults::setup_env;
-use ::config::defaults::var_names::{CONFIGURED, MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
-use ::config::NymConfig;
+use ::config::defaults::var_names::{MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
+use ::config::{NymConfig, OptionalSet};
 use anyhow::Result;
 use build_information::BinaryBuildInformation;
 use clap::Parser;
@@ -35,7 +34,7 @@ use std::time::Duration;
 use std::{fs, process};
 use task::{wait_for_signal, TaskManager};
 use tokio::sync::Notify;
-use validator_client::nymd::{self, SigningNymdClient};
+use validator_client::nyxd::{self, SigningNyxdClient};
 
 #[cfg(feature = "coconut")]
 use coconut::{
@@ -51,7 +50,7 @@ pub(crate) mod contract_cache;
 mod epoch_operations;
 mod network_monitor;
 mod node_status_api;
-pub(crate) mod nymd_client;
+pub(crate) mod nyxd_client;
 pub(crate) mod storage;
 mod swagger;
 
@@ -101,13 +100,13 @@ struct ApiArgs {
     #[clap(short = 'r', long, requires = "enable_monitor", requires = "mnemonic")]
     enable_rewarding: bool,
 
-    /// Endpoint to nymd instance from which the monitor will grab nodes to test
+    /// Endpoint to nyxd instance from which the monitor will grab nodes to test
     #[clap(long)]
-    nymd_validator: Option<url::Url>,
+    nyxd_validator: Option<url::Url>,
 
     /// Address of the mixnet contract managing the network
     #[clap(long)]
-    mixnet_contract: Option<nymd::AccountId>,
+    mixnet_contract: Option<nyxd::AccountId>,
 
     /// Mnemonic of the network monitor used for rewarding operators
     // even though we're currently converting the mnemonic to string (and then back to the concrete type)
@@ -168,41 +167,33 @@ fn override_config(mut config: Config, args: ApiArgs) -> Config {
     }
 
     config = config
+        .with_optional(Config::with_custom_nyxd_validator, args.nyxd_validator)
+        .with_optional_env(
+            Config::with_custom_mixnet_contract,
+            args.mixnet_contract,
+            MIXNET_CONTRACT_ADDRESS,
+        )
+        .with_optional(Config::with_mnemonic, args.mnemonic)
+        .with_optional(
+            Config::with_minimum_interval_monitor_threshold,
+            args.monitor_threshold,
+        )
+        .with_optional(
+            Config::with_min_mixnode_reliability,
+            args.min_mixnode_reliability,
+        )
+        .with_optional(
+            Config::with_min_gateway_reliability,
+            args.min_gateway_reliability,
+        )
         .with_network_monitor_enabled(args.enable_monitor)
         .with_rewarding_enabled(args.enable_rewarding)
         .with_disabled_credentials_mode(!args.enabled_credentials_mode);
 
-    if let Some(nymd_validator) = args.nymd_validator {
-        config = config.with_custom_nymd_validator(nymd_validator);
-    }
-
-    if let Some(mixnet_contract) = args.mixnet_contract {
-        config = config.with_custom_mixnet_contract(mixnet_contract.to_string())
-    } else if std::env::var(CONFIGURED).is_ok() {
-        if let Some(mixnet_contract) = read_var_if_not_default(MIXNET_CONTRACT_ADDRESS) {
-            config = config.with_custom_mixnet_contract(mixnet_contract)
-        }
-    }
-    if let Some(mnemonic) = args.mnemonic {
-        config = config.with_mnemonic(mnemonic.to_string())
-    }
-
-    if let Some(monitor_threshold) = args.monitor_threshold {
-        config = config.with_minimum_interval_monitor_threshold(monitor_threshold)
-    }
-
-    if let Some(reliability) = args.min_mixnode_reliability {
-        config = config.with_min_mixnode_reliability(reliability)
-    }
-
-    if let Some(reliability) = args.min_gateway_reliability {
-        config = config.with_min_gateway_reliability(reliability)
-    }
-
     #[cfg(feature = "coconut")]
-    if let Some(announce_address) = args.announce_address {
+    {
         config = config
-            .with_announce_address(announce_address)
+            .with_optional(Config::with_announce_address, args.announce_address)
             .with_coconut_signer_enabled(args.enable_coconut);
     }
 
@@ -244,7 +235,7 @@ fn setup_liftoff_notify(notify: Arc<Notify>) -> AdHoc {
 
 fn setup_network_monitor<'a>(
     config: &'a Config,
-    _nymd_client: Client<SigningNymdClient>,
+    _nyxd_client: Client<SigningNyxdClient>,
     system_version: &str,
     rocket: &Rocket<Ignite>,
 ) -> Option<NetworkMonitorBuilder<'a>> {
@@ -258,7 +249,7 @@ fn setup_network_monitor<'a>(
 
     Some(NetworkMonitorBuilder::new(
         config,
-        _nymd_client,
+        _nyxd_client,
         system_version,
         node_status_storage,
         validator_cache,
@@ -279,7 +270,7 @@ async fn setup_rocket(
     config: &Config,
     _mix_denom: String,
     liftoff_notify: Arc<Notify>,
-    _nymd_client: Client<SigningNymdClient>,
+    _nyxd_client: Client<SigningNyxdClient>,
     #[cfg(feature = "coconut")] coconut_keypair: coconut::keypair::KeyPair,
 ) -> Result<Rocket<Ignite>> {
     let openapi_settings = rocket_okapi::settings::OpenApiSettings::default();
@@ -314,10 +305,10 @@ async fn setup_rocket(
     #[cfg(feature = "coconut")]
     let rocket = if config.get_coconut_signer_enabled() {
         rocket.attach(InternalSignRequest::stage(
-            _nymd_client.clone(),
+            _nyxd_client.clone(),
             _mix_denom,
             coconut_keypair,
-            QueryCommunicationChannel::new(_nymd_client),
+            QueryCommunicationChannel::new(_nyxd_client),
             storage.clone().unwrap(),
         ))
     } else {
@@ -403,7 +394,7 @@ async fn run_nym_api(args: ApiArgs) -> Result<()> {
 
     let mix_denom = std::env::var(MIX_DENOM).expect("mix denom not set");
 
-    let signing_nymd_client = Client::new_signing(&config);
+    let signing_nyxd_client = Client::new_signing(&config);
 
     let liftoff_notify = Arc::new(Notify::new());
     // We need a bigger timeout
@@ -417,14 +408,14 @@ async fn run_nym_api(args: ApiArgs) -> Result<()> {
         &config,
         mix_denom,
         Arc::clone(&liftoff_notify),
-        signing_nymd_client.clone(),
+        signing_nyxd_client.clone(),
         #[cfg(feature = "coconut")]
         coconut_keypair.clone(),
     )
     .await?;
     let monitor_builder = setup_network_monitor(
         &config,
-        signing_nymd_client.clone(),
+        signing_nyxd_client.clone(),
         system_version,
         &rocket,
     );
@@ -435,7 +426,7 @@ async fn run_nym_api(args: ApiArgs) -> Result<()> {
     #[cfg(feature = "coconut")]
     {
         let dkg_controller =
-            DkgController::new(&config, signing_nymd_client.clone(), coconut_keypair, OsRng)
+            DkgController::new(&config, signing_nyxd_client.clone(), coconut_keypair, OsRng)
                 .await?;
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(async move { dkg_controller.run(shutdown_listener).await });
@@ -455,7 +446,7 @@ async fn run_nym_api(args: ApiArgs) -> Result<()> {
 
         // spawn the validator cache refresher
         let validator_cache_refresher = ValidatorCacheRefresher::new(
-            signing_nymd_client.clone(),
+            signing_nyxd_client.clone(),
             config.get_caching_interval(),
             validator_cache.clone(),
         );
@@ -466,7 +457,7 @@ async fn run_nym_api(args: ApiArgs) -> Result<()> {
         // spawn rewarded set updater
         if config.get_rewarding_enabled() {
             let mut rewarded_set_updater =
-                RewardedSetUpdater::new(signing_nymd_client, validator_cache.clone(), storage)
+                RewardedSetUpdater::new(signing_nyxd_client, validator_cache.clone(), storage)
                     .await?;
             let shutdown_listener = shutdown.subscribe();
             tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await.unwrap() });
@@ -475,10 +466,10 @@ async fn run_nym_api(args: ApiArgs) -> Result<()> {
     } else {
         // Spawn the validator cache refresher.
         // When the network monitor is not enabled, we spawn the validator cache refresher task
-        // with just a nymd client, in contrast to a signing client.
-        let nymd_client = Client::new_query(&config);
+        // with just a nyxd client, in contrast to a signing client.
+        let nyxd_client = Client::new_query(&config);
         let validator_cache_refresher = ValidatorCacheRefresher::new(
-            nymd_client,
+            nyxd_client,
             config.get_caching_interval(),
             validator_cache.clone(),
         );

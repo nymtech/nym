@@ -1,14 +1,14 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nymd;
-use crate::nymd::coin::Coin;
-use crate::nymd::cosmwasm_client::helpers::{create_pagination, next_page_key};
-use crate::nymd::cosmwasm_client::types::{
+use crate::nyxd;
+use crate::nyxd::coin::Coin;
+use crate::nyxd::cosmwasm_client::helpers::{create_pagination, next_page_key};
+use crate::nyxd::cosmwasm_client::types::{
     Account, Code, CodeDetails, Contract, ContractCodeHistoryEntry, ContractCodeId,
     SequenceResponse, SimulateResponse,
 };
-use crate::nymd::error::NymdError;
+use crate::nyxd::error::NyxdError;
 use async_trait::async_trait;
 use cosmrs::proto::cosmos::auth::v1beta1::{QueryAccountRequest, QueryAccountResponse};
 use cosmrs::proto::cosmos::bank::v1beta1::{
@@ -57,7 +57,7 @@ pub trait CosmWasmClient: rpc::Client {
         &self,
         path: Option<abci::Path>,
         req: Req,
-    ) -> Result<Res, NymdError>
+    ) -> Result<Res, NyxdError>
     where
         Req: Message,
         Res: Message + Default,
@@ -66,21 +66,21 @@ pub trait CosmWasmClient: rpc::Client {
         req.encode(&mut buf)?;
 
         let res = self.abci_query(path, buf, None, false).await?;
-        let res_success = nymd::error::parse_abci_query_result(res)?;
+        let res_success = nyxd::error::parse_abci_query_result(res)?;
 
         Ok(Res::decode(res_success.value.as_ref())?)
     }
 
-    async fn get_chain_id(&self) -> Result<chain::Id, NymdError> {
+    async fn get_chain_id(&self) -> Result<chain::Id, NyxdError> {
         Ok(self.status().await?.node_info.network)
     }
 
-    async fn get_height(&self) -> Result<block::Height, NymdError> {
+    async fn get_height(&self) -> Result<block::Height, NyxdError> {
         Ok(self.status().await?.sync_info.latest_block_height)
     }
 
     // TODO: the return type should probably be changed to a non-proto, type-safe Account alternative
-    async fn get_account(&self, address: &AccountId) -> Result<Option<Account>, NymdError> {
+    async fn get_account(&self, address: &AccountId) -> Result<Option<Account>, NyxdError> {
         let path = Some("/cosmos.auth.v1beta1.Query/Account".parse().unwrap());
 
         let req = QueryAccountRequest {
@@ -94,11 +94,11 @@ pub trait CosmWasmClient: rpc::Client {
         res.account.map(TryFrom::try_from).transpose()
     }
 
-    async fn get_sequence(&self, address: &AccountId) -> Result<SequenceResponse, NymdError> {
+    async fn get_sequence(&self, address: &AccountId) -> Result<SequenceResponse, NyxdError> {
         let account = self
             .get_account(address)
             .await?
-            .ok_or_else(|| NymdError::NonExistentAccountError(address.clone()))?;
+            .ok_or_else(|| NyxdError::NonExistentAccountError(address.clone()))?;
         let base_account = account.try_get_base_account()?;
 
         Ok(SequenceResponse {
@@ -107,7 +107,7 @@ pub trait CosmWasmClient: rpc::Client {
         })
     }
 
-    async fn get_block(&self, height: Option<u32>) -> Result<BlockResponse, NymdError> {
+    async fn get_block(&self, height: Option<u32>) -> Result<BlockResponse, NyxdError> {
         match height {
             Some(height) => self.block(height).await.map_err(|err| err.into()),
             None => self.latest_block().await.map_err(|err| err.into()),
@@ -118,7 +118,7 @@ pub trait CosmWasmClient: rpc::Client {
         &self,
         address: &AccountId,
         search_denom: String,
-    ) -> Result<Option<Coin>, NymdError> {
+    ) -> Result<Option<Coin>, NyxdError> {
         let path = Some("/cosmos.bank.v1beta1.Query/Balance".parse().unwrap());
 
         let req = QueryBalanceRequest {
@@ -133,10 +133,10 @@ pub trait CosmWasmClient: rpc::Client {
         res.balance
             .map(|proto| CosmosCoin::try_from(proto).map(Into::into))
             .transpose()
-            .map_err(|_| NymdError::SerializationError("Coin".to_owned()))
+            .map_err(|_| NyxdError::SerializationError("Coin".to_owned()))
     }
 
-    async fn get_all_balances(&self, address: &AccountId) -> Result<Vec<Coin>, NymdError> {
+    async fn get_all_balances(&self, address: &AccountId) -> Result<Vec<Coin>, NyxdError> {
         let path = Some("/cosmos.bank.v1beta1.Query/AllBalances".parse().unwrap());
 
         let mut raw_balances = Vec::new();
@@ -164,10 +164,10 @@ pub trait CosmWasmClient: rpc::Client {
             .into_iter()
             .map(|proto| CosmosCoin::try_from(proto).map(Into::into))
             .collect::<Result<_, _>>()
-            .map_err(|_| NymdError::SerializationError("Coins".to_owned()))
+            .map_err(|_| NyxdError::SerializationError("Coins".to_owned()))
     }
 
-    async fn get_total_supply(&self) -> Result<Vec<Coin>, NymdError> {
+    async fn get_total_supply(&self) -> Result<Vec<Coin>, NyxdError> {
         let path = Some("/cosmos.bank.v1beta1.Query/TotalSupply".parse().unwrap());
 
         let mut supply = Vec::new();
@@ -192,14 +192,14 @@ pub trait CosmWasmClient: rpc::Client {
             .into_iter()
             .map(|proto| CosmosCoin::try_from(proto).map(Into::into))
             .collect::<Result<_, _>>()
-            .map_err(|_| NymdError::SerializationError("Coins".to_owned()))
+            .map_err(|_| NyxdError::SerializationError("Coins".to_owned()))
     }
 
-    async fn get_tx(&self, id: tx::Hash) -> Result<TxResponse, NymdError> {
+    async fn get_tx(&self, id: tx::Hash) -> Result<TxResponse, NyxdError> {
         Ok(self.tx(id, false).await?)
     }
 
-    async fn search_tx(&self, query: Query) -> Result<Vec<TxResponse>, NymdError> {
+    async fn search_tx(&self, query: Query) -> Result<Vec<TxResponse>, NyxdError> {
         // according to https://docs.tendermint.com/master/rpc/#/Info/tx_search
         // the maximum entries per page is 100 and the default is 30
         // so let's attempt to use the maximum
@@ -234,7 +234,7 @@ pub trait CosmWasmClient: rpc::Client {
     async fn broadcast_tx_async(
         &self,
         tx: Transaction,
-    ) -> Result<broadcast::tx_async::Response, NymdError> {
+    ) -> Result<broadcast::tx_async::Response, NyxdError> {
         Ok(rpc::Client::broadcast_tx_async(self, tx).await?)
     }
 
@@ -242,7 +242,7 @@ pub trait CosmWasmClient: rpc::Client {
     async fn broadcast_tx_sync(
         &self,
         tx: Transaction,
-    ) -> Result<broadcast::tx_sync::Response, NymdError> {
+    ) -> Result<broadcast::tx_sync::Response, NyxdError> {
         Ok(rpc::Client::broadcast_tx_sync(self, tx).await?)
     }
 
@@ -250,16 +250,16 @@ pub trait CosmWasmClient: rpc::Client {
     async fn broadcast_tx_commit(
         &self,
         tx: Transaction,
-    ) -> Result<broadcast::tx_commit::Response, NymdError> {
+    ) -> Result<broadcast::tx_commit::Response, NyxdError> {
         Ok(rpc::Client::broadcast_tx_commit(self, tx).await?)
     }
 
-    async fn broadcast_tx(&self, tx: Transaction) -> Result<TxResponse, NymdError> {
+    async fn broadcast_tx(&self, tx: Transaction) -> Result<TxResponse, NyxdError> {
         let broadcasted = CosmWasmClient::broadcast_tx_sync(self, tx).await?;
 
         if broadcasted.code.is_err() {
             let code_val = broadcasted.code.value();
-            return Err(NymdError::BroadcastTxErrorDeliverTx {
+            return Err(NyxdError::BroadcastTxErrorDeliverTx {
                 hash: broadcasted.hash,
                 height: None,
                 code: code_val,
@@ -276,7 +276,7 @@ pub trait CosmWasmClient: rpc::Client {
                 broadcasted.hash
             );
             if tokio::time::Instant::now().duration_since(start) >= self.broadcast_timeout() {
-                return Err(NymdError::BroadcastTimeout {
+                return Err(NyxdError::BroadcastTimeout {
                     hash: tx_hash,
                     timeout: self.broadcast_timeout(),
                 });
@@ -290,7 +290,7 @@ pub trait CosmWasmClient: rpc::Client {
         }
     }
 
-    async fn get_codes(&self) -> Result<Vec<Code>, NymdError> {
+    async fn get_codes(&self) -> Result<Vec<Code>, NyxdError> {
         let path = Some("/cosmwasm.wasm.v1.Query/Codes".parse().unwrap());
 
         let mut raw_codes = Vec::new();
@@ -317,7 +317,7 @@ pub trait CosmWasmClient: rpc::Client {
             .collect::<Result<_, _>>()
     }
 
-    async fn get_code_details(&self, code_id: ContractCodeId) -> Result<CodeDetails, NymdError> {
+    async fn get_code_details(&self, code_id: ContractCodeId) -> Result<CodeDetails, NyxdError> {
         let path = Some("/cosmwasm.wasm.v1.Query/Code".parse().unwrap());
 
         let req = QueryCodeRequest { code_id };
@@ -329,10 +329,10 @@ pub trait CosmWasmClient: rpc::Client {
         if let Some(code_info) = res.code_info {
             Ok(CodeDetails::new(code_info.try_into()?, res.data))
         } else {
-            Err(NymdError::NoCodeInformation(code_id))
+            Err(NyxdError::NoCodeInformation(code_id))
         }
     }
-    async fn get_contracts(&self, code_id: ContractCodeId) -> Result<Vec<AccountId>, NymdError> {
+    async fn get_contracts(&self, code_id: ContractCodeId) -> Result<Vec<AccountId>, NyxdError> {
         let path = Some("/cosmwasm.wasm.v1.Query/ContractsByCode".parse().unwrap());
 
         let mut raw_contracts = Vec::new();
@@ -360,10 +360,10 @@ pub trait CosmWasmClient: rpc::Client {
             .iter()
             .map(|raw| raw.parse())
             .collect::<Result<_, _>>()
-            .map_err(|_| NymdError::DeserializationError("Contract addresses".to_owned()))
+            .map_err(|_| NyxdError::DeserializationError("Contract addresses".to_owned()))
     }
 
-    async fn get_contract(&self, address: &AccountId) -> Result<Contract, NymdError> {
+    async fn get_contract(&self, address: &AccountId) -> Result<Contract, NyxdError> {
         let path = Some("/cosmwasm.wasm.v1.Query/ContractInfo".parse().unwrap());
 
         let req = QueryContractInfoRequest {
@@ -378,17 +378,17 @@ pub trait CosmWasmClient: rpc::Client {
         if let Some(contract_info) = res.contract_info {
             let address = response_address
                 .parse()
-                .map_err(|_| NymdError::MalformedAccountAddress(response_address))?;
+                .map_err(|_| NyxdError::MalformedAccountAddress(response_address))?;
             Ok(Contract::new(address, contract_info.try_into()?))
         } else {
-            Err(NymdError::NoContractInformation(address.clone()))
+            Err(NyxdError::NoContractInformation(address.clone()))
         }
     }
 
     async fn get_contract_code_history(
         &self,
         address: &AccountId,
-    ) -> Result<Vec<ContractCodeHistoryEntry>, NymdError> {
+    ) -> Result<Vec<ContractCodeHistoryEntry>, NyxdError> {
         let path = Some("/cosmwasm.wasm.v1.Query/ContractHistory".parse().unwrap());
 
         let mut raw_entries = Vec::new();
@@ -422,7 +422,7 @@ pub trait CosmWasmClient: rpc::Client {
         &self,
         address: &AccountId,
         query_data: Vec<u8>,
-    ) -> Result<Vec<u8>, NymdError> {
+    ) -> Result<Vec<u8>, NyxdError> {
         let path = Some("/cosmwasm.wasm.v1.Query/RawContractState".parse().unwrap());
 
         let req = QueryRawContractStateRequest {
@@ -441,7 +441,7 @@ pub trait CosmWasmClient: rpc::Client {
         &self,
         address: &AccountId,
         query_msg: &M,
-    ) -> Result<T, NymdError>
+    ) -> Result<T, NyxdError>
     where
         M: ?Sized + Serialize + Sync,
         for<'a> T: Deserialize<'a>,
@@ -478,7 +478,7 @@ pub trait CosmWasmClient: rpc::Client {
         &self,
         tx: Option<Tx>,
         tx_bytes: Vec<u8>,
-    ) -> Result<SimulateResponse, NymdError> {
+    ) -> Result<SimulateResponse, NyxdError> {
         let path = Some("/cosmos.tx.v1beta1.Service/Simulate".parse().unwrap());
 
         let req = SimulateRequest {

@@ -5,7 +5,7 @@
 
 import { JsonObject } from '@cosmjs/cosmwasm-stargate';
 // eslint-disable-next-line import/no-cycle
-import { INymdQuery } from './query-client';
+import { INyxdQuery } from './query-client';
 import {
   ContractStateParams,
   Delegation,
@@ -25,7 +25,7 @@ interface SmartContractQuery {
   queryContractSmart(address: string, queryMsg: Record<string, unknown>): Promise<JsonObject>;
 }
 
-export default class NymdQuerier implements INymdQuery {
+export default class NyxdQuerier implements INyxdQuery {
   client: SmartContractQuery;
 
   constructor(client: SmartContractQuery) {

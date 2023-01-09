@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nymd::cosmwasm_client::types::ContractCodeId;
+use crate::nyxd::cosmwasm_client::types::ContractCodeId;
 use cosmrs::{
     bip32,
     rpc::endpoint::abci_query::AbciQuery,
@@ -21,7 +21,7 @@ pub use cosmrs::rpc::{
 };
 
 #[derive(Debug, Error)]
-pub enum NymdError {
+pub enum NyxdError {
     #[error("No contract address is available to perform the call")]
     NoContractAddressAvailable,
 
@@ -148,10 +148,10 @@ pub enum NymdError {
 
 // The purpose of parsing the abci query result is that we want to generate the `pretty_log` if
 // possible.
-pub fn parse_abci_query_result(query_result: AbciQuery) -> Result<AbciQuery, NymdError> {
+pub fn parse_abci_query_result(query_result: AbciQuery) -> Result<AbciQuery, NyxdError> {
     match query_result.code {
         AbciCode::Ok => Ok(query_result),
-        AbciCode::Err(code) => Err(NymdError::AbciError {
+        AbciCode::Err(code) => Err(NyxdError::AbciError {
             code,
             log: query_result.log.clone(),
             pretty_log: try_parse_abci_log(&query_result.log),
@@ -172,10 +172,10 @@ fn try_parse_abci_log(log: &abci::Log) -> Option<String> {
     }
 }
 
-impl NymdError {
+impl NyxdError {
     pub fn is_tendermint_response_timeout(&self) -> bool {
         match &self {
-            NymdError::TendermintError(TendermintRpcError(
+            NyxdError::TendermintError(TendermintRpcError(
                 TendermintRpcErrorDetail::Response(err),
                 _,
             )) => {
@@ -202,7 +202,7 @@ impl NymdError {
 
     pub fn is_tendermint_response_duplicate(&self) -> bool {
         match &self {
-            NymdError::TendermintError(TendermintRpcError(
+            NyxdError::TendermintError(TendermintRpcError(
                 TendermintRpcErrorDetail::Response(err),
                 _,
             )) => {

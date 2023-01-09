@@ -9,7 +9,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::fmt::{Display, Formatter};
 use strum::{Display, EnumString, EnumVariantNames};
-use validator_client::nymd::Coin;
+use validator_client::nyxd::Coin;
 
 #[cfg(feature = "generate-ts")]
 use ts_rs::{Dependency, TS};

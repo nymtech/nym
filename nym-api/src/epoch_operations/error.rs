@@ -3,7 +3,7 @@
 
 use crate::node_status_api::models::NymApiStorageError;
 use thiserror::Error;
-use validator_client::nymd::error::NymdError;
+use validator_client::nyxd::error::NyxdError;
 use validator_client::ValidatorClientError;
 
 #[derive(Debug, Error)]
@@ -11,7 +11,7 @@ pub enum RewardingError {
     // #[error("There were no mixnodes to reward (network is dead)")]
     // NoMixnodesToReward,
     #[error("Failed to execute the smart contract - {0}")]
-    ContractExecutionFailure(NymdError),
+    ContractExecutionFailure(NyxdError),
 
     // The inner error should be modified at some point...
     #[error("We run into storage issues - {0}")]
@@ -32,8 +32,8 @@ pub enum RewardingError {
     },
 }
 
-impl From<NymdError> for RewardingError {
-    fn from(err: NymdError) -> Self {
+impl From<NyxdError> for RewardingError {
+    fn from(err: NyxdError) -> Self {
         RewardingError::ContractExecutionFailure(err)
     }
 }

@@ -1,11 +1,11 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nymd::coin::Coin;
-pub use crate::nymd::cosmwasm_client::client::CosmWasmClient;
-use crate::nymd::cosmwasm_client::types::ExecuteResult;
-use crate::nymd::error::NymdError;
-use crate::nymd::{Fee, NymdClient, SigningCosmWasmClient};
+use crate::nyxd::coin::Coin;
+pub use crate::nyxd::cosmwasm_client::client::CosmWasmClient;
+use crate::nyxd::cosmwasm_client::types::ExecuteResult;
+use crate::nyxd::error::NyxdError;
+use crate::nyxd::{Fee, NyxdClient, SigningCosmWasmClient};
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
@@ -21,7 +21,7 @@ pub trait MixnetSigningClient {
         fee: Option<Fee>,
         msg: MixnetExecuteMsg,
         funds: Vec<Coin>,
-    ) -> Result<ExecuteResult, NymdError>;
+    ) -> Result<ExecuteResult, NyxdError>;
 
     // state/sys-params-related
 
@@ -29,7 +29,7 @@ pub trait MixnetSigningClient {
         &self,
         address: AccountId,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::UpdateRewardingValidatorAddress {
@@ -44,7 +44,7 @@ pub trait MixnetSigningClient {
         &self,
         updated_parameters: ContractStateParams,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::UpdateContractStateParams { updated_parameters },
@@ -58,7 +58,7 @@ pub trait MixnetSigningClient {
         active_set_size: u32,
         force_immediately: bool,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::UpdateActiveSetSize {
@@ -75,7 +75,7 @@ pub trait MixnetSigningClient {
         updated_params: IntervalRewardingParamsUpdate,
         force_immediately: bool,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::UpdateRewardingParams {
@@ -93,7 +93,7 @@ pub trait MixnetSigningClient {
         epoch_duration_secs: u64,
         force_immediately: bool,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::UpdateIntervalConfig {
@@ -111,7 +111,7 @@ pub trait MixnetSigningClient {
         new_rewarded_set: Vec<LayerAssignment>,
         expected_active_set_size: u32,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::AdvanceCurrentEpoch {
@@ -127,7 +127,7 @@ pub trait MixnetSigningClient {
         &self,
         limit: Option<u32>,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::ReconcileEpochEvents { limit },
@@ -142,7 +142,7 @@ pub trait MixnetSigningClient {
         owner_signature: String,
         label: String,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::CreateFamily {
@@ -160,7 +160,7 @@ pub trait MixnetSigningClient {
         owner_signature: String,
         label: String,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::CreateFamilyOnBehalf {
@@ -178,7 +178,7 @@ pub trait MixnetSigningClient {
         signature: String,
         family_head: String,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::JoinFamily {
@@ -196,7 +196,7 @@ pub trait MixnetSigningClient {
         signature: String,
         family_head: String,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::JoinFamilyOnBehalf {
@@ -214,7 +214,7 @@ pub trait MixnetSigningClient {
         signature: String,
         family_head: String,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::LeaveFamily {
@@ -232,7 +232,7 @@ pub trait MixnetSigningClient {
         signature: String,
         family_head: String,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::LeaveFamilyOnBehalf {
@@ -250,7 +250,7 @@ pub trait MixnetSigningClient {
         signature: String,
         member: String,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::KickFamilyMember { signature, member },
@@ -265,7 +265,7 @@ pub trait MixnetSigningClient {
         signature: String,
         member: String,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::KickFamilyMemberOnBehalf {
@@ -286,7 +286,7 @@ pub trait MixnetSigningClient {
         owner_signature: String,
         pledge: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::BondMixnode {
@@ -307,7 +307,7 @@ pub trait MixnetSigningClient {
         owner_signature: String,
         pledge: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::BondMixnodeOnBehalf {
@@ -325,7 +325,7 @@ pub trait MixnetSigningClient {
         &self,
         additional_pledge: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::PledgeMore {},
@@ -339,7 +339,7 @@ pub trait MixnetSigningClient {
         owner: AccountId,
         additional_pledge: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::PledgeMoreOnBehalf {
@@ -350,7 +350,7 @@ pub trait MixnetSigningClient {
         .await
     }
 
-    async fn unbond_mixnode(&self, fee: Option<Fee>) -> Result<ExecuteResult, NymdError> {
+    async fn unbond_mixnode(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(fee, MixnetExecuteMsg::UnbondMixnode {}, vec![])
             .await
     }
@@ -359,7 +359,7 @@ pub trait MixnetSigningClient {
         &self,
         owner: AccountId,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::UnbondMixnodeOnBehalf {
@@ -374,7 +374,7 @@ pub trait MixnetSigningClient {
         &self,
         new_costs: MixNodeCostParams,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::UpdateMixnodeCostParams { new_costs },
@@ -388,7 +388,7 @@ pub trait MixnetSigningClient {
         owner: AccountId,
         new_costs: MixNodeCostParams,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::UpdateMixnodeCostParamsOnBehalf {
@@ -404,7 +404,7 @@ pub trait MixnetSigningClient {
         &self,
         new_config: MixNodeConfigUpdate,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::UpdateMixnodeConfig { new_config },
@@ -418,7 +418,7 @@ pub trait MixnetSigningClient {
         owner: AccountId,
         new_config: MixNodeConfigUpdate,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::UpdateMixnodeConfigOnBehalf {
@@ -438,7 +438,7 @@ pub trait MixnetSigningClient {
         owner_signature: String,
         pledge: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::BondGateway {
@@ -457,7 +457,7 @@ pub trait MixnetSigningClient {
         owner_signature: String,
         pledge: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::BondGatewayOnBehalf {
@@ -470,7 +470,7 @@ pub trait MixnetSigningClient {
         .await
     }
 
-    async fn unbond_gateway(&self, fee: Option<Fee>) -> Result<ExecuteResult, NymdError> {
+    async fn unbond_gateway(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(fee, MixnetExecuteMsg::UnbondGateway {}, vec![])
             .await
     }
@@ -479,7 +479,7 @@ pub trait MixnetSigningClient {
         &self,
         owner: AccountId,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::UnbondGatewayOnBehalf {
@@ -497,7 +497,7 @@ pub trait MixnetSigningClient {
         mix_id: MixId,
         amount: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::DelegateToMixnode { mix_id },
@@ -512,7 +512,7 @@ pub trait MixnetSigningClient {
         mix_id: MixId,
         amount: Coin,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::DelegateToMixnodeOnBehalf {
@@ -528,7 +528,7 @@ pub trait MixnetSigningClient {
         &self,
         mix_id: MixId,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::UndelegateFromMixnode { mix_id },
@@ -542,7 +542,7 @@ pub trait MixnetSigningClient {
         delegate: AccountId,
         mix_id: MixId,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::UndelegateFromMixnodeOnBehalf {
@@ -561,7 +561,7 @@ pub trait MixnetSigningClient {
         mix_id: MixId,
         performance: Performance,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::RewardMixnode {
@@ -573,7 +573,7 @@ pub trait MixnetSigningClient {
         .await
     }
 
-    async fn withdraw_operator_reward(&self, fee: Option<Fee>) -> Result<ExecuteResult, NymdError> {
+    async fn withdraw_operator_reward(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(fee, MixnetExecuteMsg::WithdrawOperatorReward {}, vec![])
             .await
     }
@@ -582,7 +582,7 @@ pub trait MixnetSigningClient {
         &self,
         owner: AccountId,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::WithdrawOperatorRewardOnBehalf {
@@ -597,7 +597,7 @@ pub trait MixnetSigningClient {
         &self,
         mix_id: MixId,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::WithdrawDelegatorReward { mix_id },
@@ -611,7 +611,7 @@ pub trait MixnetSigningClient {
         owner: AccountId,
         mix_id: MixId,
         fee: Option<Fee>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
             MixnetExecuteMsg::WithdrawDelegatorRewardOnBehalf {
@@ -625,7 +625,7 @@ pub trait MixnetSigningClient {
 }
 
 #[async_trait]
-impl<C> MixnetSigningClient for NymdClient<C>
+impl<C> MixnetSigningClient for NyxdClient<C>
 where
     C: SigningCosmWasmClient + Sync + Send,
 {
@@ -634,7 +634,7 @@ where
         fee: Option<Fee>,
         msg: MixnetExecuteMsg,
         funds: Vec<Coin>,
-    ) -> Result<ExecuteResult, NymdError> {
+    ) -> Result<ExecuteResult, NyxdError> {
         let fee = fee.unwrap_or(Fee::Auto(Some(self.simulated_gas_multiplier)));
         let memo = msg.default_memo();
         self.client
@@ -660,7 +660,7 @@ where
         fee: Option<Fee>,
         msg: MixnetExecuteMsg,
         funds: Vec<Coin>,
-    ) -> Result<ExecuteResult, NymdError> {
-        self.nymd.execute_mixnet_contract(fee, msg, funds).await
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.nyxd.execute_mixnet_contract(fee, msg, funds).await
     }
 }

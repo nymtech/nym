@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nymd::error::NymdError;
+use crate::nyxd::error::NyxdError;
 use cosmrs::proto::cosmos::base::query::v1beta1::{PageRequest, PageResponse};
 use cosmrs::proto::cosmos::base::v1beta1::Coin as ProtoCoin;
 use cosmrs::rpc::endpoint::broadcast;
@@ -11,13 +11,13 @@ use flate2::Compression;
 use std::io::Write;
 
 pub(crate) trait CheckResponse: Sized {
-    fn check_response(self) -> Result<Self, NymdError>;
+    fn check_response(self) -> Result<Self, NyxdError>;
 }
 
 impl CheckResponse for broadcast::tx_commit::Response {
-    fn check_response(self) -> Result<Self, NymdError> {
+    fn check_response(self) -> Result<Self, NyxdError> {
         if self.check_tx.code.is_err() {
-            return Err(NymdError::BroadcastTxErrorCheckTx {
+            return Err(NyxdError::BroadcastTxErrorCheckTx {
                 hash: self.hash,
                 height: Some(self.height),
                 code: self.check_tx.code.value(),
@@ -26,7 +26,7 @@ impl CheckResponse for broadcast::tx_commit::Response {
         }
 
         if self.deliver_tx.code.is_err() {
-            return Err(NymdError::BroadcastTxErrorDeliverTx {
+            return Err(NyxdError::BroadcastTxErrorDeliverTx {
                 hash: self.hash,
                 height: Some(self.height),
                 code: self.deliver_tx.code.value(),
@@ -38,10 +38,10 @@ impl CheckResponse for broadcast::tx_commit::Response {
     }
 }
 
-impl CheckResponse for crate::nymd::TxResponse {
-    fn check_response(self) -> Result<Self, NymdError> {
+impl CheckResponse for crate::nyxd::TxResponse {
+    fn check_response(self) -> Result<Self, NyxdError> {
         if self.tx_result.code.is_err() {
-            return Err(NymdError::BroadcastTxErrorDeliverTx {
+            return Err(NyxdError::BroadcastTxErrorDeliverTx {
                 hash: self.hash,
                 height: Some(self.height),
                 code: self.tx_result.code.value(),
@@ -53,13 +53,13 @@ impl CheckResponse for crate::nymd::TxResponse {
     }
 }
 
-pub(crate) fn compress_wasm_code(code: &[u8]) -> Result<Vec<u8>, NymdError> {
+pub(crate) fn compress_wasm_code(code: &[u8]) -> Result<Vec<u8>, NyxdError> {
     // using compression level 9, same as cosmjs, that optimises for size
     let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
     encoder
         .write_all(code)
-        .map_err(NymdError::WasmCompressionError)?;
-    encoder.finish().map_err(NymdError::WasmCompressionError)
+        .map_err(NyxdError::WasmCompressionError)?;
+    encoder.finish().map_err(NyxdError::WasmCompressionError)
 }
 
 pub(crate) fn create_pagination(key: Vec<u8>) -> PageRequest {
@@ -84,11 +84,11 @@ pub(crate) fn next_page_key(pagination_info: Option<PageResponse>) -> Option<Vec
     None
 }
 
-pub(crate) fn parse_proto_coin_vec(value: Vec<ProtoCoin>) -> Result<Vec<Coin>, NymdError> {
+pub(crate) fn parse_proto_coin_vec(value: Vec<ProtoCoin>) -> Result<Vec<Coin>, NyxdError> {
     value
         .into_iter()
         .map(|proto_coin| {
-            Coin::try_from(&proto_coin).map_err(|_| NymdError::MalformedCoin {
+            Coin::try_from(&proto_coin).map_err(|_| NyxdError::MalformedCoin {
                 coin_representation: format!("{:?}", proto_coin),
             })
         })

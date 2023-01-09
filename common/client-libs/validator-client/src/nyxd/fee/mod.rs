@@ -1,8 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nymd::Coin;
-use crate::nymd::Gas;
+use crate::nyxd::Coin;
+use crate::nyxd::Gas;
 use cosmrs::{tx, AccountId};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};

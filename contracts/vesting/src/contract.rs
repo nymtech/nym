@@ -573,7 +573,7 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
             start_next_after,
             limit,
         } => to_binary(&try_get_all_accounts(deps, start_next_after, limit)?),
-        QueryMsg::GetAccountsLockedCoinsPaged {
+        QueryMsg::GetAccountsVestingCoinsPaged {
             start_next_after,
             limit,
         } => to_binary(&try_get_all_accounts_locked_coins(

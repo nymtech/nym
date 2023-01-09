@@ -40,12 +40,12 @@ pub trait VestingQueryClient {
         .await
     }
 
-    async fn get_all_accounts_locked_coins_paged(
+    async fn get_all_accounts_vesting_coins_paged(
         &self,
         start_next_after: Option<String>,
         limit: Option<u32>,
     ) -> Result<VestingCoinsResponse, NyxdError> {
-        self.query_vesting_contract(VestingQueryMsg::GetAccountsLockedCoinsPaged {
+        self.query_vesting_contract(VestingQueryMsg::GetAccountsVestingCoinsPaged {
             start_next_after,
             limit,
         })

@@ -138,9 +138,9 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
 
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
-    let gateway = client_core::init::setup_gateway::<Config, _>(
+    let gateway = client_core::init::setup_gateway_from_config::<Config, _>(
         register_gateway,
-        user_chosen_gateway_id.map(|id| id.to_base58_string()),
+        user_chosen_gateway_id,
         config.get_base(),
     )
     .await

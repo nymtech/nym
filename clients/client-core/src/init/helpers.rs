@@ -18,7 +18,7 @@ use url::Url;
 
 pub(super) async fn query_gateway_details(
     validator_servers: Vec<Url>,
-    chosen_gateway_id: Option<String>,
+    chosen_gateway_id: Option<identity::PublicKey>,
 ) -> Result<gateway::Node, ClientCoreError> {
     let nym_api = validator_servers
         .choose(&mut thread_rng())
@@ -40,7 +40,7 @@ pub(super) async fn query_gateway_details(
     if let Some(gateway_id) = chosen_gateway_id {
         filtered_gateways
             .iter()
-            .find(|gateway| gateway.identity_key.to_base58_string() == gateway_id)
+            .find(|gateway| gateway.identity_key == gateway_id)
             .ok_or_else(|| ClientCoreError::NoGatewayWithId(gateway_id.to_string()))
             .cloned()
     } else {

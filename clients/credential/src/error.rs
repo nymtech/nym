@@ -7,33 +7,21 @@ use credential_storage::error::StorageError;
 use credentials::error::Error as CredentialError;
 use crypto::asymmetric::encryption::KeyRecoveryError;
 use crypto::asymmetric::identity::Ed25519RecoveryError;
-use validator_client::nymd::error::NymdError;
+use validator_client::nyxd::error::NyxdError;
 use validator_client::ValidatorClientError;
 
 pub type Result<T> = std::result::Result<T, CredentialClientError>;
 
 #[derive(Error, Debug)]
 pub enum CredentialClientError {
-    #[error("Nymd error: {0}")]
-    Nymd(#[from] NymdError),
+    #[error("Nyxd error: {0}")]
+    Nyxd(#[from] NyxdError),
 
     #[error("Validator client error: {0}")]
     ValidatorClientError(#[from] ValidatorClientError),
 
     #[error("Credential error: {0}")]
     Credential(#[from] CredentialError),
-
-    #[error("No previous deposit with that tx hash")]
-    NoDeposit,
-
-    #[error("Wrong number of attributes")]
-    WrongAttributeNumber,
-
-    #[error("Could not find any backed up blind sign request data")]
-    NoLocalBlindSignRequest,
-
-    #[error("The local blind sign request data is corrupted")]
-    CorruptedBlindSignRequest,
 
     #[error("The tx hash provided is not valid")]
     InvalidTxHash,

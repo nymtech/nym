@@ -11,6 +11,6 @@ pub enum Errors {
     #[error("signature error - {0}")]
     SignatureError(#[from] k256::ecdsa::signature::Error),
 
-    #[error("{0}")]
+    #[error(transparent)]
     CosmrsError(#[from] cosmrs::ErrorReport),
 }

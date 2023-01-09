@@ -1,14 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Box, Checkbox, FormControlLabel, FormHelperText, Stack, TextField } from '@mui/material';
+import { Box, Checkbox, FormControlLabel, FormHelperText, Stack, TextField, Typography } from '@mui/material';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { CurrencyDenom, TNodeType } from '@nymproject/types';
 import { checkHasEnoughFunds, checkHasEnoughLockedTokens } from 'src/utils';
 import { NodeTypeSelector, TokenPoolSelector } from 'src/components';
 import { MixnodeAmount, MixnodeData } from 'src/pages/bonding/types';
+import { ModalListItem } from 'src/components/Modals/ModalListItem';
 import { amountSchema, mixnodeValidationSchema } from './mixnodeValidationSchema';
+import { AppContext } from 'src/context';
 
 const NodeFormData = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNext: (data: any) => void }) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
@@ -138,6 +140,8 @@ const AmountFormData = ({
     setError,
   } = useForm({ resolver: yupResolver(amountSchema), defaultValues: amountData });
 
+  const { userBalance } = useContext(AppContext);
+
   const handleRequestValidation = async (event: { detail: { step: number } }) => {
     let hasSufficientTokens = true;
     const values = getValues();
@@ -209,6 +213,17 @@ const AmountFormData = ({
           The percentage of node rewards that you as the node operator take before rewards are distributed to operator
           and delegators.
         </FormHelperText>
+      </Box>
+      <Box sx={{ mb: 1 }}>
+        {!hasVestingTokens && (
+          <ModalListItem
+            divider
+            label="Account balance"
+            value={userBalance.balance?.printable_balance.toUpperCase()}
+            fontWeight={600}
+          />
+        )}
+        <Typography variant="body2">Est. fee for this transaction will be calculated in the next page</Typography>
       </Box>
     </Stack>
   );

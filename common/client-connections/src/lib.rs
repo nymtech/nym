@@ -1,18 +1,19 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::collections::HashMap;
-
 use futures::channel::mpsc;
+use std::collections::HashMap;
 
 pub type ConnectionId = u64;
 
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub enum TransmissionLane {
     General,
-    Reply,
+    // we need to treat surb-related requests and responses at higher priority
+    // so that the rest of underlying communication could actually continue
+    ReplySurbRequest,
+    AdditionalReplySurbs,
     Retransmission,
-    Control,
     ConnectionId(ConnectionId),
 }
 

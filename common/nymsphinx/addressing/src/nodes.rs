@@ -5,6 +5,7 @@ use crypto::asymmetric::identity;
 use nymsphinx_types::{NodeAddressBytes, NODE_ADDRESS_LENGTH};
 use std::convert::{TryFrom, TryInto};
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use thiserror::Error;
 
 // Not entirely sure whether this is the correct place for those, but let's see how it's going
 // to work out
@@ -20,10 +21,23 @@ pub const NODE_IDENTITY_SIZE: usize = identity::PUBLIC_KEY_LENGTH;
 /// In this case it's an ipv6 socket address (with version prefix)
 pub const MAX_NODE_ADDRESS_UNPADDED_LEN: usize = 19;
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum NymNodeRoutingAddressError {
-    InsufficientNumberOfBytesAvailableError,
-    InvalidIpVersion,
+    #[error("Attempted to deserialize NymNodeRoutingAddress without providing any bytes")]
+    NoBytesProvided,
+
+    #[error("Provided insufficient amount of few bytes to deserialize a valid NymNodeRoutingAddress for IPv{protocol_version} variant. Received {received} and required {required}")]
+    TooFewBytesProvided {
+        protocol_version: u8,
+        received: usize,
+        required: usize,
+    },
+
+    #[error("{received} is not a valid version of the Internet Protocol (IP). Expected either '4' or '6'")]
+    InvalidIpVersion { received: u8 },
+
+    #[error("Could not serialize NymNodeRoutingAddress into NodeAddressBytes as that requires using at least {required} bytes and only {NODE_ADDRESS_LENGTH} are available")]
+    TooSmallBytesRepresentation { required: usize },
 }
 
 /// Current representation of Node routing information used in Nym system.
@@ -84,27 +98,38 @@ impl NymNodeRoutingAddress {
     /// Tries to recover `Self` from a bytes slice.
     /// Does not care if it's zero-padded or not.
     pub fn try_from_bytes(b: &[u8]) -> Result<Self, NymNodeRoutingAddressError> {
-        // the bare minimum to represent `Self` is 7 bytes (for the shorter V4 version)
-        if b.len() < 7 {
-            return Err(NymNodeRoutingAddressError::InsufficientNumberOfBytesAvailableError);
+        if b.is_empty() {
+            return Err(NymNodeRoutingAddressError::NoBytesProvided);
         }
 
         let ip_version = b[0];
-        let port: u16 = u16::from_be_bytes([b[1], b[2]]);
         let ip = match ip_version {
-            4 => IpAddr::V4(Ipv4Addr::new(b[3], b[4], b[5], b[6])),
+            4 => {
+                if b.len() < 7 {
+                    return Err(NymNodeRoutingAddressError::TooFewBytesProvided {
+                        protocol_version: 4,
+                        received: b.len(),
+                        required: 7,
+                    });
+                }
+                IpAddr::V4(Ipv4Addr::new(b[3], b[4], b[5], b[6]))
+            }
             6 => {
                 if b.len() < 19 {
-                    return Err(
-                        NymNodeRoutingAddressError::InsufficientNumberOfBytesAvailableError,
-                    );
+                    return Err(NymNodeRoutingAddressError::TooFewBytesProvided {
+                        protocol_version: 6,
+                        received: b.len(),
+                        required: 19,
+                    });
                 }
                 let mut address_octets = [0u8; 16];
                 address_octets.copy_from_slice(&b[3..19]);
                 IpAddr::V6(Ipv6Addr::from(address_octets))
             }
-            _ => return Err(NymNodeRoutingAddressError::InvalidIpVersion),
+            v => return Err(NymNodeRoutingAddressError::InvalidIpVersion { received: v }),
         };
+
+        let port: u16 = u16::from_be_bytes([b[1], b[2]]);
 
         Ok(Self(SocketAddr::new(ip, port)))
     }
@@ -148,7 +173,9 @@ impl TryInto<NodeAddressBytes> for NymNodeRoutingAddress {
     fn try_into(self) -> Result<NodeAddressBytes, Self::Error> {
         // first check if we have enough bytes to represent `self`:
         if self.bytes_min_len() > NODE_ADDRESS_LENGTH {
-            return Err(NymNodeRoutingAddressError::InsufficientNumberOfBytesAvailableError);
+            return Err(NymNodeRoutingAddressError::TooSmallBytesRepresentation {
+                required: self.bytes_min_len(),
+            });
         }
 
         let padded_address = self.as_zero_padded_bytes(NODE_ADDRESS_LENGTH);

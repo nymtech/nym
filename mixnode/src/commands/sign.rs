@@ -1,4 +1,4 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use std::convert::TryFrom;
@@ -11,19 +11,21 @@ use clap::{ArgGroup, Args};
 use config::NymConfig;
 use crypto::asymmetric::identity;
 use log::error;
+use validator_client::nyxd;
 
 use super::version_check;
 
 #[derive(Args, Clone)]
-#[clap(group(ArgGroup::new("sign").required(true).args(&["address", "text"])))]
+#[clap(group(ArgGroup::new("sign").required(true).args(&["wallet_address", "text"])))]
 pub(crate) struct Sign {
     /// The id of the mixnode you want to sign with
     #[clap(long)]
     id: String,
 
     /// Signs your blockchain address with your identity key
-    #[clap(long)]
-    address: Option<String>,
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    #[clap(long, alias = "address")]
+    wallet_address: Option<nyxd::AccountId>,
 
     /// Signs an arbitrary piece of text with your identity key
     #[clap(long)]
@@ -32,7 +34,7 @@ pub(crate) struct Sign {
 
 enum SignedTarget {
     Text(String),
-    Address(String),
+    Address(nyxd::AccountId),
 }
 
 impl TryFrom<Sign> for SignedTarget {
@@ -41,7 +43,7 @@ impl TryFrom<Sign> for SignedTarget {
     fn try_from(args: Sign) -> Result<Self, Self::Error> {
         if let Some(text) = args.text {
             Ok(SignedTarget::Text(text))
-        } else if let Some(address) = args.address {
+        } else if let Some(address) = args.wallet_address {
             Ok(SignedTarget::Address(address))
         } else {
             // This is unreachable, and hopefully clap will support it explicitly by outputting an
@@ -52,15 +54,12 @@ impl TryFrom<Sign> for SignedTarget {
     }
 }
 
-fn print_signed_address(private_key: &identity::PrivateKey, raw_address: &str) {
-    let trimmed = raw_address.trim();
-    validate_bech32_address_or_exit(trimmed);
-    let signature = private_key.sign_text(trimmed);
+fn print_signed_address(private_key: &identity::PrivateKey, wallet_address: nyxd::AccountId) {
+    // perform extra validation to ensure we have correct prefix
+    validate_bech32_address_or_exit(wallet_address.as_ref());
 
-    println!(
-        "The base58-encoded signature on '{}' is: {}",
-        trimmed, signature
-    );
+    let signature = private_key.sign_text(wallet_address.as_ref());
+    println!("The base58-encoded signature on '{wallet_address}' is: {signature}",);
 }
 
 fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {
@@ -107,6 +106,6 @@ pub(crate) fn execute(args: &Sign) {
 
     match signed_target {
         SignedTarget::Text(text) => print_signed_text(identity_keypair.private_key(), &text),
-        SignedTarget::Address(addr) => print_signed_address(identity_keypair.private_key(), &addr),
+        SignedTarget::Address(addr) => print_signed_address(identity_keypair.private_key(), addr),
     }
 }

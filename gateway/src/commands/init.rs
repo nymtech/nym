@@ -1,13 +1,17 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
     commands::{override_config, OverrideConfig},
     config::{persistence::pathfinder::GatewayPathfinder, Config},
+    OutputFormat,
 };
 use clap::Args;
 use config::NymConfig;
 use crypto::asymmetric::{encryption, identity};
+use std::net::IpAddr;
+use std::path::PathBuf;
+use validator_client::nyxd;
 
 #[derive(Args, Clone)]
 pub struct Init {
@@ -17,11 +21,11 @@ pub struct Init {
 
     /// The custom host on which the gateway will be running for receiving sphinx packets
     #[clap(long)]
-    host: String,
+    host: IpAddr,
 
     /// The wallet address you will use to bond this gateway, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9
     #[clap(long)]
-    wallet_address: String,
+    wallet_address: nyxd::AccountId,
 
     /// The port on which the gateway will be listening for sphinx packets
     #[clap(long)]
@@ -33,36 +37,46 @@ pub struct Init {
 
     /// The host that will be reported to the directory server
     #[clap(long)]
+    // TODO: could this be changed to `Option<url::Url>`?
     announce_host: Option<String>,
 
     /// Path to sqlite database containing all gateway persistent data
     #[clap(long)]
-    datastore: Option<String>,
+    datastore: Option<PathBuf>,
 
-    /// Comma separated list of endpoints of the validators APIs
-    #[clap(long)]
-    validator_apis: Option<String>,
+    /// Comma separated list of endpoints of nym APIs
+    #[clap(long, alias = "validator_apis", value_delimiter = ',')]
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    nym_apis: Option<Vec<url::Url>>,
 
     /// Comma separated list of endpoints of the validator
-    #[clap(long)]
-    validators: Option<String>,
+    #[cfg(feature = "coconut")]
+    #[clap(
+        long,
+        alias = "validators",
+        alias = "nymd_validators",
+        value_delimiter = ','
+    )]
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    nyxd_urls: Option<Vec<url::Url>>,
 
     /// Cosmos wallet mnemonic needed for double spending protection
     #[clap(long)]
-    mnemonic: Option<String>,
+    mnemonic: Option<bip39::Mnemonic>,
 
-    /// Set this gateway to work in a enabled credentials mode that would disallow clients to bypass bandwidth credential requirement
+    /// Set this gateway to work only with coconut credentials; that would disallow clients to
+    /// bypass bandwidth credential requirement
     #[cfg(feature = "coconut")]
     #[clap(long)]
-    enabled_credentials_mode: Option<bool>,
+    only_coconut_credentials: bool,
 
     /// Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server
     #[clap(long)]
-    enabled_statistics: Option<bool>,
+    enabled_statistics: bool,
 
     /// URL where a statistics aggregator is running. The default value is a Nym aggregator server
     #[clap(long)]
-    statistics_service_url: Option<String>,
+    statistics_service_url: Option<url::Url>,
 }
 
 impl From<Init> for OverrideConfig {
@@ -74,20 +88,21 @@ impl From<Init> for OverrideConfig {
             clients_port: init_config.clients_port,
             datastore: init_config.datastore,
             announce_host: init_config.announce_host,
-            validator_apis: init_config.validator_apis,
-            validators: init_config.validators,
+            nym_apis: init_config.nym_apis,
             mnemonic: init_config.mnemonic,
-
-            #[cfg(feature = "coconut")]
-            enabled_credentials_mode: init_config.enabled_credentials_mode,
 
             enabled_statistics: init_config.enabled_statistics,
             statistics_service_url: init_config.statistics_service_url,
+
+            #[cfg(feature = "coconut")]
+            nyxd_urls: init_config.nyxd_urls,
+            #[cfg(feature = "coconut")]
+            only_coconut_credentials: init_config.only_coconut_credentials,
         }
     }
 }
 
-pub async fn execute(args: &Init) {
+pub async fn execute(args: &Init, output: OutputFormat) {
     println!("Initialising gateway {}...", args.id);
 
     let already_init = if Config::default_config_file_path(Some(&args.id)).exists() {
@@ -143,7 +158,7 @@ pub async fn execute(args: &Init) {
 
     crate::node::create_gateway(config)
         .await
-        .print_node_details();
+        .print_node_details(output);
 }
 
 #[cfg(test)]
@@ -158,19 +173,20 @@ mod tests {
     async fn create_gateway_with_in_mem_storage() {
         let args = Init {
             id: "foo-id".to_string(),
-            host: "foo-host".to_string(),
-            wallet_address: "n1z9egw0knv47nmur0p8vk4rcx59h9gg4zjx9ede".to_string(),
+            host: "1.1.1.1".parse().unwrap(),
+            wallet_address: "n1z9egw0knv47nmur0p8vk4rcx59h9gg4zjx9ede".parse().unwrap(),
             mix_port: Some(42),
             clients_port: Some(43),
             announce_host: Some("foo-announce-host".to_string()),
-            datastore: Some("foo-datastore".to_string()),
-            validator_apis: None,
-            validators: None,
+            datastore: Some("/foo-datastore".parse().unwrap()),
+            nym_apis: None,
             mnemonic: None,
             statistics_service_url: None,
-            enabled_statistics: None,
+            enabled_statistics: false,
             #[cfg(feature = "coconut")]
-            enabled_credentials_mode: None,
+            nyxd_urls: None,
+            #[cfg(feature = "coconut")]
+            only_coconut_credentials: false,
         };
         std::env::set_var(BECH32_PREFIX, "n");
 

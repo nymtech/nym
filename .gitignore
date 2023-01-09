@@ -38,3 +38,6 @@ validator-config
 validator-api-config.toml
 dist
 storybook-static
+envs/qwerty.env
+Cargo.lock
+nym-connect/Cargo.lock

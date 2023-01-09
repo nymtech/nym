@@ -19,9 +19,9 @@ version = '{{ gateway.version }}'
 # Human readable ID of this particular gateway.
 id = '{{ gateway.id }}'
 
-# Indicates whether this gateway is running in a disabled credentials mode, thus allowing clients
-# to claim bandwidth without presenting bandwidth credentials.
-disabled_credentials_mode = {{ gateway.disabled_credentials_mode }}
+# Indicates whether this gateway is accepting only coconut credentials for accessing the
+# the mixnet, or if it also accepts non-paying clients
+only_coconut_credentials = {{ gateway.only_coconut_credentials }}
 
 # Socket address to which this gateway will bind to and will be listening for packets.
 listening_address = '{{ gateway.listening_address }}'
@@ -60,15 +60,15 @@ enabled_statistics = {{ gateway.enabled_statistics }}
 statistics_service_url = '{{ gateway.statistics_service_url }}'
 
 # Addresses to APIs running on validator from which the node gets the view of the network.
-validator_api_urls = [
-    {{#each gateway.validator_api_urls }}
+nym_api_urls = [
+    {{#each gateway.nym_api_urls }}
         '{{this}}',
     {{/each}}
 ]
 
-# Addresses to validators which the node uses to check for double spending of ERC20 tokens.
-validator_nymd_urls = [
-    {{#each gateway.validator_nymd_urls }}
+# Addresses to validators which the node uses to check for double spending of nym tokens.
+nyxd_urls = [
+    {{#each gateway.nyxd_urls }}
         '{{this}}',
     {{/each}}
 ]

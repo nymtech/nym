@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::action_controller::{Action, ActionSender};
+use super::action_controller::{AckActionSender, Action};
 use futures::StreamExt;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
@@ -16,14 +16,14 @@ use std::sync::Arc;
 pub(super) struct AcknowledgementListener {
     ack_key: Arc<AckKey>,
     ack_receiver: AcknowledgementReceiver,
-    action_sender: ActionSender,
+    action_sender: AckActionSender,
 }
 
 impl AcknowledgementListener {
     pub(super) fn new(
         ack_key: Arc<AckKey>,
         ack_receiver: AcknowledgementReceiver,
-        action_sender: ActionSender,
+        action_sender: AckActionSender,
     ) -> Self {
         AcknowledgementListener {
             ack_key,
@@ -49,11 +49,6 @@ impl AcknowledgementListener {
         if frag_id == COVER_FRAG_ID {
             trace!("Received an ack for a cover message - no need to do anything");
             return;
-        } else if frag_id.is_reply() {
-            info!("Received an ack for a reply message - no need to do anything! (don't know what to do!)");
-            // TODO: probably there will need to be some extra procedure here, something to notify
-            // user that his reply reached the recipient (since we got an ack)
-            return;
         }
 
         trace!("Received {} from the mix network", frag_id);
@@ -70,7 +65,7 @@ impl AcknowledgementListener {
         }
     }
 
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
         debug!("Started AcknowledgementListener with graceful shutdown support");
 
         while !shutdown.is_shutdown() {
@@ -82,22 +77,12 @@ impl AcknowledgementListener {
                         break;
                     }
                 },
-                _ = shutdown.recv() => {
+                _ = shutdown.recv_with_delay() => {
                     log::trace!("AcknowledgementListener: Received shutdown");
                 }
             }
         }
         shutdown.recv_timeout().await;
         log::debug!("AcknowledgementListener: Exiting");
-    }
-
-    // todo: think whether this is still required
-    #[allow(dead_code)]
-    pub(super) async fn run(&mut self) {
-        debug!("Started AcknowledgementListener without graceful shutdown support");
-
-        while let Some(acks) = self.ack_receiver.next().await {
-            self.handle_ack_receiver_item(acks).await
-        }
     }
 }

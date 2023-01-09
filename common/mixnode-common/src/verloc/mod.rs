@@ -9,10 +9,11 @@ use futures::StreamExt;
 use log::*;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use std::net::{SocketAddr, ToSocketAddrs};
+use std::net::SocketAddr;
+use std::net::ToSocketAddrs;
 use std::sync::Arc;
 use std::time::Duration;
-use task::ShutdownListener;
+use task::TaskClient;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use url::Url;
@@ -69,8 +70,8 @@ pub struct Config {
     /// due to being unable to get the list of nodes.
     retry_timeout: Duration,
 
-    /// URLs to the validator apis for obtaining network topology.
-    validator_api_urls: Vec<Url>,
+    /// URLs to the nym apis for obtaining network topology.
+    nym_api_urls: Vec<Url>,
 }
 
 impl Config {
@@ -132,15 +133,15 @@ impl ConfigBuilder {
         self
     }
 
-    pub fn validator_api_urls(mut self, validator_api_urls: Vec<Url>) -> Self {
-        self.0.validator_api_urls = validator_api_urls;
+    pub fn nym_api_urls(mut self, nym_api_urls: Vec<Url>) -> Self {
+        self.0.nym_api_urls = nym_api_urls;
         self
     }
 
     pub fn build(self) -> Config {
         // panics here are fine as those are only ever constructed at the initial setup
         assert!(
-            !self.0.validator_api_urls.is_empty(),
+            !self.0.nym_api_urls.is_empty(),
             "at least one validator endpoint must be provided",
         );
         self.0
@@ -159,7 +160,7 @@ impl Default for ConfigBuilder {
             tested_nodes_batch_size: DEFAULT_BATCH_SIZE,
             testing_interval: DEFAULT_TESTING_INTERVAL,
             retry_timeout: DEFAULT_RETRY_TIMEOUT,
-            validator_api_urls: vec![],
+            nym_api_urls: vec![],
         })
     }
 }
@@ -168,7 +169,7 @@ pub struct VerlocMeasurer {
     config: Config,
     packet_sender: Arc<PacketSender>,
     packet_listener: Arc<PacketListener>,
-    shutdown_listener: ShutdownListener,
+    shutdown_listener: TaskClient,
 
     currently_used_api: usize,
 
@@ -176,7 +177,7 @@ pub struct VerlocMeasurer {
     // It only does bunch of REST queries. If we update it at some point to a more sophisticated (maybe signing) client,
     // then it definitely cannot be constructed here and probably will need to be passed from outside,
     // as mixnodes/gateways would already be using an instance of said client.
-    validator_client: validator_client::ApiClient,
+    validator_client: validator_client::NymApiClient,
     results: AtomicVerlocResult,
 }
 
@@ -184,9 +185,9 @@ impl VerlocMeasurer {
     pub fn new(
         mut config: Config,
         identity: Arc<identity::KeyPair>,
-        shutdown_listener: ShutdownListener,
+        shutdown_listener: TaskClient,
     ) -> Self {
-        config.validator_api_urls.shuffle(&mut thread_rng());
+        config.nym_api_urls.shuffle(&mut thread_rng());
 
         VerlocMeasurer {
             packet_sender: Arc::new(PacketSender::new(
@@ -204,24 +205,21 @@ impl VerlocMeasurer {
             )),
             shutdown_listener,
             currently_used_api: 0,
-            validator_client: validator_client::ApiClient::new(
-                config.validator_api_urls[0].clone(),
-            ),
+            validator_client: validator_client::NymApiClient::new(config.nym_api_urls[0].clone()),
             config,
             results: AtomicVerlocResult::new(),
         }
     }
 
-    fn use_next_validator_api(&mut self) {
-        if self.config.validator_api_urls.len() == 1 {
+    fn use_next_nym_api(&mut self) {
+        if self.config.nym_api_urls.len() == 1 {
             warn!("There's only a single validator API available - it won't be possible to use a different one");
             return;
         }
 
-        self.currently_used_api =
-            (self.currently_used_api + 1) % self.config.validator_api_urls.len();
+        self.currently_used_api = (self.currently_used_api + 1) % self.config.nym_api_urls.len();
         self.validator_client
-            .change_validator_api(self.config.validator_api_urls[self.currently_used_api].clone())
+            .change_nym_api(self.config.nym_api_urls[self.currently_used_api].clone())
     }
 
     pub fn get_verloc_results_pointer(&self) -> AtomicVerlocResult {
@@ -308,7 +306,7 @@ impl VerlocMeasurer {
                         "failed to obtain list of mixnodes from the validator - {}. Going to attempt to use another validator API in the next run",
                         err
                     );
-                    self.use_next_validator_api();
+                    self.use_next_nym_api();
                     sleep(self.config.retry_timeout).await;
                     continue;
                 }

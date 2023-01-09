@@ -1,9 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use self::sending_delay_controller::SendingDelayController;
 use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
+use crate::client::transmission_buffer::TransmissionBuffer;
 use client_connections::{
     ConnectionCommand, ConnectionCommandReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
 };
@@ -16,6 +18,7 @@ use nymsphinx::chunking::fragment::FragmentIdentifier;
 use nymsphinx::cover::generate_loop_cover_packet;
 use nymsphinx::forwarding::packet::MixPacket;
 use nymsphinx::params::PacketSize;
+use nymsphinx::preparer::PreparedFragment;
 use nymsphinx::utils::sample_poisson_duration;
 use rand::{CryptoRng, Rng};
 use std::pin::Pin;
@@ -28,25 +31,16 @@ use tokio::time;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
 
-use self::{
-    sending_delay_controller::SendingDelayController, transmission_buffer::TransmissionBuffer,
-};
-
 mod sending_delay_controller;
-mod transmission_buffer;
-
-#[cfg(not(target_arch = "wasm32"))]
-fn get_time_now() -> time::Instant {
-    time::Instant::now()
-}
-
-#[cfg(target_arch = "wasm32")]
-fn get_time_now() -> wasm_timer::Instant {
-    wasm_timer::Instant::now()
-}
 
 /// Configurable parameters of the `OutQueueControl`
 pub(crate) struct Config {
+    /// Key used to encrypt and decrypt content of an ACK packet.
+    ack_key: Arc<AckKey>,
+
+    /// Represents full address of this client.
+    our_full_destination: Recipient,
+
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
     average_ack_delay: Duration,
 
@@ -66,12 +60,16 @@ pub(crate) struct Config {
 
 impl Config {
     pub(crate) fn new(
+        ack_key: Arc<AckKey>,
+        our_full_destination: Recipient,
         average_ack_delay: Duration,
         average_packet_delay: Duration,
         average_message_sending_delay: Duration,
         disable_poisson_packet_distribution: bool,
     ) -> Self {
         Config {
+            ack_key,
+            our_full_destination,
             average_ack_delay,
             average_packet_delay,
             average_message_sending_delay,
@@ -92,9 +90,6 @@ where
 {
     /// Configurable parameters of the `ActionController`
     config: Config,
-
-    /// Key used to encrypt and decrypt content of an ACK packet.
-    ack_key: Arc<AckKey>,
 
     /// Channel used for notifying of a real packet being sent out. Used to start up retransmission timer.
     sent_notifier: SentPacketNotificationSender,
@@ -119,9 +114,6 @@ where
     /// before being sent out into the network.
     real_receiver: BatchRealMessageReceiver,
 
-    /// Represents full address of this client.
-    our_full_destination: Recipient,
-
     /// Instance of a cryptographically secure random number generator.
     rng: R,
 
@@ -130,7 +122,7 @@ where
 
     /// Buffer containing all incoming real messages keyed by transmission lane, that we will send
     /// out to the mixnet.
-    transmission_buffer: TransmissionBuffer,
+    transmission_buffer: TransmissionBuffer<RealMessage>,
 
     /// Incoming channel for being notified of closed connections, so that we can close lanes
     /// corresponding to connections. To avoid sending traffic unnecessary
@@ -144,9 +136,23 @@ where
 pub(crate) struct RealMessage {
     mix_packet: MixPacket,
     fragment_id: FragmentIdentifier,
+    // TODO: add info about it being constructed with reply-surb
+}
+
+impl From<PreparedFragment> for RealMessage {
+    fn from(fragment: PreparedFragment) -> Self {
+        RealMessage {
+            mix_packet: fragment.mix_packet,
+            fragment_id: fragment.fragment_identifier,
+        }
+    }
 }
 
 impl RealMessage {
+    pub(crate) fn packet_size(&self) -> usize {
+        self.mix_packet.sphinx_packet().len()
+    }
+
     pub(crate) fn new(mix_packet: MixPacket, fragment_id: FragmentIdentifier) -> Self {
         RealMessage {
             mix_packet,
@@ -175,28 +181,24 @@ where
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         config: Config,
-        ack_key: Arc<AckKey>,
+        rng: R,
         sent_notifier: SentPacketNotificationSender,
         mix_tx: BatchMixMessageSender,
         real_receiver: BatchRealMessageReceiver,
-        rng: R,
-        our_full_destination: Recipient,
         topology_access: TopologyAccessor,
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
     ) -> Self {
         OutQueueControl {
             config,
-            ack_key,
             sent_notifier,
             next_delay: None,
             sending_delay_controller: Default::default(),
             mix_tx,
             real_receiver,
-            our_full_destination,
             rng,
             topology_access,
-            transmission_buffer: Default::default(),
+            transmission_buffer: TransmissionBuffer::new(),
             client_connection_rx,
             lane_queue_lengths,
         }
@@ -220,24 +222,23 @@ where
                 // poisson delay, but is it really a problem?
                 let topology_permit = self.topology_access.get_read_permit().await;
                 // the ack is sent back to ourselves (and then ignored)
-                let topology_ref_option = topology_permit.try_get_valid_topology_ref(
-                    &self.our_full_destination,
-                    Some(&self.our_full_destination),
-                );
-                if topology_ref_option.is_none() {
-                    warn!(
-                        "No valid topology detected - won't send any loop cover message this time"
-                    );
-                    return;
-                }
-                let topology_ref = topology_ref_option.unwrap();
+                let topology_ref = match topology_permit.try_get_valid_topology_ref(
+                    &self.config.our_full_destination,
+                    Some(&self.config.our_full_destination),
+                ) {
+                    Ok(topology) => topology,
+                    Err(err) => {
+                        warn!("We're not going to send any loop cover message this time, as the current topology seem to be invalid - {err}");
+                        return;
+                    }
+                };
 
                 (
                     generate_loop_cover_packet(
                         &mut self.rng,
                         topology_ref,
-                        &self.ack_key,
-                        &self.our_full_destination,
+                        &self.config.ack_key,
+                        &self.config.our_full_destination,
                         self.config.average_ack_delay,
                         self.config.average_packet_delay,
                         self.config.cover_packet_size,
@@ -254,7 +255,7 @@ where
         };
 
         if let Err(err) = self.mix_tx.send(vec![next_message]).await {
-            log::error!("Failed to send: {}", err);
+            log::error!("Failed to send: {err}");
         }
 
         // notify ack controller about sending our message only after we actually managed to push it
@@ -318,7 +319,9 @@ where
 
     fn pop_next_message(&mut self) -> Option<RealMessage> {
         // Pop the next message from the transmission buffer
-        let (lane, real_next) = self.transmission_buffer.pop_next_message_at_random()?;
+        let (lane, real_next) = self
+            .transmission_buffer
+            .pop_next_message_at_random(&mut self.rng)?;
 
         // Update the published queue length
         let lane_length = self.transmission_buffer.lane_length(&lane);
@@ -459,7 +462,9 @@ where
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn log_status(&self) {
+    fn log_status(&self, shutdown: &mut task::TaskClient) {
+        use crate::error::ClientCoreStatusMessage;
+
         let packets = self.transmission_buffer.total_size();
         let backlog = self.transmission_buffer.total_size_in_bytes() as f64 / 1024.0;
         let lanes = self.transmission_buffer.num_lanes();
@@ -483,19 +488,26 @@ where
         } else {
             log::debug!("{status_str}");
         }
+
+        // Send status message to whoever is listening (possibly UI)
+        if mult == self.sending_delay_controller.max_multiplier() {
+            shutdown.send_status_msg(Box::new(ClientCoreStatusMessage::GatewayIsVerySlow));
+        } else if mult > self.sending_delay_controller.min_multiplier() {
+            shutdown.send_status_msg(Box::new(ClientCoreStatusMessage::GatewayIsSlow));
+        }
     }
 
     #[cfg(not(target_arch = "wasm32"))]
     fn log_status_infrequent(&self) {
         if self.sending_delay_controller.current_multiplier() > 1 {
             log::warn!(
-                "Unable to send packets fast enough - sending delay multiplier set to: {}",
+                "Unable to send packets at the default rate - rate reduced by setting the delay multiplier set to: {}",
                 self.sending_delay_controller.current_multiplier()
             );
         }
     }
 
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::ShutdownListener) {
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
         debug!("Started OutQueueControl with graceful shutdown support");
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -506,11 +518,11 @@ where
             while !shutdown.is_shutdown() {
                 tokio::select! {
                     biased;
-                    _ = shutdown.recv() => {
+                    _ = shutdown.recv_with_delay() => {
                         log::trace!("OutQueueControl: Received shutdown");
                     }
                     _ = status_timer.tick() => {
-                        self.log_status();
+                        self.log_status(&mut shutdown);
                     }
                     _ = infrequent_status_timer.tick() => {
                         self.log_status_infrequent();
@@ -546,16 +558,6 @@ where
             }
         }
         log::debug!("OutQueueControl: Exiting");
-    }
-
-    // todo: think whether this is still required
-    #[allow(dead_code)]
-    pub(super) async fn run(&mut self) {
-        debug!("Started OutQueueControl without graceful shutdown support");
-
-        while let Some(next_message) = self.next().await {
-            self.on_message(next_message).await;
-        }
     }
 }
 

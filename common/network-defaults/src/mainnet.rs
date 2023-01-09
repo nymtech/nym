@@ -9,7 +9,7 @@ pub(crate) const BECH32_PREFIX: &str = "n";
 pub const MIX_DENOM: DenomDetails = DenomDetails::new("unym", "nym", 6);
 pub const STAKE_DENOM: DenomDetails = DenomDetails::new("unyx", "nyx", 6);
 
-pub(crate) const MIXNET_CONTRACT_ADDRESS: &str =
+pub const MIXNET_CONTRACT_ADDRESS: &str =
     "n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr";
 pub(crate) const VESTING_CONTRACT_ADDRESS: &str =
     "n1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq73f2nw";
@@ -25,11 +25,11 @@ pub(crate) const _ETH_ERC20_CONTRACT_ADDRESS: [u8; 20] =
     hex_literal::hex!("0000000000000000000000000000000000000000");
 pub(crate) const REWARDING_VALIDATOR_ADDRESS: &str = "n10yyd98e2tuwu0f7ypz9dy3hhjw7v772q6287gy";
 
-pub(crate) const STATISTICS_SERVICE_DOMAIN_ADDRESS: &str = "https://mainnet-stats.nymte.ch:8090/";
-pub const NYMD_VALIDATOR: &str = "https://rpc.nymtech.net";
-pub const API_VALIDATOR: &str = "https://validator.nymtech.net/api/";
+pub const STATISTICS_SERVICE_DOMAIN_ADDRESS: &str = "https://mainnet-stats.nymte.ch:8090/";
+pub const NYXD_URL: &str = "https://rpc.nymtech.net";
+pub const NYM_API: &str = "https://validator.nymtech.net/api/";
 pub(crate) fn validators() -> Vec<ValidatorDetails> {
-    vec![ValidatorDetails::new(NYMD_VALIDATOR, Some(API_VALIDATOR))]
+    vec![ValidatorDetails::new(NYXD_URL, Some(NYM_API))]
 }
 
 const DEFAULT_SUFFIX: &str = "_MAINNET_DEFAULT";
@@ -97,8 +97,8 @@ pub fn export_to_env() {
         var_names::STATISTICS_SERVICE_DOMAIN_ADDRESS,
         STATISTICS_SERVICE_DOMAIN_ADDRESS,
     );
-    set_var_to_default(var_names::NYMD_VALIDATOR, NYMD_VALIDATOR);
-    set_var_to_default(var_names::API_VALIDATOR, API_VALIDATOR);
+    set_var_to_default(var_names::NYXD, NYXD_URL);
+    set_var_to_default(var_names::NYM_API, NYM_API);
 }
 
 pub fn export_to_env_if_not_set() {
@@ -141,6 +141,6 @@ pub fn export_to_env_if_not_set() {
         var_names::STATISTICS_SERVICE_DOMAIN_ADDRESS,
         STATISTICS_SERVICE_DOMAIN_ADDRESS,
     );
-    set_var_conditionally_to_default(var_names::NYMD_VALIDATOR, NYMD_VALIDATOR);
-    set_var_conditionally_to_default(var_names::API_VALIDATOR, API_VALIDATOR);
+    set_var_conditionally_to_default(var_names::NYXD, NYXD_URL);
+    set_var_conditionally_to_default(var_names::NYM_API, NYM_API);
 }

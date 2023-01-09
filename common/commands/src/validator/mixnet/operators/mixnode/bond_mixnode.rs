@@ -9,8 +9,8 @@ use mixnet_contract_common::{Coin, MixNodeCostParams, Percent};
 use network_defaults::{
     DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT,
 };
-use validator_client::nymd::traits::MixnetSigningClient;
-use validator_client::nymd::CosmWasmCoin;
+use validator_client::nyxd::traits::MixnetSigningClient;
+use validator_client::nyxd::CosmWasmCoin;
 
 use crate::context::SigningClient;
 

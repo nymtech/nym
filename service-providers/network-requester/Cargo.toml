@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-network-requester"
-version = "1.1.1"
+version = "1.1.4"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2021"
 rust-version = "1.65"
@@ -12,7 +12,7 @@ rust-version = "1.65"
 
 [dependencies]
 async-trait = { version = "0.1.51" }
-clap = {version = "3.2", features = ["derive"]}
+clap = {version = "4.0", features = ["derive"]}
 dirs = "4.0"
 futures = "0.3.24"
 ipnetwork = "0.20.0"

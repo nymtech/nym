@@ -8,7 +8,7 @@ git checkout "${WASMD_VERSION}"
 WASMD_COMMIT_HASH=$(git rev-parse HEAD)
 mkdir build
 go build \
-    -o build/nymd -mod=readonly -tags "netgo,ledger" \
+    -o build/nyxd -mod=readonly -tags "netgo,ledger" \
     -ldflags "-X github.com/cosmos/cosmos-sdk/version.Name=nymd \
     -X github.com/cosmos/cosmos-sdk/version.AppName=nymd \
     -X github.com/CosmWasm/wasmd/app.NodeDir=.nymd \

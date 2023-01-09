@@ -7,8 +7,8 @@ import { mockSleep } from './utils';
 const SLEEP_MS = 1000;
 
 const bondedMixnodeMock: TBondedMixnode = {
-  name: 'Monster node',
   mixId: 1,
+  name: 'Monster node',
   identityKey: '7mjM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
   stake: { denom: 'nym', amount: '1234' },
   bond: { denom: 'nym', amount: '1234' },
@@ -28,9 +28,11 @@ const bondedMixnodeMock: TBondedMixnode = {
   verlocPort: 1790,
   version: '1.0.2',
   isUnbonding: false,
+  uptime: 1,
 };
 
 const bondedGatewayMock: TBondedGateway = {
+  id: 1,
   name: 'Monster node',
   identityKey: 'WayM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
   ip: '112.43.234.57',
@@ -152,7 +154,7 @@ export const MockBondingContextProvider = ({
     return TxResultMock;
   };
 
-  const bondMore = async (_signature: string, _additionalBond: DecCoin) => {
+  const bondMore = async (): Promise<TransactionExecuteResult> => {
     setIsLoading(true);
     await mockSleep(SLEEP_MS);
     triggerStateUpdate();

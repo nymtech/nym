@@ -8,13 +8,11 @@ use coconut_interface::{
 use crypto::asymmetric::encryption::PublicKey;
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
-use validator_api_requests::coconut::BlindSignRequestBody;
+use nym_api_requests::coconut::BlindSignRequestBody;
 use validator_client::client::CoconutApiClient;
 
 use crate::coconut::bandwidth::{BandwidthVoucher, PRIVATE_ATTRIBUTES, PUBLIC_ATTRIBUTES};
-use crate::coconut::params::{
-    ValidatorApiCredentialEncryptionAlgorithm, ValidatorApiCredentialHkdfAlgorithm,
-};
+use crate::coconut::params::{NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm};
 use crate::error::Error;
 
 pub async fn obtain_aggregate_verification_key(
@@ -39,7 +37,7 @@ pub async fn obtain_aggregate_verification_key(
 async fn obtain_partial_credential(
     params: &Parameters,
     attributes: &BandwidthVoucher,
-    client: &validator_client::client::ApiClient,
+    client: &validator_client::client::NymApiClient,
     validator_vk: &VerificationKey,
 ) -> Result<Signature, Error> {
     let public_attributes = attributes.get_public_attributes();
@@ -66,11 +64,11 @@ async fn obtain_partial_credential(
     let remote_key = PublicKey::from_bytes(&response.remote_key)?;
 
     let encryption_key = recompute_shared_key::<
-        ValidatorApiCredentialEncryptionAlgorithm,
-        ValidatorApiCredentialHkdfAlgorithm,
+        NymApiCredentialEncryptionAlgorithm,
+        NymApiCredentialHkdfAlgorithm,
     >(&remote_key, attributes.encryption_key());
-    let zero_iv = stream_cipher::zero_iv::<ValidatorApiCredentialEncryptionAlgorithm>();
-    let blinded_signature_bytes = stream_cipher::decrypt::<ValidatorApiCredentialEncryptionAlgorithm>(
+    let zero_iv = stream_cipher::zero_iv::<NymApiCredentialEncryptionAlgorithm>();
+    let blinded_signature_bytes = stream_cipher::decrypt::<NymApiCredentialEncryptionAlgorithm>(
         &encryption_key,
         &zero_iv,
         &encrypted_signature,

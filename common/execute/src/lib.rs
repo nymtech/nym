@@ -53,13 +53,13 @@ pub fn execute(attr: TokenStream, item: TokenStream) -> TokenStream {
     );
 
     let execute_output = quote! {
-        -> Result<ExecuteResult, NymdError>
+        -> Result<ExecuteResult, NyxdError>
     };
     let o_ts = proc_macro::TokenStream::from(execute_output);
     execute_f.sig.output = parse_macro_input!(o_ts as ReturnType);
 
     let simulate_output = quote! {
-        -> Result<SimulateResponse, NymdError>
+        -> Result<SimulateResponse, NyxdError>
     };
     let o_ts = proc_macro::TokenStream::from(simulate_output);
     simulate_f.sig.output = parse_macro_input!(o_ts as ReturnType);

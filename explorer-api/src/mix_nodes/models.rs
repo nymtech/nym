@@ -13,6 +13,7 @@ use tokio::sync::{RwLock, RwLockReadGuard};
 use crate::helpers::best_effort_small_dec_to_f64;
 use validator_client::models::MixNodeBondAnnotated;
 
+use super::utils::family_numerical_id;
 use crate::mix_node::models::{MixnodeStatus, PrettyDetailedMixNodeBond};
 use crate::mix_nodes::location::{Location, LocationCache, LocationCacheItem};
 use crate::mix_nodes::CACHE_ENTRY_TTL;
@@ -140,6 +141,8 @@ impl ThreadsafeMixNodesCache {
         let denom = &node.mixnode_details.original_pledge().denom;
         let rewarding_info = &node.mixnode_details.rewarding_details;
 
+        let family_id = node.family.as_ref().map(family_numerical_id);
+
         PrettyDetailedMixNodeBond {
             mix_id,
             location: location.and_then(|l| l.location.clone()),
@@ -157,6 +160,7 @@ impl ThreadsafeMixNodesCache {
             estimated_delegators_apy: best_effort_small_dec_to_f64(node.estimated_delegators_apy),
             operating_cost: rewarding_info.cost_params.interval_operating_cost.clone(),
             profit_margin_percent: rewarding_info.cost_params.profit_margin_percent,
+            family_id,
         }
     }
 

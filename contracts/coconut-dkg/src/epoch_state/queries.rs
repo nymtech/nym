@@ -1,13 +1,48 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::storage;
-use crate::ContractError;
-use coconut_dkg_common::types::EpochState;
+use crate::epoch_state::storage::{CURRENT_EPOCH, THRESHOLD};
+use crate::error::ContractError;
+use coconut_dkg_common::types::Epoch;
 use cosmwasm_std::Storage;
 
-pub(crate) fn query_current_epoch_state(
+pub(crate) fn query_current_epoch(storage: &dyn Storage) -> Result<Epoch, ContractError> {
+    CURRENT_EPOCH
+        .load(storage)
+        .map_err(|_| ContractError::EpochNotInitialised)
+}
+
+pub(crate) fn query_current_epoch_threshold(
     storage: &dyn Storage,
-) -> Result<EpochState, ContractError> {
-    storage::current_epoch_state(storage)
+) -> Result<Option<u64>, ContractError> {
+    Ok(THRESHOLD.may_load(storage)?)
+}
+
+#[cfg(test)]
+pub(crate) mod test {
+    use super::*;
+    use crate::support::tests::helpers::init_contract;
+    use coconut_dkg_common::types::{EpochState, PUBLIC_KEY_SUBMISSION_TIME_SECS};
+    use cosmwasm_std::testing::mock_env;
+
+    #[test]
+    fn query_state() {
+        let mut deps = init_contract();
+        let epoch = query_current_epoch(deps.as_mut().storage).unwrap();
+        assert_eq!(epoch.state, EpochState::PublicKeySubmission);
+        assert_eq!(
+            epoch.finish_timestamp,
+            mock_env()
+                .block
+                .time
+                .plus_seconds(PUBLIC_KEY_SUBMISSION_TIME_SECS)
+        );
+    }
+
+    #[test]
+    fn query_threshold() {
+        let mut deps = init_contract();
+        let state = query_current_epoch_threshold(deps.as_mut().storage).unwrap();
+        assert!(state.is_none());
+    }
 }

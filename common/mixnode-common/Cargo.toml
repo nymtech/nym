@@ -16,6 +16,7 @@ serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1.21.2", features = ["time", "macros", "rt", "net", "io-util"] }
 tokio-util = { version = "0.7.3", features = ["codec"] }
 url = "2.2"
+thiserror = "1.0.37"
 
 crypto =  { path = "../crypto" }
 nymsphinx-acknowledgements = { path = "../nymsphinx/acknowledgements" }
@@ -25,5 +26,5 @@ nymsphinx-framing = { path = "../nymsphinx/framing" }
 nymsphinx-params = { path = "../nymsphinx/params" }
 nymsphinx-types = { path = "../nymsphinx/types" }
 task = { path = "../task" }
-validator-client = { path = "../client-libs/validator-client" }
+validator-client = { path = "../client-libs/validator-client", features = ["nyxd-client"]}
 version-checker = { path = "../version-checker" }

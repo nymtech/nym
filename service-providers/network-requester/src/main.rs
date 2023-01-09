@@ -63,7 +63,7 @@ impl Run {
                 .unwrap_or(&DEFAULT_WEBSOCKET_LISTENING_PORT.to_string())
         );
 
-        println!("Starting socks5 service provider:");
+        log::info!("Starting socks5 service provider");
         let mut server = core::ServiceProvider::new(
             uri,
             self.open_proxy,
@@ -98,8 +98,8 @@ pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {
 
     match &args.command {
         Commands::Run(r) => r.execute().await?,
-        Commands::Completions(s) => s.generate(&mut crate::Cli::into_app(), bin_name),
-        Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::into_app(), bin_name),
+        Commands::Completions(s) => s.generate(&mut crate::Cli::command(), bin_name),
+        Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::command(), bin_name),
     }
     Ok(())
 }

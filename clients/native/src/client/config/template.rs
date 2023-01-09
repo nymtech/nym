@@ -23,16 +23,16 @@ id = '{{ client.id }}'
 # to claim bandwidth without presenting bandwidth credentials.
 disabled_credentials_mode = {{ client.disabled_credentials_mode }}
 
-# Addresses to nymd validators via which the client can communicate with the chain.
-validator_urls = [
-    {{#each client.validator_urls }}
+# Addresses to nyxd validators via which the client can communicate with the chain.
+nyxd_urls = [
+    {{#each client.nyxd_urls }}
         '{{this}}',
     {{/each}}
 ]
 
 # Addresses to APIs running on validator from which the client gets the view of the network.
-validator_api_urls = [
-    {{#each client.validator_api_urls }}
+nym_api_urls = [
+    {{#each client.nym_api_urls }}
         '{{this}}',
     {{/each}}
 ]
@@ -49,12 +49,11 @@ private_encryption_key_file = '{{ client.private_encryption_key_file }}'
 # Path to file containing public encryption key.
 public_encryption_key_file = '{{ client.public_encryption_key_file }}'
 
-# Full path to file containing reply encryption keys of all reply-SURBs we have ever
-# sent but not received back.
-reply_encryption_key_store_path = '{{ client.reply_encryption_key_store_path }}'
-
 # Path to the database containing bandwidth credentials
 database_path = '{{ client.database_path }}'
+
+# Path to the persistent store for received reply surbs, unused encryption keys and used sender tags.
+reply_surb_database_path = '{{ client.reply_surb_database_path }}'
 
 ##### additional client config options #####
 

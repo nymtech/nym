@@ -28,7 +28,8 @@
     "react-dom": "17",
     "@nymproject/nym-validator-client": "^0.18.0",
     "@nymproject/types": "1",
-    "base58": "4"
+    "base58": "4",
+    "bech32": "^1.1.4"
   },
   "dependencies": {
     "flat": "^5.0.2",

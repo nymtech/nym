@@ -32,19 +32,19 @@ pub struct ValidatorUrl {
 )]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Validator {
-    pub nymd_url: String,
-    pub nymd_name: Option<String>,
+    pub nyxd_url: String,
+    pub nyxd_name: Option<String>,
     pub api_url: Option<String>,
 }
 
 impl fmt::Display for Validator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let nymd_url = format!("nymd_url: {}", self.nymd_url);
+        let nyxd_url = format!("nyxd_url: {}", self.nyxd_url);
         let api_url = self
             .api_url
             .as_ref()
             .map(|api_url| format!(", api_url: {}", api_url))
             .unwrap_or_default();
-        write!(f, "{nymd_url}{api_url}")
+        write!(f, "{nyxd_url}{api_url}")
     }
 }

@@ -11,7 +11,7 @@ use std::{
     collections::{HashMap, HashSet},
     time::Duration,
 };
-use task::ShutdownListener;
+use task::TaskClient;
 use tokio::time;
 
 /// A generic message produced after reading from a socket/connection. It includes data that was
@@ -53,7 +53,7 @@ impl ActiveConnection {
         let ordered_message = match OrderedMessage::try_from_bytes(payload) {
             Ok(msg) => msg,
             Err(err) => {
-                error!("Malformed ordered message - {:?}", err);
+                error!("Malformed ordered message - {err}");
                 return;
             }
         };
@@ -98,14 +98,14 @@ pub struct Controller {
     // un-order messages. Note we don't ever expect to have more than 1-2 messages per connection here
     pending_messages: HashMap<ConnectionId, Vec<(Vec<u8>, bool)>>,
 
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl Controller {
     pub fn new(
         client_connection_tx: ConnectionCommandSender,
         broadcast_connections: BroadcastActiveConnections,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> (Self, ControllerSender) {
         let (sender, receiver) = mpsc::unbounded();
         (
@@ -158,9 +158,9 @@ impl Controller {
             .unbounded_send(ConnectionCommand::Close(conn_id))
         {
             if self.shutdown.is_shutdown_poll() {
-                log::debug!("Failed to send: {}", err);
+                log::debug!("Failed to send: {err}");
             } else {
-                log::error!("Failed to send: {}", err);
+                log::error!("Failed to send: {err}");
             }
         }
     }
@@ -197,7 +197,7 @@ impl Controller {
                         socket_closed: active_connection.is_closed,
                     })
                 {
-                    error!("WTF IS THIS: {:?}", err);
+                    error!("WTF IS THIS: {err}");
                 }
 
                 // TODO: ABOVE UNWRAP CAUSED A CRASH IN A NORMAL USE!!!!

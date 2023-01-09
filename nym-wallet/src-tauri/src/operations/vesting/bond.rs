@@ -1,5 +1,5 @@
 use crate::error::BackendError;
-use crate::nymd_client;
+use crate::nyxd_client;
 use crate::state::WalletState;
 use crate::{Gateway, MixNode};
 use mixnet_contract_common::MixNodeConfigUpdate;
@@ -7,7 +7,7 @@ use mixnet_contract_common::MixNodeConfigUpdate;
 use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
 use nym_types::transaction::TransactionExecuteResult;
-use validator_client::nymd::{Fee, VestingSigningClient};
+use validator_client::nyxd::{Fee, VestingSigningClient};
 
 #[tauri::command]
 pub async fn vesting_bond_gateway(
@@ -30,7 +30,7 @@ pub async fn vesting_bond_gateway(
     );
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .vesting_bond_gateway(gateway, &owner_signature, pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
@@ -51,7 +51,7 @@ pub async fn vesting_unbond_gateway(
         ">>> Unbond gateway bonded with locked tokens, fee = {:?}",
         fee
     );
-    let res = nymd_client!(state).vesting_unbond_gateway(fee).await?;
+    let res = nyxd_client!(state).vesting_unbond_gateway(fee).await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
     Ok(TransactionExecuteResult::from_execute_result(
@@ -83,8 +83,35 @@ pub async fn vesting_bond_mixnode(
     );
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .vesting_bond_mixnode(mixnode, cost_params, &owner_signature, pledge_base, fee)
+        .await?;
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
+}
+
+#[tauri::command]
+pub async fn vesting_pledge_more(
+    fee: Option<Fee>,
+    additional_pledge: DecCoin,
+    state: tauri::State<'_, WalletState>,
+) -> Result<TransactionExecuteResult, BackendError> {
+    let guard = state.read().await;
+    let additional_pledge_base = guard.attempt_convert_to_base_coin(additional_pledge.clone())?;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+    log::info!(
+        ">>> Pledge more with locked tokens, additional_pledge_display = {}, additional_pledge_base = {}, fee = {:?}",
+        additional_pledge,
+        additional_pledge_base,
+        fee,
+    );
+    let res = guard
+        .current_client()?
+        .nyxd
+        .vesting_pledge_more(additional_pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
@@ -106,7 +133,7 @@ pub async fn vesting_unbond_mixnode(
     );
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .vesting_unbond_mixnode(fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
@@ -134,7 +161,7 @@ pub async fn withdraw_vested_coins(
     );
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .withdraw_vested_coins(amount_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
@@ -162,7 +189,7 @@ pub async fn vesting_update_mixnode_cost_params(
     );
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .vesting_update_mixnode_cost_params(cost_params, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
@@ -187,7 +214,7 @@ pub async fn vesting_update_mixnode_config(
     );
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .vesting_update_mixnode_config(update, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);

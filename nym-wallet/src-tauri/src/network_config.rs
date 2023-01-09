@@ -7,17 +7,17 @@ use nym_wallet_types::network::Network as WalletNetwork;
 use nym_wallet_types::network_config::{Validator, ValidatorUrl, ValidatorUrls};
 
 #[tauri::command]
-pub async fn get_validator_nymd_urls(
+pub async fn get_nyxd_urls(
     network: WalletNetwork,
     state: tauri::State<'_, WalletState>,
 ) -> Result<ValidatorUrls, BackendError> {
     let state = state.read().await;
-    let urls: Vec<ValidatorUrl> = state.get_nymd_urls(network).collect();
+    let urls: Vec<ValidatorUrl> = state.get_nyxd_urls(network).collect();
     Ok(ValidatorUrls { urls })
 }
 
 #[tauri::command]
-pub async fn get_validator_api_urls(
+pub async fn get_nym_api_urls(
     network: WalletNetwork,
     state: tauri::State<'_, WalletState>,
 ) -> Result<ValidatorUrls, BackendError> {
@@ -27,27 +27,24 @@ pub async fn get_validator_api_urls(
 }
 
 #[tauri::command]
-pub async fn select_validator_nymd_url(
+pub async fn select_nyxd_url(
     url: &str,
     network: WalletNetwork,
     state: tauri::State<'_, WalletState>,
 ) -> Result<(), BackendError> {
-    log::debug!("Selecting new validator nymd_url for {network}: {url}");
-    state
-        .write()
-        .await
-        .select_validator_nymd_url(url, network)?;
+    log::debug!("Selecting new nyxd url for {network}: {url}");
+    state.write().await.select_nyxd_url(url, network)?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn select_validator_api_url(
+pub async fn select_nym_api_url(
     url: &str,
     network: WalletNetwork,
     state: tauri::State<'_, WalletState>,
 ) -> Result<(), BackendError> {
-    log::debug!("Selecting new validator api_url for {network}: {url}");
-    state.write().await.select_validator_api_url(url, network)?;
+    log::debug!("Selecting new  nym api url for {network}: {url}");
+    state.write().await.select_nym_api_url(url, network)?;
     Ok(())
 }
 
@@ -77,10 +74,8 @@ pub async fn remove_validator(
 
 // Update the list of validators by fecthing additional ones remotely. If it fails, just ignore.
 #[tauri::command]
-pub async fn update_validator_urls(
-    state: tauri::State<'_, WalletState>,
-) -> Result<(), BackendError> {
+pub async fn update_nyxd_urls(state: tauri::State<'_, WalletState>) -> Result<(), BackendError> {
     let mut w_state = state.write().await;
-    let _r = w_state.fetch_updated_validator_urls().await;
+    let _r = w_state.fetch_updated_nyxd_urls().await;
     Ok(())
 }

@@ -3,11 +3,14 @@
 
 use crate::client::config::Config;
 use crate::error::Socks5ClientError;
+use crate::socks;
 use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
     server::SphinxSocksServer,
 };
-use client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput};
+use client_core::client::base_client::{
+    non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput,
+};
 use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use futures::channel::mpsc;
@@ -16,7 +19,7 @@ use gateway_client::bandwidth::BandwidthController;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use std::error::Error;
-use task::{wait_for_signal_and_error, ShutdownListener, ShutdownNotifier};
+use task::{wait_for_signal_and_error, TaskClient, TaskManager};
 
 pub mod config;
 
@@ -54,8 +57,21 @@ impl NymClient {
         #[cfg(feature = "coconut")]
         let bandwidth_controller = {
             let details = network_defaults::NymNetworkDetails::new_from_env();
-            let client_config = validator_client::Config::try_from_nym_network_details(&details)
-                .expect("failed to construct validator client config");
+            let mut client_config =
+                validator_client::Config::try_from_nym_network_details(&details)
+                    .expect("failed to construct validator client config");
+            let nyxd_url = config
+                .get_base()
+                .get_validator_endpoints()
+                .pop()
+                .expect("No nyxd validator endpoint provided");
+            let api_url = config
+                .get_base()
+                .get_nym_api_endpoints()
+                .pop()
+                .expect("No validator api endpoint provided");
+            // overwrite env configuration with config URLs
+            client_config = client_config.with_urls(nyxd_url, api_url);
             let client = validator_client::Client::new_query(client_config)
                 .expect("Could not construct query client");
             let coconut_api_clients =
@@ -80,19 +96,21 @@ impl NymClient {
         client_input: ClientInput,
         client_output: ClientOutput,
         self_address: Recipient,
-        mut shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) {
         info!("Starting socks5 listener...");
         let auth_methods = vec![AuthenticationMethods::NoAuth as u8];
         let allowed_users: Vec<User> = Vec::new();
 
         let ClientInput {
-            shared_lane_queue_lengths,
             connection_command_sender,
             input_sender,
         } = client_input;
 
-        let received_buffer_request_sender = client_output.received_buffer_request_sender;
+        let ClientOutput {
+            shared_lane_queue_lengths,
+            received_buffer_request_sender,
+        } = client_output;
 
         let authenticator = Authenticator::new(auth_methods, allowed_users);
         let mut sphinx_socks = SphinxSocksServer::new(
@@ -101,35 +119,30 @@ impl NymClient {
             config.get_provider_mix_address(),
             self_address,
             shared_lane_queue_lengths,
+            socks::client::Config::new(
+                config.get_send_anonymously(),
+                config.get_connection_start_surbs(),
+                config.get_per_request_surbs(),
+            ),
             shutdown.clone(),
         );
-        tokio::spawn(async move {
-            // Ideally we should have a fully fledged task manager to check for errors in all
-            // tasks.
-            // However, pragmatically, we start out by at least reporting errors for some of the
-            // tasks that interact with the outside world and can fail in normal operation, such as
-            // network issues.
-            // TODO: replace this by a generic solution, such as a task manager that stores all
-            // JoinHandles of all spawned tasks.
-            if let Err(res) = sphinx_socks
-                .serve(
-                    input_sender,
-                    received_buffer_request_sender,
-                    connection_command_sender,
-                )
-                .await
-            {
-                shutdown.send_we_stopped(Box::new(res));
-            }
-        });
+        task::spawn_with_report_error(
+            async move {
+                sphinx_socks
+                    .serve(
+                        input_sender,
+                        received_buffer_request_sender,
+                        connection_command_sender,
+                    )
+                    .await
+            },
+            shutdown,
+        );
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
-    pub async fn run_forever(self) -> Result<(), Box<dyn Error + Send>> {
-        let mut shutdown = self
-            .start()
-            .await
-            .map_err(|err| Box::new(err) as Box<dyn Error + Send>)?;
+    pub async fn run_forever(self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let mut shutdown = self.start().await?;
 
         let res = wait_for_signal_and_error(&mut shutdown).await;
 
@@ -147,12 +160,13 @@ impl NymClient {
     pub async fn run_and_listen(
         self,
         mut receiver: Socks5ControlMessageReceiver,
-    ) -> Result<(), Box<dyn Error + Send>> {
+        sender: task::StatusSender,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Start the main task
-        let mut shutdown = self
-            .start()
-            .await
-            .map_err(|err| Box::new(err) as Box<dyn Error + Send>)?;
+        let mut shutdown = self.start().await?;
+
+        // Listen to status messages from task, that we forward back to the caller
+        shutdown.start_status_listener(sender).await;
 
         let res = tokio::select! {
             biased;
@@ -188,11 +202,16 @@ impl NymClient {
         res
     }
 
-    pub async fn start(self) -> Result<ShutdownNotifier, Socks5ClientError> {
+    pub async fn start(self) -> Result<TaskManager, Socks5ClientError> {
         let base_builder = BaseClientBuilder::new_from_base_config(
             self.config.get_base(),
             self.key_manager,
             Some(Self::create_bandwidth_controller(&self.config).await),
+            non_wasm_helpers::setup_fs_reply_surb_backend(
+                self.config.get_base().get_reply_surb_database_path(),
+                self.config.get_debug_settings(),
+            )
+            .await?,
         );
 
         let self_address = base_builder.as_mix_recipient();
@@ -205,12 +224,12 @@ impl NymClient {
             client_input,
             client_output,
             self_address,
-            started_client.shutdown_notifier.subscribe(),
+            started_client.task_manager.subscribe(),
         );
 
         info!("Client startup finished!");
         info!("The address of this client is: {}", self_address);
 
-        Ok(started_client.shutdown_notifier)
+        Ok(started_client.task_manager)
     }
 }

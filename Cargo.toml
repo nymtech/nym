@@ -30,6 +30,7 @@ members = [
     "common/coconut-interface",
     "common/commands",
     "common/config",
+    "common/build-information",
     "common/cosmwasm-smart-contracts/coconut-bandwidth-contract",
     "common/cosmwasm-smart-contracts/coconut-dkg",
     "common/cosmwasm-smart-contracts/contracts-common",
@@ -74,8 +75,9 @@ members = [
     "mixnode",
     "service-providers/network-requester",
     "service-providers/network-statistics",
-    "validator-api",
-    "validator-api/validator-api-requests",
+    "nym-api",
+    "nym-api/nym-api-requests",
+    "nym-outfox",
     "tools/nym-cli",
     "tools/ts-rs-cli"
 ]
@@ -87,7 +89,7 @@ default-members = [
     "service-providers/network-requester",
     "service-providers/network-statistics",
     "mixnode",
-    "validator-api",
+    "nym-api",
     "explorer-api",
 ]
 

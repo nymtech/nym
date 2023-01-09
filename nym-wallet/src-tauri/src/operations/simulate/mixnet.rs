@@ -25,13 +25,13 @@ async fn simulate_mixnet_operation(
     };
 
     let client = guard.current_client()?;
-    let mixnet_contract = client.nymd.mixnet_contract_address();
+    let mixnet_contract = client.nyxd.mixnet_contract_address();
 
     let msg = client
-        .nymd
+        .nyxd
         .wrap_contract_execute_message(mixnet_contract, &msg, funds)?;
 
-    let result = client.nymd.simulate(vec![msg]).await?;
+    let result = client.nyxd.simulate(vec![msg]).await?;
     guard.create_detailed_fee(result)
 }
 
@@ -82,6 +82,14 @@ pub async fn simulate_bond_mixnode(
         &state,
     )
     .await
+}
+
+#[tauri::command]
+pub async fn simulate_pledge_more(
+    additional_pledge: DecCoin,
+    state: tauri::State<'_, WalletState>,
+) -> Result<FeeDetails, BackendError> {
+    simulate_mixnet_operation(ExecuteMsg::PledgeMore {}, Some(additional_pledge), &state).await
 }
 
 #[tauri::command]

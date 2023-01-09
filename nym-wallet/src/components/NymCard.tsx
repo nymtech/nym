@@ -1,5 +1,5 @@
 import React from 'react';
-import { Card, CardContent, CardHeader } from '@mui/material';
+import { Card, CardContent, CardHeader, SxProps } from '@mui/material';
 import { styled, Theme } from '@mui/material/styles';
 import { Title } from './Title';
 
@@ -12,21 +12,23 @@ const CardContentNoPadding = styled(CardContent)(() => ({
 
 export const NymCard: React.FC<{
   title: string | React.ReactElement;
-  subheader?: string;
+  subheader?: string | React.ReactChild;
   Action?: React.ReactNode;
   Icon?: React.ReactNode;
   noPadding?: boolean;
   borderless?: boolean;
   dataTestid?: string;
-}> = ({ title, subheader, Action, Icon, noPadding, borderless, children, dataTestid }) => (
-  <Card variant="outlined" sx={{ overflow: 'auto', ...(borderless && { border: 'none', dropShadow: 'none' }) }}>
+  sx?: SxProps;
+  sxTitle?: SxProps;
+}> = ({ title, subheader, Action, Icon, noPadding, borderless, children, dataTestid, sx, sxTitle }) => (
+  <Card variant="outlined" sx={{ overflow: 'auto', ...(borderless && { border: 'none', dropShadow: 'none' }), ...sx }}>
     <CardHeader
       sx={{
         p: 3,
-        color: 'text.primary',
+        color: (theme: Theme) => theme.palette.text.primary,
         '& .MuiCardHeader-title h5': { fontSize: '1.25rem' },
       }}
-      title={<Title title={title} Icon={Icon} />}
+      title={<Title title={title} Icon={Icon} sx={sxTitle} />}
       subheader={subheader}
       data-testid={dataTestid || title}
       subheaderTypographyProps={{ variant: 'subtitle1' }}

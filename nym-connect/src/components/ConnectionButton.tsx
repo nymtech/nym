@@ -76,9 +76,9 @@ export const ConnectionButton: React.FC<{
   return (
     <svg
       opacity={disabled ? 0.75 : 1}
-      width="208"
-      height="208"
-      viewBox="0 0 208 208"
+      width="200"
+      height="200"
+      viewBox="0 0 200 200"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >

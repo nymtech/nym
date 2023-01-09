@@ -8,7 +8,7 @@ use dotenv::dotenv;
 use log::info;
 use logging::setup_logging;
 use network_defaults::setup_env;
-use task::ShutdownNotifier;
+use task::{wait_for_signal, TaskManager};
 
 mod buy_terms;
 pub(crate) mod cache;
@@ -35,7 +35,7 @@ async fn main() {
     dotenv().ok();
     setup_logging();
     let args = commands::Cli::parse();
-    setup_env(args.config_env_file);
+    setup_env(args.config_env_file.as_ref());
     let mut explorer_api = ExplorerApi::new();
     explorer_api.run().await;
 }
@@ -54,10 +54,10 @@ impl ExplorerApi {
     async fn run(&mut self) {
         info!("Explorer API starting up...");
 
-        let validator_api_url = self.state.inner.validator_client.api_endpoint();
-        info!("Using validator API - {}", validator_api_url);
+        let nym_api_url = self.state.inner.validator_client.api_endpoint();
+        info!("Using validator API - {}", nym_api_url);
 
-        let shutdown = ShutdownNotifier::default();
+        let shutdown = TaskManager::default();
 
         // spawn concurrent tasks
         crate::tasks::ExplorerApiTasks::new(self.state.clone(), shutdown.subscribe()).start();
@@ -78,7 +78,7 @@ impl ExplorerApi {
         self.wait_for_interrupt(shutdown).await
     }
 
-    async fn wait_for_interrupt(&self, mut shutdown: ShutdownNotifier) {
+    async fn wait_for_interrupt(&self, mut shutdown: TaskManager) {
         wait_for_signal().await;
 
         log::info!("Sending shutdown");
@@ -86,33 +86,5 @@ impl ExplorerApi {
         log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
         shutdown.wait_for_shutdown().await;
         log::info!("Stopping explorer API");
-    }
-}
-
-#[cfg(unix)]
-async fn wait_for_signal() {
-    use tokio::signal::unix::{signal, SignalKind};
-    let mut sigterm = signal(SignalKind::terminate()).expect("Failed to setup SIGTERM channel");
-    let mut sigquit = signal(SignalKind::quit()).expect("Failed to setup SIGQUIT channel");
-
-    tokio::select! {
-        _ = tokio::signal::ctrl_c() => {
-            log::info!("Received SIGINT");
-        },
-        _ = sigterm.recv() => {
-            log::info!("Received SIGTERM");
-        }
-        _ = sigquit.recv() => {
-            log::info!("Received SIGQUIT");
-        }
-    }
-}
-
-#[cfg(not(unix))]
-async fn wait_for_signal() {
-    tokio::select! {
-        _ = tokio::signal::ctrl_c() => {
-            log::info!("Received SIGINT");
-        },
     }
 }

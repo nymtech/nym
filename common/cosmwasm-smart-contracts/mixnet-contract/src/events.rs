@@ -12,6 +12,8 @@ pub const EVENT_VERSION_PREFIX: &str = "v2_";
 
 pub enum MixnetEventType {
     MixnodeBonding,
+    PendingPledgeIncrease,
+    PledgeIncrease,
     GatewayBonding,
     GatewayUnbonding,
     PendingMixnodeUnbonding,
@@ -51,6 +53,8 @@ impl ToString for MixnetEventType {
     fn to_string(&self) -> String {
         let event_name = match self {
             MixnetEventType::MixnodeBonding => "mixnode_bonding",
+            MixnetEventType::PendingPledgeIncrease => "pending_pledge_increase",
+            MixnetEventType::PledgeIncrease => "pledge_increase",
             MixnetEventType::GatewayBonding => "gateway_bonding",
             MixnetEventType::GatewayUnbonding => "gateway_unbonding",
             MixnetEventType::PendingMixnodeUnbonding => "pending_mixnode_unbonding",
@@ -327,6 +331,19 @@ pub fn new_mixnode_bonding_event(
         .add_attribute(OWNER_KEY, owner)
         .add_optional_attribute(PROXY_KEY, proxy.as_ref())
         .add_attribute(ASSIGNED_LAYER_KEY, assigned_layer)
+        .add_attribute(AMOUNT_KEY, amount.to_string())
+}
+
+pub fn new_pending_pledge_increase_event(mix_id: MixId, amount: &Coin) -> Event {
+    Event::new(MixnetEventType::PendingPledgeIncrease)
+        .add_attribute(MIX_ID_KEY, mix_id.to_string())
+        .add_attribute(AMOUNT_KEY, amount.to_string())
+}
+
+pub fn new_pledge_increase_event(created_at: BlockHeight, mix_id: MixId, amount: &Coin) -> Event {
+    Event::new(MixnetEventType::PledgeIncrease)
+        .add_attribute(EVENT_CREATION_HEIGHT_KEY, created_at.to_string())
+        .add_attribute(MIX_ID_KEY, mix_id.to_string())
         .add_attribute(AMOUNT_KEY, amount.to_string())
 }
 

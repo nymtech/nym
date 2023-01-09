@@ -1,9 +1,15 @@
 ## Unreleased
 
-## Added
+## [nym-contracts-v1.1.2](https://github.com/nymtech/nym/tree/nym-contracts-v1.1.2) (2022-12-07)
+
+### Added
 
 - Added migration code to the mixnet contract to allow updating stored vesting contract address to make it easier to deploy any future environments ([#1759],[#1769])
+- Added an option to pledge additional tokens without the need to rebond minxode ([#1679])
+- Added support for node families ([#1670])
 
+[#1670]: https://github.com/nymtech/nym/pull/1670
+[#1679]: https://github.com/nymtech/nym/pull/1679
 [#1759]: https://github.com/nymtech/nym/pull/1759
 [#1769]: https://github.com/nymtech/nym/pull/1769
 

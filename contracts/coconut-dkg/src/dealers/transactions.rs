@@ -3,7 +3,8 @@
 
 use crate::dealers::storage as dealers_storage;
 use crate::epoch_state::utils::check_epoch_state;
-use crate::{ContractError, State, STATE};
+use crate::error::ContractError;
+use crate::state::{State, STATE};
 use coconut_dkg_common::types::{DealerDetails, EncodedBTEPublicKeyWithProof, EpochState};
 use cosmwasm_std::{Addr, DepsMut, MessageInfo, Response};
 
@@ -63,4 +64,41 @@ pub fn try_add_dealer(
     dealers_storage::current_dealers().save(deps.storage, &info.sender, &dealer_details)?;
 
     Ok(Response::new().add_attribute("node_index", node_index.to_string()))
+}
+
+#[cfg(test)]
+pub(crate) mod tests {
+    use super::*;
+    use crate::epoch_state::transactions::advance_epoch_state;
+    use crate::support::tests::helpers;
+    use coconut_dkg_common::types::PUBLIC_KEY_SUBMISSION_TIME_SECS;
+    use cosmwasm_std::testing::{mock_env, mock_info};
+
+    #[test]
+    fn invalid_state() {
+        let mut deps = helpers::init_contract();
+        let owner = Addr::unchecked("owner");
+        let mut env = mock_env();
+        let info = mock_info(owner.as_str(), &[]);
+        let bte_key_with_proof = String::from("bte_key_with_proof");
+        let announce_address = String::from("localhost:8000");
+
+        env.block.time = env.block.time.plus_seconds(PUBLIC_KEY_SUBMISSION_TIME_SECS);
+        advance_epoch_state(deps.as_mut(), env).unwrap();
+
+        let ret = try_add_dealer(
+            deps.as_mut(),
+            info.clone(),
+            bte_key_with_proof.clone(),
+            announce_address.clone(),
+        )
+        .unwrap_err();
+        assert_eq!(
+            ret,
+            ContractError::IncorrectEpochState {
+                current_state: EpochState::DealingExchange.to_string(),
+                expected_state: EpochState::default().to_string(),
+            }
+        );
+    }
 }

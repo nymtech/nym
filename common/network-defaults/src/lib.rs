@@ -1,6 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::var_names::{DEPRECATED_API_VALIDATOR, DEPRECATED_NYMD_VALIDATOR, NYM_API, NYXD};
 use serde::{Deserialize, Serialize};
 use std::{env::var, ops::Not, path::PathBuf};
 use url::Url;
@@ -77,8 +78,8 @@ impl NymNetworkDetails {
                     .expect("denomination exponent is not u32"),
             })
             .with_validator_endpoint(ValidatorDetails::new(
-                var(var_names::NYMD_VALIDATOR).expect("nymd validator not set"),
-                Some(var(var_names::API_VALIDATOR).expect("api validator not set")),
+                var(var_names::NYXD).expect("nyxd validator not set"),
+                Some(var(var_names::NYM_API).expect("nym api not set")),
             ))
             .with_mixnet_contract(Some(
                 var(var_names::MIXNET_CONTRACT_ADDRESS).expect("mixnet contract not set"),
@@ -254,7 +255,7 @@ impl DenomDetailsOwned {
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct ValidatorDetails {
     // it is assumed those values are always valid since they're being provided in our defaults file
-    pub nymd_url: String,
+    pub nyxd_url: String,
     // Right now api_url is optional as we are not running the api reliably on all validators
     // however, later on it should be a mandatory field
     pub api_url: Option<String>,
@@ -262,24 +263,24 @@ pub struct ValidatorDetails {
 }
 
 impl ValidatorDetails {
-    pub fn new<S: Into<String>>(nymd_url: S, api_url: Option<S>) -> Self {
+    pub fn new<S: Into<String>>(nyxd_url: S, api_url: Option<S>) -> Self {
         ValidatorDetails {
-            nymd_url: nymd_url.into(),
+            nyxd_url: nyxd_url.into(),
             api_url: api_url.map(Into::into),
         }
     }
 
-    pub fn new_nymd_only<S: Into<String>>(nymd_url: S) -> Self {
+    pub fn new_nyxd_only<S: Into<String>>(nyxd_url: S) -> Self {
         ValidatorDetails {
-            nymd_url: nymd_url.into(),
+            nyxd_url: nyxd_url.into(),
             api_url: None,
         }
     }
 
-    pub fn nymd_url(&self) -> Url {
-        self.nymd_url
+    pub fn nyxd_url(&self) -> Url {
+        self.nyxd_url
             .parse()
-            .expect("the provided nymd url is invalid!")
+            .expect("the provided nyxd url is invalid!")
     }
 
     pub fn api_url(&self) -> Option<Url> {
@@ -289,13 +290,28 @@ impl ValidatorDetails {
     }
 }
 
-pub fn setup_env(config_env_file: Option<PathBuf>) {
+fn fix_deprecated_environmental_variables() {
+    // if we're using the outdated environmental variables, set the updated ones to preserve compatibility
+    if let Ok(nyxd) = std::env::var(DEPRECATED_NYMD_VALIDATOR) {
+        if std::env::var(NYXD).is_err() {
+            std::env::set_var(NYXD, nyxd)
+        }
+    }
+    if let Ok(nym_apis) = std::env::var(DEPRECATED_API_VALIDATOR) {
+        if std::env::var(NYM_API).is_err() {
+            std::env::set_var(NYM_API, nym_apis)
+        }
+    }
+}
+
+pub fn setup_env(config_env_file: Option<&PathBuf>) {
     match std::env::var(var_names::CONFIGURED) {
         // if the configuration is not already set in the env vars
         Err(std::env::VarError::NotPresent) => {
             if let Some(config_env_file) = config_env_file {
                 dotenv::from_path(config_env_file)
                     .expect("Invalid path to environment configuration file");
+                fix_deprecated_environmental_variables();
             } else {
                 // if nothing is set, the use mainnet defaults
                 // if the user has not set `CONFIGURED`, then even if they set any of the env variables,
@@ -304,7 +320,9 @@ pub fn setup_env(config_env_file: Option<PathBuf>) {
             }
         }
         Err(_) => crate::mainnet::export_to_env(),
-        _ => {}
+        _ => {
+            fix_deprecated_environmental_variables();
+        }
     }
 
     // if we haven't explicitly defined any of the constants, fallback to defaults
@@ -355,14 +373,14 @@ pub const DEFAULT_WEBSOCKET_LISTENING_PORT: u16 = 1977;
 // 'SOCKS5' CLIENT
 pub const DEFAULT_SOCKS5_LISTENING_PORT: u16 = 1080;
 
-// VALIDATOR-API
-pub const DEFAULT_VALIDATOR_API_PORT: u16 = 8080;
+// NYM-API
+pub const DEFAULT_NYM_API_PORT: u16 = 8080;
 
-pub const VALIDATOR_API_VERSION: &str = "v1";
+pub const NYM_API_VERSION: &str = "v1";
 
 // REWARDING
 
-/// We'll be assuming a few more things, profit margin and cost function. Since we don't have relialable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate interval costs to Nyms. We'll also assume a cost of 40$ per interval(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
+/// We'll be assuming a few more things, profit margin and cost function. Since we don't have reliable package measurement, we'll be using uptime. We'll also set the value of 1 Nym to 1 $, to be able to translate interval costs to Nyms. We'll also assume a cost of 40$ per interval(month), converting that to Nym at our 1$ rate translates to 40_000_000 uNyms
 // pub const DEFAULT_OPERATOR_INTERVAL_COST: u64 = 40_000_000; // 40$/(30 days) at 1 Nym == 1$
 // pub const DEFAULT_OPERATOR_INTERVAL_COST: u64 = 55_556; // 40$/1hr at 1 Nym == 1$
 // pub const DEFAULT_OPERATOR_INTERVAL_COST: u64 = 9259; // 40$/1hr/6 at 1 Nym == 1$

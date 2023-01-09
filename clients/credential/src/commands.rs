@@ -1,35 +1,29 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use async_trait::async_trait;
 use clap::{Args, Subcommand};
 use completions::ArgShell;
-use pickledb::PickleDb;
 use rand::rngs::OsRng;
 use std::str::FromStr;
 
-use coconut_interface::{Attribute, Base58, BlindSignRequest, Bytable, Parameters};
+use coconut_interface::{Base58, Parameters};
 use credential_storage::storage::Storage;
 use credential_storage::PersistentStorage;
 use credentials::coconut::bandwidth::{BandwidthVoucher, TOTAL_ATTRIBUTES};
 use credentials::coconut::utils::obtain_aggregate_signature;
 use crypto::asymmetric::{encryption, identity};
 use network_defaults::{NymNetworkDetails, VOUCHER_INFO};
-use validator_client::nymd::tx::Hash;
+use validator_client::nyxd::tx::Hash;
 use validator_client::{CoconutApiClient, Config};
 
 use crate::client::Client;
 use crate::error::{CredentialClientError, Result};
-use crate::state::{KeyPair, RequestData, State};
+use crate::state::{KeyPair, State};
 
 #[derive(Subcommand)]
-pub(crate) enum Commands {
-    /// Deposit funds for buying coconut credential
-    Deposit(Deposit),
-    /// Lists the tx hashes of previous deposits
-    ListDeposits(ListDeposits),
-    /// Get a credential for a given deposit
-    GetCredential(GetCredential),
+pub(crate) enum Command {
+    /// Run the binary
+    Run(Run),
 
     /// Generate shell completions
     Completions(ArgShell),
@@ -38,169 +32,82 @@ pub(crate) enum Commands {
     GenerateFigSpec,
 }
 
-#[async_trait]
-pub(crate) trait Execute {
-    async fn execute(&self, db: &mut PickleDb, shared_storage: PersistentStorage) -> Result<()>;
+#[derive(Args)]
+pub(crate) struct Run {
+    /// Home directory of the client that is supposed to use the credential.
+    #[clap(long)]
+    pub(crate) client_home_directory: std::path::PathBuf,
+
+    /// The nyxd URL that should be used
+    #[clap(long)]
+    pub(crate) nyxd_url: String,
+
+    /// A mnemonic for the account that buys the credential
+    #[clap(long)]
+    pub(crate) mnemonic: String,
+
+    /// The amount of utokens the credential will hold
+    #[clap(long)]
+    pub(crate) amount: u64,
 }
 
-#[derive(Args, Clone)]
-pub(crate) struct Deposit {
-    /// The nymd URL that should be used
-    #[clap(long)]
-    nymd_url: String,
-    /// A mnemonic for the account that does the deposit
-    #[clap(long)]
-    mnemonic: String,
-    /// The amount that needs to be deposited
-    #[clap(long)]
-    amount: u64,
-}
+pub(crate) async fn deposit(nyxd_url: &str, mnemonic: &str, amount: u64) -> Result<State> {
+    let mut rng = OsRng;
+    let signing_keypair = KeyPair::from(identity::KeyPair::new(&mut rng));
+    let encryption_keypair = KeyPair::from(encryption::KeyPair::new(&mut rng));
 
-#[async_trait]
-impl Execute for Deposit {
-    async fn execute(&self, db: &mut PickleDb, _shared_storage: PersistentStorage) -> Result<()> {
-        let mut rng = OsRng;
-        let signing_keypair = KeyPair::from(identity::KeyPair::new(&mut rng));
-        let encryption_keypair = KeyPair::from(encryption::KeyPair::new(&mut rng));
-
-        let client = Client::new(&self.nymd_url, &self.mnemonic);
-        let tx_hash = client
-            .deposit(
-                self.amount,
-                signing_keypair.public_key.clone(),
-                encryption_keypair.public_key.clone(),
-                None,
-            )
-            .await?;
-
-        let state = State {
-            amount: self.amount,
-            tx_hash: tx_hash.clone(),
-            signing_keypair,
-            encryption_keypair,
-            blind_request_data: None,
-            signature: None,
-        };
-        db.set(&tx_hash, &state).unwrap();
-
-        println!("{:?}", state);
-
-        Ok(())
-    }
-}
-
-#[derive(Args, Clone)]
-pub(crate) struct ListDeposits {}
-
-#[async_trait]
-impl Execute for ListDeposits {
-    async fn execute(&self, db: &mut PickleDb, _shared_storage: PersistentStorage) -> Result<()> {
-        for kv in db.iter() {
-            println!("{:?}", kv.get_value::<State>());
-        }
-
-        Ok(())
-    }
-}
-
-#[derive(Args, Clone)]
-pub(crate) struct GetCredential {
-    /// The hash of a successful deposit transaction
-    #[clap(long)]
-    tx_hash: String,
-    /// The nymd URL that should be used
-    #[clap(long)]
-    nymd_url: String,
-    /// If we want to get the signature without attaching a blind sign request; it is expected that
-    /// there is already a signature stored on the signer
-    #[clap(long, parse(from_flag))]
-    __no_request: bool,
-}
-
-#[async_trait]
-impl Execute for GetCredential {
-    async fn execute(&self, db: &mut PickleDb, shared_storage: PersistentStorage) -> Result<()> {
-        let mut state = db
-            .get::<State>(&self.tx_hash)
-            .ok_or(CredentialClientError::NoDeposit)?;
-
-        let network_details = NymNetworkDetails::new_from_env();
-        let config = Config::try_from_nym_network_details(&network_details)?;
-        let client = validator_client::Client::new_query(config)?;
-        let coconut_api_clients = CoconutApiClient::all_coconut_api_clients(&client).await?;
-
-        let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
-        let bandwidth_credential_attributes = if self.__no_request {
-            if let Some(blind_request_data) = state.blind_request_data {
-                let serial_number =
-                    Attribute::try_from_byte_slice(&blind_request_data.serial_number)
-                        .map_err(|_| CredentialClientError::CorruptedBlindSignRequest)?;
-                let binding_number =
-                    Attribute::try_from_byte_slice(&blind_request_data.binding_number)
-                        .map_err(|_| CredentialClientError::CorruptedBlindSignRequest)?;
-                let pedersen_commitments_openings = vec![
-                    Attribute::try_from_byte_slice(&blind_request_data.first_attribute)
-                        .map_err(|_| CredentialClientError::CorruptedBlindSignRequest)?,
-                    Attribute::try_from_byte_slice(&blind_request_data.second_attribute)
-                        .map_err(|_| CredentialClientError::CorruptedBlindSignRequest)?,
-                ];
-                let blind_sign_request =
-                    BlindSignRequest::from_bytes(blind_request_data.blind_sign_req.as_slice())
-                        .map_err(|_| CredentialClientError::CorruptedBlindSignRequest)?;
-                BandwidthVoucher::new_with_blind_sign_req(
-                    [serial_number, binding_number],
-                    [&state.amount.to_string(), VOUCHER_INFO],
-                    Hash::from_str(&self.tx_hash)
-                        .map_err(|_| CredentialClientError::InvalidTxHash)?,
-                    identity::PrivateKey::from_base58_string(&state.signing_keypair.private_key)?,
-                    encryption::PrivateKey::from_base58_string(
-                        &state.encryption_keypair.private_key,
-                    )?,
-                    pedersen_commitments_openings,
-                    blind_sign_request,
-                )
-            } else {
-                return Err(CredentialClientError::NoLocalBlindSignRequest);
-            }
-        } else {
-            BandwidthVoucher::new(
-                &params,
-                state.amount.to_string(),
-                VOUCHER_INFO.to_string(),
-                Hash::from_str(&self.tx_hash).map_err(|_| CredentialClientError::InvalidTxHash)?,
-                identity::PrivateKey::from_base58_string(&state.signing_keypair.private_key)?,
-                encryption::PrivateKey::from_base58_string(&state.encryption_keypair.private_key)?,
-            )
-        };
-
-        // Back up the blind sign req data, in case of sporadic failures
-        state.blind_request_data = Some(RequestData::new(
-            bandwidth_credential_attributes.get_private_attributes(),
-            bandwidth_credential_attributes.pedersen_commitments_openings(),
-            bandwidth_credential_attributes.blind_sign_request(),
-        )?);
-        db.set(&self.tx_hash, &state).unwrap();
-
-        let signature = obtain_aggregate_signature(
-            &params,
-            &bandwidth_credential_attributes,
-            &coconut_api_clients,
+    let client = Client::new(nyxd_url, mnemonic);
+    let tx_hash = client
+        .deposit(
+            amount,
+            signing_keypair.public_key.clone(),
+            encryption_keypair.public_key.clone(),
+            None,
         )
         .await?;
-        shared_storage
-            .insert_coconut_credential(
-                state.amount.to_string(),
-                VOUCHER_INFO.to_string(),
-                bandwidth_credential_attributes.get_private_attributes()[0].to_bs58(),
-                bandwidth_credential_attributes.get_private_attributes()[1].to_bs58(),
-                signature.to_bs58(),
-            )
-            .await?;
-        state.signature = Some(signature.to_bs58());
-        db.set(&self.tx_hash, &state).unwrap();
 
-        println!("Signature: {:?}", state.signature);
+    let state = State {
+        amount,
+        tx_hash,
+        signing_keypair,
+        encryption_keypair,
+    };
 
-        Ok(())
-    }
+    Ok(state)
+}
+
+pub(crate) async fn get_credential(state: &State, shared_storage: PersistentStorage) -> Result<()> {
+    let network_details = NymNetworkDetails::new_from_env();
+    let config = Config::try_from_nym_network_details(&network_details)?;
+    let client = validator_client::Client::new_query(config)?;
+    let coconut_api_clients = CoconutApiClient::all_coconut_api_clients(&client).await?;
+
+    let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
+    let bandwidth_credential_attributes = BandwidthVoucher::new(
+        &params,
+        state.amount.to_string(),
+        VOUCHER_INFO.to_string(),
+        Hash::from_str(&state.tx_hash).map_err(|_| CredentialClientError::InvalidTxHash)?,
+        identity::PrivateKey::from_base58_string(&state.signing_keypair.private_key)?,
+        encryption::PrivateKey::from_base58_string(&state.encryption_keypair.private_key)?,
+    );
+
+    let signature = obtain_aggregate_signature(
+        &params,
+        &bandwidth_credential_attributes,
+        &coconut_api_clients,
+    )
+    .await?;
+    println!("Signature: {:?}", signature.to_bs58());
+    shared_storage
+        .insert_coconut_credential(
+            state.amount.to_string(),
+            VOUCHER_INFO.to_string(),
+            bandwidth_credential_attributes.get_private_attributes()[0].to_bs58(),
+            bandwidth_credential_attributes.get_private_attributes()[1].to_bs58(),
+            signature.to_bs58(),
+        )
+        .await?;
+
+    Ok(())
 }

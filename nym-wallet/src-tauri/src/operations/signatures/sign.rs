@@ -13,7 +13,7 @@ use serde_json::json;
 pub struct SignatureOutputJson {
     pub account_id: String,
     pub public_key: PublicKey,
-    pub signature: String,
+    pub signature_as_hex: String,
 }
 
 #[tauri::command]
@@ -23,7 +23,7 @@ pub async fn sign(
 ) -> Result<String, BackendError> {
     let guard = state.read().await;
     let client = guard.current_client()?;
-    let wallet = client.nymd.signer();
+    let wallet = client.nyxd.signer();
     let derived_accounts = wallet.try_derive_accounts()?;
     let account = derived_accounts.first().ok_or_else(|| {
         log::error!(">>> Unable to derive account");
@@ -32,14 +32,14 @@ pub async fn sign(
 
     log::info!("<<< Signing message");
     let signature = wallet.sign_raw_with_account(account, message.as_bytes())?;
-    let signature_as_hex_string = signature.to_string();
     let output = SignatureOutputJson {
         account_id: account.address().to_string(),
         public_key: account.public_key(),
-        signature: signature_as_hex_string.to_string(),
+        signature_as_hex: signature.to_string(),
     };
-    log::info!(">>> Signing data {}", json!(output),);
-    Ok(signature_as_hex_string)
+    let output_json = json!(output).to_string();
+    log::info!(">>> Signing data {}", output_json);
+    Ok(output_json)
 }
 
 async fn get_pubkey_from_account_address(
@@ -50,7 +50,7 @@ async fn get_pubkey_from_account_address(
     let guard = state.read().await;
     let client = guard.current_client()?;
     let account = client
-        .nymd
+        .nyxd
         .get_account_details(address)
         .await?
         .ok_or_else(|| {
@@ -116,7 +116,7 @@ pub async fn verify(
             // get public key from current account address
             let guard = state.read().await;
             let client = guard.current_client()?;
-            let address = client.nymd.address();
+            let address = client.nyxd.address();
             get_pubkey_from_account_address(address, &state).await?
         }
     };

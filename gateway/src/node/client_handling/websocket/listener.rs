@@ -19,7 +19,7 @@ use crate::node::client_handling::websocket::connection_handler::coconut::Coconu
 pub(crate) struct Listener {
     address: SocketAddr,
     local_identity: Arc<identity::KeyPair>,
-    disabled_credentials_mode: bool,
+    only_coconut_credentials: bool,
 
     #[cfg(feature = "coconut")]
     pub(crate) coconut_verifier: Arc<CoconutVerifier>,
@@ -29,13 +29,13 @@ impl Listener {
     pub(crate) fn new(
         address: SocketAddr,
         local_identity: Arc<identity::KeyPair>,
-        disabled_credentials_mode: bool,
+        only_coconut_credentials: bool,
         #[cfg(feature = "coconut")] coconut_verifier: Arc<CoconutVerifier>,
     ) -> Self {
         Listener {
             address,
             local_identity,
-            disabled_credentials_mode,
+            only_coconut_credentials,
             #[cfg(feature = "coconut")]
             coconut_verifier,
         }
@@ -55,7 +55,7 @@ impl Listener {
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
             Ok(listener) => listener,
             Err(err) => {
-                error!("Failed to bind the websocket to {} - {}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?", self.address, err);
+                error!("Failed to bind the websocket to {} - {err}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?", self.address);
                 process::exit(1);
             }
         };
@@ -69,7 +69,7 @@ impl Listener {
                     let handle = FreshHandler::new(
                         OsRng,
                         socket,
-                        self.disabled_credentials_mode,
+                        self.only_coconut_credentials,
                         outbound_mix_sender.clone(),
                         Arc::clone(&self.local_identity),
                         storage.clone(),
@@ -79,7 +79,7 @@ impl Listener {
                     );
                     tokio::spawn(async move { handle.start_handling().await });
                 }
-                Err(e) => warn!("failed to get client: {:?}", e),
+                Err(err) => warn!("failed to get client: {err}"),
             }
         }
     }

@@ -9,7 +9,7 @@ use nymsphinx::forwarding::packet::MixPacket;
 use std::io;
 use tokio::time::Instant;
 
-use super::ShutdownListener;
+use super::TaskClient;
 
 // Delay + MixPacket vs Instant + MixPacket
 
@@ -28,7 +28,7 @@ where
     packet_sender: PacketDelayForwardSender,
     packet_receiver: PacketDelayForwardReceiver,
     node_stats_update_sender: UpdateSender,
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl<C> DelayForwarder<C>
@@ -38,7 +38,7 @@ where
     pub(crate) fn new(
         client: C,
         node_stats_update_sender: UpdateSender,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> DelayForwarder<C> {
         let (packet_sender, packet_receiver) = mpsc::unbounded();
 
@@ -134,7 +134,7 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
-    use task::ShutdownNotifier;
+    use task::TaskManager;
 
     use nymsphinx::addressing::nodes::NymNodeRoutingAddress;
     use nymsphinx_params::packet_sizes::PacketSize;
@@ -194,7 +194,7 @@ mod tests {
         ];
         SphinxPacketBuilder::new()
             .with_payload_size(size.payload_size())
-            .build_packet(b"foomp".to_vec(), &route, &destination, &delays)
+            .build_packet(b"foomp", &route, &destination, &delays)
             .unwrap()
     }
 
@@ -205,7 +205,7 @@ mod tests {
         let node_stats_update_sender = UpdateSender::new(stats_sender);
         let client = TestClient::default();
         let client_packets_sent = client.packets_sent.clone();
-        let shutdown = ShutdownNotifier::default();
+        let shutdown = TaskManager::default();
         let mut delay_forwarder =
             DelayForwarder::new(client, node_stats_update_sender, shutdown.subscribe());
         let packet_sender = delay_forwarder.sender();

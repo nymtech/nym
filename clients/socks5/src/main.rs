@@ -13,12 +13,12 @@ pub mod error;
 pub mod socks;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error + Send>> {
+async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     setup_logging();
     println!("{}", banner());
 
     let args = commands::Cli::parse();
-    setup_env(args.config_env_file.clone());
+    setup_env(args.config_env_file.as_ref());
     commands::execute(&args).await
 }
 

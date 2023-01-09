@@ -1,12 +1,10 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::set::generate_set_id;
 use crate::ChunkingError;
 use nymsphinx_params::{SerializedFragmentIdentifier, FRAG_ID_LEN};
-use rand::Rng;
 use std::convert::TryInto;
-use std::fmt::{self, Formatter};
+use std::fmt::{self, Debug, Formatter};
 
 // Personal reflection: In hindsight I've spent too much time on relatively too little
 // gain here, as even though I might have saved couple of bytes per packet, the gain
@@ -60,7 +58,7 @@ pub const COVER_FRAG_ID: FragmentIdentifier = FragmentIdentifier {
 /// and u8 position of the `Fragment` in the set.
 // TODO: this should really be redesigned, especially how cover and reply messages are really
 // "abusing" this. They should work with it natively instead.
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
 pub struct FragmentIdentifier {
     set_id: i32,
     fragment_position: u8,
@@ -77,20 +75,6 @@ impl fmt::Display for FragmentIdentifier {
 }
 
 impl FragmentIdentifier {
-    // I really dislike how 'hacky' this function seems
-    // refer to: https://github.com/nymtech/nym/issues/294 for further discussion
-    pub fn new_reply<R: Rng>(rng: &mut R) -> Self {
-        FragmentIdentifier {
-            set_id: generate_set_id(rng),
-            fragment_position: 0,
-        }
-    }
-
-    // and this one
-    pub fn is_reply(self) -> bool {
-        self.set_id > 0 && self.fragment_position == 0
-    }
-
     pub fn to_bytes(self) -> SerializedFragmentIdentifier {
         debug_assert_eq!(FRAG_ID_LEN, 5);
 
@@ -110,7 +94,7 @@ impl FragmentIdentifier {
         let set_id = i32::from_be_bytes([b[0], b[1], b[2], b[3]]);
         // set_id == 0 is valid for COVER_FRAG_ID and replies
         if set_id < 0 {
-            return Err(ChunkingError::MalformedFragmentIdentifier);
+            return Err(ChunkingError::MalformedFragmentIdentifier { received: set_id });
         }
 
         Ok(FragmentIdentifier {
@@ -124,10 +108,20 @@ impl FragmentIdentifier {
 /// Each `Fragment` after being marshaled is guaranteed to fit into a single sphinx packet.
 /// The `Fragment` itself consists of part, or whole of, message to be sent as well as additional
 /// header used to reconstruct the message after being received.
-#[derive(PartialEq, Clone, Debug)]
+#[derive(PartialEq, Clone)]
 pub struct Fragment {
     header: FragmentHeader,
     payload: Vec<u8>,
+}
+
+// manual implementation to hide detailed payload that we don't care about
+impl Debug for Fragment {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Fragment")
+            .field("header", &self.header)
+            .field("payload length", &self.payload.len())
+            .finish()
+    }
 }
 
 impl Fragment {
@@ -153,24 +147,42 @@ impl Fragment {
 
         // check for whether payload has expected length, which depend on whether fragment is linked
         // and if it's the only one or the last one in the set (then lower bound is removed)
+        let max_linked_len = linked_fragment_payload_max_len(max_plaintext_size);
+        let max_unlinked_len = unlinked_fragment_payload_max_len(max_plaintext_size);
+
         if previous_fragments_set_id.is_some() {
             if total_fragments > 1 {
-                if payload.len() != linked_fragment_payload_max_len(max_plaintext_size) {
-                    return Err(ChunkingError::InvalidPayloadLengthError);
+                if payload.len() != max_linked_len {
+                    return Err(ChunkingError::InvalidPayloadLengthError {
+                        received: payload.len(),
+                        expected: max_linked_len,
+                    });
                 }
-            } else if payload.len() > linked_fragment_payload_max_len(max_plaintext_size) {
-                return Err(ChunkingError::InvalidPayloadLengthError);
+            } else if payload.len() > max_linked_len {
+                return Err(ChunkingError::TooLongPayloadLengthError {
+                    received: payload.len(),
+                    expected_at_most: max_linked_len,
+                });
             }
         } else if next_fragments_set_id.is_some() {
-            if payload.len() != linked_fragment_payload_max_len(max_plaintext_size) {
-                return Err(ChunkingError::InvalidPayloadLengthError);
+            if payload.len() != max_linked_len {
+                return Err(ChunkingError::InvalidPayloadLengthError {
+                    received: payload.len(),
+                    expected: max_linked_len,
+                });
             }
         } else if total_fragments != current_fragment {
-            if payload.len() != unlinked_fragment_payload_max_len(max_plaintext_size) {
-                return Err(ChunkingError::InvalidPayloadLengthError);
+            if payload.len() != max_unlinked_len {
+                return Err(ChunkingError::InvalidPayloadLengthError {
+                    received: payload.len(),
+                    expected: max_unlinked_len,
+                });
             }
-        } else if payload.len() > unlinked_fragment_payload_max_len(max_plaintext_size) {
-            return Err(ChunkingError::InvalidPayloadLengthError);
+        } else if payload.len() > max_unlinked_len {
+            return Err(ChunkingError::TooLongPayloadLengthError {
+                received: payload.len(),
+                expected_at_most: max_unlinked_len,
+            });
         }
 
         Ok(Fragment {
@@ -194,6 +206,11 @@ impl Fragment {
             set_id: self.header.id,
             fragment_position: self.header.current_fragment,
         }
+    }
+
+    /// Gets the size of payload contained in this `Fragment`.
+    pub fn payload_size(&self) -> usize {
+        self.payload.len()
     }
 
     /// Extracts id of this `Fragment`.
@@ -347,7 +364,10 @@ impl FragmentHeader {
     fn try_from_bytes(b: &[u8]) -> Result<(Self, usize), ChunkingError> {
         // header needs to be at least 7 bytes long
         if b.len() < UNLINKED_FRAGMENTED_HEADER_LEN {
-            return Err(ChunkingError::TooShortFragmentData);
+            return Err(ChunkingError::TooShortFragmentHeader {
+                received: b.len(),
+                expected: UNLINKED_FRAGMENTED_HEADER_LEN,
+            });
         }
         let frag_id = i32::from_be_bytes(b[0..4].try_into().unwrap());
         // sanity check for the fragmentation flag
@@ -370,7 +390,10 @@ impl FragmentHeader {
         let read_bytes = if b[6] != 0 {
             // there's linking ID supposedly attached, make sure we have enough bytes to parse
             if b.len() < LINKED_FRAGMENTED_HEADER_LEN {
-                return Err(ChunkingError::TooShortFragmentData);
+                return Err(ChunkingError::TooShortFragmentHeader {
+                    received: b.len(),
+                    expected: LINKED_FRAGMENTED_HEADER_LEN,
+                });
             }
             let flagged_linked_id = i32::from_be_bytes(b[6..10].try_into().unwrap());
 

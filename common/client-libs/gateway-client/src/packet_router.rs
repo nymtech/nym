@@ -9,7 +9,7 @@ use futures::channel::mpsc;
 use log::*;
 use nymsphinx::addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
 use nymsphinx::params::packet_sizes::PacketSize;
-use task::ShutdownListener;
+use task::TaskClient;
 
 pub type MixnetMessageSender = mpsc::UnboundedSender<Vec<Vec<u8>>>;
 pub type MixnetMessageReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
@@ -21,14 +21,14 @@ pub type AcknowledgementReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
 pub struct PacketRouter {
     ack_sender: AcknowledgementSender,
     mixnet_message_sender: MixnetMessageSender,
-    shutdown: Option<ShutdownListener>,
+    shutdown: TaskClient,
 }
 
 impl PacketRouter {
     pub fn new(
         ack_sender: AcknowledgementSender,
         mixnet_message_sender: MixnetMessageSender,
-        shutdown: Option<ShutdownListener>,
+        shutdown: TaskClient,
     ) -> Self {
         PacketRouter {
             ack_sender,
@@ -82,23 +82,21 @@ impl PacketRouter {
         if !received_messages.is_empty() {
             trace!("routing 'real'");
             if let Err(err) = self.mixnet_message_sender.unbounded_send(received_messages) {
-                if let Some(shutdown) = &mut self.shutdown {
-                    if shutdown.is_shutdown_poll() {
-                        // This should ideally not happen, but it's ok
-                        log::warn!("Failed to send mixnet message due to receiver task shutdown");
-                        return Err(GatewayClientError::MixnetMsgSenderFailedToSend);
-                    }
+                if self.shutdown.is_shutdown_poll() || self.shutdown.is_dummy() {
+                    // This should ideally not happen, but it's ok
+                    log::warn!("Failed to send mixnet message due to receiver task shutdown");
+                    return Err(GatewayClientError::MixnetMsgSenderFailedToSend);
                 }
                 // This should never happen during ordinary operation the way it's currently used.
                 // Abort to be on the safe side
-                panic!("Failed to send mixnet message: {:?}", err);
+                panic!("Failed to send mixnet message: {err}");
             }
         }
 
         if !received_acks.is_empty() {
             trace!("routing acks");
-            if let Err(e) = self.ack_sender.unbounded_send(received_acks) {
-                error!("failed to send ack: {:?}", e);
+            if let Err(err) = self.ack_sender.unbounded_send(received_acks) {
+                error!("failed to send ack: {err}");
             };
         }
         Ok(())

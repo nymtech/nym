@@ -10,7 +10,7 @@ on:
 
 jobs:
   matrix_prep:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
@@ -24,7 +24,7 @@ jobs:
   contracts:
     # since it's going to be compiled into wasm, there's absolutely
     # no point in running CI on different OS-es
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-20.04
     continue-on-error: ${{ matrix.rust == 'nightly' }}
     needs: matrix_prep
     strategy:

@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::spawn_future;
@@ -10,10 +10,9 @@ use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::ops::Deref;
 use std::sync::Arc;
-use std::time;
 use std::time::Duration;
 use tokio::sync::{RwLock, RwLockReadGuard};
-use topology::{nym_topology_from_detailed, NymTopology};
+use topology::{nym_topology_from_detailed, NymTopology, NymTopologyError};
 use url::Url;
 
 // I'm extremely curious why compiler NEVER complained about lack of Debug here before
@@ -55,18 +54,36 @@ impl<'a> TopologyReadPermit<'a> {
         &'a self,
         ack_recipient: &Recipient,
         packet_recipient: Option<&Recipient>,
-    ) -> Option<&'a NymTopology> {
-        // Note: implicit deref with Deref for TopologyReadPermit is happening here
-        let topology_ref_option = self.permit.as_ref();
-        topology_ref_option.as_ref().filter(|topology_ref| {
-            !(!topology_ref.can_construct_path_through(DEFAULT_NUM_MIX_HOPS)
-                || !topology_ref.gateway_exists(ack_recipient.gateway())
-                || if let Some(packet_recipient) = packet_recipient {
-                    !topology_ref.gateway_exists(packet_recipient.gateway())
-                } else {
-                    false
-                })
-        })
+    ) -> Result<&'a NymTopology, NymTopologyError> {
+        // 1. Have we managed to get anything from the refresher, i.e. have the nym-api queries gone through?
+        let topology = self
+            .permit
+            .as_ref()
+            .as_ref()
+            .ok_or(NymTopologyError::EmptyNetworkTopology)?;
+
+        // 2. does it have any mixnode at all?
+        // 3. does it have any gateways at all?
+        // 4. does it have a mixnode on each layer?
+        topology.ensure_can_construct_path_through(DEFAULT_NUM_MIX_HOPS)?;
+
+        // 5. does it contain OUR gateway (so that we could create an ack packet)?
+        if !topology.gateway_exists(ack_recipient.gateway()) {
+            return Err(NymTopologyError::NonExistentGatewayError {
+                identity_key: ack_recipient.gateway().to_base58_string(),
+            });
+        }
+
+        // 6. for our target recipient, does it contain THEIR gateway (so that we could create
+        if let Some(recipient) = packet_recipient {
+            if !topology.gateway_exists(recipient.gateway()) {
+                return Err(NymTopologyError::NonExistentGatewayError {
+                    identity_key: recipient.gateway().to_base58_string(),
+                });
+            }
+        }
+
+        Ok(topology)
     }
 }
 
@@ -104,10 +121,10 @@ impl TopologyAccessor {
 
     // only used by the client at startup to get a slightly more reasonable error message
     // (currently displays as unused because health checker is disabled due to required changes)
-    pub async fn is_routable(&self) -> bool {
+    pub async fn ensure_is_routable(&self) -> Result<(), NymTopologyError> {
         match &self.inner.read().await.0 {
-            None => false,
-            Some(ref topology) => topology.can_construct_path_through(DEFAULT_NUM_MIX_HOPS),
+            None => Err(NymTopologyError::EmptyNetworkTopology),
+            Some(ref topology) => topology.ensure_can_construct_path_through(DEFAULT_NUM_MIX_HOPS),
         }
     }
 }
@@ -119,19 +136,15 @@ impl Default for TopologyAccessor {
 }
 
 pub struct TopologyRefresherConfig {
-    validator_api_urls: Vec<Url>,
-    refresh_rate: time::Duration,
+    nym_api_urls: Vec<Url>,
+    refresh_rate: Duration,
     client_version: String,
 }
 
 impl TopologyRefresherConfig {
-    pub fn new(
-        validator_api_urls: Vec<Url>,
-        refresh_rate: time::Duration,
-        client_version: String,
-    ) -> Self {
+    pub fn new(nym_api_urls: Vec<Url>, refresh_rate: Duration, client_version: String) -> Self {
         TopologyRefresherConfig {
-            validator_api_urls,
+            nym_api_urls,
             refresh_rate,
             client_version,
         }
@@ -139,10 +152,10 @@ impl TopologyRefresherConfig {
 }
 
 pub struct TopologyRefresher {
-    validator_client: validator_client::client::ApiClient,
+    validator_client: validator_client::client::NymApiClient,
     client_version: String,
 
-    validator_api_urls: Vec<Url>,
+    nym_api_urls: Vec<Url>,
     topology_accessor: TopologyAccessor,
     refresh_rate: Duration,
 
@@ -152,14 +165,14 @@ pub struct TopologyRefresher {
 
 impl TopologyRefresher {
     pub fn new(mut cfg: TopologyRefresherConfig, topology_accessor: TopologyAccessor) -> Self {
-        cfg.validator_api_urls.shuffle(&mut thread_rng());
+        cfg.nym_api_urls.shuffle(&mut thread_rng());
 
         TopologyRefresher {
-            validator_client: validator_client::client::ApiClient::new(
-                cfg.validator_api_urls[0].clone(),
+            validator_client: validator_client::client::NymApiClient::new(
+                cfg.nym_api_urls[0].clone(),
             ),
             client_version: cfg.client_version,
-            validator_api_urls: cfg.validator_api_urls,
+            nym_api_urls: cfg.nym_api_urls,
             topology_accessor,
             refresh_rate: cfg.refresh_rate,
             currently_used_api: 0,
@@ -167,15 +180,15 @@ impl TopologyRefresher {
         }
     }
 
-    fn use_next_validator_api(&mut self) {
-        if self.validator_api_urls.len() == 1 {
-            warn!("There's only a single validator API available - it won't be possible to use a different one");
+    fn use_next_nym_api(&mut self) {
+        if self.nym_api_urls.len() == 1 {
+            warn!("There's only a single nym API available - it won't be possible to use a different one");
             return;
         }
 
-        self.currently_used_api = (self.currently_used_api + 1) % self.validator_api_urls.len();
+        self.currently_used_api = (self.currently_used_api + 1) % self.nym_api_urls.len();
         self.validator_client
-            .change_validator_api(self.validator_api_urls[self.currently_used_api].clone())
+            .change_nym_api(self.nym_api_urls[self.currently_used_api].clone())
     }
 
     /// Verifies whether nodes a reasonably distributed among all mix layers.
@@ -187,13 +200,10 @@ impl TopologyRefresher {
     /// # Arguments
     ///
     /// * `topology`: active topology constructed from validator api data
-    /// * `mixnodes_count`: total number of active mixnodes
-    fn check_layer_distribution(
-        &self,
-        active_topology: &NymTopology,
-        mixnodes_count: usize,
-    ) -> bool {
+    fn check_layer_distribution(&self, active_topology: &NymTopology) -> bool {
         let mixes = active_topology.mixes();
+        let mixnodes_count = active_topology.num_mixnodes();
+
         if active_topology.gateways().is_empty() {
             return false;
         }
@@ -244,7 +254,7 @@ impl TopologyRefresher {
 
         let mixnodes = match self.validator_client.get_cached_active_mixnodes().await {
             Err(err) => {
-                error!("failed to get network mixnodes - {}", err);
+                error!("failed to get network mixnodes - {err}");
                 return None;
             }
             Ok(mixes) => mixes,
@@ -252,17 +262,16 @@ impl TopologyRefresher {
 
         let gateways = match self.validator_client.get_cached_gateways().await {
             Err(err) => {
-                error!("failed to get network gateways - {}", err);
+                error!("failed to get network gateways - {err}");
                 return None;
             }
             Ok(gateways) => gateways,
         };
 
-        let mixnodes_count = mixnodes.len();
         let topology = nym_topology_from_detailed(mixnodes, gateways)
             .filter_system_version(&self.client_version);
 
-        if !self.check_layer_distribution(&topology, mixnodes_count) {
+        if !self.check_layer_distribution(&topology) {
             warn!("The current filtered active topology has extremely skewed layer distribution. It cannot be used.");
             None
         } else {
@@ -275,7 +284,7 @@ impl TopologyRefresher {
         let new_topology = self.get_current_compatible_topology().await;
 
         if new_topology.is_none() {
-            self.use_next_validator_api();
+            self.use_next_nym_api();
         }
 
         if new_topology.is_none() && self.was_latest_valid {
@@ -293,11 +302,11 @@ impl TopologyRefresher {
             .await;
     }
 
-    pub async fn is_topology_routable(&self) -> bool {
-        self.topology_accessor.is_routable().await
+    pub async fn ensure_topology_is_routable(&self) -> Result<(), NymTopologyError> {
+        self.topology_accessor.ensure_is_routable().await
     }
 
-    pub fn start_with_shutdown(mut self, mut shutdown: task::ShutdownListener) {
+    pub fn start_with_shutdown(mut self, mut shutdown: task::TaskClient) {
         spawn_future(async move {
             debug!("Started TopologyRefresher with graceful shutdown support");
 
@@ -322,23 +331,6 @@ impl TopologyRefresher {
             }
             shutdown.recv_timeout().await;
             log::debug!("TopologyRefresher: Exiting");
-        })
-    }
-
-    pub fn start(mut self) {
-        spawn_future(async move {
-            #[cfg(not(target_arch = "wasm32"))]
-            let mut interval = tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(
-                self.refresh_rate,
-            ));
-
-            #[cfg(target_arch = "wasm32")]
-            let mut interval =
-                gloo_timers::future::IntervalStream::new(self.refresh_rate.as_millis() as u32);
-
-            while (interval.next().await).is_some() {
-                self.refresh().await;
-            }
         })
     }
 }

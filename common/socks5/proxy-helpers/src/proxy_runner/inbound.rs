@@ -15,7 +15,7 @@ use socks5_requests::ConnectionId;
 use std::fmt::Debug;
 use std::time::Duration;
 use std::{io, sync::Arc};
-use task::ShutdownListener;
+use task::TaskClient;
 use tokio::select;
 use tokio::{net::tcp::OwnedReadHalf, sync::Notify, time::sleep};
 
@@ -54,7 +54,7 @@ where
         Some(data) => match data {
             Ok(data) => (data, false),
             Err(err) => {
-                error!(target: &*format!("({}) socks5 inbound", connection_id), "failed to read request from the socket - {}", err);
+                error!(target: &*format!("({}) socks5 inbound", connection_id), "failed to read request from the socket - {err}");
                 (Default::default(), true)
             }
         },
@@ -77,16 +77,11 @@ where
         ordered_msg.len()
     );
 
-    // If we are closing the socket, wait until the data has passed `OutQueueControl` and the lane
-    // is empty, otherwise just wait until we are reasonably close to finish sending as a way to
-    // throttle the incoming data.
-    if let Some(lane_queue_lengths) = lane_queue_lengths {
-        if is_finished {
-            wait_until_lane_empty(lane_queue_lengths, connection_id).await;
-        } else {
-            // We allow a bit of slack when this is not the last msg
-            wait_until_lane_almost_empty(lane_queue_lengths, connection_id).await;
-        }
+    // Before sending the data downstream, wait for the lane at the `OutQueueControl` is reasonably
+    // close to finishing. This is a way of pacing the sending application (backpressure).
+    if let Some(ref lane_queue_lengths) = lane_queue_lengths {
+        // We allow a bit of slack to try to keep the pipeline >0
+        wait_until_lane_almost_empty(lane_queue_lengths, connection_id).await;
     }
 
     mix_sender
@@ -95,16 +90,30 @@ where
         .expect("InputMessageReceiver has stopped receiving!");
 
     if is_finished {
-        // technically we already informed it when we sent the message to mixnet above
-        debug!(target: &*format!("({}) socks5 inbound", connection_id), "The local socket is closed - won't receive any more data. Informing remote about that...");
+        // After sending, if this is the last message, wait until we've actually transmitted the data
+        // in the `OutQueueControl` and the lane is empty.
+        if let Some(ref lane_queue_lengths) = lane_queue_lengths {
+            // This is basically an ugly workaround to make sure that we don't start waiting until
+            // the data that we pushed arrived at the OutQueueControl.
+            // This usually not a problem in the socks5-client, but for the network-requester this
+            // info is synced at up to every 500ms.
+            sleep(Duration::from_secs(2)).await;
+            wait_until_lane_empty(lane_queue_lengths, connection_id).await;
+        }
+
+        // Technically we already informed it when we sent the message to mixnet above
+        debug!(
+            target: &*format!("({}) socks5 inbound", connection_id),
+            "The local socket is closed - won't receive any more data. Informing remote about that..."
+        );
     }
 
     is_finished
 }
 
-async fn wait_until_lane_empty(lane_queue_lengths: LaneQueueLengths, connection_id: u64) {
+async fn wait_until_lane_empty(lane_queue_lengths: &LaneQueueLengths, connection_id: u64) {
     if tokio::time::timeout(
-        Duration::from_secs(2 * 60),
+        Duration::from_secs(4 * 60),
         wait_for_lane(
             lane_queue_lengths,
             connection_id,
@@ -119,13 +128,13 @@ async fn wait_until_lane_empty(lane_queue_lengths: LaneQueueLengths, connection_
     }
 }
 
-async fn wait_until_lane_almost_empty(lane_queue_lengths: LaneQueueLengths, connection_id: u64) {
+async fn wait_until_lane_almost_empty(lane_queue_lengths: &LaneQueueLengths, connection_id: u64) {
     if tokio::time::timeout(
-        Duration::from_secs(2 * 60),
+        Duration::from_secs(4 * 60),
         wait_for_lane(
             lane_queue_lengths,
             connection_id,
-            10,
+            30,
             Duration::from_millis(100),
         ),
     )
@@ -137,7 +146,7 @@ async fn wait_until_lane_almost_empty(lane_queue_lengths: LaneQueueLengths, conn
 }
 
 async fn wait_for_lane(
-    lane_queue_lengths: LaneQueueLengths,
+    lane_queue_lengths: &LaneQueueLengths,
     connection_id: u64,
     queue_length_threshold: usize,
     sleep_duration: Duration,
@@ -161,7 +170,7 @@ pub(super) async fn run_inbound<F, S>(
     adapter_fn: F,
     shutdown_notify: Arc<Notify>,
     lane_queue_lengths: Option<LaneQueueLengths>,
-    mut shutdown_listener: ShutdownListener,
+    mut shutdown_listener: TaskClient,
 ) -> OwnedReadHalf
 where
     F: Fn(ConnectionId, Vec<u8>, bool) -> S + Send + 'static,

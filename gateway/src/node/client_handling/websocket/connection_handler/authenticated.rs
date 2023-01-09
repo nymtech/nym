@@ -45,19 +45,19 @@ pub(crate) enum RequestHandlingError {
     #[error("Provided bandwidth credential did not verify correctly on {0}")]
     InvalidBandwidthCredential(String),
 
-    #[error("This gateway is not running in the disabled credentials mode")]
-    NotInDisabledCredentialsMode,
+    #[error("This gateway is only accepting coconut credentials for bandwidth")]
+    OnlyCoconutCredentials,
 
-    #[error("Nymd Error - {0}")]
-    NymdError(#[from] validator_client::nymd::error::NymdError),
+    #[error("Nyxd Error - {0}")]
+    NyxdError(#[from] validator_client::nyxd::error::NyxdError),
 
     #[cfg(feature = "coconut")]
     #[error("Validator API error - {0}")]
     APIError(#[from] validator_client::ValidatorClientError),
 
     #[cfg(feature = "coconut")]
-    #[error("Not enough validator API endpoints provided. Needed {needed}, received {received}")]
-    NotEnoughValidatorAPIs { received: usize, needed: usize },
+    #[error("Not enough nym API endpoints provided. Needed {needed}, received {received}")]
+    NotEnoughNymAPIs { received: usize, needed: usize },
 
     #[cfg(feature = "coconut")]
     #[error("There was a problem with the proposal id: {reason}")]
@@ -182,7 +182,7 @@ where
     /// * `mix_packet`: packet received from the client that should get forwarded into the network.
     fn forward_packet(&self, mix_packet: MixPacket) {
         if let Err(err) = self.inner.outbound_mix_sender.unbounded_send(mix_packet) {
-            error!("We failed to forward requested mix packet - {}. Presumably our mix forwarder has crashed. We cannot continue.", err);
+            error!("We failed to forward requested mix packet - {err}. Presumably our mix forwarder has crashed. We cannot continue.");
             process::exit(1);
         }
     }
@@ -309,8 +309,8 @@ where
     async fn handle_claim_testnet_bandwidth(
         &mut self,
     ) -> Result<ServerResponse, RequestHandlingError> {
-        if !self.inner.disabled_credentials_mode {
-            return Err(RequestHandlingError::NotInDisabledCredentialsMode);
+        if self.inner.only_coconut_credentials {
+            return Err(RequestHandlingError::OnlyCoconutCredentials);
         }
 
         self.increase_bandwidth(FREE_TESTNET_BANDWIDTH_VALUE)
@@ -426,7 +426,7 @@ where
                         None => break,
                         Some(Ok(socket_msg)) => socket_msg,
                         Some(Err(err)) => {
-                            error!("failed to obtain message from websocket stream! stopping connection handler: {}", err);
+                            error!("failed to obtain message from websocket stream! stopping connection handler: {err}");
                             break;
                         }
                     };
@@ -438,8 +438,7 @@ where
                     if let Some(response) = self.handle_request(socket_msg).await {
                         if let Err(err) = self.inner.send_websocket_message(response).await {
                             warn!(
-                                "Failed to send message over websocket: {}. Assuming the connection is dead.",
-                                err
+                                "Failed to send message over websocket: {err}. Assuming the connection is dead.",
                             );
                             break;
                         }
@@ -447,8 +446,8 @@ where
                 },
                 mix_messages = self.mix_receiver.next() => {
                     let mix_messages = mix_messages.expect("sender was unexpectedly closed! this shouldn't have ever happened!");
-                    if let Err(e) = self.inner.push_packets_to_client(self.client.shared_keys, mix_messages).await {
-                        warn!("failed to send the unwrapped sphinx packets back to the client - {:?}, assuming the connection is dead", e);
+                    if let Err(err) = self.inner.push_packets_to_client(self.client.shared_keys, mix_messages).await {
+                        warn!("failed to send the unwrapped sphinx packets back to the client - {err}, assuming the connection is dead");
                         break;
                     }
                 }

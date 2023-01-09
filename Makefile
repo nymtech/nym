@@ -28,7 +28,7 @@ clippy-coconut:
 	cargo clippy --workspace --features coconut -- -D warnings
 
 clippy-wasm:
-	cargo clippy --workspace --features wasm -- -D warnings
+	cargo clippy --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown --workspace -- -D warnings
 
 
 clippy-all-contracts:
@@ -48,9 +48,6 @@ test-main:
 
 test-coconut:
 	cargo test --workspace --features coconut
-
-test-wasm:
-	cargo test --workspace --features wasm
 
 
 test-main-expensive:

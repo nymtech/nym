@@ -2,12 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::template::config_template;
-use client_core::config::Config as BaseConfig;
+pub use client_core::config::Config as BaseConfig;
 pub use client_core::config::MISSING_VALUE;
+use client_core::config::{ClientCoreConfigTrait, DebugConfig};
 use config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
-use config::NymConfig;
+use config::{NymConfig, OptionalSet};
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 mod template;
 
@@ -73,6 +76,12 @@ impl NymConfig for Config {
     }
 }
 
+impl ClientCoreConfigTrait for Config {
+    fn get_gateway_endpoint(&self) -> &client_core::config::GatewayEndpointConfig {
+        self.base.get_gateway_endpoint()
+    }
+}
+
 impl Config {
     pub fn new<S: Into<String>>(id: S) -> Self {
         Config {
@@ -83,6 +92,15 @@ impl Config {
 
     pub fn with_socket(mut self, socket_type: SocketType) -> Self {
         self.socket.socket_type = socket_type;
+        self
+    }
+
+    pub fn with_disabled_socket(mut self, disabled: bool) -> Self {
+        if disabled {
+            self.socket.socket_type = SocketType::None;
+        } else {
+            self.socket.socket_type = SocketType::WebSocket;
+        }
         self
     }
 
@@ -104,12 +122,60 @@ impl Config {
         &mut self.base
     }
 
+    pub fn get_debug_settings(&self) -> &DebugConfig {
+        self.get_base().get_debug_config()
+    }
+
     pub fn get_socket_type(&self) -> SocketType {
         self.socket.socket_type
     }
 
     pub fn get_listening_port(&self) -> u16 {
         self.socket.listening_port
+    }
+
+    // poor man's 'builder' method
+    pub fn with_base<F, T>(mut self, f: F, val: T) -> Self
+    where
+        F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
+    {
+        self.base = f(self.base, val);
+        self
+    }
+
+    // helper methods to use `OptionalSet` trait. Those are defined due to very... ehm. 'specific' structure of this config
+    // (plz, lets refactor it)
+    pub fn with_optional_ext<F, T>(mut self, f: F, val: Option<T>) -> Self
+    where
+        F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
+    {
+        self.base = self.base.with_optional(f, val);
+        self
+    }
+
+    pub fn with_optional_env_ext<F, T>(mut self, f: F, val: Option<T>, env_var: &str) -> Self
+    where
+        F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
+        T: FromStr,
+        <T as FromStr>::Err: Debug,
+    {
+        self.base = self.base.with_optional_env(f, val, env_var);
+        self
+    }
+
+    pub fn with_optional_custom_env_ext<F, T, G>(
+        mut self,
+        f: F,
+        val: Option<T>,
+        env_var: &str,
+        parser: G,
+    ) -> Self
+    where
+        F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
+        G: Fn(&str) -> T,
+    {
+        self.base = self.base.with_optional_custom_env(f, val, env_var, parser);
+        self
     }
 }
 

@@ -4,13 +4,14 @@
 use crate::config::template::config_template;
 use config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
 use config::NymConfig;
-use log::error;
+use network_defaults::mainnet::{NYM_API, NYXD_URL, STATISTICS_SERVICE_DOMAIN_ADDRESS};
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
+use validator_client::nyxd;
 
 pub mod persistence;
 mod template;
@@ -128,8 +129,8 @@ impl Config {
     }
 
     #[cfg(feature = "coconut")]
-    pub fn with_disabled_credentials_mode(mut self, disabled_credentials_mode: bool) -> Self {
-        self.gateway.disabled_credentials_mode = disabled_credentials_mode;
+    pub fn with_only_coconut_credentials(mut self, only_coconut_credentials: bool) -> Self {
+        self.gateway.only_coconut_credentials = only_coconut_credentials;
         self
     }
 
@@ -143,13 +144,14 @@ impl Config {
         self
     }
 
-    pub fn with_custom_validator_apis(mut self, validator_api_urls: Vec<Url>) -> Self {
-        self.gateway.validator_api_urls = validator_api_urls;
+    pub fn with_custom_nym_apis(mut self, nym_api_urls: Vec<Url>) -> Self {
+        self.gateway.nym_api_urls = nym_api_urls;
         self
     }
 
-    pub fn with_custom_validator_nymd(mut self, validator_nymd_urls: Vec<Url>) -> Self {
-        self.gateway.validator_nymd_urls = validator_nymd_urls;
+    #[cfg(feature = "coconut")]
+    pub fn with_custom_validator_nyxd(mut self, validator_nyxd_urls: Vec<Url>) -> Self {
+        self.gateway.nyxd_urls = validator_nyxd_urls;
         self
     }
 
@@ -158,16 +160,8 @@ impl Config {
         self
     }
 
-    pub fn with_listening_address<S: Into<String>>(mut self, listening_address: S) -> Self {
-        let listening_address_string = listening_address.into();
-        if let Ok(ip_addr) = listening_address_string.parse() {
-            self.gateway.listening_address = ip_addr;
-        } else {
-            error!(
-                "failed to change listening address. the provided value ({}) was invalid",
-                listening_address_string
-            );
-        }
+    pub fn with_listening_address(mut self, listening_address: IpAddr) -> Self {
+        self.gateway.listening_address = listening_address;
         self
     }
 
@@ -191,18 +185,18 @@ impl Config {
         self
     }
 
-    pub fn with_custom_persistent_store<S: Into<String>>(mut self, store_dir: S) -> Self {
-        self.gateway.persistent_storage = PathBuf::from(store_dir.into());
+    pub fn with_custom_persistent_store(mut self, store_dir: PathBuf) -> Self {
+        self.gateway.persistent_storage = store_dir;
         self
     }
 
-    pub fn with_custom_version(mut self, version: &str) -> Self {
-        self.gateway.version = version.to_string();
+    pub fn with_custom_version<S: Into<String>>(mut self, version: S) -> Self {
+        self.gateway.version = version.into();
         self
     }
 
-    pub fn with_wallet_address(mut self, wallet_address: &str) -> Self {
-        self.gateway.wallet_address = wallet_address.to_string();
+    pub fn with_wallet_address(mut self, wallet_address: nyxd::AccountId) -> Self {
+        self.gateway.wallet_address = Some(wallet_address);
         self
     }
 
@@ -211,8 +205,8 @@ impl Config {
         self.config_directory().join(Self::config_file_name())
     }
 
-    pub fn get_disabled_credentials_mode(&self) -> bool {
-        self.gateway.disabled_credentials_mode
+    pub fn get_only_coconut_credentials(&self) -> bool {
+        self.gateway.only_coconut_credentials
     }
 
     pub fn get_private_identity_key_file(&self) -> PathBuf {
@@ -239,13 +233,13 @@ impl Config {
         self.gateway.statistics_service_url.clone()
     }
 
-    pub fn get_validator_api_endpoints(&self) -> Vec<Url> {
-        self.gateway.validator_api_urls.clone()
+    pub fn get_nym_api_endpoints(&self) -> Vec<Url> {
+        self.gateway.nym_api_urls.clone()
     }
 
     #[cfg(feature = "coconut")]
-    pub fn get_validator_nymd_endpoints(&self) -> Vec<Url> {
-        self.gateway.validator_nymd_urls.clone()
+    pub fn get_nyxd_urls(&self) -> Vec<Url> {
+        self.gateway.nyxd_urls.clone()
     }
 
     #[cfg(feature = "coconut")]
@@ -301,8 +295,8 @@ impl Config {
         &self.gateway.version
     }
 
-    pub fn get_wallet_address(&self) -> &str {
-        &self.gateway.wallet_address
+    pub fn get_wallet_address(&self) -> Option<nyxd::AccountId> {
+        self.gateway.wallet_address.clone()
     }
 }
 
@@ -315,10 +309,10 @@ pub struct Gateway {
     /// ID specifies the human readable ID of this particular gateway.
     id: String,
 
-    /// Indicates whether this gateway is running in a disabled credentials mode, thus allowing clients
-    /// to claim bandwidth without presenting bandwidth credentials.
+    /// Indicates whether this gateway is accepting only coconut credentials for accessing the
+    /// the mixnet, or if it also accepts non-paying clients
     #[serde(default)]
-    disabled_credentials_mode: bool,
+    only_coconut_credentials: bool,
 
     /// Address to which this mixnode will bind to and will be listening for packets.
     #[serde(default = "bind_all_address")]
@@ -352,17 +346,19 @@ pub struct Gateway {
     /// Path to file containing public sphinx key.
     public_sphinx_key_file: PathBuf,
 
-    /// Wheather gateway collects and sends anonymized statistics
+    /// Whether gateway collects and sends anonymized statistics
     enabled_statistics: bool,
 
     /// Domain address of the statistics service
     statistics_service_url: Url,
 
-    /// Addresses to APIs running on validator from which the node gets the view of the network.
-    validator_api_urls: Vec<Url>,
+    /// Addresses to APIs from which the node gets the view of the network.
+    #[serde(alias = "validator_api_urls")]
+    nym_api_urls: Vec<Url>,
 
     /// Addresses to validators which the node uses to check for double spending of ERC20 tokens.
-    validator_nymd_urls: Vec<Url>,
+    #[serde(alias = "validator_nymd_urls")]
+    nyxd_urls: Vec<Url>,
 
     /// Mnemonic of a cosmos wallet used in checking for double spending.
     cosmos_mnemonic: bip39::Mnemonic,
@@ -376,7 +372,8 @@ pub struct Gateway {
     persistent_storage: PathBuf,
 
     /// The Cosmos wallet address that will control this gateway
-    wallet_address: String,
+    // the only reason this is an Option is because of the lack of existence of a sane default value
+    wallet_address: Option<nyxd::AccountId>,
 }
 
 impl Gateway {
@@ -406,7 +403,7 @@ impl Default for Gateway {
         Gateway {
             version: env!("CARGO_PKG_VERSION").to_string(),
             id: "".to_string(),
-            disabled_credentials_mode: true,
+            only_coconut_credentials: false,
             listening_address: bind_all_address(),
             announce_address: "127.0.0.1".to_string(),
             mix_port: DEFAULT_MIX_LISTENING_PORT,
@@ -416,13 +413,13 @@ impl Default for Gateway {
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
             enabled_statistics: false,
-            statistics_service_url: Url::from_str("http://127.0.0.1").unwrap(),
-            validator_api_urls: vec![],
-            validator_nymd_urls: vec![],
+            statistics_service_url: Url::from_str(STATISTICS_SERVICE_DOMAIN_ADDRESS).expect("Invalid default statistics service URL"),
+            nym_api_urls: vec![Url::from_str(NYM_API).expect("Invalid default API URL")],
+            nyxd_urls: vec![Url::from_str(NYXD_URL).expect("Invalid default nyxd URL")],
             cosmos_mnemonic: bip39::Mnemonic::from_str("exact antique hybrid width raise anchor puzzle degree fee quit long crack net vague hip despair write put useless civil mechanic broom music day").unwrap(),
             nym_root_directory: Config::default_root_directory(),
             persistent_storage: Default::default(),
-            wallet_address: "nymXXXXXXXX".to_string(),
+            wallet_address: None,
         }
     }
 }

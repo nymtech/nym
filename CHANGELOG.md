@@ -7,6 +7,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 ### Added
 
 - socks5: send status message for service ready, and network-requester error response
+- nym-sdk: added initial version of a Rust client sdk
 
 ### Changed
 

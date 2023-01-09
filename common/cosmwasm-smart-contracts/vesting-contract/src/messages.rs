@@ -192,6 +192,10 @@ pub enum QueryMsg {
         start_next_after: Option<String>,
         limit: Option<u32>,
     },
+    GetAccountsLockedCoinsPaged {
+        start_next_after: Option<String>,
+        limit: Option<u32>,
+    },
     LockedCoins {
         vesting_account_address: String,
         block_time: Option<Timestamp>,

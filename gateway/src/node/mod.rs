@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::storage::PersistentStorage;
-use crate::commands::sign::load_identity_keys;
 use crate::commands::validate_bech32_address_or_exit;
 use crate::config::persistence::pathfinder::GatewayPathfinder;
 use crate::config::Config;
@@ -11,6 +10,7 @@ use crate::node::client_handling::websocket;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
+use crate::{commands::sign::load_identity_keys, OutputFormat};
 use colored::Colorize;
 use crypto::asymmetric::{encryption, identity};
 use log::*;
@@ -129,32 +129,32 @@ where
         verification_code
     }
 
-    pub(crate) fn print_node_details(&self) {
-        println!(
-            "Identity Key: {}",
-            self.identity_keypair.public_key().to_base58_string()
-        );
-        println!(
-            "Sphinx Key: {}",
-            self.sphinx_keypair.public_key().to_base58_string()
-        );
-        println!("Owner Signature: {}", self.generate_owner_signature());
-        println!(
-            "Host: {} (bind address: {})",
-            self.config.get_announce_address(),
-            self.config.get_listening_address()
-        );
-        println!("Version: {}", self.config.get_version());
-        println!(
-            "Mix Port: {}, Clients port: {}",
-            self.config.get_mix_port(),
-            self.config.get_clients_port()
-        );
+    pub(crate) fn print_node_details(&self, output: OutputFormat) {
+        let node_details = nym_types::gateway::GatewayNodeDetailsResponse {
+            identity_key: self.identity_keypair.public_key().to_base58_string(),
+            sphinx_key: self.sphinx_keypair.public_key().to_base58_string(),
+            owner_signature: self.generate_owner_signature(),
+            announce_address: self.config.get_announce_address(),
+            bind_address: self.config.get_listening_address().to_string(),
+            version: self.config.get_version().to_string(),
+            mix_port: self.config.get_mix_port(),
+            clients_port: self.config.get_clients_port(),
+            data_store: self
+                .config
+                .get_persistent_store_path()
+                .to_str()
+                .unwrap_or(".")
+                .to_string(),
+        };
 
-        println!(
-            "Data store is at: {:?}",
-            self.config.get_persistent_store_path()
-        );
+        match output {
+            OutputFormat::Json => println!(
+                "{}",
+                serde_json::to_string(&node_details)
+                    .unwrap_or_else(|_| "Could not serialize node details".to_string())
+            ),
+            OutputFormat::Text => println!("{}", node_details),
+        }
     }
 
     fn start_mix_socket_listener(

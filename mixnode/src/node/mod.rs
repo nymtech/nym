@@ -17,6 +17,7 @@ use crate::node::listener::Listener;
 use crate::node::node_description::NodeDescription;
 use crate::node::node_statistics::SharedNodeStats;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
+use crate::OutputFormat;
 use ::crypto::asymmetric::{encryption, identity};
 use colored::Colorize;
 use config::NymConfig;
@@ -101,35 +102,28 @@ impl MixNode {
     }
 
     /// Prints relevant node details to the console
-    pub(crate) fn print_node_details(&self) {
-        println!(
-            "Identity Key: {}",
-            self.identity_keypair.public_key().to_base58_string()
-        );
-        println!(
-            "Sphinx Key: {}",
-            self.sphinx_keypair.public_key().to_base58_string()
-        );
-        println!("Owner Signature: {}", self.generate_owner_signature());
-        println!(
-            "Host: {} (bind address: {})",
-            self.config.get_announce_address(),
-            self.config.get_listening_address()
-        );
-        println!("Version: {}", self.config.get_version());
-        println!(
-            "Mix Port: {}, Verloc port: {}, Http Port: {}\n",
-            self.config.get_mix_port(),
-            self.config.get_verloc_port(),
-            self.config.get_http_api_port()
-        );
-        println!(
-            "You are bonding to wallet address: {}\n\n",
-            self.config
-                .get_wallet_address()
-                .map(|addr| addr.to_string())
-                .unwrap_or_else(|| "UNSPECIFIED".to_string())
-        );
+    pub(crate) fn print_node_details(&self, output: OutputFormat) {
+        let node_details = nym_types::mixnode::MixnodeNodeDetailsResponse {
+            identity_key: self.identity_keypair.public_key().to_base58_string(),
+            sphinx_key: self.sphinx_keypair.public_key().to_base58_string(),
+            owner_signature: self.generate_owner_signature(),
+            announce_address: self.config.get_announce_address(),
+            bind_address: self.config.get_listening_address().to_string(),
+            version: self.config.get_version().to_string(),
+            mix_port: self.config.get_mix_port(),
+            http_api_port: self.config.get_http_api_port(),
+            verloc_port: self.config.get_verloc_port(),
+            wallet_address: self.config.get_wallet_address().map(|x| x.to_string()),
+        };
+
+        match output {
+            OutputFormat::Json => println!(
+                "{}",
+                serde_json::to_string(&node_details)
+                    .unwrap_or_else(|_| "Could not serialize node details".to_string())
+            ),
+            OutputFormat::Text => println!("{}", node_details),
+        }
     }
 
     fn start_http_api(

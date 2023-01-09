@@ -27,6 +27,7 @@ nymsphinx = { path = "../../nymsphinx" }
 pemstore = { path = "../../pemstore" }
 validator-client = { path = "../validator-client", optional = true }
 task = { path = "../../task" }
+serde = { version = "1.0", features = ["derive"]}
 
 
 [dependencies.tungstenite]

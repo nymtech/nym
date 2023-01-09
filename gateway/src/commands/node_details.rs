@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::Config;
+use crate::{config::Config, OutputFormat};
 use clap::Args;
 use config::NymConfig;
 use log::error;
@@ -13,7 +13,7 @@ pub struct NodeDetails {
     id: String,
 }
 
-pub async fn execute(args: &NodeDetails) {
+pub async fn execute(args: &NodeDetails, output: OutputFormat) {
     let config = match Config::load_from_file(Some(&args.id)) {
         Ok(cfg) => cfg,
         Err(err) => {
@@ -28,5 +28,5 @@ pub async fn execute(args: &NodeDetails) {
 
     crate::node::create_gateway(config)
         .await
-        .print_node_details();
+        .print_node_details(output);
 }

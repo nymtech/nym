@@ -13,7 +13,6 @@ use client_connections::{
 use futures::channel::mpsc;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
-use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::receiver::ReconstructedMessage;
@@ -170,7 +169,7 @@ impl ServiceProvider {
                             // usually in the low single digits, max a few tens, so we leave that
                             // for a rainy day.
                             // Also that means fiddling with the currently manual
-                            // serialize/deserialize we do with ClientRequests ... bleh
+                            // serialize/deserialize we do with ClientRequests ...
                             for id in ids {
                                 log::trace!("Requesting lane queue length for: {}", id);
                                 let msg = ClientRequest::GetLaneQueueLength(id);
@@ -215,7 +214,7 @@ impl ServiceProvider {
             let deserialized_message = match ServerResponse::deserialize(&data) {
                 Ok(deserialized) => deserialized,
                 Err(err) => {
-                    error!(
+                    log::error!(
                         "Failed to deserialize received websocket message! - {}",
                         err
                     );
@@ -256,7 +255,7 @@ impl ServiceProvider {
             match Connection::new(conn_id, remote_addr.clone(), return_address.clone()).await {
                 Ok(conn) => conn,
                 Err(err) => {
-                    error!(
+                    log::error!(
                         "error while connecting to {:?} ! - {:?}",
                         remote_addr.clone(),
                         err
@@ -282,7 +281,7 @@ impl ServiceProvider {
             .unwrap();
 
         let old_count = ACTIVE_PROXIES.fetch_add(1, Ordering::SeqCst);
-        info!(
+        log::info!(
             "Starting proxy for {} (currently there are {} proxies being handled)",
             remote_addr,
             old_count + 1
@@ -298,7 +297,7 @@ impl ServiceProvider {
             .unwrap();
 
         let old_count = ACTIVE_PROXIES.fetch_sub(1, Ordering::SeqCst);
-        info!(
+        log::info!(
             "Proxy for {} is finished  (currently there are {} proxies being handled)",
             remote_addr,
             old_count - 1
@@ -384,7 +383,7 @@ impl ServiceProvider {
         let deserialized_msg = match Socks5Message::try_from_bytes(&message.message) {
             Ok(msg) => msg,
             Err(err) => {
-                error!("Failed to deserialized received message! - {err}");
+                log::error!("Failed to deserialized received message! - {err}");
                 return;
             }
         };
@@ -528,7 +527,7 @@ impl ServiceProvider {
     ) -> Result<TSWebsocketStream, NetworkRequesterError> {
         match websocket::Connection::new(uri).connect().await {
             Ok(ws_stream) => {
-                info!("* connected to local websocket server at {}", uri);
+                log::info!("* connected to local websocket server at {}", uri);
                 Ok(ws_stream)
             }
             Err(err) => {

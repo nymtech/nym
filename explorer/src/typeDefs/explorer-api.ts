@@ -77,8 +77,8 @@ export interface MixNodeResponseItem {
   status: MixnodeStatus;
   location: {
     country_name: string;
-    lat: number;
-    lng: number;
+    latitude?: number;
+    longitude?: number;
     three_letter_iso_country_code: string;
     two_letter_iso_country_code: string;
   };

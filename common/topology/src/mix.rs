@@ -7,63 +7,24 @@ use mixnet_contract_common::{Layer, MixId, MixNodeBond};
 use nymsphinx_addressing::nodes::NymNodeRoutingAddress;
 use nymsphinx_types::Node as SphinxNode;
 use std::convert::{TryFrom, TryInto};
-use std::fmt::{self, Display, Formatter};
 use std::io;
 use std::net::SocketAddr;
+use thiserror::Error;
 
-#[derive(Debug)]
+#[derive(Error, Debug)]
 pub enum MixnodeConversionError {
-    InvalidIdentityKey(identity::Ed25519RecoveryError),
-    InvalidSphinxKey(encryption::KeyRecoveryError),
-    InvalidAddress(String, io::Error),
-    InvalidStake,
-    Other(Box<dyn std::error::Error + Send + Sync>),
-}
+    #[error("mixnode identity key was malformed - {0}")]
+    InvalidIdentityKey(#[from] identity::Ed25519RecoveryError),
 
-impl From<encryption::KeyRecoveryError> for MixnodeConversionError {
-    fn from(err: encryption::KeyRecoveryError) -> Self {
-        MixnodeConversionError::InvalidSphinxKey(err)
-    }
-}
+    #[error("mixnode sphinx key was malformed - {0}")]
+    InvalidSphinxKey(#[from] encryption::KeyRecoveryError),
 
-impl From<identity::Ed25519RecoveryError> for MixnodeConversionError {
-    fn from(err: identity::Ed25519RecoveryError) -> Self {
-        MixnodeConversionError::InvalidIdentityKey(err)
-    }
-}
-
-impl Display for MixnodeConversionError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            MixnodeConversionError::InvalidIdentityKey(err) => write!(
-                f,
-                "failed to convert mixnode due to invalid identity key - {}",
-                err
-            ),
-            MixnodeConversionError::InvalidSphinxKey(err) => write!(
-                f,
-                "failed to convert mixnode due to invalid sphinx key - {}",
-                err
-            ),
-            MixnodeConversionError::InvalidAddress(address, err) => {
-                write!(
-                    f,
-                    "failed to convert mixnode due to invalid address {} - {}",
-                    address, err
-                )
-            }
-            MixnodeConversionError::InvalidStake => {
-                write!(f, "failed to convert mixnode due to invalid stake")
-            }
-            MixnodeConversionError::Other(err) => {
-                write!(
-                    f,
-                    "failed to convert mixnode due to another error - {}",
-                    err
-                )
-            }
-        }
-    }
+    #[error("'{value}' is not a valid mixnode address - {source}")]
+    InvalidAddress {
+        value: String,
+        #[source]
+        source: io::Error,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -100,16 +61,22 @@ impl<'a> TryFrom<&'a MixNodeBond> for Node {
     type Error = MixnodeConversionError;
 
     fn try_from(bond: &'a MixNodeBond) -> Result<Self, Self::Error> {
-        let host: NetworkAddress = bond.mix_node.host.parse().map_err(|err| {
-            MixnodeConversionError::InvalidAddress(bond.mix_node.host.clone(), err)
-        })?;
+        let host: NetworkAddress =
+            bond.mix_node
+                .host
+                .parse()
+                .map_err(|err| MixnodeConversionError::InvalidAddress {
+                    value: bond.mix_node.host.clone(),
+                    source: err,
+                })?;
 
         // try to completely resolve the host in the mix situation to avoid doing it every
         // single time we want to construct a path
         let mix_host = host
             .to_socket_addrs(bond.mix_node.mix_port)
-            .map_err(|err| {
-                MixnodeConversionError::InvalidAddress(bond.mix_node.host.clone(), err)
+            .map_err(|err| MixnodeConversionError::InvalidAddress {
+                value: bond.mix_node.host.clone(),
+                source: err,
             })?[0];
 
         Ok(Node {

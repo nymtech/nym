@@ -26,7 +26,7 @@ use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
-use task::{wait_for_signal, ShutdownListener, ShutdownNotifier};
+use task::{wait_for_signal, TaskClient, TaskManager};
 use version_checker::parse_version;
 
 mod http;
@@ -153,7 +153,7 @@ impl MixNode {
 
     fn start_node_stats_controller(
         &self,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> (SharedNodeStats, node_statistics::UpdateSender) {
         info!("Starting node stats controller...");
         let controller = node_statistics::Controller::new(
@@ -171,7 +171,7 @@ impl MixNode {
         &self,
         node_stats_update_sender: node_statistics::UpdateSender,
         delay_forwarding_channel: PacketDelayForwardSender,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) {
         info!("Starting socket listener...");
 
@@ -191,7 +191,7 @@ impl MixNode {
     fn start_packet_delay_forwarder(
         &mut self,
         node_stats_update_sender: node_statistics::UpdateSender,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> PacketDelayForwardSender {
         info!("Starting packet delay-forwarder...");
 
@@ -215,7 +215,7 @@ impl MixNode {
         packet_sender
     }
 
-    fn start_verloc_measurements(&self, shutdown: ShutdownListener) -> AtomicVerlocResult {
+    fn start_verloc_measurements(&self, shutdown: TaskClient) -> AtomicVerlocResult {
         info!("Starting the round-trip-time measurer...");
 
         // this is a sanity check to make sure we didn't mess up with the minimum version at some point
@@ -245,7 +245,7 @@ impl MixNode {
             .tested_nodes_batch_size(self.config.get_measurement_tested_nodes_batch_size())
             .testing_interval(self.config.get_measurement_testing_interval())
             .retry_timeout(self.config.get_measurement_retry_timeout())
-            .validator_api_urls(self.config.get_validator_api_endpoints())
+            .nym_api_urls(self.config.get_nym_api_endpoints())
             .build();
 
         let mut verloc_measurer =
@@ -256,12 +256,12 @@ impl MixNode {
     }
 
     fn random_api_client(&self) -> validator_client::ApiClient {
-        let endpoints = self.config.get_validator_api_endpoints();
-        let validator_api = endpoints
+        let endpoints = self.config.get_nym_api_endpoints();
+        let nym_api = endpoints
             .choose(&mut thread_rng())
             .expect("The list of validator apis is empty");
 
-        validator_client::ApiClient::new(validator_api.clone())
+        validator_client::ApiClient::new(nym_api.clone())
     }
 
     // TODO: ask DH whether this function still makes sense in ^0.10
@@ -288,7 +288,7 @@ impl MixNode {
             .map(|node| node.bond_information.mix_node.identity_key.clone())
     }
 
-    async fn wait_for_interrupt(&self, mut shutdown: ShutdownNotifier) {
+    async fn wait_for_interrupt(&self, mut shutdown: TaskManager) {
         wait_for_signal().await;
 
         log::info!("Sending shutdown");
@@ -315,7 +315,7 @@ impl MixNode {
             }
         }
 
-        let shutdown = ShutdownNotifier::default();
+        let shutdown = TaskManager::default();
 
         let (node_stats_pointer, node_stats_update_sender) =
             self.start_node_stats_controller(shutdown.subscribe());

@@ -100,7 +100,7 @@ pub fn start_status_listener(
             log::info!("SOCKS5 proxy sent status message: {}", msg);
             window
                 .emit(
-                    "socks5-event",
+                    "socks5-status-event",
                     Payload {
                         title: "SOCKS5 update".into(),
                         message: msg.to_string(),
@@ -134,13 +134,13 @@ pub fn start_disconnect_listener(
                     .unwrap();
             }
             Ok(Socks5ExitStatusMessage::Failed(err)) => {
-                log::info!("SOCKS5 task reported error: {}", err);
+                log::info!("SOCKS5 task reported error: {err}");
                 window
                     .emit(
                         "socks5-event",
                         Payload {
                             title: "SOCKS5 error".into(),
-                            message: format!("SOCKS5 failed: {}", err),
+                            message: format!("SOCKS5 failed: {err}"),
                         },
                     )
                     .unwrap();

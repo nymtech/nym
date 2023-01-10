@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Button, Chip, Stack, Tooltip, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
@@ -11,6 +11,9 @@ import { Node as NodeIcon } from '../../svg-icons/node';
 import { Cell, Header, NodeTable } from './NodeTable';
 import { BondedMixnodeActions, TBondedMixnodeActions } from './BondedMixnodeActions';
 import { NodeStats } from './NodeStats';
+import { getIntervalAsDate } from 'src/utils';
+
+const textWhenNotName = 'This node has not yet set a name';
 
 const headers: Header[] = [
   {
@@ -63,6 +66,7 @@ export const BondedMixnode = ({
   network?: Network;
   onActionSelect: (action: TBondedMixnodeActions) => void;
 }) => {
+  const [nextEpoch, setNextEpoch] = useState<string | Error>();
   const navigate = useNavigate();
   const {
     name,
@@ -78,6 +82,15 @@ export const BondedMixnode = ({
     identityKey,
     host,
   } = mixnode;
+
+  const getNextInterval = async () => {
+    try {
+      const { nextEpoch } = await getIntervalAsDate();
+      setNextEpoch(nextEpoch);
+    } catch {
+      setNextEpoch(Error());
+    }
+  };
   const cells: Cell[] = [
     {
       cell: `${stake.amount} ${stake.denom}`,
@@ -121,6 +134,10 @@ export const BondedMixnode = ({
     },
   ];
 
+  useEffect(() => {
+    getNextInterval();
+  }, []);
+
   return (
     <Stack gap={2}>
       <NymCard
@@ -133,32 +150,43 @@ export const BondedMixnode = ({
               </Typography>
               <NodeStatus status={status} />
             </Box>
-            {name && (
-              <Tooltip title={host} arrow>
-                <Typography fontWeight="regular" variant="h6" width="fit-content">
-                  {name}
-                </Typography>
-              </Tooltip>
+            {name?.includes(textWhenNotName) ? null : (
+              <Typography fontWeight="regular" variant="h6" width="fit-content">
+                {name}
+              </Typography>
             )}
-            <IdentityKey identityKey={identityKey} />
+            <Tooltip title={host} placement="top" arrow>
+              <Box width="fit-content">
+                <IdentityKey identityKey={identityKey} />
+              </Box>
+            </Tooltip>
           </Stack>
         }
         Action={
-          isMixnode(mixnode) && (
-            <Tooltip title={mixnode.isUnbonding ? 'You have a pending unbond event. Node settings are disabled.' : ''}>
-              <Box>
-                <Button
-                  variant="text"
-                  color="secondary"
-                  onClick={() => navigate('/bonding/node-settings')}
-                  startIcon={<NodeIcon />}
-                  disabled={mixnode.isUnbonding}
-                >
-                  Node Settings
-                </Button>
-              </Box>
-            </Tooltip>
-          )
+          <Box display="flex" flexDirection="column" alignItems="flex-end" justifyContent="space-between" height={70}>
+            {isMixnode(mixnode) && (
+              <Tooltip
+                title={mixnode.isUnbonding ? 'You have a pending unbond event. Node settings are disabled.' : ''}
+              >
+                <Box>
+                  <Button
+                    variant="text"
+                    color="secondary"
+                    onClick={() => navigate('/bonding/node-settings')}
+                    startIcon={<NodeIcon />}
+                    disabled={mixnode.isUnbonding}
+                  >
+                    Node Settings
+                  </Button>
+                </Box>
+              </Tooltip>
+            )}
+            {nextEpoch instanceof Error ? null : (
+              <Typography fontSize={14} marginRight={1}>
+                Next epoch starts at <b>{nextEpoch}</b>
+              </Typography>
+            )}
+          </Box>
         }
       >
         <NodeTable headers={headers} cells={cells} />

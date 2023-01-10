@@ -10,9 +10,9 @@ use mixnet_contract_common::{Gateway, MixNode};
 use crate::menu::AddDefaultSubmenus;
 use crate::operations::help;
 use crate::operations::mixnet;
+use crate::operations::nym_api;
 use crate::operations::signatures;
 use crate::operations::simulate;
-use crate::operations::validator_api;
 use crate::operations::vesting;
 use crate::state::WalletState;
 
@@ -87,10 +87,10 @@ fn main() {
             mixnet::send::send,
             mixnet::bond::get_mixnode_uptime,
             network_config::add_validator,
-            network_config::get_validator_api_urls,
+            network_config::get_nym_api_urls,
             network_config::get_validator_nymd_urls,
             network_config::remove_validator,
-            network_config::select_validator_api_url,
+            network_config::select_nym_api_url,
             network_config::select_validator_nymd_url,
             network_config::update_validator_urls,
             state::load_config_from_files,
@@ -101,14 +101,14 @@ fn main() {
             utils::get_old_and_incorrect_hardcoded_fee,
             utils::try_convert_pubkey_to_mix_id,
             utils::default_mixnode_cost_params,
-            validator_api::status::compute_mixnode_reward_estimation,
-            validator_api::status::gateway_core_node_status,
-            validator_api::status::mixnode_core_node_status,
-            validator_api::status::mixnode_inclusion_probability,
-            validator_api::status::mixnode_reward_estimation,
-            validator_api::status::mixnode_stake_saturation,
-            validator_api::status::mixnode_status,
-            validator_api::status::gateway_report,
+            nym_api::status::compute_mixnode_reward_estimation,
+            nym_api::status::gateway_core_node_status,
+            nym_api::status::mixnode_core_node_status,
+            nym_api::status::mixnode_inclusion_probability,
+            nym_api::status::mixnode_reward_estimation,
+            nym_api::status::mixnode_stake_saturation,
+            nym_api::status::mixnode_status,
+            nym_api::status::gateway_report,
             vesting::rewards::vesting_claim_delegator_reward,
             vesting::rewards::vesting_claim_operator_reward,
             vesting::bond::vesting_bond_gateway,

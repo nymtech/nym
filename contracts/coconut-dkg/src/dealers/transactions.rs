@@ -70,21 +70,21 @@ pub fn try_add_dealer(
 pub(crate) mod tests {
     use super::*;
     use crate::epoch_state::transactions::advance_epoch_state;
-    use crate::support::tests::fixtures::dealer_details_fixture;
     use crate::support::tests::helpers;
-    use crate::support::tests::helpers::ADMIN_ADDRESS;
-    use cosmwasm_std::testing::mock_info;
+    use coconut_dkg_common::types::PUBLIC_KEY_SUBMISSION_TIME_SECS;
+    use cosmwasm_std::testing::{mock_env, mock_info};
 
     #[test]
     fn invalid_state() {
         let mut deps = helpers::init_contract();
         let owner = Addr::unchecked("owner");
+        let mut env = mock_env();
         let info = mock_info(owner.as_str(), &[]);
-        let dealer_details = dealer_details_fixture(1);
         let bte_key_with_proof = String::from("bte_key_with_proof");
         let announce_address = String::from("localhost:8000");
 
-        advance_epoch_state(deps.as_mut(), mock_info(ADMIN_ADDRESS, &[])).unwrap();
+        env.block.time = env.block.time.plus_seconds(PUBLIC_KEY_SUBMISSION_TIME_SECS);
+        advance_epoch_state(deps.as_mut(), env).unwrap();
 
         let ret = try_add_dealer(
             deps.as_mut(),

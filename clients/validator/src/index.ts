@@ -86,7 +86,7 @@ export default class ValidatorClient implements INymClient {
   static async connect(
     mnemonic: string,
     nymdUrl: string,
-    validatorApiUrl: string,
+    nymApiUrl: string,
     prefix: string,
     mixnetContract: string,
     vestingContract: string,
@@ -94,19 +94,19 @@ export default class ValidatorClient implements INymClient {
   ): Promise<ValidatorClient> {
     const wallet = await ValidatorClient.buildWallet(mnemonic, prefix);
 
-    const signingClient = await SigningClient.connectWithNymSigner(wallet, nymdUrl, validatorApiUrl, prefix, denom);
+    const signingClient = await SigningClient.connectWithNymSigner(wallet, nymdUrl, nymApiUrl, prefix, denom);
     return new ValidatorClient(signingClient, prefix, mixnetContract, vestingContract, denom);
   }
 
   static async connectForQuery(
     nymdUrl: string,
-    validatorApiUrl: string,
+    nymApiUrl: string,
     prefix: string,
     mixnetContract: string,
     vestingContract: string,
     denom: string,
   ): Promise<ValidatorClient> {
-    const queryClient = await QueryClient.connectWithNym(nymdUrl, validatorApiUrl);
+    const queryClient = await QueryClient.connectWithNym(nymdUrl, nymApiUrl);
     return new ValidatorClient(queryClient, prefix, mixnetContract, vestingContract, denom);
   }
 

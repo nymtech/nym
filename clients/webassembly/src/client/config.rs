@@ -17,7 +17,7 @@ pub struct Config {
     /// ID specifies the human readable ID of this particular client.
     pub(crate) id: String,
 
-    pub(crate) validator_api_url: Url,
+    pub(crate) nym_api_url: Url,
 
     pub(crate) disabled_credentials_mode: bool,
 
@@ -38,7 +38,7 @@ impl Config {
     ) -> Self {
         Config {
             id,
-            validator_api_url: validator_server
+            nym_api_url: validator_server
                 .parse()
                 .expect("provided url was malformed"),
             disabled_credentials_mode: true,

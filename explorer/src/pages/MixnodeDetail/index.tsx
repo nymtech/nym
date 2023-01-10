@@ -164,10 +164,10 @@ const PageMixnodeDetailWithState: React.FC = () => {
           {mixNode && (
             <ContentCard title="Location">
               {mixNode?.error && <ComponentError text="There was a problem retrieving this mixnode location" />}
-              {mixNode.data && mixNode?.data?.location && (
+              {mixNode?.data?.location?.latitude && mixNode?.data?.location?.longitude && (
                 <WorldMap
                   loading={mixNode.isLoading}
-                  userLocation={[mixNode?.data?.location?.lng, mixNode?.data?.location?.lat]}
+                  userLocation={[mixNode.data.location.longitude, mixNode.data.location.latitude]}
                 />
               )}
             </ContentCard>

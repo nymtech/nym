@@ -22,7 +22,7 @@ use rand::rngs::OsRng;
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::time::Duration;
-use task::ShutdownListener;
+use task::TaskClient;
 use tungstenite::protocol::Message;
 
 #[cfg(feature = "coconut")]
@@ -67,7 +67,7 @@ pub struct GatewayClient {
     reconnection_backoff: Duration,
 
     /// Listen to shutdown messages.
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl GatewayClient {
@@ -83,7 +83,7 @@ impl GatewayClient {
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
         bandwidth_controller: Option<BandwidthController<PersistentStorage>>,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> Self {
         GatewayClient {
             authenticated: false,
@@ -135,7 +135,7 @@ impl GatewayClient {
         // perfectly fine here, because it's not meant to be used
         let (ack_tx, _) = mpsc::unbounded();
         let (mix_tx, _) = mpsc::unbounded();
-        let shutdown = ShutdownListener::dummy();
+        let shutdown = TaskClient::dummy();
         let packet_router = PacketRouter::new(ack_tx, mix_tx, shutdown.clone());
 
         GatewayClient {
@@ -305,11 +305,11 @@ impl GatewayClient {
                             if let Some(shared_keys) = &self.shared_key {
                                 if let Some(plaintext) = try_decrypt_binary_message(bin_msg, shared_keys) {
                                     if let Err(err) = self.packet_router.route_received(vec![plaintext]) {
-                                        log::warn!("Route received failed: {:?}", err);
+                                        log::warn!("Route received failed: {err}");
                                     }
                                 }
                             } else if let Err(err) = self.packet_router.route_received(vec![bin_msg]) {
-                                log::warn!("Route received failed: {:?}", err);
+                                log::warn!("Route received failed: {err}");
                             }
                         }
                         Message::Text(txt_msg) => {

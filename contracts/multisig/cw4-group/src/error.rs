@@ -5,13 +5,13 @@ use cw_controllers::{AdminError, HookError};
 
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
-    #[error("{0}")]
+    #[error(transparent)]
     Std(#[from] StdError),
 
-    #[error("{0}")]
+    #[error(transparent)]
     Hook(#[from] HookError),
 
-    #[error("{0}")]
+    #[error(transparent)]
     Admin(#[from] AdminError),
 
     #[error("Unauthorized")]

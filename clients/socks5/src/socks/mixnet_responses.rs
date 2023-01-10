@@ -9,13 +9,15 @@ use client_core::client::received_buffer::{ReceivedBufferMessage, ReceivedBuffer
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::{ControllerCommand, ControllerSender};
 use socks5_requests::Message;
-use task::ShutdownListener;
+use task::TaskClient;
+
+use crate::error::Socks5ClientError;
 
 pub(crate) struct MixnetResponseListener {
     buffer_requester: ReceivedBufferRequestSender,
     mix_response_receiver: ReconstructedMessagesReceiver,
     controller_sender: ControllerSender,
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl Drop for MixnetResponseListener {
@@ -25,9 +27,9 @@ impl Drop for MixnetResponseListener {
             .unbounded_send(ReceivedBufferMessage::ReceiverDisconnect)
         {
             if self.shutdown.is_shutdown_poll() {
-                log::debug!("The buffer request failed: {}", err);
+                log::debug!("The buffer request failed: {err}");
             } else {
-                log::error!("The buffer request failed: {}", err);
+                log::error!("The buffer request failed: {err}");
             }
         }
     }
@@ -37,7 +39,7 @@ impl MixnetResponseListener {
     pub(crate) fn new(
         buffer_requester: ReceivedBufferRequestSender,
         controller_sender: ControllerSender,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> Self {
         let (mix_response_sender, mix_response_receiver) = mpsc::unbounded();
         buffer_requester
@@ -52,7 +54,10 @@ impl MixnetResponseListener {
         }
     }
 
-    async fn on_message(&self, reconstructed_message: ReconstructedMessage) {
+    fn on_message(
+        &self,
+        reconstructed_message: ReconstructedMessage,
+    ) -> Result<(), Socks5ClientError> {
         let raw_message = reconstructed_message.message;
         if reconstructed_message.sender_tag.is_some() {
             warn!("this message was sent anonymously - it couldn't have come from the service provider");
@@ -60,12 +65,12 @@ impl MixnetResponseListener {
 
         let response = match Message::try_from_bytes(&raw_message) {
             Err(err) => {
-                warn!("failed to parse received response - {:?}", err);
-                return;
+                warn!("failed to parse received response - {err}");
+                return Ok(());
             }
             Ok(Message::Request(_)) => {
                 warn!("unexpected request");
-                return;
+                return Ok(());
             }
             Ok(Message::Response(data)) => data,
             Ok(Message::NetworkRequesterResponse(r)) => {
@@ -73,7 +78,10 @@ impl MixnetResponseListener {
                     "Network requester failed on connection id {} with error: {}",
                     r.connection_id, r.network_requester_error
                 );
-                return;
+                return Err(Socks5ClientError::NetworkRequesterError {
+                    connection_id: r.connection_id,
+                    error: r.network_requester_error,
+                });
             }
         };
 
@@ -84,18 +92,21 @@ impl MixnetResponseListener {
                 response.is_closed,
             ))
             .unwrap();
+
+        Ok(())
     }
 
     pub(crate) async fn run(&mut self) {
         while !self.shutdown.is_shutdown() {
             tokio::select! {
-                received_responses = self.mix_response_receiver.next() => match received_responses {
-                    Some(received_responses) => {
+                received_responses = self.mix_response_receiver.next() => {
+                    if let Some(received_responses) = received_responses {
                         for reconstructed_message in received_responses {
-                            self.on_message(reconstructed_message).await;
+                            if let Err(err) = self.on_message(reconstructed_message) {
+                                self.shutdown.send_status_msg(Box::new(err));
+                            }
                         }
-                    },
-                    None => {
+                    } else {
                         log::trace!("MixnetResponseListener: Stopping since channel closed");
                         break;
                     }

@@ -8,7 +8,7 @@ use futures::StreamExt;
 use log::*;
 use socks5_requests::ConnectionId;
 use std::{sync::Arc, time::Duration};
-use task::ShutdownListener;
+use task::TaskClient;
 use tokio::io::AsyncWriteExt;
 use tokio::select;
 use tokio::{net::tcp::OwnedWriteHalf, sync::Notify, time::sleep, time::Instant};
@@ -33,7 +33,7 @@ async fn deal_with_message(
 
     if let Err(err) = writer.write_all(&connection_message.payload).await {
         // the other half is probably going to blow up too (if not, this task also needs to notify the other one!!)
-        error!(target: &*format!("({}) socks5 outbound", connection_id), "failed to write response back to the socket - {}", err);
+        error!(target: &*format!("({}) socks5 outbound", connection_id), "failed to write response back to the socket - {err}");
         return true;
     }
     if connection_message.socket_closed {
@@ -51,7 +51,7 @@ pub(super) async fn run_outbound(
     mut mix_receiver: ConnectionReceiver,
     connection_id: ConnectionId,
     shutdown_notify: Arc<Notify>,
-    mut shutdown_listener: ShutdownListener,
+    mut shutdown_listener: TaskClient,
 ) -> (OwnedWriteHalf, ConnectionReceiver) {
     let shutdown_future = shutdown_notify.notified().then(|_| sleep(SHUTDOWN_TIMEOUT));
     tokio::pin!(shutdown_future);

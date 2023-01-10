@@ -1,10 +1,14 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use std::convert::TryFrom;
+use thiserror::Error;
 
-#[derive(Debug)]
-pub struct InvalidPacketMode;
+#[derive(Error, Debug)]
+#[error("{received} is not a valid packet mode tag")]
+pub struct InvalidPacketMode {
+    received: u8,
+}
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -31,11 +35,11 @@ impl PacketMode {
 impl TryFrom<u8> for PacketMode {
     type Error = InvalidPacketMode;
 
-    fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             _ if value == (PacketMode::Mix as u8) => Ok(Self::Mix),
             _ if value == (PacketMode::Vpn as u8) => Ok(Self::Vpn),
-            _ => Err(InvalidPacketMode),
+            v => Err(InvalidPacketMode { received: v }),
         }
     }
 }

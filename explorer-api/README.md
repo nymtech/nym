@@ -40,7 +40,7 @@ It should be previously installed thanks to `geoipupdate` service.
 For example:
 
 ```shell
-GEOIP_DB_PATH=./geo_ip/GeoLite2-Country.mmdb cargo run
+GEOIP_DB_PATH=./geo_ip/GeoLite2-City.mmdb cargo run
 ```
 
 Note: explorer-api binary reads the provided `.env` file.

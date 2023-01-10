@@ -9,13 +9,13 @@ use crate::response::{Response, ResponseError};
 
 #[derive(Debug, Error)]
 pub enum MessageError {
-    #[error("{0}")]
+    #[error(transparent)]
     Request(RequestError),
 
     #[error("{0:?}")]
     Response(ResponseError),
 
-    #[error("{0}")]
+    #[error(transparent)]
     NetworkRequesterResponseError(NrError),
 
     #[error("no data")]

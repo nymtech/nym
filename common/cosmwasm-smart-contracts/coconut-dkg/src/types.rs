@@ -6,14 +6,47 @@ use std::fmt::{Display, Formatter};
 
 pub use crate::dealer::{DealerDetails, PagedDealerResponse};
 pub use contracts_common::dealings::ContractSafeBytes;
-pub use cosmwasm_std::{Addr, Coin};
+pub use cosmwasm_std::{Addr, Coin, Timestamp};
 
 pub type EncodedBTEPublicKeyWithProof = String;
 pub type EncodedBTEPublicKeyWithProofRef<'a> = &'a str;
 pub type NodeIndex = u64;
 
+// The time sign-up is open for dealers to join (2 minutes)
+pub const PUBLIC_KEY_SUBMISSION_TIME_SECS: u64 = 60 * 2;
+pub const DEALING_EXCHANGE_TIME_SECS: u64 = 60 * 5;
+pub const VERIFICATION_KEY_SUBMISSION_TIME_SECS: u64 = 60 * 5;
+pub const VERIFICATION_KEY_VALIDATION_TIME_SECS: u64 = 60;
+pub const VERIFICATION_KEY_FINALIZATION_TIME_SECS: u64 = 60;
+// The time an epoch lasts (2 weeks)
+pub const IN_PROGRESS_TIME_SECS: u64 = 60 * 60 * 24 * 14;
+
 // 2 public attributes, 2 private attributes, 1 fixed for coconut credential
 pub const TOTAL_DEALINGS: usize = 2 + 2 + 1;
+
+#[derive(Serialize, Deserialize, Default, Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd)]
+#[serde(rename_all = "snake_case")]
+pub struct Epoch {
+    pub state: EpochState,
+    pub finish_timestamp: Timestamp,
+}
+
+impl Epoch {
+    pub fn new(state: EpochState, current_timestamp: Timestamp) -> Self {
+        let duration = match state {
+            EpochState::PublicKeySubmission => PUBLIC_KEY_SUBMISSION_TIME_SECS,
+            EpochState::DealingExchange => DEALING_EXCHANGE_TIME_SECS,
+            EpochState::VerificationKeySubmission => VERIFICATION_KEY_SUBMISSION_TIME_SECS,
+            EpochState::VerificationKeyValidation => VERIFICATION_KEY_VALIDATION_TIME_SECS,
+            EpochState::VerificationKeyFinalization => VERIFICATION_KEY_FINALIZATION_TIME_SECS,
+            EpochState::InProgress => IN_PROGRESS_TIME_SECS,
+        };
+        Epoch {
+            state,
+            finish_timestamp: current_timestamp.plus_seconds(duration),
+        }
+    }
+}
 
 // currently (it is still extremely likely to change, we might be able to get rid of verification key-related complaints),
 // the epoch can be in the following states (in order):

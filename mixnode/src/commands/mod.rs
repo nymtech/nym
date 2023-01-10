@@ -96,10 +96,10 @@ fn override_config(mut config: Config, args: OverrideConfig) -> Config {
     }
 
     if let Some(ref raw_validators) = args.validators {
-        config = config.with_custom_validator_apis(parse_validators(raw_validators));
+        config = config.with_custom_nym_apis(parse_validators(raw_validators));
     } else if std::env::var(CONFIGURED).is_ok() {
         if let Some(raw_validators) = read_var_if_not_default(API_VALIDATOR) {
-            config = config.with_custom_validator_apis(::config::parse_validators(&raw_validators))
+            config = config.with_custom_nym_apis(::config::parse_validators(&raw_validators))
         }
     }
 
@@ -125,7 +125,7 @@ pub(crate) fn validate_bech32_address_or_exit(address: &str) {
     if let Err(bech32_address_validation::Bech32Error::DecodeFailed(err)) =
         bech32_address_validation::try_bech32_decode(address)
     {
-        let error_message = format!("Error: wallet address decoding failed: {}", err).red();
+        let error_message = format!("Error: wallet address decoding failed: {err}").red();
         println!("{}", error_message);
         println!("Exiting...");
         process::exit(1);
@@ -134,7 +134,7 @@ pub(crate) fn validate_bech32_address_or_exit(address: &str) {
     if let Err(bech32_address_validation::Bech32Error::WrongPrefix(err)) =
         bech32_address_validation::validate_bech32_prefix(&prefix, address)
     {
-        let error_message = format!("Error: wallet address type is wrong, {}", err).red();
+        let error_message = format!("Error: wallet address type is wrong, {err}").red();
         println!("{}", error_message);
         println!("Exiting...");
         process::exit(1);

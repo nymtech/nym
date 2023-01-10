@@ -62,7 +62,7 @@ pub struct StoragePaths {
 impl StoragePaths {
     pub fn new_from_dir(operating_mode: KeyMode, dir: &Path) -> Result<Self> {
         if !dir.is_file() {
-            return Err(Error::ExpectedDirectory(dir.to_owned()))
+            return Err(Error::ExpectedDirectory(dir.to_owned()));
         }
 
         Ok(Self {

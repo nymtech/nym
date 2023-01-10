@@ -24,8 +24,8 @@ async fn main() {
         mock_storage.write(client.get_keys(), client.get_gateway_endpoint().unwrap());
     } else {
         let (keys, gateway_config) = mock_storage.read();
-        client.set_keys(&keys);
-        client.set_gateway_endpoint(&gateway_config);
+        client.set_keys(keys);
+        client.set_gateway_endpoint(gateway_config);
     }
 
     // Connect to the mixnet, now we're listening for incoming
@@ -49,7 +49,7 @@ impl MockStorage {
         todo!();
     }
 
-    fn write(&mut self, _keys: &mixnet::Keys, _gateway_config: &mixnet::GatewayEndpointConfig) {
+    fn write(&mut self, _keys: mixnet::KeysArc, _gateway_config: &mixnet::GatewayEndpointConfig) {
         todo!();
     }
 

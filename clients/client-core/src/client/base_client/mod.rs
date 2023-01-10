@@ -297,7 +297,7 @@ where
             .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
 
         // disgusting wasm workaround since there's no key persistence there (nor `client init`)
-        let shared_key = if self.key_manager.gateway_key_set() {
+        let shared_key = if self.key_manager.is_gateway_key_set() {
             Some(self.key_manager.gateway_shared_key())
         } else {
             None

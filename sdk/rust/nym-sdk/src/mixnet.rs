@@ -10,7 +10,7 @@ pub use nymsphinx::{
     receiver::ReconstructedMessage,
 };
 
-pub use keys::Keys;
+pub use keys::{Keys, KeysArc};
 pub use paths::{GatewayKeyMode, KeyMode, StoragePaths};
 
 pub use client::{Client, ClientBuilder};

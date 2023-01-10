@@ -72,14 +72,6 @@ impl KeyManager {
         }
     }
 
-    // this is actually **NOT** dead code
-    // I have absolutely no idea why the compiler insists it's unused. The call happens during client::init::execute
-    #[allow(dead_code)]
-    /// After shared key with the gateway is derived, puts its ownership to this instance of a [`KeyManager`].
-    pub fn insert_gateway_shared_key(&mut self, gateway_shared_key: Arc<SharedKeys>) {
-        self.gateway_shared_key = Some(gateway_shared_key)
-    }
-
     /// Loads previously stored client keys from the disk.
     fn load_client_keys(client_pathfinder: &ClientKeyPathfinder) -> io::Result<Self> {
         let identity_keypair: identity::KeyPair =
@@ -189,14 +181,42 @@ impl KeyManager {
         Ok(())
     }
 
+    /// Overwrite the existing identity keypair
+    pub fn set_identity_keypair(&mut self, id_keypair: identity::KeyPair) {
+        self.identity_keypair = Arc::new(id_keypair);
+    }
+
     /// Gets an atomically reference counted pointer to [`identity::KeyPair`].
     pub fn identity_keypair(&self) -> Arc<identity::KeyPair> {
         Arc::clone(&self.identity_keypair)
     }
 
+    /// Overwrite the existing encryption keypair
+    pub fn set_encryption_keypair(&mut self, enc_keypair: encryption::KeyPair) {
+        self.encryption_keypair = Arc::new(enc_keypair);
+    }
+
     /// Gets an atomically reference counted pointer to [`encryption::KeyPair`].
     pub fn encryption_keypair(&self) -> Arc<encryption::KeyPair> {
         Arc::clone(&self.encryption_keypair)
+    }
+
+    /// Overwrite the existing ack key
+    pub fn set_ack_key(&mut self, ack_key: AckKey) {
+        self.ack_key = Arc::new(ack_key);
+    }
+
+    /// Gets an atomically reference counted pointer to [`AckKey`].
+    pub fn ack_key(&self) -> Arc<AckKey> {
+        Arc::clone(&self.ack_key)
+    }
+
+    // this is actually **NOT** dead code
+    // I have absolutely no idea why the compiler insists it's unused. The call happens during client::init::execute
+    #[allow(dead_code)]
+    /// After shared key with the gateway is derived, puts its ownership to this instance of a [`KeyManager`].
+    pub fn insert_gateway_shared_key(&mut self, gateway_shared_key: Arc<SharedKeys>) {
+        self.gateway_shared_key = Some(gateway_shared_key)
     }
 
     /// Gets an atomically reference counted pointer to [`SharedKey`].
@@ -210,12 +230,7 @@ impl KeyManager {
         )
     }
 
-    pub fn gateway_key_set(&self) -> bool {
+    pub fn is_gateway_key_set(&self) -> bool {
         self.gateway_shared_key.is_some()
-    }
-
-    /// Gets an atomically reference counted pointer to [`AckKey`].
-    pub fn ack_key(&self) -> Arc<AckKey> {
-        Arc::clone(&self.ack_key)
     }
 }

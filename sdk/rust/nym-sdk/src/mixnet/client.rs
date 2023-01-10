@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, sync::Arc};
 
 use client_connections::TransmissionLane;
 use client_core::{
@@ -20,7 +20,7 @@ use nymsphinx::{
 };
 use task::TaskManager;
 
-use super::{connection_state::BuilderState, Config, GatewayKeyMode, Keys, StoragePaths};
+use super::{connection_state::BuilderState, Config, GatewayKeyMode, Keys, KeysArc, StoragePaths};
 use crate::error::{Error, Result};
 
 pub struct ClientBuilder {
@@ -85,19 +85,27 @@ impl ClientBuilder {
     /// key, however, is created during the gateway registration handshake so it might not
     /// necessarily be available.
     fn has_gateway_key(&self) -> bool {
-        self.key_manager.gateway_key_set()
+        self.key_manager.is_gateway_key_set()
     }
 
-    pub fn set_keys(&mut self, _keys: &Keys) {
-        todo!();
+    pub fn set_keys(&mut self, keys: Keys) {
+        self.key_manager.set_identity_keypair(keys.identity_keypair);
+        self.key_manager
+            .set_encryption_keypair(keys.encryption_keypair);
+        self.key_manager.set_ack_key(keys.ack_key);
+
+        self.key_manager
+            .insert_gateway_shared_key(Arc::new(keys.gateway_shared_key));
     }
 
-    pub fn get_keys(&self) -> &Keys {
-        todo!();
+    pub fn get_keys(&self) -> KeysArc {
+        KeysArc::from(&self.key_manager)
     }
 
-    pub fn set_gateway_endpoint(&mut self, _gateway_endpoint_config: &GatewayEndpointConfig) {
-        todo!();
+    pub fn set_gateway_endpoint(&mut self, gateway_endpoint_config: GatewayEndpointConfig) {
+        self.state = BuilderState::Registered {
+            gateway_endpoint_config,
+        }
     }
 
     pub fn get_gateway_endpoint(&self) -> Option<&GatewayEndpointConfig> {

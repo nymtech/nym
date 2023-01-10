@@ -1,7 +1,6 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::core::ReturnAddress;
 use client_connections::LaneQueueLengths;
 use proxy_helpers::connection_controller::ConnectionReceiver;
 use proxy_helpers::proxy_runner::{MixProxySender, ProxyRunner};
@@ -10,22 +9,24 @@ use std::io;
 use task::TaskClient;
 use tokio::net::TcpStream;
 
-/// A TCP connection between the Socks5 service provider, which makes
-/// outbound requests on behalf of users and returns the responses through
+use crate::reply;
+
+/// An outbound TCP connection between the Socks5 service provider, which makes
+/// requests on behalf of users and returns the responses through
 /// the mixnet.
 #[derive(Debug)]
 pub(crate) struct Connection {
     id: ConnectionId,
     address: RemoteAddress,
     conn: Option<TcpStream>,
-    return_address: ReturnAddress,
+    return_address: reply::ReturnAddress,
 }
 
 impl Connection {
     pub(crate) async fn new(
         id: ConnectionId,
         address: RemoteAddress,
-        return_address: ReturnAddress,
+        return_address: reply::ReturnAddress,
     ) -> io::Result<Self> {
         let conn = TcpStream::connect(&address).await?;
 
@@ -40,7 +41,7 @@ impl Connection {
     pub(crate) async fn run_proxy(
         &mut self,
         mix_receiver: ConnectionReceiver,
-        mix_sender: MixProxySender<(Socks5Message, ReturnAddress)>,
+        mix_sender: MixProxySender<(Socks5Message, reply::ReturnAddress)>,
         lane_queue_lengths: LaneQueueLengths,
         shutdown: TaskClient,
     ) {

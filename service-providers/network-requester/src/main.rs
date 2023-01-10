@@ -11,9 +11,10 @@ use error::NetworkRequesterError;
 use nymsphinx::addressing::clients::Recipient;
 
 mod allowed_hosts;
-mod connection;
 mod core;
 mod error;
+mod reply;
+mod socks5;
 mod statistics;
 mod websocket;
 

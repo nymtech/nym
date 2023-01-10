@@ -61,8 +61,8 @@ impl NymContractCache {
                 cache.current_interval.update(Some(current_interval));
                 cache.mix_to_family.update(mix_to_family)
             }
-            Err(e) => {
-                error!("{}", e);
+            Err(err) => {
+                error!("{err}");
             }
         }
     }
@@ -70,8 +70,8 @@ impl NymContractCache {
     pub async fn mixnodes_blacklist(&self) -> Option<Cache<HashSet<MixId>>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
             Ok(cache) => Some(cache.mixnodes_blacklist.clone()),
-            Err(e) => {
-                error!("{}", e);
+            Err(err) => {
+                error!("{err}");
                 None
             }
         }
@@ -80,8 +80,8 @@ impl NymContractCache {
     pub async fn gateways_blacklist(&self) -> Option<Cache<HashSet<IdentityKey>>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
             Ok(cache) => Some(cache.gateways_blacklist.clone()),
-            Err(e) => {
-                error!("{}", e);
+            Err(err) => {
+                error!("{err}");
                 None
             }
         }
@@ -107,7 +107,7 @@ impl NymContractCache {
                     cache.mixnodes_blacklist.update(blacklist);
                     return;
                 }
-                Err(e) => error!("{}", e),
+                Err(err) => error!("{err}"),
             }
         }
         error!("Failed to update mixnodes blacklist");
@@ -137,7 +137,7 @@ impl NymContractCache {
                     cache.gateways_blacklist.update(blacklist);
                     return;
                 }
-                Err(e) => error!("{}", e),
+                Err(err) => error!("{err}"),
             }
         }
         error!("Failed to update gateways blacklist");
@@ -147,8 +147,8 @@ impl NymContractCache {
         let blacklist = self.mixnodes_blacklist().await;
         let mixnodes = match time::timeout(Duration::from_millis(100), self.inner.read()).await {
             Ok(cache) => cache.mixnodes.clone(),
-            Err(e) => {
-                error!("{}", e);
+            Err(err) => {
+                error!("{err}");
                 return Vec::new();
             }
         };
@@ -174,8 +174,8 @@ impl NymContractCache {
                 .into_iter()
                 .map(|bond| bond.bond_information)
                 .collect(),
-            Err(e) => {
-                error!("{}", e);
+            Err(err) => {
+                error!("{err}");
                 Vec::new()
             }
         }
@@ -185,8 +185,8 @@ impl NymContractCache {
         let blacklist = self.gateways_blacklist().await;
         let gateways = match time::timeout(Duration::from_millis(100), self.inner.read()).await {
             Ok(cache) => cache.gateways.clone(),
-            Err(e) => {
-                error!("{}", e);
+            Err(err) => {
+                error!("{err}");
                 return Vec::new();
             }
         };
@@ -206,8 +206,8 @@ impl NymContractCache {
     pub async fn gateways_all(&self) -> Vec<GatewayBond> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
             Ok(cache) => cache.gateways.value.clone(),
-            Err(e) => {
-                error!("{}", e);
+            Err(err) => {
+                error!("{err}");
                 Vec::new()
             }
         }
@@ -216,8 +216,8 @@ impl NymContractCache {
     pub async fn rewarded_set(&self) -> Cache<Vec<MixNodeDetails>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
             Ok(cache) => cache.rewarded_set.clone(),
-            Err(e) => {
-                error!("{}", e);
+            Err(err) => {
+                error!("{err}");
                 Cache::new(Vec::new())
             }
         }
@@ -226,8 +226,8 @@ impl NymContractCache {
     pub async fn active_set(&self) -> Cache<Vec<MixNodeDetails>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
             Ok(cache) => cache.active_set.clone(),
-            Err(e) => {
-                error!("{}", e);
+            Err(err) => {
+                error!("{err}");
                 Cache::new(Vec::new())
             }
         }
@@ -236,8 +236,8 @@ impl NymContractCache {
     pub async fn mix_to_family(&self) -> Cache<Vec<(IdentityKey, FamilyHead)>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
             Ok(cache) => cache.mix_to_family.clone(),
-            Err(e) => {
-                error!("{}", e);
+            Err(err) => {
+                error!("{err}");
                 Cache::new(Vec::new())
             }
         }
@@ -246,8 +246,8 @@ impl NymContractCache {
     pub(crate) async fn interval_reward_params(&self) -> Cache<Option<RewardingParams>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
             Ok(cache) => cache.current_reward_params.clone(),
-            Err(e) => {
-                error!("{}", e);
+            Err(err) => {
+                error!("{err}");
                 Cache::new(None)
             }
         }
@@ -256,8 +256,8 @@ impl NymContractCache {
     pub(crate) async fn current_interval(&self) -> Cache<Option<Interval>> {
         match time::timeout(Duration::from_millis(100), self.inner.read()).await {
             Ok(cache) => cache.current_interval.clone(),
-            Err(e) => {
-                error!("{}", e);
+            Err(err) => {
+                error!("{err}");
                 Cache::new(None)
             }
         }

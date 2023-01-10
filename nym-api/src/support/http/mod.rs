@@ -24,7 +24,7 @@ pub(crate) mod openapi;
 
 pub(crate) async fn setup_rocket(
     config: &Config,
-    _mix_denom: String,
+    mix_denom: String,
     liftoff_notify: Arc<Notify>,
     _nyxd_client: nyxd::Client,
     #[cfg(feature = "coconut")] coconut_keypair: coconut::keypair::KeyPair,
@@ -48,7 +48,7 @@ pub(crate) async fn setup_rocket(
         .attach(setup_liftoff_notify(liftoff_notify))
         .attach(NymContractCache::stage())
         .attach(NodeStatusCache::stage())
-        .attach(CirculatingSupplyCache::stage());
+        .attach(CirculatingSupplyCache::stage(mix_denom.clone()));
 
     // This is not a very nice approach. A lazy value would be more suitable, but that's still
     // a nightly feature: https://github.com/rust-lang/rust/issues/74465
@@ -62,7 +62,7 @@ pub(crate) async fn setup_rocket(
     let rocket = if config.get_coconut_signer_enabled() {
         rocket.attach(InternalSignRequest::stage(
             _nyxd_client.clone(),
-            _mix_denom,
+            mix_denom,
             coconut_keypair,
             storage.clone().unwrap(),
         ))

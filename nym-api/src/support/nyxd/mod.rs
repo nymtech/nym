@@ -19,7 +19,7 @@ use validator_client::nyxd::{
     hash::{Hash, SHA256_HASH_SIZE},
     Coin, SigningNyxdClient, TendermintTime,
 };
-use validator_client::{AccountId, ValidatorClientError};
+use validator_client::ValidatorClientError;
 
 #[cfg(feature = "coconut")]
 use crate::coconut::error::CoconutError;
@@ -93,20 +93,6 @@ impl Client {
             .await?;
 
         Ok(time)
-    }
-
-    pub(crate) async fn get_balance(
-        &self,
-        address: AccountId,
-    ) -> Result<Option<Coin>, ValidatorClientError> {
-        let balance = self
-            .0
-            .read()
-            .await
-            .nyxd
-            .get_balance(&address, "unym".to_string())
-            .await?;
-        Ok(balance)
     }
 
     /// Obtains the hash of a block specified by the provided height.

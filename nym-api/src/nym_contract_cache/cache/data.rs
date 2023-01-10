@@ -1,11 +1,12 @@
-use std::collections::HashSet;
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 
+use crate::support::caching::Cache;
 use mixnet_contract_common::{
     families::FamilyHead, GatewayBond, IdentityKey, Interval, MixId, MixNodeDetails,
     RewardingParams,
 };
-
-use crate::support::caching::Cache;
+use std::collections::HashSet;
 
 pub(crate) struct ValidatorCacheData {
     pub(crate) mixnodes: Cache<Vec<MixNodeDetails>>,

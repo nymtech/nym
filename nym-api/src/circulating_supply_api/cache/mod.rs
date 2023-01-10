@@ -1,14 +1,17 @@
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use self::data::CirculatingSupplyCacheData;
+use nym_api_requests::models::CirculatingSupplyResponse;
 use rocket::fairing::AdHoc;
+use std::ops::Deref;
 use std::{
     sync::{atomic::AtomicBool, Arc},
     time::Duration,
 };
 use tokio::sync::RwLock;
 use tokio::time;
-
-use crate::support::caching::Cache;
-
-use self::data::CirculatingSupplyCacheData;
+use validator_client::nyxd::Coin;
 
 mod data;
 pub(crate) mod refresher;
@@ -25,33 +28,38 @@ pub(crate) struct CirculatingSupplyCache {
 }
 
 impl CirculatingSupplyCache {
-    fn new() -> CirculatingSupplyCache {
+    fn new(mix_denom: String) -> CirculatingSupplyCache {
         CirculatingSupplyCache {
             initialised: Arc::new(AtomicBool::new(false)),
-            data: Arc::new(RwLock::new(CirculatingSupplyCacheData::new())),
+            data: Arc::new(RwLock::new(CirculatingSupplyCacheData::new(mix_denom))),
         }
     }
 
-    pub(crate) async fn get_circulating_supply(&self) -> Option<Cache<String>> {
+    pub(crate) async fn get_circulating_supply(&self) -> Option<CirculatingSupplyResponse> {
         match time::timeout(Duration::from_millis(100), self.data.read()).await {
-            Ok(cache) => Some(cache.circulating_supply.clone()),
-            Err(e) => {
-                error!("Failed to get circulating supply: {}", e);
-                Some(Cache::new(String::from("0nym")))
+            Ok(cache) => Some(cache.deref().into()),
+            Err(err) => {
+                error!("Failed to get circulating supply: {err}");
+                None
             }
         }
     }
 
-    pub(crate) fn stage() -> AdHoc {
+    pub(crate) fn stage(mix_denom: String) -> AdHoc {
         AdHoc::on_ignite("Circulating Supply Cache Stage", |rocket| async {
-            rocket.manage(Self::new())
+            rocket.manage(Self::new(mix_denom))
         })
     }
 
-    pub(crate) async fn update(&self, mixmining_temp: validator_client::nyxd::Coin) {
+    pub(crate) async fn update(
+        &self,
+        mixmining_reserve: Coin,
+        vesting_tokens: Coin,
+        circulating_supply: Coin,
+    ) {
         let mut cache = self.data.write().await;
-        cache.circulating_supply = Cache::new(mixmining_temp.to_string());
-        self.initialised
-            .store(true, std::sync::atomic::Ordering::Relaxed);
+        cache.mixmining_reserve.update(mixmining_reserve);
+        cache.vesting_tokens.update(vesting_tokens);
+        cache.circulating_supply.update(circulating_supply);
     }
 }

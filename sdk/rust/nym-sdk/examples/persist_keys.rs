@@ -14,13 +14,13 @@ async fn main() {
     let keys = mixnet::StoragePaths::new_from_dir(mixnet::KeyMode::Keep, &config_dir);
 
     // Provide key paths for the client to read/write keys to.
-    let mut client = mixnet::Client::new(None, Some(keys)).unwrap();
+    let client = mixnet::ClientBuilder::new(None, Some(keys)).unwrap();
 
     // Connect to the mixnet, now we're listening for incoming
-    client.connect_to_mixnet().await.unwrap();
+    let mut client = client.connect_to_mixnet().await.unwrap();
 
     // Be able to get our client address
-    let our_address = client.nym_address().unwrap();
+    let our_address = client.nym_address();
     println!("Our client nym address is: {our_address}");
 
     // Send a message throught the mixnet to ourselves

@@ -1,27 +1,29 @@
 use std::path::Path;
 
+use client_connections::TransmissionLane;
+use client_core::{
+    client::{
+        base_client::{
+            non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
+            CredentialsToggle,
+        },
+        inbound_messages::InputMessage,
+        key_manager::KeyManager,
+        received_buffer::ReconstructedMessagesReceiver,
+    },
+    config::{persistence::key_pathfinder::ClientKeyPathfinder, GatewayEndpointConfig},
+};
 use futures::StreamExt;
 use nymsphinx::{
     addressing::clients::{ClientIdentity, Recipient},
     receiver::ReconstructedMessage,
 };
-use tap::TapOptional;
+use task::TaskManager;
 
-use client_connections::TransmissionLane;
-use client_core::{
-    client::{
-        base_client::{non_wasm_helpers, BaseClientBuilder, CredentialsToggle},
-        inbound_messages::InputMessage,
-        key_manager::KeyManager,
-    },
-    config::{persistence::key_pathfinder::ClientKeyPathfinder, GatewayEndpointConfig},
-};
-
+use super::{connection_state::BuilderState, Config, GatewayKeyMode, Keys, StoragePaths};
 use crate::error::{Error, Result};
 
-use super::{connection_state::ConnectionState, Config, GatewayKeyMode, Keys, StoragePaths};
-
-pub struct Client {
+pub struct ClientBuilder {
     /// Keys handled by the client
     key_manager: KeyManager,
 
@@ -33,16 +35,35 @@ pub struct Client {
 
     /// The client can be in one of multiple states, depending on how it is created and if it's
     /// connected to the mixnet.
-    connection_state: ConnectionState,
+    state: BuilderState,
 }
 
-impl Client {
+pub struct Client {
+    nym_address: Recipient,
+
+    /// Keys handled by the client
+    key_manager: KeyManager,
+
+    client_input: ClientInput,
+
+    #[allow(dead_code)]
+    client_output: ClientOutput,
+
+    #[allow(dead_code)]
+    client_state: ClientState,
+
+    reconstructed_receiver: ReconstructedMessagesReceiver,
+
+    task_manager: TaskManager,
+}
+
+impl ClientBuilder {
     /// Create a new mixnet client. If no config options are supplied, creates a new client with
     /// ephemeral keys stored in RAM, which will be discarded at application close.
     ///
     /// Callers have the option of supplying futher parameters to store persistent identities at a
     /// location on-disk, if desired.
-    pub fn new(config_option: Option<Config>, paths: Option<StoragePaths>) -> Result<Client> {
+    pub fn new(config_option: Option<Config>, paths: Option<StoragePaths>) -> Result<Self> {
         let config = config_option.unwrap_or_default();
 
         // If we are provided paths to keys, use them if they are available. And if they are
@@ -71,29 +92,18 @@ impl Client {
             client_core::init::new_client_keys()
         };
 
-        Ok(Client {
+        Ok(Self {
             key_manager,
             config,
             storage_paths: paths,
-            connection_state: ConnectionState::New,
+            state: BuilderState::New,
         })
-    }
-
-    /// Get the client identity, which is the public key of the identity key pair.
-    pub fn identity(&self) -> ClientIdentity {
-        *self.key_manager.identity_keypair().public_key()
-    }
-
-    /// Get the nym address for this client, if it is available. The nym address is composed of the
-    /// client identity, the client encryption key, and the gateway identity.
-    pub fn nym_address(&self) -> Option<&Recipient> {
-        self.connection_state.nym_address()
     }
 
     /// Client keys are generated at client creation if none were found. The gateway shared
     /// key, however, is created during the gateway registration handshake so it might not
     /// necessarily be available.
-    pub fn has_gateway_key(&self) -> bool {
+    fn has_gateway_key(&self) -> bool {
         self.key_manager.gateway_key_set()
     }
 
@@ -110,12 +120,12 @@ impl Client {
     }
 
     pub fn get_gateway_endpoint(&self) -> Option<&GatewayEndpointConfig> {
-        self.connection_state.gateway_endpoint_config()
+        self.state.gateway_endpoint_config()
     }
 
     pub async fn register_with_gateway(&mut self) -> Result<()> {
         assert!(
-            matches!(self.connection_state, ConnectionState::New),
+            matches!(self.state, BuilderState::New),
             "can only setup gateway when in `New` connection state"
         );
 
@@ -126,11 +136,8 @@ impl Client {
         )
         .await?;
 
-        let nym_address = client_core::init::get_client_address(&self.key_manager, &gateway_config);
-
-        self.connection_state = ConnectionState::Registered {
+        self.state = BuilderState::Registered {
             gateway_endpoint_config: gateway_config,
-            nym_address,
         };
         Ok(())
     }
@@ -163,21 +170,17 @@ impl Client {
             std::fs::read_to_string(gateway_endpoint_config_path)
                 .map(|str| toml::from_str(&str))??;
 
-        let nym_address =
-            client_core::init::get_client_address(&self.key_manager, &gateway_endpoint_config);
-
-        self.connection_state = ConnectionState::Registered {
+        self.state = BuilderState::Registered {
             gateway_endpoint_config,
-            nym_address,
         };
         Ok(())
     }
 
     /// Connects to the mixnet via the gateway in the client config
-    pub async fn connect_to_mixnet(&mut self) -> Result<()> {
+    pub async fn connect_to_mixnet(mut self) -> Result<Client> {
         // For some simple cases we can figure how to setup gateway without it having to have been
         // called in advance.
-        if matches!(self.connection_state, ConnectionState::New) {
+        if matches!(self.state, BuilderState::New) {
             if let Some(paths) = &self.storage_paths {
                 let paths = paths.clone();
                 if self.has_gateway_key() {
@@ -201,12 +204,12 @@ impl Client {
 
         // At this point we should be in a registered state, either at function entry or by the
         // above convenience logic.
-        assert!(matches!(
-            self.connection_state,
-            ConnectionState::Registered { .. }
-        ));
+        let BuilderState::Registered { gateway_endpoint_config } = self.state else {
+            todo!();
+        };
 
-        let gateway_config = self.connection_state.gateway_endpoint_config().unwrap();
+        let nym_address =
+            client_core::init::get_client_address(&self.key_manager, &gateway_endpoint_config);
 
         // TODO: we currently don't support having a bandwidth controller
         let bandwidth_controller = None;
@@ -216,7 +219,7 @@ impl Client {
             non_wasm_helpers::setup_empty_reply_surb_backend(&self.config.debug_config);
 
         let base_builder = BaseClientBuilder::new(
-            gateway_config,
+            &gateway_endpoint_config,
             &self.config.debug_config,
             self.key_manager.clone(),
             bandwidth_controller,
@@ -224,8 +227,6 @@ impl Client {
             CredentialsToggle::Disabled,
             self.config.nym_api_endpoints.clone(),
         );
-
-        let nym_address = base_builder.as_mix_recipient();
 
         let mut started_client = base_builder.start_base().await.unwrap();
         let client_input = started_client.client_input.register_producer();
@@ -235,15 +236,33 @@ impl Client {
         // Register our receiver
         let reconstructed_receiver = client_output.register_receiver().unwrap();
 
-        self.connection_state = ConnectionState::Connected {
+        Ok(Client {
             nym_address,
+            key_manager: self.key_manager,
             client_input,
             client_output,
             client_state,
             reconstructed_receiver,
             task_manager: started_client.task_manager,
-        };
-        Ok(())
+        })
+    }
+}
+
+impl Client {
+    pub async fn connect() -> Result<Self> {
+        let client = ClientBuilder::new(None, None)?;
+        client.connect_to_mixnet().await
+    }
+
+    /// Get the client identity, which is the public key of the identity key pair.
+    pub fn identity(&self) -> ClientIdentity {
+        *self.key_manager.identity_keypair().public_key()
+    }
+
+    /// Get the nym address for this client, if it is available. The nym address is composed of the
+    /// client identity, the client encryption key, and the gateway identity.
+    pub fn nym_address(&self) -> &Recipient {
+        &self.nym_address
     }
 
     /// Sends stringy data to the supplied Nym address
@@ -256,25 +275,20 @@ impl Client {
     /// Sends bytes to the supplied Nym address
     pub async fn send_bytes(&self, address: &str, message: Vec<u8>) {
         log::debug!("send_bytes");
-        let Some(client_input) = self.connection_state.client_input() else {
-            log::error!("Error: trying to send without being connected");
-            return;
-        };
 
         let lane = TransmissionLane::General;
         let recipient = Recipient::try_from_base58_string(address).unwrap();
         let input_msg = InputMessage::new_regular(recipient, message, lane);
-        client_input.input_sender.send(input_msg).await.unwrap();
+        self.client_input
+            .input_sender
+            .send(input_msg)
+            .await
+            .unwrap();
     }
 
     /// Wait for messages from the mixnet
     pub async fn wait_for_messages(&mut self) -> Option<Vec<ReconstructedMessage>> {
-        let receiver = self
-            .connection_state
-            .reconstructed_receiver()
-            .tap_none(|| log::error!("Error: trying to wait without being connected"))?;
-
-        receiver.next().await
+        self.reconstructed_receiver.next().await
     }
 
     pub fn wait_for_messages_split(&mut self) -> Option<ReconstructedMessage> {
@@ -295,13 +309,7 @@ impl Client {
     /// Disconnect from the mixnet. Currently it is not supported to reconnect a disconnected
     /// client.
     pub async fn disconnect(&mut self) {
-        let Some(task_manager) = self.connection_state.task_manager() else {
-            log::error!("Trying to disconnect when not connected!");
-            return;
-        };
-
-        task_manager.signal_shutdown().ok();
-        task_manager.wait_for_shutdown().await;
-        self.connection_state = ConnectionState::Disconnected;
+        self.task_manager.signal_shutdown().ok();
+        self.task_manager.wait_for_shutdown().await;
     }
 }

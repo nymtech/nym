@@ -10,7 +10,7 @@ async fn main() {
 
     let config = mixnet::Config::new(user_chosen_gateway_id, nym_api_endpoints);
 
-    let mut client = mixnet::Client::new(Some(config), None).unwrap();
+    let mut client = mixnet::ClientBuilder::new(Some(config), None).unwrap();
 
     // Just some plain data to pretend we have some external storage that the application
     // implementer is using.
@@ -29,10 +29,10 @@ async fn main() {
     }
 
     // Connect to the mixnet, now we're listening for incoming
-    client.connect_to_mixnet().await.unwrap();
+    let client = client.connect_to_mixnet().await.unwrap();
 
     // Be able to get our client address
-    println!("Our client address is {}", client.nym_address().unwrap());
+    println!("Our client address is {}", client.nym_address());
 
     // Send important info up the pipe to a buddy
     client.send_str("foo.bar@blah", "flappappa").await;

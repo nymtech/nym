@@ -213,6 +213,6 @@ impl PacketSize {
 
 impl Default for PacketSize {
     fn default() -> Self {
-        PacketSize::ExtendedPacket100
+        PacketSize::RegularPacket
     }
 }

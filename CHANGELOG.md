@@ -6,6 +6,12 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ### Added
 
+### Changed
+
+## [v1.1.5] (2023-01-10)
+
+### Added
+
 - socks5: send status message for service ready, and network-requester error response in https://github.com/nymtech/nym/pull/2715
 
 ### Changed

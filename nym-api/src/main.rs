@@ -17,9 +17,10 @@ use log::info;
 use logging::setup_logging;
 use node_status_api::NodeStatusCache;
 use nym_contract_cache::cache::NymContractCache;
+use std::error::Error;
 use std::sync::Arc;
-use support::{http, nyxd, process_runner};
-use task::TaskManager;
+use support::{http, nyxd};
+use task::{wait_for_signal_and_error, TaskManager};
 use tokio::sync::Notify;
 mod circulating_supply_api;
 mod epoch_operations;
@@ -38,7 +39,7 @@ use rand::rngs::OsRng;
 mod coconut;
 
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("Starting nym api...");
 
     cfg_if::cfg_if! {if #[cfg(feature = "console-subscriber")] {
@@ -52,7 +53,7 @@ async fn main() -> Result<()> {
     run_nym_api(args).await
 }
 
-async fn run_nym_api(cli_args: CliArgs) -> Result<()> {
+async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Sync>> {
     let system_version = clap::crate_version!();
     let save_to_file = cli_args.save_config;
     let config = cli::build_config(cli_args)?;
@@ -71,7 +72,7 @@ async fn run_nym_api(cli_args: CliArgs) -> Result<()> {
     let liftoff_notify = Arc::new(Notify::new());
 
     // We need a bigger timeout
-    let shutdown = TaskManager::new(10);
+    let mut shutdown = TaskManager::new(10);
 
     #[cfg(feature = "coconut")]
     let coconut_keypair = coconut::keypair::KeyPair::new();
@@ -159,8 +160,8 @@ async fn run_nym_api(cli_args: CliArgs) -> Result<()> {
         info!("Network monitoring is disabled.");
     }
 
-    process_runner::wait_for_interrupt(shutdown).await;
+    let res = wait_for_signal_and_error(&mut shutdown).await;
     shutdown_handle.notify();
 
-    Ok(())
+    res
 }

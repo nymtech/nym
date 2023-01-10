@@ -21,6 +21,8 @@ pub const STATISTICS_SERVICE_DOMAIN_ADDRESS: &str = "STATISTICS_SERVICE_DOMAIN_A
 pub const NYXD: &str = "NYXD";
 pub const NYM_API: &str = "NYM_API";
 
+pub const DKG_TIME_CONFIGURATION: &str = "DKG_TIME_CONFIGURATION";
+
 // we don't want to explicitly tag those with `#[deprecated]` because then our CI would be red and sad : (
 pub const DEPRECATED_NYMD_VALIDATOR: &str = "NYMD_VALIDATOR";
 pub const DEPRECATED_API_VALIDATOR: &str = "API_VALIDATOR";

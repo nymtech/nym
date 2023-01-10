@@ -4,6 +4,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
+use std::str::FromStr;
 
 pub use crate::dealer::{DealerDetails, PagedDealerResponse};
 pub use contracts_common::dealings::ContractSafeBytes;
@@ -28,6 +29,30 @@ pub struct TimeConfiguration {
     pub verification_key_finalization_time_secs: u64,
     // The time an epoch lasts
     pub in_progress_time_secs: u64,
+}
+
+impl FromStr for TimeConfiguration {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let times = s
+            .split(',')
+            .map(|t| t.parse())
+            .collect::<Result<Vec<u64>, _>>()
+            .map_err(|_| String::from("Could not parse string"))?;
+        if times.len() != 6 {
+            Err(String::from("Not enough time specified"))
+        } else {
+            Ok(TimeConfiguration {
+                public_key_submission_time_secs: times[0],
+                dealing_exchange_time_secs: times[1],
+                verification_key_submission_time_secs: times[2],
+                verification_key_validation_time_secs: times[3],
+                verification_key_finalization_time_secs: times[4],
+                in_progress_time_secs: times[5],
+            })
+        }
+    }
 }
 
 impl Default for TimeConfiguration {

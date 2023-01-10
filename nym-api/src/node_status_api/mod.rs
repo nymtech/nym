@@ -88,7 +88,7 @@ pub(crate) fn start_cache_refresh(
     let storage = rocket.state::<storage::NymApiStorage>().cloned();
     let mut nym_api_cache_refresher = NodeStatusCacheRefresher::new(
         node_status_cache_state,
-        config.get_caching_interval().saturating_mul(2),
+        config.get_node_status_caching_interval(),
         nym_contract_cache_state,
         nym_contract_cache_listener,
         storage,

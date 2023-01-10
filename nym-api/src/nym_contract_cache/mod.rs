@@ -47,7 +47,7 @@ pub(crate) fn start(
 
     let nym_contract_cache_refresher = NymContractCacheRefresher::new(
         nyxd_client.clone(),
-        config.get_caching_interval(),
+        config.get_topology_caching_interval(),
         nym_contract_cache_state.clone(),
     );
     let nym_contract_cache_listener = nym_contract_cache_refresher.subscribe();

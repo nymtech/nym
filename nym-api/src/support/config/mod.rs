@@ -33,7 +33,9 @@ const DEFAULT_MINIMUM_TEST_ROUTES: usize = 1;
 const DEFAULT_ROUTE_TEST_PACKETS: usize = 1000;
 const DEFAULT_PER_NODE_TEST_PACKETS: usize = 3;
 
-const DEFAULT_CACHE_INTERVAL: Duration = Duration::from_secs(30);
+const DEFAULT_TOPOLOGY_CACHE_INTERVAL: Duration = Duration::from_secs(30);
+const DEFAULT_NODE_STATUS_CACHE_INTERVAL: Duration = Duration::from_secs(120);
+const DEFAULT_CIRCULATING_SUPPLY_CACHE_INTERVAL: Duration = Duration::from_secs(3600);
 const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 const DEFAULT_MIN_MIXNODE_RELIABILITY: u8 = 50;
 const DEFAULT_MIN_GATEWAY_RELIABILITY: u8 = 20;
@@ -51,6 +53,9 @@ pub struct Config {
 
     #[serde(default)]
     topology_cacher: TopologyCacher,
+
+    #[serde(default)]
+    circulating_supply_cacher: CirculatingSupplyCacher,
 
     #[serde(default)]
     rewarding: Rewarding,
@@ -225,6 +230,9 @@ impl Default for NetworkMonitor {
 pub struct NodeStatusAPI {
     /// Path to the database file containing uptime statuses for all mixnodes and gateways.
     database_path: PathBuf,
+
+    #[serde(with = "humantime_serde")]
+    caching_interval: Duration,
 }
 
 impl NodeStatusAPI {
@@ -239,6 +247,7 @@ impl Default for NodeStatusAPI {
     fn default() -> Self {
         NodeStatusAPI {
             database_path: Self::default_database_path(),
+            caching_interval: DEFAULT_NODE_STATUS_CACHE_INTERVAL,
         }
     }
 }
@@ -253,7 +262,22 @@ pub struct TopologyCacher {
 impl Default for TopologyCacher {
     fn default() -> Self {
         TopologyCacher {
-            caching_interval: DEFAULT_CACHE_INTERVAL,
+            caching_interval: DEFAULT_TOPOLOGY_CACHE_INTERVAL,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(default)]
+pub struct CirculatingSupplyCacher {
+    #[serde(with = "humantime_serde")]
+    caching_interval: Duration,
+}
+
+impl Default for CirculatingSupplyCacher {
+    fn default() -> Self {
+        CirculatingSupplyCacher {
+            caching_interval: DEFAULT_CIRCULATING_SUPPLY_CACHE_INTERVAL,
         }
     }
 }
@@ -513,8 +537,16 @@ impl Config {
         self.network_monitor.per_node_test_packets
     }
 
-    pub fn get_caching_interval(&self) -> Duration {
+    pub fn get_topology_caching_interval(&self) -> Duration {
         self.topology_cacher.caching_interval
+    }
+
+    pub fn get_node_status_caching_interval(&self) -> Duration {
+        self.node_status_api.caching_interval
+    }
+
+    pub fn get_circulating_supply_caching_interval(&self) -> Duration {
+        self.circulating_supply_cacher.caching_interval
     }
 
     pub fn get_node_status_api_database_path(&self) -> PathBuf {

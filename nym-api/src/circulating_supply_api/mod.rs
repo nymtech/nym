@@ -28,7 +28,7 @@ pub(crate) fn start_cache_refresh(
     let refresher = CirculatingSupplyCacheRefresher::new(
         nyxd_client,
         circulating_supply_cache.clone(),
-        config.get_caching_interval(),
+        config.get_circulating_supply_caching_interval(),
     );
     let shutdown_listener = shutdown.subscribe();
     tokio::spawn(async move { refresher.run(shutdown_listener).await });

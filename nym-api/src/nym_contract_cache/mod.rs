@@ -48,6 +48,7 @@ pub(crate) async fn start_with_signing(
     let uptime_updater = HistoricalUptimeUpdater::new(storage.clone());
     let shutdown_listener = shutdown.subscribe();
     tokio::spawn(async move { uptime_updater.run(shutdown_listener).await });
+
     let nym_contract_cache_refresher = NymContractCacheRefresher::new(
         signing_nyxd_client.clone(),
         config.get_caching_interval(),
@@ -56,14 +57,18 @@ pub(crate) async fn start_with_signing(
     let nym_contract_cache_listener = nym_contract_cache_refresher.subscribe();
     let shutdown_listener = shutdown.subscribe();
     tokio::spawn(async move { nym_contract_cache_refresher.run(shutdown_listener).await });
-    let mut rewarded_set_updater = RewardedSetUpdater::new(
-        signing_nyxd_client.clone(),
-        nym_contract_cache.clone(),
-        storage,
-    )
-    .await?;
-    let shutdown_listener = shutdown.subscribe();
-    tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await.unwrap() });
+
+    if config.get_rewarding_enabled() {
+        let mut rewarded_set_updater = RewardedSetUpdater::new(
+            signing_nyxd_client.clone(),
+            nym_contract_cache.clone(),
+            storage,
+        )
+        .await?;
+        let shutdown_listener = shutdown.subscribe();
+        tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await.unwrap() });
+    }
+
     Ok(nym_contract_cache_listener)
 }
 

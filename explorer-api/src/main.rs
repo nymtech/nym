@@ -10,7 +10,6 @@ use logging::setup_logging;
 use network_defaults::setup_env;
 use task::{wait_for_signal, TaskManager};
 
-mod buy_terms;
 pub(crate) mod cache;
 mod client;
 pub(crate) mod commands;

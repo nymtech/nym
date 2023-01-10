@@ -38,25 +38,6 @@ pub struct ClientBuilder {
     state: BuilderState,
 }
 
-pub struct Client {
-    nym_address: Recipient,
-
-    /// Keys handled by the client
-    key_manager: KeyManager,
-
-    client_input: ClientInput,
-
-    #[allow(dead_code)]
-    client_output: ClientOutput,
-
-    #[allow(dead_code)]
-    client_state: ClientState,
-
-    reconstructed_receiver: ReconstructedMessagesReceiver,
-
-    task_manager: TaskManager,
-}
-
 impl ClientBuilder {
     /// Create a new mixnet client. If no config options are supplied, creates a new client with
     /// ephemeral keys stored in RAM, which will be discarded at application close.
@@ -246,6 +227,25 @@ impl ClientBuilder {
             task_manager: started_client.task_manager,
         })
     }
+}
+
+pub struct Client {
+    nym_address: Recipient,
+
+    /// Keys handled by the client
+    key_manager: KeyManager,
+
+    client_input: ClientInput,
+
+    #[allow(dead_code)]
+    client_output: ClientOutput,
+
+    #[allow(dead_code)]
+    client_state: ClientState,
+
+    reconstructed_receiver: ReconstructedMessagesReceiver,
+
+    task_manager: TaskManager,
 }
 
 impl Client {

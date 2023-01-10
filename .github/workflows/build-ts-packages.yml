@@ -58,6 +58,11 @@ jobs:
         KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBOT_TEAM }}"
         KEYBASE_NYM_CHANNEL: "ci-ts-packages"
         IS_SUCCESS: "${{ job.status == 'success' }}"
+        MATRIX_SERVER: "${{ secrets.MATRIX_SERVER }}"
+        MATRIX_ROOM: "${{ secrets.MATRIX_ROOM }}"
+        MATRIX_USER_ID: "${{ secrets.MATRIX_USER_ID }}"
+        MATRIX_TOKEN: "${{ secrets.MATRIX_TOKEN }}"
+        MATRIX_DEVICE_ID: "${{ secrets.MATRIX_DEVICE_ID }}"
       uses: docker://keybaseio/client:stable-node
       with:
         args: .github/workflows/support-files/notifications/entry_point.sh

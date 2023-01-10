@@ -36,7 +36,7 @@ use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 static ACTIVE_PROXIES: AtomicUsize = AtomicUsize::new(0);
 
 pub struct ServiceProvider {
-    listening_address: String,
+    websocket_address: String,
     outbound_request_filter: OutboundRequestFilter,
     open_proxy: bool,
     enable_statistics: bool,
@@ -95,7 +95,7 @@ impl ReturnAddress {
 
 impl ServiceProvider {
     pub fn new(
-        listening_address: String,
+        websocket_address: String,
         open_proxy: bool,
         enable_statistics: bool,
         stats_provider_addr: Option<Recipient>,
@@ -112,7 +112,7 @@ impl ServiceProvider {
 
         let outbound_request_filter = OutboundRequestFilter::new(allowed_hosts, unknown_hosts);
         ServiceProvider {
-            listening_address,
+            websocket_address,
             outbound_request_filter,
             open_proxy,
             enable_statistics,
@@ -434,7 +434,7 @@ impl ServiceProvider {
 
     /// Start all subsystems
     pub async fn run(&mut self) -> Result<(), NetworkRequesterError> {
-        let websocket_stream = self.connect_websocket(&self.listening_address).await?;
+        let websocket_stream = self.connect_websocket(&self.websocket_address).await?;
 
         // split the websocket so that we could read and write from separate threads
         let (websocket_writer, mut websocket_reader) = websocket_stream.split();

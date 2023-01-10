@@ -1,6 +1,7 @@
 require('dotenv').config();
 
 const Bot = require('keybase-bot');
+const { sendMatrixMessage } = require('./send_message_to_matrix');
 
 let context = {
   kinds: ['nym-wallet', 'ts-packages', 'network-explorer', 'nightly', 'nym-connect','security'],
@@ -37,6 +38,28 @@ function validateContext() {
     throw new Error(
       'Paperkey is not defined. Please set env var KEYBASE_NYMBOT_PAPERKEY',
     );
+  }
+  if (context.env.MATRIX_ROOM) {
+    if (!context.env.MATRIX_SERVER) {
+      throw new Error(
+        'Matrix server is not defined. Please set env var MATRIX_SERVER',
+      );
+    }
+    if (!context.env.MATRIX_USER_ID) {
+      throw new Error(
+        'Matrix user id is not defined. Please set env var MATRIX_USER_ID',
+      );
+    }
+    if (!context.env.MATRIX_TOKEN) {
+      throw new Error(
+        'Matrix token is not defined. Please set env var MATRIX_TOKEN',
+      );
+    }
+    if (!context.env.MATRIX_DEVICE_ID) {
+      throw new Error(
+        'Matrix device id is not defined. Please set env var MATRIX_DEVICE_ID',
+      );
+    }
   }
 }
 
@@ -147,6 +170,13 @@ async function main() {
     console.log('-----------------------------------------');
   }
   await sendKeybaseMessage(messageBody);
+  if(context.env.MATRIX_ROOM) {
+    await sendMatrixMessage(context, messageBody, context.env.MATRIX_ROOM)
+  }
+  if(context.env.MATRIX_ROOM_OF_SHAME && context.env.IS_SUCCESS !== 'true') {
+    // when a job fails
+    await sendMatrixMessage(context, messageBody, context.env.MATRIX_ROOM_OF_SHAME)
+  }
 }
 
 // call main function and let NodeJS handle the promise

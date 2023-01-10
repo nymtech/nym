@@ -4,6 +4,7 @@
 use clap::{Args, Subcommand};
 
 pub mod execute_contract;
+pub mod generators;
 pub mod init_contract;
 pub mod migrate_contract;
 pub mod upload_contract;
@@ -21,6 +22,8 @@ pub enum CosmwasmCommands {
     Upload(crate::validator::cosmwasm::upload_contract::Args),
     /// Init a WASM smart contract
     Init(crate::validator::cosmwasm::init_contract::Args),
+    /// Generate an instantiate message
+    GenerateInitMessage(generators::GenerateMessage),
     /// Migrate a WASM smart contract
     Migrate(crate::validator::cosmwasm::migrate_contract::Args),
     /// Execute a WASM smart contract method

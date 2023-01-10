@@ -1,8 +1,10 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
+use std::str::FromStr;
 
 pub use crate::dealer::{DealerDetails, PagedDealerResponse};
 pub use contracts_common::dealings::ContractSafeBytes;
@@ -12,37 +14,91 @@ pub type EncodedBTEPublicKeyWithProof = String;
 pub type EncodedBTEPublicKeyWithProofRef<'a> = &'a str;
 pub type NodeIndex = u64;
 
-// The time sign-up is open for dealers to join (2 minutes)
-pub const PUBLIC_KEY_SUBMISSION_TIME_SECS: u64 = 60 * 2;
-pub const DEALING_EXCHANGE_TIME_SECS: u64 = 60 * 5;
-pub const VERIFICATION_KEY_SUBMISSION_TIME_SECS: u64 = 60 * 5;
-pub const VERIFICATION_KEY_VALIDATION_TIME_SECS: u64 = 60;
-pub const VERIFICATION_KEY_FINALIZATION_TIME_SECS: u64 = 60;
-// The time an epoch lasts (2 weeks)
-pub const IN_PROGRESS_TIME_SECS: u64 = 60 * 60 * 24 * 14;
-
 // 2 public attributes, 2 private attributes, 1 fixed for coconut credential
 pub const TOTAL_DEALINGS: usize = 2 + 2 + 1;
+
+#[derive(
+    Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd, JsonSchema,
+)]
+pub struct TimeConfiguration {
+    // The time sign-up is open for dealers to join
+    pub public_key_submission_time_secs: u64,
+    pub dealing_exchange_time_secs: u64,
+    pub verification_key_submission_time_secs: u64,
+    pub verification_key_validation_time_secs: u64,
+    pub verification_key_finalization_time_secs: u64,
+    // The time an epoch lasts
+    pub in_progress_time_secs: u64,
+}
+
+impl FromStr for TimeConfiguration {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let times = s
+            .split(',')
+            .map(|t| t.parse())
+            .collect::<Result<Vec<u64>, _>>()
+            .map_err(|_| String::from("Could not parse string"))?;
+        if times.len() != 6 {
+            Err(String::from("Not enough time specified"))
+        } else {
+            Ok(TimeConfiguration {
+                public_key_submission_time_secs: times[0],
+                dealing_exchange_time_secs: times[1],
+                verification_key_submission_time_secs: times[2],
+                verification_key_validation_time_secs: times[3],
+                verification_key_finalization_time_secs: times[4],
+                in_progress_time_secs: times[5],
+            })
+        }
+    }
+}
+
+impl Default for TimeConfiguration {
+    fn default() -> Self {
+        Self {
+            public_key_submission_time_secs: 60 * 10,      // 10 minutes
+            dealing_exchange_time_secs: 60 * 5,            // 5 minutes
+            verification_key_submission_time_secs: 60 * 5, // 5 minutes
+            verification_key_validation_time_secs: 60,     // 1 minute
+            verification_key_finalization_time_secs: 60,   // 1 minute
+            in_progress_time_secs: 60 * 60 * 24 * 14,      // 2 weeks
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Default, Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd)]
 #[serde(rename_all = "snake_case")]
 pub struct Epoch {
     pub state: EpochState,
+    pub time_configuration: TimeConfiguration,
     pub finish_timestamp: Timestamp,
 }
 
 impl Epoch {
-    pub fn new(state: EpochState, current_timestamp: Timestamp) -> Self {
+    pub fn new(
+        state: EpochState,
+        time_configuration: TimeConfiguration,
+        current_timestamp: Timestamp,
+    ) -> Self {
         let duration = match state {
-            EpochState::PublicKeySubmission => PUBLIC_KEY_SUBMISSION_TIME_SECS,
-            EpochState::DealingExchange => DEALING_EXCHANGE_TIME_SECS,
-            EpochState::VerificationKeySubmission => VERIFICATION_KEY_SUBMISSION_TIME_SECS,
-            EpochState::VerificationKeyValidation => VERIFICATION_KEY_VALIDATION_TIME_SECS,
-            EpochState::VerificationKeyFinalization => VERIFICATION_KEY_FINALIZATION_TIME_SECS,
-            EpochState::InProgress => IN_PROGRESS_TIME_SECS,
+            EpochState::PublicKeySubmission => time_configuration.public_key_submission_time_secs,
+            EpochState::DealingExchange => time_configuration.dealing_exchange_time_secs,
+            EpochState::VerificationKeySubmission => {
+                time_configuration.verification_key_submission_time_secs
+            }
+            EpochState::VerificationKeyValidation => {
+                time_configuration.verification_key_validation_time_secs
+            }
+            EpochState::VerificationKeyFinalization => {
+                time_configuration.verification_key_finalization_time_secs
+            }
+            EpochState::InProgress => time_configuration.in_progress_time_secs,
         };
         Epoch {
             state,
+            time_configuration,
             finish_timestamp: current_timestamp.plus_seconds(duration),
         }
     }

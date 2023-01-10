@@ -4,6 +4,7 @@
 use crate::{
     commands::{override_config, version_check, OverrideConfig},
     config::Config,
+    OutputFormat,
 };
 use clap::Args;
 use config::NymConfig;
@@ -116,7 +117,7 @@ fn special_addresses() -> Vec<&'static str> {
     vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
 }
 
-pub async fn execute(args: &Run) {
+pub async fn execute(args: &Run, output: OutputFormat) {
     println!("Starting gateway {}...", args.id);
 
     let mut config = match Config::load_from_file(Some(&args.id)) {
@@ -146,7 +147,7 @@ pub async fn execute(args: &Run) {
     println!(
         "\nTo bond your gateway you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
          Select the correct version and install it to your machine. You will need to provide the following: \n ");
-    gateway.print_node_details();
+    gateway.print_node_details(output);
 
     gateway.run().await;
 }

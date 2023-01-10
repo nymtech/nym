@@ -2,10 +2,19 @@ import { appWindow } from '@tauri-apps/api/window';
 import bs58 from 'bs58';
 import Big from 'big.js';
 import { valid } from 'semver';
+import { add, format, fromUnixTime } from 'date-fns';
 import { isValidRawCoin, DecCoin, MixNodeCostParams } from '@nymproject/types';
 import { TPoolOption } from 'src/components';
-import { getDefaultMixnodeCostParams, getLockedCoins, getSpendableCoins, userBalance } from '../requests';
+import {
+  getCurrentInterval,
+  getDefaultMixnodeCostParams,
+  getLockedCoins,
+  getSpendableCoins,
+  userBalance,
+} from '../requests';
 import { Console } from './console';
+
+export * from './nextEpoch';
 
 export const validateKey = (key: string, bytesLength: number): boolean => {
   // it must be a valid base58 key
@@ -197,4 +206,26 @@ export const unymToNym = (unym: string | Big, dp = 4) => {
     Console.warn(`${unym} not a valid decimal number: ${e}`);
   }
   return nym;
+};
+
+export const getIntervalAsDate = async () => {
+  const interval = await getCurrentInterval();
+  const secondsToNextInterval =
+    Number(interval.epochs_in_interval - interval.current_epoch_id) * Number(interval.epoch_length_seconds);
+
+  const nextInterval = format(
+    add(new Date(), {
+      seconds: secondsToNextInterval,
+    }),
+    'dd/MM/yyyy, HH:mm',
+  );
+
+  const nextEpoch = format(
+    add(fromUnixTime(Number(interval.current_epoch_start_unix)), {
+      seconds: Number(interval.epoch_length_seconds),
+    }),
+    'HH:mm',
+  );
+
+  return { nextEpoch, nextInterval };
 };

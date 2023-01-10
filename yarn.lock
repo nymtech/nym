@@ -5972,7 +5972,7 @@ acorn@^7.1.1, acorn@^7.4.0, acorn@^7.4.1:
   resolved "https://registry.yarnpkg.com/acorn/-/acorn-7.4.1.tgz#feaed255973d2e77555b83dbc08851a6c63520fa"
   integrity sha512-nQyp0o1/mNdbTO1PO6kHkwSrmgZ0MT/jCCpNiwbUjGoRN4dlBhqJtoQuCnEOKzgTVwg0ZWiCoQy6SxMebQVh8A==
 
-acorn@^8.0.0:
+acorn@^8.0.0, acorn@^8.7.1:
   version "8.8.1"
   resolved "https://registry.yarnpkg.com/acorn/-/acorn-8.8.1.tgz#0a3f9cbecc4ec3bea6f0a80b66ae8dd2da250b73"
   integrity sha512-7zFpHzhnqYKrkYdUjF1HI1bzd0VygEGX8lFk4k5zVMqHEoES+P+7TKI+EvLO9WVMJ8eekdO0aDEK044xTXwPPA==
@@ -6512,13 +6512,23 @@ babel-jest@^27.5.1:
     graceful-fs "^4.2.9"
     slash "^3.0.0"
 
-babel-loader@^8.0.0, babel-loader@^8.2.2, babel-loader@^8.2.3:
+babel-loader@^8.0.0, babel-loader@^8.2.3:
   version "8.2.3"
   resolved "https://registry.yarnpkg.com/babel-loader/-/babel-loader-8.2.3.tgz#8986b40f1a64cacfcb4b8429320085ef68b1342d"
   integrity sha512-n4Zeta8NC3QAsuyiizu0GkmRcQ6clkV9WFUnUf1iXP//IeSKbWjofW3UHyZVwlOB4y039YQKefawyTn64Zwbuw==
   dependencies:
     find-cache-dir "^3.3.1"
     loader-utils "^1.4.0"
+    make-dir "^3.1.0"
+    schema-utils "^2.6.5"
+
+babel-loader@^8.3.0:
+  version "8.3.0"
+  resolved "https://registry.yarnpkg.com/babel-loader/-/babel-loader-8.3.0.tgz#124936e841ba4fe8176786d6ff28add1f134d6a8"
+  integrity sha512-H8SvsMF+m9t15HNLMipppzkC+Y2Yq+v3SonZyU70RBL/h1gxPkH08Ot8pEE9Z4Kd+czyWJClmFS8qzIP9OZ04Q==
+  dependencies:
+    find-cache-dir "^3.3.1"
+    loader-utils "^2.0.0"
     make-dir "^3.1.0"
     schema-utils "^2.6.5"
 
@@ -8167,19 +8177,19 @@ css-loader@^5.0.1:
     schema-utils "^3.0.0"
     semver "^7.3.5"
 
-css-loader@^6.2.0:
-  version "6.6.0"
-  resolved "https://registry.yarnpkg.com/css-loader/-/css-loader-6.6.0.tgz#c792ad5510bd1712618b49381bd0310574fafbd3"
-  integrity sha512-FK7H2lisOixPT406s5gZM1S3l8GrfhEBT3ZiL2UX1Ng1XWs0y2GPllz/OTyvbaHe12VgQrIXIzuEGVlbUhodqg==
+css-loader@^6.7.3:
+  version "6.7.3"
+  resolved "https://registry.yarnpkg.com/css-loader/-/css-loader-6.7.3.tgz#1e8799f3ccc5874fdd55461af51137fcc5befbcd"
+  integrity sha512-qhOH1KlBMnZP8FzRO6YCH9UHXQhVMcEGLyNdb7Hv2cpcmJbW0YrddO+tG1ab5nT41KpHIYGsbeHqxB9xPu1pKQ==
   dependencies:
     icss-utils "^5.1.0"
-    postcss "^8.4.5"
+    postcss "^8.4.19"
     postcss-modules-extract-imports "^3.0.0"
     postcss-modules-local-by-default "^4.0.0"
     postcss-modules-scope "^3.0.0"
     postcss-modules-values "^4.0.0"
     postcss-value-parser "^4.2.0"
-    semver "^7.3.5"
+    semver "^7.3.8"
 
 css-minimizer-webpack-plugin@^3.0.2:
   version "3.4.1"
@@ -9145,10 +9155,18 @@ enhanced-resolve@^4.5.0:
     memory-fs "^0.5.0"
     tapable "^1.0.0"
 
-enhanced-resolve@^5.0.0, enhanced-resolve@^5.7.0, enhanced-resolve@^5.8.3, enhanced-resolve@^5.9.2:
+enhanced-resolve@^5.0.0, enhanced-resolve@^5.7.0, enhanced-resolve@^5.9.2:
   version "5.9.2"
   resolved "https://registry.yarnpkg.com/enhanced-resolve/-/enhanced-resolve-5.9.2.tgz#0224dcd6a43389ebfb2d55efee517e5466772dd9"
   integrity sha512-GIm3fQfwLJ8YZx2smuHpBKkXC1yOk+OBEmKckVyL0i/ea8mqDEykK3ld5dgH1QYPNyT/lIllxV2LULnxCHaHkA==
+  dependencies:
+    graceful-fs "^4.2.4"
+    tapable "^2.2.0"
+
+enhanced-resolve@^5.10.0:
+  version "5.12.0"
+  resolved "https://registry.yarnpkg.com/enhanced-resolve/-/enhanced-resolve-5.12.0.tgz#300e1c90228f5b570c4d35babf263f6da7155634"
+  integrity sha512-QHTXI/sZQmko1cbDoNAa3mJ5qhWUUNAq3vR0/YiD379fWQrcfuoX1+HW2S0MTt7XmoPLapdaDKUtelUSPic7hQ==
   dependencies:
     graceful-fs "^4.2.4"
     tapable "^2.2.0"
@@ -14283,6 +14301,11 @@ nanoid@^3.3.1:
   resolved "https://registry.yarnpkg.com/nanoid/-/nanoid-3.3.1.tgz#6347a18cac88af88f58af0b3594b723d5e99bb35"
   integrity sha512-n6Vs/3KGyxPQd6uO0eH4Bv0ojGSUvuLlIHtC3Y0kEO23YRge8H9x1GCzLn28YX0H66pMkxuaeESFq4tKISKwdw==
 
+nanoid@^3.3.4:
+  version "3.3.4"
+  resolved "https://registry.yarnpkg.com/nanoid/-/nanoid-3.3.4.tgz#730b67e3cd09e2deacf03c027c81c9d9dbc5e8ab"
+  integrity sha512-MqBkQh/OHTS2egovRtLk45wEyNXwF+cokD+1YPf9u5VfJiRdAiRwB2froX5Co9Rh20xs4siNPm8naNotSD6RBw==
+
 nanomatch@^1.2.9:
   version "1.2.13"
   resolved "https://registry.yarnpkg.com/nanomatch/-/nanomatch-1.2.13.tgz#b87a8aa4fc0de8fe6be88895b38983ff265bd119"
@@ -15742,12 +15765,12 @@ postcss@^8.2.15, postcss@^8.3.5:
     picocolors "^1.0.0"
     source-map-js "^1.0.2"
 
-postcss@^8.4.5:
-  version "8.4.7"
-  resolved "https://registry.yarnpkg.com/postcss/-/postcss-8.4.7.tgz#f99862069ec4541de386bf57f5660a6c7a0875a8"
-  integrity sha512-L9Ye3r6hkkCeOETQX6iOaWZgjp3LL6Lpqm6EtgbKrgqGGteRMNb9vzBfRL96YOSu8o7x3MfIH9Mo5cPJFGrW6A==
+postcss@^8.4.19:
+  version "8.4.21"
+  resolved "https://registry.yarnpkg.com/postcss/-/postcss-8.4.21.tgz#c639b719a57efc3187b13a1d765675485f4134f4"
+  integrity sha512-tP7u/Sn/dVxK2NnruI4H9BG+x+Wxz6oeZ1cJ8P6G/PZY0IKk4k/63TDsQf2kQq3+qoJeLm2kIBUNlZe3zgb4Zg==
   dependencies:
-    nanoid "^3.3.1"
+    nanoid "^3.3.4"
     picocolors "^1.0.0"
     source-map-js "^1.0.2"
 
@@ -18151,7 +18174,7 @@ style-loader@^2.0.0:
     loader-utils "^2.0.0"
     schema-utils "^3.0.0"
 
-style-loader@^3.2.1:
+style-loader@^3.3.1:
   version "3.3.1"
   resolved "https://registry.yarnpkg.com/style-loader/-/style-loader-3.3.1.tgz#057dfa6b3d4d7c7064462830f9113ed417d38575"
   integrity sha512-GPcQ+LDJbrcxHORTRes6Jy2sfvK2kS6hpSfI/fXhPt+spVzxF6LJ1dHLN9zIGmVaaP044YKaIatFaufENRiDoQ==
@@ -18668,10 +18691,10 @@ ts-jest@^27.0.5:
     semver "7.x"
     yargs-parser "20.x"
 
-ts-loader@^9.2.5:
-  version "9.2.7"
-  resolved "https://registry.yarnpkg.com/ts-loader/-/ts-loader-9.2.7.tgz#948654099ca96992b62ec47bd9cee5632006e101"
-  integrity sha512-Fxh44mKli9QezgbdCXkEJWxnedQ0ead7DXTH+lfXEPedu+Y9EtMJ2aQ9G3Dj1j7Q612E8931rww8NDZha4Tibg==
+ts-loader@^9.4.2:
+  version "9.4.2"
+  resolved "https://registry.yarnpkg.com/ts-loader/-/ts-loader-9.4.2.tgz#80a45eee92dd5170b900b3d00abcfa14949aeb78"
+  integrity sha512-OmlC4WVmFv5I0PpaxYb+qGeGOdm5giHU7HwDDUjw59emP2UYMHy9fFSDcYgSNoH8sXcj4hGCSEhlDZ9ULeDraA==
   dependencies:
     chalk "^4.1.0"
     enhanced-resolve "^5.0.0"
@@ -19446,6 +19469,14 @@ watchpack@^2.2.0, watchpack@^2.3.1:
     glob-to-regexp "^0.4.1"
     graceful-fs "^4.1.2"
 
+watchpack@^2.4.0:
+  version "2.4.0"
+  resolved "https://registry.yarnpkg.com/watchpack/-/watchpack-2.4.0.tgz#fa33032374962c78113f93c7f2fb4c54c9862a5d"
+  integrity sha512-Lcvm7MGST/4fup+ifyKi2hjyIAwcdI4HRgtvTpIUxBRhB+RFtUh8XtDOxUfctVCnhVi+QQj49i91OyvzkJl6cg==
+  dependencies:
+    glob-to-regexp "^0.4.1"
+    graceful-fs "^4.1.2"
+
 wbuf@^1.1.0, wbuf@^1.7.3:
   version "1.7.3"
   resolved "https://registry.yarnpkg.com/wbuf/-/wbuf-1.7.3.tgz#c1d8d149316d3ea852848895cb6a0bfe887b87df"
@@ -19690,34 +19721,34 @@ webpack@4:
     watchpack "^2.3.1"
     webpack-sources "^3.2.3"
 
-webpack@^5.64.3:
-  version "5.69.1"
-  resolved "https://registry.yarnpkg.com/webpack/-/webpack-5.69.1.tgz#8cfd92c192c6a52c99ab00529b5a0d33aa848dc5"
-  integrity sha512-+VyvOSJXZMT2V5vLzOnDuMz5GxEqLk7hKWQ56YxPW/PQRUuKimPqmEIJOx8jHYeyo65pKbapbW464mvsKbaj4A==
+webpack@^5.75.0:
+  version "5.75.0"
+  resolved "https://registry.yarnpkg.com/webpack/-/webpack-5.75.0.tgz#1e440468647b2505860e94c9ff3e44d5b582c152"
+  integrity sha512-piaIaoVJlqMsPtX/+3KTTO6jfvrSYgauFVdt8cr9LTHKmcq/AMd4mhzsiP7ZF/PGRNPGA8336jldh9l2Kt2ogQ==
   dependencies:
     "@types/eslint-scope" "^3.7.3"
     "@types/estree" "^0.0.51"
     "@webassemblyjs/ast" "1.11.1"
     "@webassemblyjs/wasm-edit" "1.11.1"
     "@webassemblyjs/wasm-parser" "1.11.1"
-    acorn "^8.4.1"
+    acorn "^8.7.1"
     acorn-import-assertions "^1.7.6"
     browserslist "^4.14.5"
     chrome-trace-event "^1.0.2"
-    enhanced-resolve "^5.8.3"
+    enhanced-resolve "^5.10.0"
     es-module-lexer "^0.9.0"
     eslint-scope "5.1.1"
     events "^3.2.0"
     glob-to-regexp "^0.4.1"
     graceful-fs "^4.2.9"
-    json-parse-better-errors "^1.0.2"
+    json-parse-even-better-errors "^2.3.1"
     loader-runner "^4.2.0"
     mime-types "^2.1.27"
     neo-async "^2.6.2"
     schema-utils "^3.1.0"
     tapable "^2.1.1"
     terser-webpack-plugin "^5.1.3"
-    watchpack "^2.3.1"
+    watchpack "^2.4.0"
     webpack-sources "^3.2.3"
 
 webpack@^5.9.0:

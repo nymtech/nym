@@ -66,10 +66,12 @@ pub(crate) struct OverrideConfig {
 pub(crate) async fn execute(args: Cli) {
     let bin_name = "nym-gateway";
 
+    let output = args.output();
+
     match &args.command {
-        Commands::Init(m) => init::execute(m).await,
-        Commands::NodeDetails(m) => node_details::execute(m).await,
-        Commands::Run(m) => run::execute(m).await,
+        Commands::Init(m) => init::execute(m, output.clone()).await,
+        Commands::NodeDetails(m) => node_details::execute(m, output.clone()).await,
+        Commands::Run(m) => run::execute(m, output.clone()).await,
         Commands::Sign(m) => sign::execute(m),
         Commands::Upgrade(m) => upgrade::execute(m).await,
         Commands::Completions(s) => s.generate(&mut crate::Cli::command(), bin_name),

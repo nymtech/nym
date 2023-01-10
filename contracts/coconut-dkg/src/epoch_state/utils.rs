@@ -25,7 +25,7 @@ pub(crate) fn check_epoch_state(
 pub(crate) mod test {
     use super::*;
     use crate::support::tests::helpers::init_contract;
-    use coconut_dkg_common::types::Epoch;
+    use coconut_dkg_common::types::{Epoch, TimeConfiguration};
     use cosmwasm_std::testing::mock_env;
 
     #[test]
@@ -37,7 +37,7 @@ pub(crate) mod test {
             CURRENT_EPOCH
                 .save(
                     deps.as_mut().storage,
-                    &Epoch::new(fixed_state, env.block.time),
+                    &Epoch::new(fixed_state, TimeConfiguration::default(), env.block.time),
                 )
                 .unwrap();
             for against_state in EpochState::default().all_until(EpochState::InProgress) {

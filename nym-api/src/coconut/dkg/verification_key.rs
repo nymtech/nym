@@ -499,8 +499,12 @@ pub(crate) mod tests {
             .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
             .and_modify(|dealings| {
                 let mut last = dealings.pop().unwrap();
-                last.0.pop();
-                last.0.push(42);
+                let value = last.0.pop().unwrap();
+                if value == 42 {
+                    last.0.push(43);
+                } else {
+                    last.0.push(42);
+                }
                 dealings.push(last);
             });
 

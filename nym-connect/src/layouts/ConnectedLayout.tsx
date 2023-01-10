@@ -37,11 +37,13 @@ export const ConnectedLayout: React.FC<{
 }) => (
   <>
     <IpAddressAndPortModal show={showInfoModal} onClose={handleCloseInfoModal} ipAddress={ipAddress} port={port} />
-    <Box pb={4}>
+    <Box>
       <ConnectionStatus status={ConnectionStatusKind.connected} serviceProvider={serviceProvider} />
     </Box>
-    <IpAddressAndPort label="Socks5 address" ipAddress={ipAddress} port={port} />
-    <Divider sx={{ my: 3 }} />
+    <Divider sx={{ my: 2 }} />
+    <Box sx={{ mb: 3 }}>
+      <IpAddressAndPort label="Socks5 address" ipAddress={ipAddress} port={port} />
+    </Box>
     {/* <ConnectionStats stats={stats} /> */}
     <ConnectionTimer connectedSince={connectedSince} />
     <ConnectionButton status={status} busy={busy} onClick={onConnectClick} isError={isError} />

@@ -413,10 +413,11 @@ impl Default for Gateway {
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
             enabled_statistics: false,
-            statistics_service_url: Url::from_str(STATISTICS_SERVICE_DOMAIN_ADDRESS).expect("Invalid default statistics service URL"),
+            statistics_service_url: Url::from_str(STATISTICS_SERVICE_DOMAIN_ADDRESS)
+                .expect("Invalid default statistics service URL"),
             nym_api_urls: vec![Url::from_str(NYM_API).expect("Invalid default API URL")],
             nyxd_urls: vec![Url::from_str(NYXD_URL).expect("Invalid default nyxd URL")],
-            cosmos_mnemonic: bip39::Mnemonic::from_str("exact antique hybrid width raise anchor puzzle degree fee quit long crack net vague hip despair write put useless civil mechanic broom music day").unwrap(),
+            cosmos_mnemonic: bip39::Mnemonic::generate(24).unwrap(),
             nym_root_directory: Config::default_root_directory(),
             persistent_storage: Default::default(),
             wallet_address: None,

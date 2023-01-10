@@ -4,6 +4,7 @@
 use crate::{
     commands::{override_config, OverrideConfig},
     config::{persistence::pathfinder::GatewayPathfinder, Config},
+    OutputFormat,
 };
 use clap::Args;
 use config::NymConfig;
@@ -101,7 +102,7 @@ impl From<Init> for OverrideConfig {
     }
 }
 
-pub async fn execute(args: &Init) {
+pub async fn execute(args: &Init, output: OutputFormat) {
     println!("Initialising gateway {}...", args.id);
 
     let already_init = if Config::default_config_file_path(Some(&args.id)).exists() {
@@ -157,7 +158,7 @@ pub async fn execute(args: &Init) {
 
     crate::node::create_gateway(config)
         .await
-        .print_node_details();
+        .print_node_details(output);
 }
 
 #[cfg(test)]

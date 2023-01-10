@@ -107,14 +107,14 @@ pub fn execute(
             try_update_mixnet_address(address, info, deps)
         }
         ExecuteMsg::DelegateToMixnode {
-            on_behalf_of,
             mix_id,
             amount,
-        } => try_delegate_to_mixnode(on_behalf_of, mix_id, amount, info, env, deps),
-        ExecuteMsg::UndelegateFromMixnode {
             on_behalf_of,
+        } => try_delegate_to_mixnode(mix_id, amount, on_behalf_of, info, env, deps),
+        ExecuteMsg::UndelegateFromMixnode {
             mix_id,
-        } => try_undelegate_from_mixnode(on_behalf_of, mix_id, info, deps),
+            on_behalf_of,
+        } => try_undelegate_from_mixnode(mix_id, on_behalf_of, info, deps),
         ExecuteMsg::CreateAccount {
             owner_address,
             staking_address,
@@ -476,9 +476,9 @@ fn try_track_undelegation(
 
 /// Delegate to mixnode, sends [mixnet_contract_common::ExecuteMsg::DelegateToMixnodeOnBehalf] to [crate::storage::MIXNET_CONTRACT_ADDRESS]..
 fn try_delegate_to_mixnode(
-    on_behalf_of: Option<String>,
     mix_id: MixId,
     amount: Coin,
+    on_behalf_of: Option<String>,
     info: MessageInfo,
     env: Env,
     deps: DepsMut<'_>,
@@ -521,8 +521,8 @@ fn try_claim_delegator_reward(
 
 /// Undelegates from a mixnode, sends [mixnet_contract_common::ExecuteMsg::UndelegateFromMixnodeOnBehalf] to [crate::storage::MIXNET_CONTRACT_ADDRESS].
 fn try_undelegate_from_mixnode(
-    on_behalf_of: Option<String>,
     mix_id: MixId,
+    on_behalf_of: Option<String>,
     info: MessageInfo,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {

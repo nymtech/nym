@@ -95,13 +95,13 @@ pub enum ExecuteMsg {
         address: String,
     },
     DelegateToMixnode {
-        on_behalf_of: Option<String>,
         mix_id: MixId,
         amount: Coin,
+        on_behalf_of: Option<String>,
     },
     UndelegateFromMixnode {
-        on_behalf_of: Option<String>,
         mix_id: MixId,
+        on_behalf_of: Option<String>,
     },
     CreateAccount {
         owner_address: String,

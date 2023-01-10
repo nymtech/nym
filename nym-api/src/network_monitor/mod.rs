@@ -14,7 +14,7 @@ use crate::network_monitor::monitor::Monitor;
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::storage::NymApiStorage;
 use crate::support::config::Config;
-use crate::support::{nyxd, storage};
+use crate::support::nyxd;
 use credential_storage::PersistentStorage;
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
@@ -33,24 +33,31 @@ pub(crate) const ROUTE_TESTING_TEST_NONCE: u64 = 0;
 
 pub(crate) fn setup<'a>(
     config: &'a Config,
+    rocket: &Rocket<Ignite>,
     _nyxd_client: nyxd::Client,
     system_version: &str,
-    rocket: &Rocket<Ignite>,
 ) -> Option<NetworkMonitorBuilder<'a>> {
     if !config.get_network_monitor_enabled() {
         return None;
     }
 
     // get instances of managed states
-    let node_status_storage = rocket.state::<storage::NymApiStorage>().unwrap().clone();
-    let nym_contract_cache = rocket.state::<NymContractCache>().unwrap().clone();
+    let nym_contract_cache_state = rocket
+        .state::<NymContractCache>()
+        .expect("contract cache has not been setup")
+        .clone();
+
+    let node_status_storage_state = rocket
+        .state::<NymApiStorage>()
+        .expect("api storage not been setup")
+        .clone();
 
     Some(NetworkMonitorBuilder::new(
         config,
         _nyxd_client,
         system_version,
-        node_status_storage,
-        nym_contract_cache,
+        node_status_storage_state,
+        nym_contract_cache_state,
     ))
 }
 

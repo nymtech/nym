@@ -70,18 +70,26 @@ pub(crate) fn node_status_routes(
 /// It is primarily refreshed in-sync with the nym contract cache, however provide a fallback
 /// caching interval that is twice the nym contract cache
 pub(crate) fn start_cache_refresh(
-    rocket: &rocket::Rocket<rocket::Ignite>,
-    node_status_cache: NodeStatusCache,
     config: &Config,
-    nym_contract_cache: NymContractCache,
+    rocket: &rocket::Rocket<rocket::Ignite>,
     nym_contract_cache_listener: tokio::sync::watch::Receiver<support::caching::CacheNotification>,
     shutdown: &TaskManager,
 ) {
+    let nym_contract_cache_state = rocket
+        .state::<NymContractCache>()
+        .expect("contract cache has not been setup")
+        .clone();
+
+    let node_status_cache_state = rocket
+        .state::<NodeStatusCache>()
+        .expect("node status cache has not been setup")
+        .clone();
+
     let storage = rocket.state::<storage::NymApiStorage>().cloned();
     let mut nym_api_cache_refresher = NodeStatusCacheRefresher::new(
-        node_status_cache,
+        node_status_cache_state,
         config.get_caching_interval().saturating_mul(2),
-        nym_contract_cache,
+        nym_contract_cache_state,
         nym_contract_cache_listener,
         storage,
     );

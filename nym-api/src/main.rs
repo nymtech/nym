@@ -87,8 +87,6 @@ async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Syn
     )
     .await?;
 
-    let nym_contract_cache_state = rocket.state::<NymContractCache>().unwrap().clone();
-    let node_status_cache_state = rocket.state::<NodeStatusCache>().unwrap().clone();
     let circulating_supply_cache_state = rocket.state::<CirculatingSupplyCache>().unwrap().clone();
 
     #[cfg(feature = "coconut")]
@@ -102,14 +100,7 @@ async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Syn
     let nym_contract_cache_listener =
         nym_contract_cache::start(&config, &rocket, nyxd_client.clone(), &shutdown)?;
 
-    node_status_api::start_cache_refresh(
-        &rocket,
-        node_status_cache_state,
-        &config,
-        nym_contract_cache_state,
-        nym_contract_cache_listener,
-        &shutdown,
-    );
+    node_status_api::start_cache_refresh(&config, &rocket, nym_contract_cache_listener, &shutdown);
 
     circulating_supply_api::start_cache_refresh(
         &config,
@@ -118,8 +109,7 @@ async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Syn
         &shutdown,
     );
 
-    let monitor_builder =
-        network_monitor::setup(&config, nyxd_client.clone(), system_version, &rocket);
+    let monitor_builder = network_monitor::setup(&config, &rocket, nyxd_client, system_version);
 
     // Rocket handles shutdown on its own, but its shutdown handling should be incorporated
     // with that of the rest of the tasks. Currently its runtime is forcefully terminated once

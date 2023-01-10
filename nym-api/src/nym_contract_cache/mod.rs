@@ -9,6 +9,7 @@ use task::TaskManager;
 
 use crate::epoch_operations::RewardedSetUpdater;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
+use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::config::Config;
 use crate::support::{self, nyxd, storage};
 
@@ -33,58 +34,48 @@ pub(crate) fn nym_contract_cache_routes(settings: &OpenApiSettings) -> (Vec<Rout
     ]
 }
 
-/// Starts a cache refresher for nym contract data, with a signing nyxd client.
-///
-/// DH question: why do we need to pass in the signing nyxd client? It seems like we could just
-/// use the one that's already in the rocket state.
-pub(crate) async fn start_with_signing(
-    rocket: &rocket::Rocket<rocket::Ignite>,
-    shutdown: &TaskManager,
-    nyxd_client: &nyxd::Client,
+pub(crate) fn start(
     config: &Config,
-    nym_contract_cache: &cache::NymContractCache,
+    rocket: &rocket::Rocket<rocket::Ignite>,
+    nyxd_client: nyxd::Client,
+    shutdown: &TaskManager,
 ) -> Result<tokio::sync::watch::Receiver<support::caching::CacheNotification>, anyhow::Error> {
-    let storage = rocket.state::<storage::NymApiStorage>().unwrap().clone();
-    let uptime_updater = HistoricalUptimeUpdater::new(storage.clone());
-    let shutdown_listener = shutdown.subscribe();
-    tokio::spawn(async move { uptime_updater.run(shutdown_listener).await });
+    let nym_contract_cache_state = rocket
+        .state::<NymContractCache>()
+        .expect("contract cache has not been setup")
+        .clone();
 
     let nym_contract_cache_refresher = NymContractCacheRefresher::new(
         nyxd_client.clone(),
         config.get_caching_interval(),
-        nym_contract_cache.clone(),
+        nym_contract_cache_state.clone(),
     );
     let nym_contract_cache_listener = nym_contract_cache_refresher.subscribe();
     let shutdown_listener = shutdown.subscribe();
     tokio::spawn(async move { nym_contract_cache_refresher.run(shutdown_listener).await });
 
-    if config.get_rewarding_enabled() {
-        let mut rewarded_set_updater =
-            RewardedSetUpdater::new(nyxd_client.clone(), nym_contract_cache.clone(), storage)
-                .await?;
+    // TODO: THIS IS VERY MUCH NOT PART OF 'nym_contract_cache'!
+    // TODO: THIS IS VERY MUCH NOT PART OF 'nym_contract_cache'!
+
+    // only start the uptime updater if the monitoring if it's enabled
+    if config.get_network_monitor_enabled() {
+        let storage = rocket
+            .state::<storage::NymApiStorage>()
+            .expect("api storage has not been setup")
+            .clone();
+
+        let uptime_updater = HistoricalUptimeUpdater::new(storage.clone());
         let shutdown_listener = shutdown.subscribe();
-        tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await.unwrap() });
+        tokio::spawn(async move { uptime_updater.run(shutdown_listener).await });
+
+        // the same idea holds for rewarding
+        if config.get_rewarding_enabled() {
+            let mut rewarded_set_updater =
+                RewardedSetUpdater::new(nyxd_client, nym_contract_cache_state, storage);
+            let shutdown_listener = shutdown.subscribe();
+            tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await.unwrap() });
+        }
     }
 
     Ok(nym_contract_cache_listener)
-}
-
-/// Spawn the nym contract cache refresher.
-/// When the network monitor is not enabled, we spawn the nym contract cache refresher task
-/// with just a nyxd query client, as there's no need for a nyxd signing client.
-pub(crate) fn start_without_signing(
-    config: &Config,
-    nym_contract_cache: &cache::NymContractCache,
-    shutdown: &TaskManager,
-) -> tokio::sync::watch::Receiver<support::caching::CacheNotification> {
-    let nyxd_client = nyxd::Client::new(config);
-    let nym_contract_cache_refresher = NymContractCacheRefresher::new(
-        nyxd_client,
-        config.get_caching_interval(),
-        nym_contract_cache.clone(),
-    );
-    let nym_contract_cache_listener = nym_contract_cache_refresher.subscribe();
-    let shutdown_listener = shutdown.subscribe();
-    tokio::spawn(async move { nym_contract_cache_refresher.run(shutdown_listener).await });
-    nym_contract_cache_listener
 }

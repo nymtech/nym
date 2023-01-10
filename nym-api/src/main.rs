@@ -99,20 +99,8 @@ async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Syn
         tokio::spawn(async move { dkg_controller.run(shutdown_listener).await });
     }
 
-    // if network monitor is disabled, we're not going to be sending any rewarding hence
-    // we're not starting signing client
-    let nym_contract_cache_listener = if config.get_network_monitor_enabled() {
-        nym_contract_cache::start_with_signing(
-            &rocket,
-            &shutdown,
-            &nyxd_client,
-            &config,
-            &nym_contract_cache_state,
-        )
-        .await?
-    } else {
-        nym_contract_cache::start_without_signing(&config, &nym_contract_cache_state, &shutdown)
-    };
+    let nym_contract_cache_listener =
+        nym_contract_cache::start(&config, &rocket, nyxd_client.clone(), &shutdown)?;
 
     node_status_api::start_cache_refresh(
         &rocket,

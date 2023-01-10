@@ -75,16 +75,16 @@ impl RewardedSetUpdater {
         Ok(self.nyxd_client.get_current_interval().await?)
     }
 
-    pub(crate) async fn new(
+    pub(crate) fn new(
         nyxd_client: Client,
         nym_contract_cache: NymContractCache,
         storage: NymApiStorage,
-    ) -> Result<Self, RewardingError> {
-        Ok(RewardedSetUpdater {
+    ) -> Self {
+        RewardedSetUpdater {
             nyxd_client,
             nym_contract_cache,
             storage,
-        })
+        }
     }
 
     async fn determine_layers(

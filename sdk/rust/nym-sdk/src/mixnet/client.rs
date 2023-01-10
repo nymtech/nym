@@ -57,9 +57,15 @@ impl ClientBuilder {
                 Ok(key_manager) => key_manager,
                 Err(err) => {
                     log::debug!("Not loading keys: {err}");
-                    if path_finder.any_file_exists() && paths.operating_mode.is_keep() {
-                        return Err(Error::DontOverwrite);
+                    if let Some(path) = path_finder.any_file_exists_and_return() {
+                        if paths.operating_mode.is_keep() {
+                            return Err(Error::DontOverwrite(path));
+                        }
                     }
+
+                    // Double check using a function that has slightly different internal logic. I
+                    // know this is a bit defensive, but I don't want to overwrite
+                    assert!(!(path_finder.any_file_exists() && paths.operating_mode.is_keep()));
 
                     // Create new keys and write to storage
                     let key_manager = client_core::init::new_client_keys();
@@ -134,7 +140,9 @@ impl ClientBuilder {
     fn write_gateway_key(&self, paths: StoragePaths, key_mode: &GatewayKeyMode) -> Result<()> {
         let path_finder = ClientKeyPathfinder::from(paths);
         if path_finder.gateway_key_file_exists() && key_mode.is_keep() {
-            return Err(Error::DontOverwriteGatewayKey);
+            return Err(Error::DontOverwriteGatewayKey(
+                path_finder.gateway_shared_key().to_path_buf(),
+            ));
         };
         self.key_manager.store_gateway_key(&path_finder)?;
         Ok(())

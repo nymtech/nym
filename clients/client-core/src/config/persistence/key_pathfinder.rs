@@ -49,6 +49,15 @@ impl ClientKeyPathfinder {
             || matches!(self.ack_key.try_exists(), Ok(true))
     }
 
+    pub fn any_file_exists_and_return(&self) -> Option<PathBuf> {
+        file_exists(&self.identity_public_key)
+            .or_else(|| file_exists(&self.identity_private_key))
+            .or_else(|| file_exists(&self.encryption_public_key))
+            .or_else(|| file_exists(&self.encryption_private_key))
+            .or_else(|| file_exists(&self.gateway_shared_key))
+            .or_else(|| file_exists(&self.ack_key))
+    }
+
     pub fn gateway_key_file_exists(&self) -> bool {
         matches!(self.gateway_shared_key.try_exists(), Ok(true))
     }
@@ -76,4 +85,11 @@ impl ClientKeyPathfinder {
     pub fn ack_key(&self) -> &Path {
         &self.ack_key
     }
+}
+
+fn file_exists(path: &Path) -> Option<PathBuf> {
+    if matches!(path.try_exists(), Ok(true)) {
+        return Some(path.to_path_buf());
+    }
+    None
 }

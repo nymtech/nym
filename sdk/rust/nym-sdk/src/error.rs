@@ -11,10 +11,10 @@ pub enum Error {
     #[error(transparent)]
     ClientCoreError(#[from] client_core::error::ClientCoreError),
 
-    #[error("key file encountered that we don't want to overwrite")]
-    DontOverwrite,
-    #[error("shared gateway key file encountered that we don't want to overwrite")]
-    DontOverwriteGatewayKey,
+    #[error("key file encountered that we don't want to overwrite: {0}")]
+    DontOverwrite(PathBuf),
+    #[error("shared gateway key file encountered that we don't want to overwrite: {0}")]
+    DontOverwriteGatewayKey(PathBuf),
     #[error("no gateway config available for writing")]
     GatewayNotAvailableForWriting,
 

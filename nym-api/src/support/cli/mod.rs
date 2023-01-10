@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::config::Config;
-use ::config::defaults::var_names::{MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
+use ::config::defaults::var_names::MIXNET_CONTRACT_ADDRESS;
 use anyhow::Result;
 use build_information::BinaryBuildInformation;
 use clap::Parser;
 use config::{NymConfig, OptionalSet};
 use lazy_static::lazy_static;
-use std::{fs, process};
+use std::fs;
 use validator_client::nyxd;
 
 lazy_static! {

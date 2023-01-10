@@ -11,37 +11,28 @@ use ::config::defaults::setup_env;
 use ::config::defaults::var_names::MIX_DENOM;
 use anyhow::Result;
 use circulating_supply_api::cache::CirculatingSupplyCache;
-use clap::ArgMatches;
 use clap::Parser;
-#[cfg(feature = "coconut")]
-use coconut::{
-    comm::QueryCommunicationChannel,
-    dkg::controller::{init_keypair, DkgController},
-    InternalSignRequest,
-};
 use config::NymConfig;
 use log::info;
 use logging::setup_logging;
 use node_status_api::NodeStatusCache;
 use nym_contract_cache::cache::NymContractCache;
-#[cfg(feature = "coconut")]
-use rand::rngs::OsRng;
-use std::path::PathBuf;
-use std::process;
-use std::str::FromStr;
 use std::sync::Arc;
 use support::{http, nyxd, process_runner};
-use task::{wait_for_signal, TaskManager};
+use task::TaskManager;
 use tokio::sync::Notify;
-#[cfg(feature = "coconut")]
-use url::Url;
-
 mod circulating_supply_api;
 mod epoch_operations;
 mod network_monitor;
 pub(crate) mod node_status_api;
 pub(crate) mod nym_contract_cache;
 pub(crate) mod support;
+
+#[cfg(feature = "coconut")]
+use coconut::{dkg::controller::DkgController, InternalSignRequest};
+
+#[cfg(feature = "coconut")]
+use rand::rngs::OsRng;
 
 #[cfg(feature = "coconut")]
 mod coconut;

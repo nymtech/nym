@@ -60,9 +60,6 @@ impl HostsStore {
     }
 
     pub(super) fn contains_ip_address(&self, address: IpAddr) -> bool {
-        // I'm not sure it's possible to achieve the same functionality without iterating through
-        // the whole thing. Maybe by some clever usage of tries? But I doubt we're going to have
-        // so many filtering rules that it's going to matter at this point.
         for ip_net in &self.ip_nets {
             if ip_net.contains(address) {
                 return true;

@@ -9,6 +9,7 @@ use mixnet_contract_common::MixId;
 use nym_api_requests::models::{MixNodeBondAnnotated, MixnodeStatus};
 use rocket::fairing::AdHoc;
 use std::{sync::Arc, time::Duration};
+use thiserror::Error;
 use tokio::sync::RwLockReadGuard;
 use tokio::{sync::RwLock, time};
 
@@ -19,8 +20,12 @@ mod inclusion_probabilities;
 mod node_sets;
 pub mod refresher;
 
+#[derive(Debug, Error)]
 enum NodeStatusCacheError {
+    #[error("failed to simulate selection probabilities for mixnodes, not updating cache")]
     SimulationFailed,
+
+    #[error("the current interval information is not available at the moment")]
     SourceDataMissing,
 }
 

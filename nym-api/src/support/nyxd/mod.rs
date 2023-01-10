@@ -4,7 +4,7 @@
 use crate::epoch_operations::MixnodeToReward;
 use crate::support::config::Config;
 use anyhow::Result;
-use config::defaults::{NymNetworkDetails, DEFAULT_NYM_API_PORT};
+use config::defaults::{ChainDetails, NymNetworkDetails, DEFAULT_NYM_API_PORT};
 use mixnet_contract_common::families::{Family, FamilyHead};
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::RewardingParams;
@@ -17,9 +17,10 @@ use tokio::sync::RwLock;
 use validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
 use validator_client::nyxd::{
     hash::{Hash, SHA256_HASH_SIZE},
-    Coin, SigningNyxdClient, TendermintTime,
+    Coin, SigningNyxdClient, TendermintTime, VestingQueryClient,
 };
 use validator_client::ValidatorClientError;
+use vesting_contract_common::AccountVestingCoins;
 
 #[cfg(feature = "coconut")]
 use crate::coconut::error::CoconutError;
@@ -37,6 +38,7 @@ use coconut_dkg_common::{
 use contracts_common::dealings::ContractSafeBytes;
 #[cfg(feature = "coconut")]
 use cw3::ProposalResponse;
+use validator_client::nyxd::error::NyxdError;
 #[cfg(feature = "coconut")]
 use validator_client::nyxd::{
     cosmwasm_client::types::ExecuteResult,
@@ -77,6 +79,10 @@ impl Client {
             .expect("Failed to connect to nyxd!");
 
         Client(Arc::new(RwLock::new(inner)))
+    }
+
+    pub(crate) async fn chain_details(&self) -> ChainDetails {
+        self.0.read().await.nyxd.current_chain_details().clone()
     }
 
     // a helper function for the future to obtain the current block timestamp
@@ -142,6 +148,32 @@ impl Client {
             .await
             .get_all_nyxd_rewarded_set_mixnodes()
             .await
+    }
+
+    pub(crate) async fn get_current_vesting_account_storage_key(
+        &self,
+    ) -> Result<u32, ValidatorClientError> {
+        let guard = self.0.read().await;
+        let vesting_contract = guard.nyxd.vesting_contract_address();
+        // TODO: I don't like the usage of the hardcoded value here
+        let res = guard
+            .nyxd
+            .query_contract_raw(vesting_contract, b"key".to_vec())
+            .await?;
+
+        Ok(serde_json::from_slice(&res).map_err(NyxdError::from)?)
+    }
+
+    pub(crate) async fn get_all_vesting_coins(
+        &self,
+    ) -> Result<Vec<AccountVestingCoins>, ValidatorClientError> {
+        Ok(self
+            .0
+            .read()
+            .await
+            .nyxd
+            .get_all_accounts_vesting_coins()
+            .await?)
     }
 
     #[allow(dead_code)]

@@ -17,11 +17,13 @@ use cosmrs::rpc::HttpClientUrl;
 use cosmrs::tx::Msg;
 use execute::execute;
 use log::debug;
+use mixnet_contract_common::MixId;
 use network_defaults::{ChainDetails, NymNetworkDetails};
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::time::SystemTime;
 use vesting_contract_common::ExecuteMsg as VestingExecuteMsg;
+use vesting_contract_common::PledgeCap;
 
 pub use crate::nyxd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nyxd::cosmwasm_client::signing_client::SigningCosmWasmClient;
@@ -43,10 +45,8 @@ pub use cosmrs::Coin as CosmosCoin;
 pub use cosmrs::{bip32, AccountId, Decimal, Denom};
 pub use cosmwasm_std::Coin as CosmWasmCoin;
 pub use fee::{gas_price::GasPrice, GasAdjustable, GasAdjustment};
-use mixnet_contract_common::MixId;
 pub use signing_client::Client as SigningNyxdClient;
 pub use traits::{VestingQueryClient, VestingSigningClient};
-use vesting_contract_common::PledgeCap;
 
 pub mod coin;
 pub mod cosmwasm_client;

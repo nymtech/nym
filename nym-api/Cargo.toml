@@ -80,6 +80,7 @@ dkg = { path = "../common/crypto/dkg", optional = true }
 gateway-client = { path = "../common/client-libs/gateway-client" }
 inclusion-probability = { path = "../common/inclusion-probability" }
 mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
+vesting-contract-common = { path = "../common/cosmwasm-smart-contracts/vesting-contract" }
 contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common", features = ["coconut"] }
 multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
 nymcoconut = { path = "../common/nymcoconut", optional = true }

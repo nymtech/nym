@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::CirculatingSupplyCache;
+use crate::circulating_supply_api::cache::CirculatingSupplyCacheError;
 use crate::support::nyxd::Client;
-use anyhow::Result;
+use contracts_common::truncate_decimal;
+use std::collections::HashSet;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
 use task::TaskClient;
@@ -58,94 +60,75 @@ impl CirculatingSupplyCacheRefresher {
         }
     }
 
-    async fn refresh(&self) -> Result<()> {
-        let _ = &self.nyxd_client;
-        let mixmining_reserve = Coin::new(0, "unym");
-        let vesting_tokens = Coin::new(0, "unym");
-        let circulating_supply = Coin::new(0, "unym");
+    async fn get_mixmining_reserve(
+        &self,
+        mix_denom: &str,
+    ) -> Result<Coin, CirculatingSupplyCacheError> {
+        let reward_pool = self
+            .nyxd_client
+            .get_current_rewarding_parameters()
+            .await?
+            .interval
+            .reward_pool;
 
-        // let mixmining_temp_account = "n1299fhjdafamwc2gha723nkkewvu56u5xn78t9j"
-        //     .parse::<AccountId>()
-        //     .unwrap();
-        //
-        // let mixmining_temp = self
-        //     .nyxd_client
-        //     .get_balance(mixmining_temp_account)
-        //     .await?
-        //     .unwrap();
-        //
-        // let mixmining_contract_account = MIXNET_CONTRACT_ADDRESS.parse::<AccountId>().unwrap();
-        //
-        // let mixmining_contract = self
-        //     .nyxd_client
-        //     .get_balance(mixmining_contract_account)
-        //     .await?
-        //     .unwrap();
-        //
-        // let vesting_contract_account = VESTING_CONTRACT_ADDRESS.parse::<AccountId>().unwrap();
-        //
-        // let vesting_contract = self
-        //     .nyxd_client
-        //     .get_balance(vesting_contract_account)
-        //     .await?
-        //     .unwrap();
-        //
-        // let team_account = "n10fe8degw253uhezlfwaw555tw846u78waa8tc6"
-        //     .parse::<AccountId>()
-        //     .unwrap();
-        //
-        // let team = self.nyxd_client.get_balance(team_account).await?.unwrap();
-        //
-        // let company_account1 = "n104glfyskvrnx9u4upgqnz67axma72m5we3qaj4"
-        //     .parse::<AccountId>()
-        //     .unwrap();
-        //
-        // let company1 = self
-        //     .nyxd_client
-        //     .get_balance(company_account1)
-        //     .await?
-        //     .unwrap();
-        //
-        // let company_account2 = "n1yuagfmwvwyjn0g4q6vx8was35kc7tqner7lyq8"
-        //     .parse::<AccountId>()
-        //     .unwrap();
-        //
-        // let company2 = self
-        //     .nyxd_client
-        //     .get_balance(company_account2)
-        //     .await?
-        //     .unwrap();
-        //
-        // let investors_account = "n1rp46vs4kddfjufx38cl6etyxtcqpjfhg5mmqey"
-        //     .parse::<AccountId>()
-        //     .unwrap();
-        //
-        // let investors = self
-        //     .nyxd_client
-        //     .get_balance(investors_account)
-        //     .await?
-        //     .unwrap();
-        //
-        // let circulating_supply = Coin::new(
-        //     1_000_000_000_000_000
-        //         - mixmining_temp.amount
-        //         - mixmining_contract.amount
-        //         - vesting_contract.amount
-        //         - team.amount
-        //         - company1.amount
-        //         - company2.amount
-        //         - investors.amount,
-        //     "unym", //TODO: this should be a constant
-        // );
-        //
-        // log::info!(
-        //     "Updating circulating supply cache. Circulating supply is now: {}",
-        //     circulating_supply
-        // );
+        Ok(Coin::new(truncate_decimal(reward_pool).u128(), mix_denom))
+    }
 
-        self.cache
-            .update(mixmining_reserve, vesting_tokens, circulating_supply)
-            .await;
+    async fn get_total_vesting_tokens(
+        &self,
+        mix_denom: &str,
+    ) -> Result<Coin, CirculatingSupplyCacheError> {
+        let all_vesting = self.nyxd_client.get_all_vesting_coins().await?;
+
+        // sanity check invariants to make sure all accounts got considered and we got no duplicates
+        // the cache refreshes so infrequently that the performance penalty is negligible
+        let mut owners = HashSet::new();
+        let mut ids = HashSet::new();
+        for acc in &all_vesting {
+            if !owners.insert(acc.owner.clone()) {
+                return Err(CirculatingSupplyCacheError::DuplicateVestingAccountEntry {
+                    owner: acc.owner.clone(),
+                    account_id: acc.account_id,
+                });
+            }
+
+            if !ids.insert(acc.account_id) {
+                return Err(CirculatingSupplyCacheError::DuplicateVestingAccountEntry {
+                    owner: acc.owner.clone(),
+                    account_id: acc.account_id,
+                });
+            }
+        }
+
+        let current_storage_key = self
+            .nyxd_client
+            .get_current_vesting_account_storage_key()
+            .await?;
+        if all_vesting.len() != current_storage_key as usize {
+            return Err(
+                CirculatingSupplyCacheError::InconsistentNumberOfVestingAccounts {
+                    expected: current_storage_key as usize,
+                    got: all_vesting.len(),
+                },
+            );
+        }
+
+        let mut total = Coin::new(0, mix_denom);
+        for account in all_vesting {
+            total.amount += account.still_vesting.amount.u128();
+        }
+
+        Ok(total)
+    }
+
+    async fn refresh(&self) -> Result<(), CirculatingSupplyCacheError> {
+        let chain_details = self.nyxd_client.chain_details().await;
+        let mix_denom = &chain_details.mix_denom.base;
+
+        let mixmining_reserve = self.get_mixmining_reserve(mix_denom).await?;
+        let vesting_tokens = self.get_total_vesting_tokens(mix_denom).await?;
+
+        self.cache.update(mixmining_reserve, vesting_tokens).await;
         Ok(())
     }
 }

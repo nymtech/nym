@@ -126,7 +126,7 @@ impl NodeStatusCacheRefresher {
             interval_reward_params,
         )
         .ok_or_else(|| {
-            error!("Failed to simulate selection probabilties for mixnodes, not updating cache");
+            error!("Failed to simulate selection probabilities for mixnodes, not updating cache");
             NodeStatusCacheError::SimulationFailed
         })?;
 

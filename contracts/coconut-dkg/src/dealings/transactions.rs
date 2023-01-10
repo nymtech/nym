@@ -43,7 +43,7 @@ pub(crate) mod tests {
     use crate::support::tests::fixtures::dealing_bytes_fixture;
     use crate::support::tests::helpers;
     use coconut_dkg_common::dealer::DealerDetails;
-    use coconut_dkg_common::types::PUBLIC_KEY_SUBMISSION_TIME_SECS;
+    use coconut_dkg_common::types::TimeConfiguration;
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::Addr;
 
@@ -65,7 +65,10 @@ pub(crate) mod tests {
             }
         );
 
-        env.block.time = env.block.time.plus_seconds(PUBLIC_KEY_SUBMISSION_TIME_SECS);
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs);
         advance_epoch_state(deps.as_mut(), env).unwrap();
 
         let ret =

@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::types::{ContractSafeBytes, EncodedBTEPublicKeyWithProof};
+use crate::types::{ContractSafeBytes, EncodedBTEPublicKeyWithProof, TimeConfiguration};
 use crate::verification_key::VerificationKeyShare;
 use cosmwasm_std::Addr;
 use schemars::JsonSchema;
@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 pub struct InstantiateMsg {
     pub group_addr: String,
     pub multisig_addr: String,
+    pub time_configuration: Option<TimeConfiguration>,
     pub mix_denom: String,
 }
 

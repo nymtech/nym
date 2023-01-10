@@ -71,6 +71,7 @@ fn dkg_proposal() {
     let msg = DkgInstantiateMsg {
         group_addr: group_contract_addr.to_string(),
         multisig_addr: multisig_contract_addr.to_string(),
+        time_configuration: None,
         mix_denom: TEST_COIN_DENOM.to_string(),
     };
     let coconut_dkg_contract_addr = app

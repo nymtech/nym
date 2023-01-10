@@ -10,9 +10,6 @@ import { ServiceProvider, Services } from '../types/directory';
 import { Error } from 'src/types/error';
 import { TauriEvent } from 'src/types/event';
 import { getVersion } from '@tauri-apps/api/app';
-import { ConnectionStatusKind } from '../types';
-import { ConnectionStatsItem } from '../components/ConnectionStats';
-import { ServiceProvider, Services } from '../types/directory';
 
 const TAURI_EVENT_STATUS_CHANGED = 'app:connection-status-changed';
 

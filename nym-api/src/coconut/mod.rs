@@ -3,10 +3,8 @@
 
 use self::comm::APICommunicationChannel;
 use crate::coconut::client::Client as LocalClient;
-use crate::coconut::comm::QueryCommunicationChannel;
 use crate::coconut::deposit::extract_encryption_key;
 use crate::coconut::error::{CoconutError, Result};
-use crate::support::nyxd;
 use crate::support::storage::NymApiStorage;
 use coconut_bandwidth_contract_common::spend_credential::{
     funds_from_cosmos_msgs, SpendCredentialStatus,
@@ -55,14 +53,15 @@ pub struct State {
 }
 
 impl State {
-    pub(crate) fn new<D>(
-        client: nyxd::Client,
+    pub(crate) fn new<C, D>(
+        client: C,
         mix_denom: String,
         key_pair: KeyPair,
         comm_channel: D,
         storage: NymApiStorage,
     ) -> Self
     where
+        C: LocalClient + Send + Sync + 'static,
         D: APICommunicationChannel + Send + Sync + 'static,
     {
         let client = Arc::new(client);
@@ -162,13 +161,17 @@ impl InternalSignRequest {
         }
     }
 
-    pub fn stage(
-        client: nyxd::Client,
+    pub fn stage<C, D>(
+        client: C,
         mix_denom: String,
         key_pair: KeyPair,
+        comm_channel: D,
         storage: NymApiStorage,
-    ) -> AdHoc {
-        let comm_channel = QueryCommunicationChannel::new(client.clone());
+    ) -> AdHoc
+    where
+        C: LocalClient + Send + Sync + 'static,
+        D: APICommunicationChannel + Send + Sync + 'static,
+    {
         let state = State::new(client, mix_denom, key_pair, comm_channel, storage);
         AdHoc::on_ignite("Internal Sign Request Stage", |rocket| async {
             rocket.manage(state).mount(

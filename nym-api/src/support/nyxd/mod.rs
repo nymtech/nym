@@ -44,7 +44,7 @@ use validator_client::nyxd::{
         CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, MultisigQueryClient,
         MultisigSigningClient,
     },
-    Fee,
+    AccountId, Fee,
 };
 
 pub(crate) struct Client(pub(crate) Arc<RwLock<validator_client::Client<SigningNyxdClient>>>);

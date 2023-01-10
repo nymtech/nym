@@ -18,7 +18,7 @@ use std::sync::Arc;
 use tokio::sync::Notify;
 
 #[cfg(feature = "coconut")]
-use crate::coconut::{self, InternalSignRequest};
+use crate::coconut::{self, comm::QueryCommunicationChannel, InternalSignRequest};
 
 pub(crate) mod openapi;
 
@@ -60,10 +60,12 @@ pub(crate) async fn setup_rocket(
 
     #[cfg(feature = "coconut")]
     let rocket = if config.get_coconut_signer_enabled() {
+        let comm_channel = QueryCommunicationChannel::new(_nyxd_client.clone());
         rocket.attach(InternalSignRequest::stage(
             _nyxd_client.clone(),
             mix_denom,
             coconut_keypair,
+            comm_channel,
             storage.clone().unwrap(),
         ))
     } else {

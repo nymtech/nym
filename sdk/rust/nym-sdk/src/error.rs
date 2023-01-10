@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error("i/o error: {0}")]
@@ -8,12 +10,16 @@ pub enum Error {
     TomlDeserializationError(#[from] toml::de::Error),
     #[error(transparent)]
     ClientCoreError(#[from] client_core::error::ClientCoreError),
+
     #[error("key file encountered that we don't want to overwrite")]
     DontOverwrite,
     #[error("shared gateway key file encountered that we don't want to overwrite")]
     DontOverwriteGatewayKey,
     #[error("no gateway config available for writing")]
     GatewayNotAvailableForWriting,
+
+    #[error("expected to received a directory, received: {0}")]
+    ExpectedDirectory(PathBuf),
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

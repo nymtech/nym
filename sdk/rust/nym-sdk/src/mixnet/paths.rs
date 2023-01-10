@@ -1,6 +1,8 @@
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use std::path::{Path, PathBuf};
 
+use crate::error::{Error, Result};
+
 #[derive(Clone, Debug)]
 pub enum KeyMode {
     /// Use existing key files if they exists, otherwise create new ones.
@@ -58,9 +60,12 @@ pub struct StoragePaths {
 }
 
 impl StoragePaths {
-    pub fn new_from_dir(operating_mode: KeyMode, dir: &Path) -> Self {
-        assert!(!dir.is_file(), "WIP");
-        Self {
+    pub fn new_from_dir(operating_mode: KeyMode, dir: &Path) -> Result<Self> {
+        if !dir.is_file() {
+            return Err(Error::ExpectedDirectory(dir.to_owned()))
+        }
+
+        Ok(Self {
             // These filenames were chosen to match the ones we use in `nym-client`. Consider
             // changing the defaults
             operating_mode,
@@ -73,7 +78,7 @@ impl StoragePaths {
             gateway_endpoint_config: dir.join("gateway_endpoint_config.toml"),
             credential_database_path: dir.join("db.sqlite"),
             reply_surb_database_path: dir.join("persistent_reply_store.sqlite"),
-        }
+        })
     }
 }
 

@@ -5,25 +5,29 @@
 extern crate rocket;
 
 use crate::support::cli;
+use crate::support::cli::CliArgs;
 use crate::support::storage;
 use ::config::defaults::setup_env;
 use ::config::defaults::var_names::MIX_DENOM;
 use anyhow::Result;
-use build_information::BinaryBuildInformation;
 use circulating_supply_api::cache::CirculatingSupplyCache;
 use clap::ArgMatches;
+use clap::Parser;
 #[cfg(feature = "coconut")]
 use coconut::{
     comm::QueryCommunicationChannel,
     dkg::controller::{init_keypair, DkgController},
     InternalSignRequest,
 };
+use config::NymConfig;
 use log::info;
-use logging::setup_logging;
 use logging::setup_logging;
 use node_status_api::NodeStatusCache;
 use nym_contract_cache::cache::NymContractCache;
+#[cfg(feature = "coconut")]
+use rand::rngs::OsRng;
 use std::path::PathBuf;
+use std::process;
 use std::str::FromStr;
 use std::sync::Arc;
 use support::{http, nyxd, process_runner};
@@ -31,10 +35,6 @@ use task::{wait_for_signal, TaskManager};
 use tokio::sync::Notify;
 #[cfg(feature = "coconut")]
 use url::Url;
-#[cfg(feature = "coconut")]
-use rand::rngs::OsRng;
-use support::{http, nyxd, process_runner};
-use support::{nyxd, openapi};
 
 mod circulating_supply_api;
 mod epoch_operations;
@@ -46,100 +46,6 @@ pub(crate) mod support;
 #[cfg(feature = "coconut")]
 mod coconut;
 
-lazy_static! {
-    pub static ref PRETTY_BUILD_INFORMATION: String =
-        BinaryBuildInformation::new(env!("CARGO_PKG_VERSION")).pretty_print();
-}
-
-// Helper for passing LONG_VERSION to clap
-fn pretty_build_info_static() -> &'static str {
-    &PRETTY_BUILD_INFORMATION
-}
-
-// explicitly defined custom parser (as opposed to just using
-// #[arg(value_parser = clap::value_parser!(u8).range(0..100))]
-// for better error message
-fn threshold_in_range(s: &str) -> Result<u8, String> {
-    let threshold: usize = s
-        .parse()
-        .map_err(|_| format!("`{s}` isn't a valid threshold number"))?;
-    if threshold > 100 {
-        Err(format!("{threshold} is not within the range 0-100"))
-    } else {
-        Ok(threshold as u8)
-    }
-}
-
-#[derive(Parser)]
-#[clap(author = "Nymtech", version, long_version = pretty_build_info_static(), about)]
-struct ApiArgs {
-    /// Path pointing to an env file that configures the Nym API.
-    #[clap(short, long)]
-    config_env_file: Option<std::path::PathBuf>,
-
-    /// Id of the nym-api we want to run
-    #[clap(long)]
-    id: Option<String>,
-
-    /// Specifies whether network monitoring is enabled on this API
-    #[clap(short = 'm', long)]
-    enable_monitor: bool,
-
-    /// Specifies whether network rewarding is enabled on this API
-    #[clap(short = 'r', long, requires = "enable_monitor", requires = "mnemonic")]
-    enable_rewarding: bool,
-
-    /// Endpoint to nyxd instance from which the monitor will grab nodes to test
-    #[clap(long)]
-    nyxd_validator: Option<url::Url>,
-
-    /// Address of the mixnet contract managing the network
-    #[clap(long)]
-    mixnet_contract: Option<nyxd::AccountId>,
-
-    /// Mnemonic of the network monitor used for rewarding operators
-    // even though we're currently converting the mnemonic to string (and then back to the concrete type)
-    // at least we're getting immediate validation when passing the arguments
-    #[clap(long)]
-    mnemonic: Option<bip39::Mnemonic>,
-
-    /// Specifies whether a config file based on provided arguments should be saved to a file
-    #[clap(short = 'w', long)]
-    save_config: bool,
-
-    /// Specifies the minimum percentage of monitor test run data present in order to distribute rewards for given interval.
-    #[clap(long, value_parser = threshold_in_range)]
-    monitor_threshold: Option<u8>,
-
-    /// Mixnodes with reliability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.
-    #[clap(long, value_parser = threshold_in_range)]
-    min_mixnode_reliability: Option<u8>,
-
-    /// Gateways with reliability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.
-    #[clap(long, value_parser = threshold_in_range)]
-    min_gateway_reliability: Option<u8>,
-
-    /// Set this nym api to work in a enabled credentials that would attempt to use gateway with the bandwidth credential requirement
-    #[clap(long)]
-    enabled_credentials_mode: bool,
-
-    /// Announced address where coconut clients will connect.
-    #[cfg(feature = "coconut")]
-    #[clap(long)]
-    announce_address: Option<url::Url>,
-
-    /// Flag to indicate whether coconut signer authority is enabled on this API
-    #[cfg(feature = "coconut")]
-    #[clap(long, requires = "mnemonic", requires = "announce-address")]
-    enable_coconut: bool,
-}
-
-async fn wait_for_interrupt(mut shutdown: TaskManager) {
-    wait_for_signal().await;
-
-    log::info!("Sending shutdown");
-    shutdown.signal_shutdown().ok();
-
 #[tokio::main]
 async fn main() -> Result<()> {
     println!("Starting nym api...");
@@ -150,34 +56,26 @@ async fn main() -> Result<()> {
     }}
 
     setup_logging();
-    let args = cli::parse_args();
-    let config_env_file = args
-        .value_of(cli::args::CONFIG_ENV_FILE)
-        .map(|s| PathBuf::from_str(s).expect("invalid env config file"));
-    setup_env(config_env_file);
+    let args = cli::CliArgs::parse();
+    setup_env(args.config_env_file.as_ref());
     run_nym_api(args).await
 }
 
-async fn run_nym_api(cli_args: ApiArgs) -> Result<()> {
-    let (system_version, config) = cli::build_config(cli_args);
-
-    #[cfg(feature = "coconut")]
-    if !_already_inited {
-        init_keypair(&config)?;
-    }
+async fn run_nym_api(cli_args: CliArgs) -> Result<()> {
+    let system_version = clap::crate_version!();
+    let save_to_file = cli_args.save_config;
+    let config = cli::build_config(cli_args)?;
 
     // if we just wanted to write data to the config, exit
     if save_to_file {
         info!("Saving the configuration to a file");
-        if let Err(err) = config.save_to_file(None) {
-            error!("Failed to write config to a file - {err}");
-            process::exit(1)
-        } else {
-            return Ok(());
-        }
+        config.save_to_file(None)?;
+        return Ok(());
     }
 
-    let mix_denom = std::env::var(MIX_DENOM).expect("mix denom not set");
+    let mix_denom = std::env::var(MIX_DENOM)?;
+
+    // TODO: under some conditions you HAVE TO create a query client instead
     let signing_nyxd_client = nyxd::Client::new_signing(&config);
     let liftoff_notify = Arc::new(Notify::new());
 

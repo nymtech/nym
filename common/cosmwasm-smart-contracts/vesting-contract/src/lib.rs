@@ -134,6 +134,32 @@ pub struct AllDelegationsResponse {
     pub start_next_after: Option<(u32, MixId, u64)>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+pub struct AccountVestingCoins {
+    pub account_id: u32,
+    pub owner: Addr,
+    pub still_vesting: Coin,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+pub struct VestingCoinsResponse {
+    pub accounts: Vec<AccountVestingCoins>,
+    pub start_next_after: Option<Addr>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+pub struct BaseVestingAccountInfo {
+    pub account_id: u32,
+    pub owner: Addr,
+    // TODO: should this particular query/response expose anything else?
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, JsonSchema)]
+pub struct AccountsResponse {
+    pub accounts: Vec<BaseVestingAccountInfo>,
+    pub start_next_after: Option<Addr>,
+}
+
 #[cfg(test)]
 mod test {
     use contracts_common::Percent;

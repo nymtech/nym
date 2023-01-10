@@ -1,7 +1,7 @@
 use crate::errors::ContractError;
 use crate::queued_migrations::migrate_to_v2_mixnet_contract;
 use crate::storage::{
-    account_from_address, save_account, BlockTimestampSecs, ADMIN, DELEGATIONS,
+    account_from_address, save_account, BlockTimestampSecs, ACCOUNTS, ADMIN, DELEGATIONS,
     MIXNET_CONTRACT_ADDRESS, MIX_DENOM,
 };
 use crate::traits::{
@@ -26,8 +26,9 @@ use vesting_contract_common::messages::{
     ExecuteMsg, InitMsg, MigrateMsg, QueryMsg, VestingSpecification,
 };
 use vesting_contract_common::{
-    AllDelegationsResponse, DelegationTimesResponse, OriginalVestingResponse, Period, PledgeCap,
-    PledgeData, VestingDelegation,
+    AccountVestingCoins, AccountsResponse, AllDelegationsResponse, BaseVestingAccountInfo,
+    DelegationTimesResponse, OriginalVestingResponse, Period, PledgeCap, PledgeData,
+    VestingCoinsResponse, VestingDelegation,
 };
 
 pub const INITIAL_LOCKED_PLEDGE_CAP: Uint128 = Uint128::new(100_000_000_000);
@@ -568,6 +569,19 @@ fn try_create_periodic_vesting_account(
 pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
         QueryMsg::GetContractVersion {} => to_binary(&get_contract_version()),
+        QueryMsg::GetAccountsPaged {
+            start_next_after,
+            limit,
+        } => to_binary(&try_get_all_accounts(deps, start_next_after, limit)?),
+        QueryMsg::GetAccountsVestingCoinsPaged {
+            start_next_after,
+            limit,
+        } => to_binary(&try_get_all_accounts_locked_coins(
+            deps,
+            env,
+            start_next_after,
+            limit,
+        )?),
         QueryMsg::LockedCoins {
             vesting_account_address,
             block_time,
@@ -687,6 +701,68 @@ pub fn get_contract_version() -> ContractBuildInformation {
         commit_branch: env!("VERGEN_GIT_BRANCH").to_string(),
         rustc_version: env!("VERGEN_RUSTC_SEMVER").to_string(),
     }
+}
+
+pub fn try_get_all_accounts(
+    deps: Deps<'_>,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> Result<AccountsResponse, ContractError> {
+    let limit = limit.unwrap_or(150).min(250) as usize;
+
+    let start = start_after.map(Bound::exclusive);
+
+    let accounts = ACCOUNTS
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|res| {
+            res.map(|(_, account)| BaseVestingAccountInfo {
+                account_id: account.storage_key(),
+                owner: account.owner_address,
+            })
+        })
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = accounts.last().map(|acc| acc.owner.clone());
+
+    Ok(AccountsResponse {
+        accounts,
+        start_next_after,
+    })
+}
+
+pub fn try_get_all_accounts_locked_coins(
+    deps: Deps<'_>,
+    env: Env,
+    start_after: Option<String>,
+    limit: Option<u32>,
+) -> Result<VestingCoinsResponse, ContractError> {
+    let limit = limit.unwrap_or(150).min(250) as usize;
+
+    let start = start_after.map(Bound::exclusive);
+
+    let accounts = ACCOUNTS
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|res| {
+            res.map(|(_, account)| {
+                account
+                    .get_vesting_coins(None, &env, deps.storage)
+                    .map(|still_vesting| AccountVestingCoins {
+                        account_id: account.storage_key(),
+                        owner: account.owner_address,
+                        still_vesting,
+                    })
+            })
+        })
+        .collect::<StdResult<Result<Vec<_>, _>>>()??;
+
+    let start_next_after = accounts.last().map(|acc| acc.owner.clone());
+
+    Ok(VestingCoinsResponse {
+        accounts,
+        start_next_after,
+    })
 }
 
 /// Gets currently locked coins, see [crate::traits::VestingAccount::locked_coins]

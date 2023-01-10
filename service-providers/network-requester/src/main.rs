@@ -8,7 +8,6 @@ use completions::{fig_generate, ArgShell};
 use logging::setup_logging;
 
 use error::NetworkRequesterError;
-use network_defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use nymsphinx::addressing::clients::Recipient;
 
 mod allowed_hosts;
@@ -26,7 +25,7 @@ struct Run {
     #[clap(long)]
     open_proxy: bool,
 
-    /// Websocket port to bind to
+    /// Websocket port to bind to. Defaults to `network_defaults::DEFAULT_WEBSOCKET_LISTENING_PORT` (currently 1977)
     #[clap(long)]
     websocket_port: Option<String>,
 
@@ -60,7 +59,7 @@ impl Run {
             "ws://localhost:{}",
             self.websocket_port
                 .as_ref()
-                .unwrap_or(&DEFAULT_WEBSOCKET_LISTENING_PORT.to_string())
+                .unwrap_or(&network_defaults::DEFAULT_WEBSOCKET_LISTENING_PORT.to_string())
         );
 
         log::info!("Starting socks5 service provider");

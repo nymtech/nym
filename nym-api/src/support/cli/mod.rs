@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::config::Config;
-use ::config::defaults::var_names::MIXNET_CONTRACT_ADDRESS;
+use ::config::defaults::var_names::{MIXNET_CONTRACT_ADDRESS, VESTING_CONTRACT_ADDRESS};
 use anyhow::Result;
 use build_information::BinaryBuildInformation;
 use clap::Parser;
@@ -61,6 +61,10 @@ pub(crate) struct CliArgs {
     /// Address of the mixnet contract managing the network
     #[clap(long)]
     pub(crate) mixnet_contract: Option<nyxd::AccountId>,
+
+    /// Address of the vesting contract holding locked tokens
+    #[clap(long)]
+    pub(crate) vesting_contract: Option<nyxd::AccountId>,
 
     /// Mnemonic of the network monitor used for rewarding operators
     // even though we're currently converting the mnemonic to string (and then back to the concrete type)
@@ -142,6 +146,11 @@ pub(crate) fn override_config(mut config: Config, args: CliArgs) -> Config {
             Config::with_custom_mixnet_contract,
             args.mixnet_contract,
             MIXNET_CONTRACT_ADDRESS,
+        )
+        .with_optional_env(
+            Config::with_custom_vesting_contract,
+            args.vesting_contract,
+            VESTING_CONTRACT_ADDRESS,
         )
         .with_optional(Config::with_mnemonic, args.mnemonic)
         .with_optional(

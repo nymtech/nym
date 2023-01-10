@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::template::config_template;
-use config::defaults::mainnet::MIXNET_CONTRACT_ADDRESS;
+use config::defaults::mainnet::{MIXNET_CONTRACT_ADDRESS, VESTING_CONTRACT_ADDRESS};
 use config::defaults::DEFAULT_NYM_API_PORT;
 use config::NymConfig;
 use serde::{Deserialize, Serialize};
@@ -109,6 +109,9 @@ pub struct Base {
     /// Address of the validator contract managing the network
     mixnet_contract_address: nyxd::AccountId,
 
+    /// Address of the vesting contract holding locked tokens
+    vesting_contract_address: nyxd::AccountId,
+
     /// Mnemonic used for rewarding and/or multisig operations
     mnemonic: bip39::Mnemonic,
 }
@@ -128,6 +131,7 @@ impl Default for Base {
             local_validator: default_validator,
             announce_address: default_announce_address,
             mixnet_contract_address: MIXNET_CONTRACT_ADDRESS.parse().unwrap(),
+            vesting_contract_address: VESTING_CONTRACT_ADDRESS.parse().unwrap(),
             mnemonic: bip39::Mnemonic::generate(24).unwrap(),
         }
     }
@@ -431,6 +435,11 @@ impl Config {
         self
     }
 
+    pub fn with_custom_vesting_contract(mut self, vesting_contract: nyxd::AccountId) -> Self {
+        self.base.vesting_contract_address = vesting_contract;
+        self
+    }
+
     pub fn with_mnemonic(mut self, mnemonic: bip39::Mnemonic) -> Self {
         self.base.mnemonic = mnemonic;
         self
@@ -487,6 +496,10 @@ impl Config {
 
     pub fn get_mixnet_contract_address(&self) -> nyxd::AccountId {
         self.base.mixnet_contract_address.clone()
+    }
+
+    pub fn get_vesting_contract_address(&self) -> nyxd::AccountId {
+        self.base.vesting_contract_address.clone()
     }
 
     pub fn get_mnemonic(&self) -> bip39::Mnemonic {

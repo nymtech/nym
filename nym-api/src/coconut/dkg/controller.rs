@@ -22,7 +22,6 @@ use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 use task::TaskClient;
 use tokio::time::interval;
-use validator_client::nyxd::SigningNyxdClient;
 
 pub(crate) fn init_keypair(config: &Config) -> Result<()> {
     let mut rng = OsRng;
@@ -50,7 +49,7 @@ pub(crate) struct DkgController<R> {
 impl<R: RngCore + Clone> DkgController<R> {
     pub(crate) async fn new(
         config: &Config,
-        nyxd_client: nyxd::Client<SigningNyxdClient>,
+        nyxd_client: nyxd::Client,
         coconut_keypair: CoconutKeyPair,
         rng: R,
     ) -> Result<Self> {

@@ -1,3 +1,6 @@
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use super::CirculatingSupplyCache;
 use crate::support::nyxd::Client;
 use anyhow::Result;
@@ -6,18 +9,18 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 use task::TaskClient;
 use tokio::time;
-use validator_client::nyxd::{Coin, CosmWasmClient};
+use validator_client::nyxd::Coin;
 use validator_client::AccountId;
 
-pub(crate) struct CirculatingSupplyCacheRefresher<C> {
-    nyxd_client: Client<C>,
+pub(crate) struct CirculatingSupplyCacheRefresher {
+    nyxd_client: Client,
     cache: CirculatingSupplyCache,
     caching_interval: Duration,
 }
 
-impl<C> CirculatingSupplyCacheRefresher<C> {
+impl CirculatingSupplyCacheRefresher {
     pub(crate) fn new(
-        nyxd_client: Client<C>,
+        nyxd_client: Client,
         cache: CirculatingSupplyCache,
         caching_interval: Duration,
     ) -> Self {
@@ -28,10 +31,7 @@ impl<C> CirculatingSupplyCacheRefresher<C> {
         }
     }
 
-    pub(crate) async fn run(&self, mut shutdown: TaskClient)
-    where
-        C: CosmWasmClient + Sync + Send,
-    {
+    pub(crate) async fn run(&self, mut shutdown: TaskClient) {
         let mut interval = time::interval(self.caching_interval);
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -60,10 +60,7 @@ impl<C> CirculatingSupplyCacheRefresher<C> {
         }
     }
 
-    async fn refresh(&self) -> Result<()>
-    where
-        C: CosmWasmClient + Sync + Send,
-    {
+    async fn refresh(&self) -> Result<()> {
         let mixmining_temp_account = "n1299fhjdafamwc2gha723nkkewvu56u5xn78t9j"
             .parse::<AccountId>()
             .unwrap();

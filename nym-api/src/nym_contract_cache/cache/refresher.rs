@@ -7,10 +7,9 @@ use std::{collections::HashMap, sync::atomic::Ordering, time::Duration};
 use task::TaskClient;
 use tokio::sync::watch;
 use tokio::time;
-use validator_client::nyxd::CosmWasmClient;
 
-pub struct NymContractCacheRefresher<C> {
-    nyxd_client: Client<C>,
+pub struct NymContractCacheRefresher {
+    nyxd_client: Client,
     cache: NymContractCache,
     caching_interval: Duration,
 
@@ -18,9 +17,9 @@ pub struct NymContractCacheRefresher<C> {
     update_notifier: watch::Sender<CacheNotification>,
 }
 
-impl<C> NymContractCacheRefresher<C> {
+impl NymContractCacheRefresher {
     pub(crate) fn new(
-        nyxd_client: Client<C>,
+        nyxd_client: Client,
         caching_interval: Duration,
         cache: NymContractCache,
     ) -> Self {
@@ -37,10 +36,7 @@ impl<C> NymContractCacheRefresher<C> {
         self.update_notifier.subscribe()
     }
 
-    async fn refresh(&self) -> Result<()>
-    where
-        C: CosmWasmClient + Sync + Send,
-    {
+    async fn refresh(&self) -> Result<()> {
         let rewarding_params = self.nyxd_client.get_current_rewarding_parameters().await?;
         let current_interval = self.nyxd_client.get_current_interval().await?.interval;
 
@@ -79,10 +75,7 @@ impl<C> NymContractCacheRefresher<C> {
         Ok(())
     }
 
-    async fn get_rewarded_set_map(&self) -> HashMap<MixId, RewardedSetNodeStatus>
-    where
-        C: CosmWasmClient + Sync + Send,
-    {
+    async fn get_rewarded_set_map(&self) -> HashMap<MixId, RewardedSetNodeStatus> {
         self.nyxd_client
             .get_rewarded_set_mixnodes()
             .await
@@ -109,10 +102,7 @@ impl<C> NymContractCacheRefresher<C> {
         (rewarded_set, active_set)
     }
 
-    pub(crate) async fn run(&self, mut shutdown: TaskClient)
-    where
-        C: CosmWasmClient + Sync + Send,
-    {
+    pub(crate) async fn run(&self, mut shutdown: TaskClient) {
         let mut interval = time::interval(self.caching_interval);
         while !shutdown.is_shutdown() {
             tokio::select! {

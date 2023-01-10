@@ -67,8 +67,7 @@ async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Syn
 
     let mix_denom = std::env::var(MIX_DENOM)?;
 
-    // TODO: under some conditions you HAVE TO create a query client instead
-    let signing_nyxd_client = nyxd::Client::new_signing(&config);
+    let nyxd_client = nyxd::Client::new(&config);
     let liftoff_notify = Arc::new(Notify::new());
 
     // We need a bigger timeout
@@ -82,7 +81,7 @@ async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Syn
         &config,
         mix_denom,
         Arc::clone(&liftoff_notify),
-        signing_nyxd_client.clone(),
+        nyxd_client.clone(),
         #[cfg(feature = "coconut")]
         coconut_keypair.clone(),
     )
@@ -95,8 +94,7 @@ async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Syn
     #[cfg(feature = "coconut")]
     {
         let dkg_controller =
-            DkgController::new(&config, signing_nyxd_client.clone(), coconut_keypair, OsRng)
-                .await?;
+            DkgController::new(&config, nyxd_client.clone(), coconut_keypair, OsRng).await?;
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(async move { dkg_controller.run(shutdown_listener).await });
     }
@@ -107,7 +105,7 @@ async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Syn
         nym_contract_cache::start_with_signing(
             &rocket,
             &shutdown,
-            &signing_nyxd_client,
+            &nyxd_client,
             &config,
             &nym_contract_cache_state,
         )
@@ -127,16 +125,13 @@ async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Syn
 
     circulating_supply_api::start_cache_refresh(
         &config,
+        nyxd_client.clone(),
         &circulating_supply_cache_state,
         &shutdown,
     );
 
-    let monitor_builder = network_monitor::setup(
-        &config,
-        signing_nyxd_client.clone(),
-        system_version,
-        &rocket,
-    );
+    let monitor_builder =
+        network_monitor::setup(&config, nyxd_client.clone(), system_version, &rocket);
 
     // Rocket handles shutdown on its own, but its shutdown handling should be incorporated
     // with that of the rest of the tasks. Currently its runtime is forcefully terminated once

@@ -40,7 +40,7 @@ pub(crate) fn nym_contract_cache_routes(settings: &OpenApiSettings) -> (Vec<Rout
 pub(crate) async fn start_with_signing(
     rocket: &rocket::Rocket<rocket::Ignite>,
     shutdown: &TaskManager,
-    signing_nyxd_client: &nyxd::Client<validator_client::nyxd::SigningNyxdClient>,
+    nyxd_client: &nyxd::Client,
     config: &Config,
     nym_contract_cache: &cache::NymContractCache,
 ) -> Result<tokio::sync::watch::Receiver<support::caching::CacheNotification>, anyhow::Error> {
@@ -50,7 +50,7 @@ pub(crate) async fn start_with_signing(
     tokio::spawn(async move { uptime_updater.run(shutdown_listener).await });
 
     let nym_contract_cache_refresher = NymContractCacheRefresher::new(
-        signing_nyxd_client.clone(),
+        nyxd_client.clone(),
         config.get_caching_interval(),
         nym_contract_cache.clone(),
     );
@@ -59,12 +59,9 @@ pub(crate) async fn start_with_signing(
     tokio::spawn(async move { nym_contract_cache_refresher.run(shutdown_listener).await });
 
     if config.get_rewarding_enabled() {
-        let mut rewarded_set_updater = RewardedSetUpdater::new(
-            signing_nyxd_client.clone(),
-            nym_contract_cache.clone(),
-            storage,
-        )
-        .await?;
+        let mut rewarded_set_updater =
+            RewardedSetUpdater::new(nyxd_client.clone(), nym_contract_cache.clone(), storage)
+                .await?;
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await.unwrap() });
     }
@@ -80,7 +77,7 @@ pub(crate) fn start_without_signing(
     nym_contract_cache: &cache::NymContractCache,
     shutdown: &TaskManager,
 ) -> tokio::sync::watch::Receiver<support::caching::CacheNotification> {
-    let nyxd_client = nyxd::Client::new_query(config);
+    let nyxd_client = nyxd::Client::new(config);
     let nym_contract_cache_refresher = NymContractCacheRefresher::new(
         nyxd_client,
         config.get_caching_interval(),

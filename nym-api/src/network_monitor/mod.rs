@@ -1,15 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use credential_storage::PersistentStorage;
-use crypto::asymmetric::{encryption, identity};
-use futures::channel::mpsc;
-use gateway_client::bandwidth::BandwidthController;
-use rocket::{Ignite, Rocket};
-use std::sync::Arc;
-use task::TaskManager;
-use validator_client::nyxd::SigningNyxdClient;
-
 use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::{
     ReceivedProcessor, ReceivedProcessorReceiver, ReceivedProcessorSender,
@@ -21,10 +12,16 @@ use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::monitor::Monitor;
 use crate::nym_contract_cache::cache::NymContractCache;
-use crate::nyxd::Client;
 use crate::storage::NymApiStorage;
 use crate::support::config::Config;
 use crate::support::{nyxd, storage};
+use credential_storage::PersistentStorage;
+use crypto::asymmetric::{encryption, identity};
+use futures::channel::mpsc;
+use gateway_client::bandwidth::BandwidthController;
+use rocket::{Ignite, Rocket};
+use std::sync::Arc;
+use task::TaskManager;
 
 pub(crate) mod chunker;
 pub(crate) mod gateways_reader;
@@ -36,7 +33,7 @@ pub(crate) const ROUTE_TESTING_TEST_NONCE: u64 = 0;
 
 pub(crate) fn setup<'a>(
     config: &'a Config,
-    _nyxd_client: nyxd::Client<SigningNyxdClient>,
+    _nyxd_client: nyxd::Client,
     system_version: &str,
     rocket: &Rocket<Ignite>,
 ) -> Option<NetworkMonitorBuilder<'a>> {
@@ -59,7 +56,7 @@ pub(crate) fn setup<'a>(
 
 pub(crate) struct NetworkMonitorBuilder<'a> {
     config: &'a Config,
-    _nyxd_client: Client<SigningNyxdClient>,
+    _nyxd_client: nyxd::Client,
     system_version: String,
     node_status_storage: NymApiStorage,
     validator_cache: NymContractCache,
@@ -68,7 +65,7 @@ pub(crate) struct NetworkMonitorBuilder<'a> {
 impl<'a> NetworkMonitorBuilder<'a> {
     pub(crate) fn new(
         config: &'a Config,
-        _nyxd_client: Client<SigningNyxdClient>,
+        _nyxd_client: nyxd::Client,
         system_version: &str,
         node_status_storage: NymApiStorage,
         validator_cache: NymContractCache,

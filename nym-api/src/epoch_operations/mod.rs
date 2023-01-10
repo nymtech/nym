@@ -27,7 +27,6 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::time::Duration;
 use tokio::time::sleep;
-use validator_client::nyxd::SigningNyxdClient;
 
 pub(crate) mod error;
 mod helpers;
@@ -54,7 +53,7 @@ impl From<MixnodeToReward> for ExecuteMsg {
 }
 
 pub struct RewardedSetUpdater {
-    nyxd_client: Client<SigningNyxdClient>,
+    nyxd_client: Client,
     nym_contract_cache: NymContractCache,
     storage: NymApiStorage,
 }
@@ -77,7 +76,7 @@ impl RewardedSetUpdater {
     }
 
     pub(crate) async fn new(
-        nyxd_client: Client<SigningNyxdClient>,
+        nyxd_client: Client,
         nym_contract_cache: NymContractCache,
         storage: NymApiStorage,
     ) -> Result<Self, RewardingError> {
@@ -181,9 +180,8 @@ impl RewardedSetUpdater {
             info!("There are no nodes to reward in this epoch");
         } else if let Err(err) = self.nyxd_client.send_rewarding_messages(&to_reward).await {
             error!(
-                "failed to perform mixnode rewarding for epoch {}! Error encountered: {}",
+                "failed to perform mixnode rewarding for epoch {}! Error encountered: {err}",
                 current_interval.current_epoch_absolute_id(),
-                err
             );
             return Err(err.into());
         }
@@ -379,7 +377,7 @@ impl RewardedSetUpdater {
         loop {
             let current_interval = match self.current_interval_details().await {
                 Err(err) => {
-                    error!("failed to obtain information about the current interval - {}. Going to retry in {}s", err, POLL_INTERVAL.as_secs());
+                    error!("failed to obtain information about the current interval - {err}. Going to retry in {}s", POLL_INTERVAL.as_secs());
                     tokio::select! {
                         _ = sleep(POLL_INTERVAL) => {
                             continue

@@ -1,3 +1,6 @@
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use okapi::openapi3::OpenApi;
 use rocket::Route;
 use rocket_okapi::{openapi_get_routes_spec, settings::OpenApiSettings};
@@ -18,10 +21,10 @@ pub(crate) fn circulating_supply_routes(settings: &OpenApiSettings) -> (Vec<Rout
 /// Spawn the circulating supply cache refresher.
 pub(crate) fn start_cache_refresh(
     config: &Config,
+    nyxd_client: nyxd::Client,
     circulating_supply_cache: &cache::CirculatingSupplyCache,
     shutdown: &TaskManager,
 ) {
-    let nyxd_client = nyxd::Client::new_query(config);
     let refresher = CirculatingSupplyCacheRefresher::new(
         nyxd_client,
         circulating_supply_cache.clone(),

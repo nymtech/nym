@@ -16,10 +16,9 @@ use rocket_okapi::mount_endpoints_and_merged_docs;
 use rocket_okapi::swagger_ui::make_swagger_ui;
 use std::sync::Arc;
 use tokio::sync::Notify;
-use validator_client::nyxd::cosmwasm_client::signing_client::Client as SigningNyxdClient;
 
 #[cfg(feature = "coconut")]
-use crate::coconut::{self, comm::QueryCommunicationChannel, InternalSignRequest};
+use crate::coconut::{self, InternalSignRequest};
 
 pub(crate) mod openapi;
 
@@ -27,7 +26,7 @@ pub(crate) async fn setup_rocket(
     config: &Config,
     _mix_denom: String,
     liftoff_notify: Arc<Notify>,
-    _nyxd_client: nyxd::Client<SigningNyxdClient>,
+    _nyxd_client: nyxd::Client,
     #[cfg(feature = "coconut")] coconut_keypair: coconut::keypair::KeyPair,
 ) -> anyhow::Result<Rocket<Ignite>> {
     let openapi_settings = rocket_okapi::settings::OpenApiSettings::default();
@@ -67,7 +66,6 @@ pub(crate) async fn setup_rocket(
             _nyxd_client.clone(),
             _mix_denom,
             coconut_keypair,
-            QueryCommunicationChannel::new(_nyxd_client),
             storage.clone().unwrap(),
         ))
     } else {

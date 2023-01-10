@@ -52,7 +52,11 @@ pub fn instantiate(
 
     CURRENT_EPOCH.save(
         deps.storage,
-        &Epoch::new(EpochState::default(), env.block.time),
+        &Epoch::new(
+            EpochState::default(),
+            msg.time_configuration.unwrap_or_default(),
+            env.block.time,
+        ),
     )?;
 
     Ok(Response::default())
@@ -163,6 +167,7 @@ mod tests {
         let msg = InstantiateMsg {
             group_addr: group_contract_addr.to_string(),
             multisig_addr: MULTISIG_CONTRACT.to_string(),
+            time_configuration: None,
             mix_denom: TEST_MIX_DENOM.to_string(),
         };
         app.instantiate_contract(
@@ -197,6 +202,7 @@ mod tests {
         let msg = InstantiateMsg {
             group_addr: "group_addr".to_string(),
             multisig_addr: "multisig_addr".to_string(),
+            time_configuration: None,
             mix_denom: "nym".to_string(),
         };
         let info = mock_info("creator", &[]);

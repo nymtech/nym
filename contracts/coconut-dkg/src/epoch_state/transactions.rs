@@ -21,7 +21,11 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
     let current_epoch = CURRENT_EPOCH.update::<_, ContractError>(deps.storage, |mut epoch| {
         // TODO: When defaulting to the first state, some action will probably need to be taken on the
         // rest of the contract, as we're starting with a new set of signers
-        epoch = Epoch::new(epoch.state.next().unwrap_or_default(), env.block.time);
+        epoch = Epoch::new(
+            epoch.state.next().unwrap_or_default(),
+            epoch.time_configuration,
+            env.block.time,
+        );
         Ok(epoch)
     })?;
     if current_epoch.state == EpochState::DealingExchange {
@@ -40,11 +44,7 @@ pub(crate) mod tests {
     use super::*;
     use crate::error::ContractError::EarlyEpochStateAdvancement;
     use crate::support::tests::helpers::init_contract;
-    use coconut_dkg_common::types::{
-        DealerDetails, EpochState, DEALING_EXCHANGE_TIME_SECS, IN_PROGRESS_TIME_SECS,
-        PUBLIC_KEY_SUBMISSION_TIME_SECS, VERIFICATION_KEY_FINALIZATION_TIME_SECS,
-        VERIFICATION_KEY_SUBMISSION_TIME_SECS, VERIFICATION_KEY_VALIDATION_TIME_SECS,
-    };
+    use coconut_dkg_common::types::{DealerDetails, EpochState, TimeConfiguration};
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::Addr;
 
@@ -57,13 +57,15 @@ pub(crate) mod tests {
         assert_eq!(epoch.state, EpochState::PublicKeySubmission);
         assert_eq!(
             epoch.finish_timestamp,
-            env.block.time.plus_seconds(PUBLIC_KEY_SUBMISSION_TIME_SECS)
+            env.block
+                .time
+                .plus_seconds(epoch.time_configuration.public_key_submission_time_secs)
         );
 
         env.block.time = env
             .block
             .time
-            .plus_seconds(PUBLIC_KEY_SUBMISSION_TIME_SECS - 1);
+            .plus_seconds(epoch.time_configuration.public_key_submission_time_secs - 1);
         assert_eq!(
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
             EarlyEpochStateAdvancement(1)
@@ -75,10 +77,15 @@ pub(crate) mod tests {
         assert_eq!(epoch.state, EpochState::DealingExchange);
         assert_eq!(
             epoch.finish_timestamp,
-            env.block.time.plus_seconds(DEALING_EXCHANGE_TIME_SECS)
+            env.block
+                .time
+                .plus_seconds(epoch.time_configuration.dealing_exchange_time_secs)
         );
 
-        env.block.time = env.block.time.plus_seconds(DEALING_EXCHANGE_TIME_SECS - 2);
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(epoch.time_configuration.dealing_exchange_time_secs - 2);
         assert_eq!(
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
             EarlyEpochStateAdvancement(2)
@@ -90,15 +97,19 @@ pub(crate) mod tests {
         assert_eq!(epoch.state, EpochState::VerificationKeySubmission);
         assert_eq!(
             epoch.finish_timestamp,
-            env.block
-                .time
-                .plus_seconds(VERIFICATION_KEY_SUBMISSION_TIME_SECS)
+            env.block.time.plus_seconds(
+                epoch
+                    .time_configuration
+                    .verification_key_submission_time_secs
+            )
         );
 
-        env.block.time = env
-            .block
-            .time
-            .plus_seconds(VERIFICATION_KEY_SUBMISSION_TIME_SECS - 2);
+        env.block.time = env.block.time.plus_seconds(
+            epoch
+                .time_configuration
+                .verification_key_submission_time_secs
+                - 2,
+        );
         assert_eq!(
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
             EarlyEpochStateAdvancement(2)
@@ -110,15 +121,19 @@ pub(crate) mod tests {
         assert_eq!(epoch.state, EpochState::VerificationKeyValidation);
         assert_eq!(
             epoch.finish_timestamp,
-            env.block
-                .time
-                .plus_seconds(VERIFICATION_KEY_VALIDATION_TIME_SECS)
+            env.block.time.plus_seconds(
+                epoch
+                    .time_configuration
+                    .verification_key_validation_time_secs
+            )
         );
 
-        env.block.time = env
-            .block
-            .time
-            .plus_seconds(VERIFICATION_KEY_VALIDATION_TIME_SECS - 3);
+        env.block.time = env.block.time.plus_seconds(
+            epoch
+                .time_configuration
+                .verification_key_validation_time_secs
+                - 3,
+        );
         assert_eq!(
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
             EarlyEpochStateAdvancement(3)
@@ -130,15 +145,17 @@ pub(crate) mod tests {
         assert_eq!(epoch.state, EpochState::VerificationKeyFinalization);
         assert_eq!(
             epoch.finish_timestamp,
-            env.block
-                .time
-                .plus_seconds(VERIFICATION_KEY_FINALIZATION_TIME_SECS)
+            env.block.time.plus_seconds(
+                epoch
+                    .time_configuration
+                    .verification_key_finalization_time_secs
+            )
         );
 
         env.block.time = env
             .block
             .time
-            .plus_seconds(VERIFICATION_KEY_FINALIZATION_TIME_SECS - 1);
+            .plus_seconds(TimeConfiguration::default().verification_key_finalization_time_secs - 1);
         assert_eq!(
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
             EarlyEpochStateAdvancement(1)
@@ -150,10 +167,15 @@ pub(crate) mod tests {
         assert_eq!(epoch.state, EpochState::InProgress);
         assert_eq!(
             epoch.finish_timestamp,
-            env.block.time.plus_seconds(IN_PROGRESS_TIME_SECS)
+            env.block
+                .time
+                .plus_seconds(epoch.time_configuration.in_progress_time_secs)
         );
 
-        env.block.time = env.block.time.plus_seconds(IN_PROGRESS_TIME_SECS - 100);
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(epoch.time_configuration.in_progress_time_secs - 100);
         assert_eq!(
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
             EarlyEpochStateAdvancement(100)
@@ -171,7 +193,9 @@ pub(crate) mod tests {
         assert_eq!(epoch.state, EpochState::PublicKeySubmission);
         assert_eq!(
             epoch.finish_timestamp,
-            env.block.time.plus_seconds(PUBLIC_KEY_SUBMISSION_TIME_SECS)
+            env.block
+                .time
+                .plus_seconds(epoch.time_configuration.public_key_submission_time_secs)
         );
     }
 
@@ -198,7 +222,10 @@ pub(crate) mod tests {
                 .unwrap();
         }
 
-        env.block.time = env.block.time.plus_seconds(PUBLIC_KEY_SUBMISSION_TIME_SECS);
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs);
         advance_epoch_state(deps.as_mut(), env).unwrap();
         assert_eq!(
             THRESHOLD.may_load(deps.as_mut().storage).unwrap().unwrap(),

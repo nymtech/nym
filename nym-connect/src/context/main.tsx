@@ -182,6 +182,14 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     getSpFromStorage();
   }, []);
 
+  useEffect(() => {
+    if (gatewayPerformance !== 'Good') {
+      setTimeout(() => {
+        setGatewayPerformance('Good');
+      }, 5000);
+    }
+  }, [gatewayPerformance]);
+
   const contextValue = useMemo(
     () => ({
       mode,

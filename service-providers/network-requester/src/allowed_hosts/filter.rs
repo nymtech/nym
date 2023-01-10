@@ -1,18 +1,10 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use fs::OpenOptions;
-use io::BufReader;
-use ipnetwork::IpNetwork;
-use publicsuffix::{errors, List};
-use std::collections::HashSet;
-use std::fs;
-use std::fs::File;
-use std::io;
-use std::io::BufRead;
+use publicsuffix::errors;
 use std::net::{IpAddr, SocketAddr};
-use std::path::Path;
-use std::path::PathBuf;
+
+use super::HostsStore;
 
 /// Filters outbound requests based on what's in an `allowed_hosts` list.
 ///
@@ -27,7 +19,7 @@ use std::path::PathBuf;
 /// .com, .co.uk, .co.jp, uk.com, etc, so that we can distinguish correct root-ish
 /// domains as allowed. That list is loaded once at startup from the network.
 pub(crate) struct OutboundRequestFilter {
-    allowed_hosts: HostsStore,
+    pub(crate) allowed_hosts: HostsStore,
     domain_list: publicsuffix::List,
     unknown_hosts: HostsStore,
 }
@@ -48,7 +40,7 @@ impl OutboundRequestFilter {
         }
     }
 
-    fn fetch_domain_list() -> Result<List, errors::Error> {
+    fn fetch_domain_list() -> Result<publicsuffix::List, errors::Error> {
         publicsuffix::List::fetch()
     }
 
@@ -125,159 +117,13 @@ impl OutboundRequestFilter {
     }
 }
 
-// used for parsing file content
-enum Host {
-    Domain(String),
-    IpNetwork(IpNetwork),
-}
-
-// TODO: perphaps in the future it should do some domain validation?
-// so for example if somebody put some nonsense in the whitelist file like "foomp", it would get
-// rejected?
-impl From<String> for Host {
-    fn from(raw: String) -> Self {
-        if let Ok(ipnet) = raw.parse() {
-            Host::IpNetwork(ipnet)
-        } else {
-            Host::Domain(raw)
-        }
-    }
-}
-
-impl Host {
-    fn is_domain(&self) -> bool {
-        matches!(self, Host::Domain(..))
-    }
-
-    fn extract_domain(self) -> String {
-        match self {
-            Host::Domain(domain) => domain,
-            _ => panic!("called extract domain on an ipnet!"),
-        }
-    }
-
-    fn extract_ipnetwork(self) -> IpNetwork {
-        match self {
-            Host::IpNetwork(ipnet) => ipnet,
-            _ => panic!("called extract ipnet on a domain!"),
-        }
-    }
-}
-
-/// A simple file-based store for information about allowed / unknown hosts.
-/// Currently it completely ignores any port information.
-// TODO: in the future allow filtering by port, so for example 1.1.1.1:80 would be a valid filter,
-// which would allow connections to the port :80 while any requests to say 1.1.1.1:1234 would be denied.
-#[derive(Debug)]
-pub(crate) struct HostsStore {
-    storefile: PathBuf,
-
-    domains: HashSet<String>,
-    ip_nets: Vec<IpNetwork>,
-}
-
-impl HostsStore {
-    /// Constructs a new HostsStore
-    pub(crate) fn new(base_dir: PathBuf, filename: PathBuf) -> HostsStore {
-        let storefile = HostsStore::setup_storefile(base_dir, filename);
-        let hosts = HostsStore::load_from_storefile(&storefile)
-            .unwrap_or_else(|_| panic!("Could not load hosts from storefile at {:?}", storefile));
-
-        let (domains, ip_nets): (Vec<_>, Vec<_>) =
-            hosts.into_iter().partition(|host| host.is_domain());
-
-        HostsStore {
-            storefile,
-            domains: domains.into_iter().map(Host::extract_domain).collect(),
-            ip_nets: ip_nets.into_iter().map(Host::extract_ipnetwork).collect(),
-        }
-    }
-
-    fn append(path: &Path, text: &str) {
-        use std::io::Write;
-        let mut file = OpenOptions::new()
-            .write(true)
-            .append(true)
-            .open(path)
-            .unwrap();
-
-        if let Err(e) = writeln!(file, "{}", text) {
-            eprintln!("Couldn't write to file: {}", e);
-        }
-    }
-
-    fn append_to_file(&self, host: &str) {
-        HostsStore::append(&self.storefile, host);
-    }
-
-    fn contains_domain(&self, host: &str) -> bool {
-        self.domains.contains(&host.to_string())
-    }
-
-    fn contains_ip_address(&self, address: IpAddr) -> bool {
-        // I'm not sure it's possible to achieve the same functionality without iterating through
-        // the whole thing. Maybe by some clever usage of tries? But I doubt we're going to have
-        // so many filtering rules that it's going to matter at this point.
-        for ip_net in &self.ip_nets {
-            if ip_net.contains(address) {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    /// Returns the default base directory for the storefile.
-    ///
-    /// This is split out so we can easily inject our own base_dir for unit tests.
-    pub fn default_base_dir() -> PathBuf {
-        dirs::home_dir()
-            .expect("no home directory known for this OS")
-            .join(".nym")
-    }
-
-    fn maybe_add_ip(&mut self, ip: IpAddr) {
-        if !self.contains_ip_address(ip) {
-            self.ip_nets.push(ip.into());
-            self.append_to_file(&ip.to_string());
-        }
-    }
-
-    fn maybe_add_domain(&mut self, domain: &str) {
-        if !self.contains_domain(domain) {
-            self.domains.insert(domain.to_string());
-            self.append_to_file(domain);
-        }
-    }
-
-    fn setup_storefile(base_dir: PathBuf, filename: PathBuf) -> PathBuf {
-        let dirpath = base_dir.join("service-providers").join("network-requester");
-        fs::create_dir_all(&dirpath)
-            .unwrap_or_else(|_| panic!("could not create storage directory at {:?}", dirpath));
-        let storefile = dirpath.join(filename);
-        let exists = std::path::Path::new(&storefile).exists();
-        if !exists {
-            File::create(&storefile).unwrap();
-        }
-        storefile
-    }
-
-    /// Loads the storefile contents into memory.
-    fn load_from_storefile<P>(filename: P) -> io::Result<Vec<Host>>
-    where
-        P: AsRef<Path>,
-    {
-        let file = File::open(filename)?;
-        let reader = BufReader::new(&file);
-        Ok(reader
-            .lines()
-            .map(|line| Host::from(line.expect("failed to read input file line!")))
-            .collect())
-    }
-}
-
 #[cfg(test)]
 mod tests {
+    use std::{
+        fs::{self, File},
+        path::PathBuf,
+    };
+
     use super::*;
 
     #[cfg(test)]
@@ -299,6 +145,8 @@ mod tests {
 
     #[cfg(test)]
     mod getting_the_domain_root {
+        use std::path::PathBuf;
+
         use super::*;
 
         fn setup() -> OutboundRequestFilter {
@@ -364,6 +212,8 @@ mod tests {
 
     #[cfg(test)]
     mod requests_to_unknown_hosts {
+        use std::path::PathBuf;
+
         use super::*;
 
         fn setup() -> OutboundRequestFilter {

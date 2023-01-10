@@ -117,13 +117,13 @@ impl Default for Base {
         default_announce_address
             .set_port(Some(DEFAULT_NYM_API_PORT))
             .expect("default local validator is malformed!");
+
         Base {
             id: String::default(),
             local_validator: default_validator,
             announce_address: default_announce_address,
             mixnet_contract_address: MIXNET_CONTRACT_ADDRESS.parse().unwrap(),
-            // TODO: why is this random mnemonic our default?
-            mnemonic: "exact antique hybrid width raise anchor puzzle degree fee quit long crack net vague hip despair write put useless civil mechanic broom music day".parse().unwrap(),
+            mnemonic: bip39::Mnemonic::generate(24).unwrap(),
         }
     }
 }

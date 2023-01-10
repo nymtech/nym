@@ -65,7 +65,6 @@ async function markdownToHtml(messageAsMarkdown) {
     .use(remarkParse)
     .use(remarkHtml)
     .process(await vfile({ path: 'test.md', contents: messageAsMarkdown}));
-  console.log({file});
   return String(file);
 }
 

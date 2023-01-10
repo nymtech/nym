@@ -11,7 +11,8 @@ use crate::coconut::dkg::{
     verification_key::verification_key_submission,
 };
 use crate::coconut::keypair::KeyPair as CoconutKeyPair;
-use crate::{nyxd_client, Config};
+use crate::nyxd;
+use crate::support::config::Config;
 use anyhow::Result;
 use coconut_dkg_common::types::EpochState;
 use dkg::bte::keys::KeyPair as DkgKeyPair;
@@ -49,7 +50,7 @@ pub(crate) struct DkgController<R> {
 impl<R: RngCore + Clone> DkgController<R> {
     pub(crate) async fn new(
         config: &Config,
-        nyxd_client: nyxd_client::Client<SigningNyxdClient>,
+        nyxd_client: nyxd::Client<SigningNyxdClient>,
         coconut_keypair: CoconutKeyPair,
         rng: R,
     ) -> Result<Self> {
@@ -84,13 +85,10 @@ impl<R: RngCore + Clone> DkgController<R> {
 
     pub(crate) async fn handle_epoch_state(&mut self) {
         match self.dkg_client.get_current_epoch().await {
-            Err(e) => warn!("Could not get current epoch state {}", e),
+            Err(err) => warn!("Could not get current epoch state {err}"),
             Ok(epoch) => {
-                if let Err(e) = self.state.is_consistent(epoch.state).await {
-                    error!(
-                        "Epoch state is corrupted - {}, the process should be terminated",
-                        e
-                    );
+                if let Err(err) = self.state.is_consistent(epoch.state).await {
+                    error!("Epoch state is corrupted - {err}, the process should be terminated");
                 }
                 let ret = match epoch.state {
                     EpochState::PublicKeySubmission => {
@@ -120,14 +118,14 @@ impl<R: RngCore + Clone> DkgController<R> {
                     // Just wait, in case we need to redo dkg at some point
                     EpochState::InProgress => Ok(()),
                 };
-                if let Err(e) = ret {
-                    warn!("Could not handle this iteration for the epoch state: {}", e);
+                if let Err(err) = ret {
+                    warn!("Could not handle this iteration for the epoch state: {err}");
                 } else if epoch.state != EpochState::InProgress {
                     let persistent_state = PersistentState::from(&self.state);
-                    if let Err(e) =
+                    if let Err(err) =
                         persistent_state.save_to_file(self.state.persistent_state_path())
                     {
-                        warn!("Could not backup the state for this iteration: {}", e);
+                        warn!("Could not backup the state for this iteration: {err}");
                     }
                 }
                 if let Ok(current_timestamp) =

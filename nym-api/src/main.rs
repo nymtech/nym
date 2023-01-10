@@ -29,7 +29,7 @@ pub(crate) mod nym_contract_cache;
 pub(crate) mod support;
 
 #[cfg(feature = "coconut")]
-use coconut::{dkg::controller::DkgController, InternalSignRequest};
+use coconut::dkg::controller::DkgController;
 
 #[cfg(feature = "coconut")]
 use rand::rngs::OsRng;

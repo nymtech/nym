@@ -1,3 +1,6 @@
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 use crate::circulating_supply_api::cache::CirculatingSupplyCache;
 use crate::node_status_api::{self, NodeStatusCache};
 use crate::nym_contract_cache::cache::NymContractCache;
@@ -16,10 +19,7 @@ use tokio::sync::Notify;
 use validator_client::nyxd::cosmwasm_client::signing_client::Client as SigningNyxdClient;
 
 #[cfg(feature = "coconut")]
-use crate::coconut::comm::QueryCommunicationChannel;
-
-#[cfg(feature = "coconut")]
-use crate::coconut::InternalSignRequest;
+use crate::coconut::{self, comm::QueryCommunicationChannel, InternalSignRequest};
 
 pub(crate) mod openapi;
 

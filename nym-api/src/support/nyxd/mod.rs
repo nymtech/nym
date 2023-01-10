@@ -29,11 +29,11 @@ use async_trait::async_trait;
 #[cfg(feature = "coconut")]
 use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
 #[cfg(feature = "coconut")]
-use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
-#[cfg(feature = "coconut")]
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch};
-#[cfg(feature = "coconut")]
-use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
+use coconut_dkg_common::{
+    dealer::{ContractDealing, DealerDetails, DealerDetailsResponse},
+    types::{EncodedBTEPublicKeyWithProof, Epoch},
+    verification_key::{ContractVKShare, VerificationKeyShare},
+};
 #[cfg(feature = "coconut")]
 use contracts_common::dealings::ContractSafeBytes;
 #[cfg(feature = "coconut")]
@@ -45,7 +45,7 @@ use validator_client::nyxd::{
         CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, MultisigQueryClient,
         MultisigSigningClient,
     },
-    AccountId, Fee,
+    Fee,
 };
 
 pub(crate) struct Client<C>(pub(crate) Arc<RwLock<validator_client::Client<C>>>);

@@ -6,23 +6,52 @@ use mixnet_contract_common::{IdentityKey, MixId};
 use vesting_contract_common::PledgeData;
 
 pub(crate) type BlockTimestampSecs = u64;
+pub(crate) type AccountStorageKey = u32;
 
-pub const KEY: Item<'_, u32> = Item::new("key");
-pub const ACCOUNTS: Map<'_, String, Account> = Map::new("acc");
-// Holds data related to individual accounts
-const BALANCES: Map<'_, u32, Uint128> = Map::new("blc");
-const WITHDRAWNS: Map<'_, u32, Uint128> = Map::new("wthd");
-const BOND_PLEDGES: Map<'_, u32, PledgeData> = Map::new("bnd");
-const GATEWAY_PLEDGES: Map<'_, u32, PledgeData> = Map::new("gtw");
-pub const _OLD_DELEGATIONS: Map<'_, (u32, IdentityKey, BlockTimestampSecs), Uint128> =
+/// Counter for the unique, monotonically increasing storage key id for the vesting account data.
+pub const KEY: Item<'_, AccountStorageKey> = Item::new("key");
+
+/// Storage map containing vesting account information associated with particular owner address.
+pub const ACCOUNTS: Map<'_, Addr, Account> = Map::new("acc");
+
+/// Storage map containing information about amount of tokens associated with particular vesting account
+/// that are currently present in the contract (and have not been withdrawn or staked in the mixnet contract)
+// note: this assumes I understood the intent behind this correctly
+const BALANCES: Map<'_, AccountStorageKey, Uint128> = Map::new("blc");
+
+/// Storage map containing information about amount of tokens withdrawn from the contract by a particular vesting account.
+const WITHDRAWNS: Map<'_, AccountStorageKey, Uint128> = Map::new("wthd");
+
+/// Storage map containing information about amount of tokens pledged towards bonding mixnodes
+/// in the mixnet contract using a particular vesting account.
+const BOND_PLEDGES: Map<'_, AccountStorageKey, PledgeData> = Map::new("bnd");
+
+/// Storage map containing information about amount of tokens pledged towards bonding gateways
+/// in the mixnet contract using a particular vesting account.
+const GATEWAY_PLEDGES: Map<'_, AccountStorageKey, PledgeData> = Map::new("gtw");
+
+/// Old, pre-v2 migration, storage map that used to contain information about tokens delegated
+/// towards particular mixnodes in the mixnet contract with given vesting account.
+/// It should be completely empty.
+pub const _OLD_DELEGATIONS: Map<'_, (AccountStorageKey, IdentityKey, BlockTimestampSecs), Uint128> =
     Map::new("dlg");
-pub const DELEGATIONS: Map<'_, (u32, MixId, BlockTimestampSecs), Uint128> = Map::new("dlg_v2");
-pub const ADMIN: Item<'_, String> = Item::new("adm");
-pub const MIXNET_CONTRACT_ADDRESS: Item<'_, String> = Item::new("mix");
+
+/// Storage map containing information about tokens delegated towards particular mixnodes
+/// in the mixnet contract with given vesting account.
+pub const DELEGATIONS: Map<'_, (AccountStorageKey, MixId, BlockTimestampSecs), Uint128> =
+    Map::new("dlg_v2");
+
+/// Explicit contract admin that is allowed, among other things, to create new vesting accounts.
+pub const ADMIN: Item<'_, Addr> = Item::new("adm");
+
+/// Address of the mixnet contract.
+pub const MIXNET_CONTRACT_ADDRESS: Item<'_, Addr> = Item::new("mix");
+
+/// The denomination of coin used for staking.
 pub const MIX_DENOM: Item<'_, String> = Item::new("den");
 
 pub fn save_delegation(
-    key: (u32, MixId, BlockTimestampSecs),
+    key: (AccountStorageKey, MixId, BlockTimestampSecs),
     amount: Uint128,
     storage: &mut dyn Storage,
 ) -> Result<(), ContractError> {
@@ -31,26 +60,27 @@ pub fn save_delegation(
 }
 
 pub fn remove_delegation(
-    key: (u32, MixId, BlockTimestampSecs),
+    key: (AccountStorageKey, MixId, BlockTimestampSecs),
     storage: &mut dyn Storage,
 ) -> Result<(), ContractError> {
     DELEGATIONS.remove(storage, key);
     Ok(())
 }
 
-pub fn delete_account(address: &Addr, storage: &mut dyn Storage) -> Result<(), ContractError> {
-    ACCOUNTS.remove(storage, address.to_owned().to_string());
-    Ok(())
-}
-
-pub fn load_withdrawn(key: u32, storage: &dyn Storage) -> Result<Uint128, ContractError> {
+pub fn load_withdrawn(
+    key: AccountStorageKey,
+    storage: &dyn Storage,
+) -> Result<Uint128, ContractError> {
     Ok(WITHDRAWNS
         .may_load(storage, key)
         .unwrap_or(None)
         .unwrap_or_else(Uint128::zero))
 }
 
-pub fn load_balance(key: u32, storage: &dyn Storage) -> Result<Uint128, ContractError> {
+pub fn load_balance(
+    key: AccountStorageKey,
+    storage: &dyn Storage,
+) -> Result<Uint128, ContractError> {
     Ok(BALANCES
         .may_load(storage, key)
         .unwrap_or(None)
@@ -58,7 +88,7 @@ pub fn load_balance(key: u32, storage: &dyn Storage) -> Result<Uint128, Contract
 }
 
 pub fn save_balance(
-    key: u32,
+    key: AccountStorageKey,
     value: Uint128,
     storage: &mut dyn Storage,
 ) -> Result<(), ContractError> {
@@ -67,7 +97,7 @@ pub fn save_balance(
 }
 
 pub fn save_withdrawn(
-    key: u32,
+    key: AccountStorageKey,
     value: Uint128,
     storage: &mut dyn Storage,
 ) -> Result<(), ContractError> {
@@ -76,19 +106,22 @@ pub fn save_withdrawn(
 }
 
 pub fn load_bond_pledge(
-    key: u32,
+    key: AccountStorageKey,
     storage: &dyn Storage,
 ) -> Result<Option<PledgeData>, ContractError> {
     Ok(BOND_PLEDGES.may_load(storage, key).unwrap_or(None))
 }
 
-pub fn remove_bond_pledge(key: u32, storage: &mut dyn Storage) -> Result<(), ContractError> {
+pub fn remove_bond_pledge(
+    key: AccountStorageKey,
+    storage: &mut dyn Storage,
+) -> Result<(), ContractError> {
     BOND_PLEDGES.remove(storage, key);
     Ok(())
 }
 
 pub fn save_bond_pledge(
-    key: u32,
+    key: AccountStorageKey,
     value: &PledgeData,
     storage: &mut dyn Storage,
 ) -> Result<(), ContractError> {
@@ -97,14 +130,14 @@ pub fn save_bond_pledge(
 }
 
 pub fn load_gateway_pledge(
-    key: u32,
+    key: AccountStorageKey,
     storage: &dyn Storage,
 ) -> Result<Option<PledgeData>, ContractError> {
     Ok(GATEWAY_PLEDGES.may_load(storage, key).unwrap_or(None))
 }
 
 pub fn save_gateway_pledge(
-    key: u32,
+    key: AccountStorageKey,
     value: &PledgeData,
     storage: &mut dyn Storage,
 ) -> Result<(), ContractError> {
@@ -112,32 +145,34 @@ pub fn save_gateway_pledge(
     Ok(())
 }
 
-pub fn remove_gateway_pledge(key: u32, storage: &mut dyn Storage) -> Result<(), ContractError> {
+pub fn remove_gateway_pledge(
+    key: AccountStorageKey,
+    storage: &mut dyn Storage,
+) -> Result<(), ContractError> {
     GATEWAY_PLEDGES.remove(storage, key);
     Ok(())
 }
 
 pub fn save_account(account: &Account, storage: &mut dyn Storage) -> Result<(), ContractError> {
-    // This is a bit dirty, but its a simple way to allow for both staking account and owner to load it from storage
-    if let Some(staking_address) = account.staking_address() {
-        ACCOUNTS.save(storage, staking_address.to_owned().to_string(), account)?;
-    }
-    ACCOUNTS.save(storage, account.owner_address().to_string(), account)?;
+    ACCOUNTS.save(storage, account.owner_address(), account)?;
     Ok(())
 }
 
 pub fn load_account(
-    address: &Addr,
+    address: Addr,
     storage: &dyn Storage,
 ) -> Result<Option<Account>, ContractError> {
-    Ok(ACCOUNTS
-        .may_load(storage, address.to_owned().to_string())
-        .unwrap_or(None))
+    Ok(ACCOUNTS.may_load(storage, address).unwrap_or(None))
 }
 
-fn validate_account(address: &Addr, storage: &dyn Storage) -> Result<Account, ContractError> {
-    load_account(address, storage)?
-        .ok_or_else(|| ContractError::NoAccountForAddress(address.as_str().to_string()))
+pub fn delete_account(address: Addr, storage: &mut dyn Storage) -> Result<(), ContractError> {
+    ACCOUNTS.remove(storage, address);
+    Ok(())
+}
+
+fn validate_account(address: Addr, storage: &dyn Storage) -> Result<Account, ContractError> {
+    load_account(address.clone(), storage)?
+        .ok_or_else(|| ContractError::NoAccountForAddress(address.into_string()))
 }
 
 pub fn account_from_address(
@@ -145,5 +180,5 @@ pub fn account_from_address(
     storage: &dyn Storage,
     api: &dyn Api,
 ) -> Result<Account, ContractError> {
-    validate_account(&api.addr_validate(address)?, storage)
+    validate_account(api.addr_validate(address)?, storage)
 }

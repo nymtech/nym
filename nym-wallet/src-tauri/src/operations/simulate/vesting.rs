@@ -151,7 +151,11 @@ pub async fn simulate_vesting_delegate_to_mixnode(
     let amount = guard.attempt_convert_to_base_coin(amount)?.into();
 
     simulate_vesting_operation(
-        ExecuteMsg::DelegateToMixnode { mix_id, amount },
+        ExecuteMsg::DelegateToMixnode {
+            on_behalf_of: None,
+            mix_id,
+            amount,
+        },
         None,
         &state,
     )
@@ -163,7 +167,15 @@ pub async fn simulate_vesting_undelegate_from_mixnode(
     mix_id: MixId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
-    simulate_vesting_operation(ExecuteMsg::UndelegateFromMixnode { mix_id }, None, &state).await
+    simulate_vesting_operation(
+        ExecuteMsg::UndelegateFromMixnode {
+            on_behalf_of: None,
+            mix_id,
+        },
+        None,
+        &state,
+    )
+    .await
 }
 
 #[tauri::command]

@@ -14,10 +14,11 @@ use mixnet_contract_common::{
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use validator_client::nyxd::error::NyxdError;
 use validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
 use validator_client::nyxd::{
     hash::{Hash, SHA256_HASH_SIZE},
-    Coin, SigningNyxdClient, TendermintTime, VestingQueryClient,
+    AccountId, Coin, SigningNyxdClient, TendermintTime, VestingQueryClient,
 };
 use validator_client::ValidatorClientError;
 use vesting_contract_common::AccountVestingCoins;
@@ -38,7 +39,6 @@ use coconut_dkg_common::{
 use contracts_common::dealings::ContractSafeBytes;
 #[cfg(feature = "coconut")]
 use cw3::ProposalResponse;
-use validator_client::nyxd::error::NyxdError;
 #[cfg(feature = "coconut")]
 use validator_client::nyxd::{
     cosmwasm_client::types::ExecuteResult,
@@ -46,7 +46,7 @@ use validator_client::nyxd::{
         CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, MultisigQueryClient,
         MultisigSigningClient,
     },
-    AccountId, Fee,
+    Fee,
 };
 
 pub(crate) struct Client(pub(crate) Arc<RwLock<validator_client::Client<SigningNyxdClient>>>);
@@ -82,8 +82,36 @@ impl Client {
         Client(Arc::new(RwLock::new(inner)))
     }
 
+    pub(crate) async fn client_address(&self) -> AccountId {
+        self.0.read().await.nyxd.address().clone()
+    }
+
     pub(crate) async fn chain_details(&self) -> ChainDetails {
         self.0.read().await.nyxd.current_chain_details().clone()
+    }
+
+    pub(crate) async fn get_rewarding_validator_address(
+        &self,
+    ) -> Result<AccountId, ValidatorClientError> {
+        let cosmwasm_addr = self
+            .0
+            .read()
+            .await
+            .nyxd
+            .get_mixnet_contract_state()
+            .await?
+            .rewarding_validator_address
+            .into_string();
+
+        // this should never fail otherwise it implies either
+        // 1) our mixnet contract state is invalid
+        // 2) cosmwasm accepts invalid addresses
+        // 3) cosmrs fails to parse valid addresses
+        // all of those options are BAD
+        cosmwasm_addr
+            .clone()
+            .parse()
+            .map_err(|_| NyxdError::MalformedAccountAddress(cosmwasm_addr).into())
     }
 
     // a helper function for the future to obtain the current block timestamp
@@ -258,7 +286,7 @@ impl Client {
 #[cfg(feature = "coconut")]
 impl crate::coconut::client::Client for Client {
     async fn address(&self) -> AccountId {
-        self.0.read().await.nyxd.address().clone()
+        self.client_address().await
     }
 
     async fn get_tx(

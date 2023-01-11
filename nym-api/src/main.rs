@@ -4,11 +4,14 @@
 #[macro_use]
 extern crate rocket;
 
+use crate::epoch_operations::RewardedSetUpdater;
+use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
 use crate::support::cli;
 use crate::support::cli::CliArgs;
+use crate::support::config::Config;
 use crate::support::storage;
+use crate::support::storage::NymApiStorage;
 use ::config::defaults::setup_env;
-use ::config::defaults::var_names::MIX_DENOM;
 use anyhow::Result;
 use circulating_supply_api::cache::CirculatingSupplyCache;
 use clap::Parser;
@@ -21,22 +24,18 @@ use std::error::Error;
 use support::{http, nyxd};
 use task::{wait_for_signal_and_error, TaskManager};
 
+#[cfg(feature = "coconut")]
+use coconut::dkg::controller::DkgController;
+
+#[cfg(feature = "coconut")]
+use rand::rngs::OsRng;
+
 mod circulating_supply_api;
 mod epoch_operations;
 mod network_monitor;
 pub(crate) mod node_status_api;
 pub(crate) mod nym_contract_cache;
 pub(crate) mod support;
-
-#[cfg(feature = "coconut")]
-use coconut::dkg::controller::DkgController;
-
-use crate::epoch_operations::RewardedSetUpdater;
-use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
-use crate::support::config::Config;
-use crate::support::storage::NymApiStorage;
-#[cfg(feature = "coconut")]
-use rand::rngs::OsRng;
 
 #[cfg(feature = "coconut")]
 mod coconut;
@@ -151,6 +150,7 @@ async fn start_nym_api_tasks(
 
         // start 'rewarding' if its enabled
         if config.get_rewarding_enabled() {
+            epoch_operations::ensure_rewarding_permission(&nyxd_client).await?;
             RewardedSetUpdater::start(nyxd_client, nym_contract_cache_state, storage, &shutdown);
         }
     }

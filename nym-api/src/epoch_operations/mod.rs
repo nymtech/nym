@@ -12,10 +12,13 @@
 // 3. Eventually this whole procedure is going to get expanded to allow for distribution of rewarded set generation
 //    and hence this might be a good place for it.
 
+use crate::epoch_operations::helpers::stake_to_f64;
+use crate::node_status_api::ONE_DAY;
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::nyxd::Client;
 use crate::support::storage::models::RewardingReport;
 use crate::support::storage::NymApiStorage;
+use error::RewardingError;
 use mixnet_contract_common::families::FamilyHead;
 use mixnet_contract_common::{
     reward_params::Performance, CurrentIntervalResponse, ExecuteMsg, Interval, MixId,
@@ -26,15 +29,11 @@ use rand::rngs::OsRng;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::time::Duration;
+use task::{TaskClient, TaskManager};
 use tokio::time::sleep;
 
 pub(crate) mod error;
 mod helpers;
-
-use crate::epoch_operations::helpers::stake_to_f64;
-use crate::node_status_api::ONE_DAY;
-use error::RewardingError;
-use task::{TaskClient, TaskManager};
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct MixnodeToReward {
@@ -454,5 +453,22 @@ impl RewardedSetUpdater {
         );
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await });
+    }
+}
+
+// before going any further, let's check whether we're allowed to perform rewarding
+// (if not, let's blow up sooner rather than later)
+pub(crate) async fn ensure_rewarding_permission(
+    nyxd_client: &Client,
+) -> Result<(), RewardingError> {
+    let allowed_address = nyxd_client.get_rewarding_validator_address().await?;
+    let our_address = nyxd_client.client_address().await;
+    if allowed_address != our_address {
+        Err(RewardingError::Unauthorised {
+            our_address,
+            allowed_address,
+        })
+    } else {
+        Ok(())
     }
 }

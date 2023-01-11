@@ -24,6 +24,13 @@ pub(crate) struct OutboundRequestFilter {
 }
 
 impl OutboundRequestFilter {
+    /// Create a new `OutboundRequestFilter` with the given `allowed_hosts` and `unknown_hosts` lists.
+    ///
+    /// Automatically fetches the latest https://publicsuffix.org/ domain list from the internet so that
+    /// the requester can properly parse all of the world's top-level domains in an up-to-date fashion.
+    ///
+    /// Automatcially fetches the latest standard allowed list from the Nym website, so that all
+    /// requesters are able to support the same minimal functionality out of the box.
     pub(crate) fn new(
         allowed_hosts: HostsStore,
         unknown_hosts: HostsStore,

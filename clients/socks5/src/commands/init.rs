@@ -31,7 +31,7 @@ pub(crate) struct Init {
     /// Note that some service providers might not support this.
     // the alias here is included for backwards compatibility (1.1.4 and before)
     #[clap(long, alias = "use_anonymous_sender_tag")]
-    use_reply_surbs: bool,
+    use_reply_surbs: Option<bool>,
 
     /// Id of the gateway we are going to connect to.
     #[clap(long)]
@@ -69,7 +69,7 @@ pub(crate) struct Init {
     /// with bandwidth credential requirement.
     #[cfg(feature = "coconut")]
     #[clap(long)]
-    enabled_credentials_mode: bool,
+    enabled_credentials_mode: Option<bool>,
 
     /// Save a summary of the initialization to a json file
     #[clap(long)]

@@ -41,7 +41,7 @@ pub(crate) struct Init {
 
     /// Whether to not start the websocket
     #[clap(long)]
-    disable_socket: bool,
+    disable_socket: Option<bool>,
 
     /// Port for the socket (if applicable) to listen on in all subsequent runs
     #[clap(short, long)]
@@ -60,7 +60,7 @@ pub(crate) struct Init {
     /// with bandwidth credential requirement.
     #[cfg(feature = "coconut")]
     #[clap(long)]
-    enabled_credentials_mode: bool,
+    enabled_credentials_mode: Option<bool>,
 
     /// Save a summary of the initialization to a json file
     #[clap(long)]

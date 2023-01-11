@@ -8,8 +8,8 @@ on:
     paths-ignore:
       - 'explorer/**'
 
-permissions:
-  pull-requests: write
+permissions: write-all
+  
 
 jobs:
   build:

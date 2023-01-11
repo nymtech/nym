@@ -1,7 +1,6 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use publicsuffix::errors;
 use std::net::{IpAddr, SocketAddr};
 
 use super::HostsStore;

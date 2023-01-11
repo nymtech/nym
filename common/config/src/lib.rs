@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use handlebars::Handlebars;
-use network_defaults::mainnet::read_var_if_not_default;
 use network_defaults::var_names::CONFIGURED;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -155,10 +154,12 @@ pub trait OptionalSet {
         <T as FromStr>::Err: Debug,
         Self: Sized,
     {
+        // if explicit value is provided, use it
         if let Some(val) = val {
             return f(self, val);
         } else if std::env::var(CONFIGURED).is_ok() {
-            if let Some(raw) = read_var_if_not_default(env_var) {
+            // otherwise if environmental variable is configured, fallback to that and parse it from string
+            if let Ok(raw) = std::env::var(env_var) {
                 return f(
                     self,
                     raw.parse().unwrap_or_else(|err| {
@@ -186,10 +187,12 @@ pub trait OptionalSet {
         G: Fn(&str) -> T,
         Self: Sized,
     {
+        // if explicit value is provided, use it
         if let Some(val) = val {
             return f(self, val);
         } else if std::env::var(CONFIGURED).is_ok() {
-            if let Some(raw) = read_var_if_not_default(env_var) {
+            // otherwise if environmental variable is configured, fallback to that
+            if let Ok(raw) = std::env::var(env_var) {
                 return f(self, parser(&raw));
             }
         }

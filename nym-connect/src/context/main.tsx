@@ -97,8 +97,6 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     });
 
     listen('socks5-status-event', (e: TauriEvent) => {
-      console.log(e.payload);
-
       if (e.payload.message.includes('slow')) {
         setGatewayPerformance('Poor');
 

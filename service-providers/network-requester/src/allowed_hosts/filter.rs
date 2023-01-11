@@ -18,7 +18,7 @@ use super::HostsStore;
 /// .com, .co.uk, .co.jp, uk.com, etc, so that we can distinguish correct root-ish
 /// domains as allowed. That list is loaded once at startup from the network.
 pub(crate) struct OutboundRequestFilter {
-    pub(crate) allowed_hosts: HostsStore,
+    pub(super) allowed_hosts: HostsStore,
     domain_list: publicsuffix::List,
     unknown_hosts: HostsStore,
 }

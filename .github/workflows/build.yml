@@ -8,6 +8,9 @@ on:
     paths-ignore:
       - 'explorer/**'
 
+permissions:
+  pull-requests: write
+
 jobs:
   build:
     runs-on: [ self-hosted, custom-linux ]

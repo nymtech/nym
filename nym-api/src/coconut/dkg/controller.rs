@@ -20,7 +20,7 @@ use rand::rngs::OsRng;
 use rand::RngCore;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
-use task::TaskClient;
+use task::{TaskClient, TaskManager};
 use tokio::time::interval;
 
 pub(crate) fn init_keypair(config: &Config) -> Result<()> {
@@ -150,5 +150,23 @@ impl<R: RngCore + Clone> DkgController<R> {
                 }
             }
         }
+    }
+
+    // TODO: can we make it non-async? it seems we'd have to modify `coconut_keypair.set(coconut_keypair_value)` in new
+    // could we do it?
+    pub(crate) async fn start(
+        config: &Config,
+        nyxd_client: nyxd::Client,
+        coconut_keypair: CoconutKeyPair,
+        rng: R,
+        shutdown: &TaskManager,
+    ) -> Result<()>
+    where
+        R: Sync + Send + 'static,
+    {
+        let shutdown_listener = shutdown.subscribe();
+        let dkg_controller = DkgController::new(config, nyxd_client, coconut_keypair, rng).await?;
+        tokio::spawn(async move { dkg_controller.run(shutdown_listener).await });
+        Ok(())
     }
 }

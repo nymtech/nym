@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::network_monitor;
 use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::{
     ReceivedProcessor, ReceivedProcessorReceiver, ReceivedProcessorSender,
@@ -32,8 +33,8 @@ pub(crate) const ROUTE_TESTING_TEST_NONCE: u64 = 0;
 
 pub(crate) fn setup<'a>(
     config: &'a Config,
-    nym_contract_cache_state: NymContractCache,
-    storage: NymApiStorage,
+    nym_contract_cache_state: &NymContractCache,
+    storage: &NymApiStorage,
     _nyxd_client: nyxd::Client,
     system_version: &str,
 ) -> NetworkMonitorBuilder<'a> {
@@ -41,8 +42,8 @@ pub(crate) fn setup<'a>(
         config,
         _nyxd_client,
         system_version,
-        storage,
-        nym_contract_cache_state,
+        storage.to_owned(),
+        nym_contract_cache_state.to_owned(),
     )
 }
 
@@ -220,4 +221,26 @@ fn new_packet_receiver(
     processor_packets_sender: ReceivedProcessorSender,
 ) -> PacketReceiver {
     PacketReceiver::new(gateways_status_updater, processor_packets_sender)
+}
+
+// TODO: 1) does it still have to have separate builder or could we get rid of it now?
+// TODO: 2) how do we make it non-async as other 'start' methods?
+pub(crate) async fn start(
+    config: &Config,
+    nym_contract_cache_state: &NymContractCache,
+    storage: &NymApiStorage,
+    nyxd_client: nyxd::Client,
+    system_version: &str,
+    shutdown: &TaskManager,
+) {
+    let monitor_builder = network_monitor::setup(
+        config,
+        nym_contract_cache_state,
+        storage,
+        nyxd_client,
+        system_version,
+    );
+    info!("Starting network monitor...");
+    let runnables = monitor_builder.build().await;
+    runnables.spawn_tasks(shutdown);
 }

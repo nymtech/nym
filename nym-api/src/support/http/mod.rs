@@ -8,14 +8,11 @@ use crate::support::config::Config;
 use crate::support::{nyxd, storage};
 use crate::{circulating_supply_api, nym_contract_cache};
 use anyhow::Result;
-use rocket::fairing::AdHoc;
 use rocket::http::Method;
 use rocket::{Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use rocket_okapi::mount_endpoints_and_merged_docs;
 use rocket_okapi::swagger_ui::make_swagger_ui;
-use std::sync::Arc;
-use tokio::sync::Notify;
 
 #[cfg(feature = "coconut")]
 use crate::coconut::{self, comm::QueryCommunicationChannel, InternalSignRequest};
@@ -25,7 +22,6 @@ pub(crate) mod openapi;
 pub(crate) async fn setup_rocket(
     config: &Config,
     mix_denom: String,
-    liftoff_notify: Arc<Notify>,
     _nyxd_client: nyxd::Client,
     #[cfg(feature = "coconut")] coconut_keypair: coconut::keypair::KeyPair,
 ) -> anyhow::Result<Rocket<Ignite>> {
@@ -45,7 +41,6 @@ pub(crate) async fn setup_rocket(
     let rocket = rocket
         .mount("/swagger", make_swagger_ui(&openapi::get_docs()))
         .attach(setup_cors()?)
-        .attach(setup_liftoff_notify(liftoff_notify))
         .attach(NymContractCache::stage())
         .attach(NodeStatusCache::stage())
         .attach(CirculatingSupplyCache::stage(mix_denom.clone()));
@@ -99,10 +94,4 @@ fn setup_cors() -> Result<Cors> {
     .to_cors()?;
 
     Ok(cors)
-}
-
-fn setup_liftoff_notify(notify: Arc<Notify>) -> AdHoc {
-    AdHoc::on_liftoff("Liftoff notifier", |_| {
-        Box::pin(async move { notify.notify_one() })
-    })
 }

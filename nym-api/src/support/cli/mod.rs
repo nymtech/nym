@@ -48,11 +48,11 @@ pub(crate) struct CliArgs {
 
     /// Specifies whether network monitoring is enabled on this API
     #[clap(short = 'm', long)]
-    pub(crate) enable_monitor: bool,
+    pub(crate) enable_monitor: Option<bool>,
 
     /// Specifies whether network rewarding is enabled on this API
     #[clap(short = 'r', long, requires = "enable_monitor", requires = "mnemonic")]
-    pub(crate) enable_rewarding: bool,
+    pub(crate) enable_rewarding: Option<bool>,
 
     /// Endpoint to nyxd instance from which the monitor will grab nodes to test
     #[clap(long)]
@@ -90,7 +90,7 @@ pub(crate) struct CliArgs {
 
     /// Set this nym api to work in a enabled credentials that would attempt to use gateway with the bandwidth credential requirement
     #[clap(long)]
-    pub(crate) enabled_credentials_mode: bool,
+    pub(crate) enabled_credentials_mode: Option<bool>,
 
     /// Announced address where coconut clients will connect.
     #[cfg(feature = "coconut")]
@@ -100,7 +100,7 @@ pub(crate) struct CliArgs {
     /// Flag to indicate whether coconut signer authority is enabled on this API
     #[cfg(feature = "coconut")]
     #[clap(long, requires = "mnemonic", requires = "announce-address")]
-    pub(crate) enable_coconut: bool,
+    pub(crate) enable_coconut: Option<bool>,
 }
 
 pub(crate) fn build_config(args: CliArgs) -> Result<Config> {
@@ -165,15 +165,18 @@ pub(crate) fn override_config(mut config: Config, args: CliArgs) -> Config {
             Config::with_min_gateway_reliability,
             args.min_gateway_reliability,
         )
-        .with_network_monitor_enabled(args.enable_monitor)
-        .with_rewarding_enabled(args.enable_rewarding)
-        .with_disabled_credentials_mode(!args.enabled_credentials_mode);
+        .with_optional(Config::with_network_monitor_enabled, args.enable_monitor)
+        .with_optional(Config::with_rewarding_enabled, args.enable_rewarding)
+        .with_optional(
+            Config::with_disabled_credentials_mode,
+            args.enabled_credentials_mode.map(|b| !b),
+        );
 
     #[cfg(feature = "coconut")]
     {
         config = config
             .with_optional(Config::with_announce_address, args.announce_address)
-            .with_coconut_signer_enabled(args.enable_coconut);
+            .with_optional(Config::with_coconut_signer_enabled, args.enable_coconut);
     }
 
     config

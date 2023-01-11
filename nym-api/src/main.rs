@@ -18,10 +18,8 @@ use logging::setup_logging;
 use node_status_api::NodeStatusCache;
 use nym_contract_cache::cache::NymContractCache;
 use std::error::Error;
-use std::sync::Arc;
 use support::{http, nyxd};
 use task::{wait_for_signal_and_error, TaskManager};
-use tokio::sync::Notify;
 
 mod circulating_supply_api;
 mod epoch_operations;
@@ -43,7 +41,7 @@ use rand::rngs::OsRng;
 #[cfg(feature = "coconut")]
 mod coconut;
 
-struct ShutdownHandlers {
+struct ShutdownHandles {
     task_manager_handle: TaskManager,
     rocket_handle: rocket::Shutdown,
 }
@@ -65,12 +63,11 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
 async fn start_nym_api_tasks(
     config: Config,
-) -> Result<ShutdownHandlers, Box<dyn Error + Send + Sync>> {
+) -> Result<ShutdownHandles, Box<dyn Error + Send + Sync>> {
     let system_version = clap::crate_version!();
-    let mix_denom = std::env::var(MIX_DENOM)?;
 
     let nyxd_client = nyxd::Client::new(&config);
-    let liftoff_notify = Arc::new(Notify::new());
+    let mix_denom = nyxd_client.chain_details().await.mix_denom.base;
 
     // TODO: question to @BN: why are we creating a fresh coconut keypair here every time as opposed
     // to using some persistent keys?
@@ -81,7 +78,6 @@ async fn start_nym_api_tasks(
     let rocket = http::setup_rocket(
         &config,
         mix_denom,
-        Arc::clone(&liftoff_notify),
         nyxd_client.clone(),
         #[cfg(feature = "coconut")]
         coconut_keypair.clone(),
@@ -124,58 +120,45 @@ async fn start_nym_api_tasks(
         &shutdown,
     );
 
+    // start dkg task
     #[cfg(feature = "coconut")]
-    {
-        let dkg_controller =
-            DkgController::new(&config, nyxd_client.clone(), coconut_keypair, OsRng).await?;
-        let shutdown_listener = shutdown.subscribe();
-        tokio::spawn(async move { dkg_controller.run(shutdown_listener).await });
-    }
+    DkgController::start(
+        &config,
+        nyxd_client.clone(),
+        coconut_keypair,
+        OsRng,
+        &shutdown,
+    )
+    .await?;
 
-    // only start the uptime updater if the monitoring if it's enabled
+    // and then only start the uptime updater (and the monitor itself, duh)
+    // if the monitoring if it's enabled
     if config.get_network_monitor_enabled() {
         // if network monitor is enabled, the storage MUST BE available
         let storage = maybe_storage.unwrap();
 
+        network_monitor::start(
+            &config,
+            nym_contract_cache_state,
+            storage,
+            nyxd_client.clone(),
+            system_version,
+            &shutdown,
+        )
+        .await;
+
         HistoricalUptimeUpdater::start(storage, &shutdown);
 
-        // the same idea holds for rewarding
+        // start 'rewarding' if its enabled
         if config.get_rewarding_enabled() {
-            RewardedSetUpdater::start(
-                nyxd_client.clone(),
-                nym_contract_cache_state,
-                storage,
-                &shutdown,
-            );
+            RewardedSetUpdater::start(nyxd_client, nym_contract_cache_state, storage, &shutdown);
         }
     }
 
-    let tmp_owned_contract_cache_state = nym_contract_cache_state.to_owned();
-    let tmp_owned_storage = maybe_storage.unwrap().to_owned();
-
-    // Launch the rocket!
+    // Launch the rocket, serve http endpoints and finish the startup
     tokio::spawn(rocket.launch());
 
-    // finally, to finish building our monitor, we need to have rocket up and running so that we could
-    // obtain our bandwidth credential
-    if config.get_network_monitor_enabled() {
-        let monitor_builder = network_monitor::setup(
-            &config,
-            tmp_owned_contract_cache_state,
-            tmp_owned_storage,
-            nyxd_client,
-            system_version,
-        );
-        info!("Starting network monitor...");
-        // wait for rocket's liftoff stage
-        liftoff_notify.notified().await;
-
-        // we're ready to go! spawn the network monitor!
-        let runnables = monitor_builder.build().await;
-        runnables.spawn_tasks(&shutdown);
-    }
-
-    Ok(ShutdownHandlers {
+    Ok(ShutdownHandles {
         task_manager_handle: shutdown,
         rocket_handle: rocket_shutdown_handle,
     })

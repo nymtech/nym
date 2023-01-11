@@ -9,7 +9,7 @@ use futures::channel::mpsc;
 use log::*;
 use nymsphinx::addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
 use nymsphinx::params::packet_sizes::PacketSize;
-use task::ShutdownListener;
+use task::TaskClient;
 
 pub type MixnetMessageSender = mpsc::UnboundedSender<Vec<Vec<u8>>>;
 pub type MixnetMessageReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
@@ -21,14 +21,14 @@ pub type AcknowledgementReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;
 pub struct PacketRouter {
     ack_sender: AcknowledgementSender,
     mixnet_message_sender: MixnetMessageSender,
-    shutdown: ShutdownListener,
+    shutdown: TaskClient,
 }
 
 impl PacketRouter {
     pub fn new(
         ack_sender: AcknowledgementSender,
         mixnet_message_sender: MixnetMessageSender,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) -> Self {
         PacketRouter {
             ack_sender,
@@ -89,14 +89,14 @@ impl PacketRouter {
                 }
                 // This should never happen during ordinary operation the way it's currently used.
                 // Abort to be on the safe side
-                panic!("Failed to send mixnet message: {:?}", err);
+                panic!("Failed to send mixnet message: {err}");
             }
         }
 
         if !received_acks.is_empty() {
             trace!("routing acks");
-            if let Err(e) = self.ack_sender.unbounded_send(received_acks) {
-                error!("failed to send ack: {:?}", e);
+            if let Err(err) = self.ack_sender.unbounded_send(received_acks) {
+                error!("failed to send ack: {err}");
             };
         }
         Ok(())

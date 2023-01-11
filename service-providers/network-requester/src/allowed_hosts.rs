@@ -39,7 +39,7 @@ impl OutboundRequestFilter {
     ) -> OutboundRequestFilter {
         let domain_list = match Self::fetch_domain_list() {
             Ok(list) => list,
-            Err(e) => panic!("Couldn't fetch domain list for request filtering, do you have an internet connection?: {:?}", e),
+            Err(err) => panic!("Couldn't fetch domain list for request filtering, do you have an internet connection?: {err}"),
         };
         OutboundRequestFilter {
             allowed_hosts,

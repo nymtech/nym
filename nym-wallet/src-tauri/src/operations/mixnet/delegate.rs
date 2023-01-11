@@ -238,7 +238,7 @@ pub async fn get_all_mix_delegations(
             d.mix_id
         );
         let avg_uptime_percent = client
-            .validator_api
+            .nym_api
             .get_mixnode_avg_uptime(d.mix_id)
             .await
             .ok()

@@ -39,9 +39,9 @@ pub struct Run {
     #[clap(long)]
     datastore: Option<String>,
 
-    /// Comma separated list of endpoints of the validators APIs
+    /// Comma separated list of endpoints of the nym APIs
     #[clap(long)]
-    validator_apis: Option<String>,
+    nym_apis: Option<String>,
 
     /// Comma separated list of endpoints of the validator
     #[clap(long)]
@@ -75,7 +75,7 @@ impl From<Run> for OverrideConfig {
             clients_port: run_config.clients_port,
             datastore: run_config.datastore,
             announce_host: run_config.announce_host,
-            validator_apis: run_config.validator_apis,
+            nym_apis: run_config.nym_apis,
             validators: run_config.validators,
             mnemonic: run_config.mnemonic,
 

@@ -24,6 +24,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "aead"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c192eb8f11fc081b0fe4259ba5af04217d4e0faddd02417310a927911abd7c8"
+dependencies = [
+ "crypto-common",
+ "generic-array 0.14.5",
+]
+
+[[package]]
 name = "aes"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -53,7 +63,7 @@ version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df5f85a83a7d8b0442b6aa7b504b8212c1733da07b98aae43d4bc21b2cb3cdf6"
 dependencies = [
- "aead",
+ "aead 0.4.3",
  "aes 0.7.5",
  "cipher 0.3.0",
  "ctr 0.8.0",
@@ -80,6 +90,12 @@ checksum = "1e37cfd5e7657ada45f742d6e99ca5788580b5c529dc78faf11ece6dc702656f"
 dependencies = [
  "memchr",
 ]
+
+[[package]]
+name = "anes"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4b46cbb362ab8752921c97e041f5e366ee6297bd428a31275b9fcf1e380f7299"
 
 [[package]]
 name = "ansi_term"
@@ -444,6 +460,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "cast"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
+
+[[package]]
 name = "cc"
 version = "1.0.73"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -475,6 +497,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "chacha20"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c7fc89c7c5b9e7a02dfe45cd2367bae382f9ed31c61ca8debe5f827c420a2f08"
+dependencies = [
+ "cfg-if 1.0.0",
+ "cipher 0.4.3",
+ "cpufeatures",
+]
+
+[[package]]
+name = "chacha20poly1305"
+version = "0.10.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "10cd79432192d1c0f4e1a0fef9527696cc039165d729fb41b3f4f4f354c2dc35"
+dependencies = [
+ "aead 0.5.1",
+ "chacha20",
+ "cipher 0.4.3",
+ "poly1305",
+ "zeroize",
+]
+
+[[package]]
 name = "chrono"
 version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -486,6 +532,33 @@ dependencies = [
  "serde",
  "time 0.1.44",
  "winapi",
+]
+
+[[package]]
+name = "ciborium"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b0c137568cc60b904a7724001b35ce2630fd00d5d84805fbb608ab89509d788f"
+dependencies = [
+ "ciborium-io",
+ "ciborium-ll",
+ "serde",
+]
+
+[[package]]
+name = "ciborium-io"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "346de753af073cc87b52b2083a506b38ac176a44cfb05497b622e27be899b369"
+
+[[package]]
+name = "ciborium-ll"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "213030a2b5a4e0c0892b6652260cf6ccac84827b83a85a534e178e3906c4cf1b"
+dependencies = [
+ "ciborium-io",
+ "half",
 ]
 
 [[package]]
@@ -505,6 +578,7 @@ checksum = "d1873270f8f7942c191139cb8a40fd228da6c3fd2fc376d7e92d47aa14aeb59e"
 dependencies = [
  "crypto-common",
  "inout",
+ "zeroize",
 ]
 
 [[package]]
@@ -586,7 +660,11 @@ dependencies = [
 
 [[package]]
 name = "client-core"
+<<<<<<< HEAD
 version = "1.1.4"
+=======
+version = "1.1.5"
+>>>>>>> 96444509d0f983f557c7663f0ffc615dcf053487
 dependencies = [
  "async-trait",
  "client-connections",
@@ -967,9 +1045,9 @@ dependencies = [
  "coconut-interface",
  "cosmrs",
  "crypto",
+ "nym-api-requests",
  "rand 0.7.3",
  "thiserror",
- "validator-api-requests",
  "validator-client",
 ]
 
@@ -980,9 +1058,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1604dafd25fba2fe2d5895a9da139f8dc9b319a5fe5354ca137cbbce4e178d10"
 dependencies = [
  "atty",
- "cast",
+ "cast 0.2.7",
  "clap 2.34.0",
- "criterion-plot",
+ "criterion-plot 0.4.4",
  "csv",
  "itertools",
  "lazy_static",
@@ -1000,12 +1078,48 @@ dependencies = [
 ]
 
 [[package]]
+name = "criterion"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7c76e09c1aae2bc52b3d2f29e13c6572553b30c4aa1b8a49fd70de6412654cb"
+dependencies = [
+ "anes",
+ "atty",
+ "cast 0.3.0",
+ "ciborium",
+ "clap 3.2.8",
+ "criterion-plot 0.5.0",
+ "itertools",
+ "lazy_static",
+ "num-traits",
+ "oorandom",
+ "plotters",
+ "rayon",
+ "regex",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "tinytemplate",
+ "walkdir",
+]
+
+[[package]]
 name = "criterion-plot"
 version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d00996de9f2f7559f7f4dc286073197f83e92256a59ed395f9aac01fe717da57"
 dependencies = [
- "cast",
+ "cast 0.2.7",
+ "itertools",
+]
+
+[[package]]
+name = "criterion-plot"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b50826342786a51a89e2da3a28f1c32b06e387201bc2d19791f622c673706b1"
+dependencies = [
+ "cast 0.3.0",
  "itertools",
 ]
 
@@ -1116,6 +1230,7 @@ dependencies = [
  "serde",
  "serde_bytes",
  "subtle-encoding",
+ "thiserror",
  "x25519-dalek",
 ]
 
@@ -1133,11 +1248,12 @@ dependencies = [
 
 [[package]]
 name = "crypto-common"
-version = "0.1.3"
+version = "0.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57952ca27b5e3606ff4dd79b0020231aaf9d6aa76dc05fd30137538c50bd3ce8"
+checksum = "1bfb12502f3fc46cca1bb51ac28df9d618d813cdc3d2f25b9fe775a34af26bb3"
 dependencies = [
  "generic-array 0.14.5",
+ "rand_core 0.6.3",
  "typenum",
 ]
 
@@ -1465,7 +1581,7 @@ dependencies = [
  "bitvec",
  "bls12_381 0.6.0",
  "bs58",
- "criterion",
+ "criterion 0.3.5",
  "ff 0.11.0",
  "group 0.11.0",
  "lazy_static",
@@ -1650,7 +1766,7 @@ dependencies = [
 
 [[package]]
 name = "explorer-api"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "chrono",
  "clap 3.2.8",
@@ -1697,9 +1813,9 @@ checksum = "e88a8acf291dafb59c2d96e8f59828f3838bb1a70398823ade51a84de6a6deed"
 
 [[package]]
 name = "fastrand"
-version = "1.7.0"
+version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3fcf0cee53519c866c09b5de1f6c56ff9d647101f81c1964fa632e148896cdf"
+checksum = "a7a407cfaa3385c4ae6b23e84623d48c2798d06e3e6a1878f7f59f17b3f86499"
 dependencies = [
  "instant",
 ]
@@ -2934,6 +3050,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "task",
+ "thiserror",
  "tokio",
  "tokio-util 0.7.3",
  "url",
@@ -3090,6 +3207,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-api-requests"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "coconut-interface",
+ "cosmrs",
+ "cosmwasm-std",
+ "getset",
+ "mixnet-contract-common",
+ "schemars",
+ "serde",
+ "ts-rs",
+]
+
+[[package]]
 name = "nym-bity-integration"
 version = "0.1.0"
 dependencies = [
@@ -3106,7 +3238,11 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
+<<<<<<< HEAD
 version = "1.1.4"
+=======
+version = "1.1.5"
+>>>>>>> 96444509d0f983f557c7663f0ffc615dcf053487
 dependencies = [
  "anyhow",
  "base64",
@@ -3160,7 +3296,11 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
+<<<<<<< HEAD
 version = "1.1.4"
+=======
+version = "1.1.5"
+>>>>>>> 96444509d0f983f557c7663f0ffc615dcf053487
 dependencies = [
  "clap 3.2.8",
  "client-connections",
@@ -3199,7 +3339,11 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
+<<<<<<< HEAD
 version = "1.1.4"
+=======
+version = "1.1.5"
+>>>>>>> 96444509d0f983f557c7663f0ffc615dcf053487
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3223,6 +3367,7 @@ dependencies = [
  "mixnet-client",
  "mixnode-common",
  "network-defaults",
+ "nym-api-requests",
  "nymsphinx",
  "once_cell",
  "pemstore",
@@ -3238,7 +3383,6 @@ dependencies = [
  "tokio-tungstenite 0.14.0",
  "tokio-util 0.7.3",
  "url",
- "validator-api-requests",
  "validator-client",
  "vergen 5.1.17",
  "version-checker",
@@ -3246,7 +3390,11 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
+<<<<<<< HEAD
 version = "1.1.4"
+=======
+version = "1.1.5"
+>>>>>>> 96444509d0f983f557c7663f0ffc615dcf053487
 dependencies = [
  "anyhow",
  "bs58",
@@ -3288,7 +3436,11 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
+<<<<<<< HEAD
 version = "1.1.4"
+=======
+version = "1.1.5"
+>>>>>>> 96444509d0f983f557c7663f0ffc615dcf053487
 dependencies = [
  "async-trait",
  "clap 3.2.8",
@@ -3320,7 +3472,11 @@ dependencies = [
 
 [[package]]
 name = "nym-network-statistics"
+<<<<<<< HEAD
 version = "1.1.4"
+=======
+version = "1.1.5"
+>>>>>>> 96444509d0f983f557c7663f0ffc615dcf053487
 dependencies = [
  "dirs",
  "log",
@@ -3335,8 +3491,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-outfox"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "chacha20",
+ "chacha20poly1305",
+ "criterion 0.4.0",
+ "curve25519-dalek",
+ "fastrand",
+ "getrandom 0.2.6",
+ "rayon",
+ "thiserror",
+ "zeroize",
+]
+
+[[package]]
 name = "nym-socks5-client"
+<<<<<<< HEAD
 version = "1.1.4"
+=======
+version = "1.1.5"
+>>>>>>> 96444509d0f983f557c7663f0ffc615dcf053487
 dependencies = [
  "clap 3.2.8",
  "client-connections",
@@ -3403,7 +3579,11 @@ dependencies = [
 
 [[package]]
 name = "nym-validator-api"
+<<<<<<< HEAD
 version = "1.1.4"
+=======
+version = "1.1.5"
+>>>>>>> 96444509d0f983f557c7663f0ffc615dcf053487
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3434,6 +3614,7 @@ dependencies = [
  "logging",
  "mixnet-contract-common",
  "multisig-contract-common",
+ "nym-api-requests",
  "nymcoconut",
  "nymsphinx",
  "okapi",
@@ -3459,7 +3640,6 @@ dependencies = [
  "topology",
  "ts-rs",
  "url",
- "validator-api-requests",
  "validator-client",
  "vergen 7.2.1",
  "version-checker",
@@ -3492,7 +3672,7 @@ dependencies = [
  "bincode",
  "bls12_381 0.6.0",
  "bs58",
- "criterion",
+ "criterion 0.3.5",
  "digest 0.9.0",
  "dkg",
  "doc-comment",
@@ -3541,6 +3721,7 @@ dependencies = [
  "nymsphinx-types",
  "pemstore",
  "rand 0.7.3",
+ "thiserror",
  "topology",
 ]
 
@@ -3615,6 +3796,7 @@ dependencies = [
  "bytes",
  "nymsphinx-params",
  "nymsphinx-types",
+ "thiserror",
  "tokio-util 0.7.3",
 ]
 
@@ -3624,6 +3806,7 @@ version = "0.1.0"
 dependencies = [
  "crypto",
  "nymsphinx-types",
+ "thiserror",
 ]
 
 [[package]]
@@ -3707,6 +3890,7 @@ name = "ordered-buffer"
 version = "0.1.0"
 dependencies = [
  "log",
+ "thiserror",
 ]
 
 [[package]]
@@ -4001,6 +4185,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "poly1305"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8159bd90725d2df49889a078b54f4f79e87f1f8a8444194cdca81d38f5393abf"
+dependencies = [
+ "cpufeatures",
+ "opaque-debug 0.3.0",
+ "universal-hash 0.5.0",
+]
+
+[[package]]
 name = "polyval"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4009,7 +4204,7 @@ dependencies = [
  "cfg-if 1.0.0",
  "cpufeatures",
  "opaque-debug 0.3.0",
- "universal-hash",
+ "universal-hash 0.4.1",
 ]
 
 [[package]]
@@ -6189,10 +6384,10 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "mixnet-contract-common",
+ "nym-api-requests",
  "nym-types",
  "nym-wallet-types",
  "ts-rs",
- "validator-api-requests",
  "validator-client",
  "vesting-contract-common",
  "walkdir",
@@ -6368,6 +6563,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "universal-hash"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d3160b73c9a19f7e2939a2fdad446c57c1bbbbf4d919d3213ff1267a580d8b5"
+dependencies = [
+ "crypto-common",
+ "subtle 2.4.1",
+]
+
+[[package]]
 name = "untrusted"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6399,21 +6604,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc5cf98d8186244414c848017f0e2676b3fcb46807f6668a97dfe67359a3c4b7"
 
 [[package]]
-name = "validator-api-requests"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "coconut-interface",
- "cosmrs",
- "cosmwasm-std",
- "getset",
- "mixnet-contract-common",
- "schemars",
- "serde",
- "ts-rs",
-]
-
-[[package]]
 name = "validator-client"
 version = "0.1.0"
 dependencies = [
@@ -6437,6 +6627,7 @@ dependencies = [
  "mixnet-contract-common",
  "multisig-contract-common",
  "network-defaults",
+ "nym-api-requests",
  "prost 0.10.3",
  "reqwest",
  "serde",
@@ -6446,7 +6637,6 @@ dependencies = [
  "tokio",
  "ts-rs",
  "url",
- "validator-api-requests",
  "vesting-contract",
  "vesting-contract-common",
 ]
@@ -6905,9 +7095,9 @@ checksum = "09041cd90cf85f7f8b2df60c646f853b7f535ce68f85244eb6731cf89fa498ec"
 
 [[package]]
 name = "zeroize"
-version = "1.4.3"
+version = "1.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d68d9dcec5f9b43a30d38c49f91dfedfaac384cb8f085faca366c26207dd1619"
+checksum = "c394b5bd0c6f669e7275d9c20aa90ae064cb22e75a1cad54e1b34088034b149f"
 dependencies = [
  "zeroize_derive",
 ]

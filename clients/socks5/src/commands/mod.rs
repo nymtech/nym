@@ -116,11 +116,11 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
     if let Some(raw_validators) = args.api_validators {
         config
             .get_base_mut()
-            .set_custom_validator_apis(parse_validators(&raw_validators));
+            .set_custom_nym_apis(parse_validators(&raw_validators));
     } else if let Ok(raw_validators) = std::env::var(network_defaults::var_names::API_VALIDATOR) {
         config
             .get_base_mut()
-            .set_custom_validator_apis(parse_validators(&raw_validators));
+            .set_custom_nym_apis(parse_validators(&raw_validators));
     }
 
     if args.use_anonymous_sender_tag {

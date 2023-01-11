@@ -63,7 +63,7 @@ impl NetworkRequesterResponse {
         self.connection_id
             .to_be_bytes()
             .iter()
-            .cloned()
+            .copied()
             .chain(self.network_requester_error.into_bytes().into_iter())
             .collect()
     }

@@ -10,13 +10,15 @@ import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { NymCard } from 'src/components';
 import { PageLayout } from 'src/layouts';
 import { Tabs } from 'src/components/Tabs';
-import { useBondingContext, BondingContextProvider } from 'src/context';
+import { useBondingContext, BondingContextProvider, TBondedMixnode } from 'src/context';
 import { AppContext, urls } from 'src/context/main';
 
 import { NodeGeneralSettings } from './settings-pages/general-settings';
 import { NodeUnbondPage } from './settings-pages/NodeUnbondPage';
 import { createNavItems } from './node-settings.constant';
 import { isMixnode } from 'src/types';
+import { ApyPlayground } from './apy-playground';
+import { getIntervalAsDate } from 'src/utils';
 
 export const NodeSettings = () => {
   const theme = useTheme();
@@ -25,7 +27,7 @@ export const NodeSettings = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
+  const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps | undefined>();
   const [value, setValue] = React.useState('General');
   const handleChange = (event: React.SyntheticEvent, tab: string) => {
     setValue(tab);
@@ -39,9 +41,11 @@ export const NodeSettings = () => {
 
   const handleUnbond = async (fee?: FeeDetails) => {
     const tx = await unbond(fee);
+    const { nextEpoch } = await getIntervalAsDate();
     setConfirmationDetails({
       status: 'success',
       title: 'Unbond successful',
+      subtitle: `This operation will complete when the new epoch starts at: ${nextEpoch}`,
       txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
     });
   };
@@ -123,6 +127,7 @@ export const NodeSettings = () => {
         {value === 'Unbond' && bondedNode && (
           <NodeUnbondPage bondedNode={bondedNode} onConfirm={handleUnbond} onError={handleError} />
         )}
+        {value === 'Playground' && bondedNode && <ApyPlayground bondedNode={bondedNode as TBondedMixnode} />}
         {confirmationDetails && confirmationDetails.status === 'success' && (
           <ConfirmationDetailsModal
             title={confirmationDetails.title}
@@ -133,7 +138,12 @@ export const NodeSettings = () => {
               setConfirmationDetails(undefined);
               navigate('/bonding');
             }}
-          />
+          >
+            <Typography fontWeight="bold">
+              You should NOT shutdown your {isMixnode(bondedNode) ? 'mix node' : 'gateway'} until the unbond process is
+              complete
+            </Typography>
+          </ConfirmationDetailsModal>
         )}
       </NymCard>
     </PageLayout>

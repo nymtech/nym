@@ -4,7 +4,7 @@
 use clap::Parser;
 use log::info;
 
-use crate::context::SigningClientWithValidatorAPI;
+use crate::context::SigningClientWithNymd;
 use crate::utils::{pretty_cosmwasm_coin, show_error_passthrough};
 
 use comfy_table::Table;
@@ -14,7 +14,7 @@ use mixnet_contract_common::{Delegation, PendingEpochEvent, PendingEpochEventKin
 #[derive(Debug, Parser)]
 pub struct Args {}
 
-pub async fn execute(_args: Args, client: SigningClientWithValidatorAPI) {
+pub async fn execute(_args: Args, client: SigningClientWithNymd) {
     info!(
         "Getting delegations for account {}...",
         client.nymd.address()
@@ -48,14 +48,14 @@ pub async fn execute(_args: Args, client: SigningClientWithValidatorAPI) {
     }
 }
 
-async fn to_iso_timestamp(block_height: u32, client: &SigningClientWithValidatorAPI) -> String {
+async fn to_iso_timestamp(block_height: u32, client: &SigningClientWithNymd) -> String {
     match client.nymd.get_block_timestamp(Some(block_height)).await {
         Ok(res) => res.to_rfc3339(),
         Err(_e) => "-".to_string(),
     }
 }
 
-async fn print_delegations(delegations: Vec<Delegation>, client: &SigningClientWithValidatorAPI) {
+async fn print_delegations(delegations: Vec<Delegation>, client: &SigningClientWithNymd) {
     let mut table = Table::new();
 
     table.set_header(vec!["Timestamp", "Mix Id", "Delegation", "Proxy"]);
@@ -75,10 +75,7 @@ async fn print_delegations(delegations: Vec<Delegation>, client: &SigningClientW
     println!("{table}");
 }
 
-async fn print_delegation_events(
-    events: Vec<PendingEpochEvent>,
-    client: &SigningClientWithValidatorAPI,
-) {
+async fn print_delegation_events(events: Vec<PendingEpochEvent>, client: &SigningClientWithNymd) {
     let mut table = Table::new();
 
     table.set_header(vec![

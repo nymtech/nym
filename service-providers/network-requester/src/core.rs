@@ -28,7 +28,7 @@ use socks5_requests::{
 use statistics_common::collector::StatisticsSender;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use task::ShutdownListener;
+use task::TaskClient;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 
@@ -234,7 +234,7 @@ impl ServiceProvider {
                     continue;
                 }
                 ServerResponse::Error(err) => {
-                    panic!("received error from native client! - {}", err)
+                    panic!("received error from native client! - {err}")
                 }
                 _ => unimplemented!("probably should never be reached?"),
             };
@@ -250,7 +250,7 @@ impl ServiceProvider {
         controller_sender: ControllerSender,
         mix_input_sender: MixProxySender<(Socks5Message, ReturnAddress)>,
         lane_queue_lengths: LaneQueueLengths,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) {
         let mut conn =
             match Connection::new(conn_id, remote_addr.clone(), return_address.clone()).await {
@@ -313,7 +313,7 @@ impl ServiceProvider {
         lane_queue_lengths: LaneQueueLengths,
         sender_tag: Option<AnonymousSenderTag>,
         connect_req: Box<ConnectRequest>,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) {
         let return_address = match ReturnAddress::new(connect_req.return_address, sender_tag) {
             Some(address) => address,
@@ -379,7 +379,7 @@ impl ServiceProvider {
         mix_input_sender: &MixProxySender<(Socks5Message, ReturnAddress)>,
         lane_queue_lengths: LaneQueueLengths,
         stats_collector: Option<ServiceStatisticsCollector>,
-        shutdown: ShutdownListener,
+        shutdown: TaskClient,
     ) {
         let deserialized_msg = match Socks5Message::try_from_bytes(&message.message) {
             Ok(msg) => msg,
@@ -445,7 +445,7 @@ impl ServiceProvider {
             tokio::sync::mpsc::channel::<(Socks5Message, ReturnAddress)>(1);
 
         // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
-        let shutdown = task::ShutdownNotifier::default();
+        let shutdown = task::TaskManager::default();
 
         // Channel for announcing client connection state by the controller.
         // The `mixnet_response_listener` will use this to either report closed connection to the

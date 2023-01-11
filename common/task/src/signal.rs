@@ -1,4 +1,4 @@
-use crate::{shutdown::SentError, ShutdownNotifier};
+use crate::{manager::SentError, TaskManager};
 
 #[cfg(unix)]
 pub async fn wait_for_signal() {
@@ -29,7 +29,7 @@ pub async fn wait_for_signal() {
 }
 
 #[cfg(unix)]
-pub async fn wait_for_signal_and_error(shutdown: &mut ShutdownNotifier) -> Result<(), SentError> {
+pub async fn wait_for_signal_and_error(shutdown: &mut TaskManager) -> Result<(), SentError> {
     use tokio::signal::unix::{signal, SignalKind};
 
     let mut sigterm = signal(SignalKind::terminate()).expect("Failed to setup SIGTERM channel");
@@ -56,7 +56,7 @@ pub async fn wait_for_signal_and_error(shutdown: &mut ShutdownNotifier) -> Resul
 }
 
 #[cfg(not(unix))]
-pub async fn wait_for_signal_and_error(shutdown: &mut ShutdownNotifier) -> Result<(), SentError> {
+pub async fn wait_for_signal_and_error(shutdown: &mut TaskManager) -> Result<(), SentError> {
     tokio::select! {
         _ = tokio::signal::ctrl_c() => {
             log::info!("Received SIGINT");

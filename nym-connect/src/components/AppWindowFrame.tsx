@@ -15,5 +15,6 @@ export const AppWindowFrame: React.FC = ({ children }) => (
   >
     <CustomTitleBar />
     <Box style={{ padding: '16px' }}>{children}</Box>
+    <AppVersion />
   </Box>
 );

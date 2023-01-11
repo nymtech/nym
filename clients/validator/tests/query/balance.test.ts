@@ -1,4 +1,4 @@
-import ValidatorClient from '../../dist';
+import ValidatorClient from '../../validator/index';
 import expect from 'expect';
 
 describe('Query: balances', () => {

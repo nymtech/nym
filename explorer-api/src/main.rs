@@ -8,9 +8,8 @@ use dotenv::dotenv;
 use log::info;
 use logging::setup_logging;
 use network_defaults::setup_env;
-use task::ShutdownNotifier;
+use task::TaskManager;
 
-mod buy_terms;
 pub(crate) mod cache;
 mod client;
 pub(crate) mod commands;
@@ -54,10 +53,10 @@ impl ExplorerApi {
     async fn run(&mut self) {
         info!("Explorer API starting up...");
 
-        let validator_api_url = self.state.inner.validator_client.api_endpoint();
-        info!("Using validator API - {}", validator_api_url);
+        let nym_api_url = self.state.inner.validator_client.api_endpoint();
+        info!("Using validator API - {}", nym_api_url);
 
-        let shutdown = ShutdownNotifier::default();
+        let shutdown = TaskManager::default();
 
         // spawn concurrent tasks
         crate::tasks::ExplorerApiTasks::new(self.state.clone(), shutdown.subscribe()).start();
@@ -78,7 +77,7 @@ impl ExplorerApi {
         self.wait_for_interrupt(shutdown).await
     }
 
-    async fn wait_for_interrupt(&self, mut shutdown: ShutdownNotifier) {
+    async fn wait_for_interrupt(&self, mut shutdown: TaskManager) {
         wait_for_signal().await;
 
         log::info!("Sending shutdown");

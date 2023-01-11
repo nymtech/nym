@@ -8,10 +8,10 @@ use thiserror::Error;
 /// Custom errors for contract failure conditions.
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
-    #[error("{0}")]
+    #[error(transparent)]
     Std(#[from] StdError),
 
-    #[error("{0}")]
+    #[error(transparent)]
     Admin(#[from] AdminError),
 
     #[error("Group contract invalid address '{addr}'")]
@@ -22,6 +22,9 @@ pub enum ContractError {
 
     #[error("This sender is already a dealer for the epoch")]
     AlreadyADealer,
+
+    #[error("Too soon to advance epoch state. {0} more seconds until it can be advanced")]
+    EarlyEpochStateAdvancement(u64),
 
     #[error("Epoch hasn't been correctly initialised!")]
     EpochNotInitialised,

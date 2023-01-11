@@ -6,6 +6,7 @@ use nymsphinx_types::header::HEADER_SIZE;
 use nymsphinx_types::PAYLOAD_OVERHEAD_SIZE;
 use std::convert::TryFrom;
 use std::str::FromStr;
+use thiserror::Error;
 
 // it's up to the smart people to figure those values out : )
 const REGULAR_PACKET_SIZE: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 2 * 1024;
@@ -34,8 +35,12 @@ const EXTENDED_PACKET_SIZE_500: usize = HEADER_SIZE + PAYLOAD_OVERHEAD_SIZE + 50
 #[derive(Debug)]
 pub struct InvalidPacketSize;
 
-#[derive(Debug)]
-pub struct InvalidExtendedPacketSize;
+    #[error("{received} is not a valid extended packet size variant")]
+    UnknownExtendedPacketVariant { received: String },
+
+    #[error("{received} does not correspond with any known packet size")]
+    UnknownPacketSize { received: usize },
+}
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -96,7 +101,7 @@ impl FromStr for PacketSize {
 impl TryFrom<u8> for PacketSize {
     type Error = InvalidPacketSize;
 
-    fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             _ if value == (PacketSize::RegularPacket as u8) => Ok(Self::RegularPacket),
             _ if value == (PacketSize::AckPacket as u8) => Ok(Self::AckPacket),
@@ -147,7 +152,7 @@ impl PacketSize {
         self.size() - HEADER_SIZE
     }
 
-    pub fn get_type(size: usize) -> std::result::Result<Self, InvalidPacketSize> {
+    pub fn get_type(size: usize) -> Result<Self, InvalidPacketSize> {
         if PacketSize::RegularPacket.size() == size {
             Ok(PacketSize::RegularPacket)
         } else if PacketSize::AckPacket.size() == size {
@@ -179,7 +184,7 @@ impl PacketSize {
         } else if PacketSize::ExtendedPacket500.size() == size {
             Ok(PacketSize::ExtendedPacket500)
         } else {
-            Err(InvalidPacketSize)
+            Err(InvalidPacketSize::UnknownPacketSize { received: size })
         }
     }
 

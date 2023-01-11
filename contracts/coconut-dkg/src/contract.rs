@@ -7,16 +7,16 @@ use crate::dealers::queries::{
 use crate::dealers::transactions::try_add_dealer;
 use crate::dealings::queries::query_dealings_paged;
 use crate::dealings::transactions::try_commit_dealings;
-use crate::epoch_state::queries::{query_current_epoch_state, query_current_epoch_threshold};
-use crate::epoch_state::storage::CURRENT_EPOCH_STATE;
+use crate::epoch_state::queries::{query_current_epoch, query_current_epoch_threshold};
+use crate::epoch_state::storage::CURRENT_EPOCH;
 use crate::epoch_state::transactions::advance_epoch_state;
 use crate::error::ContractError;
-use crate::state::{State, ADMIN, MULTISIG, STATE};
+use crate::state::{State, MULTISIG, STATE};
 use crate::verification_key_shares::queries::query_vk_shares_paged;
 use crate::verification_key_shares::transactions::try_commit_verification_key_share;
 use crate::verification_key_shares::transactions::try_verify_verification_key_share;
 use coconut_dkg_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
-use coconut_dkg_common::types::EpochState;
+use coconut_dkg_common::types::{Epoch, EpochState};
 use cosmwasm_std::{
     entry_point, to_binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
 };
@@ -30,13 +30,11 @@ use cw4::Cw4Contract;
 #[entry_point]
 pub fn instantiate(
     mut deps: DepsMut<'_>,
-    _env: Env,
+    env: Env,
     _info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
-    let admin_addr = deps.api.addr_validate(&msg.admin)?;
     let multisig_addr = deps.api.addr_validate(&msg.multisig_addr)?;
-    ADMIN.set(deps.branch(), Some(admin_addr))?;
     MULTISIG.set(deps.branch(), Some(multisig_addr.clone()))?;
 
     let group_addr = Cw4Contract(deps.api.addr_validate(&msg.group_addr).map_err(|_| {
@@ -52,7 +50,10 @@ pub fn instantiate(
     };
     STATE.save(deps.storage, &state)?;
 
-    CURRENT_EPOCH_STATE.save(deps.storage, &EpochState::default())?;
+    CURRENT_EPOCH.save(
+        deps.storage,
+        &Epoch::new(EpochState::default(), env.block.time),
+    )?;
 
     Ok(Response::default())
 }
@@ -79,14 +80,14 @@ pub fn execute(
         ExecuteMsg::VerifyVerificationKeyShare { owner } => {
             try_verify_verification_key_share(deps, info, owner)
         }
-        ExecuteMsg::AdvanceEpochState {} => advance_epoch_state(deps, info),
+        ExecuteMsg::AdvanceEpochState {} => advance_epoch_state(deps, env),
     }
 }
 
 #[entry_point]
 pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let response = match msg {
-        QueryMsg::GetCurrentEpochState {} => to_binary(&query_current_epoch_state(deps.storage)?)?,
+        QueryMsg::GetCurrentEpochState {} => to_binary(&query_current_epoch(deps.storage)?)?,
         QueryMsg::GetCurrentEpochThreshold {} => {
             to_binary(&query_current_epoch_threshold(deps.storage)?)?
         }
@@ -120,9 +121,8 @@ pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Respon
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::support::tests::fixtures::{dealer_details_fixture, TEST_MIX_DENOM};
+    use crate::support::tests::fixtures::TEST_MIX_DENOM;
     use crate::support::tests::helpers::{ADMIN_ADDRESS, MULTISIG_CONTRACT};
-    use coconut_dkg_common::dealer::DealerDetails;
     use coconut_dkg_common::msg::ExecuteMsg::RegisterDealer;
     use coconut_dkg_common::types::NodeIndex;
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
@@ -163,7 +163,6 @@ mod tests {
         let msg = InstantiateMsg {
             group_addr: group_contract_addr.to_string(),
             multisig_addr: MULTISIG_CONTRACT.to_string(),
-            admin: Addr::unchecked(ADMIN_ADDRESS).to_string(),
             mix_denom: TEST_MIX_DENOM.to_string(),
         };
         app.instantiate_contract(
@@ -198,7 +197,6 @@ mod tests {
         let msg = InstantiateMsg {
             group_addr: "group_addr".to_string(),
             multisig_addr: "multisig_addr".to_string(),
-            admin: "admin".to_string(),
             mix_denom: "nym".to_string(),
         };
         let info = mock_info("creator", &[]);

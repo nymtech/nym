@@ -11,7 +11,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{fmt, io};
-use task::ShutdownListener;
+use task::TaskClient;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::time::sleep;
@@ -45,7 +45,7 @@ pub(crate) struct PacketSender {
     packet_timeout: Duration,
     connection_timeout: Duration,
     delay_between_packets: Duration,
-    shutdown_listener: ShutdownListener,
+    shutdown_listener: TaskClient,
 }
 
 impl PacketSender {
@@ -55,7 +55,7 @@ impl PacketSender {
         packet_timeout: Duration,
         connection_timeout: Duration,
         delay_between_packets: Duration,
-        shutdown_listener: ShutdownListener,
+        shutdown_listener: TaskClient,
     ) -> Self {
         PacketSender {
             identity,

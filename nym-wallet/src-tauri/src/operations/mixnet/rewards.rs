@@ -1,7 +1,7 @@
 use crate::error::BackendError;
 use crate::state::WalletState;
 use crate::vesting::rewards::vesting_claim_delegator_reward;
-use mixnet_contract_common::MixId;
+use mixnet_contract_common::{MixId, RewardingParams};
 use nym_types::transaction::TransactionExecuteResult;
 use validator_client::nymd::traits::{MixnetQueryClient, MixnetSigningClient};
 use validator_client::nymd::Fee;
@@ -94,4 +94,18 @@ pub async fn claim_locked_and_unlocked_delegator_reward(
     }
     log::trace!("<<< {:?}", res);
     Ok(res)
+}
+
+#[tauri::command]
+pub async fn get_current_rewarding_parameters(
+    state: tauri::State<'_, WalletState>,
+) -> Result<RewardingParams, BackendError> {
+    log::info!(">>> Get current rewarding params",);
+
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let reward_params = client.nymd.get_rewarding_parameters().await?;
+
+    Ok(reward_params)
 }

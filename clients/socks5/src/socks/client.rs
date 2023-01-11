@@ -20,7 +20,7 @@ use socks5_requests::{ConnectionId, Message, RemoteAddress, Request};
 use std::io;
 use std::net::SocketAddr;
 use std::pin::Pin;
-use task::ShutdownListener;
+use task::TaskClient;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::{self, net::TcpStream};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -165,7 +165,7 @@ pub(crate) struct SocksClient {
     self_address: Recipient,
     started_proxy: bool,
     lane_queue_lengths: LaneQueueLengths,
-    shutdown_listener: ShutdownListener,
+    shutdown_listener: TaskClient,
 }
 
 impl Drop for SocksClient {
@@ -191,7 +191,7 @@ impl SocksClient {
         controller_sender: ControllerSender,
         self_address: &Recipient,
         lane_queue_lengths: LaneQueueLengths,
-        mut shutdown_listener: ShutdownListener,
+        mut shutdown_listener: TaskClient,
     ) -> Self {
         // If this task fails and exits, we don't want to send shutdown signal
         shutdown_listener.mark_as_success();
@@ -221,7 +221,7 @@ impl SocksClient {
     }
 
     pub async fn send_error(&mut self, err: SocksProxyError) -> Result<(), SocksProxyError> {
-        let error_text = format!("{}", err);
+        let error_text = format!("{err}");
         let Some(ref version) = self.socks_version else {
             log::error!("Trying to send error without knowing the version");
             return Ok(());

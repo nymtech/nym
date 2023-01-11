@@ -21,13 +21,13 @@ export interface NymClientConfig {
   /**
    * The URL of a validator API to query for the network topology.
    */
-  validatorApiUrl: string;
+  nymApiUrl: string;
 
   /**
    * Optional. The identity key of the preferred gateway to connect to.
    */
   preferredGatewayIdentityKey?: string;
-  
+
   /**
    * Optional. The listener websocket of the preferred gateway to connect to.
    */

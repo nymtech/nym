@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-gateway"
-version = "1.1.4"
+version = "1.1.5"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -64,7 +64,7 @@ network-defaults = { path = "../common/network-defaults" }
 nymsphinx = { path = "../common/nymsphinx" }
 pemstore = { path = "../common/pemstore" }
 statistics-common = { path = "../common/statistics" }
-validator-api-requests = { path = "../validator-api/validator-api-requests" }
+nym-api-requests = { path = "../nym-api/nym-api-requests" }
 validator-client = { path = "../common/client-libs/validator-client", features = [
     "nymd-client",
 ] }
@@ -75,7 +75,7 @@ coconut = [
     "coconut-interface",
     "gateway-requests/coconut",
     "credentials/coconut",
-    "validator-api-requests/coconut",
+    "nym-api-requests/coconut",
 ]
 
 [build-dependencies]

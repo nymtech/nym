@@ -1,6 +1,20 @@
 # Changelog
 
-## UNRELEASED
+## [nym-wallet-v1.1.6](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.6) (2023-01-10)
+
+- wallet: rewrite some abci errors on the fly by @octol in https://github.com/nymtech/nym/pull/2716
+- Feature/node settings apy playground by @fmtabbara in https://github.com/nymtech/nym/pull/1677
+- Fix param input layout **1.1.5 Release** by @fmtabbara in https://github.com/nymtech/nym/pull/2720
+- Add epoch info to unbond modal **1.1.5 Release** by @fmtabbara in https://github.com/nymtech/nym/pull/2718
+- Feat/2130 tables update rebase by @gala1234ss as url param by @doums in https://github.com/nymtech/nym/pull/2780
+
+## [nym-wallet-v1.1.5](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.5) (2022-12-22)
+
+This release contains the APY calculator feature.
+
+## [nym-wallet-v1.1.5](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.5) (2022-12-22)
+
+This release contains the APY calculator feature.
 
 ## [nym-wallet-v1.1.4](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.4) (2022-12-20)
 

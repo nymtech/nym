@@ -24,7 +24,6 @@ import {
   vestingBondMixNode,
   vestingUnbondGateway,
   vestingUnbondMixnode,
-  getPendingEpochEvents,
   updateMixnodeCostParams as updateMixnodeCostParamsRequest,
   vestingUpdateMixnodeCostParams as updateMixnodeVestingCostParamsRequest,
   getNodeDescription as getNodeDescriptionRequest,
@@ -36,6 +35,7 @@ import {
   getMixnodeAvgUptime,
   getMixnodeRewardEstimation,
   getGatewayReport,
+  getMixnodeUptime,
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
@@ -71,10 +71,12 @@ export type TBondedMixnode = {
   verlocPort: number;
   version: string;
   isUnbonding: boolean;
+  uptime: number;
 };
 
 export interface TBondedGateway {
-  name: string;
+  name?: string;
+  id: number;
   identityKey: string;
   ip: string;
   bond: DecCoin;
@@ -154,14 +156,18 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
       status: MixnodeStatus;
       stakeSaturation: string;
       estimatedRewards?: DecCoin;
+      uptime: number;
     } = {
       status: 'not_found',
       stakeSaturation: '0',
+      uptime: 0,
     };
 
     try {
       const statusResponse = await getMixnodeStatus(mixId);
+      const uptime = await getMixnodeUptime(mixId);
       additionalDetails.status = statusResponse.status;
+      additionalDetails.uptime = uptime;
     } catch (e) {
       Console.log('getMixnodeStatus fails', e);
     }
@@ -259,7 +265,8 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             rewarding_details,
             bond_information: { mix_id },
           } = data;
-          const { status, stakeSaturation, estimatedRewards } = await getAdditionalMixnodeDetails(mix_id);
+
+          const { status, stakeSaturation, estimatedRewards, uptime } = await getAdditionalMixnodeDetails(mix_id);
           const setProbabilities = await getSetProbabilities(mix_id);
           const nodeDescription = await getNodeDescription(
             bond_information.mix_node.host,
@@ -267,6 +274,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
           );
           const routingScore = await getAvgUptime();
           setBondedNode({
+            id: data.bond_information.mix_id,
             name: nodeDescription?.name,
             mixId: mix_id,
             identityKey: bond_information.mix_node.identity_key,
@@ -279,6 +287,7 @@ export const BondingContextProvider = ({ children }: { children?: React.ReactNod
             delegators: rewarding_details.unique_delegations,
             proxy: bond_information.proxy,
             operatorRewards,
+            uptime,
             status,
             stakeSaturation,
             operatorCost: decCoinToDisplay(rewarding_details.cost_params.interval_operating_cost),

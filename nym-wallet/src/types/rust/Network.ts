@@ -1,2 +1,1 @@
-
-export type Network = "QA" | "SANDBOX" | "MAINNET";
+export type Network = 'QA' | 'SANDBOX' | 'MAINNET';

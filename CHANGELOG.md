@@ -4,13 +4,35 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+### Added
+
+### Changed
+
+## [v1.1.5] (2023-01-10)
+
+### Added
+
+- socks5: send status message for service ready, and network-requester error response in https://github.com/nymtech/nym/pull/2715
+
+### Changed
+
+- all-binaries: improved error logging in https://github.com/nymtech/nym/pull/2686
+- native client: bring shutdown logic up to the same level as socks5-client in https://github.com/nymtech/nym/pull/2695
+- nym-api, coconut-dkg contract: automatic, time-based dkg epoch state advancement in https://github.com/nymtech/nym/pull/2670
+- DKG resharing unit test by @neacsu in https://github.com/nymtech/nym/pull/2668
+- Renaming validator-api to nym-api by @futurechimp in https://github.com/nymtech/nym/pull/1863
+- Modify wasm specific make targets by @neacsu in https://github.com/nymtech/nym/pull/2693
+- client: create websocket handler builder by @octol in https://github.com/nymtech/nym/pull/2700
+- Outfox and Lion by @durch in https://github.com/nymtech/nym/pull/2730
+- Feature/multi surb transmission lanes by @jstuczyn in https://github.com/nymtech/nym/pull/2723
+
 ## [v1.1.4] (2022-12-20)
 
-This release adds multiple Single Use Reply Blocks (SURBs) to allow arbitrarily-sized anonymized replies. 
-At the moment this is turned off by default, but available for use by application developers. 
-We will need to wait for network-requesters to upgrade to this new release, after which multi-SURB anonymization will become the default setting for the SOCKS proxy clients. 
+This release adds multiple Single Use Reply Blocks (SURBs) to allow arbitrarily-sized anonymized replies.
+At the moment this is turned off by default, but available for use by application developers.
+We will need to wait for network-requesters to upgrade to this new release, after which multi-SURB anonymization will become the default setting for the SOCKS proxy clients.
 
-The release also include some additional work for distributed key generation in the Coconut signing authority nodes. 
+The release also include some additional work for distributed key generation in the Coconut signing authority nodes.
 
 ### Changed
 
@@ -33,7 +55,7 @@ The release also include some additional work for distributed key generation in 
 
 - network-requester: fix bug where websocket connection disconnect resulted in success error code
 - clients: fix a few panics handling the gateway-client
-- mixnode, gateway, validator-api: Use mainnet values as defaults for URLs and mixnet contract  ([#1884])
+- mixnode, gateway, validator-api: Use mainnet values as defaults for URLs and mixnet contract ([#1884])
 - socks5: fixed bug where connections sometimes where closed too early
 - clients: improve message logging when received message fails to get reconstructed ([#1803])
 
@@ -53,7 +75,7 @@ The release also include some additional work for distributed key generation in 
 
 - gateway: Renamed flag from `enabled/disabled_credentials_mode` to `only-coconut-credentials`
 - "Family" feature for node families + layers
-- Initial coconut functionality including credentials and distributed key generation 
+- Initial coconut functionality including credentials and distributed key generation
 
 ## [v1.1.1](https://github.com/nymtech/nym/tree/v1.1.1) (2022-11-29)
 
@@ -89,7 +111,6 @@ The release also include some additional work for distributed key generation in 
 [#1786]: https://github.com/nymtech/nym/pull/1786
 [#1805]: https://github.com/nymtech/nym/pull/1805
 
-
 ## [v1.1.0](https://github.com/nymtech/nym/tree/v1.1.0) (2022-11-09)
 
 ### Added
@@ -116,7 +137,7 @@ The release also include some additional work for distributed key generation in 
 - gateway-client: will attempt to read now as many as 8 websocket messages at once, assuming they're already available on the socket ([#1669])
 - moved `Percent` struct to `contracts-common`, change affects explorer-api
 - socks5 client: graceful shutdown should fix error on disconnect in nym-connect ([#1591])
-- validator-api: changed error serialization on `inclusion_probability`, `stake-saturation` and `reward-estimation` endpoints to provide more accurate information ([#1681]) 
+- validator-api: changed error serialization on `inclusion_probability`, `stake-saturation` and `reward-estimation` endpoints to provide more accurate information ([#1681])
 - validator-client: made `fee` argument optional for `execute` and `execute_multiple` ([#1541])
 - wasm-client: fixed build errors on MacOS and changed example JS code to use mainnet ([#1585])
 - validator-api: changes to internal SQL schema due to the mixnet contract revamp ([#1472])
@@ -143,7 +164,6 @@ The release also include some additional work for distributed key generation in 
 [#1721]: https://github.com/nymtech/nym/pull/1721
 [#1724]: https://github.com/nymtech/nym/pull/1724
 [#1725]: https://github.com/nymtech/nym/pull/1725
-
 
 ## [nym-binaries-1.0.2](https://github.com/nymtech/nym/tree/nym-binaries-1.0.2)
 
@@ -198,8 +218,7 @@ The release also include some additional work for distributed key generation in 
 - gateway, network-statistics: include gateway id in the sent statistical data ([#1478])
 - network explorer: tweak how active set probability is shown ([#1503])
 - validator-api: rewarder set update fails without panicking on possible nymd queries ([#1520])
-- network-requester, socks5 client (nym-connect): send and receive respectively a message error to be displayed about filter check failure ([#1576]) 
-
+- network-requester, socks5 client (nym-connect): send and receive respectively a message error to be displayed about filter check failure ([#1576])
 
 [#1249]: https://github.com/nymtech/nym/pull/1249
 [#1256]: https://github.com/nymtech/nym/pull/1256
@@ -293,9 +312,9 @@ The release also include some additional work for distributed key generation in 
 - Bump minimist from 1.2.5 to 1.2.6 in /clients/tauri-client [\#1163](https://github.com/nymtech/nym/pull/1163) ([dependabot[bot]](https://github.com/apps/dependabot))
 - Bump minimist from 1.2.5 to 1.2.6 in /clients/webassembly/js-example [\#1162](https://github.com/nymtech/nym/pull/1162) ([dependabot[bot]](https://github.com/apps/dependabot))
 - Bump minimist from 1.2.5 to 1.2.6 in /clients/native/examples/js-examples/websocket [\#1160](https://github.com/nymtech/nym/pull/1160) ([dependabot[bot]](https://github.com/apps/dependabot))
-- Bump minimist from 1.2.5 to 1.2.6 in /docker/typescript\_client/upload\_contract [\#1159](https://github.com/nymtech/nym/pull/1159) ([dependabot[bot]](https://github.com/apps/dependabot))
+- Bump minimist from 1.2.5 to 1.2.6 in /docker/typescript_client/upload_contract [\#1159](https://github.com/nymtech/nym/pull/1159) ([dependabot[bot]](https://github.com/apps/dependabot))
 - Feature/vesting full [\#1158](https://github.com/nymtech/nym/pull/1158) ([fmtabbara](https://github.com/fmtabbara))
-- get\_current\_epoch tauri [\#1156](https://github.com/nymtech/nym/pull/1156) ([durch](https://github.com/durch))
+- get_current_epoch tauri [\#1156](https://github.com/nymtech/nym/pull/1156) ([durch](https://github.com/durch))
 - Cleanup [\#1155](https://github.com/nymtech/nym/pull/1155) ([durch](https://github.com/durch))
 - Feature flag reward payments [\#1154](https://github.com/nymtech/nym/pull/1154) ([durch](https://github.com/durch))
 - Add Query endpoints for calculating rewards [\#1152](https://github.com/nymtech/nym/pull/1152) ([durch](https://github.com/durch))
@@ -304,7 +323,7 @@ The release also include some additional work for distributed key generation in 
 - wallet: use Urls rather than Strings for validator urls [\#1148](https://github.com/nymtech/nym/pull/1148) ([octol](https://github.com/octol))
 - Change accumulated reward to Option, migrate delegations [\#1147](https://github.com/nymtech/nym/pull/1147) ([durch](https://github.com/durch))
 - wallet: fetch validators url remotely if available [\#1146](https://github.com/nymtech/nym/pull/1146) ([octol](https://github.com/octol))
-- Fix delegated\_free calculation [\#1145](https://github.com/nymtech/nym/pull/1145) ([durch](https://github.com/durch))
+- Fix delegated_free calculation [\#1145](https://github.com/nymtech/nym/pull/1145) ([durch](https://github.com/durch))
 - Update Nym wallet dependencies to use `ts-packages` [\#1144](https://github.com/nymtech/nym/pull/1144) ([mmsinclair](https://github.com/mmsinclair))
 - wallet: try validators one by one if available [\#1143](https://github.com/nymtech/nym/pull/1143) ([octol](https://github.com/octol))
 - Update Network Explorer Packages and add mix node identity key copy [\#1142](https://github.com/nymtech/nym/pull/1142) ([mmsinclair](https://github.com/mmsinclair))
@@ -344,14 +363,13 @@ The release also include some additional work for distributed key generation in 
 - feature/pedersen-commitments [\#1048](https://github.com/nymtech/nym/pull/1048) ([danielementary](https://github.com/danielementary))
 - Feature/reuse init owner [\#970](https://github.com/nymtech/nym/pull/970) ([neacsu](https://github.com/neacsu))
 
-
 ## [v0.12.1](https://github.com/nymtech/nym/tree/v0.12.1) (2021-12-23)
 
 [Full Changelog](https://github.com/nymtech/nym/compare/v0.12.0...v0.12.1)
 
 **Implemented enhancements:**
 
-- Add version check to  binaries [\#967](https://github.com/nymtech/nym/issues/967)
+- Add version check to binaries [\#967](https://github.com/nymtech/nym/issues/967)
 
 **Fixed bugs:**
 
@@ -381,7 +399,7 @@ The release also include some additional work for distributed key generation in 
 - Bugfix/remove mixnode bonding overwrite [\#917](https://github.com/nymtech/nym/pull/917) ([jstuczyn](https://github.com/jstuczyn))
 - Fixes crash condition in validator API when calculating last day uptime [\#909](https://github.com/nymtech/nym/pull/909) ([jstuczyn](https://github.com/jstuczyn))
 - Bugfix/monitor initial values wait [\#907](https://github.com/nymtech/nym/pull/907) ([jstuczyn](https://github.com/jstuczyn))
-- Bug fix: Network Explorer: Add freegeoip API key and split out tasks for country distributions  [\#806](https://github.com/nymtech/nym/pull/806) ([mmsinclair](https://github.com/mmsinclair))
+- Bug fix: Network Explorer: Add freegeoip API key and split out tasks for country distributions [\#806](https://github.com/nymtech/nym/pull/806) ([mmsinclair](https://github.com/mmsinclair))
 - Explorer API: port test now split out address resolution and add units tests [\#755](https://github.com/nymtech/nym/pull/755) ([mmsinclair](https://github.com/mmsinclair))
 
 **Closed issues:**
@@ -396,7 +414,7 @@ The release also include some additional work for distributed key generation in 
 - help!!! [\#712](https://github.com/nymtech/nym/issues/712)
 - UX feature request: show all delegated nodes in wallet [\#711](https://github.com/nymtech/nym/issues/711)
 - UX feature request: add current balance on wallet pages [\#710](https://github.com/nymtech/nym/issues/710)
-- got sign issue from bot  [\#709](https://github.com/nymtech/nym/issues/709)
+- got sign issue from bot [\#709](https://github.com/nymtech/nym/issues/709)
 - As a wallet user, I would like to be able to log out of the wallet [\#706](https://github.com/nymtech/nym/issues/706)
 - As a wallet user, I would like to have a "receive" page where I can see my own wallet address [\#705](https://github.com/nymtech/nym/issues/705)
 - Update native client/socks client/mixnode/gateway `upgrade` command [\#689](https://github.com/nymtech/nym/issues/689)
@@ -406,7 +424,7 @@ The release also include some additional work for distributed key generation in 
 - nym-socks5-client crash after opening Keybase team "Browse all channels" [\#494](https://github.com/nymtech/nym/issues/494)
 - Mixed Content problem [\#400](https://github.com/nymtech/nym/issues/400)
 - Gateway disk quota [\#137](https://github.com/nymtech/nym/issues/137)
-- Simplify message encapsulation with regards to topology  [\#127](https://github.com/nymtech/nym/issues/127)
+- Simplify message encapsulation with regards to topology [\#127](https://github.com/nymtech/nym/issues/127)
 - Create constants for cli argument names [\#115](https://github.com/nymtech/nym/issues/115)
 - Using Blake3 as a hash function [\#103](https://github.com/nymtech/nym/issues/103)
 - Validator should decide which layer a node is in [\#86](https://github.com/nymtech/nym/issues/86)
@@ -462,10 +480,10 @@ The release also include some additional work for distributed key generation in 
 - Feature/pre cosmrs updates [\#935](https://github.com/nymtech/nym/pull/935) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/client on behalf [\#934](https://github.com/nymtech/nym/pull/934) ([neacsu](https://github.com/neacsu))
 - Webpack wallet prod configuration [\#933](https://github.com/nymtech/nym/pull/933) ([tommyv1987](https://github.com/tommyv1987))
-- Adding tx\_hash to wallet response [\#932](https://github.com/nymtech/nym/pull/932) ([futurechimp](https://github.com/futurechimp))
+- Adding tx_hash to wallet response [\#932](https://github.com/nymtech/nym/pull/932) ([futurechimp](https://github.com/futurechimp))
 - Release/1.0.0 pre1 [\#931](https://github.com/nymtech/nym/pull/931) ([durch](https://github.com/durch))
 - Feature/identity verification [\#930](https://github.com/nymtech/nym/pull/930) ([jstuczyn](https://github.com/jstuczyn))
-- Move cleaned up smart contracts to main code repo  [\#929](https://github.com/nymtech/nym/pull/929) ([mfahampshire](https://github.com/mfahampshire))
+- Move cleaned up smart contracts to main code repo [\#929](https://github.com/nymtech/nym/pull/929) ([mfahampshire](https://github.com/mfahampshire))
 - Feature/mixnet contract further adjustments [\#928](https://github.com/nymtech/nym/pull/928) ([jstuczyn](https://github.com/jstuczyn))
 - typo copy change for nodemap [\#926](https://github.com/nymtech/nym/pull/926) ([Aid19801](https://github.com/Aid19801))
 - Feature/UI enhancements for Desktop Wallet [\#925](https://github.com/nymtech/nym/pull/925) ([fmtabbara](https://github.com/fmtabbara))
@@ -478,7 +496,7 @@ The release also include some additional work for distributed key generation in 
 - Feature/faucet page react [\#911](https://github.com/nymtech/nym/pull/911) ([fmtabbara](https://github.com/fmtabbara))
 - Feature/mixnet contract refactor [\#910](https://github.com/nymtech/nym/pull/910) ([futurechimp](https://github.com/futurechimp))
 - Update README.md [\#905](https://github.com/nymtech/nym/pull/905) ([tommyv1987](https://github.com/tommyv1987))
-- BUG: Bond cell denom  [\#904](https://github.com/nymtech/nym/pull/904) ([Aid19801](https://github.com/Aid19801))
+- BUG: Bond cell denom [\#904](https://github.com/nymtech/nym/pull/904) ([Aid19801](https://github.com/Aid19801))
 - Explorer UI tests missing data-testid [\#903](https://github.com/nymtech/nym/pull/903) ([tommyv1987](https://github.com/tommyv1987))
 - Fix up Nym-Wallet README.md [\#899](https://github.com/nymtech/nym/pull/899) ([tommyv1987](https://github.com/tommyv1987))
 - Feature/batch delegator rewarding [\#898](https://github.com/nymtech/nym/pull/898) ([jstuczyn](https://github.com/jstuczyn))
@@ -496,7 +514,7 @@ The release also include some additional work for distributed key generation in 
 - Reverted gateway registration handshake to its 0.11.0 version [\#882](https://github.com/nymtech/nym/pull/882) ([jstuczyn](https://github.com/jstuczyn))
 - Network Explorer [\#881](https://github.com/nymtech/nym/pull/881) ([mmsinclair](https://github.com/mmsinclair))
 - Feature/rewarding interval updates [\#880](https://github.com/nymtech/nym/pull/880) ([jstuczyn](https://github.com/jstuczyn))
-- Put client\_address and id in the correct order [\#875](https://github.com/nymtech/nym/pull/875) ([neacsu](https://github.com/neacsu))
+- Put client_address and id in the correct order [\#875](https://github.com/nymtech/nym/pull/875) ([neacsu](https://github.com/neacsu))
 - remove gateway selection on delegation and undelegation pages [\#873](https://github.com/nymtech/nym/pull/873) ([fmtabbara](https://github.com/fmtabbara))
 - Set MSRV on all binaries to 1.56 [\#872](https://github.com/nymtech/nym/pull/872) ([jstuczyn](https://github.com/jstuczyn))
 - add native window items \(copy/paste\) via tauri [\#871](https://github.com/nymtech/nym/pull/871) ([fmtabbara](https://github.com/fmtabbara))
@@ -512,7 +530,7 @@ The release also include some additional work for distributed key generation in 
 - Overflow checks in release [\#846](https://github.com/nymtech/nym/pull/846) ([jstuczyn](https://github.com/jstuczyn))
 - fix delegate success overflow [\#842](https://github.com/nymtech/nym/pull/842) ([fmtabbara](https://github.com/fmtabbara))
 - Feature NYM wallet webdriverio test [\#841](https://github.com/nymtech/nym/pull/841) ([tommyv1987](https://github.com/tommyv1987))
-- Update nym\_wallet.yml [\#840](https://github.com/nymtech/nym/pull/840) ([tommyv1987](https://github.com/tommyv1987))
+- Update nym_wallet.yml [\#840](https://github.com/nymtech/nym/pull/840) ([tommyv1987](https://github.com/tommyv1987))
 - Feature/vouchers [\#837](https://github.com/nymtech/nym/pull/837) ([aniampio](https://github.com/aniampio))
 - Apply readable ids to elements on Nym Wallet [\#836](https://github.com/nymtech/nym/pull/836) ([tommyv1987](https://github.com/tommyv1987))
 - Feature/removal of monitor good nodes [\#833](https://github.com/nymtech/nym/pull/833) ([jstuczyn](https://github.com/jstuczyn))
@@ -536,8 +554,8 @@ The release also include some additional work for distributed key generation in 
 - Created getters for AccountData [\#787](https://github.com/nymtech/nym/pull/787) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/migrate hidden delegations [\#786](https://github.com/nymtech/nym/pull/786) ([neacsu](https://github.com/neacsu))
 - Feature/persistent gateway storage [\#784](https://github.com/nymtech/nym/pull/784) ([jstuczyn](https://github.com/jstuczyn))
-- Replaced unwrap\_or\_else with unwrap\_or\_default [\#780](https://github.com/nymtech/nym/pull/780) ([jstuczyn](https://github.com/jstuczyn))
-- Add block\_height method to Delegation [\#778](https://github.com/nymtech/nym/pull/778) ([durch](https://github.com/durch))
+- Replaced unwrap_or_else with unwrap_or_default [\#780](https://github.com/nymtech/nym/pull/780) ([jstuczyn](https://github.com/jstuczyn))
+- Add block_height method to Delegation [\#778](https://github.com/nymtech/nym/pull/778) ([durch](https://github.com/durch))
 - Make fee helpers public [\#777](https://github.com/nymtech/nym/pull/777) ([durch](https://github.com/durch))
 - re-enable bonding [\#776](https://github.com/nymtech/nym/pull/776) ([fmtabbara](https://github.com/fmtabbara))
 - Explorer-api: add API resource to show the delegations for each mix node [\#774](https://github.com/nymtech/nym/pull/774) ([mmsinclair](https://github.com/mmsinclair))
@@ -546,14 +564,14 @@ The release also include some additional work for distributed key generation in 
 - Adding deps for building the Tauri wallet under Ubuntu [\#770](https://github.com/nymtech/nym/pull/770) ([futurechimp](https://github.com/futurechimp))
 - remove alert [\#767](https://github.com/nymtech/nym/pull/767) ([fmtabbara](https://github.com/fmtabbara))
 - Feature/consumable bandwidth [\#766](https://github.com/nymtech/nym/pull/766) ([neacsu](https://github.com/neacsu))
-- Update coconut-rs and use hash\_to\_scalar from there [\#765](https://github.com/nymtech/nym/pull/765) ([neacsu](https://github.com/neacsu))
+- Update coconut-rs and use hash_to_scalar from there [\#765](https://github.com/nymtech/nym/pull/765) ([neacsu](https://github.com/neacsu))
 - Feature/active sets [\#764](https://github.com/nymtech/nym/pull/764) ([jstuczyn](https://github.com/jstuczyn))
 - add app alert banner [\#762](https://github.com/nymtech/nym/pull/762) ([fmtabbara](https://github.com/fmtabbara))
 - Updated cosmos-sdk [\#761](https://github.com/nymtech/nym/pull/761) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/bond blockstamp [\#760](https://github.com/nymtech/nym/pull/760) ([neacsu](https://github.com/neacsu))
 - Feature/revert migration code [\#759](https://github.com/nymtech/nym/pull/759) ([neacsu](https://github.com/neacsu))
 - Bump next from 11.1.0 to 11.1.1 in /wallet-web [\#758](https://github.com/nymtech/nym/pull/758) ([dependabot[bot]](https://github.com/apps/dependabot))
-- Add block\_height in the Delegation structure as well [\#757](https://github.com/nymtech/nym/pull/757) ([neacsu](https://github.com/neacsu))
+- Add block_height in the Delegation structure as well [\#757](https://github.com/nymtech/nym/pull/757) ([neacsu](https://github.com/neacsu))
 - Feature/add blockstamp [\#756](https://github.com/nymtech/nym/pull/756) ([neacsu](https://github.com/neacsu))
 - NetworkMonitorBuilder - starting the monitor after rocket has launched [\#754](https://github.com/nymtech/nym/pull/754) ([jstuczyn](https://github.com/jstuczyn))
 - Enabled validators api argument [\#753](https://github.com/nymtech/nym/pull/753) ([jstuczyn](https://github.com/jstuczyn))
@@ -565,7 +583,7 @@ The release also include some additional work for distributed key generation in 
 - Feature/more reliable uptime calculation [\#747](https://github.com/nymtech/nym/pull/747) ([jstuczyn](https://github.com/jstuczyn))
 - Update template toml key [\#746](https://github.com/nymtech/nym/pull/746) ([neacsu](https://github.com/neacsu))
 - Feature/cred after handshake [\#745](https://github.com/nymtech/nym/pull/745) ([neacsu](https://github.com/neacsu))
-- Reinstate the POST method blind\_sign [\#744](https://github.com/nymtech/nym/pull/744) ([neacsu](https://github.com/neacsu))
+- Reinstate the POST method blind_sign [\#744](https://github.com/nymtech/nym/pull/744) ([neacsu](https://github.com/neacsu))
 - explorer-api: add pending field to port check response [\#742](https://github.com/nymtech/nym/pull/742) ([mmsinclair](https://github.com/mmsinclair))
 - Feature/use delegation rates [\#741](https://github.com/nymtech/nym/pull/741) ([neacsu](https://github.com/neacsu))
 - Feature/copy to clipboard [\#740](https://github.com/nymtech/nym/pull/740) ([fmtabbara](https://github.com/fmtabbara))
@@ -602,6 +620,4 @@ The release also include some additional work for distributed key generation in 
 - Hang coconut issuance off the validator-api [\#679](https://github.com/nymtech/nym/pull/679) ([durch](https://github.com/durch))
 - Update hmac and blake3 [\#673](https://github.com/nymtech/nym/pull/673) ([durch](https://github.com/durch))
 
-
-
-\* *This Changelog was automatically generated by [github_changelog_generator](https://github.com/github-changelog-generator/github-changelog-generator)*
+\* _This Changelog was automatically generated by [github_changelog_generator](https://github.com/github-changelog-generator/github-changelog-generator)_

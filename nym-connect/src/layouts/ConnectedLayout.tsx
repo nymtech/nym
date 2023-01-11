@@ -39,7 +39,7 @@ export const ConnectedLayout: React.FC<{
 }) => (
   <>
     <IpAddressAndPortModal show={showInfoModal} onClose={handleCloseInfoModal} ipAddress={ipAddress} port={port} />
-    <Box pb={4}>
+    <Box pb={1}>
       <ConnectionStatus
         status={ConnectionStatusKind.connected}
         serviceProvider={serviceProvider}

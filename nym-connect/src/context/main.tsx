@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, useRef } from 'react';
 import { DateTime } from 'luxon';
 import { invoke } from '@tauri-apps/api';
 import type { UnlistenFn } from '@tauri-apps/api/event';
@@ -179,11 +179,17 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     getSpFromStorage();
   }, []);
 
+  const timerId = useRef<NodeJS.Timeout>();
+
   useEffect(() => {
+    if (timerId.current) {
+      clearTimeout(timerId.current);
+    }
+
     if (gatewayPerformance !== 'Good') {
-      setTimeout(() => {
+      timerId.current = setTimeout(() => {
         setGatewayPerformance('Good');
-      }, 5000);
+      }, 15000);
     }
   }, [gatewayPerformance]);
 
@@ -224,7 +230,6 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
       gatewayPerformance,
     ],
   );
-  console.log(gatewayPerformance);
 
   return <ClientContext.Provider value={contextValue}>{children}</ClientContext.Provider>;
 };

@@ -7,17 +7,18 @@ use std::borrow::Borrow;
 use std::convert::TryInto;
 
 use bls12_381::{G1Projective, G2Projective, Scalar};
-use digest::generic_array::typenum::Unsigned;
 use digest::Digest;
+use digest::generic_array::typenum::Unsigned;
 use group::GroupEncoding;
 use itertools::izip;
 use sha2::Sha256;
 
+use crate::Attribute;
 use crate::error::{CoconutError, Result};
+use crate::scheme::issuance::compute_commitment_hash;
 use crate::scheme::setup::Parameters;
 use crate::scheme::VerificationKey;
 use crate::utils::{hash_g1, try_deserialize_scalar, try_deserialize_scalar_vec};
-use crate::Attribute;
 
 // as per the reference python implementation
 type ChallengeDigest = Sha256;
@@ -38,10 +39,10 @@ pub struct ProofCmCs {
 // and as per the bls12-381 library all elements are using big-endian form
 /// Generates a Scalar [or Fp] challenge by hashing a number of elliptic curve points.  
 fn compute_challenge<D, I, B>(iter: I) -> Scalar
-where
-    D: Digest,
-    I: Iterator<Item = B>,
-    B: AsRef<[u8]>,
+    where
+        D: Digest,
+        I: Iterator<Item=B>,
+        B: AsRef<[u8]>,
 {
     let mut h = D::new();
     for point_representation in iter {
@@ -69,8 +70,8 @@ fn produce_response(witness: &Scalar, challenge: &Scalar, secret: &Scalar) -> Sc
 
 // note: it's caller's responsibility to ensure witnesses.len() = secrets.len()
 fn produce_responses<S>(witnesses: &[Scalar], challenge: &Scalar, secrets: &[S]) -> Vec<Scalar>
-where
-    S: Borrow<Scalar>,
+    where
+        S: Borrow<Scalar>,
 {
     debug_assert_eq!(witnesses.len(), secrets.len());
 
@@ -91,6 +92,7 @@ impl ProofCmCs {
         commitments: &[G1Projective],
         pedersen_commitments_openings: &[Scalar],
         private_attributes: &[Attribute],
+        public_attributes: &[Attribute],
     ) -> Self {
         // note: this is only called from `prepare_blind_sign` that already checks
         // whether private attributes are non-empty and whether we don't have too many
@@ -104,7 +106,7 @@ impl ProofCmCs {
         let witness_attributes = params.n_random_scalars(private_attributes.len());
 
         // recompute h
-        let h = hash_g1(commitment.to_bytes());
+        let h = compute_commitment_hash(*commitment, public_attributes);
         let hs_bytes = params
             .gen_hs()
             .iter()
@@ -119,10 +121,10 @@ impl ProofCmCs {
         // Ccm = (wr * g1) + (wm[0] * hs[0]) + ... + (wm[i] * hs[i])
         let commitment_attributes = g1 * witness_commitment_opening
             + witness_attributes
-                .iter()
-                .zip(params.gen_hs().iter())
-                .map(|(wm_i, hs_i)| hs_i * wm_i)
-                .sum::<G1Projective>();
+            .iter()
+            .zip(params.gen_hs().iter())
+            .map(|(wm_i, hs_i)| hs_i * wm_i)
+            .sum::<G1Projective>();
 
         // zkp commitments for the individual attributes
         let commitments_attributes = witness_pedersen_commitments_openings
@@ -186,7 +188,7 @@ impl ProofCmCs {
         }
 
         // recompute h
-        let h = hash_g1(commitment.to_bytes());
+        let h = compute_commitment_hash(*commitment, public_attributes);
         let g1 = params.gen1();
 
         let hs_bytes = params
@@ -199,26 +201,26 @@ impl ProofCmCs {
         // Cw = (cm * c) + (rr * g1) + (rm[0] * hs[0]) + ... + (rm[n] * hs[n])
         let commitment_attributes = (commitment
             - public_attributes
-                .iter()
-                .zip(params.gen_hs().iter().skip(self.response_attributes.len()))
-                .map(|(pub_attr, hs)| hs * pub_attr)
-                .sum::<G1Projective>())
+            .iter()
+            .zip(params.gen_hs().iter().skip(self.response_attributes.len()))
+            .map(|(pub_attr, hs)| hs * pub_attr)
+            .sum::<G1Projective>())
             * self.challenge
             + g1 * self.response_opening
             + self
-                .response_attributes
-                .iter()
-                .zip(params.gen_hs().iter())
-                .map(|(res_attr, hs)| hs * res_attr)
-                .sum::<G1Projective>();
+            .response_attributes
+            .iter()
+            .zip(params.gen_hs().iter())
+            .map(|(res_attr, hs)| hs * res_attr)
+            .sum::<G1Projective>();
 
         let commitments_attributes = izip!(
             commitments.iter(),
             self.response_openings.iter(),
             self.response_attributes.iter()
         )
-        .map(|(cm_j, r_o_j, r_m_j)| cm_j * self.challenge + g1 * r_o_j + h * r_m_j)
-        .collect::<Vec<_>>();
+            .map(|(cm_j, r_o_j, r_m_j)| cm_j * self.challenge + g1 * r_o_j + h * r_m_j)
+            .collect::<Vec<_>>();
 
         let commitments_bytes = commitments
             .iter()
@@ -365,10 +367,10 @@ impl ProofKappaZeta {
         let commitment_kappa = params.gen2() * witness_blinder
             + verification_key.alpha
             + witness_attributes
-                .iter()
-                .zip(verification_key.beta_g2.iter())
-                .map(|(wm_i, beta_i)| beta_i * wm_i)
-                .sum::<G2Projective>();
+            .iter()
+            .zip(verification_key.beta_g2.iter())
+            .map(|(wm_i, beta_i)| beta_i * wm_i)
+            .sum::<G2Projective>();
 
         // zeta is the public value associated with the serial number
         let commitment_zeta = params.gen2() * witness_serial_number;
@@ -422,10 +424,10 @@ impl ProofKappaZeta {
             + params.gen2() * self.response_blinder
             + verification_key.alpha * (Scalar::one() - self.challenge)
             + response_attributes
-                .iter()
-                .zip(verification_key.beta_g2.iter())
-                .map(|(priv_attr, beta_i)| beta_i * priv_attr)
-                .sum::<G2Projective>();
+            .iter()
+            .zip(verification_key.beta_g2.iter())
+            .map(|(priv_attr, beta_i)| beta_i * priv_attr)
+            .sum::<G2Projective>();
 
         // zeta is the public value associated with the serial number
         let commitment_zeta = zeta * self.challenge + params.gen2() * self.response_serial_number;
@@ -529,9 +531,18 @@ mod tests {
         let cms: [G1Projective; 1] = [G1Projective::random(&mut rng)];
         let rs = params.n_random_scalars(1);
         let private_attributes = params.n_random_scalars(1);
+        let public_attributes = params.n_random_scalars(1);
 
         // 0 public 1 private
-        let pi_s = ProofCmCs::construct(&params, &cm, &r, &cms, &rs, &private_attributes);
+        let pi_s = ProofCmCs::construct(
+            &params,
+            &cm,
+            &r,
+            &cms,
+            &rs,
+            &private_attributes,
+            &public_attributes,
+        );
 
         let bytes = pi_s.to_bytes();
         assert_eq!(ProofCmCs::from_bytes(&bytes).unwrap(), pi_s);
@@ -547,7 +558,15 @@ mod tests {
         let private_attributes = params.n_random_scalars(2);
 
         // 0 public 2 privates
-        let pi_s = ProofCmCs::construct(&params, &cm, &r, &cms, &rs, &private_attributes);
+        let pi_s = ProofCmCs::construct(
+            &params,
+            &cm,
+            &r,
+            &cms,
+            &rs,
+            &private_attributes,
+            &public_attributes,
+        );
 
         let bytes = pi_s.to_bytes();
         assert_eq!(ProofCmCs::from_bytes(&bytes).unwrap(), pi_s);

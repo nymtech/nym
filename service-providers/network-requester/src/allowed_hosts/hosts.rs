@@ -22,8 +22,8 @@ pub(crate) struct HostsStore {
 impl HostsStore {
     /// Constructs a new HostsStore
     pub(crate) fn new(base_dir: PathBuf, filename: PathBuf) -> HostsStore {
-        let storefile = HostsStore::setup_storefile(base_dir, filename);
-        let hosts = HostsStore::load_from_storefile(&storefile)
+        let storefile = Self::setup_storefile(base_dir, filename);
+        let hosts = Self::load_from_storefile(&storefile)
             .unwrap_or_else(|_| panic!("Could not load hosts from storefile at {:?}", storefile));
 
         let (domains, ip_nets): (Vec<_>, Vec<_>) =
@@ -33,6 +33,34 @@ impl HostsStore {
             storefile,
             domains: domains.into_iter().map(Host::extract_domain).collect(),
             ip_nets: ip_nets.into_iter().map(Host::extract_ipnetwork).collect(),
+        }
+    }
+
+    pub(crate) fn contains_domain(&self, host: &str) -> bool {
+        self.domains.contains(&host.to_string())
+    }
+
+    pub(super) fn contains_ip_address(&self, address: IpAddr) -> bool {
+        for ip_net in &self.ip_nets {
+            if ip_net.contains(address) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    pub(super) fn add_ip(&mut self, ip: IpAddr) {
+        if !self.contains_ip_address(ip) {
+            self.ip_nets.push(ip.into());
+            self.append_to_file(&ip.to_string());
+        }
+    }
+
+    pub(super) fn add_domain(&mut self, domain: &str) {
+        if !self.contains_domain(domain) {
+            self.domains.insert(domain.to_string());
+            self.append_to_file(domain);
         }
     }
 
@@ -54,20 +82,6 @@ impl HostsStore {
         HostsStore::append(&self.storefile, host);
     }
 
-    pub(crate) fn contains_domain(&self, host: &str) -> bool {
-        self.domains.contains(&host.to_string())
-    }
-
-    pub(super) fn contains_ip_address(&self, address: IpAddr) -> bool {
-        for ip_net in &self.ip_nets {
-            if ip_net.contains(address) {
-                return true;
-            }
-        }
-
-        false
-    }
-
     /// Returns the default base directory for the storefile.
     ///
     /// This is split out so we can easily inject our own base_dir for unit tests.
@@ -75,20 +89,6 @@ impl HostsStore {
         dirs::home_dir()
             .expect("no home directory known for this OS")
             .join(".nym")
-    }
-
-    pub(super) fn maybe_add_ip(&mut self, ip: IpAddr) {
-        if !self.contains_ip_address(ip) {
-            self.ip_nets.push(ip.into());
-            self.append_to_file(&ip.to_string());
-        }
-    }
-
-    pub(super) fn maybe_add_domain(&mut self, domain: &str) {
-        if !self.contains_domain(domain) {
-            self.domains.insert(domain.to_string());
-            self.append_to_file(domain);
-        }
     }
 
     fn setup_storefile(base_dir: PathBuf, filename: PathBuf) -> PathBuf {

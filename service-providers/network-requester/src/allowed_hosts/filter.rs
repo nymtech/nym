@@ -16,10 +16,11 @@ use super::HostsStore;
 /// We rely on the list of domains at https://publicsuffix.org/ to figure out what the root
 /// domain is for a given request. This allows us to distinguish all the rules for e.g.
 /// .com, .co.uk, .co.jp, uk.com, etc, so that we can distinguish correct root-ish
-/// domains as allowed. That list is loaded once at startup from the network.
+/// domains as allowed. That list is loaded once at startup from Mozilla's canonical
+/// publicsuffix list.
 pub(crate) struct OutboundRequestFilter {
     pub(super) allowed_hosts: HostsStore,
-    domain_list: publicsuffix::List,
+    root_domain_list: publicsuffix::List,
     unknown_hosts: HostsStore,
 }
 
@@ -42,7 +43,7 @@ impl OutboundRequestFilter {
 
         OutboundRequestFilter {
             allowed_hosts,
-            domain_list,
+            root_domain_list: domain_list,
             unknown_hosts,
         }
     }
@@ -56,14 +57,14 @@ impl OutboundRequestFilter {
         // from ipv6 address, as for example ::1 contains colons but has no port
         let allowed = if let Ok(socketaddr) = host.parse::<SocketAddr>() {
             if !self.allowed_hosts.contains_ip_address(socketaddr.ip()) {
-                self.unknown_hosts.maybe_add_ip(socketaddr.ip());
+                self.unknown_hosts.add_ip(socketaddr.ip());
                 return false;
             }
             true
         } else if let Ok(ipaddr) = host.parse::<IpAddr>() {
             // then check if it was an ip address
             if !self.allowed_hosts.contains_ip_address(ipaddr) {
-                self.unknown_hosts.maybe_add_ip(ipaddr);
+                self.unknown_hosts.add_ip(ipaddr);
                 return false;
             }
             true
@@ -73,7 +74,7 @@ impl OutboundRequestFilter {
             if let Some(domain_root) = self.get_domain_root(&trimmed) {
                 // it's a domain
                 if !self.allowed_hosts.contains_domain(&domain_root) {
-                    self.unknown_hosts.maybe_add_domain(&trimmed);
+                    self.unknown_hosts.add_domain(&trimmed);
                     return false;
                 }
                 true
@@ -104,9 +105,10 @@ impl OutboundRequestFilter {
     }
 
     /// Attempts to get the root domain, shorn of subdomains, using publicsuffix.
-    /// If the domain is itself a suffix, then just use the full address as root.
+    /// If the domain is itself registered in publicsuffix (e.g. s3.amazonaws.com),
+    /// then just use the full address as root.
     fn get_domain_root(&self, host: &str) -> Option<String> {
-        match self.domain_list.parse_domain(host) {
+        match self.root_domain_list.parse_domain(host) {
             Ok(d) => Some(
                 d.root()
                     .map(|root| root.to_string())

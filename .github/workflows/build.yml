@@ -60,7 +60,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --workspace --all-features
-          name: ABC-$GITHUB_SHA
+          name: $GITHUB_SHA
 
       - name: Run clippy
         uses: actions-rs/cargo@v1

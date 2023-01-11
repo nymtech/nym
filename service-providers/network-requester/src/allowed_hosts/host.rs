@@ -6,20 +6,8 @@ pub(crate) enum Host {
     IpNetwork(IpNetwork),
 }
 
-// TODO: perphaps in the future it should do some domain validation?
-// so for example if somebody put some nonsense in the whitelist file like "foomp", it would get
-// rejected?
-impl From<String> for Host {
-    fn from(raw: String) -> Self {
-        if let Ok(ipnet) = raw.parse() {
-            Host::IpNetwork(ipnet)
-        } else {
-            Host::Domain(raw)
-        }
-    }
-}
-
 impl Host {
+    /// Returns true if the host is a domain, false if it is an ip network
     pub(crate) fn is_domain(&self) -> bool {
         matches!(self, Host::Domain(..))
     }
@@ -35,6 +23,20 @@ impl Host {
         match self {
             Host::IpNetwork(ipnet) => ipnet,
             _ => panic!("called extract ipnet on a domain!"),
+        }
+    }
+}
+
+// TODO: perhaps in the future it should do some domain validation?
+//
+// So for example if somebody put some nonsense in the whitelist file like "foomp",
+// it would get rejected?
+impl From<String> for Host {
+    fn from(raw: String) -> Self {
+        if let Ok(ipnet) = raw.parse() {
+            Host::IpNetwork(ipnet)
+        } else {
+            Host::Domain(raw)
         }
     }
 }

@@ -39,6 +39,7 @@ impl OutboundRequestFilter {
             Ok(list) => list,
             Err(err) => panic!("Couldn't fetch domain list for request filtering, do you have an internet connection?: {err}"),
         };
+
         OutboundRequestFilter {
             allowed_hosts,
             domain_list,

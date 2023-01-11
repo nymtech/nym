@@ -71,7 +71,7 @@ export const ConnectionStatus: React.FC<{
     <>
       <Box color={color} fontSize={FONT_SIZE} sx={{ mb: 1 }}>
         {status === ConnectionStatusKind.connected && gatewayPerformance !== 'Good' ? (
-          <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} textAlign="center" color="primary">
+          <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} textAlign="left" color="primary">
             Gateway has issues
           </Typography>
         ) : (

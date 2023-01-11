@@ -7,8 +7,6 @@ on:
   pull_request:
     paths-ignore:
       - 'explorer/**'
-
-permissions: write-all
   
 
 jobs:
@@ -62,6 +60,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --workspace --all-features
+          name: test
 
       - name: Run clippy
         uses: actions-rs/cargo@v1

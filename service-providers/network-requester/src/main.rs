@@ -69,7 +69,8 @@ impl Run {
             self.open_proxy,
             self.enable_statistics,
             stats_provider_addr,
-        );
+        )
+        .await;
         server.run().await
     }
 }

@@ -1,10 +1,12 @@
+use crate::allowed_hosts::host::Host;
+
 /// Fetch the standard allowed list from nymtech.net
-pub(crate) async fn fetch() -> Vec<String> {
+pub(crate) async fn fetch() -> Vec<Host> {
     log::info!("Refreshing standard allowed hosts");
     get_standard_allowed_list()
         .await
         .split_whitespace()
-        .map(|s| s.to_string())
+        .map(|s| Host::from(s.to_string()))
         .collect()
 }
 

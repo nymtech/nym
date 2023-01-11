@@ -158,8 +158,8 @@ mod tests {
             let base_dir = test_base_dir();
             let allowed_filename = PathBuf::from(format!("allowed-{}.list", random_string()));
             let unknown_filename = PathBuf::from(&format!("unknown-{}.list", random_string()));
-            let allowed = HostsStore::new(base_dir.clone(), allowed_filename);
-            let unknown = HostsStore::new(base_dir, unknown_filename);
+            let allowed = HostsStore::new(base_dir.clone(), allowed_filename, None);
+            let unknown = HostsStore::new(base_dir, unknown_filename, None);
             OutboundRequestFilter::new(allowed, unknown)
         }
 
@@ -225,8 +225,8 @@ mod tests {
             let base_dir = test_base_dir();
             let allowed_filename = PathBuf::from(format!("allowed-{}.list", random_string()));
             let unknown_filename = PathBuf::from(&format!("unknown-{}.list", random_string()));
-            let allowed = HostsStore::new(base_dir.clone(), allowed_filename);
-            let unknown = HostsStore::new(base_dir, unknown_filename);
+            let allowed = HostsStore::new(base_dir.clone(), allowed_filename, None);
+            let unknown = HostsStore::new(base_dir, unknown_filename, None);
             OutboundRequestFilter::new(allowed, unknown)
         }
 
@@ -262,8 +262,8 @@ mod tests {
                 HostsStore::append(&allowed_storefile, allowed_host)
             }
 
-            let allowed = HostsStore::new(base_dir1, allowed_filename);
-            let unknown = HostsStore::new(base_dir2, unknown_filename);
+            let allowed = HostsStore::new(base_dir1, allowed_filename, None);
+            let unknown = HostsStore::new(base_dir2, unknown_filename, None);
             OutboundRequestFilter::new(allowed, unknown)
         }
 
@@ -408,7 +408,7 @@ mod tests {
             HostsStore::append(&storefile, "1:2:3::");
             HostsStore::append(&storefile, "5:6:7::/48");
 
-            let host_store = HostsStore::new(base_dir, filename);
+            let host_store = HostsStore::new(base_dir, filename, None);
             assert!(host_store.domains.contains("nymtech.net"));
             assert!(host_store.domains.contains("edwardsnowden.com"));
 

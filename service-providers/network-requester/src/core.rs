@@ -43,20 +43,24 @@ pub struct ServiceProvider {
 }
 
 impl ServiceProvider {
-    pub fn new(
+    pub async fn new(
         websocket_address: String,
         open_proxy: bool,
         enable_statistics: bool,
         stats_provider_addr: Option<Recipient>,
     ) -> ServiceProvider {
+        let standard_hosts = allowed_hosts::fetch_standard_allowed_list().await;
+
         let allowed_hosts = allowed_hosts::HostsStore::new(
             allowed_hosts::HostsStore::default_base_dir(),
             PathBuf::from("allowed.list"),
+            Some(standard_hosts),
         );
 
         let unknown_hosts = allowed_hosts::HostsStore::new(
             allowed_hosts::HostsStore::default_base_dir(),
             PathBuf::from("unknown.list"),
+            None,
         );
 
         let outbound_request_filter = OutboundRequestFilter::new(allowed_hosts, unknown_hosts);

@@ -20,11 +20,22 @@ pub(crate) struct HostsStore {
 }
 
 impl HostsStore {
-    /// Constructs a new HostsStore
-    pub(crate) fn new(base_dir: PathBuf, filename: PathBuf) -> HostsStore {
+    /// Constructs a new HostsStore. If the storefile does not exist, it will be created.
+    ///
+    /// You can inject a list of standard hosts that you want to support, in addition to the ones
+    /// in the user-defined storefile.
+    pub(crate) fn new(
+        base_dir: PathBuf,
+        filename: PathBuf,
+        standard_hosts: Option<Vec<Host>>,
+    ) -> HostsStore {
         let storefile = Self::setup_storefile(base_dir, filename);
-        let hosts = Self::load_from_storefile(&storefile)
+        let mut hosts = Self::load_from_storefile(&storefile)
             .unwrap_or_else(|_| panic!("Could not load hosts from storefile at {:?}", storefile));
+
+        if standard_hosts.is_some() {
+            hosts.extend(standard_hosts.unwrap_or_default());
+        }
 
         let (domains, ip_nets): (Vec<_>, Vec<_>) =
             hosts.into_iter().partition(|host| host.is_domain());
@@ -114,5 +125,31 @@ impl HostsStore {
             .lines()
             .map(|line| Host::from(line.expect("failed to read input file line!")))
             .collect())
+    }
+}
+
+#[cfg(test)]
+mod constructor_tests {
+    use super::*;
+
+    #[test]
+    fn works_with_no_standard_hosts() {
+        let store = HostsStore::new(PathBuf::from("/tmp"), PathBuf::from("foomp.db"), None);
+        assert_eq!(store.domains.len(), 0);
+    }
+
+    #[test]
+    fn includes_standard_hosts_when_they_are_supplied() {
+        let store = HostsStore::new(
+            PathBuf::from("/tmp"),
+            PathBuf::from("foomp.db"),
+            Some(vec![
+                Host::from(String::from("google.com")),
+                Host::from(String::from("foomp.com")),
+            ]),
+        );
+        assert_eq!(store.domains.len(), 2);
+        assert!(store.contains_domain("google.com"));
+        assert!(store.contains_domain("foomp.com"));
     }
 }

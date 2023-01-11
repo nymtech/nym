@@ -71,27 +71,18 @@ pub(crate) fn node_status_routes(
 /// caching interval that is twice the nym contract cache
 pub(crate) fn start_cache_refresh(
     config: &Config,
-    rocket: &rocket::Rocket<rocket::Ignite>,
+    nym_contract_cache_state: &NymContractCache,
+    node_status_cache_state: &NodeStatusCache,
+    storage: Option<&storage::NymApiStorage>,
     nym_contract_cache_listener: tokio::sync::watch::Receiver<support::caching::CacheNotification>,
     shutdown: &TaskManager,
 ) {
-    let nym_contract_cache_state = rocket
-        .state::<NymContractCache>()
-        .expect("contract cache has not been setup")
-        .clone();
-
-    let node_status_cache_state = rocket
-        .state::<NodeStatusCache>()
-        .expect("node status cache has not been setup")
-        .clone();
-
-    let storage = rocket.state::<storage::NymApiStorage>().cloned();
     let mut nym_api_cache_refresher = NodeStatusCacheRefresher::new(
-        node_status_cache_state,
+        node_status_cache_state.to_owned(),
         config.get_node_status_caching_interval(),
-        nym_contract_cache_state,
+        nym_contract_cache_state.to_owned(),
         nym_contract_cache_listener,
-        storage,
+        storage.cloned(),
     );
     let shutdown_listener = shutdown.subscribe();
     tokio::spawn(async move { nym_api_cache_refresher.run(shutdown_listener).await });

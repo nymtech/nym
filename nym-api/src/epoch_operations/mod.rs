@@ -34,7 +34,7 @@ mod helpers;
 use crate::epoch_operations::helpers::stake_to_f64;
 use crate::node_status_api::ONE_DAY;
 use error::RewardingError;
-use task::TaskClient;
+use task::{TaskClient, TaskManager};
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct MixnodeToReward {
@@ -439,5 +439,20 @@ impl RewardedSetUpdater {
         }
 
         Ok(())
+    }
+
+    pub(crate) fn start(
+        nyxd_client: Client,
+        nym_contract_cache: &NymContractCache,
+        storage: &NymApiStorage,
+        shutdown: &TaskManager,
+    ) {
+        let mut rewarded_set_updater = RewardedSetUpdater::new(
+            nyxd_client,
+            nym_contract_cache.to_owned(),
+            storage.to_owned(),
+        );
+        let shutdown_listener = shutdown.subscribe();
+        tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await });
     }
 }

@@ -19,7 +19,6 @@ use credential_storage::PersistentStorage;
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
-use rocket::{Ignite, Rocket};
 use std::sync::Arc;
 use task::TaskManager;
 
@@ -33,32 +32,18 @@ pub(crate) const ROUTE_TESTING_TEST_NONCE: u64 = 0;
 
 pub(crate) fn setup<'a>(
     config: &'a Config,
-    rocket: &Rocket<Ignite>,
+    nym_contract_cache_state: NymContractCache,
+    storage: NymApiStorage,
     _nyxd_client: nyxd::Client,
     system_version: &str,
-) -> Option<NetworkMonitorBuilder<'a>> {
-    if !config.get_network_monitor_enabled() {
-        return None;
-    }
-
-    // get instances of managed states
-    let nym_contract_cache_state = rocket
-        .state::<NymContractCache>()
-        .expect("contract cache has not been setup")
-        .clone();
-
-    let node_status_storage_state = rocket
-        .state::<NymApiStorage>()
-        .expect("api storage not been setup")
-        .clone();
-
-    Some(NetworkMonitorBuilder::new(
+) -> NetworkMonitorBuilder<'a> {
+    NetworkMonitorBuilder::new(
         config,
         _nyxd_client,
         system_version,
-        node_status_storage_state,
+        storage,
         nym_contract_cache_state,
-    ))
+    )
 }
 
 pub(crate) struct NetworkMonitorBuilder<'a> {

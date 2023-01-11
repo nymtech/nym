@@ -22,6 +22,7 @@ use std::sync::Arc;
 use support::{http, nyxd};
 use task::{wait_for_signal_and_error, TaskManager};
 use tokio::sync::Notify;
+
 mod circulating_supply_api;
 mod epoch_operations;
 mod network_monitor;
@@ -32,11 +33,20 @@ pub(crate) mod support;
 #[cfg(feature = "coconut")]
 use coconut::dkg::controller::DkgController;
 
+use crate::epoch_operations::RewardedSetUpdater;
+use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
+use crate::support::config::Config;
+use crate::support::storage::NymApiStorage;
 #[cfg(feature = "coconut")]
 use rand::rngs::OsRng;
 
 #[cfg(feature = "coconut")]
 mod coconut;
+
+struct ShutdownHandlers {
+    task_manager_handle: TaskManager,
+    rocket_handle: rocket::Shutdown,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -53,26 +63,17 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     run_nym_api(args).await
 }
 
-async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Sync>> {
+async fn start_nym_api_tasks(
+    config: Config,
+) -> Result<ShutdownHandlers, Box<dyn Error + Send + Sync>> {
     let system_version = clap::crate_version!();
-    let save_to_file = cli_args.save_config;
-    let config = cli::build_config(cli_args)?;
-
-    // if we just wanted to write data to the config, exit
-    if save_to_file {
-        info!("Saving the configuration to a file");
-        config.save_to_file(None)?;
-        return Ok(());
-    }
-
     let mix_denom = std::env::var(MIX_DENOM)?;
 
     let nyxd_client = nyxd::Client::new(&config);
     let liftoff_notify = Arc::new(Notify::new());
 
-    // We need a bigger timeout
-    let mut shutdown = TaskManager::new(10);
-
+    // TODO: question to @BN: why are we creating a fresh coconut keypair here every time as opposed
+    // to using some persistent keys?
     #[cfg(feature = "coconut")]
     let coconut_keypair = coconut::keypair::KeyPair::new();
 
@@ -87,7 +88,41 @@ async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Syn
     )
     .await?;
 
-    let circulating_supply_cache_state = rocket.state::<CirculatingSupplyCache>().unwrap().clone();
+    // setup shutdowns
+    let shutdown = TaskManager::new(10);
+
+    // Rocket handles shutdown on its own, but its shutdown handling should be incorporated
+    // with that of the rest of the tasks. Currently its runtime is forcefully terminated once
+    // nym-api exits.
+    let rocket_shutdown_handle = rocket.shutdown();
+
+    // get references to the managed state
+    let nym_contract_cache_state = rocket.state::<NymContractCache>().unwrap();
+    let node_status_cache_state = rocket.state::<NodeStatusCache>().unwrap();
+    let circulating_supply_cache_state = rocket.state::<CirculatingSupplyCache>().unwrap();
+    let maybe_storage = rocket.state::<NymApiStorage>();
+
+    // start all the caches first
+    let nym_contract_cache_listener = nym_contract_cache::start_refresher(
+        &config,
+        nym_contract_cache_state,
+        nyxd_client.clone(),
+        &shutdown,
+    );
+    node_status_api::start_cache_refresh(
+        &config,
+        nym_contract_cache_state,
+        node_status_cache_state,
+        maybe_storage,
+        nym_contract_cache_listener,
+        &shutdown,
+    );
+    circulating_supply_api::start_cache_refresh(
+        &config,
+        nyxd_client.clone(),
+        circulating_supply_cache_state,
+        &shutdown,
+    );
 
     #[cfg(feature = "coconut")]
     {
@@ -97,31 +132,40 @@ async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Syn
         tokio::spawn(async move { dkg_controller.run(shutdown_listener).await });
     }
 
-    let nym_contract_cache_listener =
-        nym_contract_cache::start(&config, &rocket, nyxd_client.clone(), &shutdown)?;
+    // only start the uptime updater if the monitoring if it's enabled
+    if config.get_network_monitor_enabled() {
+        // if network monitor is enabled, the storage MUST BE available
+        let storage = maybe_storage.unwrap();
 
-    node_status_api::start_cache_refresh(&config, &rocket, nym_contract_cache_listener, &shutdown);
+        HistoricalUptimeUpdater::start(storage, &shutdown);
 
-    circulating_supply_api::start_cache_refresh(
-        &config,
-        nyxd_client.clone(),
-        &circulating_supply_cache_state,
-        &shutdown,
-    );
+        // the same idea holds for rewarding
+        if config.get_rewarding_enabled() {
+            RewardedSetUpdater::start(
+                nyxd_client.clone(),
+                nym_contract_cache_state,
+                storage,
+                &shutdown,
+            );
+        }
+    }
 
-    let monitor_builder = network_monitor::setup(&config, &rocket, nyxd_client, system_version);
-
-    // Rocket handles shutdown on its own, but its shutdown handling should be incorporated
-    // with that of the rest of the tasks. Currently its runtime is forcefully terminated once
-    // nym-api exits.
-    let shutdown_handle = rocket.shutdown();
+    let tmp_owned_contract_cache_state = nym_contract_cache_state.to_owned();
+    let tmp_owned_storage = maybe_storage.unwrap().to_owned();
 
     // Launch the rocket!
     tokio::spawn(rocket.launch());
 
-    // to finish building our monitor, we need to have rocket up and running so that we could
+    // finally, to finish building our monitor, we need to have rocket up and running so that we could
     // obtain our bandwidth credential
-    if let Some(monitor_builder) = monitor_builder {
+    if config.get_network_monitor_enabled() {
+        let monitor_builder = network_monitor::setup(
+            &config,
+            tmp_owned_contract_cache_state,
+            tmp_owned_storage,
+            nyxd_client,
+            system_version,
+        );
         info!("Starting network monitor...");
         // wait for rocket's liftoff stage
         liftoff_notify.notified().await;
@@ -129,12 +173,29 @@ async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Syn
         // we're ready to go! spawn the network monitor!
         let runnables = monitor_builder.build().await;
         runnables.spawn_tasks(&shutdown);
-    } else {
-        info!("Network monitoring is disabled.");
     }
 
-    let res = wait_for_signal_and_error(&mut shutdown).await;
-    shutdown_handle.notify();
+    Ok(ShutdownHandlers {
+        task_manager_handle: shutdown,
+        rocket_handle: rocket_shutdown_handle,
+    })
+}
+
+async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let save_to_file = cli_args.save_config;
+    let config = cli::build_config(cli_args)?;
+
+    // if we just wanted to write data to the config, exit, don't start any tasks
+    if save_to_file {
+        info!("Saving the configuration to a file");
+        config.save_to_file(None)?;
+        return Ok(());
+    }
+
+    let mut shutdown_handlers = start_nym_api_tasks(config).await?;
+
+    let res = wait_for_signal_and_error(&mut shutdown_handlers.task_manager_handle).await;
+    shutdown_handlers.rocket_handle.notify();
 
     res
 }

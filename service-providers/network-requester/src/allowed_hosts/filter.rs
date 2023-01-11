@@ -35,7 +35,7 @@ impl OutboundRequestFilter {
         allowed_hosts: HostsStore,
         unknown_hosts: HostsStore,
     ) -> OutboundRequestFilter {
-        let domain_list = match Self::fetch_domain_list() {
+        let domain_list = match publicsuffix::List::fetch() {
             Ok(list) => list,
             Err(err) => panic!("Couldn't fetch domain list for request filtering, do you have an internet connection?: {err}"),
         };
@@ -44,10 +44,6 @@ impl OutboundRequestFilter {
             domain_list,
             unknown_hosts,
         }
-    }
-
-    fn fetch_domain_list() -> Result<publicsuffix::List, errors::Error> {
-        publicsuffix::List::fetch()
     }
 
     /// Returns `true` if a host's root domain is in the `allowed_hosts` list.

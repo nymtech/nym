@@ -68,11 +68,11 @@ pub struct Init {
     /// bypass bandwidth credential requirement
     #[cfg(feature = "coconut")]
     #[clap(long)]
-    only_coconut_credentials: bool,
+    only_coconut_credentials: Option<bool>,
 
     /// Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server
     #[clap(long)]
-    enabled_statistics: bool,
+    enabled_statistics: Option<bool>,
 
     /// URL where a statistics aggregator is running. The default value is a Nym aggregator server
     #[clap(long)]
@@ -182,11 +182,11 @@ mod tests {
             nym_apis: None,
             mnemonic: None,
             statistics_service_url: None,
-            enabled_statistics: false,
+            enabled_statistics: None,
             #[cfg(feature = "coconut")]
             nyxd_urls: None,
             #[cfg(feature = "coconut")]
-            only_coconut_credentials: false,
+            only_coconut_credentials: None,
         };
         std::env::set_var(BECH32_PREFIX, "n");
 

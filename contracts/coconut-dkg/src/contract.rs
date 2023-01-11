@@ -9,7 +9,7 @@ use crate::dealings::queries::query_dealings_paged;
 use crate::dealings::transactions::try_commit_dealings;
 use crate::epoch_state::queries::{query_current_epoch, query_current_epoch_threshold};
 use crate::epoch_state::storage::CURRENT_EPOCH;
-use crate::epoch_state::transactions::advance_epoch_state;
+use crate::epoch_state::transactions::{advance_epoch_state, try_surpassed_threshold};
 use crate::error::ContractError;
 use crate::state::{State, MULTISIG, STATE};
 use crate::verification_key_shares::queries::query_vk_shares_paged;
@@ -84,6 +84,7 @@ pub fn execute(
         ExecuteMsg::VerifyVerificationKeyShare { owner } => {
             try_verify_verification_key_share(deps, info, owner)
         }
+        ExecuteMsg::SurpassedThreshold {} => try_surpassed_threshold(deps, env),
         ExecuteMsg::AdvanceEpochState {} => advance_epoch_state(deps, env),
     }
 }

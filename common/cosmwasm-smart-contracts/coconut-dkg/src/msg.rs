@@ -35,6 +35,8 @@ pub enum ExecuteMsg {
         owner: Addr,
     },
 
+    SurpassedThreshold {},
+
     AdvanceEpochState {},
 }
 

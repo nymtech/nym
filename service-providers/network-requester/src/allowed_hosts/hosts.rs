@@ -9,10 +9,8 @@ use std::{
 use super::host::Host;
 use ipnetwork::IpNetwork;
 
-/// A simple file-based store for information about allowed / unknown hosts.
-/// Currently it completely ignores any port information.
-// TODO: in the future allow filtering by port, so for example 1.1.1.1:80 would be a valid filter,
-// which would allow connections to the port :80 while any requests to say 1.1.1.1:1234 would be denied.
+/// A simple file-backed store for information about allowed / unknown hosts.
+/// It ignores any port information.
 #[derive(Debug)]
 pub(crate) struct HostsStore {
     pub(super) storefile: PathBuf,
@@ -38,6 +36,7 @@ impl HostsStore {
         }
     }
 
+    /// Appends a line of `text` to the storefile at `path`
     pub(super) fn append(path: &Path, text: &str) {
         use std::io::Write;
         let mut file = OpenOptions::new()

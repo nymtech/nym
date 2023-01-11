@@ -56,7 +56,7 @@ impl Run {
             .transpose()
             .unwrap_or(None);
 
-        let uri = format!(
+        let websocket_address = format!(
             "ws://localhost:{}",
             self.websocket_port
                 .as_ref()
@@ -65,7 +65,7 @@ impl Run {
 
         log::info!("Starting socks5 service provider");
         let mut server = core::ServiceProvider::new(
-            uri,
+            websocket_address,
             self.open_proxy,
             self.enable_statistics,
             stats_provider_addr,

@@ -1,7 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
-use crate::allowed_hosts::{HostsStore, OutboundRequestFilter};
+use crate::allowed_hosts;
+use crate::allowed_hosts::OutboundRequestFilter;
 use crate::error::NetworkRequesterError;
 use crate::statistics::ServiceStatisticsCollector;
 use crate::websocket;
@@ -49,13 +49,13 @@ impl ServiceProvider {
         enable_statistics: bool,
         stats_provider_addr: Option<Recipient>,
     ) -> ServiceProvider {
-        let allowed_hosts = HostsStore::new(
-            HostsStore::default_base_dir(),
+        let allowed_hosts = allowed_hosts::HostsStore::new(
+            allowed_hosts::HostsStore::default_base_dir(),
             PathBuf::from("allowed.list"),
         );
 
-        let unknown_hosts = HostsStore::new(
-            HostsStore::default_base_dir(),
+        let unknown_hosts = allowed_hosts::HostsStore::new(
+            allowed_hosts::HostsStore::default_base_dir(),
             PathBuf::from("unknown.list"),
         );
 

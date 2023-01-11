@@ -1,6 +1,7 @@
 mod filter;
 mod host;
-mod storage;
+mod hosts;
+mod standard_list;
 
 pub(crate) use filter::OutboundRequestFilter;
-pub(crate) use storage::HostsStore;
+pub(crate) use hosts::HostsStore;

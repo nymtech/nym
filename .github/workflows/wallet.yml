@@ -51,6 +51,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --manifest-path nym-wallet/Cargo.toml --workspace --all-features
+          name: $GITHUB_SHA
 
       - name: Run clippy
         uses: actions-rs/cargo@v1

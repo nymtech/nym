@@ -101,6 +101,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features
+          name: $GITHUB_SHA
 
       - name: Run clippy
         uses: actions-rs/cargo@v1

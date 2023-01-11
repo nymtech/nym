@@ -53,6 +53,7 @@ jobs:
         with:
           command: test
           args: --workspace --all-features -- --ignored
+          name: $GITHUB_SHA
 
       - uses: actions-rs/clippy-check@v1
         name: Clippy checks

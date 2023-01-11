@@ -9,11 +9,8 @@ pub mod nym_api;
 #[cfg(feature = "nyxd-client")]
 pub mod nyxd;
 
-#[cfg(feature = "nyxd-client")]
-pub use crate::client::{CoconutApiClient, NymApiClient};
 pub use crate::error::ValidatorClientError;
 pub use nym_api_requests::*;
-pub use nyxd::AccountId;
 
 #[cfg(feature = "nyxd-client")]
-pub use client::{Client, Config};
+pub use client::{Client, CoconutApiClient, Config, NymApiClient};

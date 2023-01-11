@@ -52,7 +52,7 @@ pub(crate) struct OverrideConfig {
     clients_port: Option<u16>,
     datastore: Option<PathBuf>,
     announce_host: Option<String>,
-    enabled_statistics: bool,
+    enabled_statistics: Option<bool>,
     statistics_service_url: Option<url::Url>,
     nym_apis: Option<Vec<url::Url>>,
     mnemonic: Option<bip39::Mnemonic>,
@@ -60,7 +60,7 @@ pub(crate) struct OverrideConfig {
     #[cfg(feature = "coconut")]
     nyxd_urls: Option<Vec<url::Url>>,
     #[cfg(feature = "coconut")]
-    only_coconut_credentials: bool,
+    only_coconut_credentials: Option<bool>,
 }
 
 pub(crate) async fn execute(args: Cli) {
@@ -103,7 +103,7 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
             NYM_API,
             config::parse_urls,
         )
-        .with_enabled_statistics(args.enabled_statistics)
+        .with_optional(Config::with_enabled_statistics, args.enabled_statistics)
         .with_optional_env(
             Config::with_custom_statistics_service_url,
             args.statistics_service_url,
@@ -130,7 +130,10 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
                 NYXD,
                 config::parse_urls,
             )
-            .with_only_coconut_credentials(args.only_coconut_credentials);
+            .with_optional(
+                Config::with_only_coconut_credentials,
+                args.only_coconut_credentials,
+            );
     }
 
     config

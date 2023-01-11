@@ -38,7 +38,7 @@ pub(crate) struct Run {
 
     /// Whether to not start the websocket
     #[clap(long)]
-    disable_socket: bool,
+    disable_socket: Option<bool>,
 
     /// Port for the socket to listen on
     #[clap(short, long)]
@@ -57,7 +57,7 @@ pub(crate) struct Run {
     /// with bandwidth credential requirement.
     #[cfg(feature = "coconut")]
     #[clap(long)]
-    enabled_credentials_mode: bool,
+    enabled_credentials_mode: Option<bool>,
 }
 
 impl From<Run> for OverrideConfig {

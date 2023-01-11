@@ -94,11 +94,11 @@ struct ApiArgs {
 
     /// Specifies whether network monitoring is enabled on this API
     #[clap(short = 'm', long)]
-    enable_monitor: bool,
+    enable_monitor: Option<bool>,
 
     /// Specifies whether network rewarding is enabled on this API
     #[clap(short = 'r', long, requires = "enable_monitor", requires = "mnemonic")]
-    enable_rewarding: bool,
+    enable_rewarding: Option<bool>,
 
     /// Endpoint to nyxd instance from which the monitor will grab nodes to test
     #[clap(long)]
@@ -132,7 +132,7 @@ struct ApiArgs {
 
     /// Set this nym api to work in a enabled credentials that would attempt to use gateway with the bandwidth credential requirement
     #[clap(long)]
-    enabled_credentials_mode: bool,
+    enabled_credentials_mode: Option<bool>,
 
     /// Announced address where coconut clients will connect.
     #[cfg(feature = "coconut")]
@@ -142,7 +142,7 @@ struct ApiArgs {
     /// Flag to indicate whether coconut signer authority is enabled on this API
     #[cfg(feature = "coconut")]
     #[clap(long, requires = "mnemonic", requires = "announce-address")]
-    enable_coconut: bool,
+    enable_coconut: Option<bool>,
 }
 
 async fn wait_for_interrupt(mut shutdown: TaskManager) {
@@ -186,15 +186,18 @@ fn override_config(mut config: Config, args: ApiArgs) -> Config {
             Config::with_min_gateway_reliability,
             args.min_gateway_reliability,
         )
-        .with_network_monitor_enabled(args.enable_monitor)
-        .with_rewarding_enabled(args.enable_rewarding)
-        .with_disabled_credentials_mode(!args.enabled_credentials_mode);
+        .with_optional(Config::with_network_monitor_enabled, args.enable_monitor)
+        .with_optional(Config::with_rewarding_enabled, args.enable_rewarding)
+        .with_optional(
+            Config::with_disabled_credentials_mode,
+            args.enabled_credentials_mode.map(|b| !b),
+        );
 
     #[cfg(feature = "coconut")]
     {
         config = config
             .with_optional(Config::with_announce_address, args.announce_address)
-            .with_coconut_signer_enabled(args.enable_coconut);
+            .with_optional(Config::with_coconut_signer_enabled, args.enable_coconut);
     }
 
     if args.save_config {

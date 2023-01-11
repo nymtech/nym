@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
@@ -116,10 +114,7 @@ impl MixnetResponseListener {
                 }
             }
         }
-        #[cfg(not(target_arch = "wasm32"))]
-        tokio::time::timeout(Duration::from_secs(5), self.shutdown.recv())
-            .await
-            .expect("Task stopped without shutdown called");
+        self.shutdown.recv_timeout().await;
         log::debug!("MixnetResponseListener: Exiting");
     }
 }

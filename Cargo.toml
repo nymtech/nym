@@ -73,6 +73,7 @@ members = [
     "gateway/gateway-requests",
     "integrations/bity",
     "mixnode",
+    "sdk/rust/nym-sdk",
     "service-providers/network-requester",
     "service-providers/network-statistics",
     "nym-api",

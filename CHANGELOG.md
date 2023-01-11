@@ -6,6 +6,8 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ### Added
 
+- nym-sdk: added initial version of a Rust client sdk
+
 ### Changed
 
 - renamed all references to validator_api to nym_api

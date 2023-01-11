@@ -213,7 +213,11 @@ impl ActionController {
     }
 
     // note: when the entry expires it's automatically removed from pending_acks_timers
-    fn handle_expired_ack_timer(&mut self, expired_ack: Expired<FragmentIdentifier>) {
+    fn handle_expired_ack_timer(
+        &mut self,
+        expired_ack: Expired<FragmentIdentifier>,
+        task_client: &mut task::TaskClient,
+    ) {
         // I'm honestly not sure how to handle it, because getting it means other things in our
         // system are already misbehaving. If we ever see this panic, then I guess we should worry
         // about it. Perhaps just reschedule it at later point?
@@ -231,9 +235,16 @@ impl ActionController {
             // downgrading an arc and then upgrading vs cloning is difference of 30ns vs 15ns
             // so it's literally a NO difference while it might prevent us from unnecessarily
             // resending data (in maybe 1 in 1 million cases, but it's something)
-            self.retransmission_sender
+            if self
+                .retransmission_sender
                 .unbounded_send(Arc::downgrade(pending_ack_data))
-                .unwrap()
+                .is_err()
+            {
+                assert!(
+                    task_client.is_shutdown_poll(),
+                    "Failed to send pending ack for retransmission"
+                );
+            }
         } else {
             // this shouldn't cause any issues but shouldn't have happened to begin with!
             error!("An already removed pending ack has expired")
@@ -264,7 +275,7 @@ impl ActionController {
                     }
                 },
                 expired_ack = self.pending_acks_timers.next() => match expired_ack {
-                    Some(expired_ack) => self.handle_expired_ack_timer(expired_ack),
+                    Some(expired_ack) => self.handle_expired_ack_timer(expired_ack, &mut shutdown),
                     None => {
                         log::trace!("ActionController: Stopping since ack channel closed");
                         break;
@@ -275,10 +286,7 @@ impl ActionController {
                 }
             }
         }
-        #[cfg(not(target_arch = "wasm32"))]
-        tokio::time::timeout(Duration::from_secs(5), shutdown.recv())
-            .await
-            .expect("Task stopped without shutdown called");
+        shutdown.recv_timeout().await;
         log::debug!("ActionController: Exiting");
     }
 }

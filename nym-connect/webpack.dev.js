@@ -1,7 +1,7 @@
 const { mergeWithRules } = require('webpack-merge');
 const webpack = require('webpack');
-const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin');
-const ReactRefreshTypeScript = require('react-refresh-typescript');
+// const ReactRefreshWebpackPlugin = require('@pmmmwh/react-refresh-webpack-plugin');
+// const ReactRefreshTypeScript = require('react-refresh-typescript');
 const commonConfig = require('./webpack.common');
 
 module.exports = mergeWithRules({
@@ -13,7 +13,7 @@ module.exports = mergeWithRules({
   },
 })(commonConfig, {
   mode: 'development',
-  devtool: 'inline-source-map',
+  devtool: false,
   module: {
     rules: [
       {
@@ -21,9 +21,9 @@ module.exports = mergeWithRules({
         use: 'ts-loader',
         exclude: /node_modules/,
         options: {
-          getCustomTransformers: () => ({
-            before: [ReactRefreshTypeScript()],
-          }),
+          // getCustomTransformers: () => ({
+          //   before: [ReactRefreshTypeScript()],
+          // }),
           // `ts-loader` does not work with HMR unless `transpileOnly` is used.
           // If you need type checking, `ForkTsCheckerWebpackPlugin` is an alternative.
           transpileOnly: true,
@@ -32,15 +32,14 @@ module.exports = mergeWithRules({
     ],
   },
   plugins: [
-    new ReactRefreshWebpackPlugin(),
-
+    // new ReactRefreshWebpackPlugin(),
     // this can be included automatically by the dev server, however build mode fails if missing
-    new webpack.HotModuleReplacementPlugin(),
+    // new webpack.HotModuleReplacementPlugin(),
   ],
 
   // recommended for faster rebuild
   optimization: {
-    runtimeChunk: true,
+    // runtimeChunk: true,
     removeAvailableModules: false,
     removeEmptyChunks: false,
     splitChunks: false,
@@ -56,11 +55,13 @@ module.exports = mergeWithRules({
 
   devServer: {
     port: 9000,
-    compress: true,
+    // compress: true,
     historyApiFallback: true,
-    hot: true,
-    client: {
-      overlay: false,
-    },
+    // hot: true,
+    host: 'local-ipv4',
+    allowedHosts: 'all',
+    // client: {
+    //   overlay: false,
+    // },
   },
 });

@@ -16,9 +16,10 @@ pub struct DisconnectResult {
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(rename_all = "lowercase"))]
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, Default)]
 #[serde(rename_all = "camelCase")]
 pub enum ConnectionStatusKind {
+    #[default]
     Disconnected,
     Disconnecting,
     Connected,

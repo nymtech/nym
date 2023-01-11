@@ -3,7 +3,7 @@ use tauri::{
     SystemTrayMenuItem, Wry,
 };
 
-use crate::window_toggle;
+use crate::window::window_toggle;
 
 pub const SHOW_LOG_WINDOW: &str = "show_log_window";
 pub const CLEAR_STORAGE: &str = "clear_storage";

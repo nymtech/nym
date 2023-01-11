@@ -1,20 +1,15 @@
 {
   "package": {
-    "productName": "nym-connect",
+    "productName": "nym_connect",
     "version": "1.1.6"
   },
   "build": {
     "distDir": "../dist",
     "devPath": "http://localhost:9000",
-    "beforeDevCommand": "",
-    "beforeBuildCommand": ""
+    "beforeDevCommand": "yarn webpack:dev:onlyThis",
+    "beforeBuildCommand": "yarn webpack:prod"
   },
   "tauri": {
-    "macOSPrivateApi": true,
-    "systemTray": {
-      "iconPath": "icons/tray_icon.png",
-      "iconAsTemplate": true
-    },
     "bundle": {
       "active": true,
       "targets": "all",
@@ -33,20 +28,21 @@
         "frameworks": [],
         "minimumSystemVersion": "",
         "exceptionDomain": "",
-        "signingIdentity": "Developer ID Application: Nym Technologies SA (VW5DZLFHM5)",
+        "signingIdentity": null,
         "entitlements": null
       },
       "windows": {
-        "certificateThumbprint": "6DB77B1F529A0804FE0E6843A3EB8A8CECFFD408",
+        "certificateThumbprint": null,
         "digestAlgorithm": "sha256",
-        "timestampUrl": "http://timestamp.comodoca.com"
+        "timestampUrl": ""
       }
     },
+    "systemTray": {
+      "iconPath": "icons/tray_icon.png",
+      "iconAsTemplate": true
+    },
     "updater": {
-      "active": true,
-      "endpoints": ["https://nymtech.net/.wellknown/connect/updater.json"],
-      "dialog": true,
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENCNzQ2M0E5N0VFODE2NApSV1JrZ2U2WE9rYTNETTg1OTBKdE5uWUEra0hML2syOVUvQ2lxZmFZRzZ1T3NWbGM0eVRzUTVhVwo="
+      "active": false
     },
     "allowlist": {
       "shell": {

@@ -1,6 +1,7 @@
 use crate::error::BackendError;
 use tauri::Manager;
 
+#[cfg(desktop)]
 #[tauri::command]
 pub fn help_log_toggle_window(app_handle: tauri::AppHandle) -> Result<(), BackendError> {
     if let Some(current_log_window) = app_handle.windows().get("log") {

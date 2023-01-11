@@ -1,22 +1,25 @@
 [package]
-name = "nym-connect"
+name = "nym_connect"
 version = "1.1.6"
 description = "nym-connect"
 authors = ["Nym Technologies SA"]
 license = ""
 repository = ""
-default-run = "nym-connect"
+default-run = "nym_connect"
 edition = "2021"
 build = "src/build.rs"
 rust-version = "1.58"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[build-dependencies]
-tauri-build = { version = "^1.2.1", features = [] }
+[lib]
+crate-type = ["staticlib", "cdylib", "rlib"]
 
-tauri-codegen = "^1.2.1"
-tauri-macros = "^1.2.1"
+[build-dependencies]
+tauri-build = { version = "2.0.0-alpha.0", features = [] }
+
+# tauri-codegen = "2.0.0-alpha.0"
+# tauri-macros = "2.0.0-alpha.0"
 
 [dependencies]
 anyhow = "1.0"
@@ -37,7 +40,7 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_repr = "0.1"
 tap = "1.0.1"
-tauri = { version = "^1.2.2", features = ["clipboard-write-text", "macos-private-api", "notification-all", "shell-open", "system-tray", "updater", "window-close", "window-minimize", "window-start-dragging"] }
+tauri = { version = "2.0.0-alpha.0", features = ["clipboard-write-text", "native-tls-vendored", "notification-all", "shell-open", "system-tray", "window-close", "window-minimize", "window-start-dragging"] }
 tendermint-rpc = "0.23.0"
 thiserror = "1.0"
 tokio = { version = "1.24.1", features = ["sync", "time"] }

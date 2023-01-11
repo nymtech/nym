@@ -19,6 +19,7 @@ use crate::{
     tasks::{self, ExitStatusReceiver},
 };
 
+#[derive(Default)]
 pub struct State {
     /// The current connection status
     status: ConnectionStatusKind,

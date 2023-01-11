@@ -7,6 +7,7 @@ use crate::operations::growth::api_client::{
 use crate::State;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+#[cfg(desktop)]
 use tauri::api::notification::Notification;
 use tauri::Manager;
 use tokio::sync::RwLock;
@@ -47,6 +48,7 @@ pub async fn growth_tne_take_part(
 
     log::info!("<<< Test&Earn: registration details: {:?}", registration);
 
+    #[cfg(desktop)]
     if let Err(e) = Notification::new(&app_handle.config().tauri.bundle.identifier)
         .title(notifications.take_part.title)
         .body(notifications.take_part.body)
@@ -120,6 +122,7 @@ pub async fn growth_tne_ping(client_details: ClientIdPartial) -> Result<(), Back
         .await?)
 }
 
+#[cfg(desktop)]
 #[tauri::command]
 pub async fn growth_tne_toggle_window(
     app_handle: tauri::AppHandle,

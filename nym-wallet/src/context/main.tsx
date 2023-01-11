@@ -21,6 +21,7 @@ import { Console } from '../utils/console';
 export const urls = (networkName?: Network) =>
   networkName === 'MAINNET'
     ? {
+        mixnetExplorer: 'https://mixnet.explorers.guru/',
         blockExplorer: 'https://blocks.nymtech.net',
         networkExplorer: 'https://explorer.nymtech.net',
       }

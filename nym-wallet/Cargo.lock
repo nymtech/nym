@@ -2932,7 +2932,7 @@ dependencies = [
 
 [[package]]
 name = "nym_wallet"
-version = "1.1.5"
+version = "1.1.6"
 dependencies = [
  "aes-gcm",
  "argon2 0.3.4",

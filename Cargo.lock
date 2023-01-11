@@ -3067,6 +3067,7 @@ dependencies = [
  "futures",
  "humantime-serde",
  "log",
+ "network-defaults",
  "nymsphinx-acknowledgements",
  "nymsphinx-addressing",
  "nymsphinx-forwarding",

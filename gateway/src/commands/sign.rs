@@ -1,7 +1,8 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::{validate_bech32_address_or_exit, OverrideConfig};
+use crate::commands::{ensure_correct_bech32_prefix, OverrideConfig};
+use crate::error::GatewayError;
 use crate::support::config::build_config;
 use crate::{
     commands::ensure_config_version_compatibility,
@@ -60,12 +61,16 @@ pub fn load_identity_keys(pathfinder: &GatewayPathfinder) -> identity::KeyPair {
     identity_keypair
 }
 
-fn print_signed_address(private_key: &identity::PrivateKey, wallet_address: nyxd::AccountId) {
+fn print_signed_address(
+    private_key: &identity::PrivateKey,
+    wallet_address: nyxd::AccountId,
+) -> Result<(), GatewayError> {
     // perform extra validation to ensure we have correct prefix
-    validate_bech32_address_or_exit(wallet_address.as_ref());
+    ensure_correct_bech32_prefix(&wallet_address)?;
 
     let signature = private_key.sign_text(wallet_address.as_ref());
-    println!("The base58-encoded signature on '{wallet_address}' is: {signature}",);
+    println!("The base58-encoded signature on '{wallet_address}' is: {signature}");
+    Ok(())
 }
 
 fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {
@@ -92,7 +97,7 @@ pub fn execute(args: Sign) -> Result<(), Box<dyn Error + Send + Sync>> {
 
     match signed_target {
         SignedTarget::Text(text) => print_signed_text(identity_keypair.private_key(), &text),
-        SignedTarget::Address(addr) => print_signed_address(identity_keypair.private_key(), addr),
+        SignedTarget::Address(addr) => print_signed_address(identity_keypair.private_key(), addr)?,
     }
 
     Ok(())

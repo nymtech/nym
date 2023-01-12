@@ -25,5 +25,5 @@ pub(crate) fn build_config<O: Into<OverrideConfig>>(
         }
     };
 
-    Ok(override_config(config, override_args.into()))
+    override_config(config, override_args.into())
 }

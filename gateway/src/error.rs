@@ -4,6 +4,7 @@
 use std::io;
 use std::path::PathBuf;
 use thiserror::Error;
+use validator_client::nyxd::AccountId;
 use validator_client::ValidatorClientError;
 
 #[derive(Debug, Error)]
@@ -35,6 +36,13 @@ pub(crate) enum GatewayError {
     NetworkGatewaysQueryFailure {
         #[source]
         source: ValidatorClientError,
+    },
+
+    #[error("{account} has invalid bech32 prefix. it uses '{actual_prefix}' while '{expected_prefix}' was expected")]
+    InvalidBech32AccountPrefix {
+        account: AccountId,
+        expected_prefix: String,
+        actual_prefix: String,
     },
 
     #[cfg(feature = "coconut")]

@@ -183,7 +183,7 @@ where
             self.config.get_mix_port(),
         );
 
-        mixnet_handling::Listener::new(listening_address).start(connection_handler);
+        mixnet_handling::Listener::new(listening_address, shutdown).start(connection_handler);
     }
 
     fn start_client_websocket_listener(

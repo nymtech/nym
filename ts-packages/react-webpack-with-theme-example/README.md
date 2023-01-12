@@ -59,7 +59,7 @@ export const App: React.FC = () => (
   </AppContextProvider>
 );
 
-export const AppTheme: React.FC = ({ children }) => {
+export const AppTheme: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { mode } = useAppContext();
 
   return <NymThemeProvider mode={mode}>{children}</NymThemeProvider>;

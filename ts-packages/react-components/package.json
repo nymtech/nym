@@ -11,9 +11,15 @@
   },
   "typesVersions": {
     "*": {
-      "*": ["dist/components/*"],
-      "hooks/*": ["dist/hooks/*"],
-      "playground/*": ["dist/playground/*"]
+      "*": [
+        "dist/components/*"
+      ],
+      "hooks/*": [
+        "dist/hooks/*"
+      ],
+      "playground/*": [
+        "dist/playground/*"
+      ]
     }
   },
   "peerDependencies": {
@@ -48,7 +54,7 @@
     "@storybook/testing-library": "^0.0.9",
     "@svgr/webpack": "^6.1.1",
     "@types/flat": "^5.0.2",
-    "@types/react": "^17.0.39",
+    "@types/react": "^18.0.26",
     "@typescript-eslint/eslint-plugin": "^5.13.0",
     "@typescript-eslint/parser": "^5.13.0",
     "babel-loader": "^8.2.3",

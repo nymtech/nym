@@ -30,7 +30,7 @@
     "ts-jest": "^27.0.5",
     "jest": "^27.1.0",
     "babel-plugin-root-import": "^5.1.0",
-    "@types/react": "^17.0.34",
+    "@types/react": "^18.0.26",
     "rimraf": "^3.0.2"
   },
   "scripts": {

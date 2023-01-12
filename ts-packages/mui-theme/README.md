@@ -3,6 +3,7 @@
 This package provides an extension to the MUI theme system to use Nym branding.
 
 If you are unfamiliar with Material UI theming, please read the following first:
+
 - https://mui.com/customization/theming/
 - https://mui.com/customization/palette/
 - https://mui.com/customization/dark-mode/#dark-mode-with-custom-palette
@@ -13,6 +14,7 @@ This package also provides a [template file](./template/mui-theme.d.ts) to add t
 
 Read the following if you are unfamiliar with module augmentation and declaration merging. Then
 look at the recommendations from Material UI docs for implementation:
+
 - https://www.typescriptlang.org/docs/handbook/declaration-merging.html#module-augmentation
 - https://www.typescriptlang.org/docs/handbook/declaration-merging.html#merging-interfaces
 - https://mui.com/customization/palette/#adding-new-colors
@@ -30,7 +32,7 @@ export const App: React.FC = () => (
   </AppContextProvider>
 );
 
-export const AppTheme: React.FC = ({ children }) => {
+export const AppTheme: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { mode } = useAppContext();
 
   return <NymThemeProvider mode={mode}>{children}</NymThemeProvider>;

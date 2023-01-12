@@ -32,7 +32,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { AppContextProvider, useAppContext } from './context';
 import { MixnetContextProvider, parseBinaryMessageHeaders, useMixnetContext } from './context/mixnet';
 
-export const AppTheme: React.FC = ({ children }) => {
+export const AppTheme: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { mode } = useAppContext();
 
   return <NymThemeProvider mode={mode}>{children}</NymThemeProvider>;

@@ -24,6 +24,9 @@ announce_address = '{{ base.announce_address }}'
 # Address of the validator contract managing the network.
 mixnet_contract_address = '{{ base.mixnet_contract_address }}'
 
+# Address of the vesting contract holding locked tokens
+vesting_contract_address = '{{ base.vesting_contract_address }}'
+
 # Mnemonic used for rewarding and validator interaction
 mnemonic = '{{ base.mnemonic }}'
 

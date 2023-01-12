@@ -1,20 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub(crate) mod client;
-pub(crate) mod comm;
-mod deposit;
-pub(crate) mod dkg;
-pub(crate) mod error;
-pub(crate) mod keypair;
-#[cfg(test)]
-pub(crate) mod tests;
-
+use self::comm::APICommunicationChannel;
 use crate::coconut::client::Client as LocalClient;
 use crate::coconut::deposit::extract_encryption_key;
 use crate::coconut::error::{CoconutError, Result};
-use crate::NymApiStorage;
-
+use crate::support::storage::NymApiStorage;
 use coconut_bandwidth_contract_common::spend_credential::{
     funds_from_cosmos_msgs, SpendCredentialStatus,
 };
@@ -29,22 +20,28 @@ use credentials::coconut::params::{
 use crypto::asymmetric::encryption;
 use crypto::shared_key::new_ephemeral_shared_key;
 use crypto::symmetric::stream_cipher;
+use getset::{CopyGetters, Getters};
 use keypair::KeyPair;
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
-use validator_client::nym_api::routes::{BANDWIDTH, COCONUT_ROUTES};
-use validator_client::nyxd::{Coin, Fee};
-
-use getset::{CopyGetters, Getters};
 use rand_07::rngs::OsRng;
 use rocket::fairing::AdHoc;
 use rocket::serde::json::Json;
 use rocket::State as RocketState;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use validator_client::nym_api::routes::{BANDWIDTH, COCONUT_ROUTES};
+use validator_client::nyxd::{Coin, Fee};
 
-use self::comm::APICommunicationChannel;
+pub(crate) mod client;
+pub(crate) mod comm;
+mod deposit;
+pub(crate) mod dkg;
+pub(crate) mod error;
+pub(crate) mod keypair;
+#[cfg(test)]
+pub(crate) mod tests;
 
 pub struct State {
     client: Arc<dyn LocalClient + Send + Sync>,

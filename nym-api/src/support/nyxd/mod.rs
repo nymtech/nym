@@ -1,9 +1,10 @@
-// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::config::Config;
 use crate::epoch_operations::MixnodeToReward;
-use config::defaults::{NymNetworkDetails, DEFAULT_NYM_API_PORT};
+use crate::support::config::Config;
+use anyhow::Result;
+use config::defaults::{ChainDetails, NymNetworkDetails, DEFAULT_NYM_API_PORT};
 use mixnet_contract_common::families::{Family, FamilyHead};
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::RewardingParams;
@@ -13,13 +14,14 @@ use mixnet_contract_common::{
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use validator_client::nyxd::error::NyxdError;
 use validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
 use validator_client::nyxd::{
     hash::{Hash, SHA256_HASH_SIZE},
-    Coin, CosmWasmClient, QueryNyxdClient, SigningCosmWasmClient, SigningNyxdClient,
-    TendermintTime,
+    AccountId, Coin, SigningNyxdClient, TendermintTime, VestingQueryClient,
 };
 use validator_client::ValidatorClientError;
+use vesting_contract_common::AccountVestingCoins;
 
 #[cfg(feature = "coconut")]
 use crate::coconut::error::CoconutError;
@@ -28,11 +30,11 @@ use async_trait::async_trait;
 #[cfg(feature = "coconut")]
 use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
 #[cfg(feature = "coconut")]
-use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
-#[cfg(feature = "coconut")]
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch};
-#[cfg(feature = "coconut")]
-use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
+use coconut_dkg_common::{
+    dealer::{ContractDealing, DealerDetails, DealerDetailsResponse},
+    types::{EncodedBTEPublicKeyWithProof, Epoch},
+    verification_key::{ContractVKShare, VerificationKeyShare},
+};
 #[cfg(feature = "coconut")]
 use contracts_common::dealings::ContractSafeBytes;
 #[cfg(feature = "coconut")]
@@ -44,19 +46,19 @@ use validator_client::nyxd::{
         CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, MultisigQueryClient,
         MultisigSigningClient,
     },
-    AccountId, Fee,
+    Fee,
 };
 
-pub(crate) struct Client<C>(pub(crate) Arc<RwLock<validator_client::Client<C>>>);
+pub(crate) struct Client(pub(crate) Arc<RwLock<validator_client::Client<SigningNyxdClient>>>);
 
-impl<C> Clone for Client<C> {
+impl Clone for Client {
     fn clone(&self) -> Self {
         Client(Arc::clone(&self.0))
     }
 }
 
-impl Client<QueryNyxdClient> {
-    pub(crate) fn new_query(config: &Config) -> Self {
+impl Client {
+    pub(crate) fn new(config: &Config) -> Self {
         // the api address is irrelevant here as **WE ARE THE API**
         // and we won't be talking on the socket here.
         let api_url = format!("http://localhost:{}", DEFAULT_NYM_API_PORT)
@@ -65,30 +67,8 @@ impl Client<QueryNyxdClient> {
         let nyxd_url = config.get_nyxd_url();
 
         let details = NymNetworkDetails::new_from_env()
-            .with_mixnet_contract(Some(config.get_mixnet_contract_address().as_ref()));
-
-        let client_config = validator_client::Config::try_from_nym_network_details(&details)
-            .expect("failed to construct valid validator client config with the provided network")
-            .with_urls(nyxd_url, api_url);
-
-        let inner =
-            validator_client::Client::new_query(client_config).expect("Failed to connect to nyxd!");
-
-        Client(Arc::new(RwLock::new(inner)))
-    }
-}
-
-impl Client<SigningNyxdClient> {
-    pub(crate) fn new_signing(config: &Config) -> Self {
-        // the api address is irrelevant here as **WE ARE THE API**
-        // and we won't be talking on the socket here.
-        let api_url = format!("http://localhost:{}", DEFAULT_NYM_API_PORT)
-            .parse()
-            .unwrap();
-        let nyxd_url = config.get_nyxd_url();
-
-        let details = NymNetworkDetails::new_from_env()
-            .with_mixnet_contract(Some(config.get_mixnet_contract_address().as_ref()));
+            .with_mixnet_contract(Some(config.get_mixnet_contract_address().as_ref()))
+            .with_vesting_contract(Some(config.get_vesting_contract_address().as_ref()));
 
         let client_config = validator_client::Config::try_from_nym_network_details(&details)
             .expect("failed to construct valid validator client config with the provided network")
@@ -101,17 +81,44 @@ impl Client<SigningNyxdClient> {
 
         Client(Arc::new(RwLock::new(inner)))
     }
-}
 
-impl<C> Client<C> {
+    pub(crate) async fn client_address(&self) -> AccountId {
+        self.0.read().await.nyxd.address().clone()
+    }
+
+    pub(crate) async fn chain_details(&self) -> ChainDetails {
+        self.0.read().await.nyxd.current_chain_details().clone()
+    }
+
+    pub(crate) async fn get_rewarding_validator_address(
+        &self,
+    ) -> Result<AccountId, ValidatorClientError> {
+        let cosmwasm_addr = self
+            .0
+            .read()
+            .await
+            .nyxd
+            .get_mixnet_contract_state()
+            .await?
+            .rewarding_validator_address
+            .into_string();
+
+        // this should never fail otherwise it implies either
+        // 1) our mixnet contract state is invalid
+        // 2) cosmwasm accepts invalid addresses
+        // 3) cosmrs fails to parse valid addresses
+        // all of those options are BAD
+        cosmwasm_addr
+            .clone()
+            .parse()
+            .map_err(|_| NyxdError::MalformedAccountAddress(cosmwasm_addr).into())
+    }
+
     // a helper function for the future to obtain the current block timestamp
     #[allow(dead_code)]
     pub(crate) async fn current_block_timestamp(
         &self,
-    ) -> Result<TendermintTime, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
+    ) -> Result<TendermintTime, ValidatorClientError> {
         let time = self
             .0
             .read()
@@ -133,10 +140,7 @@ impl<C> Client<C> {
     pub(crate) async fn get_block_hash(
         &self,
         height: u32,
-    ) -> Result<Option<[u8; SHA256_HASH_SIZE]>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync,
-    {
+    ) -> Result<Option<[u8; SHA256_HASH_SIZE]>, ValidatorClientError> {
         let hash = match self.0.read().await.nyxd.get_block_hash(height).await? {
             Hash::Sha256(hash) => Some(hash),
             Hash::None => None,
@@ -145,44 +149,29 @@ impl<C> Client<C> {
         Ok(hash)
     }
 
-    pub(crate) async fn get_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync + Send,
-    {
+    pub(crate) async fn get_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
         self.0.read().await.get_all_nyxd_mixnodes_detailed().await
     }
 
-    pub(crate) async fn get_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync + Send,
-    {
+    pub(crate) async fn get_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
         self.0.read().await.get_all_nyxd_gateways().await
     }
 
     pub(crate) async fn get_current_interval(
         &self,
-    ) -> Result<CurrentIntervalResponse, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync + Send,
-    {
+    ) -> Result<CurrentIntervalResponse, ValidatorClientError> {
         Ok(self.0.read().await.get_current_interval_details().await?)
     }
 
     pub(crate) async fn get_current_rewarding_parameters(
         &self,
-    ) -> Result<RewardingParams, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync + Send,
-    {
+    ) -> Result<RewardingParams, ValidatorClientError> {
         Ok(self.0.read().await.get_rewarding_parameters().await?)
     }
 
     pub(crate) async fn get_rewarded_set_mixnodes(
         &self,
-    ) -> Result<Vec<(MixId, RewardedSetNodeStatus)>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync + Send,
-    {
+    ) -> Result<Vec<(MixId, RewardedSetNodeStatus)>, ValidatorClientError> {
         self.0
             .read()
             .await
@@ -190,30 +179,47 @@ impl<C> Client<C> {
             .await
     }
 
+    pub(crate) async fn get_current_vesting_account_storage_key(
+        &self,
+    ) -> Result<u32, ValidatorClientError> {
+        let guard = self.0.read().await;
+        let vesting_contract = guard.nyxd.vesting_contract_address();
+        // TODO: I don't like the usage of the hardcoded value here
+        let res = guard
+            .nyxd
+            .query_contract_raw(vesting_contract, b"key".to_vec())
+            .await?;
+
+        Ok(serde_json::from_slice(&res).map_err(NyxdError::from)?)
+    }
+
+    pub(crate) async fn get_all_vesting_coins(
+        &self,
+    ) -> Result<Vec<AccountVestingCoins>, ValidatorClientError> {
+        Ok(self
+            .0
+            .read()
+            .await
+            .nyxd
+            .get_all_accounts_vesting_coins()
+            .await?)
+    }
+
     #[allow(dead_code)]
-    pub(crate) async fn get_all_node_families(&self) -> Result<Vec<Family>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync + Send,
-    {
+    pub(crate) async fn get_all_node_families(&self) -> Result<Vec<Family>, ValidatorClientError> {
         self.0.read().await.get_all_node_families().await
     }
 
     pub(crate) async fn get_all_family_members(
         &self,
-    ) -> Result<Vec<(IdentityKey, FamilyHead)>, ValidatorClientError>
-    where
-        C: CosmWasmClient + Sync + Send,
-    {
+    ) -> Result<Vec<(IdentityKey, FamilyHead)>, ValidatorClientError> {
         self.0.read().await.get_all_family_members().await
     }
 
     pub(crate) async fn send_rewarding_messages(
         &self,
         nodes: &[MixnodeToReward],
-    ) -> Result<(), ValidatorClientError>
-    where
-        C: SigningCosmWasmClient + Sync + Send,
-    {
+    ) -> Result<(), ValidatorClientError> {
         // for some reason, compiler complains if this is explicitly inline in code ¯\_(ツ)_/¯
         #[inline]
         #[allow(unused_variables)]
@@ -255,10 +261,7 @@ impl<C> Client<C> {
         &self,
         new_rewarded_set: Vec<LayerAssignment>,
         expected_active_set_size: u32,
-    ) -> Result<(), ValidatorClientError>
-    where
-        C: SigningCosmWasmClient + Sync + Send,
-    {
+    ) -> Result<(), ValidatorClientError> {
         self.0
             .write()
             .await
@@ -268,10 +271,7 @@ impl<C> Client<C> {
         Ok(())
     }
 
-    pub(crate) async fn reconcile_epoch_events(&self) -> Result<(), ValidatorClientError>
-    where
-        C: SigningCosmWasmClient + Sync + Send,
-    {
+    pub(crate) async fn reconcile_epoch_events(&self) -> Result<(), ValidatorClientError> {
         self.0
             .write()
             .await
@@ -284,12 +284,9 @@ impl<C> Client<C> {
 
 #[async_trait]
 #[cfg(feature = "coconut")]
-impl<C> crate::coconut::client::Client for Client<C>
-where
-    C: SigningCosmWasmClient + Sync + Send,
-{
+impl crate::coconut::client::Client for Client {
     async fn address(&self) -> AccountId {
-        self.0.read().await.nyxd.address().clone()
+        self.client_address().await
     }
 
     async fn get_tx(

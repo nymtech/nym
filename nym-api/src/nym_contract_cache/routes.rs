@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{
-    contract_cache::ValidatorCache,
     node_status_api::{
         helpers::{_get_active_set_detailed, _get_mixnodes_detailed, _get_rewarded_set_detailed},
         NodeStatusCache,
     },
+    nym_contract_cache::cache::NymContractCache,
 };
 use mixnet_contract_common::{
     mixnode::MixNodeDetails, reward_params::RewardingParams, GatewayBond, Interval, MixId,
@@ -19,7 +19,7 @@ use std::collections::HashSet;
 
 #[openapi(tag = "contract-cache")]
 #[get("/mixnodes")]
-pub async fn get_mixnodes(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeDetails>> {
+pub async fn get_mixnodes(cache: &State<NymContractCache>) -> Json<Vec<MixNodeDetails>> {
     Json(cache.mixnodes().await)
 }
 
@@ -40,13 +40,13 @@ pub async fn get_mixnodes_detailed(
 
 #[openapi(tag = "contract-cache")]
 #[get("/gateways")]
-pub async fn get_gateways(cache: &State<ValidatorCache>) -> Json<Vec<GatewayBond>> {
+pub async fn get_gateways(cache: &State<NymContractCache>) -> Json<Vec<GatewayBond>> {
     Json(cache.gateways().await)
 }
 
 #[openapi(tag = "contract-cache")]
 #[get("/mixnodes/rewarded")]
-pub async fn get_rewarded_set(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeDetails>> {
+pub async fn get_rewarded_set(cache: &State<NymContractCache>) -> Json<Vec<MixNodeDetails>> {
     Json(cache.rewarded_set().await.value)
 }
 
@@ -67,7 +67,7 @@ pub async fn get_rewarded_set_detailed(
 
 #[openapi(tag = "contract-cache")]
 #[get("/mixnodes/active")]
-pub async fn get_active_set(cache: &State<ValidatorCache>) -> Json<Vec<MixNodeDetails>> {
+pub async fn get_active_set(cache: &State<NymContractCache>) -> Json<Vec<MixNodeDetails>> {
     Json(cache.active_set().await.value)
 }
 
@@ -89,7 +89,7 @@ pub async fn get_active_set_detailed(
 #[openapi(tag = "contract-cache")]
 #[get("/mixnodes/blacklisted")]
 pub async fn get_blacklisted_mixnodes(
-    cache: &State<ValidatorCache>,
+    cache: &State<NymContractCache>,
 ) -> Json<Option<HashSet<MixId>>> {
     Json(cache.mixnodes_blacklist().await.map(|c| c.value))
 }
@@ -97,7 +97,7 @@ pub async fn get_blacklisted_mixnodes(
 #[openapi(tag = "contract-cache")]
 #[get("/gateways/blacklisted")]
 pub async fn get_blacklisted_gateways(
-    cache: &State<ValidatorCache>,
+    cache: &State<NymContractCache>,
 ) -> Json<Option<HashSet<String>>> {
     Json(cache.gateways_blacklist().await.map(|c| c.value))
 }
@@ -105,13 +105,13 @@ pub async fn get_blacklisted_gateways(
 #[openapi(tag = "contract-cache")]
 #[get("/epoch/reward_params")]
 pub async fn get_interval_reward_params(
-    cache: &State<ValidatorCache>,
+    cache: &State<NymContractCache>,
 ) -> Json<Option<RewardingParams>> {
     Json(cache.interval_reward_params().await.value)
 }
 
 #[openapi(tag = "contract-cache")]
 #[get("/epoch/current")]
-pub async fn get_current_epoch(cache: &State<ValidatorCache>) -> Json<Option<Interval>> {
+pub async fn get_current_epoch(cache: &State<NymContractCache>) -> Json<Option<Interval>> {
     Json(cache.current_interval().await.value)
 }

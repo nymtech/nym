@@ -3,7 +3,7 @@
 use crate::network_monitor::monitor::summary_producer::{GatewayResult, MixnodeResult};
 use crate::node_status_api::models::{HistoricalUptime, Uptime};
 use crate::node_status_api::utils::{ActiveGatewayStatuses, ActiveMixnodeStatuses};
-use crate::storage::models::{
+use crate::support::storage::models::{
     ActiveGateway, ActiveMixnode, NodeStatus, RewardingReport, TestingRoute,
 };
 use mixnet_contract_common::{EpochId, IdentityKey, MixId};
@@ -46,7 +46,7 @@ impl AvgGatewayReliability {
 
 // all SQL goes here
 impl StorageManager {
-    pub(super) async fn get_mixnode_mix_ids_by_identity(
+    pub(crate) async fn get_mixnode_mix_ids_by_identity(
         &self,
         identity: &str,
     ) -> Result<Vec<MixId>, sqlx::Error> {
@@ -63,7 +63,7 @@ impl StorageManager {
         Ok(ids)
     }
 
-    pub(super) async fn get_all_avg_mix_reliability_in_last_24hr(
+    pub(crate) async fn get_all_avg_mix_reliability_in_last_24hr(
         &self,
         end_ts_secs: i64,
     ) -> Result<Vec<AvgMixnodeReliability>, sqlx::Error> {
@@ -72,7 +72,7 @@ impl StorageManager {
             .await
     }
 
-    pub(super) async fn get_all_avg_gateway_reliability_in_last_24hr(
+    pub(crate) async fn get_all_avg_gateway_reliability_in_last_24hr(
         &self,
         end_ts_secs: i64,
     ) -> Result<Vec<AvgGatewayReliability>, sqlx::Error> {
@@ -81,7 +81,7 @@ impl StorageManager {
             .await
     }
 
-    pub(super) async fn get_all_avg_mix_reliability_in_time_interval(
+    pub(crate) async fn get_all_avg_mix_reliability_in_time_interval(
         &self,
         start_ts_secs: i64,
         end_ts_secs: i64,
@@ -109,7 +109,7 @@ impl StorageManager {
         Ok(result)
     }
 
-    pub(super) async fn get_all_avg_gateway_reliability_in_interval(
+    pub(crate) async fn get_all_avg_gateway_reliability_in_interval(
         &self,
         start_ts_secs: i64,
         end_ts_secs: i64,
@@ -142,7 +142,7 @@ impl StorageManager {
     /// # Arguments
     ///
     /// * `mix_id`: mix-id (as assigned by the smart contract) of the mixnode.
-    pub(super) async fn get_mixnode_database_id(
+    pub(crate) async fn get_mixnode_database_id(
         &self,
         mix_id: MixId,
     ) -> Result<Option<i64>, sqlx::Error> {
@@ -159,7 +159,7 @@ impl StorageManager {
     /// # Arguments
     ///
     /// * `identity`: identity (base58-encoded public key) of the gateway.
-    pub(super) async fn get_gateway_id(&self, identity: &str) -> Result<Option<i64>, sqlx::Error> {
+    pub(crate) async fn get_gateway_id(&self, identity: &str) -> Result<Option<i64>, sqlx::Error> {
         let id = sqlx::query!(
             "SELECT id FROM gateway_details WHERE identity = ?",
             identity
@@ -176,7 +176,7 @@ impl StorageManager {
     /// # Arguments
     ///
     /// * `mix_id`: mix-id (as assigned by the smart contract) of the mixnode.
-    pub(super) async fn get_mixnode_owner(
+    pub(crate) async fn get_mixnode_owner(
         &self,
         mix_id: MixId,
     ) -> Result<Option<String>, sqlx::Error> {
@@ -193,7 +193,7 @@ impl StorageManager {
     /// # Arguments
     ///
     /// * `mix_id`: mix-id (as assigned by the smart contract) of the mixnode.
-    pub(super) async fn get_mixnode_identity_key(
+    pub(crate) async fn get_mixnode_identity_key(
         &self,
         mix_id: MixId,
     ) -> Result<Option<IdentityKey>, sqlx::Error> {
@@ -213,7 +213,7 @@ impl StorageManager {
     /// # Arguments
     ///
     /// * `identity`: identity (base58-encoded public key) of the gateway.
-    pub(super) async fn get_gateway_owner(
+    pub(crate) async fn get_gateway_owner(
         &self,
         identity: &str,
     ) -> Result<Option<String>, sqlx::Error> {
@@ -235,7 +235,7 @@ impl StorageManager {
     ///
     /// * `mix_id`: mix-id (as assigned by the smart contract) of the mixnode.
     /// * `timestamp`: unix timestamp of the lower bound of the selection.
-    pub(super) async fn get_mixnode_statuses_since(
+    pub(crate) async fn get_mixnode_statuses_since(
         &self,
         mix_id: MixId,
         timestamp: i64,
@@ -263,7 +263,7 @@ impl StorageManager {
     ///
     /// * `identity`: identity (base58-encoded public key) of the gateway.
     /// * `timestamp`: unix timestamp of the lower bound of the selection.
-    pub(super) async fn get_gateway_statuses_since(
+    pub(crate) async fn get_gateway_statuses_since(
         &self,
         identity: &str,
         timestamp: i64,
@@ -289,7 +289,7 @@ impl StorageManager {
     /// # Arguments
     ///
     /// * `mix_id`: mix-id (as assigned by the smart contract) of the mixnode.
-    pub(super) async fn get_mixnode_historical_uptimes(
+    pub(crate) async fn get_mixnode_historical_uptimes(
         &self,
         mix_id: MixId,
     ) -> Result<Vec<HistoricalUptime>, sqlx::Error> {
@@ -327,7 +327,7 @@ impl StorageManager {
     /// # Arguments
     ///
     /// * `identity`: identity (base58-encoded public key) of the gateway.
-    pub(super) async fn get_gateway_historical_uptimes(
+    pub(crate) async fn get_gateway_historical_uptimes(
         &self,
         identity: &str,
     ) -> Result<Vec<HistoricalUptime>, sqlx::Error> {
@@ -367,7 +367,7 @@ impl StorageManager {
     ///
     /// * `since`: unix timestamp indicating the lower bound interval of the selection.
     /// * `until`: unix timestamp indicating the upper bound interval of the selection.
-    pub(super) async fn get_mixnode_statuses_by_database_id(
+    pub(crate) async fn get_mixnode_statuses_by_database_id(
         &self,
         id: i64,
         since: i64,
@@ -388,7 +388,7 @@ impl StorageManager {
         .await
     }
 
-    pub(super) async fn get_average_reliability_in_interval(
+    pub(crate) async fn get_average_reliability_in_interval(
         &self,
         id: i64,
         start: i64,
@@ -415,7 +415,7 @@ impl StorageManager {
     ///
     /// * `since`: unix timestamp indicating the lower bound interval of the selection.
     /// * `until`: unix timestamp indicating the upper bound interval of the selection.
-    pub(super) async fn get_gateway_statuses_by_id(
+    pub(crate) async fn get_gateway_statuses_by_id(
         &self,
         id: i64,
         since: i64,
@@ -442,7 +442,7 @@ impl StorageManager {
     ///
     /// * `timestamp`: unix timestamp indicating when the measurements took place.
     /// * `mixnode_results`: reliability results of each node that got tested.
-    pub(super) async fn submit_mixnode_statuses(
+    pub(crate) async fn submit_mixnode_statuses(
         &self,
         timestamp: i64,
         mixnode_results: Vec<MixnodeResult>,
@@ -488,7 +488,7 @@ impl StorageManager {
     ///
     /// * `timestamp`: unix timestamp indicating when the measurements took place.
     /// * `gateway_results`: reliability results of each node that got tested.
-    pub(super) async fn submit_gateway_statuses(
+    pub(crate) async fn submit_gateway_statuses(
         &self,
         timestamp: i64,
         gateway_results: Vec<GatewayResult>,
@@ -537,7 +537,7 @@ impl StorageManager {
     /// # Arguments
     ///
     /// * `testing_route`: test route used for this particular network monitor run.
-    pub(super) async fn submit_testing_route_used(
+    pub(crate) async fn submit_testing_route_used(
         &self,
         testing_route: TestingRoute,
     ) -> Result<(), sqlx::Error> {
@@ -565,7 +565,7 @@ impl StorageManager {
     ///
     /// * `db_mixnode_id`: id (as saved in the database) of the mixnode.
     /// * `since`: unix timestamp indicating the lower bound interval of the selection.
-    pub(super) async fn get_mixnode_testing_route_presence_count_since(
+    pub(crate) async fn get_mixnode_testing_route_presence_count_since(
         &self,
         db_mixnode_id: i64,
         since: i64,
@@ -604,7 +604,7 @@ impl StorageManager {
     ///
     /// * `gateway_id`: id (as saved in the database) of the gateway.
     /// * `since`: unix timestamp indicating the lower bound interval of the selection.
-    pub(super) async fn get_gateway_testing_route_presence_count_since(
+    pub(crate) async fn get_gateway_testing_route_presence_count_since(
         &self,
         gateway_id: i64,
         since: i64,
@@ -636,7 +636,7 @@ impl StorageManager {
     }
 
     /// Checks whether there are already any historical uptimes with this particular date.
-    pub(super) async fn check_for_historical_uptime_existence(
+    pub(crate) async fn check_for_historical_uptime_existence(
         &self,
         today_iso_8601: &str,
     ) -> Result<bool, sqlx::Error> {
@@ -656,7 +656,7 @@ impl StorageManager {
     /// * `node_id`: id of the mixnode (as inserted in `mixnode_details_id` table).
     /// * `date`: date associated with the uptime represented in ISO 8601, i.e. YYYY-MM-DD.
     /// * `uptime`: the actual uptime of the node during the specified day.
-    pub(super) async fn insert_mixnode_historical_uptime(
+    pub(crate) async fn insert_mixnode_historical_uptime(
         &self,
         mix_id: i64,
         date: &str,
@@ -678,7 +678,7 @@ impl StorageManager {
     /// * `node_id`: id of the gateway (as inserted in `gateway_details_id` table).
     /// * `date`: date associated with the uptime represented in ISO 8601, i.e. YYYY-MM-DD.
     /// * `uptime`: the actual uptime of the node during the specified day.
-    pub(super) async fn insert_gateway_historical_uptime(
+    pub(crate) async fn insert_gateway_historical_uptime(
         &self,
         mix_id: i64,
         date: &str,
@@ -699,7 +699,7 @@ impl StorageManager {
     /// # Arguments
     ///
     /// * `timestamp`: unix timestamp at which the monitor test run has occurred
-    pub(super) async fn insert_monitor_run(&self, timestamp: i64) -> Result<i64, sqlx::Error> {
+    pub(crate) async fn insert_monitor_run(&self, timestamp: i64) -> Result<i64, sqlx::Error> {
         let res = sqlx::query!("INSERT INTO monitor_run(timestamp) VALUES (?)", timestamp)
             .execute(&self.connection_pool)
             .await?;
@@ -712,7 +712,7 @@ impl StorageManager {
     ///
     /// * `since`: unix timestamp indicating the lower bound interval of the selection.
     /// * `until`: unix timestamp indicating the upper bound interval of the selection.
-    pub(super) async fn get_monitor_runs_count(
+    pub(crate) async fn get_monitor_runs_count(
         &self,
         since: i64,
         until: i64,
@@ -734,7 +734,7 @@ impl StorageManager {
     /// # Arguments
     ///
     /// * `until`: timestamp specifying the purge cutoff.
-    pub(super) async fn purge_old_mixnode_statuses(
+    pub(crate) async fn purge_old_mixnode_statuses(
         &self,
         timestamp: i64,
     ) -> Result<(), sqlx::Error> {
@@ -750,7 +750,7 @@ impl StorageManager {
     /// # Arguments
     ///
     /// * `until`: timestamp specifying the purge cutoff.
-    pub(super) async fn purge_old_gateway_statuses(
+    pub(crate) async fn purge_old_gateway_statuses(
         &self,
         timestamp: i64,
     ) -> Result<(), sqlx::Error> {
@@ -767,7 +767,7 @@ impl StorageManager {
     ///
     /// * `since`: indicates the lower bound timestamp for deciding whether given mixnode is active
     /// * `until`: indicates the upper bound timestamp for deciding whether given mixnode is active
-    pub(super) async fn get_all_active_mixnodes_in_interval(
+    pub(crate) async fn get_all_active_mixnodes_in_interval(
         &self,
         since: i64,
         until: i64,
@@ -801,7 +801,7 @@ impl StorageManager {
     ///
     /// * `since`: indicates the lower bound timestamp for deciding whether given gateway is active
     /// * `until`: indicates the upper bound timestamp for deciding whether given gateway is active
-    pub(super) async fn get_all_active_gateways_in_interval(
+    pub(crate) async fn get_all_active_gateways_in_interval(
         &self,
         since: i64,
         until: i64,
@@ -847,7 +847,7 @@ impl StorageManager {
     /// # Arguments
     ///
     /// * `report`: report to insert into the database
-    pub(super) async fn insert_rewarding_report(
+    pub(crate) async fn insert_rewarding_report(
         &self,
         report: RewardingReport,
     ) -> Result<(), sqlx::Error> {
@@ -865,7 +865,7 @@ impl StorageManager {
         Ok(())
     }
 
-    pub(super) async fn get_rewarding_report(
+    pub(crate) async fn get_rewarding_report(
         &self,
         absolute_epoch_id: EpochId,
     ) -> Result<Option<RewardingReport>, sqlx::Error> {
@@ -890,7 +890,7 @@ impl StorageManager {
     ///
     /// * `since`: unix timestamp indicating the lower bound interval of the selection.
     /// * `until`: unix timestamp indicating the upper bound interval of the selection.
-    pub(super) async fn get_all_active_mixnodes_statuses_in_interval(
+    pub(crate) async fn get_all_active_mixnodes_statuses_in_interval(
         &self,
         since: i64,
         until: i64,
@@ -924,7 +924,7 @@ impl StorageManager {
     ///
     /// * `since`: unix timestamp indicating the lower bound interval of the selection.
     /// * `until`: unix timestamp indicating the upper bound interval of the selection.
-    pub(super) async fn get_all_active_gateways_statuses_in_interval(
+    pub(crate) async fn get_all_active_gateways_statuses_in_interval(
         &self,
         since: i64,
         until: i64,
@@ -958,7 +958,7 @@ impl StorageManager {
     /// * `tx_hash`: hash of the deposit transaction.
     /// * `blinded_signature_response`: the encrypted blinded signature response.
     #[cfg(feature = "coconut")]
-    pub(super) async fn insert_blinded_signature_response(
+    pub(crate) async fn insert_blinded_signature_response(
         &self,
         tx_hash: &str,
         blinded_signature_response: &str,
@@ -979,7 +979,7 @@ impl StorageManager {
     ///
     /// * `tx_hash`: transaction hash of the deposit.
     #[cfg(feature = "coconut")]
-    pub(super) async fn get_blinded_signature_response(
+    pub(crate) async fn get_blinded_signature_response(
         &self,
         tx_hash: &str,
     ) -> Result<Option<String>, sqlx::Error> {

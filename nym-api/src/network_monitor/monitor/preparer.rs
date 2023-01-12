@@ -1,11 +1,11 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::contract_cache::ValidatorCache;
 use crate::network_monitor::chunker::Chunker;
 use crate::network_monitor::monitor::sender::GatewayPackets;
 use crate::network_monitor::test_packet::{NodeType, TestPacket};
 use crate::network_monitor::test_route::TestRoute;
+use crate::nym_contract_cache::cache::NymContractCache;
 use crypto::asymmetric::{encryption, identity};
 use log::info;
 use mixnet_contract_common::{Addr, GatewayBond, Layer, MixId, MixNodeBond};
@@ -134,7 +134,7 @@ pub(crate) struct PreparedPackets {
 pub(crate) struct PacketPreparer {
     system_version: String,
     chunker: Option<Chunker>,
-    validator_cache: ValidatorCache,
+    validator_cache: NymContractCache,
 
     /// Number of test packets sent to each node
     per_node_test_packets: usize,
@@ -150,7 +150,7 @@ pub(crate) struct PacketPreparer {
 impl PacketPreparer {
     pub(crate) fn new(
         system_version: &str,
-        validator_cache: ValidatorCache,
+        validator_cache: NymContractCache,
         per_node_test_packets: usize,
         self_public_identity: identity::PublicKey,
         self_public_encryption: encryption::PublicKey,

@@ -23,10 +23,8 @@ fn reset_epoch_state(storage: &mut dyn Storage) -> Result<(), ContractError> {
             dealings.remove(storage, &details.address);
         }
         VK_SHARES.remove(storage, &details.address);
-        past_dealers().update::<_, ContractError>(storage, &dealer_addr, |existing| {
-            Ok(existing.unwrap_or(details))
-        })?;
         current_dealers().remove(storage, &dealer_addr)?;
+        past_dealers().save(storage, &dealer_addr, &details)?;
     }
     Ok(())
 }

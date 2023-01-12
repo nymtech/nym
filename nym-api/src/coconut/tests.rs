@@ -471,7 +471,7 @@ async fn signed_before() {
             .with_tx_db(&tx_db);
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
-    staged_key_pair.set(key_pair).await;
+    staged_key_pair.set(Some(key_pair)).await;
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nyxd_client,
@@ -539,7 +539,7 @@ async fn state_functions() {
     let storage = NymApiStorage::init(db_dir).await.unwrap();
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
-    staged_key_pair.set(key_pair).await;
+    staged_key_pair.set(Some(key_pair)).await;
     let state = State::new(
         nyxd_client,
         TEST_COIN_DENOM.to_string(),
@@ -708,7 +708,7 @@ async fn blind_sign_correct() {
             .with_tx_db(&tx_db);
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
-    staged_key_pair.set(key_pair).await;
+    staged_key_pair.set(Some(key_pair)).await;
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nyxd_client,
@@ -785,7 +785,7 @@ async fn signature_test() {
         DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap());
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
-    staged_key_pair.set(key_pair).await;
+    staged_key_pair.set(Some(key_pair)).await;
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nyxd_client,
@@ -872,7 +872,7 @@ async fn verification_of_bandwidth_credential() {
     let storage1 = NymApiStorage::init(db_dir).await.unwrap();
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
-    staged_key_pair.set(key_pair).await;
+    staged_key_pair.set(Some(key_pair)).await;
     let rocket = rocket::build().attach(InternalSignRequest::stage(
         nyxd_client.clone(),
         TEST_COIN_DENOM.to_string(),

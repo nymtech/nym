@@ -61,7 +61,7 @@ impl<R: RngCore + Clone> DkgController<R> {
             config.secret_key_path(),
             config.verification_key_path(),
         )) {
-            coconut_keypair.set(coconut_keypair_value).await;
+            coconut_keypair.set(Some(coconut_keypair_value)).await;
         }
         let persistent_state =
             PersistentState::load_from_file(config.persistent_state_path()).unwrap_or_default();
@@ -115,7 +115,10 @@ impl<R: RngCore + Clone> DkgController<R> {
                         verification_key_finalization(&self.dkg_client, &mut self.state).await
                     }
                     // Just wait, in case we need to redo dkg at some point
-                    EpochState::InProgress => Ok(()),
+                    EpochState::InProgress => {
+                        self.state.set_was_in_progress();
+                        Ok(())
+                    }
                 };
                 if let Err(err) = ret {
                     warn!("Could not handle this iteration for the epoch state: {err}");
@@ -132,7 +135,7 @@ impl<R: RngCore + Clone> DkgController<R> {
                 {
                     if current_timestamp.as_secs() >= epoch.finish_timestamp.seconds() {
                         // We try advancing the epoch state, on a best-effort basis
-                        info!("Trying to advance the epoch");
+                        info!("DKG: Trying to advance the epoch");
                         self.dkg_client.advance_epoch_state().await.ok();
                     }
                 }

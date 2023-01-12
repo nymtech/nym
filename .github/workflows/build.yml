@@ -58,10 +58,10 @@ jobs:
 
       - uses: actions-rs/clippy-check@v1
         name: Clippy checks
+        continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --workspace --all-features
-          name: $GITHUB_SHA
 
       - name: Run clippy
         uses: actions-rs/cargo@v1

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { MenuItem } from '@mui/material';
 import Select from '@mui/material/Select';
-import { SelectChangeEvent, SelectInputProps } from '@mui/material/Select/SelectInput';
+import { SelectChangeEvent } from '@mui/material/Select/SelectInput';
 import { SxProps } from '@mui/system';
 import { MixNodeStatus } from './Status';
 import { MixnodeStatus, MixnodeStatusWithAll } from '../../typeDefs/explorer-api';

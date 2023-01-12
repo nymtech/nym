@@ -30,7 +30,6 @@ pub async fn wait_for_signal() {
 }
 
 #[cfg(unix)]
-#[deprecated]
 pub async fn wait_for_signal_and_error(shutdown: &mut TaskManager) -> Result<(), SentError> {
     use tokio::signal::unix::{signal, SignalKind};
 

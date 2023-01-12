@@ -11,8 +11,11 @@ use task::TaskClient;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::WebSocketStream;
 
-pub(crate) use self::authenticated::{AuthenticatedHandler, RequestHandlingError};
-pub(crate) use self::fresh::{FreshHandler, InitialAuthenticationError};
+pub(crate) use self::authenticated::AuthenticatedHandler;
+pub(crate) use self::fresh::FreshHandler;
+
+#[cfg(feature = "coconut")]
+pub(crate) use self::authenticated::RequestHandlingError;
 
 mod authenticated;
 #[cfg(feature = "coconut")]

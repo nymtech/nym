@@ -265,8 +265,14 @@ impl RewardedSetUpdater {
         let new_rewarded_set =
             self.determine_rewarded_set(all_mixnodes, rewarding_parameters.rewarded_set_size)?;
 
+        let empty = vec![];
+
         let (active_set, reserve_set) =
-            new_rewarded_set.split_at(rewarding_parameters.active_set_size as usize);
+            if new_rewarded_set.len() <= rewarding_parameters.active_set_size as usize {
+                (new_rewarded_set.as_slice(), empty.as_slice())
+            } else {
+                new_rewarded_set.split_at(rewarding_parameters.active_set_size as usize)
+            };
 
         let mut active_set_layer_assignments = self.determine_layers(active_set).await?;
         let reserve_set_layer_assignments = self.determine_layers(reserve_set).await?;

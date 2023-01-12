@@ -25,11 +25,13 @@ pub(crate) fn start_cache_refresh(
     circulating_supply_cache: &cache::CirculatingSupplyCache,
     shutdown: &TaskManager,
 ) {
-    let refresher = CirculatingSupplyCacheRefresher::new(
-        nyxd_client,
-        circulating_supply_cache.clone(),
-        config.get_circulating_supply_caching_interval(),
-    );
-    let shutdown_listener = shutdown.subscribe();
-    tokio::spawn(async move { refresher.run(shutdown_listener).await });
+    if config.get_circulating_supply_enabled() {
+        let refresher = CirculatingSupplyCacheRefresher::new(
+            nyxd_client,
+            circulating_supply_cache.to_owned(),
+            config.get_circulating_supply_caching_interval(),
+        );
+        let shutdown_listener = shutdown.subscribe();
+        tokio::spawn(async move { refresher.run(shutdown_listener).await });
+    }
 }

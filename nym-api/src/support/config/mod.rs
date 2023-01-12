@@ -274,6 +274,8 @@ impl Default for TopologyCacher {
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
 pub struct CirculatingSupplyCacher {
+    enabled: bool,
+
     #[serde(with = "humantime_serde")]
     caching_interval: Duration,
 }
@@ -281,6 +283,7 @@ pub struct CirculatingSupplyCacher {
 impl Default for CirculatingSupplyCacher {
     fn default() -> Self {
         CirculatingSupplyCacher {
+            enabled: true,
             caching_interval: DEFAULT_CIRCULATING_SUPPLY_CACHE_INTERVAL,
         }
     }
@@ -560,6 +563,10 @@ impl Config {
 
     pub fn get_circulating_supply_caching_interval(&self) -> Duration {
         self.circulating_supply_cacher.caching_interval
+    }
+
+    pub fn get_circulating_supply_enabled(&self) -> bool {
+        self.circulating_supply_cacher.enabled
     }
 
     pub fn get_node_status_api_database_path(&self) -> PathBuf {

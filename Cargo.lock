@@ -3035,6 +3035,7 @@ dependencies = [
  "futures",
  "log",
  "nymsphinx",
+ "task",
  "tokio",
  "tokio-util 0.7.3",
 ]

@@ -5,7 +5,7 @@ import DoneIcon from '@mui/icons-material/Done';
 import { Tooltip } from '@mui/material';
 import { SxProps } from '@mui/system';
 
-export const CopyToClipboard: React.FC<{
+export const CopyToClipboard: FCWithChildren<{
   value: string;
   tooltip?: React.ReactNode;
   onCopy?: (value: string) => void;

@@ -51,7 +51,7 @@ const getStatusText = (status: ConnectionStatusKind, hover: boolean): string => 
   }
 };
 
-export const ConnectionButton: React.FC<{
+export const ConnectionButton: FCWithChildren<{
   status: ConnectionStatusKind;
   disabled?: boolean;
   busy?: boolean;

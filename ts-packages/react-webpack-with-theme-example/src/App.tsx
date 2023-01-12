@@ -8,13 +8,13 @@ import { useTheme } from '@mui/material/styles';
 import { ThemeToggle } from './ThemeToggle';
 import { AppContextProvider, useAppContext } from './context';
 
-export const AppTheme: React.FC = ({ children }) => {
+export const AppTheme: FCWithChildren = ({ children }) => {
   const { mode } = useAppContext();
 
   return <NymThemeProvider mode={mode}>{children}</NymThemeProvider>;
 };
 
-export const Content: React.FC = () => {
+export const Content: FCWithChildren = () => {
   const { mode } = useAppContext();
   const theme = useTheme();
   const isMounted = useIsMounted();
@@ -70,7 +70,7 @@ export const Content: React.FC = () => {
   );
 };
 
-export const App: React.FC = () => (
+export const App: FCWithChildren = () => (
   <AppContextProvider>
     <AppTheme>
       <Content />

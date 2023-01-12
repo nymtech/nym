@@ -11,7 +11,7 @@ import { IpAddressAndPort } from '../components/IpAddressAndPort';
 import { ServiceProvider } from '../types/directory';
 import { TestAndEarnButtonArea } from '../components/Growth/TestAndEarnButtonArea';
 
-export const ConnectedLayout: React.FC<{
+export const ConnectedLayout: FCWithChildren<{
   status: ConnectionStatusKind;
   stats: ConnectionStatsItem[];
   ipAddress: string;

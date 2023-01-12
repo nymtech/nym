@@ -8,7 +8,7 @@ import { CoinMark } from '../coins/CoinMark';
 const MAX_VALUE = 1_000_000_000_000_000;
 const MIN_VALUE = 0.000001;
 
-export const CurrencyFormField: React.FC<{
+export const CurrencyFormField: FCWithChildren<{
   autoFocus?: boolean;
   required?: boolean;
   fullWidth?: boolean;

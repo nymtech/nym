@@ -8,7 +8,7 @@ import { ConnectedLayout } from './layouts/ConnectedLayout';
 import { HelpGuideLayout } from './layouts/HelpGuideLayout';
 import { useTauriEvents } from './utils';
 
-export const App: React.FC = () => {
+export const App: FCWithChildren = () => {
   const context = useClientContext();
   const [busy, setBusy] = React.useState<boolean>();
   const [showInfoModal, setShowInfoModal] = React.useState(false);

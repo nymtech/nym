@@ -16,7 +16,7 @@ export default {
   component: SimpleModal,
 } as ComponentMeta<typeof SimpleModal>;
 
-const BasePage: React.FC<{ children: React.ReactElement<any, any>; handleClick: () => void }> = ({
+const BasePage: FCWithChildren<{ children: React.ReactElement<any, any>; handleClick: () => void }> = ({
   children,
   handleClick,
 }) => (

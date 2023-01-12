@@ -51,6 +51,8 @@ impl ServiceProvider {
     ) -> ServiceProvider {
         let standard_hosts = allowed_hosts::fetch_standard_allowed_list().await;
 
+        log::info!("Standard allowed hosts: {:?}", standard_hosts);
+
         let allowed_hosts = allowed_hosts::HostsStore::new(
             allowed_hosts::HostsStore::default_base_dir(),
             PathBuf::from("allowed.list"),

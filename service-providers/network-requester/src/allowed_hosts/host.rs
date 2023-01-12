@@ -1,6 +1,7 @@
 use ipnetwork::IpNetwork;
 
 // used for parsing file content
+#[derive(Debug)]
 pub(crate) enum Host {
     Domain(String),
     IpNetwork(IpNetwork),

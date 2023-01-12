@@ -57,6 +57,8 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     setAppVersion(version);
   };
 
+  const timerId = useRef<NodeJS.Timeout>();
+
   useEffect(() => {
     invoke('get_services').then((result) => {
       setServices(result as Services);
@@ -97,8 +99,14 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
     listen('socks5-status-event', (e: TauriEvent) => {
       if (e.payload.message.includes('slow')) {
         setGatewayPerformance('Poor');
-      } else {
-        setGatewayPerformance('Good');
+
+        if (timerId.current) {
+          clearTimeout(timerId.current);
+        }
+
+        timerId.current = setTimeout(() => {
+          setGatewayPerformance('Good');
+        }, 10000);
       }
     }).then((result) => {
       unlisten.push(result);
@@ -178,20 +186,6 @@ export const ClientContextProvider = ({ children }: { children: React.ReactNode 
   useEffect(() => {
     getSpFromStorage();
   }, []);
-
-  const timerId = useRef<NodeJS.Timeout>();
-
-  useEffect(() => {
-    if (timerId.current) {
-      clearTimeout(timerId.current);
-    }
-
-    if (gatewayPerformance !== 'Good') {
-      timerId.current = setTimeout(() => {
-        setGatewayPerformance('Good');
-      }, 15000);
-    }
-  }, [gatewayPerformance]);
 
   const contextValue = useMemo(
     () => ({

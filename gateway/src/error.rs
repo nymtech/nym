@@ -38,7 +38,7 @@ pub(crate) enum GatewayError {
         source: ValidatorClientError,
     },
 
-    #[error("{account} has invalid bech32 prefix. it uses '{actual_prefix}' while '{expected_prefix}' was expected")]
+    #[error("address {account} has an invalid bech32 prefix. it uses '{actual_prefix}' while '{expected_prefix}' was expected")]
     InvalidBech32AccountPrefix {
         account: AccountId,
         expected_prefix: String,

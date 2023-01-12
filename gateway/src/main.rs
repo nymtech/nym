@@ -3,7 +3,9 @@
 
 use build_information::BinaryBuildInformation;
 use clap::{crate_version, Parser, ValueEnum};
+use colored::Colorize;
 use lazy_static::lazy_static;
+use log::error;
 use logging::setup_logging;
 use network_defaults::setup_env;
 use std::error::Error;
@@ -69,7 +71,15 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
 
     let args = Cli::parse();
     setup_env(args.config_env_file.as_ref());
-    commands::execute(args).await
+
+    commands::execute(args).await.map_err(|err| {
+        if atty::is(atty::Stream::Stdout) {
+            let error_message = format!("{err}").red();
+            error!("{error_message}");
+            error!("Exiting...");
+        }
+        err
+    })
 }
 
 fn banner() -> String {

@@ -69,8 +69,10 @@ pub fn new_client_keys() -> KeyManager {
     KeyManager::new(&mut rng)
 }
 
-// Get the gateway details by querying the validator-api. Either pick one at random or use
-// the chosen one if it's among the available ones.
+/// Authenticate and register with a gateway.
+/// Either pick one at random by querying the available gateways from the nym-api, or use the
+/// chosen one if it's among the available ones.
+/// The shared key is added to the supplied `KeyManager` and the endpoint details are returned.
 pub async fn register_with_gateway(
     key_manager: &mut KeyManager,
     nym_api_endpoints: Vec<Url>,
@@ -89,12 +91,13 @@ pub async fn register_with_gateway(
     Ok(gateway.into())
 }
 
-/// Convenience function for setting up the gateway for a client. Depending on the arguments given
-/// it will do the sensible thing. Either it will
+/// Convenience function for setting up the gateway for a client given a `Config`. Depending on the
+/// arguments given it will do the sensible thing. Either it will
 ///
-/// 1. Reuse existing gateway configuration from storage.
-/// 2. Create a new gateway configuration but keep existing keys.
-/// 3. Create a new gateway configuration with a newly registered gateway and keys.
+/// a. Reuse existing gateway configuration from storage.
+/// b. Create a new gateway configuration but keep existing keys. This assumes that the caller
+///    knows what they are doing and that the keys match the requested gateway.
+/// c. Create a new gateway configuration with a newly registered gateway and keys.
 pub async fn setup_gateway_from_config<C, T>(
     register_gateway: bool,
     user_chosen_gateway_id: Option<identity::PublicKey>,
@@ -222,9 +225,9 @@ where
 pub fn output_to_json<T: Serialize>(init_results: &T, output_file: &str) {
     match std::fs::File::create(output_file) {
         Ok(file) => match serde_json::to_writer_pretty(file, init_results) {
-            Ok(_) => println!("Saved: {}", output_file),
-            Err(err) => eprintln!("Could not save {}: {err}", output_file),
+            Ok(_) => println!("Saved: {output_file}"),
+            Err(err) => eprintln!("Could not save {output_file}: {err}"),
         },
-        Err(err) => eprintln!("Could not save {}: {err}", output_file),
+        Err(err) => eprintln!("Could not save {output_file}: {err}"),
     }
 }

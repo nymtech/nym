@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::node::storage::Storage;
 use gateway_requests::registration::handshake::SharedKeys;
 use gateway_requests::ServerResponse;
 use log::{trace, warn};
@@ -9,10 +10,8 @@ use rand::{CryptoRng, Rng};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::WebSocketStream;
 
-use crate::node::storage::Storage;
-
-pub(crate) use self::authenticated::AuthenticatedHandler;
-pub(crate) use self::fresh::FreshHandler;
+pub(crate) use self::authenticated::{AuthenticatedHandler, RequestHandlingError};
+pub(crate) use self::fresh::{FreshHandler, InitialAuthenticationError};
 
 mod authenticated;
 #[cfg(feature = "coconut")]

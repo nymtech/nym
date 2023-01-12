@@ -30,7 +30,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 
 #[derive(Debug, Error)]
-enum InitialAuthenticationError {
+pub(crate) enum InitialAuthenticationError {
     #[error("Internal gateway storage error")]
     StorageError(#[from] StorageError),
 

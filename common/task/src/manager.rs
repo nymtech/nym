@@ -92,6 +92,19 @@ impl TaskManager {
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn catch_interrupt(mut self) -> Result<(), SentError> {
+        let res = crate::wait_for_signal_and_error(&mut self).await;
+
+        log::info!("Sending shutdown");
+        self.signal_shutdown().ok();
+
+        log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
+        self.wait_for_shutdown().await;
+
+        res
+    }
+
     pub fn subscribe(&self) -> TaskClient {
         TaskClient::new(
             self.notify_rx

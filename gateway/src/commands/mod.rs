@@ -1,6 +1,7 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::error::GatewayError;
 use crate::{config::Config, Cli};
 use clap::CommandFactory;
 use clap::Subcommand;
@@ -9,6 +10,7 @@ use completions::{fig_generate, ArgShell};
 use config::OptionalSet;
 use crypto::bech32_address_validation;
 use network_defaults::var_names::{BECH32_PREFIX, NYM_API, STATISTICS_SERVICE_DOMAIN_ADDRESS};
+use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use std::process;
@@ -45,6 +47,7 @@ pub(crate) enum Commands {
 }
 
 // Configuration that can be overridden.
+#[derive(Default)]
 pub(crate) struct OverrideConfig {
     host: Option<IpAddr>,
     wallet_address: Option<nyxd::AccountId>,
@@ -63,20 +66,21 @@ pub(crate) struct OverrideConfig {
     only_coconut_credentials: Option<bool>,
 }
 
-pub(crate) async fn execute(args: Cli) {
+pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync>> {
     let bin_name = "nym-gateway";
 
     let output = args.output();
 
-    match &args.command {
-        Commands::Init(m) => init::execute(m, output.clone()).await,
-        Commands::NodeDetails(m) => node_details::execute(m, output.clone()).await,
-        Commands::Run(m) => run::execute(m, output.clone()).await,
-        Commands::Sign(m) => sign::execute(m),
-        Commands::Upgrade(m) => upgrade::execute(m).await,
+    match args.command {
+        Commands::Init(m) => init::execute(&m, output.clone()).await,
+        Commands::NodeDetails(m) => node_details::execute(&m, output.clone()).await,
+        Commands::Run(m) => run::execute(m, output.clone()).await?,
+        Commands::Sign(m) => sign::execute(m)?,
+        Commands::Upgrade(m) => upgrade::execute(&m).await,
         Commands::Completions(s) => s.generate(&mut crate::Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::command(), bin_name),
     }
+    Ok(())
 }
 
 pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
@@ -163,19 +167,22 @@ pub(crate) fn validate_bech32_address_or_exit(address: &str) {
 
 // this only checks compatibility between config the binary. It does not take into consideration
 // network version. It might do so in the future.
-pub(crate) fn version_check(cfg: &Config) -> bool {
+pub(crate) fn ensure_config_version_compatibility(cfg: &Config) -> Result<(), GatewayError> {
     let binary_version = env!("CARGO_PKG_VERSION");
     let config_version = cfg.get_version();
     if binary_version != config_version {
         log::warn!("The gateway binary has different version than what is specified in config file! {} and {}", binary_version, config_version);
         if version_checker::is_minor_version_compatible(binary_version, config_version) {
             log::info!("but they are still semver compatible. However, consider running the `upgrade` command");
-            true
+            Ok(())
         } else {
             log::error!("and they are semver incompatible! - please run the `upgrade` command before attempting `run` again");
-            false
+            Err(GatewayError::LocalVersionCheckFailure {
+                binary_version: binary_version.to_owned(),
+                config_version: config_version.to_owned(),
+            })
         }
     } else {
-        true
+        Ok(())
     }
 }

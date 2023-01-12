@@ -192,7 +192,7 @@ mod tests {
         std::env::set_var(BECH32_PREFIX, "n");
 
         let config = Config::new(&args.id);
-        let config = override_config(config, OverrideConfig::from(args.clone()))?;
+        let config = override_config(config, OverrideConfig::from(args.clone())).unwrap();
 
         let (identity_keys, sphinx_keys) = {
             let mut rng = rand::rngs::OsRng;

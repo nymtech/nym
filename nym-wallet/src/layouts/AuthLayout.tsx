@@ -5,7 +5,7 @@ import { AppContext } from 'src/context';
 import { LoadingPage } from 'src/components';
 import { Step } from '../pages/auth/components/step';
 
-export const AuthLayout: React.FC = ({ children }) => {
+export const AuthLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isLoading } = useContext(AppContext);
 
   return isLoading ? (

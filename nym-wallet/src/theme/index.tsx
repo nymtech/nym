@@ -9,12 +9,12 @@ import { NymWalletThemeWithMode } from './NymWalletTheme';
  * Provides the theme for the Network Explorer by reacting to the light/dark mode choice stored in the app context.
  */
 
-export const NymWalletTheme: React.FC = ({ children }) => {
+export const NymWalletTheme: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { mode } = useContext(AppContext);
   return <NymWalletThemeWithMode mode={mode}>{children}</NymWalletThemeWithMode>;
 };
 
-export const AuthTheme: React.FC = ({ children }) => {
+export const AuthTheme: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const theme = createTheme(getDesignTokens('dark'));
   return (
     <ThemeProvider theme={theme}>

@@ -9,6 +9,7 @@ export const ErrorModal: React.FC<{
   sx?: SxProps;
   backdropProps?: object;
   onClose: () => void;
+  children?: React.ReactNode;
 }> = ({ children, open, title, message, sx, backdropProps, onClose }) => (
   <Modal open={open} onClose={onClose} BackdropProps={backdropProps}>
     <Box

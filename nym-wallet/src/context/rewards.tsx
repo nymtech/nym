@@ -24,7 +24,7 @@ export const RewardsContext = createContext<TRewardsContext>({
   },
 });
 
-export const RewardsContextProvider: FC<{}> = ({ children }) => {
+export const RewardsContextProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isLoading, totalRewards, refresh } = useDelegationContext();
   const [error, setError] = useState<string>();
 

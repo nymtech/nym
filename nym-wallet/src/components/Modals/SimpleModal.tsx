@@ -25,6 +25,7 @@ export const SimpleModal: React.FC<{
   okDisabled?: boolean;
   sx?: SxProps;
   backdropProps?: object;
+  children?: React.ReactNode;
 }> = ({
   open,
   hideCloseIcon,

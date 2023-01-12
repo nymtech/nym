@@ -64,6 +64,7 @@ export const DelegationContext = createContext<TDelegationContext>({
 
 export const DelegationContextProvider: FC<{
   network?: Network;
+  children: React.ReactNode;
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
 }> = ({ network, children }) => {
   const [isLoading, setIsLoading] = useState(true);

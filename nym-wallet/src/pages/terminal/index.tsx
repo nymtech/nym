@@ -12,6 +12,7 @@ import { getCurrentInterval, getAllPendingDelegations, getMixNodeDelegationsForC
 
 const TerminalSection: React.FC<{
   heading: React.ReactNode;
+  children: React.ReactNode;
 }> = ({ heading, children }) => {
   const [isCollapsed, setIsCollapsed] = useState<boolean>(true);
 

@@ -2,7 +2,7 @@ import React, { FC, useMemo } from 'react';
 import type { TAppContext } from '../main';
 import { AppContext } from '../main';
 
-export const MockMainContextProvider: FC<{}> = ({ children }) => {
+export const MockMainContextProvider: FC<{ children: React.ReactNode }> = ({ children }) => {
   const memoizedValue = useMemo<TAppContext>(
     () => ({
       mode: 'light',

@@ -24,4 +24,4 @@ export const Tabs: React.FC<{
   </MuiTabs>
 );
 
-export const TabPanel: React.FC = ({ children }) => <Box sx={{ p: 4 }}>{children}</Box>;
+export const TabPanel: React.FC<{ children: React.ReactNode }> = ({ children }) => <Box sx={{ p: 4 }}>{children}</Box>;

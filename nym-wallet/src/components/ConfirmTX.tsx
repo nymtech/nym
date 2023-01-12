@@ -24,6 +24,7 @@ export const ConfirmTx: React.FC<{
   onClose?: () => void;
   onPrev: () => void;
   isStorybook?: boolean;
+  children?: React.ReactNode;
 }> = ({ open, fee, onConfirm, onClose, header, subheader, onPrev, children, isStorybook }) => {
   const theme = useTheme();
   return (

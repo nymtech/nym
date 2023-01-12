@@ -1,7 +1,10 @@
 import React from 'react';
 import { Box } from '@mui/material';
 
-export const PageLayout: React.FC<{ position?: 'flex-start' | 'flex-end' }> = ({ position, children }) => (
+export const PageLayout: React.FC<{ position?: 'flex-start' | 'flex-end'; children: React.ReactNode }> = ({
+  position,
+  children,
+}) => (
   <Box
     sx={{
       maxHeight: 'calc(100% - 65px)',

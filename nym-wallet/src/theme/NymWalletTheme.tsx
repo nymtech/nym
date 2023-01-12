@@ -4,7 +4,7 @@ import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { getDesignTokens } from './theme';
 import '@assets/fonts/non-variable/fonts.css';
 
-export const NymWalletThemeWithMode: React.FC<{ mode: PaletteMode; children: React.ReactNode }> = ({
+export const NymWalletThemeWithMode: FCWithChildren<{ mode: PaletteMode; children: React.ReactNode }> = ({
   mode,
   children,
 }) => {

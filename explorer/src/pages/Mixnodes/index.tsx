@@ -35,7 +35,7 @@ const getCellStyles = (theme: Theme, row: MixnodeRowType, textColor?: string): S
   ...getCellFontStyle(theme, row, textColor),
 });
 
-export const PageMixnodes: React.FC = () => {
+export const PageMixnodes: FCWithChildren = () => {
   const { mixnodes, fetchMixnodes } = useMainContext();
   const [filteredMixnodes, setFilteredMixnodes] = React.useState<MixNodeResponse>([]);
   const [pageSize, setPageSize] = React.useState<string>('10');

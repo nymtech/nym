@@ -5,7 +5,7 @@ import { Paper, Stack, Button, Box } from '@mui/material';
 import ArrowCircleRightIcon from '@mui/icons-material/ArrowCircleRight';
 import { useTestAndEarnContext } from './context/TestAndEarnContext';
 
-export const TestAndEarnEnterWalletAddress: React.FC<{
+export const TestAndEarnEnterWalletAddress: FCWithChildren<{
   initialValue?: string;
   placeholder?: string;
   onSubmit?: () => Promise<void> | void;

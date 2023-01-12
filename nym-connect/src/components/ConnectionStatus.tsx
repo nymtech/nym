@@ -9,7 +9,7 @@ const FONT_SIZE = '10px';
 const FONT_WEIGHT = '600';
 const FONT_STYLE = 'normal';
 
-const ConnectionStatusContent: React.FC<{
+const ConnectionStatusContent: FCWithChildren<{
   status: ConnectionStatusKind;
 }> = ({ status }) => {
   switch (status) {
@@ -56,7 +56,7 @@ const ConnectionStatusContent: React.FC<{
   }
 };
 
-export const ConnectionStatus: React.FC<{
+export const ConnectionStatus: FCWithChildren<{
   status: ConnectionStatusKind;
   connectedSince?: DateTime;
   serviceProvider?: ServiceProvider;

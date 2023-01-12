@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { MoreVertSharp } from '@mui/icons-material';
 import { IconButton, ListItemIcon, ListItemText, Menu, MenuItem } from '@mui/material';
 
-export const ActionsMenu: React.FC<{
+export const ActionsMenu: FCWithChildren<{
   open: boolean;
   children: React.ReactNode;
   onOpen: () => void;

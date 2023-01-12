@@ -46,7 +46,7 @@ export const MainContext = React.createContext<State>({
 
 export const useMainContext = (): React.ContextType<typeof MainContext> => React.useContext<State>(MainContext);
 
-export const MainContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const MainContextProvider: FCWithChildren = ({ children }) => {
   // light/dark mode
   const [mode, setMode] = React.useState<PaletteMode>('dark');
 

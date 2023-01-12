@@ -16,7 +16,11 @@ interface MixNodeStatusDropdownProps {
   onSelectionChanged?: (status?: MixnodeStatusWithAll) => void;
 }
 
-export const MixNodeStatusDropdown: React.FC<MixNodeStatusDropdownProps> = ({ status, onSelectionChanged, sx }) => {
+export const MixNodeStatusDropdown: FCWithChildren<MixNodeStatusDropdownProps> = ({
+  status,
+  onSelectionChanged,
+  sx,
+}) => {
   const isMobile = useIsMobile();
   const [statusValue, setStatusValue] = React.useState<MixnodeStatusWithAll>(status || MixnodeStatusWithAll.all);
   const onChange = React.useCallback(

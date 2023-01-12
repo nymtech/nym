@@ -10,7 +10,7 @@ const CardContentNoPadding = styled(CardContent)(() => ({
   },
 }));
 
-export const NymCard: React.FC<{
+export const NymCard: FCWithChildren<{
   title: string | React.ReactElement;
   subheader?: string | React.ReactChild;
   Action?: React.ReactNode;

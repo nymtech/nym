@@ -41,9 +41,7 @@ export enum EnumRequestType {
 
 export const GlobalContext = createContext({} as TGlobalContext)
 
-export const GlobalContextProvider: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+export const GlobalContextProvider: FCWithChildren = ({ children }) => {
   const [validator, setValidator] = useState<ClientValidator>()
   const [loadingState, setLoadingState] = useState<TLoadingState>({
     isLoading: false,

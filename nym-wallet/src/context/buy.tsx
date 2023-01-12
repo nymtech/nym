@@ -16,7 +16,7 @@ export const BuyContext = createContext<TBuyContext>({
   refresh: async () => undefined,
 });
 
-export const BuyContextProvider = ({ children }: { children?: React.ReactNode }): JSX.Element => {
+export const BuyContextProvider: FCWithChildren = ({ children }): JSX.Element => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
 

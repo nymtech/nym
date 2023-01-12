@@ -8,7 +8,10 @@ import { getNetworkExplorerDesignTokens } from './network-explorer';
  * Provides the theme for the Nym Components by reacting to the light/dark mode choice.
  *
  */
-export const NymThemeProvider: React.FC<{ mode: PaletteMode; children: React.ReactNode }> = ({ mode, children }) => {
+export const NymThemeProvider: FCWithChildren<{ mode: PaletteMode; children: React.ReactNode }> = ({
+  mode,
+  children,
+}) => {
   const theme = React.useMemo(() => createTheme(getDesignTokens(mode)), [mode]);
 
   return (
@@ -25,7 +28,7 @@ export const NymThemeProvider: React.FC<{ mode: PaletteMode; children: React.Rea
  * TODO: remove this provider and theme tokens to unify theme
  *
  */
-export const NymNetworkExplorerThemeProvider: React.FC<{ mode: PaletteMode; children: React.ReactNode }> = ({
+export const NymNetworkExplorerThemeProvider: FCWithChildren<{ mode: PaletteMode; children: React.ReactNode }> = ({
   mode,
   children,
 }) => {

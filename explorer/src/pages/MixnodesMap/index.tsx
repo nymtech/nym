@@ -10,7 +10,7 @@ import { WorldMap } from '../../components/WorldMap';
 import { useMainContext } from '../../context/main';
 import { CountryDataRowType, countryDataToGridRow } from '../../utils';
 
-export const PageMixnodesMap: React.FC = () => {
+export const PageMixnodesMap: FCWithChildren = () => {
   const { countryData } = useMainContext();
   const [pageSize, setPageSize] = React.useState<string>('10');
   const [formattedCountries, setFormattedCountries] = React.useState<CountryDataRowType[]>([]);

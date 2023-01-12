@@ -5,7 +5,7 @@ import { PageMixnodesMap } from '../pages/MixnodesMap';
 import { Page404 } from '../pages/404';
 import { NetworkComponentsRoutes } from './network-components';
 
-export const Routes: React.FC = () => (
+export const Routes: FCWithChildren = () => (
   <ReactRouterRoutes>
     <Route path="/" element={<PageOverview />} />
     <Route path="/network-components/*" element={<NetworkComponentsRoutes />} />

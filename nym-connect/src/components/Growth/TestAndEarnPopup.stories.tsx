@@ -29,7 +29,7 @@ export default {
   component: TestAndEarnPopupContent,
 } as ComponentMeta<typeof TestAndEarnPopupContent>;
 
-const MacOSWindow: React.FC<{
+const MacOSWindow: FCWithChildren<{
   width?: string | number;
   height?: string | number;
   title?: string;
@@ -67,7 +67,7 @@ const MacOSWindow: React.FC<{
   </Box>
 );
 
-const Wrapper: React.FC<{ text: React.ReactNode }> = ({ text }) => (
+const Wrapper: FCWithChildren<{ text: React.ReactNode }> = ({ text }) => (
   <NymShipyardTheme>
     <Alert severity="info" sx={{ mb: 4 }}>
       {text}

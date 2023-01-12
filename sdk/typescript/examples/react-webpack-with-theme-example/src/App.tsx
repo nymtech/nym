@@ -32,7 +32,7 @@ import { ThemeToggle } from './ThemeToggle';
 import { AppContextProvider, useAppContext } from './context';
 import { MixnetContextProvider, parseBinaryMessageHeaders, useMixnetContext } from './context/mixnet';
 
-export const AppTheme: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AppTheme: FCWithChildren = ({ children }) => {
   const { mode } = useAppContext();
 
   return <NymThemeProvider mode={mode}>{children}</NymThemeProvider>;
@@ -52,7 +52,7 @@ interface UploadState {
   files: File[];
 }
 
-export const Content: React.FC = () => {
+export const Content: FCWithChildren = () => {
   const theme = useTheme();
   const { isReady, address, connect, events, sendTextMessage, sendBinaryMessage } = useMixnetContext();
   const copy = useClipboard();
@@ -405,7 +405,7 @@ export const Content: React.FC = () => {
   );
 };
 
-export const App: React.FC = () => (
+export const App: FCWithChildren = () => (
   <AppContextProvider>
     <MixnetContextProvider>
       <AppTheme>

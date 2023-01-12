@@ -15,7 +15,7 @@ import { Tooltip } from '../../components/Tooltip';
 import { BIG_DIPPER } from '../../api/constants';
 import { splice } from '../../utils';
 
-export const PageGateways: React.FC = () => {
+export const PageGateways: FCWithChildren = () => {
   const { gateways } = useMainContext();
   const [filteredGateways, setFilteredGateways] = React.useState<GatewayResponse>([]);
   const [pageSize, setPageSize] = React.useState<string>('50');

@@ -33,7 +33,7 @@ export const useMixnetContext = (): State => {
   return context;
 };
 
-export const MixnetContextProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const MixnetContextProvider: FCWithChildren = ({ children }) => {
   const [isReady, setReady] = React.useState<boolean>(false);
   const [address, setAddress] = React.useState<string>();
 

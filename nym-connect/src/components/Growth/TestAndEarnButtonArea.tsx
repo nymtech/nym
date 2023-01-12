@@ -8,7 +8,7 @@ import { useTestAndEarnContext } from './context/TestAndEarnContext';
 import { NymShipyardTheme } from '../../theme';
 import { ConnectionStatusKind } from '../../types';
 
-export const Wrapper: React.FC<{ disabled: boolean; children: React.ReactNode }> = ({ disabled, children }) => {
+export const Wrapper: FCWithChildren<{ disabled: boolean }> = ({ disabled, children }) => {
   if (disabled) {
     return (
       <Badge badgeContent="!" color="warning">
@@ -21,7 +21,7 @@ export const Wrapper: React.FC<{ disabled: boolean; children: React.ReactNode }>
   return <>{children}</>;
 };
 
-export const TestAndEarnButtonArea: React.FC = () => {
+export const TestAndEarnButtonArea: FCWithChildren = () => {
   const clientContext = useClientContext();
   const context = useTestAndEarnContext();
   const disabled = clientContext.connectionStatus !== ConnectionStatusKind.connected;

@@ -7,7 +7,7 @@ import '../../../assets/fonts/non-variable/fonts.css';
 /**
  * Provides the theme for Nym Connect by reacting to the light/dark mode choice stored in the app context.
  */
-export const NymMixnetTheme: React.FC<{ mode: 'light' | 'dark'; children: React.ReactNode }> = ({ children, mode }) => {
+export const NymMixnetTheme: FCWithChildren<{ mode: 'light' | 'dark' }> = ({ children, mode }) => {
   const theme = React.useMemo(() => createTheme(getDesignTokens(mode)), [mode]);
   return (
     <ThemeProvider theme={theme}>
@@ -17,10 +17,7 @@ export const NymMixnetTheme: React.FC<{ mode: 'light' | 'dark'; children: React.
   );
 };
 
-export const NymShipyardTheme: React.FC<{ mode?: 'light' | 'dark'; children: React.ReactNode }> = ({
-  children,
-  mode = 'dark',
-}) => {
+export const NymShipyardTheme: FCWithChildren<{ mode?: 'light' | 'dark' }> = ({ children, mode = 'dark' }) => {
   const theme = React.useMemo(() => createTheme(getDesignTokens(mode, true)), [mode]);
   return (
     <ThemeProvider theme={theme}>

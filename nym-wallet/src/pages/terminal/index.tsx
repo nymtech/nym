@@ -10,7 +10,7 @@ import { AppContext } from '../../context/main';
 import { NymCard } from '../../components';
 import { getCurrentInterval, getAllPendingDelegations, getMixNodeDelegationsForCurrentAccount } from '../../requests';
 
-const TerminalSection: React.FC<{
+const TerminalSection: FCWithChildren<{
   heading: React.ReactNode;
   children: React.ReactNode;
 }> = ({ heading, children }) => {
@@ -33,7 +33,7 @@ const TerminalSection: React.FC<{
   );
 };
 
-const TerminalInner: React.FC = () => {
+const TerminalInner: FCWithChildren = () => {
   const { network, userBalance, clientDetails, handleShowTerminal, appEnv } = useContext(AppContext);
   const [mixnodeDelegations, setMixnodeDelegations] = useState<any>();
   const [pendingEvents, setPendingEvents] = useState<any>();
@@ -185,7 +185,7 @@ const TerminalInner: React.FC = () => {
   );
 };
 
-export const Terminal: React.FC = () => {
+export const Terminal: FCWithChildren = () => {
   const { showTerminal } = useContext(AppContext);
 
   // this is a guard component, that only mounts the terminal component when shown

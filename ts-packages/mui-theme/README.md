@@ -24,7 +24,7 @@ look at the recommendations from Material UI docs for implementation:
 You can see an example of how to use this theme in [react-webpack-with-theme-example](../react-webpack-with-theme-example/src/App.tsx):
 
 ```typescript jsx
-export const App: React.FC = () => (
+export const App: FCWithChildren = () => (
   <AppContextProvider>
     <AppTheme>
       <Content />
@@ -32,13 +32,13 @@ export const App: React.FC = () => (
   </AppContextProvider>
 );
 
-export const AppTheme: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const AppTheme: FCWithChildren = ({ children }) => {
   const { mode } = useAppContext();
 
   return <NymThemeProvider mode={mode}>{children}</NymThemeProvider>;
 };
 
-export const Content: React.FC = () => {
+export const Content: FCWithChildren = () => {
   ...
   <Typography sx={{ color: (theme) => theme.palette.nym.networkExplorer.mixnodes.status.active }}>
     The quick brown fox jumps over the white fence

@@ -8,10 +8,9 @@ type ContentCardProps = {
   Action?: React.ReactNode;
   errorMsg?: string;
   onClick?: ReactEventHandler;
-  children: React.ReactNode;
 };
 
-export const ContentCard: React.FC<ContentCardProps> = ({
+export const ContentCard: FCWithChildren<ContentCardProps> = ({
   title,
   Icon,
   Action,

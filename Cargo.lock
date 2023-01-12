@@ -3469,6 +3469,7 @@ dependencies = [
  "sqlx 0.5.11",
  "statistics-common",
  "subtle-encoding",
+ "task",
  "thiserror",
  "tokio",
  "tokio-stream",

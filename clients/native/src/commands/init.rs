@@ -114,16 +114,15 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
 
     let already_init = Config::default_config_file_path(Some(id)).exists();
     if already_init {
-        println!(
-            "Client \"{}\" was already initialised before! \
-            Config information will be overwritten (but keys will be kept)!",
-            id
-        );
+        println!("Client \"{id}\" was already initialised before");
     }
 
     // Usually you only register with the gateway on the first init, however you can force
     // re-registering if wanted.
     let user_wants_force_register = args.force_register_gateway;
+    if user_wants_force_register {
+        println!("Instructed to force registering gateway. This might overwrite keys!");
+    }
 
     // If the client was already initialized, don't generate new keys and don't re-register with
     // the gateway (because this would create a new shared key).

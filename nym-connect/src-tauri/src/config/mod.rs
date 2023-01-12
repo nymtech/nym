@@ -110,11 +110,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     );
     let already_init = Config::config_file_location(&id)?.exists();
     if already_init {
-        log::info!(
-            "SOCKS5 client \"{}\" was already initialised before! \
-            Config information will be overwritten (but keys will be kept)!",
-            id
-        );
+        log::info!("SOCKS5 client \"{id}\" was already initialised before");
     }
 
     // Future proofing. This flag exists for the other clients

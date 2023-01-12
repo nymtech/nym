@@ -112,6 +112,7 @@ where
     // If we are not going to register gateway, and an explicitly chosed gateway is not passed in,
     // load the existing configuration file
     if !register_gateway && user_chosen_gateway_id.is_none() {
+        println!("Not registering gateway, will reuse existing config and keys");
         return load_existing_gateway_config::<C>(&id);
     }
 
@@ -133,6 +134,7 @@ where
     let our_identity = key_manager.identity_keypair();
 
     // Establish connection, authenticate and generate keys for talking with the gateway
+    println!("Registering with new gateway");
     let shared_keys = helpers::register_with_gateway(&gateway, our_identity).await?;
     key_manager.insert_gateway_shared_key(shared_keys);
 
@@ -147,7 +149,6 @@ pub fn load_existing_gateway_config<T>(id: &str) -> Result<GatewayEndpointConfig
 where
     T: NymConfig + ClientCoreConfigTrait,
 {
-    println!("Not registering gateway, will reuse existing config and keys");
     T::load_from_file(Some(id))
         .map(|existing_config| existing_config.get_gateway_endpoint().clone())
         .map_err(|err| {

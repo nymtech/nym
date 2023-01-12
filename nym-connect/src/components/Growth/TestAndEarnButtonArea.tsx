@@ -8,7 +8,7 @@ import { useTestAndEarnContext } from './context/TestAndEarnContext';
 import { NymShipyardTheme } from '../../theme';
 import { ConnectionStatusKind } from '../../types';
 
-export const Wrapper: React.FC<{ disabled: boolean }> = ({ disabled, children }) => {
+export const Wrapper: React.FC<{ disabled: boolean; children: React.ReactNode }> = ({ disabled, children }) => {
   if (disabled) {
     return (
       <Badge badgeContent="!" color="warning">

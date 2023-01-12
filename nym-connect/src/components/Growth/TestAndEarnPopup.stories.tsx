@@ -29,12 +29,12 @@ export default {
   component: TestAndEarnPopupContent,
 } as ComponentMeta<typeof TestAndEarnPopupContent>;
 
-const MacOSWindow: React.FC<{ width?: string | number; height?: string | number; title?: string }> = ({
-  title,
-  width,
-  height,
-  children,
-}) => (
+const MacOSWindow: React.FC<{
+  width?: string | number;
+  height?: string | number;
+  title?: string;
+  children: React.ReactNode;
+}> = ({ title, width, height, children }) => (
   <Box sx={{ border: '1px solid #EEEEEE', width, height }}>
     <Box sx={{ background: '#EEEEEE', display: 'grid', gridTemplateColumns: 'auto auto', gridTemplateRows: 'auto' }}>
       <Box ml={1}>

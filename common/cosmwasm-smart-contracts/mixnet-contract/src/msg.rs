@@ -14,6 +14,7 @@ use cosmwasm_std::Decimal;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+use cosmwasm_std::Addr;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
@@ -510,4 +511,5 @@ pub enum QueryMsg {
 #[serde(rename_all = "snake_case")]
 pub struct MigrateMsg {
     pub vesting_contract_address: Option<String>,
+    pub gateway_address: Addr,
 }

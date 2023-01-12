@@ -12,6 +12,7 @@ use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
     ContractState, ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg, QueryMsg,
 };
+use crate::gateways::storage;
 
 fn default_initial_state(
     owner: Addr,
@@ -567,6 +568,17 @@ pub fn migrate(
             deps.api.addr_validate(&vesting_contract_address)?;
         mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &current_state)?;
     }
+
+    let gateway_bond = match storage::gateways()
+    .idx
+    .owner
+    .item(deps.storage, msg.gateway_address.clone())?
+    {
+        Some(record) => record.1,
+        None => return Err(MixnetContractError::NoAssociatedGatewayBond { owner: msg.gateway_address.clone() }),
+    };
+
+    storage::gateways().remove(deps.storage, gateway_bond.identity())?;
 
     Ok(Default::default())
 }

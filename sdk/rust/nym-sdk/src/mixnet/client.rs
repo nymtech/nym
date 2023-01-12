@@ -13,12 +13,14 @@ use client_core::{
     },
     config::{persistence::key_pathfinder::ClientKeyPathfinder, GatewayEndpointConfig},
 };
-use futures::StreamExt;
+use crypto::asymmetric::identity;
 use nymsphinx::{
     addressing::clients::{ClientIdentity, Recipient},
     receiver::ReconstructedMessage,
 };
 use task::TaskManager;
+
+use futures::StreamExt;
 
 use super::{connection_state::BuilderState, Config, GatewayKeyMode, Keys, KeysArc, StoragePaths};
 use crate::error::{Error, Result};
@@ -124,10 +126,17 @@ impl ClientBuilder {
             "can only setup gateway when in `New` connection state"
         );
 
+        let user_chosen_gateway = self
+            .config
+            .user_chosen_gateway
+            .as_ref()
+            .map(identity::PublicKey::from_base58_string)
+            .transpose()?;
+
         let gateway_config = client_core::init::register_with_gateway(
             &mut self.key_manager,
             self.config.nym_api_endpoints.clone(),
-            self.config.user_chosen_gateway.clone(),
+            user_chosen_gateway,
         )
         .await?;
 

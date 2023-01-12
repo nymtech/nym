@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::replies::reply_storage::{
-    fs_backend, CombinedReplyStorage, ReplyStorageBackend,
+    self, fs_backend, CombinedReplyStorage, ReplyStorageBackend,
 };
 use crate::config::DebugConfig;
 use crate::error::ClientCoreError;
@@ -83,5 +83,12 @@ pub async fn setup_fs_reply_surb_backend<P: AsRef<Path>>(
         }
     } else {
         setup_fresh_backend(db_path, debug_config).await
+    }
+}
+
+pub fn setup_empty_reply_surb_backend(debug_config: &DebugConfig) -> reply_storage::Empty {
+    reply_storage::Empty {
+        min_surb_threshold: debug_config.minimum_reply_surb_storage_threshold,
+        max_surb_threshold: debug_config.maximum_reply_surb_storage_threshold,
     }
 }

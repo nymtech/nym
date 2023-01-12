@@ -68,11 +68,11 @@ pub struct Run {
     /// bypass bandwidth credential requirement
     #[cfg(feature = "coconut")]
     #[clap(long)]
-    only_coconut_credentials: bool,
+    only_coconut_credentials: Option<bool>,
 
     /// Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server
     #[clap(long)]
-    enabled_statistics: bool,
+    enabled_statistics: Option<bool>,
 
     /// URL where a statistics aggregator is running. The default value is a Nym aggregator server
     #[clap(long)]

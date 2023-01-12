@@ -34,7 +34,7 @@ use validator_client::nyxd::Coin;
 use validator_client::nyxd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
 
 use crate::coconut::State;
-use crate::NymApiStorage;
+use crate::support::storage::NymApiStorage;
 use async_trait::async_trait;
 use coconut_dkg_common::dealer::{
     ContractDealing, DealerDetails, DealerDetailsResponse, DealerType,

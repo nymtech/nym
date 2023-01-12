@@ -4,6 +4,7 @@ use crate::{
 };
 use client_core::config::Config as BaseConfig;
 use config_common::NymConfig;
+use crypto::asymmetric::identity;
 use nym_socks5::client::config::Config as Socks5Config;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -109,11 +110,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     );
     let already_init = Config::config_file_location(&id)?.exists();
     if already_init {
-        log::info!(
-            "SOCKS5 client \"{}\" was already initialised before! \
-            Config information will be overwritten (but keys will be kept)!",
-            id
-        );
+        log::info!("SOCKS5 client \"{id}\" was already initialised before");
     }
 
     // Future proofing. This flag exists for the other clients
@@ -133,8 +130,11 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
             .set_custom_nym_apis(config_common::parse_urls(&raw_validators));
     }
 
+    let chosen_gateway_id = identity::PublicKey::from_base58_string(chosen_gateway_id)
+        .map_err(|_| BackendError::UnableToParseGateway)?;
+
     // Setup gateway by either registering a new one, or reusing exiting keys
-    let gateway = client_core::init::setup_gateway::<Socks5Config, _>(
+    let gateway = client_core::init::setup_gateway_from_config::<Socks5Config, _>(
         register_gateway,
         Some(chosen_gateway_id),
         config.get_base(),

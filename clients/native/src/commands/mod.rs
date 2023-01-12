@@ -54,7 +54,7 @@ pub(crate) enum Commands {
 // Configuration that can be overridden.
 pub(crate) struct OverrideConfig {
     nym_apis: Option<Vec<url::Url>>,
-    disable_socket: bool,
+    disable_socket: Option<bool>,
     port: Option<u16>,
     fastmode: bool,
     no_cover: bool,
@@ -62,7 +62,7 @@ pub(crate) struct OverrideConfig {
     #[cfg(feature = "coconut")]
     nyxd_urls: Option<Vec<url::Url>>,
     #[cfg(feature = "coconut")]
-    enabled_credentials_mode: bool,
+    enabled_credentials_mode: Option<bool>,
 }
 
 pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -80,7 +80,7 @@ pub(crate) async fn execute(args: &Cli) -> Result<(), Box<dyn Error + Send + Syn
 
 pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Config {
     config = config
-        .with_disabled_socket(args.disable_socket)
+        .with_optional(Config::with_disabled_socket, args.disable_socket)
         .with_base(BaseConfig::with_high_default_traffic_volume, args.fastmode)
         .with_base(BaseConfig::with_disabled_cover_traffic, args.no_cover)
         .with_optional(Config::with_port, args.port)
@@ -100,9 +100,9 @@ pub(crate) fn override_config(mut config: Config, args: OverrideConfig) -> Confi
                 network_defaults::var_names::NYXD,
                 config::parse_urls,
             )
-            .with_base(
+            .with_optional_ext(
                 BaseConfig::with_disabled_credentials,
-                !args.enabled_credentials_mode,
+                args.enabled_credentials_mode.map(|b| !b),
             );
     }
 

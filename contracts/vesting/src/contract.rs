@@ -1,5 +1,4 @@
 use crate::errors::ContractError;
-use crate::queued_migrations::migrate_to_v2_mixnet_contract;
 use crate::storage::{
     account_from_address, save_account, BlockTimestampSecs, ACCOUNTS, ADMIN, DELEGATIONS,
     MIXNET_CONTRACT_ADDRESS, MIX_DENOM,
@@ -10,7 +9,7 @@ use crate::traits::{
 use crate::vesting::{populate_vesting_periods, Account};
 use contracts_common::ContractBuildInformation;
 use cosmwasm_std::{
-    coin, entry_point, to_binary, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Order,
+    coin, entry_point, to_binary, Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Order,
     QueryResponse, Response, StdResult, Timestamp, Uint128,
 };
 use cw_storage_plus::Bound;
@@ -41,16 +40,28 @@ pub fn instantiate(
     info: MessageInfo,
     msg: InitMsg,
 ) -> Result<Response, ContractError> {
-    //! ADMIN is set to the address that instantiated the contract
-    ADMIN.save(deps.storage, &info.sender.to_string())?;
-    MIXNET_CONTRACT_ADDRESS.save(deps.storage, &msg.mixnet_contract_address)?;
+    // validate the received mixnet contract address
+    let mixnet_contract_address = deps.api.addr_validate(&msg.mixnet_contract_address)?;
+
+    // ADMIN is set to the address that instantiated the contract
+    ADMIN.save(deps.storage, &info.sender)?;
+    MIXNET_CONTRACT_ADDRESS.save(deps.storage, &mixnet_contract_address)?;
     MIX_DENOM.save(deps.storage, &msg.mix_denom)?;
     Ok(Response::default())
 }
 
 #[entry_point]
-pub fn migrate(deps: DepsMut<'_>, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
-    migrate_to_v2_mixnet_contract(deps, msg)
+pub fn migrate(_deps: DepsMut<'_>, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
+    // we can't perform this check inside the migrate function since there are 12k addresses to check
+    // and this invariant MUST hold, otherwise we're gonna have bad time
+    if !msg.manually_verified_no_staking_addresses {
+        return Err(ContractError::Other {
+            message:
+                "the assumption that nobody has set a staking address hasn't been manually verified"
+                    .to_string(),
+        });
+    }
+    Ok(Response::new())
 }
 
 #[entry_point]
@@ -95,12 +106,15 @@ pub fn execute(
         ExecuteMsg::UpdateMixnetAddress { address } => {
             try_update_mixnet_address(address, info, deps)
         }
-        ExecuteMsg::DelegateToMixnode { mix_id, amount } => {
-            try_delegate_to_mixnode(mix_id, amount, info, env, deps)
-        }
-        ExecuteMsg::UndelegateFromMixnode { mix_id } => {
-            try_undelegate_from_mixnode(mix_id, info, deps)
-        }
+        ExecuteMsg::DelegateToMixnode {
+            mix_id,
+            amount,
+            on_behalf_of,
+        } => try_delegate_to_mixnode(mix_id, amount, on_behalf_of, info, env, deps),
+        ExecuteMsg::UndelegateFromMixnode {
+            mix_id,
+            on_behalf_of,
+        } => try_undelegate_from_mixnode(mix_id, on_behalf_of, info, deps),
         ExecuteMsg::CreateAccount {
             owner_address,
             staking_address,
@@ -246,7 +260,9 @@ pub fn try_update_mixnet_address(
     if info.sender != ADMIN.load(deps.storage)? {
         return Err(ContractError::NotAdmin(info.sender.as_str().to_string()));
     }
-    MIXNET_CONTRACT_ADDRESS.save(deps.storage, &address)?;
+    let mixnet_contract_address = deps.api.addr_validate(&address)?;
+
+    MIXNET_CONTRACT_ADDRESS.save(deps.storage, &mixnet_contract_address)?;
     Ok(Response::default())
 }
 
@@ -314,6 +330,13 @@ fn try_update_staking_address(
     info: MessageInfo,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
+    if let Some(ref to_address) = to_address {
+        if account_from_address(to_address, deps.storage, deps.api).is_ok() {
+            // do not allow setting staking address to an existing account's address
+            return Err(ContractError::StakingAccountExists(to_address.to_string()));
+        }
+    }
+
     let address = info.sender.clone();
     let to_address = to_address.and_then(|x| deps.api.addr_validate(&x).ok());
     let mut account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
@@ -455,13 +478,23 @@ fn try_track_undelegation(
 fn try_delegate_to_mixnode(
     mix_id: MixId,
     amount: Coin,
+    on_behalf_of: Option<String>,
     info: MessageInfo,
     env: Env,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
     let mix_denom = MIX_DENOM.load(deps.storage)?;
     let amount = validate_funds(&[amount], mix_denom)?;
-    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+
+    let account = match on_behalf_of {
+        Some(account_owner) => {
+            let account = account_from_address(&account_owner, deps.storage, deps.api)?;
+            ensure_staking_permission(&info.sender, &account)?;
+            account
+        }
+        // you're the owner, you can do what you want
+        None => account_from_address(info.sender.as_str(), deps.storage, deps.api)?,
+    };
 
     account.try_delegate_to_mixnode(mix_id, amount, &env, deps.storage)
 }
@@ -489,10 +522,19 @@ fn try_claim_delegator_reward(
 /// Undelegates from a mixnode, sends [mixnet_contract_common::ExecuteMsg::UndelegateFromMixnodeOnBehalf] to [crate::storage::MIXNET_CONTRACT_ADDRESS].
 fn try_undelegate_from_mixnode(
     mix_id: MixId,
+    on_behalf_of: Option<String>,
     info: MessageInfo,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
-    let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
+    let account = match on_behalf_of {
+        Some(account_owner) => {
+            let account = account_from_address(&account_owner, deps.storage, deps.api)?;
+            ensure_staking_permission(&info.sender, &account)?;
+            account
+        }
+        // you're the owner, you can do what you want
+        None => account_from_address(info.sender.as_str(), deps.storage, deps.api)?,
+    };
 
     account.try_undelegate_from_mixnode(mix_id, deps.storage)
 }
@@ -576,7 +618,7 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetAccountsVestingCoinsPaged {
             start_next_after,
             limit,
-        } => to_binary(&try_get_all_accounts_locked_coins(
+        } => to_binary(&try_get_all_accounts_vesting_coins(
             deps,
             env,
             start_next_after,
@@ -710,7 +752,9 @@ pub fn try_get_all_accounts(
 ) -> Result<AccountsResponse, ContractError> {
     let limit = limit.unwrap_or(150).min(250) as usize;
 
-    let start = start_after.map(Bound::exclusive);
+    let start = start_after
+        .map(|raw| deps.api.addr_validate(&raw).map(Bound::exclusive))
+        .transpose()?;
 
     let accounts = ACCOUNTS
         .range(deps.storage, start, None, Order::Ascending)
@@ -731,7 +775,7 @@ pub fn try_get_all_accounts(
     })
 }
 
-pub fn try_get_all_accounts_locked_coins(
+pub fn try_get_all_accounts_vesting_coins(
     deps: Deps<'_>,
     env: Env,
     start_after: Option<String>,
@@ -739,7 +783,9 @@ pub fn try_get_all_accounts_locked_coins(
 ) -> Result<VestingCoinsResponse, ContractError> {
     let limit = limit.unwrap_or(150).min(250) as usize;
 
-    let start = start_after.map(Bound::exclusive);
+    let start = start_after
+        .map(|raw| deps.api.addr_validate(&raw).map(Bound::exclusive))
+        .transpose()?;
 
     let accounts = ACCOUNTS
         .range(deps.storage, start, None, Order::Ascending)
@@ -930,4 +976,16 @@ fn validate_funds(funds: &[Coin], mix_denom: String) -> Result<Coin, ContractErr
     }
 
     Ok(funds[0].clone())
+}
+
+fn ensure_staking_permission(addr: &Addr, account: &Account) -> Result<(), ContractError> {
+    if let Some(staking_address) = account.staking_address() {
+        if staking_address == addr {
+            return Ok(());
+        }
+    }
+    Err(ContractError::InvalidStakingAccount {
+        address: addr.clone(),
+        for_account: account.owner_address(),
+    })
 }

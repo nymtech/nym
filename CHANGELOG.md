@@ -6,6 +6,9 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ### Added
 
+- nym-sdk: added initial version of a Rust client sdk
+- nym-api: added `/circulating-supply` endpoint ([#2814])
+
 ### Changed
 
 - renamed all references to validator_api to nym_api
@@ -18,6 +21,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 [#2753]: https://github.com/nymtech/nym/pull/2753
 [#2762]: https://github.com/nymtech/nym/pull/2762
+[#2814]: https://github.com/nymtech/nym/pull/2814
 
 ## [v1.1.5] (2022-01-10)
 

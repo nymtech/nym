@@ -173,6 +173,10 @@ async function main() {
   if(context.env.MATRIX_ROOM) {
     await sendMatrixMessage(context, messageBody, context.env.MATRIX_ROOM)
   }
+  if(context.env.MATRIX_ROOM_OF_SHAME && context.env.IS_SUCCESS !== 'true') {
+    // when a job fails
+    await sendMatrixMessage(context, messageBody, context.env.MATRIX_ROOM_OF_SHAME)
+  }
 }
 
 // call main function and let NodeJS handle the promise

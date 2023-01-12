@@ -7,6 +7,7 @@ use crypto::asymmetric::identity;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use log::*;
+use network_defaults::mainnet::NYM_API;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
@@ -160,7 +161,7 @@ impl Default for ConfigBuilder {
             tested_nodes_batch_size: DEFAULT_BATCH_SIZE,
             testing_interval: DEFAULT_TESTING_INTERVAL,
             retry_timeout: DEFAULT_RETRY_TIMEOUT,
-            nym_api_urls: vec![],
+            nym_api_urls: vec![NYM_API.parse().expect("Invalid default API URL")],
         })
     }
 }

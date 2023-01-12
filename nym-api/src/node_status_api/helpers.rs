@@ -1,10 +1,10 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::contract_cache::Cache;
 use crate::node_status_api::models::ErrorResponse;
 use crate::storage::NymApiStorage;
-use crate::{NodeStatusCache, ValidatorCache};
+use crate::support::caching::Cache;
+use crate::{NodeStatusCache, NymContractCache};
 use cosmwasm_std::Decimal;
 use mixnet_contract_common::reward_params::Performance;
 use mixnet_contract_common::{Interval, MixId, RewardedSetNodeStatus};
@@ -55,7 +55,7 @@ pub(crate) async fn _mixnode_core_status_count(
 }
 
 pub(crate) async fn _get_mixnode_status(
-    cache: &ValidatorCache,
+    cache: &NymContractCache,
     mix_id: MixId,
 ) -> MixnodeStatusResponse {
     MixnodeStatusResponse {
@@ -65,7 +65,7 @@ pub(crate) async fn _get_mixnode_status(
 
 pub(crate) async fn _get_mixnode_reward_estimation(
     cache: &State<NodeStatusCache>,
-    validator_cache: &State<ValidatorCache>,
+    validator_cache: &State<NymContractCache>,
     mix_id: MixId,
 ) -> Result<RewardEstimationResponse, ErrorResponse> {
     let (mixnode, status) = cache.mixnode_details(mix_id).await;
@@ -121,7 +121,7 @@ async fn average_mixnode_performance(
 pub(crate) async fn _compute_mixnode_reward_estimation(
     user_reward_param: ComputeRewardEstParam,
     cache: &NodeStatusCache,
-    validator_cache: &ValidatorCache,
+    validator_cache: &NymContractCache,
     mix_id: MixId,
 ) -> Result<RewardEstimationResponse, ErrorResponse> {
     let (mixnode, actual_status) = cache.mixnode_details(mix_id).await;
@@ -205,7 +205,7 @@ pub(crate) async fn _compute_mixnode_reward_estimation(
 
 pub(crate) async fn _get_mixnode_stake_saturation(
     cache: &NodeStatusCache,
-    validator_cache: &ValidatorCache,
+    validator_cache: &NymContractCache,
     mix_id: MixId,
 ) -> Result<StakeSaturationResponse, ErrorResponse> {
     let (mixnode, _) = cache.mixnode_details(mix_id).await;
@@ -254,7 +254,7 @@ pub(crate) async fn _get_mixnode_inclusion_probability(
 }
 
 pub(crate) async fn _get_mixnode_avg_uptime(
-    cache: &ValidatorCache,
+    cache: &NymContractCache,
     storage: &NymApiStorage,
     mix_id: MixId,
 ) -> Result<UptimeResponse, ErrorResponse> {

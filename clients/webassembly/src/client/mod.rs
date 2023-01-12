@@ -5,7 +5,9 @@ use self::config::Config;
 use crate::client::helpers::InputSender;
 use crate::client::response_pusher::ResponsePusher;
 use client_connections::TransmissionLane;
-use client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput};
+use client_core::client::base_client::{
+    BaseClientBuilder, ClientInput, ClientOutput, CredentialsToggle,
+};
 use client_core::client::replies::reply_storage::browser_backend;
 use client_core::client::{inbound_messages::InputMessage, key_manager::KeyManager};
 use gateway_client::bandwidth::BandwidthController;
@@ -92,13 +94,19 @@ impl NymClientBuilder {
         future_to_promise(async move {
             console_log!("Starting the wasm client");
 
+            let disabled_credentials = if self.disabled_credentials {
+                CredentialsToggle::Disabled
+            } else {
+                CredentialsToggle::Enabled
+            };
+
             let base_builder = BaseClientBuilder::new(
                 &self.config.gateway_endpoint,
                 &self.config.debug,
                 self.key_manager,
                 self.bandwidth_controller,
                 self.reply_surb_storage_backend,
-                self.disabled_credentials,
+                disabled_credentials,
                 vec![self.config.nym_api_url.clone()],
             );
 

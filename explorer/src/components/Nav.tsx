@@ -230,7 +230,7 @@ ExpandableButton.defaultProps = {
   closeDrawer: undefined,
 };
 
-export const Nav: React.FC = ({ children }) => {
+export const Nav: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
   const { updateNavState, navState } = useMainContext();
   const [drawerIsOpen, setDrawerToOpen] = React.useState(false);
   const [fixedOpen, setFixedOpen] = React.useState(false);

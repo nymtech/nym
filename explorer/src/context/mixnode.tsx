@@ -37,6 +37,7 @@ export const useMixnodeContext = (): React.ContextType<typeof MixnodeContext> =>
 
 interface MixnodeContextProviderProps {
   mixId: string;
+  children: React.ReactNode;
 }
 
 /**

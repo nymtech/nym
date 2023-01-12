@@ -7,6 +7,7 @@ use gateway_requests::ServerResponse;
 use log::{trace, warn};
 use nymsphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
+use task::TaskClient;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::WebSocketStream;
 
@@ -65,26 +66,45 @@ impl InitialAuthResult {
     }
 }
 
-pub(crate) async fn handle_connection<R, S, St>(mut handle: FreshHandler<R, S, St>)
-where
+pub(crate) async fn handle_connection<R, S, St>(
+    mut handle: FreshHandler<R, S, St>,
+    mut shutdown: TaskClient,
+) where
     R: Rng + CryptoRng,
     S: AsyncRead + AsyncWrite + Unpin + Send,
     St: Storage,
 {
-    if let Err(err) = handle.perform_websocket_handshake().await {
-        warn!(
-            "Failed to complete WebSocket handshake - {}. Stopping the handler",
-            err
-        );
-        return;
+    match shutdown
+        .run_future(handle.perform_websocket_handshake())
+        .await
+    {
+        None => {
+            trace!("received shutdown signal while performing websocket handshake");
+            return;
+        }
+        Some(Err(err)) => {
+            warn!("Failed to complete WebSocket handshake: {err}. Stopping the handler");
+            return;
+        }
+        _ => (),
     }
 
     trace!("Managed to perform websocket handshake!");
 
-    if let Some(auth_handle) = handle.perform_initial_authentication().await {
-        auth_handle.listen_for_requests().await
-    } else {
-        warn!("Authentication has failed")
+    match shutdown
+        .run_future(handle.perform_initial_authentication())
+        .await
+    {
+        None => {
+            trace!("received shutdown signal while performing initial authetnication");
+            return;
+        }
+        Some(None) => {
+            warn!("authentication has failed");
+            return;
+        }
+        Some(Some(auth_handle)) => auth_handle.listen_for_requests(shutdown).await,
     }
+
     trace!("The handler is done!");
 }

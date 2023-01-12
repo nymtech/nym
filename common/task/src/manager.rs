@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::future::Future;
 use std::{error::Error, time::Duration};
 
 use futures::{future::pending, FutureExt, SinkExt, StreamExt};
@@ -236,6 +237,17 @@ impl TaskClient {
             drop_error,
             status_msg,
             mode: ClientOperatingMode::Listening,
+        }
+    }
+
+    pub async fn run_future<Fut, T>(&mut self, fut: Fut) -> Option<T>
+    where
+        Fut: Future<Output = T>,
+    {
+        tokio::select! {
+            biased;
+            _ = self.recv() => None,
+            res = fut => Some(res)
         }
     }
 

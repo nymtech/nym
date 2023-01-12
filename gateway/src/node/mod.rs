@@ -211,6 +211,7 @@ where
             forwarding_channel,
             self.storage.clone(),
             active_clients_store,
+            shutdown,
         );
     }
 

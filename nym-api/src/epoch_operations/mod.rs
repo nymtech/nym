@@ -262,22 +262,41 @@ impl RewardedSetUpdater {
         // we grab rewarding parameters here as they might have gotten updated when performing epoch actions
         let rewarding_parameters = self.nyxd_client.get_current_rewarding_parameters().await?;
 
+        debug!("Rewarding paremeters: {:?}", rewarding_parameters);
+
         let new_rewarded_set =
             self.determine_rewarded_set(all_mixnodes, rewarding_parameters.rewarded_set_size)?;
 
+        debug!("New rewarded set: {:?}", new_rewarded_set);
+
         let empty = vec![];
 
-        let (active_set, reserve_set) =
-            if new_rewarded_set.len() <= rewarding_parameters.active_set_size as usize {
-                (new_rewarded_set.as_slice(), empty.as_slice())
-            } else {
-                new_rewarded_set.split_at(rewarding_parameters.active_set_size as usize)
-            };
+        let (active_set, reserve_set) = if new_rewarded_set.len()
+            <= rewarding_parameters.active_set_size as usize
+        {
+            warn!("Active set size ({}) is greater then rewarded set len ({}), there will be no reserve set", rewarding_parameters.active_set_size, new_rewarded_set.len());
+            (new_rewarded_set.as_slice(), empty.as_slice())
+        } else {
+            new_rewarded_set.split_at(rewarding_parameters.active_set_size as usize)
+        };
 
         let mut active_set_layer_assignments = self.determine_layers(active_set).await?;
+        debug!(
+            "Active set layer assignments: {:?}",
+            active_set_layer_assignments
+        );
         let reserve_set_layer_assignments = self.determine_layers(reserve_set).await?;
+        debug!(
+            "Reserve set layer assignments: {:?}",
+            reserve_set_layer_assignments
+        );
 
         active_set_layer_assignments.extend(reserve_set_layer_assignments);
+
+        debug!(
+            "Rewarded set layer assignments: {:?}",
+            active_set_layer_assignments
+        );
 
         self.nyxd_client
             .advance_current_epoch(

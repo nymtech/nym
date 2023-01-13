@@ -26,7 +26,7 @@ struct Run {
     #[clap(long)]
     open_proxy: bool,
 
-    /// Websocket port to bind to. Defaults to `network_defaults::DEFAULT_WEBSOCKET_LISTENING_PORT` (currently 1977)
+    /// Websocket port to bind to.
     #[clap(long)]
     websocket_port: Option<String>,
 

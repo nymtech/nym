@@ -5,6 +5,7 @@ use crate::node::client_handling::websocket::connection_handler::{ClientDetails,
 use crate::node::client_handling::websocket::message_receiver::MixMessageReceiver;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
+use credentials::obtain_aggregate_verification_key;
 use futures::StreamExt;
 use gateway_requests::iv::IVConversionError;
 use gateway_requests::types::{BinaryRequest, ServerResponse};
@@ -67,6 +68,10 @@ pub(crate) enum RequestHandlingError {
     #[cfg(feature = "coconut")]
     #[error("Coconut interface error - {0}")]
     CoconutInterfaceError(#[from] coconut_interface::error::CoconutInterfaceError),
+
+    #[cfg(feature = "coconut")]
+    #[error("Credential error - {0}")]
+    CredentialError(#[from] credentials::error::Error),
 }
 
 impl RequestHandlingError {
@@ -208,12 +213,17 @@ where
             iv,
         )?;
 
-        if !credential.verify(
-            self.inner
-                .coconut_verifier
-                .as_ref()
-                .aggregated_verification_key(),
-        ) {
+        // Get the latest coconut signers and their VK
+        let api_clients = self.inner.coconut_verifier.current_api_clients().await?;
+        let aggregated_verification_key = obtain_aggregate_verification_key(&api_clients).await?;
+        if api_clients.is_empty() {
+            return Err(RequestHandlingError::NotEnoughNymAPIs {
+                received: 0,
+                needed: 1,
+            });
+        }
+
+        if !credential.verify(&aggregated_verification_key) {
             return Err(RequestHandlingError::InvalidBandwidthCredential(
                 String::from("credential failed to verify on gateway"),
             ));
@@ -221,7 +231,7 @@ where
 
         self.inner
             .coconut_verifier
-            .release_funds(&credential)
+            .release_funds(api_clients, &credential)
             .await?;
 
         let bandwidth = Bandwidth::from(credential);

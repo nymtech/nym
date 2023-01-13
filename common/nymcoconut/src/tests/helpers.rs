@@ -89,7 +89,7 @@ pub fn theta_from_keys_and_attributes(
 }
 
 pub fn transpose_matrix<T: Debug>(matrix: Vec<Vec<T>>) -> Vec<Vec<T>> {
-    if matrix.len() == 0 {
+    if matrix.is_empty() {
         return vec![];
     }
     let len = matrix[0].len();

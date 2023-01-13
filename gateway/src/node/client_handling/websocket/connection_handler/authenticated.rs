@@ -422,7 +422,6 @@ where
 
         while !shutdown.is_shutdown() {
             tokio::select! {
-                biased;
                 _ = shutdown.recv() => {
                     log::trace!("client_handling::AuthenticatedHandler: received shutdown");
                 }

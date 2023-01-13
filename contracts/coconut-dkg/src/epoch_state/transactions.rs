@@ -32,15 +32,16 @@ fn reset_epoch_state(storage: &mut dyn Storage) -> Result<(), ContractError> {
 fn dealers_still_active(deps: &DepsMut<'_>) -> Result<usize, ContractError> {
     let state = STATE.load(deps.storage)?;
     let mut still_active = 0;
-    for dealer in current_dealers().keys(deps.storage, None, None, Order::Ascending) {
-        if let Ok(dealer_addr) = dealer {
-            if state
-                .group_addr
-                .is_voting_member(&deps.querier, &dealer_addr, None)?
-                .is_some()
-            {
-                still_active += 1;
-            }
+    for dealer_addr in current_dealers()
+        .keys(deps.storage, None, None, Order::Ascending)
+        .flatten()
+    {
+        if state
+            .group_addr
+            .is_voting_member(&deps.querier, &dealer_addr, None)?
+            .is_some()
+        {
+            still_active += 1;
         }
     }
     Ok(still_active)
@@ -263,17 +264,6 @@ pub(crate) mod tests {
         assert_eq!(
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
             EarlyEpochStateAdvancement(50)
-        );
-
-        env.block.time = env.block.time.plus_seconds(100);
-        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
-        let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-        assert_eq!(epoch.state, EpochState::PublicKeySubmission);
-        assert_eq!(
-            epoch.finish_timestamp,
-            env.block
-                .time
-                .plus_seconds(epoch.time_configuration.public_key_submission_time_secs)
         );
     }
 

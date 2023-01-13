@@ -5,7 +5,6 @@ use crate::node::client_handling::websocket::connection_handler::{ClientDetails,
 use crate::node::client_handling::websocket::message_receiver::MixMessageReceiver;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
-use credentials::obtain_aggregate_verification_key;
 use futures::StreamExt;
 use gateway_requests::iv::IVConversionError;
 use gateway_requests::types::{BinaryRequest, ServerResponse};
@@ -215,7 +214,8 @@ where
 
         // Get the latest coconut signers and their VK
         let api_clients = self.inner.coconut_verifier.current_api_clients().await?;
-        let aggregated_verification_key = obtain_aggregate_verification_key(&api_clients).await?;
+        let aggregated_verification_key =
+            credentials::obtain_aggregate_verification_key(&api_clients).await?;
         if api_clients.is_empty() {
             return Err(RequestHandlingError::NotEnoughNymAPIs {
                 received: 0,

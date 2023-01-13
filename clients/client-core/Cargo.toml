@@ -38,7 +38,7 @@ validator-client = { path = "../../common/client-libs/validator-client", default
 task = { path = "../../common/task" }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
-version = "0.1.9"
+version = "0.1.11"
 features = ["time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]

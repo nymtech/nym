@@ -112,7 +112,7 @@ fn decrypt_login(login: &Value, passwords: &[String], parse: &ParseMode) -> Resu
         match result {
             Ok(DecryptedData::Raw(raw_decrypt)) => {
                 println!(" success!");
-                println!("{}", raw_decrypt);
+                println!("{raw_decrypt}");
                 return Ok(true);
             }
             Ok(DecryptedData::Json(json_decrypt)) => match parse_results(&json_decrypt) {

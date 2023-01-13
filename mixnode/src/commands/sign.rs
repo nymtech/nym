@@ -63,17 +63,11 @@ fn print_signed_address(private_key: &identity::PrivateKey, wallet_address: nyxd
 }
 
 fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {
-    println!(
-        "Signing the text {:?} using your mixnode's Ed25519 identity key...",
-        text
-    );
+    println!("Signing the text {text:?} using your mixnode's Ed25519 identity key...");
 
     let signature = private_key.sign_text(text);
 
-    println!(
-        "The base58-encoded signature on '{}' is: {}",
-        text, signature
-    );
+    println!("The base58-encoded signature on '{text}' is: {signature}");
 }
 
 pub(crate) fn execute(args: &Sign) {

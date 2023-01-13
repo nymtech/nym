@@ -66,10 +66,10 @@ impl From<Init> for OverrideConfig {
 pub(crate) fn execute(args: &Init, output: OutputFormat) {
     let override_config_fields = OverrideConfig::from(args.clone());
     let id = &override_config_fields.id;
-    eprintln!("Initialising mixnode {}...", id);
+    eprintln!("Initialising mixnode {id}...");
 
     let already_init = if Config::default_config_file_path(Some(id)).exists() {
-        eprintln!("Mixnode \"{}\" was already initialised before! Config information will be overwritten (but keys will be kept)!", id);
+        eprintln!("Mixnode \"{id}\" was already initialised before! Config information will be overwritten (but keys will be kept)!");
         true
     } else {
         false
@@ -109,7 +109,7 @@ pub(crate) fn execute(args: &Init, output: OutputFormat) {
     config
         .save_to_file(None)
         .expect("Failed to save the config file");
-    eprintln!("Saved configuration file to {:?}", config_save_location);
+    eprintln!("Saved configuration file to {config_save_location:?}");
     eprintln!("Mixnode configuration completed.\n\n\n");
 
     MixNode::new(config).print_node_details(output)

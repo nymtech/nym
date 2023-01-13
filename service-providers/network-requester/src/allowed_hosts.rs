@@ -181,7 +181,7 @@ impl HostsStore {
     pub(crate) fn new(base_dir: PathBuf, filename: PathBuf) -> HostsStore {
         let storefile = HostsStore::setup_storefile(base_dir, filename);
         let hosts = HostsStore::load_from_storefile(&storefile)
-            .unwrap_or_else(|_| panic!("Could not load hosts from storefile at {:?}", storefile));
+            .unwrap_or_else(|_| panic!("Could not load hosts from storefile at {storefile:?}"));
 
         let (domains, ip_nets): (Vec<_>, Vec<_>) =
             hosts.into_iter().partition(|host| host.is_domain());
@@ -201,8 +201,8 @@ impl HostsStore {
             .open(path)
             .unwrap();
 
-        if let Err(e) = writeln!(file, "{}", text) {
-            eprintln!("Couldn't write to file: {}", e);
+        if let Err(e) = writeln!(file, "{text}") {
+            eprintln!("Couldn't write to file: {e}");
         }
     }
 
@@ -253,7 +253,7 @@ impl HostsStore {
     fn setup_storefile(base_dir: PathBuf, filename: PathBuf) -> PathBuf {
         let dirpath = base_dir.join("service-providers").join("network-requester");
         fs::create_dir_all(&dirpath)
-            .unwrap_or_else(|_| panic!("could not create storage directory at {:?}", dirpath));
+            .unwrap_or_else(|_| panic!("could not create storage directory at {dirpath:?}"));
         let storefile = dirpath.join(filename);
         let exists = std::path::Path::new(&storefile).exists();
         if !exists {
@@ -533,7 +533,7 @@ mod tests {
         let filename = PathBuf::from(format!("hosts-store-{}.list", random_string()));
         let dirpath = base_dir.join("service-providers").join("network-requester");
         fs::create_dir_all(&dirpath)
-            .unwrap_or_else(|_| panic!("could not create storage directory at {:?}", dirpath));
+            .unwrap_or_else(|_| panic!("could not create storage directory at {dirpath:?}"));
         let storefile = dirpath.join(&filename);
         File::create(&storefile).unwrap();
         (storefile, base_dir, filename)

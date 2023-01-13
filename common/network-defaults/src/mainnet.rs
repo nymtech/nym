@@ -36,7 +36,7 @@ const DEFAULT_SUFFIX: &str = "_MAINNET_DEFAULT";
 
 fn set_var_to_default(var: &str, value: &str) {
     std::env::set_var(var, value);
-    std::env::set_var(format!("{}{}", var, DEFAULT_SUFFIX), "1")
+    std::env::set_var(format!("{var}{DEFAULT_SUFFIX}"), "1")
 }
 
 fn set_var_conditionally_to_default(var: &str, value: &str) {
@@ -46,7 +46,7 @@ fn set_var_conditionally_to_default(var: &str, value: &str) {
 }
 
 pub fn uses_default(var: &str) -> bool {
-    std::env::var(format!("{}{}", var, DEFAULT_SUFFIX)).is_ok()
+    std::env::var(format!("{var}{DEFAULT_SUFFIX}")).is_ok()
 }
 
 pub fn read_var_if_not_default(var: &str) -> Option<String> {

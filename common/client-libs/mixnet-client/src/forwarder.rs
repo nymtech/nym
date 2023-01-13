@@ -73,21 +73,5 @@ impl PacketForwarder {
                 }
             }
         }
-
-        while let Some(mix_packet) = self.packet_receiver.next().await {
-            trace!("Going to forward packet to {:?}", mix_packet.next_hop());
-
-            let next_hop = mix_packet.next_hop();
-            let packet_mode = mix_packet.packet_mode();
-            let sphinx_packet = mix_packet.into_sphinx_packet();
-            // we don't care about responses, we just want to fire packets
-            // as quickly as possible
-            if let Err(err) =
-                self.mixnet_client
-                    .send_without_response(next_hop, sphinx_packet, packet_mode)
-            {
-                debug!("failed to forward the packet - {err}")
-            }
-        }
     }
 }

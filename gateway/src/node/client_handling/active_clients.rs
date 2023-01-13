@@ -43,6 +43,7 @@ impl ActiveClientsStore {
     ///
     /// * `client`: address of the client for which to remove the handle.
     pub(crate) fn disconnect(&self, client: DestinationAddressBytes) {
+        log::debug!("ActiveClientsStore:: explicit disconnect: {}", client);
         self.0.remove(&client);
     }
 
@@ -53,6 +54,7 @@ impl ActiveClientsStore {
     /// * `client`: address of the client for which to insert the handle.
     /// * `handle`: the sender channel for all mix packets to be pushed back onto the websocket
     pub(crate) fn insert(&self, client: DestinationAddressBytes, handle: MixMessageSender) {
+        log::debug!("ActiveClientsStore::insert: {}", client);
         self.0.insert(client, handle);
     }
 

@@ -99,6 +99,7 @@ pub(crate) struct AuthenticatedHandler<R, S, St> {
 // explicitly remove handle from the global store upon being dropped
 impl<R, S, St> Drop for AuthenticatedHandler<R, S, St> {
     fn drop(&mut self) {
+        log::debug!("AuthenticatedHandler::drop");
         self.inner
             .active_clients_store
             .disconnect(self.client.address)
@@ -134,6 +135,7 @@ where
 
     /// Explicitly removes handle from the global store.
     fn disconnect(self) {
+        log::debug!("AuthenticatedHandler::disconnect");
         self.inner
             .active_clients_store
             .disconnect(self.client.address)

@@ -37,13 +37,14 @@ export const useMixnodeContext = (): React.ContextType<typeof MixnodeContext> =>
 
 interface MixnodeContextProviderProps {
   mixId: string;
+  children: React.ReactNode;
 }
 
 /**
  * Provides a state context for a mixnode by identity
  * @param mixId   The mixID of the mixnode
  */
-export const MixnodeContextProvider: React.FC<MixnodeContextProviderProps> = ({ mixId, children }) => {
+export const MixnodeContextProvider: FCWithChildren<MixnodeContextProviderProps> = ({ mixId, children }) => {
   const [mixNode, fetchMixnodeById, clearMixnodeById] = useApiState<MixNodeResponseItem | undefined>(
     mixId,
     Api.fetchMixnodeByID,

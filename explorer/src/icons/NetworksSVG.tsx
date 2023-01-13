@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useTheme } from '@mui/material/styles';
 
-export const NetworkComponentsSVG: React.FC = () => {
+export const NetworkComponentsSVG: FCWithChildren = () => {
   const theme = useTheme();
   const color = theme.palette.nym.networkExplorer.nav.text;
   return (

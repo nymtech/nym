@@ -2,7 +2,7 @@ import React from 'react';
 import { Autocomplete, Box, Chip, Dialog, DialogProps, TextField, Typography } from '@mui/material';
 import { ServiceProvider, Service, Services } from '../types/directory';
 
-export const ServiceProviderPopup: React.FC<
+export const ServiceProviderPopup: FCWithChildren<
   DialogProps & { services: Services; onServiceProviderChanged: (sp?: ServiceProvider, s?: Service) => void }
 > = ({ services, onServiceProviderChanged, ...dialogProps }) => {
   const options = services.flatMap((s) =>

@@ -4,7 +4,7 @@ import { RewardsContext, TRewardsTransaction } from '../rewards';
 import { useDelegationContext } from '../delegations';
 import { mockSleep } from './utils';
 
-export const MockRewardsContextProvider: FC = ({ children }) => {
+export const MockRewardsContextProvider: FCWithChildren = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>();
   const [totalRewards, setTotalRewards] = useState<undefined | string>();

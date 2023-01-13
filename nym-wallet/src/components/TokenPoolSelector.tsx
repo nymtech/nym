@@ -4,7 +4,7 @@ import { AppContext } from '../context/main';
 
 export type TPoolOption = 'balance' | 'locked';
 
-export const TokenPoolSelector: React.FC<{ disabled: boolean; onSelect: (pool: TPoolOption) => void }> = ({
+export const TokenPoolSelector: FCWithChildren<{ disabled: boolean; onSelect: (pool: TPoolOption) => void }> = ({
   disabled,
   onSelect,
 }) => {

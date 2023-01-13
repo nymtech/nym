@@ -63,7 +63,7 @@ let mockDelegations: DelegationWithEverything[] = [
   },
 ];
 
-export const MockDelegationContextProvider: FC<{}> = ({ children }) => {
+export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
   const [trigger, setTrigger] = useState<Date>(new Date());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>();

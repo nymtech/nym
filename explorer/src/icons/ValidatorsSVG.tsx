@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useTheme } from '@mui/material/styles';
 
-export const ValidatorsSVG: React.FC = () => {
+export const ValidatorsSVG: FCWithChildren = () => {
   const theme = useTheme();
   const color = theme.palette.text.primary;
   return (

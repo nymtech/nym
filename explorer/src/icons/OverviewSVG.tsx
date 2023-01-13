@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { useTheme } from '@mui/material/styles';
 
-export const OverviewSVG: React.FC = () => {
+export const OverviewSVG: FCWithChildren = () => {
   const theme = useTheme();
   const color = theme.palette.nym.networkExplorer.nav.text;
 

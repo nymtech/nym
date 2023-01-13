@@ -20,7 +20,7 @@ const mockValues: TClientContext = {
   startDisconnecting: async () => {},
 };
 
-export const MockProvider: React.FC<{
+export const MockProvider: FCWithChildren<{
   children?: React.ReactNode;
   connectionStatus?: ConnectionStatusKind;
 }> = ({ connectionStatus = ConnectionStatusKind.disconnected, children }) => (

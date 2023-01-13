@@ -16,7 +16,7 @@ type TableToolBarProps = {
   childrenAfter?: React.ReactNode;
 };
 
-export const TableToolbar: React.FC<TableToolBarProps> = ({
+export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
   searchTerm,
   onChangeSearch,
   onChangePageSize,

@@ -10,7 +10,7 @@ export type DelegationListItemActions = 'delegate' | 'undelegate' | 'redeem' | '
 const BUTTON_SIZE = '32px';
 const MIN_WIDTH = '150px';
 
-export const DelegationActions: React.FC<{
+export const DelegationActions: FCWithChildren<{
   onActionClick?: (action: DelegationListItemActions) => void;
   isPending?: DelegateListItemPending;
   disableRedeemingRewards?: boolean;
@@ -64,7 +64,7 @@ export const DelegationActions: React.FC<{
   );
 };
 
-export const DelegationsActionsMenu: React.FC<{
+export const DelegationsActionsMenu: FCWithChildren<{
   onActionClick?: (action: DelegationListItemActions) => void;
   disableRedeemingRewards?: boolean;
   disableDelegateMore?: boolean | null;

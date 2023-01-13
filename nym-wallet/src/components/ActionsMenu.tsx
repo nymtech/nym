@@ -2,12 +2,12 @@ import React, { useRef } from 'react';
 import { MoreVertSharp } from '@mui/icons-material';
 import { IconButton, ListItemIcon, ListItemText, Menu, MenuItem } from '@mui/material';
 
-export const ActionsMenu: React.FC<{ open: boolean; onOpen: () => void; onClose: () => void }> = ({
-  children,
-  open,
-  onOpen,
-  onClose,
-}) => {
+export const ActionsMenu: FCWithChildren<{
+  open: boolean;
+  children: React.ReactNode;
+  onOpen: () => void;
+  onClose: () => void;
+}> = ({ children, open, onOpen, onClose }) => {
   const anchorEl: any = useRef<HTMLElement>();
 
   return (

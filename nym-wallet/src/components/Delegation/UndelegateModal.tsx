@@ -8,7 +8,7 @@ import { ModalFee } from '../Modals/ModalFee';
 import { ModalListItem } from '../Modals/ModalListItem';
 import { SimpleModal } from '../Modals/SimpleModal';
 
-export const UndelegateModal: React.FC<{
+export const UndelegateModal: FCWithChildren<{
   open: boolean;
   onClose?: () => void;
   onOk?: (mixId: number, identityKey: string, usesVestingContractTokens: boolean, fee?: FeeDetails) => void;

@@ -154,25 +154,6 @@ pub(crate) fn ensure_correct_bech32_prefix(address: &AccountId) -> Result<(), Ga
     }
 
     Ok(())
-
-    // let prefix = std::env::var(BECH32_PREFIX).expect("bech32 prefix not set");
-    // if let Err(bech32_address_validation::Bech32Error::DecodeFailed(err)) =
-    //     bech32_address_validation::try_bech32_decode(address)
-    // {
-    //     let error_message = format!("Error: wallet address decoding failed: {err}").red();
-    //     println!("{}", error_message);
-    //     println!("Exiting...");
-    //     process::exit(1);
-    // }
-    //
-    // if let Err(bech32_address_validation::Bech32Error::WrongPrefix(err)) =
-    //     bech32_address_validation::validate_bech32_prefix(&prefix, address)
-    // {
-    //     let error_message = format!("Error: wallet address type is wrong, {err}").red();
-    //     println!("{}", error_message);
-    //     println!("Exiting...");
-    //     process::exit(1);
-    // }
 }
 
 // this only checks compatibility between config the binary. It does not take into consideration

@@ -43,7 +43,7 @@ impl fmt::Display for Validator {
         let api_url = self
             .api_url
             .as_ref()
-            .map(|api_url| format!(", api_url: {}", api_url))
+            .map(|api_url| format!(", api_url: {api_url}"))
             .unwrap_or_default();
         write!(f, "{nyxd_url}{api_url}")
     }

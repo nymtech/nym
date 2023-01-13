@@ -122,7 +122,7 @@ impl MixNode {
                 serde_json::to_string(&node_details)
                     .unwrap_or_else(|_| "Could not serialize node details".to_string())
             ),
-            OutputFormat::Text => println!("{}", node_details),
+            OutputFormat::Text => println!("{node_details}"),
         }
     }
 

@@ -53,7 +53,7 @@ fn archive_corrupted_database<P: AsRef<Path>>(db_path: P) -> io::Result<()> {
 
     let new_extension =
         if let Some(existing_extension) = db_path.extension().and_then(|ext| ext.to_str()) {
-            format!("{existing_extension}.{}", suffix)
+            format!("{existing_extension}.{suffix}")
         } else {
             suffix
         };

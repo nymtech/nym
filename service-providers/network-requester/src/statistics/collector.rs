@@ -170,10 +170,7 @@ impl StatisticsCollector for ServiceStatisticsCollector {
         let conn_id = rng.next_u64();
         let connect_req = Request::new_connect(
             conn_id,
-            format!(
-                "{}:{}",
-                DEFAULT_STATISTICS_SERVICE_ADDRESS, DEFAULT_STATISTICS_SERVICE_PORT
-            ),
+            format!("{DEFAULT_STATISTICS_SERVICE_ADDRESS}:{DEFAULT_STATISTICS_SERVICE_PORT}"),
             Some(self.stats_provider_addr),
         );
         self.mix_input_sender

@@ -48,7 +48,7 @@ tokio = { version = "1.24.1", features = [
 ] }
 tokio-stream = { version = "0.1.11", features = ["fs"] }
 tokio-tungstenite = "0.14"
-tokio-util = { version = "0.7.3", features = ["codec"] }
+tokio-util = { version = "0.7.4", features = ["codec"] }
 url = { version = "2.2", features = ["serde"] }
 
 # internal

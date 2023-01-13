@@ -40,15 +40,15 @@ sqlx = { version = "0.5", features = [
 ] }
 subtle-encoding = { version = "0.5", features = ["bech32-preview"] }
 thiserror = "1"
-tokio = { version = "1.21.2", features = [
+tokio = { version = "1.24.1", features = [
     "rt-multi-thread",
     "net",
     "signal",
     "fs",
 ] }
-tokio-stream = { version = "0.1.9", features = ["fs"] }
+tokio-stream = { version = "0.1.11", features = ["fs"] }
 tokio-tungstenite = "0.14"
-tokio-util = { version = "0.7.3", features = ["codec"] }
+tokio-util = { version = "0.7.4", features = ["codec"] }
 url = { version = "2.2", features = ["serde"] }
 
 # internal
@@ -85,7 +85,7 @@ coconut = [
 ]
 
 [build-dependencies]
-tokio = { version = "1.21.2", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
 sqlx = { version = "0.5", features = [
     "runtime-tokio-rustls",
     "sqlite",

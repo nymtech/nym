@@ -124,7 +124,7 @@ where
 
     // If we are not registering, just return this and assume the caller has the keys already and
     // wants to keep the,
-    if user_chosen_gateway_id.is_some() {
+    if !register_gateway && user_chosen_gateway_id.is_some() {
         println!("Using gateway provided by user, keeping existing keys");
         return Ok(gateway.into());
     }

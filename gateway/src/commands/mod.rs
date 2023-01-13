@@ -161,19 +161,21 @@ pub(crate) fn ensure_correct_bech32_prefix(address: &AccountId) -> Result<(), Ga
 pub(crate) fn ensure_config_version_compatibility(cfg: &Config) -> Result<(), GatewayError> {
     let binary_version = env!("CARGO_PKG_VERSION");
     let config_version = cfg.get_version();
-    if binary_version != config_version {
-        log::warn!("The gateway binary has different version than what is specified in config file! {} and {}", binary_version, config_version);
-        if version_checker::is_minor_version_compatible(binary_version, config_version) {
-            log::info!("but they are still semver compatible. However, consider running the `upgrade` command");
-            Ok(())
-        } else {
-            log::error!("and they are semver incompatible! - please run the `upgrade` command before attempting `run` again");
-            Err(GatewayError::LocalVersionCheckFailure {
-                binary_version: binary_version.to_owned(),
-                config_version: config_version.to_owned(),
-            })
-        }
-    } else {
+
+    if binary_version == config_version {
         Ok(())
+    } else if version_checker::is_minor_version_compatible(binary_version, config_version) {
+        log::warn!(
+            "The gateway binary has different version than what is specified in config file! {binary_version} and {config_version}. \
+             But, they are still semver compatible. However, consider running the `upgrade` command.");
+        Ok(())
+    } else {
+        log::error!(
+            "The gateway binary has different version than what is specified in config file! {binary_version} and {config_version}. \
+             And they are semver incompatible! - please run the `upgrade` command before attempting `run` again");
+        Err(GatewayError::LocalVersionCheckFailure {
+            binary_version: binary_version.to_owned(),
+            config_version: config_version.to_owned(),
+        })
     }
 }

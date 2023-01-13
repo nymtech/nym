@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::future::Future;
 use std::{error::Error, time::Duration};
 
 use futures::{future::pending, FutureExt, SinkExt, StreamExt};
@@ -90,6 +91,19 @@ impl TaskManager {
             shutdown_timer_secs,
             ..Default::default()
         }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn catch_interrupt(mut self) -> Result<(), SentError> {
+        let res = crate::wait_for_signal_and_error(&mut self).await;
+
+        log::info!("Sending shutdown");
+        self.signal_shutdown().ok();
+
+        log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
+        self.wait_for_shutdown().await;
+
+        res
     }
 
     pub fn subscribe(&self) -> TaskClient {
@@ -223,6 +237,17 @@ impl TaskClient {
             drop_error,
             status_msg,
             mode: ClientOperatingMode::Listening,
+        }
+    }
+
+    pub async fn run_future<Fut, T>(&mut self, fut: Fut) -> Option<T>
+    where
+        Fut: Future<Output = T>,
+    {
+        tokio::select! {
+            biased;
+            _ = self.recv() => None,
+            res = fut => Some(res)
         }
     }
 

@@ -120,16 +120,9 @@ impl SocketClient {
 
     /// blocking version of `start_socket` method. Will run forever (or until SIGINT is sent)
     pub async fn run_socket_forever(self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let mut shutdown = self.start_socket().await?;
+        let shutdown = self.start_socket().await?;
 
-        let res = task::wait_for_signal_and_error(&mut shutdown).await;
-
-        log::info!("Sending shutdown");
-        shutdown.signal_shutdown().ok();
-
-        log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
-        shutdown.wait_for_shutdown().await;
-
+        let res = shutdown.catch_interrupt().await;
         log::info!("Stopping nym-client");
         res
     }

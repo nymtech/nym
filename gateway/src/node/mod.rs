@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::storage::PersistentStorage;
-use crate::commands::validate_bech32_address_or_exit;
+use crate::commands::ensure_correct_bech32_prefix;
 use crate::config::persistence::pathfinder::GatewayPathfinder;
 use crate::config::Config;
+use crate::error::GatewayError;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
@@ -18,9 +19,11 @@ use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use statistics_common::collector::StatisticsSender;
+use std::error::Error;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
+use task::{TaskClient, TaskManager};
 
 #[cfg(feature = "coconut")]
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
@@ -114,7 +117,7 @@ where
 
     /// Signs the node config's bech32 address to produce a verification code for use in the wallet.
     /// Exits if the address isn't valid (which should protect against manual edits).
-    fn generate_owner_signature(&self) -> String {
+    fn generate_owner_signature(&self) -> Result<String, GatewayError> {
         let pathfinder = GatewayPathfinder::new_from_config(&self.config);
         let identity_keypair = load_identity_keys(&pathfinder);
         let Some(address) = self.config.get_wallet_address() else {
@@ -124,16 +127,16 @@ where
             process::exit(1);
         };
         // perform extra validation to ensure we have correct prefix
-        validate_bech32_address_or_exit(address.as_ref());
+        ensure_correct_bech32_prefix(&address)?;
         let verification_code = identity_keypair.private_key().sign_text(address.as_ref());
-        verification_code
+        Ok(verification_code)
     }
 
-    pub(crate) fn print_node_details(&self, output: OutputFormat) {
+    pub(crate) fn print_node_details(&self, output: OutputFormat) -> Result<(), GatewayError> {
         let node_details = nym_types::gateway::GatewayNodeDetailsResponse {
             identity_key: self.identity_keypair.public_key().to_base58_string(),
             sphinx_key: self.sphinx_keypair.public_key().to_base58_string(),
-            owner_signature: self.generate_owner_signature(),
+            owner_signature: self.generate_owner_signature()?,
             announce_address: self.config.get_announce_address(),
             bind_address: self.config.get_listening_address().to_string(),
             version: self.config.get_version().to_string(),
@@ -155,12 +158,14 @@ where
             ),
             OutputFormat::Text => println!("{}", node_details),
         }
+        Ok(())
     }
 
     fn start_mix_socket_listener(
         &self,
         ack_sender: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
+        shutdown: TaskClient,
     ) {
         info!("Starting mix socket listener...");
 
@@ -179,13 +184,14 @@ where
             self.config.get_mix_port(),
         );
 
-        mixnet_handling::Listener::new(listening_address).start(connection_handler);
+        mixnet_handling::Listener::new(listening_address, shutdown).start(connection_handler);
     }
 
     fn start_client_websocket_listener(
         &self,
         forwarding_channel: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
+        shutdown: TaskClient,
         #[cfg(feature = "coconut")] coconut_verifier: Arc<CoconutVerifier>,
     ) {
         info!("Starting client [web]socket listener...");
@@ -206,10 +212,11 @@ where
             forwarding_channel,
             self.storage.clone(),
             active_clients_store,
+            shutdown,
         );
     }
 
-    fn start_packet_forwarder(&self) -> MixForwardingSender {
+    fn start_packet_forwarder(&self, shutdown: TaskClient) -> MixForwardingSender {
         info!("Starting mix packet forwarder...");
 
         let (mut packet_forwarder, packet_sender) = PacketForwarder::new(
@@ -218,22 +225,20 @@ where
             self.config.get_initial_connection_timeout(),
             self.config.get_maximum_connection_buffer_size(),
             self.config.get_use_legacy_sphinx_framing(),
+            shutdown,
         );
 
         tokio::spawn(async move { packet_forwarder.run().await });
         packet_sender
     }
 
-    async fn wait_for_interrupt(&self) {
-        if let Err(e) = tokio::signal::ctrl_c().await {
-            error!(
-                "There was an error while capturing SIGINT - {:?}. We will terminate regardless",
-                e
-            );
-        }
-        println!(
-            "Received SIGINT - the gateway will terminate now (threads are not yet nicely stopped, if you see stack traces that's alright)."
-        );
+    async fn wait_for_interrupt(
+        &self,
+        shutdown: TaskManager,
+    ) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let res = shutdown.catch_interrupt().await;
+        log::info!("Stopping nym gateway");
+        res
     }
 
     fn random_api_client(&self) -> validator_client::NymApiClient {
@@ -268,66 +273,73 @@ where
         client
     }
 
-    // TODO: ask DH whether this function still makes sense in ^0.10
-    async fn check_if_same_ip_gateway_exists(&self) -> Option<String> {
+    async fn check_if_same_ip_gateway_exists(&self) -> Result<Option<String>, GatewayError> {
         let validator_client = self.random_api_client();
 
         let existing_gateways = match validator_client.get_cached_gateways().await {
             Ok(gateways) => gateways,
             Err(err) => {
                 error!("failed to grab initial network gateways - {err}\n Please try to startup again in few minutes");
-                process::exit(1);
+                return Err(GatewayError::NetworkGatewaysQueryFailure { source: err });
             }
         };
 
         let our_host = self.config.get_announce_address();
 
-        existing_gateways
+        Ok(existing_gateways
             .iter()
             .find(|node| node.gateway.host == our_host)
-            .map(|node| node.gateway().identity_key.clone())
+            .map(|node| node.gateway().identity_key.clone()))
     }
 
-    pub async fn run(&mut self) {
-        info!("Starting nym gateway!");
-
-        if let Some(duplicate_node_key) = self.check_if_same_ip_gateway_exists().await {
-            if duplicate_node_key == self.identity_keypair.public_key().to_base58_string() {
+    async fn ensure_no_duplicate_host_exists(&self) -> Result<(), GatewayError> {
+        let local_identity = self.identity_keypair.public_key().to_base58_string();
+        if let Some(remote_identity) = self.check_if_same_ip_gateway_exists().await? {
+            if remote_identity == local_identity {
                 warn!("We seem to have not unregistered after going offline - there's a node with identical identity and announce-host as us registered.")
             } else {
                 error!(
-                    "Our announce-host is identical to an existing node's announce-host! (its key is {:?})",
-                    duplicate_node_key
+                    "Our announce-host is identical to an existing node's announce-host! (its key is {remote_identity})",
                 );
-                return;
+                return Err(GatewayError::DuplicateNodeHost {
+                    host: self.config.get_announce_address(),
+                    local_identity,
+                    remote_identity,
+                });
             }
         }
+        Ok(())
+    }
+
+    pub async fn run(&mut self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        info!("Starting nym gateway!");
+
+        self.ensure_no_duplicate_host_exists().await?;
+
+        let shutdown = TaskManager::new(10);
 
         #[cfg(feature = "coconut")]
         let coconut_verifier = {
             let nyxd_client = self.random_nyxd_client();
             let api_clients = CoconutApiClient::all_coconut_api_clients(&nyxd_client)
                 .await
-                .expect("Could not query all api clients");
+                .map_err(|source| GatewayError::CoconutVerifiersQueryFailure { source })?;
             let validators_verification_key = obtain_aggregate_verification_key(&api_clients)
                 .await
-                .expect("failed to contact validators to obtain their verification keys");
-            CoconutVerifier::new(
-                api_clients,
-                nyxd_client,
-                std::env::var(network_defaults::var_names::MIX_DENOM)
-                    .expect("mix denom base not set"),
-                validators_verification_key,
-            )
-            .expect("Could not create coconut verifier")
+                .map_err(
+                    |source| GatewayError::CoconutVerificationKeyAggregationFailure { source },
+                )?;
+            CoconutVerifier::new(api_clients, nyxd_client, validators_verification_key)
+                .map_err(|source| GatewayError::CoconutVerifierCreationFailure { source })?
         };
 
-        let mix_forwarding_channel = self.start_packet_forwarder();
+        let mix_forwarding_channel = self.start_packet_forwarder(shutdown.subscribe());
 
         let active_clients_store = ActiveClientsStore::new();
         self.start_mix_socket_listener(
             mix_forwarding_channel.clone(),
             active_clients_store.clone(),
+            shutdown.subscribe(),
         );
 
         if self.config.get_enabled_statistics() {
@@ -346,12 +358,13 @@ where
         self.start_client_websocket_listener(
             mix_forwarding_channel,
             active_clients_store,
+            shutdown.subscribe(),
             #[cfg(feature = "coconut")]
             Arc::new(coconut_verifier),
         );
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 
-        self.wait_for_interrupt().await
+        self.wait_for_interrupt(shutdown).await
     }
 }

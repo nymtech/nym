@@ -67,6 +67,7 @@ nymsphinx = { path = "../common/nymsphinx" }
 pemstore = { path = "../common/pemstore" }
 statistics-common = { path = "../common/statistics" }
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
+task = { path = "../common/task" }
 validator-client = { path = "../common/client-libs/validator-client", features = [
     "nyxd-client",
 ] }

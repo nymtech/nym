@@ -3035,6 +3035,7 @@ dependencies = [
  "futures",
  "log",
  "nymsphinx",
+ "task",
  "tokio",
  "tokio-util 0.7.3",
 ]
@@ -3469,6 +3470,7 @@ dependencies = [
  "sqlx 0.5.11",
  "statistics-common",
  "subtle-encoding",
+ "task",
  "thiserror",
  "tokio",
  "tokio-stream",

@@ -19,7 +19,7 @@ use gateway_client::bandwidth::BandwidthController;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use std::error::Error;
-use task::{wait_for_signal_and_error, TaskClient, TaskManager};
+use task::{TaskClient, TaskManager};
 
 pub mod config;
 
@@ -147,16 +147,9 @@ impl NymClient {
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
     pub async fn run_forever(self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let mut shutdown = self.start().await?;
+        let shutdown = self.start().await?;
 
-        let res = wait_for_signal_and_error(&mut shutdown).await;
-
-        log::info!("Sending shutdown");
-        shutdown.signal_shutdown().ok();
-
-        log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
-        shutdown.wait_for_shutdown().await;
-
+        let res = shutdown.catch_interrupt().await;
         log::info!("Stopping nym-socks5-client");
         res
     }

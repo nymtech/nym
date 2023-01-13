@@ -161,7 +161,7 @@ jobs:
 
   notification:
     needs: build
-    runs-on: ubuntu-20.04
+    runs-on: custom-runner-linux
     steps:
       - name: Collect jobs status
         uses: technote-space/workflow-conclusion-action@v2

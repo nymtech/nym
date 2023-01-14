@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use build_information::BinaryBuildInformation;
-use clap::{crate_version, Parser, ValueEnum};
+use clap::{crate_name, crate_version, Parser, ValueEnum};
 use colored::Colorize;
 use lazy_static::lazy_static;
 use log::error;
@@ -66,7 +66,7 @@ impl Cli {
 async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     setup_logging();
     if atty::is(atty::Stream::Stdout) {
-        println!("{}", banner());
+        println!("{}", logging::banner(crate_name!(), crate_version!()));
     }
 
     let args = Cli::parse();
@@ -80,23 +80,6 @@ async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
         }
         err
     })
-}
-
-fn banner() -> String {
-    format!(
-        r#"
-
-      _ __  _   _ _ __ ___
-     | '_ \| | | | '_ \ _ \
-     | | | | |_| | | | | | |
-     |_| |_|\__, |_| |_| |_|
-            |___/
-
-             (gateway - version {:})
-
-    "#,
-        crate_version!()
-    )
 }
 
 #[cfg(test)]

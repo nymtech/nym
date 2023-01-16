@@ -131,8 +131,8 @@ impl Config {
     }
 }
 
-#[derive(Debug)]
-pub struct NyxdClient<C> {
+#[derive(Clone, Debug)]
+pub struct NyxdClient<C: Clone> {
     client: C,
     config: Config,
     client_address: Option<Vec<AccountId>>,
@@ -209,7 +209,10 @@ impl NyxdClient<SigningNyxdClient> {
     }
 }
 
-impl<C> NyxdClient<C> {
+impl<C> NyxdClient<C>
+where
+    C: Clone,
+{
     pub fn current_config(&self) -> &Config {
         &self.config
     }

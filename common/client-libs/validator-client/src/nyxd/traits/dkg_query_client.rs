@@ -48,7 +48,7 @@ pub trait DkgQueryClient {
 #[async_trait]
 impl<C> DkgQueryClient for NyxdClient<C>
 where
-    C: CosmWasmClient + Send + Sync,
+    C: CosmWasmClient + Send + Sync + Clone,
 {
     async fn get_current_epoch(&self) -> Result<Epoch, NyxdError> {
         let request = DkgQueryMsg::GetCurrentEpochState {};

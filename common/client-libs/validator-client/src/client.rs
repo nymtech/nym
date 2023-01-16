@@ -128,7 +128,7 @@ impl Config {
 }
 
 #[cfg(feature = "nyxd-client")]
-pub struct Client<C> {
+pub struct Client<C: Clone> {
     // TODO: we really shouldn't be storing a mnemonic here, but removing it would be
     // non-trivial amount of work and it's out of scope of the current branch
     mnemonic: Option<bip39::Mnemonic>,
@@ -218,7 +218,10 @@ impl Client<QueryNyxdClient> {
 
 // nyxd wrappers
 #[cfg(feature = "nyxd-client")]
-impl<C> Client<C> {
+impl<C> Client<C>
+where
+    C: Clone,
+{
     // use case: somebody initialised client without a contract in order to upload and initialise one
     // and now they want to actually use it without making new client
 
@@ -735,7 +738,10 @@ impl<C> Client<C> {
 
 // validator-api wrappers
 #[cfg(feature = "nyxd-client")]
-impl<C> Client<C> {
+impl<C> Client<C>
+where
+    C: Clone,
+{
     pub fn change_nym_api(&mut self, new_endpoint: Url) {
         self.nym_api.change_url(new_endpoint)
     }
@@ -797,7 +803,7 @@ pub struct CoconutApiClient {
 
 #[cfg(feature = "nyxd-client")]
 impl CoconutApiClient {
-    pub async fn all_coconut_api_clients<C>(
+    pub async fn all_coconut_api_clients<C: Clone>(
         nyxd_client: &Client<C>,
     ) -> Result<Vec<Self>, ValidatorClientError>
     where

@@ -38,7 +38,7 @@ pub trait MultisigSigningClient {
 }
 
 #[async_trait]
-impl<C: SigningCosmWasmClient + Sync + Send> MultisigSigningClient for NyxdClient<C> {
+impl<C: SigningCosmWasmClient + Sync + Send + Clone> MultisigSigningClient for NyxdClient<C> {
     async fn propose_release_funds(
         &self,
         title: String,

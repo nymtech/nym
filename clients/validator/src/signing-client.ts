@@ -25,6 +25,7 @@ import {
   MixnetContractVersion,
   MixNode,
   MixNodeBond,
+  MixNodeDetails,
   MixNodeRewarding,
   MixOwnershipResponse,
   PagedAllDelegationsResponse,
@@ -168,7 +169,7 @@ export interface ISigningClient extends IQueryClient, ICosmWasmSigning, INymSign
 
   delegateToMixNode(
     mixnetContractAddress: string,
-    mixId: string,
+    mixId: number,
     amount: Coin,
     fee?: StdFee | 'auto' | number,
     memo?: string,
@@ -176,14 +177,14 @@ export interface ISigningClient extends IQueryClient, ICosmWasmSigning, INymSign
 
   undelegateFromMixNode(
     mixnetContractAddress: string,
-    mixId: string,
+    mixId: number,
     fee?: StdFee | 'auto' | number,
     memo?: string,
   ): Promise<ExecuteResult>;
 
   updateMixnodeConfig(
     mixnetContractAddress: string,
-    mixId: string,
+    mixId: number,
     profitMarginPercent: number,
     fee: StdFee | 'auto' | number,
   ): Promise<ExecuteResult>;
@@ -247,7 +248,7 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     limit?: number,
     startAfter?: string,
   ): Promise<PagedMixNodeBondResponse> {
-    return this.getMixNodeBonds(mixnetContractAddress, limit, startAfter);
+    return this.nyxdQuerier.getMixNodeBonds(mixnetContractAddress, limit, startAfter);
   }
 
   getMixNodesDetailed(
@@ -255,7 +256,7 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     limit?: number,
     startAfter?: string,
   ): Promise<PagedMixNodeDetailsResponse> {
-    return this.getMixNodesDetailed(mixnetContractAddress, limit, startAfter);
+    return this.nyxdQuerier.getMixNodesDetailed(mixnetContractAddress, limit, startAfter);
   }
 
   getStakeSaturation(mixnetContractAddress: string, mixId: number) {
@@ -279,11 +280,11 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
   }
 
   ownsGateway(mixnetContractAddress: string, address: string): Promise<GatewayOwnershipResponse> {
-    return this.ownsGateway(mixnetContractAddress, address);
+    return this.nyxdQuerier.ownsGateway(mixnetContractAddress, address);
   }
 
   getStateParams(mixnetContractAddress: string): Promise<ContractStateParams> {
-    return this.getStateParams(mixnetContractAddress);
+    return this.nyxdQuerier.getStateParams(mixnetContractAddress);
   }
 
   getAllNetworkDelegationsPaged(
@@ -299,7 +300,7 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     limit?: number,
     startAfter?: string,
   ): Promise<PagedUnbondedMixnodesResponse> {
-    return this.getUnbondedMixNodes(mixnetContractAddress, limit, startAfter);
+    return this.nyxdQuerier.getUnbondedMixNodes(mixnetContractAddress, limit, startAfter);
   }
 
   getMixNodeDelegationsPaged(
@@ -308,7 +309,7 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     limit?: number,
     startAfter?: string,
   ): Promise<PagedMixDelegationsResponse> {
-    return this.getMixNodeDelegationsPaged(mixnetContractAddress, mixIdentity, limit, startAfter);
+    return this.nyxdQuerier.getMixNodeDelegationsPaged(mixnetContractAddress, mixIdentity, limit, startAfter);
   }
 
   getDelegatorDelegationsPaged(
@@ -317,31 +318,31 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     limit?: number,
     startAfter?: string,
   ): Promise<PagedDelegatorDelegationsResponse> {
-    return this.getDelegatorDelegationsPaged(mixnetContractAddress, delegator, limit, startAfter);
+    return this.nyxdQuerier.getDelegatorDelegationsPaged(mixnetContractAddress, delegator, limit, startAfter);
   }
 
   getDelegationDetails(mixnetContractAddress: string, mixIdentity: string, delegator: string): Promise<Delegation> {
-    return this.getDelegationDetails(mixnetContractAddress, mixIdentity, delegator);
+    return this.nyxdQuerier.getDelegationDetails(mixnetContractAddress, mixIdentity, delegator);
   }
 
   getLayerDistribution(mixnetContractAddress: string): Promise<LayerDistribution> {
-    return this.getLayerDistribution(mixnetContractAddress);
+    return this.nyxdQuerier.getLayerDistribution(mixnetContractAddress);
   }
 
   getRewardPool(mixnetContractAddress: string): Promise<string> {
-    return this.getRewardPool(mixnetContractAddress);
+    return this.nyxdQuerier.getRewardPool(mixnetContractAddress);
   }
 
   getCirculatingSupply(mixnetContractAddress: string): Promise<string> {
-    return this.getCirculatingSupply(mixnetContractAddress);
+    return this.nyxdQuerier.getCirculatingSupply(mixnetContractAddress);
   }
 
   getIntervalRewardPercent(mixnetContractAddress: string): Promise<number> {
-    return this.getIntervalRewardPercent(mixnetContractAddress);
+    return this.nyxdQuerier.getIntervalRewardPercent(mixnetContractAddress);
   }
 
   getSybilResistancePercent(mixnetContractAddress: string): Promise<number> {
-    return this.getSybilResistancePercent(mixnetContractAddress);
+    return this.nyxdQuerier.getSybilResistancePercent(mixnetContractAddress);
   }
 
   getRewardingStatus(
@@ -349,27 +350,27 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     mixIdentity: string,
     rewardingIntervalNonce: number,
   ): Promise<RewardingStatus> {
-    return this.getRewardingStatus(mixnetContractAddress, mixIdentity, rewardingIntervalNonce);
+    return this.nyxdQuerier.getRewardingStatus(mixnetContractAddress, mixIdentity, rewardingIntervalNonce);
   }
 
   getCachedGateways(): Promise<GatewayBond[]> {
-    return this.getCachedGateways();
+    return this.nymApiQuerier.getCachedGateways();
   }
 
   getCachedMixnodes(): Promise<MixNodeBond[]> {
-    return this.getCachedMixnodes();
+    return this.nymApiQuerier.getCachedMixnodes();
   }
 
-  getActiveMixnodes(): Promise<MixNodeBond[]> {
-    return this.getActiveMixnodes();
+  getActiveMixnodes(): Promise<MixNodeDetails[]> {
+    return this.nymApiQuerier.getActiveMixnodes();
   }
 
   getRewardedMixnodes(): Promise<MixNodeBond[]> {
-    return this.getRewardedMixnodes();
+    return this.nymApiQuerier.getRewardedMixnodes();
   }
 
   getSpendableCoins(vestingContractAddress: string, vestingAccountAddress: string): Promise<any> {
-    return this.getSpendableCoins(vestingContractAddress, vestingAccountAddress);
+    return this.nyxdQuerier.getSpendableCoins(vestingContractAddress, vestingAccountAddress);
   }
 
   // signing related:
@@ -454,7 +455,7 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
 
   delegateToMixNode(
     mixnetContractAddress: string,
-    mixId: string,
+    mixId: number,
     amount: Coin,
     fee: StdFee | 'auto' | number = 'auto',
     memo = 'Default MixNode Delegation from Typescript',
@@ -475,7 +476,7 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
 
   undelegateFromMixNode(
     mixnetContractAddress: string,
-    mixId: string,
+    mixId: number,
     fee: StdFee | 'auto' | number = 'auto',
     memo = 'Default MixNode Undelegation from Typescript',
   ): Promise<ExecuteResult> {
@@ -484,7 +485,7 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
       mixnetContractAddress,
       {
         undelegate_from_mixnode: {
-          mix_identity: mixId,
+          mix_id: mixId,
         },
       },
       fee,
@@ -494,14 +495,14 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
 
   updateMixnodeConfig(
     mixnetContractAddress: string,
-    mixId: string,
+    mixId: number,
     profitMarginPercent: number,
     fee: StdFee | 'auto' | number,
   ): Promise<ExecuteResult> {
     return this.execute(
       this.clientAddress,
       mixnetContractAddress,
-      { update_mixnode_config: { profit_margin_percent: profitMarginPercent, mix_identity: mixId } },
+      { update_mixnode_config: { profit_margin_percent: profitMarginPercent, mix_id: mixId } },
       fee,
     );
   }

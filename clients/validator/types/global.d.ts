@@ -6,5 +6,6 @@ declare namespace NodeJS {
     mixnetContractAddress: string;
     vestingContractAddress: string;
     denom: string;
+    mnemonic: string;
   }
 }

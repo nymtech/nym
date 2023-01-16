@@ -9,7 +9,7 @@ cd "$(dirname "$0")"
 cd ..
 
 # clear out any files and suppress missing file errors
-rm nym_client_wasm* package.json || true
+rm -f nym_client_wasm* package.json || true
 
 # let wasm-pack build the files and put them in the output location rather than `./pkg`
 cd ../../../../clients/webassembly

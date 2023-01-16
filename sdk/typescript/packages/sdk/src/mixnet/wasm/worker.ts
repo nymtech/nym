@@ -82,12 +82,10 @@ class ClientWrapper {
       return;
     }
 
-    this.client = await this.clientBuilder.start_client();
-
     // this is current limitation of wasm in rust - for async methods you can't take self by reference...
     // I'm trying to figure out if I can somehow hack my way around it, but for time being you have to re-assign
     // the object (it's the same one)
-    // this.client = await this.client.start();
+    this.client = await this.clientBuilder.start_client();
   };
 
   sendMessage = async ({ payload, recipient }: { recipient: string; payload: string }) => {

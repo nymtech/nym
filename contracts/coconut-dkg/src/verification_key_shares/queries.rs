@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::verification_key_shares::storage;
-use crate::verification_key_shares::storage::VK_SHARES;
+use crate::verification_key_shares::storage::vk_shares;
 use coconut_dkg_common::verification_key::PagedVKSharesResponse;
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
@@ -22,7 +22,7 @@ pub fn query_vk_shares_paged(
 
     let start = addr.as_ref().map(Bound::exclusive);
 
-    let shares = VK_SHARES
+    let shares = vk_shares()
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|res| res.map(|(_, share)| share))
@@ -61,7 +61,7 @@ pub(crate) mod tests {
         for n in 0..1000 {
             let vk_share = vk_share_fixture(n);
             let sender = Addr::unchecked(format!("owner{}", n));
-            VK_SHARES
+            vk_shares()
                 .save(&mut deps.storage, &sender, &vk_share)
                 .unwrap();
         }
@@ -76,7 +76,7 @@ pub(crate) mod tests {
         for n in 0..1000 {
             let vk_share = vk_share_fixture(n);
             let sender = Addr::unchecked(format!("owner{}", n));
-            VK_SHARES
+            vk_shares()
                 .save(&mut deps.storage, &sender, &vk_share)
                 .unwrap();
         }
@@ -96,7 +96,7 @@ pub(crate) mod tests {
         for n in 0..1000 {
             let vk_share = vk_share_fixture(n);
             let sender = Addr::unchecked(format!("owner{}", n));
-            VK_SHARES
+            vk_shares()
                 .save(&mut deps.storage, &sender, &vk_share)
                 .unwrap();
         }
@@ -116,7 +116,7 @@ pub(crate) mod tests {
 
         let vk_share = vk_share_fixture(1);
         let sender = Addr::unchecked(format!("owner{}", 1));
-        VK_SHARES
+        vk_shares()
             .save(&mut deps.storage, &sender, &vk_share)
             .unwrap();
 
@@ -129,7 +129,7 @@ pub(crate) mod tests {
         // save another
         let vk_share = vk_share_fixture(2);
         let sender = Addr::unchecked(format!("owner{}", 2));
-        VK_SHARES
+        vk_shares()
             .save(&mut deps.storage, &sender, &vk_share)
             .unwrap();
 
@@ -139,7 +139,7 @@ pub(crate) mod tests {
 
         let vk_share = vk_share_fixture(3);
         let sender = Addr::unchecked(format!("owner{}", 3));
-        VK_SHARES
+        vk_shares()
             .save(&mut deps.storage, &sender, &vk_share)
             .unwrap();
 
@@ -160,7 +160,7 @@ pub(crate) mod tests {
 
         let vk_share = vk_share_fixture(4);
         let sender = Addr::unchecked(format!("owner{}", 4));
-        VK_SHARES
+        vk_shares()
             .save(&mut deps.storage, &sender, &vk_share)
             .unwrap();
 

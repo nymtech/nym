@@ -342,6 +342,7 @@ impl super::client::Client for DummyClient {
                 announce_address: dealer_details.announce_address.clone(),
                 node_index: dealer_details.assigned_index,
                 owner: Addr::unchecked(self.validator_address.to_string()),
+                epoch_id: 0,
                 verified: false,
             },
         );

@@ -7,7 +7,6 @@ use crate::epoch_state::storage::{CURRENT_EPOCH, THRESHOLD};
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::STATE;
-use crate::verification_key_shares::storage::VK_SHARES;
 use coconut_dkg_common::types::{Epoch, EpochState};
 use cosmwasm_std::{DepsMut, Env, Order, Response, Storage};
 
@@ -22,7 +21,6 @@ fn reset_epoch_state(storage: &mut dyn Storage) -> Result<(), ContractError> {
         for dealings in DEALINGS_BYTES {
             dealings.remove(storage, &details.address);
         }
-        VK_SHARES.remove(storage, &details.address);
         current_dealers().remove(storage, &dealer_addr)?;
         past_dealers().save(storage, &dealer_addr, &details)?;
     }

@@ -14,6 +14,7 @@ pub fn vk_share_fixture(index: u64) -> ContractVKShare {
         announce_address: format!("localhost:{}", index),
         node_index: index,
         owner: Addr::unchecked(format!("owner{}", index)),
+        epoch_id: 0,
         verified: index % 2 == 0,
     }
 }

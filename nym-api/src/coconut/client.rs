@@ -4,7 +4,7 @@
 use crate::coconut::error::Result;
 use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
 use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch};
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId};
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use contracts_common::dealings::ContractSafeBytes;
 use cw3::ProposalResponse;
@@ -27,7 +27,7 @@ pub trait Client {
     async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse>;
     async fn get_current_dealers(&self) -> Result<Vec<DealerDetails>>;
     async fn get_dealings(&self, idx: usize) -> Result<Vec<ContractDealing>>;
-    async fn get_verification_key_shares(&self) -> Result<Vec<ContractVKShare>>;
+    async fn get_verification_key_shares(&self, epoch_id: EpochId) -> Result<Vec<ContractVKShare>>;
     async fn vote_proposal(&self, proposal_id: u64, vote_yes: bool, fee: Option<Fee>)
         -> Result<()>;
     async fn execute_proposal(&self, proposal_id: u64) -> Result<()>;

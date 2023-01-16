@@ -111,9 +111,11 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
             limit,
             start_after,
         } => to_binary(&query_dealings_paged(deps, idx, start_after, limit)?)?,
-        QueryMsg::GetVerificationKeys { limit, start_after } => {
-            to_binary(&query_vk_shares_paged(deps, start_after, limit)?)?
-        }
+        QueryMsg::GetVerificationKeys {
+            epoch_id,
+            limit,
+            start_after,
+        } => to_binary(&query_vk_shares_paged(deps, epoch_id, start_after, limit)?)?,
     };
 
     Ok(response)

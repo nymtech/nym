@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{nym_api, ValidatorClientError};
-use coconut_dkg_common::types::NodeIndex;
+use coconut_dkg_common::types::{EpochId, NodeIndex};
 use coconut_interface::VerificationKey;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::MixId;
@@ -676,6 +676,7 @@ impl<C> Client<C> {
 
     pub async fn get_all_nyxd_verification_key_shares(
         &self,
+        epoch_id: EpochId,
     ) -> Result<Vec<ContractVKShare>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync + Send,
@@ -685,7 +686,11 @@ impl<C> Client<C> {
         loop {
             let mut paged_response = self
                 .nyxd
-                .get_vk_shares_paged(start_after.take(), self.verification_key_page_limit)
+                .get_vk_shares_paged(
+                    epoch_id,
+                    start_after.take(),
+                    self.verification_key_page_limit,
+                )
                 .await?;
             shares.append(&mut paged_response.shares);
 
@@ -798,8 +803,9 @@ impl CoconutApiClient {
     where
         C: CosmWasmClient + Sync + Send,
     {
+        let epoch_id = nyxd_client.nyxd.get_current_epoch().await?.epoch_id;
         Ok(nyxd_client
-            .get_all_nyxd_verification_key_shares()
+            .get_all_nyxd_verification_key_shares(epoch_id)
             .await?
             .into_iter()
             .filter_map(Self::try_from)

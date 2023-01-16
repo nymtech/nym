@@ -29,6 +29,7 @@ use crate::coconut::error::CoconutError;
 use async_trait::async_trait;
 #[cfg(feature = "coconut")]
 use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
+use coconut_dkg_common::types::EpochId;
 #[cfg(feature = "coconut")]
 use coconut_dkg_common::{
     dealer::{ContractDealing, DealerDetails, DealerDetailsResponse},
@@ -365,12 +366,13 @@ impl crate::coconut::client::Client for Client {
 
     async fn get_verification_key_shares(
         &self,
+        epoch_id: EpochId,
     ) -> crate::coconut::error::Result<Vec<ContractVKShare>> {
         Ok(self
             .0
             .read()
             .await
-            .get_all_nyxd_verification_key_shares()
+            .get_all_nyxd_verification_key_shares(epoch_id)
             .await?)
     }
 

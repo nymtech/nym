@@ -3,12 +3,14 @@
 
 use crate::verification_key_shares::storage;
 use crate::verification_key_shares::storage::vk_shares;
+use coconut_dkg_common::types::EpochId;
 use coconut_dkg_common::verification_key::PagedVKSharesResponse;
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
 
 pub fn query_vk_shares_paged(
     deps: Deps<'_>,
+    epoch_id: EpochId,
     start_after: Option<String>,
     limit: Option<u32>,
 ) -> StdResult<PagedVKSharesResponse> {
@@ -23,6 +25,9 @@ pub fn query_vk_shares_paged(
     let start = addr.as_ref().map(Bound::exclusive);
 
     let shares = vk_shares()
+        .idx
+        .epoch_id
+        .prefix(epoch_id)
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|res| res.map(|(_, share)| share))

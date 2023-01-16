@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::types::{ContractSafeBytes, EncodedBTEPublicKeyWithProof, TimeConfiguration};
+use crate::types::{ContractSafeBytes, EncodedBTEPublicKeyWithProof, EpochId, TimeConfiguration};
 use crate::verification_key::VerificationKeyShare;
 use cosmwasm_std::Addr;
 use schemars::JsonSchema;
@@ -62,6 +62,7 @@ pub enum QueryMsg {
         start_after: Option<String>,
     },
     GetVerificationKeys {
+        epoch_id: EpochId,
         limit: Option<u32>,
         start_after: Option<String>,
     },

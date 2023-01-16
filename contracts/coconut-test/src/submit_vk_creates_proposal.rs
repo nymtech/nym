@@ -152,6 +152,7 @@ fn dkg_proposal() {
         .query_wasm_smart(
             coconut_dkg_contract_addr.clone(),
             &GetVerificationKeys {
+                epoch_id: 0,
                 limit: None,
                 start_after: None,
             },
@@ -199,6 +200,7 @@ fn dkg_proposal() {
         .query_wasm_smart(
             coconut_dkg_contract_addr,
             &GetVerificationKeys {
+                epoch_id: 0,
                 limit: None,
                 start_after: None,
             },

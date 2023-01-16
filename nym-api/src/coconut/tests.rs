@@ -40,7 +40,7 @@ use coconut_dkg_common::dealer::{
     ContractDealing, DealerDetails, DealerDetailsResponse, DealerType,
 };
 use coconut_dkg_common::event_attributes::{DKG_PROPOSAL_ID, NODE_INDEX};
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch, TOTAL_DEALINGS};
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId, TOTAL_DEALINGS};
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use contracts_common::dealings::ContractSafeBytes;
 use crypto::asymmetric::{encryption, identity};
@@ -231,7 +231,10 @@ impl super::client::Client for DummyClient {
             .collect())
     }
 
-    async fn get_verification_key_shares(&self) -> Result<Vec<ContractVKShare>> {
+    async fn get_verification_key_shares(
+        &self,
+        _epoch_id: EpochId,
+    ) -> Result<Vec<ContractVKShare>> {
         Ok(self
             .verification_share
             .read()

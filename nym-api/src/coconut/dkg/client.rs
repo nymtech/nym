@@ -4,7 +4,7 @@
 use crate::coconut::client::Client;
 use crate::coconut::error::CoconutError;
 use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch, NodeIndex};
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId, NodeIndex};
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use contracts_common::dealings::ContractSafeBytes;
 use cw3::ProposalResponse;
@@ -78,8 +78,9 @@ impl DkgClient {
 
     pub(crate) async fn get_verification_key_shares(
         &self,
+        epoch_id: EpochId,
     ) -> Result<Vec<ContractVKShare>, CoconutError> {
-        self.inner.get_verification_key_shares().await
+        self.inner.get_verification_key_shares(epoch_id).await
     }
 
     pub(crate) async fn list_proposals(&self) -> Result<Vec<ProposalResponse>, CoconutError> {

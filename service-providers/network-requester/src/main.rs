@@ -8,13 +8,13 @@ use completions::{fig_generate, ArgShell};
 use logging::setup_logging;
 
 use error::NetworkRequesterError;
-use network_defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use nymsphinx::addressing::clients::Recipient;
 
 mod allowed_hosts;
-mod connection;
 mod core;
 mod error;
+mod reply;
+mod socks5;
 mod statistics;
 mod websocket;
 
@@ -26,7 +26,7 @@ struct Run {
     #[clap(long)]
     open_proxy: bool,
 
-    /// Websocket port to bind to
+    /// Websocket port to bind to.
     #[clap(long)]
     websocket_port: Option<String>,
 
@@ -56,20 +56,21 @@ impl Run {
             .transpose()
             .unwrap_or(None);
 
-        let uri = format!(
+        let websocket_address = format!(
             "ws://localhost:{}",
             self.websocket_port
                 .as_ref()
-                .unwrap_or(&DEFAULT_WEBSOCKET_LISTENING_PORT.to_string())
+                .unwrap_or(&network_defaults::DEFAULT_WEBSOCKET_LISTENING_PORT.to_string())
         );
 
         log::info!("Starting socks5 service provider");
         let mut server = core::ServiceProvider::new(
-            uri,
+            websocket_address,
             self.open_proxy,
             self.enable_statistics,
             stats_provider_addr,
-        );
+        )
+        .await;
         server.run().await
     }
 }

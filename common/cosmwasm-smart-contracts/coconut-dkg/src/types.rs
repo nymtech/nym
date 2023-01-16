@@ -72,6 +72,7 @@ impl Default for TimeConfiguration {
 #[serde(rename_all = "snake_case")]
 pub struct Epoch {
     pub state: EpochState,
+    pub epoch_id: u64,
     pub time_configuration: TimeConfiguration,
     pub finish_timestamp: Timestamp,
 }
@@ -79,6 +80,7 @@ pub struct Epoch {
 impl Epoch {
     pub fn new(
         state: EpochState,
+        epoch_id: u64,
         time_configuration: TimeConfiguration,
         current_timestamp: Timestamp,
     ) -> Self {
@@ -98,6 +100,7 @@ impl Epoch {
         };
         Epoch {
             state,
+            epoch_id,
             time_configuration,
             finish_timestamp: current_timestamp.plus_seconds(duration),
         }

@@ -54,6 +54,7 @@ pub fn instantiate(
         deps.storage,
         &Epoch::new(
             EpochState::default(),
+            0,
             msg.time_configuration.unwrap_or_default(),
             env.block.time,
         ),

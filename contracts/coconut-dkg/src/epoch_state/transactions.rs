@@ -69,7 +69,12 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
             let threshold = (2 * current_dealer_count as u64 + 3 - 1) / 3;
             THRESHOLD.save(deps.storage, &threshold)?;
         }
-        Epoch::new(state, current_epoch.time_configuration, env.block.time)
+        Epoch::new(
+            state,
+            current_epoch.epoch_id,
+            current_epoch.time_configuration,
+            env.block.time,
+        )
     } else if dealers_still_active(&deps)?
         == STATE
             .load(deps.storage)?
@@ -80,6 +85,7 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
         // The dealer set hasn't changed, so we only extend the finish timestamp
         Epoch::new(
             current_epoch.state,
+            current_epoch.epoch_id,
             current_epoch.time_configuration,
             env.block.time,
         )
@@ -88,6 +94,7 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
         reset_epoch_state(deps.storage)?;
         Epoch::new(
             EpochState::default(),
+            current_epoch.epoch_id + 1,
             current_epoch.time_configuration,
             env.block.time,
         )
@@ -109,6 +116,7 @@ pub(crate) fn try_surpassed_threshold(
         CURRENT_EPOCH.update::<_, ContractError>(deps.storage, |epoch| {
             Ok(Epoch::new(
                 EpochState::default(),
+                epoch.epoch_id + 1,
                 epoch.time_configuration,
                 env.block.time,
             ))

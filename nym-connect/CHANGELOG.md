@@ -5,7 +5,6 @@
 - get version number from tauri and display by @fmtabbara in https://github.com/nymtech/nym/pull/2684
 - Feature/nym connect experimental software text by @fmtabbara in https://github.com/nymtech/nym/pull/2692
 - NymConnect - Display service info in tooltip **1.1.5 Release** by @fmtabbara in https://github.com/nymtech/nym/pull/2704
-- Feat/2130 tables update rebase by @gala1234 in https://github.com/nymtech/nym/pull/2742
 
 ## [nym-connect-v1.1.4](https://github.com/nymtech/nym/tree/nym-connect-v1.1.4) (2022-12-20)
 

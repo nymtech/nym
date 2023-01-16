@@ -42,20 +42,17 @@ const PAYLOAD_KIND_BINARY = 1;
  */
 class ClientWrapper {
   client: wasm_bindgen.NymClient | null = null;
+  clientBuilder: wasm_bindgen.NymClientBuilder | null = null;
 
   /**
    * Creates the WASM client and initialises it.
    */
-  init = (
+  init = async (
     config: wasm_bindgen.Config,
-    onConnectHandler: OnConnectFn,
-    onStringMessageHandler?: OnStringMessageFn,
-    onBinaryMessageHandler?: OnBinaryMessageFn,
+    onMessageHandler: OnBinaryMessageFn,
   ) => {
-    this.client = new wasm_bindgen.NymClient(config);
-    if (onBinaryMessageHandler) {
-      this.client.set_on_binary_message(onBinaryMessageHandler);
-    }
+
+    this.clientBuilder = new wasm_bindgen.NymClientBuilder(config, onMessageHandler);
 
     // NB: because we set the `kind` byte in the message payload first, we don't need to bother to try to parse
     // all messages as string
@@ -80,15 +77,17 @@ class ClientWrapper {
    * Connects to the gateway and starts the client sending traffic.
    */
   start = async () => {
-    if (!this.client) {
-      console.error('Client has not been initialised. Please call `init` first.');
+    if (!this.clientBuilder) {
+      console.error('Client builder has not been initialised. Please call `init` first.');
       return;
     }
+
+    this.client = await this.clientBuilder.start_client();
 
     // this is current limitation of wasm in rust - for async methods you can't take self by reference...
     // I'm trying to figure out if I can somehow hack my way around it, but for time being you have to re-assign
     // the object (it's the same one)
-    this.client = await this.client.start();
+    // this.client = await this.client.start();
   };
 
   sendMessage = async ({ payload, recipient }: { recipient: string; payload: string }) => {
@@ -97,7 +96,7 @@ class ClientWrapper {
       return;
     }
     const message = wasm_bindgen.create_binary_message_from_string(PAYLOAD_KIND_TEXT, payload);
-    this.client = await this.client.send_binary_message(message, recipient);
+    this.client = await this.client.send_regular_message(message, recipient);
   };
 
   sendBinaryMessage = async ({
@@ -114,7 +113,7 @@ class ClientWrapper {
       return;
     }
     const message = wasm_bindgen.create_binary_message_with_headers(PAYLOAD_KIND_BINARY, payload, headers || '');
-    this.client = await this.client.send_binary_message(message, recipient);
+    this.client = await this.client.send_regular_message(message, recipient);
   };
 }
 
@@ -146,11 +145,7 @@ wasm_bindgen(wasmUrl)
           gatewayEndpoint,
           config.debug || wasm_bindgen.default_debug(),
         ),
-        () => {
-          console.log();
-        },
-        undefined,
-        async (message) => {
+        async (message: Uint8Array) => {
           try {
             const { kind, payload, headers } = await wasm_bindgen.parse_binary_message_with_headers(message);
             switch (kind) {

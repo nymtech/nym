@@ -6,7 +6,12 @@ use crate::error::GatewayClientError;
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_storage::Storage;
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "android"))]
 use credential_storage::storage::Storage;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "android")]
+use mobile_storage::Storage;
 
 #[cfg(all(target_arch = "wasm32", feature = "coconut"))]
 use crate::wasm_storage::StorageError;
@@ -31,7 +36,12 @@ use {
 use crate::wasm_storage::PersistentStorage;
 
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "android"))]
 use credential_storage::PersistentStorage;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "android")]
+use mobile_storage::PersistentStorage;
 
 #[derive(Clone)]
 pub struct BandwidthController<St: Storage = PersistentStorage> {

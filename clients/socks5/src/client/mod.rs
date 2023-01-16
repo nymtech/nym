@@ -8,11 +8,11 @@ use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
     server::SphinxSocksServer,
 };
-use client_core::client::base_client::{
-    non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
-};
+use client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput, ClientState};
 use client_core::client::key_manager::KeyManager;
+use client_core::client::replies::reply_storage;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
+use client_core::config::DebugConfig;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use gateway_client::bandwidth::BandwidthController;
@@ -20,6 +20,7 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use std::error::Error;
 use task::{TaskClient, TaskManager};
+use mobile_storage::PersistentStorage;
 
 pub mod config;
 
@@ -40,6 +41,13 @@ pub struct NymClient {
 
     /// KeyManager object containing smart pointers to all relevant keys used by the client.
     key_manager: KeyManager,
+}
+
+pub fn setup_empty_reply_surb_backend(debug_config: &DebugConfig) -> reply_storage::Empty {
+    reply_storage::Empty {
+        min_surb_threshold: debug_config.minimum_reply_surb_storage_threshold,
+        max_surb_threshold: debug_config.maximum_reply_surb_storage_threshold,
+    }
 }
 
 impl NymClient {
@@ -84,10 +92,8 @@ impl NymClient {
             )
         };
         #[cfg(not(feature = "coconut"))]
-        let bandwidth_controller = BandwidthController::new(
-            credential_storage::initialise_storage(config.get_base().get_database_path()).await,
-        )
-        .expect("Could not create bandwidth controller");
+        let bandwidth_controller = BandwidthController::new(PersistentStorage {})
+            .expect("Could not create bandwidth controller");
         bandwidth_controller
     }
 
@@ -205,11 +211,7 @@ impl NymClient {
             self.config.get_base(),
             self.key_manager,
             Some(Self::create_bandwidth_controller(&self.config).await),
-            non_wasm_helpers::setup_fs_reply_surb_backend(
-                self.config.get_base().get_reply_surb_database_path(),
-                self.config.get_debug_settings(),
-            )
-            .await?,
+            setup_empty_reply_surb_backend(self.config.get_base().get_debug_config()),
         );
 
         let self_address = base_builder.as_mix_recipient();

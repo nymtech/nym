@@ -29,9 +29,15 @@ use tungstenite::protocol::Message;
 use coconut_interface::Credential;
 
 #[cfg(not(target_arch = "wasm32"))]
-use credential_storage::PersistentStorage;
-#[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "android"))]
+use credential_storage::PersistentStorage;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "android")]
+use mobile_storage::PersistentStorage;
 
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_storage::PersistentStorage;

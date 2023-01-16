@@ -28,6 +28,7 @@ pemstore = { path = "../../pemstore" }
 validator-client = { path = "../validator-client", optional = true }
 task = { path = "../../task" }
 serde = { version = "1.0", features = ["derive"]}
+mobile-storage = { path = "../../mobile-storage" }
 
 
 [dependencies.tungstenite]
@@ -81,3 +82,4 @@ features = ["js"]
 [features]
 coconut = ["gateway-requests/coconut", "coconut-interface", "validator-client", "credentials/coconut"]
 wasm = []
+android = []

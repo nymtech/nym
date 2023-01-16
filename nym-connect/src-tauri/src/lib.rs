@@ -1,6 +1,6 @@
 use config_common::defaults::setup_env;
 use std::sync::Arc;
-use tauri::App;
+use tauri::{App, Manager};
 use tokio::sync::RwLock;
 
 pub mod config;
@@ -47,7 +47,14 @@ impl AppBuilder {
     pub fn run(self) {
         setup_env(None);
 
-        println!("Starting up...");
+        println!("Starting up***");
+
+        // As per breaking change description here
+        // https://github.com/tauri-apps/tauri/blob/feac1d193c6d618e49916ad0707201f43d5cdd36/tooling/bundler/CHANGELOG.md
+        if let Err(error) = fix_path_env::fix() {
+            log::warn!("Failed to fix PATH: {error}");
+        }
+
         let setup = self.setup;
         tauri::Builder::default()
             .manage(Arc::new(RwLock::new(State::default())))
@@ -75,6 +82,7 @@ impl AppBuilder {
             ])
             .setup(move |app| {
                 if let Some(setup) = setup {
+                    logging::setup_logging(app.app_handle())?;
                     (setup)(app)?;
                 }
                 Ok(())

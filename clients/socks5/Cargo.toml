@@ -25,19 +25,21 @@ tap = "1.0.1"
 thiserror = "1.0.34"
 tokio = { version = "1.24.1", features = ["rt-multi-thread", "net", "signal"] }
 url = "2.2"
+async-trait = { version = "0.1.58" }
 
 # internal
 build-information = { path = "../../common/build-information" }
-client-core = { path = "../client-core", features = ["fs-surb-storage"] }
+client-core = { path = "../client-core" }
 client-connections = { path = "../../common/client-connections" }
 coconut-interface = { path = "../../common/coconut-interface", optional = true }
 config = { path = "../../common/config" }
 completions = { path = "../../common/completions" }
-credential-storage = { path = "../../common/credential-storage" }
+# credential-storage = { path = "../../common/credential-storage" }
+mobile-storage = { path = "../../common/mobile-storage" }
 credentials = { path = "../../common/credentials", optional = true }
 crypto = { path = "../../common/crypto" }
 logging = { path = "../../common/logging"}
-gateway-client = { path = "../../common/client-libs/gateway-client" }
+gateway-client = { path = "../../common/client-libs/gateway-client", features = ["android"] }
 gateway-requests = { path = "../../gateway/gateway-requests" }
 network-defaults = { path = "../../common/network-defaults" }
 nymsphinx = { path = "../../common/nymsphinx" }

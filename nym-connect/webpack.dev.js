@@ -57,7 +57,7 @@ module.exports = mergeWithRules({
     port: 9000,
     // compress: true,
     historyApiFallback: true,
-    // hot: true,
+    hot: true,
     host: 'local-ipv4',
     allowedHosts: 'all',
     // client: {

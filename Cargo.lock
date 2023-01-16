@@ -2176,6 +2176,7 @@ dependencies = [
  "gateway-requests",
  "getrandom 0.2.8",
  "log",
+ "mobile-storage",
  "network-defaults",
  "nymsphinx",
  "pemstore",
@@ -3273,6 +3274,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mobile-storage"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "thiserror",
+]
+
+[[package]]
 name = "multer"
 version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3808,6 +3817,7 @@ dependencies = [
 name = "nym-socks5-client"
 version = "1.1.5"
 dependencies = [
+ "async-trait",
  "build-information",
  "clap 4.1.1",
  "client-connections",
@@ -3815,7 +3825,6 @@ dependencies = [
  "coconut-interface",
  "completions",
  "config",
- "credential-storage",
  "credentials",
  "crypto",
  "dirs",
@@ -3825,6 +3834,7 @@ dependencies = [
  "lazy_static",
  "log",
  "logging",
+ "mobile-storage",
  "network-defaults",
  "nymsphinx",
  "ordered-buffer",

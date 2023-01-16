@@ -24,7 +24,7 @@ jobs:
           path: .github/workflows/support-files/notifications/deny.message
   notification:
     needs: cargo-deny
-    runs-on: custom-runner-linux
+    runs-on: ubuntu-20.04
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2

@@ -95,7 +95,7 @@ pub(crate) async fn handle_connection<R, S, St>(
         _ => (),
     }
 
-    trace!("Managed to perform websocket handshake!");
+    log::debug!("Managed to perform websocket handshake!");
 
     match shutdown
         .run_future(handle.perform_initial_authentication())
@@ -112,5 +112,5 @@ pub(crate) async fn handle_connection<R, S, St>(
         Some(Some(auth_handle)) => auth_handle.listen_for_requests(shutdown).await,
     }
 
-    trace!("The handler is done!");
+    log::debug!("The handler is done!");
 }

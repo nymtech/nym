@@ -60,7 +60,7 @@ jobs:
             target/release/nym-gateway
             target/release/nym-mixnode
             target/release/nym-socks5-client
-            target/release/nym-validator-api
+            target/release/nym-api
             target/release/nym-network-requester
             target/release/nym-network-statistics
             target/release/nym-cli
@@ -75,7 +75,7 @@ jobs:
             target/release/nym-gateway
             target/release/nym-mixnode
             target/release/nym-socks5-client
-            target/release/nym-validator-api
+            target/release/nym-api
             target/release/nym-network-requester
             target/release/nym-network-statistics
             target/release/nym-cli

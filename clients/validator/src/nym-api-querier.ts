@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 import axios from 'axios';
-import { GatewayBond, MixNodeBond } from '../compiledTypes';
+import { GatewayBond, MixNodeBond, MixNodeDetails } from '../compiledTypes';
 
 export const NYM_API_VERSION = '/v1';
 export const NYM_API_GATEWAYS_PATH = `${NYM_API_VERSION}/gateways`;
@@ -16,7 +16,7 @@ export interface INymApiQuery {
 
   getCachedGateways(): Promise<GatewayBond[]>;
 
-  getActiveMixnodes(): Promise<MixNodeBond[]>;
+  getActiveMixnodes(): Promise<MixNodeDetails[]>;
 
   getRewardedMixnodes(): Promise<MixNodeBond[]>;
 }
@@ -50,7 +50,7 @@ export default class NymApiQuerier implements INymApiQuery {
     throw new Error('None of the provided validator APIs seem to be alive');
   }
 
-  async getActiveMixnodes(): Promise<MixNodeBond[]> {
+  async getActiveMixnodes(): Promise<MixNodeDetails[]> {
     const url = new URL(this.nymApiUrl);
     url.pathname += NYM_API_ACTIVE_MIXNODES_PATH;
 

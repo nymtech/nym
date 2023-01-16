@@ -146,7 +146,7 @@ export default class ValidatorClient implements INymClient {
     return this.client.getStakeSaturation(this.mixnetContract, mixId);
   }
 
-  async getActiveMixnodes(): Promise<MixNodeBond[]> {
+  async getActiveMixnodes(): Promise<MixNodeDetails[]> {
     return this.client.getActiveMixnodes();
   }
 
@@ -479,7 +479,7 @@ export default class ValidatorClient implements INymClient {
   }
 
   public async delegateToMixNode(
-    mixId: string,
+    mixId: number,
     amount: Coin,
     fee?: StdFee | 'auto' | number,
     memo?: string,
@@ -489,7 +489,7 @@ export default class ValidatorClient implements INymClient {
   }
 
   public async undelegateFromMixNode(
-    mixId: string,
+    mixId: number,
     fee?: StdFee | 'auto' | number,
     memo?: string,
   ): Promise<ExecuteResult> {
@@ -497,7 +497,7 @@ export default class ValidatorClient implements INymClient {
   }
 
   public async updateMixnodeConfig(
-    mixId: string,
+    mixId: number,
     fee: StdFee | 'auto' | number,
     profitPercentage: number,
   ): Promise<ExecuteResult> {

@@ -10,6 +10,7 @@ import {
   GatewayOwnershipResponse,
   LayerDistribution,
   MixnetContractVersion,
+  MixNodeDetails,
   MixOwnershipResponse,
   PagedAllDelegationsResponse,
   PagedDelegatorDelegationsResponse,
@@ -220,7 +221,7 @@ export default class QueryClient extends CosmWasmClient implements IQueryClient 
     return this.nymApiQuerier.getCachedMixnodes();
   }
 
-  getActiveMixnodes(): Promise<MixNodeBond[]> {
+  getActiveMixnodes(): Promise<MixNodeDetails[]> {
     return this.nymApiQuerier.getActiveMixnodes();
   }
 

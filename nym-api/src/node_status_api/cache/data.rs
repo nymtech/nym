@@ -1,4 +1,4 @@
-use nym_api_requests::models::MixNodeBondAnnotated;
+use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated};
 
 use crate::support::caching::Cache;
 
@@ -9,6 +9,8 @@ pub(crate) struct NodeStatusCacheData {
     pub(crate) mixnodes_annotated: Cache<Vec<MixNodeBondAnnotated>>,
     pub(crate) rewarded_set_annotated: Cache<Vec<MixNodeBondAnnotated>>,
     pub(crate) active_set_annotated: Cache<Vec<MixNodeBondAnnotated>>,
+
+    pub(crate) gateways_annotated: Cache<Vec<GatewayBondAnnotated>>,
 
     // Estimated active set inclusion probabilities from Monte Carlo simulation
     pub(crate) inclusion_probabilities: Cache<InclusionProbabilities>,

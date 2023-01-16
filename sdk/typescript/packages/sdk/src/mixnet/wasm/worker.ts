@@ -47,7 +47,7 @@ class ClientWrapper {
   /**
    * Creates the WASM client and initialises it.
    */
-  init = async (
+  init = (
     config: wasm_bindgen.Config,
     onMessageHandler: OnBinaryMessageFn,
   ) => {

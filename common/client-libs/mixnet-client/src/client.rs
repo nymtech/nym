@@ -93,23 +93,20 @@ impl Client {
         let conn = match tokio::time::timeout(connection_timeout, connection_fut).await {
             Ok(stream_res) => match stream_res {
                 Ok(stream) => {
-                    debug!("Managed to establish connection to {}", address);
+                    debug!("Managed to establish connection to {address}");
                     // if we managed to connect, reset the reconnection count (whatever it might have been)
                     current_reconnection.store(0, Ordering::Release);
                     Framed::new(stream, SphinxCodec)
                 }
                 Err(err) => {
-                    debug!(
-                        "failed to establish connection to {} (err: {})",
-                        address, err
-                    );
+                    debug!("failed to establish connection to {address} (err: {err})");
                     return;
                 }
             },
-            Err(_) => {
+            Err(_err) => {
                 debug!(
-                    "failed to connect to {} within {:?}",
-                    address, connection_timeout
+                    "failed to connect to {address} within {:?}",
+                    connection_timeout
                 );
 
                 // we failed to connect - increase reconnection attempt

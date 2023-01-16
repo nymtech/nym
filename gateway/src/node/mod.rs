@@ -333,6 +333,8 @@ where
                 .map_err(|source| GatewayError::CoconutVerifierCreationFailure { source })?
         };
 
+        // The packet forwarder just forwards packets onto the mixnet. When unable to send it will
+        // just drop the packet and assume that the originator will try to retransmit
         let mix_forwarding_channel = self.start_packet_forwarder(shutdown.subscribe());
 
         let active_clients_store = ActiveClientsStore::new();

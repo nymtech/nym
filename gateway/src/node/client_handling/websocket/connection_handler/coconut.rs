@@ -1,11 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::time::{Duration, SystemTime};
-
-use log::*;
-
 use coconut_interface::{Credential, VerificationKey};
+use log::*;
+use std::time::{Duration, SystemTime};
 use validator_client::{
     nyxd::{
         cosmwasm_client::logs::{find_attribute, BANDWIDTH_PROPOSAL_ID},
@@ -31,7 +29,6 @@ impl CoconutVerifier {
     pub fn new(
         api_clients: Vec<CoconutApiClient>,
         nyxd_client: Client<SigningNyxdClient>,
-        mix_denom_base: String,
         aggregated_verification_key: VerificationKey,
     ) -> Result<Self, RequestHandlingError> {
         if api_clients.is_empty() {
@@ -40,6 +37,13 @@ impl CoconutVerifier {
                 needed: 1,
             });
         }
+        let mix_denom_base = nyxd_client
+            .nyxd
+            .current_chain_details()
+            .mix_denom
+            .base
+            .clone();
+
         Ok(CoconutVerifier {
             nym_api_clients: api_clients,
             nyxd_client,

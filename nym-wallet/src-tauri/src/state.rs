@@ -276,13 +276,11 @@ impl WalletStateInner {
 
     pub fn get_nyxd_urls_only(&self, network: Network) -> impl Iterator<Item = Url> + '_ {
         self.get_config_validator_entries(network)
-            .into_iter()
             .map(|v| v.nyxd_url)
     }
 
     pub fn get_api_urls_only(&self, network: Network) -> impl Iterator<Item = Url> + '_ {
         self.get_config_validator_entries(network)
-            .into_iter()
             .filter_map(|v| v.api_url)
     }
 
@@ -293,7 +291,6 @@ impl WalletStateInner {
         network: Network,
     ) -> impl Iterator<Item = network_config::ValidatorUrl> + '_ {
         self.get_config_validator_entries(network)
-            .into_iter()
             .map(|v| network_config::ValidatorUrl {
                 url: v.nyxd_url.to_string(),
                 name: v.nyxd_name,
@@ -306,14 +303,12 @@ impl WalletStateInner {
         &self,
         network: Network,
     ) -> impl Iterator<Item = network_config::ValidatorUrl> + '_ {
-        self.get_config_validator_entries(network)
-            .into_iter()
-            .filter_map(|v| {
-                v.api_url.map(|u| network_config::ValidatorUrl {
-                    url: u.to_string(),
-                    name: None,
-                })
+        self.get_config_validator_entries(network).filter_map(|v| {
+            v.api_url.map(|u| network_config::ValidatorUrl {
+                url: u.to_string(),
+                name: None,
             })
+        })
     }
 
     pub fn get_all_nyxd_urls(&self) -> HashMap<Network, Vec<Url>> {

@@ -42,10 +42,10 @@ pub(crate) fn create_tray_menu() -> SystemTray {
 pub(crate) fn tray_menu_event_handler(app: &AppHandle<Wry>, event: SystemTrayEvent) {
     match event {
         SystemTrayEvent::LeftClick { position, size, .. } => {
-            println!("Event {:?} {:?}", position, size);
+            println!("Event {position:?} {size:?}");
         }
         SystemTrayEvent::MenuItemClick { id, .. } => {
-            println!("Event {}", id);
+            println!("Event {id}");
             match id.as_str() {
                 TRAY_MENU_SHOW_HIDE => {
                     window_toggle(app);

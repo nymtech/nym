@@ -80,6 +80,10 @@ impl ConnectionHandler {
         let mut framed_conn = Framed::new(conn, SphinxCodec);
         while !shutdown.is_shutdown() {
             tokio::select! {
+                biased;
+                _ = shutdown.recv() => {
+                    log::trace!("ConnectionHandler: received shutdown");
+                }
                 Some(framed_sphinx_packet) = framed_conn.next() => {
                     match framed_sphinx_packet {
                         Ok(framed_sphinx_packet) => {
@@ -95,16 +99,12 @@ impl ConnectionHandler {
                         }
                         Err(err) => {
                             error!(
-                                "The socket connection got corrupted with error: {:?}. Closing the socket",
-                                err
+                                "The socket connection got corrupted with error: {err}. Closing the socket",
                             );
                             return;
                         }
                     }
                 },
-                _ = shutdown.recv() => {
-                    log::trace!("ConnectionHandler: received shutdown");
-                }
             }
         }
 

@@ -1,14 +1,13 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::support::config::build_config;
 use crate::{
-    commands::{override_config, version_check, OverrideConfig},
-    config::Config,
+    commands::{ensure_config_version_compatibility, OverrideConfig},
     OutputFormat,
 };
 use clap::Args;
-use config::NymConfig;
-use log::*;
+use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use validator_client::nyxd;
@@ -117,27 +116,12 @@ fn special_addresses() -> Vec<&'static str> {
     vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
 }
 
-pub async fn execute(args: &Run, output: OutputFormat) {
-    println!("Starting gateway {}...", args.id);
+pub async fn execute(args: Run, output: OutputFormat) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let id = args.id.clone();
+    println!("Starting gateway {id}...");
 
-    let mut config = match Config::load_from_file(Some(&args.id)) {
-        Ok(cfg) => cfg,
-        Err(err) => {
-            error!(
-                "Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})",
-                args.id,
-                err,
-            );
-            return;
-        }
-    };
-
-    config = override_config(config, OverrideConfig::from(args.clone()));
-
-    if !version_check(&config) {
-        error!("failed the local version check");
-        return;
-    }
+    let config = build_config(id, args)?;
+    ensure_config_version_compatibility(&config)?;
 
     if special_addresses().contains(&&*config.get_listening_address().to_string()) {
         show_binding_warning(config.get_listening_address().to_string());
@@ -147,7 +131,7 @@ pub async fn execute(args: &Run, output: OutputFormat) {
     println!(
         "\nTo bond your gateway you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
          Select the correct version and install it to your machine. You will need to provide the following: \n ");
-    gateway.print_node_details(output);
+    gateway.print_node_details(output)?;
 
-    gateway.run().await;
+    gateway.run().await
 }

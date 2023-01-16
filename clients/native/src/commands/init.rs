@@ -168,7 +168,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
 
 fn print_saved_config(config: &Config) {
     let config_save_location = config.get_config_file_save_location();
-    println!("Saved configuration file to {:?}", config_save_location);
+    println!("Saved configuration file to {config_save_location:?}");
     println!("Using gateway: {}", config.get_base().get_gateway_id());
     log::debug!("Gateway id: {}", config.get_base().get_gateway_id());
     log::debug!("Gateway owner: {}", config.get_base().get_gateway_owner());

@@ -16,7 +16,7 @@ static SOCKS5_CONFIG_ID: &str = "nym-connect";
 pub fn socks5_config_id_appended_with(gateway_id: &str) -> Result<String> {
     use std::fmt::Write as _;
     let mut id = SOCKS5_CONFIG_ID.to_string();
-    write!(id, "-{}", gateway_id)?;
+    write!(id, "-{gateway_id}")?;
     Ok(id)
 }
 

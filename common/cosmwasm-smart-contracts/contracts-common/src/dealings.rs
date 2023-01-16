@@ -31,7 +31,7 @@ impl Display for ContractSafeBytes {
             write!(f, "0x")?;
         }
         for byte in self.0.iter().take(MAX_DISPLAY_SIZE) {
-            write!(f, "{:02X}", byte)?;
+            write!(f, "{byte:02X}")?;
         }
         // just some sanity safeguards
         if self.0.len() > MAX_DISPLAY_SIZE {

@@ -290,7 +290,7 @@ impl ServiceProvider {
         let conn_id = connect_req.conn_id;
 
         if !self.open_proxy && !self.outbound_request_filter.check(&remote_addr) {
-            let log_msg = format!("Domain {:?} failed filter check", remote_addr);
+            let log_msg = format!("Domain {remote_addr:?} failed filter check");
             log::info!("{}", log_msg);
             mix_input_sender
                 .send((

@@ -2,14 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use build_information::BinaryBuildInformation;
-use clap::{crate_version, Parser, ValueEnum};
+use clap::{crate_name, crate_version, Parser, ValueEnum};
+use colored::Colorize;
 use lazy_static::lazy_static;
+use log::error;
 use logging::setup_logging;
 use network_defaults::setup_env;
+use std::error::Error;
 
 mod commands;
 mod config;
+pub(crate) mod error;
 mod node;
+pub(crate) mod support;
 
 lazy_static! {
     pub static ref PRETTY_BUILD_INFORMATION: String =
@@ -58,32 +63,23 @@ impl Cli {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn Error + Send + Sync>> {
     setup_logging();
     if atty::is(atty::Stream::Stdout) {
-        println!("{}", banner());
+        println!("{}", logging::banner(crate_name!(), crate_version!()));
     }
 
     let args = Cli::parse();
     setup_env(args.config_env_file.as_ref());
-    commands::execute(args).await;
-}
 
-fn banner() -> String {
-    format!(
-        r#"
-
-      _ __  _   _ _ __ ___
-     | '_ \| | | | '_ \ _ \
-     | | | | |_| | | | | | |
-     |_| |_|\__, |_| |_| |_|
-            |___/
-
-             (gateway - version {:})
-
-    "#,
-        crate_version!()
-    )
+    commands::execute(args).await.map_err(|err| {
+        if atty::is(atty::Stream::Stdout) {
+            let error_message = format!("{err}").red();
+            error!("{error_message}");
+            error!("Exiting...");
+        }
+        err
+    })
 }
 
 #[cfg(test)]

@@ -33,7 +33,7 @@ impl Parameters {
         }
 
         let hs = (1..=num_attributes)
-            .map(|i| hash_g1(format!("h{}", i)).to_affine())
+            .map(|i| hash_g1(format!("h{i}")).to_affine())
             .collect();
 
         Ok(Parameters {

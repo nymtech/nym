@@ -22,7 +22,7 @@ use node_status_api::NodeStatusCache;
 use nym_contract_cache::cache::NymContractCache;
 use std::error::Error;
 use support::{http, nyxd};
-use task::{wait_for_signal_and_error, TaskManager};
+use task::TaskManager;
 
 #[cfg(feature = "coconut")]
 use coconut::dkg::controller::DkgController;
@@ -175,9 +175,13 @@ async fn run_nym_api(cli_args: CliArgs) -> Result<(), Box<dyn Error + Send + Syn
         return Ok(());
     }
 
-    let mut shutdown_handlers = start_nym_api_tasks(config).await?;
+    let shutdown_handlers = start_nym_api_tasks(config).await?;
 
-    let res = wait_for_signal_and_error(&mut shutdown_handlers.task_manager_handle).await;
+    let res = shutdown_handlers
+        .task_manager_handle
+        .catch_interrupt()
+        .await;
+    log::info!("Stopping nym API");
     shutdown_handlers.rocket_handle.notify();
 
     res

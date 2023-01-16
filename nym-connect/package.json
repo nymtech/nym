@@ -54,7 +54,7 @@
     "@mdx-js/loader": "^2.1.5",
     "@nymproject/eslint-config-react-typescript": "^1.0.0",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.5.4",
-    "@storybook/react": "^6.5.8",
+    "@storybook/react": "^6.5.15",
     "@svgr/webpack": "^6.1.1",
     "@tauri-apps/cli": "^1.2.2",
     "@testing-library/jest-dom": "^5.14.1",

@@ -2275,7 +2275,7 @@ dependencies = [
  "indexmap",
  "slab",
  "tokio",
- "tokio-util 0.7.3",
+ "tokio-util 0.7.4",
  "tracing",
 ]
 
@@ -3035,8 +3035,9 @@ dependencies = [
  "futures",
  "log",
  "nymsphinx",
+ "task",
  "tokio",
- "tokio-util 0.7.3",
+ "tokio-util 0.7.4",
 ]
 
 [[package]]
@@ -3079,7 +3080,7 @@ dependencies = [
  "task",
  "thiserror",
  "tokio",
- "tokio-util 0.7.3",
+ "tokio-util 0.7.4",
  "url",
  "validator-client",
  "version-checker",
@@ -3179,7 +3180,7 @@ dependencies = [
  "slab",
  "tokio",
  "tokio-stream",
- "tokio-util 0.7.3",
+ "tokio-util 0.7.4",
  "wasm-timer",
 ]
 
@@ -3469,11 +3470,12 @@ dependencies = [
  "sqlx 0.5.11",
  "statistics-common",
  "subtle-encoding",
+ "task",
  "thiserror",
  "tokio",
  "tokio-stream",
  "tokio-tungstenite 0.14.0",
- "tokio-util 0.7.3",
+ "tokio-util 0.7.4",
  "url",
  "validator-client",
  "version-checker",
@@ -3516,7 +3518,7 @@ dependencies = [
  "sysinfo",
  "task",
  "tokio",
- "tokio-util 0.7.3",
+ "tokio-util 0.7.4",
  "toml",
  "topology",
  "url",
@@ -3832,7 +3834,7 @@ dependencies = [
  "nymsphinx-params",
  "nymsphinx-types",
  "thiserror",
- "tokio-util 0.7.3",
+ "tokio-util 0.7.4",
 ]
 
 [[package]]
@@ -4403,7 +4405,7 @@ dependencies = [
  "task",
  "tokio",
  "tokio-test",
- "tokio-util 0.7.3",
+ "tokio-util 0.7.4",
 ]
 
 [[package]]
@@ -4868,7 +4870,7 @@ dependencies = [
  "time 0.3.17",
  "tokio",
  "tokio-stream",
- "tokio-util 0.7.3",
+ "tokio-util 0.7.4",
  "ubyte",
  "version_check",
  "yansi",
@@ -6092,9 +6094,9 @@ dependencies = [
 
 [[package]]
 name = "tokio"
-version = "1.22.0"
+version = "1.24.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d76ce4a75fb488c605c54bf610f221cea8b0dafb53333c1a67e8ee199dcd2ae3"
+checksum = "1d9f76183f91ecfb55e1d7d5602bd1d979e38a3a522fe900241cf195624d67ae"
 dependencies = [
  "autocfg 1.1.0",
  "bytes",
@@ -6108,7 +6110,7 @@ dependencies = [
  "socket2",
  "tokio-macros",
  "tracing",
- "winapi",
+ "windows-sys 0.42.0",
 ]
 
 [[package]]
@@ -6166,14 +6168,14 @@ dependencies = [
 
 [[package]]
 name = "tokio-stream"
-version = "0.1.9"
+version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df54d54117d6fdc4e4fea40fe1e4e566b3505700e148a6827e59b34b0d2600d9"
+checksum = "d660770404473ccd7bc9f8b28494a811bc18542b915c0855c51e8f419d5223ce"
 dependencies = [
  "futures-core",
  "pin-project-lite",
  "tokio",
- "tokio-util 0.7.3",
+ "tokio-util 0.7.4",
 ]
 
 [[package]]
@@ -6230,9 +6232,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-util"
-version = "0.7.3"
+version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cc463cd8deddc3770d20f9852143d50bf6094e640b485cb2e189a2099085ff45"
+checksum = "0bb2e075f03b3d66d8d8785356224ba688d2906a371015e225beeb65ca92c740"
 dependencies = [
  "bytes",
  "futures-core",
@@ -6324,7 +6326,7 @@ dependencies = [
  "rand 0.8.5",
  "slab",
  "tokio",
- "tokio-util 0.7.3",
+ "tokio-util 0.7.4",
  "tower-layer",
  "tower-service",
  "tracing",

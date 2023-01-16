@@ -388,7 +388,7 @@ mod tests {
         let filename = PathBuf::from(format!("hosts-store-{}.list", random_string()));
         let dirpath = base_dir.join("service-providers").join("network-requester");
         fs::create_dir_all(&dirpath)
-            .unwrap_or_else(|_| panic!("could not create storage directory at {:?}", dirpath));
+            .unwrap_or_else(|_| panic!("could not create storage directory at {dirpath:?}"));
         let storefile = dirpath.join(&filename);
         File::create(&storefile).unwrap();
         (storefile, base_dir, filename)

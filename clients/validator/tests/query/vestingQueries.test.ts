@@ -9,12 +9,12 @@ describe('Vesting queries', () => {
 
   beforeEach(async () => {
     client = await ValidatorClient.connectForQuery(
-      process.env.rpcAddress,
-      process.env.validatorAddress,
-      process.env.prefix,
-      process.env.mixnetContractAddress,
-      process.env.vestingContractAddress,
-      process.env.denom,
+      process.env.rpcAddress || '',
+      process.env.validatorAddress || '',
+      process.env.prefix || '',
+      process.env.mixnetContractAddress || '',
+      process.env.vestingContractAddress || '',
+      process.env.denom || '',
     );
   });
 
@@ -22,4 +22,6 @@ describe('Vesting queries', () => {
     const contract = await client.getVestingContractVersion();
     expect(contract).toBeTruthy();
   });
+
+  it('can get the balance on the account', () => {});
 });

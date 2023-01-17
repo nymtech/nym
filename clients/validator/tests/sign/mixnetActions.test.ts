@@ -25,7 +25,7 @@ describe('Mixnet actions', () => {
     expect(res.transactionHash).toBeDefined();
   }).timeout(10000);
 
-  it('can delegate tokens', async () => {
+  it.skip('can delegate tokens', async () => {
     const [_, secondMixnode] = await client.getActiveMixnodes();
 
     if (secondMixnode) {

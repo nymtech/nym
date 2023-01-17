@@ -7,7 +7,7 @@ on:
 jobs:
   build:
     if: ${{ startsWith(github.ref, 'refs/tags/nym-contracts-') && github.event_name == 'release' }}
-    runs-on: ubuntu-20.04
+    runs-on: [self-hosted, custom-runner-linux]
     steps:
       - uses: actions/checkout@v2
       

@@ -9,12 +9,12 @@ describe('Mixnet queries', () => {
 
   beforeEach(async () => {
     client = await ValidatorClient.connectForQuery(
-      process.env.rpcAddress,
-      process.env.validatorAddress,
-      process.env.prefix,
-      process.env.mixnetContractAddress,
-      process.env.vestingContractAddress,
-      process.env.denom,
+      process.env.rpcAddress || '',
+      process.env.validatorAddress || '',
+      process.env.prefix || '',
+      process.env.mixnetContractAddress || '',
+      process.env.vestingContractAddress || '',
+      process.env.denom || '',
     );
   });
 

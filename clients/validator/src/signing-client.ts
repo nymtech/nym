@@ -25,6 +25,7 @@ import {
   MixnetContractVersion,
   MixNode,
   MixNodeBond,
+  MixNodeCostParams,
   MixNodeDetails,
   MixNodeRewarding,
   MixOwnershipResponse,
@@ -148,6 +149,7 @@ export interface ISigningClient extends IQueryClient, ICosmWasmSigning, INymSign
   bondMixNode(
     mixnetContractAddress: string,
     mixNode: MixNode,
+    costParams: MixNodeCostParams,
     ownerSignature: string,
     pledge: Coin,
     fee?: StdFee | 'auto' | number,
@@ -378,6 +380,7 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
   bondMixNode(
     mixnetContractAddress: string,
     mixNode: MixNode,
+    costParams: MixNodeCostParams,
     ownerSignature: string,
     pledge: Coin,
     fee: StdFee | 'auto' | number = 'auto',
@@ -389,6 +392,7 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
       {
         bond_mixnode: {
           mix_node: mixNode,
+          cost_params: costParams,
           owner_signature: ownerSignature,
         },
       },

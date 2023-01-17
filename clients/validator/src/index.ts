@@ -16,6 +16,7 @@ import {
   MixnetContractVersion,
   MixNode,
   MixNodeBond,
+  MixNodeCostParams,
   MixNodeDetails,
   MixNodeRewarding,
   PagedAllDelegationsResponse,
@@ -449,12 +450,21 @@ export default class ValidatorClient implements INymClient {
   public async bondMixNode(
     mixNode: MixNode,
     ownerSignature: string,
+    costParams: MixNodeCostParams,
     pledge: Coin,
     fee?: StdFee | 'auto' | number,
     memo?: string,
   ): Promise<ExecuteResult> {
     this.assertSigning();
-    return (this.client as ISigningClient).bondMixNode(this.mixnetContract, mixNode, ownerSignature, pledge, fee, memo);
+    return (this.client as ISigningClient).bondMixNode(
+      this.mixnetContract,
+      mixNode,
+      costParams,
+      ownerSignature,
+      pledge,
+      fee,
+      memo,
+    );
   }
 
   public async unbondMixNode(fee?: StdFee | 'auto' | number, memo?: string): Promise<ExecuteResult> {

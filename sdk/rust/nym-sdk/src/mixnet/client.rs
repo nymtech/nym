@@ -21,6 +21,7 @@ use nymsphinx::{
 use task::TaskManager;
 
 use futures::StreamExt;
+use validator_client::nyxd::SigningNyxdClient;
 
 use super::{connection_state::BuilderState, Config, GatewayKeyMode, Keys, KeysArc, StoragePaths};
 use crate::error::{Error, Result};
@@ -224,7 +225,7 @@ impl ClientBuilder {
         let reply_storage_backend =
             non_wasm_helpers::setup_empty_reply_surb_backend(&self.config.debug_config);
 
-        let base_builder = BaseClientBuilder::new(
+        let base_builder: BaseClientBuilder<_, SigningNyxdClient> = BaseClientBuilder::new(
             &gateway_endpoint_config,
             &self.config.debug_config,
             self.key_manager.clone(),

@@ -29,11 +29,10 @@ use crate::coconut::error::CoconutError;
 use async_trait::async_trait;
 #[cfg(feature = "coconut")]
 use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
-use coconut_dkg_common::types::EpochId;
 #[cfg(feature = "coconut")]
 use coconut_dkg_common::{
     dealer::{ContractDealing, DealerDetails, DealerDetailsResponse},
-    types::{EncodedBTEPublicKeyWithProof, Epoch},
+    types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId},
     verification_key::{ContractVKShare, VerificationKeyShare},
 };
 #[cfg(feature = "coconut")]

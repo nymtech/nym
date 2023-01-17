@@ -128,6 +128,7 @@ impl Config {
 }
 
 #[cfg(feature = "nyxd-client")]
+#[derive(Clone)]
 pub struct Client<C: Clone> {
     // TODO: we really shouldn't be storing a mnemonic here, but removing it would be
     // non-trivial amount of work and it's out of scope of the current branch

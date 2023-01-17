@@ -5,6 +5,7 @@ use crate::spawn_future;
 use gateway_client::GatewayClient;
 use log::*;
 use nymsphinx::forwarding::packet::MixPacket;
+use validator_client::nyxd::CosmWasmClient;
 
 pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
 pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
@@ -13,10 +14,10 @@ pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
 pub const MIX_MESSAGE_RECEIVER_BUFFER_SIZE: usize = 32;
 const MAX_FAILURE_COUNT: usize = 100;
 
-pub struct MixTrafficController {
+pub struct MixTrafficController<C: Clone> {
     // TODO: most likely to be replaced by some higher level construct as
     // later on gateway_client will need to be accessible by other entities
-    gateway_client: GatewayClient,
+    gateway_client: GatewayClient<C>,
     mix_rx: BatchMixMessageReceiver,
 
     // TODO: this is temporary work-around.
@@ -24,8 +25,13 @@ pub struct MixTrafficController {
     consecutive_gateway_failure_count: usize,
 }
 
-impl MixTrafficController {
-    pub fn new(gateway_client: GatewayClient) -> (MixTrafficController, BatchMixMessageSender) {
+impl<C> MixTrafficController<C>
+where
+    C: CosmWasmClient + Sync + Send + Clone + 'static,
+{
+    pub fn new(
+        gateway_client: GatewayClient<C>,
+    ) -> (MixTrafficController<C>, BatchMixMessageSender) {
         let (sphinx_message_sender, sphinx_message_receiver) =
             tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
         (

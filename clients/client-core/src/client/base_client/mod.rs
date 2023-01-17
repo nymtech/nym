@@ -39,6 +39,7 @@ use std::time::Duration;
 use tap::TapFallible;
 use task::{TaskClient, TaskManager};
 use url::Url;
+use validator_client::nyxd::CosmWasmClient;
 
 use super::received_buffer::ReceivedBufferMessage;
 
@@ -129,7 +130,7 @@ impl From<bool> for CredentialsToggle {
     }
 }
 
-pub struct BaseClientBuilder<'a, B> {
+pub struct BaseClientBuilder<'a, B, C: Clone> {
     // due to wasm limitations I had to split it like this : (
     gateway_config: &'a GatewayEndpointConfig,
     debug_config: &'a DebugConfig,
@@ -137,20 +138,21 @@ pub struct BaseClientBuilder<'a, B> {
     nym_api_endpoints: Vec<Url>,
     reply_storage_backend: B,
 
-    bandwidth_controller: Option<BandwidthController>,
+    bandwidth_controller: Option<BandwidthController<C>>,
     key_manager: KeyManager,
 }
 
-impl<'a, B> BaseClientBuilder<'a, B>
+impl<'a, B, C> BaseClientBuilder<'a, B, C>
 where
     B: ReplyStorageBackend + Send + Sync + 'static,
+    C: CosmWasmClient + Sync + Send + Clone + 'static,
 {
     pub fn new_from_base_config<T>(
         base_config: &'a Config<T>,
         key_manager: KeyManager,
-        bandwidth_controller: Option<BandwidthController>,
+        bandwidth_controller: Option<BandwidthController<C>>,
         reply_storage_backend: B,
-    ) -> BaseClientBuilder<'a, B> {
+    ) -> BaseClientBuilder<'a, B, C> {
         BaseClientBuilder {
             gateway_config: base_config.get_gateway_endpoint_config(),
             debug_config: base_config.get_debug_config(),
@@ -166,11 +168,11 @@ where
         gateway_config: &'a GatewayEndpointConfig,
         debug_config: &'a DebugConfig,
         key_manager: KeyManager,
-        bandwidth_controller: Option<BandwidthController>,
+        bandwidth_controller: Option<BandwidthController<C>>,
         reply_storage_backend: B,
         credentials_toggle: CredentialsToggle,
         nym_api_endpoints: Vec<Url>,
-    ) -> BaseClientBuilder<'a, B> {
+    ) -> BaseClientBuilder<'a, B, C> {
         BaseClientBuilder {
             gateway_config,
             debug_config,
@@ -279,7 +281,7 @@ where
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         shutdown: TaskClient,
-    ) -> Result<GatewayClient, ClientCoreError> {
+    ) -> Result<GatewayClient<C>, ClientCoreError> {
         let gateway_id = self.gateway_config.gateway_id.clone();
         if gateway_id.is_empty() {
             return Err(ClientCoreError::GatewayIdUnknown);
@@ -365,7 +367,7 @@ where
     // over it. Perhaps GatewayClient needs to be thread-shareable or have some channel for
     // requests?
     fn start_mix_traffic_controller(
-        gateway_client: GatewayClient,
+        gateway_client: GatewayClient<C>,
         shutdown: TaskClient,
     ) -> BatchMixMessageSender {
         info!("Starting mix traffic controller...");

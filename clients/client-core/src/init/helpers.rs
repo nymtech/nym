@@ -15,6 +15,7 @@ use std::{sync::Arc, time::Duration};
 use tap::TapFallible;
 use topology::{filter::VersionFilterable, gateway};
 use url::Url;
+use validator_client::nyxd::SigningNyxdClient;
 
 pub(super) async fn query_gateway_details(
     validator_servers: Vec<Url>,
@@ -56,7 +57,7 @@ pub(super) async fn register_with_gateway(
     our_identity: Arc<identity::KeyPair>,
 ) -> Result<Arc<SharedKeys>, ClientCoreError> {
     let timeout = Duration::from_millis(1500);
-    let mut gateway_client = GatewayClient::new_init(
+    let mut gateway_client: GatewayClient<SigningNyxdClient> = GatewayClient::new_init(
         gateway.clients_address(),
         gateway.identity_key,
         gateway.owner.clone(),

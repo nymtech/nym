@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(feature = "coconut")]
 use crate::error::GatewayClientError;
 
 #[cfg(target_arch = "wasm32")]
@@ -16,8 +17,7 @@ use credential_storage::error::StorageError;
 
 #[cfg(feature = "coconut")]
 use std::str::FromStr;
-#[cfg(feature = "coconut")]
-use validator_client::client::CoconutApiClient;
+use validator_client::{nyxd::CosmWasmClient, Client};
 #[cfg(feature = "coconut")]
 use {
     coconut_interface::Base58,
@@ -34,35 +34,33 @@ use crate::wasm_storage::PersistentStorage;
 use credential_storage::PersistentStorage;
 
 #[derive(Clone)]
-pub struct BandwidthController<St: Storage = PersistentStorage> {
-    #[allow(dead_code)]
+#[allow(dead_code)]
+pub struct BandwidthController<C: Clone, St: Storage = PersistentStorage> {
     storage: St,
-    #[cfg(feature = "coconut")]
-    coconut_api_clients: Vec<CoconutApiClient>,
+    nyxd_client: Client<C>,
 }
 
-impl<St> BandwidthController<St>
+impl<C, St> BandwidthController<C, St>
 where
+    C: CosmWasmClient + Sync + Send + Clone,
     St: Storage + Clone + 'static,
 {
-    #[cfg(feature = "coconut")]
-    pub fn new(storage: St, coconut_api_clients: Vec<CoconutApiClient>) -> Self {
+    pub fn new(storage: St, nyxd_client: Client<C>) -> Self {
         BandwidthController {
             storage,
-            coconut_api_clients,
+            nyxd_client,
         }
-    }
-
-    #[cfg(not(feature = "coconut"))]
-    pub fn new(storage: St) -> Result<Self, GatewayClientError> {
-        Ok(BandwidthController { storage })
     }
 
     #[cfg(feature = "coconut")]
     pub async fn prepare_coconut_credential(
         &self,
     ) -> Result<(coconut_interface::Credential, i64), GatewayClientError> {
-        let verification_key = obtain_aggregate_verification_key(&self.coconut_api_clients).await?;
+        let coconut_api_clients =
+            validator_client::CoconutApiClient::all_coconut_api_clients(&self.nyxd_client)
+                .await
+                .expect("Could not query api clients");
+        let verification_key = obtain_aggregate_verification_key(&coconut_api_clients).await?;
         let bandwidth_credential = self.storage.get_next_coconut_credential().await?;
         let voucher_value = u64::from_str(&bandwidth_credential.voucher_value)
             .map_err(|_| StorageError::InconsistentData)?;

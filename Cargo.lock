@@ -3802,6 +3802,7 @@ dependencies = [
  "tokio",
  "toml",
  "url",
+ "validator-client",
 ]
 
 [[package]]

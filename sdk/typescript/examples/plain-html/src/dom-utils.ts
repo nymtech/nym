@@ -1,4 +1,4 @@
-import { NymMixnetClient } from '@nymproject/sdk';
+import { NymMixnetClient, MimeTypes } from '@nymproject/sdk';
 
 /**
  * Create a Sphinx packet and send it to the mixnet through the gateway node.
@@ -8,11 +8,11 @@ import { NymMixnetClient } from '@nymproject/sdk';
  * @param {Client} nymClient the nym client to use for message sending
  */
 export async function sendMessageTo(nym: NymMixnetClient) {
-  const payload = (document.getElementById('message') as HTMLFormElement).value;
+  const message = (document.getElementById('message') as HTMLFormElement).value;
   const recipient = (document.getElementById('recipient') as HTMLFormElement).value;
 
-  await nym.client.sendMessage({ payload, recipient });
-  displaySend(payload);
+  await nym.client.send({ payload: { message, mimeType: MimeTypes.TextPlain }, recipient });
+  displaySend(message);
 }
 
 /**

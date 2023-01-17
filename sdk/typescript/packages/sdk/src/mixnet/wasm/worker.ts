@@ -1,11 +1,30 @@
-/* eslint-disable no-console,no-restricted-globals */
-/// <reference path="../../../../nym-client-wasm/nym_client_wasm.d.ts" />
 /**
  * NB: URL syntax is used so that bundlers like webpack can load this package's code when inside the final bundle
  * the files from ../../../../nym-client-wasm will be copied into the dist directory of this package, so all import
  * paths are _relative to the output directory_ of this package (`dist`) - don't get confused!
  */
 import * as Comlink from 'comlink';
+
+//
+// Rollup will replace wasmBytes with a function that loads the WASM bundle from a base64 string embedded in the output.
+//
+// Doing it this way, saves having to support a large variety of bundlers and their quirks.
+//
+// @ts-ignore
+import wasmBytes from '@nymproject/nym-client-wasm/nym_client_wasm_bg.wasm';
+
+import init, {
+  NymClient,
+  NymClientBuilder,
+  Config,
+  get_gateway,
+  default_debug,
+  decode_payload,
+  parse_utf8_string,
+  utf8_string_to_byte_array,
+  encode_payload_with_headers,
+} from '@nymproject/nym-client-wasm';
+
 import type {
   BinaryMessageReceivedEvent,
   ConnectedEvent,
@@ -18,12 +37,10 @@ import type {
 import { EventKinds, MimeTypes } from './types';
 
 // web workers are only allowed to load external scripts as the load
-importScripts(new URL('./nym_client_wasm.js', import.meta.url));
+// importScripts(new URL('./nym_client_wasm.js', import.meta.url));
+// eslint-disable-next-line import/extensions
 
 console.log('[Nym WASM client] Starting Nym WASM web worker...');
-
-// again, construct a URL that can be used by a bundler to repackage the WASM binary
-const wasmUrl = new URL('./nym_client_wasm_bg.wasm', import.meta.url);
 
 /**
  * Helper method to send typed messages.
@@ -35,7 +52,11 @@ const postMessageWithType = <E>(event: E) => self.postMessage(event);
  * This class holds the state of the Nym WASM client and provides any interop needed.
  */
 class ClientWrapper {
-  client: wasm_bindgen.NymClient | null = null;
+  client: NymClient | null = null;
+
+  builder: NymClientBuilder | null = null;
+
+  mimeTypes: string[] = [MimeTypes.TextPlain, MimeTypes.ApplicationJson];
 
   /**
    * Creates the WASM client and initialises it.
@@ -127,8 +148,8 @@ class ClientWrapper {
 }
 
 // load WASM binary
-wasm_bindgen(wasmUrl)
-  .then((importResult) => {
+init(wasmBytes())
+  .then((importResult: any) => {
     // sets up better stack traces in case of in-rust panics
     importResult.set_panic_hook();
 
@@ -137,27 +158,14 @@ wasm_bindgen(wasmUrl)
 
     const startHandler = async (config: NymClientConfig) => {
       // fetch the gateway details (randomly chosen if no preferred gateway is set)
-      const gatewayEndpoint = await wasm_bindgen.get_gateway(
-        config.nymApiUrl,
-        config.preferredGatewayIdentityKey,
-      );
+      const gatewayEndpoint = await get_gateway(config.nymApiUrl, config.preferredGatewayIdentityKey);
 
       // set a different gatewayListener in order to avoid workaround ws over https error
-      if (config.gatewayListener)
-        gatewayEndpoint.gateway_listener = config.gatewayListener;
+      if (config.gatewayListener) gatewayEndpoint.gateway_listener = config.gatewayListener;
 
       // create the client, passing handlers for events
       wrapper.init(
-        new wasm_bindgen.Config(
-          config.clientId,
-          config.nymApiUrl,
-          gatewayEndpoint,
-          config.debug || wasm_bindgen.default_debug(),
-        ),
-        () => {
-          console.log();
-        },
-        undefined,
+        new Config(config.clientId, config.nymApiUrl, gatewayEndpoint, config.debug || default_debug()),
         async (message) => {
           try {
             const decodedPayload = decode_payload(message);

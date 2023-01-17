@@ -11,7 +11,7 @@ use serde::Serialize;
 use tap::TapFallible;
 
 use config::NymConfig;
-use crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::{encryption, identity};
 use url::Url;
 
 use crate::client::key_manager::KeyManager;

@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crypto::{
+use nym_crypto::{
     crypto_hash,
     generic_array::{typenum::Unsigned, GenericArray},
     symmetric::stream_cipher::{generate_key, CipherKey, KeySizeUser},

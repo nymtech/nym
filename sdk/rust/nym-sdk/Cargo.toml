@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 client-connections = { path = "../../../common/client-connections" }
 client-core = { path = "../../../clients/client-core", features = ["fs-surb-storage"]}
-crypto = { path = "../../../common/crypto" }
+nym-crypto = { path = "../../../common/crypto" }
 gateway-client = { path = "../../../common/client-libs/gateway-client" }
 gateway-requests = { path = "../../../gateway/gateway-requests" }
 network-defaults = { path = "../../../common/network-defaults" }

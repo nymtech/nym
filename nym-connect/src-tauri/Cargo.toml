@@ -48,7 +48,7 @@ client-core = { path = "../../clients/client-core" }
 nym-api-requests = { path = "../../nym-api/nym-api-requests" }
 nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common"}
 config-common = { path = "../../common/config", package = "config" }
-crypto = { path = "../../common/crypto" }
+nym-crypto = { path = "../../common/crypto" }
 logging = { path = "../../common/logging"}
 nym-socks5-client = { path = "../../clients/socks5" }
 task = { path = "../../common/task" }

@@ -26,7 +26,7 @@ time = "0.3.17"
 # internal
 config = { path = "../../common/config" }
 client-connections = { path = "../../common/client-connections" }
-crypto = { path = "../../common/crypto" }
+nym-crypto = { path = "../../common/crypto" }
 gateway-client = { path = "../../common/client-libs/gateway-client" }
 #gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm", "coconut"] }
 gateway-requests = { path = "../../gateway/gateway-requests" }

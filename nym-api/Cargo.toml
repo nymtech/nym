@@ -73,7 +73,7 @@ config = { path = "../common/config" }
 cosmwasm-std = "1.0.0"
 credential-storage = { path = "../common/credential-storage" }
 credentials = { path = "../common/credentials" }
-crypto = { path = "../common/crypto" }
+nym-crypto = { path = "../common/crypto" }
 logging = { path = "../common/logging"}
 cw3 = { version = "0.13.4" }
 cw4 = { version = "0.13.4" }

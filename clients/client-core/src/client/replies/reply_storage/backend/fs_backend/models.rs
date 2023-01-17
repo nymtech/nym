@@ -3,8 +3,8 @@
 
 use crate::client::replies::reply_storage::backend::fs_backend::error::StorageError;
 use crate::client::replies::reply_storage::key_storage::UsedReplyKey;
-use crypto::generic_array::typenum::Unsigned;
-use crypto::Digest;
+use nym_crypto::generic_array::typenum::Unsigned;
+use nym_crypto::Digest;
 use nymsphinx::addressing::clients::{Recipient, RecipientBytes};
 use nymsphinx::anonymous_replies::encryption_key::EncryptionKeyDigest;
 use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, SENDER_TAG_SIZE};

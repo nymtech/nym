@@ -13,7 +13,7 @@ rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 thiserror = "1.0.37"
 
 ## internal
-crypto = { path = "../crypto" }
+nym-crypto = { path = "../crypto" }
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 nymsphinx-addressing = { path = "../nymsphinx/addressing" }
 nymsphinx-types = { path = "../nymsphinx/types" }

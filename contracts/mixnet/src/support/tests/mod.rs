@@ -46,7 +46,6 @@ pub mod test_helpers {
     use cosmwasm_std::{Deps, OwnedDeps};
     use cosmwasm_std::{DepsMut, MessageInfo};
     use cosmwasm_std::{Env, Response, Timestamp, Uint128};
-    use crypto::asymmetric::identity::KeyPair;
     use mixnet_contract_common::events::{
         may_find_attribute, MixnetEventType, DELEGATES_REWARD_KEY, OPERATOR_REWARD_KEY,
     };
@@ -60,6 +59,7 @@ pub mod test_helpers {
         Delegation, Gateway, InitialRewardingParams, InstantiateMsg, Interval, MixId, MixNode,
         Percent, RewardedSetNodeStatus,
     };
+    use nym_crypto::asymmetric::identity::KeyPair;
     use rand_chacha::rand_core::{CryptoRng, RngCore, SeedableRng};
     use rand_chacha::ChaCha20Rng;
     use std::time::Duration;
@@ -184,13 +184,13 @@ pub mod test_helpers {
                 None => minimum_mixnode_pledge(self.deps.as_ref().storage).unwrap(),
             };
 
-            let keypair = crypto::asymmetric::identity::KeyPair::new(&mut self.rng);
+            let keypair = nym_crypto::asymmetric::identity::KeyPair::new(&mut self.rng);
             let owner_signature = keypair
                 .private_key()
                 .sign(owner.as_bytes())
                 .to_base58_string();
 
-            let legit_sphinx_key = crypto::asymmetric::encryption::KeyPair::new(&mut self.rng);
+            let legit_sphinx_key = nym_crypto::asymmetric::encryption::KeyPair::new(&mut self.rng);
 
             let info = mock_info(proxy.as_str(), &[stake]);
             let key = keypair.public_key().to_base58_string();
@@ -558,8 +558,8 @@ pub mod test_helpers {
         mut rng: impl RngCore + CryptoRng,
         sender: &str,
     ) -> (MixNode, String, KeyPair) {
-        let keypair = crypto::asymmetric::identity::KeyPair::new(&mut rng);
-        let legit_sphinx_key = crypto::asymmetric::encryption::KeyPair::new(&mut rng);
+        let keypair = nym_crypto::asymmetric::identity::KeyPair::new(&mut rng);
+        let legit_sphinx_key = nym_crypto::asymmetric::encryption::KeyPair::new(&mut rng);
         let owner_signature = keypair
             .private_key()
             .sign(sender.as_bytes())
@@ -583,8 +583,8 @@ pub mod test_helpers {
         mut rng: impl RngCore + CryptoRng,
         sender: &str,
     ) -> (Gateway, String) {
-        let keypair = crypto::asymmetric::identity::KeyPair::new(&mut rng);
-        let legit_sphinx_key = crypto::asymmetric::encryption::KeyPair::new(&mut rng);
+        let keypair = nym_crypto::asymmetric::identity::KeyPair::new(&mut rng);
+        let legit_sphinx_key = nym_crypto::asymmetric::encryption::KeyPair::new(&mut rng);
         let owner_signature = keypair
             .private_key()
             .sign(sender.as_bytes())
@@ -734,13 +734,13 @@ pub mod test_helpers {
         sender: &str,
         stake: Vec<Coin>,
     ) -> MixId {
-        let keypair = crypto::asymmetric::identity::KeyPair::new(&mut rng);
+        let keypair = nym_crypto::asymmetric::identity::KeyPair::new(&mut rng);
         let owner_signature = keypair
             .private_key()
             .sign(sender.as_bytes())
             .to_base58_string();
 
-        let legit_sphinx_key = crypto::asymmetric::encryption::KeyPair::new(&mut rng);
+        let legit_sphinx_key = nym_crypto::asymmetric::encryption::KeyPair::new(&mut rng);
 
         let info = mock_info(sender, &stake);
         let key = keypair.public_key().to_base58_string();
@@ -775,7 +775,7 @@ pub mod test_helpers {
         sender: &str,
         stake: Vec<Coin>,
     ) -> String {
-        let keypair = crypto::asymmetric::identity::KeyPair::new(&mut rng);
+        let keypair = nym_crypto::asymmetric::identity::KeyPair::new(&mut rng);
         let owner_signature = keypair
             .private_key()
             .sign(sender.as_bytes())

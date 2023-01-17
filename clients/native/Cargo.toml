@@ -42,7 +42,7 @@ config = { path = "../../common/config" }
 completions = { path = "../../common/completions" }
 credential-storage = { path = "../../common/credential-storage" }
 credentials = { path = "../../common/credentials" }
-crypto = { path = "../../common/crypto" }
+nym-crypto = { path = "../../common/crypto" }
 logging = { path = "../../common/logging"}
 gateway-client = { path = "../../common/client-libs/gateway-client" }
 gateway-requests = { path = "../../gateway/gateway-requests" }

@@ -4,13 +4,13 @@
 use crate::client::replies::reply_controller::ReplyControllerSender;
 use crate::client::replies::reply_storage::SentReplyKeys;
 use crate::spawn_future;
-use crypto::asymmetric::encryption;
-use crypto::Digest;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
 use gateway_client::MixnetMessageReceiver;
 use log::*;
+use nym_crypto::asymmetric::encryption;
+use nym_crypto::Digest;
 use nymsphinx::anonymous_replies::requests::{
     RepliableMessage, RepliableMessageContent, ReplyMessage, ReplyMessageContent,
 };

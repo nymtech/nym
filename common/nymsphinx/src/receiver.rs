@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::message::{NymMessage, NymMessageError, PaddedMessage, PlainMessage};
-use crypto::aes::cipher::{KeyIvInit, StreamCipher};
-use crypto::asymmetric::encryption;
-use crypto::shared_key::recompute_shared_key;
-use crypto::symmetric::stream_cipher;
-use crypto::symmetric::stream_cipher::CipherKey;
+use nym_crypto::aes::cipher::{KeyIvInit, StreamCipher};
+use nym_crypto::asymmetric::encryption;
+use nym_crypto::shared_key::recompute_shared_key;
+use nym_crypto::symmetric::stream_cipher;
+use nym_crypto::symmetric::stream_cipher::CipherKey;
 use nymsphinx_anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx_anonymous_replies::SurbEncryptionKey;
 use nymsphinx_chunking::fragment::Fragment;

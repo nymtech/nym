@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use coconut_interface::CoconutError;
-use crypto::asymmetric::encryption::KeyRecoveryError;
+use nym_crypto::asymmetric::encryption::KeyRecoveryError;
 use validator_client::ValidatorClientError;
 
 use thiserror::Error;

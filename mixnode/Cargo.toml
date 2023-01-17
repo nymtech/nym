@@ -42,7 +42,7 @@ atty = "0.2"
 ## internal
 build-information = { path = "../common/build-information" }
 config = { path="../common/config" }
-crypto = { path="../common/crypto" }
+nym-crypto = { path="../common/crypto" }
 completions = { path="../common/completions" }
 logging = { path="../common/logging" }
 mixnet-client = { path="../common/client-libs/mixnet-client" }

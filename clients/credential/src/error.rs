@@ -6,8 +6,8 @@ use thiserror::Error;
 
 use credential_storage::error::StorageError;
 use credentials::error::Error as CredentialError;
-use crypto::asymmetric::encryption::KeyRecoveryError;
-use crypto::asymmetric::identity::Ed25519RecoveryError;
+use nym_crypto::asymmetric::encryption::KeyRecoveryError;
+use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use validator_client::nyxd::error::NyxdError;
 use validator_client::ValidatorClientError;
 

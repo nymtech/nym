@@ -10,7 +10,7 @@ use crate::{
 };
 use anyhow::{anyhow, Result};
 use clap::{ArgGroup, Args};
-use crypto::asymmetric::identity;
+use nym_crypto::asymmetric::identity;
 use std::error::Error;
 use validator_client::nyxd;
 

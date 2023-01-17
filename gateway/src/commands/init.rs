@@ -8,7 +8,7 @@ use crate::{
 };
 use clap::Args;
 use config::NymConfig;
-use crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::{encryption, identity};
 use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;

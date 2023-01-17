@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::chunking;
-use crypto::asymmetric::encryption;
-use crypto::Digest;
+use nym_crypto::asymmetric::encryption;
+use nym_crypto::Digest;
 use nymsphinx_addressing::clients::Recipient;
 use nymsphinx_addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
 use nymsphinx_anonymous_replies::requests::{

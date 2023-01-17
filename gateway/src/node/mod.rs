@@ -14,7 +14,7 @@ use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
 use crate::{commands::sign::load_identity_keys, OutputFormat};
 use colored::Colorize;
-use crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::{encryption, identity};
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use network_defaults::NymNetworkDetails;

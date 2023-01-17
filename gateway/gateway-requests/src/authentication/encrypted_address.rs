@@ -3,7 +3,7 @@
 
 use crate::iv::IV;
 use crate::registration::handshake::shared_key::SharedKeys;
-use crypto::symmetric::stream_cipher;
+use nym_crypto::symmetric::stream_cipher;
 use nymsphinx::params::GatewayEncryptionAlgorithm;
 use nymsphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 use thiserror::Error;

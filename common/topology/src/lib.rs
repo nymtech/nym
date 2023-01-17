@@ -303,7 +303,7 @@ mod converting_mixes_to_vec {
 
     #[cfg(test)]
     mod when_nodes_exist {
-        use crypto::asymmetric::{encryption, identity};
+        use nym_crypto::asymmetric::{encryption, identity};
 
         use super::*;
         use nym_mixnet_contract_common::Layer;

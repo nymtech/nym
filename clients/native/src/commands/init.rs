@@ -8,7 +8,7 @@ use crate::{
 };
 use clap::Args;
 use config::NymConfig;
-use crypto::asymmetric::identity;
+use nym_crypto::asymmetric::identity;
 use nymsphinx::addressing::clients::Recipient;
 use serde::Serialize;
 use std::fmt::Display;

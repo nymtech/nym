@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::network_monitor::monitor::preparer::TestedNode;
-use crypto::asymmetric::identity;
-use crypto::asymmetric::identity::Ed25519RecoveryError;
+use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_mixnet_contract_common::MixId;
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};

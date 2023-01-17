@@ -22,7 +22,6 @@ use crate::config::{Config, DebugConfig, GatewayEndpointConfig};
 use crate::error::ClientCoreError;
 use crate::spawn_future;
 use client_connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
-use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
 #[cfg(target_arch = "wasm32")]
@@ -32,6 +31,7 @@ use gateway_client::{
     MixnetMessageSender,
 };
 use log::{debug, info};
+use nym_crypto::asymmetric::{encryption, identity};
 use nymsphinx::acknowledgements::AckKey;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::addressing::nodes::NodeIdentity;

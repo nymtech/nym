@@ -17,12 +17,11 @@ use credentials::coconut::bandwidth::BandwidthVoucher;
 use credentials::coconut::params::{
     NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
 };
-use crypto::asymmetric::{encryption, identity};
-use crypto::shared_key::recompute_shared_key;
-use crypto::symmetric::stream_cipher;
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
+use nym_crypto::shared_key::recompute_shared_key;
+use nym_crypto::symmetric::stream_cipher;
 use nymcoconut::tests::helpers::theta_from_keys_and_attributes;
 use nymcoconut::{
     prepare_blind_sign, ttp_keygen, Base58, BlindSignRequest, BlindedSignature, Parameters,
@@ -48,6 +47,7 @@ use nym_contracts_common::dealings::ContractSafeBytes;
 use cw3::ProposalResponse;
 use cw4::MemberResponse;
 use dkg::Threshold;
+use nym_crypto::asymmetric::{encryption, identity};
 use rand_07::rngs::OsRng;
 use rand_07::Rng;
 use rocket::http::Status;
@@ -622,7 +622,7 @@ async fn state_functions() {
         expected_response.to_bytes()
     );
 
-    let encryption_keypair = crypto::asymmetric::encryption::KeyPair::new(&mut OsRng);
+    let encryption_keypair = nym_crypto::asymmetric::encryption::KeyPair::new(&mut OsRng);
     let blinded_signature = BlindedSignature::from_bytes(&[
         183, 217, 166, 113, 40, 123, 74, 25, 72, 31, 136, 19, 125, 95, 217, 228, 96, 113, 25, 240,
         12, 102, 125, 11, 174, 20, 216, 82, 192, 71, 27, 194, 48, 20, 17, 95, 243, 179, 82, 21, 57,
@@ -656,7 +656,7 @@ async fn state_functions() {
         .await
         .unwrap();
     let remote_key =
-        crypto::asymmetric::encryption::PublicKey::from_bytes(&response.remote_key).unwrap();
+        nym_crypto::asymmetric::encryption::PublicKey::from_bytes(&response.remote_key).unwrap();
 
     let encryption_key = recompute_shared_key::<
         NymApiCredentialEncryptionAlgorithm,

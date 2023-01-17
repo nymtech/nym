@@ -26,7 +26,7 @@ jobs:
           path: .github/workflows/support-files/notifications/deny.message
   notification:
     needs: cargo-deny
-    runs-on: ubuntu-20.04
+    runs-on: custom-runner-linux
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
@@ -47,6 +47,11 @@ jobs:
           KEYBASE_NYMBOT_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
           KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBOT_TEAM }}"
           KEYBASE_NYM_CHANNEL: "security"
+          MATRIX_SERVER: "${{ secrets.MATRIX_SERVER }}"
+          MATRIX_ROOM: "${{ secrets.MATRIX_ROOM }}"
+          MATRIX_USER_ID: "${{ secrets.MATRIX_USER_ID }}"
+          MATRIX_TOKEN: "${{ secrets.MATRIX_TOKEN }}"
+          MATRIX_DEVICE_ID: "${{ secrets.MATRIX_DEVICE_ID }}"
         uses: docker://keybaseio/client:stable-node
         with:
           args: .github/workflows/support-files/notifications/entry_point.sh

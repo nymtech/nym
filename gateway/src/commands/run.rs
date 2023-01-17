@@ -1,13 +1,16 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::support::config::build_config;
 use crate::{
-    commands::{override_config, version_check, OverrideConfig},
-    config::Config,
+    commands::{ensure_config_version_compatibility, OverrideConfig},
+    OutputFormat,
 };
 use clap::Args;
-use config::NymConfig;
-use log::*;
+use std::error::Error;
+use std::net::IpAddr;
+use std::path::PathBuf;
+use validator_client::nyxd;
 
 #[derive(Args, Clone)]
 pub struct Run {
@@ -17,11 +20,11 @@ pub struct Run {
 
     /// The custom host on which the gateway will be running for receiving sphinx packets
     #[clap(long)]
-    host: Option<String>,
+    host: Option<IpAddr>,
 
     /// The wallet address you will use to bond this gateway, e.g. nymt1z9egw0knv47nmur0p8vk4rcx59h9gg4zuxrrr9
     #[clap(long)]
-    wallet_address: Option<String>,
+    wallet_address: Option<nyxd::AccountId>,
 
     /// The port on which the gateway will be listening for sphinx packets
     #[clap(long)]
@@ -33,29 +36,38 @@ pub struct Run {
 
     /// The host that will be reported to the directory server
     #[clap(long)]
+    // TODO: could this be changed to `Option<url::Url>`?
     announce_host: Option<String>,
 
     /// Path to sqlite database containing all gateway persistent data
     #[clap(long)]
-    datastore: Option<String>,
+    datastore: Option<PathBuf>,
 
-    /// Comma separated list of endpoints of the nym APIs
-    #[clap(long)]
-    nym_apis: Option<String>,
+    /// Comma separated list of endpoints of nym APIs
+    #[clap(long, alias = "validator_apis", value_delimiter = ',')]
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    nym_apis: Option<Vec<url::Url>>,
 
     /// Comma separated list of endpoints of the validator
-    #[clap(long)]
-    validators: Option<String>,
+    #[cfg(feature = "coconut")]
+    #[clap(
+        long,
+        alias = "validators",
+        alias = "nymd_validators",
+        value_delimiter = ','
+    )]
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    nyxd_urls: Option<Vec<url::Url>>,
 
     /// Cosmos wallet mnemonic
     #[clap(long)]
-    mnemonic: Option<String>,
+    mnemonic: Option<bip39::Mnemonic>,
 
     /// Set this gateway to work only with coconut credentials; that would disallow clients to
     /// bypass bandwidth credential requirement
     #[cfg(feature = "coconut")]
     #[clap(long)]
-    only_coconut_credentials: bool,
+    only_coconut_credentials: Option<bool>,
 
     /// Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server
     #[clap(long)]
@@ -63,7 +75,7 @@ pub struct Run {
 
     /// URL where a statistics aggregator is running. The default value is a Nym aggregator server
     #[clap(long)]
-    statistics_service_url: Option<String>,
+    statistics_service_url: Option<url::Url>,
 }
 
 impl From<Run> for OverrideConfig {
@@ -76,64 +88,50 @@ impl From<Run> for OverrideConfig {
             datastore: run_config.datastore,
             announce_host: run_config.announce_host,
             nym_apis: run_config.nym_apis,
-            validators: run_config.validators,
             mnemonic: run_config.mnemonic,
-
-            #[cfg(feature = "coconut")]
-            only_coconut_credentials: run_config.only_coconut_credentials,
 
             enabled_statistics: run_config.enabled_statistics,
             statistics_service_url: run_config.statistics_service_url,
+
+            #[cfg(feature = "coconut")]
+            nyxd_urls: run_config.nyxd_urls,
+            #[cfg(feature = "coconut")]
+            only_coconut_credentials: run_config.only_coconut_credentials,
         }
     }
 }
 
 fn show_binding_warning(address: String) {
-    println!("\n##### NOTE #####");
-    println!(
+    eprintln!("\n##### NOTE #####");
+    eprintln!(
         "\nYou are trying to bind to {} - you might not be accessible to other nodes\n\
          You can ignore this warning if you're running setup on a local network \n\
          or have set a custom 'announce-host'",
         address
     );
-    println!("\n\n");
+    eprintln!("\n\n");
 }
 
 fn special_addresses() -> Vec<&'static str> {
     vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
 }
 
-pub async fn execute(args: &Run) {
-    println!("Starting gateway {}...", args.id);
+pub async fn execute(args: Run, output: OutputFormat) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let id = args.id.clone();
+    println!("Starting gateway {id}...");
 
-    let mut config = match Config::load_from_file(Some(&args.id)) {
-        Ok(cfg) => cfg,
-        Err(err) => {
-            error!(
-                "Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})",
-                args.id,
-                err,
-            );
-            return;
-        }
-    };
-
-    config = override_config(config, OverrideConfig::from(args.clone()));
-
-    if !version_check(&config) {
-        error!("failed the local version check");
-        return;
-    }
+    let config = build_config(id, args)?;
+    ensure_config_version_compatibility(&config)?;
 
     if special_addresses().contains(&&*config.get_listening_address().to_string()) {
         show_binding_warning(config.get_listening_address().to_string());
     }
 
     let mut gateway = crate::node::create_gateway(config).await;
-    println!(
+    eprintln!(
         "\nTo bond your gateway you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
          Select the correct version and install it to your machine. You will need to provide the following: \n ");
-    gateway.print_node_details();
+    gateway.print_node_details(output)?;
 
-    gateway.run().await;
+    gateway.run().await
 }

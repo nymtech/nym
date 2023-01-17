@@ -1,4 +1,3 @@
-use client_core::client::replies::reply_storage::fs_backend;
 use client_core::error::ClientCoreError;
 use serde::{Serialize, Serializer};
 use thiserror::Error;
@@ -39,7 +38,7 @@ pub enum BackendError {
     #[error("{source}")]
     ClientCoreError {
         #[from]
-        source: ClientCoreError<fs_backend::Backend>,
+        source: ClientCoreError,
     },
     #[error("{source}")]
     ApiClientError {
@@ -69,6 +68,8 @@ pub enum BackendError {
     CouldNotLoadExistingGatewayConfiguration(std::io::Error),
     #[error("Unable to open a new window")]
     NewWindowError,
+    #[error("Unable to parse the specified gateway")]
+    UnableToParseGateway,
 }
 
 impl Serialize for BackendError {

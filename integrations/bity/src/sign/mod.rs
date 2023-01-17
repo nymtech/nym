@@ -1,13 +1,13 @@
 use crate::order::OrderSignature;
-use validator_client::nymd::error::NymdError;
-use validator_client::nymd::wallet::{AccountData, DirectSecp256k1HdWallet};
+use validator_client::nyxd::error::NyxdError;
+use validator_client::nyxd::wallet::{AccountData, DirectSecp256k1HdWallet};
 
 /// Signs an order message to purchase Nym with Bity
 pub fn sign_order(
     wallet: &DirectSecp256k1HdWallet,
     signer: &AccountData,
     message: String,
-) -> Result<OrderSignature, NymdError> {
+) -> Result<OrderSignature, NyxdError> {
     Ok(OrderSignature {
         account_id: signer.address().clone(),
         public_key: signer.public_key(),

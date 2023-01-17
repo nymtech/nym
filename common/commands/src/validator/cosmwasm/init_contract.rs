@@ -6,8 +6,8 @@ use clap::Parser;
 use cosmrs::{AccountId, Coin as CosmosCoin};
 use log::info;
 use network_defaults::NymNetworkDetails;
-use validator_client::nymd::cosmwasm_client::types::{ContractCodeId, InstantiateOptions};
-use validator_client::nymd::Coin;
+use validator_client::nyxd::cosmwasm_client::types::{ContractCodeId, InstantiateOptions};
+use validator_client::nyxd::Coin;
 
 #[derive(Debug, Parser)]
 pub struct Args {

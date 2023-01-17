@@ -30,11 +30,11 @@ use validator_client::nym_api::routes::{
     API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL,
     COCONUT_ROUTES, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
 };
-use validator_client::nymd::Coin;
-use validator_client::nymd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
+use validator_client::nyxd::Coin;
+use validator_client::nyxd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
 
 use crate::coconut::State;
-use crate::NymApiStorage;
+use crate::support::storage::NymApiStorage;
 use async_trait::async_trait;
 use coconut_dkg_common::dealer::{
     ContractDealing, DealerDetails, DealerDetailsResponse, DealerType,
@@ -53,8 +53,8 @@ use rocket::local::asynchronous::Client;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
-use validator_client::nymd::cosmwasm_client::logs::Log;
-use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
+use validator_client::nyxd::cosmwasm_client::logs::Log;
+use validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 
 const TEST_COIN_DENOM: &str = "unym";
 const TEST_REWARDING_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
@@ -466,7 +466,7 @@ async fn signed_before() {
         .write()
         .unwrap()
         .insert(tx_hash.to_string(), tx_entry.clone());
-    let nymd_client =
+    let nyxd_client =
         DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap())
             .with_tx_db(&tx_db);
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
@@ -474,7 +474,7 @@ async fn signed_before() {
     staged_key_pair.set(key_pair).await;
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
-        nymd_client,
+        nyxd_client,
         TEST_COIN_DENOM.to_string(),
         staged_key_pair,
         comm_channel,
@@ -530,7 +530,7 @@ async fn signed_before() {
 
 #[tokio::test]
 async fn state_functions() {
-    let nymd_client =
+    let nyxd_client =
         DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap());
     let params = Parameters::new(4).unwrap();
     let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
@@ -541,7 +541,7 @@ async fn state_functions() {
     let staged_key_pair = crate::coconut::KeyPair::new();
     staged_key_pair.set(key_pair).await;
     let state = State::new(
-        nymd_client,
+        nyxd_client,
         TEST_COIN_DENOM.to_string(),
         staged_key_pair,
         comm_channel,
@@ -703,7 +703,7 @@ async fn blind_sign_correct() {
         .write()
         .unwrap()
         .insert(tx_hash.to_string(), tx_entry.clone());
-    let nymd_client =
+    let nyxd_client =
         DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap())
             .with_tx_db(&tx_db);
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
@@ -711,7 +711,7 @@ async fn blind_sign_correct() {
     staged_key_pair.set(key_pair).await;
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
-        nymd_client,
+        nyxd_client,
         TEST_COIN_DENOM.to_string(),
         staged_key_pair,
         comm_channel,
@@ -781,14 +781,14 @@ async fn signature_test() {
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage = NymApiStorage::init(db_dir).await.unwrap();
-    let nymd_client =
+    let nyxd_client =
         DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap());
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
     staged_key_pair.set(key_pair).await;
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
-        nymd_client,
+        nyxd_client,
         TEST_COIN_DENOM.to_string(),
         staged_key_pair,
         comm_channel,
@@ -848,7 +848,7 @@ async fn verification_of_bandwidth_credential() {
     let validator_address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
     let proposal_db = Arc::new(RwLock::new(HashMap::new()));
     let spent_credential_db = Arc::new(RwLock::new(HashMap::new()));
-    let nymd_client = DummyClient::new(validator_address.clone())
+    let nyxd_client = DummyClient::new(validator_address.clone())
         .with_proposal_db(&proposal_db)
         .with_spent_credential_db(&spent_credential_db);
     let mut db_dir = std::env::temp_dir();
@@ -874,7 +874,7 @@ async fn verification_of_bandwidth_credential() {
     let staged_key_pair = crate::coconut::KeyPair::new();
     staged_key_pair.set(key_pair).await;
     let rocket = rocket::build().attach(InternalSignRequest::stage(
-        nymd_client.clone(),
+        nyxd_client.clone(),
         TEST_COIN_DENOM.to_string(),
         staged_key_pair,
         comm_channel.clone(),

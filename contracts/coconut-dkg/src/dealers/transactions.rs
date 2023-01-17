@@ -71,7 +71,7 @@ pub(crate) mod tests {
     use super::*;
     use crate::epoch_state::transactions::advance_epoch_state;
     use crate::support::tests::helpers;
-    use coconut_dkg_common::types::PUBLIC_KEY_SUBMISSION_TIME_SECS;
+    use coconut_dkg_common::types::TimeConfiguration;
     use cosmwasm_std::testing::{mock_env, mock_info};
 
     #[test]
@@ -83,7 +83,10 @@ pub(crate) mod tests {
         let bte_key_with_proof = String::from("bte_key_with_proof");
         let announce_address = String::from("localhost:8000");
 
-        env.block.time = env.block.time.plus_seconds(PUBLIC_KEY_SUBMISSION_TIME_SECS);
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs);
         advance_epoch_state(deps.as_mut(), env).unwrap();
 
         let ret = try_add_dealer(

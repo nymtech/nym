@@ -1,16 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use credential_storage::PersistentStorage;
-use crypto::asymmetric::{encryption, identity};
-use futures::channel::mpsc;
-use gateway_client::bandwidth::BandwidthController;
-use std::sync::Arc;
-use task::TaskManager;
-use validator_client::nymd::SigningNymdClient;
-
-use crate::config::Config;
-use crate::contract_cache::ValidatorCache;
+use crate::network_monitor;
 use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::{
     ReceivedProcessor, ReceivedProcessorReceiver, ReceivedProcessorSender,
@@ -21,8 +12,16 @@ use crate::network_monitor::monitor::receiver::{
 use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::monitor::Monitor;
-use crate::nymd_client::Client;
+use crate::nym_contract_cache::cache::NymContractCache;
 use crate::storage::NymApiStorage;
+use crate::support::config::Config;
+use crate::support::nyxd;
+use credential_storage::PersistentStorage;
+use crypto::asymmetric::{encryption, identity};
+use futures::channel::mpsc;
+use gateway_client::bandwidth::BandwidthController;
+use std::sync::Arc;
+use task::TaskManager;
 
 pub(crate) mod chunker;
 pub(crate) mod gateways_reader;
@@ -32,25 +31,41 @@ pub(crate) mod test_route;
 
 pub(crate) const ROUTE_TESTING_TEST_NONCE: u64 = 0;
 
+pub(crate) fn setup<'a>(
+    config: &'a Config,
+    nym_contract_cache_state: &NymContractCache,
+    storage: &NymApiStorage,
+    _nyxd_client: nyxd::Client,
+    system_version: &str,
+) -> NetworkMonitorBuilder<'a> {
+    NetworkMonitorBuilder::new(
+        config,
+        _nyxd_client,
+        system_version,
+        storage.to_owned(),
+        nym_contract_cache_state.to_owned(),
+    )
+}
+
 pub(crate) struct NetworkMonitorBuilder<'a> {
     config: &'a Config,
-    _nymd_client: Client<SigningNymdClient>,
+    _nyxd_client: nyxd::Client,
     system_version: String,
     node_status_storage: NymApiStorage,
-    validator_cache: ValidatorCache,
+    validator_cache: NymContractCache,
 }
 
 impl<'a> NetworkMonitorBuilder<'a> {
     pub(crate) fn new(
         config: &'a Config,
-        _nymd_client: Client<SigningNymdClient>,
+        _nyxd_client: nyxd::Client,
         system_version: &str,
         node_status_storage: NymApiStorage,
-        validator_cache: ValidatorCache,
+        validator_cache: NymContractCache,
     ) -> Self {
         NetworkMonitorBuilder {
             config,
-            _nymd_client,
+            _nyxd_client,
             system_version: system_version.to_string(),
             node_status_storage,
             validator_cache,
@@ -80,7 +95,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
 
         #[cfg(feature = "coconut")]
         let bandwidth_controller = {
-            let client = self._nymd_client.0.read().await;
+            let client = self._nyxd_client.0.read().await;
             let coconut_api_clients =
                 validator_client::CoconutApiClient::all_coconut_api_clients(&client)
                     .await
@@ -154,7 +169,7 @@ impl NetworkMonitorRunnables {
 
 fn new_packet_preparer(
     system_version: &str,
-    validator_cache: ValidatorCache,
+    validator_cache: NymContractCache,
     per_node_test_packets: usize,
     self_public_identity: identity::PublicKey,
     self_public_encryption: encryption::PublicKey,
@@ -206,4 +221,26 @@ fn new_packet_receiver(
     processor_packets_sender: ReceivedProcessorSender,
 ) -> PacketReceiver {
     PacketReceiver::new(gateways_status_updater, processor_packets_sender)
+}
+
+// TODO: 1) does it still have to have separate builder or could we get rid of it now?
+// TODO: 2) how do we make it non-async as other 'start' methods?
+pub(crate) async fn start(
+    config: &Config,
+    nym_contract_cache_state: &NymContractCache,
+    storage: &NymApiStorage,
+    nyxd_client: nyxd::Client,
+    system_version: &str,
+    shutdown: &TaskManager,
+) {
+    let monitor_builder = network_monitor::setup(
+        config,
+        nym_contract_cache_state,
+        storage,
+        nyxd_client,
+        system_version,
+    );
+    info!("Starting network monitor...");
+    let runnables = monitor_builder.build().await;
+    runnables.spawn_tasks(shutdown);
 }

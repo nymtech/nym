@@ -7,6 +7,7 @@ pub use ed25519_dalek::{Verifier, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, SIGNATUR
 use nymsphinx_types::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 use pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use std::fmt::{self, Display, Formatter};
+use std::str::FromStr;
 use thiserror::Error;
 
 #[cfg(feature = "rand")]
@@ -138,6 +139,14 @@ impl PublicKey {
 
     pub fn verify(&self, message: &[u8], signature: &Signature) -> Result<(), SignatureError> {
         self.0.verify(message, &signature.0)
+    }
+}
+
+impl FromStr for PublicKey {
+    type Err = Ed25519RecoveryError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        PublicKey::from_base58_string(s)
     }
 }
 

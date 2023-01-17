@@ -11,7 +11,8 @@ use crate::coconut::dkg::{
     verification_key::verification_key_submission,
 };
 use crate::coconut::keypair::KeyPair as CoconutKeyPair;
-use crate::{nymd_client, Config};
+use crate::nyxd;
+use crate::support::config::Config;
 use anyhow::Result;
 use coconut_dkg_common::types::EpochState;
 use dkg::bte::keys::KeyPair as DkgKeyPair;
@@ -19,9 +20,8 @@ use rand::rngs::OsRng;
 use rand::RngCore;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
-use task::TaskClient;
+use task::{TaskClient, TaskManager};
 use tokio::time::interval;
-use validator_client::nymd::SigningNymdClient;
 
 pub(crate) fn init_keypair(config: &Config) -> Result<()> {
     let mut rng = OsRng;
@@ -49,7 +49,7 @@ pub(crate) struct DkgController<R> {
 impl<R: RngCore + Clone> DkgController<R> {
     pub(crate) async fn new(
         config: &Config,
-        nymd_client: nymd_client::Client<SigningNymdClient>,
+        nyxd_client: nyxd::Client,
         coconut_keypair: CoconutKeyPair,
         rng: R,
     ) -> Result<Self> {
@@ -67,7 +67,7 @@ impl<R: RngCore + Clone> DkgController<R> {
             PersistentState::load_from_file(config.persistent_state_path()).unwrap_or_default();
 
         Ok(DkgController {
-            dkg_client: DkgClient::new(nymd_client),
+            dkg_client: DkgClient::new(nyxd_client),
             secret_key_path: config.secret_key_path(),
             verification_key_path: config.verification_key_path(),
             state: State::new(
@@ -84,13 +84,10 @@ impl<R: RngCore + Clone> DkgController<R> {
 
     pub(crate) async fn handle_epoch_state(&mut self) {
         match self.dkg_client.get_current_epoch().await {
-            Err(e) => warn!("Could not get current epoch state {}", e),
+            Err(err) => warn!("Could not get current epoch state {err}"),
             Ok(epoch) => {
-                if let Err(e) = self.state.is_consistent(epoch.state).await {
-                    error!(
-                        "Epoch state is corrupted - {}, the process should be terminated",
-                        e
-                    );
+                if let Err(err) = self.state.is_consistent(epoch.state).await {
+                    error!("Epoch state is corrupted - {err}, the process should be terminated");
                 }
                 let ret = match epoch.state {
                     EpochState::PublicKeySubmission => {
@@ -120,14 +117,14 @@ impl<R: RngCore + Clone> DkgController<R> {
                     // Just wait, in case we need to redo dkg at some point
                     EpochState::InProgress => Ok(()),
                 };
-                if let Err(e) = ret {
-                    warn!("Could not handle this iteration for the epoch state: {}", e);
+                if let Err(err) = ret {
+                    warn!("Could not handle this iteration for the epoch state: {err}");
                 } else if epoch.state != EpochState::InProgress {
                     let persistent_state = PersistentState::from(&self.state);
-                    if let Err(e) =
+                    if let Err(err) =
                         persistent_state.save_to_file(self.state.persistent_state_path())
                     {
-                        warn!("Could not backup the state for this iteration: {}", e);
+                        warn!("Could not backup the state for this iteration: {err}");
                     }
                 }
                 if let Ok(current_timestamp) =
@@ -153,5 +150,23 @@ impl<R: RngCore + Clone> DkgController<R> {
                 }
             }
         }
+    }
+
+    // TODO: can we make it non-async? it seems we'd have to modify `coconut_keypair.set(coconut_keypair_value)` in new
+    // could we do it?
+    pub(crate) async fn start(
+        config: &Config,
+        nyxd_client: nyxd::Client,
+        coconut_keypair: CoconutKeyPair,
+        rng: R,
+        shutdown: &TaskManager,
+    ) -> Result<()>
+    where
+        R: Sync + Send + 'static,
+    {
+        let shutdown_listener = shutdown.subscribe();
+        let dkg_controller = DkgController::new(config, nyxd_client, coconut_keypair, rng).await?;
+        tokio::spawn(async move { dkg_controller.run(shutdown_listener).await });
+        Ok(())
     }
 }

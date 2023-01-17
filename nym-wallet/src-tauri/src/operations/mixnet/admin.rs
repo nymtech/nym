@@ -6,8 +6,8 @@ use crate::state::WalletState;
 use mixnet_contract_common::ContractStateParams;
 use nym_types::transaction::TransactionExecuteResult;
 use nym_wallet_types::admin::TauriContractStateParams;
-use validator_client::nymd::traits::{MixnetQueryClient, MixnetSigningClient};
-use validator_client::nymd::Fee;
+use validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
+use validator_client::nyxd::Fee;
 
 #[tauri::command]
 pub async fn get_contract_settings(
@@ -17,7 +17,7 @@ pub async fn get_contract_settings(
 
     let guard = state.read().await;
     let reg = guard.registered_coins()?;
-    let client = &guard.current_client()?.nymd;
+    let client = &guard.current_client()?.nyxd;
 
     let res = client.get_mixnet_contract_settings().await?;
     let converted = TauriContractStateParams::from_mixnet_contract_contract_state_params(res, reg)?;
@@ -33,7 +33,7 @@ pub async fn update_contract_settings(
 ) -> Result<TransactionExecuteResult, BackendError> {
     let guard = state.read().await;
     let reg = guard.registered_coins()?;
-    let client = &guard.current_client()?.nymd;
+    let client = &guard.current_client()?.nyxd;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
 
     let mixnet_contract_settings_params: ContractStateParams =

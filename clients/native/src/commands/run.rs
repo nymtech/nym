@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use std::error::Error;
@@ -11,6 +11,7 @@ use crate::{
 
 use clap::Args;
 use config::NymConfig;
+use crypto::asymmetric::identity;
 use log::*;
 use version_checker::is_minor_version_compatible;
 
@@ -20,22 +21,24 @@ pub(crate) struct Run {
     #[clap(long)]
     id: String,
 
-    /// Comma separated list of rest endpoints of the nymd validators
-    #[clap(long)]
-    nymd_validators: Option<String>,
+    /// Comma separated list of rest endpoints of the nyxd validators
+    #[cfg(feature = "coconut")]
+    #[clap(long, alias = "nymd_validators", value_delimiter = ',')]
+    nyxd_urls: Option<Vec<url::Url>>,
 
     /// Comma separated list of rest endpoints of the API validators
-    #[clap(long)]
-    api_validators: Option<String>,
+    #[clap(long, alias = "api_validators", value_delimiter = ',')]
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    nym_apis: Option<Vec<url::Url>>,
 
     /// Id of the gateway we want to connect to. If overridden, it is user's responsibility to
     /// ensure prior registration happened
     #[clap(long)]
-    gateway: Option<String>,
+    gateway: Option<identity::PublicKey>,
 
     /// Whether to not start the websocket
     #[clap(long)]
-    disable_socket: bool,
+    disable_socket: Option<bool>,
 
     /// Port for the socket to listen on
     #[clap(short, long)]
@@ -43,29 +46,31 @@ pub(crate) struct Run {
 
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
-    #[clap(long, hidden = true)]
+    #[clap(long, hide = true)]
     fastmode: bool,
 
     /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
-    #[clap(long, hidden = true)]
+    #[clap(long, hide = true)]
     no_cover: bool,
 
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
     /// with bandwidth credential requirement.
     #[cfg(feature = "coconut")]
     #[clap(long)]
-    enabled_credentials_mode: bool,
+    enabled_credentials_mode: Option<bool>,
 }
 
 impl From<Run> for OverrideConfig {
     fn from(run_config: Run) -> Self {
         OverrideConfig {
-            nymd_validators: run_config.nymd_validators,
-            api_validators: run_config.api_validators,
+            nym_apis: run_config.nym_apis,
             disable_socket: run_config.disable_socket,
             port: run_config.port,
             fastmode: run_config.fastmode,
             no_cover: run_config.no_cover,
+
+            #[cfg(feature = "coconut")]
+            nyxd_urls: run_config.nyxd_urls,
             #[cfg(feature = "coconut")]
             enabled_credentials_mode: run_config.enabled_credentials_mode,
         }

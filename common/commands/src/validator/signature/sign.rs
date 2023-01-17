@@ -7,7 +7,7 @@ use cosmrs::crypto::PublicKey;
 use log::error;
 use serde::Serialize;
 use serde_json::json;
-use validator_client::nymd::wallet::DirectSecp256k1HdWallet;
+use validator_client::nyxd::wallet::DirectSecp256k1HdWallet;
 
 #[derive(Debug, Serialize)]
 pub struct SignatureOutputJson {

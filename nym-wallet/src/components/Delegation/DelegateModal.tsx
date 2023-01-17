@@ -18,7 +18,7 @@ import { ErrorModal } from '../Modals/ErrorModal';
 
 const MIN_AMOUNT_TO_DELEGATE = 10;
 
-export const DelegateModal: React.FC<{
+export const DelegateModal: FCWithChildren<{
   open: boolean;
   onClose: () => void;
   onOk?: (

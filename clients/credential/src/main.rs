@@ -31,7 +31,7 @@ cfg_if::cfg_if! {
         #[tokio::main]
         async fn main() -> Result<()> {
             let args = Cli::parse();
-            setup_env(args.config_env_file.clone());
+            setup_env(args.config_env_file.as_ref());
             let bin_name = "nym-credential-client";
 
             match args.command {
@@ -39,11 +39,11 @@ cfg_if::cfg_if! {
                     let db_path = r.client_home_directory.join(DATA_DIR).join(DB_FILE_NAME);
                     let shared_storage = credential_storage::initialise_storage(db_path).await;
 
-                    let state = deposit(&r.nymd_url, &r.mnemonic, r.amount).await?;
+                    let state = deposit(&r.nyxd_url, &r.mnemonic, r.amount).await?;
                     get_credential(&state, shared_storage).await?;
                 }
-                Command::Completions(c) => c.generate(&mut crate::Cli::into_app(), bin_name),
-                Command::GenerateFigSpec => fig_generate(&mut crate::Cli::into_app(), bin_name)
+                Command::Completions(c) => c.generate(&mut crate::Cli::command(), bin_name),
+                Command::GenerateFigSpec => fig_generate(&mut crate::Cli::command(), bin_name)
             }
 
             Ok(())

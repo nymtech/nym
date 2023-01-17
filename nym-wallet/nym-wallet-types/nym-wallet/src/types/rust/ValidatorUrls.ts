@@ -1,2 +1,2 @@
 
-export interface Validator { nymd_url: string, nymd_name: string | null, api_url: string | null, }
+export interface Validator { nyxd_url: string, nyxd_name: string | null, api_url: string | null, }

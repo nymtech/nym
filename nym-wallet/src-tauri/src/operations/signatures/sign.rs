@@ -23,7 +23,7 @@ pub async fn sign(
 ) -> Result<String, BackendError> {
     let guard = state.read().await;
     let client = guard.current_client()?;
-    let wallet = client.nymd.signer();
+    let wallet = client.nyxd.signer();
     let derived_accounts = wallet.try_derive_accounts()?;
     let account = derived_accounts.first().ok_or_else(|| {
         log::error!(">>> Unable to derive account");
@@ -50,18 +50,18 @@ async fn get_pubkey_from_account_address(
     let guard = state.read().await;
     let client = guard.current_client()?;
     let account = client
-        .nymd
+        .nyxd
         .get_account_details(address)
         .await?
         .ok_or_else(|| {
             log::error!("No account associated with address {}", address);
-            BackendError::SignatureError(format!("No account associated with address {}", address))
+            BackendError::SignatureError(format!("No account associated with address {address}"))
         })?;
     let base_account = account.try_get_base_account()?;
 
     base_account.pubkey.ok_or_else(|| {
         log::error!("No pubkey found for address {}", address);
-        BackendError::SignatureError(format!("No pubkey found for address {}", address))
+        BackendError::SignatureError(format!("No pubkey found for address {address}"))
     })
 }
 
@@ -116,7 +116,7 @@ pub async fn verify(
             // get public key from current account address
             let guard = state.read().await;
             let client = guard.current_client()?;
-            let address = client.nymd.address();
+            let address = client.nyxd.address();
             get_pubkey_from_account_address(address, &state).await?
         }
     };

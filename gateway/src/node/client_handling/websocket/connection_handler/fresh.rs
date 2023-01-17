@@ -30,7 +30,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 
 #[derive(Debug, Error)]
-enum InitialAuthenticationError {
+pub(crate) enum InitialAuthenticationError {
     #[error("Internal gateway storage error")]
     StorageError(#[from] StorageError),
 
@@ -645,10 +645,7 @@ where
                         )
                         .await
                     {
-                        debug!(
-                            "Failed to send error response during authentication - {}",
-                            err
-                        )
+                        debug!("Failed to send error response during authentication: {err}",)
                     }
                     return None;
                 }
@@ -659,10 +656,10 @@ where
         None
     }
 
-    pub(crate) async fn start_handling(self)
+    pub(crate) async fn start_handling(self, shutdown: task::TaskClient)
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
     {
-        super::handle_connection(self).await
+        super::handle_connection(self, shutdown).await
     }
 }

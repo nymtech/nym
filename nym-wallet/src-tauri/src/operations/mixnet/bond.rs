@@ -3,7 +3,7 @@
 
 use crate::error::BackendError;
 use crate::state::WalletState;
-use crate::{nymd_client, Gateway, MixNode};
+use crate::{nyxd_client, Gateway, MixNode};
 use mixnet_contract_common::{MixId, MixNodeConfigUpdate};
 use nym_types::currency::DecCoin;
 use nym_types::gateway::GatewayBond;
@@ -11,8 +11,8 @@ use nym_types::mixnode::{MixNodeCostParams, MixNodeDetails};
 use nym_types::transaction::TransactionExecuteResult;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use validator_client::nymd::traits::{MixnetQueryClient, MixnetSigningClient};
-use validator_client::nymd::Fee;
+use validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
+use validator_client::nyxd::Fee;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NodeDescription {
@@ -43,7 +43,7 @@ pub async fn bond_gateway(
     );
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .bond_gateway(gateway, owner_signature, pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
@@ -61,7 +61,7 @@ pub async fn unbond_gateway(
     let guard = state.read().await;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     log::info!(">>> Unbond gateway, fee = {:?}", fee);
-    let res = guard.current_client()?.nymd.unbond_gateway(fee).await?;
+    let res = guard.current_client()?.nyxd.unbond_gateway(fee).await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
     Ok(TransactionExecuteResult::from_execute_result(
@@ -92,7 +92,7 @@ pub async fn bond_mixnode(
     );
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .bond_mixnode(mixnode, cost_params, owner_signature, pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
@@ -119,7 +119,7 @@ pub async fn pledge_more(
     );
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .pledge_more(additional_pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
@@ -137,7 +137,7 @@ pub async fn unbond_mixnode(
     let guard = state.read().await;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     log::info!(">>> Unbond mixnode, fee = {:?}", fee);
-    let res = guard.current_client()?.nymd.unbond_mixnode(fee).await?;
+    let res = guard.current_client()?.nyxd.unbond_mixnode(fee).await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
     Ok(TransactionExecuteResult::from_execute_result(
@@ -162,7 +162,7 @@ pub async fn update_mixnode_cost_params(
     );
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .update_mixnode_cost_params(cost_params, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
@@ -187,7 +187,7 @@ pub async fn update_mixnode_config(
     );
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .update_mixnode_config(update, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
@@ -204,7 +204,7 @@ pub async fn get_mixnode_avg_uptime(
     log::info!(">>> Get mixnode bond details");
     let guard = state.read().await;
     let client = guard.current_client()?;
-    let res = client.nymd.get_owned_mixnode(client.nymd.address()).await?;
+    let res = client.nyxd.get_owned_mixnode(client.nyxd.address()).await?;
 
     match res.mixnode_details {
         Some(details) => {
@@ -230,7 +230,7 @@ pub async fn mixnode_bond_details(
     log::info!(">>> Get mixnode bond details");
     let guard = state.read().await;
     let client = guard.current_client()?;
-    let res = client.nymd.get_owned_mixnode(client.nymd.address()).await?;
+    let res = client.nyxd.get_owned_mixnode(client.nyxd.address()).await?;
     let details = res
         .mixnode_details
         .map(|details| {
@@ -258,7 +258,7 @@ pub async fn gateway_bond_details(
     log::info!(">>> Get gateway bond details");
     let guard = state.read().await;
     let client = guard.current_client()?;
-    let bond = client.nymd.get_owned_gateway(client.nymd.address()).await?;
+    let bond = client.nyxd.get_owned_gateway(client.nyxd.address()).await?;
     let res = bond
         .gateway
         .map(|bond| {
@@ -286,7 +286,7 @@ pub async fn get_pending_operator_rewards(
     let guard = state.read().await;
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .get_pending_operator_reward(&address.parse()?)
         .await?;
 
@@ -319,7 +319,7 @@ pub async fn get_number_of_mixnode_delegators(
     mix_id: MixId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<usize, BackendError> {
-    Ok(nymd_client!(state)
+    Ok(nyxd_client!(state)
         .get_mixnode_details(mix_id)
         .await?
         .mixnode_details
@@ -335,7 +335,7 @@ pub async fn get_mix_node_description(
     Ok(reqwest::Client::builder()
         .timeout(Duration::from_millis(1000))
         .build()?
-        .get(format!("http://{}:{}/description", host, port))
+        .get(format!("http://{host}:{port}/description"))
         .send()
         .await?
         .json()

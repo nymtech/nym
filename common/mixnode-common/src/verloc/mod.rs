@@ -7,9 +7,11 @@ use crypto::asymmetric::identity;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use log::*;
+use network_defaults::mainnet::NYM_API;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use std::net::{SocketAddr, ToSocketAddrs};
+use std::net::SocketAddr;
+use std::net::ToSocketAddrs;
 use std::sync::Arc;
 use std::time::Duration;
 use task::TaskClient;
@@ -151,7 +153,7 @@ impl Default for ConfigBuilder {
     fn default() -> Self {
         ConfigBuilder(Config {
             minimum_compatible_node_version: parse_version(MINIMUM_NODE_VERSION).unwrap(),
-            listening_address: format!("[::]:{}", DEFAULT_VERLOC_PORT).parse().unwrap(),
+            listening_address: format!("[::]:{DEFAULT_VERLOC_PORT}").parse().unwrap(),
             packets_per_node: DEFAULT_PACKETS_PER_NODE,
             packet_timeout: DEFAULT_PACKET_TIMEOUT,
             connection_timeout: DEFAULT_CONNECTION_TIMEOUT,
@@ -159,7 +161,7 @@ impl Default for ConfigBuilder {
             tested_nodes_batch_size: DEFAULT_BATCH_SIZE,
             testing_interval: DEFAULT_TESTING_INTERVAL,
             retry_timeout: DEFAULT_RETRY_TIMEOUT,
-            nym_api_urls: vec![],
+            nym_api_urls: vec![NYM_API.parse().expect("Invalid default API URL")],
         })
     }
 }
@@ -176,7 +178,7 @@ pub struct VerlocMeasurer {
     // It only does bunch of REST queries. If we update it at some point to a more sophisticated (maybe signing) client,
     // then it definitely cannot be constructed here and probably will need to be passed from outside,
     // as mixnodes/gateways would already be using an instance of said client.
-    validator_client: validator_client::ApiClient,
+    validator_client: validator_client::NymApiClient,
     results: AtomicVerlocResult,
 }
 
@@ -204,7 +206,7 @@ impl VerlocMeasurer {
             )),
             shutdown_listener,
             currently_used_api: 0,
-            validator_client: validator_client::ApiClient::new(config.nym_api_urls[0].clone()),
+            validator_client: validator_client::NymApiClient::new(config.nym_api_urls[0].clone()),
             config,
             results: AtomicVerlocResult::new(),
         }

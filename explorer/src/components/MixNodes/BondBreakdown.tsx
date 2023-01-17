@@ -13,7 +13,7 @@ import { currencyToString } from '../../utils/currency';
 import { useMixnodeContext } from '../../context/mixnode';
 import { useIsMobile } from '../../hooks/useIsMobile';
 
-export const BondBreakdownTable: React.FC = () => {
+export const BondBreakdownTable: FCWithChildren = () => {
   const { mixNode, delegations, uniqDelegations } = useMixnodeContext();
   const [showDelegations, toggleShowDelegations] = React.useState<boolean>(false);
 

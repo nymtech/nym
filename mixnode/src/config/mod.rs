@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::config::template::config_template;
-use config::defaults::mainnet::API_VALIDATOR;
+use config::defaults::mainnet::NYM_API;
 use config::defaults::{
     DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT,
 };
@@ -13,6 +13,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
+use validator_client::nyxd;
 
 pub mod persistence;
 mod template;
@@ -160,16 +161,8 @@ impl Config {
         self
     }
 
-    pub fn with_listening_address<S: Into<String>>(mut self, listening_address: S) -> Self {
-        let listening_address_string = listening_address.into();
-        if let Ok(ip_addr) = listening_address_string.parse() {
-            self.mixnode.listening_address = ip_addr
-        } else {
-            error!(
-                "failed to change listening address. the provided value ({}) was invalid",
-                listening_address_string
-            )
-        }
+    pub fn with_listening_address(mut self, listening_address: IpAddr) -> Self {
+        self.mixnode.listening_address = listening_address;
         self
     }
 
@@ -203,8 +196,8 @@ impl Config {
         self
     }
 
-    pub fn with_wallet_address(mut self, wallet_address: &str) -> Self {
-        self.mixnode.wallet_address = wallet_address.to_string();
+    pub fn with_wallet_address(mut self, wallet_address: nyxd::AccountId) -> Self {
+        self.mixnode.wallet_address = Some(wallet_address);
         self
     }
 
@@ -317,8 +310,8 @@ impl Config {
         self.verloc.retry_timeout
     }
 
-    pub fn get_wallet_address(&self) -> &str {
-        &self.mixnode.wallet_address
+    pub fn get_wallet_address(&self) -> Option<nyxd::AccountId> {
+        self.mixnode.wallet_address.clone()
     }
 }
 
@@ -377,7 +370,8 @@ struct MixNode {
     nym_root_directory: PathBuf,
 
     /// The Cosmos wallet address that will control this mixnode
-    wallet_address: String,
+    // the only reason this is an Option is because of the lack of existence of a sane default value
+    wallet_address: Option<nyxd::AccountId>,
 }
 
 impl MixNode {
@@ -412,9 +406,9 @@ impl Default for MixNode {
             public_identity_key_file: Default::default(),
             private_sphinx_key_file: Default::default(),
             public_sphinx_key_file: Default::default(),
-            nym_api_urls: vec![Url::from_str(API_VALIDATOR).expect("Invalid default API URL")],
+            nym_api_urls: vec![Url::from_str(NYM_API).expect("Invalid default API URL")],
             nym_root_directory: Config::default_root_directory(),
-            wallet_address: "nymXXXXXXXX".to_string(),
+            wallet_address: None,
         }
     }
 }

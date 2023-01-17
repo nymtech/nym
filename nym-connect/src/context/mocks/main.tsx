@@ -9,6 +9,7 @@ const mockValues: TClientContext = {
   services: [],
   showHelp: false,
   serviceProvider: { id: '1', description: 'Keybase service provider', gateway: 'abc123', address: '123abc' },
+  gatewayPerformance: 'Good',
   setMode: () => {},
   clearError: () => {},
   handleShowHelp: () => {},
@@ -20,7 +21,7 @@ const mockValues: TClientContext = {
   startDisconnecting: async () => {},
 };
 
-export const MockProvider: React.FC<{
+export const MockProvider: FCWithChildren<{
   children?: React.ReactNode;
   connectionStatus?: ConnectionStatusKind;
 }> = ({ connectionStatus = ConnectionStatusKind.disconnected, children }) => (

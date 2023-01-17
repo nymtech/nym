@@ -1,15 +1,15 @@
 [package]
 name = "nym-cli"
-version = "1.1.4"
+version = "1.1.6"
 authors = ["Nym Technologies SA"]
 edition = "2021"
 
 [dependencies]
 base64 = "0.13.0"
 bs58 = "0.4"
-clap = { version = "3.2", features = ["derive"] }
-clap_complete = "3.2"
-clap_complete_fig = "3.2"
+clap = { version = "4.0", features = ["derive"] }
+clap_complete = "4.0"
+clap_complete_fig = "4.0"
 dotenv = "0.15.0"
 log = "0.4"
 pretty_env_logger = "0.4"
@@ -22,5 +22,5 @@ tap = "1"
 
 nym-cli-commands = { path = "../../common/commands" }
 logging = { path = "../../common/logging"}
-validator-client = { path = "../../common/client-libs/validator-client", features = ["nymd-client"] }
+validator-client = { path = "../../common/client-libs/validator-client", features = ["nyxd-client"] }
 network-defaults = { path = "../../common/network-defaults" }

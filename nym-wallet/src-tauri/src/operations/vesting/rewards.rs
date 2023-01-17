@@ -5,7 +5,7 @@ use crate::error::BackendError;
 use crate::state::WalletState;
 use mixnet_contract_common::MixId;
 use nym_types::transaction::TransactionExecuteResult;
-use validator_client::nymd::Fee;
+use validator_client::nyxd::Fee;
 
 #[tauri::command]
 pub async fn vesting_claim_operator_reward(
@@ -17,7 +17,7 @@ pub async fn vesting_claim_operator_reward(
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .execute_vesting_withdraw_operator_reward(None)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
@@ -41,7 +41,7 @@ pub async fn vesting_claim_delegator_reward(
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .execute_vesting_withdraw_delegator_reward(mix_id, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);

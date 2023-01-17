@@ -4,8 +4,8 @@
 use clap::Parser;
 use log::{error, info};
 
-use validator_client::nymd::wallet::DirectSecp256k1HdWallet;
-use validator_client::nymd::AccountId;
+use validator_client::nyxd::wallet::DirectSecp256k1HdWallet;
+use validator_client::nyxd::AccountId;
 
 use crate::context::QueryClient;
 use crate::utils::show_error;
@@ -77,12 +77,12 @@ pub async fn get_pubkey_from_chain(address: AccountId, client: &QueryClient) {
                 if let Some(pubkey) = base_account.pubkey {
                     println!("{}", pubkey.to_string());
                 } else {
-                    println!("No account associated with address {}", address);
+                    println!("No account associated with address {address}");
                 }
             }
         }
         Ok(None) => {
-            println!("No account associated with address {}", address);
+            println!("No account associated with address {address}");
         }
         Err(e) => show_error(e),
     }

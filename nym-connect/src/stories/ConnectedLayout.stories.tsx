@@ -14,6 +14,7 @@ export const Default: ComponentStory<typeof ConnectedLayout> = () => (
   <Box p={2} width={242} sx={{ bgcolor: 'nym.background.dark' }}>
     <ConnectedLayout
       showInfoModal={false}
+      gatewayPerformance="Good"
       handleCloseInfoModal={() => {
         return undefined;
       }}

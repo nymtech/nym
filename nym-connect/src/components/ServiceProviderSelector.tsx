@@ -11,7 +11,7 @@ type ServiceWithRandomSp = {
 
 const defaultServiceValue = { id: '', description: '', items: [] };
 
-export const ServiceProviderSelector: React.FC<{
+export const ServiceProviderSelector: FCWithChildren<{
   onChange?: (serviceProvider?: ServiceProvider) => void;
   services?: Services;
   currentSp?: ServiceProvider;

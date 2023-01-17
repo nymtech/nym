@@ -13,7 +13,7 @@ use credentials::coconut::bandwidth::{BandwidthVoucher, TOTAL_ATTRIBUTES};
 use credentials::coconut::utils::obtain_aggregate_signature;
 use crypto::asymmetric::{encryption, identity};
 use network_defaults::{NymNetworkDetails, VOUCHER_INFO};
-use validator_client::nymd::tx::Hash;
+use validator_client::nyxd::tx::Hash;
 use validator_client::{CoconutApiClient, Config};
 
 use crate::client::Client;
@@ -38,9 +38,9 @@ pub(crate) struct Run {
     #[clap(long)]
     pub(crate) client_home_directory: std::path::PathBuf,
 
-    /// The nymd URL that should be used
+    /// The nyxd URL that should be used
     #[clap(long)]
-    pub(crate) nymd_url: String,
+    pub(crate) nyxd_url: String,
 
     /// A mnemonic for the account that buys the credential
     #[clap(long)]
@@ -51,12 +51,12 @@ pub(crate) struct Run {
     pub(crate) amount: u64,
 }
 
-pub(crate) async fn deposit(nymd_url: &str, mnemonic: &str, amount: u64) -> Result<State> {
+pub(crate) async fn deposit(nyxd_url: &str, mnemonic: &str, amount: u64) -> Result<State> {
     let mut rng = OsRng;
     let signing_keypair = KeyPair::from(identity::KeyPair::new(&mut rng));
     let encryption_keypair = KeyPair::from(encryption::KeyPair::new(&mut rng));
 
-    let client = Client::new(nymd_url, mnemonic);
+    let client = Client::new(nyxd_url, mnemonic);
     let tx_hash = client
         .deposit(
             amount,

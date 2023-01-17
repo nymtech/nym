@@ -9,9 +9,9 @@ use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare
 use contracts_common::dealings::ContractSafeBytes;
 use cw3::ProposalResponse;
 use dkg::Threshold;
-use validator_client::nymd::cosmwasm_client::logs::{find_attribute, NODE_INDEX};
-use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
-use validator_client::nymd::AccountId;
+use validator_client::nyxd::cosmwasm_client::logs::{find_attribute, NODE_INDEX};
+use validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
+use validator_client::nyxd::AccountId;
 
 pub(crate) struct DkgClient {
     inner: Box<dyn Client + Send + Sync>,
@@ -22,12 +22,12 @@ impl DkgClient {
     // Until we determine why that is, retry the query a few more times
     const RETRIES: usize = 3;
 
-    pub(crate) fn new<C>(nymd_client: C) -> Self
+    pub(crate) fn new<C>(nyxd_client: C) -> Self
     where
         C: Client + Send + Sync + 'static,
     {
         DkgClient {
-            inner: Box::new(nymd_client),
+            inner: Box::new(nyxd_client),
         }
     }
 

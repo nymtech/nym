@@ -1,6 +1,6 @@
 [package]
 name = "client-core"
-version = "1.1.4"
+version = "1.1.6"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2021"
 rust-version = "1.66"
@@ -20,7 +20,7 @@ serde_json = "1.0.89"
 tap = "1.0.1"
 thiserror = "1.0.34"
 url = { version ="2.2", features = ["serde"] }
-tokio = { version = "1.21.2", features = ["macros"]}
+tokio = { version = "1.24.1", features = ["macros"]}
 time = "0.3.17"
 
 # internal
@@ -38,11 +38,11 @@ validator-client = { path = "../../common/client-libs/validator-client", default
 task = { path = "../../common/task" }
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
-version = "0.1.9"
+version = "0.1.11"
 features = ["time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
-version = "1.21.2"
+version = "1.24.1"
 features = ["time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.sqlx]
@@ -75,7 +75,7 @@ features = ["wasm-bindgen"]
 tempfile = "3.1.0"
 
 [build-dependencies]
-tokio = { version = "1.21.2", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
 sqlx = { version = "0.6.2", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
 
 [features]

@@ -1,5 +1,11 @@
 ## Unreleased
 
+### Added
+
+- vesting-contract: `GetAccountsPaged` and `GetAccountsVestingCoinsPaged` queries for querying multiple accounts simultaneously ([#2791])
+
+[#2791]: https://github.com/nymtech/nym/pull/2791
+
 ## [nym-contracts-v1.1.2](https://github.com/nymtech/nym/tree/nym-contracts-v1.1.2) (2022-12-07)
 
 ### Added

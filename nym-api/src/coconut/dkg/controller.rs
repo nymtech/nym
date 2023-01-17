@@ -27,9 +27,9 @@ pub(crate) fn init_keypair(config: &Config) -> Result<()> {
     let mut rng = OsRng;
     let dkg_params = dkg::bte::setup();
     let kp = DkgKeyPair::new(&dkg_params, &mut rng);
-    pemstore::store_keypair(
+    nym_pemstore::store_keypair(
         &kp,
-        &pemstore::KeyPairPath::new(
+        &nym_pemstore::KeyPairPath::new(
             config.decryption_key_path(),
             config.public_key_with_proof_path(),
         ),
@@ -53,11 +53,11 @@ impl<R: RngCore + Clone> DkgController<R> {
         coconut_keypair: CoconutKeyPair,
         rng: R,
     ) -> Result<Self> {
-        let dkg_keypair = pemstore::load_keypair(&pemstore::KeyPairPath::new(
+        let dkg_keypair = nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
             config.decryption_key_path(),
             config.public_key_with_proof_path(),
         ))?;
-        if let Ok(coconut_keypair_value) = pemstore::load_keypair(&pemstore::KeyPairPath::new(
+        if let Ok(coconut_keypair_value) = nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
             config.secret_key_path(),
             config.verification_key_path(),
         )) {
@@ -114,7 +114,7 @@ impl<R: RngCore + Clone> DkgController<R> {
                         .await
                     }
                     EpochState::VerificationKeySubmission { resharing } => {
-                        let keypair_path = pemstore::KeyPairPath::new(
+                        let keypair_path = nym_pemstore::KeyPairPath::new(
                             self.secret_key_path.clone(),
                             self.verification_key_path.clone(),
                         );

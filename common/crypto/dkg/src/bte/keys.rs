@@ -8,7 +8,7 @@ use crate::utils::{deserialize_g1, deserialize_g2, deserialize_scalar};
 use bls12_381::{G1Projective, G2Projective, Scalar};
 use ff::Field;
 use group::GroupEncoding;
-use pemstore::traits::{PemStorableKey, PemStorableKeyPair};
+use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use rand_core::RngCore;
 use zeroize::Zeroize;
 

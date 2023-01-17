@@ -48,7 +48,7 @@ gateway-client = { path = "../../common/client-libs/gateway-client" }
 gateway-requests = { path = "../../gateway/gateway-requests" }
 network-defaults = { path = "../../common/network-defaults" }
 nymsphinx = { path = "../../common/nymsphinx" }
-pemstore = { path = "../../common/pemstore" }
+nym-pemstore = { path = "../../common/pemstore" }
 task = { path = "../../common/task" }
 topology = { path = "../../common/topology" }
 validator-client = { path = "../../common/client-libs/validator-client", features = ["nyxd-client"] }

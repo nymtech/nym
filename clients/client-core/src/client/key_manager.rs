@@ -72,17 +72,17 @@ impl KeyManager {
     /// Loads previously stored client keys from the disk.
     fn load_client_keys(client_pathfinder: &ClientKeyPathfinder) -> io::Result<Self> {
         let identity_keypair: identity::KeyPair =
-            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
                 client_pathfinder.private_identity_key().to_owned(),
                 client_pathfinder.public_identity_key().to_owned(),
             ))?;
         let encryption_keypair: encryption::KeyPair =
-            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
                 client_pathfinder.private_encryption_key().to_owned(),
                 client_pathfinder.public_encryption_key().to_owned(),
             ))?;
 
-        let ack_key: AckKey = pemstore::load_key(client_pathfinder.ack_key())?;
+        let ack_key: AckKey = nym_pemstore::load_key(client_pathfinder.ack_key())?;
 
         Ok(KeyManager {
             identity_keypair: Arc::new(identity_keypair),
@@ -98,7 +98,7 @@ impl KeyManager {
         let mut key_manager = Self::load_client_keys(client_pathfinder)?;
 
         let gateway_shared_key: SharedKeys =
-            pemstore::load_key(client_pathfinder.gateway_shared_key())?;
+            nym_pemstore::load_key(client_pathfinder.gateway_shared_key())?;
 
         key_manager.gateway_shared_key = Some(Arc::new(gateway_shared_key));
 
@@ -113,7 +113,7 @@ impl KeyManager {
         let mut key_manager = Self::load_client_keys(client_pathfinder)?;
 
         let gateway_shared_key: Result<SharedKeys, io::Error> =
-            pemstore::load_key(client_pathfinder.gateway_shared_key());
+            nym_pemstore::load_key(client_pathfinder.gateway_shared_key());
 
         // It's ok if the gateway key was not found
         let gateway_shared_key = match gateway_shared_key {
@@ -132,27 +132,27 @@ impl KeyManager {
     // it is done so for the consistency sake so that you wouldn't require an rng instance
     // during `load_keys` to generate the said key.
     pub fn store_keys(&self, client_pathfinder: &ClientKeyPathfinder) -> io::Result<()> {
-        pemstore::store_keypair(
+        nym_pemstore::store_keypair(
             self.identity_keypair.as_ref(),
-            &pemstore::KeyPairPath::new(
+            &nym_pemstore::KeyPairPath::new(
                 client_pathfinder.private_identity_key().to_owned(),
                 client_pathfinder.public_identity_key().to_owned(),
             ),
         )?;
-        pemstore::store_keypair(
+        nym_pemstore::store_keypair(
             self.encryption_keypair.as_ref(),
-            &pemstore::KeyPairPath::new(
+            &nym_pemstore::KeyPairPath::new(
                 client_pathfinder.private_encryption_key().to_owned(),
                 client_pathfinder.public_encryption_key().to_owned(),
             ),
         )?;
 
-        pemstore::store_key(self.ack_key.as_ref(), client_pathfinder.ack_key())?;
+        nym_pemstore::store_key(self.ack_key.as_ref(), client_pathfinder.ack_key())?;
 
         match self.gateway_shared_key.as_ref() {
             None => debug!("No gateway shared key available to store!"),
             Some(gate_key) => {
-                pemstore::store_key(gate_key.as_ref(), client_pathfinder.gateway_shared_key())?
+                nym_pemstore::store_key(gate_key.as_ref(), client_pathfinder.gateway_shared_key())?
             }
         }
 
@@ -168,7 +168,7 @@ impl KeyManager {
                 ))
             }
             Some(gate_key) => {
-                pemstore::store_key(gate_key.as_ref(), client_pathfinder.gateway_shared_key())?
+                nym_pemstore::store_key(gate_key.as_ref(), client_pathfinder.gateway_shared_key())?
             }
         }
 

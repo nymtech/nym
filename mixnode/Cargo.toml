@@ -49,7 +49,7 @@ mixnet-client = { path="../common/client-libs/mixnet-client" }
 mixnode-common = { path="../common/mixnode-common" }
 nonexhaustive-delayqueue = { path="../common/nonexhaustive-delayqueue" }
 nymsphinx = { path="../common/nymsphinx" }
-pemstore = { path="../common/pemstore" }
+nym-pemstore = { path="../common/pemstore" }
 task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
 topology = { path="../common/topology" }

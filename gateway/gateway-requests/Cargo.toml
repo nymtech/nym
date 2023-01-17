@@ -20,7 +20,7 @@ serde_json = "1.0"
 thiserror = "1.0"
 
 nym-crypto = { path = "../../common/crypto"  }
-pemstore = { path = "../../common/pemstore" }
+nym-pemstore = { path = "../../common/pemstore" }
 
 coconut-interface = { path = "../../common/coconut-interface" }
 credentials = { path = "../../common/credentials" }

@@ -43,7 +43,7 @@ gateway-requests = { path = "../../gateway/gateway-requests" }
 network-defaults = { path = "../../common/network-defaults" }
 nymsphinx = { path = "../../common/nymsphinx" }
 ordered-buffer = { path = "../../common/socks5/ordered-buffer" }
-pemstore = { path = "../../common/pemstore" }
+nym-pemstore = { path = "../../common/pemstore" }
 proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
 service-providers-common = { path = "../../service-providers/common" }
 socks5-requests = { path = "../../common/socks5/requests" }

@@ -14,7 +14,7 @@ nym-crypto = { path = "../../crypto", features = ["symmetric", "rand"] }
 nymsphinx-addressing = { path = "../addressing" }
 nymsphinx-params = { path = "../params" }
 nymsphinx-types = { path = "../types" }
-pemstore = { path = "../../pemstore" }
+nym-pemstore = { path = "../../pemstore" }
 topology = { path = "../../topology" }
 
 

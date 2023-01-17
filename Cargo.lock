@@ -708,8 +708,8 @@ dependencies = [
  "log",
  "nonexhaustive-delayqueue",
  "nym-crypto",
+ "nym-pemstore",
  "nymsphinx",
- "pemstore",
  "rand 0.7.3",
  "serde",
  "serde_json",
@@ -1043,7 +1043,7 @@ dependencies = [
  "logging",
  "network-defaults",
  "nym-crypto",
- "pemstore",
+ "nym-pemstore",
  "rand 0.7.3",
  "serde",
  "thiserror",
@@ -1628,7 +1628,7 @@ dependencies = [
  "ff 0.11.1",
  "group 0.11.0",
  "lazy_static",
- "pemstore",
+ "nym-pemstore",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rand_core 0.6.4",
@@ -2127,8 +2127,8 @@ dependencies = [
  "mobile-storage",
  "network-defaults",
  "nym-crypto",
+ "nym-pemstore",
  "nymsphinx",
- "pemstore",
  "rand 0.7.3",
  "serde",
  "task",
@@ -2155,8 +2155,8 @@ dependencies = [
  "futures",
  "log",
  "nym-crypto",
+ "nym-pemstore",
  "nymsphinx",
- "pemstore",
  "rand 0.7.3",
  "serde",
  "serde_json",
@@ -3404,11 +3404,11 @@ dependencies = [
  "nym-contracts-common",
  "nym-crypto",
  "nym-mixnet-contract-common",
+ "nym-pemstore",
  "nym-vesting-contract-common",
  "nymcoconut",
  "nymsphinx",
  "okapi",
- "pemstore",
  "pin-project",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -3544,8 +3544,8 @@ dependencies = [
  "logging",
  "network-defaults",
  "nym-crypto",
+ "nym-pemstore",
  "nymsphinx",
- "pemstore",
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",
@@ -3589,8 +3589,8 @@ dependencies = [
  "generic-array 0.14.6",
  "hkdf 0.12.3",
  "hmac 0.12.1",
+ "nym-pemstore",
  "nymsphinx-types",
- "pemstore",
  "rand 0.7.3",
  "rand_chacha 0.2.2",
  "serde",
@@ -3630,10 +3630,10 @@ dependencies = [
  "network-defaults",
  "nym-api-requests",
  "nym-crypto",
+ "nym-pemstore",
  "nym-types",
  "nymsphinx",
  "once_cell",
- "pemstore",
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",
@@ -3695,11 +3695,11 @@ dependencies = [
  "mixnode-common",
  "nonexhaustive-delayqueue",
  "nym-crypto",
+ "nym-pemstore",
  "nym-types",
  "nymsphinx",
  "nymsphinx-params",
  "nymsphinx-types",
- "pemstore",
  "pretty_env_logger",
  "rand 0.7.3",
  "rocket",
@@ -3783,6 +3783,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-pemstore"
+version = "0.1.0"
+dependencies = [
+ "pem",
+]
+
+[[package]]
 name = "nym-sdk"
 version = "0.1.0"
 dependencies = [
@@ -3830,9 +3837,9 @@ dependencies = [
  "mobile-storage",
  "network-defaults",
  "nym-crypto",
+ "nym-pemstore",
  "nymsphinx",
  "ordered-buffer",
- "pemstore",
  "pin-project",
  "pretty_env_logger",
  "proxy-helpers",
@@ -3938,7 +3945,7 @@ dependencies = [
  "getrandom 0.2.8",
  "group 0.11.0",
  "itertools",
- "pemstore",
+ "nym-pemstore",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "serde",
@@ -3974,10 +3981,10 @@ name = "nymsphinx-acknowledgements"
 version = "0.1.0"
 dependencies = [
  "nym-crypto",
+ "nym-pemstore",
  "nymsphinx-addressing",
  "nymsphinx-params",
  "nymsphinx-types",
- "pemstore",
  "rand 0.7.3",
  "thiserror",
  "topology",
@@ -4315,13 +4322,6 @@ dependencies = [
  "base64 0.13.1",
  "once_cell",
  "regex",
-]
-
-[[package]]
-name = "pemstore"
-version = "0.1.0"
-dependencies = [
- "pem",
 ]
 
 [[package]]

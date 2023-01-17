@@ -1199,7 +1199,7 @@ dependencies = [
  "ff",
  "group",
  "lazy_static",
- "pemstore",
+ "nym-pemstore",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rand_core 0.6.4",
@@ -2938,6 +2938,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-pemstore"
+version = "0.1.0"
+dependencies = [
+ "pem",
+]
+
+[[package]]
 name = "nym-types"
 version = "1.0.0"
 dependencies = [
@@ -3087,7 +3094,7 @@ dependencies = [
  "getrandom 0.2.8",
  "group",
  "itertools",
- "pemstore",
+ "nym-pemstore",
  "rand 0.8.5",
  "serde",
  "serde_derive",
@@ -3349,13 +3356,6 @@ dependencies = [
  "base64 0.13.1",
  "once_cell",
  "regex",
-]
-
-[[package]]
-name = "pemstore"
-version = "0.1.0"
-dependencies = [
- "pem",
 ]
 
 [[package]]

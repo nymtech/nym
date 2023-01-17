@@ -18,7 +18,7 @@ use dkg::error::DkgError;
 use dkg::{combine_shares, try_recover_verification_keys, Dealing, Threshold};
 use nymcoconut::tests::helpers::transpose_matrix;
 use nymcoconut::{check_vk_pairing, Base58, KeyPair, Parameters, SecretKey, VerificationKey};
-use pemstore::KeyPairPath;
+use nym_pemstore::KeyPairPath;
 use std::collections::BTreeMap;
 use validator_client::nyxd::cosmwasm_client::logs::find_attribute;
 
@@ -160,7 +160,7 @@ pub(crate) async fn verification_key_submission(
         deterministic_filter_dealers(dkg_client, state, threshold, resharing).await?;
     let coconut_keypair = derive_partial_keypair(state, threshold, dealings_maps)?;
     let vk_share = coconut_keypair.verification_key().to_bs58();
-    pemstore::store_keypair(&coconut_keypair, keypair_path)?;
+    nym_pemstore::store_keypair(&coconut_keypair, keypair_path)?;
     let res = dkg_client
         .submit_verification_key_share(vk_share, resharing)
         .await?;

@@ -65,7 +65,7 @@ impl MixNode {
     /// Loads identity keys stored on disk
     pub(crate) fn load_identity_keys(pathfinder: &MixNodePathfinder) -> identity::KeyPair {
         let identity_keypair: identity::KeyPair =
-            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
                 pathfinder.private_identity_key().to_owned(),
                 pathfinder.public_identity_key().to_owned(),
             ))
@@ -76,7 +76,7 @@ impl MixNode {
     /// Loads Sphinx keys stored on disk
     fn load_sphinx_keys(pathfinder: &MixNodePathfinder) -> encryption::KeyPair {
         let sphinx_keypair: encryption::KeyPair =
-            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
                 pathfinder.private_encryption_key().to_owned(),
                 pathfinder.public_encryption_key().to_owned(),
             ))

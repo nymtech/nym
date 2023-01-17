@@ -16,8 +16,8 @@ use std::time::Duration;
 use strum::IntoEnumIterator;
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use url::Url;
-use validator_client::nymd::cosmwasm_client::types::SimulateResponse;
-use validator_client::nymd::{AccountId as CosmosAccountId, Coin, Fee, SigningNymdClient};
+use validator_client::nyxd::cosmwasm_client::types::SimulateResponse;
+use validator_client::nyxd::{AccountId as CosmosAccountId, Coin, Fee, SigningNyxdClient};
 use validator_client::Client;
 
 // Some hardcoded metadata overrides
@@ -65,7 +65,7 @@ impl WalletState {
 #[derive(Default)]
 pub struct WalletStateInner {
     config: config::Config,
-    signing_clients: HashMap<Network, Client<SigningNymdClient>>,
+    signing_clients: HashMap<Network, Client<SigningNyxdClient>>,
     current_network: Network,
 
     // All the accounts the we get from decrypting the wallet. We hold on to these for being able to
@@ -156,8 +156,8 @@ impl WalletStateInner {
     ) -> Result<FeeDetails, BackendError> {
         // this MUST succeed as we just used it before
         let client = self.current_client()?;
-        let gas_price = client.nymd.gas_price().clone();
-        let gas_adjustment = client.nymd.gas_adjustment();
+        let gas_price = client.nyxd.gas_price().clone();
+        let gas_adjustment = client.nyxd.gas_adjustment();
 
         let res = SimulateResult::new(simulate_response.gas_info, gas_price, gas_adjustment);
 
@@ -169,7 +169,7 @@ impl WalletStateInner {
         Ok(FeeDetails::new(amount, res.to_fee()))
     }
 
-    pub fn client(&self, network: Network) -> Result<&Client<SigningNymdClient>, BackendError> {
+    pub fn client(&self, network: Network) -> Result<&Client<SigningNyxdClient>, BackendError> {
         self.signing_clients
             .get(&network)
             .ok_or(BackendError::ClientNotInitialized)
@@ -178,20 +178,20 @@ impl WalletStateInner {
     pub fn client_mut(
         &mut self,
         network: Network,
-    ) -> Result<&mut Client<SigningNymdClient>, BackendError> {
+    ) -> Result<&mut Client<SigningNyxdClient>, BackendError> {
         self.signing_clients
             .get_mut(&network)
             .ok_or(BackendError::ClientNotInitialized)
     }
 
-    pub fn current_client(&self) -> Result<&Client<SigningNymdClient>, BackendError> {
+    pub fn current_client(&self) -> Result<&Client<SigningNyxdClient>, BackendError> {
         self.signing_clients
             .get(&self.current_network)
             .ok_or(BackendError::ClientNotInitialized)
     }
 
     #[allow(unused)]
-    pub fn current_client_mut(&mut self) -> Result<&mut Client<SigningNymdClient>, BackendError> {
+    pub fn current_client_mut(&mut self) -> Result<&mut Client<SigningNyxdClient>, BackendError> {
         self.signing_clients
             .get_mut(&self.current_network)
             .ok_or(BackendError::ClientNotInitialized)
@@ -211,7 +211,7 @@ impl WalletStateInner {
         Ok(self.config.save_to_files()?)
     }
 
-    pub fn add_client(&mut self, network: Network, client: Client<SigningNymdClient>) {
+    pub fn add_client(&mut self, network: Network, client: Client<SigningNyxdClient>) {
         self.signing_clients.insert(network, client);
     }
 
@@ -258,26 +258,26 @@ impl WalletStateInner {
         let validators = validators_in_config
             .chain(fetched_validators)
             .chain(default_validators)
-            .unique_by(|v| (v.nymd_url.clone(), v.api_url.clone()));
+            .unique_by(|v| (v.nyxd_url.clone(), v.api_url.clone()));
 
         // Annotate with dynamic metadata
         validators.map(|v| {
-            let metadata = self.validator_metadata.get(&v.nymd_url);
+            let metadata = self.validator_metadata.get(&v.nyxd_url);
             let name = v
-                .nymd_name
+                .nyxd_name
                 .or_else(|| metadata.and_then(|m| m.name.clone()));
             config::ValidatorConfigEntry {
-                nymd_url: v.nymd_url,
-                nymd_name: name,
+                nyxd_url: v.nyxd_url,
+                nyxd_name: name,
                 api_url: v.api_url,
             }
         })
     }
 
-    pub fn get_nymd_urls_only(&self, network: Network) -> impl Iterator<Item = Url> + '_ {
+    pub fn get_nyxd_urls_only(&self, network: Network) -> impl Iterator<Item = Url> + '_ {
         self.get_config_validator_entries(network)
             .into_iter()
-            .map(|v| v.nymd_url)
+            .map(|v| v.nyxd_url)
     }
 
     pub fn get_api_urls_only(&self, network: Network) -> impl Iterator<Item = Url> + '_ {
@@ -286,17 +286,17 @@ impl WalletStateInner {
             .filter_map(|v| v.api_url)
     }
 
-    /// Get the list of validator nymd urls in the network config format, suitable for passing on to
+    /// Get the list of validator nyxd urls in the network config format, suitable for passing on to
     /// the UI
-    pub fn get_nymd_urls(
+    pub fn get_nyxd_urls(
         &self,
         network: Network,
     ) -> impl Iterator<Item = network_config::ValidatorUrl> + '_ {
         self.get_config_validator_entries(network)
             .into_iter()
             .map(|v| network_config::ValidatorUrl {
-                url: v.nymd_url.to_string(),
-                name: v.nymd_name,
+                url: v.nyxd_url.to_string(),
+                name: v.nyxd_name,
             })
     }
 
@@ -316,10 +316,10 @@ impl WalletStateInner {
             })
     }
 
-    pub fn get_all_nymd_urls(&self) -> HashMap<Network, Vec<Url>> {
+    pub fn get_all_nyxd_urls(&self) -> HashMap<Network, Vec<Url>> {
         Network::iter()
             .flat_map(|network| {
-                self.get_nymd_urls_only(network)
+                self.get_nyxd_urls_only(network)
                     .map(move |url| (network, url))
             })
             .into_group_map()
@@ -334,18 +334,18 @@ impl WalletStateInner {
             .into_group_map()
     }
 
-    /// Fetch validator urls remotely. These are used to in addition to the base ones, and the user
+    /// Fetch nyxd urls remotely. These are used to in addition to the base ones, and the user
     /// configured ones.
-    pub async fn fetch_updated_validator_urls(&mut self) -> Result<(), BackendError> {
+    pub async fn fetch_updated_nyxd_urls(&mut self) -> Result<(), BackendError> {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(3))
             .build()?;
         log::debug!(
             "Fetching validator urls from: {}",
-            crate::config::REMOTE_SOURCE_OF_VALIDATOR_URLS
+            crate::config::REMOTE_SOURCE_OF_NYXD_URLS
         );
         let response = client
-            .get(crate::config::REMOTE_SOURCE_OF_VALIDATOR_URLS.to_string())
+            .get(crate::config::REMOTE_SOURCE_OF_NYXD_URLS.to_string())
             .send()
             .await?;
 
@@ -361,13 +361,13 @@ impl WalletStateInner {
         log::debug!("Refreshing validator status");
 
         // All urls for all networks
-        let nymd_urls = self
-            .get_all_nymd_urls()
+        let nyxd_urls = self
+            .get_all_nyxd_urls()
             .into_iter()
             .flat_map(|(_, urls)| urls.into_iter());
 
         // Fetch status for all urls
-        let responses = fetch_status_for_urls(nymd_urls).await?;
+        let responses = fetch_status_for_urls(nyxd_urls).await?;
 
         // Update the stored metadata
         self.apply_responses(responses)?;
@@ -413,14 +413,10 @@ impl WalletStateInner {
         }
     }
 
-    pub fn select_validator_nymd_url(
-        &mut self,
-        url: &str,
-        network: Network,
-    ) -> Result<(), BackendError> {
-        self.config.select_validator_nymd_url(url.parse()?, network);
+    pub fn select_nyxd_url(&mut self, url: &str, network: Network) -> Result<(), BackendError> {
+        self.config.select_nyxd_url(url.parse()?, network);
         if let Ok(client) = self.client_mut(network) {
-            client.change_nymd(url.parse()?)?;
+            client.change_nyxd(url.parse()?)?;
         }
         Ok(())
     }
@@ -443,13 +439,13 @@ impl WalletStateInner {
 }
 
 async fn fetch_status_for_urls(
-    nymd_urls: impl Iterator<Item = Url>,
+    nyxd_urls: impl Iterator<Item = Url>,
 ) -> Result<Vec<Result<(Url, String), reqwest::Error>>, BackendError> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(3))
         .build()?;
 
-    let responses = futures::future::join_all(nymd_urls.into_iter().map(|url| {
+    let responses = futures::future::join_all(nyxd_urls.into_iter().map(|url| {
         let client = &client;
         let status_url = url.join("status").unwrap_or_else(|_| url.clone());
         async move {
@@ -476,9 +472,9 @@ macro_rules! client {
 }
 
 #[macro_export]
-macro_rules! nymd_client {
+macro_rules! nyxd_client {
     ($state:ident) => {
-        $state.read().await.current_client()?.nymd
+        $state.read().await.current_client()?.nyxd
     };
 }
 
@@ -500,17 +496,17 @@ mod tests {
 
         state.add_validator_url(
             config::ValidatorConfigEntry {
-                nymd_url: "http://nymd_url.com".parse().unwrap(),
-                nymd_name: Some("NymdUrl".to_string()),
-                api_url: Some("http://nymd_url.com/api".parse().unwrap()),
+                nyxd_url: "http://nyxd_url.com".parse().unwrap(),
+                nyxd_name: Some("NyxdUrl".to_string()),
+                api_url: Some("http://nyxd_url.com/api".parse().unwrap()),
             },
             Network::MAINNET,
         );
 
         state.add_validator_url(
             config::ValidatorConfigEntry {
-                nymd_url: "http://foo.com".parse().unwrap(),
-                nymd_name: None,
+                nyxd_url: "http://foo.com".parse().unwrap(),
+                nyxd_name: None,
                 api_url: None,
             },
             Network::MAINNET,
@@ -518,8 +514,8 @@ mod tests {
 
         state.add_validator_url(
             config::ValidatorConfigEntry {
-                nymd_url: "http://bar.com".parse().unwrap(),
-                nymd_name: None,
+                nyxd_url: "http://bar.com".parse().unwrap(),
+                nyxd_name: None,
                 api_url: None,
             },
             Network::MAINNET,
@@ -527,10 +523,10 @@ mod tests {
 
         assert_eq!(
             state
-                .get_nymd_urls_only(Network::MAINNET)
+                .get_nyxd_urls_only(Network::MAINNET)
                 .collect::<Vec<_>>(),
             vec![
-                "http://nymd_url.com/".parse().unwrap(),
+                "http://nyxd_url.com/".parse().unwrap(),
                 "http://foo.com".parse().unwrap(),
                 "http://bar.com".parse().unwrap(),
                 "https://rpc.nymtech.net".parse().unwrap(),
@@ -541,18 +537,18 @@ mod tests {
                 .get_api_urls_only(Network::MAINNET)
                 .collect::<Vec<_>>(),
             vec![
-                "http://nymd_url.com/api".parse().unwrap(),
+                "http://nyxd_url.com/api".parse().unwrap(),
                 "https://validator.nymtech.net/api/".parse().unwrap(),
             ],
         );
         assert_eq!(
             state
-                .get_all_nymd_urls()
+                .get_all_nyxd_urls()
                 .get(&Network::MAINNET)
                 .unwrap()
                 .clone(),
             vec![
-                "http://nymd_url.com/".parse().unwrap(),
+                "http://nyxd_url.com/".parse().unwrap(),
                 "http://foo.com".parse().unwrap(),
                 "http://bar.com".parse().unwrap(),
                 "https://rpc.nymtech.net".parse().unwrap(),

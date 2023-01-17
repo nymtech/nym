@@ -20,3 +20,5 @@ export const UPTIME_STORY_API_GATEWAY = `${NYM_API_BASE_URL}/api/v1/status/gatew
 export const MIXNODE_API_ERROR = "We're having trouble finding that record, please try again or Contact Us.";
 
 export const NYM_WEBSITE = 'https://nymtech.net';
+
+export const NYM_BIG_DIPPER = 'https://mixnet.explorers.guru';

@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::time::Duration;
 use url::Url;
+use validator_client::nyxd;
 
 mod template;
 
@@ -101,10 +102,10 @@ pub struct Base {
     announce_address: Url,
 
     /// Address of the validator contract managing the network
-    mixnet_contract_address: String,
+    mixnet_contract_address: nyxd::AccountId,
 
     /// Mnemonic used for rewarding and/or multisig operations
-    mnemonic: String,
+    mnemonic: bip39::Mnemonic,
 }
 
 impl Default for Base {
@@ -116,12 +117,13 @@ impl Default for Base {
         default_announce_address
             .set_port(Some(DEFAULT_NYM_API_PORT))
             .expect("default local validator is malformed!");
+
         Base {
             id: String::default(),
             local_validator: default_validator,
             announce_address: default_announce_address,
-            mixnet_contract_address: MIXNET_CONTRACT_ADDRESS.to_string(),
-            mnemonic: "exact antique hybrid width raise anchor puzzle degree fee quit long crack net vague hip despair write put useless civil mechanic broom music day".to_string(),
+            mixnet_contract_address: MIXNET_CONTRACT_ADDRESS.parse().unwrap(),
+            mnemonic: bip39::Mnemonic::generate(24).unwrap(),
         }
     }
 }
@@ -389,7 +391,7 @@ impl Config {
         self
     }
 
-    pub fn with_custom_nymd_validator(mut self, validator: Url) -> Self {
+    pub fn with_custom_nyxd_validator(mut self, validator: Url) -> Self {
         self.base.local_validator = validator;
         self
     }
@@ -400,13 +402,13 @@ impl Config {
         self
     }
 
-    pub fn with_custom_mixnet_contract<S: Into<String>>(mut self, mixnet_contract: S) -> Self {
-        self.base.mixnet_contract_address = mixnet_contract.into();
+    pub fn with_custom_mixnet_contract(mut self, mixnet_contract: nyxd::AccountId) -> Self {
+        self.base.mixnet_contract_address = mixnet_contract;
         self
     }
 
-    pub fn with_mnemonic<S: Into<String>>(mut self, mnemonic: S) -> Self {
-        self.base.mnemonic = mnemonic.into();
+    pub fn with_mnemonic(mut self, mnemonic: bip39::Mnemonic) -> Self {
+        self.base.mnemonic = mnemonic;
         self
     }
 
@@ -446,13 +448,11 @@ impl Config {
         self.network_monitor.credentials_database_path.clone()
     }
 
-    // TODO: Remove if still unused
-    #[allow(dead_code)]
     pub fn get_rewarding_enabled(&self) -> bool {
         self.rewarding.enabled
     }
 
-    pub fn get_nymd_validator_url(&self) -> Url {
+    pub fn get_nyxd_url(&self) -> Url {
         self.base.local_validator.clone()
     }
 
@@ -461,11 +461,11 @@ impl Config {
         self.base.announce_address.clone()
     }
 
-    pub fn get_mixnet_contract_address(&self) -> String {
+    pub fn get_mixnet_contract_address(&self) -> nyxd::AccountId {
         self.base.mixnet_contract_address.clone()
     }
 
-    pub fn get_mnemonic(&self) -> String {
+    pub fn get_mnemonic(&self) -> bip39::Mnemonic {
         self.base.mnemonic.clone()
     }
 

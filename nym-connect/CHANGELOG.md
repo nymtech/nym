@@ -1,4 +1,12 @@
+# Changelog
+
 ## UNRELEASED
+
+## [nym-connect-v1.1.6](https://github.com/nymtech/nym/tree/nym-connect-v1.1.6) (2023-01-17)
+
+- part (1) show gateway status on the UI if the gateway is not live, is overloaded or is slow ([#2824])
+
+[#2824]: https://github.com/nymtech/nym/pull/2824
 
 ## [nym-connect-v1.1.5](https://github.com/nymtech/nym/tree/nym-connect-v1.1.5) (2023-01-10)
 
@@ -50,7 +58,7 @@ This release contains the new opt-in Test & Earn program, and it uses a stress-t
 - native-client/socks5-client: `disable_main_poisson_packet_distribution` Debug config option to make the client ignore poisson distribution in the main packet stream and ONLY send real message (and as fast as they come) ([#1664])
 - native-client/socks5-client: `use_extended_packet_size` Debug config option to make the client use 'ExtendedPacketSize' for its traffic (32kB as opposed to 2kB in 1.0.2) ([#1671])
 - network-requester: added additional Blockstream Green wallet endpoint to `example.allowed.list` ([#1611])
-- validator-client: added `query_contract_smart` and `query_contract_raw` on `NymdClient` ([#1558])
+- validator-client: added `query_contract_smart` and `query_contract_raw` on `NyxdClient` ([#1558])
 
 [#1472]: https://github.com/nymtech/nym/pull/1472
 [#1558]: https://github.com/nymtech/nym/pull/1558

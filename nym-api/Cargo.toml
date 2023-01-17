@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 [package]
-name = "nym-validator-api"
+name = "nym-api"
 version = "1.1.5"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
@@ -17,13 +17,15 @@ rust-version = "1.56"
 [dependencies]
 async-trait = "0.1.52"
 bs58 = {version = "0.4.0", optional = true }
+bip39 = "1"
 cfg-if = "1.0"
-clap = { version = "3.2", features = ["cargo"] }
+clap = { version = "4.0", features = ["cargo", "derive"] }
 console-subscriber = { version = "0.1.1", optional = true } # validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
 dirs = "4.0"
 dotenv = "0.15.0"
 futures = "0.3.24"
 humantime-serde = "1.0"
+lazy_static = "1.4.0"
 log = "0.4.17"
 pin-project = "1.0"
 pretty_env_logger = "0.4.0"
@@ -63,6 +65,7 @@ rocket_okapi = { version = "0.8.0-rc.2", features = ["swagger"] }
 schemars = { version = "0.8", features = ["preserve_order"] }
 
 ## internal
+build-information = { path = "../common/build-information" }
 coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg", optional = true }
 coconut-interface = { path = "../common/coconut-interface", optional = true }
@@ -86,7 +89,7 @@ task = { path = "../common/task" }
 topology = { path = "../common/topology" }
 nym-api-requests = { path = "nym-api-requests" }
 validator-client = { path = "../common/client-libs/validator-client", features = [
-    "nymd-client",
+    "nyxd-client",
 ] }
 version-checker = { path = "../common/version-checker" }
 
@@ -114,12 +117,6 @@ sqlx = { version = "0.6.2", features = [
     "sqlite",
     "macros",
     "migrate",
-] }
-vergen = { version = "7", default-features = false, features = [
-    "build",
-    "git",
-    "rustc",
-    "cargo",
 ] }
 
 [dev-dependencies]

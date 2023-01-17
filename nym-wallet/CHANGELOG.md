@@ -1,12 +1,19 @@
 # Changelog
 
+## UNRELEASED
+
+## [nym-wallet-v1.1.7](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.7) (2023-01-17)
+
+-  link to the ng mixnet explorer for account info ([#2823])
+
+[#2823]: https://github.com/nymtech/nym/pull/2823
+
 ## [nym-wallet-v1.1.6](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.6) (2023-01-10)
 
-- wallet: rewrite some abci errors on the fly by @octol in https://github.com/nymtech/nym/pull/2716
-- Feature/node settings apy playground by @fmtabbara in https://github.com/nymtech/nym/pull/1677
 - Fix param input layout **1.1.5 Release** by @fmtabbara in https://github.com/nymtech/nym/pull/2720
 - Add epoch info to unbond modal **1.1.5 Release** by @fmtabbara in https://github.com/nymtech/nym/pull/2718
-- Feat/2130 tables update rebase by @gala1234ss as url param by @doums in https://github.com/nymtech/nym/pull/2780
+- Feat/2130 tables update rebase by @gala1234 https://github.com/nymtech/nym/pull/2742
+- pass wallet address as url param by @doums in https://github.com/nymtech/nym/pull/2780
 
 ## [nym-wallet-v1.1.5](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.5) (2022-12-22)
 
@@ -58,7 +65,7 @@ This release contains a bugfix for hiding and displaying the mnemonic, and displ
 
 ## [nym-wallet-v1.0.9](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.0.8) (2022-09-08)
 
-- wallet: change default `nymd` URL to https://rpc.nymtech.net
+- wallet: change default `nyxd` URL to https://rpc.nymtech.net
 
 ## [nym-wallet-v1.0.8](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.0.8) (2022-08-11)
 
@@ -155,7 +162,7 @@ This release contains a bugfix for hiding and displaying the mnemonic, and displ
 - Feature/adding discord [\#1184](https://github.com/nymtech/nym/pull/1184) ([gala1234](https://github.com/gala1234))
 - wallet: config backend for validator selection [\#1183](https://github.com/nymtech/nym/pull/1183) ([octol](https://github.com/octol))
 - Add storybook to wallet [\#1178](https://github.com/nymtech/nym/pull/1178) ([mmsinclair](https://github.com/mmsinclair))
-- wallet: connection test nymd and api urls independently [\#1170](https://github.com/nymtech/nym/pull/1170) ([octol](https://github.com/octol))
+- wallet: connection test nyxd and api urls independently [\#1170](https://github.com/nymtech/nym/pull/1170) ([octol](https://github.com/octol))
 - wallet: wire up account storage [\#1153](https://github.com/nymtech/nym/pull/1153) ([octol](https://github.com/octol))
 - Feature/signature on deposit [\#1151](https://github.com/nymtech/nym/pull/1151) ([neacsu](https://github.com/neacsu))
 
@@ -228,7 +235,7 @@ This release contains a bugfix for hiding and displaying the mnemonic, and displ
 - fix: make explorer footer year dynamic [\#1059](https://github.com/nymtech/nym/pull/1059) ([martinyung](https://github.com/martinyung))
 - Add mnemonic just on creation, to display it [\#1057](https://github.com/nymtech/nym/pull/1057) ([neacsu](https://github.com/neacsu))
 - Network Explorer: updates to API and UI to show the active set [\#1056](https://github.com/nymtech/nym/pull/1056) ([mmsinclair](https://github.com/mmsinclair))
-- Made contract addresses for query NymdClient construction optional [\#1055](https://github.com/nymtech/nym/pull/1055) ([jstuczyn](https://github.com/jstuczyn))
+- Made contract addresses for query NyxdClient construction optional [\#1055](https://github.com/nymtech/nym/pull/1055) ([jstuczyn](https://github.com/jstuczyn))
 - Introduced RPC query for total token supply [\#1053](https://github.com/nymtech/nym/pull/1053) ([jstuczyn](https://github.com/jstuczyn))
 - Feature/tokio console [\#1052](https://github.com/nymtech/nym/pull/1052) ([durch](https://github.com/durch))
 - Implemented beta clippy lint recommendations [\#1051](https://github.com/nymtech/nym/pull/1051) ([jstuczyn](https://github.com/jstuczyn))

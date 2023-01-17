@@ -12,7 +12,7 @@ use crypto::asymmetric::{
     identity::{Ed25519RecoveryError, SignatureError},
 };
 use dkg::error::DkgError;
-use validator_client::nymd::error::NymdError;
+use validator_client::nyxd::error::NyxdError;
 
 use crate::node_status_api::models::NymApiStorageError;
 
@@ -35,8 +35,8 @@ pub enum CoconutError {
     #[error("Could not parse tx hash in request body")]
     TxHashParseError,
 
-    #[error("Nymd error - {0}")]
-    NymdError(#[from] NymdError),
+    #[error("Nyxd error - {0}")]
+    NyxdError(#[from] NyxdError),
 
     #[error("Validator client error - {0}")]
     ValidatorClientError(#[from] validator_client::ValidatorClientError),

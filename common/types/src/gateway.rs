@@ -5,6 +5,7 @@ use mixnet_contract_common::{
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -73,5 +74,39 @@ impl GatewayBond {
             gateway: bond.gateway.into(),
             proxy: bond.proxy.map(|p| p.into_string()),
         })
+    }
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct GatewayNodeDetailsResponse {
+    pub identity_key: String,
+    pub sphinx_key: String,
+    pub owner_signature: String,
+    pub announce_address: String,
+    pub bind_address: String,
+    pub version: String,
+    pub mix_port: u16,
+    pub clients_port: u16,
+    pub data_store: String,
+}
+
+impl fmt::Display for GatewayNodeDetailsResponse {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "Identity Key: {}", self.identity_key)?;
+        writeln!(f, "Sphinx Key: {}", self.sphinx_key)?;
+        writeln!(f, "Owner Signature: {}", self.owner_signature)?;
+        writeln!(
+            f,
+            "Host: {} (bind address: {})",
+            self.announce_address, self.bind_address
+        )?;
+        writeln!(f, "Version: {}", self.version)?;
+        writeln!(
+            f,
+            "Mix Port: {}, Clients port: {}",
+            self.mix_port, self.clients_port
+        )?;
+
+        writeln!(f, "Data store is at: {}", self.data_store)
     }
 }

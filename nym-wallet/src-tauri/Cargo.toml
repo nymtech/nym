@@ -1,6 +1,6 @@
 [package]
 name = "nym_wallet"
-version = "1.1.6"
+version = "1.1.7"
 description = "Nym Native Wallet"
 authors = ["Nym Technologies SA"]
 license = ""
@@ -55,7 +55,7 @@ cosmwasm-std = "1.0.0"
 cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support" }
 
 validator-client = { path = "../../common/client-libs/validator-client", features = [
-    "nymd-client",
+    "nyxd-client",
 ] }
 mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }

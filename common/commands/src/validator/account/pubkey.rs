@@ -4,8 +4,8 @@
 use clap::Parser;
 use log::{error, info};
 
-use validator_client::nymd::wallet::DirectSecp256k1HdWallet;
-use validator_client::nymd::AccountId;
+use validator_client::nyxd::wallet::DirectSecp256k1HdWallet;
+use validator_client::nyxd::AccountId;
 
 use crate::context::QueryClient;
 use crate::utils::show_error;

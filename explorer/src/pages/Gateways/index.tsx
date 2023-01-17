@@ -12,7 +12,7 @@ import { Title } from '../../components/Title';
 import { cellStyles, UniversalDataGrid } from '../../components/Universal-DataGrid';
 import { unymToNym } from '../../utils/currency';
 import { Tooltip } from '../../components/Tooltip';
-import { BIG_DIPPER } from '../../api/constants';
+import { NYM_BIG_DIPPER } from '../../api/constants';
 import { splice } from '../../utils';
 
 export const PageGateways: React.FC = () => {
@@ -134,7 +134,7 @@ export const PageGateways: React.FC = () => {
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
           sx={{ ...cellStyles }}
-          href={`${BIG_DIPPER}/account/${params.value}`}
+          href={`${NYM_BIG_DIPPER}/account/${params.value}`}
           target="_blank"
           data-testid="owner"
         >
@@ -152,7 +152,7 @@ export const PageGateways: React.FC = () => {
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
           sx={{ ...cellStyles }}
-          href={`${BIG_DIPPER}/account/${params.value}`}
+          href={`${NYM_BIG_DIPPER}/account/${params.value}`}
           target="_blank"
           data-testid="owner"
         >

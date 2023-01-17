@@ -1,4 +1,4 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 #[macro_use]
@@ -6,18 +6,21 @@ extern crate rocket;
 
 use crate::config::Config;
 use crate::contract_cache::ValidatorCacheRefresher;
+use crate::epoch_operations::RewardedSetUpdater;
 use crate::network_monitor::NetworkMonitorBuilder;
 use crate::node_status_api::uptime_updater::HistoricalUptimeUpdater;
-use crate::nymd_client::Client;
+use crate::nyxd_client::Client;
 use crate::storage::NymApiStorage;
-use ::config::defaults::mainnet::read_var_if_not_default;
 use ::config::defaults::setup_env;
-use ::config::defaults::var_names::{CONFIGURED, MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
-use ::config::NymConfig;
+use ::config::defaults::var_names::{MIXNET_CONTRACT_ADDRESS, MIX_DENOM};
+use ::config::{NymConfig, OptionalSet};
 use anyhow::Result;
-use clap::{crate_version, App, Arg, ArgMatches};
+use build_information::BinaryBuildInformation;
+use clap::Parser;
 use contract_cache::ValidatorCache;
+use lazy_static::lazy_static;
 use log::{info, warn};
+use logging::setup_logging;
 use node_status_api::NodeStatusCache;
 use okapi::openapi3::OpenApi;
 use rocket::fairing::AdHoc;
@@ -26,184 +29,120 @@ use rocket::{Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use rocket_okapi::mount_endpoints_and_merged_docs;
 use rocket_okapi::swagger_ui::make_swagger_ui;
-use std::path::PathBuf;
-use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 use std::{fs, process};
-use task::TaskManager;
+use task::{wait_for_signal, TaskManager};
 use tokio::sync::Notify;
-#[cfg(feature = "coconut")]
-use url::Url;
-use validator_client::nymd::SigningNymdClient;
+use validator_client::nyxd::{self, SigningNyxdClient};
 
-use crate::epoch_operations::RewardedSetUpdater;
 #[cfg(feature = "coconut")]
 use coconut::{
     comm::QueryCommunicationChannel,
     dkg::controller::{init_keypair, DkgController},
     InternalSignRequest,
 };
-use logging::setup_logging;
 #[cfg(feature = "coconut")]
-use validator_client::nymd::bip32::secp256k1::elliptic_curve::rand_core::OsRng;
+use rand::rngs::OsRng;
 
 pub(crate) mod config;
 pub(crate) mod contract_cache;
 mod epoch_operations;
 mod network_monitor;
 mod node_status_api;
-pub(crate) mod nymd_client;
+pub(crate) mod nyxd_client;
 pub(crate) mod storage;
 mod swagger;
 
 #[cfg(feature = "coconut")]
 mod coconut;
 
-const ID: &str = "id";
-const CONFIG_ENV_FILE: &str = "config-env-file";
-const MONITORING_ENABLED: &str = "enable-monitor";
-const REWARDING_ENABLED: &str = "enable-rewarding";
-const MIXNET_CONTRACT_ARG: &str = "mixnet-contract";
-const MNEMONIC_ARG: &str = "mnemonic";
-const WRITE_CONFIG_ARG: &str = "save-config";
-const NYMD_VALIDATOR_ARG: &str = "nymd-validator";
-const ENABLED_CREDENTIALS_MODE_ARG_NAME: &str = "enabled-credentials-mode";
-
-#[cfg(feature = "coconut")]
-const ANNOUNCE_ADDRESS: &str = "announce-address";
-#[cfg(feature = "coconut")]
-const COCONUT_ENABLED: &str = "enable-coconut";
-
-const REWARDING_MONITOR_THRESHOLD_ARG: &str = "monitor-threshold";
-
-const MIN_MIXNODE_RELIABILITY_ARG: &str = "min_mixnode_reliability";
-const MIN_GATEWAY_RELIABILITY_ARG: &str = "min_gateway_reliability";
-
-fn long_version() -> String {
-    format!(
-        r#"
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-{:<20}{}
-"#,
-        "Build Timestamp:",
-        env!("VERGEN_BUILD_TIMESTAMP"),
-        "Build Version:",
-        env!("VERGEN_BUILD_SEMVER"),
-        "Commit SHA:",
-        env!("VERGEN_GIT_SHA"),
-        "Commit Date:",
-        env!("VERGEN_GIT_COMMIT_TIMESTAMP"),
-        "Commit Branch:",
-        env!("VERGEN_GIT_BRANCH"),
-        "rustc Version:",
-        env!("VERGEN_RUSTC_SEMVER"),
-        "rustc Channel:",
-        env!("VERGEN_RUSTC_CHANNEL"),
-        "cargo Profile:",
-        env!("VERGEN_CARGO_PROFILE")
-    )
+lazy_static! {
+    pub static ref PRETTY_BUILD_INFORMATION: String =
+        BinaryBuildInformation::new(env!("CARGO_PKG_VERSION")).pretty_print();
 }
 
-fn parse_args() -> ArgMatches {
-    let build_details = long_version();
-    let base_app = App::new("Nym API")
-        .version(crate_version!())
-        .long_version(&*build_details)
-        .author("Nymtech")
-        .arg(
-            Arg::with_name(CONFIG_ENV_FILE)
-                .help("Path pointing to an env file that configures the Nym API")
-                .long(CONFIG_ENV_FILE)
-                .short('c')
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name(ID)
-                .help("Id of the nym-api we want to run")
-                .long(ID)
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name(MONITORING_ENABLED)
-                .help("specifies whether a network monitoring is enabled on this API")
-                .long(MONITORING_ENABLED)
-                .short('m')
-        )
-        .arg(
-            Arg::with_name(REWARDING_ENABLED)
-                .help("specifies whether a network rewarding is enabled on this API")
-                .long(REWARDING_ENABLED)
-                .short('r')
-                .requires_all(&[MONITORING_ENABLED, MNEMONIC_ARG])
-        )
-        .arg(
-            Arg::with_name(NYMD_VALIDATOR_ARG)
-                .help("Endpoint to nymd instance from which the monitor will grab nodes to test")
-                .long(NYMD_VALIDATOR_ARG)
-                .takes_value(true)
-        )
-        .arg(Arg::with_name(MIXNET_CONTRACT_ARG)
-                 .long(MIXNET_CONTRACT_ARG)
-                 .help("Address of the mixnet contract managing the network")
-                 .takes_value(true),
-        )
-        .arg(Arg::with_name(MNEMONIC_ARG)
-                 .long(MNEMONIC_ARG)
-                 .help("Mnemonic of the network monitor used for rewarding operators")
-                 .takes_value(true)
-        )
-        .arg(
-            Arg::with_name(WRITE_CONFIG_ARG)
-                .help("specifies whether a config file based on provided arguments should be saved to a file")
-                .long(WRITE_CONFIG_ARG)
-                .short('w')
-        )
-        .arg(
-            Arg::with_name(REWARDING_MONITOR_THRESHOLD_ARG)
-                .help("Specifies the minimum percentage of monitor test run data present in order to distribute rewards for given interval.")
-                .takes_value(true)
-                .long(REWARDING_MONITOR_THRESHOLD_ARG)
-        )
-        .arg(
-            Arg::with_name(MIN_MIXNODE_RELIABILITY_ARG)
-                .long(MIN_MIXNODE_RELIABILITY_ARG)
-                .help("Mixnodes with reliability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.")
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name(MIN_GATEWAY_RELIABILITY_ARG)
-                .long(MIN_GATEWAY_RELIABILITY_ARG)
-                .help("Gateways with reliability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.")
-                .takes_value(true)
-        )
-        .arg(
-            Arg::with_name(ENABLED_CREDENTIALS_MODE_ARG_NAME)
-                .long(ENABLED_CREDENTIALS_MODE_ARG_NAME)
-                .help("Set this nym api to work in a enabled credentials that would attempt to use gateway with the bandwidth credential requirement")
-        );
+// Helper for passing LONG_VERSION to clap
+fn pretty_build_info_static() -> &'static str {
+    &PRETTY_BUILD_INFORMATION
+}
 
+// explicitly defined custom parser (as opposed to just using
+// #[arg(value_parser = clap::value_parser!(u8).range(0..100))]
+// for better error message
+fn threshold_in_range(s: &str) -> Result<u8, String> {
+    let threshold: usize = s
+        .parse()
+        .map_err(|_| format!("`{s}` isn't a valid threshold number"))?;
+    if threshold > 100 {
+        Err(format!("{threshold} is not within the range 0-100"))
+    } else {
+        Ok(threshold as u8)
+    }
+}
+
+#[derive(Parser)]
+#[clap(author = "Nymtech", version, long_version = pretty_build_info_static(), about)]
+struct ApiArgs {
+    /// Path pointing to an env file that configures the Nym API.
+    #[clap(short, long)]
+    config_env_file: Option<std::path::PathBuf>,
+
+    /// Id of the nym-api we want to run
+    #[clap(long)]
+    id: Option<String>,
+
+    /// Specifies whether network monitoring is enabled on this API
+    #[clap(short = 'm', long)]
+    enable_monitor: Option<bool>,
+
+    /// Specifies whether network rewarding is enabled on this API
+    #[clap(short = 'r', long, requires = "enable_monitor", requires = "mnemonic")]
+    enable_rewarding: Option<bool>,
+
+    /// Endpoint to nyxd instance from which the monitor will grab nodes to test
+    #[clap(long)]
+    nyxd_validator: Option<url::Url>,
+
+    /// Address of the mixnet contract managing the network
+    #[clap(long)]
+    mixnet_contract: Option<nyxd::AccountId>,
+
+    /// Mnemonic of the network monitor used for rewarding operators
+    // even though we're currently converting the mnemonic to string (and then back to the concrete type)
+    // at least we're getting immediate validation when passing the arguments
+    #[clap(long)]
+    mnemonic: Option<bip39::Mnemonic>,
+
+    /// Specifies whether a config file based on provided arguments should be saved to a file
+    #[clap(short = 'w', long)]
+    save_config: bool,
+
+    /// Specifies the minimum percentage of monitor test run data present in order to distribute rewards for given interval.
+    #[clap(long, value_parser = threshold_in_range)]
+    monitor_threshold: Option<u8>,
+
+    /// Mixnodes with reliability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.
+    #[clap(long, value_parser = threshold_in_range)]
+    min_mixnode_reliability: Option<u8>,
+
+    /// Gateways with reliability lower the this get blacklisted by network monitor, get no traffic and cannot be selected into a rewarded set.
+    #[clap(long, value_parser = threshold_in_range)]
+    min_gateway_reliability: Option<u8>,
+
+    /// Set this nym api to work in a enabled credentials that would attempt to use gateway with the bandwidth credential requirement
+    #[clap(long)]
+    enabled_credentials_mode: Option<bool>,
+
+    /// Announced address where coconut clients will connect.
     #[cfg(feature = "coconut")]
-    let base_app = base_app
-        .arg(
-            Arg::with_name(ANNOUNCE_ADDRESS)
-                .help("Announced address where coconut clients will connect.")
-                .long(ANNOUNCE_ADDRESS)
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name(COCONUT_ENABLED)
-                .help("Flag to indicate whether coconut signer authority is enabled on this API")
-                .requires_all(&[MNEMONIC_ARG, ANNOUNCE_ADDRESS])
-                .long(COCONUT_ENABLED),
-        );
-    base_app.get_matches()
+    #[clap(long)]
+    announce_address: Option<url::Url>,
+
+    /// Flag to indicate whether coconut signer authority is enabled on this API
+    #[cfg(feature = "coconut")]
+    #[clap(long, requires = "mnemonic", requires = "announce-address")]
+    enable_coconut: Option<bool>,
 }
 
 async fn wait_for_interrupt(mut shutdown: TaskManager) {
@@ -218,122 +157,50 @@ async fn wait_for_interrupt(mut shutdown: TaskManager) {
     log::info!("Stopping nym API");
 }
 
-#[cfg(unix)]
-async fn wait_for_signal() {
-    use tokio::signal::unix::{signal, SignalKind};
-    let mut sigterm = signal(SignalKind::terminate()).expect("Failed to setup SIGTERM channel");
-    let mut sigquit = signal(SignalKind::quit()).expect("Failed to setup SIGQUIT channel");
-
-    tokio::select! {
-        _ = tokio::signal::ctrl_c() => {
-            log::info!("Received SIGINT");
-        },
-        _ = sigterm.recv() => {
-            log::info!("Received SIGTERM");
-        }
-        _ = sigquit.recv() => {
-            log::info!("Received SIGQUIT");
-        }
-    }
-}
-
-#[cfg(not(unix))]
-async fn wait_for_signal() {
-    tokio::select! {
-        _ = tokio::signal::ctrl_c() => {
-            log::info!("Received SIGINT");
-        },
-    }
-}
-
-fn override_config(mut config: Config, matches: &ArgMatches) -> Config {
-    if let Some(id) = matches.value_of(ID) {
-        fs::create_dir_all(Config::default_config_directory(Some(id)))
+fn override_config(mut config: Config, args: ApiArgs) -> Config {
+    if let Some(id) = args.id {
+        fs::create_dir_all(Config::default_config_directory(Some(&id)))
             .expect("Could not create config directory");
-        fs::create_dir_all(Config::default_data_directory(Some(id)))
+        fs::create_dir_all(Config::default_data_directory(Some(&id)))
             .expect("Could not create data directory");
-        config = config.with_id(id);
+        config = config.with_id(&id);
     }
 
-    if matches.is_present(MONITORING_ENABLED) {
-        config = config.with_network_monitor_enabled(true)
-    }
-
-    if matches.is_present(REWARDING_ENABLED) {
-        config = config.with_rewarding_enabled(true)
-    }
+    config = config
+        .with_optional(Config::with_custom_nyxd_validator, args.nyxd_validator)
+        .with_optional_env(
+            Config::with_custom_mixnet_contract,
+            args.mixnet_contract,
+            MIXNET_CONTRACT_ADDRESS,
+        )
+        .with_optional(Config::with_mnemonic, args.mnemonic)
+        .with_optional(
+            Config::with_minimum_interval_monitor_threshold,
+            args.monitor_threshold,
+        )
+        .with_optional(
+            Config::with_min_mixnode_reliability,
+            args.min_mixnode_reliability,
+        )
+        .with_optional(
+            Config::with_min_gateway_reliability,
+            args.min_gateway_reliability,
+        )
+        .with_optional(Config::with_network_monitor_enabled, args.enable_monitor)
+        .with_optional(Config::with_rewarding_enabled, args.enable_rewarding)
+        .with_optional(
+            Config::with_disabled_credentials_mode,
+            args.enabled_credentials_mode.map(|b| !b),
+        );
 
     #[cfg(feature = "coconut")]
-    if matches.is_present(COCONUT_ENABLED) {
-        config = config.with_coconut_signer_enabled(true)
-    }
-
-    #[cfg(feature = "coconut")]
-    if let Some(announce_address) = matches.value_of(ANNOUNCE_ADDRESS) {
-        config = config.with_announce_address(
-            Url::parse(announce_address).expect("Could not parse announce address"),
-        );
-    }
-
-    if let Some(raw_validator) = matches.value_of(NYMD_VALIDATOR_ARG) {
-        let parsed = match raw_validator.parse() {
-            Err(err) => {
-                error!("Passed validator argument is invalid - {err}");
-                process::exit(1)
-            }
-            Ok(url) => url,
-        };
-        config = config.with_custom_nymd_validator(parsed);
-    }
-
-    if let Some(mixnet_contract) = matches.value_of(MIXNET_CONTRACT_ARG) {
-        config = config.with_custom_mixnet_contract(mixnet_contract)
-    } else if std::env::var(CONFIGURED).is_ok() {
-        if let Some(mixnet_contract) = read_var_if_not_default(MIXNET_CONTRACT_ADDRESS) {
-            config = config.with_custom_mixnet_contract(mixnet_contract)
-        }
-    }
-
-    if let Some(mnemonic) = matches.value_of(MNEMONIC_ARG) {
-        config = config.with_mnemonic(mnemonic)
-    }
-
-    if let Some(monitor_threshold) = matches
-        .value_of(REWARDING_MONITOR_THRESHOLD_ARG)
-        .map(|t| t.parse::<u8>())
     {
-        let monitor_threshold =
-            monitor_threshold.expect("Provided monitor threshold is not a number!");
-        assert!(
-            monitor_threshold <= 100,
-            "Provided monitor threshold is greater than 100!"
-        );
-        config = config.with_minimum_interval_monitor_threshold(monitor_threshold)
+        config = config
+            .with_optional(Config::with_announce_address, args.announce_address)
+            .with_optional(Config::with_coconut_signer_enabled, args.enable_coconut);
     }
 
-    if let Some(reliability) = matches
-        .value_of(MIN_MIXNODE_RELIABILITY_ARG)
-        .map(|t| t.parse::<u8>())
-    {
-        config = config.with_min_mixnode_reliability(
-            reliability.expect("Provided reliability is not a u8 number!"),
-        )
-    }
-
-    if let Some(reliability) = matches
-        .value_of(MIN_GATEWAY_RELIABILITY_ARG)
-        .map(|t| t.parse::<u8>())
-    {
-        config = config.with_min_gateway_reliability(
-            reliability.expect("Provided reliability is not a u8 number!"),
-        )
-    }
-
-    if matches.is_present(ENABLED_CREDENTIALS_MODE_ARG_NAME) {
-        config = config.with_disabled_credentials_mode(false)
-    }
-
-    if matches.is_present(WRITE_CONFIG_ARG) {
+    if args.save_config {
         info!("Saving the configuration to a file");
         if let Err(err) = config.save_to_file(None) {
             error!("Failed to write config to a file - {err}");
@@ -371,7 +238,7 @@ fn setup_liftoff_notify(notify: Arc<Notify>) -> AdHoc {
 
 fn setup_network_monitor<'a>(
     config: &'a Config,
-    _nymd_client: Client<SigningNymdClient>,
+    _nyxd_client: Client<SigningNyxdClient>,
     system_version: &str,
     rocket: &Rocket<Ignite>,
 ) -> Option<NetworkMonitorBuilder<'a>> {
@@ -385,7 +252,7 @@ fn setup_network_monitor<'a>(
 
     Some(NetworkMonitorBuilder::new(
         config,
-        _nymd_client,
+        _nyxd_client,
         system_version,
         node_status_storage,
         validator_cache,
@@ -406,7 +273,7 @@ async fn setup_rocket(
     config: &Config,
     _mix_denom: String,
     liftoff_notify: Arc<Notify>,
-    _nymd_client: Client<SigningNymdClient>,
+    _nyxd_client: Client<SigningNyxdClient>,
     #[cfg(feature = "coconut")] coconut_keypair: coconut::keypair::KeyPair,
 ) -> Result<Rocket<Ignite>> {
     let openapi_settings = rocket_okapi::settings::OpenApiSettings::default();
@@ -441,10 +308,10 @@ async fn setup_rocket(
     #[cfg(feature = "coconut")]
     let rocket = if config.get_coconut_signer_enabled() {
         rocket.attach(InternalSignRequest::stage(
-            _nymd_client.clone(),
+            _nyxd_client.clone(),
             _mix_denom,
             coconut_keypair,
-            QueryCommunicationChannel::new(_nymd_client),
+            QueryCommunicationChannel::new(_nyxd_client),
             storage.clone().unwrap(),
         ))
     } else {
@@ -490,11 +357,11 @@ fn get_servers() -> Vec<rocket_okapi::okapi::openapi3::Server> {
     }]
 }
 
-async fn run_nym_api(matches: ArgMatches) -> Result<()> {
+async fn run_nym_api(args: ApiArgs) -> Result<()> {
     let system_version = env!("CARGO_PKG_VERSION");
 
     // try to load config from the file, if it doesn't exist, use default values
-    let id = matches.value_of(ID);
+    let id = args.id.as_deref();
     let (config, _already_inited) = match Config::load_from_file(id) {
         Ok(cfg) => (cfg, true),
         Err(_) => {
@@ -503,14 +370,14 @@ async fn run_nym_api(matches: ArgMatches) -> Result<()> {
                 .into_string()
                 .unwrap();
             warn!(
-                "Could not load the configuration file from {}. Either the file did not exist or was malformed. Using the default values instead",
-                config_path
+                "Could not load the configuration file from {config_path}. Either the file did not exist or was malformed. Using the default values instead",                
             );
             (Config::new(), false)
         }
     };
 
-    let config = override_config(config, &matches);
+    let save_to_file = args.save_config;
+    let config = override_config(config, args);
 
     #[cfg(feature = "coconut")]
     if !_already_inited {
@@ -518,12 +385,19 @@ async fn run_nym_api(matches: ArgMatches) -> Result<()> {
     }
 
     // if we just wanted to write data to the config, exit
-    if matches.is_present(WRITE_CONFIG_ARG) {
-        return Ok(());
+    if save_to_file {
+        info!("Saving the configuration to a file");
+        if let Err(err) = config.save_to_file(None) {
+            error!("Failed to write config to a file - {err}");
+            process::exit(1)
+        } else {
+            return Ok(());
+        }
     }
+
     let mix_denom = std::env::var(MIX_DENOM).expect("mix denom not set");
 
-    let signing_nymd_client = Client::new_signing(&config);
+    let signing_nyxd_client = Client::new_signing(&config);
 
     let liftoff_notify = Arc::new(Notify::new());
     // We need a bigger timeout
@@ -537,14 +411,14 @@ async fn run_nym_api(matches: ArgMatches) -> Result<()> {
         &config,
         mix_denom,
         Arc::clone(&liftoff_notify),
-        signing_nymd_client.clone(),
+        signing_nyxd_client.clone(),
         #[cfg(feature = "coconut")]
         coconut_keypair.clone(),
     )
     .await?;
     let monitor_builder = setup_network_monitor(
         &config,
-        signing_nymd_client.clone(),
+        signing_nyxd_client.clone(),
         system_version,
         &rocket,
     );
@@ -555,7 +429,7 @@ async fn run_nym_api(matches: ArgMatches) -> Result<()> {
     #[cfg(feature = "coconut")]
     {
         let dkg_controller =
-            DkgController::new(&config, signing_nymd_client.clone(), coconut_keypair, OsRng)
+            DkgController::new(&config, signing_nyxd_client.clone(), coconut_keypair, OsRng)
                 .await?;
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(async move { dkg_controller.run(shutdown_listener).await });
@@ -575,7 +449,7 @@ async fn run_nym_api(matches: ArgMatches) -> Result<()> {
 
         // spawn the validator cache refresher
         let validator_cache_refresher = ValidatorCacheRefresher::new(
-            signing_nymd_client.clone(),
+            signing_nyxd_client.clone(),
             config.get_caching_interval(),
             validator_cache.clone(),
         );
@@ -584,19 +458,21 @@ async fn run_nym_api(matches: ArgMatches) -> Result<()> {
         tokio::spawn(async move { validator_cache_refresher.run(shutdown_listener).await });
 
         // spawn rewarded set updater
-        let mut rewarded_set_updater =
-            RewardedSetUpdater::new(signing_nymd_client, validator_cache.clone(), storage).await?;
-        let shutdown_listener = shutdown.subscribe();
-        tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await.unwrap() });
-
+        if config.get_rewarding_enabled() {
+            let mut rewarded_set_updater =
+                RewardedSetUpdater::new(signing_nyxd_client, validator_cache.clone(), storage)
+                    .await?;
+            let shutdown_listener = shutdown.subscribe();
+            tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await.unwrap() });
+        }
         validator_cache_listener
     } else {
         // Spawn the validator cache refresher.
         // When the network monitor is not enabled, we spawn the validator cache refresher task
-        // with just a nymd client, in contrast to a signing client.
-        let nymd_client = Client::new_query(&config);
+        // with just a nyxd client, in contrast to a signing client.
+        let nyxd_client = Client::new_query(&config);
         let validator_cache_refresher = ValidatorCacheRefresher::new(
-            nymd_client,
+            nyxd_client,
             config.get_caching_interval(),
             validator_cache.clone(),
         );
@@ -658,10 +534,7 @@ async fn main() -> Result<()> {
     }}
 
     setup_logging();
-    let args = parse_args();
-    let config_env_file = args
-        .value_of(CONFIG_ENV_FILE)
-        .map(|s| PathBuf::from_str(s).expect("invalid env config file"));
-    setup_env(config_env_file);
+    let args = ApiArgs::parse();
+    setup_env(args.config_env_file.as_ref());
     run_nym_api(args).await
 }

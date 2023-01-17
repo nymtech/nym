@@ -18,7 +18,7 @@ use nymcoconut::tests::helpers::transpose_matrix;
 use nymcoconut::{check_vk_pairing, Base58, KeyPair, Parameters, SecretKey, VerificationKey};
 use pemstore::KeyPairPath;
 use std::collections::BTreeMap;
-use validator_client::nymd::cosmwasm_client::logs::find_attribute;
+use validator_client::nyxd::cosmwasm_client::logs::find_attribute;
 
 // Filter the dealers based on what dealing they posted (or not) in the contract
 async fn deterministic_filter_dealers(
@@ -264,7 +264,7 @@ pub(crate) mod tests {
     use std::str::FromStr;
     use std::sync::{Arc, RwLock};
     use url::Url;
-    use validator_client::nymd::AccountId;
+    use validator_client::nyxd::AccountId;
 
     struct MockContractDb {
         dealer_details_db: Arc<RwLock<HashMap<String, DealerDetails>>>,
@@ -499,8 +499,12 @@ pub(crate) mod tests {
             .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
             .and_modify(|dealings| {
                 let mut last = dealings.pop().unwrap();
-                last.0.pop();
-                last.0.push(42);
+                let value = last.0.pop().unwrap();
+                if value == 42 {
+                    last.0.push(43);
+                } else {
+                    last.0.push(42);
+                }
                 dealings.push(last);
             });
 

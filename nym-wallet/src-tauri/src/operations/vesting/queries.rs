@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BackendError;
-use crate::nymd_client;
+use crate::nyxd_client;
 use crate::state::WalletState;
 use cosmwasm_std::Timestamp;
 use nym_types::currency::DecCoin;
 use nym_types::vesting::VestingAccountInfo;
 use nym_types::vesting::{OriginalVestingResponse, PledgeData};
-use validator_client::nymd::VestingQueryClient;
+use validator_client::nyxd::VestingQueryClient;
 use vesting_contract_common::Period;
 
 #[tauri::command]
@@ -21,9 +21,9 @@ pub async fn locked_coins(
     let client = guard.current_client()?;
 
     let res = client
-        .nymd
+        .nyxd
         .locked_coins(
-            client.nymd.address().as_ref(),
+            client.nyxd.address().as_ref(),
             block_time.map(Timestamp::from_seconds),
         )
         .await?;
@@ -42,9 +42,9 @@ pub async fn spendable_coins(
     let client = guard.current_client()?;
 
     let res = client
-        .nymd
+        .nyxd
         .spendable_coins(
-            client.nymd.address().as_ref(),
+            client.nyxd.address().as_ref(),
             block_time.map(Timestamp::from_seconds),
         )
         .await?;
@@ -65,7 +65,7 @@ pub async fn vested_coins(
 
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .vested_coins(
             vesting_account_address,
             block_time.map(Timestamp::from_seconds),
@@ -88,7 +88,7 @@ pub async fn vesting_coins(
 
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .vesting_coins(
             vesting_account_address,
             block_time.map(Timestamp::from_seconds),
@@ -106,7 +106,7 @@ pub async fn vesting_start_time(
     state: tauri::State<'_, WalletState>,
 ) -> Result<u64, BackendError> {
     log::info!(">>> Query vesting start time");
-    let res = nymd_client!(state)
+    let res = nyxd_client!(state)
         .vesting_start_time(vesting_account_address)
         .await?
         .seconds();
@@ -120,7 +120,7 @@ pub async fn vesting_end_time(
     state: tauri::State<'_, WalletState>,
 ) -> Result<u64, BackendError> {
     log::info!(">>> Query vesting end time");
-    let res = nymd_client!(state)
+    let res = nyxd_client!(state)
         .vesting_end_time(vesting_account_address)
         .await?
         .seconds();
@@ -139,7 +139,7 @@ pub async fn original_vesting(
 
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .original_vesting(vesting_account_address)
         .await?;
 
@@ -159,7 +159,7 @@ pub async fn delegated_free(
 
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .delegated_free(
             vesting_account_address,
             block_time.map(Timestamp::from_seconds),
@@ -183,7 +183,7 @@ pub async fn delegated_vesting(
 
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .delegated_vesting(
             vesting_account_address,
             block_time.map(Timestamp::from_seconds),
@@ -206,7 +206,7 @@ pub async fn vesting_get_mixnode_pledge(
 
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .get_mixnode_pledge(address)
         .await?
         .map(|pledge| PledgeData::from_vesting_contract(pledge, reg))
@@ -227,7 +227,7 @@ pub async fn vesting_get_gateway_pledge(
 
     let res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .get_gateway_pledge(address)
         .await?
         .map(|pledge| PledgeData::from_vesting_contract(pledge, reg))
@@ -243,7 +243,7 @@ pub async fn get_current_vesting_period(
     state: tauri::State<'_, WalletState>,
 ) -> Result<Period, BackendError> {
     log::info!(">>> Query current vesting period");
-    let res = nymd_client!(state)
+    let res = nyxd_client!(state)
         .get_current_vesting_period(address)
         .await?;
     log::info!("<<< {:?}", res);
@@ -259,7 +259,7 @@ pub async fn get_account_info(
     let guard = state.read().await;
     let res = guard.registered_coins()?;
 
-    let vesting_account = guard.current_client()?.nymd.get_account(address).await?;
+    let vesting_account = guard.current_client()?.nyxd.get_account(address).await?;
     let res = VestingAccountInfo::from_vesting_contract(vesting_account, res)?;
 
     log::info!("<<< {:?}", res);

@@ -9,8 +9,8 @@ use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare
 use contracts_common::dealings::ContractSafeBytes;
 use cw3::ProposalResponse;
 use dkg::Threshold;
-use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
-use validator_client::nymd::{AccountId, Fee, TxResponse};
+use validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
+use validator_client::nyxd::{AccountId, Fee, TxResponse};
 
 #[async_trait]
 pub trait Client {

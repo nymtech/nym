@@ -37,7 +37,7 @@ pub async fn obtain_aggregate_verification_key(
 async fn obtain_partial_credential(
     params: &Parameters,
     attributes: &BandwidthVoucher,
-    client: &validator_client::client::ApiClient,
+    client: &validator_client::client::NymApiClient,
     validator_vk: &VerificationKey,
 ) -> Result<Signature, Error> {
     let public_attributes = attributes.get_public_attributes();

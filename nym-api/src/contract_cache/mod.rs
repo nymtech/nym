@@ -1,7 +1,7 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::nymd_client::Client;
+use crate::nyxd_client::Client;
 use ::time::OffsetDateTime;
 use anyhow::Result;
 use mixnet_contract_common::families::FamilyHead;
@@ -24,7 +24,7 @@ use std::time::Duration;
 use task::TaskClient;
 use tokio::sync::{watch, RwLock};
 use tokio::time;
-use validator_client::nymd::CosmWasmClient;
+use validator_client::nyxd::CosmWasmClient;
 
 pub(crate) mod routes;
 
@@ -36,7 +36,7 @@ pub enum CacheNotification {
 }
 
 pub struct ValidatorCacheRefresher<C> {
-    nymd_client: Client<C>,
+    nyxd_client: Client<C>,
     cache: ValidatorCache,
     caching_interval: Duration,
 
@@ -109,13 +109,13 @@ impl<T> Deref for Cache<T> {
 
 impl<C> ValidatorCacheRefresher<C> {
     pub(crate) fn new(
-        nymd_client: Client<C>,
+        nyxd_client: Client<C>,
         caching_interval: Duration,
         cache: ValidatorCache,
     ) -> Self {
         let (tx, _) = watch::channel(CacheNotification::Start);
         ValidatorCacheRefresher {
-            nymd_client,
+            nyxd_client,
             cache,
             caching_interval,
             update_notifier: tx,
@@ -130,7 +130,7 @@ impl<C> ValidatorCacheRefresher<C> {
     where
         C: CosmWasmClient + Sync + Send,
     {
-        self.nymd_client
+        self.nyxd_client
             .get_rewarded_set_mixnodes()
             .await
             .map(|nodes| nodes.into_iter().collect())
@@ -160,13 +160,13 @@ impl<C> ValidatorCacheRefresher<C> {
     where
         C: CosmWasmClient + Sync + Send,
     {
-        let rewarding_params = self.nymd_client.get_current_rewarding_parameters().await?;
-        let current_interval = self.nymd_client.get_current_interval().await?.interval;
+        let rewarding_params = self.nyxd_client.get_current_rewarding_parameters().await?;
+        let current_interval = self.nyxd_client.get_current_interval().await?.interval;
 
-        let mixnodes = self.nymd_client.get_mixnodes().await?;
-        let gateways = self.nymd_client.get_gateways().await?;
+        let mixnodes = self.nyxd_client.get_mixnodes().await?;
+        let gateways = self.nyxd_client.get_gateways().await?;
 
-        let mix_to_family = self.nymd_client.get_all_family_members().await?;
+        let mix_to_family = self.nyxd_client.get_all_family_members().await?;
 
         let rewarded_set_map = self.get_rewarded_set_map().await;
 

@@ -6,9 +6,9 @@ use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use std::str::FromStr;
 use strum::IntoEnumIterator;
-use validator_client::nymd::CosmosCoin;
-use validator_client::nymd::Denom as CosmosDenom;
-use validator_client::nymd::{Coin as BackendCoin, CosmWasmCoin};
+use validator_client::nyxd::CosmosCoin;
+use validator_client::nyxd::Denom as CosmosDenom;
+use validator_client::nyxd::{Coin as BackendCoin, CosmWasmCoin};
 
 const MINOR_IN_MAJOR: f64 = 1_000_000.;
 

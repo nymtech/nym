@@ -22,7 +22,7 @@ fn fail_upgrade<D1: Display, D2: Display>(from_version: D1, to_version: D2) -> !
 }
 
 fn print_start_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
-    println!(
+    eprintln!(
         "\n==================\nTrying to upgrade gateway from {} to {} ...",
         from, to
     );
@@ -36,7 +36,7 @@ fn print_failed_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
 }
 
 fn print_successful_upgrade<D1: Display, D2: Display>(from: D1, to: D2) {
-    println!(
+    eprintln!(
         "Upgrade from {} to {} was successful!\n==================\n",
         from, to
     );
@@ -103,7 +103,7 @@ fn minor_0_12_upgrade(
 
     print_start_upgrade(config_version, &to_version);
 
-    let upgraded_config = config.with_custom_version(to_version.to_string().as_ref());
+    let upgraded_config = config.with_custom_version(to_version.to_string());
 
     upgraded_config.save_to_file(None).unwrap_or_else(|err| {
         eprintln!("failed to overwrite config file! - {err}");
@@ -121,7 +121,7 @@ fn do_upgrade(mut config: Config, args: &Upgrade, package_version: Version) {
         let config_version = parse_config_version(&config);
 
         if config_version == package_version {
-            println!("You're using the most recent version!");
+            eprintln!("You're using the most recent version!");
             return;
         }
 

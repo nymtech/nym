@@ -3,14 +3,11 @@
   "version": "1.1.4",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",
-  "main": "dist/index.js",
+  "main": "dist/cjs/index.js",
+  "module": "dist/index.js",
   "types": "./dist/index.d.ts",
   "files": [
     "dist/worker.js",
-    "dist/nym_client_wasm.d.ts",
-    "dist/nym_client_wasm.js",
-    "dist/nym_client_wasm_bg.wasm",
-    "dist/nym_client_wasm_bg.wasm.d.ts",
     "dist/**/*"
   ],
   "exports": {
@@ -28,10 +25,11 @@
     "build:dependencies:nym-client-wasm": "../nym-client-wasm/scripts/build.sh",
     "prebuild": "yarn build:dependencies",
     "build": "yarn build:only-this",
-    "build:only-this": "run-s build:worker build:tsc build:worker:move",
+    "build:only-this": "run-s build:worker build:tsc build:worker:move build:rollup:cjs",
     "postbuild:only-this": "yarn copy:readme",
     "build:tsc": "tsc",
     "build:worker": "rollup src/mixnet/wasm/worker.ts -c rollup.config.mjs",
+    "build:rollup:cjs": "rollup -c rollup-cjs.config.mjs",
     "postbuild:worker": "rm -rf dist/index.d.ts dist/coconut dist/mixnet && mkdir -p dist/mixnet/wasm",
     "build:worker:move": "rm dist/mixnet/wasm/worker.js && mv dist/worker.js dist/mixnet/wasm",
     "copy:readme": "cp README.md dist"

@@ -8,10 +8,10 @@ const extensions = [
 ];
 
 export default {
-  input: 'src/index.ts',
+  input: 'src/mixnet/wasm/worker.ts',
   output: {
     dir: 'dist',
-    format: 'es',
+    format: 'cjs',
   },
   plugins: [
     resolve({ extensions }),
@@ -23,6 +23,6 @@ export default {
     }),
     // force the wasm plugin to embed the wasm bundle - this means no downstream bundlers have to worry about handling it
     wasm({ maxFileSize: 10000000, targetEnv: 'browser' }),
-    typescript(),
+    typescript({ compilerOptions: { declaration: false, target: 'es5' } }),
   ],
 };

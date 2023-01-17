@@ -95,13 +95,8 @@ export const Content: FCWithChildren = () => {
 
   React.useEffect(() => {
     if (isReady) {
-      // // mixnet v1
-      // const nymApiUrl = 'https://validator.nymtech.net/api';
-      // const preferredGatewayIdentityKey = 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM';
-
-      // mixnet v2
-      const nymApiUrl = 'https://qwerty-validator-api.qa.nymte.ch/api'; // "http://localhost:8081";
-      const preferredGatewayIdentityKey = undefined; // '36vfvEyBzo5cWEFbnP7fqgY39kFw9PQhvwzbispeNaxL';
+      const nymApiUrl = 'https://validator.nymtech.net/api';
+      const preferredGatewayIdentityKey = 'E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM';
 
       connect({
         clientId: 'Example Client',

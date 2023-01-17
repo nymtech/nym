@@ -2,6 +2,12 @@
 
 ## UNRELEASED
 
+## [nym-connect-v1.1.6](https://github.com/nymtech/nym/tree/nym-connect-v1.1.6) (2023-01-17)
+
+- part (1) show gateway status on the UI if the gateway is not live, is overloaded or is slow ([#2824])
+
+[#2824]: https://github.com/nymtech/nym/pull/2824
+
 ## [nym-connect-v1.1.5](https://github.com/nymtech/nym/tree/nym-connect-v1.1.5) (2023-01-10)
 
 - get version number from tauri and display by @fmtabbara in https://github.com/nymtech/nym/pull/2684

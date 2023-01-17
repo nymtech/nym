@@ -2,6 +2,12 @@
 
 ## UNRELEASED
 
+## [nym-wallet-v1.1.7](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.7) (2023-01-17)
+
+-  link to the ng mixnet explorer for account info ([#2823])
+
+[#2823]: https://github.com/nymtech/nym/pull/2823
+
 ## [nym-wallet-v1.1.6](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.6) (2023-01-10)
 
 - Fix param input layout **1.1.5 Release** by @fmtabbara in https://github.com/nymtech/nym/pull/2720

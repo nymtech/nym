@@ -806,11 +806,11 @@ pub struct CoconutApiClient {
 impl CoconutApiClient {
     pub async fn all_coconut_api_clients<C: Clone>(
         nyxd_client: &Client<C>,
+        epoch_id: EpochId,
     ) -> Result<Vec<Self>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync + Send,
     {
-        let epoch_id = nyxd_client.nyxd.get_current_epoch().await?.epoch_id;
         Ok(nyxd_client
             .get_all_nyxd_verification_key_shares(epoch_id)
             .await?

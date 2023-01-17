@@ -213,7 +213,11 @@ where
         )?;
 
         // Get the latest coconut signers and their VK
-        let api_clients = self.inner.coconut_verifier.current_api_clients().await?;
+        let api_clients = self
+            .inner
+            .coconut_verifier
+            .all_coconut_api_clients(*credential.epoch_id())
+            .await?;
         let aggregated_verification_key =
             credentials::obtain_aggregate_verification_key(&api_clients).await?;
         if api_clients.is_empty() {

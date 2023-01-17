@@ -38,8 +38,11 @@ impl CoconutVerifier {
         }
     }
 
-    pub async fn current_api_clients(&self) -> Result<Vec<CoconutApiClient>, RequestHandlingError> {
-        Ok(CoconutApiClient::all_coconut_api_clients(&self.nyxd_client).await?)
+    pub async fn all_coconut_api_clients(
+        &self,
+        epoch_id: u64,
+    ) -> Result<Vec<CoconutApiClient>, RequestHandlingError> {
+        Ok(CoconutApiClient::all_coconut_api_clients(&self.nyxd_client, epoch_id).await?)
     }
 
     pub async fn release_funds(

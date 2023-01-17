@@ -56,11 +56,6 @@ where
     pub async fn prepare_coconut_credential(
         &self,
     ) -> Result<(coconut_interface::Credential, i64), GatewayClientError> {
-        let coconut_api_clients =
-            validator_client::CoconutApiClient::all_coconut_api_clients(&self.nyxd_client)
-                .await
-                .expect("Could not query api clients");
-        let verification_key = obtain_aggregate_verification_key(&coconut_api_clients).await?;
         let bandwidth_credential = self.storage.get_next_coconut_credential().await?;
         let voucher_value = u64::from_str(&bandwidth_credential.voucher_value)
             .map_err(|_| StorageError::InconsistentData)?;
@@ -71,6 +66,16 @@ where
             coconut_interface::Attribute::try_from_bs58(bandwidth_credential.binding_number)?;
         let signature =
             coconut_interface::Signature::try_from_bs58(bandwidth_credential.signature)?;
+        let epoch_id = u64::from_str(&bandwidth_credential.epoch_id)
+            .map_err(|_| StorageError::InconsistentData)?;
+
+        let coconut_api_clients = validator_client::CoconutApiClient::all_coconut_api_clients(
+            &self.nyxd_client,
+            epoch_id,
+        )
+        .await
+        .expect("Could not query api clients");
+        let verification_key = obtain_aggregate_verification_key(&coconut_api_clients).await?;
 
         // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)
         Ok((
@@ -79,6 +84,7 @@ where
                 voucher_info,
                 serial_number,
                 binding_number,
+                epoch_id,
                 &signature,
                 &verification_key,
             )?,

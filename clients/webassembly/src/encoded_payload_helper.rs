@@ -132,10 +132,10 @@ mod tests {
 
         // the expected message size
         let size = message_as_bytes.len();
-        let expected_size = 62;
+        let expected_size = 61;
         assert_eq!(size, expected_size);
 
-        let expected_header_size = 51usize;
+        let expected_header_size = 50usize;
         assert_eq!(
             message_as_bytes[0..8],
             (expected_header_size as u64).to_be_bytes()
@@ -161,10 +161,10 @@ mod tests {
 
         // the expected message size
         let size = message_as_bytes.len();
-        let expected_size = 52;
+        let expected_size = 51;
         assert_eq!(size, expected_size);
 
-        let expected_header_size = 41usize;
+        let expected_header_size = 40usize;
         assert_eq!(
             message_as_bytes[0..8],
             (expected_header_size as u64).to_be_bytes()
@@ -188,10 +188,10 @@ mod tests {
 
         // the expected message size
         let size = message_as_bytes.len();
-        let expected_size = 42;
+        let expected_size = 41;
         assert_eq!(size, expected_size);
 
-        let expected_header_size = 31usize;
+        let expected_header_size = 30usize;
         assert_eq!(
             message_as_bytes[0..8],
             (expected_header_size as u64).to_be_bytes()
@@ -216,10 +216,10 @@ mod tests {
 
         // the expected message size
         let size = message_as_bytes.len();
-        let expected_size = 39;
+        let expected_size = 38;
         assert_eq!(size, expected_size);
 
-        let expected_header_size = 31usize;
+        let expected_header_size = 30usize;
         assert_eq!(
             message_as_bytes[0..8],
             (expected_header_size as u64).to_be_bytes()

@@ -107,7 +107,7 @@ pub async fn execute(args: Init, output: OutputFormat) -> Result<(), Box<dyn Err
     println!("Initialising gateway {}...", args.id);
 
     let already_init = if Config::default_config_file_path(Some(&args.id)).exists() {
-        println!(
+        eprintln!(
             "Gateway \"{}\" was already initialised before! Config information will be \
             overwritten (but keys will be kept)!",
             args.id
@@ -147,15 +147,15 @@ pub async fn execute(args: Init, output: OutputFormat) -> Result<(), Box<dyn Err
         )
         .expect("Failed to save identity keys");
 
-        println!("Saved identity and mixnet sphinx keypairs");
+        eprintln!("Saved identity and mixnet sphinx keypairs");
     }
 
     let config_save_location = config.get_config_file_save_location();
     config
         .save_to_file(None)
         .expect("Failed to save the config file");
-    println!("Saved configuration file to {:?}", config_save_location);
-    println!("Gateway configuration completed.\n\n\n");
+    eprintln!("Saved configuration file to {:?}", config_save_location);
+    eprintln!("Gateway configuration completed.\n\n\n");
 
     Ok(crate::node::create_gateway(config)
         .await

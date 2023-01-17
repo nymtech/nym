@@ -69,19 +69,19 @@ fn print_signed_address(
     ensure_correct_bech32_prefix(&wallet_address)?;
 
     let signature = private_key.sign_text(wallet_address.as_ref());
-    println!("The base58-encoded signature on '{wallet_address}' is: {signature}");
+    eprintln!("The base58-encoded signature on '{wallet_address}' is: {signature}");
     Ok(())
 }
 
 fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {
-    println!(
+    eprintln!(
         "Signing the text {:?} using your mixnode's Ed25519 identity key...",
         text
     );
 
     let signature = private_key.sign_text(text);
 
-    println!(
+    eprintln!(
         "The base58-encoded signature on '{}' is: {}",
         text, signature
     );

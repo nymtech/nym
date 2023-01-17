@@ -2,7 +2,7 @@
 
 Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [v1.1.6] (2023-01-17)
 
 ### Added
 
@@ -11,19 +11,24 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ### Changed
 
+- streamline override_config functions -> there's a lot of duplicate if statements everywhere ([#2774])
+- clean-up nym-api startup arguments/flags to use clap 3 and its macro-derived arguments ([#2772])
 - renamed all references to validator_api to nym_api
-- renamed all references to nymd to nyxd
+- renamed all references to nymd to nyxd ([#2696])
 - all-binaries: standarised argument names (note: old names should still be accepted) ([#2762]
 
 ### Fixed
 
 - nym-api: should now correctly use `rewarding.enabled` config flag ([#2753])
 
+[#2696]: https://github.com/nymtech/nym/pull/2696
 [#2753]: https://github.com/nymtech/nym/pull/2753
 [#2762]: https://github.com/nymtech/nym/pull/2762
 [#2814]: https://github.com/nymtech/nym/pull/2814
+[#2772]: https://github.com/nymtech/nym/pull/2772
+[#2774]: https://github.com/nymtech/nym/pull/2774
 
-## [v1.1.5] (2022-01-10)
+## [v1.1.5] (2023-01-10)
 
 ### Added
 

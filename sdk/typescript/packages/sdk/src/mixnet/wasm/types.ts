@@ -1,10 +1,25 @@
-/// <reference path="../../../../nym-client-wasm/nym_client_wasm.d.ts" />
+import { Debug } from '@nymproject/nym-client-wasm';
 
-export type OnStringMessageFn = (message: string) => void;
+/**
+ * Some common mime types, however, you can always just specify the mime-type as a string
+ */
+export enum MimeTypes {
+  ApplicationOctetStream = 'application/octet-stream',
+  TextPlain = 'text/plain',
+  ApplicationJson = 'application/json',
+}
 
-export type OnBinaryMessageFn = (message: Uint8Array) => void;
+export interface Payload {
+  message: string | Uint8Array;
 
-export type OnConnectFn = (address?: string) => void;
+  mimeType?: MimeTypes | string;
+
+  headers?: string;
+}
+
+export type OnPayloadFn = (payload: Payload) => void;
+
+export type OnRawPayloadFn = (payload: Uint8Array) => void;
 
 export type EventHandlerFn<E> = (e: E) => void | Promise<void>;
 
@@ -36,14 +51,16 @@ export interface NymClientConfig {
   /**
    * Optional. Settings for the WASM client.
    */
-  debug?: wasm_bindgen.Debug;
+  debug?: Debug;
 }
 
 export interface IWebWorker {
   start: (config: NymClientConfig) => void;
+  stop: () => void;
   selfAddress: () => string | undefined;
-  sendMessage: (args: { payload: string; recipient: string }) => void;
-  sendBinaryMessage: (args: { payload: Uint8Array; recipient: string; headers?: string }) => void;
+  setTextMimeTypes: (mimeTypes: string[]) => void;
+  getTextMimeTypes: () => string[];
+  send: (args: { payload: Payload; recipient: string; replySurbs?: number }) => void;
 }
 
 export enum EventKinds {
@@ -70,17 +87,19 @@ export interface ConnectedEvent {
 export interface StringMessageReceivedEvent {
   kind: EventKinds.StringMessageReceived;
   args: {
-    kind: number;
+    mimeType: MimeTypes;
     payload: string;
+    payloadRaw: Uint8Array;
+    headers?: string;
   };
 }
 
 export interface BinaryMessageReceivedEvent {
   kind: EventKinds.BinaryMessageReceived;
   args: {
-    kind: number;
+    mimeType: MimeTypes;
     payload: Uint8Array;
-    headers: string;
+    headers?: string;
   };
 }
 

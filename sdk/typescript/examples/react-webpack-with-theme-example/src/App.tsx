@@ -143,13 +143,13 @@ export const Content: FCWithChildren = () => {
     if (events) {
       const unsubcribe = events.subscribeToBinaryMessageReceivedEvent((e) => {
         // the headers will be JSON (see the mixnet context for how they are created), so parse them
-        const headers = parseBinaryMessageHeaders(e.args.headers);
+        const headers = e.args.headers ? parseBinaryMessageHeaders(e.args.headers) : undefined;
 
-        const blob = new Blob([new Uint8Array(e.args.payload)], { type: headers.mimeType });
+        const blob = new Blob([new Uint8Array(e.args.payload)], { type: headers?.mimeType });
         log.current.push({
           kind: 'rx',
           timestamp: new Date(),
-          filename: headers.filename,
+          filename: headers?.filename,
           fileDownloadUrl: URL.createObjectURL(blob),
           filesize: e.args.payload.length,
         });

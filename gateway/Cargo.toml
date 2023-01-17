@@ -27,7 +27,7 @@ dotenv = "0.15.0"
 futures = "0.3"
 humantime-serde = "1.0.1"
 lazy_static = "1.4.0"
-log = "0.4"
+log = { workspace = true }
 once_cell = "1.7.2"
 pretty_env_logger = "0.4"
 rand = "0.7"

@@ -95,3 +95,6 @@ default-members = [
 ]
 
 exclude = ["explorer", "contracts", "clients/webassembly", "nym-wallet", "nym-connect"]
+
+[workspace.dependencies]
+log = "0.4"

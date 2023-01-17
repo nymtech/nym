@@ -8,7 +8,7 @@ rust-version = "1.58"
 
 [dependencies]
 eyre = "0.6.5"
-log = "0.4"
+log = { workspace = true }
 itertools = "0.10"
 reqwest = "0.11.9"
 schemars = "0.8"

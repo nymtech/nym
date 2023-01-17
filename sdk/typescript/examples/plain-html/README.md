@@ -4,6 +4,9 @@ This is an example of using the Nym Mixnet to send text chat messages, with opti
 
 You can use this example as a seed for a new project.
 
+You will need to have the Rust WASM toolchain installed. Please [follow the instructions here](https://rustwasm.github.io/docs/book/game-of-life/setup.html)
+to install `wasm-pack` and then run the sample.
+
 Try out the chat app by running:
 
 ```
@@ -20,7 +23,7 @@ a WASM library that builds and encrypts Sphinx packets in the browser to send ov
 
 The WASM code encrypts each layer of the Sphinx packet in the browser, before sending the Sphinx packet over a websocket to the ingress gateway:
 
-![Sphinx packet](../docs/sphinx2.svg)
+![Sphinx packet](../docs/sphinx.svg)
 
 
 

@@ -13,7 +13,7 @@ rm nym_client_wasm* package.json || true
 
 # let wasm-pack build the files and put them in the output location rather than `./pkg`
 cd ../../../../clients/webassembly
-wasm-pack build --scope nymproject --target no-modules --out-dir ../../sdk/typescript/packages/nym-client-wasm
+wasm-pack build --scope nymproject --target web --out-dir ../../sdk/typescript/packages/nym-client-wasm
 
 # clean up some files that come with the build
 cd ../../sdk/typescript/packages/nym-client-wasm

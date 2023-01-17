@@ -13,7 +13,7 @@ const elem = document.getElementById('root');
 
 if (elem) {
   const root = createRoot(elem);
-  ReactDOM.render(
+  root.render(
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <ClientContextProvider>
         <NymMixnetTheme mode="dark">
@@ -23,6 +23,5 @@ if (elem) {
         </NymMixnetTheme>
       </ClientContextProvider>
     </ErrorBoundary>,
-    root,
   );
 }

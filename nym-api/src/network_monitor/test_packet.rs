@@ -4,7 +4,7 @@
 use crate::network_monitor::monitor::preparer::TestedNode;
 use crypto::asymmetric::identity;
 use crypto::asymmetric::identity::Ed25519RecoveryError;
-use mixnet_contract_common::MixId;
+use nym_mixnet_contract_common::MixId;
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};

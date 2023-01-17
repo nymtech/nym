@@ -1,5 +1,5 @@
-use contracts_common::truncate_decimal;
-use mixnet_contract_common::{MixId, MixNodeDetails, RewardingParams};
+use nym_contracts_common::truncate_decimal;
+use nym_mixnet_contract_common::{MixId, MixNodeDetails, RewardingParams};
 use nym_api_requests::models::InclusionProbability;
 use serde::Serialize;
 use std::time::Duration;

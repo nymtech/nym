@@ -3,8 +3,8 @@
 
 use crate::node_status_api::utils::NodeUptimes;
 use crate::storage::models::NodeStatus;
-use mixnet_contract_common::reward_params::Performance;
-use mixnet_contract_common::{IdentityKey, MixId};
+use nym_mixnet_contract_common::reward_params::Performance;
+use nym_mixnet_contract_common::{IdentityKey, MixId};
 use nym_api_requests::models::{
     GatewayStatusReportResponse, GatewayUptimeHistoryResponse, HistoricalUptimeResponse,
     MixnodeStatusReportResponse, MixnodeUptimeHistoryResponse, RequestError,

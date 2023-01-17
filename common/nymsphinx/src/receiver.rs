@@ -184,8 +184,8 @@ impl Default for MessageReceiver {
 #[cfg(test)]
 mod message_receiver {
     use super::*;
-    use crypto::asymmetric::identity;
-    use mixnet_contract_common::Layer;
+    use nym_crypto::asymmetric::identity;
+    use nym_mixnet_contract_common::Layer;
     use std::collections::HashMap;
     use topology::{gateway, mix, NymTopology};
 

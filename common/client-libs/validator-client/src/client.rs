@@ -4,9 +4,9 @@
 use crate::{nym_api, ValidatorClientError};
 use coconut_dkg_common::types::NodeIndex;
 use coconut_interface::VerificationKey;
-use mixnet_contract_common::mixnode::MixNodeDetails;
-use mixnet_contract_common::MixId;
-use mixnet_contract_common::{GatewayBond, IdentityKeyRef};
+use nym_mixnet_contract_common::mixnode::MixNodeDetails;
+use nym_mixnet_contract_common::MixId;
+use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef};
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
@@ -30,7 +30,7 @@ use coconut_interface::Base58;
 #[cfg(feature = "nyxd-client")]
 use cw3::ProposalResponse;
 #[cfg(feature = "nyxd-client")]
-use mixnet_contract_common::{
+use nym_mixnet_contract_common::{
     families::{Family, FamilyHead},
     mixnode::MixNodeBond,
     pending_events::{PendingEpochEvent, PendingIntervalEvent},

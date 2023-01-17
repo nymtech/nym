@@ -6,7 +6,7 @@ use crate::node_status_api::utils::{ActiveGatewayStatuses, ActiveMixnodeStatuses
 use crate::support::storage::models::{
     ActiveGateway, ActiveMixnode, NodeStatus, RewardingReport, TestingRoute,
 };
-use mixnet_contract_common::{EpochId, IdentityKey, MixId};
+use nym_mixnet_contract_common::{EpochId, IdentityKey, MixId};
 use std::convert::TryFrom;
 
 #[derive(Clone)]

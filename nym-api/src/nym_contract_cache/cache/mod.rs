@@ -1,6 +1,6 @@
 use crate::support::caching::Cache;
 use data::ValidatorCacheData;
-use mixnet_contract_common::{
+use nym_mixnet_contract_common::{
     families::FamilyHead, GatewayBond, IdentityKey, Interval, MixId, MixNodeBond, MixNodeDetails,
     RewardingParams,
 };

@@ -8,7 +8,7 @@ use crate::{
     },
     nym_contract_cache::cache::NymContractCache,
 };
-use mixnet_contract_common::{
+use nym_mixnet_contract_common::{
     mixnode::MixNodeDetails, reward_params::RewardingParams, GatewayBond, Interval, MixId,
 };
 use nym_api_requests::models::MixNodeBondAnnotated;

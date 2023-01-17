@@ -6,17 +6,17 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::NyxdClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
-use mixnet_contract_common::delegation::{MixNodeDelegationResponse, OwnerProxySubKey};
-use mixnet_contract_common::families::Family;
-use mixnet_contract_common::mixnode::{
+use nym_mixnet_contract_common::delegation::{MixNodeDelegationResponse, OwnerProxySubKey};
+use nym_mixnet_contract_common::families::Family;
+use nym_mixnet_contract_common::mixnode::{
     MixNodeDetails, MixnodeRewardingDetailsResponse, PagedMixnodesDetailsResponse,
     PagedUnbondedMixnodesResponse, StakeSaturationResponse, UnbondedMixnodeResponse,
 };
-use mixnet_contract_common::reward_params::{Performance, RewardingParams};
-use mixnet_contract_common::rewarding::{
+use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
+use nym_mixnet_contract_common::rewarding::{
     EstimatedCurrentEpochRewardResponse, PendingRewardResponse,
 };
-use mixnet_contract_common::{
+use nym_mixnet_contract_common::{
     delegation, ContractBuildInformation, ContractState, ContractStateParams,
     CurrentIntervalResponse, EpochEventId, GatewayBondResponse, GatewayOwnershipResponse,
     IdentityKey, IntervalEventId, LayerDistribution, MixId, MixOwnershipResponse,

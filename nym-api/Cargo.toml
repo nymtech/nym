@@ -80,9 +80,9 @@ cw4 = { version = "0.13.4" }
 dkg = { path = "../common/crypto/dkg" }
 gateway-client = { path = "../common/client-libs/gateway-client" }
 inclusion-probability = { path = "../common/inclusion-probability" }
-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
-vesting-contract-common = { path = "../common/cosmwasm-smart-contracts/vesting-contract" }
-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common", features = ["dkg"] }
+nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
+nym-vesting-contract-common = { path = "../common/cosmwasm-smart-contracts/vesting-contract" }
+nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common", features = ["dkg"] }
 multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
 nymcoconut = { path = "../common/nymcoconut" }
 nymsphinx = { path = "../common/nymsphinx" }

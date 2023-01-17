@@ -13,7 +13,7 @@ use crate::node_status_api::helpers::{
 use crate::node_status_api::models::ErrorResponse;
 use crate::storage::NymApiStorage;
 use crate::NymContractCache;
-use mixnet_contract_common::MixId;
+use nym_mixnet_contract_common::MixId;
 use nym_api_requests::models::{
     AllInclusionProbabilitiesResponse, ComputeRewardEstParam, GatewayBondAnnotated,
     GatewayCoreStatusResponse, GatewayStatusReportResponse, GatewayUptimeHistoryResponse,

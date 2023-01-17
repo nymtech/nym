@@ -1,8 +1,8 @@
 use crate::node_status_api::reward_estimate::{compute_apy_from_reward, compute_reward_estimate};
 use crate::support::storage::NymApiStorage;
-use mixnet_contract_common::families::FamilyHead;
-use mixnet_contract_common::{reward_params::Performance, Interval, MixId};
-use mixnet_contract_common::{
+use nym_mixnet_contract_common::families::FamilyHead;
+use nym_mixnet_contract_common::{reward_params::Performance, Interval, MixId};
+use nym_mixnet_contract_common::{
     GatewayBond, IdentityKey, MixNodeDetails, RewardedSetNodeStatus, RewardingParams,
 };
 use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated};

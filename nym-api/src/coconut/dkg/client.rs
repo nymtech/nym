@@ -8,7 +8,7 @@ use coconut_dkg_common::types::{
     EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, NodeIndex,
 };
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
-use contracts_common::dealings::ContractSafeBytes;
+use nym_contracts_common::dealings::ContractSafeBytes;
 use cw3::ProposalResponse;
 use cw4::MemberResponse;
 use dkg::Threshold;

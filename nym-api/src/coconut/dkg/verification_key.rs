@@ -280,7 +280,7 @@ pub(crate) mod tests {
     use coconut_dkg_common::dealer::DealerDetails;
     use coconut_dkg_common::types::InitialReplacementData;
     use coconut_dkg_common::verification_key::ContractVKShare;
-    use contracts_common::dealings::ContractSafeBytes;
+    use nym_contracts_common::dealings::ContractSafeBytes;
     use dkg::bte::keys::KeyPair as DkgKeyPair;
     use nymcoconut::aggregate_verification_keys;
     use rand::rngs::OsRng;

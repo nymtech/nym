@@ -7,7 +7,7 @@ use clap::Parser;
 use log::{debug, info};
 
 use validator_client::nyxd::AccountId;
-use vesting_contract_common::InitMsg;
+use nym_vesting_contract_common::InitMsg;
 
 #[derive(Debug, Parser)]
 pub struct Args {

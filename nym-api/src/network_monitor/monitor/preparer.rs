@@ -8,7 +8,7 @@ use crate::network_monitor::test_route::TestRoute;
 use crate::nym_contract_cache::cache::NymContractCache;
 use crypto::asymmetric::{encryption, identity};
 use log::info;
-use mixnet_contract_common::{Addr, GatewayBond, Layer, MixId, MixNodeBond};
+use nym_mixnet_contract_common::{Addr, GatewayBond, Layer, MixId, MixNodeBond};
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::forwarding::packet::MixPacket;
 use rand::seq::SliceRandom;

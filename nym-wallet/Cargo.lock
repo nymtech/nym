@@ -593,10 +593,10 @@ dependencies = [
 name = "coconut-dkg-common"
 version = "0.1.0"
 dependencies = [
- "contracts-common",
  "cosmwasm-std",
  "cw-utils",
  "multisig-contract-common",
+ "nym-contracts-common",
  "schemars",
  "serde",
 ]
@@ -678,17 +678,6 @@ name = "const-oid"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e4c78c047431fee22c1a7bb92e00ad095a02a983affe4d8a72e2a2c62c1b94f3"
-
-[[package]]
-name = "contracts-common"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "cosmwasm-std",
- "schemars",
- "serde",
- "thiserror",
-]
 
 [[package]]
 name = "convert_case"
@@ -2730,24 +2719,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mixnet-contract-common"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "contracts-common",
- "cosmwasm-std",
- "humantime-serde",
- "log",
- "schemars",
- "serde",
- "serde_json",
- "serde_repr",
- "thiserror",
- "time 0.3.17",
- "ts-rs",
-]
-
-[[package]]
 name = "multisig-contract-common"
 version = "0.1.0"
 dependencies = [
@@ -2932,9 +2903,38 @@ dependencies = [
  "cosmrs",
  "cosmwasm-std",
  "getset",
- "mixnet-contract-common",
+ "nym-mixnet-contract-common",
  "schemars",
  "serde",
+]
+
+[[package]]
+name = "nym-contracts-common"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "cosmwasm-std",
+ "schemars",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "nym-mixnet-contract-common"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "cosmwasm-std",
+ "humantime-serde",
+ "log",
+ "nym-contracts-common",
+ "schemars",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "thiserror",
+ "time 0.3.7",
+ "ts-rs",
 ]
 
 [[package]]
@@ -2948,7 +2948,9 @@ dependencies = [
  "eyre",
  "itertools",
  "log",
- "mixnet-contract-common",
+ "nym-mixnet-contract-common",
+ "nym-vesting-contract",
+ "nym-vesting-contract-common",
  "reqwest",
  "schemars",
  "serde",
@@ -2958,8 +2960,32 @@ dependencies = [
  "ts-rs",
  "url",
  "validator-client",
- "vesting-contract",
- "vesting-contract-common",
+]
+
+[[package]]
+name = "nym-vesting-contract"
+version = "1.1.3"
+dependencies = [
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "nym-contracts-common",
+ "nym-mixnet-contract-common",
+ "nym-vesting-contract-common",
+ "schemars",
+ "serde",
+ "thiserror",
+ "vergen",
+]
+
+[[package]]
+name = "nym-vesting-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "nym-contracts-common",
+ "nym-mixnet-contract-common",
+ "schemars",
+ "serde",
 ]
 
 [[package]]
@@ -2986,16 +3012,16 @@ dependencies = [
  "cosmrs",
  "cosmwasm-std",
  "hex-literal",
- "mixnet-contract-common",
  "network-defaults",
+ "nym-mixnet-contract-common",
  "nym-types",
+ "nym-vesting-contract",
+ "nym-vesting-contract-common",
  "serde",
  "serde_json",
  "strum",
  "ts-rs",
  "validator-client",
- "vesting-contract",
- "vesting-contract-common",
 ]
 
 [[package]]
@@ -3021,8 +3047,10 @@ dependencies = [
  "itertools",
  "k256",
  "log",
- "mixnet-contract-common",
+ "nym-mixnet-contract-common",
  "nym-types",
+ "nym-vesting-contract",
+ "nym-vesting-contract-common",
  "nym-wallet-types",
  "once_cell",
  "pretty_env_logger",
@@ -3044,8 +3072,6 @@ dependencies = [
  "ts-rs",
  "url",
  "validator-client",
- "vesting-contract",
- "vesting-contract-common",
  "zeroize",
 ]
 
@@ -5495,7 +5521,6 @@ dependencies = [
  "coconut-interface",
  "colored 2.0.0",
  "config",
- "contracts-common",
  "cosmrs",
  "cosmwasm-std",
  "cw3",
@@ -5506,10 +5531,13 @@ dependencies = [
  "group-contract-common",
  "itertools",
  "log",
- "mixnet-contract-common",
  "multisig-contract-common",
  "network-defaults",
  "nym-api-requests",
+ "nym-contracts-common",
+ "nym-mixnet-contract-common",
+ "nym-vesting-contract",
+ "nym-vesting-contract-common",
  "prost",
  "reqwest",
  "serde",
@@ -5518,8 +5546,6 @@ dependencies = [
  "thiserror",
  "tokio",
  "url",
- "vesting-contract",
- "vesting-contract-common",
 ]
 
 [[package]]
@@ -5568,32 +5594,6 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
-
-[[package]]
-name = "vesting-contract"
-version = "1.1.3"
-dependencies = [
- "contracts-common",
- "cosmwasm-std",
- "cw-storage-plus",
- "mixnet-contract-common",
- "schemars",
- "serde",
- "thiserror",
- "vergen",
- "vesting-contract-common",
-]
-
-[[package]]
-name = "vesting-contract-common"
-version = "0.1.0"
-dependencies = [
- "contracts-common",
- "cosmwasm-std",
- "mixnet-contract-common",
- "schemars",
- "serde",
-]
 
 [[package]]
 name = "walkdir"

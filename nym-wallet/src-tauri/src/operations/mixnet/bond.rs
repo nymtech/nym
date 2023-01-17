@@ -4,7 +4,7 @@
 use crate::error::BackendError;
 use crate::state::WalletState;
 use crate::{nyxd_client, Gateway, MixNode};
-use mixnet_contract_common::{MixId, MixNodeConfigUpdate};
+use nym_mixnet_contract_common::{MixId, MixNodeConfigUpdate};
 use nym_types::currency::DecCoin;
 use nym_types::gateway::GatewayBond;
 use nym_types::mixnode::{MixNodeCostParams, MixNodeDetails};

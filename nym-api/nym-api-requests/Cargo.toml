@@ -15,7 +15,7 @@ serde = { version = "1.0", features = ["derive"] }
 ts-rs = { version = "6.1.2", optional = true }
 
 coconut-interface = { path = "../../common/coconut-interface" }
-mixnet-contract-common = { path= "../../common/cosmwasm-smart-contracts/mixnet-contract" }
+nym-mixnet-contract-common = { path= "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 
 [features]
 default = []

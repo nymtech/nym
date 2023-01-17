@@ -5,7 +5,7 @@ use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::state::{ConsistentState, State};
 use crate::coconut::error::CoconutError;
 use coconut_dkg_common::types::TOTAL_DEALINGS;
-use contracts_common::dealings::ContractSafeBytes;
+use nym_contracts_common::dealings::ContractSafeBytes;
 use dkg::bte::setup;
 use dkg::Dealing;
 use rand::RngCore;

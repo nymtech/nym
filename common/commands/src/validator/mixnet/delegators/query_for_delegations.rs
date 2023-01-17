@@ -9,7 +9,7 @@ use crate::utils::{pretty_cosmwasm_coin, show_error_passthrough};
 
 use comfy_table::Table;
 use cosmwasm_std::Addr;
-use mixnet_contract_common::{Delegation, PendingEpochEvent, PendingEpochEventKind};
+use nym_mixnet_contract_common::{Delegation, PendingEpochEvent, PendingEpochEventKind};
 
 #[derive(Debug, Parser)]
 pub struct Args {}

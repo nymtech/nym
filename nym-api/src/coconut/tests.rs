@@ -17,6 +17,7 @@ use credentials::coconut::bandwidth::BandwidthVoucher;
 use credentials::coconut::params::{
     NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
 };
+use crypto::asymmetric::{encryption, identity};
 use crypto::shared_key::recompute_shared_key;
 use crypto::symmetric::stream_cipher;
 use nym_api_requests::coconut::{
@@ -43,8 +44,7 @@ use coconut_dkg_common::types::{
     EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, TOTAL_DEALINGS,
 };
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
-use contracts_common::dealings::ContractSafeBytes;
-use crypto::asymmetric::{encryption, identity};
+use nym_contracts_common::dealings::ContractSafeBytes;
 use cw3::ProposalResponse;
 use cw4::MemberResponse;
 use dkg::Threshold;

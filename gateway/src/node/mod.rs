@@ -119,8 +119,8 @@ where
         let identity_keypair = load_identity_keys(&pathfinder);
         let Some(address) = self.config.get_wallet_address() else {
             let error_message = "Error: gateway hasn't set its wallet address".red();
-            println!("{error_message}");
-            println!("Exiting...");
+            eprintln!("{error_message}");
+            eprintln!("Exiting...");
             process::exit(1);
         };
         // perform extra validation to ensure we have correct prefix

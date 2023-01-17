@@ -55,7 +55,7 @@ pub(crate) mod tests {
     #[test]
     fn vk_shares_empty_on_init() {
         let deps = init_contract();
-        let response = query_vk_shares_paged(deps.as_ref(), None, Option::from(2)).unwrap();
+        let response = query_vk_shares_paged(deps.as_ref(), 0, None, Option::from(2)).unwrap();
         assert_eq!(0, response.shares.len());
     }
 
@@ -71,7 +71,7 @@ pub(crate) mod tests {
                 .unwrap();
         }
 
-        let page1 = query_vk_shares_paged(deps.as_ref(), None, Option::from(limit)).unwrap();
+        let page1 = query_vk_shares_paged(deps.as_ref(), 0, None, Option::from(limit)).unwrap();
         assert_eq!(limit, page1.shares.len() as u32);
     }
 
@@ -87,7 +87,7 @@ pub(crate) mod tests {
         }
 
         // query without explicitly setting a limit
-        let page1 = query_vk_shares_paged(deps.as_ref(), None, None).unwrap();
+        let page1 = query_vk_shares_paged(deps.as_ref(), 0, None, None).unwrap();
 
         assert_eq!(
             VERIFICATION_KEY_SHARES_PAGE_DEFAULT_LIMIT,
@@ -108,7 +108,8 @@ pub(crate) mod tests {
 
         // query with a crazily high limit in an attempt to use too many resources
         let crazy_limit = 1000 * VERIFICATION_KEY_SHARES_PAGE_MAX_LIMIT;
-        let page1 = query_vk_shares_paged(deps.as_ref(), None, Option::from(crazy_limit)).unwrap();
+        let page1 =
+            query_vk_shares_paged(deps.as_ref(), 0, None, Option::from(crazy_limit)).unwrap();
 
         // we default to a decent sized upper bound instead
         let expected_limit = VERIFICATION_KEY_SHARES_PAGE_MAX_LIMIT;
@@ -126,7 +127,7 @@ pub(crate) mod tests {
             .unwrap();
 
         let per_page = 2;
-        let page1 = query_vk_shares_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+        let page1 = query_vk_shares_paged(deps.as_ref(), 0, None, Option::from(per_page)).unwrap();
 
         // page should have 1 result on it
         assert_eq!(1, page1.shares.len());
@@ -139,7 +140,7 @@ pub(crate) mod tests {
             .unwrap();
 
         // page1 should have 2 results on it
-        let page1 = query_vk_shares_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+        let page1 = query_vk_shares_paged(deps.as_ref(), 0, None, Option::from(per_page)).unwrap();
         assert_eq!(2, page1.shares.len());
 
         let vk_share = vk_share_fixture(3);
@@ -149,13 +150,14 @@ pub(crate) mod tests {
             .unwrap();
 
         // page1 still has 2 results
-        let page1 = query_vk_shares_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+        let page1 = query_vk_shares_paged(deps.as_ref(), 0, None, Option::from(per_page)).unwrap();
         assert_eq!(2, page1.shares.len());
 
         // retrieving the next page should start after the last key on this page
         let start_after = page1.start_next_after.unwrap();
         let page2 = query_vk_shares_paged(
             deps.as_ref(),
+            0,
             Option::from(start_after.to_string()),
             Option::from(per_page),
         )
@@ -171,6 +173,7 @@ pub(crate) mod tests {
 
         let page2 = query_vk_shares_paged(
             deps.as_ref(),
+            0,
             Option::from(start_after.to_string()),
             Option::from(per_page),
         )

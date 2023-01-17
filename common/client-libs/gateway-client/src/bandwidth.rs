@@ -15,8 +15,11 @@ use crate::wasm_storage::StorageError;
 #[cfg(all(not(target_arch = "wasm32"), feature = "coconut"))]
 use credential_storage::error::StorageError;
 
+#[cfg(target_arch = "wasm32")]
+use crate::wasm_storage::{Client, CosmWasmClient};
 #[cfg(feature = "coconut")]
 use std::str::FromStr;
+#[cfg(not(target_arch = "wasm32"))]
 use validator_client::{nyxd::CosmWasmClient, Client};
 #[cfg(feature = "coconut")]
 use {
@@ -69,12 +72,15 @@ where
         let epoch_id = u64::from_str(&bandwidth_credential.epoch_id)
             .map_err(|_| StorageError::InconsistentData)?;
 
+        #[cfg(not(target_arch = "wasm32"))]
         let coconut_api_clients = validator_client::CoconutApiClient::all_coconut_api_clients(
             &self.nyxd_client,
             epoch_id,
         )
         .await
         .expect("Could not query api clients");
+        #[cfg(target_arch = "wasm32")]
+        let coconut_api_clients = vec![];
         let verification_key = obtain_aggregate_verification_key(&coconut_api_clients).await?;
 
         // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)

@@ -8,6 +8,8 @@ use crate::{
 };
 use config::NymConfig;
 use crypto::asymmetric::identity;
+#[cfg(target_arch = "wasm32")]
+use gateway_client::wasm_storage::SigningNyxdClient;
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
 use rand::{seq::SliceRandom, thread_rng};
@@ -15,6 +17,7 @@ use std::{sync::Arc, time::Duration};
 use tap::TapFallible;
 use topology::{filter::VersionFilterable, gateway};
 use url::Url;
+#[cfg(not(target_arch = "wasm32"))]
 use validator_client::nyxd::SigningNyxdClient;
 
 pub(super) async fn query_gateway_details(

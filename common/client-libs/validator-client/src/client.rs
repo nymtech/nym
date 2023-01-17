@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{nym_api, ValidatorClientError};
-use coconut_dkg_common::types::{EpochId, NodeIndex};
+use coconut_dkg_common::types::NodeIndex;
 use coconut_interface::VerificationKey;
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::MixId;
@@ -21,7 +21,9 @@ use crate::nyxd::traits::{DkgQueryClient, MixnetQueryClient, MultisigQueryClient
 use crate::nyxd::{self, CosmWasmClient, NyxdClient, QueryNyxdClient, SigningNyxdClient};
 #[cfg(feature = "nyxd-client")]
 use coconut_dkg_common::{
-    dealer::ContractDealing, types::DealerDetails, verification_key::ContractVKShare,
+    dealer::ContractDealing,
+    types::{DealerDetails, EpochId},
+    verification_key::ContractVKShare,
 };
 #[cfg(feature = "nyxd-client")]
 use coconut_interface::Base58;

@@ -25,6 +25,8 @@ use client_connections::{ConnectionCommandReceiver, ConnectionCommandSender, Lan
 use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
+#[cfg(target_arch = "wasm32")]
+use gateway_client::wasm_storage::CosmWasmClient;
 use gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
     MixnetMessageSender,
@@ -39,6 +41,7 @@ use std::time::Duration;
 use tap::TapFallible;
 use task::{TaskClient, TaskManager};
 use url::Url;
+#[cfg(not(target_arch = "wasm32"))]
 use validator_client::nyxd::CosmWasmClient;
 
 use super::received_buffer::ReceivedBufferMessage;

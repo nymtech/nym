@@ -402,7 +402,7 @@ impl DummyCommunicationChannel {
 
 #[async_trait]
 impl super::comm::APICommunicationChannel for DummyCommunicationChannel {
-    async fn aggregated_verification_key(&self) -> Result<VerificationKey> {
+    async fn aggregated_verification_key(&self, _epoch_id: EpochId) -> Result<VerificationKey> {
         Ok(self.aggregated_verification_key.clone())
     }
 }
@@ -889,7 +889,7 @@ async fn verification_of_bandwidth_credential() {
         .await
         .expect("valid rocket instance");
 
-    let credential = Credential::new(4, theta.clone(), voucher_value, voucher_info.to_string());
+    let credential = Credential::new(4, theta.clone(), voucher_value, voucher_info.to_string(), 0);
     let proposal_id = 42;
     // The address is not used, so we can use a duplicate
     let gateway_cosmos_addr = validator_address.clone();
@@ -1040,6 +1040,7 @@ async fn verification_of_bandwidth_credential() {
         theta.clone(),
         voucher_value,
         String::from("bad voucher info"),
+        0,
     );
     let bad_req =
         VerifyCredentialBody::new(bad_credential, proposal_id, gateway_cosmos_addr.clone());

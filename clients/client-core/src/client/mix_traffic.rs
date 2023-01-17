@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::spawn_future;
+#[cfg(target_arch = "wasm32")]
+use gateway_client::wasm_storage::CosmWasmClient;
 use gateway_client::GatewayClient;
 use log::*;
 use nymsphinx::forwarding::packet::MixPacket;
+#[cfg(not(target_arch = "wasm32"))]
 use validator_client::nyxd::CosmWasmClient;
 
 pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;

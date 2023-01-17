@@ -32,7 +32,11 @@ use coconut_interface::Credential;
 use credential_storage::PersistentStorage;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;
+#[cfg(not(target_arch = "wasm32"))]
+use validator_client::nyxd::CosmWasmClient;
 
+#[cfg(target_arch = "wasm32")]
+use crate::wasm_storage::CosmWasmClient;
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_storage::PersistentStorage;
 #[cfg(target_arch = "wasm32")]
@@ -72,7 +76,7 @@ pub struct GatewayClient<C: Clone> {
 
 impl<C> GatewayClient<C>
 where
-    C: validator_client::nyxd::CosmWasmClient + Sync + Send + Clone,
+    C: CosmWasmClient + Sync + Send + Clone,
 {
     // TODO: put it all in a Config struct
     #[allow(clippy::too_many_arguments)]

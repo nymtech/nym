@@ -23,7 +23,11 @@ pub fn try_commit_verification_key_share(
     let details = dealers_storage::current_dealers()
         .load(deps.storage, &info.sender)
         .map_err(|_| ContractError::NotADealer)?;
-    if vk_shares().may_load(deps.storage, &info.sender)?.is_some() {
+    let epoch_id = CURRENT_EPOCH.load(deps.storage)?.epoch_id;
+    if vk_shares()
+        .may_load(deps.storage, (&info.sender, epoch_id))?
+        .is_some()
+    {
         return Err(ContractError::AlreadyCommitted {
             commitment: String::from("verification key share"),
         });
@@ -37,7 +41,7 @@ pub fn try_commit_verification_key_share(
         epoch_id: CURRENT_EPOCH.load(deps.storage)?.epoch_id,
         verified: false,
     };
-    vk_shares().save(deps.storage, &info.sender, &data)?;
+    vk_shares().save(deps.storage, (&info.sender, epoch_id), &data)?;
 
     let msg = to_cosmos_msg(
         info.sender,
@@ -57,8 +61,9 @@ pub fn try_verify_verification_key_share(
     owner: Addr,
 ) -> Result<Response, ContractError> {
     check_epoch_state(deps.storage, EpochState::VerificationKeyFinalization)?;
+    let epoch_id = CURRENT_EPOCH.load(deps.storage)?.epoch_id;
     MULTISIG.assert_admin(deps.as_ref(), &info.sender)?;
-    vk_shares().update(deps.storage, &owner, |vk_share| {
+    vk_shares().update(deps.storage, (&owner, epoch_id), |vk_share| {
         vk_share
             .map(|mut share| {
                 share.verified = true;

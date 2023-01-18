@@ -22,7 +22,7 @@ pub fn query_vk_shares_paged(
         .map(|addr| deps.api.addr_validate(&addr))
         .transpose()?;
 
-    let start = addr.as_ref().map(Bound::exclusive);
+    let start = addr.as_ref().map(|addr| Bound::exclusive((addr, epoch_id)));
 
     let shares = vk_shares()
         .idx
@@ -67,7 +67,7 @@ pub(crate) mod tests {
             let vk_share = vk_share_fixture(n);
             let sender = Addr::unchecked(format!("owner{}", n));
             vk_shares()
-                .save(&mut deps.storage, &sender, &vk_share)
+                .save(&mut deps.storage, (&sender, 0), &vk_share)
                 .unwrap();
         }
 
@@ -82,7 +82,7 @@ pub(crate) mod tests {
             let vk_share = vk_share_fixture(n);
             let sender = Addr::unchecked(format!("owner{}", n));
             vk_shares()
-                .save(&mut deps.storage, &sender, &vk_share)
+                .save(&mut deps.storage, (&sender, 0), &vk_share)
                 .unwrap();
         }
 
@@ -102,7 +102,7 @@ pub(crate) mod tests {
             let vk_share = vk_share_fixture(n);
             let sender = Addr::unchecked(format!("owner{}", n));
             vk_shares()
-                .save(&mut deps.storage, &sender, &vk_share)
+                .save(&mut deps.storage, (&sender, 0), &vk_share)
                 .unwrap();
         }
 
@@ -123,7 +123,7 @@ pub(crate) mod tests {
         let vk_share = vk_share_fixture(1);
         let sender = Addr::unchecked(format!("owner{}", 1));
         vk_shares()
-            .save(&mut deps.storage, &sender, &vk_share)
+            .save(&mut deps.storage, (&sender, 0), &vk_share)
             .unwrap();
 
         let per_page = 2;
@@ -136,7 +136,7 @@ pub(crate) mod tests {
         let vk_share = vk_share_fixture(2);
         let sender = Addr::unchecked(format!("owner{}", 2));
         vk_shares()
-            .save(&mut deps.storage, &sender, &vk_share)
+            .save(&mut deps.storage, (&sender, 0), &vk_share)
             .unwrap();
 
         // page1 should have 2 results on it
@@ -146,7 +146,7 @@ pub(crate) mod tests {
         let vk_share = vk_share_fixture(3);
         let sender = Addr::unchecked(format!("owner{}", 3));
         vk_shares()
-            .save(&mut deps.storage, &sender, &vk_share)
+            .save(&mut deps.storage, (&sender, 0), &vk_share)
             .unwrap();
 
         // page1 still has 2 results
@@ -168,7 +168,7 @@ pub(crate) mod tests {
         let vk_share = vk_share_fixture(4);
         let sender = Addr::unchecked(format!("owner{}", 4));
         vk_shares()
-            .save(&mut deps.storage, &sender, &vk_share)
+            .save(&mut deps.storage, (&sender, 0), &vk_share)
             .unwrap();
 
         let page2 = query_vk_shares_paged(

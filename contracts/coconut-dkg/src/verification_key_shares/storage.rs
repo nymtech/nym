@@ -12,7 +12,7 @@ use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex};
 pub(crate) const VERIFICATION_KEY_SHARES_PAGE_MAX_LIMIT: u32 = 75;
 pub(crate) const VERIFICATION_KEY_SHARES_PAGE_DEFAULT_LIMIT: u32 = 50;
 
-type VKShareKey<'a> = &'a Addr;
+type VKShareKey<'a> = (&'a Addr, EpochId);
 
 pub(crate) struct VkShareIndex<'a> {
     pub(crate) epoch_id: MultiIndex<'a, EpochId, ContractVKShare, VKShareKey<'a>>,

@@ -44,8 +44,6 @@ export const DefaultLayout: FCWithChildren<{
         isError={isError}
         onClick={onConnectClick}
       />
-      <TestAndEarnButtonArea />
-      <AppVersion />
     </Box>
   );
 };

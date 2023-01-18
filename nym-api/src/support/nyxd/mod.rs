@@ -40,11 +40,13 @@ use contracts_common::dealings::ContractSafeBytes;
 #[cfg(feature = "coconut")]
 use cw3::ProposalResponse;
 #[cfg(feature = "coconut")]
+use cw4::MemberResponse;
+#[cfg(feature = "coconut")]
 use validator_client::nyxd::{
     cosmwasm_client::types::ExecuteResult,
     traits::{
-        CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, MultisigQueryClient,
-        MultisigSigningClient,
+        CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, GroupQueryClient,
+        MultisigQueryClient, MultisigSigningClient,
     },
     Fee,
 };
@@ -325,6 +327,10 @@ impl crate::coconut::client::Client for Client {
 
     async fn get_current_epoch(&self) -> crate::coconut::error::Result<Epoch> {
         Ok(self.0.read().await.nyxd.get_current_epoch().await?)
+    }
+
+    async fn group_member(&self, addr: String) -> crate::coconut::error::Result<MemberResponse> {
+        Ok(self.0.read().await.nyxd.member(addr).await?)
     }
 
     async fn get_current_epoch_threshold(

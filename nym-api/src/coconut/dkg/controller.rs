@@ -86,8 +86,19 @@ impl<R: RngCore + Clone> DkgController<R> {
         match self.dkg_client.get_current_epoch().await {
             Err(err) => warn!("Could not get current epoch state {err}"),
             Ok(epoch) => {
+                if self
+                    .dkg_client
+                    .group_member()
+                    .await
+                    .map(|resp| resp.weight.is_none())
+                    .unwrap_or(true)
+                {
+                    debug!("Not a member of the group, DKG won't be run");
+                    return;
+                }
                 if let Err(err) = self.state.is_consistent(epoch.state).await {
                     error!("Epoch state is corrupted - {err}, the process should be terminated");
+                    return;
                 }
                 let ret = match epoch.state {
                     EpochState::PublicKeySubmission => {

@@ -45,6 +45,7 @@ use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare
 use contracts_common::dealings::ContractSafeBytes;
 use crypto::asymmetric::{encryption, identity};
 use cw3::ProposalResponse;
+use cw4::MemberResponse;
 use dkg::Threshold;
 use rand_07::rngs::OsRng;
 use rand_07::Rng;
@@ -190,6 +191,10 @@ impl super::client::Client for DummyClient {
 
     async fn get_current_epoch(&self) -> Result<Epoch> {
         Ok(*self.epoch.read().unwrap())
+    }
+
+    async fn group_member(&self, addr: String) -> Result<MemberResponse> {
+        todo!()
     }
 
     async fn get_current_epoch_threshold(&self) -> Result<Option<Threshold>> {

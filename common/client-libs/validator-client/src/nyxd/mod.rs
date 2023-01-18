@@ -65,6 +65,7 @@ pub struct Config {
     pub(crate) vesting_contract_address: Option<AccountId>,
     pub(crate) bandwidth_claim_contract_address: Option<AccountId>,
     pub(crate) coconut_bandwidth_contract_address: Option<AccountId>,
+    pub(crate) group_contract_address: Option<AccountId>,
     pub(crate) multisig_contract_address: Option<AccountId>,
     pub(crate) coconut_dkg_contract_address: Option<AccountId>,
     // TODO: add this in later commits
@@ -117,6 +118,10 @@ impl Config {
                     .contracts
                     .coconut_bandwidth_contract_address
                     .as_ref(),
+                prefix,
+            )?,
+            group_contract_address: Self::parse_optional_account(
+                details.contracts.group_contract_address.as_ref(),
                 prefix,
             )?,
             multisig_contract_address: Self::parse_optional_account(
@@ -277,6 +282,10 @@ where
             .coconut_bandwidth_contract_address
             .as_ref()
             .unwrap()
+    }
+
+    pub fn group_contract_address(&self) -> &AccountId {
+        self.config.group_contract_address.as_ref().unwrap()
     }
 
     // TODO: this should get changed into Result<&AccountId, NyxdError> (or Option<&AccountId> in future commits

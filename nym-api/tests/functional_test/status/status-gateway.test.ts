@@ -10,6 +10,12 @@ describe("Get gateway data", (): void => {
     config = ConfigHandler.getInstance();
   });
 
+  it("Get all gateways detailed", async (): Promise<void> => {
+    const response = await status.getDetailedGateways();
+
+    expect(typeof response.owner).toBe("string");
+  });
+
   it("Get a gateway history", async (): Promise<void> => {
     const identity_key = config.environmnetConfig.gateway_identity;
     const response = await status.getGatewayHistory(identity_key);

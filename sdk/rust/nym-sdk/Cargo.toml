@@ -16,7 +16,7 @@ nymsphinx = { path = "../../../common/nymsphinx" }
 task = { path = "../../../common/task" }
 
 futures = "0.3"
-log = "0.4"
+log = { workspace = true }
 rand = { version = "0.7.3" }
 tap = "1.0.1"
 thiserror = "1.0.38"

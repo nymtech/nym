@@ -95,3 +95,12 @@ default-members = [
 ]
 
 exclude = ["explorer", "contracts", "clients/webassembly", "nym-wallet", "nym-connect"]
+
+[workspace.package]
+authors = ["Nym Technologies SA"]
+repository = "https://github.com/nymtech/nym"
+homepage = "https://nymtech.net"
+edition = "2021"
+
+[workspace.dependencies]
+log = "0.4"

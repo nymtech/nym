@@ -34,9 +34,8 @@ pub fn banner(crate_name: &str, crate_version: &str) -> String {
      |_| |_|\__, |_| |_| |_|
             |___/
 
-             ({:} - version {:})
+             ({crate_name} - version {crate_version})
 
-    "#,
-        crate_name, crate_version
+    "#
     )
 }

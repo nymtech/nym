@@ -137,7 +137,7 @@ impl SocketClient {
             self.key_manager,
             Some(Self::create_bandwidth_controller(&self.config).await),
             non_wasm_helpers::setup_fs_reply_surb_backend(
-                self.config.get_base().get_reply_surb_database_path(),
+                Some(self.config.get_base().get_reply_surb_database_path()),
                 self.config.get_debug_settings(),
             )
             .await?,
@@ -174,7 +174,7 @@ impl SocketClient {
             self.key_manager,
             Some(Self::create_bandwidth_controller(&self.config).await),
             non_wasm_helpers::setup_fs_reply_surb_backend(
-                self.config.get_base().get_reply_surb_database_path(),
+                Some(self.config.get_base().get_reply_surb_database_path()),
                 self.config.get_debug_settings(),
             )
             .await?,

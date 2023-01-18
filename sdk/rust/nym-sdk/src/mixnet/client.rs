@@ -10,6 +10,7 @@ use client_core::{
         inbound_messages::InputMessage,
         key_manager::KeyManager,
         received_buffer::ReconstructedMessagesReceiver,
+        replies::reply_storage::{self, ReplyStorageBackend},
     },
     config::{persistence::key_pathfinder::ClientKeyPathfinder, GatewayEndpointConfig},
 };
@@ -25,7 +26,7 @@ use futures::StreamExt;
 use super::{connection_state::BuilderState, Config, GatewayKeyMode, Keys, KeysArc, StoragePaths};
 use crate::error::{Error, Result};
 
-pub struct ClientBuilder {
+pub struct MixnetClientBuilder<B: ReplyStorageBackend> {
     /// Keys handled by the client
     key_manager: KeyManager,
 
@@ -38,15 +39,67 @@ pub struct ClientBuilder {
     /// The client can be in one of multiple states, depending on how it is created and if it's
     /// connected to the mixnet.
     state: BuilderState,
+
+    /// The storage backend for reply-SURBs
+    reply_storage_backend: B,
 }
 
-impl ClientBuilder {
+impl MixnetClientBuilder<reply_storage::fs_backend::Backend> {
     /// Create a new mixnet client. If no config options are supplied, creates a new client with
     /// ephemeral keys stored in RAM, which will be discarded at application close.
     ///
     /// Callers have the option of supplying futher parameters to store persistent identities at a
     /// location on-disk, if desired.
-    pub fn new(config_option: Option<Config>, paths: Option<StoragePaths>) -> Result<Self> {
+    pub async fn new(config: Option<Config>, paths: Option<StoragePaths>) -> Result<Self> {
+        let config = config.unwrap_or_default();
+
+        let reply_surb_database_path = paths.as_ref().map(|p| p.reply_surb_database_path.clone());
+
+        let reply_storage_backend = non_wasm_helpers::setup_fs_reply_surb_backend(
+            reply_surb_database_path,
+            &config.debug_config,
+        )
+        .await?;
+
+        MixnetClientBuilder::new_with_custom_storage(Some(config), paths, reply_storage_backend)
+    }
+}
+
+impl MixnetClientBuilder<reply_storage::Empty> {
+    /// Create a new mixnet client. If no config options are supplied, creates a new client with
+    /// ephemeral keys stored in RAM, which will be discarded at application close.
+    ///
+    /// Callers have the option of supplying futher parameters to store persistent identities at a
+    /// location on-disk, if desired.
+    pub fn new_without_storage(
+        config: Option<Config>,
+        paths: Option<StoragePaths>,
+    ) -> Result<Self> {
+        let config = config.unwrap_or_default();
+
+        let reply_storage_backend =
+            non_wasm_helpers::setup_empty_reply_surb_backend(&config.debug_config);
+
+        MixnetClientBuilder::new_with_custom_storage(Some(config), paths, reply_storage_backend)
+    }
+}
+
+impl<B> MixnetClientBuilder<B>
+where
+    B: ReplyStorageBackend + Sync + Send + 'static,
+{
+    /// Create a new mixnet client. If no config options are supplied, creates a new client with
+    /// ephemeral keys stored in RAM, which will be discarded at application close.
+    ///
+    /// Callers have the option of supplying futher parameters to store persistent identities at a
+    /// location on-disk, if desired.
+    ///
+    /// A custom storage backend can be passed in.
+    pub fn new_with_custom_storage(
+        config_option: Option<Config>,
+        paths: Option<StoragePaths>,
+        reply_storage_backend: B,
+    ) -> Result<Self> {
         let config = config_option.unwrap_or_default();
 
         // If we are provided paths to keys, use them if they are available. And if they are
@@ -86,6 +139,7 @@ impl ClientBuilder {
             config,
             storage_paths: paths,
             state: BuilderState::New,
+            reply_storage_backend,
         })
     }
 
@@ -183,7 +237,10 @@ impl ClientBuilder {
     }
 
     /// Connects to the mixnet via the gateway in the client config
-    pub async fn connect_to_mixnet(mut self) -> Result<Client> {
+    pub async fn connect_to_mixnet(mut self) -> Result<MixnetClient>
+    where
+        <B as ReplyStorageBackend>::StorageError: Sync + Send,
+    {
         // For some simple cases we can figure how to setup gateway without it having to have been
         // called in advance.
         if matches!(self.state, BuilderState::New) {
@@ -220,16 +277,12 @@ impl ClientBuilder {
         // TODO: we currently don't support having a bandwidth controller
         let bandwidth_controller = None;
 
-        // TODO: currently we only support in-memory reply surb storage.
-        let reply_storage_backend =
-            non_wasm_helpers::setup_empty_reply_surb_backend(&self.config.debug_config);
-
         let base_builder = BaseClientBuilder::new(
             &gateway_endpoint_config,
             &self.config.debug_config,
             self.key_manager.clone(),
             bandwidth_controller,
-            reply_storage_backend,
+            self.reply_storage_backend,
             CredentialsToggle::Disabled,
             self.config.nym_api_endpoints.clone(),
         );
@@ -242,7 +295,7 @@ impl ClientBuilder {
         // Register our receiver
         let reconstructed_receiver = client_output.register_receiver().unwrap();
 
-        Ok(Client {
+        Ok(MixnetClient {
             nym_address,
             key_manager: self.key_manager,
             client_input,
@@ -254,7 +307,7 @@ impl ClientBuilder {
     }
 }
 
-pub struct Client {
+pub struct MixnetClient {
     nym_address: Recipient,
 
     /// Keys handled by the client
@@ -273,9 +326,9 @@ pub struct Client {
     task_manager: TaskManager,
 }
 
-impl Client {
+impl MixnetClient {
     pub async fn connect() -> Result<Self> {
-        let client = ClientBuilder::new(None, None)?;
+        let client = MixnetClientBuilder::new_without_storage(None, None)?;
         client.connect_to_mixnet().await
     }
 

@@ -5,8 +5,9 @@ async fn main() {
     logging::setup_logging();
 
     // Create client builder, including ephemeral keys. The builder can be usable in the context
-    // where you don't want to connect just yet
-    let client = mixnet::ClientBuilder::new(None, None).unwrap();
+    // where you don't want to connect just yet.
+    // Since not storage paths are given, the surb storage will be inactive.
+    let client = mixnet::MixnetClientBuilder::new(None, None).await.unwrap();
 
     // Now we connect to the mixnet, using ephemeral keys already created
     let mut client = client.connect_to_mixnet().await.unwrap();

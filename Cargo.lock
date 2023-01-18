@@ -2369,6 +2369,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "group-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cw4",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "h2"
 version = "0.3.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"

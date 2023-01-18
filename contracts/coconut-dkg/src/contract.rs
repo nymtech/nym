@@ -136,8 +136,8 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, Addr};
     use cw4::Member;
-    use cw4_group::msg::InstantiateMsg as GroupInstantiateMsg;
     use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
+    use group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
 
     fn instantiate_with_group(app: &mut App, members: &[Addr]) -> Addr {
         let group_code_id = app.store_code(Box::new(ContractWrapper::new(

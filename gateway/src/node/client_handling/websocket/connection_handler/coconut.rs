@@ -4,6 +4,7 @@
 use coconut_interface::Credential;
 use log::*;
 use std::time::{Duration, SystemTime};
+use validator_client::nyxd::traits::DkgQueryClient;
 use validator_client::{
     nyxd::{
         cosmwasm_client::logs::{find_attribute, BANDWIDTH_PROPOSAL_ID},
@@ -36,6 +37,13 @@ impl CoconutVerifier {
             nyxd_client,
             mix_denom_base,
         }
+    }
+
+    pub async fn all_current_coconut_api_clients(
+        &self,
+    ) -> Result<Vec<CoconutApiClient>, RequestHandlingError> {
+        let epoch_id = self.nyxd_client.nyxd.get_current_epoch().await?.epoch_id;
+        self.all_coconut_api_clients(epoch_id).await
     }
 
     pub async fn all_coconut_api_clients(

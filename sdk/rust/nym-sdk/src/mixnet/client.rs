@@ -346,15 +346,30 @@ impl MixnetClient {
 
     /// Sends stringy data to the supplied Nym address
     pub async fn send_str(&self, address: &str, message: &str) {
-        log::debug!("send_str");
+        let message_bytes = message.to_string().into_bytes();
+        self.send_bytes(address, message_bytes).await;
+    }
+
+    /// Sends stringy data to the supplied Nym address, and skip sending reply-SURBs
+    pub async fn send_str_direct(&self, address: &str, message: &str) {
         let message_bytes = message.to_string().into_bytes();
         self.send_bytes(address, message_bytes).await;
     }
 
     /// Sends bytes to the supplied Nym address
     pub async fn send_bytes(&self, address: &str, message: Vec<u8>) {
-        log::debug!("send_bytes");
+        let lane = TransmissionLane::General;
+        let recipient = Recipient::try_from_base58_string(address).unwrap();
+        let input_msg = InputMessage::new_anonymous(recipient, message, 20, lane);
+        self.client_input
+            .input_sender
+            .send(input_msg)
+            .await
+            .unwrap();
+    }
 
+    /// Sends bytes to the supplied Nym address, and skip sending reply-SURBs
+    pub async fn send_bytes_direct(&self, address: &str, message: Vec<u8>) {
         let lane = TransmissionLane::General;
         let recipient = Recipient::try_from_base58_string(address).unwrap();
         let input_msg = InputMessage::new_regular(recipient, message, lane);

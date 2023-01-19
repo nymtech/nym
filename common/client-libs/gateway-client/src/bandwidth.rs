@@ -5,18 +5,18 @@
 use crate::error::GatewayClientError;
 
 #[cfg(target_arch = "wasm32")]
-use crate::wasm_storage::Storage;
+use crate::wasm_mockups::Storage;
 #[cfg(not(target_arch = "wasm32"))]
 use credential_storage::storage::Storage;
 
 #[cfg(all(target_arch = "wasm32", feature = "coconut"))]
-use crate::wasm_storage::StorageError;
+use crate::wasm_mockups::StorageError;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "coconut"))]
 use credential_storage::error::StorageError;
 
 #[cfg(target_arch = "wasm32")]
-use crate::wasm_storage::{Client, CosmWasmClient};
+use crate::wasm_mockups::{Client, CosmWasmClient};
 #[cfg(feature = "coconut")]
 use std::str::FromStr;
 #[cfg(not(target_arch = "wasm32"))]
@@ -31,7 +31,7 @@ use {
 
 // TODO: make it nicer for wasm (I don't want to touch it for this experiment)
 #[cfg(target_arch = "wasm32")]
-use crate::wasm_storage::PersistentStorage;
+use crate::wasm_mockups::PersistentStorage;
 
 #[cfg(not(target_arch = "wasm32"))]
 use credential_storage::PersistentStorage;

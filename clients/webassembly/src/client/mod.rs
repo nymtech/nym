@@ -11,7 +11,7 @@ use client_core::client::base_client::{
 use client_core::client::replies::reply_storage::browser_backend;
 use client_core::client::{inbound_messages::InputMessage, key_manager::KeyManager};
 use gateway_client::bandwidth::BandwidthController;
-use gateway_client::wasm_storage::SigningNyxdClient;
+use gateway_client::wasm_mockups::SigningNyxdClient;
 use js_sys::Promise;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;

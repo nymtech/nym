@@ -3,7 +3,7 @@
 
 use crate::spawn_future;
 #[cfg(target_arch = "wasm32")]
-use gateway_client::wasm_storage::CosmWasmClient;
+use gateway_client::wasm_mockups::CosmWasmClient;
 use gateway_client::GatewayClient;
 use log::*;
 use nymsphinx::forwarding::packet::MixPacket;

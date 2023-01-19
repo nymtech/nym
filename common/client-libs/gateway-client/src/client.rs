@@ -36,9 +36,9 @@ use tokio_tungstenite::connect_async;
 use validator_client::nyxd::CosmWasmClient;
 
 #[cfg(target_arch = "wasm32")]
-use crate::wasm_storage::CosmWasmClient;
+use crate::wasm_mockups::CosmWasmClient;
 #[cfg(target_arch = "wasm32")]
-use crate::wasm_storage::PersistentStorage;
+use crate::wasm_mockups::PersistentStorage;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
 #[cfg(target_arch = "wasm32")]

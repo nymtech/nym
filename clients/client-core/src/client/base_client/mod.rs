@@ -26,7 +26,7 @@ use crypto::asymmetric::{encryption, identity};
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
 #[cfg(target_arch = "wasm32")]
-use gateway_client::wasm_storage::CosmWasmClient;
+use gateway_client::wasm_mockups::CosmWasmClient;
 use gateway_client::{
     AcknowledgementReceiver, AcknowledgementSender, GatewayClient, MixnetMessageReceiver,
     MixnetMessageSender,

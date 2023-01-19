@@ -36,8 +36,10 @@ impl NymConfig for Config {
     }
 
     fn default_root_directory() -> PathBuf {
-        dirs::home_dir()
-            .expect("Failed to evaluate $HOME value")
+        // TODO android temp fix
+        // dirs::home_dir()
+        //     .expect("Failed to evaluate $HOME value")
+        PathBuf::from("/data/local/tmp")
             .join(".nym")
             .join("socks5-clients")
     }

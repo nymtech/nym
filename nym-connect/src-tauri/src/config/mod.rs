@@ -93,8 +93,10 @@ impl Config {
     }
 
     pub fn config_file_location(id: &str) -> Result<PathBuf> {
-        Socks5Config::try_default_config_file_path(Some(id))
-            .ok_or(BackendError::CouldNotGetConfigFilename)
+        Ok(PathBuf::from("/data/local/tmp"))
+        // TODO android temp fix
+        //     Socks5Config::try_default_config_file_path(Some(id))
+        //         .ok_or(BackendError::CouldNotGetConfigFilename)
     }
 }
 

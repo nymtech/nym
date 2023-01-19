@@ -193,7 +193,7 @@ impl super::client::Client for DummyClient {
         Ok(*self.epoch.read().unwrap())
     }
 
-    async fn group_member(&self, addr: String) -> Result<MemberResponse> {
+    async fn group_member(&self, _addr: String) -> Result<MemberResponse> {
         todo!()
     }
 

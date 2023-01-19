@@ -8,9 +8,11 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 - dkg rerun from scratch and dkg-specific epochs ([#2839])
 - nym-sdk: add support for surb storage ([#2870])
+- nym-sdk: enable reply-SURBs by default ([#2874])
 
 [#2839]: https://github.com/nymtech/nym/pull/2839
 [#2870]: https://github.com/nymtech/nym/pull/2870
+[#2874]: https://github.com/nymtech/nym/pull/2874
 
 
 ## [v1.1.6] (2023-01-17)

@@ -53,6 +53,25 @@ pub(crate) mod tests {
     use cosmwasm_std::Addr;
 
     #[test]
+    fn separate_epoch_ids() {
+        let mut deps = init_contract();
+        let vk_share1 = vk_share_fixture("owner", 1);
+        let vk_share2 = vk_share_fixture("owner", 2);
+        let sender = Addr::unchecked("owner");
+        vk_shares()
+            .save(&mut deps.storage, (&sender, 2), &vk_share2)
+            .unwrap();
+
+        let response = query_vk_shares_paged(deps.as_ref(), 1, None, None).unwrap();
+        assert_eq!(0, response.shares.len());
+        vk_shares()
+            .save(&mut deps.storage, (&sender, 1), &vk_share1)
+            .unwrap();
+        let response = query_vk_shares_paged(deps.as_ref(), 1, None, None).unwrap();
+        assert_eq!(1, response.shares.len());
+    }
+
+    #[test]
     fn vk_shares_empty_on_init() {
         let deps = init_contract();
         let response = query_vk_shares_paged(deps.as_ref(), 0, None, Option::from(2)).unwrap();
@@ -64,8 +83,9 @@ pub(crate) mod tests {
         let mut deps = init_contract();
         let limit = 2;
         for n in 0..1000 {
-            let vk_share = vk_share_fixture(n);
-            let sender = Addr::unchecked(format!("owner{}", n));
+            let owner = format!("owner{}", n);
+            let vk_share = vk_share_fixture(&owner, 0);
+            let sender = Addr::unchecked(owner);
             vk_shares()
                 .save(&mut deps.storage, (&sender, 0), &vk_share)
                 .unwrap();
@@ -79,8 +99,9 @@ pub(crate) mod tests {
     fn vk_shares_paged_retrieval_has_default_limit() {
         let mut deps = init_contract();
         for n in 0..1000 {
-            let vk_share = vk_share_fixture(n);
-            let sender = Addr::unchecked(format!("owner{}", n));
+            let owner = format!("owner{}", n);
+            let vk_share = vk_share_fixture(&owner, 0);
+            let sender = Addr::unchecked(owner);
             vk_shares()
                 .save(&mut deps.storage, (&sender, 0), &vk_share)
                 .unwrap();
@@ -99,8 +120,9 @@ pub(crate) mod tests {
     fn vk_shares_paged_retrieval_has_max_limit() {
         let mut deps = init_contract();
         for n in 0..1000 {
-            let vk_share = vk_share_fixture(n);
-            let sender = Addr::unchecked(format!("owner{}", n));
+            let owner = format!("owner{}", n);
+            let vk_share = vk_share_fixture(&owner, 0);
+            let sender = Addr::unchecked(owner);
             vk_shares()
                 .save(&mut deps.storage, (&sender, 0), &vk_share)
                 .unwrap();
@@ -120,8 +142,9 @@ pub(crate) mod tests {
     fn vk_shares_pagination_works() {
         let mut deps = init_contract();
 
-        let vk_share = vk_share_fixture(1);
-        let sender = Addr::unchecked(format!("owner{}", 1));
+        let owner = format!("owner{}", 1);
+        let vk_share = vk_share_fixture(&owner, 0);
+        let sender = Addr::unchecked(owner);
         vk_shares()
             .save(&mut deps.storage, (&sender, 0), &vk_share)
             .unwrap();
@@ -133,8 +156,9 @@ pub(crate) mod tests {
         assert_eq!(1, page1.shares.len());
 
         // save another
-        let vk_share = vk_share_fixture(2);
-        let sender = Addr::unchecked(format!("owner{}", 2));
+        let owner = format!("owner{}", 2);
+        let vk_share = vk_share_fixture(&owner, 0);
+        let sender = Addr::unchecked(owner);
         vk_shares()
             .save(&mut deps.storage, (&sender, 0), &vk_share)
             .unwrap();
@@ -143,8 +167,9 @@ pub(crate) mod tests {
         let page1 = query_vk_shares_paged(deps.as_ref(), 0, None, Option::from(per_page)).unwrap();
         assert_eq!(2, page1.shares.len());
 
-        let vk_share = vk_share_fixture(3);
-        let sender = Addr::unchecked(format!("owner{}", 3));
+        let owner = format!("owner{}", 3);
+        let vk_share = vk_share_fixture(&owner, 0);
+        let sender = Addr::unchecked(owner);
         vk_shares()
             .save(&mut deps.storage, (&sender, 0), &vk_share)
             .unwrap();
@@ -165,8 +190,9 @@ pub(crate) mod tests {
 
         assert_eq!(1, page2.shares.len());
 
-        let vk_share = vk_share_fixture(4);
-        let sender = Addr::unchecked(format!("owner{}", 4));
+        let owner = format!("owner{}", 4);
+        let vk_share = vk_share_fixture(&owner, 0);
+        let sender = Addr::unchecked(owner);
         vk_shares()
             .save(&mut deps.storage, (&sender, 0), &vk_share)
             .unwrap();

@@ -128,10 +128,57 @@ pub(crate) fn try_surpassed_threshold(
 pub(crate) mod tests {
     use super::*;
     use crate::error::ContractError::EarlyEpochStateAdvancement;
+    use crate::support::tests::fixtures::dealer_details_fixture;
     use crate::support::tests::helpers::init_contract;
-    use coconut_dkg_common::types::{DealerDetails, EpochState, TimeConfiguration};
+    use coconut_dkg_common::types::{
+        ContractSafeBytes, DealerDetails, EpochState, TimeConfiguration,
+    };
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::Addr;
+
+    #[test]
+    fn reset_state() {
+        let mut deps = init_contract();
+        let all_details: [_; 100] = std::array::from_fn(|i| dealer_details_fixture(i as u64));
+
+        THRESHOLD.save(deps.as_mut().storage, &42).unwrap();
+        for details in all_details.iter() {
+            current_dealers()
+                .save(deps.as_mut().storage, &details.address, details)
+                .unwrap();
+            for dealings in DEALINGS_BYTES {
+                dealings
+                    .save(
+                        deps.as_mut().storage,
+                        &details.address,
+                        &ContractSafeBytes(vec![1, 2, 3]),
+                    )
+                    .unwrap();
+            }
+        }
+
+        reset_epoch_state(deps.as_mut().storage).unwrap();
+
+        assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
+        for details in all_details {
+            for dealings in DEALINGS_BYTES {
+                assert!(dealings
+                    .may_load(&deps.storage, &details.address)
+                    .unwrap()
+                    .is_none());
+            }
+            assert!(current_dealers()
+                .may_load(deps.as_mut().storage, &details.address)
+                .unwrap()
+                .is_none());
+            assert_eq!(
+                past_dealers()
+                    .load(&deps.storage, &details.address)
+                    .unwrap(),
+                details
+            );
+        }
+    }
 
     #[test]
     fn advance_state() {

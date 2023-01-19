@@ -627,7 +627,7 @@ pub trait MixnetSigningClient {
 #[async_trait]
 impl<C> MixnetSigningClient for NyxdClient<C>
 where
-    C: SigningCosmWasmClient + Sync + Send,
+    C: SigningCosmWasmClient + Sync + Send + Clone,
 {
     async fn execute_mixnet_contract(
         &self,
@@ -653,7 +653,7 @@ where
 #[async_trait]
 impl<C> MixnetSigningClient for crate::Client<C>
 where
-    C: SigningCosmWasmClient + Sync + Send,
+    C: SigningCosmWasmClient + Sync + Send + Clone,
 {
     async fn execute_mixnet_contract(
         &self,

@@ -25,7 +25,7 @@ gateway-requests = { path = "../../../gateway/gateway-requests" }
 network-defaults = { path = "../../network-defaults" }
 nymsphinx = { path = "../../nymsphinx" }
 pemstore = { path = "../../pemstore" }
-validator-client = { path = "../validator-client", optional = true }
+validator-client = { path = "../validator-client" }
 task = { path = "../../task" }
 serde = { version = "1.0", features = ["derive"]}
 
@@ -79,5 +79,5 @@ features = ["js"]
 #url = "2.1"
 
 [features]
-coconut = ["gateway-requests/coconut", "coconut-interface", "validator-client", "credentials/coconut"]
+coconut = ["gateway-requests/coconut", "coconut-interface", "credentials/coconut"]
 wasm = []

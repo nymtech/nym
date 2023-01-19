@@ -177,7 +177,8 @@ pub(crate) async fn verification_key_validation(
         return Ok(());
     }
 
-    let vk_shares = dkg_client.get_verification_key_shares().await?;
+    let epoch_id = dkg_client.get_current_epoch().await?.epoch_id;
+    let vk_shares = dkg_client.get_verification_key_shares(epoch_id).await?;
     let proposal_ids = BTreeMap::from_iter(
         dkg_client
             .list_proposals()

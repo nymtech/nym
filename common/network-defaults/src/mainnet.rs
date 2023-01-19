@@ -17,6 +17,7 @@ pub(crate) const BANDWIDTH_CLAIM_CONTRACT_ADDRESS: &str =
     "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
     "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
+pub(crate) const GROUP_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 pub(crate) const MULTISIG_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 pub(crate) const _ETH_CONTRACT_ADDRESS: [u8; 20] =
@@ -81,6 +82,7 @@ pub fn export_to_env() {
         var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
         COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
     );
+    set_var_to_default(var_names::GROUP_CONTRACT_ADDRESS, GROUP_CONTRACT_ADDRESS);
     set_var_to_default(
         var_names::MULTISIG_CONTRACT_ADDRESS,
         MULTISIG_CONTRACT_ADDRESS,
@@ -125,6 +127,7 @@ pub fn export_to_env_if_not_set() {
         var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
         COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
     );
+    set_var_conditionally_to_default(var_names::GROUP_CONTRACT_ADDRESS, GROUP_CONTRACT_ADDRESS);
     set_var_conditionally_to_default(
         var_names::MULTISIG_CONTRACT_ADDRESS,
         MULTISIG_CONTRACT_ADDRESS,

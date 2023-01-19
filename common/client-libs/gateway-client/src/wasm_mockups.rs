@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
+use std::marker::PhantomData;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -14,6 +15,18 @@ pub enum StorageError {
     InconsistentData,
 }
 
+pub trait CosmWasmClient {}
+
+#[derive(Clone)]
+pub struct SigningNyxdClient {}
+
+impl CosmWasmClient for SigningNyxdClient {}
+
+#[derive(Clone)]
+pub struct Client<C> {
+    _phantom: PhantomData<C>,
+}
+
 #[derive(Clone)]
 pub struct PersistentStorage {}
 
@@ -24,6 +37,7 @@ pub struct CoconutCredential {
     pub serial_number: String,
     pub binding_number: String,
     pub signature: String,
+    pub epoch_id: String,
 }
 
 #[async_trait]

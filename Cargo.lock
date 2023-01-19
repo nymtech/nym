@@ -2369,6 +2369,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "group-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cw4",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "h2"
 version = "0.3.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3447,6 +3456,7 @@ dependencies = [
  "crypto",
  "cw-utils",
  "cw3",
+ "cw4",
  "dirs",
  "dkg",
  "dotenv",
@@ -3803,6 +3813,7 @@ dependencies = [
  "tokio",
  "toml",
  "url",
+ "validator-client",
 ]
 
 [[package]]
@@ -6861,9 +6872,11 @@ dependencies = [
  "cosmrs",
  "cosmwasm-std",
  "cw3",
+ "cw4",
  "execute",
  "flate2",
  "futures",
+ "group-contract-common",
  "itertools",
  "log",
  "mixnet-contract-common",

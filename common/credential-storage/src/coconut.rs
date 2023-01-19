@@ -34,10 +34,11 @@ impl CoconutCredentialManager {
         serial_number: String,
         binding_number: String,
         signature: String,
+        epoch_id: String,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO coconut_credentials(voucher_value, voucher_info, serial_number, binding_number, signature, consumed) VALUES (?, ?, ?, ?, ?, ?)",
-            voucher_value, voucher_info, serial_number, binding_number, signature, false
+            "INSERT INTO coconut_credentials(voucher_value, voucher_info, serial_number, binding_number, signature, epoch_id, consumed) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            voucher_value, voucher_info, serial_number, binding_number, signature, epoch_id, false
         )
         .execute(&self.connection_pool)
         .await?;

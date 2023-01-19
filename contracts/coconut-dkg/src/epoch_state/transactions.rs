@@ -1,11 +1,49 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::dealers::storage::current_dealers;
+use crate::dealers::storage::{current_dealers, past_dealers};
+use crate::dealings::storage::DEALINGS_BYTES;
 use crate::epoch_state::storage::{CURRENT_EPOCH, THRESHOLD};
+use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
+use crate::state::STATE;
 use coconut_dkg_common::types::{Epoch, EpochState};
-use cosmwasm_std::{DepsMut, Env, Order, Response};
+use cosmwasm_std::{DepsMut, Env, Order, Response, Storage};
+
+fn reset_epoch_state(storage: &mut dyn Storage) -> Result<(), ContractError> {
+    THRESHOLD.remove(storage);
+    let dealers: Vec<_> = current_dealers()
+        .keys(storage, None, None, Order::Ascending)
+        .collect::<Result<_, _>>()?;
+
+    for dealer_addr in dealers {
+        let details = current_dealers().load(storage, &dealer_addr)?;
+        for dealings in DEALINGS_BYTES {
+            dealings.remove(storage, &details.address);
+        }
+        current_dealers().remove(storage, &dealer_addr)?;
+        past_dealers().save(storage, &dealer_addr, &details)?;
+    }
+    Ok(())
+}
+
+fn dealers_still_active(deps: &DepsMut<'_>) -> Result<usize, ContractError> {
+    let state = STATE.load(deps.storage)?;
+    let mut still_active = 0;
+    for dealer_addr in current_dealers()
+        .keys(deps.storage, None, None, Order::Ascending)
+        .flatten()
+    {
+        if state
+            .group_addr
+            .is_voting_member(&deps.querier, &dealer_addr, None)?
+            .is_some()
+        {
+            still_active += 1;
+        }
+    }
+    Ok(still_active)
+}
 
 pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, ContractError> {
     let epoch = CURRENT_EPOCH.load(deps.storage)?;
@@ -18,24 +56,71 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
         ));
     }
 
-    let current_epoch = CURRENT_EPOCH.update::<_, ContractError>(deps.storage, |mut epoch| {
-        // TODO: When defaulting to the first state, some action will probably need to be taken on the
-        // rest of the contract, as we're starting with a new set of signers
-        epoch = Epoch::new(
-            epoch.state.next().unwrap_or_default(),
-            epoch.time_configuration,
+    let current_epoch = CURRENT_EPOCH.load(deps.storage)?;
+    let next_epoch = if let Some(state) = current_epoch.state.next() {
+        // We are during DKG process
+        if state == EpochState::DealingExchange {
+            let current_dealer_count = current_dealers()
+                .keys(deps.storage, None, None, Order::Ascending)
+                .count();
+            // note: ceiling in integer division can be achieved via q = (x + y - 1) / y;
+            let threshold = (2 * current_dealer_count as u64 + 3 - 1) / 3;
+            THRESHOLD.save(deps.storage, &threshold)?;
+        }
+        Epoch::new(
+            state,
+            current_epoch.epoch_id,
+            current_epoch.time_configuration,
             env.block.time,
-        );
-        Ok(epoch)
-    })?;
-    if current_epoch.state == EpochState::DealingExchange {
-        let current_dealer_count = current_dealers()
-            .keys(deps.storage, None, None, Order::Ascending)
-            .count();
-        // note: ceiling in integer division can be achieved via q = (x + y - 1) / y;
-        let threshold = (2 * current_dealer_count as u64 + 3 - 1) / 3;
-        THRESHOLD.save(deps.storage, &threshold)?;
+        )
+    } else if dealers_still_active(&deps)?
+        == STATE
+            .load(deps.storage)?
+            .group_addr
+            .list_members(&deps.querier, None, None)?
+            .len()
+    {
+        // The dealer set hasn't changed, so we only extend the finish timestamp
+        Epoch::new(
+            current_epoch.state,
+            current_epoch.epoch_id,
+            current_epoch.time_configuration,
+            env.block.time,
+        )
+    } else {
+        // Dealer set changed, we need to redo DKG from scratch
+        reset_epoch_state(deps.storage)?;
+        Epoch::new(
+            EpochState::default(),
+            current_epoch.epoch_id + 1,
+            current_epoch.time_configuration,
+            env.block.time,
+        )
+    };
+    CURRENT_EPOCH.save(deps.storage, &next_epoch)?;
+
+    Ok(Response::default())
+}
+
+pub(crate) fn try_surpassed_threshold(
+    deps: DepsMut<'_>,
+    env: Env,
+) -> Result<Response, ContractError> {
+    check_epoch_state(deps.storage, EpochState::InProgress)?;
+
+    let threshold = THRESHOLD.load(deps.storage)?;
+    if dealers_still_active(&deps)? < threshold as usize {
+        reset_epoch_state(deps.storage)?;
+        CURRENT_EPOCH.update::<_, ContractError>(deps.storage, |epoch| {
+            Ok(Epoch::new(
+                EpochState::default(),
+                epoch.epoch_id + 1,
+                epoch.time_configuration,
+                env.block.time,
+            ))
+        })?;
     }
+
     Ok(Response::default())
 }
 
@@ -185,17 +270,6 @@ pub(crate) mod tests {
         assert_eq!(
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
             EarlyEpochStateAdvancement(50)
-        );
-
-        env.block.time = env.block.time.plus_seconds(100);
-        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
-        let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-        assert_eq!(epoch.state, EpochState::PublicKeySubmission);
-        assert_eq!(
-            epoch.finish_timestamp,
-            env.block
-                .time
-                .plus_seconds(epoch.time_configuration.public_key_submission_time_secs)
         );
     }
 

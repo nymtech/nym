@@ -21,7 +21,9 @@ use crate::nyxd::traits::{DkgQueryClient, MixnetQueryClient, MultisigQueryClient
 use crate::nyxd::{self, CosmWasmClient, NyxdClient, QueryNyxdClient, SigningNyxdClient};
 #[cfg(feature = "nyxd-client")]
 use coconut_dkg_common::{
-    dealer::ContractDealing, types::DealerDetails, verification_key::ContractVKShare,
+    dealer::ContractDealing,
+    types::{DealerDetails, EpochId},
+    verification_key::ContractVKShare,
 };
 #[cfg(feature = "nyxd-client")]
 use coconut_interface::Base58;
@@ -128,7 +130,8 @@ impl Config {
 }
 
 #[cfg(feature = "nyxd-client")]
-pub struct Client<C> {
+#[derive(Clone)]
+pub struct Client<C: Clone> {
     // TODO: we really shouldn't be storing a mnemonic here, but removing it would be
     // non-trivial amount of work and it's out of scope of the current branch
     mnemonic: Option<bip39::Mnemonic>,
@@ -218,7 +221,10 @@ impl Client<QueryNyxdClient> {
 
 // nyxd wrappers
 #[cfg(feature = "nyxd-client")]
-impl<C> Client<C> {
+impl<C> Client<C>
+where
+    C: Clone,
+{
     // use case: somebody initialised client without a contract in order to upload and initialise one
     // and now they want to actually use it without making new client
 
@@ -676,6 +682,7 @@ impl<C> Client<C> {
 
     pub async fn get_all_nyxd_verification_key_shares(
         &self,
+        epoch_id: EpochId,
     ) -> Result<Vec<ContractVKShare>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync + Send,
@@ -685,7 +692,11 @@ impl<C> Client<C> {
         loop {
             let mut paged_response = self
                 .nyxd
-                .get_vk_shares_paged(start_after.take(), self.verification_key_page_limit)
+                .get_vk_shares_paged(
+                    epoch_id,
+                    start_after.take(),
+                    self.verification_key_page_limit,
+                )
                 .await?;
             shares.append(&mut paged_response.shares);
 
@@ -730,7 +741,10 @@ impl<C> Client<C> {
 
 // validator-api wrappers
 #[cfg(feature = "nyxd-client")]
-impl<C> Client<C> {
+impl<C> Client<C>
+where
+    C: Clone,
+{
     pub fn change_nym_api(&mut self, new_endpoint: Url) {
         self.nym_api.change_url(new_endpoint)
     }
@@ -792,14 +806,15 @@ pub struct CoconutApiClient {
 
 #[cfg(feature = "nyxd-client")]
 impl CoconutApiClient {
-    pub async fn all_coconut_api_clients<C>(
+    pub async fn all_coconut_api_clients<C: Clone>(
         nyxd_client: &Client<C>,
+        epoch_id: EpochId,
     ) -> Result<Vec<Self>, ValidatorClientError>
     where
         C: CosmWasmClient + Sync + Send,
     {
         Ok(nyxd_client
-            .get_all_nyxd_verification_key_shares()
+            .get_all_nyxd_verification_key_shares(epoch_id)
             .await?
             .into_iter()
             .filter_map(Self::try_from)

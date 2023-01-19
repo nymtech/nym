@@ -9,6 +9,7 @@ use crate::support::storage::NymApiStorage;
 use coconut_bandwidth_contract_common::spend_credential::{
     funds_from_cosmos_msgs, SpendCredentialStatus,
 };
+use coconut_dkg_common::types::EpochId;
 use coconut_interface::KeyPair as CoconutKeyPair;
 use coconut_interface::{
     Attribute, BlindSignRequest, BlindedSignature, Parameters, VerificationKey,
@@ -132,8 +133,10 @@ impl State {
         }
     }
 
-    pub async fn verification_key(&self) -> Result<VerificationKey> {
-        self.comm_channel.aggregated_verification_key().await
+    pub async fn verification_key(&self, epoch_id: EpochId) -> Result<VerificationKey> {
+        self.comm_channel
+            .aggregated_verification_key(epoch_id)
+            .await
     }
 }
 
@@ -284,7 +287,9 @@ pub async fn verify_bandwidth_credential(
             status: format!("{:?}", credential_status),
         });
     }
-    let verification_key = state.verification_key().await?;
+    let verification_key = state
+        .verification_key(*verify_credential_body.credential().epoch_id())
+        .await?;
     let mut vote_yes = verify_credential_body
         .credential()
         .verify(&verification_key);

@@ -2,6 +2,14 @@
 
 Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- dkg rerun from scratch and dkg-specific epochs ([#2839])
+
+[#2839]: https://github.com/nymtech/nym/pull/2839
+
 ## [v1.1.6] (2023-01-17)
 
 ### Added

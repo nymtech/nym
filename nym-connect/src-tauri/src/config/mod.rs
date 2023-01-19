@@ -100,7 +100,10 @@ impl Config {
     }
 }
 
-pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: String) -> Result<Config> {
+pub async fn init_socks5_config(
+    provider_address: String,
+    chosen_gateway_id: String,
+) -> Result<Config> {
     log::trace!("Initialising client...");
 
     // Append the gateway id to the name id that we store the config under
@@ -136,7 +139,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         .map_err(|_| BackendError::UnableToParseGateway)?;
 
     // Setup gateway by either registering a new one, or reusing exiting keys
-    let (gateway, key_manager) = client_core::init::setup_gateway_from_config::<Socks5Config, _>(
+    let gateway = client_core::init::setup_gateway_from_config::<Socks5Config, _>(
         register_gateway,
         Some(chosen_gateway_id),
         config.get_base(),

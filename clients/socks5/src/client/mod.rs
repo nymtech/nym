@@ -152,13 +152,13 @@ impl NymClient {
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
-    pub async fn run_forever(self) -> Result<(), Box<dyn Error + Send + Sync>> {
-        let shutdown = self.start().await?;
+    // pub async fn run_forever(self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    //     let shutdown = self.start(self.config).await?;
 
-        let res = shutdown.catch_interrupt().await;
-        log::info!("Stopping nym-socks5-client");
-        res
-    }
+    //     let res = shutdown.catch_interrupt().await;
+    //     log::info!("Stopping nym-socks5-client");
+    //     res
+    // }
 
     // Variant of `run_forever` that listends for remote control messages
     pub async fn run_and_listen(
@@ -207,7 +207,7 @@ impl NymClient {
         res
     }
 
-    pub async fn start(self) -> Result<TaskManager, Socks5ClientError> {
+    pub async fn start(self, config: Config) -> Result<TaskManager, Socks5ClientError> {
         let base_builder = BaseClientBuilder::new_from_base_config(
             self.config.get_base(),
             self.key_manager,

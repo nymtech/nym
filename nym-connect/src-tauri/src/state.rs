@@ -10,7 +10,7 @@ use nym_socks5::client::{
 };
 
 use crate::{
-    config::{self, socks5_config_id_appended_with},
+    config::{self, socks5_config_id_appended_with, Config},
     error::{BackendError, Result},
     models::{
         AppEventConnectionStatusChangedPayload, ConnectionStatusKind,
@@ -110,7 +110,7 @@ impl State {
         //    self.set_state(ConnectionStatusKind::Disconnected, window);
         //    return Err(err);
         //}
-        config = self.init_config().await.unwrap();
+        let config = self.init_config().await.unwrap();
 
         // Kick off the main task and get the channel for controlling it
         let (msg_receiver, exit_status_receiver) = self.start_nym_socks5_client(config)?;

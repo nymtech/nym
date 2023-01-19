@@ -9,7 +9,7 @@ use config_common::NymConfig;
 use nym_socks5::client::NymClient as Socks5NymClient;
 use nym_socks5::client::{config::Config as Socks5Config, Socks5ControlMessageSender};
 
-use crate::{error::Result, state::State};
+use crate::{config::Config, error::Result, state::State};
 
 pub type ExitStatusReceiver = futures::channel::oneshot::Receiver<Socks5ExitStatusMessage>;
 
@@ -33,13 +33,12 @@ pub fn start_nym_socks5_client(
     GatewayEndpointConfig,
 )> {
     log::info!("Loading config from file: {id}");
-    let our_config = config.socks5;
-    // TODO: create config from our_config
+    // TODO android temp fix
     //let config = Socks5Config::load_from_file(Some(id))
     //    .tap_err(|_| log::warn!("Failed to load configuration file"))?;
     let used_gateway = config.get_base().get_gateway_endpoint().clone();
 
-    let socks5_client = Socks5NymClient::new(config);
+    let socks5_client = Socks5NymClient::new(config.socks5.clone());
     log::info!("Starting socks5 client");
 
     // Channel to send control messages to the socks5 client
@@ -51,6 +50,7 @@ pub fn start_nym_socks5_client(
     // Channel to signal back to the main task when the socks5 client finishes, and why
     let (socks5_exit_tx, socks5_exit_rx) = futures::channel::oneshot::channel();
 
+    let yet_another_cfg = config.socks5.clone();
     // Spawn a separate runtime for the socks5 client so we can forcefully terminate.
     // Once we can gracefully shutdown the socks5 client we can get rid of this.
     // The status channel is used to both get the state of the task, and if it's closed, to check
@@ -60,7 +60,7 @@ pub fn start_nym_socks5_client(
             .expect("Failed to create runtime for SOCKS5 client")
             .block_on(async move {
                 socks5_client
-                    .run_and_listen(socks5_ctrl_rx, socks5_status_tx)
+                    .run_and_listen(socks5_ctrl_rx, socks5_status_tx, yet_another_cfg)
                     .await
             });
 

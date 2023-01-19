@@ -16,7 +16,7 @@ async fn main() {
         .send_str(&our_address.to_string(), "hello there")
         .await;
 
-    println!("Waiting for message");
+    println!("Waiting for message (ctrl-c to exit)");
     client
         .on_messages(|msg| println!("Received: {}", String::from_utf8_lossy(&msg.message)))
         .await;

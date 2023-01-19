@@ -22,7 +22,11 @@ async fn main() {
         .await;
 
     println!("Waiting for message");
-    client
-        .on_messages(|msg| println!("Received: {}", String::from_utf8_lossy(&msg.message)))
-        .await;
+    if let Some(received) = client.wait_for_messages().await {
+        for r in received {
+            println!("Received: {}", String::from_utf8_lossy(&r.message));
+        }
+    }
+
+    client.disconnect().await;
 }

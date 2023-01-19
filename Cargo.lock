@@ -3794,7 +3794,6 @@ dependencies = [
 name = "nym-sdk"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "client-connections",
  "client-core",
  "crypto",

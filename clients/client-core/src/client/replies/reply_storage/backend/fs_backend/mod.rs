@@ -23,19 +23,24 @@ mod manager;
 mod models;
 
 #[derive(Debug)]
-enum StorageManagerEnum {
+enum StorageManagerState {
     Storage(StorageManager),
-    Inactive {
-        minimum_reply_surb_storage_threshold: usize,
-        maximum_reply_surb_storage_threshold: usize,
-    },
+    Inactive(InactiveMetadata),
 }
 
-impl StorageManagerEnum {
+// When the storage backaed is initialized as inactive, it will still contain metadata parameters
+// that will be needed when the in-mem storage is fetched for use.
+#[derive(Debug)]
+struct InactiveMetadata {
+    pub minimum_reply_surb_storage_threshold: usize,
+    pub maximum_reply_surb_storage_threshold: usize,
+}
+
+impl StorageManagerState {
     fn get(&self) -> &StorageManager {
         match self {
-            StorageManagerEnum::Storage(manager) => manager,
-            StorageManagerEnum::Inactive { .. } => {
+            StorageManagerState::Storage(manager) => manager,
+            StorageManagerState::Inactive(_) => {
                 panic!("tried to get storage of an inactive backend")
             }
         }
@@ -43,15 +48,15 @@ impl StorageManagerEnum {
 
     fn get_mut(&mut self) -> &mut StorageManager {
         match self {
-            StorageManagerEnum::Storage(manager) => manager,
-            StorageManagerEnum::Inactive { .. } => {
+            StorageManagerState::Storage(manager) => manager,
+            StorageManagerState::Inactive(_) => {
                 panic!("tried to get storage of an inactive backend")
             }
         }
     }
 
     fn is_active(&self) -> bool {
-        matches!(self, StorageManagerEnum::Storage(_))
+        matches!(self, StorageManagerState::Storage(_))
     }
 }
 
@@ -59,7 +64,7 @@ impl StorageManagerEnum {
 pub struct Backend {
     temporary_old_path: Option<PathBuf>,
     database_path: PathBuf,
-    manager: StorageManagerEnum,
+    manager: StorageManagerState,
 }
 
 impl Backend {
@@ -79,7 +84,7 @@ impl Backend {
         let backend = Backend {
             temporary_old_path: None,
             database_path: owned_path,
-            manager: StorageManagerEnum::Storage(manager),
+            manager: StorageManagerState::Storage(manager),
         };
 
         Ok(backend)
@@ -92,10 +97,10 @@ impl Backend {
         Backend {
             temporary_old_path: None,
             database_path: PathBuf::new(),
-            manager: StorageManagerEnum::Inactive {
+            manager: StorageManagerState::Inactive(InactiveMetadata {
                 minimum_reply_surb_storage_threshold,
                 maximum_reply_surb_storage_threshold,
-            },
+            }),
         }
     }
 
@@ -167,7 +172,7 @@ impl Backend {
         Ok(Backend {
             temporary_old_path: None,
             database_path: owned_path,
-            manager: StorageManagerEnum::Storage(manager),
+            manager: StorageManagerState::Storage(manager),
         })
     }
 
@@ -192,7 +197,7 @@ impl Backend {
         fs::rename(&self.database_path, &temp_old)
             .map_err(|err| StorageError::DatabaseRenameError { source: err })?;
         self.manager =
-            StorageManagerEnum::Storage(StorageManager::init(&self.database_path, true).await?);
+            StorageManagerState::Storage(StorageManager::init(&self.database_path, true).await?);
         self.manager.get_mut().create_status_table().await?;
 
         self.temporary_old_path = Some(temp_old);
@@ -405,13 +410,12 @@ impl ReplyStorageBackend for Backend {
 
     fn get_inactive_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError> {
         match self.manager {
-            StorageManagerEnum::Storage(_) => panic!("WIP(JON)"),
-            StorageManagerEnum::Inactive {
-                minimum_reply_surb_storage_threshold,
-                maximum_reply_surb_storage_threshold,
-            } => Ok(CombinedReplyStorage::new(
-                minimum_reply_surb_storage_threshold,
-                maximum_reply_surb_storage_threshold,
+            StorageManagerState::Storage(_) => {
+                panic!("tried to get inactive storage from an active storage backend")
+            }
+            StorageManagerState::Inactive(ref state) => Ok(CombinedReplyStorage::new(
+                state.minimum_reply_surb_storage_threshold,
+                state.maximum_reply_surb_storage_threshold,
             )),
         }
     }

@@ -380,7 +380,6 @@ impl MixnetClient {
             .unwrap();
     }
 
-
     /// Wait for messages from the mixnet
     pub async fn wait_for_messages(&mut self) -> Option<Vec<ReconstructedMessage>> {
         self.reconstructed_receiver.next().await

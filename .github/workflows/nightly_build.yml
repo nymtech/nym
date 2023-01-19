@@ -38,11 +38,29 @@ jobs:
           override: true
           components: rustfmt, clippy
 
+      - name: Check formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
       - name: Build all binaries
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --workspace
+
+      - name: Reclaim some disk space (because Windows is being annoying)
+        uses: actions-rs/cargo@v1
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          command: clean
+
+      - name: Build all examples
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --workspace --examples
 
       - name: Reclaim some disk space (because Windows is being annoying)
         uses: actions-rs/cargo@v1
@@ -69,12 +87,6 @@ jobs:
           command: test
           args: --workspace --all-features -- --ignored
 
-      - name: Check formatting
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-
       - name: Reclaim some disk space (because Windows is being annoying)
         uses: actions-rs/cargo@v1
         if: ${{ matrix.os == 'windows-latest' }}
@@ -93,7 +105,7 @@ jobs:
         if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
-          args: --workspace --all-targets -- -D warnings
+          args: --workspace --all-targets --all-features -- -D warnings
 
       - name: Reclaim some disk space
         uses: actions-rs/cargo@v1

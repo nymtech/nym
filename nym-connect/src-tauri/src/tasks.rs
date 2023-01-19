@@ -1,7 +1,11 @@
-use client_core::config::{ClientCoreConfigTrait, GatewayEndpointConfig};
+use client_core::{
+    config::{ClientCoreConfigTrait, GatewayEndpointConfig},
+    error::ClientCoreStatusMessage,
+};
 use futures::{channel::mpsc, StreamExt};
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 use tap::TapFallible;
+use task::manager::TaskStatus;
 use tokio::sync::RwLock;
 
 use config_common::NymConfig;
@@ -9,7 +13,7 @@ use config_common::NymConfig;
 use nym_socks5::client::NymClient as Socks5NymClient;
 use nym_socks5::client::{config::Config as Socks5Config, Socks5ControlMessageSender};
 
-use crate::{error::Result, state::State};
+use crate::{error::Result, models::ConnectionStatusKind, operations::connection, state::State};
 
 pub type ExitStatusReceiver = futures::channel::oneshot::Receiver<Socks5ExitStatusMessage>;
 
@@ -89,8 +93,31 @@ struct Payload {
     message: String,
 }
 
+impl Payload {
+    fn new(title: String, message: String) -> Self {
+        Self { title, message }
+    }
+}
+
+fn emit_event(event: &str, title: &str, msg: &str, window: &tauri::Window<tauri::Wry>) {
+    if let Err(err) = window.emit(event, Payload::new(title.into(), msg.into())) {
+        log::error!("Failed to emit tauri event: {err}");
+    }
+}
+
+fn emit_status_event(
+    event: &str,
+    msg: Box<dyn std::error::Error>,
+    window: &tauri::Window<tauri::Wry>,
+) {
+    if let Err(err) = window.emit(event, Payload::new("SOCKS5 update".into(), msg.to_string())) {
+        log::error!("Failed to emit tauri event: {err}");
+    }
+}
+
 /// The status listener listens for non-exit status messages from the background socks5 proxy task.
 pub fn start_status_listener(
+    state: Arc<RwLock<State>>,
     window: tauri::Window<tauri::Wry>,
     mut msg_receiver: task::StatusReceiver,
 ) {
@@ -98,16 +125,68 @@ pub fn start_status_listener(
     tokio::spawn(async move {
         while let Some(msg) = msg_receiver.next().await {
             log::info!("SOCKS5 proxy sent status message: {}", msg);
-            window
-                .emit(
-                    "socks5-status-event",
-                    Payload {
-                        title: "SOCKS5 update".into(),
-                        message: msg.to_string(),
-                    },
-                )
-                .unwrap();
+
+            if let Some(task_status) = msg.downcast_ref::<TaskStatus>() {
+                match task_status {
+                    TaskStatus::Ready => {
+                        emit_status_event("socks5-connected-event", msg, &window);
+                        let mut state_w = state.write().await;
+                        state_w.mark_connected(&window);
+                    }
+                }
+            } else if let Some(_gateway_status) = msg.downcast_ref::<ClientCoreStatusMessage>() {
+                // TODO: use this instead once we change on the frontend too
+                //let event_name = match gateway_status {
+                //    ClientCoreStatusMessage::GatewayIsSlow => "socks5-gateway-status",
+                //    ClientCoreStatusMessage::GatewayIsVerySlow => "socks5-gateway-status",
+                //};
+                emit_status_event("socks5-status-event", msg, &window);
+            } else {
+                emit_status_event("socks5-status-event", msg, &window);
+            }
         }
+    });
+}
+
+pub fn start_connection_check_handler(
+    state: Arc<RwLock<State>>,
+    window: tauri::Window<tauri::Wry>,
+) {
+    log::info!("Starting connection check handler");
+    tokio::spawn(async move {
+        loop {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            log::trace!("Health check tick");
+
+            let status = {
+                let state_r = state.read().await;
+                state_r.get_status()
+            };
+
+            match status {
+                ConnectionStatusKind::Disconnected | ConnectionStatusKind::Disconnecting => break,
+                ConnectionStatusKind::Connecting => continue,
+                ConnectionStatusKind::Connected => {
+                    tokio::time::sleep(Duration::from_secs(3)).await;
+                    log::info!("Running connection health check");
+                    if !connection::status::run_health_check().await {
+                        log::error!("SOCKS5 connection health check failed");
+                        emit_event(
+                            "socks5-connection-event",
+                            "SOCKS5 error",
+                            "SOCKS5 connection health check failed",
+                            &window,
+                        );
+                        // For now we are nog disconnecting here, instead we leave that decision to the UI
+                        //let mut state_w = state.write().await;
+                        //state_w.start_disconnecting(&window).await.ok();
+                    }
+                    break;
+                }
+            }
+        }
+
+        log::trace!("Exiting connection check handler");
     });
 }
 
@@ -123,39 +202,30 @@ pub fn start_disconnect_listener(
         match exit_status_receiver.await {
             Ok(Socks5ExitStatusMessage::Stopped) => {
                 log::info!("SOCKS5 task reported it has finished");
-                window
-                    .emit(
-                        "socks5-event",
-                        Payload {
-                            title: "SOCKS5 finished".into(),
-                            message: "SOCKS5 task reported it has finished".into(),
-                        },
-                    )
-                    .unwrap();
+                emit_event(
+                    "socks5-event",
+                    "SOCKS5 finished",
+                    "SOCKS5 task reported it has finished",
+                    &window,
+                );
             }
             Ok(Socks5ExitStatusMessage::Failed(err)) => {
                 log::info!("SOCKS5 task reported error: {err}");
-                window
-                    .emit(
-                        "socks5-event",
-                        Payload {
-                            title: "SOCKS5 error".into(),
-                            message: format!("SOCKS5 failed: {err}"),
-                        },
-                    )
-                    .unwrap();
+                emit_event(
+                    "socks5-event",
+                    "SOCKS5 error",
+                    &format!("SOCKS5 failed: {err}"),
+                    &window,
+                );
             }
             Err(_) => {
                 log::info!("SOCKS5 task appears to have stopped abruptly");
-                window
-                    .emit(
-                        "socks5-event",
-                        Payload {
-                            title: "SOCKS5 error".into(),
-                            message: "SOCKS5 stopped abruptly. Please try reconnecting.".into(),
-                        },
-                    )
-                    .unwrap();
+                emit_event(
+                    "socks5-event",
+                    "SOCKS5 error",
+                    "SOCKS5 stopped abruptly. Please try reconnecting.",
+                    &window,
+                );
             }
         }
 

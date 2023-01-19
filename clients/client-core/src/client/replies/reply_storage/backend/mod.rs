@@ -84,6 +84,9 @@ pub trait ReplyStorageBackend: Sized {
 
     async fn load_surb_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError>;
 
+    /// In the case the storage backend is initialized in an inactive state (persisting data is
+    /// disabled), we might still need to fetch the (in-mem) storage and the parameters it was
+    /// created with.
     fn get_inactive_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError>;
 
     async fn stop_storage_session(self) -> Result<(), Self::StorageError> {

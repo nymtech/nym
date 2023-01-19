@@ -41,6 +41,12 @@ jobs:
           command: build
           args: --workspace
 
+      - name: Build all examples
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --workspace --examples
+
       - name: Run all tests
         uses: actions-rs/cargo@v1
         with:

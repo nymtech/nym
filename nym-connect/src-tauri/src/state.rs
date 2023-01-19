@@ -101,24 +101,25 @@ impl State {
         self.set_state(ConnectionStatusKind::Connecting, window);
 
         // Setup configuration by writing to file
-        if let Err(err) = self.init_config().await {
-            log::error!("Failed to initialize: {err}");
+        //if let Err(err) = self.init_config().await {
+        //    log::error!("Failed to initialize: {err}");
 
-            // Wait a little to give the user some rudimentary feedback that the click actually
-            // registered.
-            tokio::time::sleep(Duration::from_secs(1)).await;
-            self.set_state(ConnectionStatusKind::Disconnected, window);
-            return Err(err);
-        }
+        //    // Wait a little to give the user some rudimentary feedback that the click actually
+        //    // registered.
+        //    tokio::time::sleep(Duration::from_secs(1)).await;
+        //    self.set_state(ConnectionStatusKind::Disconnected, window);
+        //    return Err(err);
+        //}
+        config = self.init_config().await.unwrap();
 
         // Kick off the main task and get the channel for controlling it
-        let (msg_receiver, exit_status_receiver) = self.start_nym_socks5_client()?;
+        let (msg_receiver, exit_status_receiver) = self.start_nym_socks5_client(config)?;
         self.set_state(ConnectionStatusKind::Connected, window);
         Ok((msg_receiver, exit_status_receiver))
     }
 
     /// Create a configuration file
-    async fn init_config(&self) -> Result<()> {
+    async fn init_config(&self) -> Result<Config> {
         let service_provider = self
             .get_service_provider()
             .as_ref()
@@ -134,10 +135,10 @@ impl State {
     }
 
     /// Spawn a new thread running the SOCKS5 client
-    fn start_nym_socks5_client(&mut self) -> Result<(task::StatusReceiver, ExitStatusReceiver)> {
+    fn start_nym_socks5_client(&mut self, config: Config) -> Result<(task::StatusReceiver, ExitStatusReceiver)> {
         let id = self.get_config_id()?;
         let (control_tx, msg_rx, exit_status_rx, used_gateway) =
-            tasks::start_nym_socks5_client(&id)?;
+            tasks::start_nym_socks5_client(&id, config)?;
         self.socks5_client_sender = Some(control_tx);
         self.gateway = Some(used_gateway.gateway_id);
         Ok((msg_rx, exit_status_rx))

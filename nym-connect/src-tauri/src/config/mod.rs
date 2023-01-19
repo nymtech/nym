@@ -35,7 +35,7 @@ pub async fn get_config_file_location(
 
 #[derive(Debug)]
 pub struct Config {
-    socks5: Socks5Config,
+    pub socks5: Socks5Config,
 }
 
 impl Config {
@@ -69,7 +69,7 @@ impl Config {
         self.socks5.get_base_mut()
     }
 
-    pub async fn init(service_provider: &str, chosen_gateway_id: &str) -> Result<()> {
+    pub async fn init(service_provider: &str, chosen_gateway_id: &str) -> Result<Config> {
         log::info!("Initialising...");
 
         let service_provider = service_provider.to_owned();
@@ -78,7 +78,7 @@ impl Config {
         // The client initialization was originally not written for this use case, so there are
         // lots of ways it can panic. Until we have proper error handling in the init code for the
         // clients we'll catch any panics here by spawning a new runtime in a separate thread.
-        std::thread::spawn(move || {
+        let config = std::thread::spawn(move || {
             tokio::runtime::Runtime::new()
                 .expect("Failed to create tokio runtime")
                 .block_on(
@@ -89,7 +89,7 @@ impl Config {
         .map_err(|_| BackendError::InitializationPanic)??;
 
         log::info!("Configuration saved 🚀");
-        Ok(())
+        Ok(config)
     }
 
     pub fn config_file_location(id: &str) -> Result<PathBuf> {
@@ -100,7 +100,7 @@ impl Config {
     }
 }
 
-pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: String) -> Result<()> {
+pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: String) -> Result<Config> {
     log::trace!("Initialising client...");
 
     // Append the gateway id to the name id that we store the config under
@@ -136,7 +136,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
         .map_err(|_| BackendError::UnableToParseGateway)?;
 
     // Setup gateway by either registering a new one, or reusing exiting keys
-    let gateway = client_core::init::setup_gateway_from_config::<Socks5Config, _>(
+    let (gateway, key_manager) = client_core::init::setup_gateway_from_config::<Socks5Config, _>(
         register_gateway,
         Some(chosen_gateway_id),
         config.get_base(),
@@ -145,15 +145,15 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
 
     config.get_base_mut().with_gateway_endpoint(gateway);
 
-    config.get_socks5().save_to_file(None).tap_err(|_| {
-        log::error!("Failed to save the config file");
-    })?;
+    //config.get_socks5().save_to_file(None).tap_err(|_| {
+    //    log::error!("Failed to save the config file");
+    //})?;
 
     print_saved_config(&config);
 
     let address = client_core::init::get_client_address_from_stored_keys(config.get_base())?;
     log::info!("The address of this client is: {}", address);
-    Ok(())
+    Ok(config)
 }
 
 fn print_saved_config(config: &Config) {

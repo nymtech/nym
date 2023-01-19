@@ -25,6 +25,7 @@ pub enum Socks5ExitStatusMessage {
 /// The main SOCKS5 client task. It loads the configuration from file determined by the `id`.
 pub fn start_nym_socks5_client(
     id: &str,
+    config: Config,
 ) -> Result<(
     Socks5ControlMessageSender,
     task::StatusReceiver,
@@ -32,8 +33,10 @@ pub fn start_nym_socks5_client(
     GatewayEndpointConfig,
 )> {
     log::info!("Loading config from file: {id}");
-    let config = Socks5Config::load_from_file(Some(id))
-        .tap_err(|_| log::warn!("Failed to load configuration file"))?;
+    let our_config = config.socks5;
+    // TODO: create config from our_config
+    //let config = Socks5Config::load_from_file(Some(id))
+    //    .tap_err(|_| log::warn!("Failed to load configuration file"))?;
     let used_gateway = config.get_base().get_gateway_endpoint().clone();
 
     let socks5_client = Socks5NymClient::new(config);

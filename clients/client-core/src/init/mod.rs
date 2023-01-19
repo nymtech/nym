@@ -102,7 +102,7 @@ pub async fn setup_gateway_from_config<C, T>(
     register_gateway: bool,
     user_chosen_gateway_id: Option<identity::PublicKey>,
     config: &Config<T>,
-) -> Result<GatewayEndpointConfig, ClientCoreError>
+) -> Result<(GatewayEndpointConfig, KeyManager), ClientCoreError>
 where
     C: NymConfig + ClientCoreConfigTrait,
     T: NymConfig,
@@ -140,8 +140,8 @@ where
 
     // Write all keys to storage and just return the gateway endpoint config. It is assumed that we
     // will load keys from storage when actually connecting.
-    helpers::store_keys(&key_manager, config)?;
-    Ok(gateway.into())
+    //helpers::store_keys(&key_manager, config)?;
+    Ok((gateway.into(), key_manager))
 }
 
 /// Read and reuse the existing gateway configuration from a file that was generate earlier.

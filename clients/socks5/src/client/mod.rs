@@ -165,9 +165,10 @@ impl NymClient {
         self,
         mut receiver: Socks5ControlMessageReceiver,
         sender: task::StatusSender,
+        config: Config,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Start the main task
-        let mut shutdown = self.start().await?;
+        let mut shutdown = self.start(config).await?;
 
         // Listen to status messages from task, that we forward back to the caller
         shutdown.start_status_listener(sender).await;

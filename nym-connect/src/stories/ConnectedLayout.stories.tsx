@@ -15,9 +15,7 @@ export const Default: ComponentStory<typeof ConnectedLayout> = () => (
     <ConnectedLayout
       showInfoModal={false}
       gatewayPerformance="Good"
-      handleCloseInfoModal={() => {
-        return undefined;
-      }}
+      handleCloseInfoModal={() => undefined}
       status={ConnectionStatusKind.connected}
       connectedSince={DateTime.now()}
       ipAddress="127.0.0.1"

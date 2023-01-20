@@ -1,3 +1,4 @@
+// eslint-disable-next-line import/no-extraneous-dependencies
 import { Debug } from '@nymproject/nym-client-wasm';
 
 /**

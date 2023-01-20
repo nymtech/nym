@@ -69,7 +69,8 @@ export const Content: FCWithChildren = () => {
   };
 
   const log = React.useRef<Log[]>([]);
-  const [_logTrigger, setLogTrigger] = React.useState(Date.now());
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [logTrigger, setLogTrigger] = React.useState(Date.now());
 
   const [uploadState, setUploadState] = React.useState<UploadState>({
     dialogOpen: false,

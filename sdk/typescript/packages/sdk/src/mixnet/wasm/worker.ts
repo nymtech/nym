@@ -11,8 +11,10 @@ import * as Comlink from 'comlink';
 // Doing it this way, saves having to support a large variety of bundlers and their quirks.
 //
 // @ts-ignore
+// eslint-disable-next-line import/no-extraneous-dependencies
 import wasmBytes from '@nymproject/nym-client-wasm/nym_client_wasm_bg.wasm';
 
+// eslint-disable-next-line import/no-extraneous-dependencies
 import init, {
   NymClient,
   NymClientBuilder,
@@ -46,6 +48,7 @@ console.log('[Nym WASM client] Starting Nym WASM web worker...');
  * Helper method to send typed messages.
  * @param event   The strongly typed message to send back to the calling thread.
  */
+// eslint-disable-next-line no-restricted-globals
 const postMessageWithType = <E>(event: E) => self.postMessage(event);
 
 /**

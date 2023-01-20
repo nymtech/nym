@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { ComponentMeta } from '@storybook/react';
 import { Stack, Typography } from '@mui/material';
-import { CoinMark } from './CoinMark';
 import { CoinMarkTestnet } from './CoinMarkTestnet';
 
 export default {

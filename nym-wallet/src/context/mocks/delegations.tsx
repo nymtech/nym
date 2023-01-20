@@ -1,11 +1,11 @@
-import React, { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  DelegationWithEverything,
-  DecCoin,
-  TransactionExecuteResult,
-  FeeDetails,
-  Fee,
   CurrencyDenom,
+  DecCoin,
+  DelegationWithEverything,
+  Fee,
+  FeeDetails,
+  TransactionExecuteResult,
 } from '@nymproject/types';
 import { DelegationContext, TDelegationTransaction } from '../delegations';
 
@@ -190,18 +190,17 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
     };
   };
 
-  const undelegateVesting = async (mix_id: number, _fee?: FeeDetails) => {
-    return {
-      logs_json: '',
-      data_json: '',
-      transaction_hash: '',
-      gas_info: {
-        gas_wanted: { gas_units: BigInt(1) },
-        gas_used: { gas_units: BigInt(1) },
-      },
-      fee: { amount: '1', denom: 'nym' as CurrencyDenom },
-    };
-  };
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const undelegateVesting = async (mix_id: number, _fee?: FeeDetails) => ({
+    logs_json: '',
+    data_json: '',
+    transaction_hash: '',
+    gas_info: {
+      gas_wanted: { gas_units: BigInt(1) },
+      gas_used: { gas_units: BigInt(1) },
+    },
+    fee: { amount: '1', denom: 'nym' as CurrencyDenom },
+  });
 
   const resetState = () => {
     setIsLoading(true);

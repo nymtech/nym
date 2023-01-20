@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, CircularProgress, Divider, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, CircularProgress, Tooltip, Typography } from '@mui/material';
 import { DateTime } from 'luxon';
 import { ConnectionStatusKind, GatewayPerformance } from '../types';
 import { ServiceProvider } from '../types/directory';

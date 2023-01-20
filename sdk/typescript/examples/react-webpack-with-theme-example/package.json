@@ -76,7 +76,6 @@
     "webpack-merge": "^5.8.0"
   },
   "scripts": {
-    "prestart": "yarn build:dependencies",
     "start": "webpack serve --progress --port 3000",
     "start:only-this": "webpack serve --progress --port 3000",
     "build:dependencies": "run-s build:dependencies:nym-client-wasm build:dependencies:ts-packages build:dependencies:sdk",

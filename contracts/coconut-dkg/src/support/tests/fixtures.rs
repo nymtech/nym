@@ -8,13 +8,13 @@ use cosmwasm_std::Addr;
 
 pub const TEST_MIX_DENOM: &str = "unym";
 
-pub fn vk_share_fixture(index: u64) -> ContractVKShare {
+pub fn vk_share_fixture(owner: &str, index: u64) -> ContractVKShare {
     ContractVKShare {
         share: format!("share{}", index),
         announce_address: format!("localhost:{}", index),
         node_index: index,
-        owner: Addr::unchecked(format!("owner{}", index)),
-        epoch_id: 0,
+        owner: Addr::unchecked(owner),
+        epoch_id: index,
         verified: index % 2 == 0,
     }
 }

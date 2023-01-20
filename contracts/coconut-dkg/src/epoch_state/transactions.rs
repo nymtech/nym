@@ -135,6 +135,7 @@ pub(crate) mod tests {
     };
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::Addr;
+    use cw4::Member;
 
     #[test]
     fn still_active() {
@@ -142,9 +143,18 @@ pub(crate) mod tests {
         {
             let mut group = GROUP_MEMBERS.lock().unwrap();
 
-            group.push(("owner1".to_string(), 10));
-            group.push(("owner2".to_string(), 10));
-            group.push(("owner3".to_string(), 10));
+            group.push(Member {
+                addr: "owner1".to_string(),
+                weight: 10,
+            });
+            group.push(Member {
+                addr: "owner2".to_string(),
+                weight: 10,
+            });
+            group.push(Member {
+                addr: "owner3".to_string(),
+                weight: 10,
+            });
         }
         assert_eq!(0, dealers_still_active(&deps.as_mut()).unwrap());
         for i in 0..3 as u64 {
@@ -207,6 +217,22 @@ pub(crate) mod tests {
     fn advance_state() {
         let mut deps = init_contract();
         let mut env = mock_env();
+        {
+            let mut group = GROUP_MEMBERS.lock().unwrap();
+
+            group.push(Member {
+                addr: "owner1".to_string(),
+                weight: 10,
+            });
+            group.push(Member {
+                addr: "owner2".to_string(),
+                weight: 10,
+            });
+            group.push(Member {
+                addr: "owner3".to_string(),
+                weight: 10,
+            });
+        }
 
         let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
         assert_eq!(epoch.state, EpochState::PublicKeySubmission);
@@ -341,6 +367,48 @@ pub(crate) mod tests {
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
             EarlyEpochStateAdvancement(50)
         );
+
+        // setup dealer details
+        let all_details: [_; 3] = std::array::from_fn(|i| dealer_details_fixture(i as u64 + 1));
+        for details in all_details.iter() {
+            current_dealers()
+                .save(deps.as_mut().storage, &details.address, details)
+                .unwrap();
+        }
+
+        // Group hasn't changed, so we remain in the same epoch, with updated finish timestamp
+        env.block.time = env.block.time.plus_seconds(100);
+        let prev_epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
+        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        let curr_epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
+        let expected_epoch = Epoch::new(
+            EpochState::InProgress,
+            prev_epoch.epoch_id,
+            prev_epoch.time_configuration,
+            env.block.time,
+        );
+        assert_eq!(curr_epoch, expected_epoch);
+
+        // Group changed, slightly, so reset dkg state
+        *GROUP_MEMBERS.lock().unwrap().first_mut().unwrap() = Member {
+            addr: "owner4".to_string(),
+            weight: 10,
+        };
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(epoch.time_configuration.in_progress_time_secs);
+        let prev_epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
+        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        let curr_epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
+        let expected_epoch = Epoch::new(
+            EpochState::default(),
+            prev_epoch.epoch_id + 1,
+            prev_epoch.time_configuration,
+            env.block.time,
+        );
+        assert_eq!(curr_epoch, expected_epoch);
+        assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
     }
 
     #[test]
@@ -385,9 +453,18 @@ pub(crate) mod tests {
         {
             let mut group = GROUP_MEMBERS.lock().unwrap();
 
-            group.push(("owner1".to_string(), 10));
-            group.push(("owner2".to_string(), 10));
-            group.push(("owner3".to_string(), 10));
+            group.push(Member {
+                addr: "owner1".to_string(),
+                weight: 10,
+            });
+            group.push(Member {
+                addr: "owner2".to_string(),
+                weight: 10,
+            });
+            group.push(Member {
+                addr: "owner3".to_string(),
+                weight: 10,
+            });
         }
 
         let ret = try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap_err();
@@ -424,13 +501,19 @@ pub(crate) mod tests {
         assert_eq!(THRESHOLD.load(&deps.storage).unwrap(), 2);
         assert_eq!(CURRENT_EPOCH.load(&deps.storage).unwrap(), curr_epoch);
 
-        *GROUP_MEMBERS.lock().unwrap().first_mut().unwrap() = (String::from("owner4"), 10);
+        *GROUP_MEMBERS.lock().unwrap().first_mut().unwrap() = Member {
+            addr: "owner4".to_string(),
+            weight: 10,
+        };
         // epoch hasn't advanced as we are still in the threshold range
         try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap();
         assert_eq!(THRESHOLD.load(&deps.storage).unwrap(), 2);
         assert_eq!(CURRENT_EPOCH.load(&deps.storage).unwrap(), curr_epoch);
 
-        *GROUP_MEMBERS.lock().unwrap().last_mut().unwrap() = (String::from("owner5"), 10);
+        *GROUP_MEMBERS.lock().unwrap().last_mut().unwrap() = Member {
+            addr: "owner5".to_string(),
+            weight: 10,
+        };
         try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap();
         assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
         let next_epoch = CURRENT_EPOCH.load(&deps.storage).unwrap();

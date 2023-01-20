@@ -1,4 +1,7 @@
-use client_core::config::{ClientCoreConfigTrait, GatewayEndpointConfig};
+use client_core::{
+    client::key_manager::KeyManager,
+    config::{ClientCoreConfigTrait, GatewayEndpointConfig},
+};
 use futures::{channel::mpsc, StreamExt};
 use std::sync::Arc;
 use tap::TapFallible;
@@ -26,6 +29,7 @@ pub enum Socks5ExitStatusMessage {
 pub fn start_nym_socks5_client(
     id: &str,
     config: Config,
+    keys: KeyManager,
 ) -> Result<(
     Socks5ControlMessageSender,
     task::StatusReceiver,
@@ -36,11 +40,14 @@ pub fn start_nym_socks5_client(
     // TODO android temp fix
     //let config = Socks5Config::load_from_file(Some(id))
     //    .tap_err(|_| log::warn!("Failed to load configuration file"))?;
+    println!("____XXX))");
     let used_gateway = config.get_base().get_gateway_endpoint().clone();
 
-    let socks5_client = Socks5NymClient::new(config.socks5.clone());
+    println!("____XXX");
+    let socks5_client = Socks5NymClient::new(config.socks5.clone(), Some(keys));
     log::info!("Starting socks5 client");
 
+    println!("____XXX_");
     // Channel to send control messages to the socks5 client
     let (socks5_ctrl_tx, socks5_ctrl_rx) = mpsc::unbounded();
 
@@ -50,11 +57,12 @@ pub fn start_nym_socks5_client(
     // Channel to signal back to the main task when the socks5 client finishes, and why
     let (socks5_exit_tx, socks5_exit_rx) = futures::channel::oneshot::channel();
 
-    let yet_another_cfg = config.socks5.clone();
+    let yet_another_cfg = config.socks5;
     // Spawn a separate runtime for the socks5 client so we can forcefully terminate.
     // Once we can gracefully shutdown the socks5 client we can get rid of this.
     // The status channel is used to both get the state of the task, and if it's closed, to check
     // for panic.
+    println!("____XXX__");
     std::thread::spawn(|| {
         let result = tokio::runtime::Runtime::new()
             .expect("Failed to create runtime for SOCKS5 client")

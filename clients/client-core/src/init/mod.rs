@@ -102,19 +102,20 @@ pub async fn setup_gateway_from_config<C, T>(
     register_gateway: bool,
     user_chosen_gateway_id: Option<identity::PublicKey>,
     config: &Config<T>,
-) -> Result<GatewayEndpointConfig, ClientCoreError>
+) -> Result<(GatewayEndpointConfig, KeyManager), ClientCoreError>
 where
     C: NymConfig + ClientCoreConfigTrait,
     T: NymConfig,
 {
-    let id = config.get_id();
+    // let id = config.get_id();
 
+    let mut key_manager = new_client_keys();
     // If we are not going to register gateway, and an explicitly chosed gateway is not passed in,
     // load the existing configuration file
-    if !register_gateway && user_chosen_gateway_id.is_none() {
-        println!("Not registering gateway, will reuse existing config and keys");
-        return load_existing_gateway_config::<C>(&id);
-    }
+    // if !register_gateway && user_chosen_gateway_id.is_none() {
+    //     println!("Not registering gateway, will reuse existing config and keys");
+    //     return load_existing_gateway_config::<C>(&id);
+    // }
 
     // Else, we preceed by querying the nym-api
     let gateway =
@@ -126,11 +127,10 @@ where
     // wants to keep the,
     if !register_gateway && user_chosen_gateway_id.is_some() {
         println!("Using gateway provided by user, keeping existing keys");
-        return Ok(gateway.into());
+        return Ok((gateway.into(), key_manager));
     }
 
     // Create new keys and derive our identity
-    let mut key_manager = new_client_keys();
     let our_identity = key_manager.identity_keypair();
 
     // Establish connection, authenticate and generate keys for talking with the gateway
@@ -141,7 +141,7 @@ where
     // Write all keys to storage and just return the gateway endpoint config. It is assumed that we
     // will load keys from storage when actually connecting.
     //helpers::store_keys(&key_manager, config)?;
-    Ok(gateway.into())
+    Ok((gateway.into(), key_manager))
 }
 
 /// Read and reuse the existing gateway configuration from a file that was generate earlier.
@@ -208,10 +208,14 @@ where
         Ok(sphinx_keypair)
     }
 
+    println!("3****");
     let pathfinder = ClientKeyPathfinder::new_from_config(config);
     let identity_keypair = load_identity_keys(&pathfinder)?;
+
+    println!("4****");
     let sphinx_keypair = load_sphinx_keys(&pathfinder)?;
 
+    println!("5****");
     let client_recipient = Recipient::new(
         *identity_keypair.public_key(),
         *sphinx_keypair.public_key(),
@@ -220,6 +224,7 @@ where
         NodeIdentity::from_base58_string(config.get_gateway_id())?,
     );
 
+    println!("6****");
     Ok(client_recipient)
 }
 

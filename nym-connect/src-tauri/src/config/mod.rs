@@ -2,7 +2,7 @@ use crate::{
     error::{BackendError, Result},
     state::State,
 };
-use client_core::config::Config as BaseConfig;
+use client_core::{client::key_manager::KeyManager, config::Config as BaseConfig};
 use config_common::NymConfig;
 use crypto::asymmetric::identity;
 use nym_socks5::client::config::Config as Socks5Config;
@@ -69,7 +69,10 @@ impl Config {
         self.socks5.get_base_mut()
     }
 
-    pub async fn init(service_provider: &str, chosen_gateway_id: &str) -> Result<Config> {
+    pub async fn init(
+        service_provider: &str,
+        chosen_gateway_id: &str,
+    ) -> Result<(Config, KeyManager)> {
         log::info!("Initialising...");
 
         let service_provider = service_provider.to_owned();
@@ -78,7 +81,7 @@ impl Config {
         // The client initialization was originally not written for this use case, so there are
         // lots of ways it can panic. Until we have proper error handling in the init code for the
         // clients we'll catch any panics here by spawning a new runtime in a separate thread.
-        let config = std::thread::spawn(move || {
+        let (config, keys) = std::thread::spawn(move || {
             tokio::runtime::Runtime::new()
                 .expect("Failed to create tokio runtime")
                 .block_on(
@@ -89,7 +92,7 @@ impl Config {
         .map_err(|_| BackendError::InitializationPanic)??;
 
         log::info!("Configuration saved 🚀");
-        Ok(config)
+        Ok((config, keys))
     }
 
     pub fn config_file_location(id: &str) -> Result<PathBuf> {
@@ -103,28 +106,29 @@ impl Config {
 pub async fn init_socks5_config(
     provider_address: String,
     chosen_gateway_id: String,
-) -> Result<Config> {
+) -> Result<(Config, KeyManager)> {
     log::trace!("Initialising client...");
 
     // Append the gateway id to the name id that we store the config under
     let id = socks5_config_id_appended_with(&chosen_gateway_id)?;
 
-    log::debug!(
-        "Attempting to use config file location: {}",
-        Config::config_file_location(&id)?.to_string_lossy(),
-    );
-    let already_init = Config::config_file_location(&id)?.exists();
-    if already_init {
-        log::info!("SOCKS5 client \"{id}\" was already initialised before");
-    }
+    // log::debug!(
+    //     "Attempting to use config file location: {}",
+    //     Config::config_file_location(&id)?.to_string_lossy(),
+    // );
+    // let already_init = Config::config_file_location(&id)?.exists();
+    // if already_init {
+    //     log::info!("SOCKS5 client \"{id}\" was already initialised before");
+    // }
 
     // Future proofing. This flag exists for the other clients
-    let user_wants_force_register = false;
+    // let user_wants_force_register = false;
 
     // If the client was already initialized, don't generate new keys and don't re-register with
     // the gateway (because this would create a new shared key).
     // Unless the user really wants to.
-    let register_gateway = !already_init || user_wants_force_register;
+    // let register_gateway = !already_init || user_wants_force_register;
+    let register_gateway = false;
 
     log::trace!("Creating config for id: {}", id);
     let mut config = Config::new(id.as_str(), &provider_address);
@@ -139,7 +143,7 @@ pub async fn init_socks5_config(
         .map_err(|_| BackendError::UnableToParseGateway)?;
 
     // Setup gateway by either registering a new one, or reusing exiting keys
-    let gateway = client_core::init::setup_gateway_from_config::<Socks5Config, _>(
+    let (gateway, keys) = client_core::init::setup_gateway_from_config::<Socks5Config, _>(
         register_gateway,
         Some(chosen_gateway_id),
         config.get_base(),
@@ -154,9 +158,11 @@ pub async fn init_socks5_config(
 
     print_saved_config(&config);
 
-    let address = client_core::init::get_client_address_from_stored_keys(config.get_base())?;
-    log::info!("The address of this client is: {}", address);
-    Ok(config)
+    // let address = client_core::init::get_client_address_from_stored_keys(config.get_base())?;
+    // log::info!("The address of this client is: {}", address);
+
+    println!("{:#?}", &config);
+    Ok((config, keys))
 }
 
 fn print_saved_config(config: &Config) {

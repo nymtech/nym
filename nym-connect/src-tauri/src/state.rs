@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use ::config_common::NymConfig;
+use client_core::client::key_manager::KeyManager;
 use futures::SinkExt;
 use tap::TapFallible;
 use tauri::Manager;
@@ -110,16 +111,28 @@ impl State {
         //    self.set_state(ConnectionStatusKind::Disconnected, window);
         //    return Err(err);
         //}
-        let config = self.init_config().await.unwrap();
+
+        let res = self.init_config().await;
+        match &res {
+            Ok(_) => {}
+            Err(e) => {
+                dbg!(e);
+            }
+        };
+        let (config, keys) = res.unwrap();
+        println!("PLOP****");
 
         // Kick off the main task and get the channel for controlling it
-        let (msg_receiver, exit_status_receiver) = self.start_nym_socks5_client(config)?;
+        let (msg_receiver, exit_status_receiver) = self.start_nym_socks5_client(config, keys)?;
+
+        println!("PLOP2****");
         self.set_state(ConnectionStatusKind::Connected, window);
+        println!("PLOP3****");
         Ok((msg_receiver, exit_status_receiver))
     }
 
     /// Create a configuration file
-    async fn init_config(&self) -> Result<Config> {
+    async fn init_config(&self) -> Result<(Config, KeyManager)> {
         let service_provider = self
             .get_service_provider()
             .as_ref()
@@ -135,10 +148,16 @@ impl State {
     }
 
     /// Spawn a new thread running the SOCKS5 client
-    fn start_nym_socks5_client(&mut self, config: Config) -> Result<(task::StatusReceiver, ExitStatusReceiver)> {
+    fn start_nym_socks5_client(
+        &mut self,
+        config: Config,
+        keys: KeyManager,
+    ) -> Result<(task::StatusReceiver, ExitStatusReceiver)> {
         let id = self.get_config_id()?;
+        println!("____OOo");
         let (control_tx, msg_rx, exit_status_rx, used_gateway) =
-            tasks::start_nym_socks5_client(&id, config)?;
+            tasks::start_nym_socks5_client(&id, config, keys)?;
+        println!("____OOo_");
         self.socks5_client_sender = Some(control_tx);
         self.gateway = Some(used_gateway.gateway_id);
         Ok((msg_rx, exit_status_rx))

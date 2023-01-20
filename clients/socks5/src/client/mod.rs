@@ -51,13 +51,14 @@ pub fn setup_empty_reply_surb_backend(debug_config: &DebugConfig) -> reply_stora
 }
 
 impl NymClient {
-    pub fn new(config: Config) -> Self {
+    pub fn new(config: Config, key_manager: Option<KeyManager>) -> Self {
         let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
-        let key_manager = KeyManager::load_keys(&pathfinder).expect("failed to load stored keys");
+
+        let km = key_manager.or_else(|| Some(KeyManager::load_keys(&pathfinder).expect("failed to load stored keys"))).expect("failed to load keys");
 
         NymClient {
             config,
-            key_manager,
+            key_manager: km,
         }
     }
 

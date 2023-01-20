@@ -57,7 +57,8 @@ module.exports = mergeWithRules({
     port: 9000,
     // compress: true,
     historyApiFallback: true,
-    hot: true,
+    // disable this because on android it makes reloading infinity loop
+    hot: false,
     host: 'local-ipv4',
     allowedHosts: 'all',
     // client: {

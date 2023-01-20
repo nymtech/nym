@@ -129,12 +129,35 @@ pub(crate) mod tests {
     use super::*;
     use crate::error::ContractError::EarlyEpochStateAdvancement;
     use crate::support::tests::fixtures::dealer_details_fixture;
-    use crate::support::tests::helpers::init_contract;
+    use crate::support::tests::helpers::{init_contract, GROUP_MEMBERS};
     use coconut_dkg_common::types::{
         ContractSafeBytes, DealerDetails, EpochState, TimeConfiguration,
     };
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::Addr;
+
+    #[test]
+    fn still_active() {
+        let mut deps = init_contract();
+        {
+            let mut group = GROUP_MEMBERS.lock().unwrap();
+
+            group.push(("owner1".to_string(), 10));
+            group.push(("owner2".to_string(), 10));
+            group.push(("owner3".to_string(), 10));
+        }
+        assert_eq!(0, dealers_still_active(&deps.as_mut()).unwrap());
+        for i in 0..3 as u64 {
+            let details = dealer_details_fixture(i + 1);
+            current_dealers()
+                .save(deps.as_mut().storage, &details.address, &details)
+                .unwrap();
+            assert_eq!(
+                i as usize + 1,
+                dealers_still_active(&deps.as_mut()).unwrap()
+            );
+        }
+    }
 
     #[test]
     fn reset_state() {
@@ -351,6 +374,74 @@ pub(crate) mod tests {
         assert_eq!(
             THRESHOLD.may_load(deps.as_mut().storage).unwrap().unwrap(),
             67
+        );
+    }
+
+    #[test]
+    fn surpass_threshold() {
+        let mut deps = init_contract();
+        let mut env = mock_env();
+        let time_configuration = TimeConfiguration::default();
+        {
+            let mut group = GROUP_MEMBERS.lock().unwrap();
+
+            group.push(("owner1".to_string(), 10));
+            group.push(("owner2".to_string(), 10));
+            group.push(("owner3".to_string(), 10));
+        }
+
+        let ret = try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap_err();
+        assert_eq!(
+            ret,
+            ContractError::IncorrectEpochState {
+                current_state: EpochState::default().to_string(),
+                expected_state: EpochState::InProgress.to_string()
+            }
+        );
+
+        let all_details: [_; 3] = std::array::from_fn(|i| dealer_details_fixture(i as u64 + 1));
+        for details in all_details.iter() {
+            current_dealers()
+                .save(deps.as_mut().storage, &details.address, details)
+                .unwrap();
+        }
+
+        for times in [
+            time_configuration.public_key_submission_time_secs,
+            time_configuration.dealing_exchange_time_secs,
+            time_configuration.verification_key_submission_time_secs,
+            time_configuration.verification_key_validation_time_secs,
+            time_configuration.verification_key_finalization_time_secs,
+        ] {
+            env.block.time = env.block.time.plus_seconds(times);
+            advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        }
+        let curr_epoch = CURRENT_EPOCH.load(&deps.storage).unwrap();
+        assert_eq!(THRESHOLD.load(&deps.storage).unwrap(), 2);
+
+        // epoch hasn't advanced as we are still in the threshold range
+        try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap();
+        assert_eq!(THRESHOLD.load(&deps.storage).unwrap(), 2);
+        assert_eq!(CURRENT_EPOCH.load(&deps.storage).unwrap(), curr_epoch);
+
+        *GROUP_MEMBERS.lock().unwrap().first_mut().unwrap() = (String::from("owner4"), 10);
+        // epoch hasn't advanced as we are still in the threshold range
+        try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap();
+        assert_eq!(THRESHOLD.load(&deps.storage).unwrap(), 2);
+        assert_eq!(CURRENT_EPOCH.load(&deps.storage).unwrap(), curr_epoch);
+
+        *GROUP_MEMBERS.lock().unwrap().last_mut().unwrap() = (String::from("owner5"), 10);
+        try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap();
+        assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
+        let next_epoch = CURRENT_EPOCH.load(&deps.storage).unwrap();
+        assert_eq!(
+            next_epoch,
+            Epoch::new(
+                EpochState::default(),
+                curr_epoch.epoch_id + 1,
+                curr_epoch.time_configuration,
+                env.block.time,
+            )
         );
     }
 }

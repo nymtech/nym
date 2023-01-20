@@ -31,7 +31,7 @@
     "@mui/material": "^5.2.2",
     "@mui/styles": "^5.2.2",
     "@mui/system": ">= 5",
-    "@mui/lab": ">= 5",
+    "@mui/lab": "^5.0.0-alpha.72",
     "@nymproject/react": "^1.0.0",
     "@tauri-apps/api": "^1.2.0",
     "@tauri-apps/tauri-forage": "^1.0.0-beta.2",

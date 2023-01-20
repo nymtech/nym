@@ -60,7 +60,8 @@ export const amountSchema = Yup.object().shape({
   operatorCost: Yup.object().shape({
     amount: Yup.string()
       .required('An operating cost is required')
-      .test('valid-operating-cost', 'A valid amount is required (min 40)', async (this, value) => {
+      // eslint-disable-next-line
+      .test('valid-operating-cost', 'A valid amount is required (min 40)', async function isValidAmount(this, value) {
         if (value && (!Number(value) || isLessThan(+value, 40))) {
           return false;
         }

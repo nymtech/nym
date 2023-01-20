@@ -4,6 +4,7 @@ import { TBondedMixnode, TBondedGateway } from 'src/context/bonding';
 import { Error } from 'src/components/Error';
 import { UnbondModal } from 'src/components/Bonding/modals/UnbondModal';
 import { isMixnode } from 'src/types';
+
 interface Props {
   bondedNode: TBondedMixnode | TBondedGateway;
 
@@ -13,7 +14,7 @@ interface Props {
 export const NodeUnbondPage = ({ bondedNode, onConfirm, onError }: Props) => {
   const [confirmField, setConfirmField] = useState('');
   const [isConfirmed, setIsConfirmed] = useState(false);
-  //TODO: Check what happens with a gateway
+  // TODO: Check what happens with a gateway
   return (
     <Box sx={{ p: 3, minHeight: '450px' }}>
       <Grid container justifyContent="space-between">

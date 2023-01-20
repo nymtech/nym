@@ -11,7 +11,7 @@ import Content from './content/en.yaml';
 export const TestAndEarnWinner: FCWithChildren<{
   sx?: SxProps;
   entry?: DrawEntry;
-}> = ({ sx, entry }) => {
+}> = ({ entry }) => {
   const context = useTestAndEarnContext();
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string>();

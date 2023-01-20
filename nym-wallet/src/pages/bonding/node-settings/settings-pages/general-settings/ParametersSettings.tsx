@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { Button, Divider, Typography, TextField, InputAdornment, Grid, Box, FormHelperText } from '@mui/material';
+import { Box, Button, Divider, FormHelperText, Grid, InputAdornment, TextField, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { CurrencyDenom, MixNodeCostParams } from '@nymproject/types';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
@@ -88,7 +88,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
   const onSubmit = async (data: { operatorCost: { amount: string; denom: CurrencyDenom }; profitMargin: string }) => {
     resetFeeState();
     if (data.operatorCost && data.profitMargin) {
-      const MixNodeCostParams = {
+      const mixNodeCostParams = {
         profit_margin_percent: (+data.profitMargin / 100).toString(),
         interval_operating_cost: {
           amount: data.operatorCost.amount,
@@ -97,9 +97,9 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
       };
       try {
         if (bondedNode.proxy) {
-          await vestingUpdateMixnodeCostParams(MixNodeCostParams);
+          await vestingUpdateMixnodeCostParams(mixNodeCostParams);
         } else {
-          await updateMixnodeCostParams(MixNodeCostParams);
+          await updateMixnodeCostParams(mixNodeCostParams);
         }
         await getPendingEvents();
         reset();
@@ -132,13 +132,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
         />
       )}
       {isSubmitting && <LoadingModal />}
-      <Alert
-        title={
-          <>
-            <Box component="span" sx={{ fontWeight: 600 }}>{`Next interval: ${intervalTime}`}</Box>
-          </>
-        }
-      />
+      <Alert title={<Box component="span" sx={{ fontWeight: 600 }}>{`Next interval: ${intervalTime}`}</Box>} />
       <Grid container direction="column">
         <Grid item container alignItems="left" justifyContent="space-between" padding={3} spacing={1}>
           <Grid item xl={6}>

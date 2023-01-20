@@ -1,7 +1,8 @@
-import { Color, PaletteMode } from '@mui/material';
+import { PaletteMode } from '@mui/material';
 import { createTheme, ThemeOptions } from '@mui/material/styles';
 import { darkMode, nymPalette, NymPaletteVariant } from './common';
-import { createDarkModePalette, createLightModePalette } from './theme';
+// eslint-disable-next-line import/no-cycle
+import { createDarkModePalette, createLightModePalette } from './utils';
 
 /**
  * A palette definition only for the Network Explorer that extends the Nym palette
@@ -53,7 +54,7 @@ export interface NetworkExplorerPalette {
       backgroud: string;
       color: string;
       border: string;
-    }
+    };
   };
 }
 
@@ -111,7 +112,7 @@ export const networkExplorerPalette = (variant: NymPaletteVariant): NetworkExplo
       backgroud: variant.mode === 'light' ? '#FAFAFA' : '#C7C9CD',
       color: variant.mode === 'light' ? '#7D7D7D' : '#636466',
       border: variant.mode === 'light' ? '#DFDEDE' : '#DDDDDD',
-    }
+    },
   },
 });
 

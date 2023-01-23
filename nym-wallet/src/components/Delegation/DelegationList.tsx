@@ -12,14 +12,16 @@ import {
 } from '@mui/material';
 import { visuallyHidden } from '@mui/utils';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import { orderBy as _orderBy } from 'lodash';
 import { DelegationWithEverything } from '@nymproject/types';
 import { DelegationListItemActions } from './DelegationActions';
-import { DelegationWithEvent, isDelegation, isPendingDelegation, TDelegations } from '../../context/delegations';
+import { isDelegation, isPendingDelegation, TDelegations } from '../../context/delegations';
 import { DelegationItem } from './DelegationItem';
 import { PendingDelegationItem } from './PendingDelegationItem';
-import { orderBy as _orderBy } from 'lodash';
 
 type Order = 'asc' | 'desc';
+type AdditionalTypes = { profit_margin_percent: number; operating_cost: number };
+type SortingKeys = keyof AdditionalTypes | keyof DelegationWithEverything;
 
 interface EnhancedTableProps {
   onRequestSort: (event: React.MouseEvent<unknown>, property: string) => void;
@@ -97,30 +99,33 @@ export const DelegationList: FCWithChildren<{
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
 }> = ({ isLoading, items, onItemActionClick, explorerUrl }) => {
   const [order, setOrder] = React.useState<Order>('asc');
-  const [orderBy, setOrderBy] = React.useState<keyof DelegationWithEverything>('delegated_on_iso_datetime');
+  const [orderBy, setOrderBy] = React.useState<SortingKeys>('delegated_on_iso_datetime');
 
-  const handleRequestSort = (event: React.MouseEvent<unknown>, property: string) => {
+  const handleRequestSort = (event: React.MouseEvent<unknown>, property: any) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
-    setOrderBy(property as keyof DelegationWithEverything);
+    setOrderBy(property);
   };
 
   // if sorting by either amount or unclaimed_rewards
   // base sorting on their number counterparts
-  const mapOrderBy = (key: keyof DelegationWithEverything) => {
+  const mapOrderBy = (key: SortingKeys) => {
     if (key === 'amount') return 'delegationValue';
     if (key === 'unclaimed_rewards') return 'operatorReward';
-
+    if (key === 'profit_margin_percent') return 'profitMarginValue';
+    if (key === 'operating_cost') return 'operatorCostValue';
     return key;
   };
 
-  const mapAndSort = (items: TDelegations) => {
-    const map = items.map((item) =>
+  const mapAndSort = (_items: TDelegations) => {
+    const map = _items.map((item) =>
       isDelegation(item)
         ? {
             ...item,
             delegationValue: Number(item.amount.amount),
             operatorReward: Number(item.unclaimed_rewards?.amount),
+            profitMarginValue: Number(item.cost_params?.profit_margin_percent),
+            operatorCostValue: Number(item.cost_params?.interval_operating_cost),
           }
         : item,
     );

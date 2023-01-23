@@ -2,11 +2,17 @@ name: Nym Wallet (rust)
 
 on:
   push:
-    paths-ignore:
-      - 'explorer/**'
+    paths:
+      - 'nym-wallet/**'
+      - 'common/**'
+      - 'contracts/vesting/**'
+      - 'nym-api/nym-api-requests/**'
   pull_request:
-    paths-ignore:
-      - 'explorer/**'
+    paths:
+      - 'nym-wallet/**'
+      - 'common/**'
+      - 'contracts/vesting/**'
+      - 'nym-api/nym-api-requests/**'
 
 jobs:
   build:

@@ -17,6 +17,7 @@ import { DelegationListItemActions } from './DelegationActions';
 import { DelegationWithEvent, isDelegation, isPendingDelegation, TDelegations } from '../../context/delegations';
 import { DelegationItem } from './DelegationItem';
 import { PendingDelegationItem } from './PendingDelegationItem';
+import { orderBy as _orderBy } from 'lodash';
 
 type Order = 'asc' | 'desc';
 
@@ -82,7 +83,8 @@ const EnhancedTableHead: FCWithChildren<EnhancedTableProps> = ({ order, orderBy,
   );
 };
 
-const sortByUnbondedMixnodeFirst = (a: DelegationWithEvent) => {
+// Pin delegations on unbonded nodes to the top of the list
+const sortByUnbondedMixnodeFirst = (a: any) => {
   if (!a.node_identity) return -1;
   return 1;
 };
@@ -95,12 +97,35 @@ export const DelegationList: FCWithChildren<{
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
 }> = ({ isLoading, items, onItemActionClick, explorerUrl }) => {
   const [order, setOrder] = React.useState<Order>('asc');
-  const [orderBy, setOrderBy] = React.useState<string>('delegated_on_iso_datetime');
+  const [orderBy, setOrderBy] = React.useState<keyof DelegationWithEverything>('delegated_on_iso_datetime');
 
   const handleRequestSort = (event: React.MouseEvent<unknown>, property: string) => {
     const isAsc = orderBy === property && order === 'asc';
     setOrder(isAsc ? 'desc' : 'asc');
-    setOrderBy(property);
+    setOrderBy(property as keyof DelegationWithEverything);
+  };
+
+  // if sorting by either amount or unclaimed_rewards
+  // base sorting on their number counterparts
+  const mapOrderBy = (key: keyof DelegationWithEverything) => {
+    if (key === 'amount') return 'delegationValue';
+    if (key === 'unclaimed_rewards') return 'operatorReward';
+
+    return key;
+  };
+
+  const mapAndSort = (items: TDelegations) => {
+    const map = items.map((item) =>
+      isDelegation(item)
+        ? {
+            ...item,
+            delegationValue: Number(item.amount.amount),
+            operatorReward: Number(item.unclaimed_rewards?.amount),
+          }
+        : item,
+    );
+
+    return _orderBy(map, mapOrderBy(orderBy), order).sort(sortByUnbondedMixnodeFirst);
   };
 
   return (
@@ -109,7 +134,7 @@ export const DelegationList: FCWithChildren<{
         <EnhancedTableHead order={order} orderBy={orderBy} onRequestSort={handleRequestSort} />
         <TableBody>
           {items.length ? (
-            items.sort(sortByUnbondedMixnodeFirst).map((item) => {
+            mapAndSort(items).map((item: any) => {
               if (isPendingDelegation(item)) return <PendingDelegationItem item={item} explorerUrl={explorerUrl} />;
               if (isDelegation(item))
                 return (

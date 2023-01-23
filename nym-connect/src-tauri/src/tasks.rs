@@ -3,7 +3,7 @@ use client_core::{
     error::ClientCoreStatusMessage,
 };
 use futures::{channel::mpsc, StreamExt};
-use std::{sync::Arc, time::Duration};
+use std::sync::Arc;
 use tap::TapFallible;
 use task::manager::TaskStatus;
 use tokio::sync::RwLock;
@@ -115,6 +115,51 @@ fn emit_status_event(
     }
 }
 
+pub fn start_connection_check(state: Arc<RwLock<State>>, window: tauri::Window<tauri::Wry>) {
+    log::info!("Starting connection check handler");
+    tokio::spawn(async move {
+        if {
+            let state_r = state.read().await;
+            state_r.get_status()
+        } != ConnectionStatusKind::Connected
+        {
+            log::error!("SOCKS5 connection status check failed: not connected");
+            return;
+        }
+
+        log::info!("Running connection health check");
+        if !connection::status::run_health_check().await {
+            if {
+                let state_r = state.read().await;
+                state_r.get_status()
+            } != ConnectionStatusKind::Connected
+            {
+                log::debug!("SOCKS5 connection status check cancelled: not connected");
+            }
+            log::error!("SOCKS5 connection health check failed");
+            emit_event(
+                "socks5-connection-event",
+                "SOCKS5 error",
+                "SOCKS5 connection health check failed",
+                &window,
+            );
+        }
+
+        log::info!("Connection check handler exiting");
+    });
+}
+
+async fn handle_connection_ready(
+    state: &Arc<RwLock<State>>,
+    window: &tauri::Window,
+    msg: Box<dyn std::error::Error + Send + Sync>,
+) {
+    start_connection_check(state.clone(), window.clone());
+    emit_status_event("socks5-connected-event", msg, window);
+    let mut state_w = state.write().await;
+    state_w.mark_connected(window);
+}
+
 /// The status listener listens for non-exit status messages from the background socks5 proxy task.
 pub fn start_status_listener(
     state: Arc<RwLock<State>>,
@@ -126,14 +171,8 @@ pub fn start_status_listener(
         while let Some(msg) = msg_receiver.next().await {
             log::info!("SOCKS5 proxy sent status message: {}", msg);
 
-            if let Some(task_status) = msg.downcast_ref::<TaskStatus>() {
-                match task_status {
-                    TaskStatus::Ready => {
-                        emit_status_event("socks5-connected-event", msg, &window);
-                        let mut state_w = state.write().await;
-                        state_w.mark_connected(&window);
-                    }
-                }
+            if let Some(TaskStatus::Ready) = msg.downcast_ref::<TaskStatus>() {
+                handle_connection_ready(&state, &window, msg).await;
             } else if let Some(_gateway_status) = msg.downcast_ref::<ClientCoreStatusMessage>() {
                 // TODO: use this instead once we change on the frontend too
                 //let event_name = match gateway_status {
@@ -145,48 +184,7 @@ pub fn start_status_listener(
                 emit_status_event("socks5-status-event", msg, &window);
             }
         }
-    });
-}
-
-pub fn start_connection_check_handler(
-    state: Arc<RwLock<State>>,
-    window: tauri::Window<tauri::Wry>,
-) {
-    log::info!("Starting connection check handler");
-    tokio::spawn(async move {
-        loop {
-            tokio::time::sleep(Duration::from_secs(1)).await;
-            log::trace!("Health check tick");
-
-            let status = {
-                let state_r = state.read().await;
-                state_r.get_status()
-            };
-
-            match status {
-                ConnectionStatusKind::Disconnected | ConnectionStatusKind::Disconnecting => break,
-                ConnectionStatusKind::Connecting => continue,
-                ConnectionStatusKind::Connected => {
-                    tokio::time::sleep(Duration::from_secs(3)).await;
-                    log::info!("Running connection health check");
-                    if !connection::status::run_health_check().await {
-                        log::error!("SOCKS5 connection health check failed");
-                        emit_event(
-                            "socks5-connection-event",
-                            "SOCKS5 error",
-                            "SOCKS5 connection health check failed",
-                            &window,
-                        );
-                        // For now we are nog disconnecting here, instead we leave that decision to the UI
-                        //let mut state_w = state.write().await;
-                        //state_w.start_disconnecting(&window).await.ok();
-                    }
-                    break;
-                }
-            }
-        }
-
-        log::trace!("Exiting connection check handler");
+        log::info!("Status listener exiting");
     });
 }
 

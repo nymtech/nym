@@ -107,7 +107,7 @@ fn emit_event(event: &str, title: &str, msg: &str, window: &tauri::Window<tauri:
 
 fn emit_status_event(
     event: &str,
-    msg: &Box<dyn std::error::Error + Send + Sync>,
+    msg: Box<dyn std::error::Error + Send + Sync>,
     window: &tauri::Window<tauri::Wry>,
 ) {
     if let Err(err) = window.emit(event, Payload::new("SOCKS5 update".into(), msg.to_string())) {
@@ -159,7 +159,7 @@ async fn handle_connection_ready(
         state_w.mark_connected(window);
     }
 
-    emit_status_event("socks5-connected-event", &msg, window);
+    emit_status_event("socks5-connected-event", msg, window);
     start_connection_check(state.clone(), window.clone());
 }
 
@@ -182,9 +182,9 @@ pub fn start_status_listener(
                 //    ClientCoreStatusMessage::GatewayIsSlow => "socks5-gateway-status",
                 //    ClientCoreStatusMessage::GatewayIsVerySlow => "socks5-gateway-status",
                 //};
-                emit_status_event("socks5-status-event", &msg, &window);
+                emit_status_event("socks5-status-event", msg, &window);
             } else {
-                emit_status_event("socks5-status-event", &msg, &window);
+                emit_status_event("socks5-status-event", msg, &window);
             }
         }
         log::info!("Status listener exiting");

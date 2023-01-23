@@ -20,8 +20,7 @@ pub async fn start_connecting(
     // Setup task for checking status
     let state = state.inner().clone();
     tasks::start_disconnect_listener(state.clone(), window.clone(), exit_status_receiver);
-    tasks::start_status_listener(state.clone(), window.clone(), msg_receiver);
-    //tasks::start_connection_check_handler(state, window);
+    tasks::start_status_listener(state, window.clone(), msg_receiver);
 
     Ok(ConnectResult {
         address: "PLACEHOLDER".to_string(),

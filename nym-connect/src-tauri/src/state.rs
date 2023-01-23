@@ -110,9 +110,7 @@ impl State {
         }
 
         // Kick off the main task and get the channel for controlling it
-        let (msg_receiver, exit_status_receiver) = self.start_nym_socks5_client()?;
-        //self.set_state(ConnectionStatusKind::Connected, window);
-        Ok((msg_receiver, exit_status_receiver))
+        self.start_nym_socks5_client()
     }
 
     /// Create a configuration file

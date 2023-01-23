@@ -200,7 +200,7 @@ impl NymNetworkDetails {
 
     #[must_use]
     pub fn with_group_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
-        self.contracts.multisig_contract_address = contract.map(Into::into);
+        self.contracts.group_contract_address = contract.map(Into::into);
         self
     }
 

@@ -107,7 +107,7 @@ fn emit_event(event: &str, title: &str, msg: &str, window: &tauri::Window<tauri:
 
 fn emit_status_event(
     event: &str,
-    msg: Box<dyn std::error::Error>,
+    msg: &Box<dyn std::error::Error + Send + Sync>,
     window: &tauri::Window<tauri::Wry>,
 ) {
     if let Err(err) = window.emit(event, Payload::new("SOCKS5 update".into(), msg.to_string())) {
@@ -116,7 +116,7 @@ fn emit_status_event(
 }
 
 pub fn start_connection_check(state: Arc<RwLock<State>>, window: tauri::Window<tauri::Wry>) {
-    log::info!("Starting connection check handler");
+    log::debug!("Starting connection check handler");
     tokio::spawn(async move {
         if {
             let state_r = state.read().await;
@@ -145,7 +145,7 @@ pub fn start_connection_check(state: Arc<RwLock<State>>, window: tauri::Window<t
             );
         }
 
-        log::info!("Connection check handler exiting");
+        log::debug!("Connection check handler exiting");
     });
 }
 
@@ -154,10 +154,13 @@ async fn handle_connection_ready(
     window: &tauri::Window,
     msg: Box<dyn std::error::Error + Send + Sync>,
 ) {
+    {
+        let mut state_w = state.write().await;
+        state_w.mark_connected(window);
+    }
+
+    emit_status_event("socks5-connected-event", &msg, window);
     start_connection_check(state.clone(), window.clone());
-    emit_status_event("socks5-connected-event", msg, window);
-    let mut state_w = state.write().await;
-    state_w.mark_connected(window);
 }
 
 /// The status listener listens for non-exit status messages from the background socks5 proxy task.
@@ -179,9 +182,9 @@ pub fn start_status_listener(
                 //    ClientCoreStatusMessage::GatewayIsSlow => "socks5-gateway-status",
                 //    ClientCoreStatusMessage::GatewayIsVerySlow => "socks5-gateway-status",
                 //};
-                emit_status_event("socks5-status-event", msg, &window);
+                emit_status_event("socks5-status-event", &msg, &window);
             } else {
-                emit_status_event("socks5-status-event", msg, &window);
+                emit_status_event("socks5-status-event", &msg, &window);
             }
         }
         log::info!("Status listener exiting");

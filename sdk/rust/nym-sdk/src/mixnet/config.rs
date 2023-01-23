@@ -2,6 +2,7 @@ use client_core::config::DebugConfig;
 use network_defaults::mainnet;
 use url::Url;
 
+/// Config struct for [`crate::mixnet::MixnetClient`]
 pub struct Config {
     /// If the user has explicitly specified a gateway.
     pub user_chosen_gateway: Option<String>,

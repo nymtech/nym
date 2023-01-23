@@ -16,7 +16,5 @@ pub struct Config {
     pub admin: Addr
 }
 
-// pub const ADMINS: Item<Vec<Addr>> = Item::new("admins");
 pub const CONFIG: Item<Config> = Item::new("config"); 
-// pub const SERVICES: Item<Vec<Service>> = Item::new("services");
 pub const SERVICES: Map<String, Service> = Map::new("services"); 

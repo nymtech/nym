@@ -15,7 +15,6 @@ import {
   CountryDataResponse,
   DelegationsResponse,
   UniqDelegationsResponse,
-  GatewayResponse,
   GatewayReportResponse,
   UptimeStoryResponse,
   MixNodeDescriptionResponse,
@@ -27,6 +26,8 @@ import {
   StatusResponse,
   SummaryOverviewResponse,
   ValidatorsResponse,
+  GatewayBondAnnotated,
+  GatewayBond,
 } from '../typeDefs/explorer-api';
 
 function getFromCache(key: string) {
@@ -89,9 +90,10 @@ export class Api {
     return response.json();
   };
 
-  static fetchGateways = async (): Promise<GatewayResponse> => {
+  static fetchGateways = async (): Promise<GatewayBond[]> => {
     const res = await fetch(GATEWAYS_API);
-    return res.json();
+    const gatewaysAnnotated: GatewayBondAnnotated[] = await res.json();
+    return gatewaysAnnotated.map(({ gateway_bond, performance }) => ({ ...gateway_bond, performance }));
   };
 
   static fetchGatewayUptimeStoryById = async (id: string): Promise<UptimeStoryResponse> =>

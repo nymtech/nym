@@ -1,4 +1,4 @@
-import { GatewayResponse, GatewayResponseItem, GatewayReportResponse } from '../typeDefs/explorer-api';
+import { GatewayResponse, GatewayBond, GatewayReportResponse } from '../typeDefs/explorer-api';
 
 export type GatewayRowType = {
   id: string;
@@ -31,10 +31,7 @@ export function gatewayToGridRow(arrayOfGateways: GatewayResponse): GatewayRowTy
       }));
 }
 
-export function gatewayEnrichedToGridRow(
-  gateway: GatewayResponseItem,
-  report: GatewayReportResponse,
-): GatewayEnrichedRowType {
+export function gatewayEnrichedToGridRow(gateway: GatewayBond, report: GatewayReportResponse): GatewayEnrichedRowType {
   return {
     id: gateway.owner,
     owner: gateway.owner,

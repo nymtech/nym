@@ -8,12 +8,12 @@ edition = "2021"
 [dependencies]
 async-trait = { version = "0.1.51" }
 
-log = "0.4"
+log = { workspace = true }
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"]}
 thiserror = "1.0"
-tokio = { version = "1.21.2", features = [ "rt-multi-thread", "net", "signal", "fs" ] }
+tokio = { version = "1.24.1", features = [ "rt-multi-thread", "net", "signal", "fs" ] }
 
 
 [build-dependencies]
 sqlx = { version = "0.5", features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
-tokio = { version = "1.21.2", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }

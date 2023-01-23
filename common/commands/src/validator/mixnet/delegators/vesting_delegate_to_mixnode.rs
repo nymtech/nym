@@ -19,6 +19,9 @@ pub struct Args {
     pub identity_key: Option<String>,
 
     #[clap(long)]
+    pub on_behalf_of: Option<String>,
+
+    #[clap(long)]
     pub amount: u128,
 }
 
@@ -45,7 +48,7 @@ pub async fn vesting_delegate_to_mixnode(args: Args, client: SigningClient) {
     let coin = Coin::new(args.amount, denom);
 
     let res = client
-        .vesting_delegate_to_mixnode(mix_id, coin.into(), None)
+        .vesting_delegate_to_mixnode(mix_id, coin.into(), args.on_behalf_of, None)
         .await
         .expect("failed to delegate to mixnode!");
 

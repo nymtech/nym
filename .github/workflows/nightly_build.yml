@@ -38,11 +38,29 @@ jobs:
           override: true
           components: rustfmt, clippy
 
+      - name: Check formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
       - name: Build all binaries
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --workspace
+
+      - name: Reclaim some disk space (because Windows is being annoying)
+        uses: actions-rs/cargo@v1
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          command: clean
+
+      - name: Build all examples
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --workspace --examples
 
       - name: Reclaim some disk space (because Windows is being annoying)
         uses: actions-rs/cargo@v1
@@ -69,12 +87,6 @@ jobs:
           command: test
           args: --workspace --all-features -- --ignored
 
-      - name: Check formatting
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-
       - name: Reclaim some disk space (because Windows is being annoying)
         uses: actions-rs/cargo@v1
         if: ${{ matrix.os == 'windows-latest' }}
@@ -83,6 +95,7 @@ jobs:
 
       - uses: actions-rs/clippy-check@v1
         name: Clippy checks
+        continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           args: --all-features
@@ -92,7 +105,7 @@ jobs:
         if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
-          args: --workspace --all-targets -- -D warnings
+          args: --workspace --all-targets --all-features -- -D warnings
 
       - name: Reclaim some disk space
         uses: actions-rs/cargo@v1
@@ -160,7 +173,7 @@ jobs:
 
   notification:
     needs: build
-    runs-on: ubuntu-20.04
+    runs-on: custom-runner-linux
     steps:
       - name: Collect jobs status
         uses: technote-space/workflow-conclusion-action@v2
@@ -183,6 +196,11 @@ jobs:
           KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBOT_TEAM }}"
           KEYBASE_NYM_CHANNEL: "ci-nightly"
           IS_SUCCESS: "${{ env.WORKFLOW_CONCLUSION == 'success' }}"
+          MATRIX_SERVER: "${{ secrets.MATRIX_SERVER }}"
+          MATRIX_ROOM: "${{ secrets.MATRIX_ROOM }}"
+          MATRIX_USER_ID: "${{ secrets.MATRIX_USER_ID }}"
+          MATRIX_TOKEN: "${{ secrets.MATRIX_TOKEN }}"
+          MATRIX_DEVICE_ID: "${{ secrets.MATRIX_DEVICE_ID }}"
         uses: docker://keybaseio/client:stable-node
         with:
           args: .github/workflows/support-files/notifications/entry_point.sh

@@ -1,7 +1,7 @@
 [package]
 name = "nym-cli-commands"
 version = "1.0.0"
-authors = ["Nym Technologies SA"]
+authors.workspace = true
 edition = "2021"
 
 [dependencies]
@@ -11,10 +11,11 @@ bs58 = "0.4"
 comfy-table = "6.0.0"
 cfg-if = "1.0.0"
 clap = { version = "4.0", features = ["derive"] }
+cw-utils = { version = "0.13.4" }
 handlebars = "3.0.1"
 humantime-serde = "1.0"
 k256 = { version = "0.10", features = ["ecdsa", "sha256"] }
-log = "0.4"
+log = { workspace = true }
 rand = {version = "0.6", features = ["std"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1"
@@ -31,3 +32,6 @@ validator-client = { path = "../client-libs/validator-client", features = ["nyxd
 network-defaults = { path = "../network-defaults" }
 mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 vesting-contract-common = { path = "../cosmwasm-smart-contracts/vesting-contract" }
+coconut-bandwidth-contract-common = { path = "../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
+coconut-dkg-common = { path = "../cosmwasm-smart-contracts/coconut-dkg" }
+multisig-contract-common = { path = "../cosmwasm-smart-contracts/multisig-contract" }

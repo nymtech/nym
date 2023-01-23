@@ -177,7 +177,8 @@ pub(crate) async fn verification_key_validation(
         return Ok(());
     }
 
-    let vk_shares = dkg_client.get_verification_key_shares().await?;
+    let epoch_id = dkg_client.get_current_epoch().await?.epoch_id;
+    let vk_shares = dkg_client.get_verification_key_shares(epoch_id).await?;
     let proposal_ids = BTreeMap::from_iter(
         dkg_client
             .list_proposals()
@@ -499,8 +500,12 @@ pub(crate) mod tests {
             .entry(TEST_VALIDATORS_ADDRESS[0].to_string())
             .and_modify(|dealings| {
                 let mut last = dealings.pop().unwrap();
-                last.0.pop();
-                last.0.push(42);
+                let value = last.0.pop().unwrap();
+                if value == 42 {
+                    last.0.push(43);
+                } else {
+                    last.0.push(42);
+                }
                 dealings.push(last);
             });
 

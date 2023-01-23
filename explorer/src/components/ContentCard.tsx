@@ -10,7 +10,7 @@ type ContentCardProps = {
   onClick?: ReactEventHandler;
 };
 
-export const ContentCard: React.FC<ContentCardProps> = ({
+export const ContentCard: FCWithChildren<ContentCardProps> = ({
   title,
   Icon,
   Action,

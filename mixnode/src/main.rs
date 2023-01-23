@@ -6,7 +6,7 @@ extern crate rocket;
 
 use ::config::defaults::setup_env;
 use build_information::BinaryBuildInformation;
-use clap::{crate_version, Parser};
+use clap::{crate_name, crate_version, Parser, ValueEnum};
 use lazy_static::lazy_static;
 use logging::setup_logging;
 
@@ -24,6 +24,18 @@ fn pretty_build_info_static() -> &'static str {
     &PRETTY_BUILD_INFORMATION
 }
 
+#[derive(Clone, ValueEnum)]
+enum OutputFormat {
+    Json,
+    Text,
+}
+
+impl Default for OutputFormat {
+    fn default() -> Self {
+        OutputFormat::Text
+    }
+}
+
 #[derive(Parser)]
 #[clap(author = "Nymtech", version, about, long_version = pretty_build_info_static())]
 struct Cli {
@@ -31,35 +43,33 @@ struct Cli {
     #[clap(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
+    #[clap(short, long)]
+    pub(crate) output: Option<OutputFormat>,
+
     #[clap(subcommand)]
     command: commands::Commands,
+}
+
+impl Cli {
+    fn output(&self) -> OutputFormat {
+        if let Some(ref output) = self.output {
+            output.clone()
+        } else {
+            OutputFormat::default()
+        }
+    }
 }
 
 #[tokio::main]
 async fn main() {
     setup_logging();
-    println!("{}", banner());
+    if atty::is(atty::Stream::Stdout) {
+        println!("{}", logging::banner(crate_name!(), crate_version!()));
+    }
 
     let args = Cli::parse();
     setup_env(args.config_env_file.as_ref());
     commands::execute(args).await;
-}
-
-fn banner() -> String {
-    format!(
-        r#"
-
-      _ __  _   _ _ __ ___
-     | '_ \| | | | '_ \ _ \
-     | | | | |_| | | | | | |
-     |_| |_|\__, |_| |_| |_|
-            |___/
-
-             (mixnode - version {:})
-
-    "#,
-        crate_version!()
-    )
 }
 
 #[cfg(test)]

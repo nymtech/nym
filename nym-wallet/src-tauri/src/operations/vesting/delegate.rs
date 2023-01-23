@@ -29,7 +29,7 @@ pub async fn vesting_delegate_to_mixnode(
     let res = guard
         .current_client()?
         .nyxd
-        .vesting_delegate_to_mixnode(mix_id, delegation, fee)
+        .vesting_delegate_to_mixnode(mix_id, delegation, None, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
@@ -54,7 +54,7 @@ pub async fn vesting_undelegate_from_mixnode(
     let res = guard
         .current_client()?
         .nyxd
-        .vesting_undelegate_from_mixnode(mix_id, fee)
+        .vesting_undelegate_from_mixnode(mix_id, None, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);

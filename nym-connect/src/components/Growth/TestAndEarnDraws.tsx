@@ -39,7 +39,7 @@ const statusToColor = (status: string): 'info' | 'success' | 'warning' | undefin
   }
 };
 
-const StatusText: React.FC<{ entry: DrawEntry }> = ({ entry }) => {
+const StatusText: FCWithChildren<{ entry: DrawEntry }> = ({ entry }) => {
   const context = useTestAndEarnContext();
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string>();
@@ -132,7 +132,7 @@ const StatusText: React.FC<{ entry: DrawEntry }> = ({ entry }) => {
   }
 };
 
-export const TestAndEarnDraws: React.FC<{
+export const TestAndEarnDraws: FCWithChildren<{
   sx?: SxProps;
 }> = ({ sx }) => {
   const context = useTestAndEarnContext();
@@ -181,7 +181,7 @@ export const TestAndEarnDraws: React.FC<{
   );
 };
 
-export const TestAndEarnDrawsWithState: React.FC<{
+export const TestAndEarnDrawsWithState: FCWithChildren<{
   sx?: SxProps;
 }> = ({ sx }) => {
   const context = useTestAndEarnContext();

@@ -4,20 +4,14 @@ import { AppContext } from '../context/main';
 import { CopyToClipboard } from './CopyToClipboard';
 import { splice } from '../utils';
 
-const AddressTooltip: FC<{ visible?: boolean; address?: string; children: React.ReactElement<any, any> }> = ({
-  visible,
-  address,
-  children,
-}) => {
-  if (!visible) {
-    return children;
+const AddressTooltip: FCWithChildren<{ visible?: boolean; address?: string }> = ({ visible, address, children }) => {
+  if (!visible || !address) {
+    return <>{children}</>;
   }
-  if (!address) {
-    return children;
-  }
+
   return (
     <Tooltip title={address} arrow>
-      {children}
+      <>{children}</>
     </Tooltip>
   );
 };

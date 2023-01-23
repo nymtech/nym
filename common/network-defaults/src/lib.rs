@@ -36,6 +36,7 @@ pub struct NymContracts {
     pub vesting_contract_address: Option<String>,
     pub bandwidth_claim_contract_address: Option<String>,
     pub coconut_bandwidth_contract_address: Option<String>,
+    pub group_contract_address: Option<String>,
     pub multisig_contract_address: Option<String>,
     pub coconut_dkg_contract_address: Option<String>,
 }
@@ -95,6 +96,9 @@ impl NymNetworkDetails {
                 var(var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS)
                     .expect("coconut bandwidth contract not set"),
             ))
+            .with_group_contract(Some(
+                var(var_names::GROUP_CONTRACT_ADDRESS).expect("group contract not set"),
+            ))
             .with_multisig_contract(Some(
                 var(var_names::MULTISIG_CONTRACT_ADDRESS).expect("multisig contract not set"),
             ))
@@ -125,6 +129,7 @@ impl NymNetworkDetails {
                 coconut_bandwidth_contract_address: parse_optional_str(
                     mainnet::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
                 ),
+                group_contract_address: parse_optional_str(mainnet::GROUP_CONTRACT_ADDRESS),
                 multisig_contract_address: parse_optional_str(mainnet::MULTISIG_CONTRACT_ADDRESS),
                 coconut_dkg_contract_address: parse_optional_str(
                     mainnet::COCONUT_DKG_CONTRACT_ADDRESS,
@@ -190,6 +195,12 @@ impl NymNetworkDetails {
     #[must_use]
     pub fn with_coconut_bandwidth_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
         self.contracts.coconut_bandwidth_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
+    pub fn with_group_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.multisig_contract_address = contract.map(Into::into);
         self
     }
 

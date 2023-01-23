@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::template::config_template;
+pub use client_core::config::Config as BaseConfig;
 pub use client_core::config::MISSING_VALUE;
-use client_core::config::{ClientCoreConfigTrait, Config as BaseConfig, DebugConfig};
+use client_core::config::{ClientCoreConfigTrait, DebugConfig};
 use config::defaults::DEFAULT_SOCKS5_LISTENING_PORT;
-use config::NymConfig;
+use config::{NymConfig, OptionalSet};
 use nymsphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
+use std::fmt::Debug;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 mod template;
 
@@ -126,6 +129,50 @@ impl Config {
 
     pub fn get_per_request_surbs(&self) -> u32 {
         self.socks5_debug.per_request_surbs
+    }
+
+    // poor man's 'builder' method
+    pub fn with_base<F, T>(mut self, f: F, val: T) -> Self
+    where
+        F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
+    {
+        self.base = f(self.base, val);
+        self
+    }
+
+    // helper methods to use `OptionalSet` trait. Those are defined due to very... ehm. 'specific' structure of this config
+    // (plz, lets refactor it)
+    pub fn with_optional_ext<F, T>(mut self, f: F, val: Option<T>) -> Self
+    where
+        F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
+    {
+        self.base = self.base.with_optional(f, val);
+        self
+    }
+
+    pub fn with_optional_env_ext<F, T>(mut self, f: F, val: Option<T>, env_var: &str) -> Self
+    where
+        F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
+        T: FromStr,
+        <T as FromStr>::Err: Debug,
+    {
+        self.base = self.base.with_optional_env(f, val, env_var);
+        self
+    }
+
+    pub fn with_optional_custom_env_ext<F, T, G>(
+        mut self,
+        f: F,
+        val: Option<T>,
+        env_var: &str,
+        parser: G,
+    ) -> Self
+    where
+        F: Fn(BaseConfig<Self>, T) -> BaseConfig<Self>,
+        G: Fn(&str) -> T,
+    {
+        self.base = self.base.with_optional_custom_env(f, val, env_var, parser);
+        self
     }
 }
 

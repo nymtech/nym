@@ -1,13 +1,13 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::support::config::build_config;
 use crate::{
-    commands::{override_config, version_check, OverrideConfig},
-    config::Config,
+    commands::{ensure_config_version_compatibility, OverrideConfig},
+    OutputFormat,
 };
 use clap::Args;
-use config::NymConfig;
-use log::*;
+use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use validator_client::nyxd;
@@ -67,7 +67,7 @@ pub struct Run {
     /// bypass bandwidth credential requirement
     #[cfg(feature = "coconut")]
     #[clap(long)]
-    only_coconut_credentials: bool,
+    only_coconut_credentials: Option<bool>,
 
     /// Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server
     #[clap(long)]
@@ -102,51 +102,36 @@ impl From<Run> for OverrideConfig {
 }
 
 fn show_binding_warning(address: String) {
-    println!("\n##### NOTE #####");
-    println!(
+    eprintln!("\n##### NOTE #####");
+    eprintln!(
         "\nYou are trying to bind to {} - you might not be accessible to other nodes\n\
          You can ignore this warning if you're running setup on a local network \n\
          or have set a custom 'announce-host'",
         address
     );
-    println!("\n\n");
+    eprintln!("\n\n");
 }
 
 fn special_addresses() -> Vec<&'static str> {
     vec!["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"]
 }
 
-pub async fn execute(args: &Run) {
-    println!("Starting gateway {}...", args.id);
+pub async fn execute(args: Run, output: OutputFormat) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let id = args.id.clone();
+    println!("Starting gateway {id}...");
 
-    let mut config = match Config::load_from_file(Some(&args.id)) {
-        Ok(cfg) => cfg,
-        Err(err) => {
-            error!(
-                "Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})",
-                args.id,
-                err,
-            );
-            return;
-        }
-    };
-
-    config = override_config(config, OverrideConfig::from(args.clone()));
-
-    if !version_check(&config) {
-        error!("failed the local version check");
-        return;
-    }
+    let config = build_config(id, args)?;
+    ensure_config_version_compatibility(&config)?;
 
     if special_addresses().contains(&&*config.get_listening_address().to_string()) {
         show_binding_warning(config.get_listening_address().to_string());
     }
 
     let mut gateway = crate::node::create_gateway(config).await;
-    println!(
+    eprintln!(
         "\nTo bond your gateway you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
          Select the correct version and install it to your machine. You will need to provide the following: \n ");
-    gateway.print_node_details();
+    gateway.print_node_details(output)?;
 
-    gateway.run().await;
+    gateway.run().await
 }

@@ -9,7 +9,7 @@ use crate::dealings::queries::query_dealings_paged;
 use crate::dealings::transactions::try_commit_dealings;
 use crate::epoch_state::queries::{query_current_epoch, query_current_epoch_threshold};
 use crate::epoch_state::storage::CURRENT_EPOCH;
-use crate::epoch_state::transactions::advance_epoch_state;
+use crate::epoch_state::transactions::{advance_epoch_state, try_surpassed_threshold};
 use crate::error::ContractError;
 use crate::state::{State, MULTISIG, STATE};
 use crate::verification_key_shares::queries::query_vk_shares_paged;
@@ -52,7 +52,12 @@ pub fn instantiate(
 
     CURRENT_EPOCH.save(
         deps.storage,
-        &Epoch::new(EpochState::default(), env.block.time),
+        &Epoch::new(
+            EpochState::default(),
+            0,
+            msg.time_configuration.unwrap_or_default(),
+            env.block.time,
+        ),
     )?;
 
     Ok(Response::default())
@@ -80,6 +85,7 @@ pub fn execute(
         ExecuteMsg::VerifyVerificationKeyShare { owner } => {
             try_verify_verification_key_share(deps, info, owner)
         }
+        ExecuteMsg::SurpassedThreshold {} => try_surpassed_threshold(deps, env),
         ExecuteMsg::AdvanceEpochState {} => advance_epoch_state(deps, env),
     }
 }
@@ -105,9 +111,11 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
             limit,
             start_after,
         } => to_binary(&query_dealings_paged(deps, idx, start_after, limit)?)?,
-        QueryMsg::GetVerificationKeys { limit, start_after } => {
-            to_binary(&query_vk_shares_paged(deps, start_after, limit)?)?
-        }
+        QueryMsg::GetVerificationKeys {
+            epoch_id,
+            limit,
+            start_after,
+        } => to_binary(&query_vk_shares_paged(deps, epoch_id, start_after, limit)?)?,
     };
 
     Ok(response)
@@ -128,8 +136,8 @@ mod tests {
     use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
     use cosmwasm_std::{coins, Addr};
     use cw4::Member;
-    use cw4_group::msg::InstantiateMsg as GroupInstantiateMsg;
     use cw_multi_test::{App, AppBuilder, AppResponse, ContractWrapper, Executor};
+    use group_contract_common::msg::InstantiateMsg as GroupInstantiateMsg;
 
     fn instantiate_with_group(app: &mut App, members: &[Addr]) -> Addr {
         let group_code_id = app.store_code(Box::new(ContractWrapper::new(
@@ -163,6 +171,7 @@ mod tests {
         let msg = InstantiateMsg {
             group_addr: group_contract_addr.to_string(),
             multisig_addr: MULTISIG_CONTRACT.to_string(),
+            time_configuration: None,
             mix_denom: TEST_MIX_DENOM.to_string(),
         };
         app.instantiate_contract(
@@ -197,6 +206,7 @@ mod tests {
         let msg = InstantiateMsg {
             group_addr: "group_addr".to_string(),
             multisig_addr: "multisig_addr".to_string(),
+            time_configuration: None,
             mix_denom: "nym".to_string(),
         };
         let info = mock_info("creator", &[]);

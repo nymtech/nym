@@ -62,7 +62,7 @@ const columns: ColumnsType[] = [
 /**
  * Shows mix node details
  */
-const PageMixnodeDetailWithState: React.FC = () => {
+const PageMixnodeDetailWithState: FCWithChildren = () => {
   const { mixNode, mixNodeRow, description, stats, status, uptimeStory, uniqDelegations } = useMixnodeContext();
 
   return (
@@ -164,10 +164,10 @@ const PageMixnodeDetailWithState: React.FC = () => {
           {mixNode && (
             <ContentCard title="Location">
               {mixNode?.error && <ComponentError text="There was a problem retrieving this mixnode location" />}
-              {mixNode.data && mixNode?.data?.location && (
+              {mixNode?.data?.location?.latitude && mixNode?.data?.location?.longitude && (
                 <WorldMap
                   loading={mixNode.isLoading}
-                  userLocation={[mixNode?.data?.location?.lng, mixNode?.data?.location?.lat]}
+                  userLocation={[mixNode.data.location.longitude, mixNode.data.location.latitude]}
                 />
               )}
             </ContentCard>
@@ -181,7 +181,7 @@ const PageMixnodeDetailWithState: React.FC = () => {
 /**
  * Guard component to handle loading and not found states
  */
-const PageMixnodeDetailGuard: React.FC = () => {
+const PageMixnodeDetailGuard: FCWithChildren = () => {
   const { mixNode } = useMixnodeContext();
   const { id } = useParams<{ id: string | undefined }>();
 
@@ -215,7 +215,7 @@ const PageMixnodeDetailGuard: React.FC = () => {
 /**
  * Wrapper component that adds the mixnode content based on the `id` in the address URL
  */
-export const PageMixnodeDetail: React.FC = () => {
+export const PageMixnodeDetail: FCWithChildren = () => {
   const { id } = useParams<{ id: string | undefined }>();
 
   if (!id) {

@@ -6,25 +6,53 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ### Added
 
-- socks5: send status message for service ready, and network-requester error response
+- dkg rerun from scratch and dkg-specific epochs ([#2839])
+
+[#2839]: https://github.com/nymtech/nym/pull/2839
+
+## [v1.1.6] (2023-01-17)
+
+### Added
+
+- nym-sdk: added initial version of a Rust client sdk
+- nym-api: added `/circulating-supply` endpoint ([#2814])
 
 ### Changed
 
+- streamline override_config functions -> there's a lot of duplicate if statements everywhere ([#2774])
+- clean-up nym-api startup arguments/flags to use clap 3 and its macro-derived arguments ([#2772])
 - renamed all references to validator_api to nym_api
-- renamed all references to nymd to nyxd
-- all-binaries: improved error logging ([#2686])
-- native client: bring shutdown logic up to the same level as socks5-client
-- nym-api, coconut-dkg contract: automatic, time-based dkg epoch state advancement ([#2670])
+- renamed all references to nymd to nyxd ([#2696])
 - all-binaries: standarised argument names (note: old names should still be accepted) ([#2762]
 
 ### Fixed
 
 - nym-api: should now correctly use `rewarding.enabled` config flag ([#2753])
 
-[#2686]: https://github.com/nymtech/nym/pull/2686
-[#2670]: https://github.com/nymtech/nym/pull/2670
+[#2696]: https://github.com/nymtech/nym/pull/2696
 [#2753]: https://github.com/nymtech/nym/pull/2753
 [#2762]: https://github.com/nymtech/nym/pull/2762
+[#2814]: https://github.com/nymtech/nym/pull/2814
+[#2772]: https://github.com/nymtech/nym/pull/2772
+[#2774]: https://github.com/nymtech/nym/pull/2774
+
+## [v1.1.5] (2023-01-10)
+
+### Added
+
+- socks5: send status message for service ready, and network-requester error response in https://github.com/nymtech/nym/pull/2715
+
+### Changed
+
+- all-binaries: improved error logging in https://github.com/nymtech/nym/pull/2686
+- native client: bring shutdown logic up to the same level as socks5-client in https://github.com/nymtech/nym/pull/2695
+- nym-api, coconut-dkg contract: automatic, time-based dkg epoch state advancement in https://github.com/nymtech/nym/pull/2670
+- DKG resharing unit test by @neacsu in https://github.com/nymtech/nym/pull/2668
+- Renaming validator-api to nym-api by @futurechimp in https://github.com/nymtech/nym/pull/1863
+- Modify wasm specific make targets by @neacsu in https://github.com/nymtech/nym/pull/2693
+- client: create websocket handler builder by @octol in https://github.com/nymtech/nym/pull/2700
+- Outfox and Lion by @durch in https://github.com/nymtech/nym/pull/2730
+- Feature/multi surb transmission lanes by @jstuczyn in https://github.com/nymtech/nym/pull/2723
 
 ## [v1.1.4] (2022-12-20)
 

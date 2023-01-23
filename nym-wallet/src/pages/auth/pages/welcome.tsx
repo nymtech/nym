@@ -4,7 +4,7 @@ import { Button, Stack } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import { SubtitleSlick, Title } from '../components';
 
-export const WelcomeContent: React.FC<{}> = () => {
+export const WelcomeContent: FCWithChildren<{}> = () => {
   const navigate = useNavigate();
 
   return (

@@ -18,7 +18,7 @@ import { DelegationListItemActions } from '../../components/Delegation/Delegatio
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
 import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
-import { toPercentIntegerString } from '../../utils';
+import { toPercentIntegerString, getIntervalAsDate } from 'src/utils';
 
 const storybookStyles = (theme: Theme, isStorybook?: boolean, backdropProps?: object) =>
   isStorybook
@@ -36,9 +36,9 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
   const [confirmationModalProps, setConfirmationModalProps] = useState<DelegationModalProps | undefined>();
   const [currentDelegationListActionItem, setCurrentDelegationListActionItem] = useState<DelegationWithEverything>();
   const [saturationError, setSaturationError] = useState<{ action: 'compound' | 'delegate'; saturation: string }>();
+  const [nextEpoch, setNextEpoch] = useState<string | Error>();
 
   const theme = useTheme();
-
   const {
     clientDetails,
     network,
@@ -75,6 +75,15 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     };
   };
 
+  const getNextInterval = async () => {
+    try {
+      const { nextEpoch } = await getIntervalAsDate();
+      setNextEpoch(nextEpoch);
+    } catch {
+      setNextEpoch(Error());
+    }
+  };
+
   // Refresh the rewards and delegations periodically when page is mounted
   useEffect(() => {
     const timer = setInterval(refresh, 1 * 60 * 1000); // every 1 minute
@@ -83,6 +92,7 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   useEffect(() => {
     refresh();
+    getNextInterval();
   }, [clientDetails, confirmationModalProps]);
 
   const handleDelegationItemActionClick = (item: DelegationWithEverything, action: DelegationListItemActions) => {
@@ -332,35 +342,45 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
     <>
       <Paper elevation={0} sx={{ p: 3, mt: 4 }}>
         <Stack spacing={3}>
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6" lineHeight={1.334} fontWeight={600}>
-              Delegations
-            </Typography>
+          <Box display="flex" justifyContent="space-between">
+            {' '}
+            <Box display="flex" flexDirection="column">
+              <Typography variant="h6" lineHeight={1.334} fontWeight={600}>
+                Delegations
+              </Typography>
+              {!!delegations?.length && (
+                <Link
+                  href={`${urls(network).networkExplorer}/network-components/mixnodes/`}
+                  target="_blank"
+                  rel="noreferrer"
+                  text="Network Explorer"
+                  fontSize={14}
+                  fontWeight={theme.palette.mode === 'light' ? 400 : 600}
+                  noIcon
+                  marginTop={1.5}
+                />
+              )}
+            </Box>
             {!!delegations?.length && (
-              <Link
-                href={`${urls(network).networkExplorer}/network-components/mixnodes/`}
-                target="_blank"
-                rel="noreferrer"
-                text="Network Explorer"
-                fontSize={14}
-                fontWeight={theme.palette.mode === 'light' ? 400 : 600}
-                noIcon
-              />
+              <Button
+                variant="contained"
+                disableElevation
+                onClick={() => setShowNewDelegationModal(true)}
+                sx={{ py: 1.5, px: 5, color: 'primary.contrastText', height: 'fit-content' }}
+              >
+                Delegate
+              </Button>
             )}
           </Box>
 
           {!!delegations?.length && (
             <Box display="flex" justifyContent="space-between" alignItems="end">
               <RewardsSummary isLoading={isLoading} totalDelegation={totalDelegations} totalRewards={totalRewards} />
-
-              <Button
-                variant="contained"
-                disableElevation
-                onClick={() => setShowNewDelegationModal(true)}
-                sx={{ py: 1.5, px: 5, color: 'primary.contrastText' }}
-              >
-                Delegate
-              </Button>
+              {nextEpoch instanceof Error ? null : (
+                <Typography fontSize={14}>
+                  Next epoch starts at <b>{nextEpoch}</b>
+                </Typography>
+              )}
             </Box>
           )}
           {delegationsComponent(delegations)}

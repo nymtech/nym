@@ -11,9 +11,15 @@
   },
   "typesVersions": {
     "*": {
-      "*": ["dist/components/*"],
-      "hooks/*": ["dist/hooks/*"],
-      "playground/*": ["dist/playground/*"]
+      "*": [
+        "dist/components/*"
+      ],
+      "hooks/*": [
+        "dist/hooks/*"
+      ],
+      "playground/*": [
+        "dist/playground/*"
+      ]
     }
   },
   "peerDependencies": {
@@ -24,8 +30,8 @@
     "@mui/styles": ">= 5",
     "@mui/system": ">= 5",
     "@nymproject/mui-theme": "1",
-    "react": "17",
-    "react-dom": "17",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "@nymproject/nym-validator-client": "^0.18.0",
     "@nymproject/types": "1",
     "base58": "4",
@@ -44,11 +50,12 @@
     "@storybook/addon-links": "^6.5.8",
     "@storybook/builder-webpack5": "^6.5.8",
     "@storybook/manager-webpack5": "^6.5.8",
-    "@storybook/react": "^6.5.8",
+    "@storybook/react": "^6.5.15",
     "@storybook/testing-library": "^0.0.9",
     "@svgr/webpack": "^6.1.1",
     "@types/flat": "^5.0.2",
-    "@types/react": "^17.0.39",
+    "@types/react": "^18.0.26",
+    "@types/react-dom": "^18.0.10",
     "@typescript-eslint/eslint-plugin": "^5.13.0",
     "@typescript-eslint/parser": "^5.13.0",
     "babel-loader": "^8.2.3",

@@ -2,11 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use handlebars::Handlebars;
+use network_defaults::mainnet::read_var_if_not_default;
+use network_defaults::var_names::CONFIGURED;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
+use std::any::type_name;
+use std::fmt::Debug;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::{fs, io};
 
 pub mod defaults;
@@ -129,3 +134,86 @@ pub fn parse_urls(raw: &str) -> Vec<url::Url> {
         })
         .collect()
 }
+
+pub trait OptionalSet {
+    fn with_optional<F, T>(self, f: F, val: Option<T>) -> Self
+    where
+        F: Fn(Self, T) -> Self,
+        Self: Sized,
+    {
+        if let Some(val) = val {
+            f(self, val)
+        } else {
+            self
+        }
+    }
+
+    fn with_validated_optional<F, T, V, E>(
+        self,
+        f: F,
+        value: Option<T>,
+        validate: V,
+    ) -> Result<Self, E>
+    where
+        F: Fn(Self, T) -> Self,
+        V: Fn(&T) -> Result<(), E>,
+        Self: Sized,
+    {
+        if let Some(val) = value {
+            validate(&val)?;
+            Ok(f(self, val))
+        } else {
+            Ok(self)
+        }
+    }
+
+    fn with_optional_env<F, T>(self, f: F, val: Option<T>, env_var: &str) -> Self
+    where
+        F: Fn(Self, T) -> Self,
+        T: FromStr,
+        <T as FromStr>::Err: Debug,
+        Self: Sized,
+    {
+        if let Some(val) = val {
+            return f(self, val);
+        } else if std::env::var(CONFIGURED).is_ok() {
+            if let Some(raw) = read_var_if_not_default(env_var) {
+                return f(
+                    self,
+                    raw.parse().unwrap_or_else(|err| {
+                        panic!(
+                            "failed to parse value of {raw} into type {}. the error was {:?}",
+                            type_name::<T>(),
+                            err
+                        )
+                    }),
+                );
+            }
+        }
+        self
+    }
+
+    fn with_optional_custom_env<F, T, G>(
+        self,
+        f: F,
+        val: Option<T>,
+        env_var: &str,
+        parser: G,
+    ) -> Self
+    where
+        F: Fn(Self, T) -> Self,
+        G: Fn(&str) -> T,
+        Self: Sized,
+    {
+        if let Some(val) = val {
+            return f(self, val);
+        } else if std::env::var(CONFIGURED).is_ok() {
+            if let Some(raw) = read_var_if_not_default(env_var) {
+                return f(self, parser(&raw));
+            }
+        }
+        self
+    }
+}
+
+impl<T> OptionalSet for T where T: NymConfig {}

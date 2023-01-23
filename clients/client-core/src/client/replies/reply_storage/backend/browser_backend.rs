@@ -7,6 +7,7 @@ use async_trait::async_trait;
 
 // well, right now we don't have the browser storage : (
 // so we keep everything in memory
+#[derive(Debug)]
 pub struct Backend {
     empty: Empty,
 }

@@ -7,7 +7,7 @@ import { invoke } from '@tauri-apps/api';
 import { useTestAndEarnContext } from './context/TestAndEarnContext';
 import { ClientId, Registration } from './context/types';
 
-export const TestAndEarnTakePart: React.FC<{
+export const TestAndEarnTakePart: FCWithChildren<{
   websiteLinkUrl: string;
   websiteLinkText: string;
   content: string;

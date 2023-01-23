@@ -8,7 +8,7 @@ edition = "2021"
 
 [dependencies]
 bytes = "1.0"
-tokio-util = { version = "0.7.3", features = ["codec"] }
+tokio-util = { version = "0.7.4", features = ["codec"] }
 thiserror = "1.0.37"
 
 nymsphinx-types = { path = "../types" }

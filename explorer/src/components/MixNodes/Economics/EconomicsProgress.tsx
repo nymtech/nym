@@ -6,7 +6,7 @@ import { Box } from '@mui/system';
 const parseToNumber = (value: number | undefined | string) =>
   typeof value === 'string' ? parseInt(value || '', 10) : value || 0;
 
-export const EconomicsProgress: React.FC<
+export const EconomicsProgress: FCWithChildren<
   LinearProgressProps & {
     threshold?: number;
   }

@@ -4,10 +4,17 @@
 use crate::node_status_api::models::NymApiStorageError;
 use thiserror::Error;
 use validator_client::nyxd::error::NyxdError;
+use validator_client::nyxd::AccountId;
 use validator_client::ValidatorClientError;
 
 #[derive(Debug, Error)]
 pub enum RewardingError {
+    #[error("Our account ({our_address}) is not permitted to update rewarded set and perform rewarding. The allowed address is {allowed_address}")]
+    Unauthorised {
+        our_address: AccountId,
+        allowed_address: AccountId,
+    },
+
     // #[error("There were no mixnodes to reward (network is dead)")]
     // NoMixnodesToReward,
     #[error("Failed to execute the smart contract - {0}")]

@@ -8,7 +8,7 @@ use coconut_dkg_common::dealer::{
     DealerDetailsResponse, PagedDealerResponse, PagedDealingsResponse,
 };
 use coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
-use coconut_dkg_common::types::Epoch;
+use coconut_dkg_common::types::{Epoch, EpochId};
 use coconut_dkg_common::verification_key::PagedVKSharesResponse;
 use cosmrs::AccountId;
 
@@ -39,6 +39,7 @@ pub trait DkgQueryClient {
     ) -> Result<PagedDealingsResponse, NyxdError>;
     async fn get_vk_shares_paged(
         &self,
+        epoch_id: EpochId,
         start_after: Option<String>,
         page_limit: Option<u32>,
     ) -> Result<PagedVKSharesResponse, NyxdError>;
@@ -47,7 +48,7 @@ pub trait DkgQueryClient {
 #[async_trait]
 impl<C> DkgQueryClient for NyxdClient<C>
 where
-    C: CosmWasmClient + Send + Sync,
+    C: CosmWasmClient + Send + Sync + Clone,
 {
     async fn get_current_epoch(&self) -> Result<Epoch, NyxdError> {
         let request = DkgQueryMsg::GetCurrentEpochState {};
@@ -119,10 +120,12 @@ where
 
     async fn get_vk_shares_paged(
         &self,
+        epoch_id: EpochId,
         start_after: Option<String>,
         page_limit: Option<u32>,
     ) -> Result<PagedVKSharesResponse, NyxdError> {
         let request = DkgQueryMsg::GetVerificationKeys {
+            epoch_id,
             limit: page_limit,
             start_after,
         };

@@ -282,3 +282,11 @@ pub struct GatewayUptimeHistoryResponse {
     pub owner: String,
     pub history: Vec<HistoricalUptimeResponse>,
 }
+
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct CirculatingSupplyResponse {
+    pub initial_supply: Coin,
+    pub mixmining_reserve: Coin,
+    pub vesting_tokens: Coin,
+    pub circulating_supply: Coin,
+}

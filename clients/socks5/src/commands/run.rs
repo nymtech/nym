@@ -31,7 +31,7 @@ pub(crate) struct Run {
     /// Note that some service providers might not support this.
     // the alias here is included for backwards compatibility (1.1.4 and before)
     #[clap(long, alias = "use_anonymous_sender_tag")]
-    use_anonymous_replies: bool,
+    use_anonymous_replies: Option<bool>,
 
     /// Address of the socks5 provider to send messages to.
     #[clap(long)]
@@ -68,7 +68,7 @@ pub(crate) struct Run {
     /// with bandwidth credential requirement.
     #[cfg(feature = "coconut")]
     #[clap(long)]
-    enabled_credentials_mode: bool,
+    enabled_credentials_mode: Option<bool>,
 }
 
 impl From<Run> for OverrideConfig {

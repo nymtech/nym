@@ -14,7 +14,7 @@ const IpAddressAndPortContainer = styled('div')({
   },
 });
 
-export const IpAddressAndPort: React.FC<{
+export const IpAddressAndPort: FCWithChildren<{
   label: string;
   ipAddress: string;
   port: number;

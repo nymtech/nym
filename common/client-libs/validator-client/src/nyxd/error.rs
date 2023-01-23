@@ -46,25 +46,25 @@ pub enum NyxdError {
     #[error("{0} is not a valid tx hash")]
     InvalidTxHash(String),
 
-    #[error("There was an issue with a tendermint RPC request - {0}")]
+    #[error("Tendermint RPC request failed - {0}")]
     TendermintError(#[from] TendermintRpcError),
 
-    #[error("There was an issue when attempting to serialize data ({0})")]
+    #[error("Failed when attempting to serialize data ({0})")]
     SerializationError(String),
 
-    #[error("There was an issue when attempting to deserialize data ({0})")]
+    #[error("Failed when attempting to deserialize data ({0})")]
     DeserializationError(String),
 
-    #[error("There was an issue when attempting to encode our protobuf data - {0}")]
+    #[error("Failed when attempting to encode our protobuf data - {0}")]
     ProtobufEncodingError(#[from] prost::EncodeError),
 
-    #[error("There was an issue when attempting to decode our protobuf data - {0}")]
+    #[error("Failed to decode our protobuf data - {0}")]
     ProtobufDecodingError(#[from] prost::DecodeError),
 
     #[error("Account {0} does not exist on the chain")]
     NonExistentAccountError(AccountId),
 
-    #[error("There was an issue with the serialization/deserialization - {0}")]
+    #[error("Failed on json serialization/deserialization - {0}")]
     SerdeJsonError(#[from] serde_json::Error),
 
     #[error("Account {0} is not a valid account address")]

@@ -58,6 +58,12 @@ const columns: ColumnsType[] = [
     headerAlign: 'left',
     flex: 1,
   },
+  {
+    field: 'version',
+    title: 'Version',
+    headerAlign: 'left',
+    flex: 1,
+  },
 ];
 
 /**
@@ -123,7 +129,7 @@ const PageGatewayDetailsWithState = ({ selectedGateway }: { selectedGateway: Gat
 /**
  * Guard component to handle loading and not found states
  */
-const PageGatewayDetailGuard: React.FC = () => {
+const PageGatewayDetailGuard: FCWithChildren = () => {
   const [selectedGateway, setSelectedGateway] = React.useState<GatewayResponseItem | undefined>();
   const { gateways } = useMainContext();
   const { id } = useParams<{ id: string | undefined }>();
@@ -164,7 +170,7 @@ const PageGatewayDetailGuard: React.FC = () => {
 /**
  * Wrapper component that adds the mixnode content based on the `id` in the address URL
  */
-export const PageGatewayDetail: React.FC = () => {
+export const PageGatewayDetail: FCWithChildren = () => {
   const { id } = useParams<{ id: string | undefined }>();
 
   if (!id) {

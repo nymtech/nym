@@ -15,7 +15,7 @@ pub fn pretty_coin(coin: &Coin) -> String {
     } else {
         &coin.denom
     };
-    format!("{} {}", amount, denom)
+    format!("{amount} {denom}")
 }
 
 pub fn pretty_cosmwasm_coin(coin: &CosmWasmCoin) -> String {
@@ -25,12 +25,12 @@ pub fn pretty_cosmwasm_coin(coin: &CosmWasmCoin) -> String {
     } else {
         &coin.denom
     };
-    format!("{} {}", amount, denom)
+    format!("{amount} {denom}")
 }
 
 pub fn pretty_decimal_with_denom(value: Decimal, denom: &str) -> String {
     // TODO: we might have to truncate the value here (that's why I moved it to separate function)
-    format!("{} {}", value, denom)
+    format!("{value} {denom}")
 }
 
 pub fn show_error<E>(e: E)

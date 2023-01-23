@@ -12,8 +12,9 @@ use mixnet_contract_common::MixId;
 use serde::Deserialize;
 use vesting_contract::vesting::Account;
 use vesting_contract_common::{
-    messages::QueryMsg as VestingQueryMsg, AllDelegationsResponse, DelegationTimesResponse,
-    OriginalVestingResponse, Period, PledgeData, VestingDelegation,
+    messages::QueryMsg as VestingQueryMsg, AccountVestingCoins, AccountsResponse,
+    AllDelegationsResponse, BaseVestingAccountInfo, DelegationTimesResponse,
+    OriginalVestingResponse, Period, PledgeData, VestingCoinsResponse, VestingDelegation,
 };
 
 #[async_trait]
@@ -27,74 +28,187 @@ pub trait VestingQueryClient {
             .await
     }
 
+    async fn get_all_accounts_paged(
+        &self,
+        start_next_after: Option<String>,
+        limit: Option<u32>,
+    ) -> Result<AccountsResponse, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetAccountsPaged {
+            start_next_after,
+            limit,
+        })
+        .await
+    }
+
+    async fn get_all_accounts_vesting_coins_paged(
+        &self,
+        start_next_after: Option<String>,
+        limit: Option<u32>,
+    ) -> Result<VestingCoinsResponse, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetAccountsVestingCoinsPaged {
+            start_next_after,
+            limit,
+        })
+        .await
+    }
+
     async fn locked_coins(
         &self,
-        address: &str,
+        vesting_account_address: &str,
         block_time: Option<Timestamp>,
-    ) -> Result<Coin, NyxdError>;
+    ) -> Result<Coin, NyxdError> {
+        self.query_vesting_contract::<CosmWasmCoin>(VestingQueryMsg::LockedCoins {
+            vesting_account_address: vesting_account_address.to_string(),
+            block_time,
+        })
+        .await
+        .map(Into::into)
+    }
 
     async fn spendable_coins(
         &self,
         vesting_account_address: &str,
         block_time: Option<Timestamp>,
-    ) -> Result<Coin, NyxdError>;
+    ) -> Result<Coin, NyxdError> {
+        self.query_vesting_contract::<CosmWasmCoin>(VestingQueryMsg::SpendableCoins {
+            vesting_account_address: vesting_account_address.to_string(),
+            block_time,
+        })
+        .await
+        .map(Into::into)
+    }
 
     async fn vested_coins(
         &self,
         vesting_account_address: &str,
         block_time: Option<Timestamp>,
-    ) -> Result<Coin, NyxdError>;
+    ) -> Result<Coin, NyxdError> {
+        self.query_vesting_contract::<CosmWasmCoin>(VestingQueryMsg::GetVestedCoins {
+            vesting_account_address: vesting_account_address.to_string(),
+            block_time,
+        })
+        .await
+        .map(Into::into)
+    }
 
     async fn vesting_coins(
         &self,
         vesting_account_address: &str,
         block_time: Option<Timestamp>,
-    ) -> Result<Coin, NyxdError>;
+    ) -> Result<Coin, NyxdError> {
+        self.query_vesting_contract::<CosmWasmCoin>(VestingQueryMsg::GetVestingCoins {
+            vesting_account_address: vesting_account_address.to_string(),
+            block_time,
+        })
+        .await
+        .map(Into::into)
+    }
 
     async fn vesting_start_time(
         &self,
         vesting_account_address: &str,
-    ) -> Result<Timestamp, NyxdError>;
+    ) -> Result<Timestamp, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetStartTime {
+            vesting_account_address: vesting_account_address.to_string(),
+        })
+        .await
+    }
 
-    async fn vesting_end_time(&self, vesting_account_address: &str)
-        -> Result<Timestamp, NyxdError>;
+    async fn vesting_end_time(
+        &self,
+        vesting_account_address: &str,
+    ) -> Result<Timestamp, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetEndTime {
+            vesting_account_address: vesting_account_address.to_string(),
+        })
+        .await
+    }
 
     async fn original_vesting(
         &self,
         vesting_account_address: &str,
-    ) -> Result<OriginalVestingResponse, NyxdError>;
+    ) -> Result<OriginalVestingResponse, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetOriginalVesting {
+            vesting_account_address: vesting_account_address.to_string(),
+        })
+        .await
+    }
 
     async fn delegated_free(
         &self,
         vesting_account_address: &str,
         block_time: Option<Timestamp>,
-    ) -> Result<Coin, NyxdError>;
+    ) -> Result<Coin, NyxdError> {
+        self.query_vesting_contract::<CosmWasmCoin>(VestingQueryMsg::GetDelegatedFree {
+            vesting_account_address: vesting_account_address.to_string(),
+            block_time,
+        })
+        .await
+        .map(Into::into)
+    }
 
+    /// Returns the total amount of delegated tokens that have vested
     async fn delegated_vesting(
         &self,
         vesting_account_address: &str,
         block_time: Option<Timestamp>,
-    ) -> Result<Coin, NyxdError>;
+    ) -> Result<Coin, NyxdError> {
+        self.query_vesting_contract::<CosmWasmCoin>(VestingQueryMsg::GetDelegatedVesting {
+            vesting_account_address: vesting_account_address.to_string(),
+            block_time,
+        })
+        .await
+        .map(Into::into)
+    }
 
-    async fn get_account(&self, address: &str) -> Result<Account, NyxdError>;
-    async fn get_mixnode_pledge(&self, address: &str) -> Result<Option<PledgeData>, NyxdError>;
-    async fn get_gateway_pledge(&self, address: &str) -> Result<Option<PledgeData>, NyxdError>;
-    async fn get_current_vesting_period(
-        &self,
-        vesting_account_address: &str,
-    ) -> Result<Period, NyxdError>;
+    async fn get_account(&self, address: &str) -> Result<Account, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetAccount {
+            address: address.to_string(),
+        })
+        .await
+    }
+
+    async fn get_mixnode_pledge(&self, address: &str) -> Result<Option<PledgeData>, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetMixnode {
+            address: address.to_string(),
+        })
+        .await
+    }
+
+    async fn get_gateway_pledge(&self, address: &str) -> Result<Option<PledgeData>, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetGateway {
+            address: address.to_string(),
+        })
+        .await
+    }
+
+    async fn get_current_vesting_period(&self, address: &str) -> Result<Period, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetCurrentVestingPeriod {
+            address: address.to_string(),
+        })
+        .await
+    }
 
     async fn get_delegation_timestamps(
         &self,
         address: &str,
         mix_id: MixId,
-    ) -> Result<DelegationTimesResponse, NyxdError>;
+    ) -> Result<DelegationTimesResponse, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetDelegationTimes {
+            address: address.to_string(),
+            mix_id,
+        })
+        .await
+    }
 
     async fn get_all_vesting_delegations_paged(
         &self,
         start_after: Option<(u32, MixId, u64)>,
         limit: Option<u32>,
-    ) -> Result<AllDelegationsResponse, NyxdError>;
+    ) -> Result<AllDelegationsResponse, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetAllDelegations { start_after, limit })
+            .await
+    }
 
     async fn get_all_vesting_delegations(&self) -> Result<Vec<VestingDelegation>, NyxdError> {
         let mut delegations = Vec::new();
@@ -114,200 +228,54 @@ pub trait VestingQueryClient {
 
         Ok(delegations)
     }
+
+    async fn get_all_accounts_info(&self) -> Result<Vec<BaseVestingAccountInfo>, NyxdError> {
+        let mut accounts = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .get_all_accounts_paged(start_after.take(), None)
+                .await?;
+            accounts.append(&mut paged_response.accounts);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res.into_string())
+            } else {
+                break;
+            }
+        }
+
+        Ok(accounts)
+    }
+
+    async fn get_all_accounts_vesting_coins(&self) -> Result<Vec<AccountVestingCoins>, NyxdError> {
+        let mut accounts = Vec::new();
+        let mut start_after = None;
+        loop {
+            let mut paged_response = self
+                .get_all_accounts_vesting_coins_paged(start_after.take(), None)
+                .await?;
+            accounts.append(&mut paged_response.accounts);
+
+            if let Some(start_after_res) = paged_response.start_next_after {
+                start_after = Some(start_after_res.into_string())
+            } else {
+                break;
+            }
+        }
+
+        Ok(accounts)
+    }
 }
 
 #[async_trait]
-impl<C: CosmWasmClient + Sync + Send> VestingQueryClient for NyxdClient<C> {
+impl<C: CosmWasmClient + Sync + Send + Clone> VestingQueryClient for NyxdClient<C> {
     async fn query_vesting_contract<T>(&self, query: VestingQueryMsg) -> Result<T, NyxdError>
     where
         for<'a> T: Deserialize<'a>,
     {
         self.client
             .query_contract_smart(self.vesting_contract_address(), &query)
-            .await
-    }
-
-    async fn locked_coins(
-        &self,
-        vesting_account_address: &str,
-        block_time: Option<Timestamp>,
-    ) -> Result<Coin, NyxdError> {
-        let request = VestingQueryMsg::LockedCoins {
-            vesting_account_address: vesting_account_address.to_string(),
-            block_time,
-        };
-        self.client
-            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address(), &request)
-            .await
-            .map(Into::into)
-    }
-
-    async fn spendable_coins(
-        &self,
-        vesting_account_address: &str,
-        block_time: Option<Timestamp>,
-    ) -> Result<Coin, NyxdError> {
-        let request = VestingQueryMsg::SpendableCoins {
-            vesting_account_address: vesting_account_address.to_string(),
-            block_time,
-        };
-        self.client
-            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address(), &request)
-            .await
-            .map(Into::into)
-    }
-    async fn vested_coins(
-        &self,
-        vesting_account_address: &str,
-        block_time: Option<Timestamp>,
-    ) -> Result<Coin, NyxdError> {
-        let request = VestingQueryMsg::GetVestedCoins {
-            vesting_account_address: vesting_account_address.to_string(),
-            block_time,
-        };
-        self.client
-            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address(), &request)
-            .await
-            .map(Into::into)
-    }
-    async fn vesting_coins(
-        &self,
-        vesting_account_address: &str,
-        block_time: Option<Timestamp>,
-    ) -> Result<Coin, NyxdError> {
-        let request = VestingQueryMsg::GetVestingCoins {
-            vesting_account_address: vesting_account_address.to_string(),
-            block_time,
-        };
-        self.client
-            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address(), &request)
-            .await
-            .map(Into::into)
-    }
-
-    async fn vesting_start_time(
-        &self,
-        vesting_account_address: &str,
-    ) -> Result<Timestamp, NyxdError> {
-        let request = VestingQueryMsg::GetStartTime {
-            vesting_account_address: vesting_account_address.to_string(),
-        };
-        self.client
-            .query_contract_smart(self.vesting_contract_address(), &request)
-            .await
-    }
-
-    async fn vesting_end_time(
-        &self,
-        vesting_account_address: &str,
-    ) -> Result<Timestamp, NyxdError> {
-        let request = VestingQueryMsg::GetEndTime {
-            vesting_account_address: vesting_account_address.to_string(),
-        };
-        self.client
-            .query_contract_smart(self.vesting_contract_address(), &request)
-            .await
-    }
-
-    async fn original_vesting(
-        &self,
-        vesting_account_address: &str,
-    ) -> Result<OriginalVestingResponse, NyxdError> {
-        let request = VestingQueryMsg::GetOriginalVesting {
-            vesting_account_address: vesting_account_address.to_string(),
-        };
-        self.client
-            .query_contract_smart(self.vesting_contract_address(), &request)
-            .await
-    }
-
-    async fn delegated_free(
-        &self,
-        vesting_account_address: &str,
-        block_time: Option<Timestamp>,
-    ) -> Result<Coin, NyxdError> {
-        let request = VestingQueryMsg::GetDelegatedFree {
-            vesting_account_address: vesting_account_address.to_string(),
-            block_time,
-        };
-        self.client
-            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address(), &request)
-            .await
-            .map(Into::into)
-    }
-
-    /// Returns the total amount of delegated tokens that have vested
-    async fn delegated_vesting(
-        &self,
-        vesting_account_address: &str,
-        block_time: Option<Timestamp>,
-    ) -> Result<Coin, NyxdError> {
-        let request = VestingQueryMsg::GetDelegatedVesting {
-            vesting_account_address: vesting_account_address.to_string(),
-            block_time,
-        };
-        self.client
-            .query_contract_smart::<_, CosmWasmCoin>(self.vesting_contract_address(), &request)
-            .await
-            .map(Into::into)
-    }
-
-    async fn get_account(&self, address: &str) -> Result<Account, NyxdError> {
-        let request = VestingQueryMsg::GetAccount {
-            address: address.to_string(),
-        };
-        self.client
-            .query_contract_smart(self.vesting_contract_address(), &request)
-            .await
-    }
-    async fn get_mixnode_pledge(&self, address: &str) -> Result<Option<PledgeData>, NyxdError> {
-        let request = VestingQueryMsg::GetMixnode {
-            address: address.to_string(),
-        };
-        self.client
-            .query_contract_smart(self.vesting_contract_address(), &request)
-            .await
-    }
-    async fn get_gateway_pledge(&self, address: &str) -> Result<Option<PledgeData>, NyxdError> {
-        let request = VestingQueryMsg::GetGateway {
-            address: address.to_string(),
-        };
-        self.client
-            .query_contract_smart(self.vesting_contract_address(), &request)
-            .await
-    }
-
-    async fn get_current_vesting_period(&self, address: &str) -> Result<Period, NyxdError> {
-        let request = VestingQueryMsg::GetCurrentVestingPeriod {
-            address: address.to_string(),
-        };
-        self.client
-            .query_contract_smart(self.vesting_contract_address(), &request)
-            .await
-    }
-
-    async fn get_delegation_timestamps(
-        &self,
-        address: &str,
-        mix_id: MixId,
-    ) -> Result<DelegationTimesResponse, NyxdError> {
-        let request = VestingQueryMsg::GetDelegationTimes {
-            address: address.to_string(),
-            mix_id,
-        };
-        self.client
-            .query_contract_smart(self.vesting_contract_address(), &request)
-            .await
-    }
-
-    async fn get_all_vesting_delegations_paged(
-        &self,
-        start_after: Option<(u32, MixId, u64)>,
-        limit: Option<u32>,
-    ) -> Result<AllDelegationsResponse, NyxdError> {
-        let request = VestingQueryMsg::GetAllDelegations { start_after, limit };
-        self.client
-            .query_contract_smart(self.vesting_contract_address(), &request)
             .await
     }
 }

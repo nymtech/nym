@@ -3,7 +3,7 @@ import { Box } from '@mui/material';
 import { CustomTitleBar } from './CustomTitleBar';
 import { AppVersion } from './AppVersion';
 
-export const AppWindowFrame: React.FC = ({ children }) => (
+export const AppWindowFrame: FCWithChildren = ({ children }) => (
   <Box
     sx={{
       display: 'grid',

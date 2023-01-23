@@ -45,7 +45,7 @@ const headCells: HeadCell[] = [
   { id: 'unclaimed_rewards', label: 'Reward', sortable: true, align: 'left' },
 ];
 
-const EnhancedTableHead: React.FC<EnhancedTableProps> = ({ order, orderBy, onRequestSort }) => {
+const EnhancedTableHead: FCWithChildren<EnhancedTableProps> = ({ order, orderBy, onRequestSort }) => {
   const createSortHandler = (property: string) => (event: React.MouseEvent<unknown>) => {
     onRequestSort(event, property);
   };
@@ -87,7 +87,7 @@ const sortByUnbondedMixnodeFirst = (a: DelegationWithEvent) => {
   return 1;
 };
 
-export const DelegationList: React.FC<{
+export const DelegationList: FCWithChildren<{
   isLoading?: boolean;
   items: TDelegations;
   onItemActionClick?: (item: DelegationWithEverything, action: DelegationListItemActions) => void;

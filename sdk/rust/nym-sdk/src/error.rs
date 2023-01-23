@@ -31,7 +31,6 @@ pub enum Error {
          supported, and likely and user mistake"
     )]
     ReregisteringGatewayNotSupported,
-
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

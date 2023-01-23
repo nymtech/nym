@@ -7,7 +7,7 @@ async fn main() {
     // Create client builder, including ephemeral keys. The builder can be usable in the context
     // where you don't want to connect just yet.
     // Since not storage paths are given, the surb storage will be inactive.
-    let client = mixnet::MixnetClientBuilder::new(None, None).await.unwrap();
+    let client = mixnet::MixnetClient::builder(None, None).await.unwrap();
 
     // Now we connect to the mixnet, using ephemeral keys already created
     let mut client = client.connect_to_mixnet().await.unwrap();
@@ -17,9 +17,7 @@ async fn main() {
     println!("Our client nym address is: {our_address}");
 
     // Send a message throught the mixnet to ourselves
-    client
-        .send_str(&our_address.to_string(), "hello there")
-        .await;
+    client.send_str(*our_address, "hello there").await;
 
     println!("Waiting for message");
     if let Some(received) = client.wait_for_messages().await {

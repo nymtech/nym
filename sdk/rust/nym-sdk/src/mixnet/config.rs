@@ -27,6 +27,7 @@ impl Default for Config {
 }
 
 impl Config {
+    /// Creates a new [`Config`].
     pub fn new(user_chosen_gateway: Option<String>, nym_api_endpoints: Vec<Url>) -> Self {
         Self {
             user_chosen_gateway,

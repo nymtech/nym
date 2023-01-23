@@ -2,5 +2,8 @@
 //!
 //! The main component currently is [`mixnet`].
 
-pub mod error;
+mod error;
+
 pub mod mixnet;
+
+pub use error::{Error, Result};

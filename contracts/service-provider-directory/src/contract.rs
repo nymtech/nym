@@ -25,7 +25,6 @@ pub fn instantiate(
 
     CONFIG.save(deps.storage, &config)?; 
     
-    // TODO add proper responses 
     Ok(Response::new())
 }
 
@@ -86,18 +85,19 @@ mod exec {
 
     }
 
-    /* 
-     * TODO change this so that it requires 
-     *  
-     *  - that it comes from the updator role 
-     */ 
     pub fn delete( 
         deps: DepsMut, 
         info: MessageInfo, 
         client_address: String
     ) -> Result<Response, ContractError> {
 
-        // ACL: check function call is coming from service.owner, if ! then fail 
+        let service_to_delete = SERVICES.load(deps.storage, client_address.clone())?; 
+
+        if info.sender != service_to_delete.owner {
+            return Err(ContractError::Unauthorized {
+                sender: info.sender,
+            });        
+        }
 
         SERVICES.remove(deps.storage, client_address.clone()); 
 

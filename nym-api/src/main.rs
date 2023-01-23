@@ -110,14 +110,16 @@ async fn start_nym_api_tasks(
     );
 
     // start dkg task
-    DkgController::start(
-        &config,
-        nyxd_client.clone(),
-        coconut_keypair,
-        OsRng,
-        &shutdown,
-    )
-    .await?;
+    if config.get_coconut_signer_enabled() {
+        DkgController::start(
+            &config,
+            nyxd_client.clone(),
+            coconut_keypair,
+            OsRng,
+            &shutdown,
+        )
+        .await?;
+    }
 
     // and then only start the uptime updater (and the monitor itself, duh)
     // if the monitoring if it's enabled

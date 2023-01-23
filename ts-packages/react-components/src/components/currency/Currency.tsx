@@ -1,6 +1,6 @@
 import * as React from 'react';
 import type { DecCoin } from '@nymproject/types';
-import { Stack, SxProps, Typography } from '@mui/material';
+import { Stack, SxProps } from '@mui/material';
 import { CurrencyWithCoinMark } from './CurrencyWithCoinMark';
 import { CURRENCY_AMOUNT_SPACING, CurrencyAmount } from './CurrencyAmount';
 

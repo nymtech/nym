@@ -179,6 +179,11 @@ jobs:
         uses: technote-space/workflow-conclusion-action@v2
       - name: Check out repository code
         uses: actions/checkout@v2
+      - name: install npm
+        uses: actions/setup-node@v3
+        if: env.WORKFLOW_CONCLUSION == 'failure'
+        with:
+          node-version: 16
       - name: Keybase - Node Install
         if: env.WORKFLOW_CONCLUSION == 'failure'
         run: npm install

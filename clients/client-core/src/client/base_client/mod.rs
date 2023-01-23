@@ -386,22 +386,32 @@ where
     where
         <B as ReplyStorageBackend>::StorageError: Sync + Send,
     {
-        let persistent_storage = PersistentReplyStorage::new(backend);
-        let mem_store = persistent_storage
-            .load_state_from_backend()
-            .await
-            .map_err(|err| ClientCoreError::SurbStorageError {
-                source: Box::new(err),
-            })?;
-
-        let store_clone = mem_store.clone();
-        spawn_future(async move {
-            persistent_storage
-                .flush_on_shutdown(store_clone, shutdown)
+        if backend.is_active() {
+            log::trace!("Setup persistent reply storage");
+            let persistent_storage = PersistentReplyStorage::new(backend);
+            let mem_store = persistent_storage
+                .load_state_from_backend()
                 .await
-        });
+                .map_err(|err| ClientCoreError::SurbStorageError {
+                    source: Box::new(err),
+                })?;
 
-        Ok(mem_store)
+            let store_clone = mem_store.clone();
+            spawn_future(async move {
+                persistent_storage
+                    .flush_on_shutdown(store_clone, shutdown)
+                    .await
+            });
+
+            Ok(mem_store)
+        } else {
+            log::trace!("Setup inactive reply storage");
+            Ok(backend
+                .get_inactive_storage()
+                .map_err(|err| ClientCoreError::SurbStorageError {
+                    source: Box::new(err),
+                })?)
+        }
     }
 
     pub async fn start_base(mut self) -> Result<BaseClient, ClientCoreError>

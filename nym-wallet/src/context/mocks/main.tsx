@@ -1,4 +1,4 @@
-import React, { FC, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import type { TAppContext } from '../main';
 import { AppContext } from '../main';
 

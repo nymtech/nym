@@ -89,6 +89,51 @@ mod tests {
     use cw_controllers::AdminError;
 
     #[test]
+    fn current_epoch_id() {
+        let mut deps = helpers::init_contract();
+        let mut env = mock_env();
+        let info = mock_info("requester", &[]);
+        let share = "share".to_string();
+
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs);
+        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        env.block.time = env
+            .block
+            .time
+            .plus_seconds(TimeConfiguration::default().dealing_exchange_time_secs);
+        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        let dealer = Addr::unchecked("requester");
+        let announce_address = String::from("localhost");
+        let dealer_details = DealerDetails {
+            address: dealer.clone(),
+            bte_public_key_with_proof: String::new(),
+            announce_address: announce_address.clone(),
+            assigned_index: 1,
+        };
+        dealers_storage::current_dealers()
+            .save(deps.as_mut().storage, &dealer, &dealer_details)
+            .unwrap();
+
+        try_commit_verification_key_share(deps.as_mut(), env.clone(), info.clone(), share.clone())
+            .unwrap();
+        let vk_share = vk_shares().load(&deps.storage, (&info.sender, 0)).unwrap();
+        assert_eq!(
+            vk_share,
+            ContractVKShare {
+                share,
+                announce_address,
+                node_index: 1,
+                owner: dealer,
+                epoch_id: 0,
+                verified: false,
+            }
+        );
+    }
+
+    #[test]
     fn commit_vk_share() {
         let mut deps = helpers::init_contract();
         let mut env = mock_env();

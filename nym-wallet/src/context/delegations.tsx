@@ -1,12 +1,12 @@
 import React, { createContext, FC, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { getDelegationSummary, undelegateAllFromMixnode, undelegateFromMixnode } from 'src/requests/delegation';
+import { getDelegationSummary, undelegateFromMixnode } from 'src/requests/delegation';
 import {
-  DelegationWithEverything,
-  FeeDetails,
   DecCoin,
+  DelegationWithEverything,
+  Fee,
+  FeeDetails,
   TransactionExecuteResult,
   WrappedDelegationEvent,
-  Fee,
 } from '@nymproject/types';
 import type { Network } from 'src/types';
 import {

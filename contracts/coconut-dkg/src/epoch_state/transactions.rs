@@ -128,149 +128,375 @@ pub(crate) fn try_surpassed_threshold(
 pub(crate) mod tests {
     use super::*;
     use crate::error::ContractError::EarlyEpochStateAdvancement;
-    use crate::support::tests::helpers::init_contract;
-    use coconut_dkg_common::types::{DealerDetails, EpochState, TimeConfiguration};
+    use crate::support::tests::fixtures::dealer_details_fixture;
+    use crate::support::tests::helpers::{init_contract, GROUP_MEMBERS};
+    use coconut_dkg_common::types::{
+        ContractSafeBytes, DealerDetails, EpochState, TimeConfiguration,
+    };
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::Addr;
+    use cw4::Member;
+    use rusty_fork::rusty_fork_test;
 
-    #[test]
-    fn advance_state() {
-        let mut deps = init_contract();
-        let mut env = mock_env();
+    // Because of the global variable handling group, we need individual process for each test
+    rusty_fork_test! {
+        #[test]
+        fn still_active() {
+            let mut deps = init_contract();
+            {
+                let mut group = GROUP_MEMBERS.lock().unwrap();
 
-        let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-        assert_eq!(epoch.state, EpochState::PublicKeySubmission);
-        assert_eq!(
-            epoch.finish_timestamp,
-            env.block
+                group.push(Member {
+                    addr: "owner1".to_string(),
+                    weight: 10,
+                });
+                group.push(Member {
+                    addr: "owner2".to_string(),
+                    weight: 10,
+                });
+                group.push(Member {
+                    addr: "owner3".to_string(),
+                    weight: 10,
+                });
+            }
+            assert_eq!(0, dealers_still_active(&deps.as_mut()).unwrap());
+            for i in 0..3 as u64 {
+                let details = dealer_details_fixture(i + 1);
+                current_dealers()
+                    .save(deps.as_mut().storage, &details.address, &details)
+                    .unwrap();
+                assert_eq!(
+                    i as usize + 1,
+                    dealers_still_active(&deps.as_mut()).unwrap()
+                );
+            }
+        }
+
+        #[test]
+        fn advance_state() {
+            let mut deps = init_contract();
+            let mut env = mock_env();
+            {
+                let mut group = GROUP_MEMBERS.lock().unwrap();
+
+                group.push(Member {
+                    addr: "owner1".to_string(),
+                    weight: 10,
+                });
+                group.push(Member {
+                    addr: "owner2".to_string(),
+                    weight: 10,
+                });
+                group.push(Member {
+                    addr: "owner3".to_string(),
+                    weight: 10,
+                });
+            }
+
+            let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
+            assert_eq!(epoch.state, EpochState::PublicKeySubmission);
+            assert_eq!(
+                epoch.finish_timestamp,
+                env.block
+                    .time
+                    .plus_seconds(epoch.time_configuration.public_key_submission_time_secs)
+            );
+
+            env.block.time = env
+                .block
                 .time
-                .plus_seconds(epoch.time_configuration.public_key_submission_time_secs)
-        );
+                .plus_seconds(epoch.time_configuration.public_key_submission_time_secs - 1);
+            assert_eq!(
+                advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
+                EarlyEpochStateAdvancement(1)
+            );
 
-        env.block.time = env
-            .block
-            .time
-            .plus_seconds(epoch.time_configuration.public_key_submission_time_secs - 1);
-        assert_eq!(
-            advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
-            EarlyEpochStateAdvancement(1)
-        );
+            env.block.time = env.block.time.plus_seconds(1);
+            advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+            let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
+            assert_eq!(epoch.state, EpochState::DealingExchange);
+            assert_eq!(
+                epoch.finish_timestamp,
+                env.block
+                    .time
+                    .plus_seconds(epoch.time_configuration.dealing_exchange_time_secs)
+            );
 
-        env.block.time = env.block.time.plus_seconds(1);
-        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
-        let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-        assert_eq!(epoch.state, EpochState::DealingExchange);
-        assert_eq!(
-            epoch.finish_timestamp,
-            env.block
+            env.block.time = env
+                .block
                 .time
-                .plus_seconds(epoch.time_configuration.dealing_exchange_time_secs)
-        );
+                .plus_seconds(epoch.time_configuration.dealing_exchange_time_secs - 2);
+            assert_eq!(
+                advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
+                EarlyEpochStateAdvancement(2)
+            );
 
-        env.block.time = env
-            .block
-            .time
-            .plus_seconds(epoch.time_configuration.dealing_exchange_time_secs - 2);
-        assert_eq!(
-            advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
-            EarlyEpochStateAdvancement(2)
-        );
+            env.block.time = env.block.time.plus_seconds(3);
+            advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+            let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
+            assert_eq!(epoch.state, EpochState::VerificationKeySubmission);
+            assert_eq!(
+                epoch.finish_timestamp,
+                env.block.time.plus_seconds(
+                    epoch
+                        .time_configuration
+                        .verification_key_submission_time_secs
+                )
+            );
 
-        env.block.time = env.block.time.plus_seconds(3);
-        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
-        let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-        assert_eq!(epoch.state, EpochState::VerificationKeySubmission);
-        assert_eq!(
-            epoch.finish_timestamp,
-            env.block.time.plus_seconds(
+            env.block.time = env.block.time.plus_seconds(
                 epoch
                     .time_configuration
                     .verification_key_submission_time_secs
-            )
-        );
+                    - 2,
+            );
+            assert_eq!(
+                advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
+                EarlyEpochStateAdvancement(2)
+            );
 
-        env.block.time = env.block.time.plus_seconds(
-            epoch
-                .time_configuration
-                .verification_key_submission_time_secs
-                - 2,
-        );
-        assert_eq!(
-            advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
-            EarlyEpochStateAdvancement(2)
-        );
+            env.block.time = env.block.time.plus_seconds(3);
+            advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+            let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
+            assert_eq!(epoch.state, EpochState::VerificationKeyValidation);
+            assert_eq!(
+                epoch.finish_timestamp,
+                env.block.time.plus_seconds(
+                    epoch
+                        .time_configuration
+                        .verification_key_validation_time_secs
+                )
+            );
 
-        env.block.time = env.block.time.plus_seconds(3);
-        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
-        let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-        assert_eq!(epoch.state, EpochState::VerificationKeyValidation);
-        assert_eq!(
-            epoch.finish_timestamp,
-            env.block.time.plus_seconds(
+            env.block.time = env.block.time.plus_seconds(
                 epoch
                     .time_configuration
                     .verification_key_validation_time_secs
-            )
-        );
+                    - 3,
+            );
+            assert_eq!(
+                advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
+                EarlyEpochStateAdvancement(3)
+            );
 
-        env.block.time = env.block.time.plus_seconds(
-            epoch
-                .time_configuration
-                .verification_key_validation_time_secs
-                - 3,
-        );
-        assert_eq!(
-            advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
-            EarlyEpochStateAdvancement(3)
-        );
+            env.block.time = env.block.time.plus_seconds(3);
+            advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+            let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
+            assert_eq!(epoch.state, EpochState::VerificationKeyFinalization);
+            assert_eq!(
+                epoch.finish_timestamp,
+                env.block.time.plus_seconds(
+                    epoch
+                        .time_configuration
+                        .verification_key_finalization_time_secs
+                )
+            );
 
-        env.block.time = env.block.time.plus_seconds(3);
-        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
-        let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-        assert_eq!(epoch.state, EpochState::VerificationKeyFinalization);
-        assert_eq!(
-            epoch.finish_timestamp,
-            env.block.time.plus_seconds(
-                epoch
-                    .time_configuration
-                    .verification_key_finalization_time_secs
-            )
-        );
-
-        env.block.time = env
-            .block
-            .time
-            .plus_seconds(TimeConfiguration::default().verification_key_finalization_time_secs - 1);
-        assert_eq!(
-            advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
-            EarlyEpochStateAdvancement(1)
-        );
-
-        env.block.time = env.block.time.plus_seconds(1);
-        advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
-        let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-        assert_eq!(epoch.state, EpochState::InProgress);
-        assert_eq!(
-            epoch.finish_timestamp,
-            env.block
+            env.block.time = env
+                .block
                 .time
-                .plus_seconds(epoch.time_configuration.in_progress_time_secs)
+                .plus_seconds(TimeConfiguration::default().verification_key_finalization_time_secs - 1);
+            assert_eq!(
+                advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
+                EarlyEpochStateAdvancement(1)
+            );
+
+            env.block.time = env.block.time.plus_seconds(1);
+            advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+            let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
+            assert_eq!(epoch.state, EpochState::InProgress);
+            assert_eq!(
+                epoch.finish_timestamp,
+                env.block
+                    .time
+                    .plus_seconds(epoch.time_configuration.in_progress_time_secs)
+            );
+
+            env.block.time = env
+                .block
+                .time
+                .plus_seconds(epoch.time_configuration.in_progress_time_secs - 100);
+            assert_eq!(
+                advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
+                EarlyEpochStateAdvancement(100)
+            );
+
+            env.block.time = env.block.time.plus_seconds(50);
+            assert_eq!(
+                advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
+                EarlyEpochStateAdvancement(50)
+            );
+
+            // setup dealer details
+            let all_details: [_; 3] = std::array::from_fn(|i| dealer_details_fixture(i as u64 + 1));
+            for details in all_details.iter() {
+                current_dealers()
+                    .save(deps.as_mut().storage, &details.address, details)
+                    .unwrap();
+            }
+
+            // Group hasn't changed, so we remain in the same epoch, with updated finish timestamp
+            env.block.time = env.block.time.plus_seconds(100);
+            let prev_epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
+            advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+            let curr_epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
+            let expected_epoch = Epoch::new(
+                EpochState::InProgress,
+                prev_epoch.epoch_id,
+                prev_epoch.time_configuration,
+                env.block.time,
+            );
+            assert_eq!(curr_epoch, expected_epoch);
+
+            // Group changed, slightly, so reset dkg state
+            *GROUP_MEMBERS.lock().unwrap().first_mut().unwrap() = Member {
+                addr: "owner4".to_string(),
+                weight: 10,
+            };
+            env.block.time = env
+                .block
+                .time
+                .plus_seconds(epoch.time_configuration.in_progress_time_secs);
+            let prev_epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
+            advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+            let curr_epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
+            let expected_epoch = Epoch::new(
+                EpochState::default(),
+                prev_epoch.epoch_id + 1,
+                prev_epoch.time_configuration,
+                env.block.time,
+            );
+            assert_eq!(curr_epoch, expected_epoch);
+            assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
+        }
+
+
+    #[test]
+    fn surpass_threshold() {
+        let mut deps = init_contract();
+        let mut env = mock_env();
+        let time_configuration = TimeConfiguration::default();
+        {
+            let mut group = GROUP_MEMBERS.lock().unwrap();
+
+            group.push(Member {
+                addr: "owner1".to_string(),
+                weight: 10,
+            });
+            group.push(Member {
+                addr: "owner2".to_string(),
+                weight: 10,
+            });
+            group.push(Member {
+                addr: "owner3".to_string(),
+                weight: 10,
+            });
+        }
+
+        let ret = try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap_err();
+        assert_eq!(
+            ret,
+            ContractError::IncorrectEpochState {
+                current_state: EpochState::default().to_string(),
+                expected_state: EpochState::InProgress.to_string()
+            }
         );
 
-        env.block.time = env
-            .block
-            .time
-            .plus_seconds(epoch.time_configuration.in_progress_time_secs - 100);
-        assert_eq!(
-            advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
-            EarlyEpochStateAdvancement(100)
-        );
+        let all_details: [_; 3] = std::array::from_fn(|i| dealer_details_fixture(i as u64 + 1));
+        for details in all_details.iter() {
+            current_dealers()
+                .save(deps.as_mut().storage, &details.address, details)
+                .unwrap();
+        }
 
-        env.block.time = env.block.time.plus_seconds(50);
+        for times in [
+            time_configuration.public_key_submission_time_secs,
+            time_configuration.dealing_exchange_time_secs,
+            time_configuration.verification_key_submission_time_secs,
+            time_configuration.verification_key_validation_time_secs,
+            time_configuration.verification_key_finalization_time_secs,
+        ] {
+            env.block.time = env.block.time.plus_seconds(times);
+            advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+        }
+        let curr_epoch = CURRENT_EPOCH.load(&deps.storage).unwrap();
+        assert_eq!(THRESHOLD.load(&deps.storage).unwrap(), 2);
+
+        // epoch hasn't advanced as we are still in the threshold range
+        try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap();
+        assert_eq!(THRESHOLD.load(&deps.storage).unwrap(), 2);
+        assert_eq!(CURRENT_EPOCH.load(&deps.storage).unwrap(), curr_epoch);
+
+        *GROUP_MEMBERS.lock().unwrap().first_mut().unwrap() = Member {
+            addr: "owner4".to_string(),
+            weight: 10,
+        };
+        // epoch hasn't advanced as we are still in the threshold range
+        try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap();
+        assert_eq!(THRESHOLD.load(&deps.storage).unwrap(), 2);
+        assert_eq!(CURRENT_EPOCH.load(&deps.storage).unwrap(), curr_epoch);
+
+        *GROUP_MEMBERS.lock().unwrap().last_mut().unwrap() = Member {
+            addr: "owner5".to_string(),
+            weight: 10,
+        };
+        try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap();
+        assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
+        let next_epoch = CURRENT_EPOCH.load(&deps.storage).unwrap();
         assert_eq!(
-            advance_epoch_state(deps.as_mut(), env.clone()).unwrap_err(),
-            EarlyEpochStateAdvancement(50)
+            next_epoch,
+            Epoch::new(
+                EpochState::default(),
+                curr_epoch.epoch_id + 1,
+                curr_epoch.time_configuration,
+                env.block.time,
+            )
         );
+    }
+    }
+
+    #[test]
+    fn reset_state() {
+        let mut deps = init_contract();
+        let all_details: [_; 100] = std::array::from_fn(|i| dealer_details_fixture(i as u64));
+
+        THRESHOLD.save(deps.as_mut().storage, &42).unwrap();
+        for details in all_details.iter() {
+            current_dealers()
+                .save(deps.as_mut().storage, &details.address, details)
+                .unwrap();
+            for dealings in DEALINGS_BYTES {
+                dealings
+                    .save(
+                        deps.as_mut().storage,
+                        &details.address,
+                        &ContractSafeBytes(vec![1, 2, 3]),
+                    )
+                    .unwrap();
+            }
+        }
+
+        reset_epoch_state(deps.as_mut().storage).unwrap();
+
+        assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
+        for details in all_details {
+            for dealings in DEALINGS_BYTES {
+                assert!(dealings
+                    .may_load(&deps.storage, &details.address)
+                    .unwrap()
+                    .is_none());
+            }
+            assert!(current_dealers()
+                .may_load(deps.as_mut().storage, &details.address)
+                .unwrap()
+                .is_none());
+            assert_eq!(
+                past_dealers()
+                    .load(&deps.storage, &details.address)
+                    .unwrap(),
+                details
+            );
+        }
     }
 
     #[test]

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { createNymMixnetClient, IWebWorkerEvents, NymClientConfig, NymMixnetClient } from '@nymproject/sdk';
+import { createNymMixnetClient, IWebWorkerEvents, MimeTypes, NymClientConfig, NymMixnetClient } from '@nymproject/sdk';
 
 export interface BinaryMessageHeaders {
   filename: string;
@@ -67,7 +67,10 @@ export const MixnetContextProvider: FCWithChildren = ({ children }) => {
       console.error('Nym client has not initialised. Please wrap in useEffect on `isReady` prop of this context.');
       return;
     }
-    await nym.current.client.sendMessage(args);
+    await nym.current.client.send({
+      recipient: args.recipient,
+      payload: { message: args.payload, mimeType: MimeTypes.TextPlain },
+    });
   };
 
   const sendBinaryMessage = async (args: { payload: Uint8Array; recipient: string; headers: BinaryMessageHeaders }) => {
@@ -76,8 +79,10 @@ export const MixnetContextProvider: FCWithChildren = ({ children }) => {
       return;
     }
     // convert headers to JSON
-    const sendArgs = { ...args, headers: JSON.stringify(args.headers) };
-    await nym.current.client.sendBinaryMessage(sendArgs);
+    await nym.current.client.send({
+      recipient: args.recipient,
+      payload: { message: args.payload, mimeType: 'application/octet-stream', headers: JSON.stringify(args.headers) },
+    });
   };
 
   const value = React.useMemo<State>(

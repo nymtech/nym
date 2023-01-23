@@ -7,13 +7,8 @@ import { TestAndEarnPopup, TestAndEarnPopupContent } from './TestAndEarnPopup';
 import { TestAndEarnContextProvider } from './context/TestAndEarnContext';
 import { MockProvider } from '../../context/mocks/main';
 import { ConnectionStatusKind } from '../../types';
-import { TestAndEarnCurrentDraw } from './TestAndEarnCurrentDraw';
-import { TestAndEarnWinner } from './TestAndEarnWinner';
-import { TestAndEarnDraws } from './TestAndEarnDraws';
-import { TestAndEarnWinnerWalletAddress } from './TestAndEarnWinnerWalletAddress';
 import {
   MockTestAndEarnProvider_NotRegistered,
-  MockTestAndEarnProvider_Registered,
   MockTestAndEarnProvider_RegisteredAndError,
   MockTestAndEarnProvider_RegisteredWithDraws,
   MockTestAndEarnProvider_RegisteredWithDrawsAndEntry,

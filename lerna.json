@@ -1,7 +1,9 @@
 {
   "packages": [
     "ts-packages/*",
-    "nym-wallet"
+    "nym-wallet",
+    "nym-connect",
+    "sdk/typescript/**"
   ],
   "version": "0.0.0"
 }

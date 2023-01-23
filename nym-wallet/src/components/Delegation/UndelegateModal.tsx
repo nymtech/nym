@@ -1,5 +1,4 @@
 import { Box, SxProps } from '@mui/material';
-import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import React, { useEffect } from 'react';
 import { FeeDetails } from '@nymproject/types';
 import { useGetFee } from 'src/hooks/useGetFee';

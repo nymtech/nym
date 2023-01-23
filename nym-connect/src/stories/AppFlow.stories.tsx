@@ -8,7 +8,6 @@ import { ConnectionStatusKind } from '../types';
 import { DefaultLayout } from '../layouts/DefaultLayout';
 import { ConnectedLayout } from '../layouts/ConnectedLayout';
 import { Services } from '../types/directory';
-import { TestAndEarnButtonArea } from '../components/Growth/TestAndEarnButtonArea';
 
 export default {
   title: 'App/Flow',
@@ -90,9 +89,7 @@ export const Mock: ComponentStory<typeof AppWindowFrame> = () => {
       <ConnectedLayout
         gatewayPerformance="Good"
         showInfoModal={false}
-        handleCloseInfoModal={() => {
-          return undefined;
-        }}
+        handleCloseInfoModal={() => undefined}
         status={context.connectionStatus}
         busy={busy}
         onConnectClick={handleConnectClick}

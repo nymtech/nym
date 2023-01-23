@@ -41,3 +41,4 @@ storybook-static
 envs/qwerty.env
 Cargo.lock
 nym-connect/Cargo.lock
+.parcel-cache

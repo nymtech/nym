@@ -118,27 +118,26 @@ fn emit_status_event(
 pub fn start_connection_check(state: Arc<RwLock<State>>, window: tauri::Window<tauri::Wry>) {
     log::debug!("Starting connection check handler");
     tokio::spawn(async move {
-        if {
-            let state_r = state.read().await;
-            state_r.get_status()
-        } != ConnectionStatusKind::Connected
-        {
+        if state.read().await.get_status() != ConnectionStatusKind::Connected {
             log::error!("SOCKS5 connection status check failed: not connected");
             return;
         }
 
         log::info!("Running connection health check");
-        if !connection::status::run_health_check().await {
-            if {
-                let state_r = state.read().await;
-                state_r.get_status()
-            } != ConnectionStatusKind::Connected
-            {
+        if connection::status::run_health_check().await {
+            emit_event(
+                "socks5-connection-success-event",
+                "SOCKS5 success",
+                "SOCKS5 connection health check successful",
+                &window,
+            );
+        } else {
+            if state.read().await.get_status() != ConnectionStatusKind::Connected {
                 log::debug!("SOCKS5 connection status check cancelled: not connected");
             }
             log::error!("SOCKS5 connection health check failed");
             emit_event(
-                "socks5-connection-event",
+                "socks5-connection-fail-event",
                 "SOCKS5 error",
                 "SOCKS5 connection health check failed",
                 &window,

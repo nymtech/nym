@@ -26,11 +26,6 @@ jobs:
 
       - uses: actions-rs/cargo@v1
         with:
-          command: build
-          args: --manifest-path clients/webassembly/Cargo.toml --target wasm32-unknown-unknown --features=coconut
-
-      - uses: actions-rs/cargo@v1
-        with:
           command: fmt
           args: --manifest-path clients/webassembly/Cargo.toml -- --check
 

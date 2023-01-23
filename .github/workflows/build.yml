@@ -72,23 +72,3 @@ jobs:
         with:
           command: clippy
           args: --workspace --all-targets --all-features -- -D warnings
-
-      # COCONUT stuff
-
-      - name: Build all binaries with coconut enabled
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --workspace --features=coconut
-
-      - name: Run all tests with coconut enabled
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace --features=coconut
-
-      - name: Run clippy with coconut enabled
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --all-targets --features=coconut -- -D warnings

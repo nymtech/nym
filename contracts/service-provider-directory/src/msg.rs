@@ -21,7 +21,7 @@ pub struct InstantiateMsg {
 
 #[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
 pub enum ExecuteMsg {
-    Announce { client_address: String, whitelist: Vec<String>, owner: Addr },
+    Announce { client_address: String, standard_whitelist: bool, owner: Addr },
     Delete { client_address: String }, 
     UpdateScore { client_address: String, new_score: i8 }
 }

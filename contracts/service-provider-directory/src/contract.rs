@@ -37,7 +37,7 @@ pub fn execute(
     use ExecuteMsg::*;
 
     match msg {
-        Announce { client_address, whitelist, owner } => exec::announce(_deps, _info, client_address, whitelist, owner ),
+        Announce { client_address, standard_whitelist, owner } => exec::announce(_deps, _info, client_address, standard_whitelist, owner ),
         Delete { client_address } => exec::delete(_deps, _info, client_address), // TODO fix in line with the comment 
         UpdateScore { client_address, new_score } => exec::update_score(_deps, _info, client_address, new_score)
     }
@@ -50,13 +50,13 @@ mod exec {
         deps: DepsMut, 
         info: MessageInfo, 
         client_address: String, 
-        whitelist: Vec<String>, 
+        standard_whitelist: bool, 
         owner: Addr 
     ) -> Result<Response, ContractError> {
         
         let new_service = Service { 
             client_address: client_address.clone(), 
-            whitelist, 
+            standard_whitelist, 
             uptime_score: 0, // init @ 0 - no score on new service 
             owner
         }; 
@@ -217,7 +217,7 @@ mod tests {
                 addr.clone(), 
                 &ExecuteMsg::Announce {
                     client_address: "nymAddress".to_owned(),
-                    whitelist: vec!["domain.url".to_owned(), "domain2.url".to_owned()], 
+                    standard_whitelist: true, 
                     owner: Addr::unchecked("owner") 
                 }, 
                 &[],
@@ -240,7 +240,7 @@ mod tests {
 
         let test_service: Service = Service {
             client_address: "nymAddress".to_string(), 
-            whitelist: vec!["domain.url".to_owned(), "domain2.url".to_owned()], 
+            standard_whitelist: true, 
             owner: Addr::unchecked("owner"),
             uptime_score: 0
         };
@@ -282,7 +282,7 @@ mod tests {
                 addr.clone(), 
                 &ExecuteMsg::Announce {
                     client_address: "nymAddress".to_string(), 
-                    whitelist: vec!["domain.url".to_owned(), "domain2.url".to_owned()], 
+                    standard_whitelist: true, 
                     owner: Addr::unchecked("owner") 
                 }, 
                 &[],
@@ -295,7 +295,7 @@ mod tests {
     
             let test_service: Service = Service {
                 client_address: "nymAddress".to_string(), 
-                whitelist: vec!["domain.url".to_owned(), "domain2.url".to_owned()], 
+                standard_whitelist: true, 
                 owner: Addr::unchecked("owner"),
                 uptime_score: 0
             };
@@ -372,7 +372,7 @@ mod tests {
                 addr.clone(), 
                 &ExecuteMsg::Announce {
                     client_address: "nymAddress".to_string(), 
-                    whitelist: vec!["domain.url".to_owned(), "domain2.url".to_owned()], 
+                    standard_whitelist: true, 
                     owner: Addr::unchecked("owner") 
                 }, 
                 &[],
@@ -385,7 +385,7 @@ mod tests {
     
             let test_service: Service = Service {
                 client_address: "nymAddress".to_string(), 
-                whitelist: vec!["domain.url".to_owned(), "domain2.url".to_owned()], 
+                standard_whitelist: true, 
                 owner: Addr::unchecked("owner"),
                 uptime_score: 0
             };

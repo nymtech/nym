@@ -38,7 +38,7 @@ pub fn execute(
 
     match msg {
         Announce { client_address, standard_whitelist, owner } => exec::announce(_deps, _info, client_address, standard_whitelist, owner ),
-        Delete { client_address } => exec::delete(_deps, _info, client_address), // TODO fix in line with the comment 
+        Delete { client_address } => exec::delete(_deps, _info, client_address), 
         UpdateScore { client_address, new_score } => exec::update_score(_deps, _info, client_address, new_score)
     }
 }

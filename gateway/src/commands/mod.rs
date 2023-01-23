@@ -7,6 +7,7 @@ use clap::CommandFactory;
 use clap::Subcommand;
 use completions::{fig_generate, ArgShell};
 use config::OptionalSet;
+use network_defaults::var_names::NYXD;
 use network_defaults::var_names::{BECH32_PREFIX, NYM_API, STATISTICS_SERVICE_DOMAIN_ADDRESS};
 use std::error::Error;
 use std::net::IpAddr;
@@ -56,10 +57,7 @@ pub(crate) struct OverrideConfig {
     statistics_service_url: Option<url::Url>,
     nym_apis: Option<Vec<url::Url>>,
     mnemonic: Option<bip39::Mnemonic>,
-
-    #[cfg(feature = "coconut")]
     nyxd_urls: Option<Vec<url::Url>>,
-    #[cfg(feature = "coconut")]
     only_coconut_credentials: Option<bool>,
 }
 
@@ -119,24 +117,17 @@ pub(crate) fn override_config(
             ensure_correct_bech32_prefix,
         )?
         .with_optional(Config::with_custom_persistent_store, args.datastore)
-        .with_optional(Config::with_cosmos_mnemonic, args.mnemonic);
-
-    #[cfg(feature = "coconut")]
-    {
-        use network_defaults::var_names::NYXD;
-
-        config = config
-            .with_optional_custom_env(
-                Config::with_custom_validator_nyxd,
-                args.nyxd_urls,
-                NYXD,
-                config::parse_urls,
-            )
-            .with_optional(
-                Config::with_only_coconut_credentials,
-                args.only_coconut_credentials,
-            );
-    }
+        .with_optional(Config::with_cosmos_mnemonic, args.mnemonic)
+        .with_optional_custom_env(
+            Config::with_custom_validator_nyxd,
+            args.nyxd_urls,
+            NYXD,
+            config::parse_urls,
+        )
+        .with_optional(
+            Config::with_only_coconut_credentials,
+            args.only_coconut_credentials,
+        );
 
     Ok(config)
 }

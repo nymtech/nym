@@ -128,7 +128,6 @@ impl Config {
         self
     }
 
-    #[cfg(feature = "coconut")]
     pub fn with_only_coconut_credentials(mut self, only_coconut_credentials: bool) -> Self {
         self.gateway.only_coconut_credentials = only_coconut_credentials;
         self
@@ -149,7 +148,6 @@ impl Config {
         self
     }
 
-    #[cfg(feature = "coconut")]
     pub fn with_custom_validator_nyxd(mut self, validator_nyxd_urls: Vec<Url>) -> Self {
         self.gateway.nyxd_urls = validator_nyxd_urls;
         self
@@ -237,12 +235,10 @@ impl Config {
         self.gateway.nym_api_urls.clone()
     }
 
-    #[cfg(feature = "coconut")]
     pub fn get_nyxd_urls(&self) -> Vec<Url> {
         self.gateway.nyxd_urls.clone()
     }
 
-    #[cfg(feature = "coconut")]
     pub fn get_cosmos_mnemonic(&self) -> bip39::Mnemonic {
         self.gateway.cosmos_mnemonic.clone()
     }

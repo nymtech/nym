@@ -15,7 +15,6 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = ["console_error_panic_hook"]
 offline-test = []
-coconut = ["coconut-interface", "credentials", "gateway-client/coconut"]
 
 [dependencies]
 futures = "0.3"
@@ -31,12 +30,12 @@ wasm-bindgen-futures = "0.4"
 # internal
 client-core = { path = "../client-core", default-features = false, features = ["wasm"] }
 client-connections = { path = "../../common/client-connections" }
-coconut-interface = { path = "../../common/coconut-interface", optional = true }
-credentials = { path = "../../common/credentials", optional = true }
+coconut-interface = { path = "../../common/coconut-interface" }
+credentials = { path = "../../common/credentials" }
 crypto = { path = "../../common/crypto" }
 nymsphinx = { path = "../../common/nymsphinx" }
 topology = { path = "../../common/topology" }
-gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm", "coconut"] }
+gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm"] }
 validator-client = { path = "../../common/client-libs/validator-client", default-features = false }
 wasm-utils = { path = "../../common/wasm-utils" }
 task = { path = "../../common/task" }

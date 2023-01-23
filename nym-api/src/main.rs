@@ -15,30 +15,24 @@ use ::config::defaults::setup_env;
 use anyhow::Result;
 use circulating_supply_api::cache::CirculatingSupplyCache;
 use clap::Parser;
+use coconut::dkg::controller::DkgController;
 use config::NymConfig;
 use log::info;
 use logging::setup_logging;
 use node_status_api::NodeStatusCache;
 use nym_contract_cache::cache::NymContractCache;
+use rand::rngs::OsRng;
 use std::error::Error;
 use support::{http, nyxd};
 use task::TaskManager;
 
-#[cfg(feature = "coconut")]
-use coconut::dkg::controller::DkgController;
-
-#[cfg(feature = "coconut")]
-use rand::rngs::OsRng;
-
 mod circulating_supply_api;
+mod coconut;
 mod epoch_operations;
 mod network_monitor;
 pub(crate) mod node_status_api;
 pub(crate) mod nym_contract_cache;
 pub(crate) mod support;
-
-#[cfg(feature = "coconut")]
-mod coconut;
 
 struct ShutdownHandles {
     task_manager_handle: TaskManager,
@@ -68,9 +62,6 @@ async fn start_nym_api_tasks(
     let nyxd_client = nyxd::Client::new(&config);
     let mix_denom = nyxd_client.chain_details().await.mix_denom.base;
 
-    // TODO: question to @BN: why are we creating a fresh coconut keypair here every time as opposed
-    // to using some persistent keys?
-    #[cfg(feature = "coconut")]
     let coconut_keypair = coconut::keypair::KeyPair::new();
 
     // let's build our rocket!
@@ -78,7 +69,6 @@ async fn start_nym_api_tasks(
         &config,
         mix_denom,
         nyxd_client.clone(),
-        #[cfg(feature = "coconut")]
         coconut_keypair.clone(),
     )
     .await?;
@@ -120,7 +110,6 @@ async fn start_nym_api_tasks(
     );
 
     // start dkg task
-    #[cfg(feature = "coconut")]
     DkgController::start(
         &config,
         nyxd_client.clone(),

@@ -289,10 +289,6 @@ where
         if gateway_id.is_empty() {
             return Err(ClientCoreError::GatewayIdUnknown);
         }
-        let gateway_owner = self.gateway_config.gateway_owner.clone();
-        if gateway_owner.is_empty() {
-            return Err(ClientCoreError::GatewayOwnerUnknown);
-        }
         let gateway_address = self.gateway_config.gateway_listener.clone();
         if gateway_address.is_empty() {
             return Err(ClientCoreError::GatwayAddressUnknown);
@@ -312,7 +308,6 @@ where
             gateway_address,
             self.key_manager.identity_keypair(),
             gateway_identity,
-            gateway_owner,
             shared_key,
             mixnet_message_sender,
             ack_sender,

@@ -82,5 +82,4 @@ sqlx = { version = "0.6.2", features = ["runtime-tokio-rustls", "sqlite", "macro
 default = []
 fs-surb-storage = ["sqlx"]
 wasm = ["gateway-client/wasm"]
-coconut = ["gateway-client/coconut", "gateway-requests/coconut"]
 

@@ -26,7 +26,6 @@ pub enum GatewayClientError {
     #[error("There was a credential storage error - {0}")]
     CredentialStorageError(#[from] StorageError),
 
-    #[cfg(feature = "coconut")]
     #[error("Coconut error - {0}")]
     CoconutError(#[from] coconut_interface::CoconutError),
 

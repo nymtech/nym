@@ -39,7 +39,7 @@ pub fn execute(
     match msg {
         Announce { client_address, whitelist, owner } => exec::announce(_deps, _info, client_address, whitelist, owner ),
         Delete { client_address } => exec::delete(_deps, _info, client_address), // TODO fix in line with the comment 
-        UpdateScore { client_address, new_score } => exec::update_score(_deps, _info, client_address, new_score) // TODO once changed mapping from info.sender to client address ¬
+        UpdateScore { client_address, new_score } => exec::update_score(_deps, _info, client_address, new_score)
     }
 }
 
@@ -68,6 +68,9 @@ mod exec {
         )   
     }
 
+    /* 
+     * TODO finish 
+     */
     pub fn update_score( 
         deps: DepsMut, 
         info: MessageInfo, 
@@ -343,6 +346,80 @@ mod tests {
                 ServicesListResp {
                     services: expected
                 }
+            );
+
+    }
+
+    #[test]
+    fn only_owner_can_delete_service() {
+        let mut app = App::default();
+        let code = ContractWrapper::new(execute, instantiate, query);
+        let code_id = app.store_code(Box::new(code));
+        let addr = app
+            .instantiate_contract(
+                code_id,
+                Addr::unchecked("owner"),
+                &InstantiateMsg{ updater_role: Addr::unchecked("updater"), admin: Addr::unchecked("admin") }, 
+                &[],
+                "Contract",
+                None,
+            )
+            .unwrap();
+
+        app
+            .execute_contract(
+                Addr::unchecked("owner"),
+                addr.clone(), 
+                &ExecuteMsg::Announce {
+                    client_address: "nymAddress".to_string(), 
+                    whitelist: vec!["domain.url".to_owned(), "domain2.url".to_owned()], 
+                    owner: Addr::unchecked("owner") 
+                }, 
+                &[],
+            )
+            .unwrap();
+    
+            let query: ServicesListResp = app.wrap()
+                .query_wasm_smart(addr.clone(), &QueryMsg::QueryAll {  })
+                .unwrap(); 
+    
+            let test_service: Service = Service {
+                client_address: "nymAddress".to_string(), 
+                whitelist: vec!["domain.url".to_owned(), "domain2.url".to_owned()], 
+                owner: Addr::unchecked("owner"),
+                uptime_score: 0
+            };
+    
+            let expected = vec![
+                ServicesInfo {
+                    owner: "nymAddress".to_string(), 
+                    services: test_service,
+                }
+            ];
+
+            assert_eq!(
+                query, 
+                ServicesListResp {
+                    services: expected
+                }
+            );
+
+        let delete_resp = app
+            .execute_contract(
+                Addr::unchecked("not_owner"),
+                addr.clone(), 
+                &ExecuteMsg::Delete { 
+                    client_address: "nymAddress".to_string() 
+                }, 
+                &[],
+            )
+            .unwrap_err(); // we're **expecting** an error hence this will panic if delete_resp = Ok value 
+       
+            assert_eq!(
+                ContractError::Unauthorized {
+                    sender: Addr::unchecked("not_owner")
+                }, 
+                delete_resp.downcast().unwrap()
             );
 
     }

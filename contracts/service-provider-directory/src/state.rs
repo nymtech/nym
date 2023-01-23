@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 pub struct Service {
     pub client_address: String, 
-    pub whitelist: Vec<String>, 
+    pub standard_whitelist: bool,
     pub uptime_score: u8,
     pub owner: Addr
 }

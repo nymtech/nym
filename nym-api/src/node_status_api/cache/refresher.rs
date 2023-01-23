@@ -3,8 +3,8 @@ use crate::{
     node_status_api::cache::{
         inclusion_probabilities::InclusionProbabilities,
         node_sets::{
-            annotate_nodes_with_details, split_into_active_and_rewarded_set,
-            to_rewarded_set_node_status,
+            annotate_gateways_with_details, annotate_nodes_with_details,
+            split_into_active_and_rewarded_set, to_rewarded_set_node_status,
         },
         NodeStatusCacheError,
     },
@@ -115,6 +115,7 @@ impl NodeStatusCacheRefresher {
         let rewarded_set = self.contract_cache.rewarded_set().await;
         let active_set = self.contract_cache.active_set().await;
         let mix_to_family = self.contract_cache.mix_to_family().await;
+        let gateway_bonds = self.contract_cache.gateways().await;
 
         let interval_reward_params =
             interval_reward_params.ok_or(NodeStatusCacheError::SourceDataMissing)?;
@@ -146,12 +147,16 @@ impl NodeStatusCacheRefresher {
         let (rewarded_set, active_set) =
             split_into_active_and_rewarded_set(&mixnodes_annotated, &rewarded_set_node_status);
 
+        let gateways_annotated =
+            annotate_gateways_with_details(&self.storage, gateway_bonds, current_interval).await;
+
         // Update the cache
         self.cache
             .update(
                 mixnodes_annotated,
                 rewarded_set,
                 active_set,
+                gateways_annotated,
                 inclusion_probabilities,
             )
             .await;

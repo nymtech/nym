@@ -21,6 +21,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 - nym-sdk: added initial version of a Rust client sdk
 - nym-api: added `/circulating-supply` endpoint ([#2814])
+- nym-api: add endpoint listing detailed gateway info by @octol in https://github.com/nymtech/nym/pull/2833
 
 ### Changed
 

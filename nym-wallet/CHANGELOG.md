@@ -26,6 +26,10 @@
 
 This release contains the APY calculator feature.
 
+## [nym-wallet-v1.1.5](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.5) (2022-12-22)
+
+This release contains the APY calculator feature.
+
 ## [nym-wallet-v1.1.4](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.4) (2022-12-20)
 
 This release contains a bugfix for hiding and displaying the mnemonic, and displays the Bity wallet address in the buy page, as well as better error handling.

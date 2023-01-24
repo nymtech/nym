@@ -35,10 +35,13 @@ impl NymConfig for Config {
         config_template()
     }
 
+    #[cfg(not(feature = "mobile"))]
     fn default_root_directory() -> PathBuf {
-        // TODO android temp fix
-        // dirs::home_dir()
-        //     .expect("Failed to evaluate $HOME value")
+        dirs::home_dir().expect("Failed to evaluate $HOME value")
+    }
+
+    #[cfg(feature = "mobile")]
+    fn default_root_directory() -> PathBuf {
         PathBuf::from("/data/local/tmp")
             .join(".nym")
             .join("socks5-clients")

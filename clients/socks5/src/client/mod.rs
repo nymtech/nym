@@ -8,7 +8,7 @@ use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
     server::SphinxSocksServer,
 };
-use client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput, ClientState};
+use client_core::client::base_client::{non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState};
 use client_core::client::key_manager::KeyManager;
 use client_core::client::replies::reply_storage;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
@@ -17,10 +17,10 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 use gateway_client::bandwidth::BandwidthController;
 use log::*;
+use mobile_storage::PersistentStorage;
 use nymsphinx::addressing::clients::Recipient;
 use std::error::Error;
 use task::{TaskClient, TaskManager};
-use mobile_storage::PersistentStorage;
 
 pub mod config;
 
@@ -43,22 +43,29 @@ pub struct NymClient {
     key_manager: KeyManager,
 }
 
-pub fn setup_empty_reply_surb_backend(debug_config: &DebugConfig) -> reply_storage::Empty {
-    reply_storage::Empty {
-        min_surb_threshold: debug_config.minimum_reply_surb_storage_threshold,
-        max_surb_threshold: debug_config.maximum_reply_surb_storage_threshold,
-    }
-}
-
 impl NymClient {
-    pub fn new(config: Config, key_manager: Option<KeyManager>) -> Self {
+    #[cfg(not(feature = "mobile"))]
+    pub fn new(config: Config) -> Self {
         let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
-
-        let km = key_manager.or_else(|| Some(KeyManager::load_keys(&pathfinder).expect("failed to load stored keys"))).expect("failed to load keys");
+        let key_manager = KeyManager::load_keys(&pathfinder).expect("failed to load stored keys");
 
         NymClient {
             config,
-            key_manager: km,
+            key_manager,
+        }
+    }
+
+    #[cfg(feature = "mobile")]
+    pub fn new(config: Config, key_manager: Option<KeyManager>) -> Self {
+        let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
+
+        NymClient {
+            config,
+            key_manager: key_manager
+                .or_else(|| {
+                    Some(KeyManager::load_keys(&pathfinder).expect("failed to load stored keys"))
+                })
+                .expect("failed to load keys"),
         }
     }
 
@@ -92,7 +99,16 @@ impl NymClient {
                 coconut_api_clients,
             )
         };
+
         #[cfg(not(feature = "coconut"))]
+        #[cfg(not(feature = "mobile"))]
+        let bandwidth_controller = BandwidthController::new(
+            credential_storage::initialise_storage(config.get_base().get_database_path()).await,
+        )
+        .expect("Could not create bandwidth controller");
+
+        #[cfg(not(feature = "coconut"))]
+        #[cfg(feature = "mobile")]
         let bandwidth_controller = BandwidthController::new(PersistentStorage {})
             .expect("Could not create bandwidth controller");
         bandwidth_controller
@@ -153,22 +169,26 @@ impl NymClient {
     }
 
     /// blocking version of `start` method. Will run forever (or until SIGINT is sent)
-    // pub async fn run_forever(self) -> Result<(), Box<dyn Error + Send + Sync>> {
-    //     let shutdown = self.start(self.config).await?;
+    #[cfg(not(feature = "mobile"))]
+    pub async fn run_forever(self) -> Result<(), Box<dyn Error + Send + Sync>> {
+        let shutdown = self.start(self.config).await?;
 
-    //     let res = shutdown.catch_interrupt().await;
-    //     log::info!("Stopping nym-socks5-client");
-    //     res
-    // }
+        let res = shutdown.catch_interrupt().await;
+        log::info!("Stopping nym-socks5-client");
+        res
+    }
 
     // Variant of `run_forever` that listends for remote control messages
     pub async fn run_and_listen(
         self,
         mut receiver: Socks5ControlMessageReceiver,
         sender: task::StatusSender,
-        config: Config,
+        #[cfg(feature = "mobile")] config: Config,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Start the main task
+        #[cfg(not(feature = "mobile"))]
+        let mut shutdown = self.start().await?;
+        #[cfg(feature = "mobile")]
         let mut shutdown = self.start(config).await?;
 
         // Listen to status messages from task, that we forward back to the caller
@@ -208,12 +228,31 @@ impl NymClient {
         res
     }
 
-    pub async fn start(self, config: Config) -> Result<TaskManager, Socks5ClientError> {
+    pub async fn start(
+        self,
+        #[cfg(feature = "mobile")] config: Config,
+    ) -> Result<TaskManager, Socks5ClientError> {
+        #[cfg(not(feature = "mobile"))]
         let base_builder = BaseClientBuilder::new_from_base_config(
             self.config.get_base(),
             self.key_manager,
             Some(Self::create_bandwidth_controller(&self.config).await),
-            setup_empty_reply_surb_backend(self.config.get_base().get_debug_config()),
+            non_wasm_helpers::setup_fs_reply_surb_backend(
+                self.config.get_base().get_reply_surb_database_path(),
+                self.config.get_debug_settings(),
+            )
+            .await?,
+        );
+
+        #[cfg(feature = "mobile")]
+        let base_builder = BaseClientBuilder::new_from_base_config(
+            self.config.get_base(),
+            self.key_manager,
+            Some(Self::create_bandwidth_controller(&self.config).await),
+            reply_storage::Empty {
+                min_surb_threshold: 10,
+                max_surb_threshold: 200,
+            },
         );
 
         let self_address = base_builder.as_mix_recipient();

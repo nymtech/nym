@@ -208,14 +208,11 @@ where
         Ok(sphinx_keypair)
     }
 
-    println!("3****");
     let pathfinder = ClientKeyPathfinder::new_from_config(config);
     let identity_keypair = load_identity_keys(&pathfinder)?;
 
-    println!("4****");
     let sphinx_keypair = load_sphinx_keys(&pathfinder)?;
 
-    println!("5****");
     let client_recipient = Recipient::new(
         *identity_keypair.public_key(),
         *sphinx_keypair.public_key(),
@@ -224,7 +221,6 @@ where
         NodeIdentity::from_base58_string(config.get_gateway_id())?,
     );
 
-    println!("6****");
     Ok(client_recipient)
 }
 

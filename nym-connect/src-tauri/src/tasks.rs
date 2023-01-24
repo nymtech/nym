@@ -40,14 +40,11 @@ pub fn start_nym_socks5_client(
     // TODO android temp fix
     //let config = Socks5Config::load_from_file(Some(id))
     //    .tap_err(|_| log::warn!("Failed to load configuration file"))?;
-    println!("____XXX))");
     let used_gateway = config.get_base().get_gateway_endpoint().clone();
 
-    println!("____XXX");
     let socks5_client = Socks5NymClient::new(config.socks5.clone(), Some(keys));
     log::info!("Starting socks5 client");
 
-    println!("____XXX_");
     // Channel to send control messages to the socks5 client
     let (socks5_ctrl_tx, socks5_ctrl_rx) = mpsc::unbounded();
 
@@ -62,7 +59,6 @@ pub fn start_nym_socks5_client(
     // Once we can gracefully shutdown the socks5 client we can get rid of this.
     // The status channel is used to both get the state of the task, and if it's closed, to check
     // for panic.
-    println!("____XXX__");
     std::thread::spawn(|| {
         let result = tokio::runtime::Runtime::new()
             .expect("Failed to create runtime for SOCKS5 client")

@@ -120,14 +120,11 @@ impl State {
             }
         };
         let (config, keys) = res.unwrap();
-        println!("PLOP****");
 
         // Kick off the main task and get the channel for controlling it
         let (msg_receiver, exit_status_receiver) = self.start_nym_socks5_client(config, keys)?;
 
-        println!("PLOP2****");
         self.set_state(ConnectionStatusKind::Connected, window);
-        println!("PLOP3****");
         Ok((msg_receiver, exit_status_receiver))
     }
 
@@ -154,10 +151,8 @@ impl State {
         keys: KeyManager,
     ) -> Result<(task::StatusReceiver, ExitStatusReceiver)> {
         let id = self.get_config_id()?;
-        println!("____OOo");
         let (control_tx, msg_rx, exit_status_rx, used_gateway) =
             tasks::start_nym_socks5_client(&id, config, keys)?;
-        println!("____OOo_");
         self.socks5_client_sender = Some(control_tx);
         self.gateway = Some(used_gateway.gateway_id);
         Ok((msg_rx, exit_status_rx))

@@ -1265,9 +1265,17 @@ mod tests {
             .get_delegated_vesting(None, &env, &deps.storage)
             .unwrap();
 
+        let spendable_coins = vesting_account
+            .spendable_coins(None, &env, &deps.storage)
+            .unwrap();
+
+        // let balance = vesting_account.load_balance(&deps.storage).unwrap();
+        // assert_eq!(balance, Uint128::new(6_000_000_000_000));
+
         // Entire delegation amount is no free, and more can be delegated from the locked tokens
         assert_eq!(delegated_free.amount, Uint128::new(4_000_000_000_000));
         assert_eq!(delegated_vesting.amount, Uint128::new(0));
+        assert_eq!(spendable_coins.amount, Uint128::new(6_000_000_000_000));
 
         let total_pledged_locked = vesting_account
             .total_pledged_locked(&deps.storage, &env)
@@ -1312,12 +1320,16 @@ mod tests {
         let total_pledged_locked = vesting_account
             .total_pledged_locked(&deps.storage, &env)
             .unwrap();
+        let spendable_coins = vesting_account
+            .spendable_coins(None, &env, &deps.storage)
+            .unwrap();
         // There is an additional problem here since the cap calculation does not take vesting periods into account
         assert_eq!(total_pledged_locked, Uint128::new(0));
 
-        // Entire delegation amount is no free, and more can be delegated from the locked tokens
+        // Entire delegation amount is now free, and more can be delegated from the locked tokens
         assert_eq!(delegated_free.amount, Uint128::new(8_000_000_000_000));
         assert_eq!(delegated_vesting.amount, Uint128::new(0_000_000_000_000));
+        assert_eq!(spendable_coins.amount, Uint128::new(2_000_000_000_000));
 
         // Delegate some more to saturate the cap
         env.block.height += 1;
@@ -1345,7 +1357,6 @@ mod tests {
         // There is an additional problem here since the cap calculation does not take vesting periods into account
         assert_eq!(total_pledged_locked, Uint128::new(4_000_000_000_000));
 
-        // Entire delegation amount is no free, and more can be delegated from the locked tokens
         assert_eq!(delegated_free.amount, Uint128::new(8_000_000_000_000));
         assert_eq!(delegated_vesting.amount, Uint128::new(4_000_000_000_000));
 
@@ -1357,7 +1368,7 @@ mod tests {
             .locked_coins(None, &env, &deps.storage)
             .unwrap();
 
-        assert_eq!(spendable_coins.amount, Uint128::new(0));
+        assert_eq!(spendable_coins.amount, Uint128::new(2_000_000_000_000));
         assert_eq!(locked_coins.amount, Uint128::new(26_000_000_000_000));
 
         // Check that user can't withdraw free coins if they're delegated
@@ -1367,14 +1378,20 @@ mod tests {
             funds: vec![],
         };
 
-        let err = try_withdraw_vested_coins(
+        let ok = try_withdraw_vested_coins(
             Coin::new(1_000_000_000_000, TEST_COIN_DENOM),
             env.clone(),
             info,
             deps.as_mut(),
         );
 
-        assert!(err.is_err());
+        assert!(ok.is_ok());
+
+        let spendable_coins = vesting_account
+            .spendable_coins(None, &env, &deps.storage)
+            .unwrap();
+
+        assert_eq!(spendable_coins.amount, Uint128::new(1_000_000_000_000));
 
         let delegated_free = vesting_account
             .get_delegated_free(None, &env, &deps.storage)

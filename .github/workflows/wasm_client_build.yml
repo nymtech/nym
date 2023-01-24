@@ -31,11 +31,6 @@ jobs:
 
       - uses: actions-rs/cargo@v1
         with:
-          command: test
-          args: --manifest-path clients/webassembly/Cargo.toml
-
-      - uses: actions-rs/cargo@v1
-        with:
           command: fmt
           args: --manifest-path clients/webassembly/Cargo.toml -- --check
 

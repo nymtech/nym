@@ -22,7 +22,7 @@ pub(crate) fn query_current_epoch_threshold(
 pub(crate) mod test {
     use super::*;
     use crate::support::tests::helpers::init_contract;
-    use coconut_dkg_common::types::{EpochState, PUBLIC_KEY_SUBMISSION_TIME_SECS};
+    use coconut_dkg_common::types::{EpochState, TimeConfiguration};
     use cosmwasm_std::testing::mock_env;
 
     #[test]
@@ -35,7 +35,7 @@ pub(crate) mod test {
             mock_env()
                 .block
                 .time
-                .plus_seconds(PUBLIC_KEY_SUBMISSION_TIME_SECS)
+                .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs)
         );
     }
 

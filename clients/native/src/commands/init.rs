@@ -114,16 +114,15 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
 
     let already_init = Config::default_config_file_path(Some(id)).exists();
     if already_init {
-        println!(
-            "Client \"{}\" was already initialised before! \
-            Config information will be overwritten (but keys will be kept)!",
-            id
-        );
+        println!("Client \"{id}\" was already initialised before");
     }
 
     // Usually you only register with the gateway on the first init, however you can force
     // re-registering if wanted.
     let user_wants_force_register = args.force_register_gateway;
+    if user_wants_force_register {
+        println!("Instructed to force registering gateway. This might overwrite keys!");
+    }
 
     // If the client was already initialized, don't generate new keys and don't re-register with
     // the gateway (because this would create a new shared key).
@@ -138,9 +137,9 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
 
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
-    let gateway = client_core::init::setup_gateway::<Config, _>(
+    let gateway = client_core::init::setup_gateway_from_config::<Config, _>(
         register_gateway,
-        user_chosen_gateway_id.map(|id| id.to_base58_string()),
+        user_chosen_gateway_id,
         config.get_base(),
     )
     .await
@@ -169,7 +168,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
 
 fn print_saved_config(config: &Config) {
     let config_save_location = config.get_config_file_save_location();
-    println!("Saved configuration file to {:?}", config_save_location);
+    println!("Saved configuration file to {config_save_location:?}");
     println!("Using gateway: {}", config.get_base().get_gateway_id());
     log::debug!("Gateway id: {}", config.get_base().get_gateway_id());
     log::debug!("Gateway owner: {}", config.get_base().get_gateway_owner());

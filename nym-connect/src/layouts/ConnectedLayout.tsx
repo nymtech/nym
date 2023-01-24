@@ -11,7 +11,7 @@ import { IpAddressAndPort } from '../components/IpAddressAndPort';
 import { ServiceProvider } from '../types/directory';
 import { TestAndEarnButtonArea } from '../components/Growth/TestAndEarnButtonArea';
 
-export const ConnectedLayout: React.FC<{
+export const ConnectedLayout: FCWithChildren<{
   status: ConnectionStatusKind;
   gatewayPerformance: GatewayPerformance;
   stats: ConnectionStatsItem[];
@@ -53,6 +53,5 @@ export const ConnectedLayout: React.FC<{
     {/* <ConnectionStats stats={stats} /> */}
     <ConnectionTimer connectedSince={connectedSince} />
     <ConnectionButton status={status} busy={busy} onClick={onConnectClick} isError={isError} />
-    <TestAndEarnButtonArea />
   </>
 );

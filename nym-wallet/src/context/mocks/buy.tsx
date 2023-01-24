@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BuyContext } from '../buy';
 import { mockSleep } from './utils';
 
-export const MockBuyContextProvider = ({ children }: { children?: React.ReactNode }): JSX.Element => {
+export const MockBuyContextProvider: FCWithChildren = ({ children }): JSX.Element => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>();
 

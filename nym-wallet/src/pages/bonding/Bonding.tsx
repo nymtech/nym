@@ -99,8 +99,8 @@ const Bonding = () => {
         (await getMixnodeStakeSaturation(newMixId)).uncapped_saturation,
       );
       if (newSaturation && newSaturation > 1) {
-        const saturationPercentage = Math.round(newSaturation * 100);
-        return { isOverSaturated: true, saturationPercentage };
+        const newSaturationPercentage = Math.round(newSaturation * 100);
+        return { isOverSaturated: true, saturationPercentage: newSaturationPercentage };
       }
       return { isOverSaturated: false, saturationPercentage: undefined };
     } catch (e) {
@@ -113,10 +113,12 @@ const Bonding = () => {
     switch (action) {
       case 'bondMore': {
         if (bondedNode && isMixnode(bondedNode)) {
-          const { isOverSaturated, saturationPercentage } = await handleCheckStakeSaturation(bondedNode.mixId);
-          if (isOverSaturated && saturationPercentage) {
+          const { isOverSaturated, saturationPercentage: newSaturationPercentage } = await handleCheckStakeSaturation(
+            bondedNode.mixId,
+          );
+          if (isOverSaturated && newSaturationPercentage) {
             setShowModal('bond-more-oversaturated');
-            setSaturationPercentage(saturationPercentage.toString());
+            setSaturationPercentage(newSaturationPercentage.toString());
             break;
           }
         }
@@ -178,7 +180,7 @@ const Bonding = () => {
 
       {showModal === 'bond-more-oversaturated' && saturationPercentage && (
         <BondOversaturatedModal
-          open={true}
+          open
           onClose={() => setShowModal(undefined)}
           onContinue={() => setShowModal('bond-more')}
           saturationPercentage={saturationPercentage}

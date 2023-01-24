@@ -10,7 +10,7 @@ import { useTestAndEarnContext } from './context/TestAndEarnContext';
 import { DrawEntryStatus, DrawWithWordOfTheDay } from './context/types';
 import Content from './content/en.yaml';
 
-export const TestAndEarnCurrentDrawFuture: React.FC<{ draw?: DrawWithWordOfTheDay }> = ({ draw }) => {
+export const TestAndEarnCurrentDrawFuture: FCWithChildren<{ draw?: DrawWithWordOfTheDay }> = ({ draw }) => {
   const startsUtc = React.useMemo(() => draw && DateTime.fromISO(draw.start_utc), [draw?.start_utc]);
   const startsIn = React.useMemo(() => {
     if (draw && startsUtc) {
@@ -34,7 +34,7 @@ export const TestAndEarnCurrentDrawFuture: React.FC<{ draw?: DrawWithWordOfTheDa
   );
 };
 
-export const TestAndEarnCurrentDrawEnter: React.FC<{ draw?: DrawWithWordOfTheDay }> = ({ draw }) => {
+export const TestAndEarnCurrentDrawEnter: FCWithChildren<{ draw?: DrawWithWordOfTheDay }> = ({ draw }) => {
   const context = useTestAndEarnContext();
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string>();
@@ -72,7 +72,7 @@ export const TestAndEarnCurrentDrawEnter: React.FC<{ draw?: DrawWithWordOfTheDay
   );
 };
 
-export const TestAndEarnCurrentDrawEntered: React.FC<{ draw?: DrawWithWordOfTheDay }> = ({ draw }) => {
+export const TestAndEarnCurrentDrawEntered: FCWithChildren<{ draw?: DrawWithWordOfTheDay }> = ({ draw }) => {
   if (!draw || !draw.entry) {
     return null;
   }
@@ -131,7 +131,7 @@ export const TestAndEarnCurrentDrawEntered: React.FC<{ draw?: DrawWithWordOfTheD
   );
 };
 
-export const TestAndEarnCurrentDraw: React.FC<{
+export const TestAndEarnCurrentDraw: FCWithChildren<{
   draw?: DrawWithWordOfTheDay;
   sx?: SxProps;
 }> = ({ draw, sx }) => {
@@ -151,7 +151,7 @@ export const TestAndEarnCurrentDraw: React.FC<{
 
   if (draw && closesIn && endsUtc) {
     return (
-      <Card sx={{ mb: 2, ...sx }} elevation={10}>
+      <Card sx={{ mb: 2, ...(Array.isArray(sx) ? sx : [sx]) }} elevation={10}>
         <CardContent>
           <h3>
             {"Today's task ends "}
@@ -171,7 +171,7 @@ export const TestAndEarnCurrentDraw: React.FC<{
   return null;
 };
 
-export const TestAndEarnCurrentDrawWithState: React.FC<{
+export const TestAndEarnCurrentDrawWithState: FCWithChildren<{
   sx?: SxProps;
 }> = ({ sx }) => {
   const context = useTestAndEarnContext();

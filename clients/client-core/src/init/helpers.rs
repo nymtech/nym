@@ -8,17 +8,21 @@ use crate::{
 };
 use config::NymConfig;
 use crypto::asymmetric::identity;
+#[cfg(target_arch = "wasm32")]
+use gateway_client::wasm_mockups::SigningNyxdClient;
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
-use rand::{rngs::OsRng, seq::SliceRandom, thread_rng};
+use rand::{seq::SliceRandom, thread_rng};
 use std::{sync::Arc, time::Duration};
 use tap::TapFallible;
 use topology::{filter::VersionFilterable, gateway};
 use url::Url;
+#[cfg(not(target_arch = "wasm32"))]
+use validator_client::nyxd::SigningNyxdClient;
 
 pub(super) async fn query_gateway_details(
     validator_servers: Vec<Url>,
-    chosen_gateway_id: Option<String>,
+    chosen_gateway_id: Option<identity::PublicKey>,
 ) -> Result<gateway::Node, ClientCoreError> {
     let nym_api = validator_servers
         .choose(&mut thread_rng())
@@ -40,7 +44,7 @@ pub(super) async fn query_gateway_details(
     if let Some(gateway_id) = chosen_gateway_id {
         filtered_gateways
             .iter()
-            .find(|gateway| gateway.identity_key.to_base58_string() == gateway_id)
+            .find(|gateway| gateway.identity_key == gateway_id)
             .ok_or_else(|| ClientCoreError::NoGatewayWithId(gateway_id.to_string()))
             .cloned()
     } else {
@@ -51,12 +55,12 @@ pub(super) async fn query_gateway_details(
     }
 }
 
-async fn register_with_gateway(
+pub(super) async fn register_with_gateway(
     gateway: &gateway::Node,
     our_identity: Arc<identity::KeyPair>,
 ) -> Result<Arc<SharedKeys>, ClientCoreError> {
     let timeout = Duration::from_millis(1500);
-    let mut gateway_client = GatewayClient::new_init(
+    let mut gateway_client: GatewayClient<SigningNyxdClient> = GatewayClient::new_init(
         gateway.clients_address(),
         gateway.identity_key,
         gateway.owner.clone(),
@@ -74,20 +78,13 @@ async fn register_with_gateway(
     Ok(shared_keys)
 }
 
-pub(super) async fn register_with_gateway_and_store_keys<T>(
-    gateway_details: gateway::Node,
+pub(super) fn store_keys<T>(
+    key_manager: &KeyManager,
     config: &Config<T>,
 ) -> Result<(), ClientCoreError>
 where
     T: NymConfig,
 {
-    let mut rng = OsRng;
-    let mut key_manager = KeyManager::new(&mut rng);
-
-    let shared_keys =
-        register_with_gateway(&gateway_details, key_manager.identity_keypair()).await?;
-    key_manager.insert_gateway_shared_key(shared_keys);
-
     let pathfinder = ClientKeyPathfinder::new_from_config(config);
     Ok(key_manager
         .store_keys(&pathfinder)

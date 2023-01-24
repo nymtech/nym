@@ -2,10 +2,10 @@ import React, { useContext, useState } from 'react';
 import { Button, Stack, Typography, Grid, useMediaQuery, useTheme } from '@mui/material';
 import { Tune as TuneIcon, BorderColor as BorderColorIcon } from '@mui/icons-material';
 import { CoinMark } from '@nymproject/react/coins/CoinMark';
-import { NymCard, ClientAddress } from '../../components';
-import { SignMessageModal } from './SignMessageModal';
 import { PoweredByBity } from 'src/svg-icons';
 import { AppContext } from 'src/context';
+import { NymCard, ClientAddress } from '..';
+import { SignMessageModal } from './SignMessageModal';
 
 // TODO retrieve this value from env
 const EXCHANGE_URL = 'https://buy.nymtech.net';
@@ -114,7 +114,8 @@ export const Tutorial = () => {
           icon={<CoinMark width={20} height={20} />}
           text={
             <Typography fontSize={14} lineHeight="24px" sx={{ color: (t) => t.palette.nym.text.muted }}>
-              {`Send the defined BTC amount to Bity's address that's given to you. As soon as your BTC tx has 4 confirmations, Bity will send the purchased NYM tokens to your wallet.`}
+              {`Send the defined BTC amount to Bity's address that's given to you. As soon as your BTC tx has 4
+              confirmations, Bity will send the purchased NYM tokens to your wallet.`}
             </Typography>
           }
         />

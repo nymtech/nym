@@ -16,11 +16,7 @@ They should be implemented soon. You can build your applications, but don't rely
 
 ## Using it
 
-See the [Nym docs](https://nymtech.net/docs).
-
-### Demo
-
-There's a demo web application in the `js-example` folder. To run it, first make sure you've got a recent `npm` installed, then follow the instructions in its README.
+See the [SDK directory](../../sdk/typescript/examples) for examples on how to use it and the NPM packages available.
 
 ## Developing
 
@@ -36,8 +32,13 @@ To be clear, this is not something that most JS developers need to worry about, 
 
 ### Packaging
 
-If you're a Nym platform developer who's made changes to the Rust (or JS) files and wants to re-publish the package to NPM, here's how you do it: 
+If you're a Nym platform developer who's made changes to the Rust files and wants to re-publish the package to NPM, here's how you do it: 
 
 1. bump version numbers as necessary for SemVer
-2. `wasm-pack build --scope nymproject` builds the wasm binaries into the `pkg` directory (not in source control)
-3. `cd pkg && npm publish --access=public` will publish your changed package to NPM
+2. go the `sdk/typescript` directory (off the project root)
+3. run:
+```
+yarn
+yarn build
+yarn publish
+```

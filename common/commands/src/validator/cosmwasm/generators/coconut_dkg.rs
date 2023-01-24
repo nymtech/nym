@@ -3,8 +3,10 @@
 
 use clap::Parser;
 use log::{debug, info};
+use std::str::FromStr;
 
 use coconut_dkg_common::msg::InstantiateMsg;
+use coconut_dkg_common::types::TimeConfiguration;
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -13,6 +15,24 @@ pub struct Args {
 
     #[clap(long)]
     pub multisig_addr: Option<String>,
+
+    #[clap(long)]
+    pub public_key_submission_time_secs: Option<u64>,
+
+    #[clap(long)]
+    pub dealing_exchange_time_secs: Option<u64>,
+
+    #[clap(long)]
+    pub verification_key_submission_time_secs: Option<u64>,
+
+    #[clap(long)]
+    pub verification_key_validation_time_secs: Option<u64>,
+
+    #[clap(long)]
+    pub verification_key_finalization_time_secs: Option<u64>,
+
+    #[clap(long)]
+    pub in_progress_time_secs: Option<u64>,
 
     #[clap(long)]
     pub mix_denom: Option<String>,
@@ -32,9 +52,42 @@ pub async fn generate(args: Args) {
         std::env::var(network_defaults::var_names::MIX_DENOM).expect("Mix denom has to be set")
     });
 
+    let mut time_configuration =
+        if let Ok(config) = std::env::var(network_defaults::var_names::DKG_TIME_CONFIGURATION) {
+            TimeConfiguration::from_str(&config).expect("Invalid env variable value")
+        } else {
+            TimeConfiguration::default()
+        };
+    if let Some(public_key_submission_time_secs) = args.public_key_submission_time_secs {
+        time_configuration.public_key_submission_time_secs = public_key_submission_time_secs;
+    }
+    if let Some(dealing_exchange_time_secs) = args.dealing_exchange_time_secs {
+        time_configuration.dealing_exchange_time_secs = dealing_exchange_time_secs;
+    }
+    if let Some(verification_key_submission_time_secs) = args.verification_key_submission_time_secs
+    {
+        time_configuration.verification_key_submission_time_secs =
+            verification_key_submission_time_secs;
+    }
+    if let Some(verification_key_validation_time_secs) = args.verification_key_validation_time_secs
+    {
+        time_configuration.verification_key_validation_time_secs =
+            verification_key_validation_time_secs;
+    }
+    if let Some(verification_key_finalization_time_secs) =
+        args.verification_key_finalization_time_secs
+    {
+        time_configuration.verification_key_finalization_time_secs =
+            verification_key_finalization_time_secs;
+    }
+    if let Some(in_progress_time_secs) = args.in_progress_time_secs {
+        time_configuration.in_progress_time_secs = in_progress_time_secs;
+    }
+
     let instantiate_msg = InstantiateMsg {
         group_addr: args.group_addr,
         multisig_addr,
+        time_configuration: Some(time_configuration),
         mix_denom,
     };
 
@@ -43,5 +96,5 @@ pub async fn generate(args: Args) {
     let res =
         serde_json::to_string(&instantiate_msg).expect("failed to convert instantiate msg to json");
 
-    println!("{}", res)
+    println!("{res}")
 }

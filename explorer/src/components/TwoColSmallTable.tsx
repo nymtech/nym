@@ -19,7 +19,7 @@ interface TableProps {
   loading: boolean;
 }
 
-export const TwoColSmallTable: React.FC<TableProps> = ({
+export const TwoColSmallTable: FCWithChildren<TableProps> = ({
   loading,
   title,
   icons,

@@ -7,6 +7,7 @@ use async_trait::async_trait;
 
 // well, right now we don't have the browser storage : (
 // so we keep everything in memory
+#[derive(Debug)]
 pub struct Backend {
     empty: Empty,
 }
@@ -39,5 +40,9 @@ impl ReplyStorageBackend for Backend {
 
     async fn load_surb_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError> {
         self.empty.load_surb_storage().await
+    }
+
+    fn get_inactive_storage(&self) -> Result<CombinedReplyStorage, Self::StorageError> {
+        self.empty.get_inactive_storage()
     }
 }

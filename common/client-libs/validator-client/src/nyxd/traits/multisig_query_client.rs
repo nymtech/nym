@@ -20,7 +20,7 @@ pub trait MultisigQueryClient {
 }
 
 #[async_trait]
-impl<C: CosmWasmClient + Sync + Send> MultisigQueryClient for NyxdClient<C> {
+impl<C: CosmWasmClient + Sync + Send + Clone> MultisigQueryClient for NyxdClient<C> {
     async fn get_proposal(&self, proposal_id: u64) -> Result<ProposalResponse, NyxdError> {
         let request = QueryMsg::Proposal { proposal_id };
         self.client

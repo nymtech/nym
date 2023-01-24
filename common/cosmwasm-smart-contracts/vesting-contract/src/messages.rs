@@ -18,7 +18,8 @@ pub struct InitMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct MigrateMsg {
-    pub v2_mixnet_contract_address: String,
+    // I'm making it explicit so that we wouldn't accidentally forget about it
+    pub manually_verified_no_staking_addresses: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema, Default)]
@@ -96,9 +97,11 @@ pub enum ExecuteMsg {
     DelegateToMixnode {
         mix_id: MixId,
         amount: Coin,
+        on_behalf_of: Option<String>,
     },
     UndelegateFromMixnode {
         mix_id: MixId,
+        on_behalf_of: Option<String>,
     },
     CreateAccount {
         owner_address: String,
@@ -188,6 +191,14 @@ impl ExecuteMsg {
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     GetContractVersion {},
+    GetAccountsPaged {
+        start_next_after: Option<String>,
+        limit: Option<u32>,
+    },
+    GetAccountsVestingCoinsPaged {
+        start_next_after: Option<String>,
+        limit: Option<u32>,
+    },
     LockedCoins {
         vesting_account_address: String,
         block_time: Option<Timestamp>,

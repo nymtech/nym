@@ -1,7 +1,7 @@
 import React from 'react';
 import { Stack, Typography } from '@mui/material';
 
-export const SuccessReponse: React.FC<{
+export const SuccessReponse: FCWithChildren<{
   title: string;
   subtitle: string | React.ReactNode;
   caption: string | React.ReactNode;

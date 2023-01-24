@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::future::Future;
 use std::{error::Error, time::Duration};
 
 use futures::{future::pending, FutureExt, SinkExt, StreamExt};
@@ -90,6 +91,19 @@ impl TaskManager {
             shutdown_timer_secs,
             ..Default::default()
         }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn catch_interrupt(mut self) -> Result<(), SentError> {
+        let res = crate::wait_for_signal_and_error(&mut self).await;
+
+        log::info!("Sending shutdown");
+        self.signal_shutdown().ok();
+
+        log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
+        self.wait_for_shutdown().await;
+
+        res
     }
 
     pub fn subscribe(&self) -> TaskClient {
@@ -208,7 +222,7 @@ pub struct TaskClient {
 
 impl TaskClient {
     #[cfg(not(target_arch = "wasm32"))]
-    const SHUTDOWN_TIMEOUT: Duration = Duration::from_secs(5);
+    const SHUTDOWN_TIMEOUT_WAITING_FOR_SIGNAL_ON_EXIT: Duration = Duration::from_secs(5);
 
     fn new(
         notify: watch::Receiver<()>,
@@ -226,12 +240,22 @@ impl TaskClient {
         }
     }
 
+    pub async fn run_future<Fut, T>(&mut self, fut: Fut) -> Option<T>
+    where
+        Fut: Future<Output = T>,
+    {
+        tokio::select! {
+            biased;
+            _ = self.recv() => None,
+            res = fut => Some(res)
+        }
+    }
+
     // Create a dummy that will never report that we should shutdown.
     pub fn dummy() -> TaskClient {
         let (_notify_tx, notify_rx) = watch::channel(());
         let (task_halt_tx, _task_halt_rx) = mpsc::unbounded_channel();
         let (task_drop_tx, _task_drop_rx) = mpsc::unbounded_channel();
-        //let (task_status_tx, _task_status_rx) = futures::channel::mpsc::unbounded();
         let (task_status_tx, _task_status_rx) = futures::channel::mpsc::channel(128);
         TaskClient {
             shutdown: false,
@@ -280,9 +304,12 @@ impl TaskClient {
             return pending().await;
         }
         #[cfg(not(target_arch = "wasm32"))]
-        tokio::time::timeout(Self::SHUTDOWN_TIMEOUT, self.recv())
-            .await
-            .expect("Task stopped without shutdown called");
+        tokio::time::timeout(
+            Self::SHUTDOWN_TIMEOUT_WAITING_FOR_SIGNAL_ON_EXIT,
+            self.recv(),
+        )
+        .await
+        .expect("Task stopped without shutdown called");
     }
 
     pub fn is_shutdown_poll(&mut self) -> bool {
@@ -300,8 +327,8 @@ impl TaskClient {
                 has_changed
             }
             Err(err) => {
-                log::debug!("Polling shutdown failed: {err}");
-                log::debug!("Assuming this means we should shutdown...");
+                log::error!("Polling shutdown failed: {err}");
+                log::error!("Assuming this means we should shutdown...");
                 true
             }
         }

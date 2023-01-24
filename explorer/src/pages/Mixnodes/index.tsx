@@ -35,7 +35,7 @@ const getCellStyles = (theme: Theme, row: MixnodeRowType, textColor?: string): S
   ...getCellFontStyle(theme, row, textColor),
 });
 
-export const PageMixnodes: React.FC = () => {
+export const PageMixnodes: FCWithChildren = () => {
   const { mixnodes, fetchMixnodes } = useMainContext();
   const [filteredMixnodes, setFilteredMixnodes] = React.useState<MixNodeResponse>([]);
   const [pageSize, setPageSize] = React.useState<string>('10');
@@ -149,7 +149,7 @@ export const PageMixnodes: React.FC = () => {
       renderHeader: () => (
         <CustomColumnHeading
           headingTitle="Stake Saturation"
-          tooltipInfo="Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is: 750k NYM, computed as S/K where S is  total amount of tokens available to stakeholders and K is the number of nodes in the reward set."
+          tooltipInfo="Level of stake saturation for this node. Nodes receive more rewards the higher their saturation level, up to 100%. Beyond 100% no additional rewards are granted. The current stake saturation level is 730k NYM, computed as S/K where S is target amount of tokens staked in the network and K is the number of nodes in the reward set."
         />
       ),
       headerClassName: 'MuiDataGrid-header-override',

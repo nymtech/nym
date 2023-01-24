@@ -26,6 +26,7 @@ jobs:
           libappindicator3-dev
           webkit2gtk-driver
           xvfb
+        continue-on-error: true
 
       - name: Install minimal stable
         uses: actions-rs/toolchain@v1

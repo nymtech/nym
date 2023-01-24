@@ -7,13 +7,8 @@ import { TestAndEarnPopup, TestAndEarnPopupContent } from './TestAndEarnPopup';
 import { TestAndEarnContextProvider } from './context/TestAndEarnContext';
 import { MockProvider } from '../../context/mocks/main';
 import { ConnectionStatusKind } from '../../types';
-import { TestAndEarnCurrentDraw } from './TestAndEarnCurrentDraw';
-import { TestAndEarnWinner } from './TestAndEarnWinner';
-import { TestAndEarnDraws } from './TestAndEarnDraws';
-import { TestAndEarnWinnerWalletAddress } from './TestAndEarnWinnerWalletAddress';
 import {
   MockTestAndEarnProvider_NotRegistered,
-  MockTestAndEarnProvider_Registered,
   MockTestAndEarnProvider_RegisteredAndError,
   MockTestAndEarnProvider_RegisteredWithDraws,
   MockTestAndEarnProvider_RegisteredWithDrawsAndEntry,
@@ -29,12 +24,12 @@ export default {
   component: TestAndEarnPopupContent,
 } as ComponentMeta<typeof TestAndEarnPopupContent>;
 
-const MacOSWindow: React.FC<{ width?: string | number; height?: string | number; title?: string }> = ({
-  title,
-  width,
-  height,
-  children,
-}) => (
+const MacOSWindow: FCWithChildren<{
+  width?: string | number;
+  height?: string | number;
+  title?: string;
+  children: React.ReactNode;
+}> = ({ title, width, height, children }) => (
   <Box sx={{ border: '1px solid #EEEEEE', width, height }}>
     <Box sx={{ background: '#EEEEEE', display: 'grid', gridTemplateColumns: 'auto auto', gridTemplateRows: 'auto' }}>
       <Box ml={1}>
@@ -67,7 +62,7 @@ const MacOSWindow: React.FC<{ width?: string | number; height?: string | number;
   </Box>
 );
 
-const Wrapper: React.FC<{ text: React.ReactNode }> = ({ text }) => (
+const Wrapper: FCWithChildren<{ text: React.ReactNode }> = ({ text }) => (
   <NymShipyardTheme>
     <Alert severity="info" sx={{ mb: 4 }}>
       {text}

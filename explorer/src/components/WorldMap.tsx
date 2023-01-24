@@ -14,7 +14,7 @@ type MapProps = {
   loading: boolean;
 };
 
-export const WorldMap: React.FC<MapProps> = ({ countryData, userLocation, loading }) => {
+export const WorldMap: FCWithChildren<MapProps> = ({ countryData, userLocation, loading }) => {
   const { palette } = useTheme();
 
   const colorScale = React.useMemo(() => {

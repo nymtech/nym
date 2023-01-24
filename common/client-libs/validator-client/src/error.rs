@@ -6,7 +6,7 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum ValidatorClientError {
-    #[error("There was an issue with the validator api request - {source}")]
+    #[error("nym api request failed - {source}")]
     NymAPIError {
         #[from]
         source: nym_api::error::NymAPIError,
@@ -16,7 +16,7 @@ pub enum ValidatorClientError {
     MalformedUrlProvided(#[from] url::ParseError),
 
     #[cfg(feature = "nyxd-client")]
-    #[error("There was an issue with the Nyxd client - {0}")]
+    #[error("nyxd request failed - {0}")]
     NyxdError(#[from] crate::nyxd::error::NyxdError),
 
     #[error("No validator API url has been provided")]

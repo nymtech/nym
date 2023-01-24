@@ -1,7 +1,7 @@
-import { FeeDetails, DecCoin, TransactionExecuteResult } from '@nymproject/types';
+import { FeeDetails, TransactionExecuteResult } from '@nymproject/types';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Network } from 'src/types';
-import { TBondedGateway, TBondedMixnode, BondingContext } from '../bonding';
+import { BondingContext, TBondedGateway, TBondedMixnode } from '../bonding';
 import { mockSleep } from './utils';
 
 const SLEEP_MS = 1000;

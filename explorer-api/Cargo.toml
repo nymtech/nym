@@ -1,6 +1,6 @@
 [package]
 name = "explorer-api"
-version = "1.1.2"
+version = "1.1.7"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -11,7 +11,7 @@ clap = { version = "4.0", features = ["cargo", "derive"] }
 humantime-serde = "1.0"
 isocountry = "0.3.2"
 itertools = "0.10.3"
-log = "0.4.0"
+log = { workspace = true }
 okapi = { version = "0.7.0-rc.1", features = ["impl_json_schema"] }
 pretty_env_logger = "0.4.0"
 reqwest = "0.11.4"

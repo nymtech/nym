@@ -28,7 +28,7 @@ use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
-use task::{wait_for_signal, TaskClient, TaskManager};
+use task::{TaskClient, TaskManager};
 use version_checker::parse_version;
 
 mod http;
@@ -122,7 +122,7 @@ impl MixNode {
                 serde_json::to_string(&node_details)
                     .unwrap_or_else(|_| "Could not serialize node details".to_string())
             ),
-            OutputFormat::Text => println!("{}", node_details),
+            OutputFormat::Text => println!("{node_details}"),
         }
     }
 
@@ -292,15 +292,8 @@ impl MixNode {
             .map(|node| node.bond_information.mix_node.identity_key.clone())
     }
 
-    async fn wait_for_interrupt(&self, mut shutdown: TaskManager) {
-        wait_for_signal().await;
-
-        log::info!("Sending shutdown");
-        shutdown.signal_shutdown().ok();
-
-        log::info!("Waiting for tasks to finish... (Press ctrl-c to force)");
-        shutdown.wait_for_shutdown().await;
-
+    async fn wait_for_interrupt(&self, shutdown: TaskManager) {
+        let _res = shutdown.catch_interrupt().await;
         log::info!("Stopping nym mixnode");
     }
 

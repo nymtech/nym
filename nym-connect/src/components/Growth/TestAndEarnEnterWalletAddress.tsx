@@ -1,16 +1,16 @@
 import React from 'react';
 import { WalletAddressFormField } from '@nymproject/react/account/WalletAddressFormField';
 import { SxProps } from '@mui/system';
-import { Paper, Stack, Button, Box } from '@mui/material';
+import { Box, Button, Paper, Stack } from '@mui/material';
 import ArrowCircleRightIcon from '@mui/icons-material/ArrowCircleRight';
 import { useTestAndEarnContext } from './context/TestAndEarnContext';
 
-export const TestAndEarnEnterWalletAddress: React.FC<{
+export const TestAndEarnEnterWalletAddress: FCWithChildren<{
   initialValue?: string;
   placeholder?: string;
   onSubmit?: () => Promise<void> | void;
   sx?: SxProps;
-}> = ({ initialValue, placeholder, onSubmit, sx }) => {
+}> = ({ initialValue, placeholder, onSubmit }) => {
   const context = useTestAndEarnContext();
   const [isAddressValid, setAddressIsValid] = React.useState(false);
   return (

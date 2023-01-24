@@ -16,6 +16,9 @@ pub struct Args {
 
     #[clap(long)]
     pub identity_key: Option<String>,
+
+    #[clap(long)]
+    pub on_behalf_of: Option<String>,
 }
 
 pub async fn vesting_undelegate_from_mixnode(args: Args, client: SigningClient) {
@@ -37,7 +40,7 @@ pub async fn vesting_undelegate_from_mixnode(args: Args, client: SigningClient) 
     };
 
     let res = client
-        .vesting_undelegate_from_mixnode(mix_id, None)
+        .vesting_undelegate_from_mixnode(mix_id, args.on_behalf_of, None)
         .await
         .expect("failed to remove stake from vesting account on mixnode!");
 

@@ -233,7 +233,7 @@ impl VestingAccount for Account {
         to_address: &Addr,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
-        delete_account(&self.owner_address(), storage)?;
+        delete_account(self.owner_address(), storage)?;
         self.owner_address = to_address.to_owned();
         save_account(self, storage)?;
         Ok(())
@@ -245,7 +245,7 @@ impl VestingAccount for Account {
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
         if let Some(staking_address) = self.staking_address() {
-            delete_account(staking_address, storage)?;
+            delete_account(staking_address.to_owned(), storage)?;
         }
         self.staking_address = to_address;
         save_account(self, storage)?;

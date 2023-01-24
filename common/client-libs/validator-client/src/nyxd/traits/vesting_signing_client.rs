@@ -106,12 +106,14 @@ pub trait VestingSigningClient {
         &self,
         mix_id: MixId,
         amount: Coin,
+        on_behalf_of: Option<String>,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError>;
 
     async fn vesting_undelegate_from_mixnode(
         &self,
         mix_id: MixId,
+        on_behalf_of: Option<String>,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError>;
 
@@ -127,7 +129,7 @@ pub trait VestingSigningClient {
 }
 
 #[async_trait]
-impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NyxdClient<C> {
+impl<C: SigningCosmWasmClient + Sync + Send + Clone> VestingSigningClient for NyxdClient<C> {
     async fn execute_vesting_contract(
         &self,
         fee: Option<Fee>,
@@ -367,6 +369,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NyxdClient
         &self,
         mix_id: MixId,
         amount: Coin,
+        on_behalf_of: Option<String>,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_vesting_contract(
@@ -374,6 +377,7 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NyxdClient
             VestingExecuteMsg::DelegateToMixnode {
                 mix_id,
                 amount: amount.into(),
+                on_behalf_of,
             },
             vec![],
         )
@@ -383,11 +387,15 @@ impl<C: SigningCosmWasmClient + Sync + Send> VestingSigningClient for NyxdClient
     async fn vesting_undelegate_from_mixnode(
         &self,
         mix_id: MixId,
+        on_behalf_of: Option<String>,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_vesting_contract(
             fee,
-            VestingExecuteMsg::UndelegateFromMixnode { mix_id },
+            VestingExecuteMsg::UndelegateFromMixnode {
+                mix_id,
+                on_behalf_of,
+            },
             vec![],
         )
         .await

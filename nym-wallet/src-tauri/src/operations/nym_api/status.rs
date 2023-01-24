@@ -4,7 +4,9 @@
 use crate::api_client;
 use crate::error::BackendError;
 use crate::state::WalletState;
-use nym_mixnet_contract_common::{reward_params::Performance, Coin, IdentityKeyRef, MixId, Percent};
+use nym_mixnet_contract_common::{
+    reward_params::Performance, Coin, IdentityKeyRef, MixId, Percent,
+};
 use validator_client::models::{
     ComputeRewardEstParam, GatewayCoreStatusResponse, GatewayStatusReportResponse,
     InclusionProbabilityResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,

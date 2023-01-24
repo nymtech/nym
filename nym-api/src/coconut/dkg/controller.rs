@@ -57,10 +57,12 @@ impl<R: RngCore + Clone> DkgController<R> {
             config.decryption_key_path(),
             config.public_key_with_proof_path(),
         ))?;
-        if let Ok(coconut_keypair_value) = nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
-            config.secret_key_path(),
-            config.verification_key_path(),
-        )) {
+        if let Ok(coconut_keypair_value) =
+            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
+                config.secret_key_path(),
+                config.verification_key_path(),
+            ))
+        {
             coconut_keypair.set(Some(coconut_keypair_value)).await;
         }
         let persistent_state =

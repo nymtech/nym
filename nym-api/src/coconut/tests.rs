@@ -43,10 +43,10 @@ use coconut_dkg_common::types::{
     EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, TOTAL_DEALINGS,
 };
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
-use nym_contracts_common::dealings::ContractSafeBytes;
 use cw3::ProposalResponse;
 use cw4::MemberResponse;
 use dkg::Threshold;
+use nym_contracts_common::dealings::ContractSafeBytes;
 use nym_crypto::asymmetric::{encryption, identity};
 use rand_07::rngs::OsRng;
 use rand_07::Rng;

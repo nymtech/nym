@@ -1,10 +1,10 @@
 use crate::support::caching::Cache;
 use data::ValidatorCacheData;
+use nym_api_requests::models::MixnodeStatus;
 use nym_mixnet_contract_common::{
     families::FamilyHead, GatewayBond, IdentityKey, Interval, MixId, MixNodeBond, MixNodeDetails,
     RewardingParams,
 };
-use nym_api_requests::models::MixnodeStatus;
 use rocket::fairing::AdHoc;
 use std::{
     collections::HashSet,

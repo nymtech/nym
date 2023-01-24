@@ -8,10 +8,10 @@ use crate::{
     },
     nym_contract_cache::cache::NymContractCache,
 };
+use nym_api_requests::models::MixNodeBondAnnotated;
 use nym_mixnet_contract_common::{
     mixnode::MixNodeDetails, reward_params::RewardingParams, GatewayBond, Interval, MixId,
 };
-use nym_api_requests::models::MixNodeBondAnnotated;
 
 use rocket::{serde::json::Json, State};
 use rocket_okapi::openapi;

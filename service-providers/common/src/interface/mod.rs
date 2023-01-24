@@ -66,14 +66,22 @@ pub enum Response<T: ServiceProviderRequest = EmptyMessage> {
     ProviderData(T::Response),
 }
 
-// TODO: change those values to deal with legacy variants in Socks5Message
 #[repr(u8)]
-enum RequestTag {
+pub enum RequestTag {
+    /// Value tag representing legacy value for `Socks5Message::Request`
+    LegacySocks5Request = 0,
+
+    /// Value tag representing legacy value for `Socks5Message::Response`
+    LegacySocks5Response = 1,
+
+    /// Value tag representing legacy value for `Socks5Message::NetworkRequesterResponse`
+    LegacySocks5NRResponse = 2,
+
     /// Value tag representing [`Control`] variant of the [`Request`]
-    Control = 0x00,
+    Control = 0x03,
 
     /// Value tag representing [`ProviderData`] variant of the [`Request`]
-    ProviderData = 0x01,
+    ProviderData = 0x04,
 }
 
 impl TryFrom<u8> for RequestTag {
@@ -81,10 +89,24 @@ impl TryFrom<u8> for RequestTag {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
+            _ if value == (Self::LegacySocks5Request as u8) => Ok(Self::LegacySocks5Request),
+            _ if value == (Self::LegacySocks5Response as u8) => Ok(Self::LegacySocks5Response),
+            _ if value == (Self::LegacySocks5NRResponse as u8) => Ok(Self::LegacySocks5NRResponse),
             _ if value == (Self::Control as u8) => Ok(Self::Control),
             _ if value == (Self::ProviderData as u8) => Ok(Self::ProviderData),
             received => Err(ServiceProviderMessagingError::InvalidRequestTag { received }),
         }
+    }
+}
+
+impl RequestTag {
+    pub fn is_legacy(&self) -> bool {
+        matches!(
+            self,
+            RequestTag::LegacySocks5Request
+                | RequestTag::LegacySocks5Response
+                | RequestTag::LegacySocks5NRResponse
+        )
     }
 }
 
@@ -106,6 +128,14 @@ where
         }
     }
 
+    pub fn peek_tag(b: &[u8]) -> Result<RequestTag, <T as ServiceProviderRequest>::Error> {
+        if b.is_empty() {
+            return Err(ServiceProviderMessagingError::EmptyRequest.into());
+        }
+
+        RequestTag::try_from(b[0]).map_err(Into::into)
+    }
+
     pub fn into_bytes(self) -> Vec<u8> {
         std::iter::once(self.tag() as u8)
             .chain(self.serialize_inner().into_iter())
@@ -121,18 +151,27 @@ where
         match request_tag {
             RequestTag::Control => Ok(Request::Control(ControlRequest::try_from_bytes(&b[1..])?)),
             RequestTag::ProviderData => Ok(Request::ProviderData(T::try_from_bytes(&b[1..])?)),
+            _ => todo!("handle legacy"),
         }
     }
 }
 
-// TODO: change those values to deal with legacy variants in Socks5Message
 #[repr(u8)]
-enum ResponseTag {
+pub enum ResponseTag {
+    /// Value tag representing legacy value for `Socks5Message::Request`
+    LegacySocks5Request = 0,
+
+    /// Value tag representing legacy value for `Socks5Message::Response`
+    LegacySocks5Response = 1,
+
+    /// Value tag representing legacy value for `Socks5Message::NetworkRequesterResponse`
+    LegacySocks5NRResponse = 2,
+
     /// Value tag representing [`Control`] variant of the [`Reponse`]
-    Control = 0x00,
+    Control = 0x03,
 
     /// Value tag representing [`ProviderData`] variant of the [`Reponse`]
-    ProviderData = 0x01,
+    ProviderData = 0x04,
 }
 
 impl TryFrom<u8> for ResponseTag {
@@ -140,10 +179,24 @@ impl TryFrom<u8> for ResponseTag {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
+            _ if value == (Self::LegacySocks5Request as u8) => Ok(Self::LegacySocks5Request),
+            _ if value == (Self::LegacySocks5Response as u8) => Ok(Self::LegacySocks5Response),
+            _ if value == (Self::LegacySocks5NRResponse as u8) => Ok(Self::LegacySocks5NRResponse),
             _ if value == (Self::Control as u8) => Ok(Self::Control),
             _ if value == (Self::ProviderData as u8) => Ok(Self::ProviderData),
             received => Err(ServiceProviderMessagingError::InvalidResponseTag { received }),
         }
+    }
+}
+
+impl ResponseTag {
+    pub fn is_legacy(&self) -> bool {
+        matches!(
+            self,
+            ResponseTag::LegacySocks5Request
+                | ResponseTag::LegacySocks5Response
+                | ResponseTag::LegacySocks5NRResponse
+        )
     }
 }
 
@@ -165,6 +218,14 @@ where
         }
     }
 
+    pub fn peek_tag(b: &[u8]) -> Result<ResponseTag, <T as ServiceProviderRequest>::Error> {
+        if b.is_empty() {
+            return Err(ServiceProviderMessagingError::EmptyResponse.into());
+        }
+
+        ResponseTag::try_from(b[0]).map_err(Into::into)
+    }
+
     pub fn into_bytes(self) -> Vec<u8> {
         std::iter::once(self.tag() as u8)
             .chain(self.serialize_inner().into_iter())
@@ -184,6 +245,7 @@ where
             ResponseTag::ProviderData => Ok(Response::ProviderData(T::Response::try_from_bytes(
                 &b[1..],
             )?)),
+            _ => todo!("handle legacy"),
         }
     }
 }

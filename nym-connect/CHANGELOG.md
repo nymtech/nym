@@ -2,7 +2,11 @@
 
 ## UNRELEASED
 
-- Remove test and earn
+## [nym-connect-v1.1.7](https://github.com/nymtech/nym/tree/nym-connect-v1.1.7) (2023-01-24)
+
+- Remove test and earn ([#2865])
+
+[#2865]: https://github.com/nymtech/nym/issue/2865
 
 ## [nym-connect-v1.1.6](https://github.com/nymtech/nym/tree/nym-connect-v1.1.6) (2023-01-17)
 

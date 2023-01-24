@@ -2,6 +2,12 @@
 
 ## UNRELEASED
 
+## [nym-wallet-v1.1.8](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.8) (2023-01-24)
+
+- Fix delegations sorting ([#2885])
+
+[#2885]: https://github.com/nymtech/nym/issues/2885
+
 ## [nym-wallet-v1.1.7](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.7) (2023-01-17)
 
 - link to the ng mixnet explorer for account info ([#2823])

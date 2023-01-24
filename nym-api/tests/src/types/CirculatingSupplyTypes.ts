@@ -2,7 +2,7 @@ export type Detailed = {
     initial_supply: InitialSupply;
     mixmining_reserve: MixminingReserve;
     vesting_tokens: VestingTokens;
-    circulating_cupply: CirculatingSupply;
+    circulating_supply: CirculatingSupply;
   };
   
   export type InitialSupply = {

@@ -502,11 +502,11 @@ mod tests {
 
         let locked_coins = account.locked_coins(None, &env, &mut deps.storage).unwrap();
         // vesting - delegated_vesting - pledged_vesting
-        assert_eq!(locked_coins.amount, Uint128::new(660_000_000_000));
+        assert_eq!(locked_coins.amount, Uint128::new(750_000_000_000));
         let spendable = account
             .spendable_coins(None, &env, &mut deps.storage)
             .unwrap();
-        assert_eq!(spendable.amount, Uint128::new(160_000_000_000));
+        assert_eq!(spendable.amount, Uint128::new(70_000_000_000));
 
         let ok = account.try_undelegate_from_mixnode(mix_id, &mut deps.storage);
         assert!(ok.is_ok());
@@ -585,7 +585,7 @@ mod tests {
         assert_eq!(delegated_vesting.amount, Uint128::new(90_000_000_000));
 
         // vesting - delegated_vesting - pledged_vesting
-        assert_eq!(locked_coins.amount, Uint128::new(750_000_000_000));
+        assert_eq!(locked_coins.amount, Uint128::new(660_000_000_000));
     }
 
     #[test]
@@ -1358,7 +1358,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(spendable_coins.amount, Uint128::new(0));
-        assert_eq!(locked_coins.amount, Uint128::new(22_000_000_000_000));
+        assert_eq!(locked_coins.amount, Uint128::new(26_000_000_000_000));
 
         // Check that user can't withdraw free coins if they're delegated
 

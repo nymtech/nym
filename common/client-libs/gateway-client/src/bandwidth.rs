@@ -6,11 +6,11 @@ use crate::error::GatewayClientError;
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_storage::Storage;
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(not(feature = "android"))]
+#[cfg(not(feature = "mobile"))]
 use credential_storage::storage::Storage;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(feature = "android")]
+#[cfg(feature = "mobile")]
 use mobile_storage::Storage;
 
 #[cfg(all(target_arch = "wasm32", feature = "coconut"))]
@@ -36,11 +36,11 @@ use {
 use crate::wasm_storage::PersistentStorage;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(not(feature = "android"))]
+#[cfg(not(feature = "mobile"))]
 use credential_storage::PersistentStorage;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(feature = "android")]
+#[cfg(feature = "mobile")]
 use mobile_storage::PersistentStorage;
 
 #[derive(Clone)]

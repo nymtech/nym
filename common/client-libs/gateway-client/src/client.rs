@@ -32,11 +32,11 @@ use coconut_interface::Credential;
 use tokio_tungstenite::connect_async;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(not(feature = "android"))]
+#[cfg(not(feature = "mobile"))]
 use credential_storage::PersistentStorage;
 
 #[cfg(not(target_arch = "wasm32"))]
-#[cfg(feature = "android")]
+#[cfg(feature = "mobile")]
 use mobile_storage::PersistentStorage;
 
 #[cfg(target_arch = "wasm32")]

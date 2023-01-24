@@ -39,7 +39,7 @@ mobile-storage = { path = "../../common/mobile-storage" }
 credentials = { path = "../../common/credentials", optional = true }
 crypto = { path = "../../common/crypto" }
 logging = { path = "../../common/logging"}
-gateway-client = { path = "../../common/client-libs/gateway-client", features = ["android"] }
+gateway-client = { path = "../../common/client-libs/gateway-client", features = ["mobile"] }
 gateway-requests = { path = "../../gateway/gateway-requests" }
 network-defaults = { path = "../../common/network-defaults" }
 nymsphinx = { path = "../../common/nymsphinx" }

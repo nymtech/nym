@@ -458,6 +458,7 @@ dependencies = [
 name = "build-information"
 version = "0.1.0"
 dependencies = [
+ "serde",
  "vergen 7.5.0",
 ]
 
@@ -817,6 +818,16 @@ dependencies = [
  "strum 0.24.1",
  "strum_macros 0.24.3",
  "unicode-width",
+]
+
+[[package]]
+name = "common"
+version = "0.1.0"
+dependencies = [
+ "build-information",
+ "serde",
+ "serde_json",
+ "thiserror",
 ]
 
 [[package]]

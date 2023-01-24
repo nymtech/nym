@@ -75,6 +75,7 @@ members = [
     "integrations/bity",
     "mixnode",
     "sdk/rust/nym-sdk",
+    "service-providers/common",
     "service-providers/network-requester",
     "service-providers/network-statistics",
     "nym-api",

@@ -84,13 +84,13 @@ impl Message {
     pub fn into_bytes(self) -> Vec<u8> {
         match self {
             Self::Request(r) => std::iter::once(Self::REQUEST_FLAG)
-                .chain(r.into_bytes().iter().cloned())
+                .chain(r.into_bytes().into_iter())
                 .collect(),
             Self::Response(r) => std::iter::once(Self::RESPONSE_FLAG)
-                .chain(r.into_bytes().iter().cloned())
+                .chain(r.into_bytes().into_iter())
                 .collect(),
             Self::NetworkRequesterResponse(r) => std::iter::once(Self::NR_RESPONSE_FLAG)
-                .chain(r.into_bytes().iter().cloned())
+                .chain(r.into_bytes().into_iter())
                 .collect(),
         }
     }

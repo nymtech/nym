@@ -1,23 +1,26 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#[cfg(feature = "coconut")]
 use crate::error::GatewayClientError;
 
 #[cfg(target_arch = "wasm32")]
-use crate::wasm_storage::Storage;
+use crate::wasm_mockups::Storage;
 #[cfg(not(target_arch = "wasm32"))]
 use credential_storage::storage::Storage;
 
 #[cfg(all(target_arch = "wasm32", feature = "coconut"))]
-use crate::wasm_storage::StorageError;
+use crate::wasm_mockups::StorageError;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "coconut"))]
 use credential_storage::error::StorageError;
 
+#[cfg(target_arch = "wasm32")]
+use crate::wasm_mockups::{Client, CosmWasmClient};
 #[cfg(feature = "coconut")]
 use std::str::FromStr;
-#[cfg(feature = "coconut")]
-use validator_client::client::CoconutApiClient;
+#[cfg(not(target_arch = "wasm32"))]
+use validator_client::{nyxd::CosmWasmClient, Client};
 #[cfg(feature = "coconut")]
 use {
     coconut_interface::Base58,
@@ -28,41 +31,34 @@ use {
 
 // TODO: make it nicer for wasm (I don't want to touch it for this experiment)
 #[cfg(target_arch = "wasm32")]
-use crate::wasm_storage::PersistentStorage;
+use crate::wasm_mockups::PersistentStorage;
 
 #[cfg(not(target_arch = "wasm32"))]
 use credential_storage::PersistentStorage;
 
 #[derive(Clone)]
-pub struct BandwidthController<St: Storage = PersistentStorage> {
-    #[allow(dead_code)]
+#[allow(dead_code)]
+pub struct BandwidthController<C: Clone, St: Storage = PersistentStorage> {
     storage: St,
-    #[cfg(feature = "coconut")]
-    coconut_api_clients: Vec<CoconutApiClient>,
+    nyxd_client: Client<C>,
 }
 
-impl<St> BandwidthController<St>
+impl<C, St> BandwidthController<C, St>
 where
+    C: CosmWasmClient + Sync + Send + Clone,
     St: Storage + Clone + 'static,
 {
-    #[cfg(feature = "coconut")]
-    pub fn new(storage: St, coconut_api_clients: Vec<CoconutApiClient>) -> Self {
+    pub fn new(storage: St, nyxd_client: Client<C>) -> Self {
         BandwidthController {
             storage,
-            coconut_api_clients,
+            nyxd_client,
         }
-    }
-
-    #[cfg(not(feature = "coconut"))]
-    pub fn new(storage: St) -> Result<Self, GatewayClientError> {
-        Ok(BandwidthController { storage })
     }
 
     #[cfg(feature = "coconut")]
     pub async fn prepare_coconut_credential(
         &self,
     ) -> Result<(coconut_interface::Credential, i64), GatewayClientError> {
-        let verification_key = obtain_aggregate_verification_key(&self.coconut_api_clients).await?;
         let bandwidth_credential = self.storage.get_next_coconut_credential().await?;
         let voucher_value = u64::from_str(&bandwidth_credential.voucher_value)
             .map_err(|_| StorageError::InconsistentData)?;
@@ -73,6 +69,19 @@ where
             coconut_interface::Attribute::try_from_bs58(bandwidth_credential.binding_number)?;
         let signature =
             coconut_interface::Signature::try_from_bs58(bandwidth_credential.signature)?;
+        let epoch_id = u64::from_str(&bandwidth_credential.epoch_id)
+            .map_err(|_| StorageError::InconsistentData)?;
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let coconut_api_clients = validator_client::CoconutApiClient::all_coconut_api_clients(
+            &self.nyxd_client,
+            epoch_id,
+        )
+        .await
+        .expect("Could not query api clients");
+        #[cfg(target_arch = "wasm32")]
+        let coconut_api_clients = vec![];
+        let verification_key = obtain_aggregate_verification_key(&coconut_api_clients).await?;
 
         // the below would only be executed once we know where we want to spend it (i.e. which gateway and stuff)
         Ok((
@@ -81,6 +90,7 @@ where
                 voucher_info,
                 serial_number,
                 binding_number,
+                epoch_id,
                 &signature,
                 &verification_key,
             )?,

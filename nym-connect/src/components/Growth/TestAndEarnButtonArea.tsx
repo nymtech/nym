@@ -18,6 +18,7 @@ export const Wrapper: FCWithChildren<{ disabled: boolean }> = ({ disabled, child
       </Badge>
     );
   }
+  // eslint-disable-next-line react/jsx-no-useless-fragment
   return <>{children}</>;
 };
 

@@ -43,7 +43,6 @@ impl State {
         }
     }
 
-    #[allow(unused)]
     pub fn get_status(&self) -> ConnectionStatusKind {
         self.status.clone()
     }
@@ -111,9 +110,7 @@ impl State {
         }
 
         // Kick off the main task and get the channel for controlling it
-        let (msg_receiver, exit_status_receiver) = self.start_nym_socks5_client()?;
-        self.set_state(ConnectionStatusKind::Connected, window);
-        Ok((msg_receiver, exit_status_receiver))
+        self.start_nym_socks5_client()
     }
 
     /// Create a configuration file
@@ -142,9 +139,16 @@ impl State {
         Ok((msg_rx, exit_status_rx))
     }
 
+    /// Once the SOCKS5 client is operational, the status listener would call this
+    pub fn mark_connected(&mut self, window: &tauri::Window<tauri::Wry>) {
+        log::trace!("state::mark_connected");
+        self.set_state(ConnectionStatusKind::Connected, window);
+    }
+
     /// Disconnect by sending a message to the SOCKS5 client thread. Once it has finished and is
     /// disconnected, the disconnect handler will mark it as disconnected.
     pub async fn start_disconnecting(&mut self, window: &tauri::Window<tauri::Wry>) -> Result<()> {
+        log::trace!("state::start_disconnecting");
         self.set_state(ConnectionStatusKind::Disconnecting, window);
 
         // Send shutdown message

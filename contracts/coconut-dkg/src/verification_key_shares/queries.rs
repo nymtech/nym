@@ -2,13 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::verification_key_shares::storage;
-use crate::verification_key_shares::storage::VK_SHARES;
+use crate::verification_key_shares::storage::vk_shares;
+use coconut_dkg_common::types::EpochId;
 use coconut_dkg_common::verification_key::PagedVKSharesResponse;
 use cosmwasm_std::{Deps, Order, StdResult};
 use cw_storage_plus::Bound;
 
 pub fn query_vk_shares_paged(
     deps: Deps<'_>,
+    epoch_id: EpochId,
     start_after: Option<String>,
     limit: Option<u32>,
 ) -> StdResult<PagedVKSharesResponse> {
@@ -20,9 +22,12 @@ pub fn query_vk_shares_paged(
         .map(|addr| deps.api.addr_validate(&addr))
         .transpose()?;
 
-    let start = addr.as_ref().map(Bound::exclusive);
+    let start = addr.as_ref().map(|addr| Bound::exclusive((addr, epoch_id)));
 
-    let shares = VK_SHARES
+    let shares = vk_shares()
+        .idx
+        .epoch_id
+        .prefix(epoch_id)
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
         .map(|res| res.map(|(_, share)| share))
@@ -48,9 +53,28 @@ pub(crate) mod tests {
     use cosmwasm_std::Addr;
 
     #[test]
+    fn separate_epoch_ids() {
+        let mut deps = init_contract();
+        let vk_share1 = vk_share_fixture("owner", 1);
+        let vk_share2 = vk_share_fixture("owner", 2);
+        let sender = Addr::unchecked("owner");
+        vk_shares()
+            .save(&mut deps.storage, (&sender, 2), &vk_share2)
+            .unwrap();
+
+        let response = query_vk_shares_paged(deps.as_ref(), 1, None, None).unwrap();
+        assert_eq!(0, response.shares.len());
+        vk_shares()
+            .save(&mut deps.storage, (&sender, 1), &vk_share1)
+            .unwrap();
+        let response = query_vk_shares_paged(deps.as_ref(), 1, None, None).unwrap();
+        assert_eq!(1, response.shares.len());
+    }
+
+    #[test]
     fn vk_shares_empty_on_init() {
         let deps = init_contract();
-        let response = query_vk_shares_paged(deps.as_ref(), None, Option::from(2)).unwrap();
+        let response = query_vk_shares_paged(deps.as_ref(), 0, None, Option::from(2)).unwrap();
         assert_eq!(0, response.shares.len());
     }
 
@@ -59,14 +83,15 @@ pub(crate) mod tests {
         let mut deps = init_contract();
         let limit = 2;
         for n in 0..1000 {
-            let vk_share = vk_share_fixture(n);
-            let sender = Addr::unchecked(format!("owner{}", n));
-            VK_SHARES
-                .save(&mut deps.storage, &sender, &vk_share)
+            let owner = format!("owner{}", n);
+            let vk_share = vk_share_fixture(&owner, 0);
+            let sender = Addr::unchecked(owner);
+            vk_shares()
+                .save(&mut deps.storage, (&sender, 0), &vk_share)
                 .unwrap();
         }
 
-        let page1 = query_vk_shares_paged(deps.as_ref(), None, Option::from(limit)).unwrap();
+        let page1 = query_vk_shares_paged(deps.as_ref(), 0, None, Option::from(limit)).unwrap();
         assert_eq!(limit, page1.shares.len() as u32);
     }
 
@@ -74,15 +99,16 @@ pub(crate) mod tests {
     fn vk_shares_paged_retrieval_has_default_limit() {
         let mut deps = init_contract();
         for n in 0..1000 {
-            let vk_share = vk_share_fixture(n);
-            let sender = Addr::unchecked(format!("owner{}", n));
-            VK_SHARES
-                .save(&mut deps.storage, &sender, &vk_share)
+            let owner = format!("owner{}", n);
+            let vk_share = vk_share_fixture(&owner, 0);
+            let sender = Addr::unchecked(owner);
+            vk_shares()
+                .save(&mut deps.storage, (&sender, 0), &vk_share)
                 .unwrap();
         }
 
         // query without explicitly setting a limit
-        let page1 = query_vk_shares_paged(deps.as_ref(), None, None).unwrap();
+        let page1 = query_vk_shares_paged(deps.as_ref(), 0, None, None).unwrap();
 
         assert_eq!(
             VERIFICATION_KEY_SHARES_PAGE_DEFAULT_LIMIT,
@@ -94,16 +120,18 @@ pub(crate) mod tests {
     fn vk_shares_paged_retrieval_has_max_limit() {
         let mut deps = init_contract();
         for n in 0..1000 {
-            let vk_share = vk_share_fixture(n);
-            let sender = Addr::unchecked(format!("owner{}", n));
-            VK_SHARES
-                .save(&mut deps.storage, &sender, &vk_share)
+            let owner = format!("owner{}", n);
+            let vk_share = vk_share_fixture(&owner, 0);
+            let sender = Addr::unchecked(owner);
+            vk_shares()
+                .save(&mut deps.storage, (&sender, 0), &vk_share)
                 .unwrap();
         }
 
         // query with a crazily high limit in an attempt to use too many resources
         let crazy_limit = 1000 * VERIFICATION_KEY_SHARES_PAGE_MAX_LIMIT;
-        let page1 = query_vk_shares_paged(deps.as_ref(), None, Option::from(crazy_limit)).unwrap();
+        let page1 =
+            query_vk_shares_paged(deps.as_ref(), 0, None, Option::from(crazy_limit)).unwrap();
 
         // we default to a decent sized upper bound instead
         let expected_limit = VERIFICATION_KEY_SHARES_PAGE_MAX_LIMIT;
@@ -114,43 +142,47 @@ pub(crate) mod tests {
     fn vk_shares_pagination_works() {
         let mut deps = init_contract();
 
-        let vk_share = vk_share_fixture(1);
-        let sender = Addr::unchecked(format!("owner{}", 1));
-        VK_SHARES
-            .save(&mut deps.storage, &sender, &vk_share)
+        let owner = format!("owner{}", 1);
+        let vk_share = vk_share_fixture(&owner, 0);
+        let sender = Addr::unchecked(owner);
+        vk_shares()
+            .save(&mut deps.storage, (&sender, 0), &vk_share)
             .unwrap();
 
         let per_page = 2;
-        let page1 = query_vk_shares_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+        let page1 = query_vk_shares_paged(deps.as_ref(), 0, None, Option::from(per_page)).unwrap();
 
         // page should have 1 result on it
         assert_eq!(1, page1.shares.len());
 
         // save another
-        let vk_share = vk_share_fixture(2);
-        let sender = Addr::unchecked(format!("owner{}", 2));
-        VK_SHARES
-            .save(&mut deps.storage, &sender, &vk_share)
+        let owner = format!("owner{}", 2);
+        let vk_share = vk_share_fixture(&owner, 0);
+        let sender = Addr::unchecked(owner);
+        vk_shares()
+            .save(&mut deps.storage, (&sender, 0), &vk_share)
             .unwrap();
 
         // page1 should have 2 results on it
-        let page1 = query_vk_shares_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+        let page1 = query_vk_shares_paged(deps.as_ref(), 0, None, Option::from(per_page)).unwrap();
         assert_eq!(2, page1.shares.len());
 
-        let vk_share = vk_share_fixture(3);
-        let sender = Addr::unchecked(format!("owner{}", 3));
-        VK_SHARES
-            .save(&mut deps.storage, &sender, &vk_share)
+        let owner = format!("owner{}", 3);
+        let vk_share = vk_share_fixture(&owner, 0);
+        let sender = Addr::unchecked(owner);
+        vk_shares()
+            .save(&mut deps.storage, (&sender, 0), &vk_share)
             .unwrap();
 
         // page1 still has 2 results
-        let page1 = query_vk_shares_paged(deps.as_ref(), None, Option::from(per_page)).unwrap();
+        let page1 = query_vk_shares_paged(deps.as_ref(), 0, None, Option::from(per_page)).unwrap();
         assert_eq!(2, page1.shares.len());
 
         // retrieving the next page should start after the last key on this page
         let start_after = page1.start_next_after.unwrap();
         let page2 = query_vk_shares_paged(
             deps.as_ref(),
+            0,
             Option::from(start_after.to_string()),
             Option::from(per_page),
         )
@@ -158,14 +190,16 @@ pub(crate) mod tests {
 
         assert_eq!(1, page2.shares.len());
 
-        let vk_share = vk_share_fixture(4);
-        let sender = Addr::unchecked(format!("owner{}", 4));
-        VK_SHARES
-            .save(&mut deps.storage, &sender, &vk_share)
+        let owner = format!("owner{}", 4);
+        let vk_share = vk_share_fixture(&owner, 0);
+        let sender = Addr::unchecked(owner);
+        vk_shares()
+            .save(&mut deps.storage, (&sender, 0), &vk_share)
             .unwrap();
 
         let page2 = query_vk_shares_paged(
             deps.as_ref(),
+            0,
             Option::from(start_after.to_string()),
             Option::from(per_page),
         )

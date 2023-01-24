@@ -13,6 +13,7 @@ pub use cosmwasm_std::{Addr, Coin, Timestamp};
 pub type EncodedBTEPublicKeyWithProof = String;
 pub type EncodedBTEPublicKeyWithProofRef<'a> = &'a str;
 pub type NodeIndex = u64;
+pub type EpochId = u64;
 
 // 2 public attributes, 2 private attributes, 1 fixed for coconut credential
 pub const TOTAL_DEALINGS: usize = 2 + 2 + 1;
@@ -72,6 +73,7 @@ impl Default for TimeConfiguration {
 #[serde(rename_all = "snake_case")]
 pub struct Epoch {
     pub state: EpochState,
+    pub epoch_id: EpochId,
     pub time_configuration: TimeConfiguration,
     pub finish_timestamp: Timestamp,
 }
@@ -79,6 +81,7 @@ pub struct Epoch {
 impl Epoch {
     pub fn new(
         state: EpochState,
+        epoch_id: u64,
         time_configuration: TimeConfiguration,
         current_timestamp: Timestamp,
     ) -> Self {
@@ -98,6 +101,7 @@ impl Epoch {
         };
         Epoch {
             state,
+            epoch_id,
             time_configuration,
             finish_timestamp: current_timestamp.plus_seconds(duration),
         }

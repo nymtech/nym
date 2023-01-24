@@ -1,19 +1,18 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
-use crate::allowed_hosts::{HostsStore, OutboundRequestFilter};
-use crate::connection::Connection;
+use crate::allowed_hosts;
+use crate::allowed_hosts::OutboundRequestFilter;
 use crate::error::NetworkRequesterError;
 use crate::statistics::ServiceStatisticsCollector;
 use crate::websocket;
 use crate::websocket::TSWebsocketStream;
+use crate::{reply, socks5};
 use client_connections::{
     ConnectionCommand, ConnectionCommandReceiver, LaneQueueLengths, TransmissionLane,
 };
 use futures::channel::mpsc;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
-use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::receiver::ReconstructedMessage;
@@ -36,83 +35,39 @@ use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 static ACTIVE_PROXIES: AtomicUsize = AtomicUsize::new(0);
 
 pub struct ServiceProvider {
-    listening_address: String,
+    websocket_address: String,
     outbound_request_filter: OutboundRequestFilter,
     open_proxy: bool,
     enable_statistics: bool,
     stats_provider_addr: Option<Recipient>,
 }
 
-// TODO: move elsewhere after things settle
-#[derive(Debug, Clone)]
-pub enum ReturnAddress {
-    Known(Box<Recipient>),
-    Anonymous(AnonymousSenderTag),
-}
-
-impl From<Recipient> for ReturnAddress {
-    fn from(recipient: Recipient) -> Self {
-        ReturnAddress::Known(Box::new(recipient))
-    }
-}
-
-impl From<AnonymousSenderTag> for ReturnAddress {
-    fn from(sender_tag: AnonymousSenderTag) -> Self {
-        ReturnAddress::Anonymous(sender_tag)
-    }
-}
-
-impl ReturnAddress {
-    fn new(
-        explicit_return_address: Option<Recipient>,
-        implicit_tag: Option<AnonymousSenderTag>,
-    ) -> Option<Self> {
-        // if somehow we received both, always prefer the explicit address since it's way easier to use
-        if let Some(recipient) = explicit_return_address {
-            return Some(ReturnAddress::Known(Box::new(recipient)));
-        }
-        if let Some(sender_tag) = implicit_tag {
-            return Some(ReturnAddress::Anonymous(sender_tag));
-        }
-        None
-    }
-
-    fn send_back_to(self, message: Vec<u8>, connection_id: u64) -> ClientRequest {
-        match self {
-            ReturnAddress::Known(recipient) => ClientRequest::Send {
-                recipient: *recipient,
-                message,
-                connection_id: Some(connection_id),
-            },
-            ReturnAddress::Anonymous(sender_tag) => ClientRequest::Reply {
-                message,
-                sender_tag,
-                connection_id: Some(connection_id),
-            },
-        }
-    }
-}
-
 impl ServiceProvider {
-    pub fn new(
-        listening_address: String,
+    pub async fn new(
+        websocket_address: String,
         open_proxy: bool,
         enable_statistics: bool,
         stats_provider_addr: Option<Recipient>,
     ) -> ServiceProvider {
-        let allowed_hosts = HostsStore::new(
-            HostsStore::default_base_dir(),
+        let standard_hosts = allowed_hosts::fetch_standard_allowed_list().await;
+
+        log::info!("Standard allowed hosts: {:?}", standard_hosts);
+
+        let allowed_hosts = allowed_hosts::HostsStore::new(
+            allowed_hosts::HostsStore::default_base_dir(),
             PathBuf::from("allowed.list"),
+            Some(standard_hosts),
         );
 
-        let unknown_hosts = HostsStore::new(
-            HostsStore::default_base_dir(),
+        let unknown_hosts = allowed_hosts::HostsStore::new(
+            allowed_hosts::HostsStore::default_base_dir(),
             PathBuf::from("unknown.list"),
+            None,
         );
 
         let outbound_request_filter = OutboundRequestFilter::new(allowed_hosts, unknown_hosts);
         ServiceProvider {
-            listening_address,
+            websocket_address,
             outbound_request_filter,
             open_proxy,
             enable_statistics,
@@ -124,7 +79,7 @@ impl ServiceProvider {
     /// via the `websocket_writer`.
     async fn mixnet_response_listener(
         mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
-        mut mix_reader: MixProxyReader<(Socks5Message, ReturnAddress)>,
+        mut mix_reader: MixProxyReader<(Socks5Message, reply::ReturnAddress)>,
         stats_collector: Option<ServiceStatisticsCollector>,
         mut client_connection_rx: ConnectionCommandReceiver,
     ) {
@@ -170,7 +125,7 @@ impl ServiceProvider {
                             // usually in the low single digits, max a few tens, so we leave that
                             // for a rainy day.
                             // Also that means fiddling with the currently manual
-                            // serialize/deserialize we do with ClientRequests ... bleh
+                            // serialize/deserialize we do with ClientRequests ...
                             for id in ids {
                                 log::trace!("Requesting lane queue length for: {}", id);
                                 let msg = ClientRequest::GetLaneQueueLength(id);
@@ -215,7 +170,7 @@ impl ServiceProvider {
             let deserialized_message = match ServerResponse::deserialize(&data) {
                 Ok(deserialized) => deserialized,
                 Err(err) => {
-                    error!(
+                    log::error!(
                         "Failed to deserialize received websocket message! - {}",
                         err
                     );
@@ -246,34 +201,39 @@ impl ServiceProvider {
     async fn start_proxy(
         conn_id: ConnectionId,
         remote_addr: String,
-        return_address: ReturnAddress,
+        return_address: reply::ReturnAddress,
         controller_sender: ControllerSender,
-        mix_input_sender: MixProxySender<(Socks5Message, ReturnAddress)>,
+        mix_input_sender: MixProxySender<(Socks5Message, reply::ReturnAddress)>,
         lane_queue_lengths: LaneQueueLengths,
         shutdown: TaskClient,
     ) {
-        let mut conn =
-            match Connection::new(conn_id, remote_addr.clone(), return_address.clone()).await {
-                Ok(conn) => conn,
-                Err(err) => {
-                    error!(
-                        "error while connecting to {:?} ! - {:?}",
-                        remote_addr.clone(),
-                        err
-                    );
+        let mut conn = match socks5::tcp::Connection::new(
+            conn_id,
+            remote_addr.clone(),
+            return_address.clone(),
+        )
+        .await
+        {
+            Ok(conn) => conn,
+            Err(err) => {
+                log::error!(
+                    "error while connecting to {:?} ! - {:?}",
+                    remote_addr.clone(),
+                    err
+                );
 
-                    // inform the remote that the connection is closed before it even was established
-                    mix_input_sender
-                        .send((
-                            Socks5Message::Response(Response::new(conn_id, Vec::new(), true)),
-                            return_address,
-                        ))
-                        .await
-                        .expect("InputMessageReceiver has stopped receiving!");
+                // inform the remote that the connection is closed before it even was established
+                mix_input_sender
+                    .send((
+                        Socks5Message::Response(Response::new(conn_id, Vec::new(), true)),
+                        return_address,
+                    ))
+                    .await
+                    .expect("InputMessageReceiver has stopped receiving!");
 
-                    return;
-                }
-            };
+                return;
+            }
+        };
 
         // Connect implies it's a fresh connection - register it with our controller
         let (mix_sender, mix_receiver) = mpsc::unbounded();
@@ -282,7 +242,7 @@ impl ServiceProvider {
             .unwrap();
 
         let old_count = ACTIVE_PROXIES.fetch_add(1, Ordering::SeqCst);
-        info!(
+        log::info!(
             "Starting proxy for {} (currently there are {} proxies being handled)",
             remote_addr,
             old_count + 1
@@ -298,7 +258,7 @@ impl ServiceProvider {
             .unwrap();
 
         let old_count = ACTIVE_PROXIES.fetch_sub(1, Ordering::SeqCst);
-        info!(
+        log::info!(
             "Proxy for {} is finished  (currently there are {} proxies being handled)",
             remote_addr,
             old_count - 1
@@ -309,13 +269,14 @@ impl ServiceProvider {
     async fn handle_proxy_connect(
         &mut self,
         controller_sender: &mut ControllerSender,
-        mix_input_sender: &MixProxySender<(Socks5Message, ReturnAddress)>,
+        mix_input_sender: &MixProxySender<(Socks5Message, reply::ReturnAddress)>,
         lane_queue_lengths: LaneQueueLengths,
         sender_tag: Option<AnonymousSenderTag>,
         connect_req: Box<ConnectRequest>,
         shutdown: TaskClient,
     ) {
-        let return_address = match ReturnAddress::new(connect_req.return_address, sender_tag) {
+        let return_address = match reply::ReturnAddress::new(connect_req.return_address, sender_tag)
+        {
             Some(address) => address,
             None => {
                 log::warn!(
@@ -376,7 +337,7 @@ impl ServiceProvider {
         &mut self,
         message: ReconstructedMessage,
         controller_sender: &mut ControllerSender,
-        mix_input_sender: &MixProxySender<(Socks5Message, ReturnAddress)>,
+        mix_input_sender: &MixProxySender<(Socks5Message, reply::ReturnAddress)>,
         lane_queue_lengths: LaneQueueLengths,
         stats_collector: Option<ServiceStatisticsCollector>,
         shutdown: TaskClient,
@@ -384,7 +345,7 @@ impl ServiceProvider {
         let deserialized_msg = match Socks5Message::try_from_bytes(&message.message) {
             Ok(msg) => msg,
             Err(err) => {
-                error!("Failed to deserialized received message! - {err}");
+                log::error!("Failed to deserialized received message! - {err}");
                 return;
             }
         };
@@ -434,7 +395,7 @@ impl ServiceProvider {
 
     /// Start all subsystems
     pub async fn run(&mut self) -> Result<(), NetworkRequesterError> {
-        let websocket_stream = self.connect_websocket(&self.listening_address).await?;
+        let websocket_stream = self.connect_websocket(&self.websocket_address).await?;
 
         // split the websocket so that we could read and write from separate threads
         let (websocket_writer, mut websocket_reader) = websocket_stream.split();
@@ -442,7 +403,7 @@ impl ServiceProvider {
         // channels responsible for managing messages that are to be sent to the mix network. The receiver is
         // going to be used by `mixnet_response_listener`
         let (mix_input_sender, mix_input_receiver) =
-            tokio::sync::mpsc::channel::<(Socks5Message, ReturnAddress)>(1);
+            tokio::sync::mpsc::channel::<(Socks5Message, reply::ReturnAddress)>(1);
 
         // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
         let shutdown = task::TaskManager::default();
@@ -528,7 +489,7 @@ impl ServiceProvider {
     ) -> Result<TSWebsocketStream, NetworkRequesterError> {
         match websocket::Connection::new(uri).connect().await {
             Ok(ws_stream) => {
-                info!("* connected to local websocket server at {}", uri);
+                log::info!("* connected to local websocket server at {}", uri);
                 Ok(ws_stream)
             }
             Err(err) => {

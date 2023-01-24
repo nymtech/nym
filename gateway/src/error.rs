@@ -44,25 +44,4 @@ pub(crate) enum GatewayError {
         expected_prefix: String,
         actual_prefix: String,
     },
-
-    #[cfg(feature = "coconut")]
-    #[error("could not obtain all coconut coconut verifiers details: {source}")]
-    CoconutVerifiersQueryFailure {
-        #[source]
-        source: ValidatorClientError,
-    },
-
-    #[cfg(feature = "coconut")]
-    #[error("failed to aggregate coconut verification keys: {source}")]
-    CoconutVerificationKeyAggregationFailure {
-        #[source]
-        source: credentials::error::Error,
-    },
-
-    #[cfg(feature = "coconut")]
-    #[error("failed to create coconut verifier: {source}")]
-    CoconutVerifierCreationFailure {
-        #[source]
-        source: crate::node::client_handling::websocket::connection_handler::RequestHandlingError,
-    },
 }

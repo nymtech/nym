@@ -67,6 +67,10 @@ pub(crate) enum RequestHandlingError {
     #[cfg(feature = "coconut")]
     #[error("Coconut interface error - {0}")]
     CoconutInterfaceError(#[from] coconut_interface::error::CoconutInterfaceError),
+
+    #[cfg(feature = "coconut")]
+    #[error("Credential error - {0}")]
+    CredentialError(#[from] credentials::error::Error),
 }
 
 impl RequestHandlingError {
@@ -208,12 +212,28 @@ where
             iv,
         )?;
 
-        if !credential.verify(
-            self.inner
-                .coconut_verifier
-                .as_ref()
-                .aggregated_verification_key(),
-        ) {
+        // Get the latest coconut signers and their VK
+        let credential_api_clients = self
+            .inner
+            .coconut_verifier
+            .all_coconut_api_clients(*credential.epoch_id())
+            .await?;
+        let current_api_clients = self
+            .inner
+            .coconut_verifier
+            .all_current_coconut_api_clients()
+            .await?;
+        if credential_api_clients.is_empty() || current_api_clients.is_empty() {
+            return Err(RequestHandlingError::NotEnoughNymAPIs {
+                received: 0,
+                needed: 1,
+            });
+        }
+
+        let aggregated_verification_key =
+            credentials::obtain_aggregate_verification_key(&credential_api_clients).await?;
+
+        if !credential.verify(&aggregated_verification_key) {
             return Err(RequestHandlingError::InvalidBandwidthCredential(
                 String::from("credential failed to verify on gateway"),
             ));
@@ -221,7 +241,7 @@ where
 
         self.inner
             .coconut_verifier
-            .release_funds(&credential)
+            .release_funds(current_api_clients, &credential)
             .await?;
 
         let bandwidth = Bandwidth::from(credential);

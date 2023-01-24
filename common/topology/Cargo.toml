@@ -8,7 +8,7 @@ edition = "2021"
 
 [dependencies]
 bs58 = "0.4"
-log = "0.4"
+log = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 thiserror = "1.0.37"
 

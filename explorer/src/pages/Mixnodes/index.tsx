@@ -10,7 +10,7 @@ import { useMainContext } from '../../context/main';
 import { MixnodeRowType, mixnodeToGridRow } from '../../components/MixNodes';
 import { TableToolbar } from '../../components/TableToolbar';
 import { MixNodeResponse, MixnodeStatusWithAll, toMixnodeStatus } from '../../typeDefs/explorer-api';
-import { BIG_DIPPER } from '../../api/constants';
+import { NYM_BIG_DIPPER } from '../../api/constants';
 import { CustomColumnHeading } from '../../components/CustomColumnHeading';
 import { Title } from '../../components/Title';
 import { cellStyles, UniversalDataGrid } from '../../components/Universal-DataGrid';
@@ -261,7 +261,7 @@ export const PageMixnodes: FCWithChildren = () => {
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
         <MuiLink
-          href={`${BIG_DIPPER}/account/${params.value}`}
+          href={`${NYM_BIG_DIPPER}/account/${params.value}`}
           target="_blank"
           sx={getCellStyles(theme, params.row)}
           data-testid="big-dipper-link"

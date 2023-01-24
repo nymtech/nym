@@ -102,14 +102,14 @@ impl From<Run> for OverrideConfig {
 }
 
 fn show_binding_warning(address: String) {
-    println!("\n##### NOTE #####");
-    println!(
+    eprintln!("\n##### NOTE #####");
+    eprintln!(
         "\nYou are trying to bind to {} - you might not be accessible to other nodes\n\
          You can ignore this warning if you're running setup on a local network \n\
          or have set a custom 'announce-host'",
         address
     );
-    println!("\n\n");
+    eprintln!("\n\n");
 }
 
 fn special_addresses() -> Vec<&'static str> {
@@ -128,7 +128,7 @@ pub async fn execute(args: Run, output: OutputFormat) -> Result<(), Box<dyn Erro
     }
 
     let mut gateway = crate::node::create_gateway(config).await;
-    println!(
+    eprintln!(
         "\nTo bond your gateway you will need to install the Nym wallet, go to https://nymtech.net/get-involved and select the Download button.\n\
          Select the correct version and install it to your machine. You will need to provide the following: \n ");
     gateway.print_node_details(output)?;

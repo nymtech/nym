@@ -20,6 +20,7 @@ use log::*;
 use nymsphinx::addressing::clients::Recipient;
 use std::error::Error;
 use task::{TaskClient, TaskManager};
+use validator_client::nyxd::QueryNyxdClient;
 
 pub mod config;
 
@@ -53,42 +54,28 @@ impl NymClient {
         }
     }
 
-    async fn create_bandwidth_controller(config: &Config) -> BandwidthController {
-        #[cfg(feature = "coconut")]
-        let bandwidth_controller = {
-            let details = network_defaults::NymNetworkDetails::new_from_env();
-            let mut client_config =
-                validator_client::Config::try_from_nym_network_details(&details)
-                    .expect("failed to construct validator client config");
-            let nyxd_url = config
-                .get_base()
-                .get_validator_endpoints()
-                .pop()
-                .expect("No nyxd validator endpoint provided");
-            let api_url = config
-                .get_base()
-                .get_nym_api_endpoints()
-                .pop()
-                .expect("No validator api endpoint provided");
-            // overwrite env configuration with config URLs
-            client_config = client_config.with_urls(nyxd_url, api_url);
-            let client = validator_client::Client::new_query(client_config)
-                .expect("Could not construct query client");
-            let coconut_api_clients =
-                validator_client::CoconutApiClient::all_coconut_api_clients(&client)
-                    .await
-                    .expect("Could not query api clients");
-            BandwidthController::new(
-                credential_storage::initialise_storage(config.get_base().get_database_path()).await,
-                coconut_api_clients,
-            )
-        };
-        #[cfg(not(feature = "coconut"))]
-        let bandwidth_controller = BandwidthController::new(
+    async fn create_bandwidth_controller(config: &Config) -> BandwidthController<QueryNyxdClient> {
+        let details = network_defaults::NymNetworkDetails::new_from_env();
+        let mut client_config = validator_client::Config::try_from_nym_network_details(&details)
+            .expect("failed to construct validator client config");
+        let nyxd_url = config
+            .get_base()
+            .get_validator_endpoints()
+            .pop()
+            .expect("No nyxd validator endpoint provided");
+        let api_url = config
+            .get_base()
+            .get_nym_api_endpoints()
+            .pop()
+            .expect("No validator api endpoint provided");
+        // overwrite env configuration with config URLs
+        client_config = client_config.with_urls(nyxd_url, api_url);
+        let client = validator_client::Client::new_query(client_config)
+            .expect("Could not construct query client");
+        BandwidthController::new(
             credential_storage::initialise_storage(config.get_base().get_database_path()).await,
+            client,
         )
-        .expect("Could not create bandwidth controller");
-        bandwidth_controller
     }
 
     fn start_socks5_listener(
@@ -206,7 +193,7 @@ impl NymClient {
             self.key_manager,
             Some(Self::create_bandwidth_controller(&self.config).await),
             non_wasm_helpers::setup_fs_reply_surb_backend(
-                self.config.get_base().get_reply_surb_database_path(),
+                Some(self.config.get_base().get_reply_surb_database_path()),
                 self.config.get_debug_settings(),
             )
             .await?,

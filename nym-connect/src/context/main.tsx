@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, useRef } from 'react';
 import { DateTime } from 'luxon';
 import { invoke } from '@tauri-apps/api';
 import type { UnlistenFn } from '@tauri-apps/api/event';
@@ -7,7 +7,7 @@ import { forage } from '@tauri-apps/tauri-forage';
 import { Error } from 'src/types/error';
 import { TauriEvent } from 'src/types/event';
 import { getVersion } from '@tauri-apps/api/app';
-import { ConnectionStatusKind } from '../types';
+import { ConnectionStatusKind, GatewayPerformance } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ServiceProvider, Services } from '../types/directory';
 
@@ -25,7 +25,7 @@ export type TClientContext = {
   serviceProvider?: ServiceProvider;
   showHelp: boolean;
   error?: Error;
-
+  gatewayPerformance: GatewayPerformance;
   setMode: (mode: ModeType) => void;
   clearError: () => void;
   handleShowHelp: () => void;
@@ -50,11 +50,14 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const [showHelp, setShowHelp] = useState(false);
   const [error, setError] = useState<Error>();
   const [appVersion, setAppVersion] = useState<string>();
+  const [gatewayPerformance, setGatewayPerformance] = useState<GatewayPerformance>('Good');
 
   const getAppVersion = async () => {
     const version = await getVersion();
     setAppVersion(version);
   };
+
+  const timerId = useRef<NodeJS.Timeout>();
 
   useEffect(() => {
     invoke('get_services').then((result) => {
@@ -93,6 +96,22 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       unlisten.push(result);
     });
 
+    listen('socks5-status-event', (e: TauriEvent) => {
+      if (e.payload.message.includes('slow')) {
+        setGatewayPerformance('Poor');
+
+        if (timerId.current) {
+          clearTimeout(timerId.current);
+        }
+
+        timerId.current = setTimeout(() => {
+          setGatewayPerformance('Good');
+        }, 10000);
+      }
+    }).then((result) => {
+      unlisten.push(result);
+    });
+
     return () => {
       unlisten.forEach((unsubscribe) => unsubscribe());
     };
@@ -110,6 +129,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const startDisconnecting = useCallback(async () => {
     try {
       await invoke('start_disconnecting');
+      setGatewayPerformance('Good');
     } catch (e) {
       console.log(e);
     }
@@ -187,6 +207,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       setServiceProvider,
       showHelp,
       handleShowHelp,
+      gatewayPerformance,
     }),
     [
       appVersion,
@@ -200,6 +221,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       connectedSince,
       services,
       serviceProvider,
+      gatewayPerformance,
     ],
   );
 

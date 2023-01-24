@@ -32,9 +32,13 @@ use coconut_interface::Credential;
 use credential_storage::PersistentStorage;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;
+#[cfg(not(target_arch = "wasm32"))]
+use validator_client::nyxd::CosmWasmClient;
 
 #[cfg(target_arch = "wasm32")]
-use crate::wasm_storage::PersistentStorage;
+use crate::wasm_mockups::CosmWasmClient;
+#[cfg(target_arch = "wasm32")]
+use crate::wasm_mockups::PersistentStorage;
 #[cfg(target_arch = "wasm32")]
 use wasm_timer;
 #[cfg(target_arch = "wasm32")]
@@ -43,7 +47,7 @@ use wasm_utils::websocket::JSWebsocket;
 const DEFAULT_RECONNECTION_ATTEMPTS: usize = 10;
 const DEFAULT_RECONNECTION_BACKOFF: Duration = Duration::from_secs(5);
 
-pub struct GatewayClient {
+pub struct GatewayClient<C: Clone> {
     authenticated: bool,
     disabled_credentials_mode: bool,
     bandwidth_remaining: i64,
@@ -55,7 +59,7 @@ pub struct GatewayClient {
     connection: SocketState,
     packet_router: PacketRouter,
     response_timeout_duration: Duration,
-    bandwidth_controller: Option<BandwidthController<PersistentStorage>>,
+    bandwidth_controller: Option<BandwidthController<C, PersistentStorage>>,
 
     // reconnection related variables
     /// Specifies whether client should try to reconnect to gateway on connection failure.
@@ -70,7 +74,10 @@ pub struct GatewayClient {
     shutdown: TaskClient,
 }
 
-impl GatewayClient {
+impl<C> GatewayClient<C>
+where
+    C: CosmWasmClient + Sync + Send + Clone,
+{
     // TODO: put it all in a Config struct
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -82,7 +89,7 @@ impl GatewayClient {
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
         response_timeout_duration: Duration,
-        bandwidth_controller: Option<BandwidthController<PersistentStorage>>,
+        bandwidth_controller: Option<BandwidthController<C, PersistentStorage>>,
         shutdown: TaskClient,
     ) -> Self {
         GatewayClient {
@@ -138,7 +145,7 @@ impl GatewayClient {
         let shutdown = TaskClient::dummy();
         let packet_router = PacketRouter::new(ack_tx, mix_tx, shutdown.clone());
 
-        GatewayClient {
+        GatewayClient::<C> {
             authenticated: false,
             disabled_credentials_mode: true,
             bandwidth_remaining: 0,

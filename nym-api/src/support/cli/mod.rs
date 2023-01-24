@@ -99,7 +99,7 @@ pub(crate) struct CliArgs {
 
     /// Flag to indicate whether coconut signer authority is enabled on this API
     #[cfg(feature = "coconut")]
-    #[clap(long, requires = "mnemonic", requires = "announce-address")]
+    #[clap(long, requires = "mnemonic", requires = "announce_address")]
     pub(crate) enable_coconut: Option<bool>,
 }
 

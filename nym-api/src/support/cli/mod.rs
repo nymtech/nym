@@ -43,8 +43,8 @@ pub(crate) struct CliArgs {
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
     /// Id of the nym-api we want to run
-    #[clap(long)]
-    pub(crate) id: Option<String>,
+    #[clap(long, default_value = "nym")]
+    pub(crate) id: String,
 
     /// Specifies whether network monitoring is enabled on this API
     #[clap(short = 'm', long)]
@@ -105,11 +105,10 @@ pub(crate) struct CliArgs {
 
 pub(crate) fn build_config(args: CliArgs) -> Result<Config> {
     // try to load config from the file, if it doesn't exist, use default values
-    let id = args.id.as_deref();
-    let (config_from_file, _already_initialized) = match Config::load_from_file(id) {
+    let (config_from_file, _already_initialized) = match Config::load_from_file(Some(&args.id)) {
         Ok(cfg) => (cfg, true),
         Err(_) => {
-            let config_path = Config::default_config_file_path(id)
+            let config_path = Config::default_config_file_path(Some(&args.id))
                 .into_os_string()
                 .into_string()
                 .unwrap();
@@ -132,15 +131,13 @@ pub(crate) fn build_config(args: CliArgs) -> Result<Config> {
 }
 
 pub(crate) fn override_config(mut config: Config, args: CliArgs) -> Config {
-    if let Some(id) = args.id {
-        fs::create_dir_all(Config::default_config_directory(Some(&id)))
-            .expect("Could not create config directory");
-        fs::create_dir_all(Config::default_data_directory(Some(&id)))
-            .expect("Could not create data directory");
-        config = config.with_id(&id);
-    }
+    fs::create_dir_all(Config::default_config_directory(Some(&args.id)))
+        .expect("Could not create config directory");
+    fs::create_dir_all(Config::default_data_directory(Some(&args.id)))
+        .expect("Could not create data directory");
 
     config = config
+        .with_id(&args.id)
         .with_optional(Config::with_custom_nyxd_validator, args.nyxd_validator)
         .with_optional_env(
             Config::with_custom_mixnet_contract,

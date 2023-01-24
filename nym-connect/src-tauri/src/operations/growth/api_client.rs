@@ -83,6 +83,7 @@ impl GrowthApiClient {
         }
     }
 
+    // TODO: use the method in `operations::http` instead
     pub(crate) async fn post<REQ: Serialize + ?Sized, RESP: DeserializeOwned>(
         &self,
         url: &str,

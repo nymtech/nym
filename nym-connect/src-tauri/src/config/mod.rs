@@ -108,30 +108,7 @@ pub async fn init_socks5_config(
     chosen_gateway_id: String,
 ) -> Result<(Config, KeyManager)> {
     log::trace!("Initialising client...");
-
-    // Append the gateway id to the name id that we store the config under
-    let id = socks5_config_id_appended_with(&chosen_gateway_id)?;
-
-    // log::debug!(
-    //     "Attempting to use config file location: {}",
-    //     Config::config_file_location(&id)?.to_string_lossy(),
-    // );
-    // let already_init = Config::config_file_location(&id)?.exists();
-    // if already_init {
-    //     log::info!("SOCKS5 client \"{id}\" was already initialised before");
-    // }
-
-    // Future proofing. This flag exists for the other clients
-    // let user_wants_force_register = false;
-
-    // If the client was already initialized, don't generate new keys and don't re-register with
-    // the gateway (because this would create a new shared key).
-    // Unless the user really wants to.
-    // let register_gateway = !already_init || user_wants_force_register;
-    let register_gateway = false;
-
-    log::trace!("Creating config for id: {}", id);
-    let mut config = Config::new(id.as_str(), &provider_address);
+    let mut config = Config::new(SOCKS5_CONFIG_ID, &provider_address);
 
     if let Ok(raw_validators) = std::env::var(config_common::defaults::var_names::NYM_API) {
         config
@@ -139,29 +116,28 @@ pub async fn init_socks5_config(
             .set_custom_nym_apis(config_common::parse_urls(&raw_validators));
     }
 
+    let nym_api_endpoints = config.get_base().get_nym_api_endpoints();
+
     let chosen_gateway_id = identity::PublicKey::from_base58_string(chosen_gateway_id)
         .map_err(|_| BackendError::UnableToParseGateway)?;
 
-    // Setup gateway by either registering a new one, or reusing exiting keys
-    let (gateway, keys) = client_core::init::setup_gateway_from_config::<Socks5Config, _>(
-        register_gateway,
+    let mut key_manager = client_core::init::new_client_keys();
+
+    // Setup gateway and register a new key each time
+    let gateway = client_core::init::register_with_gateway(
+        &mut key_manager,
+        nym_api_endpoints,
         Some(chosen_gateway_id),
-        config.get_base(),
-    )
-    .await?;
+    ).await?;
 
     config.get_base_mut().with_gateway_endpoint(gateway);
 
-    //config.get_socks5().save_to_file(None).tap_err(|_| {
-    //    log::error!("Failed to save the config file");
-    //})?;
-
     print_saved_config(&config);
 
-    // let address = client_core::init::get_client_address_from_stored_keys(config.get_base())?;
-    // log::info!("The address of this client is: {}", address);
+    let address = *key_manager.identity_keypair().public_key();
+    log::info!("The address of this client is: {}", address);
 
-    Ok((config, keys))
+    Ok((config, key_manager))
 }
 
 fn print_saved_config(config: &Config) {

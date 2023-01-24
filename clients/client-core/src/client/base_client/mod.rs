@@ -13,7 +13,7 @@ use crate::client::received_buffer::{
 use crate::client::replies::reply_controller;
 use crate::client::replies::reply_controller::{ReplyControllerReceiver, ReplyControllerSender};
 use crate::client::replies::reply_storage::{
-    CombinedReplyStorage, PersistentReplyStorage, ReplyStorageBackend, SentReplyKeys,
+    self, CombinedReplyStorage, PersistentReplyStorage, ReplyStorageBackend, SentReplyKeys,
 };
 use crate::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
@@ -44,6 +44,8 @@ use super::received_buffer::ReceivedBufferMessage;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 pub mod non_wasm_helpers;
+
+pub mod helpers;
 
 pub struct ClientInput {
     pub connection_command_sender: ConnectionCommandSender,

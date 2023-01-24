@@ -35,11 +35,11 @@ coconut-interface = { path = "../../common/coconut-interface", optional = true }
 config = { path = "../../common/config" }
 completions = { path = "../../common/completions" }
 credential-storage = { path = "../../common/credential-storage" }
-mobile-storage = { path = "../../common/mobile-storage" }
+mobile-storage = { path = "../../common/mobile-storage", optional = true }
 credentials = { path = "../../common/credentials", optional = true }
 crypto = { path = "../../common/crypto" }
 logging = { path = "../../common/logging"}
-gateway-client = { path = "../../common/client-libs/gateway-client", features = ["mobile"] }
+gateway-client = { path = "../../common/client-libs/gateway-client" }
 gateway-requests = { path = "../../gateway/gateway-requests" }
 network-defaults = { path = "../../common/network-defaults" }
 nymsphinx = { path = "../../common/nymsphinx" }
@@ -55,4 +55,4 @@ version-checker = { path = "../../common/version-checker" }
 [features]
 coconut = ["coconut-interface", "credentials", "gateway-requests/coconut", "gateway-client/coconut", "credentials/coconut", "client-core/coconut"]
 eth = []
-mobile = []
+mobile = ["mobile-storage", "gateway-client/mobile"]

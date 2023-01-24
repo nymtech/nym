@@ -4,8 +4,8 @@ use client_connections::TransmissionLane;
 use client_core::{
     client::{
         base_client::{
-            non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
-            CredentialsToggle,
+            helpers::setup_empty_reply_surb_backend, non_wasm_helpers, BaseClientBuilder,
+            ClientInput, ClientOutput, ClientState, CredentialsToggle,
         },
         inbound_messages::InputMessage,
         key_manager::KeyManager,
@@ -221,8 +221,7 @@ impl ClientBuilder {
         let bandwidth_controller = None;
 
         // TODO: currently we only support in-memory reply surb storage.
-        let reply_storage_backend =
-            non_wasm_helpers::setup_empty_reply_surb_backend(&self.config.debug_config);
+        let reply_storage_backend = setup_empty_reply_surb_backend(&self.config.debug_config);
 
         let base_builder = BaseClientBuilder::new(
             &gateway_endpoint_config,

@@ -53,6 +53,5 @@ export const ConnectedLayout: FCWithChildren<{
     {/* <ConnectionStats stats={stats} /> */}
     <ConnectionTimer connectedSince={connectedSince} />
     <ConnectionButton status={status} busy={busy} onClick={onConnectClick} isError={isError} />
-    <TestAndEarnButtonArea />
   </>
 );

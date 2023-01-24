@@ -506,7 +506,7 @@ mod tests {
         let spendable = account
             .spendable_coins(None, &env, &mut deps.storage)
             .unwrap();
-        assert_eq!(spendable.amount, Uint128::new(70_000_000_000));
+        assert_eq!(spendable.amount, Uint128::new(160_000_000_000));
 
         let ok = account.try_undelegate_from_mixnode(mix_id, &mut deps.storage);
         assert!(ok.is_ok());

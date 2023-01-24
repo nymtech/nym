@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #[cfg(target_arch = "wasm32")]
-use crate::wasm_storage::StorageError;
+use crate::wasm_mockups::StorageError;
 #[cfg(not(target_arch = "wasm32"))]
 use credential_storage::error::StorageError;
 use gateway_requests::registration::handshake::error::HandshakeError;

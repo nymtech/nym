@@ -12,7 +12,12 @@ pub trait Storage: Send + Sync {
     ///
     /// # Arguments
     ///
+    /// * `voucher_value`: How much bandwidth is in the credential.
+    /// * `voucher_info`: What type of credential it is.
+    /// * `serial_number`: Serial number of the credential.
+    /// * `binding_number`: Binding number of the credential.
     /// * `signature`: Coconut credential in the form of a signature.
+    /// * `epoch_id`: The epoch when it was signed.
     async fn insert_coconut_credential(
         &self,
         voucher_value: String,
@@ -20,6 +25,7 @@ pub trait Storage: Send + Sync {
         serial_number: String,
         binding_number: String,
         signature: String,
+        epoch_id: String,
     ) -> Result<(), StorageError>;
 
     /// Tries to retrieve one of the stored, unused credentials.

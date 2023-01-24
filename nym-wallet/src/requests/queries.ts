@@ -1,14 +1,13 @@
 import {
-  StakeSaturationResponse,
-  MixnodeStatusResponse,
-  InclusionProbabilityResponse,
   DecCoin,
-  MixNodeDetails,
   GatewayBond,
-  RewardEstimationResponse,
-  WrappedDelegationEvent,
+  InclusionProbabilityResponse,
+  MixNodeDetails,
+  MixnodeStatusResponse,
   PendingIntervalEvent,
-  Coin,
+  RewardEstimationResponse,
+  StakeSaturationResponse,
+  WrappedDelegationEvent,
 } from '@nymproject/types';
 import { Interval, TGatewayReport, TNodeDescription } from 'src/types';
 import { invokeWrapper } from './wrapper';

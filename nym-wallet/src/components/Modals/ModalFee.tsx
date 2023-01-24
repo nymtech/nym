@@ -27,11 +27,9 @@ export const ModalFee = ({ fee, isLoading, error, divider }: TFeeProps) => (
   </>
 );
 
-export const ModalTotalAmount = ({ fee, amount, isLoading, error, divider }: TTotalAmountProps) => {
-  return (
-    <>
-      <ModalListItem label="Total amount" value={getValue({ fee, amount, isLoading, error })} fontWeight={600} />
-      {divider && <ModalDivider />}
-    </>
-  );
-};
+export const ModalTotalAmount = ({ fee, amount, isLoading, error, divider }: TTotalAmountProps) => (
+  <>
+    <ModalListItem label="Total amount" value={getValue({ fee, amount, isLoading, error })} fontWeight={600} />
+    {divider && <ModalDivider />}
+  </>
+);

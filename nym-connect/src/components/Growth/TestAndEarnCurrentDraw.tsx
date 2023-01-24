@@ -151,7 +151,7 @@ export const TestAndEarnCurrentDraw: FCWithChildren<{
 
   if (draw && closesIn && endsUtc) {
     return (
-      <Card sx={{ mb: 2, ...sx }} elevation={10}>
+      <Card sx={{ mb: 2, ...(Array.isArray(sx) ? sx : [sx]) }} elevation={10}>
         <CardContent>
           <h3>
             {"Today's task ends "}

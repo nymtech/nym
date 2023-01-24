@@ -28,11 +28,9 @@ use task::{TaskClient, TaskManager};
 #[cfg(feature = "coconut")]
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 #[cfg(feature = "coconut")]
-use credentials::coconut::utils::obtain_aggregate_verification_key;
-#[cfg(feature = "coconut")]
 use network_defaults::NymNetworkDetails;
 #[cfg(feature = "coconut")]
-use validator_client::{Client, CoconutApiClient};
+use validator_client::Client;
 
 pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
@@ -321,16 +319,7 @@ where
         #[cfg(feature = "coconut")]
         let coconut_verifier = {
             let nyxd_client = self.random_nyxd_client();
-            let api_clients = CoconutApiClient::all_coconut_api_clients(&nyxd_client)
-                .await
-                .map_err(|source| GatewayError::CoconutVerifiersQueryFailure { source })?;
-            let validators_verification_key = obtain_aggregate_verification_key(&api_clients)
-                .await
-                .map_err(
-                    |source| GatewayError::CoconutVerificationKeyAggregationFailure { source },
-                )?;
-            CoconutVerifier::new(api_clients, nyxd_client, validators_verification_key)
-                .map_err(|source| GatewayError::CoconutVerifierCreationFailure { source })?
+            CoconutVerifier::new(nyxd_client)
         };
 
         let mix_forwarding_channel = self.start_packet_forwarder(shutdown.subscribe());

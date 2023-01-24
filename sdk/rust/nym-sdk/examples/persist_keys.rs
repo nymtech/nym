@@ -14,7 +14,9 @@ async fn main() {
     let keys = mixnet::StoragePaths::new_from_dir(mixnet::KeyMode::Keep, &config_dir).unwrap();
 
     // Provide key paths for the client to read/write keys to.
-    let client = mixnet::ClientBuilder::new(None, Some(keys)).unwrap();
+    let client = mixnet::MixnetClient::builder(None, Some(keys))
+        .await
+        .unwrap();
 
     // Connect to the mixnet, now we're listening for incoming
     let mut client = client.connect_to_mixnet().await.unwrap();
@@ -24,9 +26,7 @@ async fn main() {
     println!("Our client nym address is: {our_address}");
 
     // Send a message throught the mixnet to ourselves
-    client
-        .send_str(&our_address.to_string(), "hello there")
-        .await;
+    client.send_str(*our_address, "hello there").await;
 
     println!("Waiting for message");
     if let Some(received) = client.wait_for_messages().await {

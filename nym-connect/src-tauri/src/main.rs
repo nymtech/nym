@@ -41,6 +41,7 @@ fn main() {
             crate::config::get_config_file_location,
             crate::config::get_config_id,
             crate::operations::connection::status::get_connection_status,
+            crate::operations::connection::status::run_health_check,
             crate::operations::connection::connect::get_gateway,
             crate::operations::connection::connect::get_service_provider,
             crate::operations::connection::connect::set_gateway,

@@ -30,7 +30,9 @@ pub trait CoconutBandwidthSigningClient {
 }
 
 #[async_trait]
-impl<C: SigningCosmWasmClient + Sync + Send> CoconutBandwidthSigningClient for NyxdClient<C> {
+impl<C: SigningCosmWasmClient + Sync + Send + Clone> CoconutBandwidthSigningClient
+    for NyxdClient<C>
+{
     async fn deposit(
         &self,
         amount: Coin,

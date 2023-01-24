@@ -4,6 +4,16 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 # [Unreleased]
 
+### Added
+
+- dkg rerun from scratch and dkg-specific epochs ([#2839])
+- nym-sdk: add support for surb storage ([#2870])
+- nym-sdk: enable reply-SURBs by default ([#2874])
+
+[#2839]: https://github.com/nymtech/nym/pull/2839
+[#2870]: https://github.com/nymtech/nym/pull/2870
+[#2874]: https://github.com/nymtech/nym/pull/2874
+
 # [v1.1.7] (2023-01-24)
 
 ### Added
@@ -29,13 +39,13 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#2670]: https://github.com/nymtech/nym/issues/2670
 [#1893]: https://github.com/nymtech/nym/issues/1893
 
-
 ## [v1.1.6] (2023-01-17)
 
 ### Added
 
 - nym-sdk: added initial version of a Rust client sdk
 - nym-api: added `/circulating-supply` endpoint ([#2814])
+- nym-api: add endpoint listing detailed gateway info by @octol in https://github.com/nymtech/nym/pull/2833
 
 ### Changed
 

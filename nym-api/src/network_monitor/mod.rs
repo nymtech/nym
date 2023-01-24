@@ -22,6 +22,7 @@ use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
 use std::sync::Arc;
 use task::TaskManager;
+use validator_client::nyxd::SigningNyxdClient;
 
 pub(crate) mod chunker;
 pub(crate) mod gateways_reader;
@@ -93,25 +94,14 @@ impl<'a> NetworkMonitorBuilder<'a> {
             *encryption_keypair.public_key(),
         );
 
-        #[cfg(feature = "coconut")]
         let bandwidth_controller = {
             let client = self._nyxd_client.0.read().await;
-            let coconut_api_clients =
-                validator_client::CoconutApiClient::all_coconut_api_clients(&client)
-                    .await
-                    .expect("Could not query api clients");
             BandwidthController::new(
                 credential_storage::initialise_storage(self.config.get_credentials_database_path())
                     .await,
-                coconut_api_clients,
+                client.clone(),
             )
         };
-        #[cfg(not(feature = "coconut"))]
-        let bandwidth_controller = BandwidthController::new(
-            credential_storage::initialise_storage(self.config.get_credentials_database_path())
-                .await,
-        )
-        .expect("Could not create bandwidth controller");
 
         let packet_sender = new_packet_sender(
             self.config,
@@ -188,7 +178,7 @@ fn new_packet_sender(
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<identity::KeyPair>,
     max_sending_rate: usize,
-    bandwidth_controller: BandwidthController<PersistentStorage>,
+    bandwidth_controller: BandwidthController<SigningNyxdClient, PersistentStorage>,
     disabled_credentials_mode: bool,
 ) -> PacketSender {
     PacketSender::new(

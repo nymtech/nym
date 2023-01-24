@@ -502,7 +502,7 @@ mod tests {
 
         let locked_coins = account.locked_coins(None, &env, &mut deps.storage).unwrap();
         // vesting - delegated_vesting - pledged_vesting
-        assert_eq!(locked_coins.amount, Uint128::new(750_000_000_000));
+        assert_eq!(locked_coins.amount, Uint128::new(660_000_000_000));
         let spendable = account
             .spendable_coins(None, &env, &mut deps.storage)
             .unwrap();
@@ -585,7 +585,7 @@ mod tests {
         assert_eq!(delegated_vesting.amount, Uint128::new(90_000_000_000));
 
         // vesting - delegated_vesting - pledged_vesting
-        assert_eq!(locked_coins.amount, Uint128::new(660_000_000_000));
+        assert_eq!(locked_coins.amount, Uint128::new(750_000_000_000));
     }
 
     #[test]
@@ -1353,35 +1353,28 @@ mod tests {
             .spendable_coins(None, &env, &deps.storage)
             .unwrap();
 
-        let locked_coins = vesting_account.locked_coins(None, &env, &deps.storage).unwrap();
+        let locked_coins = vesting_account
+            .locked_coins(None, &env, &deps.storage)
+            .unwrap();
 
         assert_eq!(spendable_coins.amount, Uint128::new(0));
         assert_eq!(locked_coins.amount, Uint128::new(22_000_000_000_000));
 
-
-        // Ok lets break the cap now, since user can withdraw from the unlocked tokens, and all unlocked tokens are delegated,
-        // withdrawal will be drawn from the delegation, in order to preserve the delegation amount, accounting will ascribe more locked
-        // tokens to the delegation, keeping the delegation number constant and breaking the cap.
+        // Check that user can't withdraw free coins if they're delegated
 
         let info = MessageInfo {
             sender: Addr::unchecked("owner"),
             funds: vec![],
         };
 
-        // try_withdraw_vested_coins(
-        //     Coin::new(1_000_000_000_000, TEST_COIN_DENOM),
-        //     env.clone(),
-        //     info,
-        //     deps.as_mut(),
-        // )
-        // .unwrap();
+        let err = try_withdraw_vested_coins(
+            Coin::new(1_000_000_000_000, TEST_COIN_DENOM),
+            env.clone(),
+            info,
+            deps.as_mut(),
+        );
 
-        // vesting_account
-        //     .withdraw(
-        //         coins(1_000_000_000_000, TEST_COIN_DENOM).first().unwrap(),
-        //         &mut deps.storage,
-        //     )
-        //     .unwrap();
+        assert!(err.is_err());
 
         let delegated_free = vesting_account
             .get_delegated_free(None, &env, &deps.storage)
@@ -1397,8 +1390,6 @@ mod tests {
 
         assert_eq!(delegated_free.amount, Uint128::new(8_000_000_000_000));
         assert_eq!(delegated_vesting.amount, Uint128::new(4_000_000_000_000));
-
-        // The user can now redelegate the 1_000_000_000_000 tokens to the same node, however no new coins can be delegated from the vesting contract itself
 
         let delegation = Coin {
             amount: Uint128::new(1_000_000_000_000),

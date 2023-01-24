@@ -109,7 +109,6 @@ where
 {
     let id = config.get_id();
 
-    let mut key_manager = new_client_keys();
     // If we are not going to register gateway, and an explicitly chosed gateway is not passed in,
     // load the existing configuration file
     if !register_gateway && user_chosen_gateway_id.is_none() {
@@ -131,6 +130,7 @@ where
     }
 
     // Create new keys and derive our identity
+    let mut key_manager = new_client_keys();
     let our_identity = key_manager.identity_keypair();
 
     // Establish connection, authenticate and generate keys for talking with the gateway
@@ -210,7 +210,6 @@ where
 
     let pathfinder = ClientKeyPathfinder::new_from_config(config);
     let identity_keypair = load_identity_keys(&pathfinder)?;
-
     let sphinx_keypair = load_sphinx_keys(&pathfinder)?;
 
     let client_recipient = Recipient::new(

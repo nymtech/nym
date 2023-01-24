@@ -26,11 +26,10 @@ pub async fn get_config_id(state: tauri::State<'_, Arc<RwLock<State>>>) -> Resul
 }
 
 #[tauri::command]
-pub async fn get_config_file_location(
+pub fn get_config_file_location(
     state: tauri::State<'_, Arc<RwLock<State>>>,
 ) -> Result<String> {
-    let id = get_config_id(state).await?;
-    Config::config_file_location(&id).map(|d| d.to_string_lossy().to_string())
+    Err(BackendError::CouldNotGetConfigFilename)
 }
 
 #[derive(Debug)]
@@ -93,13 +92,6 @@ impl Config {
 
         log::info!("Configuration saved 🚀");
         Ok((config, keys))
-    }
-
-    pub fn config_file_location(id: &str) -> Result<PathBuf> {
-        Ok(PathBuf::from("/data/local/tmp"))
-        // TODO android temp fix
-        //     Socks5Config::try_default_config_file_path(Some(id))
-        //         .ok_or(BackendError::CouldNotGetConfigFilename)
     }
 }
 

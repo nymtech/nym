@@ -71,7 +71,7 @@ fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {
 }
 
 pub(crate) fn execute(args: &Sign) {
-    let config = match Config::load_from_file(Some(&args.id)) {
+    let config = match Config::load_from_file(&args.id) {
         Ok(cfg) => cfg,
         Err(err) => {
             error!(

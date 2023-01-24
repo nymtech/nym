@@ -11,14 +11,14 @@ pub(crate) fn build_config<O: Into<OverrideConfig>>(
     id: String,
     override_args: O,
 ) -> Result<Config, GatewayError> {
-    let config = match Config::load_from_file(Some(&id)) {
+    let config = match Config::load_from_file(&id) {
         Ok(cfg) => cfg,
         Err(err) => {
             error!(
                 "Failed to load config for {id}. Are you sure you have run `init` before? (Error was: {err})",
             );
             return Err(GatewayError::ConfigLoadFailure {
-                path: Config::default_config_file_path(Some(&id)),
+                path: Config::default_config_file_path(&id),
                 id,
                 source: err,
             });

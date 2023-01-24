@@ -68,7 +68,7 @@ pub(crate) fn execute(args: &Init, output: OutputFormat) {
     let id = &override_config_fields.id;
     eprintln!("Initialising mixnode {id}...");
 
-    let already_init = if Config::default_config_file_path(Some(id)).exists() {
+    let already_init = if Config::default_config_file_path(id).exists() {
         eprintln!("Mixnode \"{id}\" was already initialised before! Config information will be overwritten (but keys will be kept)!");
         true
     } else {

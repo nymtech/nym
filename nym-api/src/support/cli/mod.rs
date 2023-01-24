@@ -105,10 +105,10 @@ pub(crate) struct CliArgs {
 
 pub(crate) fn build_config(args: CliArgs) -> Result<Config> {
     // try to load config from the file, if it doesn't exist, use default values
-    let (config_from_file, _already_initialized) = match Config::load_from_file(Some(&args.id)) {
+    let (config_from_file, _already_initialized) = match Config::load_from_file(&args.id) {
         Ok(cfg) => (cfg, true),
         Err(_) => {
-            let config_path = Config::default_config_file_path(Some(&args.id))
+            let config_path = Config::default_config_file_path(&args.id)
                 .into_os_string()
                 .into_string()
                 .unwrap();
@@ -131,9 +131,9 @@ pub(crate) fn build_config(args: CliArgs) -> Result<Config> {
 }
 
 pub(crate) fn override_config(mut config: Config, args: CliArgs) -> Config {
-    fs::create_dir_all(Config::default_config_directory(Some(&args.id)))
+    fs::create_dir_all(Config::default_config_directory(&args.id))
         .expect("Could not create config directory");
-    fs::create_dir_all(Config::default_data_directory(Some(&args.id)))
+    fs::create_dir_all(Config::default_data_directory(&args.id))
         .expect("Could not create data directory");
 
     config = config

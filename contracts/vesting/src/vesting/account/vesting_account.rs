@@ -30,7 +30,7 @@ impl VestingAccount for Account {
                     .amount
                     .u128()
                     .saturating_sub(
-                        self.get_delegated_vesting(block_time, env, storage)?
+                        self.get_delegated_free(block_time, env, storage)?
                             .amount
                             .u128(),
                     )
@@ -54,7 +54,11 @@ impl VestingAccount for Account {
             amount: Uint128::new(
                 self.load_balance(storage)?
                     .u128()
-                    .saturating_sub(self.locked_coins(block_time, env, storage)?.amount.u128()),
+                    .saturating_sub(self.locked_coins(block_time, env, storage)?.amount.u128())
+                    .saturating_sub(self.get_pledged_free(block_time, env, storage)?.amount.u128())
+                    .saturating_sub(self.get_pledged_vesting(block_time, env, storage)?.amount.u128())
+                    .saturating_sub(self.get_delegated_vesting(block_time, env, storage)?.amount.u128())
+                    .saturating_sub(self.get_delegated_free(block_time, env, storage)?.amount.u128())
             ),
             denom: MIX_DENOM.load(storage)?,
         })

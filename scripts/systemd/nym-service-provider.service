@@ -1,0 +1,11 @@
+[Unit]
+Description=NYM Client
+
+[Service]
+User=nym
+ExecStart=/usr/local/bin/nym-service-provider run --id service-provider
+LimitNOFILE=65535
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

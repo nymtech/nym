@@ -10,7 +10,7 @@ async fn main() {
 
     let config = mixnet::Config::new(user_chosen_gateway_id, nym_api_endpoints);
 
-    let mut client = mixnet::MixnetClientBuilder::new(Some(config), None)
+    let mut client = mixnet::MixnetClient::builder(Some(config), None)
         .await
         .unwrap();
 
@@ -37,7 +37,8 @@ async fn main() {
     println!("Our client address is {}", client.nym_address());
 
     // Send important info up the pipe to a buddy
-    client.send_str("foo.bar@blah", "flappappa").await;
+    let recipient = mixnet::Recipient::try_from_base58_string("foo.bar@blah").unwrap();
+    client.send_str(recipient, "flappappa").await;
 }
 
 #[allow(unused)]

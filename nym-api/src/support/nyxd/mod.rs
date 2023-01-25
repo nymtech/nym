@@ -182,6 +182,9 @@ impl Client {
             .nyxd
             .query_contract_raw(vesting_contract, b"key".to_vec())
             .await?;
+        if res.is_empty() {
+            return Ok(0);
+        }
 
         Ok(serde_json::from_slice(&res).map_err(NyxdError::from)?)
     }

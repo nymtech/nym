@@ -7,11 +7,11 @@ import { TBondedMixnode, urls } from 'src/context';
 import { NymCard } from 'src/components';
 import { IdentityKey } from 'src/components/IdentityKey';
 import { NodeStatus } from 'src/components/NodeStatus';
+import { getIntervalAsDate } from 'src/utils';
 import { Node as NodeIcon } from '../../svg-icons/node';
 import { Cell, Header, NodeTable } from './NodeTable';
 import { BondedMixnodeActions, TBondedMixnodeActions } from './BondedMixnodeActions';
 import { NodeStats } from './NodeStats';
-import { getIntervalAsDate } from 'src/utils';
 
 const textWhenNotName = 'This node has not yet set a name';
 
@@ -85,8 +85,8 @@ export const BondedMixnode = ({
 
   const getNextInterval = async () => {
     try {
-      const { nextEpoch } = await getIntervalAsDate();
-      setNextEpoch(nextEpoch);
+      const { nextEpoch: newNextEpoch } = await getIntervalAsDate();
+      setNextEpoch(newNextEpoch);
     } catch {
       setNextEpoch(Error());
     }

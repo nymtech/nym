@@ -11,6 +11,7 @@ pub async fn start_connecting(
     state: tauri::State<'_, Arc<RwLock<State>>>,
     window: tauri::Window<tauri::Wry>,
 ) -> Result<ConnectResult> {
+    log::trace!("Start connecting");
     let (msg_receiver, exit_status_receiver) = {
         let mut state_w = state.write().await;
         state_w.start_connecting(&window).await?
@@ -18,8 +19,8 @@ pub async fn start_connecting(
 
     // Setup task for checking status
     let state = state.inner().clone();
-    tasks::start_disconnect_listener(state, window.clone(), exit_status_receiver);
-    tasks::start_status_listener(window, msg_receiver);
+    tasks::start_disconnect_listener(state.clone(), window.clone(), exit_status_receiver);
+    tasks::start_status_listener(state, window.clone(), msg_receiver);
 
     Ok(ConnectResult {
         address: "PLACEHOLDER".to_string(),

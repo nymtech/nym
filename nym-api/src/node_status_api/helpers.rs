@@ -9,10 +9,10 @@ use cosmwasm_std::Decimal;
 use mixnet_contract_common::reward_params::Performance;
 use mixnet_contract_common::{Interval, MixId, RewardedSetNodeStatus};
 use nym_api_requests::models::{
-    AllInclusionProbabilitiesResponse, ComputeRewardEstParam, InclusionProbabilityResponse,
-    MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
-    MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
-    StakeSaturationResponse, UptimeResponse,
+    AllInclusionProbabilitiesResponse, ComputeRewardEstParam, GatewayBondAnnotated,
+    InclusionProbabilityResponse, MixNodeBondAnnotated, MixnodeCoreStatusResponse,
+    MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse,
+    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
 };
 use rocket::http::Status;
 use rocket::State;
@@ -315,6 +315,14 @@ pub(crate) async fn _get_rewarded_set_detailed(
 pub(crate) async fn _get_active_set_detailed(cache: &NodeStatusCache) -> Vec<MixNodeBondAnnotated> {
     cache
         .active_set_annotated()
+        .await
+        .unwrap_or_default()
+        .into_inner()
+}
+
+pub(crate) async fn _get_gateways_detailed(cache: &NodeStatusCache) -> Vec<GatewayBondAnnotated> {
+    cache
+        .gateways_annotated()
         .await
         .unwrap_or_default()
         .into_inner()

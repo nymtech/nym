@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Box, Button, Stack, Tooltip, Typography } from '@mui/material';
-import { DelegationEventKind } from '@nymproject/types';
 import { Delegate, Undelegate } from '../../svg-icons';
 import { ActionsMenu, ActionsMenuItem } from '../ActionsMenu';
 import { DelegateListItemPending } from './types';

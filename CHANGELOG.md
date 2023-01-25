@@ -2,7 +2,7 @@
 
 Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+# [Unreleased]
 
 
 ### Added
@@ -17,6 +17,30 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#2874]: https://github.com/nymtech/nym/pull/2874
 [#2890]: https://github.com/nymtech/nym/pull/2890
 
+# [v1.1.7] (2023-01-24)
+
+### Added
+
+- Gateways now shut down gracefully ([#2019]).
+- Rust SDK - Initial version for nym-client ([#2669]).
+- Introduce vesting contract query for addresses of all vesting accounts (required for the circulating supply calculation) ([#2778]).
+- Add threshold value to the contract storage ([#1893])
+
+### Changed
+
+- Refactor vesting account storage (and in particular, ACCOUNTS saving) ([#2795]).
+- Move from manual advancing DKG state to an automatic process ([#2670]).
+
+### Fixed
+
+- Gateways now shut down gracefully ([#2019]).
+
+[#2019]: https://github.com/nymtech/nym/issues/2019
+[#2669]: https://github.com/nymtech/nym/issues/2669
+[#2795]: https://github.com/nymtech/nym/issues/2795
+[#2778]: https://github.com/nymtech/nym/issues/2778
+[#2670]: https://github.com/nymtech/nym/issues/2670
+[#1893]: https://github.com/nymtech/nym/issues/1893
 
 ## [v1.1.6] (2023-01-17)
 
@@ -24,6 +48,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 - nym-sdk: added initial version of a Rust client sdk
 - nym-api: added `/circulating-supply` endpoint ([#2814])
+- nym-api: add endpoint listing detailed gateway info by @octol in https://github.com/nymtech/nym/pull/2833
 
 ### Changed
 
@@ -43,6 +68,12 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#2814]: https://github.com/nymtech/nym/pull/2814
 [#2772]: https://github.com/nymtech/nym/pull/2772
 [#2774]: https://github.com/nymtech/nym/pull/2774
+
+## [v1.1.5] (2023-01-10)
+
+### Added
+
+### Changed
 
 ## [v1.1.5] (2023-01-10)
 

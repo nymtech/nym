@@ -13,7 +13,13 @@ The Nym directory is contained in the mixnet smart contract in the Nyx blockchai
 Nym Network Monitoring
 -----------------------
 
-The Nym API periodically sends test packets through the entire of the Nym mixnet to test node liveness and quality of service. 
+The Nym API periodically sends test packets through the entire Nym mixnet to test node liveness and quality of service. 
+
+
+Nym Epoch Advancement and Payment
+---------------------------------
+
+The Nym API periodically advances the epoch and triggers payment based on network monitoring measurements.
 
 
 Coconut Credentials

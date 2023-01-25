@@ -8,6 +8,7 @@ export type GatewayRowType = {
   host: string;
   location: string;
   version: string;
+  performance: number;
 };
 
 export type GatewayEnrichedRowType = GatewayRowType & {
@@ -28,6 +29,7 @@ export function gatewayToGridRow(arrayOfGateways: GatewayResponse): GatewayRowTy
         bond: gw.pledge_amount.amount || 0,
         host: gw.gateway.host || '',
         version: gw.gateway.version || '',
+        performance: gw.performance,
       }));
 }
 
@@ -44,5 +46,6 @@ export function gatewayEnrichedToGridRow(gateway: GatewayBond, report: GatewayRe
     mixPort: gateway.gateway.mix_port || 0,
     routingScore: `${report.most_recent}%`,
     avgUptime: `${report.last_day || report.last_hour}%`,
+    performance: gateway.performance,
   };
 }

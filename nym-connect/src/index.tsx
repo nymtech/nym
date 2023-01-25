@@ -8,6 +8,7 @@ import { App } from './App';
 import { AppWindowFrame } from './components/AppWindowFrame';
 import { TestAndEarnContextProvider } from './components/Growth/context/TestAndEarnContext';
 import { BrowserRouter as Router } from 'react-router-dom';
+import { AppRoutes } from './routes';
 
 const elem = document.getElementById('root');
 
@@ -20,7 +21,7 @@ if (elem) {
           <TestAndEarnContextProvider>
             <NymMixnetTheme mode="dark">
               <AppWindowFrame>
-                <App />
+                <AppRoutes />
               </AppWindowFrame>
             </NymMixnetTheme>
           </TestAndEarnContextProvider>

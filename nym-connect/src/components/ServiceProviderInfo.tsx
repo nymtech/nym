@@ -7,7 +7,6 @@ export const ServiceProviderInfo = ({ serviceProvider }: { serviceProvider: Serv
     <Typography variant="body2" fontWeight="bold">
       Connection info
     </Typography>
-    <Typography variant="caption">{serviceProvider.description}</Typography>
     <Divider />
     <Typography variant="caption" fontWeight="bold">
       Gateway <Typography variant="caption">{serviceProvider.gateway}</Typography>

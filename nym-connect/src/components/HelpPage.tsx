@@ -6,12 +6,14 @@ import { StepIndicator } from './HelpPageStepIndicator';
 
 export const HelpPage = ({
   step,
+  totalSteps,
   description,
   img,
   onNext,
   onPrev,
 }: {
   step: number;
+  totalSteps: number;
   description: string;
   img: any;
   onNext?: () => void;
@@ -21,7 +23,7 @@ export const HelpPage = ({
     <Stack gap={3}>
       <StepIndicator step={step} />
       <Typography variant="body2" color="white" fontWeight="bold">
-        How to connect guide {step}/4
+        How to connect guide {step}/{totalSteps}
       </Typography>
       <Typography variant="body2" sx={{ color: 'grey.400' }}>
         {description}

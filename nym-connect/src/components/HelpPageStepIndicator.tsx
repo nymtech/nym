@@ -1,5 +1,5 @@
-import { Box } from '@mui/material';
 import React from 'react';
+import { Box } from '@mui/material';
 
 const Step = ({ highlight }: { highlight: boolean }) => (
   <Box sx={{ width: '48px', height: '1px', bgcolor: highlight ? 'nym.highlight' : 'grey.600' }} />

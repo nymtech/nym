@@ -9,7 +9,7 @@ import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ConnectionButton } from '../components/ConnectionButton';
 import { IpAddressAndPort } from '../components/IpAddressAndPort';
 import { ServiceProvider } from '../types/directory';
-import { TestAndEarnButtonArea } from '../components/Growth/TestAndEarnButtonArea';
+import { ExperimentalWarning } from 'src/components/ExperimentalWarning';
 
 export const ConnectedLayout: FCWithChildren<{
   status: ConnectionStatusKind;
@@ -42,16 +42,15 @@ export const ConnectedLayout: FCWithChildren<{
     <Box pb={1}>
       <ConnectionStatus
         status={ConnectionStatusKind.connected}
-        serviceProvider={serviceProvider}
         gatewayPerformance={gatewayPerformance}
+        serviceProvider={serviceProvider}
       />
     </Box>
-    <Divider sx={{ my: 2 }} />
-    <Box sx={{ mb: 3 }}>
-      <IpAddressAndPort label="Socks5 address" ipAddress={ipAddress} port={port} />
-    </Box>
-    {/* <ConnectionStats stats={stats} /> */}
     <ConnectionTimer connectedSince={connectedSince} />
     <ConnectionButton status={status} busy={busy} onClick={onConnectClick} isError={isError} />
+    <Box sx={{ mb: 2 }}>
+      <IpAddressAndPort label="Socks5 address" ipAddress={ipAddress} port={port} />
+    </Box>
+    <ExperimentalWarning />
   </>
 );

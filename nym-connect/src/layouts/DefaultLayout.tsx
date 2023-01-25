@@ -5,12 +5,10 @@ import { ConnectionTimer } from 'src/components/ConntectionTimer';
 import { InfoModal } from 'src/components/InfoModal';
 import { Error } from 'src/types/error';
 import { ConnectionButton } from '../components/ConnectionButton';
-import { ServiceSelector } from '../components/ServiceSelector';
 import { useClientContext } from '../context/main';
 import { ConnectionStatusKind } from '../types';
 import { Services } from '../types/directory';
-import { TestAndEarnButtonArea } from '../components/Growth/TestAndEarnButtonArea';
-import { AppVersion } from '../components/AppVersion';
+import { ExperimentalWarning } from 'src/components/ExperimentalWarning';
 
 export const DefaultLayout: FCWithChildren<{
   error?: Error;
@@ -20,22 +18,13 @@ export const DefaultLayout: FCWithChildren<{
   isError?: boolean;
   clearError: () => void;
   onConnectClick?: (status: ConnectionStatusKind) => void;
-}> = ({ status, error, services, busy, isError, onConnectClick, clearError }) => {
+}> = ({ status, error, busy, isError, onConnectClick, clearError }) => {
   const context = useClientContext();
 
   return (
-    <Box pt={1}>
+    <>
       {error && <InfoModal show title={error.title} description={error.message} onClose={clearError} />}
       <ConnectionStatus status={ConnectionStatusKind.disconnected} />
-      <Box px={2}>
-        <Typography fontWeight="400" fontSize="16px" textAlign="center" pt={2}>
-          Connect to the Nym <br /> mixnet for privacy.
-        </Typography>
-        <Typography textAlign="center" fontSize="small" sx={{ color: 'grey.500' }}>
-          This is experimental software. Do not rely on it for strong anonymity (yet).
-        </Typography>
-      </Box>
-      <ServiceSelector services={services} onChange={context.setServiceProvider} currentSp={context.serviceProvider} />
       <ConnectionTimer />
       <ConnectionButton
         status={status}
@@ -44,6 +33,17 @@ export const DefaultLayout: FCWithChildren<{
         isError={isError}
         onClick={onConnectClick}
       />
-    </Box>
+      <Typography
+        fontWeight={600}
+        textTransform="uppercase"
+        textAlign="center"
+        fontSize="12px"
+        sx={{ wordSpacing: 1.5, letterSpacing: 1.5 }}
+        color="warning.main"
+      >
+        You are not protected
+      </Typography>
+      <ExperimentalWarning />
+    </>
   );
 };

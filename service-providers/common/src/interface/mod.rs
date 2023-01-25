@@ -151,7 +151,10 @@ where
         match request_tag {
             RequestTag::Control => Ok(Request::Control(ControlRequest::try_from_bytes(&b[1..])?)),
             RequestTag::ProviderData => Ok(Request::ProviderData(T::try_from_bytes(&b[1..])?)),
-            _ => todo!("handle legacy"),
+            legacy_tag => {
+                debug_assert!(legacy_tag.is_legacy());
+                Ok(Request::ProviderData(T::try_from_bytes(b)?))
+            }
         }
     }
 }
@@ -245,7 +248,10 @@ where
             ResponseTag::ProviderData => Ok(Response::ProviderData(T::Response::try_from_bytes(
                 &b[1..],
             )?)),
-            _ => todo!("handle legacy"),
+            legacy_tag => {
+                debug_assert!(legacy_tag.is_legacy());
+                Ok(Response::ProviderData(T::Response::try_from_bytes(b)?))
+            }
         }
     }
 }

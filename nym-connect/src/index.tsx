@@ -7,6 +7,7 @@ import { NymMixnetTheme } from './theme';
 import { App } from './App';
 import { AppWindowFrame } from './components/AppWindowFrame';
 import { TestAndEarnContextProvider } from './components/Growth/context/TestAndEarnContext';
+import { BrowserRouter as Router } from 'react-router-dom';
 
 const elem = document.getElementById('root');
 
@@ -15,13 +16,15 @@ if (elem) {
   root.render(
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <ClientContextProvider>
-        <TestAndEarnContextProvider>
-          <NymMixnetTheme mode="dark">
-            <AppWindowFrame>
-              <App />
-            </AppWindowFrame>
-          </NymMixnetTheme>
-        </TestAndEarnContextProvider>
+        <Router>
+          <TestAndEarnContextProvider>
+            <NymMixnetTheme mode="dark">
+              <AppWindowFrame>
+                <App />
+              </AppWindowFrame>
+            </NymMixnetTheme>
+          </TestAndEarnContextProvider>
+        </Router>
       </ClientContextProvider>
     </ErrorBoundary>,
   );

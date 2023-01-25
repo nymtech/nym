@@ -4,6 +4,10 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 # [Unreleased]
 
+### Changed
+
+- nym-api: an `--id` flag is now always explicitly required ([#2898])
+
 ### Added
 
 - dkg rerun from scratch and dkg-specific epochs ([#2839])
@@ -13,6 +17,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#2839]: https://github.com/nymtech/nym/pull/2839
 [#2870]: https://github.com/nymtech/nym/pull/2870
 [#2874]: https://github.com/nymtech/nym/pull/2874
+[#2898]: https://github.com/nymtech/nym/pull/2898
 
 # [v1.1.7] (2023-01-24)
 

@@ -36,7 +36,7 @@ pub fn start_nym_socks5_client(
     GatewayEndpointConfig,
 )> {
     log::info!("Loading config from file: {id}");
-    let config = Socks5Config::load_from_file(Some(id))
+    let config = Socks5Config::load_from_file(id)
         .tap_err(|_| log::warn!("Failed to load configuration file"))?;
     let used_gateway = config.get_base().get_gateway_endpoint().clone();
 

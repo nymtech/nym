@@ -122,7 +122,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
     let id = &args.id;
     let provider_address = &args.provider;
 
-    let already_init = Config::default_config_file_path(Some(id)).exists();
+    let already_init = Config::default_config_file_path(id).exists();
     if already_init {
         println!("SOCKS5 client \"{id}\" was already initialised before");
     }

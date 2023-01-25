@@ -16,6 +16,7 @@ use crate::window::window_toggle;
 
 mod config;
 mod error;
+mod events;
 mod logging;
 mod menu;
 mod models;

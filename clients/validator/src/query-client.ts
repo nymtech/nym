@@ -44,7 +44,7 @@ export interface INyxdQuery {
   getOwnedMixnode(mixnetContractAddress: string, address: string): Promise<MixOwnershipResponse>;
   ownsGateway(mixnetContractAddress: string, address: string): Promise<GatewayOwnershipResponse>;
   getStateParams(mixnetContractAddress: string): Promise<ContractStateParams>;
-  getAllNetworkDelegationsPaged(
+  getAllDelegationsPaged(
     mixnetContractAddress: string,
     limit?: number,
     startAfter?: [string, string],
@@ -63,10 +63,9 @@ export interface INyxdQuery {
   ): Promise<PagedDelegatorDelegationsResponse>;
   getDelegationDetails(mixnetContractAddress: string, mixIdentity: string, delegator: string): Promise<Delegation>;
   getLayerDistribution(mixnetContractAddress: string): Promise<LayerDistribution>;
-  getRewardPool(mixnetContractAddress: string): Promise<string>;
+  getRewardParams(mixnetContractAddress: string): Promise<string>;
   getCirculatingSupply(mixnetContractAddress: string): Promise<string>;
   getIntervalRewardPercent(mixnetContractAddress: string): Promise<number>;
-  getSybilResistancePercent(mixnetContractAddress: string): Promise<number>;
   getRewardingStatus(
     mixnetContractAddress: string,
     mixIdentity: string,
@@ -155,12 +154,12 @@ export default class QueryClient extends CosmWasmClient implements IQueryClient 
     return this.getStateParams(mixnetContractAddress);
   }
 
-  getAllNetworkDelegationsPaged(
+  getAllDelegationsPaged(
     mixnetContractAddress: string,
     limit?: number,
     startAfter?: [string, string],
   ): Promise<PagedAllDelegationsResponse> {
-    return this.nyxdQuerier.getAllNetworkDelegationsPaged(mixnetContractAddress, limit, startAfter);
+    return this.nyxdQuerier.getAllDelegationsPaged(mixnetContractAddress, limit, startAfter);
   }
 
   getMixNodeDelegationsPaged(
@@ -189,8 +188,8 @@ export default class QueryClient extends CosmWasmClient implements IQueryClient 
     return this.nyxdQuerier.getLayerDistribution(mixnetContractAddress);
   }
 
-  getRewardPool(mixnetContractAddress: string): Promise<string> {
-    return this.nyxdQuerier.getRewardPool(mixnetContractAddress);
+  getRewardParams(mixnetContractAddress: string): Promise<string> {
+    return this.nyxdQuerier.getRewardParams(mixnetContractAddress);
   }
 
   getCirculatingSupply(mixnetContractAddress: string): Promise<string> {
@@ -199,10 +198,6 @@ export default class QueryClient extends CosmWasmClient implements IQueryClient 
 
   getIntervalRewardPercent(mixnetContractAddress: string): Promise<number> {
     return this.nyxdQuerier.getIntervalRewardPercent(mixnetContractAddress);
-  }
-
-  getSybilResistancePercent(mixnetContractAddress: string): Promise<number> {
-    return this.nyxdQuerier.getSybilResistancePercent(mixnetContractAddress);
   }
 
   getRewardingStatus(

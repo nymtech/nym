@@ -43,7 +43,7 @@ export declare type PagedMixNodeDetailsResponse = {
     start_next_after?: string;
 };
 export declare type PagedGatewayResponse = {
-    nodes: GatewayBond[];
+    gateway: GatewayBond[];
     per_page: number;
     start_next_after?: string;
 };

@@ -183,16 +183,12 @@ export default class ValidatorClient implements INymClient {
     return this.client.getSpendableCoins(this.vestingContract, vestingAccountAddress);
   }
 
-  public async getRewardPool(): Promise<string> {
-    return this.client.getRewardPool(this.mixnetContract);
+  public async getRewardParams(): Promise<string> {
+    return this.client.getRewardParams(this.mixnetContract);
   }
 
   public async getCirculatingSupply(): Promise<string> {
     return this.client.getCirculatingSupply(this.mixnetContract);
-  }
-
-  public async getSybilResistancePercent(): Promise<number> {
-    return this.client.getSybilResistancePercent(this.mixnetContract);
   }
 
   public async getIntervalRewardPercent(): Promise<number> {
@@ -273,7 +269,7 @@ export default class ValidatorClient implements INymClient {
     for (;;) {
       // eslint-disable-next-line no-await-in-loop
       const pagedResponse: PagedGatewayResponse = await this.client.getGatewaysPaged(this.mixnetContract, limit);
-      gateways = gateways.concat(pagedResponse.nodes);
+      gateways = gateways.concat(pagedResponse.gateway);
       startAfter = pagedResponse.start_next_after;
       // if `start_next_after` is not set, we're done
       if (!startAfter) {
@@ -335,13 +331,13 @@ export default class ValidatorClient implements INymClient {
     return delegations;
   }
 
-  public async getAllNyxdNetworkDelegations(): Promise<Delegation[]> {
+  public async getAllNyxdDelegations(): Promise<Delegation[]> {
     let delegations: Delegation[] = [];
     const limit = 250;
     let startAfter;
     for (;;) {
       // eslint-disable-next-line no-await-in-loop
-      const pagedResponse: PagedAllDelegationsResponse = await this.client.getAllNetworkDelegationsPaged(
+      const pagedResponse: PagedAllDelegationsResponse = await this.client.getAllDelegationsPaged(
         this.mixnetContract,
         limit,
         startAfter,

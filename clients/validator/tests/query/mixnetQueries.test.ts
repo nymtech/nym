@@ -34,6 +34,11 @@ describe('Mixnet queries', () => {
     expect(contract).toBeTruthy();
   });
 
+  it('can query for mixnet contract settings',async () => {
+    const settings = await client.getMixnetContractSettings();
+    expect(settings).toBeTruthy;
+  })
+
   it('can query for unbonded mixnodes', async () => {
     const unbondedNodes = await client.getUnbondedMixNodes();
     expect(unbondedNodes).toBeTruthy();
@@ -66,4 +71,59 @@ describe('Mixnet queries', () => {
     expect(mixnodeDetails).toBeTruthy();
     expect(Array.isArray(mixnodeDetails)).toBeTruthy();
   });
+
+  it('can query for account delegations',async () => {
+    const delegations = await client.getAllNyxdDelegatorDelegations('n1fzv4jc7fanl9s0qj02ge2ezk3kts545kjtek47');
+    expect(delegations).toBeTruthy;
+    expect(Array.isArray(delegations)).toBeTruthy;
+  });
+
+  it('can query for all delegations',async () => {
+    const allDelegations = await client.getAllNyxdDelegations();
+    expect(allDelegations).toBeTruthy;
+    expect(Array.isArray(allDelegations)).toBeTruthy;
+  });
+
+  it('can query for all delegations on a node',async () => {
+    const mixnodeDelegations = await client.getAllNyxdSingleMixnodeDelegations("436207616");
+    expect(mixnodeDelegations).toBeTruthy;
+  });
+
+  it('can query for all gateways',async () => {
+    const gateways = await client.getAllNyxdGateways();
+    expect(gateways).toBeTruthy;
+    expect(Array.isArray(gateways)).toBeTruthy;
+  });
+
+  it('can query for all active mixnodes',async () => {
+    const activeNodes = await client.getActiveMixnodes();
+    expect(activeNodes).toBeTruthy;
+    expect(Array.isArray(activeNodes)).toBeTruthy;
+  });
+
+  it('can query for circulating supply',async () => {
+    const circulatingSupply = await client.getCirculatingSupply();
+    expect(circulatingSupply).toBeTruthy;
+  })
+
+  it('can query for interval reward percent',async () => {
+    const rewardPercent = await client.getIntervalRewardPercent();
+    expect(rewardPercent).toBeTruthy;
+  })
+
+  it('can query for reward pool',async () => {
+    const rewardPool = await client.getRewardParams();
+    expect(rewardPool).toBeTruthy;
+  })
+
+  it('can query for rewarded mixnodes',async () => {
+    const rewardNodes = await client.getRewardedMixnodes();
+    expect(rewardNodes).toBeTruthy;
+  })
+
+  it('can query for stake saturation',async () => {
+    const stakeSaturation = await client.getStakeSaturation(7);
+    expect(stakeSaturation).toBeTruthy;
+  })
+
 });

@@ -289,12 +289,12 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     return this.nyxdQuerier.getStateParams(mixnetContractAddress);
   }
 
-  getAllNetworkDelegationsPaged(
+  getAllDelegationsPaged(
     mixnetContractAddress: string,
     limit?: number,
     startAfter?: [string, string],
   ): Promise<PagedAllDelegationsResponse> {
-    return this.getAllNetworkDelegationsPaged(mixnetContractAddress, limit, startAfter);
+    return this.getAllDelegationsPaged(mixnetContractAddress, limit, startAfter);
   }
 
   getUnbondedMixNodes(
@@ -331,8 +331,8 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     return this.nyxdQuerier.getLayerDistribution(mixnetContractAddress);
   }
 
-  getRewardPool(mixnetContractAddress: string): Promise<string> {
-    return this.nyxdQuerier.getRewardPool(mixnetContractAddress);
+  getRewardParams(mixnetContractAddress: string): Promise<string> {
+    return this.nyxdQuerier.getRewardParams(mixnetContractAddress);
   }
 
   getCirculatingSupply(mixnetContractAddress: string): Promise<string> {
@@ -341,10 +341,6 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
 
   getIntervalRewardPercent(mixnetContractAddress: string): Promise<number> {
     return this.nyxdQuerier.getIntervalRewardPercent(mixnetContractAddress);
-  }
-
-  getSybilResistancePercent(mixnetContractAddress: string): Promise<number> {
-    return this.nyxdQuerier.getSybilResistancePercent(mixnetContractAddress);
   }
 
   getRewardingStatus(

@@ -117,17 +117,17 @@ export default class NyxdQuerier implements INyxdQuery {
 
   getStateParams(mixnetContractAddress: string): Promise<ContractStateParams> {
     return this.client.queryContractSmart(mixnetContractAddress, {
-      state_params: {},
+      get_state: {},
     });
   }
 
-  getAllNetworkDelegationsPaged(
+  getAllDelegationsPaged(
     mixnetContractAddress: string,
     limit?: number,
     startAfter?: [string, string],
   ): Promise<PagedAllDelegationsResponse> {
     return this.client.queryContractSmart(mixnetContractAddress, {
-      get_all_network_delegations: {
+      get_all_delegations: {
         start_after: startAfter,
         limit,
       },
@@ -179,9 +179,9 @@ export default class NyxdQuerier implements INyxdQuery {
     });
   }
 
-  getRewardPool(mixnetContractAddress: string): Promise<string> {
+  getRewardParams(mixnetContractAddress: string): Promise<string> {
     return this.client.queryContractSmart(mixnetContractAddress, {
-      get_reward_pool: {},
+      get_rewarding_params: {},
     });
   }
 
@@ -193,13 +193,7 @@ export default class NyxdQuerier implements INyxdQuery {
 
   getIntervalRewardPercent(mixnetContractAddress: string): Promise<number> {
     return this.client.queryContractSmart(mixnetContractAddress, {
-      get_interval_reward_percent: {},
-    });
-  }
-
-  getSybilResistancePercent(mixnetContractAddress: string): Promise<number> {
-    return this.client.queryContractSmart(mixnetContractAddress, {
-      get_sybil_resistance_percent: {},
+      get_current_interval_details: {},
     });
   }
 

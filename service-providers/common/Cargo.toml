@@ -1,5 +1,5 @@
 [package]
-name = "common"
+name = "service-providers-common"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 build-information = { path = "../../common/build-information", features = ["serde"] }
+log = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"]}
 serde_json = { workspace = true }

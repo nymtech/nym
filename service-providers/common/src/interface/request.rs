@@ -1,0 +1,168 @@
+// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use crate::interface::{
+    ControlRequest, EmptyMessage, InterfaceVersion, Serializable, ServiceProviderMessagingError,
+    ServiceProviderResponse,
+};
+use log::warn;
+
+pub trait ServiceProviderRequest: Serializable {
+    type Response: ServiceProviderResponse;
+    // TODO: should this one perhaps be separated into RequestError and ResponseError?
+    type Error: From<ServiceProviderMessagingError>
+        + From<<Self as Serializable>::Error>
+        + From<<Self::Response as Serializable>::Error>;
+
+    // fn provider_specific_version(&self) -> u8;
+}
+
+pub struct Request<T: ServiceProviderRequest = EmptyMessage> {
+    interface_version: InterfaceVersion,
+    content: RequestContent<T>,
+}
+
+pub enum RequestContent<T: ServiceProviderRequest = EmptyMessage> {
+    Control(ControlRequest),
+    ProviderData(T),
+}
+
+#[repr(u8)]
+pub enum RequestTag {
+    // /// Value tag representing legacy value for `Socks5Message::Request`
+    // LegacySocks5Request = 0,
+    //
+    // /// Value tag representing legacy value for `Socks5Message::Response`
+    // LegacySocks5Response = 1,
+    //
+    // /// Value tag representing legacy value for `Socks5Message::NetworkRequesterResponse`
+    // LegacySocks5NRResponse = 2,
+    /// Value tag representing [`Control`] variant of the [`Request`]
+    Control = 0x00,
+
+    /// Value tag representing [`ProviderData`] variant of the [`Request`]
+    ProviderData = 0x01,
+}
+
+impl TryFrom<u8> for RequestTag {
+    type Error = ServiceProviderMessagingError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            // _ if value == (Self::LegacySocks5Request as u8) => Ok(Self::LegacySocks5Request),
+            // _ if value == (Self::LegacySocks5Response as u8) => Ok(Self::LegacySocks5Response),
+            // _ if value == (Self::LegacySocks5NRResponse as u8) => Ok(Self::LegacySocks5NRResponse),
+            _ if value == (Self::Control as u8) => Ok(Self::Control),
+            _ if value == (Self::ProviderData as u8) => Ok(Self::ProviderData),
+            received => Err(ServiceProviderMessagingError::InvalidRequestTag { received }),
+        }
+    }
+}
+
+// impl RequestTag {
+//     pub fn is_legacy(&self) -> bool {
+//         matches!(
+//             self,
+//             RequestTag::LegacySocks5Request
+//                 | RequestTag::LegacySocks5Response
+//                 | RequestTag::LegacySocks5NRResponse
+//         )
+//     }
+// }
+
+impl<T> Request<T>
+where
+    T: ServiceProviderRequest,
+{
+    pub fn into_bytes(self) -> Vec<u8> {
+        if let Some(version) = self.interface_version.as_u8() {
+            std::iter::once(version)
+                .chain(self.content.into_bytes(self.interface_version).into_iter())
+                .collect()
+        } else {
+            self.content.into_bytes(self.interface_version)
+        }
+    }
+
+    pub fn try_from_bytes(b: &[u8]) -> Result<Request<T>, <T as ServiceProviderRequest>::Error> {
+        if b.is_empty() {
+            return Err(ServiceProviderMessagingError::EmptyRequest.into());
+        }
+
+        let interface_version = InterfaceVersion::from(b[0]);
+        let content = if interface_version.is_legacy() {
+            RequestContent::try_from_bytes(b, interface_version)
+        } else {
+            RequestContent::try_from_bytes(&b[1..], interface_version)
+        }?;
+
+        Ok(Request {
+            interface_version,
+            content,
+        })
+    }
+}
+
+impl<T> RequestContent<T>
+where
+    T: ServiceProviderRequest,
+{
+    fn tag(&self) -> RequestTag {
+        match self {
+            RequestContent::Control(_) => RequestTag::Control,
+            RequestContent::ProviderData(_) => RequestTag::ProviderData,
+        }
+    }
+
+    fn serialize_inner(self) -> Vec<u8> {
+        match self {
+            RequestContent::Control(control) => control.into_bytes(),
+            RequestContent::ProviderData(provider_data) => provider_data.into_bytes(),
+        }
+    }
+
+    fn into_bytes(self, interface_version: InterfaceVersion) -> Vec<u8> {
+        if interface_version.is_legacy() {
+            if matches!(self, RequestContent::Control(_)) {
+                // this shouldn't ever happen, since if client is aware of control requests,
+                // it should be aware of versioning and shouldn't attempt to send those
+                warn!("attempted to serialize a control request in legacy mode");
+                Vec::new()
+            } else {
+                self.serialize_inner()
+            }
+        } else {
+            std::iter::once(self.tag() as u8)
+                .chain(self.serialize_inner().into_iter())
+                .collect()
+        }
+    }
+
+    fn try_from_bytes(
+        b: &[u8],
+        interface_version: InterfaceVersion,
+    ) -> Result<RequestContent<T>, <T as ServiceProviderRequest>::Error> {
+        if interface_version.is_legacy() {
+            // we received a request from an old client which can only possibly
+            // use an old Socks5Message, which uses the entire buffer for deserialization
+            Ok(RequestContent::ProviderData(T::try_from_bytes(b)?))
+        } else {
+            if b.is_empty() {
+                return Err(ServiceProviderMessagingError::IncompleteRequest {
+                    received: b.len() + 1,
+                }
+                .into());
+            }
+
+            let request_tag = RequestTag::try_from(b[0])?;
+            match request_tag {
+                RequestTag::Control => Ok(RequestContent::Control(ControlRequest::try_from_bytes(
+                    &b[1..],
+                )?)),
+                RequestTag::ProviderData => {
+                    Ok(RequestContent::ProviderData(T::try_from_bytes(&b[1..])?))
+                }
+            }
+        }
+    }
+}

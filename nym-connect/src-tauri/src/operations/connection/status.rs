@@ -1,13 +1,11 @@
 use crate::error::Result;
+use crate::tasks;
 use std::sync::Arc;
 
-use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
 use crate::models::{ConnectionStatusKind, ConnectivityTestResult, GatewayConnectionStatusKind};
 use crate::state::State;
-
-static HEALTH_CHECK_URL: &str = "https://nymtech.net/.wellknown/connect/healthcheck.json";
 
 #[tauri::command]
 pub async fn get_connection_status(
@@ -34,27 +32,13 @@ pub async fn get_connection_health_check_status(
     Ok(state.get_connectivity_test_result())
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct ConnectionSuccess {
-    status: String,
-}
-
-// WIP(JON): change to kick of the connection check task instead
+// Start a connection check task. This should return with an event within one minute, and update
+// the state.
+// Trying to run multiple concurrent connection checks probably works but is not supported.
 #[tauri::command]
-pub async fn run_health_check() -> bool {
-    log::info!("Running network health check");
-    match crate::operations::http::socks5_get::<_, ConnectionSuccess>(HEALTH_CHECK_URL).await {
-        Ok(res) if res.status == "ok" => {
-            log::info!("Healthcheck success!");
-            true
-        }
-        Ok(res) => {
-            log::error!("Healthcheck failed with status: {}", res.status);
-            false
-        }
-        Err(err) => {
-            log::error!("Healthcheck failed: {err}");
-            false
-        }
-    }
+pub fn start_connection_health_check_task(
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+    window: tauri::Window<tauri::Wry>,
+) {
+    tasks::start_connection_check(state.inner().clone(), window);
 }

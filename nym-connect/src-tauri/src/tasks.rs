@@ -15,7 +15,7 @@ use nym_socks5::client::{config::Config as Socks5Config, Socks5ControlMessageSen
 use crate::{
     error::Result,
     models::{ConnectionStatusKind, ConnectivityTestResult},
-    operations::connection,
+    operations,
     state::{GatewayConnectivity, State},
 };
 
@@ -128,7 +128,7 @@ pub fn start_connection_check(state: Arc<RwLock<State>>, window: tauri::Window<t
         }
 
         log::info!("Running connection health check");
-        if connection::status::run_health_check().await {
+        if operations::connection::health_check::run_health_check().await {
             state
                 .write()
                 .await
@@ -192,8 +192,8 @@ pub fn start_status_listener(
             {
                 // TODO: use this instead once we change on the frontend too
                 let _event_name = match client_status_message {
-                    ClientCoreStatusMessage::GatewayIsSlow => "socks5-gateway-status",
-                    ClientCoreStatusMessage::GatewayIsVerySlow => "socks5-gateway-status",
+                    ClientCoreStatusMessage::GatewayIsSlow
+                    | ClientCoreStatusMessage::GatewayIsVerySlow => "socks5-gateway-status",
                 };
 
                 if let Ok(connectivity) = GatewayConnectivity::try_from(client_status_message) {

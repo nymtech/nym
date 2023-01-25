@@ -1180,7 +1180,7 @@ mod tests {
 
         let vesting_account = Account::new(
             Addr::unchecked("owner"),
-            Some(Addr::unchecked("staking")),
+            None,
             Coin {
                 amount: Uint128::new(40_000_000_000_000),
                 denom: TEST_COIN_DENOM.to_string(),
@@ -1328,7 +1328,7 @@ mod tests {
 
         // Entire delegation amount is now free, and more can be delegated from the locked tokens
         assert_eq!(delegated_free.amount, Uint128::new(8_000_000_000_000));
-        assert_eq!(delegated_vesting.amount, Uint128::new(0_000_000_000_000));
+        assert_eq!(delegated_vesting.amount, Uint128::new(0));
         assert_eq!(spendable_coins.amount, Uint128::new(2_000_000_000_000));
 
         // Delegate some more to saturate the cap

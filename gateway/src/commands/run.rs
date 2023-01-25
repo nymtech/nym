@@ -49,7 +49,6 @@ pub struct Run {
     nym_apis: Option<Vec<url::Url>>,
 
     /// Comma separated list of endpoints of the validator
-    #[cfg(feature = "coconut")]
     #[clap(
         long,
         alias = "validators",
@@ -65,7 +64,6 @@ pub struct Run {
 
     /// Set this gateway to work only with coconut credentials; that would disallow clients to
     /// bypass bandwidth credential requirement
-    #[cfg(feature = "coconut")]
     #[clap(long)]
     only_coconut_credentials: Option<bool>,
 
@@ -92,10 +90,7 @@ impl From<Run> for OverrideConfig {
 
             enabled_statistics: run_config.enabled_statistics,
             statistics_service_url: run_config.statistics_service_url,
-
-            #[cfg(feature = "coconut")]
             nyxd_urls: run_config.nyxd_urls,
-            #[cfg(feature = "coconut")]
             only_coconut_credentials: run_config.only_coconut_credentials,
         }
     }

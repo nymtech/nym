@@ -380,7 +380,6 @@ impl PacketPreparer {
         GatewayPackets::new(
             route.gateway_clients_address(),
             route.gateway_identity(),
-            route.gateway_owner(),
             mix_packets,
         )
     }
@@ -453,7 +452,6 @@ impl PacketPreparer {
             let recipient = self.create_packet_sender(test_route.gateway());
             let gateway_identity = test_route.gateway_identity();
             let gateway_address = test_route.gateway_clients_address();
-            let gateway_owner = test_route.gateway_owner();
 
             // it's actually going to be a tiny bit more due to gateway testing, but it's a good enough approximation
             let mut mix_packets = Vec::with_capacity(mixnodes.len() * self.per_node_test_packets);
@@ -471,9 +469,7 @@ impl PacketPreparer {
 
             let gateway_packets = all_gateway_packets
                 .entry(gateway_identity.to_bytes())
-                .or_insert_with(|| {
-                    GatewayPackets::empty(gateway_address, gateway_identity, gateway_owner)
-                });
+                .or_insert_with(|| GatewayPackets::empty(gateway_address, gateway_identity));
             gateway_packets.push_packets(mix_packets);
 
             // and for each gateway...
@@ -482,7 +478,6 @@ impl PacketPreparer {
                 let test_packet = TestPacket::from_gateway(gateway, test_route.id(), test_nonce);
                 let gateway_identity = gateway.identity_key;
                 let gateway_address = gateway.clients_address();
-                let gateway_owner = gateway.owner.clone();
                 let recipient = self.create_packet_sender(gateway);
                 let topology = test_route.substitute_gateway(gateway);
                 // produce n mix packets
@@ -495,9 +490,7 @@ impl PacketPreparer {
                 // or create a new one
                 let gateway_packets = all_gateway_packets
                     .entry(gateway_identity.to_bytes())
-                    .or_insert_with(|| {
-                        GatewayPackets::empty(gateway_address, gateway_identity, gateway_owner)
-                    });
+                    .or_insert_with(|| GatewayPackets::empty(gateway_address, gateway_identity));
                 gateway_packets.push_packets(gateway_mix_packets);
             }
         }

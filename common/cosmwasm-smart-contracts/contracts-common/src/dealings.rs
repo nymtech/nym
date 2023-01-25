@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(feature = "coconut")]
+#[cfg(feature = "dkg")]
 use dkg::{error::DkgError, Dealing};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -70,14 +70,14 @@ impl<'de> Deserialize<'de> for ContractSafeBytes {
     }
 }
 
-#[cfg(feature = "coconut")]
+#[cfg(feature = "dkg")]
 impl<'a> From<&'a Dealing> for ContractSafeBytes {
     fn from(dealing: &'a Dealing) -> Self {
         ContractSafeBytes(dealing.to_bytes())
     }
 }
 
-#[cfg(feature = "coconut")]
+#[cfg(feature = "dkg")]
 impl<'a> TryFrom<&'a ContractSafeBytes> for Dealing {
     type Error = DkgError;
 

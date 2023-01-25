@@ -9,6 +9,7 @@ pub use crate::packet_router::{
 };
 use crate::socket_state::{PartiallyDelegated, SocketState};
 use crate::{cleanup_socket_message, try_decrypt_binary_message};
+use coconut_interface::Credential;
 use crypto::asymmetric::identity;
 use futures::{SinkExt, StreamExt};
 use gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
@@ -24,9 +25,6 @@ use std::sync::Arc;
 use std::time::Duration;
 use task::TaskClient;
 use tungstenite::protocol::Message;
-
-#[cfg(feature = "coconut")]
-use coconut_interface::Credential;
 
 #[cfg(not(target_arch = "wasm32"))]
 use credential_storage::PersistentStorage;
@@ -53,7 +51,6 @@ pub struct GatewayClient<C: Clone> {
     bandwidth_remaining: i64,
     gateway_address: String,
     gateway_identity: identity::PublicKey,
-    gateway_owner: String,
     local_identity: Arc<identity::KeyPair>,
     shared_key: Option<Arc<SharedKeys>>,
     connection: SocketState,
@@ -84,7 +81,6 @@ where
         gateway_address: String,
         local_identity: Arc<identity::KeyPair>,
         gateway_identity: identity::PublicKey,
-        gateway_owner: String,
         shared_key: Option<Arc<SharedKeys>>,
         mixnet_message_sender: MixnetMessageSender,
         ack_sender: AcknowledgementSender,
@@ -98,7 +94,6 @@ where
             bandwidth_remaining: 0,
             gateway_address,
             gateway_identity,
-            gateway_owner,
             local_identity,
             shared_key,
             connection: SocketState::NotConnected,
@@ -132,7 +127,6 @@ where
     pub fn new_init(
         gateway_address: String,
         gateway_identity: identity::PublicKey,
-        gateway_owner: String,
         local_identity: Arc<identity::KeyPair>,
         response_timeout_duration: Duration,
     ) -> Self {
@@ -151,7 +145,6 @@ where
             bandwidth_remaining: 0,
             gateway_address,
             gateway_identity,
-            gateway_owner,
             local_identity,
             shared_key: None,
             connection: SocketState::NotConnected,
@@ -541,7 +534,6 @@ where
         }
     }
 
-    #[cfg(feature = "coconut")]
     async fn claim_coconut_bandwidth(
         &mut self,
         credential: Credential,
@@ -591,28 +583,21 @@ where
             return self.try_claim_testnet_bandwidth().await;
         }
 
-        let _gateway_owner = self.gateway_owner.clone();
-
-        #[cfg(feature = "coconut")]
         let (credential, credential_id) = self
             .bandwidth_controller
             .as_ref()
             .unwrap()
             .prepare_coconut_credential()
             .await?;
-        #[cfg(not(feature = "coconut"))]
-        return self.try_claim_testnet_bandwidth().await;
 
-        #[cfg(feature = "coconut")]
-        {
-            self.claim_coconut_bandwidth(credential).await?;
-            self.bandwidth_controller
-                .as_ref()
-                .unwrap()
-                .consume_credential(credential_id)
-                .await?;
-            Ok(())
-        }
+        self.claim_coconut_bandwidth(credential).await?;
+        self.bandwidth_controller
+            .as_ref()
+            .unwrap()
+            .consume_credential(credential_id)
+            .await?;
+
+        Ok(())
     }
 
     fn estimate_required_bandwidth(&self, packets: &[MixPacket]) -> i64 {

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::circulating_supply_api::cache::CirculatingSupplyCache;
+use crate::coconut::{self, comm::QueryCommunicationChannel, InternalSignRequest};
 use crate::node_status_api::{self, NodeStatusCache};
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::config::Config;
@@ -14,16 +15,13 @@ use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use rocket_okapi::mount_endpoints_and_merged_docs;
 use rocket_okapi::swagger_ui::make_swagger_ui;
 
-#[cfg(feature = "coconut")]
-use crate::coconut::{self, comm::QueryCommunicationChannel, InternalSignRequest};
-
 pub(crate) mod openapi;
 
 pub(crate) async fn setup_rocket(
     config: &Config,
     mix_denom: String,
     _nyxd_client: nyxd::Client,
-    #[cfg(feature = "coconut")] coconut_keypair: coconut::keypair::KeyPair,
+    coconut_keypair: coconut::keypair::KeyPair,
 ) -> anyhow::Result<Rocket<Ignite>> {
     let openapi_settings = rocket_okapi::settings::OpenApiSettings::default();
     let mut rocket = rocket::build();
@@ -47,13 +45,12 @@ pub(crate) async fn setup_rocket(
 
     // This is not a very nice approach. A lazy value would be more suitable, but that's still
     // a nightly feature: https://github.com/rust-lang/rust/issues/74465
-    let storage = if cfg!(feature = "coconut") || config.get_network_monitor_enabled() {
+    let storage = if config.get_coconut_signer_enabled() || config.get_network_monitor_enabled() {
         Some(storage::NymApiStorage::init(config.get_node_status_api_database_path()).await?)
     } else {
         None
     };
 
-    #[cfg(feature = "coconut")]
     let rocket = if config.get_coconut_signer_enabled() {
         let comm_channel = QueryCommunicationChannel::new(_nyxd_client.clone());
         rocket.attach(InternalSignRequest::stage(

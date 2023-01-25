@@ -30,7 +30,6 @@ pub(crate) struct Init {
     force_register_gateway: bool,
 
     /// Comma separated list of rest endpoints of the nyxd validators
-    #[cfg(feature = "coconut")]
     #[clap(long, alias = "nymd_validators", value_delimiter = ',')]
     nyxd_urls: Option<Vec<url::Url>>,
 
@@ -58,7 +57,6 @@ pub(crate) struct Init {
 
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
     /// with bandwidth credential requirement.
-    #[cfg(feature = "coconut")]
     #[clap(long)]
     enabled_credentials_mode: Option<bool>,
 
@@ -76,9 +74,7 @@ impl From<Init> for OverrideConfig {
             fastmode: init_config.fastmode,
             no_cover: init_config.no_cover,
 
-            #[cfg(feature = "coconut")]
             nyxd_urls: init_config.nyxd_urls,
-            #[cfg(feature = "coconut")]
             enabled_credentials_mode: init_config.enabled_credentials_mode,
         }
     }

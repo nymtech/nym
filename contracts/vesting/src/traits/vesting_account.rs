@@ -10,7 +10,7 @@ pub trait VestingAccount {
     ) -> Result<Uint128, ContractError>;
 
     /// Returns the set of coins that are not spendable (can still be delegated tough) (i.e. locked),
-    /// defined as coins still vesting.
+    /// defined as vesting coins that are not delegated or pledged.
     ///
     /// To get spendable coins of a vesting account, first the total balance must
     /// be retrieved and the locked tokens can be subtracted from the total balance.

@@ -4,26 +4,39 @@ import { DateTime } from 'luxon';
 import { ConnectionStatusKind, GatewayPerformance } from '../types';
 import { ServiceProvider } from '../types/directory';
 import { ServiceProviderInfo } from './ServiceProviderInfo';
+import { InfoOutlined } from '@mui/icons-material';
 
-const FONT_SIZE = '10px';
+const FONT_SIZE = '16px';
 const FONT_WEIGHT = '600';
 const FONT_STYLE = 'normal';
 
 const ConnectionStatusContent: FCWithChildren<{
   status: ConnectionStatusKind;
-}> = ({ status }) => {
+  serviceProvider?: ServiceProvider;
+}> = ({ status, serviceProvider }) => {
   switch (status) {
     case ConnectionStatusKind.connected:
       return (
-        <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} fontSize="14px">
-          Connected to
+        <Tooltip title={serviceProvider ? <ServiceProviderInfo serviceProvider={serviceProvider} /> : undefined}>
+          <Box display="flex" alignItems="center" gap={0.5} justifyContent="center" sx={{ cursor: 'pointer' }}>
+            <InfoOutlined sx={{ fontSize: 14 }} />
+            <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} fontSize="12px" textAlign="center">
+              Connected to Nym Mixnet
+            </Typography>
+          </Box>
+        </Tooltip>
+      );
+    case ConnectionStatusKind.disconnected:
+      return (
+        <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} textAlign="center" fontSize={FONT_SIZE}>
+          Connect to the mixnet
         </Typography>
       );
     case ConnectionStatusKind.disconnecting:
       return (
         <Box display="flex" alignItems="center" justifyContent="center">
           <CircularProgress size={FONT_SIZE} color="inherit" />
-          <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} ml={1}>
+          <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE}>
             Disconnecting...
           </Typography>
         </Box>
@@ -37,20 +50,7 @@ const ConnectionStatusContent: FCWithChildren<{
           </Typography>
         </Box>
       );
-    case ConnectionStatusKind.disconnected:
-      return (
-        <Typography
-          fontWeight={FONT_WEIGHT}
-          fontStyle={FONT_STYLE}
-          ml={1}
-          textTransform="uppercase"
-          textAlign="center"
-          fontSize={FONT_SIZE}
-          sx={{ wordSpacing: 3, letterSpacing: 2 }}
-        >
-          You are not protected
-        </Typography>
-      );
+
     default:
       return null;
   }
@@ -63,28 +63,19 @@ export const ConnectionStatus: FCWithChildren<{
   serviceProvider?: ServiceProvider;
 }> = ({ status, serviceProvider, gatewayPerformance }) => {
   const color =
-    status === ConnectionStatusKind.connected || status === ConnectionStatusKind.disconnecting
-      ? '#21D072'
-      : 'warning.main';
+    status === ConnectionStatusKind.connected || status === ConnectionStatusKind.disconnecting ? '#21D072' : 'white';
 
   return (
     <>
       <Box color={color} fontSize={FONT_SIZE} sx={{ mb: 1 }}>
         {status === ConnectionStatusKind.connected && gatewayPerformance !== 'Good' ? (
-          <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} textAlign="left" color="primary">
+          <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} color="primary">
             Gateway has issues
           </Typography>
         ) : (
-          <ConnectionStatusContent status={status} />
+          <ConnectionStatusContent status={status} serviceProvider={serviceProvider} />
         )}
       </Box>
-      {serviceProvider ? (
-        <Tooltip title={<ServiceProviderInfo serviceProvider={serviceProvider} />}>
-          <Box sx={{ cursor: 'pointer' }}>
-            {serviceProvider && <Typography>{serviceProvider.description}</Typography>}
-          </Box>
-        </Tooltip>
-      ) : null}
     </>
   );
 };

@@ -10,6 +10,5 @@ export const StepIndicator = ({ step }: { step: number }) => (
     <Step highlight />
     <Step highlight={step >= 2} />
     <Step highlight={step >= 3} />
-    <Step highlight={step >= 4} />
   </Box>
 );

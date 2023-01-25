@@ -43,7 +43,7 @@ pub(crate) struct CliArgs {
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
     /// Id of the nym-api we want to run
-    #[clap(long, default_value = "nym")]
+    #[clap(long)]
     pub(crate) id: String,
 
     /// Specifies whether network monitoring is enabled on this API

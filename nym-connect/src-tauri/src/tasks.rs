@@ -12,7 +12,12 @@ use config_common::NymConfig;
 use nym_socks5::client::NymClient as Socks5NymClient;
 use nym_socks5::client::{config::Config as Socks5Config, Socks5ControlMessageSender};
 
-use crate::{error::Result, models::ConnectionStatusKind, operations::connection, state::State};
+use crate::{
+    error::Result,
+    models::ConnectionStatusKind,
+    operations::connection,
+    state::{ConnectivityTestResult, State},
+};
 
 pub type ExitStatusReceiver = futures::channel::oneshot::Receiver<Socks5ExitStatusMessage>;
 
@@ -124,16 +129,21 @@ pub fn start_connection_check(state: Arc<RwLock<State>>, window: tauri::Window<t
 
         log::info!("Running connection health check");
         if connection::status::run_health_check().await {
+            state
+                .write()
+                .await
+                .set_connectivity_test_result(ConnectivityTestResult::Success);
             emit_event(
                 "socks5-connection-success-event",
                 "SOCKS5 success",
                 "SOCKS5 connection health check successful",
                 &window,
             );
-        } else {
-            if state.read().await.get_status() != ConnectionStatusKind::Connected {
-                log::debug!("SOCKS5 connection status check cancelled: not connected");
-            }
+        } else if state.read().await.get_status() == ConnectionStatusKind::Connected {
+            state
+                .write()
+                .await
+                .set_connectivity_test_result(ConnectivityTestResult::Fail);
             log::error!("SOCKS5 connection health check failed");
             emit_event(
                 "socks5-connection-fail-event",
@@ -141,6 +151,8 @@ pub fn start_connection_check(state: Arc<RwLock<State>>, window: tauri::Window<t
                 "SOCKS5 connection health check failed",
                 &window,
             );
+        } else {
+            log::debug!("SOCKS5 connection status check cancelled: not connected");
         }
 
         log::debug!("Connection check handler exiting");

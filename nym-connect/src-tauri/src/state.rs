@@ -19,6 +19,21 @@ use crate::{
     tasks::{self, ExitStatusReceiver},
 };
 
+#[derive(Clone, Copy)]
+pub enum ConnectivityTestResult {
+    NotAvailable,
+    Success,
+    Fail,
+}
+
+#[derive(Clone, Copy)]
+pub enum GatewayConnectivity {
+    NotAvailable,
+    Good,
+    Bad,
+    VeryBad,
+}
+
 pub struct State {
     /// The current connection status
     status: ConnectionStatusKind,
@@ -31,6 +46,13 @@ pub struct State {
 
     /// Channel that is used to send command messages to the SOCKS5 client, such as to disconnect
     socks5_client_sender: Option<Socks5ControlMessageSender>,
+
+    /// The client will periodically report connectivity to the gateway it's connected to.
+    gateway_connectivity: GatewayConnectivity,
+
+    /// The latest end-to-end connectivity test result. The first test is initiated on connection
+    /// established. Additional tests can be triggered.
+    connectivity_test_result: ConnectivityTestResult,
 }
 
 impl State {
@@ -40,7 +62,28 @@ impl State {
             service_provider: None,
             gateway: None,
             socks5_client_sender: None,
+            gateway_connectivity: GatewayConnectivity::NotAvailable,
+            connectivity_test_result: ConnectivityTestResult::NotAvailable,
         }
+    }
+
+    pub fn get_gateway_connectivity(&self) -> GatewayConnectivity {
+        self.gateway_connectivity
+    }
+
+    pub fn set_gateway_connectivity(&mut self, gateway_connectivity: GatewayConnectivity) {
+        self.gateway_connectivity = gateway_connectivity
+    }
+
+    pub fn get_connectivity_test_result(&self) -> ConnectivityTestResult {
+        self.connectivity_test_result
+    }
+
+    pub fn set_connectivity_test_result(
+        &mut self,
+        connectivity_test_result: ConnectivityTestResult,
+    ) {
+        self.connectivity_test_result = connectivity_test_result;
     }
 
     pub fn get_status(&self) -> ConnectionStatusKind {

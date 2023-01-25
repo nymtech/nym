@@ -35,19 +35,13 @@ impl NymConfig for Config {
         config_template()
     }
 
-    #[cfg(not(feature = "mobile"))]
     fn default_root_directory() -> PathBuf {
-        dirs::home_dir()
-            .expect("Failed to evaluate $HOME value")
-            .join(".nym")
-            .join("socks5-clients")
-    }
+        #[cfg(not(feature = "mobile"))]
+        let base_dir = dirs::home_dir().expect("Failed to evaluate $HOME value");
+        #[cfg(feature = "mobile")]
+        let base_dir = PathBuf::from("/tmp");
 
-    #[cfg(feature = "mobile")]
-    fn default_root_directory() -> PathBuf {
-        PathBuf::from("/data/local/tmp")
-            .join(".nym")
-            .join("socks5-clients")
+        base_dir.join(".nym").join("socks5-clients")
     }
 
     fn try_default_root_directory() -> Option<PathBuf> {

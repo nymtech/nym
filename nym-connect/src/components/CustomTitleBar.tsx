@@ -39,11 +39,6 @@ export const CustomTitleBar = () => {
       </Box>
 
       <NymWordmark width={36} />
-
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <CustomButton Icon={Minimize} onClick={() => appWindow.minimize()} />
-        <CustomButton Icon={Close} onClick={() => appWindow.close()} />
-      </Box>
     </Box>
   );
 };

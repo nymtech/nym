@@ -29,6 +29,7 @@ import {
   GatewayBondAnnotated,
   GatewayBond,
 } from '../typeDefs/explorer-api';
+import { toPercentIntegerString } from '../utils';
 
 function getFromCache(key: string) {
   const ts = Number(localStorage.getItem('ts'));
@@ -93,7 +94,10 @@ export class Api {
   static fetchGateways = async (): Promise<GatewayBond[]> => {
     const res = await fetch(GATEWAYS_API);
     const gatewaysAnnotated: GatewayBondAnnotated[] = await res.json();
-    return gatewaysAnnotated.map(({ gateway_bond, performance }) => ({ ...gateway_bond, performance }));
+    return gatewaysAnnotated.map(({ gateway_bond, performance }) => ({
+      ...gateway_bond,
+      performance: toPercentIntegerString(performance),
+    }));
   };
 
   static fetchGatewayUptimeStoryById = async (id: string): Promise<UptimeStoryResponse> =>

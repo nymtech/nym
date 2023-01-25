@@ -122,12 +122,12 @@ export interface GatewayBond {
   total_delegation: Amount;
   owner: string;
   gateway: Gateway;
-  performance: number;
+  performance: string;
 }
 
 export interface GatewayBondAnnotated {
   gateway_bond: GatewayBond;
-  performance: number;
+  performance: string;
 }
 
 export type GatewayResponse = GatewayBond[];

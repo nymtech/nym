@@ -95,7 +95,7 @@ export const PageGateways: FCWithChildren = () => {
           to={`/network-components/gateway/${params.row.identityKey}`}
           data-testid="pledge-amount"
         >
-          {params.value}
+          {`${params.value}%`}
         </MuiLink>
       ),
     },

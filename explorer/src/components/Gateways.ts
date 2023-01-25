@@ -8,7 +8,7 @@ export type GatewayRowType = {
   host: string;
   location: string;
   version: string;
-  performance: number;
+  performance: string;
 };
 
 export type GatewayEnrichedRowType = GatewayRowType & {

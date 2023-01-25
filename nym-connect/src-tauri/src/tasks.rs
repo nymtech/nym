@@ -109,11 +109,7 @@ fn emit_event(event: &str, title: &str, msg: &str, window: &tauri::Window<tauri:
     }
 }
 
-fn emit_status_event(
-    event: &str,
-    msg: Box<dyn std::error::Error + Send + Sync>,
-    window: &tauri::Window<tauri::Wry>,
-) {
+fn emit_status_event<T: ToString>(event: &str, msg: &T, window: &tauri::Window<tauri::Wry>) {
     if let Err(err) = window.emit(event, Payload::new("SOCKS5 update".into(), msg.to_string())) {
         log::error!("Failed to emit tauri event: {err}");
     }
@@ -159,18 +155,41 @@ pub fn start_connection_check(state: Arc<RwLock<State>>, window: tauri::Window<t
     });
 }
 
-async fn handle_connection_ready(
+async fn handle_task_status(
+    task_status: &TaskStatus,
     state: &Arc<RwLock<State>>,
     window: &tauri::Window,
-    msg: Box<dyn std::error::Error + Send + Sync>,
 ) {
-    {
-        let mut state_w = state.write().await;
-        state_w.mark_connected(window);
+    match task_status {
+        TaskStatus::Ready => {
+            {
+                let mut state_w = state.write().await;
+                state_w.mark_connected(window);
+            }
+
+            emit_status_event("socks5-connected-event", task_status, window);
+            start_connection_check(state.clone(), window.clone());
+        }
+    }
+}
+
+async fn handle_client_status_message(
+    client_status_message: &ClientCoreStatusMessage,
+    state: &Arc<RwLock<State>>,
+    window: &tauri::Window,
+) {
+    // TODO: use this instead once we change on the frontend too
+    let _event_name = match client_status_message {
+        ClientCoreStatusMessage::GatewayIsSlow | ClientCoreStatusMessage::GatewayIsVerySlow => {
+            "socks5-gateway-status"
+        }
+    };
+
+    if let Ok(connectivity) = GatewayConnectivity::try_from(client_status_message) {
+        state.write().await.set_gateway_connectivity(connectivity);
     }
 
-    emit_status_event("socks5-connected-event", msg, window);
-    start_connection_check(state.clone(), window.clone());
+    emit_status_event("socks5-status-event", client_status_message, window);
 }
 
 /// The status listener listens for non-exit status messages from the background socks5 proxy task.
@@ -185,24 +204,14 @@ pub fn start_status_listener(
         while let Some(msg) = msg_receiver.next().await {
             log::info!("SOCKS5 proxy sent status message: {}", msg);
 
-            if let Some(TaskStatus::Ready) = msg.downcast_ref::<TaskStatus>() {
-                handle_connection_ready(&state, &window, msg).await;
+            if let Some(task_status) = msg.downcast_ref::<TaskStatus>() {
+                handle_task_status(task_status, &state, &window).await;
             } else if let Some(client_status_message) =
                 msg.downcast_ref::<ClientCoreStatusMessage>()
             {
-                // TODO: use this instead once we change on the frontend too
-                let _event_name = match client_status_message {
-                    ClientCoreStatusMessage::GatewayIsSlow
-                    | ClientCoreStatusMessage::GatewayIsVerySlow => "socks5-gateway-status",
-                };
-
-                if let Ok(connectivity) = GatewayConnectivity::try_from(client_status_message) {
-                    state.write().await.set_gateway_connectivity(connectivity);
-                }
-
-                emit_status_event("socks5-status-event", msg, &window);
+                handle_client_status_message(client_status_message, &state, &window).await;
             } else {
-                emit_status_event("socks5-status-event", msg, &window);
+                emit_status_event("socks5-status-event", &msg, &window);
             }
         }
         log::info!("Status listener exiting");

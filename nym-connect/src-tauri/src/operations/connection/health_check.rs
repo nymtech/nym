@@ -1,4 +1,4 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 static HEALTH_CHECK_URL: &str = "https://nymtech.net/.wellknown/connect/healthcheck.json";
 
@@ -24,4 +24,3 @@ pub async fn run_health_check() -> bool {
         }
     }
 }
-

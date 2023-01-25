@@ -4,7 +4,7 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
-use crate::models::ConnectionStatusKind;
+use crate::models::{ConnectionStatusKind, ConnectivityTestResult, GatewayConnectionStatusKind};
 use crate::state::State;
 
 static HEALTH_CHECK_URL: &str = "https://nymtech.net/.wellknown/connect/healthcheck.json";
@@ -17,11 +17,29 @@ pub async fn get_connection_status(
     Ok(state.get_status())
 }
 
+#[tauri::command]
+pub async fn get_gateway_connection_status(
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<GatewayConnectionStatusKind> {
+    let mut state_w = state.write().await;
+    let gateway_connectivity = state_w.get_gateway_connectivity();
+    Ok(gateway_connectivity.into())
+}
+
+#[tauri::command]
+pub async fn get_connection_health_check_status(
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<ConnectivityTestResult> {
+    let state = state.read().await;
+    Ok(state.get_connectivity_test_result())
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 struct ConnectionSuccess {
     status: String,
 }
 
+// WIP(JON): change to kick of the connection check task instead
 #[tauri::command]
 pub async fn run_health_check() -> bool {
     log::info!("Running network health check");

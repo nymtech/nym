@@ -14,9 +14,9 @@ use nym_socks5::client::{config::Config as Socks5Config, Socks5ControlMessageSen
 
 use crate::{
     error::Result,
-    models::ConnectionStatusKind,
+    models::{ConnectionStatusKind, ConnectivityTestResult},
     operations::connection,
-    state::{ConnectivityTestResult, State},
+    state::{GatewayConnectivity, State},
 };
 
 pub type ExitStatusReceiver = futures::channel::oneshot::Receiver<Socks5ExitStatusMessage>;
@@ -180,18 +180,26 @@ pub fn start_status_listener(
     mut msg_receiver: task::StatusReceiver,
 ) {
     log::info!("Starting status listener");
+
     tokio::spawn(async move {
         while let Some(msg) = msg_receiver.next().await {
             log::info!("SOCKS5 proxy sent status message: {}", msg);
 
             if let Some(TaskStatus::Ready) = msg.downcast_ref::<TaskStatus>() {
                 handle_connection_ready(&state, &window, msg).await;
-            } else if let Some(_gateway_status) = msg.downcast_ref::<ClientCoreStatusMessage>() {
+            } else if let Some(client_status_message) =
+                msg.downcast_ref::<ClientCoreStatusMessage>()
+            {
                 // TODO: use this instead once we change on the frontend too
-                //let event_name = match gateway_status {
-                //    ClientCoreStatusMessage::GatewayIsSlow => "socks5-gateway-status",
-                //    ClientCoreStatusMessage::GatewayIsVerySlow => "socks5-gateway-status",
-                //};
+                let _event_name = match client_status_message {
+                    ClientCoreStatusMessage::GatewayIsSlow => "socks5-gateway-status",
+                    ClientCoreStatusMessage::GatewayIsVerySlow => "socks5-gateway-status",
+                };
+
+                if let Ok(connectivity) = GatewayConnectivity::try_from(client_status_message) {
+                    state.write().await.set_gateway_connectivity(connectivity);
+                }
+
                 emit_status_event("socks5-status-event", msg, &window);
             } else {
                 emit_status_event("socks5-status-event", msg, &window);

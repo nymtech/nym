@@ -1,6 +1,7 @@
 use std::time::Duration;
 
 use ::config_common::NymConfig;
+use client_core::error::ClientCoreStatusMessage;
 use futures::SinkExt;
 use tap::TapFallible;
 use tauri::Manager;
@@ -8,30 +9,44 @@ use tauri::Manager;
 use nym_socks5::client::{
     config::Config as Socks5Config, Socks5ControlMessage, Socks5ControlMessageSender,
 };
+use tokio::time::Instant;
 
 use crate::{
     config::{self, socks5_config_id_appended_with},
     error::{BackendError, Result},
     models::{
-        AppEventConnectionStatusChangedPayload, ConnectionStatusKind,
+        AppEventConnectionStatusChangedPayload, ConnectionStatusKind, ConnectivityTestResult,
         APP_EVENT_CONNECTION_STATUS_CHANGED,
     },
     tasks::{self, ExitStatusReceiver},
 };
 
-#[derive(Clone, Copy)]
-pub enum ConnectivityTestResult {
-    NotAvailable,
-    Success,
-    Fail,
-}
+// The client will emit messages if the connection to the gateway is poor (or the gateway can't
+// keep up with the messages we are sendind). If no messages about this has been received for a
+// certain duration then we assume it's all good.
+const GATEWAY_CONNECTIVITY_TIMEOUT_SECS: u64 = 20;
 
 #[derive(Clone, Copy)]
 pub enum GatewayConnectivity {
-    NotAvailable,
     Good,
-    Bad,
-    VeryBad,
+    Bad { when: Instant },
+    VeryBad { when: Instant },
+}
+
+impl TryFrom<&ClientCoreStatusMessage> for GatewayConnectivity {
+    type Error = BackendError;
+
+    fn try_from(value: &ClientCoreStatusMessage) -> Result<Self, Self::Error> {
+        let conn = match value {
+            ClientCoreStatusMessage::GatewayIsSlow => GatewayConnectivity::Bad {
+                when: Instant::now(),
+            },
+            ClientCoreStatusMessage::GatewayIsVerySlow => GatewayConnectivity::VeryBad {
+                when: Instant::now(),
+            },
+        };
+        Ok(conn)
+    }
 }
 
 pub struct State {
@@ -47,7 +62,8 @@ pub struct State {
     /// Channel that is used to send command messages to the SOCKS5 client, such as to disconnect
     socks5_client_sender: Option<Socks5ControlMessageSender>,
 
-    /// The client will periodically report connectivity to the gateway it's connected to.
+    /// The client will periodically report connectivity to the gateway it's connected to. Unless
+    /// we get a status message from the client we assume it's good.
     gateway_connectivity: GatewayConnectivity,
 
     /// The latest end-to-end connectivity test result. The first test is initiated on connection
@@ -62,12 +78,22 @@ impl State {
             service_provider: None,
             gateway: None,
             socks5_client_sender: None,
-            gateway_connectivity: GatewayConnectivity::NotAvailable,
+            gateway_connectivity: GatewayConnectivity::Good,
             connectivity_test_result: ConnectivityTestResult::NotAvailable,
         }
     }
 
-    pub fn get_gateway_connectivity(&self) -> GatewayConnectivity {
+    pub fn get_gateway_connectivity(&mut self) -> GatewayConnectivity {
+        self.gateway_connectivity = match self.gateway_connectivity {
+            c @ (GatewayConnectivity::Bad { when } | GatewayConnectivity::VeryBad { when }) => {
+                if Instant::now() > when + Duration::from_secs(GATEWAY_CONNECTIVITY_TIMEOUT_SECS) {
+                    GatewayConnectivity::Good
+                } else {
+                    c
+                }
+            }
+            current => current,
+        };
         self.gateway_connectivity
     }
 

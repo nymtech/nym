@@ -18,6 +18,8 @@ pub struct Credential {
     theta: Theta,
     voucher_value: u64,
     voucher_info: String,
+    #[getset(get = "pub")]
+    epoch_id: u64,
 }
 impl Credential {
     pub fn new(
@@ -25,12 +27,14 @@ impl Credential {
         theta: Theta,
         voucher_value: u64,
         voucher_info: String,
+        epoch_id: u64,
     ) -> Credential {
         Credential {
             n_params,
             theta,
             voucher_value,
             voucher_info,
+            epoch_id,
         }
     }
 
@@ -68,6 +72,7 @@ impl Credential {
         let theta_bytes = self.theta.to_bytes();
         let theta_bytes_len = theta_bytes.len();
         let voucher_value_bytes = self.voucher_value.to_be_bytes();
+        let epoch_id_bytes = self.epoch_id.to_be_bytes();
         let voucher_info_bytes = self.voucher_info.as_bytes();
         let voucher_info_len = voucher_info_bytes.len();
 
@@ -76,6 +81,7 @@ impl Credential {
         bytes.extend_from_slice(&(theta_bytes_len as u64).to_be_bytes());
         bytes.extend_from_slice(&theta_bytes);
         bytes.extend_from_slice(&voucher_value_bytes);
+        bytes.extend_from_slice(&epoch_id_bytes);
         bytes.extend_from_slice(voucher_info_bytes);
 
         bytes
@@ -103,7 +109,9 @@ impl Credential {
             .map_err(|e| CoconutError::Deserialization(e.to_string()))?;
         eight_byte.copy_from_slice(&bytes[12 + theta_len as usize..20 + theta_len as usize]);
         let voucher_value = u64::from_be_bytes(eight_byte);
-        let voucher_info = String::from_utf8(bytes[20 + theta_len as usize..].to_vec())
+        eight_byte.copy_from_slice(&bytes[20 + theta_len as usize..28 + theta_len as usize]);
+        let epoch_id = u64::from_be_bytes(eight_byte);
+        let voucher_info = String::from_utf8(bytes[28 + theta_len as usize..].to_vec())
             .map_err(|e| CoconutError::Deserialization(e.to_string()))?;
 
         Ok(Credential {
@@ -111,6 +119,7 @@ impl Credential {
             theta,
             voucher_value,
             voucher_info,
+            epoch_id,
         })
     }
 }
@@ -166,7 +175,7 @@ mod tests {
             binding_number,
         )
         .unwrap();
-        let credential = Credential::new(4, theta, voucher_value, voucher_info);
+        let credential = Credential::new(4, theta, voucher_value, voucher_info, 42);
 
         let serialized_credential = credential.as_bytes();
         let deserialized_credential = Credential::from_bytes(&serialized_credential).unwrap();

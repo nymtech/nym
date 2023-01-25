@@ -307,6 +307,16 @@ impl NymApiStorage {
             .await
     }
 
+    pub(crate) async fn get_average_gateway_uptime_in_the_last_24hrs(
+        &self,
+        identity: &str,
+        end_ts_secs: i64,
+    ) -> Result<Uptime, NymApiStorageError> {
+        let start = end_ts_secs - 86400;
+        self.get_average_gateway_uptime_in_time_interval(identity, start, end_ts_secs)
+            .await
+    }
+
     /// Based on the data available in the validator API, determines the average uptime of particular
     /// mixnode during the specified time interval.
     ///
@@ -328,7 +338,38 @@ impl NymApiStorage {
 
         let reliability = self
             .manager
-            .get_average_reliability_in_interval(mixnode_database_id, start, end)
+            .get_mixnode_average_reliability_in_interval(mixnode_database_id, start, end)
+            .await?;
+
+        if let Some(reliability) = reliability {
+            Ok(Uptime::new(reliability))
+        } else {
+            Ok(Uptime::zero())
+        }
+    }
+
+    /// Based on the data available in the validator API, determines the average uptime of particular
+    /// gateway during the specified time interval.
+    ///
+    /// # Arguments
+    ///
+    /// * `identity`: base58-encoded identity of the gateway.
+    /// * `since`: unix timestamp indicating the lower bound interval of the selection.
+    /// * `end`: unix timestamp indicating the upper bound interval of the selection.
+    pub(crate) async fn get_average_gateway_uptime_in_time_interval(
+        &self,
+        identity: &str,
+        start: i64,
+        end: i64,
+    ) -> Result<Uptime, NymApiStorageError> {
+        let gateway_database_id = match self.manager.get_gateway_id(identity).await? {
+            Some(id) => id,
+            None => return Ok(Uptime::zero()),
+        };
+
+        let reliability = self
+            .manager
+            .get_gateway_average_reliability_in_interval(gateway_database_id, start, end)
             .await?;
 
         if let Some(reliability) = reliability {
@@ -696,7 +737,6 @@ impl NymApiStorage {
             .map_err(|err| err.into())
     }
 
-    #[cfg(feature = "coconut")]
     pub(crate) async fn get_blinded_signature_response(
         &self,
         tx_hash: &str,
@@ -707,7 +747,6 @@ impl NymApiStorage {
             .map_err(|err| err.into())
     }
 
-    #[cfg(feature = "coconut")]
     pub(crate) async fn insert_blinded_signature_response(
         &self,
         tx_hash: &str,

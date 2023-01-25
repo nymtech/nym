@@ -8,6 +8,7 @@ use crate::config::Config;
 use crate::error::GatewayError;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket;
+use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
@@ -16,6 +17,7 @@ use colored::Colorize;
 use crypto::asymmetric::{encryption, identity};
 use log::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
+use network_defaults::NymNetworkDetails;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use statistics_common::collector::StatisticsSender;
@@ -24,15 +26,7 @@ use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
 use task::{TaskClient, TaskManager};
-
-#[cfg(feature = "coconut")]
-use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
-#[cfg(feature = "coconut")]
-use credentials::coconut::utils::obtain_aggregate_verification_key;
-#[cfg(feature = "coconut")]
-use network_defaults::NymNetworkDetails;
-#[cfg(feature = "coconut")]
-use validator_client::{Client, CoconutApiClient};
+use validator_client::Client;
 
 pub(crate) mod client_handling;
 pub(crate) mod mixnet_handling;
@@ -192,7 +186,7 @@ where
         forwarding_channel: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
         shutdown: TaskClient,
-        #[cfg(feature = "coconut")] coconut_verifier: Arc<CoconutVerifier>,
+        coconut_verifier: Arc<CoconutVerifier>,
     ) {
         info!("Starting client [web]socket listener...");
 
@@ -205,7 +199,6 @@ where
             listening_address,
             Arc::clone(&self.identity_keypair),
             self.config.get_only_coconut_credentials(),
-            #[cfg(feature = "coconut")]
             coconut_verifier,
         )
         .start(
@@ -250,7 +243,6 @@ where
         validator_client::NymApiClient::new(nym_api.clone())
     }
 
-    #[cfg(feature = "coconut")]
     fn random_nyxd_client(
         &self,
     ) -> validator_client::Client<validator_client::nyxd::SigningNyxdClient> {
@@ -318,19 +310,9 @@ where
 
         let shutdown = TaskManager::new(10);
 
-        #[cfg(feature = "coconut")]
         let coconut_verifier = {
             let nyxd_client = self.random_nyxd_client();
-            let api_clients = CoconutApiClient::all_coconut_api_clients(&nyxd_client)
-                .await
-                .map_err(|source| GatewayError::CoconutVerifiersQueryFailure { source })?;
-            let validators_verification_key = obtain_aggregate_verification_key(&api_clients)
-                .await
-                .map_err(
-                    |source| GatewayError::CoconutVerificationKeyAggregationFailure { source },
-                )?;
-            CoconutVerifier::new(api_clients, nyxd_client, validators_verification_key)
-                .map_err(|source| GatewayError::CoconutVerifierCreationFailure { source })?
+            CoconutVerifier::new(nyxd_client)
         };
 
         let mix_forwarding_channel = self.start_packet_forwarder(shutdown.subscribe());
@@ -359,7 +341,6 @@ where
             mix_forwarding_channel,
             active_clients_store,
             shutdown.subscribe(),
-            #[cfg(feature = "coconut")]
             Arc::new(coconut_verifier),
         );
 

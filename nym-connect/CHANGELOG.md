@@ -2,6 +2,12 @@
 
 ## UNRELEASED
 
+## [nym-connect-v1.1.7](https://github.com/nymtech/nym/tree/nym-connect-v1.1.7) (2023-01-24)
+
+- Remove test and earn ([#2865])
+
+[#2865]: https://github.com/nymtech/nym/issue/2865
+
 ## [nym-connect-v1.1.6](https://github.com/nymtech/nym/tree/nym-connect-v1.1.6) (2023-01-17)
 
 - part (1) show gateway status on the UI if the gateway is not live, is overloaded or is slow ([#2824])
@@ -49,7 +55,6 @@ This release contains the new opt-in Test & Earn program, and it uses a stress-t
 [#1789]: https://github.com/nymtech/nym/pull/1789
 [#1805]: https://github.com/nymtech/nym/pull/1805
 
-
 ## [nym-connect-v1.1.0](https://github.com/nymtech/nym/tree/nym-connect-v1.1.0) (2022-11-09)
 
 - nym-connect: rework of rewarding changes the directory data structures that describe the mixnet topology ([#1472])
@@ -76,7 +81,6 @@ This release contains the new opt-in Test & Earn program, and it uses a stress-t
 - nym-connect: add `local-forage` for storing user settings ([#1540])
 
 [#1540]: https://github.com/nymtech/nym/pull/1540
-
 
 ## [nym-connect-v1.0.1](https://github.com/nymtech/nym/tree/nym-connect-v1.0.1) (2022-07-22)
 

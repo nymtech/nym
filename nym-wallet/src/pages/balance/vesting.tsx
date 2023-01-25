@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { Refresh } from '@mui/icons-material';
 import {
   Box,
@@ -14,7 +14,6 @@ import {
   Typography,
 } from '@mui/material';
 import { useSnackbar } from 'notistack';
-import { useContext, useEffect, useState } from 'react';
 import { NymCard } from 'src/components';
 import { AppContext } from 'src/context/main';
 import { Period } from 'src/types';

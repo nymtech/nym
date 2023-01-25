@@ -1,6 +1,7 @@
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use super::helpers::_get_gateways_detailed;
 use super::NodeStatusCache;
 use crate::node_status_api::helpers::{
     _compute_mixnode_reward_estimation, _get_active_set_detailed, _get_mixnode_avg_uptime,
@@ -14,11 +15,11 @@ use crate::storage::NymApiStorage;
 use crate::NymContractCache;
 use mixnet_contract_common::MixId;
 use nym_api_requests::models::{
-    AllInclusionProbabilitiesResponse, ComputeRewardEstParam, GatewayCoreStatusResponse,
-    GatewayStatusReportResponse, GatewayUptimeHistoryResponse, InclusionProbabilityResponse,
-    MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
-    MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
-    StakeSaturationResponse, UptimeResponse,
+    AllInclusionProbabilitiesResponse, ComputeRewardEstParam, GatewayBondAnnotated,
+    GatewayCoreStatusResponse, GatewayStatusReportResponse, GatewayUptimeHistoryResponse,
+    InclusionProbabilityResponse, MixNodeBondAnnotated, MixnodeCoreStatusResponse,
+    MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse,
+    RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
 };
 use rocket::http::Status;
 use rocket::serde::json::Json;
@@ -207,4 +208,12 @@ pub async fn get_active_set_detailed(
     cache: &State<NodeStatusCache>,
 ) -> Json<Vec<MixNodeBondAnnotated>> {
     Json(_get_active_set_detailed(cache).await)
+}
+
+#[openapi(tag = "status")]
+#[get("/gateways/detailed")]
+pub async fn get_gateways_detailed(
+    cache: &State<NodeStatusCache>,
+) -> Json<Vec<GatewayBondAnnotated>> {
+    Json(_get_gateways_detailed(cache).await)
 }

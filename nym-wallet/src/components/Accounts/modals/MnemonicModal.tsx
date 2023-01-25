@@ -3,18 +3,16 @@ import {
   Box,
   Button,
   CircularProgress,
-  Paper,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  IconButton,
+  Paper,
   Typography,
 } from '@mui/material';
-import { ArrowBackSharp } from '@mui/icons-material';
 import { AccountsContext } from 'src/context';
 import { useClipboard } from 'use-clipboard-copy';
-import { PasswordInput, Mnemonic } from 'src/components';
+import { Mnemonic, PasswordInput } from 'src/components';
 import { StyledBackButton } from 'src/components/StyledBackButton';
 
 export const MnemonicModal = () => {

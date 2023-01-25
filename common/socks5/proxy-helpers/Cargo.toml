@@ -13,7 +13,7 @@ tokio-util = { version = "0.7.4", features = [ "io" ] } # reason for getting thi
 # their `read_buf` [from the util crate] replacement rather than having to rethink/reimplement `AvailableReader` with the new AsyncRead trait definition.
 # In the long run, the dependency should probably get removed in favour of pure-tokio implementation, but for time being it's fine.
 futures = "0.3"
-log = "0.4"
+log = { workspace = true }
 
 # internal
 client-connections = { path = "../../client-connections" }

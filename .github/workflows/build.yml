@@ -2,11 +2,33 @@ name: Continuous integration
 
 on:
   push:
-    paths-ignore:
-      - 'explorer/**'
+    paths:
+      - 'clients/**'
+      - 'common/**'
+      - 'explorer-api/**'
+      - 'gateway/**'
+      - 'integrations/**'
+      - 'mixnode/**'
+      - 'sdk/rust/nym-sdk/**'
+      - 'service-providers/**'
+      - 'nym-api/**'
+      - 'nym-outfox/**'
+      - 'tools/nym-cli/**'
+      - 'tools/ts-rs-cli/**'
   pull_request:
-    paths-ignore:
-      - 'explorer/**'
+    paths:
+      - 'clients/**'
+      - 'common/**'
+      - 'explorer-api/**'
+      - 'gateway/**'
+      - 'integrations/**'
+      - 'mixnode/**'
+      - 'sdk/rust/nym-sdk/**'
+      - 'service-providers/**'
+      - 'nym-api/**'
+      - 'nym-outfox/**'
+      - 'tools/nym-cli/**'
+      - 'tools/ts-rs-cli/**'
 
 jobs:
   build:
@@ -17,6 +39,7 @@ jobs:
     steps:
       - name: Install Dependencies (Linux)
         run: sudo apt-get update && sudo apt-get -y install libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev libudev-dev squashfs-tools
+        continue-on-error: true
 
       - name: Check out repository code
         uses: actions/checkout@v2
@@ -40,6 +63,12 @@ jobs:
         with:
           command: build
           args: --workspace
+
+      - name: Build all examples
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --workspace --examples
 
       - name: Run all tests
         uses: actions-rs/cargo@v1
@@ -65,24 +94,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --workspace -- -D warnings
-
-      # COCONUT stuff
-
-      - name: Build all binaries with coconut enabled
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --workspace --features=coconut
-
-      - name: Run all tests with coconut enabled
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace --features=coconut
-
-      - name: Run clippy with coconut enabled
-        uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --all-targets --features=coconut -- -D warnings
+          args: --workspace --all-targets --all-features -- -D warnings

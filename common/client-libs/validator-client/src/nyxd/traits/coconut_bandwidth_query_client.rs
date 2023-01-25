@@ -18,7 +18,7 @@ pub trait CoconutBandwidthQueryClient {
 }
 
 #[async_trait]
-impl<C: CosmWasmClient + Sync + Send> CoconutBandwidthQueryClient for NyxdClient<C> {
+impl<C: CosmWasmClient + Sync + Send + Clone> CoconutBandwidthQueryClient for NyxdClient<C> {
     async fn get_spent_credential(
         &self,
         blinded_serial_number: String,

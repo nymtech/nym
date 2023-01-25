@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
-import { Box, CircularProgress, Stack, TextField, Tooltip, Typography, MenuItem, ListItemIcon } from '@mui/material';
-import { ServiceProvider, Service, Services } from '../types/directory';
+import { Box, CircularProgress, MenuItem, Stack, TextField, Tooltip, Typography } from '@mui/material';
+import { Service, ServiceProvider, Services } from '../types/directory';
 import { useTauriEvents } from '../utils';
 
 type ServiceWithRandomSp = {

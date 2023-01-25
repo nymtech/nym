@@ -6,7 +6,7 @@ use crate::support::caching::Cache;
 use self::data::NodeStatusCacheData;
 use self::inclusion_probabilities::InclusionProbabilities;
 use mixnet_contract_common::MixId;
-use nym_api_requests::models::{MixNodeBondAnnotated, MixnodeStatus};
+use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated, MixnodeStatus};
 use rocket::fairing::AdHoc;
 use std::{sync::Arc, time::Duration};
 use thiserror::Error;
@@ -58,6 +58,7 @@ impl NodeStatusCache {
         mixnodes: Vec<MixNodeBondAnnotated>,
         rewarded_set: Vec<MixNodeBondAnnotated>,
         active_set: Vec<MixNodeBondAnnotated>,
+        gateways: Vec<GatewayBondAnnotated>,
         inclusion_probabilities: InclusionProbabilities,
     ) {
         match time::timeout(Duration::from_millis(CACHE_TIMEOUT_MS), self.inner.write()).await {
@@ -65,6 +66,7 @@ impl NodeStatusCache {
                 cache.mixnodes_annotated.update(mixnodes);
                 cache.rewarded_set_annotated.update(rewarded_set);
                 cache.active_set_annotated.update(active_set);
+                cache.gateways_annotated.update(gateways);
                 cache
                     .inclusion_probabilities
                     .update(inclusion_probabilities);
@@ -97,6 +99,10 @@ impl NodeStatusCache {
 
     pub(crate) async fn active_set_annotated(&self) -> Option<Cache<Vec<MixNodeBondAnnotated>>> {
         self.get(|c| c.active_set_annotated.clone()).await
+    }
+
+    pub(crate) async fn gateways_annotated(&self) -> Option<Cache<Vec<GatewayBondAnnotated>>> {
+        self.get(|c| c.gateways_annotated.clone()).await
     }
 
     pub(crate) async fn inclusion_probabilities(&self) -> Option<Cache<InclusionProbabilities>> {

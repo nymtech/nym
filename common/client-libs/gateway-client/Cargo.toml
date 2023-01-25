@@ -10,7 +10,7 @@ edition = "2021"
 # TODO: (for this and other crates), similarly to 'tokio', import only required "futures" modules rather than
 # the entire crate
 futures = "0.3"
-log = "0.4"
+log = { workspace = true }
 thiserror = "1.0"
 url = "2.2"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
@@ -18,14 +18,14 @@ async-trait = { version = "0.1.51" }
 tokio = { version = "1.24.1", features = ["macros"] }
 
 # internal
-coconut-interface = { path = "../../coconut-interface", optional = true }
+coconut-interface = { path = "../../coconut-interface" }
 credentials = { path = "../../credentials" }
 crypto = { path = "../../crypto" }
 gateway-requests = { path = "../../../gateway/gateway-requests" }
 network-defaults = { path = "../../network-defaults" }
 nymsphinx = { path = "../../nymsphinx" }
 pemstore = { path = "../../pemstore" }
-validator-client = { path = "../validator-client", optional = true }
+validator-client = { path = "../validator-client" }
 task = { path = "../../task" }
 serde = { version = "1.0", features = ["derive"]}
 mobile-storage = { path = "../../mobile-storage" }
@@ -80,6 +80,5 @@ features = ["js"]
 #url = "2.1"
 
 [features]
-coconut = ["gateway-requests/coconut", "coconut-interface", "validator-client", "credentials/coconut"]
 wasm = []
 mobile = []

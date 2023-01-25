@@ -1893,6 +1893,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "group-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cw4",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "gtk"
 version = "0.15.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2932,7 +2941,7 @@ dependencies = [
 
 [[package]]
 name = "nym_wallet"
-version = "1.1.6"
+version = "1.1.7"
 dependencies = [
  "aes-gcm",
  "argon2 0.3.4",
@@ -5403,9 +5412,11 @@ dependencies = [
  "cosmrs",
  "cosmwasm-std",
  "cw3",
+ "cw4",
  "execute",
  "flate2",
  "futures",
+ "group-contract-common",
  "itertools",
  "log",
  "mixnet-contract-common",

@@ -1,10 +1,21 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::coconut::error::CoconutError;
 use crate::epoch_operations::MixnodeToReward;
 use crate::support::config::Config;
 use anyhow::Result;
+use async_trait::async_trait;
+use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
+use coconut_dkg_common::{
+    dealer::{ContractDealing, DealerDetails, DealerDetailsResponse},
+    types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId},
+    verification_key::{ContractVKShare, VerificationKeyShare},
+};
 use config::defaults::{ChainDetails, NymNetworkDetails, DEFAULT_NYM_API_PORT};
+use contracts_common::dealings::ContractSafeBytes;
+use cw3::ProposalResponse;
+use cw4::MemberResponse;
 use mixnet_contract_common::families::{Family, FamilyHead};
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::RewardingParams;
@@ -17,37 +28,19 @@ use tokio::sync::RwLock;
 use validator_client::nyxd::error::NyxdError;
 use validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
 use validator_client::nyxd::{
+    cosmwasm_client::types::ExecuteResult,
+    traits::{
+        CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, GroupQueryClient,
+        MultisigQueryClient, MultisigSigningClient,
+    },
+    Fee,
+};
+use validator_client::nyxd::{
     hash::{Hash, SHA256_HASH_SIZE},
     AccountId, Coin, SigningNyxdClient, TendermintTime, VestingQueryClient,
 };
 use validator_client::ValidatorClientError;
 use vesting_contract_common::AccountVestingCoins;
-
-#[cfg(feature = "coconut")]
-use crate::coconut::error::CoconutError;
-#[cfg(feature = "coconut")]
-use async_trait::async_trait;
-#[cfg(feature = "coconut")]
-use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
-#[cfg(feature = "coconut")]
-use coconut_dkg_common::{
-    dealer::{ContractDealing, DealerDetails, DealerDetailsResponse},
-    types::{EncodedBTEPublicKeyWithProof, Epoch},
-    verification_key::{ContractVKShare, VerificationKeyShare},
-};
-#[cfg(feature = "coconut")]
-use contracts_common::dealings::ContractSafeBytes;
-#[cfg(feature = "coconut")]
-use cw3::ProposalResponse;
-#[cfg(feature = "coconut")]
-use validator_client::nyxd::{
-    cosmwasm_client::types::ExecuteResult,
-    traits::{
-        CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, MultisigQueryClient,
-        MultisigSigningClient,
-    },
-    Fee,
-};
 
 pub(crate) struct Client(pub(crate) Arc<RwLock<validator_client::Client<SigningNyxdClient>>>);
 
@@ -189,6 +182,9 @@ impl Client {
             .nyxd
             .query_contract_raw(vesting_contract, b"key".to_vec())
             .await?;
+        if res.is_empty() {
+            return Ok(0);
+        }
 
         Ok(serde_json::from_slice(&res).map_err(NyxdError::from)?)
     }
@@ -283,7 +279,6 @@ impl Client {
 }
 
 #[async_trait]
-#[cfg(feature = "coconut")]
 impl crate::coconut::client::Client for Client {
     async fn address(&self) -> AccountId {
         self.client_address().await
@@ -327,6 +322,10 @@ impl crate::coconut::client::Client for Client {
         Ok(self.0.read().await.nyxd.get_current_epoch().await?)
     }
 
+    async fn group_member(&self, addr: String) -> crate::coconut::error::Result<MemberResponse> {
+        Ok(self.0.read().await.nyxd.member(addr).await?)
+    }
+
     async fn get_current_epoch_threshold(
         &self,
     ) -> crate::coconut::error::Result<Option<dkg::Threshold>> {
@@ -365,12 +364,13 @@ impl crate::coconut::client::Client for Client {
 
     async fn get_verification_key_shares(
         &self,
+        epoch_id: EpochId,
     ) -> crate::coconut::error::Result<Vec<ContractVKShare>> {
         Ok(self
             .0
             .read()
             .await
-            .get_all_nyxd_verification_key_shares()
+            .get_all_nyxd_verification_key_shares(epoch_id)
             .await?)
     }
 

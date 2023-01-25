@@ -14,11 +14,7 @@ use tokio_tungstenite::WebSocketStream;
 pub(crate) use self::authenticated::AuthenticatedHandler;
 pub(crate) use self::fresh::FreshHandler;
 
-#[cfg(feature = "coconut")]
-pub(crate) use self::authenticated::RequestHandlingError;
-
 mod authenticated;
-#[cfg(feature = "coconut")]
 pub(crate) mod coconut;
 mod fresh;
 

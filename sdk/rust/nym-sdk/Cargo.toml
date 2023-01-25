@@ -14,9 +14,10 @@ gateway-requests = { path = "../../../gateway/gateway-requests" }
 network-defaults = { path = "../../../common/network-defaults" }
 nymsphinx = { path = "../../../common/nymsphinx" }
 task = { path = "../../../common/task" }
+validator-client = { path = "../../../common/client-libs/validator-client", features = ["nyxd-client"] }
 
 futures = "0.3"
-log = "0.4"
+log = { workspace = true }
 rand = { version = "0.7.3" }
 tap = "1.0.1"
 thiserror = "1.0.38"

@@ -1,18 +1,24 @@
 use client_core::{
-    client::key_manager::KeyManager,
     config::{ClientCoreConfigTrait, GatewayEndpointConfig},
+    error::ClientCoreStatusMessage,
 };
 use futures::{channel::mpsc, StreamExt};
 use std::sync::Arc;
 use tap::TapFallible;
+use task::manager::TaskStatus;
 use tokio::sync::RwLock;
 
 use config_common::NymConfig;
-#[cfg(not(feature = "coconut"))]
 use nym_socks5::client::NymClient as Socks5NymClient;
 use nym_socks5::client::{config::Config as Socks5Config, Socks5ControlMessageSender};
 
-use crate::{config::Config, error::Result, state::State};
+use crate::{
+    error::Result,
+    events::{self, emit_event, emit_status_event},
+    models::{ConnectionStatusKind, ConnectivityTestResult},
+    operations,
+    state::State,
+};
 
 pub type ExitStatusReceiver = futures::channel::oneshot::Receiver<Socks5ExitStatusMessage>;
 
@@ -86,31 +92,69 @@ pub fn start_nym_socks5_client(
     ))
 }
 
-#[derive(Clone, serde::Serialize)]
-struct Payload {
-    title: String,
-    message: String,
+pub fn start_connection_check(state: Arc<RwLock<State>>, window: tauri::Window<tauri::Wry>) {
+    log::debug!("Starting connection check handler");
+    tokio::spawn(async move {
+        if state.read().await.get_status() != ConnectionStatusKind::Connected {
+            log::error!("SOCKS5 connection status check failed: not connected");
+            return;
+        }
+
+        log::info!("Running connection health check");
+        if operations::connection::health_check::run_health_check().await {
+            state
+                .write()
+                .await
+                .set_connectivity_test_result(ConnectivityTestResult::Success);
+            emit_event(
+                "socks5-connection-success-event",
+                "SOCKS5 success",
+                "SOCKS5 connection health check successful",
+                &window,
+            );
+        } else if state.read().await.get_status() == ConnectionStatusKind::Connected {
+            state
+                .write()
+                .await
+                .set_connectivity_test_result(ConnectivityTestResult::Fail);
+            log::error!("SOCKS5 connection health check failed");
+            emit_event(
+                "socks5-connection-fail-event",
+                "SOCKS5 error",
+                "SOCKS5 connection health check failed",
+                &window,
+            );
+        } else {
+            log::debug!("SOCKS5 connection status check cancelled: not connected");
+        }
+
+        log::debug!("Connection check handler exiting");
+    });
 }
 
 /// The status listener listens for non-exit status messages from the background socks5 proxy task.
 pub fn start_status_listener(
+    state: Arc<RwLock<State>>,
     window: tauri::Window<tauri::Wry>,
     mut msg_receiver: task::StatusReceiver,
 ) {
     log::info!("Starting status listener");
+
     tokio::spawn(async move {
         while let Some(msg) = msg_receiver.next().await {
             log::info!("SOCKS5 proxy sent status message: {}", msg);
-            window
-                .emit(
-                    "socks5-status-event",
-                    Payload {
-                        title: "SOCKS5 update".into(),
-                        message: msg.to_string(),
-                    },
-                )
-                .unwrap();
+
+            if let Some(task_status) = msg.downcast_ref::<TaskStatus>() {
+                events::handle_task_status(task_status, &state, &window).await;
+            } else if let Some(client_status_message) =
+                msg.downcast_ref::<ClientCoreStatusMessage>()
+            {
+                events::handle_client_status_message(client_status_message, &state, &window).await;
+            } else {
+                emit_status_event("socks5-status-event", &msg, &window);
+            }
         }
+        log::info!("Status listener exiting");
     });
 }
 
@@ -126,39 +170,30 @@ pub fn start_disconnect_listener(
         match exit_status_receiver.await {
             Ok(Socks5ExitStatusMessage::Stopped) => {
                 log::info!("SOCKS5 task reported it has finished");
-                window
-                    .emit(
-                        "socks5-event",
-                        Payload {
-                            title: "SOCKS5 finished".into(),
-                            message: "SOCKS5 task reported it has finished".into(),
-                        },
-                    )
-                    .unwrap();
+                emit_event(
+                    "socks5-event",
+                    "SOCKS5 finished",
+                    "SOCKS5 task reported it has finished",
+                    &window,
+                );
             }
             Ok(Socks5ExitStatusMessage::Failed(err)) => {
                 log::info!("SOCKS5 task reported error: {err}");
-                window
-                    .emit(
-                        "socks5-event",
-                        Payload {
-                            title: "SOCKS5 error".into(),
-                            message: format!("SOCKS5 failed: {err}"),
-                        },
-                    )
-                    .unwrap();
+                emit_event(
+                    "socks5-event",
+                    "SOCKS5 error",
+                    &format!("SOCKS5 failed: {err}"),
+                    &window,
+                );
             }
             Err(_) => {
                 log::info!("SOCKS5 task appears to have stopped abruptly");
-                window
-                    .emit(
-                        "socks5-event",
-                        Payload {
-                            title: "SOCKS5 error".into(),
-                            message: "SOCKS5 stopped abruptly. Please try reconnecting.".into(),
-                        },
-                    )
-                    .unwrap();
+                emit_event(
+                    "socks5-event",
+                    "SOCKS5 error",
+                    "SOCKS5 stopped abruptly. Please try reconnecting.",
+                    &window,
+                );
             }
         }
 

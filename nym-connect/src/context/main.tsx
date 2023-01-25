@@ -23,12 +23,10 @@ export type TClientContext = {
   connectedSince?: DateTime;
   services?: Services;
   serviceProvider?: ServiceProvider;
-  showHelp: boolean;
   error?: Error;
   gatewayPerformance: GatewayPerformance;
   setMode: (mode: ModeType) => void;
   clearError: () => void;
-  handleShowHelp: () => void;
   setConnectionStatus: (connectionStatus: ConnectionStatusKind) => void;
   setConnectionStats: (connectionStats: ConnectionStatsItem[] | undefined) => void;
   setConnectedSince: (connectedSince: DateTime | undefined) => void;
@@ -47,7 +45,6 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const [connectedSince, setConnectedSince] = useState<DateTime>();
   const [services, setServices] = React.useState<Services>([]);
   const [serviceProvider, setRawServiceProvider] = React.useState<ServiceProvider>();
-  const [showHelp, setShowHelp] = useState(false);
   const [error, setError] = useState<Error>();
   const [appVersion, setAppVersion] = useState<string>();
   const [gatewayPerformance, setGatewayPerformance] = useState<GatewayPerformance>('Good');
@@ -162,9 +159,6 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       console.warn(e);
     }
   };
-
-  const handleShowHelp = () => setShowHelp((show) => !show);
-
   const clearError = () => setError(undefined);
 
   useEffect(() => {
@@ -205,8 +199,6 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       services,
       serviceProvider,
       setServiceProvider,
-      showHelp,
-      handleShowHelp,
       gatewayPerformance,
     }),
     [
@@ -215,7 +207,6 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       appVersion,
       error,
       connectedSince,
-      showHelp,
       connectionStatus,
       connectionStats,
       connectedSince,

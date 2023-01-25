@@ -5,8 +5,8 @@ import { ConnectionStatusKind } from './types';
 import { useClientContext } from './context/main';
 import { DefaultLayout } from './layouts/DefaultLayout';
 import { ConnectedLayout } from './layouts/ConnectedLayout';
-import { HelpGuideLayout } from './layouts/HelpGuideLayout';
 import { useTauriEvents } from './utils';
+import { AppRoutes } from './routes';
 
 export const App: FCWithChildren = () => {
   const context = useClientContext();
@@ -47,22 +47,11 @@ export const App: FCWithChildren = () => {
     if (context.connectionStatus === ConnectionStatusKind.connected) setShowInfoModal(true);
   }, [context.connectionStatus]);
 
-  if (context.showHelp) return <HelpGuideLayout />;
-
   if (
     context.connectionStatus === ConnectionStatusKind.disconnected ||
     context.connectionStatus === ConnectionStatusKind.connecting
   ) {
-    return (
-      <DefaultLayout
-        error={context.error}
-        clearError={context.clearError}
-        status={context.connectionStatus}
-        busy={busy}
-        onConnectClick={handleConnectClick}
-        services={context.services}
-      />
-    );
+    return <AppRoutes />;
   }
 
   return (

@@ -1,34 +1,33 @@
 import React from 'react';
-import { Box, Typography } from '@mui/material';
+import { Typography } from '@mui/material';
 import { ConnectionStatus } from 'src/components/ConnectionStatus';
 import { ConnectionTimer } from 'src/components/ConntectionTimer';
+import { useClientContext } from 'src/context/main';
 import { InfoModal } from 'src/components/InfoModal';
 import { Error } from 'src/types/error';
-import { ConnectionButton } from '../components/ConnectionButton';
-import { useClientContext } from '../context/main';
-import { ConnectionStatusKind } from '../types';
-import { Services } from '../types/directory';
 import { ExperimentalWarning } from 'src/components/ExperimentalWarning';
+import { ServiceProvider, Services } from 'src/types/directory';
+import { ConnectionStatusKind } from 'src/types';
+import { ConnectionButton } from 'src/components/ConnectionButton';
 
-export const DefaultLayout: FCWithChildren<{
+export const Disconnected: FCWithChildren<{
   error?: Error;
   status: ConnectionStatusKind;
   services?: Services;
   busy?: boolean;
   isError?: boolean;
+  serviceProvider?: ServiceProvider;
   clearError: () => void;
   onConnectClick?: (status: ConnectionStatusKind) => void;
-}> = ({ status, error, busy, isError, onConnectClick, clearError }) => {
-  const context = useClientContext();
-
+}> = ({ status, error, busy, isError, onConnectClick, clearError, serviceProvider }) => {
   return (
     <>
       {error && <InfoModal show title={error.title} description={error.message} onClose={clearError} />}
-      <ConnectionStatus status={ConnectionStatusKind.disconnected} />
+      <ConnectionStatus status={'disconnected'} />
       <ConnectionTimer />
       <ConnectionButton
         status={status}
-        disabled={context.serviceProvider === undefined}
+        disabled={serviceProvider === undefined}
         busy={busy}
         isError={isError}
         onClick={onConnectClick}

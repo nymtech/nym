@@ -15,7 +15,7 @@ const ConnectionStatusContent: FCWithChildren<{
   serviceProvider?: ServiceProvider;
 }> = ({ status, serviceProvider }) => {
   switch (status) {
-    case ConnectionStatusKind.connected:
+    case 'connected':
       return (
         <Tooltip title={serviceProvider ? <ServiceProviderInfo serviceProvider={serviceProvider} /> : undefined}>
           <Box display="flex" alignItems="center" gap={0.5} justifyContent="center" sx={{ cursor: 'pointer' }}>
@@ -26,13 +26,13 @@ const ConnectionStatusContent: FCWithChildren<{
           </Box>
         </Tooltip>
       );
-    case ConnectionStatusKind.disconnected:
+    case 'disconnected':
       return (
         <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} textAlign="center" fontSize={FONT_SIZE}>
           Connect to the mixnet
         </Typography>
       );
-    case ConnectionStatusKind.disconnecting:
+    case 'disconnecting':
       return (
         <Box display="flex" alignItems="center" justifyContent="center">
           <CircularProgress size={FONT_SIZE} color="inherit" />
@@ -41,7 +41,7 @@ const ConnectionStatusContent: FCWithChildren<{
           </Typography>
         </Box>
       );
-    case ConnectionStatusKind.connecting:
+    case 'connecting':
       return (
         <Box display="flex" alignItems="center" justifyContent="center">
           <CircularProgress size={FONT_SIZE} color="inherit" />
@@ -62,13 +62,12 @@ export const ConnectionStatus: FCWithChildren<{
   connectedSince?: DateTime;
   serviceProvider?: ServiceProvider;
 }> = ({ status, serviceProvider, gatewayPerformance }) => {
-  const color =
-    status === ConnectionStatusKind.connected || status === ConnectionStatusKind.disconnecting ? '#21D072' : 'white';
+  const color = status === 'connected' || status === 'disconnecting' ? '#21D072' : 'white';
 
   return (
     <>
       <Box color={color} fontSize={FONT_SIZE} sx={{ mb: 1 }}>
-        {status === ConnectionStatusKind.connected && gatewayPerformance !== 'Good' ? (
+        {status === 'connected' && gatewayPerformance !== 'Good' ? (
           <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} color="primary">
             Gateway has issues
           </Typography>

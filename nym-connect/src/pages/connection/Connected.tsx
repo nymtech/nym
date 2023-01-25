@@ -1,17 +1,17 @@
 import React from 'react';
-import { Box, Divider } from '@mui/material';
+import { Box } from '@mui/material';
 import { DateTime } from 'luxon';
 import { IpAddressAndPortModal } from 'src/components/IpAddressAndPortModal';
 import { ConnectionTimer } from 'src/components/ConntectionTimer';
-import { ConnectionStatus } from '../components/ConnectionStatus';
-import { ConnectionStatusKind, GatewayPerformance } from '../types';
-import { ConnectionStatsItem } from '../components/ConnectionStats';
-import { ConnectionButton } from '../components/ConnectionButton';
-import { IpAddressAndPort } from '../components/IpAddressAndPort';
-import { ServiceProvider } from '../types/directory';
+import { ConnectionStatus } from 'src/components/ConnectionStatus';
+import { ConnectionStatusKind, GatewayPerformance } from 'src/types';
+import { ConnectionStatsItem } from 'src/components/ConnectionStats';
+import { ConnectionButton } from 'src/components/ConnectionButton';
+import { IpAddressAndPort } from 'src/components/IpAddressAndPort';
+import { ServiceProvider } from 'src/types/directory';
 import { ExperimentalWarning } from 'src/components/ExperimentalWarning';
 
-export const ConnectedLayout: FCWithChildren<{
+export const Connected: FCWithChildren<{
   status: ConnectionStatusKind;
   gatewayPerformance: GatewayPerformance;
   stats: ConnectionStatsItem[];

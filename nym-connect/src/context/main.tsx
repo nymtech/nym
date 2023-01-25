@@ -40,7 +40,7 @@ export const ClientContext = createContext({} as TClientContext);
 
 export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const [mode, setMode] = useState<ModeType>('dark');
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatusKind>(ConnectionStatusKind.disconnected);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatusKind>('disconnected');
   const [connectionStats, setConnectionStats] = useState<ConnectionStatsItem[]>();
   const [connectedSince, setConnectedSince] = useState<DateTime>();
   const [services, setServices] = React.useState<Services>([]);

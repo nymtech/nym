@@ -5,7 +5,7 @@ import { ClientContext, TClientContext } from '../main';
 const mockValues: TClientContext = {
   appVersion: 'v1.x.x',
   mode: 'dark',
-  connectionStatus: ConnectionStatusKind.disconnected,
+  connectionStatus: 'disconnected',
   services: [],
   serviceProvider: { id: '1', description: 'Keybase service provider', gateway: 'abc123', address: '123abc' },
   gatewayPerformance: 'Good',
@@ -22,7 +22,7 @@ const mockValues: TClientContext = {
 export const MockProvider: FCWithChildren<{
   children?: React.ReactNode;
   connectionStatus?: ConnectionStatusKind;
-}> = ({ connectionStatus = ConnectionStatusKind.disconnected, children }) => {
+}> = ({ connectionStatus = 'disconnected', children }) => {
   const value = useMemo(() => ({ ...mockValues, connectionStatus }), [connectionStatus]);
   return <ClientContext.Provider value={value}>{children}</ClientContext.Provider>;
 };

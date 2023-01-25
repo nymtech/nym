@@ -8,18 +8,14 @@ export default {
   component: ConnectionButton,
 } as ComponentMeta<typeof ConnectionButton>;
 
-export const Disconnected: ComponentStory<typeof ConnectionButton> = () => (
-  <ConnectionButton status={ConnectionStatusKind.disconnected} />
-);
+export const Disconnected: ComponentStory<typeof ConnectionButton> = () => <ConnectionButton status={'disconnected'} />;
 
 export const Connecting: ComponentStory<typeof ConnectionButton> = () => (
-  <ConnectionButton status={ConnectionStatusKind.connecting} busy />
+  <ConnectionButton status={'connecting'} busy />
 );
 
-export const Connected: ComponentStory<typeof ConnectionButton> = () => (
-  <ConnectionButton status={ConnectionStatusKind.connected} />
-);
+export const Connected: ComponentStory<typeof ConnectionButton> = () => <ConnectionButton status={'connected'} />;
 
 export const Disconnecting: ComponentStory<typeof ConnectionButton> = () => (
-  <ConnectionButton status={ConnectionStatusKind.disconnecting} busy />
+  <ConnectionButton status={'disconnecting'} busy />
 );

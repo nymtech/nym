@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { HelpPage } from 'src/components/HelpPage';
 import Image1 from '../../assets/help-step-one.png';
 import Image2 from '../../assets/help-step-two.png';
-import Image3 from '../../assets/help-step-three.png';
 import Image4 from '../../assets/help-step-four.png';
 
 export const HelpGuide = () => {

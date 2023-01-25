@@ -1,9 +1,7 @@
 import React, { useEffect } from 'react';
 import { DateTime } from 'luxon';
 import { forage } from '@tauri-apps/tauri-forage';
-import { ConnectionStatusKind } from './types';
 import { useClientContext } from './context/main';
-import { DefaultLayout } from './layouts/DefaultLayout';
 import { ConnectedLayout } from './layouts/ConnectedLayout';
 import { useTauriEvents } from './utils';
 import { AppRoutes } from './routes';
@@ -25,16 +23,16 @@ export const App: FCWithChildren = () => {
 
   const handleConnectClick = React.useCallback(async () => {
     const currentStatus = context.connectionStatus;
-    if (currentStatus === ConnectionStatusKind.connected || currentStatus === ConnectionStatusKind.disconnected) {
+    if (currentStatus === 'connected' || currentStatus === 'disconnected') {
       setBusy(true);
 
       // eslint-disable-next-line default-case
       switch (currentStatus) {
-        case ConnectionStatusKind.disconnected:
+        case 'disconnected':
           await context.startConnecting();
           context.setConnectedSince(DateTime.now());
           break;
-        case ConnectionStatusKind.connected:
+        case 'connected':
           await context.startDisconnecting();
           context.setConnectedSince(undefined);
           break;
@@ -44,13 +42,10 @@ export const App: FCWithChildren = () => {
   }, [context.connectionStatus]);
 
   useEffect(() => {
-    if (context.connectionStatus === ConnectionStatusKind.connected) setShowInfoModal(true);
+    if (context.connectionStatus === 'connected') setShowInfoModal(true);
   }, [context.connectionStatus]);
 
-  if (
-    context.connectionStatus === ConnectionStatusKind.disconnected ||
-    context.connectionStatus === ConnectionStatusKind.connecting
-  ) {
+  if (context.connectionStatus === 'disconnected' || context.connectionStatus === 'connecting') {
     return <AppRoutes />;
   }
 

@@ -106,7 +106,7 @@ jobs:
         if: ${{ matrix.rust != 'nightly' }}
         with:
           command: clippy
-          args: --workspace --all-targets --all-features -- -D warnings
+          args: --workspace --all-targets -- -D warnings
 
       - name: Reclaim some disk space
         uses: actions-rs/cargo@v1

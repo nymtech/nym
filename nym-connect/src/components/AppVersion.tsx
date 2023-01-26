@@ -7,7 +7,7 @@ export const AppVersion = () => {
 
   return (
     <Box sx={{ display: 'flex', width: '100%', justifyContent: 'center' }}>
-      <Box fontSize="small" sx={{ mb: 4, color: 'grey.600' }}>
+      <Box fontSize="small" sx={{ color: 'grey.600' }}>
         Version {appVersion}
       </Box>
     </Box>

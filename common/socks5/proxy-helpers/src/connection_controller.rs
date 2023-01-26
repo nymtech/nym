@@ -6,7 +6,7 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
 use ordered_buffer::{OrderedMessage, OrderedMessageBuffer, ReadContiguousData};
-use socks5_requests::{ConnectionId, Response, SendRequest};
+use socks5_requests::{ConnectionId, NetworkData, SendRequest};
 use std::{
     collections::{HashMap, HashSet},
     time::Duration,
@@ -50,8 +50,8 @@ pub enum ControllerCommand {
     },
 }
 
-impl From<Response> for ControllerCommand {
-    fn from(value: Response) -> Self {
+impl From<NetworkData> for ControllerCommand {
+    fn from(value: NetworkData) -> Self {
         ControllerCommand::Send {
             connection_id: value.connection_id,
             data: value.data,

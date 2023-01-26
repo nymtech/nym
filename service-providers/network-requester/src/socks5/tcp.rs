@@ -6,8 +6,8 @@ use crate::reply::MixnetMessage;
 use client_connections::LaneQueueLengths;
 use proxy_helpers::connection_controller::ConnectionReceiver;
 use proxy_helpers::proxy_runner::{MixProxySender, ProxyRunner};
-use service_providers_common::interface::ProviderInterfaceVersion;
-use socks5_requests::{ConnectionId, RemoteAddress};
+use service_providers_common::interface::{ProviderInterfaceVersion, RequestVersion};
+use socks5_requests::{ConnectionId, RemoteAddress, Socks5Request};
 use std::io;
 use task::TaskClient;
 use tokio::net::TcpStream;
@@ -41,7 +41,7 @@ impl Connection {
 
     pub(crate) async fn run_proxy(
         &mut self,
-        remote_interface: ProviderInterfaceVersion,
+        remote_version: RequestVersion<Socks5Request>,
         mix_receiver: ConnectionReceiver,
         mix_sender: MixProxySender<MixnetMessage>,
         lane_queue_lengths: LaneQueueLengths,
@@ -64,7 +64,7 @@ impl Connection {
         .run(move |conn_id, read_data, socket_closed| {
             MixnetMessage::new_network_data_response_content(
                 return_address.clone(),
-                remote_interface,
+                remote_version.clone(),
                 conn_id,
                 read_data,
                 socket_closed,

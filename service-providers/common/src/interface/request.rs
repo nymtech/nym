@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::interface::{
-    ControlRequest, EmptyMessage, ProviderInterfaceVersion, Response, ResponseContent,
-    Serializable, ServiceProviderMessagingError, ServiceProviderResponse,
+    ControlRequest, EmptyMessage, ProviderInterfaceVersion, ResponseContent, Serializable,
+    ServiceProviderMessagingError, ServiceProviderResponse,
 };
 use log::warn;
 use std::fmt::Debug;
@@ -33,14 +33,6 @@ pub enum RequestContent<T: ServiceProviderRequest = EmptyMessage> {
 
 #[repr(u8)]
 pub enum RequestTag {
-    // /// Value tag representing legacy value for `Socks5Message::Request`
-    // LegacySocks5Request = 0,
-    //
-    // /// Value tag representing legacy value for `Socks5Message::Response`
-    // LegacySocks5Response = 1,
-    //
-    // /// Value tag representing legacy value for `Socks5Message::NetworkRequesterResponse`
-    // LegacySocks5NRResponse = 2,
     /// Value tag representing [`Control`] variant of the [`Request`]
     Control = 0x00,
 
@@ -53,26 +45,12 @@ impl TryFrom<u8> for RequestTag {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            // _ if value == (Self::LegacySocks5Request as u8) => Ok(Self::LegacySocks5Request),
-            // _ if value == (Self::LegacySocks5Response as u8) => Ok(Self::LegacySocks5Response),
-            // _ if value == (Self::LegacySocks5NRResponse as u8) => Ok(Self::LegacySocks5NRResponse),
             _ if value == (Self::Control as u8) => Ok(Self::Control),
             _ if value == (Self::ProviderData as u8) => Ok(Self::ProviderData),
             received => Err(ServiceProviderMessagingError::InvalidRequestTag { received }),
         }
     }
 }
-
-// impl RequestTag {
-//     pub fn is_legacy(&self) -> bool {
-//         matches!(
-//             self,
-//             RequestTag::LegacySocks5Request
-//                 | RequestTag::LegacySocks5Response
-//                 | RequestTag::LegacySocks5NRResponse
-//         )
-//     }
-// }
 
 impl<T> Request<T>
 where

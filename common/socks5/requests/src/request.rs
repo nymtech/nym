@@ -1,7 +1,7 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{MessageError, NewSocks5Response, Socks5ProtocolVersion};
+use crate::{MessageError, Socks5ProtocolVersion, Socks5Response};
 use nymsphinx_addressing::clients::{Recipient, RecipientFormattingError};
 use service_providers_common::interface::{Serializable, ServiceProviderRequest};
 use std::convert::TryFrom;
@@ -24,7 +24,7 @@ impl TryFrom<u8> for RequestFlag {
         match value {
             _ if value == (RequestFlag::Connect as u8) => Ok(Self::Connect),
             _ if value == (RequestFlag::Send as u8) => Ok(Self::Send),
-            _ => Err(RequestDeserializationError::UnknownRequestFlag),
+            value => Err(RequestDeserializationError::UnknownRequestFlag { value }),
         }
     }
 }
@@ -43,8 +43,8 @@ pub enum RequestDeserializationError {
     #[error("no data provided")]
     NoData,
 
-    #[error("request of unknown type")]
-    UnknownRequestFlag,
+    #[error("{value} is not a valid request flag")]
+    UnknownRequestFlag { value: u8 },
 
     #[error("too short return address")]
     ReturnAddressTooShort,
@@ -117,8 +117,7 @@ impl Serializable for Socks5Request {
 
 impl ServiceProviderRequest for Socks5Request {
     type ProtocolVersion = Socks5ProtocolVersion;
-    // TODO: replace with updated Response enum
-    type Response = NewSocks5Response;
+    type Response = Socks5Response;
     type Error = MessageError;
 
     fn provider_specific_version(&self) -> Self::ProtocolVersion {

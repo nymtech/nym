@@ -25,8 +25,8 @@ use service_providers_common::interface::{
     ControlRequest, ProviderInterfaceVersion, RequestContent, RequestVersion,
 };
 use socks5_requests::{
-    ConnectRequest, ConnectionId, PlaceholderRequest, Response, SendRequest, Socks5ProtocolVersion,
-    Socks5Request, Socks5RequestContent,
+    ConnectRequest, ConnectionId, NetworkData, PlaceholderRequest, SendRequest,
+    Socks5ProtocolVersion, Socks5Request, Socks5RequestContent,
 };
 use statistics_common::collector::StatisticsSender;
 use std::path::PathBuf;
@@ -208,7 +208,7 @@ impl ServiceProvider {
     }
 
     async fn start_proxy(
-        remote_interface: ProviderInterfaceVersion,
+        remote_version: RequestVersion<Socks5Request>,
         connection_id: ConnectionId,
         remote_addr: String,
         return_address: reply::MixnetAddress,
@@ -235,9 +235,9 @@ impl ServiceProvider {
                 // inform the remote that the connection is closed before it even was established
                 let mixnet_message = MixnetMessage::new_network_data_response(
                     return_address,
-                    remote_interface,
+                    remote_version,
                     connection_id,
-                    Response::new_closed_empty(connection_id),
+                    NetworkData::new_closed_empty(connection_id),
                 );
 
                 mix_input_sender
@@ -267,7 +267,7 @@ impl ServiceProvider {
 
         // run the proxy on the connection
         conn.run_proxy(
-            remote_interface,
+            remote_version,
             mix_receiver,
             mix_input_sender,
             lane_queue_lengths,
@@ -291,7 +291,7 @@ impl ServiceProvider {
     #[allow(clippy::too_many_arguments)]
     async fn handle_proxy_connect(
         &mut self,
-        remote_interface: ProviderInterfaceVersion,
+        remote_version: RequestVersion<Socks5Request>,
         controller_sender: &mut ControllerSender,
         mix_input_sender: &MixProxySender<MixnetMessage>,
         lane_queue_lengths: LaneQueueLengths,
@@ -314,7 +314,7 @@ impl ServiceProvider {
             log::info!("{}", log_msg);
             let msg = MixnetMessage::new_connection_error(
                 return_address,
-                remote_interface,
+                remote_version,
                 conn_id,
                 log_msg,
             );
@@ -331,7 +331,7 @@ impl ServiceProvider {
         // and start the proxy for this connection
         tokio::spawn(async move {
             Self::start_proxy(
-                remote_interface,
+                remote_version,
                 conn_id,
                 remote_addr,
                 return_address,
@@ -356,7 +356,7 @@ impl ServiceProvider {
     async fn handle_provider_request(
         &mut self,
         sender_tag: Option<AnonymousSenderTag>,
-        remote_interface: ProviderInterfaceVersion,
+        remote_version: RequestVersion<Socks5Request>,
         request: Socks5Request,
         controller_sender: &mut ControllerSender,
         mix_input_sender: &MixProxySender<MixnetMessage>,
@@ -375,7 +375,7 @@ impl ServiceProvider {
                         .insert(req.conn_id, req.remote_addr.clone());
                 }
                 self.handle_proxy_connect(
-                    remote_interface,
+                    remote_version,
                     controller_sender,
                     mix_input_sender,
                     lane_queue_lengths,
@@ -434,9 +434,14 @@ impl ServiceProvider {
                 self.handle_control_request(control_request).await
             }
             RequestContent::ProviderData(provider_request) => {
+                let request_version = RequestVersion::new(
+                    request.interface_version,
+                    provider_request.protocol_version,
+                );
+
                 self.handle_provider_request(
                     message.sender_tag,
-                    request.interface_version,
+                    request_version,
                     provider_request,
                     controller_sender,
                     mix_input_sender,

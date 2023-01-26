@@ -20,10 +20,22 @@ pub struct RequestVersion<T: ServiceProviderRequest = EmptyMessage> {
     /// such as available control messages and their serialization.
     pub provider_interface: ProviderInterfaceVersion,
 
-    /// Defines version used specifically by particular provider's protocol. 
+    /// Defines version used specifically by particular provider's protocol.
     /// For example, it could be the socks5 protocol used by socks5 client
     /// and the network requester.
     pub provider_protocol: T::ProtocolVersion,
+}
+
+impl<T: ServiceProviderRequest> RequestVersion<T> {
+    pub fn new(
+        provider_interface: ProviderInterfaceVersion,
+        provider_protocol: T::ProtocolVersion,
+    ) -> Self {
+        RequestVersion {
+            provider_interface,
+            provider_protocol,
+        }
+    }
 }
 
 #[macro_export]

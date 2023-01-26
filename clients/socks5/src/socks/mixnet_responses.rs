@@ -7,7 +7,7 @@ use client_core::client::received_buffer::{ReceivedBufferMessage, ReceivedBuffer
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::ControllerSender;
 use service_providers_common::interface::{ControlResponse, ResponseContent};
-use socks5_requests::{NewSocks5Response, PlaceholderResponse};
+use socks5_requests::{PlaceholderResponse, Socks5Response, Socks5ResponseContent};
 use task::TaskClient;
 
 use crate::error::Socks5ClientError;
@@ -62,17 +62,17 @@ impl MixnetResponseListener {
 
     fn on_provider_data_response(
         &self,
-        provider_response: NewSocks5Response,
+        provider_response: Socks5Response,
     ) -> Result<(), Socks5ClientError> {
-        match provider_response {
-            NewSocks5Response::ConnectionError(err_response) => {
+        match provider_response.content {
+            Socks5ResponseContent::ConnectionError(err_response) => {
                 error!(
                     "Network requester failed on connection id {} with error: {}",
                     err_response.connection_id, err_response.network_requester_error
                 );
                 Err(err_response.into())
             }
-            NewSocks5Response::NetworkData(response) => {
+            Socks5ResponseContent::NetworkData(response) => {
                 self.controller_sender
                     .unbounded_send(response.into())
                     .unwrap();

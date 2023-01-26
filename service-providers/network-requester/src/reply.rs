@@ -3,10 +3,10 @@
 
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
-use service_providers_common::interface::{ProviderInterfaceVersion, RequestVersion};
+use service_providers_common::interface::RequestVersion;
 use socks5_requests::{
-    ConnectionId, NetworkRequesterResponse, NewSocks5Response, PlaceholderRequest,
-    PlaceholderResponse, Response, Socks5Request, Socks5RequestContent,
+    ConnectionId, NetworkData, PlaceholderRequest, PlaceholderResponse, Socks5Request,
+    Socks5RequestContent, Socks5Response, Socks5ResponseContent,
 };
 use std::fmt::{Debug, Formatter};
 use websocket_requests::requests::ClientRequest;
@@ -73,31 +73,33 @@ impl MixnetMessage {
 
     pub(crate) fn new_network_data_response(
         address: MixnetAddress,
-        interface_version: ProviderInterfaceVersion,
+        request_version: RequestVersion<Socks5Request>,
         connection_id: ConnectionId,
-        content: Response,
+        content: NetworkData,
     ) -> Self {
-        let msg = PlaceholderResponse::new_provider_data(
-            interface_version,
-            NewSocks5Response::new_network_data(content),
+        // TODO: simplify by providing better constructor for `PlaceholderResponse`
+        let res = Socks5Response::new(
+            request_version.provider_protocol,
+            Socks5ResponseContent::NetworkData(content),
         );
+        let msg = PlaceholderResponse::new_provider_data(request_version.provider_interface, res);
 
         Self::new_provider_data_response(address, connection_id, msg)
     }
 
     pub(crate) fn new_connection_error(
         address: MixnetAddress,
-        interface_version: ProviderInterfaceVersion,
+        request_version: RequestVersion<Socks5Request>,
         connection_id: ConnectionId,
         error_message: String,
     ) -> Self {
-        let msg = PlaceholderResponse::new_provider_data(
-            interface_version,
-            NewSocks5Response::new_connection_error(NetworkRequesterResponse::new(
-                connection_id,
-                error_message,
-            )),
+        // TODO: simplify by providing better constructor for `PlaceholderResponse`
+        let res = Socks5Response::new_connection_error(
+            request_version.provider_protocol,
+            connection_id,
+            error_message,
         );
+        let msg = PlaceholderResponse::new_provider_data(request_version.provider_interface, res);
 
         Self::new_provider_data_response(address, connection_id, msg)
     }
@@ -105,13 +107,13 @@ impl MixnetMessage {
     // TODO: the naming is awful, but naming things is difficult...
     pub(crate) fn new_network_data_response_content(
         address: MixnetAddress,
-        interface_version: ProviderInterfaceVersion,
+        request_version: RequestVersion<Socks5Request>,
         connection_id: ConnectionId,
         data: Vec<u8>,
         closed_socket: bool,
     ) -> Self {
-        let response_content = Response::new(connection_id, data, closed_socket);
-        Self::new_network_data_response(address, interface_version, connection_id, response_content)
+        let response_content = NetworkData::new(connection_id, data, closed_socket);
+        Self::new_network_data_response(address, request_version, connection_id, response_content)
     }
 
     pub(crate) fn data_size(&self) -> usize {

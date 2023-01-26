@@ -1,8 +1,7 @@
 import React from 'react';
-import { ArrowBack, Close, HelpOutline, Minimize } from '@mui/icons-material';
+import { ArrowBack, HelpOutline } from '@mui/icons-material';
 import { Box, IconButton } from '@mui/material';
 import { NymWordmark } from '@nymproject/react/logo/NymWordmark';
-import { appWindow } from '@tauri-apps/api/window';
 import { useClientContext } from 'src/context/main';
 
 const customTitleBarStyles = {

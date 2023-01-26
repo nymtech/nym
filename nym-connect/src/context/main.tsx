@@ -4,12 +4,12 @@ import { invoke } from '@tauri-apps/api';
 import type { UnlistenFn } from '@tauri-apps/api/event';
 import { listen } from '@tauri-apps/api/event';
 import { forage } from '@tauri-apps/tauri-forage';
-import { ConnectionStatusKind, GatewayPerformance } from '../types';
-import { ConnectionStatsItem } from '../components/ConnectionStats';
-import { ServiceProvider, Services } from '../types/directory';
 import { Error } from 'src/types/error';
 import { TauriEvent } from 'src/types/event';
 import { getVersion } from '@tauri-apps/api/app';
+import { ConnectionStatusKind, GatewayPerformance } from '../types';
+import { ConnectionStatsItem } from '../components/ConnectionStats';
+import { ServiceProvider, Services } from '../types/directory';
 
 const TAURI_EVENT_STATUS_CHANGED = 'app:connection-status-changed';
 

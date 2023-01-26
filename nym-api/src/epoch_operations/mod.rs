@@ -287,7 +287,7 @@ impl RewardedSetUpdater {
             // next time we enter this function (i.e. within 2min or so)
             //
             // TODO: deal with the following edge case:
-            // - the validator api REWARDS all mixnodes
+            // - the nym api REWARDS all mixnodes
             // - then crashes before advancing epoch
             // - upon restart it will attempt (and fail) to re-reward the mixnodes
             return Err(err);

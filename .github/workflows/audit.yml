@@ -35,6 +35,10 @@ jobs:
         with:
           name: report
           path: .github/workflows/support-files/notifications
+      - name: install npm
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
       - name: Keybase - Node Install
         run: npm install
         working-directory: .github/workflows/support-files

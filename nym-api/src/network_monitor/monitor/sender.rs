@@ -27,6 +27,7 @@ use std::time::Duration;
 use task::TaskClient;
 
 use gateway_client::bandwidth::BandwidthController;
+use validator_client::nyxd::SigningNyxdClient;
 
 const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 
@@ -90,7 +91,7 @@ struct FreshGatewayClientData {
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<identity::KeyPair>,
     gateway_response_timeout: Duration,
-    bandwidth_controller: BandwidthController<PersistentStorage>,
+    bandwidth_controller: BandwidthController<SigningNyxdClient, PersistentStorage>,
     disabled_credentials_mode: bool,
 }
 
@@ -148,7 +149,7 @@ impl PacketSender {
         gateway_connection_timeout: Duration,
         max_concurrent_clients: usize,
         max_sending_rate: usize,
-        bandwidth_controller: BandwidthController<PersistentStorage>,
+        bandwidth_controller: BandwidthController<SigningNyxdClient, PersistentStorage>,
         disabled_credentials_mode: bool,
     ) -> Self {
         PacketSender {
@@ -218,7 +219,7 @@ impl PacketSender {
     }
 
     async fn attempt_to_send_packets(
-        client: &mut GatewayClient,
+        client: &mut GatewayClient<SigningNyxdClient>,
         mut mix_packets: Vec<MixPacket>,
         max_sending_rate: usize,
     ) -> Result<(), GatewayClientError> {
@@ -327,7 +328,7 @@ impl PacketSender {
     }
 
     async fn check_remaining_bandwidth(
-        client: &mut GatewayClient,
+        client: &mut GatewayClient<SigningNyxdClient>,
     ) -> Result<(), GatewayClientError> {
         if client.remaining_bandwidth() < REMAINING_BANDWIDTH_THRESHOLD {
             Err(GatewayClientError::NotEnoughBandwidth(

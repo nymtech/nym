@@ -1,3 +1,4 @@
+/* eslint-disable react/jsx-pascal-case */
 import * as React from 'react';
 import { ComponentMeta } from '@storybook/react';
 import { NymShipyardTheme } from 'src/theme';

@@ -6,11 +6,13 @@ import { splice } from '../utils';
 
 const AddressTooltip: FCWithChildren<{ visible?: boolean; address?: string }> = ({ visible, address, children }) => {
   if (!visible || !address) {
+    // eslint-disable-next-line react/jsx-no-useless-fragment
     return <>{children}</>;
   }
 
   return (
     <Tooltip title={address} arrow>
+      {/* eslint-disable-next-line react/jsx-no-useless-fragment */}
       <>{children}</>
     </Tooltip>
   );

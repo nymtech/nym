@@ -2,7 +2,7 @@ import React, { createContext, useEffect, useMemo, useState } from 'react';
 import { forage } from '@tauri-apps/tauri-forage';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
-import { Account, AccountEntry, MixNodeBond, MixNodeDetails } from '@nymproject/types';
+import { Account, AccountEntry, MixNodeDetails } from '@nymproject/types';
 import { getVersion } from '@tauri-apps/api/app';
 import { AppEnv, Network } from '../types';
 import { TUseuserBalance, useGetBalance } from '../hooks/useGetBalance';

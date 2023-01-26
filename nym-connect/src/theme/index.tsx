@@ -2,6 +2,7 @@ import React from 'react';
 import { createTheme, ThemeProvider } from '@mui/material/styles';
 import { CssBaseline } from '@mui/material';
 import { getDesignTokens } from './theme';
+// eslint-disable-next-line import/no-relative-packages
 import '../../../assets/fonts/non-variable/fonts.css';
 
 /**

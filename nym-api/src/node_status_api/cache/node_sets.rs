@@ -2,8 +2,10 @@ use crate::node_status_api::reward_estimate::{compute_apy_from_reward, compute_r
 use crate::support::storage::NymApiStorage;
 use mixnet_contract_common::families::FamilyHead;
 use mixnet_contract_common::{reward_params::Performance, Interval, MixId};
-use mixnet_contract_common::{IdentityKey, MixNodeDetails, RewardedSetNodeStatus, RewardingParams};
-use nym_api_requests::models::MixNodeBondAnnotated;
+use mixnet_contract_common::{
+    GatewayBond, IdentityKey, MixNodeDetails, RewardedSetNodeStatus, RewardingParams,
+};
+use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated};
 use std::collections::HashMap;
 
 pub(super) fn to_rewarded_set_node_status(
@@ -43,7 +45,7 @@ pub(super) fn split_into_active_and_rewarded_set(
     (rewarded_set, active_set)
 }
 
-pub(super) async fn get_performance_from_storage(
+pub(super) async fn get_mixnode_performance_from_storage(
     storage: &Option<NymApiStorage>,
     mix_id: MixId,
     epoch: Interval,
@@ -52,6 +54,22 @@ pub(super) async fn get_performance_from_storage(
         .as_ref()?
         .get_average_mixnode_uptime_in_the_last_24hrs(
             mix_id,
+            epoch.current_epoch_end_unix_timestamp(),
+        )
+        .await
+        .ok()
+        .map(Into::into)
+}
+
+pub(super) async fn get_gateway_performance_from_storage(
+    storage: &Option<NymApiStorage>,
+    gateway_id: &str,
+    epoch: Interval,
+) -> Option<Performance> {
+    storage
+        .as_ref()?
+        .get_average_gateway_uptime_in_the_last_24hrs(
+            gateway_id,
             epoch.current_epoch_end_unix_timestamp(),
         )
         .await
@@ -84,9 +102,10 @@ pub(super) async fn annotate_nodes_with_details(
         // If the performance can't be obtained, because the nym-api was not started with
         // the monitoring (and hence, storage), then reward estimates will be all zero
 
-        let performance = get_performance_from_storage(storage, mixnode.mix_id(), current_interval)
-            .await
-            .unwrap_or_default();
+        let performance =
+            get_mixnode_performance_from_storage(storage, mixnode.mix_id(), current_interval)
+                .await
+                .unwrap_or_default();
 
         let rewarded_set_status = rewarded_set.get(&mixnode.mix_id()).copied();
 
@@ -113,6 +132,29 @@ pub(super) async fn annotate_nodes_with_details(
             estimated_operator_apy,
             estimated_delegators_apy,
             family,
+        });
+    }
+    annotated
+}
+
+pub(crate) async fn annotate_gateways_with_details(
+    storage: &Option<NymApiStorage>,
+    gateway_bonds: Vec<GatewayBond>,
+    current_interval: Interval,
+) -> Vec<GatewayBondAnnotated> {
+    let mut annotated = Vec::new();
+    for gateway_bond in gateway_bonds {
+        let performance = get_gateway_performance_from_storage(
+            storage,
+            gateway_bond.identity(),
+            current_interval,
+        )
+        .await
+        .unwrap_or_default();
+
+        annotated.push(GatewayBondAnnotated {
+            gateway_bond,
+            performance,
         });
     }
     annotated

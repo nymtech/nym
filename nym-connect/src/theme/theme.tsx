@@ -73,6 +73,7 @@ const lightMode: NymPaletteVariant = {
  * IMPORTANT: do not export this constant, always use the MUI `useTheme` hook to get the correct
  * colours for dark/light mode.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const nymMixnetPalette = (variant: NymPaletteVariant): NymMixnetPalette => ({
   nymMixnet: {},
 });

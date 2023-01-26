@@ -5,7 +5,7 @@ async fn main() {
     logging::setup_logging();
 
     // Passing no config makes the client fire up an ephemeral session and figure shit out on its own
-    let mut client = mixnet::Client::connect().await.unwrap();
+    let mut client = mixnet::MixnetClient::connect().await.unwrap();
 
     // Be able to get our client address
     let our_address = client.nym_address();
@@ -16,7 +16,7 @@ async fn main() {
         .send_str(&our_address.to_string(), "hello there")
         .await;
 
-    println!("Waiting for message");
+    println!("Waiting for message (ctrl-c to exit)");
     client
         .on_messages(|msg| println!("Received: {}", String::from_utf8_lossy(&msg.message)))
         .await;

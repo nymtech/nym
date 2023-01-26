@@ -5,7 +5,7 @@ import { SxProps } from '@mui/system';
 import ArrowCircleRightIcon from '@mui/icons-material/ArrowCircleRight';
 import { invoke } from '@tauri-apps/api';
 import { useTestAndEarnContext } from './context/TestAndEarnContext';
-import { ClientId, Registration } from './context/types';
+import { Registration } from './context/types';
 
 export const TestAndEarnTakePart: FCWithChildren<{
   websiteLinkUrl: string;

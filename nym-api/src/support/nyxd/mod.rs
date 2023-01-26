@@ -32,7 +32,7 @@ use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse
 #[cfg(feature = "coconut")]
 use coconut_dkg_common::{
     dealer::{ContractDealing, DealerDetails, DealerDetailsResponse},
-    types::{EncodedBTEPublicKeyWithProof, Epoch},
+    types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId},
     verification_key::{ContractVKShare, VerificationKeyShare},
 };
 #[cfg(feature = "coconut")]
@@ -40,11 +40,13 @@ use contracts_common::dealings::ContractSafeBytes;
 #[cfg(feature = "coconut")]
 use cw3::ProposalResponse;
 #[cfg(feature = "coconut")]
+use cw4::MemberResponse;
+#[cfg(feature = "coconut")]
 use validator_client::nyxd::{
     cosmwasm_client::types::ExecuteResult,
     traits::{
-        CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, MultisigQueryClient,
-        MultisigSigningClient,
+        CoconutBandwidthQueryClient, DkgQueryClient, DkgSigningClient, GroupQueryClient,
+        MultisigQueryClient, MultisigSigningClient,
     },
     Fee,
 };
@@ -330,6 +332,10 @@ impl crate::coconut::client::Client for Client {
         Ok(self.0.read().await.nyxd.get_current_epoch().await?)
     }
 
+    async fn group_member(&self, addr: String) -> crate::coconut::error::Result<MemberResponse> {
+        Ok(self.0.read().await.nyxd.member(addr).await?)
+    }
+
     async fn get_current_epoch_threshold(
         &self,
     ) -> crate::coconut::error::Result<Option<dkg::Threshold>> {
@@ -368,12 +374,13 @@ impl crate::coconut::client::Client for Client {
 
     async fn get_verification_key_shares(
         &self,
+        epoch_id: EpochId,
     ) -> crate::coconut::error::Result<Vec<ContractVKShare>> {
         Ok(self
             .0
             .read()
             .await
-            .get_all_nyxd_verification_key_shares()
+            .get_all_nyxd_verification_key_shares(epoch_id)
             .await?)
     }
 

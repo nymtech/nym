@@ -1,3 +1,4 @@
+/* eslint-disable react/jsx-no-useless-fragment */
 import React from 'react';
 import LoadingButton from '@mui/lab/LoadingButton';
 import {
@@ -134,7 +135,7 @@ const StatusText: FCWithChildren<{ entry: DrawEntry }> = ({ entry }) => {
 
 export const TestAndEarnDraws: FCWithChildren<{
   sx?: SxProps;
-}> = ({ sx }) => {
+}> = () => {
   const context = useTestAndEarnContext();
 
   const draws = React.useMemo<DrawEntry[]>(

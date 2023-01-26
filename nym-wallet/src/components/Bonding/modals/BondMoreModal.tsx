@@ -4,7 +4,7 @@ import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField'
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { DecCoin } from '@nymproject/types';
-import { TokenPoolSelector, TPoolOption } from 'src/components/TokenPoolSelector';
+import { TPoolOption } from 'src/components/TokenPoolSelector';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { validateAmount } from 'src/utils';

@@ -31,7 +31,7 @@ impl HostsStore {
     ) -> HostsStore {
         let storefile = Self::setup_storefile(base_dir, filename);
         let mut hosts = Self::load_from_storefile(&storefile)
-            .unwrap_or_else(|_| panic!("Could not load hosts from storefile at {:?}", storefile));
+            .unwrap_or_else(|_| panic!("Could not load hosts from storefile at {storefile:?}"));
 
         if standard_hosts.is_some() {
             hosts.extend(standard_hosts.unwrap_or_default());
@@ -84,8 +84,8 @@ impl HostsStore {
             .open(path)
             .unwrap();
 
-        if let Err(e) = writeln!(file, "{}", text) {
-            eprintln!("Couldn't write to file: {}", e);
+        if let Err(e) = writeln!(file, "{text}") {
+            eprintln!("Couldn't write to file: {e}");
         }
     }
 
@@ -105,7 +105,7 @@ impl HostsStore {
     fn setup_storefile(base_dir: PathBuf, filename: PathBuf) -> PathBuf {
         let dirpath = base_dir.join("service-providers").join("network-requester");
         fs::create_dir_all(&dirpath)
-            .unwrap_or_else(|_| panic!("could not create storage directory at {:?}", dirpath));
+            .unwrap_or_else(|_| panic!("could not create storage directory at {dirpath:?}"));
         let storefile = dirpath.join(filename);
         let exists = std::path::Path::new(&storefile).exists();
         if !exists {

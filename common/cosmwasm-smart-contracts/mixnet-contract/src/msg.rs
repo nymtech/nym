@@ -101,15 +101,16 @@ pub enum ExecuteMsg {
         owner_signature: String,
         label: String,
     },
-    /// Family head needs to sign the joining node IdentityKey
+    /// Family head needs to sign the joining node IdentityKey, MixNode needs to provide its signature proving that it wants to join the family
     JoinFamilyOnBehalf {
         member_address: String,
-        signature: String,
+        node_identity_signature: String,
+        family_signature: String,
         family_head: IdentityKey,
     },
     LeaveFamilyOnBehalf {
         member_address: String,
-        signature: String,
+        node_identity_signature: String,
         family_head: IdentityKey,
     },
     KickFamilyMemberOnBehalf {

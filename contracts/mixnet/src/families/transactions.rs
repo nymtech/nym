@@ -77,29 +77,45 @@ fn _try_create_family(
 pub fn try_join_family(
     deps: DepsMut,
     info: MessageInfo,
-    signature: String,
+    // Required for proxy joining
+    node_identity_signature: Option<String>,
+    family_signature: String,
     family_head: IdentityKey,
 ) -> Result<Response, MixnetContractError> {
     let family_head = FamilyHead::new(&family_head);
-    _try_join_family(deps, &info.sender, signature, family_head)
+    _try_join_family(
+        deps,
+        &info.sender,
+        node_identity_signature,
+        family_signature,
+        family_head,
+    )
 }
 
 pub fn try_join_family_on_behalf(
     deps: DepsMut,
     _info: MessageInfo,
     member_address: String,
-    signature: String,
+    node_identity_signature: Option<String>,
+    family_signature: String,
     family_head: IdentityKey,
 ) -> Result<Response, MixnetContractError> {
     let member_address = deps.api.addr_validate(&member_address)?;
     let family_head = FamilyHead::new(&family_head);
-    _try_join_family(deps, &member_address, signature, family_head)
+    _try_join_family(
+        deps,
+        &member_address,
+        node_identity_signature,
+        family_signature,
+        family_head,
+    )
 }
 
 fn _try_join_family(
     deps: DepsMut,
     owner: &Addr,
-    signature: String,
+    node_identity_signature: Option<String>,
+    family_signature: String,
     family_head: FamilyHead,
 ) -> Result<Response, MixnetContractError> {
     let existing_bond = crate::mixnodes::storage::mixnode_bonds()
@@ -126,10 +142,19 @@ fn _try_join_family(
         ));
     }
 
+    if let Some(node_identity_signature) = node_identity_signature {
+        validate_node_identity_signature(
+            deps.as_ref(),
+            owner,
+            &node_identity_signature,
+            existing_bond.identity(),
+        )?;
+    }
+
     validate_family_signature(
         deps.as_ref(),
         existing_bond.identity(),
-        &signature,
+        &family_signature,
         family_head.identity(),
     )?;
 
@@ -154,18 +179,18 @@ pub fn try_leave_family_on_behalf(
     deps: DepsMut,
     _info: MessageInfo,
     member_address: String,
-    signature: String,
+    node_family_signature: String,
     family_head: IdentityKey,
 ) -> Result<Response, MixnetContractError> {
     let family_head = FamilyHead::new(&family_head);
     let member_address = deps.api.addr_validate(&member_address)?;
-    _try_leave_family(deps, &member_address, signature, family_head)
+    _try_leave_family(deps, &member_address, node_family_signature, family_head)
 }
 
 fn _try_leave_family(
     deps: DepsMut,
     owner: &Addr,
-    signature: String,
+    node_family_signature: String,
     family_head: FamilyHead,
 ) -> Result<Response, MixnetContractError> {
     let existing_bond = crate::mixnodes::storage::mixnode_bonds()
@@ -194,11 +219,11 @@ fn _try_leave_family(
         });
     }
 
-    validate_family_signature(
+    validate_node_identity_signature(
         deps.as_ref(),
+        owner,
+        &node_family_signature,
         existing_bond.identity(),
-        &signature,
-        family_head.identity(),
     )?;
 
     remove_family_member(deps.storage, existing_bond.identity());
@@ -368,6 +393,7 @@ mod test {
         try_join_family(
             deps.as_mut(),
             mock_info(member, &[]),
+            Some(member_sig.clone()),
             join_signature.clone(),
             head_mixnode.identity_key.clone(),
         )
@@ -380,7 +406,7 @@ mod test {
         try_leave_family(
             deps.as_mut(),
             mock_info(member, &[]),
-            join_signature.clone(),
+            member_sig.clone(),
             head_mixnode.identity_key.clone(),
         )
         .unwrap();
@@ -391,6 +417,7 @@ mod test {
         try_join_family(
             deps.as_mut(),
             mock_info(member, &[]),
+            Some(member_sig.clone()),
             join_signature.clone(),
             head_mixnode.identity_key.clone(),
         )

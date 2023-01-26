@@ -43,3 +43,6 @@ vergen = { version = "7.5", default-features = false, features = ["build", "git"
 [features]
 default = []
 contract-testing = ["mixnet-contract-common/contract-testing"]
+
+[profile.release]
+overflow-checks = true

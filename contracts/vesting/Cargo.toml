@@ -28,3 +28,6 @@ pkg-version = "1"
 
 [build-dependencies]
 vergen = { version = "5", default-features = false, features = ["build", "git", "rustc"] }
+
+[profile.release]
+overflow-checks = true

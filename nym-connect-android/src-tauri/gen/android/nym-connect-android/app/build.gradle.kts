@@ -8,7 +8,7 @@ android {
     compileSdk = 33
     defaultConfig {
         manifestPlaceholders["usesCleartextTraffic"] = "false"
-        applicationId = "net.nymtech.nym_connect"
+        applicationId = "net.nymtech.nym_connect_android"
         minSdk = 24
         targetSdk = 33
         versionCode = 1
@@ -81,7 +81,7 @@ android {
     }
 
     assetPacks += mutableSetOf()
-    namespace = "net.nymtech.nym_connect"
+    namespace = "net.nymtech.nym_connect_android"
 }
 
 rust {

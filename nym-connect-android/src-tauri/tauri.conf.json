@@ -1,6 +1,6 @@
 {
   "package": {
-    "productName": "nym-connect",
+    "productName": "nym-connect-android",
     "version": "1.1.7"
   },
   "build": {

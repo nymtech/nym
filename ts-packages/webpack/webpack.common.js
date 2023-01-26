@@ -70,15 +70,15 @@ module.exports = (baseDir, htmlPath) => ({
           }),
         ]),
 
-    // new ForkTsCheckerWebpackPlugin({
-    //   typescript: {
-    //     mode: 'write-references',
-    //     diagnosticOptions: {
-    //       semantic: true,
-    //       syntactic: true,
-    //     },
-    //   },
-    // }),
+    new ForkTsCheckerWebpackPlugin({
+      typescript: {
+        mode: 'write-references',
+        diagnosticOptions: {
+          semantic: true,
+          syntactic: true,
+        },
+      },
+    }),
 
     new WebpackFavicons({
       src: path.resolve(__dirname, '../../assets/favicon/favicon.png'), // the asset directory is relative to THIS file

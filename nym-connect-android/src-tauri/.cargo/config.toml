@@ -4,7 +4,7 @@ target = 'x86_64-unknown-linux-gnu'
 linker = '/home/pierre/.local/share/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang'
 rustflags = [
     '-L',
-    '/home/pierre/Documents/nym/nym/nym-connect/src-tauri/.cargo',
+    '/home/pierre/Documents/nym/nym/nym-connect-android/src-tauri/.cargo',
     '-Clink-arg=-landroid',
     '-Clink-arg=-llog',
     '-Clink-arg=-lOpenSLES',
@@ -14,7 +14,7 @@ rustflags = [
 linker = '/home/pierre/.local/share/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang'
 rustflags = [
     '-L',
-    '/home/pierre/Documents/nym/nym/nym-connect/src-tauri/.cargo',
+    '/home/pierre/Documents/nym/nym/nym-connect-android/src-tauri/.cargo',
     '-Clink-arg=-landroid',
     '-Clink-arg=-llog',
     '-Clink-arg=-lOpenSLES',
@@ -24,7 +24,7 @@ rustflags = [
 linker = '/home/pierre/.local/share/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android24-clang'
 rustflags = [
     '-L',
-    '/home/pierre/Documents/nym/nym/nym-connect/src-tauri/.cargo',
+    '/home/pierre/Documents/nym/nym/nym-connect-android/src-tauri/.cargo',
     '-Clink-arg=-landroid',
     '-Clink-arg=-llog',
     '-Clink-arg=-lOpenSLES',
@@ -34,7 +34,7 @@ rustflags = [
 linker = '/home/pierre/.local/share/android/sdk/ndk/25.1.8937393/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android24-clang'
 rustflags = [
     '-L',
-    '/home/pierre/Documents/nym/nym/nym-connect/src-tauri/.cargo',
+    '/home/pierre/Documents/nym/nym/nym-connect-android/src-tauri/.cargo',
     '-Clink-arg=-landroid',
     '-Clink-arg=-llog',
     '-Clink-arg=-lOpenSLES',

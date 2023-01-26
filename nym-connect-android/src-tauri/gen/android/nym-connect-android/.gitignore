@@ -9,8 +9,8 @@
 /.idea/assetWizardSettings.xml
 .DS_Store
 build
-/buildSrc/src/main/java/net/nymtech/nym-connect/kotlin/BuildTask.kt
-/buildSrc/src/main/java/net/nymtech/nym-connect/kotlin/RustPlugin.kt
+/buildSrc/src/main/java/net/nymtech/nym-connect-android/kotlin/BuildTask.kt
+/buildSrc/src/main/java/net/nymtech/nym-connect-android/kotlin/RustPlugin.kt
 /captures
 .externalNativeBuild
 .cxx

@@ -1,11 +1,11 @@
 [package]
-name = "nym-connect"
+name = "nym-connect-android"
 version = "1.1.7"
 description = "nym-connect"
 authors = ["Nym Technologies SA"]
 license = ""
 repository = ""
-default-run = "nym-connect"
+default-run = "nym-connect-android"
 edition = "2021"
 build = "src/build.rs"
 rust-version = "1.58"

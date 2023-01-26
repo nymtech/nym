@@ -3,7 +3,7 @@
     windows_subsystem = "windows"
 )]
 
-use nym_connect::AppBuilder;
+use nym_connect_android::AppBuilder;
 
 fn main() {
     // As per breaking change description here

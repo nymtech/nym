@@ -5,9 +5,9 @@ import { DateTime } from 'luxon';
 import { AppWindowFrame } from '../components/AppWindowFrame';
 import { useClientContext } from '../context/main';
 import {} from '../types';
-import { ConnectedLayout } from '../layouts/ConnectedLayout';
 import { Services } from '../types/directory';
 import { Disconnected } from 'src/pages/connection/Disconnected';
+import { Connected } from 'src/pages/connection/Connected';
 
 export default {
   title: 'App/Flow',
@@ -83,7 +83,7 @@ export const Mock: ComponentStory<typeof AppWindowFrame> = () => {
 
   return (
     <AppWindowFrame>
-      <ConnectedLayout
+      <Connected
         gatewayPerformance="Good"
         showInfoModal={false}
         handleCloseInfoModal={() => undefined}

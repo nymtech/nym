@@ -66,7 +66,7 @@ export const ConnectionStatus: FCWithChildren<{
 
   return (
     <>
-      <Box color={color} fontSize={FONT_SIZE} sx={{ mb: 1 }}>
+      <Box color={color} fontSize={FONT_SIZE} sx={{ mb: 2 }}>
         {status === 'connected' && gatewayPerformance !== 'Good' ? (
           <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} color="primary">
             Gateway has issues

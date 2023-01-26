@@ -10,7 +10,6 @@ export const AppWindowFrame: FCWithChildren = ({ children }) => {
     <Box
       sx={{
         display: 'grid',
-        borderRadius: '12px',
         gridTemplateRows: '40px 1fr',
         height: '100vh',
       }}

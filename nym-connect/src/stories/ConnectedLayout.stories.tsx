@@ -2,17 +2,16 @@ import React from 'react';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
 import { Box } from '@mui/material';
 import { DateTime } from 'luxon';
-import { ConnectedLayout } from '../layouts/ConnectedLayout';
-import { ConnectionStatusKind } from '../types';
+import { Connected } from 'src/pages/connection/Connected';
 
 export default {
   title: 'Layouts/ConnectedLayout',
-  component: ConnectedLayout,
-} as ComponentMeta<typeof ConnectedLayout>;
+  component: Connected,
+} as ComponentMeta<typeof Connected>;
 
-export const Default: ComponentStory<typeof ConnectedLayout> = () => (
+export const Default: ComponentStory<typeof Connected> = () => (
   <Box p={2} width={242} sx={{ bgcolor: 'nym.background.dark' }}>
-    <ConnectedLayout
+    <Connected
       showInfoModal={false}
       gatewayPerformance="Good"
       handleCloseInfoModal={() => undefined}

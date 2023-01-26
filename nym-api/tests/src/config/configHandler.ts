@@ -16,13 +16,14 @@ class ConfigHandler {
     log_level: TLogLevelName;
     time_zone: string;
     api_base_url: string;
-    mixnode_identity: string;
+    mix_id: number;
+    identity_key: string;
     gateway_identity: string;
   };
 
   private constructor() {
     this.setCommonConfig();
-    this.setEnvironmentConfig(process.env.TEST_ENV || "prod");
+    this.setEnvironmentConfig(process.env.TEST_ENV || "qa" || "prod" );
   }
 
   public static getInstance(): ConfigHandler {

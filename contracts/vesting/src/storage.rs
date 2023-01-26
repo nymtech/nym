@@ -55,7 +55,13 @@ pub fn save_delegation(
     amount: Uint128,
     storage: &mut dyn Storage,
 ) -> Result<(), ContractError> {
-    DELEGATIONS.save(storage, key, &amount)?;
+    let existing_delegation_amount = if let Some(delegation) = DELEGATIONS.may_load(storage, key)? {
+        delegation
+    } else {
+        Uint128::zero()
+    };
+    let new_delegations_amount = existing_delegation_amount + amount;
+    DELEGATIONS.save(storage, key, &new_delegations_amount)?;
     Ok(())
 }
 

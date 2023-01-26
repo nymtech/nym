@@ -2,20 +2,23 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::interface::{
-    ControlResponse, EmptyMessage, InterfaceVersion, Request, RequestContent, Serializable,
+    ControlResponse, EmptyMessage, InterfaceVersion, RequestContent, Serializable,
     ServiceProviderMessagingError, ServiceProviderRequest,
 };
 use log::warn;
+use std::fmt::Debug;
 
-pub trait ServiceProviderResponse: Serializable {
+pub trait ServiceProviderResponse: Serializable + Debug {
     // fn provider_specific_version(&self) -> u8;
 }
 
+#[derive(Debug)]
 pub struct Response<T: ServiceProviderRequest = EmptyMessage> {
     interface_version: InterfaceVersion,
     content: ResponseContent<T>,
 }
 
+#[derive(Debug)]
 pub enum ResponseContent<T: ServiceProviderRequest = EmptyMessage> {
     Control(ControlResponse),
     ProviderData(T::Response),
@@ -68,6 +71,20 @@ impl<T> Response<T>
 where
     T: ServiceProviderRequest,
 {
+    pub fn new_control(interface_version: InterfaceVersion, content: ControlResponse) -> Self {
+        Response {
+            interface_version,
+            content: ResponseContent::Control(content),
+        }
+    }
+
+    pub fn new_provider_data(interface_version: InterfaceVersion, content: T::Response) -> Self {
+        Response {
+            interface_version,
+            content: ResponseContent::ProviderData(content),
+        }
+    }
+
     pub fn into_bytes(self) -> Vec<u8> {
         if let Some(version) = self.interface_version.as_u8() {
             std::iter::once(version)

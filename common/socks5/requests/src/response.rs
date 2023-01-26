@@ -32,6 +32,14 @@ impl Response {
         }
     }
 
+    pub fn new_closed_empty(connection_id: ConnectionId) -> Self {
+        Response {
+            data: vec![],
+            connection_id,
+            is_closed: false,
+        }
+    }
+
     pub fn try_from_bytes(b: &[u8]) -> Result<Response, ResponseError> {
         if b.is_empty() {
             return Err(ResponseError::NoData);

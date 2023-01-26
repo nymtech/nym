@@ -1,11 +1,14 @@
 // Copyright 2020-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use thiserror::Error;
-
 use crate::network_requester_response::{Error as NrError, NetworkRequesterResponse};
 use crate::request::{Request, RequestError};
 use crate::response::{Response, ResponseError};
+use service_providers_common::interface::{
+    self, Serializable, ServiceProviderMessagingError, ServiceProviderRequest,
+    ServiceProviderResponse,
+};
+use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum MessageError {
@@ -23,6 +26,90 @@ pub enum MessageError {
 
     #[error("unknown message type received")]
     UnknownMessageType,
+
+    // TODO:
+    // TODO:
+    // TODO:
+    // TODO:
+    #[error(transparent)]
+    Placeholder(#[from] ServiceProviderMessagingError),
+}
+
+// those are placeholders until I figure out proper serialization to preserve backwards compatibility
+pub type PlaceholderRequest = interface::Request<NewSocks5Request>;
+pub type PlaceholderResponse = interface::Response<NewSocks5Request>;
+
+// TODO: remove the wrapper
+#[derive(Debug)]
+pub struct NewSocks5Request(pub Request);
+
+impl ServiceProviderRequest for NewSocks5Request {
+    type Response = NewSocks5Response;
+    type Error = MessageError;
+}
+
+impl Serializable for NewSocks5Request {
+    type Error = MessageError;
+
+    fn into_bytes(self) -> Vec<u8> {
+        // for now use the existing one
+        Message::Request(self.0).into_bytes()
+    }
+
+    fn try_from_bytes(b: &[u8]) -> Result<Self, Self::Error> {
+        if let Message::Request(m) = Message::try_from_bytes(b)? {
+            Ok(Self(m))
+        } else {
+            todo!()
+        }
+    }
+}
+
+impl NewSocks5Request {
+    //
+}
+
+#[derive(Debug)]
+pub enum NewSocks5Response {
+    // TODO: flatten the inner Response
+    NetworkData(Response),
+
+    // TODO: flatten the inner Response
+    ConnectionError(NetworkRequesterResponse),
+}
+
+impl ServiceProviderResponse for NewSocks5Response {}
+
+impl Serializable for NewSocks5Response {
+    type Error = MessageError;
+
+    fn into_bytes(self) -> Vec<u8> {
+        // for now use the existing one
+        match self {
+            NewSocks5Response::NetworkData(m) => Message::Response(m).into_bytes(),
+            NewSocks5Response::ConnectionError(m) => {
+                Message::NetworkRequesterResponse(m).into_bytes()
+            }
+        }
+    }
+
+    fn try_from_bytes(b: &[u8]) -> Result<Self, Self::Error> {
+        match Message::try_from_bytes(b)? {
+            Message::Request(_) => todo!(),
+            Message::Response(m) => Ok(Self::NetworkData(m)),
+            Message::NetworkRequesterResponse(m) => Ok(Self::ConnectionError(m)),
+        }
+    }
+}
+
+impl NewSocks5Response {
+    pub fn new_network_data(content: Response) -> Self {
+        NewSocks5Response::NetworkData(content)
+    }
+
+    pub fn new_connection_error(content: NetworkRequesterResponse) -> Self {
+        NewSocks5Response::ConnectionError(content)
+    }
 }
 
 #[derive(Debug)]

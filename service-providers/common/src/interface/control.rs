@@ -5,8 +5,10 @@ use crate::interface::{Serializable, ServiceProviderMessagingError};
 use build_information::BinaryBuildInformationOwned;
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug)]
 pub struct Placeholder;
 
+#[derive(Debug)]
 pub enum ControlRequest {
     Health,
     BinaryInfo,
@@ -63,6 +65,7 @@ impl ControlRequest {
     }
 }
 
+#[derive(Debug)]
 pub enum ControlResponse {
     Health,
     BinaryInfo(Box<BinaryInformation>),

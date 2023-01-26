@@ -126,6 +126,7 @@ pub trait Serializable: Sized {
 //     }
 // }
 
+#[derive(Debug)]
 pub struct EmptyMessage;
 
 impl ServiceProviderRequest for EmptyMessage {
@@ -159,31 +160,36 @@ impl Serializable for EmptyMessage {
 mod tests {
     use super::*;
 
-    struct DummyRequest {
-        //
-    }
+    #[cfg(test)]
+    mod backwards_compatibility {
+        use super::*;
 
-    struct DummyResponse {
-        //
-    }
+        struct DummyRequest {
+            //
+        }
 
-    #[test]
-    fn old_client_vs_old_service_provider() {
-        todo!()
-    }
+        struct DummyResponse {
+            //
+        }
 
-    #[test]
-    fn old_client_vs_new_service_provider() {
-        todo!()
-    }
+        #[test]
+        fn old_client_vs_old_service_provider() {
+            todo!()
+        }
 
-    #[test]
-    fn new_client_vs_old_service_provider() {
-        todo!()
-    }
+        #[test]
+        fn old_client_vs_new_service_provider() {
+            todo!()
+        }
 
-    #[test]
-    fn new_client_vs_new_service_provider() {
-        todo!()
+        #[test]
+        fn new_client_vs_old_service_provider() {
+            todo!()
+        }
+
+        #[test]
+        fn new_client_vs_new_service_provider() {
+            todo!()
+        }
     }
 }

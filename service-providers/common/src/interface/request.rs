@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::interface::{
-    ControlRequest, EmptyMessage, InterfaceVersion, Serializable, ServiceProviderMessagingError,
-    ServiceProviderResponse,
+    ControlRequest, EmptyMessage, InterfaceVersion, Response, ResponseContent, Serializable,
+    ServiceProviderMessagingError, ServiceProviderResponse,
 };
 use log::warn;
+use std::fmt::Debug;
 
-pub trait ServiceProviderRequest: Serializable {
+pub trait ServiceProviderRequest: Serializable + Debug {
     type Response: ServiceProviderResponse;
     // TODO: should this one perhaps be separated into RequestError and ResponseError?
     type Error: From<ServiceProviderMessagingError>
@@ -17,11 +18,13 @@ pub trait ServiceProviderRequest: Serializable {
     // fn provider_specific_version(&self) -> u8;
 }
 
+#[derive(Debug)]
 pub struct Request<T: ServiceProviderRequest = EmptyMessage> {
-    interface_version: InterfaceVersion,
-    content: RequestContent<T>,
+    pub interface_version: InterfaceVersion,
+    pub content: RequestContent<T>,
 }
 
+#[derive(Debug)]
 pub enum RequestContent<T: ServiceProviderRequest = EmptyMessage> {
     Control(ControlRequest),
     ProviderData(T),
@@ -74,6 +77,20 @@ impl<T> Request<T>
 where
     T: ServiceProviderRequest,
 {
+    pub fn new_control(interface_version: InterfaceVersion, content: ControlRequest) -> Self {
+        Request {
+            interface_version,
+            content: RequestContent::Control(content),
+        }
+    }
+
+    pub fn new_provider_data(interface_version: InterfaceVersion, content: T) -> Self {
+        Request {
+            interface_version,
+            content: RequestContent::ProviderData(content),
+        }
+    }
+
     pub fn into_bytes(self) -> Vec<u8> {
         if let Some(version) = self.interface_version.as_u8() {
             std::iter::once(version)

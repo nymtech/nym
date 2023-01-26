@@ -821,16 +821,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "common"
-version = "0.1.0"
-dependencies = [
- "build-information",
- "serde",
- "serde_json",
- "thiserror",
-]
-
-[[package]]
 name = "completions"
 version = "0.1.0"
 dependencies = [
@@ -3759,6 +3749,7 @@ dependencies = [
  "rand 0.7.3",
  "reqwest",
  "serde",
+ "service-providers-common",
  "socks5-requests",
  "sqlx 0.6.2",
  "statistics-common",
@@ -5501,6 +5492,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "service-providers-common"
+version = "0.1.0"
+dependencies = [
+ "build-information",
+ "log",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "sha-1"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5681,6 +5683,7 @@ name = "socks5-requests"
 version = "0.1.0"
 dependencies = [
  "nymsphinx-addressing",
+ "service-providers-common",
  "thiserror",
 ]
 

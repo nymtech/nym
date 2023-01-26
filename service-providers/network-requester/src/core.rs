@@ -200,7 +200,7 @@ impl ServiceProvider {
 
     async fn start_proxy(
         remote_interface: InterfaceVersion,
-        conn_id: ConnectionId,
+        connection_id: ConnectionId,
         remote_addr: String,
         return_address: reply::MixnetAddress,
         controller_sender: ControllerSender,
@@ -209,7 +209,7 @@ impl ServiceProvider {
         shutdown: TaskClient,
     ) {
         let mut conn = match socks5::tcp::Connection::new(
-            conn_id,
+            connection_id,
             remote_addr.clone(),
             return_address.clone(),
         )
@@ -227,8 +227,8 @@ impl ServiceProvider {
                 let mixnet_message = MixnetMessage::new_network_data_response(
                     return_address,
                     remote_interface,
-                    conn_id,
-                    Response::new_closed_empty(conn_id),
+                    connection_id,
+                    Response::new_closed_empty(connection_id),
                 );
 
                 mix_input_sender
@@ -243,7 +243,10 @@ impl ServiceProvider {
         // Connect implies it's a fresh connection - register it with our controller
         let (mix_sender, mix_receiver) = mpsc::unbounded();
         controller_sender
-            .unbounded_send(ControllerCommand::Insert(conn_id, mix_sender))
+            .unbounded_send(ControllerCommand::Insert {
+                connection_id,
+                connection_sender: mix_sender,
+            })
             .unwrap();
 
         let old_count = ACTIVE_PROXIES.fetch_add(1, Ordering::SeqCst);
@@ -265,7 +268,7 @@ impl ServiceProvider {
 
         // proxy is done - remove the access channel from the controller
         controller_sender
-            .unbounded_send(ControllerCommand::Remove(conn_id))
+            .unbounded_send(ControllerCommand::Remove { connection_id })
             .unwrap();
 
         let old_count = ACTIVE_PROXIES.fetch_sub(1, Ordering::SeqCst);

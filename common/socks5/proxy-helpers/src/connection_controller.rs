@@ -36,20 +36,37 @@ pub type ControllerSender = mpsc::UnboundedSender<ControllerCommand>;
 pub type ControllerReceiver = mpsc::UnboundedReceiver<ControllerCommand>;
 
 pub enum ControllerCommand {
-    Insert(ConnectionId, ConnectionSender),
-    Remove(ConnectionId),
-    Send(ConnectionId, Vec<u8>, bool),
+    Insert {
+        connection_id: ConnectionId,
+        connection_sender: ConnectionSender,
+    },
+    Remove {
+        connection_id: ConnectionId,
+    },
+    Send {
+        connection_id: ConnectionId,
+        data: Vec<u8>,
+        is_closed: bool,
+    },
 }
 
 impl From<Response> for ControllerCommand {
     fn from(value: Response) -> Self {
-        ControllerCommand::Send(value.connection_id, value.data, value.is_closed)
+        ControllerCommand::Send {
+            connection_id: value.connection_id,
+            data: value.data,
+            is_closed: value.is_closed,
+        }
     }
 }
 
 impl From<SendRequest> for ControllerCommand {
     fn from(value: SendRequest) -> Self {
-        ControllerCommand::Send(value.conn_id, value.data, value.local_closed)
+        ControllerCommand::Send {
+            connection_id: value.conn_id,
+            data: value.data,
+            is_closed: value.local_closed,
+        }
     }
 }
 
@@ -247,13 +264,13 @@ impl Controller {
         loop {
             tokio::select! {
                 command = self.receiver.next() => match command {
-                    Some(ControllerCommand::Send(conn_id, data, is_closed)) => {
-                        self.send_to_connection(conn_id, data, is_closed)
+                    Some(ControllerCommand::Send{connection_id, data, is_closed}) => {
+                        self.send_to_connection(connection_id, data, is_closed)
                     }
-                    Some(ControllerCommand::Insert(conn_id, sender)) => {
-                        self.insert_connection(conn_id, sender)
+                    Some(ControllerCommand::Insert{connection_id, connection_sender}) => {
+                        self.insert_connection(connection_id, connection_sender)
                     }
-                    Some(ControllerCommand::Remove(conn_id)) => self.remove_connection(conn_id),
+                    Some(ControllerCommand::Remove{ connection_id }) => self.remove_connection(connection_id),
                     None => {
                         log::trace!("SOCKS5 Controller: Stopping since channel closed");
                         break;

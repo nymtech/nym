@@ -179,7 +179,9 @@ impl Drop for SocksClient {
         // if we never managed to start a proxy, the entry will not exist in the controller
         if self.started_proxy {
             self.controller_sender
-                .unbounded_send(ControllerCommand::Remove(self.connection_id))
+                .unbounded_send(ControllerCommand::Remove {
+                    connection_id: self.connection_id,
+                })
                 .unwrap();
         }
     }
@@ -427,7 +429,10 @@ impl SocksClient {
 
                 self.started_proxy = true;
                 self.controller_sender
-                    .unbounded_send(ControllerCommand::Insert(self.connection_id, mix_sender))
+                    .unbounded_send(ControllerCommand::Insert {
+                        connection_id: self.connection_id,
+                        connection_sender: mix_sender,
+                    })
                     .unwrap();
 
                 info!(

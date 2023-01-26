@@ -124,6 +124,19 @@ where
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ContractVersion {
+    /// contract is a globally unique identifier for the contract.
+    /// it should build off standard namespacing for whichever language it is in,
+    /// and prefix it with the registry we use.
+    /// For rust we prefix with `crates.io:`, to give us eg. `crates.io:cw20-base`
+    pub contract: String,
+    /// version is any string that this implementation knows. It may be simple counter "1", "2".
+    /// or semantic version on release tags "v0.7.0", or some custom feature flag list.
+    /// the only code that needs to understand the version parsing is code that knows how to
+    /// migrate from the given contract (and is tied to it's implementation somehow)
+    pub version: String,
+}
 // TODO: there's no reason this couldn't be used for proper binaries, but in that case
 // perhaps the struct should get renamed and moved to a "more" common crate
 #[derive(Debug, Serialize, Deserialize)]

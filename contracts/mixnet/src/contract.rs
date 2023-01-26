@@ -5,6 +5,7 @@ use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnode_storage;
 use crate::rewards::storage as rewards_storage;
+use crate::storage::set_contract_version;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
 };
@@ -68,6 +69,8 @@ pub fn instantiate(
     mixnet_params_storage::initialise_storage(deps.storage, state)?;
     mixnode_storage::initialise_storage(deps.storage)?;
     rewards_storage::initialise_storage(deps.storage, reward_params)?;
+
+    set_contract_version(deps.storage)?;
 
     Ok(Response::default())
 }
@@ -372,6 +375,9 @@ pub fn query(
         ),
         QueryMsg::GetContractVersion {} => {
             to_binary(&crate::mixnet_contract_settings::queries::query_contract_version())
+        }
+        QueryMsg::ContractInfo {} => {
+            to_binary(&crate::mixnet_contract_settings::queries::query_contract_info(deps.storage)?)
         }
         QueryMsg::GetStateParams {} => to_binary(
             &crate::mixnet_contract_settings::queries::query_contract_settings_params(deps)?,

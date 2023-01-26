@@ -1,16 +1,16 @@
 use crate::errors::ContractError;
 use crate::storage::{
-    account_from_address, save_account, BlockTimestampSecs, ACCOUNTS, ADMIN, DELEGATIONS,
-    MIXNET_CONTRACT_ADDRESS, MIX_DENOM,
+    account_from_address, get_contract_info, save_account, set_contract_version,
+    BlockTimestampSecs, ACCOUNTS, ADMIN, DELEGATIONS, MIXNET_CONTRACT_ADDRESS, MIX_DENOM,
 };
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, NodeFamilies, VestingAccount,
 };
 use crate::vesting::{populate_vesting_periods, Account};
-use contracts_common::ContractBuildInformation;
+use contracts_common::{ContractBuildInformation, ContractVersion};
 use cosmwasm_std::{
     coin, entry_point, to_binary, Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Order,
-    QueryResponse, Response, StdResult, Timestamp, Uint128,
+    QueryResponse, Response, StdResult, Storage, Timestamp, Uint128,
 };
 use cw_storage_plus::Bound;
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
@@ -47,6 +47,9 @@ pub fn instantiate(
     ADMIN.save(deps.storage, &info.sender)?;
     MIXNET_CONTRACT_ADDRESS.save(deps.storage, &mixnet_contract_address)?;
     MIX_DENOM.save(deps.storage, &msg.mix_denom)?;
+
+    set_contract_version(deps.storage)?;
+
     Ok(Response::default())
 }
 
@@ -615,6 +618,7 @@ pub(crate) fn try_create_periodic_vesting_account(
 pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
         QueryMsg::GetContractVersion {} => to_binary(&get_contract_version()),
+        QueryMsg::ContractInfo {} => to_binary(&query_contract_info(deps.storage)?),
         QueryMsg::GetAccountsPaged {
             start_next_after,
             limit,
@@ -1050,4 +1054,8 @@ fn ensure_staking_permission(addr: &Addr, account: &Account) -> Result<(), Contr
         address: addr.clone(),
         for_account: account.owner_address(),
     })
+}
+
+pub fn query_contract_info(store: &dyn Storage) -> StdResult<ContractVersion> {
+    get_contract_info(store)
 }

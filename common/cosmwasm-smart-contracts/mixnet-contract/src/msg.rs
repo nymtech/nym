@@ -368,6 +368,7 @@ pub enum QueryMsg {
     },
     // state/sys-params-related
     GetContractVersion {},
+    ContractInfo {},
     GetRewardingValidatorAddress {},
     GetStateParams {},
     GetState {},

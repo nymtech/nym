@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Divider } from '@mui/material';
+import { Box, Divider, Stack } from '@mui/material';
 import { DateTime } from 'luxon';
 import { IpAddressAndPortModal } from 'src/components/IpAddressAndPortModal';
 import { ConnectionTimer } from 'src/components/ConntectionTimer';
@@ -9,7 +9,6 @@ import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ConnectionButton } from '../components/ConnectionButton';
 import { IpAddressAndPort } from '../components/IpAddressAndPort';
 import { ServiceProvider } from '../types/directory';
-import { TestAndEarnButtonArea } from '../components/Growth/TestAndEarnButtonArea';
 
 export const ConnectedLayout: FCWithChildren<{
   status: ConnectionStatusKind;
@@ -52,6 +51,9 @@ export const ConnectedLayout: FCWithChildren<{
     </Box>
     {/* <ConnectionStats stats={stats} /> */}
     <ConnectionTimer connectedSince={connectedSince} />
-    <ConnectionButton status={status} busy={busy} onClick={onConnectClick} isError={isError} />
+
+    <Stack mt={3} direction="row" justifyContent="center" alignItems="center">
+      <ConnectionButton status={status} busy={busy} onClick={onConnectClick} isError={isError} />
+    </Stack>
   </>
 );

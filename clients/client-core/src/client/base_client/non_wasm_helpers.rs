@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::replies::reply_storage::{
-    self, fs_backend, CombinedReplyStorage, ReplyStorageBackend,
+    fs_backend, CombinedReplyStorage, ReplyStorageBackend,
 };
 use crate::config::DebugConfig;
 use crate::error::ClientCoreError;

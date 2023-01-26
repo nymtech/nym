@@ -13,7 +13,7 @@ use crate::client::received_buffer::{
 use crate::client::replies::reply_controller;
 use crate::client::replies::reply_controller::{ReplyControllerReceiver, ReplyControllerSender};
 use crate::client::replies::reply_storage::{
-    self, CombinedReplyStorage, PersistentReplyStorage, ReplyStorageBackend, SentReplyKeys,
+    CombinedReplyStorage, PersistentReplyStorage, ReplyStorageBackend, SentReplyKeys,
 };
 use crate::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,

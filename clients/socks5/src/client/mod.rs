@@ -8,14 +8,14 @@ use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
     server::SphinxSocksServer,
 };
-use client_core::client::base_client::{
-    helpers::setup_empty_reply_surb_backend, non_wasm_helpers, BaseClientBuilder, ClientInput,
-    ClientOutput, ClientState,
-};
+
+#[cfg(feature = "mobile")]
+use client_core::client::base_client::helpers::setup_empty_reply_surb_backend;
+#[cfg(not(feature = "mobile"))]
+use client_core::client::base_client::non_wasm_helpers;
+use client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput, ClientState};
 use client_core::client::key_manager::KeyManager;
-use client_core::client::replies::reply_storage;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
-use client_core::config::DebugConfig;
 use futures::channel::mpsc;
 use futures::StreamExt;
 use gateway_client::bandwidth::BandwidthController;

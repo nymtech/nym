@@ -1,6 +1,4 @@
-import {
-  Detailed
-} from "../types/CirculatingSupplyTypes";
+import { Detailed } from "../types/CirculatingSupplyTypes";
 import { APIClient } from "./abstracts/APIClient";
 
 export default class ContractCache extends APIClient {
@@ -13,5 +11,5 @@ export default class ContractCache extends APIClient {
       route: `circulating-supply`,
     });
     return response.data;
-    }
   }
+}

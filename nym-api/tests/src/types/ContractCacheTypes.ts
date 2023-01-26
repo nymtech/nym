@@ -1,9 +1,9 @@
-export type AllMixnodes = {
+export interface AllMixnodes {
   bond_information: BondInformation;
   rewarding_details: RewardingDetails;
-};
+}
 
-export type BondInformation = {
+export interface BondInformation {
   mix_id: number;
   owner: string;
   original_pledge: OriginalPledge;
@@ -14,7 +14,7 @@ export type BondInformation = {
   is_unbonding: boolean;
 }
 
-export type RewardingDetails = {
+export interface RewardingDetails {
   cost_params: CostParams;
   operator: string;
   delegates: string;
@@ -24,27 +24,27 @@ export type RewardingDetails = {
   unique_delegations: number;
 }
 
-export type CostParams = {
+export interface CostParams {
   profit_margin_percent: string;
   interval_operating_cost: IntervalOperatingCost;
 }
 
-export type IntervalOperatingCost = {
+export interface IntervalOperatingCost {
   denom: string;
   amount: string;
 }
 
-export type OriginalPledge = {
+export interface OriginalPledge {
   denom: string;
   amount: string;
 }
 
-export type TotalDelegation = {
+export interface TotalDelegation {
   denom: string;
   amount: string;
-};
+}
 
-export type Mixnode = {
+export interface Mixnode {
   host: string;
   mix_port: number;
   verloc_port: number;
@@ -52,9 +52,9 @@ export type Mixnode = {
   sphinx_key: string;
   identity_key: string;
   version: string;
-};
+}
 
-export type MixnodeBond = {
+export interface MixnodeBond {
   pledge_amount: OriginalPledge;
   total_delegation: TotalDelegation;
   owner: string;
@@ -65,21 +65,19 @@ export type MixnodeBond = {
   accumulated_rewards: string;
 }
 
-export type MixnodesDetailed = {
+export interface MixnodesDetailed {
   mixnode_details: AllMixnodes;
   stake_saturation: string;
   uncapped_stake_saturation: string;
   performance: string;
-  estimated_operator_apy: string
+  estimated_operator_apy: string;
   estimated_delegators_apy: string;
-  family: string
-};
+  family: string;
+}
 
-export type BlacklistedMixnodes = {
-};
+export interface BlacklistedMixnodes {}
 
-export type BlacklistedGateways = {
-};
+export interface BlacklistedGateways {}
 
 export interface Gateway {
   host: string;
@@ -99,13 +97,13 @@ export interface AllGateways {
   proxy: string;
 }
 
-export type EpochRewardParams = {
+export interface EpochRewardParams {
   interval: Interval;
   rewarded_set_size: number;
   active_set_size: number;
-};
+}
 
-export type Interval = {
+export interface Interval {
   reward_pool: string;
   staking_supply: string;
   staking_supply_scale_factor: string;
@@ -116,17 +114,16 @@ export type Interval = {
   interval_pool_emission: string;
 }
 
-export type CurrentEpoch = {
+export interface CurrentEpoch {
   id: number;
   epochs_in_interval: number;
   current_epoch_start: string;
   current_epoch_id: number;
   epoch_length: EpochLength;
   total_elapsed_epochs: number;
-};
+}
 
-export type EpochLength = {
+export interface EpochLength {
   secs: number;
   nanos: number;
-};
-
+}

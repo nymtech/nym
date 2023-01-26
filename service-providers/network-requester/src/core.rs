@@ -24,6 +24,7 @@ use proxy_helpers::proxy_runner::{MixProxyReader, MixProxySender};
 use service_providers_common::interface::{ControlRequest, InterfaceVersion, RequestContent};
 use socks5_requests::{
     ConnectRequest, ConnectionId, NewSocks5Request, PlaceholderRequest, Request, Response,
+    SendRequest,
 };
 use statistics_common::collector::StatisticsSender;
 use std::path::PathBuf;
@@ -331,15 +332,8 @@ impl ServiceProvider {
         });
     }
 
-    fn handle_proxy_send(
-        controller_sender: &mut ControllerSender,
-        conn_id: ConnectionId,
-        data: Vec<u8>,
-        closed: bool,
-    ) {
-        controller_sender
-            .unbounded_send(ControllerCommand::Send(conn_id, data, closed))
-            .unwrap()
+    fn handle_proxy_send(controller_sender: &mut ControllerSender, req: SendRequest) {
+        controller_sender.unbounded_send(req.into()).unwrap()
     }
 
     async fn handle_control_request(&mut self, _request: ControlRequest) {
@@ -381,22 +375,22 @@ impl ServiceProvider {
                 .await
             }
 
-            Request::Send(conn_id, data, closed) => {
+            Request::Send(req) => {
                 if let Some(stats_collector) = stats_collector {
                     if let Some(remote_addr) = stats_collector
                         .connected_services
                         .read()
                         .await
-                        .get(&conn_id)
+                        .get(&req.conn_id)
                     {
                         stats_collector
                             .request_stats_data
                             .write()
                             .await
-                            .processed(remote_addr, data.len() as u32);
+                            .processed(remote_addr, req.data.len() as u32);
                     }
                 }
-                Self::handle_proxy_send(controller_sender, conn_id, data, closed)
+                Self::handle_proxy_send(controller_sender, req)
             }
         }
     }

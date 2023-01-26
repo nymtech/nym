@@ -1,4 +1,4 @@
-// Copyright 2020-2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use nymsphinx_addressing::clients::{Recipient, RecipientFormattingError};
@@ -65,6 +65,13 @@ pub struct ConnectRequest {
     pub return_address: Option<Recipient>,
 }
 
+#[derive(Debug)]
+pub struct SendRequest {
+    pub conn_id: ConnectionId,
+    pub data: Vec<u8>,
+    pub local_closed: bool,
+}
+
 /// A request from a SOCKS5 client that a Nym Socks5 service provider should
 /// take an action for an application using a (probably local) Nym Socks5 proxy.
 #[derive(Debug)]
@@ -75,7 +82,7 @@ pub enum Request {
     Connect(Box<ConnectRequest>),
 
     /// Re-use an existing TCP connection, sending more request data up it.
-    Send(ConnectionId, Vec<u8>, bool),
+    Send(SendRequest),
 }
 
 impl Request {
@@ -94,7 +101,11 @@ impl Request {
 
     /// Construct a new Request::Send instance
     pub fn new_send(conn_id: ConnectionId, data: Vec<u8>, local_closed: bool) -> Request {
-        Request::Send(conn_id, data, local_closed)
+        Request::Send(SendRequest {
+            conn_id,
+            data,
+            local_closed,
+        })
     }
 
     /// Deserialize the request type, connection id, destination address and port,
@@ -120,7 +131,7 @@ impl Request {
         if b.len() < 9 {
             return Err(RequestError::ConnectionIdTooShort);
         }
-        let connection_id = u64::from_be_bytes([b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8]]);
+        let conn_id = u64::from_be_bytes([b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8]]);
         match RequestFlag::try_from(b[0])? {
             RequestFlag::Connect => {
                 let connect_request_bytes = &b[9..];
@@ -162,7 +173,7 @@ impl Request {
                 };
 
                 Ok(Request::new_connect(
-                    connection_id,
+                    conn_id,
                     remote_address,
                     return_address,
                 ))
@@ -171,7 +182,11 @@ impl Request {
                 let local_closed = b[9] != 0;
                 let data = b[10..].to_vec();
 
-                Ok(Request::Send(connection_id, data, local_closed))
+                Ok(Request::Send(SendRequest {
+                    conn_id,
+                    data,
+                    local_closed,
+                }))
             }
         }
     }
@@ -197,10 +212,10 @@ impl Request {
                     iter.collect()
                 }
             }
-            Request::Send(conn_id, data, local_closed) => std::iter::once(RequestFlag::Send as u8)
-                .chain(conn_id.to_be_bytes().into_iter())
-                .chain(std::iter::once(local_closed as u8))
-                .chain(data.into_iter())
+            Request::Send(req) => std::iter::once(RequestFlag::Send as u8)
+                .chain(req.conn_id.to_be_bytes().into_iter())
+                .chain(std::iter::once(req.local_closed as u8))
+                .chain(req.data.into_iter())
                 .collect(),
         }
     }
@@ -448,7 +463,11 @@ mod request_deserialization_tests {
             let request_bytes = [RequestFlag::Send as u8, 1, 2, 3, 4, 5, 6, 7, 8, 0].to_vec();
             let request = Request::try_from_bytes(&request_bytes).unwrap();
             match request {
-                Request::Send(conn_id, data, local_closed) => {
+                Request::Send(SendRequest {
+                    conn_id,
+                    data,
+                    local_closed,
+                }) => {
                     assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
                     assert_eq!(Vec::<u8>::new(), data);
                     assert!(!local_closed)
@@ -479,7 +498,11 @@ mod request_deserialization_tests {
 
             let request = Request::try_from_bytes(&request_bytes).unwrap();
             match request {
-                Request::Send(conn_id, data, local_closed) => {
+                Request::Send(SendRequest {
+                    conn_id,
+                    data,
+                    local_closed,
+                }) => {
                     assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
                     assert_eq!(vec![255, 255, 255], data);
                     assert!(!local_closed)

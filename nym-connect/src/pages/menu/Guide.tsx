@@ -13,7 +13,8 @@ export const HelpGuide = () => {
       <HelpPage
         step={step}
         totalSteps={TOTAL_STEPS}
-        description="Select your service provider from the dropdown menu."
+        description="Click button and connect 
+        to a Nym mixnet."
         img={Image1}
         onNext={() => setStep(2)}
       />
@@ -24,7 +25,7 @@ export const HelpGuide = () => {
       <HelpPage
         step={step}
         totalSteps={TOTAL_STEPS}
-        description="Click yellow button and connect to a service provider."
+        description="Click on IP and Port to copy their values to the clipboard."
         img={Image2}
         onPrev={() => setStep(1)}
         onNext={() => setStep(3)}
@@ -36,9 +37,9 @@ export const HelpGuide = () => {
       <HelpPage
         step={step}
         totalSteps={TOTAL_STEPS}
-        description="Go to settings in your app, select running via SOCKS5 proxy and paste the IP and Port values given by NymConnect."
+        description="Go to settings in your app, select run via SOCKS5 proxy and paste the IP and Port values given by NymConnect."
         img={Image4}
-        onPrev={() => setStep(3)}
+        onPrev={() => setStep(2)}
       />
     );
 

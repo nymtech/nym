@@ -75,10 +75,6 @@ export interface MixnodesDetailed {
   family: string;
 }
 
-export interface BlacklistedMixnodes {}
-
-export interface BlacklistedGateways {}
-
 export interface Gateway {
   host: string;
   mix_port: number;

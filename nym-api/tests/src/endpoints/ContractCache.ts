@@ -3,8 +3,6 @@ import {
   AllGateways,
   AllMixnodes,
   EpochRewardParams,
-  BlacklistedGateways,
-  BlacklistedMixnodes,
   CurrentEpoch,
 } from "../types/ContractCacheTypes";
 import { APIClient } from "./abstracts/APIClient";
@@ -64,14 +62,14 @@ export default class ContractCache extends APIClient {
     return response.data;
   }
 
-  public async getBlacklistedMixnodes(): Promise<BlacklistedMixnodes[]> {
+  public async getBlacklistedMixnodes(): Promise<[]> {
     const response = await this.restClient.sendGet({
       route: `mixnodes/blacklisted`,
     });
     return response.data;
   }
 
-  public async getBlacklistedGateways(): Promise<BlacklistedGateways[]> {
+  public async getBlacklistedGateways(): Promise<[]> {
     const response = await this.restClient.sendGet({
       route: `gateways/blacklisted`,
     });

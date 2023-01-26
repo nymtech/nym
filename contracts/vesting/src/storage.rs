@@ -201,7 +201,7 @@ pub const CONTRACT: Item<ContractVersion> = Item::new("contract_info");
 pub fn set_contract_version(store: &mut dyn Storage) -> StdResult<()> {
     let val = ContractVersion {
         contract: "nym-vesting-contract".to_string(),
-        version: format!("{}.{}.{}", MAJOR, MINOR, PATCH),
+        version: format!("{MAJOR}.{MINOR}.{PATCH}"),
     };
     CONTRACT.save(store, &val)
 }

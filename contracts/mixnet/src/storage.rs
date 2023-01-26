@@ -9,7 +9,7 @@ pub const CONTRACT: Item<ContractVersion> = Item::new(CONTRACT_INFO_NAMESPACE);
 pub fn set_contract_version(store: &mut dyn Storage) -> StdResult<()> {
     let val = ContractVersion {
         contract: "nym-mixnet-contract".to_string(),
-        version: format!("{}.{}.{}", MAJOR, MINOR, PATCH),
+        version: format!("{MAJOR}.{MINOR}.{PATCH}"),
     };
     CONTRACT.save(store, &val)
 }

@@ -47,7 +47,7 @@ pub fn start_nym_socks5_client(
     log::info!("Loading config from file: {id}");
     let used_gateway = config.get_base().get_gateway_endpoint().clone();
 
-    let socks5_client = Socks5NymClient::new_with_keys(config.socks5.clone(), Some(keys));
+    let socks5_client = Socks5NymClient::new_with_keys(config.socks5, Some(keys));
     log::info!("Starting socks5 client");
 
     // Channel to send control messages to the socks5 client

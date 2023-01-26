@@ -1,3 +1,7 @@
+// Remove me after we've tidied up
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 use config_common::defaults::setup_env;
 use std::sync::Arc;
 use tauri::{App, Manager};

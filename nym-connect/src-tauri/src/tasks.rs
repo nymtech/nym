@@ -1,6 +1,6 @@
 use client_core::{
     config::{ClientCoreConfigTrait, GatewayEndpointConfig},
-    error::ClientCoreStatusMessage,
+    error::ClientCoreStatusMessage, client::key_manager::KeyManager,
 };
 use futures::{channel::mpsc, StreamExt};
 use std::sync::Arc;
@@ -13,6 +13,7 @@ use nym_socks5::client::NymClient as Socks5NymClient;
 use nym_socks5::client::{config::Config as Socks5Config, Socks5ControlMessageSender};
 
 use crate::{
+    config::Config,
     error::Result,
     events::{self, emit_event, emit_status_event},
     models::{ConnectionStatusKind, ConnectivityTestResult},

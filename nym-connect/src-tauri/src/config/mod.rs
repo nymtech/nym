@@ -26,9 +26,7 @@ pub async fn get_config_id(state: tauri::State<'_, Arc<RwLock<State>>>) -> Resul
 }
 
 #[tauri::command]
-pub fn get_config_file_location(
-    state: tauri::State<'_, Arc<RwLock<State>>>,
-) -> Result<String> {
+pub fn get_config_file_location(state: tauri::State<'_, Arc<RwLock<State>>>) -> Result<String> {
     Err(BackendError::CouldNotGetConfigFilename)
 }
 

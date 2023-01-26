@@ -18,7 +18,7 @@ mod template;
 const DEFAULT_CONNECTION_START_SURBS: u32 = 20;
 const DEFAULT_PER_REQUEST_SURBS: u32 = 3;
 
-#[derive(Debug, Default, Deserialize, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     #[serde(flatten)]
@@ -178,7 +178,7 @@ impl Config {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Socks5 {
     /// The port on which the client will be listening for incoming requests
@@ -216,7 +216,7 @@ impl Default for Socks5 {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Socks5Debug {
     /// Number of reply SURBs attached to each `Request::Connect` message.

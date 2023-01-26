@@ -50,8 +50,9 @@ impl From<GatewayConnectivity> for GatewayConnectionStatusKind {
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(rename_all = "lowercase"))]
-#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum ConnectivityTestResult {
+    #[default]
     NotAvailable,
     Success,
     Fail,

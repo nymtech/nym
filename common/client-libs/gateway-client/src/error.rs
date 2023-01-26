@@ -3,8 +3,12 @@
 
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::StorageError;
+#[cfg(not(feature = "mobile"))]
 #[cfg(not(target_arch = "wasm32"))]
 use credential_storage::error::StorageError;
+#[cfg(feature = "mobile")]
+#[cfg(not(target_arch = "wasm32"))]
+use mobile_storage::StorageError;
 use gateway_requests::registration::handshake::error::HandshakeError;
 use std::io;
 use thiserror::Error;

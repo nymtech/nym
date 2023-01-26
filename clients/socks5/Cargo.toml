@@ -33,7 +33,7 @@ client-connections = { path = "../../common/client-connections" }
 coconut-interface = { path = "../../common/coconut-interface" }
 config = { path = "../../common/config" }
 completions = { path = "../../common/completions" }
-credential-storage = { path = "../../common/credential-storage" }
+credential-storage = { path = "../../common/credential-storage", optional = true }
 mobile-storage = { path = "../../common/mobile-storage", optional = true }
 credentials = { path = "../../common/credentials" }
 crypto = { path = "../../common/crypto" }
@@ -52,5 +52,6 @@ validator-client = { path = "../../common/client-libs/validator-client", feature
 version-checker = { path = "../../common/version-checker" }
 
 [features]
+#default = ["credential-storage"]
 eth = []
 mobile = ["mobile-storage", "gateway-client/mobile"]

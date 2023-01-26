@@ -27,8 +27,9 @@ use crate::{
 // certain duration then we assume it's all good.
 const GATEWAY_CONNECTIVITY_TIMEOUT_SECS: u64 = 20;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub enum GatewayConnectivity {
+    #[default]
     Good,
     Bad { when: Instant },
     VeryBad { when: Instant },

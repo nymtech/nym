@@ -13,6 +13,10 @@ use credential_storage::storage::Storage;
 #[cfg(feature = "mobile")]
 use mobile_storage::Storage;
 
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "mobile")]
+use mobile_storage::StorageError;
+
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::StorageError;
 

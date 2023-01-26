@@ -5,6 +5,8 @@ import {
   ComputeRewardEstimation,
   CoreCount,
   DetailedGateway,
+  DetailedMixnodes,
+  InclusionProbabilities,
   InclusionProbability,
   NodeHistory,
   Report,
@@ -20,7 +22,7 @@ export default class Status extends APIClient {
 
   // GATEWAYS
 
-  public async getDetailedGateways(): Promise<DetailedGateway> {
+  public async getDetailedGateways(): Promise<DetailedGateway[]> {
     const response = await this.restClient.sendGet({
       route: `/gateways/detailed`,
     });
@@ -93,9 +95,20 @@ export default class Status extends APIClient {
 
   public async sendMixnodeRewardEstimatedComputation(
     mix_id: number
-  ): Promise<ComputeRewardEstimation> {
+  ): Promise<RewardEstimation> {
     const response = await this.restClient.sendPost({
       route: `/mixnode/${mix_id}/compute-reward-estimation`,
+      data: { 
+        // performance: "10",
+        active_in_rewarded_set: true,
+        // pledge_amount: 10,
+        // total_delegation: 2000,
+        // interval_operating_cost: {
+        //   denom: "unym",
+        //   amount: "250000000"
+        // },
+        // profit_margin_percent: 10
+      }
     });
 
     return response.data;
@@ -132,6 +145,38 @@ export default class Status extends APIClient {
   public async getMixnodeStatus(mix_id: number): Promise<ActiveStatus> {
     const response = await this.restClient.sendGet({
       route: `/mixnode/${mix_id}/status`,
+    });
+
+    return response.data;
+  }
+
+  public async getAllMixnodeInclusionProbability(): Promise<InclusionProbabilities> {
+    const response = await this.restClient.sendGet({
+      route: `/mixnodes/inclusion-probability`,
+    });
+
+    return response.data;
+  }
+
+  public async getDetailedMixnodes(): Promise<DetailedMixnodes> {
+    const response = await this.restClient.sendGet({
+      route: `/mixnodes/detailed`,
+    });
+
+    return response.data;
+  }
+
+  public async getDetailedRewardedMixnodes(): Promise<DetailedMixnodes> {
+    const response = await this.restClient.sendGet({
+      route: `/mixnodes/rewarded/detailed`,
+    });
+
+    return response.data;
+  }
+
+  public async getDetailedActiveMixnodes(): Promise<DetailedMixnodes> {
+    const response = await this.restClient.sendGet({
+      route: `/mixnodes/active/detailed`,
     });
 
     return response.data;

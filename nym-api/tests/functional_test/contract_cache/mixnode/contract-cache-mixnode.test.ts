@@ -138,6 +138,7 @@ describe("Get mixnode data", (): void => {
     const response = await contract.getActiveMixnodes();
     response.forEach(function (mixnode) {
       expect(mixnode.rewarding_details.cost_params.profit_margin_percent).toBeTruthy()
+      expect(typeof mixnode.bond_information.layer).toBe('number')
     });
   });
 

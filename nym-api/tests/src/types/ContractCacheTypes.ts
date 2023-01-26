@@ -7,7 +7,7 @@ export type BondInformation = {
   mix_id: number;
   owner: string;
   original_pledge: OriginalPledge;
-  layer: string;
+  layer: number;
   mix_node: Mixnode;
   proxy: string;
   bonding_height: number;

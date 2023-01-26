@@ -1,11 +1,11 @@
-export type CurrentEpoch = {
+export interface CurrentEpoch {
   epoch_reward_pool: string;
   rewarded_set_size: string;
   active_set_size: string;
   staking_supply: string;
   sybil_resistance_percent: number;
   active_set_work_factor: number;
-};
+}
 
 
 export interface Epoch {
@@ -22,11 +22,11 @@ export interface EpochLength {
   nanos: number;
 }
 
-export type Node = {
+export interface Node {
   reward_blockstamp: number;
   uptime: string;
   in_active_set: boolean;
-};
+}
 
 export interface RewardEstimation {
   estimation: Estimation;
@@ -57,7 +57,7 @@ export interface ComputeRewardEstimation {
   profit_margin_percent: string
 }
 
-export type IntervalOperatingCost = {
+export interface IntervalOperatingCost {
   denom: string,
   amount: string
 }
@@ -73,27 +73,27 @@ export interface Interval {
   interval_pool_emission: string;
 }
 
-export type StakeSaturation = {
+export interface StakeSaturation {
   saturation: string;
   uncapped_saturation: string;
   as_at: number;
-};
+}
 
-export type AvgUptime = {
+export interface AvgUptime {
   mix_id: number;
   avg_uptime: number;
-};
+}
 
 export interface SingleInclusionProbability {
   in_active: number;
   in_reserve: number;
 }
 
-export type InclusionProbability = {
+export interface InclusionProbability {
   mix_id: number;
   in_active: string;
   in_reserve: string;
-};
+}
 
 export interface InclusionProbabilities {
   inclusion_probabilities: InclusionProbability[];
@@ -109,38 +109,123 @@ export interface Elapsed {
   nanos: number;
 }
 
-export type Report = {
+export interface Report {
   mix_id: number;
   identity: string;
   owner: string;
   most_recent: number;
   last_hour: number;
   last_day: number;
-};
+}
 
-export type History = {
+export interface History {
   date: string;
   uptime: number;
-};
+}
 
-export type NodeHistory = {
+export interface NodeHistory {
   mix_id: number,
   identity: string;
   owner: string;
   history: History[];
-};
+}
 
-export type CoreCount = {
+export interface CoreCount {
   mix_id: number,
   identity: string;
   count: number;
-};
+}
 
-export type ActiveStatus = {
+export interface ActiveStatus {
   status: string;
-};
+}
 
-export type DetailedGateway = {
+
+export interface PledgeAmount {
+  denom: string;
+  amount: string;
+}
+
+export interface Gateway {
+  host: string;
+  mix_port: number;
+  clients_port: number;
+  location: string;
+  sphinx_key: string;
+  identity_key: string;
+  version: string;
+}
+
+export interface GatewayBond {
+  pledge_amount: PledgeAmount;
   owner: string;
+  block_height: number;
+  gateway: Gateway;
+  proxy?: any;
+}
 
+export interface DetailedGateway {
+  gateway_bond: GatewayBond;
+  performance: string;
+}
+
+export interface OriginalPledge {
+  denom: string;
+  amount: string;
+}
+
+export interface MixNode {
+  host: string;
+  mix_port: number;
+  verloc_port: number;
+  http_api_port: number;
+  sphinx_key: string;
+  identity_key: string;
+  version: string;
+}
+
+export interface BondInformation {
+  mix_id: number;
+  owner: string;
+  original_pledge: OriginalPledge;
+  layer: string;
+  mix_node: MixNode;
+  proxy: string;
+  bonding_height: number;
+  is_unbonding: boolean;
+}
+
+export interface IntervalOperatingCost {
+  denom: string;
+  amount: string;
+}
+
+export interface CostParams {
+  profit_margin_percent: string;
+  interval_operating_cost: IntervalOperatingCost;
+}
+
+export interface RewardingDetails {
+  cost_params: CostParams;
+  operator: string;
+  delegates: string;
+  total_unit_reward: string;
+  unit_delegation: string;
+  last_rewarded_epoch: number;
+  unique_delegations: number;
+}
+
+export interface MixnodeDetails {
+  bond_information: BondInformation;
+  rewarding_details: RewardingDetails;
+}
+
+export interface DetailedMixnodes {
+  mixnode_details: MixnodeDetails;
+  stake_saturation: string;
+  uncapped_stake_saturation: string;
+  performance: string;
+  estimated_operator_apy: string;
+  estimated_delegators_apy: string;
+  family: string;
 }

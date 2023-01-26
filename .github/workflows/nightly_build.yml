@@ -77,7 +77,7 @@ jobs:
 
       - name: Reclaim some disk space (because Windows is being annoying)
         uses: actions-rs/cargo@v1
-        if: ${{ matrix.os == 'windows-latest' }}
+        if: ${{ matrix.os == 'windows-latest' || matrix.os == 'ubuntu-20.04' }}
         with:
           command: clean
 

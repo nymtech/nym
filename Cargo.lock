@@ -2169,6 +2169,7 @@ dependencies = [
  "gateway-requests",
  "getrandom 0.2.8",
  "log",
+ "mobile-storage",
  "network-defaults",
  "nymsphinx",
  "pemstore",
@@ -3275,6 +3276,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mobile-storage"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "thiserror",
+]
+
+[[package]]
 name = "multer"
 version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3829,6 +3838,7 @@ dependencies = [
  "lazy_static",
  "log",
  "logging",
+ "mobile-storage",
  "network-defaults",
  "nymsphinx",
  "ordered-buffer",

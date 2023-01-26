@@ -49,6 +49,8 @@ use super::received_buffer::ReceivedBufferMessage;
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
 pub mod non_wasm_helpers;
 
+pub mod helpers;
+
 pub struct ClientInput {
     pub connection_command_sender: ConnectionCommandSender,
     pub input_sender: InputMessageSender,

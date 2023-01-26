@@ -81,7 +81,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --all-features -- --ignored
+          args: --workspace -- --ignored
 
       - uses: actions-rs/clippy-check@v1
         name: Clippy checks

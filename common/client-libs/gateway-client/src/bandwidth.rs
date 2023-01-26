@@ -6,12 +6,22 @@ use crate::error::GatewayClientError;
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::Storage;
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "mobile"))]
 use credential_storage::storage::Storage;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "mobile")]
+use mobile_storage::Storage;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "mobile")]
+use mobile_storage::StorageError;
 
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::StorageError;
 
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "mobile"))]
 use credential_storage::error::StorageError;
 
 #[cfg(target_arch = "wasm32")]
@@ -31,7 +41,12 @@ use {
 use crate::wasm_mockups::PersistentStorage;
 
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "mobile"))]
 use credential_storage::PersistentStorage;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "mobile")]
+use mobile_storage::PersistentStorage;
 
 #[derive(Clone)]
 #[allow(dead_code)]

@@ -169,4 +169,10 @@ pub enum MixnetContractError {
 
     #[error("Feature is not yet implemented")]
     NotImplemented,
+
+    #[error("epochs_in_interval must be > 0")]
+    EpochsInIntervalZero,
+
+    #[error("epoch duration must be > 0")]
+    EpochDurationZero,
 }

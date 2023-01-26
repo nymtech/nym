@@ -5,9 +5,9 @@ use log::*;
 use client_core::client::received_buffer::ReconstructedMessagesReceiver;
 use client_core::client::received_buffer::{ReceivedBufferMessage, ReceivedBufferRequestSender};
 use nymsphinx::receiver::ReconstructedMessage;
-use proxy_helpers::connection_controller::{ControllerCommand, ControllerSender};
+use proxy_helpers::connection_controller::ControllerSender;
 use service_providers_common::interface::{ControlResponse, ResponseContent};
-use socks5_requests::{Message, NewSocks5Request, NewSocks5Response, PlaceholderResponse};
+use socks5_requests::{NewSocks5Response, PlaceholderResponse};
 use task::TaskClient;
 
 use crate::error::Socks5ClientError;

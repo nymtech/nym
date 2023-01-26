@@ -6,7 +6,7 @@ use thiserror::Error;
 use crate::ConnectionId;
 
 #[derive(Debug, Error, PartialEq, Eq)]
-pub enum ResponseError {
+pub enum ResponseDeserializationError {
     #[error("not enough bytes to recover the connection id")]
     ConnectionIdTooShort,
     #[error("no data provided")]
@@ -40,15 +40,15 @@ impl Response {
         }
     }
 
-    pub fn try_from_bytes(b: &[u8]) -> Result<Response, ResponseError> {
+    pub fn try_from_bytes(b: &[u8]) -> Result<Response, ResponseDeserializationError> {
         if b.is_empty() {
-            return Err(ResponseError::NoData);
+            return Err(ResponseDeserializationError::NoData);
         }
 
         let is_closed = b[0] != 0;
 
         if b.len() < 9 {
-            return Err(ResponseError::ConnectionIdTooShort);
+            return Err(ResponseDeserializationError::ConnectionIdTooShort);
         }
 
         let mut connection_id_bytes = b.to_vec();
@@ -88,7 +88,7 @@ mod constructing_socks5_responses_from_bytes {
         let response_bytes = Vec::new();
 
         assert_eq!(
-            ResponseError::NoData,
+            ResponseDeserializationError::NoData,
             Response::try_from_bytes(&response_bytes).unwrap_err()
         );
     }
@@ -97,7 +97,7 @@ mod constructing_socks5_responses_from_bytes {
     fn fails_when_connection_id_bytes_are_too_short() {
         let response_bytes = vec![0, 1, 2, 3, 4, 5, 6];
         assert_eq!(
-            ResponseError::ConnectionIdTooShort,
+            ResponseDeserializationError::ConnectionIdTooShort,
             Response::try_from_bytes(&response_bytes).unwrap_err()
         );
     }

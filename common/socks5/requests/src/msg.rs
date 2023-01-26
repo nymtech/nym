@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::network_requester_response::{Error as NrError, NetworkRequesterResponse};
-use crate::request::{Request, RequestError};
-use crate::response::{Response, ResponseError};
-use crate::{ConnectRequest, ConnectionId, RemoteAddress, SendRequest};
+use crate::request::{RequestDeserializationError, Socks5RequestContent};
+use crate::response::{Response, ResponseDeserializationError};
+use crate::{ConnectRequest, ConnectionId, RemoteAddress, SendRequest, Socks5Request};
 use nymsphinx_addressing::clients::Recipient;
 use service_providers_common::interface::{
     self, Serializable, ServiceProviderMessagingError, ServiceProviderRequest,
@@ -14,11 +14,17 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum MessageError {
-    #[error(transparent)]
-    Request(RequestError),
+    #[error("failed to deserialize received request: {source}")]
+    Request {
+        #[from]
+        source: RequestDeserializationError,
+    },
 
-    #[error("{0:?}")]
-    Response(ResponseError),
+    #[error("failed to deserialize received response: {source}")]
+    Response {
+        #[from]
+        source: ResponseDeserializationError,
+    },
 
     #[error(transparent)]
     NetworkRequesterResponseError(NrError),
@@ -38,56 +44,58 @@ pub enum MessageError {
 }
 
 // those are placeholders until I figure out proper serialization to preserve backwards compatibility
-pub type PlaceholderRequest = interface::Request<NewSocks5Request>;
-pub type PlaceholderResponse = interface::Response<NewSocks5Request>;
+// pub type PlaceholderRequest = interface::Request<NewSocks5Request>;
+// pub type PlaceholderResponse = interface::Response<NewSocks5Request>;
+pub type PlaceholderRequest = interface::Request<Socks5Request>;
+pub type PlaceholderResponse = interface::Response<Socks5Request>;
 
-// TODO: remove the wrapper
-#[derive(Debug)]
-pub struct NewSocks5Request(pub Request);
-
-impl ServiceProviderRequest for NewSocks5Request {
-    type Response = NewSocks5Response;
-    type Error = MessageError;
-}
-
-impl Serializable for NewSocks5Request {
-    type Error = MessageError;
-
-    fn into_bytes(self) -> Vec<u8> {
-        // for now use the existing one
-        Message::Request(self.0).into_bytes()
-    }
-
-    fn try_from_bytes(b: &[u8]) -> Result<Self, Self::Error> {
-        if let Message::Request(m) = Message::try_from_bytes(b)? {
-            Ok(Self(m))
-        } else {
-            todo!()
-        }
-    }
-}
-
-impl NewSocks5Request {
-    pub fn new_connect(
-        conn_id: ConnectionId,
-        remote_addr: RemoteAddress,
-        return_address: Option<Recipient>,
-    ) -> NewSocks5Request {
-        NewSocks5Request(Request::Connect(Box::new(ConnectRequest {
-            conn_id,
-            remote_addr,
-            return_address,
-        })))
-    }
-
-    pub fn new_send(conn_id: ConnectionId, data: Vec<u8>, local_closed: bool) -> NewSocks5Request {
-        NewSocks5Request(Request::Send(SendRequest {
-            conn_id,
-            data,
-            local_closed,
-        }))
-    }
-}
+// // TODO: remove the wrapper
+// #[derive(Debug)]
+// pub struct NewSocks5Request(pub Socks5RequestContent);
+//
+// impl ServiceProviderRequest for NewSocks5Request {
+//     type Response = NewSocks5Response;
+//     type Error = MessageError;
+// }
+//
+// impl Serializable for NewSocks5Request {
+//     type Error = MessageError;
+//
+//     fn into_bytes(self) -> Vec<u8> {
+//         // for now use the existing one
+//         Message::Request(self.0).into_bytes()
+//     }
+//
+//     fn try_from_bytes(b: &[u8]) -> Result<Self, Self::Error> {
+//         if let Message::Request(m) = Message::try_from_bytes(b)? {
+//             Ok(Self(m))
+//         } else {
+//             todo!()
+//         }
+//     }
+// }
+//
+// impl NewSocks5Request {
+//     pub fn new_connect(
+//         conn_id: ConnectionId,
+//         remote_addr: RemoteAddress,
+//         return_address: Option<Recipient>,
+//     ) -> NewSocks5Request {
+//         NewSocks5Request(Socks5RequestContent::Connect(Box::new(ConnectRequest {
+//             conn_id,
+//             remote_addr,
+//             return_address,
+//         })))
+//     }
+//
+//     pub fn new_send(conn_id: ConnectionId, data: Vec<u8>, local_closed: bool) -> NewSocks5Request {
+//         NewSocks5Request(Socks5RequestContent::Send(SendRequest {
+//             conn_id,
+//             data,
+//             local_closed,
+//         }))
+//     }
+// }
 
 #[derive(Debug)]
 pub enum NewSocks5Response {
@@ -134,7 +142,7 @@ impl NewSocks5Response {
 
 #[derive(Debug)]
 pub enum Message {
-    Request(Request),
+    Request(Socks5RequestContent),
     Response(Response),
     NetworkRequesterResponse(NetworkRequesterResponse),
 }
@@ -147,8 +155,8 @@ impl Message {
     pub fn conn_id(&self) -> u64 {
         match self {
             Message::Request(req) => match req {
-                Request::Connect(c) => c.conn_id,
-                Request::Send(s) => s.conn_id,
+                Socks5RequestContent::Connect(c) => c.conn_id,
+                Socks5RequestContent::Send(s) => s.conn_id,
             },
             Message::Response(resp) => resp.connection_id,
             Message::NetworkRequesterResponse(resp) => resp.connection_id,
@@ -158,8 +166,8 @@ impl Message {
     pub fn size(&self) -> usize {
         match self {
             Message::Request(req) => match req {
-                Request::Connect(_) => 0,
-                Request::Send(s) => s.data.len(),
+                Socks5RequestContent::Connect(_) => 0,
+                Socks5RequestContent::Send(s) => s.data.len(),
             },
             Message::Response(resp) => resp.data.len(),
             Message::NetworkRequesterResponse(_) => 0,
@@ -172,13 +180,13 @@ impl Message {
         }
 
         if b[0] == Self::REQUEST_FLAG {
-            Request::try_from_bytes(&b[1..])
+            Socks5RequestContent::try_from_bytes(&b[1..])
                 .map(Message::Request)
-                .map_err(MessageError::Request)
+                .map_err(Into::into)
         } else if b[0] == Self::RESPONSE_FLAG {
             Response::try_from_bytes(&b[1..])
                 .map(Message::Response)
-                .map_err(MessageError::Response)
+                .map_err(Into::into)
         } else if b[0] == Self::NR_RESPONSE_FLAG {
             NetworkRequesterResponse::try_from_bytes(&b[1..])
                 .map(Message::NetworkRequesterResponse)

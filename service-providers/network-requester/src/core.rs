@@ -21,10 +21,12 @@ use proxy_helpers::connection_controller::{
     BroadcastActiveConnections, Controller, ControllerCommand, ControllerSender,
 };
 use proxy_helpers::proxy_runner::{MixProxyReader, MixProxySender};
-use service_providers_common::interface::{ControlRequest, InterfaceVersion, RequestContent};
+use service_providers_common::interface::{
+    ControlRequest, ProviderInterfaceVersion, RequestContent, RequestVersion,
+};
 use socks5_requests::{
-    ConnectRequest, ConnectionId, NewSocks5Request, PlaceholderRequest, Request, Response,
-    SendRequest,
+    ConnectRequest, ConnectionId, PlaceholderRequest, Response, SendRequest, Socks5ProtocolVersion,
+    Socks5Request, Socks5RequestContent,
 };
 use statistics_common::collector::StatisticsSender;
 use std::path::PathBuf;
@@ -35,6 +37,13 @@ use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 
 // Since it's an atomic, it's safe to be kept static and shared across threads
 static ACTIVE_PROXIES: AtomicUsize = AtomicUsize::new(0);
+
+pub(crate) fn new_legacy_request_version() -> RequestVersion<Socks5Request> {
+    RequestVersion {
+        provider_interface: ProviderInterfaceVersion::Legacy,
+        provider_protocol: Socks5ProtocolVersion::Legacy,
+    }
+}
 
 pub struct ServiceProvider {
     websocket_address: String,
@@ -199,7 +208,7 @@ impl ServiceProvider {
     }
 
     async fn start_proxy(
-        remote_interface: InterfaceVersion,
+        remote_interface: ProviderInterfaceVersion,
         connection_id: ConnectionId,
         remote_addr: String,
         return_address: reply::MixnetAddress,
@@ -282,7 +291,7 @@ impl ServiceProvider {
     #[allow(clippy::too_many_arguments)]
     async fn handle_proxy_connect(
         &mut self,
-        remote_interface: InterfaceVersion,
+        remote_interface: ProviderInterfaceVersion,
         controller_sender: &mut ControllerSender,
         mix_input_sender: &MixProxySender<MixnetMessage>,
         lane_queue_lengths: LaneQueueLengths,
@@ -347,17 +356,16 @@ impl ServiceProvider {
     async fn handle_provider_request(
         &mut self,
         sender_tag: Option<AnonymousSenderTag>,
-        remote_interface: InterfaceVersion,
-        request: NewSocks5Request,
+        remote_interface: ProviderInterfaceVersion,
+        request: Socks5Request,
         controller_sender: &mut ControllerSender,
         mix_input_sender: &MixProxySender<MixnetMessage>,
         lane_queue_lengths: LaneQueueLengths,
         stats_collector: Option<ServiceStatisticsCollector>,
         shutdown: TaskClient,
     ) {
-        // TODO: remove wrapper
-        match request.0 {
-            Request::Connect(req) => {
+        match request.content {
+            Socks5RequestContent::Connect(req) => {
                 // TODO: stats might be invalid if connection fails to start
                 if let Some(stats_collector) = stats_collector {
                     stats_collector
@@ -378,7 +386,7 @@ impl ServiceProvider {
                 .await
             }
 
-            Request::Send(req) => {
+            Socks5RequestContent::Send(req) => {
                 if let Some(stats_collector) = stats_collector {
                     if let Some(remote_addr) = stats_collector
                         .connected_services

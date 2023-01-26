@@ -4,72 +4,14 @@
 pub use control::{ControlRequest, ControlResponse};
 pub use request::{Request, RequestContent, ServiceProviderRequest};
 pub use response::{Response, ResponseContent, ServiceProviderResponse};
-use serde::{Deserialize, Serialize};
+pub use version::{ProviderInterfaceVersion, RequestVersion};
 
 use thiserror::Error;
 
 mod control;
 mod request;
 mod response;
-
-/// Defines initial version of the communication interface between clients and service providers.
-// note: we start from '3' so that we could distinguish cases where no version is provided
-// and legacy communication mode is used instead
-pub const INITIAL_INTERFACE_VERSION: u8 = 3;
-
-/// Defines the current version of the communication interface between clients and service providers.
-/// It has to be incremented for any breaking change.
-pub const INTERFACE_VERSION: u8 = 3;
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize)]
-pub enum InterfaceVersion {
-    Legacy,
-    Versioned(u8),
-}
-
-impl InterfaceVersion {
-    pub fn new(use_legacy: bool) -> Self {
-        if use_legacy {
-            Self::new_legacy()
-        } else {
-            Self::new_versioned(INTERFACE_VERSION)
-        }
-    }
-
-    pub fn new_legacy() -> Self {
-        InterfaceVersion::Legacy
-    }
-
-    pub fn new_versioned(version: u8) -> Self {
-        InterfaceVersion::Versioned(version)
-    }
-
-    pub fn is_legacy(&self) -> bool {
-        matches!(self, InterfaceVersion::Legacy)
-    }
-
-    pub fn as_u8(&self) -> Option<u8> {
-        match self {
-            InterfaceVersion::Legacy => None,
-            InterfaceVersion::Versioned(version) => Some(*version),
-        }
-    }
-}
-
-impl From<u8> for InterfaceVersion {
-    fn from(v: u8) -> Self {
-        match v {
-            n if n < INITIAL_INTERFACE_VERSION => InterfaceVersion::Legacy,
-            n => InterfaceVersion::Versioned(n),
-        }
-    }
-}
-
-impl Default for InterfaceVersion {
-    fn default() -> Self {
-        InterfaceVersion::Versioned(INTERFACE_VERSION)
-    }
-}
+mod version;
 
 #[derive(Debug, Error)]
 pub enum ServiceProviderMessagingError {
@@ -110,7 +52,8 @@ pub enum ServiceProviderMessagingError {
 }
 
 // can't use 'normal' trait (i.e. Serialize/Deserialize from serde) as `Socks5Message` uses custom serialization
-// and we don't want to break backwards compatibility
+// and we don't want to break backwards compatibility, plus being able to know the expected protocol version
+// ahead of time is very useful.
 pub trait Serializable: Sized {
     type Error;
 
@@ -119,20 +62,20 @@ pub trait Serializable: Sized {
     fn try_from_bytes(b: &[u8]) -> Result<Self, Self::Error>;
 }
 
-// pub fn is_legacy_version(version: u8) -> bool {
-//     if version < INITIAL_INTERFACE_VERSION {
-//         true
-//     } else {
-//         false
-//     }
-// }
-
 #[derive(Debug)]
 pub struct EmptyMessage;
 
+#[derive(Debug, Clone)]
+pub struct Empty;
+
 impl ServiceProviderRequest for EmptyMessage {
+    type ProtocolVersion = Empty;
     type Response = EmptyMessage;
     type Error = ServiceProviderMessagingError;
+
+    fn provider_specific_version(&self) -> Self::ProtocolVersion {
+        Empty
+    }
 
     // fn provider_specific_version(&self) -> u8 {
     //     1
@@ -160,15 +103,6 @@ impl Serializable for EmptyMessage {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn interface_version_ordering() {
-        // in case something is done to the original enum, make sure the below assumptions still hold
-        assert!(InterfaceVersion::Legacy < InterfaceVersion::Versioned(0));
-        assert!(InterfaceVersion::Legacy < InterfaceVersion::Versioned(1));
-        assert!(InterfaceVersion::Versioned(1) < InterfaceVersion::Versioned(2));
-        assert!(InterfaceVersion::Versioned(42) < InterfaceVersion::Versioned(100));
-    }
 
     #[cfg(test)]
     mod backwards_compatibility {

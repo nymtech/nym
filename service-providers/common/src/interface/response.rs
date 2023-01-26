@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::interface::{
-    ControlResponse, EmptyMessage, InterfaceVersion, RequestContent, Serializable,
+    ControlResponse, EmptyMessage, ProviderInterfaceVersion, RequestContent, Serializable,
     ServiceProviderMessagingError, ServiceProviderRequest,
 };
 use log::warn;
@@ -14,7 +14,7 @@ pub trait ServiceProviderResponse: Serializable + Debug {
 
 #[derive(Debug)]
 pub struct Response<T: ServiceProviderRequest = EmptyMessage> {
-    pub interface_version: InterfaceVersion,
+    pub interface_version: ProviderInterfaceVersion,
     pub content: ResponseContent<T>,
 }
 
@@ -71,14 +71,20 @@ impl<T> Response<T>
 where
     T: ServiceProviderRequest,
 {
-    pub fn new_control(interface_version: InterfaceVersion, content: ControlResponse) -> Self {
+    pub fn new_control(
+        interface_version: ProviderInterfaceVersion,
+        content: ControlResponse,
+    ) -> Self {
         Response {
             interface_version,
             content: ResponseContent::Control(content),
         }
     }
 
-    pub fn new_provider_data(interface_version: InterfaceVersion, content: T::Response) -> Self {
+    pub fn new_provider_data(
+        interface_version: ProviderInterfaceVersion,
+        content: T::Response,
+    ) -> Self {
         Response {
             interface_version,
             content: ResponseContent::ProviderData(content),
@@ -100,7 +106,7 @@ where
             return Err(ServiceProviderMessagingError::EmptyResponse.into());
         }
 
-        let interface_version = InterfaceVersion::from(b[0]);
+        let interface_version = ProviderInterfaceVersion::from(b[0]);
         let content = if interface_version.is_legacy() {
             ResponseContent::try_from_bytes(b, interface_version)
         } else {
@@ -132,7 +138,7 @@ where
         }
     }
 
-    fn into_bytes(self, interface_version: InterfaceVersion) -> Vec<u8> {
+    fn into_bytes(self, interface_version: ProviderInterfaceVersion) -> Vec<u8> {
         if interface_version.is_legacy() {
             if matches!(self, ResponseContent::Control(_)) {
                 // this shouldn't ever happen, since if service provider received a legacy request
@@ -151,7 +157,7 @@ where
 
     fn try_from_bytes(
         b: &[u8],
-        interface_version: InterfaceVersion,
+        interface_version: ProviderInterfaceVersion,
     ) -> Result<ResponseContent<T>, <T as ServiceProviderRequest>::Error> {
         if interface_version.is_legacy() {
             // we received a request from an old client which can only possibly

@@ -5684,6 +5684,7 @@ name = "socks5-requests"
 version = "0.1.0"
 dependencies = [
  "nymsphinx-addressing",
+ "serde",
  "service-providers-common",
  "thiserror",
 ]

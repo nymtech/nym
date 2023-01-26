@@ -2,25 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::interface::{
-    ControlRequest, EmptyMessage, InterfaceVersion, Response, ResponseContent, Serializable,
-    ServiceProviderMessagingError, ServiceProviderResponse,
+    ControlRequest, EmptyMessage, ProviderInterfaceVersion, Response, ResponseContent,
+    Serializable, ServiceProviderMessagingError, ServiceProviderResponse,
 };
 use log::warn;
 use std::fmt::Debug;
 
 pub trait ServiceProviderRequest: Serializable + Debug {
+    type ProtocolVersion: Debug + Clone;
     type Response: ServiceProviderResponse;
     // TODO: should this one perhaps be separated into RequestError and ResponseError?
     type Error: From<ServiceProviderMessagingError>
         + From<<Self as Serializable>::Error>
         + From<<Self::Response as Serializable>::Error>;
 
-    // fn provider_specific_version(&self) -> u8;
+    fn provider_specific_version(&self) -> Self::ProtocolVersion;
 }
 
 #[derive(Debug)]
 pub struct Request<T: ServiceProviderRequest = EmptyMessage> {
-    pub interface_version: InterfaceVersion,
+    pub interface_version: ProviderInterfaceVersion,
     pub content: RequestContent<T>,
 }
 
@@ -77,14 +78,17 @@ impl<T> Request<T>
 where
     T: ServiceProviderRequest,
 {
-    pub fn new_control(interface_version: InterfaceVersion, content: ControlRequest) -> Self {
+    pub fn new_control(
+        interface_version: ProviderInterfaceVersion,
+        content: ControlRequest,
+    ) -> Self {
         Request {
             interface_version,
             content: RequestContent::Control(content),
         }
     }
 
-    pub fn new_provider_data(interface_version: InterfaceVersion, content: T) -> Self {
+    pub fn new_provider_data(interface_version: ProviderInterfaceVersion, content: T) -> Self {
         Request {
             interface_version,
             content: RequestContent::ProviderData(content),
@@ -106,7 +110,7 @@ where
             return Err(ServiceProviderMessagingError::EmptyRequest.into());
         }
 
-        let interface_version = InterfaceVersion::from(b[0]);
+        let interface_version = ProviderInterfaceVersion::from(b[0]);
         let content = if interface_version.is_legacy() {
             RequestContent::try_from_bytes(b, interface_version)
         } else {
@@ -138,7 +142,7 @@ where
         }
     }
 
-    fn into_bytes(self, interface_version: InterfaceVersion) -> Vec<u8> {
+    fn into_bytes(self, interface_version: ProviderInterfaceVersion) -> Vec<u8> {
         if interface_version.is_legacy() {
             if matches!(self, RequestContent::Control(_)) {
                 // this shouldn't ever happen, since if client is aware of control requests,
@@ -157,7 +161,7 @@ where
 
     fn try_from_bytes(
         b: &[u8],
-        interface_version: InterfaceVersion,
+        interface_version: ProviderInterfaceVersion,
     ) -> Result<RequestContent<T>, <T as ServiceProviderRequest>::Error> {
         if interface_version.is_legacy() {
             // we received a request from an old client which can only possibly

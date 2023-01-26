@@ -3,10 +3,10 @@
 
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
-use service_providers_common::interface::InterfaceVersion;
+use service_providers_common::interface::{ProviderInterfaceVersion, RequestVersion};
 use socks5_requests::{
-    ConnectionId, NetworkRequesterResponse, NewSocks5Request, NewSocks5Response,
-    PlaceholderRequest, PlaceholderResponse, Request, Response,
+    ConnectionId, NetworkRequesterResponse, NewSocks5Response, PlaceholderRequest,
+    PlaceholderResponse, Response, Socks5Request, Socks5RequestContent,
 };
 use std::fmt::{Debug, Formatter};
 use websocket_requests::requests::ClientRequest;
@@ -59,19 +59,21 @@ impl MixnetMessage {
 
     pub(crate) fn new_network_data_request<A: Into<MixnetAddress>>(
         address: A,
-        interface_version: InterfaceVersion,
+        request_version: RequestVersion<Socks5Request>,
         connection_id: ConnectionId,
-        content: Request,
+        content: Socks5RequestContent,
     ) -> Self {
-        let msg =
-            PlaceholderRequest::new_provider_data(interface_version, NewSocks5Request(content));
+        let msg = PlaceholderRequest::new_provider_data(
+            request_version.provider_interface,
+            Socks5Request::new(request_version.provider_protocol, content),
+        );
 
         Self::new_provider_data_request(address, connection_id, msg)
     }
 
     pub(crate) fn new_network_data_response(
         address: MixnetAddress,
-        interface_version: InterfaceVersion,
+        interface_version: ProviderInterfaceVersion,
         connection_id: ConnectionId,
         content: Response,
     ) -> Self {
@@ -85,7 +87,7 @@ impl MixnetMessage {
 
     pub(crate) fn new_connection_error(
         address: MixnetAddress,
-        interface_version: InterfaceVersion,
+        interface_version: ProviderInterfaceVersion,
         connection_id: ConnectionId,
         error_message: String,
     ) -> Self {
@@ -103,7 +105,7 @@ impl MixnetMessage {
     // TODO: the naming is awful, but naming things is difficult...
     pub(crate) fn new_network_data_response_content(
         address: MixnetAddress,
-        interface_version: InterfaceVersion,
+        interface_version: ProviderInterfaceVersion,
         connection_id: ConnectionId,
         data: Vec<u8>,
         closed_socket: bool,

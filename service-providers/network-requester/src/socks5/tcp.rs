@@ -6,7 +6,7 @@ use crate::reply::MixnetMessage;
 use client_connections::LaneQueueLengths;
 use proxy_helpers::connection_controller::ConnectionReceiver;
 use proxy_helpers::proxy_runner::{MixProxySender, ProxyRunner};
-use service_providers_common::interface::InterfaceVersion;
+use service_providers_common::interface::ProviderInterfaceVersion;
 use socks5_requests::{ConnectionId, RemoteAddress};
 use std::io;
 use task::TaskClient;
@@ -41,7 +41,7 @@ impl Connection {
 
     pub(crate) async fn run_proxy(
         &mut self,
-        remote_interface: InterfaceVersion,
+        remote_interface: ProviderInterfaceVersion,
         mix_receiver: ConnectionReceiver,
         mix_sender: MixProxySender<MixnetMessage>,
         lane_queue_lengths: LaneQueueLengths,

@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::interface::{Serializable, ServiceProviderMessagingError};
+use crate::interface::{ServiceProviderMessagingError, Serializable};
 use build_information::BinaryBuildInformationOwned;
 use serde::{Deserialize, Serialize};
 

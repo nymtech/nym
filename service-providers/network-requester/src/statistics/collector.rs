@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::error::StatsError;
+use crate::core::new_legacy_request_version;
 use crate::reply::MixnetMessage;
 use async_trait::async_trait;
 use log::*;
@@ -10,8 +11,8 @@ use ordered_buffer::OrderedMessageSender;
 use proxy_helpers::proxy_runner::MixProxySender;
 use rand::RngCore;
 use serde::Deserialize;
-use service_providers_common::interface::InterfaceVersion;
-use socks5_requests::{ConnectionId, RemoteAddress, Request};
+use service_providers_common::interface::{ProviderInterfaceVersion, RequestVersion};
+use socks5_requests::{ConnectionId, RemoteAddress, Socks5Request, Socks5RequestContent};
 use sqlx::types::chrono::{DateTime, Utc};
 use statistics_common::api::{
     build_statistics_request_bytes, DEFAULT_STATISTICS_SERVICE_ADDRESS,
@@ -78,7 +79,7 @@ pub(crate) struct ServiceStatisticsCollector {
     pub(crate) connected_services: Arc<RwLock<HashMap<ConnectionId, RemoteAddress>>>,
     stats_provider_addr: Recipient,
     mix_input_sender: MixProxySender<MixnetMessage>,
-    interface_version: InterfaceVersion,
+    request_version: RequestVersion<Socks5Request>,
 }
 
 impl ServiceStatisticsCollector {
@@ -111,8 +112,8 @@ impl ServiceStatisticsCollector {
             stats_provider_addr,
             mix_input_sender,
             // for now always use legacy serialization since we'll never be sending control
-            // messages to the stats collector anyway and we can't be sure they're using the updated interface
-            interface_version: InterfaceVersion::Legacy,
+            // messages to the stats collector anyway and we can't be sure they're using the updated interfaces
+            request_version: new_legacy_request_version(),
         })
     }
 }
@@ -171,14 +172,14 @@ impl StatisticsCollector for ServiceStatisticsCollector {
         trace!("Connecting to statistics service");
         let mut rng = rand::rngs::OsRng;
         let conn_id = rng.next_u64();
-        let connect_req = Request::new_connect(
+        let connect_req = Socks5RequestContent::new_connect(
             conn_id,
             format!("{DEFAULT_STATISTICS_SERVICE_ADDRESS}:{DEFAULT_STATISTICS_SERVICE_PORT}"),
             Some(self.stats_provider_addr),
         );
         let mixnet_message = MixnetMessage::new_network_data_request(
             self.stats_provider_addr,
-            self.interface_version,
+            self.request_version.clone(),
             conn_id,
             connect_req,
         );
@@ -191,11 +192,11 @@ impl StatisticsCollector for ServiceStatisticsCollector {
         trace!("Sending data to statistics service");
         let mut message_sender = OrderedMessageSender::new();
         let ordered_msg = message_sender.wrap_message(msg).into_bytes();
-        let send_req = Request::new_send(conn_id, ordered_msg, true);
+        let send_req = Socks5RequestContent::new_send(conn_id, ordered_msg, true);
 
         let mixnet_message = MixnetMessage::new_network_data_request(
             self.stats_provider_addr,
-            self.interface_version,
+            self.request_version.clone(),
             conn_id,
             send_req,
         );

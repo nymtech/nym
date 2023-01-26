@@ -4,6 +4,8 @@
 use crate::network_requester_response::{Error as NrError, NetworkRequesterResponse};
 use crate::request::{Request, RequestError};
 use crate::response::{Response, ResponseError};
+use crate::{ConnectRequest, ConnectionId, RemoteAddress};
+use nymsphinx_addressing::clients::Recipient;
 use service_providers_common::interface::{
     self, Serializable, ServiceProviderMessagingError, ServiceProviderRequest,
     ServiceProviderResponse,
@@ -66,7 +68,21 @@ impl Serializable for NewSocks5Request {
 }
 
 impl NewSocks5Request {
-    //
+    pub fn new_connect(
+        conn_id: ConnectionId,
+        remote_addr: RemoteAddress,
+        return_address: Option<Recipient>,
+    ) -> NewSocks5Request {
+        NewSocks5Request(Request::Connect(Box::new(ConnectRequest {
+            conn_id,
+            remote_addr,
+            return_address,
+        })))
+    }
+
+    pub fn new_send(conn_id: ConnectionId, data: Vec<u8>, local_closed: bool) -> NewSocks5Request {
+        NewSocks5Request(Request::Send(conn_id, data, local_closed))
+    }
 }
 
 #[derive(Debug)]

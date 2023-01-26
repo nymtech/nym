@@ -16,7 +16,10 @@ use proxy_helpers::connection_controller::{
 };
 use proxy_helpers::proxy_runner::ProxyRunner;
 use rand::RngCore;
-use socks5_requests::{ConnectionId, Message, RemoteAddress, Request};
+use service_providers_common::interface::InterfaceVersion;
+use socks5_requests::{
+    ConnectionId, Message, NewSocks5Request, PlaceholderRequest, RemoteAddress, Request,
+};
 use std::io;
 use std::net::SocketAddr;
 use std::pin::Pin;
@@ -128,6 +131,7 @@ impl AsyncWrite for StreamState {
 
 #[derive(Debug, Copy, Clone)]
 pub(crate) struct Config {
+    provider_interface_version: InterfaceVersion,
     use_surbs_for_responses: bool,
     connection_start_surbs: u32,
     per_request_surbs: u32,
@@ -135,11 +139,13 @@ pub(crate) struct Config {
 
 impl Config {
     pub(crate) fn new(
+        provider_interface_version: InterfaceVersion,
         use_surbs_for_responses: bool,
         connection_start_surbs: u32,
         per_request_surbs: u32,
     ) -> Self {
         Self {
+            provider_interface_version,
             use_surbs_for_responses,
             connection_start_surbs,
             per_request_surbs,
@@ -293,8 +299,9 @@ impl SocksClient {
     }
 
     async fn send_anonymous_connect_to_mixnet(&mut self, remote_address: RemoteAddress) {
-        let req = Request::new_connect(self.connection_id, remote_address, None);
-        let msg = Message::Request(req);
+        let req = NewSocks5Request::new_connect(self.connection_id, remote_address, None);
+        let msg =
+            PlaceholderRequest::new_provider_data(self.config.provider_interface_version, req);
 
         let input_message = InputMessage::new_anonymous(
             self.service_provider,
@@ -309,8 +316,13 @@ impl SocksClient {
     }
 
     async fn send_connect_to_mixnet_with_return_address(&mut self, remote_address: RemoteAddress) {
-        let req = Request::new_connect(self.connection_id, remote_address, Some(self.self_address));
-        let msg = Message::Request(req);
+        let req = NewSocks5Request::new_connect(
+            self.connection_id,
+            remote_address,
+            Some(self.self_address),
+        );
+        let msg =
+            PlaceholderRequest::new_provider_data(self.config.provider_interface_version, req);
 
         let input_message = InputMessage::new_regular(
             self.service_provider,
@@ -350,6 +362,7 @@ impl SocksClient {
         let input_sender = self.input_sender.clone();
         let anonymous = self.config.use_surbs_for_responses;
         let per_request_surbs = self.config.per_request_surbs;
+        let interface_version = self.config.provider_interface_version;
 
         let recipient = self.service_provider;
         let (stream, _) = ProxyRunner::new(
@@ -363,8 +376,9 @@ impl SocksClient {
             self.shutdown_listener.clone(),
         )
         .run(move |conn_id, read_data, socket_closed| {
-            let provider_request = Request::new_send(conn_id, read_data, socket_closed);
-            let provider_message = Message::Request(provider_request);
+            let provider_request = NewSocks5Request::new_send(conn_id, read_data, socket_closed);
+            let provider_message =
+                PlaceholderRequest::new_provider_data(interface_version, provider_request);
             let lane = TransmissionLane::ConnectionId(conn_id);
             if anonymous {
                 InputMessage::new_anonymous(

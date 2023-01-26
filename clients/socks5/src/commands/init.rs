@@ -160,6 +160,8 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
 
     config.get_base_mut().with_gateway_endpoint(gateway);
 
+    // TODO: ask the service provider we specified for its interface version and set it in the config
+
     config.save_to_file(None).tap_err(|_| {
         log::error!("Failed to save the config file");
     })?;

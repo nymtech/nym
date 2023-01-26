@@ -112,6 +112,7 @@ impl NymClient {
             self_address,
             shared_lane_queue_lengths,
             socks::client::Config::new(
+                config.get_provider_interface_version(),
                 config.get_send_anonymously(),
                 config.get_connection_start_surbs(),
                 config.get_per_request_surbs(),

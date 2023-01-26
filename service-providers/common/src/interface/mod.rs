@@ -4,6 +4,7 @@
 pub use control::{ControlRequest, ControlResponse};
 pub use request::{Request, RequestContent, ServiceProviderRequest};
 pub use response::{Response, ResponseContent, ServiceProviderResponse};
+use serde::{Deserialize, Serialize};
 
 use thiserror::Error;
 
@@ -20,7 +21,7 @@ pub const INITIAL_INTERFACE_VERSION: u8 = 3;
 /// It has to be incremented for any breaking change.
 pub const INTERFACE_VERSION: u8 = 3;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize)]
 pub enum InterfaceVersion {
     Legacy,
     Versioned(u8),

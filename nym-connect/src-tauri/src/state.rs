@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use ::config_common::NymConfig;
-use client_core::client::key_manager::KeyManager;
 use client_core::error::ClientCoreStatusMessage;
 use futures::SinkExt;
 use tap::TapFallible;
@@ -13,7 +12,7 @@ use nym_socks5::client::{
 use tokio::time::Instant;
 
 use crate::{
-    config::{self, socks5_config_id_appended_with, Config},
+    config::{self, socks5_config_id_appended_with},
     error::{BackendError, Result},
     models::{
         AppEventConnectionStatusChangedPayload, ConnectionStatusKind, ConnectivityTestResult,
@@ -27,16 +26,11 @@ use crate::{
 // certain duration then we assume it's all good.
 const GATEWAY_CONNECTIVITY_TIMEOUT_SECS: u64 = 20;
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy)]
 pub enum GatewayConnectivity {
-    #[default]
     Good,
-    Bad {
-        when: Instant,
-    },
-    VeryBad {
-        when: Instant,
-    },
+    Bad { when: Instant },
+    VeryBad { when: Instant },
 }
 
 impl TryFrom<&ClientCoreStatusMessage> for GatewayConnectivity {
@@ -55,7 +49,6 @@ impl TryFrom<&ClientCoreStatusMessage> for GatewayConnectivity {
     }
 }
 
-#[derive(Default)]
 pub struct State {
     /// The current connection status
     status: ConnectionStatusKind,
@@ -175,31 +168,22 @@ impl State {
         self.set_state(ConnectionStatusKind::Connecting, window);
 
         // Setup configuration by writing to file
-        //if let Err(err) = self.init_config().await {
-        //    log::error!("Failed to initialize: {err}");
+        if let Err(err) = self.init_config().await {
+            log::error!("Failed to initialize: {err}");
 
-        //    // Wait a little to give the user some rudimentary feedback that the click actually
-        //    // registered.
-        //    tokio::time::sleep(Duration::from_secs(1)).await;
-        //    self.set_state(ConnectionStatusKind::Disconnected, window);
-        //    return Err(err);
-        //}
-
-        let res = self.init_config().await;
-        match &res {
-            Ok(_) => {}
-            Err(e) => {
-                dbg!(e);
-            }
-        };
-        let (config, keys) = res.unwrap();
+            // Wait a little to give the user some rudimentary feedback that the click actually
+            // registered.
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            self.set_state(ConnectionStatusKind::Disconnected, window);
+            return Err(err);
+        }
 
         // Kick off the main task and get the channel for controlling it
-        self.start_nym_socks5_client(config, keys)
+        self.start_nym_socks5_client()
     }
 
     /// Create a configuration file
-    async fn init_config(&self) -> Result<(Config, KeyManager)> {
+    async fn init_config(&self) -> Result<()> {
         let service_provider = self
             .get_service_provider()
             .as_ref()
@@ -215,14 +199,10 @@ impl State {
     }
 
     /// Spawn a new thread running the SOCKS5 client
-    fn start_nym_socks5_client(
-        &mut self,
-        config: Config,
-        keys: KeyManager,
-    ) -> Result<(task::StatusReceiver, ExitStatusReceiver)> {
+    fn start_nym_socks5_client(&mut self) -> Result<(task::StatusReceiver, ExitStatusReceiver)> {
         let id = self.get_config_id()?;
         let (control_tx, msg_rx, exit_status_rx, used_gateway) =
-            tasks::start_nym_socks5_client(&id, config, keys)?;
+            tasks::start_nym_socks5_client(&id)?;
         self.socks5_client_sender = Some(control_tx);
         self.gateway = Some(used_gateway.gateway_id);
         Ok((msg_rx, exit_status_rx))

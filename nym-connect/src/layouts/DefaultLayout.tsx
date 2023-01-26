@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { ConnectionStatus } from 'src/components/ConnectionStatus';
 import { ConnectionTimer } from 'src/components/ConntectionTimer';
 import { InfoModal } from 'src/components/InfoModal';
@@ -9,6 +9,8 @@ import { ServiceSelector } from '../components/ServiceSelector';
 import { useClientContext } from '../context/main';
 import { ConnectionStatusKind } from '../types';
 import { Services } from '../types/directory';
+import { TestAndEarnButtonArea } from '../components/Growth/TestAndEarnButtonArea';
+import { AppVersion } from '../components/AppVersion';
 
 export const DefaultLayout: FCWithChildren<{
   error?: Error;
@@ -35,15 +37,13 @@ export const DefaultLayout: FCWithChildren<{
       </Box>
       <ServiceSelector services={services} onChange={context.setServiceProvider} currentSp={context.serviceProvider} />
       <ConnectionTimer />
-      <Stack mt={3} direction="row" justifyContent="center" alignItems="center">
-        <ConnectionButton
-          status={status}
-          disabled={context.serviceProvider === undefined}
-          busy={busy}
-          isError={isError}
-          onClick={onConnectClick}
-        />
-      </Stack>
+      <ConnectionButton
+        status={status}
+        disabled={context.serviceProvider === undefined}
+        busy={busy}
+        isError={isError}
+        onClick={onConnectClick}
+      />
     </Box>
   );
 };

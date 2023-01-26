@@ -134,7 +134,7 @@ export const TestAndEarnCurrentDrawEntered: FCWithChildren<{ draw?: DrawWithWord
 export const TestAndEarnCurrentDraw: FCWithChildren<{
   draw?: DrawWithWordOfTheDay;
   sx?: SxProps;
-}> = ({ draw }) => {
+}> = ({ draw, sx }) => {
   const [trigger, setTrigger] = React.useState(DateTime.now().toISO());
   const endsUtc = React.useMemo(() => draw && DateTime.fromISO(draw.end_utc), [draw?.end_utc]);
   const closesIn = React.useMemo(() => {
@@ -151,7 +151,7 @@ export const TestAndEarnCurrentDraw: FCWithChildren<{
 
   if (draw && closesIn && endsUtc) {
     return (
-      <Card elevation={10}>
+      <Card sx={{ mb: 2, ...(Array.isArray(sx) ? sx : [sx]) }} elevation={10}>
         <CardContent>
           <h3>
             {"Today's task ends "}

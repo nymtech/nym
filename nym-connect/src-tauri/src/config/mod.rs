@@ -2,7 +2,7 @@ use crate::{
     error::{BackendError, Result},
     state::State,
 };
-use client_core::{client::key_manager::KeyManager, config::Config as BaseConfig};
+use client_core::config::Config as BaseConfig;
 use config_common::NymConfig;
 use crypto::asymmetric::identity;
 use nym_socks5::client::config::Config as Socks5Config;
@@ -26,13 +26,16 @@ pub async fn get_config_id(state: tauri::State<'_, Arc<RwLock<State>>>) -> Resul
 }
 
 #[tauri::command]
-pub fn get_config_file_location() -> Result<String> {
-    Err(BackendError::CouldNotGetConfigFilename)
+pub async fn get_config_file_location(
+    state: tauri::State<'_, Arc<RwLock<State>>>,
+) -> Result<String> {
+    let id = get_config_id(state).await?;
+    Config::config_file_location(&id).map(|d| d.to_string_lossy().to_string())
 }
 
 #[derive(Debug)]
 pub struct Config {
-    pub socks5: Socks5Config,
+    socks5: Socks5Config,
 }
 
 impl Config {
@@ -66,10 +69,7 @@ impl Config {
         self.socks5.get_base_mut()
     }
 
-    pub async fn init(
-        service_provider: &str,
-        chosen_gateway_id: &str,
-    ) -> Result<(Config, KeyManager)> {
+    pub async fn init(service_provider: &str, chosen_gateway_id: &str) -> Result<()> {
         log::info!("Initialising...");
 
         let service_provider = service_provider.to_owned();
@@ -78,7 +78,7 @@ impl Config {
         // The client initialization was originally not written for this use case, so there are
         // lots of ways it can panic. Until we have proper error handling in the init code for the
         // clients we'll catch any panics here by spawning a new runtime in a separate thread.
-        let (config, keys) = std::thread::spawn(move || {
+        std::thread::spawn(move || {
             tokio::runtime::Runtime::new()
                 .expect("Failed to create tokio runtime")
                 .block_on(
@@ -89,16 +89,40 @@ impl Config {
         .map_err(|_| BackendError::InitializationPanic)??;
 
         log::info!("Configuration saved 🚀");
-        Ok((config, keys))
+        Ok(())
+    }
+
+    pub fn config_file_location(id: &str) -> Result<PathBuf> {
+        Socks5Config::try_default_config_file_path(Some(id))
+            .ok_or(BackendError::CouldNotGetConfigFilename)
     }
 }
 
-pub async fn init_socks5_config(
-    provider_address: String,
-    chosen_gateway_id: String,
-) -> Result<(Config, KeyManager)> {
+pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: String) -> Result<()> {
     log::trace!("Initialising client...");
-    let mut config = Config::new(SOCKS5_CONFIG_ID, &provider_address);
+
+    // Append the gateway id to the name id that we store the config under
+    let id = socks5_config_id_appended_with(&chosen_gateway_id)?;
+
+    log::debug!(
+        "Attempting to use config file location: {}",
+        Config::config_file_location(&id)?.to_string_lossy(),
+    );
+    let already_init = Config::config_file_location(&id)?.exists();
+    if already_init {
+        log::info!("SOCKS5 client \"{id}\" was already initialised before");
+    }
+
+    // Future proofing. This flag exists for the other clients
+    let user_wants_force_register = false;
+
+    // If the client was already initialized, don't generate new keys and don't re-register with
+    // the gateway (because this would create a new shared key).
+    // Unless the user really wants to.
+    let register_gateway = !already_init || user_wants_force_register;
+
+    log::trace!("Creating config for id: {}", id);
+    let mut config = Config::new(id.as_str(), &provider_address);
 
     if let Ok(raw_validators) = std::env::var(config_common::defaults::var_names::NYM_API) {
         config
@@ -106,29 +130,28 @@ pub async fn init_socks5_config(
             .set_custom_nym_apis(config_common::parse_urls(&raw_validators));
     }
 
-    let nym_api_endpoints = config.get_base().get_nym_api_endpoints();
-
     let chosen_gateway_id = identity::PublicKey::from_base58_string(chosen_gateway_id)
         .map_err(|_| BackendError::UnableToParseGateway)?;
 
-    let mut key_manager = client_core::init::new_client_keys();
-
-    // Setup gateway and register a new key each time
-    let gateway = client_core::init::register_with_gateway(
-        &mut key_manager,
-        nym_api_endpoints,
+    // Setup gateway by either registering a new one, or reusing exiting keys
+    let gateway = client_core::init::setup_gateway_from_config::<Socks5Config, _>(
+        register_gateway,
         Some(chosen_gateway_id),
+        config.get_base(),
     )
     .await?;
 
     config.get_base_mut().with_gateway_endpoint(gateway);
 
+    config.get_socks5().save_to_file(None).tap_err(|_| {
+        log::error!("Failed to save the config file");
+    })?;
+
     print_saved_config(&config);
 
-    let address = *key_manager.identity_keypair().public_key();
+    let address = client_core::init::get_client_address_from_stored_keys(config.get_base())?;
     log::info!("The address of this client is: {}", address);
-
-    Ok((config, key_manager))
+    Ok(())
 }
 
 fn print_saved_config(config: &Config) {

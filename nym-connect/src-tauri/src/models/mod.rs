@@ -18,10 +18,9 @@ pub struct DisconnectResult {
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(rename_all = "lowercase"))]
-#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum ConnectionStatusKind {
-    #[default]
     Disconnected,
     Disconnecting,
     Connected,
@@ -50,9 +49,8 @@ impl From<GatewayConnectivity> for GatewayConnectionStatusKind {
 
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[cfg_attr(test, ts(rename_all = "lowercase"))]
-#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ConnectivityTestResult {
-    #[default]
     NotAvailable,
     Success,
     Fail,

@@ -13,7 +13,7 @@
     "resolveJsonModule": true,
     "isolatedModules": false,
     "jsx": "react-jsx",
-    "sourceMap": false,
+    "sourceMap": true,
     "baseUrl": ".",
     "paths": {
       "@assets/*": ["../assets/*"]

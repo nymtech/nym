@@ -1,5 +1,4 @@
 use client_core::{
-    client::key_manager::KeyManager,
     config::{ClientCoreConfigTrait, GatewayEndpointConfig},
     error::ClientCoreStatusMessage,
 };
@@ -14,7 +13,6 @@ use nym_socks5::client::NymClient as Socks5NymClient;
 use nym_socks5::client::{config::Config as Socks5Config, Socks5ControlMessageSender};
 
 use crate::{
-    config::Config,
     error::Result,
     events::{self, emit_event, emit_status_event},
     models::{ConnectionStatusKind, ConnectivityTestResult},
@@ -36,8 +34,6 @@ pub enum Socks5ExitStatusMessage {
 /// The main SOCKS5 client task. It loads the configuration from file determined by the `id`.
 pub fn start_nym_socks5_client(
     id: &str,
-    config: Config,
-    keys: KeyManager,
 ) -> Result<(
     Socks5ControlMessageSender,
     task::StatusReceiver,
@@ -45,9 +41,11 @@ pub fn start_nym_socks5_client(
     GatewayEndpointConfig,
 )> {
     log::info!("Loading config from file: {id}");
+    let config = Socks5Config::load_from_file(Some(id))
+        .tap_err(|_| log::warn!("Failed to load configuration file"))?;
     let used_gateway = config.get_base().get_gateway_endpoint().clone();
 
-    let socks5_client = Socks5NymClient::new_with_keys(config.socks5, Some(keys));
+    let socks5_client = Socks5NymClient::new(config);
     log::info!("Starting socks5 client");
 
     // Channel to send control messages to the socks5 client

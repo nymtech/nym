@@ -9,6 +9,7 @@ import { AppWindowFrame } from './components/AppWindowFrame';
 import { TestAndEarnContextProvider } from './components/Growth/context/TestAndEarnContext';
 import { BrowserRouter as Router } from 'react-router-dom';
 import { AppRoutes } from './routes';
+import { GlobalStyles } from '@mui/material';
 
 const elem = document.getElementById('root');
 
@@ -19,6 +20,7 @@ if (elem) {
       <ClientContextProvider>
         <Router>
           <TestAndEarnContextProvider>
+            <GlobalStyles styles={{ html: { borderRadius: 10 } }} />
             <NymMixnetTheme mode="dark">
               <AppWindowFrame>
                 <AppRoutes />

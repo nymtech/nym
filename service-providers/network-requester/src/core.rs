@@ -419,10 +419,10 @@ impl ServiceProvider {
             }
         };
 
-        // println!(
-        //     "received request of version {:?}",
-        //     request.interface_version
-        // );
+        println!(
+            "received request of version {:?}",
+            request.interface_version
+        );
 
         match request.content {
             RequestContent::Control(control_request) => {

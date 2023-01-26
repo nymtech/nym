@@ -20,7 +20,7 @@ pub const INITIAL_INTERFACE_VERSION: u8 = 3;
 /// It has to be incremented for any breaking change.
 pub const INTERFACE_VERSION: u8 = 3;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd)]
 pub enum InterfaceVersion {
     Legacy,
     Versioned(u8),
@@ -159,6 +159,15 @@ impl Serializable for EmptyMessage {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn interface_version_ordering() {
+        // in case something is done to the original enum, make sure the below assumptions still hold
+        assert!(InterfaceVersion::Legacy < InterfaceVersion::Versioned(0));
+        assert!(InterfaceVersion::Legacy < InterfaceVersion::Versioned(1));
+        assert!(InterfaceVersion::Versioned(1) < InterfaceVersion::Versioned(2));
+        assert!(InterfaceVersion::Versioned(42) < InterfaceVersion::Versioned(100));
+    }
 
     #[cfg(test)]
     mod backwards_compatibility {

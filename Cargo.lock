@@ -3848,6 +3848,7 @@ dependencies = [
  "rand 0.7.3",
  "serde",
  "serde_json",
+ "service-providers-common",
  "socks5-requests",
  "tap",
  "task",

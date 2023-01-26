@@ -14,8 +14,8 @@ pub trait ServiceProviderResponse: Serializable + Debug {
 
 #[derive(Debug)]
 pub struct Response<T: ServiceProviderRequest = EmptyMessage> {
-    interface_version: InterfaceVersion,
-    content: ResponseContent<T>,
+    pub interface_version: InterfaceVersion,
+    pub content: ResponseContent<T>,
 }
 
 #[derive(Debug)]

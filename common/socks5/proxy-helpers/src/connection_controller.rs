@@ -6,7 +6,7 @@ use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
 use ordered_buffer::{OrderedMessage, OrderedMessageBuffer, ReadContiguousData};
-use socks5_requests::ConnectionId;
+use socks5_requests::{ConnectionId, Response};
 use std::{
     collections::{HashMap, HashSet},
     time::Duration,
@@ -39,6 +39,12 @@ pub enum ControllerCommand {
     Insert(ConnectionId, ConnectionSender),
     Remove(ConnectionId),
     Send(ConnectionId, Vec<u8>, bool),
+}
+
+impl From<Response> for ControllerCommand {
+    fn from(value: Response) -> Self {
+        ControllerCommand::Send(value.connection_id, value.data, value.is_closed)
+    }
 }
 
 struct ActiveConnection {

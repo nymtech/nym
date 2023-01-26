@@ -1,6 +1,6 @@
 use crate::socks::types::SocksProxyError;
 use client_core::error::ClientCoreError;
-use socks5_requests::ConnectionId;
+use socks5_requests::{ConnectionId, NetworkRequesterResponse};
 
 #[derive(thiserror::Error, Debug)]
 pub enum Socks5ClientError {
@@ -27,4 +27,13 @@ pub enum Socks5ClientError {
         connection_id: ConnectionId,
         error: String,
     },
+}
+
+impl From<NetworkRequesterResponse> for Socks5ClientError {
+    fn from(value: NetworkRequesterResponse) -> Self {
+        Socks5ClientError::NetworkRequesterError {
+            connection_id: value.connection_id,
+            error: value.network_requester_error,
+        }
+    }
 }

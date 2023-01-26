@@ -6,7 +6,8 @@ use client_core::client::received_buffer::ReconstructedMessagesReceiver;
 use client_core::client::received_buffer::{ReceivedBufferMessage, ReceivedBufferRequestSender};
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::{ControllerCommand, ControllerSender};
-use socks5_requests::Message;
+use service_providers_common::interface::{ControlResponse, ResponseContent};
+use socks5_requests::{Message, NewSocks5Request, NewSocks5Response, PlaceholderResponse};
 use task::TaskClient;
 
 use crate::error::Socks5ClientError;
@@ -52,6 +53,34 @@ impl MixnetResponseListener {
         }
     }
 
+    fn on_control_response(
+        &self,
+        _control_response: ControlResponse,
+    ) -> Result<(), Socks5ClientError> {
+        todo!("received a control response which we don't know how to handle yet!")
+    }
+
+    fn on_provider_data_response(
+        &self,
+        provider_response: NewSocks5Response,
+    ) -> Result<(), Socks5ClientError> {
+        match provider_response {
+            NewSocks5Response::ConnectionError(err_response) => {
+                error!(
+                    "Network requester failed on connection id {} with error: {}",
+                    err_response.connection_id, err_response.network_requester_error
+                );
+                Err(err_response.into())
+            }
+            NewSocks5Response::NetworkData(response) => {
+                self.controller_sender
+                    .unbounded_send(response.into())
+                    .unwrap();
+                Ok(())
+            }
+        }
+    }
+
     fn on_message(
         &self,
         reconstructed_message: ReconstructedMessage,
@@ -60,38 +89,28 @@ impl MixnetResponseListener {
         if reconstructed_message.sender_tag.is_some() {
             warn!("this message was sent anonymously - it couldn't have come from the service provider");
         }
-
-        let response = match Message::try_from_bytes(&raw_message) {
+        match PlaceholderResponse::try_from_bytes(&raw_message) {
             Err(err) => {
-                warn!("failed to parse received response - {err}");
-                return Ok(());
+                warn!("failed to parse received response: {err}");
+                Ok(())
             }
-            Ok(Message::Request(_)) => {
-                warn!("unexpected request");
-                return Ok(());
-            }
-            Ok(Message::Response(data)) => data,
-            Ok(Message::NetworkRequesterResponse(r)) => {
-                error!(
-                    "Network requester failed on connection id {} with error: {}",
-                    r.connection_id, r.network_requester_error
+            Ok(response) => {
+                // as long as the client used the same (or older) interface than the service provider,
+                // the response should have used exactly the same version
+                trace!(
+                    "the received response was sent with {:?} interface version",
+                    response.interface_version
                 );
-                return Err(Socks5ClientError::NetworkRequesterError {
-                    connection_id: r.connection_id,
-                    error: r.network_requester_error,
-                });
+                match response.content {
+                    ResponseContent::Control(control_response) => {
+                        self.on_control_response(control_response)
+                    }
+                    ResponseContent::ProviderData(provider_response) => {
+                        self.on_provider_data_response(provider_response)
+                    }
+                }
             }
-        };
-
-        self.controller_sender
-            .unbounded_send(ControllerCommand::Send(
-                response.connection_id,
-                response.data,
-                response.is_closed,
-            ))
-            .unwrap();
-
-        Ok(())
+        }
     }
 
     pub(crate) async fn run(&mut self) {

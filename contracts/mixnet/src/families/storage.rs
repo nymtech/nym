@@ -81,7 +81,6 @@ pub fn remove_family_member(store: &mut dyn Storage, member: IdentityKeyRef<'_>)
     MEMBERS.remove(store, member.to_string())
 }
 
-#[allow(dead_code)]
 pub fn is_family_member(
     store: &dyn Storage,
     f: &Family,

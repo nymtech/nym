@@ -24,6 +24,7 @@ cw-storage-plus = { version = "0.13.4", features = ["iterator"] }
 schemars = "0.8"
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 thiserror = { version = "1.0" }
+pkg-version = "1"
 
 [build-dependencies]
 vergen = { version = "5", default-features = false, features = ["build", "git", "rustc"] }

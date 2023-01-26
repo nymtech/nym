@@ -51,6 +51,14 @@ pub fn instantiate(
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, MixnetContractError> {
+    if msg.epochs_in_interval == 0 {
+        return Err(MixnetContractError::EpochsInIntervalZero);
+    }
+
+    if msg.epoch_duration.as_secs() == 0 {
+        return Err(MixnetContractError::EpochDurationZero);
+    }
+
     let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
     let vesting_contract_address = deps.api.addr_validate(&msg.vesting_contract_address)?;
     let state = default_initial_state(

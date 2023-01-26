@@ -1,6 +1,7 @@
 use client_core::{
+    client::key_manager::KeyManager,
     config::{ClientCoreConfigTrait, GatewayEndpointConfig},
-    error::ClientCoreStatusMessage, client::key_manager::KeyManager,
+    error::ClientCoreStatusMessage,
 };
 use futures::{channel::mpsc, StreamExt};
 use std::sync::Arc;

@@ -3,14 +3,14 @@ use std::sync::Arc;
 use tauri::{App, Manager};
 use tokio::sync::RwLock;
 
+pub mod config;
 mod error;
 mod events;
 mod logging;
 mod models;
+pub mod operations;
 mod state;
 mod tasks;
-pub mod config;
-pub mod operations;
 
 #[cfg(desktop)]
 mod menu;

@@ -24,12 +24,14 @@ impl NodeFamilies for Account {
     fn try_join_family(
         &self,
         storage: &dyn Storage,
-        signature: String,
+        node_identity_signature: String,
+        family_signature: String,
         family_head: IdentityKeyRef,
     ) -> Result<Response, ContractError> {
         let msg = MixnetExecuteMsg::JoinFamilyOnBehalf {
             member_address: self.owner_address().to_string(),
-            signature,
+            node_identity_signature,
+            family_signature,
             family_head: family_head.to_string(),
         };
 
@@ -41,12 +43,12 @@ impl NodeFamilies for Account {
     fn try_leave_family(
         &self,
         storage: &dyn Storage,
-        signature: String,
+        node_identity_signature: String,
         family_head: IdentityKeyRef,
     ) -> Result<Response, ContractError> {
         let msg = MixnetExecuteMsg::LeaveFamilyOnBehalf {
             member_address: self.owner_address().to_string(),
-            signature,
+            node_identity_signature,
             family_head: family_head.to_string(),
         };
 

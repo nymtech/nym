@@ -348,10 +348,7 @@ impl MixnetClient {
         paths: Option<StoragePaths>,
     ) -> Result<MixnetClientBuilder<reply_storage::Empty>> {
         let config = config.unwrap_or_default();
-
-        let reply_storage_backend =
-            non_wasm_helpers::setup_empty_reply_surb_backend(&config.debug_config);
-
+        let reply_storage_backend = setup_empty_reply_surb_backend(&config.debug_config);
         MixnetClient::builder_with_custom_storage(Some(config), paths, reply_storage_backend)
     }
 

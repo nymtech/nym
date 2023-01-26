@@ -53,7 +53,7 @@ client-core = { path = "../../clients/client-core" }
 config-common = { path = "../../common/config", package = "config" }
 crypto = { path = "../../common/crypto" }
 logging = { path = "../../common/logging"}
-nym-socks5-client = { path = "../../clients/socks5", features = ["mobile"] } 
+nym-socks5-client = { path = "../../clients/socks5", features = ["mobile"], default-features = false }
 task = { path = "../../common/task" }
 topology = { path = "../../common/topology" }
 

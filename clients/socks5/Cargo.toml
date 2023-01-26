@@ -52,6 +52,6 @@ validator-client = { path = "../../common/client-libs/validator-client", feature
 version-checker = { path = "../../common/version-checker" }
 
 [features]
-#default = ["credential-storage"]
+default = ["credential-storage"]
 eth = []
 mobile = ["mobile-storage", "gateway-client/mobile"]

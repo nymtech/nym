@@ -17,3 +17,13 @@ export const ServiceProviderInfo = ({ serviceProvider }: { serviceProvider: Serv
     </Typography>
   </Stack>
 );
+
+export const GatwayWarningInfo = () => (
+  <Stack gap={1} sx={{ wordWrap: 'break-word', maxWidth: 150, p: 1 }}>
+    <Typography variant="body2" fontWeight="bold" color="warning.main">
+      Connection issue
+    </Typography>
+    <Divider />
+    <Typography variant="caption">Try disconnecting and connecting again</Typography>
+  </Stack>
+);

@@ -3,7 +3,7 @@ import { Box, CircularProgress, Tooltip, Typography } from '@mui/material';
 import { DateTime } from 'luxon';
 import { ConnectionStatusKind, GatewayPerformance } from '../types';
 import { ServiceProvider } from '../types/directory';
-import { ServiceProviderInfo } from './ServiceProviderInfo';
+import { GatwayWarningInfo, ServiceProviderInfo } from './TooltipInfo';
 import { InfoOutlined } from '@mui/icons-material';
 
 const FONT_SIZE = '14px';
@@ -66,11 +66,19 @@ export const ConnectionStatus: FCWithChildren<{
 
   return (
     <>
-      <Box color={color} fontSize={FONT_SIZE} sx={{ mb: 2 }}>
+      <Box color={color} sx={{ mb: 2 }}>
         {status === 'connected' && gatewayPerformance !== 'Good' ? (
-          <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} color="primary">
-            Gateway has issues
-          </Typography>
+          <Tooltip title={serviceProvider ? <GatwayWarningInfo /> : undefined}>
+            <Typography
+              fontWeight={FONT_WEIGHT}
+              fontStyle={FONT_STYLE}
+              fontSize={FONT_SIZE}
+              textAlign="center"
+              color="warning.main"
+            >
+              Gateway has issues
+            </Typography>
+          </Tooltip>
         ) : (
           <ConnectionStatusContent status={status} serviceProvider={serviceProvider} />
         )}

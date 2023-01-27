@@ -178,27 +178,11 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const setRandomSerivceProvider = async () => {
     if (serviceProviders) {
       const randomServiceProvider = getRandomSPFromList(serviceProviders);
+      await setServiceProvider(randomServiceProvider);
       setSelectedProvider(randomServiceProvider);
     }
   };
   const clearError = () => setError(undefined);
-
-  const handleUpdateServiceProvider = async (serviceProvider: ServiceProvider, serviceProviders: ServiceProvider[]) => {
-    const isSelectedProviderInList = serviceProviders.some(({ address }) => serviceProvider.address === address);
-
-    if (!isSelectedProviderInList) {
-      console.warn('invalid SP, cleaning local storage');
-      setSelectedProvider(undefined);
-    } else {
-      await setServiceProvider(serviceProvider);
-    }
-  };
-
-  useEffect(() => {
-    if (serviceProviders && selectedProvider) {
-      handleUpdateServiceProvider(selectedProvider, serviceProviders);
-    }
-  }, [selectedProvider, serviceProviders]);
 
   const contextValue = useMemo(
     () => ({

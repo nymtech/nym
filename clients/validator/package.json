@@ -8,6 +8,7 @@
   "scripts": {
     "build": "tsc",
     "test": "ts-mocha tests/**/*.test.ts",
+    "testmock": "ts-mocha tests/mock/*.test.ts",
     "coverage": "nyc npm test",
     "lint": "eslint src",
     "lint:fix": "eslint src --fix",
@@ -47,6 +48,7 @@
     "@cosmjs/tendermint-rpc": "^0.28.0",
     "axios": "^0.26.1",
     "cosmjs-types": "^0.4.1",
-    "dotenv": "^16.0.3"
+    "dotenv": "^16.0.3",
+    "moq.ts": "^7.3.4"
   }
 }

@@ -79,30 +79,28 @@ describe('Mixnet actions', () => {
 
   it.skip('can bond a gateway', async () => {
     const res = await client.bondGateway(
-      { identity_key: "36vfvEyBzo5cWEFbnP7fqgY39kFw9PQhvwzbispeNaxL",
-      sphinx_key: "G65Fwc2JNAotuHQFqmDKhQNQL5rn3r9pupUdmxMygNUZ",
-      host: "151.236.220.82",
-      version: "1.1.4",
-      mix_port: 1789,
-      clients_port: 9000,
-      location: "Cuba",
-    }, 
-    '3ipSJksWHehZm1YfuH5Ahtg7b22NnrP9hEs6iEDXfUS5uiUhpWmCjGR3b3NDHuxeGjpZYJNYJ52D8WCPK5ZR7Szj', 
-    { amount: '100_000_000', denom: 'unym' }
+      {
+        identity_key: '36vfvEyBzo5cWEFbnP7fqgY39kFw9PQhvwzbispeNaxL',
+        sphinx_key: 'G65Fwc2JNAotuHQFqmDKhQNQL5rn3r9pupUdmxMygNUZ',
+        host: '151.236.220.82',
+        version: '1.1.4',
+        mix_port: 1789,
+        clients_port: 9000,
+        location: 'Cuba',
+      },
+      '3ipSJksWHehZm1YfuH5Ahtg7b22NnrP9hEs6iEDXfUS5uiUhpWmCjGR3b3NDHuxeGjpZYJNYJ52D8WCPK5ZR7Szj',
+      { amount: '100_000_000', denom: 'unym' },
     );
     expect(res.transactionHash).toBeDefined();
   });
 
   it.skip('can update contract state params', async () => {
-    const res = await client.updateContractStateParams(
-      {
-        minimum_mixnode_pledge: '',
-        minimum_gateway_pledge: '',
-        mixnode_rewarded_set_size: 2 ,
-        mixnode_active_set_size: 2,
-      }
-    );
+    const res = await client.updateContractStateParams({
+      minimum_mixnode_pledge: '',
+      minimum_gateway_pledge: '',
+      mixnode_rewarded_set_size: 2,
+      mixnode_active_set_size: 2,
+    });
     expect(res.transactionHash).toBeDefined();
   });
-
 });

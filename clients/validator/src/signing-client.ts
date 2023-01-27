@@ -307,7 +307,7 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
 
   getMixNodeDelegationsPaged(
     mixnetContractAddress: string,
-    mixIdentity: string,
+    mixIdentity: number,
     limit?: number,
     startAfter?: string,
   ): Promise<PagedMixDelegationsResponse> {
@@ -333,14 +333,6 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
 
   getRewardParams(mixnetContractAddress: string): Promise<string> {
     return this.nyxdQuerier.getRewardParams(mixnetContractAddress);
-  }
-
-  getCirculatingSupply(mixnetContractAddress: string): Promise<string> {
-    return this.nyxdQuerier.getCirculatingSupply(mixnetContractAddress);
-  }
-
-  getIntervalRewardPercent(mixnetContractAddress: string): Promise<number> {
-    return this.nyxdQuerier.getIntervalRewardPercent(mixnetContractAddress);
   }
 
   getRewardingStatus(

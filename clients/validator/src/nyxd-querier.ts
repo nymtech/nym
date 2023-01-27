@@ -138,13 +138,13 @@ export default class NyxdQuerier implements INyxdQuery {
 
   getMixNodeDelegationsPaged(
     mixnetContractAddress: string,
-    mixIdentity: string,
+    mixIdentity: number,
     limit?: number,
     startAfter?: string,
   ): Promise<PagedMixDelegationsResponse> {
     return this.client.queryContractSmart(mixnetContractAddress, {
       get_mixnode_delegations: {
-        mix_identity: mixIdentity,
+        mix_id: mixIdentity,
         start_after: startAfter,
         limit,
       },
@@ -184,18 +184,6 @@ export default class NyxdQuerier implements INyxdQuery {
   getRewardParams(mixnetContractAddress: string): Promise<string> {
     return this.client.queryContractSmart(mixnetContractAddress, {
       get_rewarding_params: {},
-    });
-  }
-
-  getCirculatingSupply(mixnetContractAddress: string): Promise<string> {
-    return this.client.queryContractSmart(mixnetContractAddress, {
-      get_circulating_supply: {},
-    });
-  }
-
-  getIntervalRewardPercent(mixnetContractAddress: string): Promise<number> {
-    return this.client.queryContractSmart(mixnetContractAddress, {
-      get_current_interval_details: {},
     });
   }
 

@@ -187,14 +187,6 @@ export default class ValidatorClient implements INymClient {
     return this.client.getRewardParams(this.mixnetContract);
   }
 
-  public async getCirculatingSupply(): Promise<string> {
-    return this.client.getCirculatingSupply(this.mixnetContract);
-  }
-
-  public async getIntervalRewardPercent(): Promise<number> {
-    return this.client.getIntervalRewardPercent(this.mixnetContract);
-  }
-
   async getUnbondedMixNodes(): Promise<UnbondedMixnodeResponse[]> {
     let mixNodes: UnbondedMixnodeResponse[] = [];
     const limit = 50;
@@ -263,21 +255,8 @@ export default class ValidatorClient implements INymClient {
   }
 
   public async getAllNyxdGateways(): Promise<GatewayBond[]> {
-    let gateways: GatewayBond[] = [];
-    const limit = 50;
-    let startAfter;
-    for (;;) {
-      // eslint-disable-next-line no-await-in-loop
-      const pagedResponse: PagedGatewayResponse = await this.client.getGatewaysPaged(this.mixnetContract, limit);
-      gateways = gateways.concat(pagedResponse.gateway);
-      startAfter = pagedResponse.start_next_after;
-      // if `start_next_after` is not set, we're done
-      if (!startAfter) {
-        break;
-      }
-    }
-
-    return gateways;
+    const pagedResponse: PagedGatewayResponse = await this.client.getGatewaysPaged(this.mixnetContract);
+    return pagedResponse.nodes;
   }
 
   /**
@@ -285,7 +264,7 @@ export default class ValidatorClient implements INymClient {
    *
    * @param mixIdentity identity of the node to which the delegation was sent
    */
-  public async getAllNyxdSingleMixnodeDelegations(mixIdentity: string): Promise<Delegation[]> {
+  public async getAllNyxdSingleMixnodeDelegations(mixIdentity: number): Promise<Delegation[]> {
     let delegations: Delegation[] = [];
     const limit = 250;
     let startAfter;

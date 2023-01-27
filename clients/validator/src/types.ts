@@ -90,10 +90,6 @@ export interface INymdQuery {
   ): Promise<PagedDelegatorDelegationsResponse>;
   getDelegationDetails(mixnetContractAddress: string, mixIdentity: string, delegator: string): Promise<Delegation>;
   getLayerDistribution(mixnetContractAddress: string): Promise<LayerDistribution>;
-  getRewardPool(mixnetContractAddress: string): Promise<string>;
-  getCirculatingSupply(mixnetContractAddress: string): Promise<string>;
-  getIntervalRewardPercent(mixnetContractAddress: string): Promise<number>;
-  getSybilResistancePercent(mixnetContractAddress: string): Promise<number>;
   getRewardingStatus(
     mixnetContractAddress: string,
     mixIdentity: string,

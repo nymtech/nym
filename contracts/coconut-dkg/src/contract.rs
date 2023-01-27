@@ -75,15 +75,17 @@ pub fn execute(
         ExecuteMsg::RegisterDealer {
             bte_key_with_proof,
             announce_address,
-        } => try_add_dealer(deps, info, bte_key_with_proof, announce_address),
-        ExecuteMsg::CommitDealing { dealing_bytes } => {
-            try_commit_dealings(deps, info, dealing_bytes)
+            resharing,
+        } => try_add_dealer(deps, info, bte_key_with_proof, announce_address, resharing),
+        ExecuteMsg::CommitDealing {
+            dealing_bytes,
+            resharing,
+        } => try_commit_dealings(deps, info, dealing_bytes, resharing),
+        ExecuteMsg::CommitVerificationKeyShare { share, resharing } => {
+            try_commit_verification_key_share(deps, env, info, share, resharing)
         }
-        ExecuteMsg::CommitVerificationKeyShare { share } => {
-            try_commit_verification_key_share(deps, env, info, share)
-        }
-        ExecuteMsg::VerifyVerificationKeyShare { owner } => {
-            try_verify_verification_key_share(deps, info, owner)
+        ExecuteMsg::VerifyVerificationKeyShare { owner, resharing } => {
+            try_verify_verification_key_share(deps, info, owner, resharing)
         }
         ExecuteMsg::SurpassedThreshold {} => try_surpassed_threshold(deps, env),
         ExecuteMsg::AdvanceEpochState {} => advance_epoch_state(deps, env),
@@ -238,6 +240,7 @@ mod tests {
                     &RegisterDealer {
                         bte_key_with_proof: "bte_key_with_proof".to_string(),
                         announce_address: "127.0.0.1:8000".to_string(),
+                        resharing: false,
                     },
                     &vec![],
                 )
@@ -251,6 +254,7 @@ mod tests {
                     &RegisterDealer {
                         bte_key_with_proof: "bte_key_with_proof".to_string(),
                         announce_address: "127.0.0.1:8000".to_string(),
+                        resharing: false,
                     },
                     &vec![],
                 )
@@ -266,6 +270,7 @@ mod tests {
                 &RegisterDealer {
                     bte_key_with_proof: "bte_key_with_proof".to_string(),
                     announce_address: "127.0.0.1:8000".to_string(),
+                    resharing: false,
                 },
                 &vec![],
             )

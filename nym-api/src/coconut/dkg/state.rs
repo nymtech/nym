@@ -71,18 +71,18 @@ pub(crate) trait ConsistentState {
     fn proposal_id_value(&self) -> Result<u64, CoconutError>;
     async fn is_consistent(&self, epoch_state: EpochState) -> Result<(), CoconutError> {
         match epoch_state {
-            EpochState::PublicKeySubmission => {}
-            EpochState::DealingExchange => {
+            EpochState::PublicKeySubmission { .. } => {}
+            EpochState::DealingExchange { .. } => {
                 self.node_index_value()?;
             }
-            EpochState::VerificationKeySubmission => {
+            EpochState::VerificationKeySubmission { .. } => {
                 self.receiver_index_value()?;
                 self.threshold()?;
             }
-            EpochState::VerificationKeyValidation => {
+            EpochState::VerificationKeyValidation { .. } => {
                 self.coconut_keypair_is_some().await?;
             }
-            EpochState::VerificationKeyFinalization => {
+            EpochState::VerificationKeyFinalization { .. } => {
                 self.proposal_id_value()?;
             }
             EpochState::InProgress => {}

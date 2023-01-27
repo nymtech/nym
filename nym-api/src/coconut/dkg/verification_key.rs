@@ -133,6 +133,7 @@ pub(crate) async fn verification_key_submission(
     dkg_client: &DkgClient,
     state: &mut State,
     keypair_path: &KeyPairPath,
+    resharing: bool,
 ) -> Result<(), CoconutError> {
     if state.coconut_keypair_is_some().await {
         return Ok(());
@@ -143,7 +144,9 @@ pub(crate) async fn verification_key_submission(
     let coconut_keypair = derive_partial_keypair(state, threshold, dealings_maps)?;
     let vk_share = coconut_keypair.verification_key().to_bs58();
     pemstore::store_keypair(&coconut_keypair, keypair_path)?;
-    let res = dkg_client.submit_verification_key_share(vk_share).await?;
+    let res = dkg_client
+        .submit_verification_key_share(vk_share, resharing)
+        .await?;
     let proposal_id = find_attribute(&res.logs, "wasm", DKG_PROPOSAL_ID)
         .ok_or(CoconutError::ProposalIdError {
             reason: String::from("proposal id not found"),
@@ -172,6 +175,7 @@ fn validate_proposal(proposal: &ProposalResponse) -> Option<(Addr, u64)> {
 pub(crate) async fn verification_key_validation(
     dkg_client: &DkgClient,
     state: &mut State,
+    resharing: bool,
 ) -> Result<(), CoconutError> {
     if state.voted_vks() {
         return Ok(());
@@ -230,6 +234,7 @@ pub(crate) async fn verification_key_validation(
 pub(crate) async fn verification_key_finalization(
     dkg_client: &DkgClient,
     state: &mut State,
+    resharing: bool,
 ) -> Result<(), CoconutError> {
     if state.executed_proposal() {
         return Ok(());
@@ -317,10 +322,14 @@ pub(crate) mod tests {
             clients_and_states.push((dkg_client, state));
         }
         for (dkg_client, state) in clients_and_states.iter_mut() {
-            public_key_submission(dkg_client, state).await.unwrap();
+            public_key_submission(dkg_client, state, false)
+                .await
+                .unwrap();
         }
         for (dkg_client, state) in clients_and_states.iter_mut() {
-            dealing_exchange(dkg_client, state, OsRng).await.unwrap();
+            dealing_exchange(dkg_client, state, OsRng, false)
+                .await
+                .unwrap();
         }
         clients_and_states
     }
@@ -334,7 +343,7 @@ pub(crate) mod tests {
             let private_key_path = temp_dir().join(format!("private{}.pem", random_file));
             let public_key_path = temp_dir().join(format!("public{}.pem", random_file));
             let keypair_path = KeyPairPath::new(private_key_path.clone(), public_key_path.clone());
-            verification_key_submission(dkg_client, state, &keypair_path)
+            verification_key_submission(dkg_client, state, &keypair_path, false)
                 .await
                 .unwrap();
             std::fs::remove_file(private_key_path).unwrap();
@@ -348,7 +357,7 @@ pub(crate) mod tests {
     ) -> Vec<(DkgClient, State)> {
         let mut clients_and_states = prepare_clients_and_states_with_submission(db).await;
         for (dkg_client, state) in clients_and_states.iter_mut() {
-            verification_key_validation(dkg_client, state)
+            verification_key_validation(dkg_client, state, false)
                 .await
                 .unwrap();
         }
@@ -360,7 +369,7 @@ pub(crate) mod tests {
     ) -> Vec<(DkgClient, State)> {
         let mut clients_and_states = prepare_clients_and_states_with_validation(db).await;
         for (dkg_client, state) in clients_and_states.iter_mut() {
-            verification_key_finalization(dkg_client, state)
+            verification_key_finalization(dkg_client, state, false)
                 .await
                 .unwrap();
         }
@@ -613,7 +622,7 @@ pub(crate) mod tests {
             .and_modify(|share| share.share.push('x'));
 
         for (dkg_client, state) in clients_and_states.iter_mut() {
-            verification_key_validation(dkg_client, state)
+            verification_key_validation(dkg_client, state, false)
                 .await
                 .unwrap();
         }
@@ -655,7 +664,7 @@ pub(crate) mod tests {
             .and_modify(|share| share.share = second_share);
 
         for (dkg_client, state) in clients_and_states.iter_mut() {
-            verification_key_validation(dkg_client, state)
+            verification_key_validation(dkg_client, state, false)
                 .await
                 .unwrap();
         }

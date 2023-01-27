@@ -289,6 +289,7 @@ impl super::client::Client for DummyClient {
         &self,
         bte_public_key_with_proof: EncodedBTEPublicKeyWithProof,
         announce_address: String,
+        _resharing: bool,
     ) -> Result<ExecuteResult> {
         let assigned_index = OsRng.gen();
         self.dealer_details.write().unwrap().insert(
@@ -312,7 +313,11 @@ impl super::client::Client for DummyClient {
         })
     }
 
-    async fn submit_dealing(&self, dealing_bytes: ContractSafeBytes) -> Result<ExecuteResult> {
+    async fn submit_dealing(
+        &self,
+        dealing_bytes: ContractSafeBytes,
+        _resharing: bool,
+    ) -> Result<ExecuteResult> {
         self.dealings
             .write()
             .unwrap()
@@ -335,6 +340,7 @@ impl super::client::Client for DummyClient {
     async fn submit_verification_key_share(
         &self,
         share: VerificationKeyShare,
+        resharing: bool,
     ) -> Result<ExecuteResult> {
         let dealer_details = self
             .dealer_details
@@ -357,6 +363,7 @@ impl super::client::Client for DummyClient {
         let proposal_id = OsRng.gen();
         let verify_vk_share_req = coconut_dkg_common::msg::ExecuteMsg::VerifyVerificationKeyShare {
             owner: Addr::unchecked(self.validator_address.as_ref()),
+            resharing,
         };
         let verify_vk_share_msg = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: String::new(),

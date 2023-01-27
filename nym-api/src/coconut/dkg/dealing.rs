@@ -14,6 +14,7 @@ pub(crate) async fn dealing_exchange(
     dkg_client: &DkgClient,
     state: &mut State,
     rng: impl RngCore + Clone,
+    resharing: bool,
 ) -> Result<(), CoconutError> {
     if state.receiver_index().is_some() {
         return Ok(());
@@ -39,7 +40,7 @@ pub(crate) async fn dealing_exchange(
             None,
         );
         dkg_client
-            .submit_dealing(ContractSafeBytes::from(&dealing))
+            .submit_dealing(ContractSafeBytes::from(&dealing), resharing)
             .await?;
     }
 
@@ -121,7 +122,7 @@ pub(crate) mod tests {
         state.set_node_index(Some(self_index));
         let keypairs = insert_dealers(&params, &dealer_details_db);
 
-        dealing_exchange(&dkg_client, &mut state, OsRng)
+        dealing_exchange(&dkg_client, &mut state, OsRng, false)
             .await
             .unwrap();
 
@@ -142,7 +143,7 @@ pub(crate) mod tests {
             .clone();
         assert_eq!(dealings.len(), TOTAL_DEALINGS);
 
-        dealing_exchange(&dkg_client, &mut state, OsRng)
+        dealing_exchange(&dkg_client, &mut state, OsRng, false)
             .await
             .unwrap();
         let new_dealings = dealings_db
@@ -191,7 +192,7 @@ pub(crate) mod tests {
                 details.bte_public_key_with_proof = bs58::encode(&bytes).into_string();
             });
 
-        dealing_exchange(&dkg_client, &mut state, OsRng)
+        dealing_exchange(&dkg_client, &mut state, OsRng, false)
             .await
             .unwrap();
         assert_eq!(

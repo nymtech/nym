@@ -413,39 +413,42 @@ impl crate::coconut::client::Client for Client {
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
         announce_address: String,
+        resharing: bool,
     ) -> Result<ExecuteResult, CoconutError> {
         Ok(self
             .0
             .write()
             .await
             .nyxd
-            .register_dealer(bte_key, announce_address, None)
+            .register_dealer(bte_key, announce_address, resharing, None)
             .await?)
     }
 
     async fn submit_dealing(
         &self,
         dealing_bytes: ContractSafeBytes,
+        resharing: bool,
     ) -> Result<ExecuteResult, CoconutError> {
         Ok(self
             .0
             .write()
             .await
             .nyxd
-            .submit_dealing_bytes(dealing_bytes, None)
+            .submit_dealing_bytes(dealing_bytes, resharing, None)
             .await?)
     }
 
     async fn submit_verification_key_share(
         &self,
         share: VerificationKeyShare,
+        resharing: bool,
     ) -> crate::coconut::error::Result<ExecuteResult> {
         Ok(self
             .0
             .write()
             .await
             .nyxd
-            .submit_verification_key_share(share, None)
+            .submit_verification_key_share(share, resharing, None)
             .await?)
     }
 }

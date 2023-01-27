@@ -21,18 +21,22 @@ pub enum ExecuteMsg {
     RegisterDealer {
         bte_key_with_proof: EncodedBTEPublicKeyWithProof,
         announce_address: String,
+        resharing: bool,
     },
 
     CommitDealing {
         dealing_bytes: ContractSafeBytes,
+        resharing: bool,
     },
 
     CommitVerificationKeyShare {
         share: VerificationKeyShare,
+        resharing: bool,
     },
 
     VerifyVerificationKeyShare {
         owner: Addr,
+        resharing: bool,
     },
 
     SurpassedThreshold {},

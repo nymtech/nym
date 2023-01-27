@@ -102,10 +102,11 @@ impl DkgClient {
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
         announce_address: String,
+        resharing: bool,
     ) -> Result<NodeIndex, CoconutError> {
         let res = self
             .inner
-            .register_dealer(bte_key, announce_address)
+            .register_dealer(bte_key, announce_address, resharing)
             .await?;
         let node_index = find_attribute(&res.logs, "wasm", NODE_INDEX)
             .ok_or(CoconutError::NodeIndexRecoveryError {
@@ -123,18 +124,20 @@ impl DkgClient {
     pub(crate) async fn submit_dealing(
         &self,
         dealing_bytes: ContractSafeBytes,
+        resharing: bool,
     ) -> Result<(), CoconutError> {
-        self.inner.submit_dealing(dealing_bytes).await?;
+        self.inner.submit_dealing(dealing_bytes, resharing).await?;
         Ok(())
     }
 
     pub(crate) async fn submit_verification_key_share(
         &self,
         share: VerificationKeyShare,
+        resharing: bool,
     ) -> Result<ExecuteResult, CoconutError> {
         let mut ret = self
             .inner
-            .submit_verification_key_share(share.clone())
+            .submit_verification_key_share(share.clone(), resharing)
             .await;
         for _ in 0..Self::RETRIES {
             if let Ok(res) = ret {
@@ -142,7 +145,7 @@ impl DkgClient {
             }
             ret = self
                 .inner
-                .submit_verification_key_share(share.clone())
+                .submit_verification_key_share(share.clone(), resharing)
                 .await;
         }
         ret

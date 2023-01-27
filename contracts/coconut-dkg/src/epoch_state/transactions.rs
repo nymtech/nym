@@ -59,7 +59,7 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
     let current_epoch = CURRENT_EPOCH.load(deps.storage)?;
     let next_epoch = if let Some(state) = current_epoch.state.next() {
         // We are during DKG process
-        if state == EpochState::DealingExchange {
+        if state == (EpochState::DealingExchange { resharing: false }) {
             let current_dealer_count = current_dealers()
                 .keys(deps.storage, None, None, Order::Ascending)
                 .count();
@@ -194,7 +194,7 @@ pub(crate) mod tests {
             }
 
             let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-            assert_eq!(epoch.state, EpochState::PublicKeySubmission);
+            assert_eq!(epoch.state, EpochState::PublicKeySubmission{resharing: false});
             assert_eq!(
                 epoch.finish_timestamp,
                 env.block
@@ -214,7 +214,7 @@ pub(crate) mod tests {
             env.block.time = env.block.time.plus_seconds(1);
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
             let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-            assert_eq!(epoch.state, EpochState::DealingExchange);
+            assert_eq!(epoch.state, EpochState::DealingExchange{resharing: false});
             assert_eq!(
                 epoch.finish_timestamp,
                 env.block
@@ -234,7 +234,7 @@ pub(crate) mod tests {
             env.block.time = env.block.time.plus_seconds(3);
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
             let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-            assert_eq!(epoch.state, EpochState::VerificationKeySubmission);
+            assert_eq!(epoch.state, EpochState::VerificationKeySubmission{resharing: false});
             assert_eq!(
                 epoch.finish_timestamp,
                 env.block.time.plus_seconds(
@@ -258,7 +258,7 @@ pub(crate) mod tests {
             env.block.time = env.block.time.plus_seconds(3);
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
             let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-            assert_eq!(epoch.state, EpochState::VerificationKeyValidation);
+            assert_eq!(epoch.state, EpochState::VerificationKeyValidation{resharing: false});
             assert_eq!(
                 epoch.finish_timestamp,
                 env.block.time.plus_seconds(
@@ -282,7 +282,7 @@ pub(crate) mod tests {
             env.block.time = env.block.time.plus_seconds(3);
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
             let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-            assert_eq!(epoch.state, EpochState::VerificationKeyFinalization);
+            assert_eq!(epoch.state, EpochState::VerificationKeyFinalization{resharing: false});
             assert_eq!(
                 epoch.finish_timestamp,
                 env.block.time.plus_seconds(

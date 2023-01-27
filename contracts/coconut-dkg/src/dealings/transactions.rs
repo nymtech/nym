@@ -12,8 +12,9 @@ pub fn try_commit_dealings(
     deps: DepsMut<'_>,
     info: MessageInfo,
     dealing_bytes: ContractSafeBytes,
+    resharing: bool,
 ) -> Result<Response, ContractError> {
-    check_epoch_state(deps.storage, EpochState::DealingExchange)?;
+    check_epoch_state(deps.storage, EpochState::DealingExchange { resharing })?;
     // ensure the sender is a dealer
     if dealers_storage::current_dealers()
         .may_load(deps.storage, &info.sender)?
@@ -55,13 +56,13 @@ pub(crate) mod tests {
         let info = mock_info(owner.as_str(), &[]);
         let dealing_bytes = dealing_bytes_fixture();
 
-        let ret =
-            try_commit_dealings(deps.as_mut(), info.clone(), dealing_bytes.clone()).unwrap_err();
+        let ret = try_commit_dealings(deps.as_mut(), info.clone(), dealing_bytes.clone(), false)
+            .unwrap_err();
         assert_eq!(
             ret,
             ContractError::IncorrectEpochState {
                 current_state: EpochState::default().to_string(),
-                expected_state: EpochState::DealingExchange.to_string()
+                expected_state: EpochState::DealingExchange { resharing: false }.to_string()
             }
         );
 
@@ -71,8 +72,8 @@ pub(crate) mod tests {
             .plus_seconds(TimeConfiguration::default().public_key_submission_time_secs);
         advance_epoch_state(deps.as_mut(), env).unwrap();
 
-        let ret =
-            try_commit_dealings(deps.as_mut(), info.clone(), dealing_bytes.clone()).unwrap_err();
+        let ret = try_commit_dealings(deps.as_mut(), info.clone(), dealing_bytes.clone(), false)
+            .unwrap_err();
         assert_eq!(ret, ContractError::NotADealer);
 
         let dealer_details = DealerDetails {
@@ -87,12 +88,13 @@ pub(crate) mod tests {
 
         for dealings in DEALINGS_BYTES {
             assert!(!dealings.has(deps.as_mut().storage, &owner));
-            let ret = try_commit_dealings(deps.as_mut(), info.clone(), dealing_bytes.clone());
+            let ret =
+                try_commit_dealings(deps.as_mut(), info.clone(), dealing_bytes.clone(), false);
             assert!(ret.is_ok());
             assert!(dealings.has(deps.as_mut().storage, &owner));
         }
-        let ret =
-            try_commit_dealings(deps.as_mut(), info.clone(), dealing_bytes.clone()).unwrap_err();
+        let ret = try_commit_dealings(deps.as_mut(), info.clone(), dealing_bytes.clone(), false)
+            .unwrap_err();
         assert_eq!(
             ret,
             ContractError::AlreadyCommitted {

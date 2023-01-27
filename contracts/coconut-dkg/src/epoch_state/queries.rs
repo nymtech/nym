@@ -29,7 +29,10 @@ pub(crate) mod test {
     fn query_state() {
         let mut deps = init_contract();
         let epoch = query_current_epoch(deps.as_mut().storage).unwrap();
-        assert_eq!(epoch.state, EpochState::PublicKeySubmission);
+        assert_eq!(
+            epoch.state,
+            EpochState::PublicKeySubmission { resharing: false }
+        );
         assert_eq!(
             epoch.finish_timestamp,
             mock_env()

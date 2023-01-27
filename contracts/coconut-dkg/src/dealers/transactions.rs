@@ -32,8 +32,9 @@ pub fn try_add_dealer(
     info: MessageInfo,
     bte_key_with_proof: EncodedBTEPublicKeyWithProof,
     announce_address: String,
+    resharing: bool,
 ) -> Result<Response, ContractError> {
-    check_epoch_state(deps.storage, EpochState::PublicKeySubmission)?;
+    check_epoch_state(deps.storage, EpochState::PublicKeySubmission { resharing })?;
     let state = STATE.load(deps.storage)?;
 
     verify_dealer(deps.branch(), &state, &info.sender)?;
@@ -94,12 +95,13 @@ pub(crate) mod tests {
             info.clone(),
             bte_key_with_proof.clone(),
             announce_address.clone(),
+            false,
         )
         .unwrap_err();
         assert_eq!(
             ret,
             ContractError::IncorrectEpochState {
-                current_state: EpochState::DealingExchange.to_string(),
+                current_state: EpochState::DealingExchange { resharing: false }.to_string(),
                 expected_state: EpochState::default().to_string(),
             }
         );

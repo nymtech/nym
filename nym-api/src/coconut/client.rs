@@ -38,10 +38,16 @@ pub trait Client {
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
         announce_address: String,
+        resharing: bool,
     ) -> Result<ExecuteResult>;
-    async fn submit_dealing(&self, dealing_bytes: ContractSafeBytes) -> Result<ExecuteResult>;
+    async fn submit_dealing(
+        &self,
+        dealing_bytes: ContractSafeBytes,
+        resharing: bool,
+    ) -> Result<ExecuteResult>;
     async fn submit_verification_key_share(
         &self,
         share: VerificationKeyShare,
+        resharing: bool,
     ) -> Result<ExecuteResult>;
 }

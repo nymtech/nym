@@ -105,6 +105,7 @@ homepage = "https://nymtech.net"
 edition = "2021"
 
 [workspace.dependencies]
+async-trait = "0.1.63"
 log = "0.4"
 thiserror = "1.0.38"
 serde = "1.0.152"

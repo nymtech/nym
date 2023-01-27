@@ -123,6 +123,10 @@ impl ServiceProviderRequest for Socks5Request {
     fn provider_specific_version(&self) -> Self::ProtocolVersion {
         self.protocol_version
     }
+
+    fn max_supported_version() -> Self::ProtocolVersion {
+        Socks5ProtocolVersion::new_current()
+    }
 }
 
 impl Socks5Request {

@@ -5496,6 +5496,7 @@ dependencies = [
 name = "service-providers-common"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "build-information",
  "log",
  "serde",

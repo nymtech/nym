@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::interface::{ServiceProviderMessagingError, Serializable};
+use crate::interface::{Serializable, ServiceProviderMessagingError};
 use build_information::BinaryBuildInformationOwned;
 use serde::{Deserialize, Serialize};
 
@@ -12,6 +12,7 @@ pub struct Placeholder;
 pub enum ControlRequest {
     Health,
     BinaryInfo,
+    SupportedRequestVersions,
 }
 
 #[repr(u8)]
@@ -21,6 +22,9 @@ enum ControlRequestTag {
 
     /// Value tag representing [`BinaryInfo`] variant of the [`ControlRequest`]
     BinaryInfo = 0x01,
+
+    /// Value tag representing [`SupportedRequestVersions`] variant of the [`ControlRequest`]
+    RequestVersions = 0x02,
 }
 
 impl TryFrom<u8> for ControlRequestTag {
@@ -30,6 +34,7 @@ impl TryFrom<u8> for ControlRequestTag {
         match value {
             _ if value == (Self::Health as u8) => Ok(Self::Health),
             _ if value == (Self::BinaryInfo as u8) => Ok(Self::BinaryInfo),
+            _ if value == (Self::RequestVersions as u8) => Ok(Self::RequestVersions),
             received => Err(ServiceProviderMessagingError::InvalidControlRequestTag { received }),
         }
     }
@@ -52,6 +57,7 @@ impl Serializable for ControlRequest {
         match request_tag {
             ControlRequestTag::Health => Ok(ControlRequest::Health),
             ControlRequestTag::BinaryInfo => Ok(ControlRequest::BinaryInfo),
+            ControlRequestTag::RequestVersions => Ok(ControlRequest::SupportedRequestVersions),
         }
     }
 }
@@ -61,6 +67,7 @@ impl ControlRequest {
         match self {
             ControlRequest::Health => ControlRequestTag::Health,
             ControlRequest::BinaryInfo => ControlRequestTag::BinaryInfo,
+            ControlRequest::SupportedRequestVersions => ControlRequestTag::RequestVersions,
         }
     }
 }
@@ -69,6 +76,7 @@ impl ControlRequest {
 pub enum ControlResponse {
     Health,
     BinaryInfo(Box<BinaryInformation>),
+    SupportedRequestVersions,
     Error(Placeholder),
 }
 
@@ -79,6 +87,9 @@ enum ControlResponseTag {
 
     /// Value tag representing [`BinaryInfo`] variant of the [`ControlResponse`]
     BinaryInfo = 0x01,
+
+    /// Value tag representing [`SupportedRequestVersions`] variant of the [`ControlResponse`]
+    SupportedRequestVersions = 0x02,
 
     /// Value tag representing [`Error`] variant of the [`ControlResponse`]
     Error = 0xFF,
@@ -91,6 +102,9 @@ impl TryFrom<u8> for ControlResponseTag {
         match value {
             _ if value == (Self::Health as u8) => Ok(Self::Health),
             _ if value == (Self::BinaryInfo as u8) => Ok(Self::BinaryInfo),
+            _ if value == (Self::SupportedRequestVersions as u8) => {
+                Ok(Self::SupportedRequestVersions)
+            }
             received => Err(ServiceProviderMessagingError::InvalidControlResponseTag { received }),
         }
     }
@@ -119,6 +133,7 @@ impl Serializable for ControlResponse {
                     ServiceProviderMessagingError::MalformedBinaryInfoControlResponse { source },
                 ),
             },
+            ControlResponseTag::SupportedRequestVersions => todo!(),
             ControlResponseTag::Error => todo!(),
         }
     }
@@ -129,6 +144,9 @@ impl ControlResponse {
         match self {
             ControlResponse::Health => ControlResponseTag::Health,
             ControlResponse::BinaryInfo(_) => ControlResponseTag::BinaryInfo,
+            ControlResponse::SupportedRequestVersions => {
+                ControlResponseTag::SupportedRequestVersions
+            }
             ControlResponse::Error(_) => ControlResponseTag::Error,
         }
     }
@@ -150,6 +168,7 @@ impl ControlResponse {
                 // (unless the serde's macro is bugged but at this point we're already out of luck)
                 serde_json::to_vec(&info).unwrap()
             }
+            ControlResponse::SupportedRequestVersions => todo!(),
             ControlResponse::Error(_) => todo!(),
         }
     }

@@ -8,9 +8,7 @@ use crate::interface::{
 use log::warn;
 use std::fmt::Debug;
 
-pub trait ServiceProviderResponse: Serializable + Debug {
-    // fn provider_specific_version(&self) -> u8;
-}
+pub trait ServiceProviderResponse: Serializable + Debug {}
 
 #[derive(Debug)]
 pub struct Response<T: ServiceProviderRequest = EmptyMessage> {
@@ -26,14 +24,6 @@ pub enum ResponseContent<T: ServiceProviderRequest = EmptyMessage> {
 
 #[repr(u8)]
 pub enum ResponseTag {
-    // /// Value tag representing legacy value for `Socks5Message::Request`
-    // LegacySocks5Request = 0,
-    //
-    // /// Value tag representing legacy value for `Socks5Message::Response`
-    // LegacySocks5Response = 1,
-    //
-    // /// Value tag representing legacy value for `Socks5Message::NetworkRequesterResponse`
-    // LegacySocks5NRResponse = 2,
     /// Value tag representing [`Control`] variant of the [`Reponse`]
     Control = 0x00,
 
@@ -46,26 +36,12 @@ impl TryFrom<u8> for ResponseTag {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            // _ if value == (Self::LegacySocks5Request as u8) => Ok(Self::LegacySocks5Request),
-            // _ if value == (Self::LegacySocks5Response as u8) => Ok(Self::LegacySocks5Response),
-            // _ if value == (Self::LegacySocks5NRResponse as u8) => Ok(Self::LegacySocks5NRResponse),
             _ if value == (Self::Control as u8) => Ok(Self::Control),
             _ if value == (Self::ProviderData as u8) => Ok(Self::ProviderData),
             received => Err(ServiceProviderMessagingError::InvalidResponseTag { received }),
         }
     }
 }
-
-// impl ResponseTag {
-//     pub fn is_legacy(&self) -> bool {
-//         matches!(
-//             self,
-//             ResponseTag::LegacySocks5Request
-//                 | ResponseTag::LegacySocks5Response
-//                 | ResponseTag::LegacySocks5NRResponse
-//         )
-//     }
-// }
 
 impl<T> Response<T>
 where

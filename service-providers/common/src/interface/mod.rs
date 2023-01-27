@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub use control::{ControlRequest, ControlResponse};
+pub use control::{BinaryInformation, ControlRequest, ControlResponse};
 pub use request::{Request, RequestContent, ServiceProviderRequest};
 pub use response::{Response, ResponseContent, ServiceProviderResponse};
 pub use version::{ProviderInterfaceVersion, RequestVersion};
@@ -74,6 +74,10 @@ impl ServiceProviderRequest for EmptyMessage {
     type Error = ServiceProviderMessagingError;
 
     fn provider_specific_version(&self) -> Self::ProtocolVersion {
+        Empty
+    }
+
+    fn max_supported_version() -> Self::ProtocolVersion {
         Empty
     }
 

@@ -7,6 +7,8 @@ edition = "2021"
 
 [dependencies]
 build-information = { path = "../../common/build-information", features = ["serde"] }
+
+async-trait = { workspace = true }
 log = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"]}

@@ -16,7 +16,11 @@ pub trait ServiceProviderRequest: Serializable + Debug {
         + From<<Self as Serializable>::Error>
         + From<<Self::Response as Serializable>::Error>;
 
+    /// The version of the provider protocol attached on the particular request.
     fn provider_specific_version(&self) -> Self::ProtocolVersion;
+
+    /// The highest version of the provider protocol that can be supported by this party.
+    fn max_supported_version() -> Self::ProtocolVersion;
 }
 
 #[derive(Debug)]

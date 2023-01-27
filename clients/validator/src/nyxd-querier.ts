@@ -24,6 +24,7 @@ import {
   LayerDistribution,
 } from '../compiledTypes';
 import { SmartContractQuery } from './types';
+
 export default class NyxdQuerier implements INyxdQuery {
   client: SmartContractQuery;
 
@@ -36,6 +37,7 @@ export default class NyxdQuerier implements INyxdQuery {
       get_contract_version: {},
     });
   }
+
   getMixNodeBonds(
     mixnetContractAddress: string,
     limit?: number,

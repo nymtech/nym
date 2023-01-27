@@ -85,8 +85,6 @@ export const Mock: ComponentStory<typeof AppWindowFrame> = () => {
     <AppWindowFrame>
       <Connected
         gatewayPerformance="Good"
-        showInfoModal={false}
-        handleCloseInfoModal={() => undefined}
         status={context.connectionStatus}
         busy={busy}
         onConnectClick={handleConnectClick}

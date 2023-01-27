@@ -47,8 +47,6 @@ const getTitleIcon = (path: string) => {
 };
 
 export const CustomTitleBar = ({ path = '/' }: { path?: string }) => {
-  console.log(path);
-
   return (
     <Box data-tauri-drag-region style={customTitleBarStyles.titlebar}>
       {/* set width to keep logo centered */}

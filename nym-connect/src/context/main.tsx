@@ -21,17 +21,15 @@ export type TClientContext = {
   connectionStatus: ConnectionStatusKind;
   connectionStats?: ConnectionStatsItem[];
   connectedSince?: DateTime;
-  services?: Services;
-  serviceProvider?: ServiceProvider;
   error?: Error;
   gatewayPerformance: GatewayPerformance;
+  selectedProvider: ServiceProvider | undefined;
   setMode: (mode: ModeType) => void;
   clearError: () => void;
   setConnectionStatus: (connectionStatus: ConnectionStatusKind) => void;
   setConnectionStats: (connectionStats: ConnectionStatsItem[] | undefined) => void;
   setConnectedSince: (connectedSince: DateTime | undefined) => void;
-  setServiceProvider: (serviceProvider?: ServiceProvider) => void;
-
+  setRandomSerivceProvider: () => void;
   startConnecting: () => Promise<void>;
   startDisconnecting: () => Promise<void>;
 };
@@ -40,27 +38,39 @@ export const ClientContext = createContext({} as TClientContext);
 
 export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const [mode, setMode] = useState<ModeType>('dark');
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatusKind>('disconnected');
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatusKind>('connected');
   const [connectionStats, setConnectionStats] = useState<ConnectionStatsItem[]>();
   const [connectedSince, setConnectedSince] = useState<DateTime>();
-  const [services, setServices] = React.useState<Services>([]);
-  const [serviceProvider, setRawServiceProvider] = React.useState<ServiceProvider>();
+  const [selectedProvider, setSelectedProvider] = React.useState<ServiceProvider>();
+  const [serviceProviders, setServiceProviders] = React.useState<ServiceProvider[]>();
   const [error, setError] = useState<Error>();
   const [appVersion, setAppVersion] = useState<string>();
   const [gatewayPerformance, setGatewayPerformance] = useState<GatewayPerformance>('Good');
 
   const getAppVersion = async () => {
     const version = await getVersion();
-    setAppVersion(version);
+    return version;
   };
 
   const timerId = useRef<NodeJS.Timeout>();
 
+  const flattenProviders = (services: Services) => {
+    return services.reduce((a: ServiceProvider[], b) => {
+      return [...a, ...b.items];
+    }, []);
+  };
+
+  const initialiseApp = async () => {
+    const services = await invoke('get_services');
+    const allServiceProviders = flattenProviders(services as Services);
+    const AppVersion = await getAppVersion();
+
+    setAppVersion(AppVersion);
+    setServiceProviders(allServiceProviders);
+  };
+
   useEffect(() => {
-    invoke('get_services').then((result) => {
-      setServices(result as Services);
-    });
-    getAppVersion();
+    initialiseApp();
   }, []);
 
   useEffect(() => {
@@ -126,9 +136,15 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const startDisconnecting = useCallback(async () => {
     try {
       await invoke('start_disconnecting');
-      setGatewayPerformance('Good');
     } catch (e) {
       console.log(e);
+    }
+  }, []);
+
+  const setServiceProvider = useCallback(async (newServiceProvider?: ServiceProvider) => {
+    if (newServiceProvider) {
+      await invoke('set_gateway', { gateway: newServiceProvider.gateway });
+      await invoke('set_service_provider', { serviceProvider: newServiceProvider.address });
     }
   }, []);
 
@@ -139,47 +155,50 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     } as any)();
   };
 
-  const setServiceProvider = useCallback(async (newServiceProvider?: ServiceProvider) => {
-    await invoke('set_gateway', { gateway: newServiceProvider?.gateway });
-    await invoke('set_service_provider', { serviceProvider: newServiceProvider?.address });
-    if (newServiceProvider) {
-      await setSpInStorage(newServiceProvider);
-    }
-    setRawServiceProvider(newServiceProvider);
-  }, []);
+  const removeSpFromStorage = async () => {
+    await forage.removeItem({
+      key: 'nym-connect-sp',
+    })();
+  };
 
-  const getSpFromStorage = async () => {
+  const getSpFromStorage = async (): Promise<ServiceProvider | undefined> => {
     try {
       const spFromStorage = await forage.getItem({ key: 'nym-connect-sp' })();
-      if (spFromStorage) {
-        setRawServiceProvider(spFromStorage);
-        setServiceProvider(spFromStorage);
-      }
+      return spFromStorage;
     } catch (e) {
       console.warn(e);
     }
   };
+
+  const getRandomSPFromList = (serviceProviders: ServiceProvider[]) => {
+    const randomSelection = serviceProviders[Math.floor(Math.random() * serviceProviders.length)];
+    return randomSelection;
+  };
+
+  const setRandomSerivceProvider = async () => {
+    if (serviceProviders) {
+      const randomServiceProvider = getRandomSPFromList(serviceProviders);
+      setSelectedProvider(randomServiceProvider);
+    }
+  };
   const clearError = () => setError(undefined);
 
-  useEffect(() => {
-    const validityCheck = async () => {
-      if (services.length > 0 && serviceProvider) {
-        const isValid = services.some(({ items }) => items.some(({ id }) => id === serviceProvider.id));
-        if (!isValid) {
-          console.warn('invalid SP, cleaning local storage');
-          await forage.removeItem({
-            key: 'nym-connect-sp',
-          })();
-          setRawServiceProvider(undefined);
-        }
-      }
-    };
-    validityCheck();
-  }, [services, serviceProvider]);
+  const handleUpdateServiceProvider = async (serviceProvider: ServiceProvider, serviceProviders: ServiceProvider[]) => {
+    const isSelectedProviderInList = serviceProviders.some(({ address }) => serviceProvider.address === address);
+
+    if (!isSelectedProviderInList) {
+      console.warn('invalid SP, cleaning local storage');
+      setSelectedProvider(undefined);
+    } else {
+      await setServiceProvider(serviceProvider);
+    }
+  };
 
   useEffect(() => {
-    getSpFromStorage();
-  }, []);
+    if (serviceProviders && selectedProvider) {
+      handleUpdateServiceProvider(selectedProvider, serviceProviders);
+    }
+  }, [selectedProvider, serviceProviders]);
 
   const contextValue = useMemo(
     () => ({
@@ -192,13 +211,12 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       setConnectionStatus,
       connectionStats,
       setConnectionStats,
+      selectedProvider,
       connectedSince,
       setConnectedSince,
+      setRandomSerivceProvider,
       startConnecting,
       startDisconnecting,
-      services,
-      serviceProvider,
-      setServiceProvider,
       gatewayPerformance,
     }),
     [
@@ -210,8 +228,6 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       connectionStatus,
       connectionStats,
       connectedSince,
-      services,
-      serviceProvider,
       gatewayPerformance,
     ],
   );

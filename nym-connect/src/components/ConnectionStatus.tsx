@@ -6,7 +6,7 @@ import { ServiceProvider } from '../types/directory';
 import { ServiceProviderInfo } from './ServiceProviderInfo';
 import { InfoOutlined } from '@mui/icons-material';
 
-const FONT_SIZE = '16px';
+const FONT_SIZE = '14px';
 const FONT_WEIGHT = '600';
 const FONT_STYLE = 'normal';
 
@@ -20,7 +20,7 @@ const ConnectionStatusContent: FCWithChildren<{
         <Tooltip title={serviceProvider ? <ServiceProviderInfo serviceProvider={serviceProvider} /> : undefined}>
           <Box display="flex" alignItems="center" gap={0.5} justifyContent="center" sx={{ cursor: 'pointer' }}>
             <InfoOutlined sx={{ fontSize: 14 }} />
-            <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} fontSize="12px" textAlign="center">
+            <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} fontSize={FONT_SIZE} textAlign="center">
               Connected to Nym Mixnet
             </Typography>
           </Box>

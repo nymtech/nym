@@ -12,18 +12,18 @@ const layout = {
 };
 
 export const ConnectionLayout = ({
-  children,
   TopContent,
+  ConnectButton,
   BottomContent,
 }: {
-  children: React.ReactNode;
   TopContent: React.ReactNode;
+  ConnectButton: React.ReactNode;
   BottomContent: React.ReactNode;
 }) => (
   <Box sx={layout}>
     {TopContent}
     <Box display="flex" justifyContent="center" alignItems="center">
-      {children}
+      {ConnectButton}
     </Box>
     {BottomContent}
   </Box>

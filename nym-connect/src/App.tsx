@@ -2,14 +2,14 @@ import React, { useEffect } from 'react';
 import { DateTime } from 'luxon';
 import { forage } from '@tauri-apps/tauri-forage';
 import { useClientContext } from './context/main';
-import { ConnectedLayout } from './layouts/ConnectedLayout';
 import { useTauriEvents } from './utils';
 import { AppRoutes } from './routes';
+import { Connected } from './pages/connection/Connected';
 
 export const App: FCWithChildren = () => {
   const context = useClientContext();
   const [busy, setBusy] = React.useState<boolean>();
-  const [showInfoModal, setShowInfoModal] = React.useState(false);
+
   useTauriEvents('help://clear-storage', (_event) => {
     console.log('About to clear local storage...');
     // clear local storage
@@ -41,18 +41,12 @@ export const App: FCWithChildren = () => {
     }
   }, [context.connectionStatus]);
 
-  useEffect(() => {
-    if (context.connectionStatus === 'connected') setShowInfoModal(true);
-  }, [context.connectionStatus]);
-
   if (context.connectionStatus === 'disconnected' || context.connectionStatus === 'connecting') {
     return <AppRoutes />;
   }
 
   return (
-    <ConnectedLayout
-      showInfoModal={showInfoModal}
-      handleCloseInfoModal={() => setShowInfoModal(false)}
+    <Connected
       status={context.connectionStatus}
       busy={busy}
       onConnectClick={handleConnectClick}
@@ -60,7 +54,7 @@ export const App: FCWithChildren = () => {
       port={1080}
       gatewayPerformance={context.gatewayPerformance}
       connectedSince={context.connectedSince}
-      serviceProvider={context.serviceProvider}
+      serviceProvider={context.selectedProvider}
       stats={[
         {
           label: 'in:',

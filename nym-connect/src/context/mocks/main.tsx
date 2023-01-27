@@ -6,17 +6,16 @@ const mockValues: TClientContext = {
   appVersion: 'v1.x.x',
   mode: 'dark',
   connectionStatus: 'disconnected',
-  services: [],
-  serviceProvider: { id: '1', description: 'Keybase service provider', gateway: 'abc123', address: '123abc' },
+  selectedProvider: { id: '1', description: 'Keybase service provider', gateway: 'abc123', address: '123abc' },
   gatewayPerformance: 'Good',
   setMode: () => {},
   clearError: () => {},
   setConnectedSince: () => {},
   setConnectionStats: () => {},
   setConnectionStatus: () => {},
-  setServiceProvider: () => {},
   startConnecting: async () => {},
   startDisconnecting: async () => {},
+  setRandomSerivceProvider: () => {},
 };
 
 export const MockProvider: FCWithChildren<{

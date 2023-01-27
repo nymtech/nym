@@ -3,8 +3,10 @@ import { ConnectionStatusKind } from 'src/types';
 
 export const PowerButton: FCWithChildren<{
   onClick: (status: ConnectionStatusKind) => void;
+  isError?: boolean;
   disabled: boolean;
   status: ConnectionStatusKind;
+  busy?: boolean;
 }> = ({ onClick, disabled, status }) => {
   const [hover, setHover] = React.useState<boolean>(false);
 
@@ -17,7 +19,7 @@ export const PowerButton: FCWithChildren<{
     }
   }, [status, disabled]);
   return (
-    <svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <svg width="190" height="190" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
       <g
         transform="translate(-30, -25) "
         onMouseEnter={() => !disabled && setHover(true)}
@@ -26,7 +28,7 @@ export const PowerButton: FCWithChildren<{
         cursor="pointer"
       >
         <g filter="url(#filter0_f_944_9033)">
-          <circle cx={131} cy={131} r={30} fill="url(#paint0_radial_944_9033)" />
+          <circle cx={131} cy={131} r={20} fill="url(#paint0_radial_944_9033)" />
         </g>
         <path
           opacity={0.1}

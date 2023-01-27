@@ -9,9 +9,11 @@ export default {
   component: Disconnected,
 } as ComponentMeta<typeof Disconnected>;
 
+const onClick = () => undefined;
+
 export const Default: ComponentStory<typeof Disconnected> = () => (
   <Box p={1} width={230} sx={{ bgcolor: 'nym.background.dark' }}>
-    <Disconnected status={'disconnected'} clearError={() => {}} error={undefined} />
+    <Disconnected status={'disconnected'} clearError={() => {}} error={undefined} onConnectClick={onClick} />
   </Box>
 );
 
@@ -28,6 +30,7 @@ export const WithServices: ComponentStory<typeof Disconnected> = () => (
       ]}
       clearError={() => {}}
       error={undefined}
+      onConnectClick={onClick}
     />
   </Box>
 );

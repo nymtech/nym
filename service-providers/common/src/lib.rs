@@ -3,7 +3,8 @@
 
 use crate::interface::{
     BinaryInformation, ControlRequest, ControlResponse, EmptyMessage, ProviderInterfaceVersion,
-    Request, RequestContent, Response, ResponseContent, ServiceProviderRequest, SupportedVersions,
+    Request, RequestContent, Response, ResponseContent, ServiceProviderMessagingError,
+    ServiceProviderRequest, SupportedVersions,
 };
 use async_trait::async_trait;
 use nymsphinx_anonymous_replies::requests::AnonymousSenderTag;
@@ -119,4 +120,66 @@ where
         request: T,
         interface_version: ProviderInterfaceVersion,
     ) -> Result<Option<T::Response>, Self::ServiceProviderError>;
+}
+
+#[async_trait]
+pub trait ServiceProviderClient<T: ServiceProviderRequest = EmptyMessage>
+where
+    T: Send + 'static,
+    Self: Sync,
+{
+    type ServiceProviderClientError: From<<T as ServiceProviderRequest>::Error>;
+
+    fn provider_interface_version(&self) -> ProviderInterfaceVersion;
+
+    async fn send_request(
+        &mut self,
+        request: Request<T>,
+    ) -> Result<Option<Response<T>>, Self::ServiceProviderClientError>;
+
+    async fn send_control_request(
+        &mut self,
+        request: ControlRequest,
+    ) -> Result<Option<ControlResponse>, Self::ServiceProviderClientError> {
+        let maybe_res = self
+            .send_request(Request::new_control(
+                self.provider_interface_version(),
+                request,
+            ))
+            .await?;
+
+        let Some(res) = maybe_res else {
+            return Ok(None)
+        };
+
+        match res.content {
+            ResponseContent::Control(res) => Ok(Some(res)),
+            ResponseContent::ProviderData(_) => Err(Self::ServiceProviderClientError::from(
+                ServiceProviderMessagingError::UnexpectedProviderDataResponse.into(),
+            )),
+        }
+    }
+
+    async fn send_provider_data_request(
+        &mut self,
+        request: T,
+    ) -> Result<Option<T::Response>, Self::ServiceProviderClientError> {
+        let maybe_res = self
+            .send_request(Request::new_provider_data(
+                self.provider_interface_version(),
+                request,
+            ))
+            .await?;
+
+        let Some(res) = maybe_res else {
+            return Ok(None)
+        };
+
+        match res.content {
+            ResponseContent::ProviderData(res) => Ok(Some(res)),
+            ResponseContent::Control(_) => Err(Self::ServiceProviderClientError::from(
+                ServiceProviderMessagingError::UnexpectedControlResponse.into(),
+            )),
+        }
+    }
 }

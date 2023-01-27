@@ -48,6 +48,12 @@ pub enum ServiceProviderMessagingError {
     #[error("control response did not contain any data")]
     EmptyControlResponse,
 
+    #[error("Received provider data response while control was expected")]
+    UnexpectedProviderDataResponse,
+
+    #[error("Received control response while provider data was expected")]
+    UnexpectedControlResponse,
+
     #[error("the received binary information control response was malformed: {source}")]
     MalformedBinaryInfoControlResponse { source: serde_json::Error },
 

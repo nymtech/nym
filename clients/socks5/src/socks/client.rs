@@ -266,19 +266,26 @@ impl SocksClient {
 
     // Send an error back to the client
     pub async fn send_error_v4(&mut self, r: ResponseCodeV4) -> Result<(), SocksProxyError> {
-        self.stream.write_all(&[SOCKS4_VERSION, r as u8]).await?;
-        Ok(())
+        self.stream
+            .write_all(&[SOCKS4_VERSION, r as u8])
+            .await
+            .map_err(|source| SocksProxyError::SocketWriteError { source })
     }
 
     pub async fn send_error_v5(&mut self, r: ResponseCodeV5) -> Result<(), SocksProxyError> {
-        self.stream.write_all(&[SOCKS5_VERSION, r as u8]).await?;
-        Ok(())
+        self.stream
+            .write_all(&[SOCKS5_VERSION, r as u8])
+            .await
+            .map_err(|source| SocksProxyError::SocketWriteError { source })
     }
 
     /// Shutdown the `TcpStream` to the client and end the session
     pub async fn shutdown(&mut self) -> Result<(), SocksProxyError> {
         info!("client is shutting down its TCP stream");
-        self.stream.shutdown().await?;
+        self.stream
+            .shutdown()
+            .await
+            .map_err(|source| SocksProxyError::SocketShutdownFailure { source })?;
         self.shutdown_listener.mark_as_success();
         Ok(())
     }
@@ -286,11 +293,20 @@ impl SocksClient {
     /// Initializes the new client, checking that the correct Socks version (5)
     /// is in use and that the client is authenticated, then runs the request.
     pub async fn run(&mut self) -> Result<(), SocksProxyError> {
-        debug!("New connection from: {}", self.stream.peer_addr()?.ip());
+        debug!(
+            "New connection from: {}",
+            self.stream
+                .peer_addr()
+                .map_err(|source| SocksProxyError::PeerAddrExtractionFailure { source })?
+                .ip()
+        );
 
         // Read a byte from the stream and determine the version being requested
         let mut header = [0u8];
-        self.stream.read_exact(&mut header).await?;
+        self.stream
+            .read_exact(&mut header)
+            .await
+            .map_err(|source| SocksProxyError::SocketReadError { source })?;
 
         self.socks_version = match SocksVersion::try_from(header[0]) {
             Ok(version) => Some(version),
@@ -302,7 +318,10 @@ impl SocksClient {
 
         if self.socks_version == Some(SocksVersion::V5) {
             let mut auth = [0u8];
-            self.stream.read_exact(&mut auth).await?;
+            self.stream
+                .read_exact(&mut auth)
+                .await
+                .map_err(|source| SocksProxyError::SocketReadError { source })?;
             self.auth_nmethods = auth[0];
             self.authenticate_socks5().await?;
         }
@@ -535,7 +554,13 @@ impl SocksClient {
     /// into the Authenticator (where it'll be more easily testable)
     /// would be a good next step.
     async fn authenticate_socks5(&mut self) -> Result<(), SocksProxyError> {
-        debug!("Authenticating w/ {}", self.stream.peer_addr()?.ip());
+        debug!(
+            "Authenticating w/ {}",
+            self.stream
+                .peer_addr()
+                .map_err(|source| SocksProxyError::PeerAddrExtractionFailure { source })?
+                .ip()
+        );
         // Get valid auth methods
         let methods = self.get_available_methods().await?;
         trace!("methods: {:?}", methods);
@@ -549,27 +574,45 @@ impl SocksClient {
             response[1] = AuthenticationMethods::UserPass as u8;
 
             debug!("Sending USER/PASS packet");
-            self.stream.write_all(&response).await?;
+            self.stream
+                .write_all(&response)
+                .await
+                .map_err(|source| SocksProxyError::SocketWriteError { source })?;
 
             let mut header = [0u8; 2];
 
             // Read a byte from the stream and determine the version being requested
-            self.stream.read_exact(&mut header).await?;
+            self.stream
+                .read_exact(&mut header)
+                .await
+                .map_err(|source| SocksProxyError::SocketReadError { source })?;
 
             // debug!("Auth Header: [{}, {}]", header[0], header[1]);
 
             // Username parsing
             let ulen = header[1];
             let mut username = vec![0; ulen as usize];
-            self.stream.read_exact(&mut username).await?;
+            self.stream
+                .read_exact(&mut username)
+                .await
+                .map_err(|source| SocksProxyError::SocketReadError { source })?;
 
             // Password Parsing
-            let plen = self.stream.read_u8().await?;
+            let plen = self
+                .stream
+                .read_u8()
+                .await
+                .map_err(|source| SocksProxyError::SocketReadError { source })?;
             let mut password = vec![0; plen as usize];
-            self.stream.read_exact(&mut password).await?;
+            self.stream
+                .read_exact(&mut password)
+                .await
+                .map_err(|source| SocksProxyError::SocketReadError { source })?;
 
-            let username_str = String::from_utf8(username)?;
-            let password_str = String::from_utf8(password)?;
+            let username_str = String::from_utf8(username)
+                .map_err(|source| SocksProxyError::MalformedAuthUsername { source })?;
+            let password_str = String::from_utf8(password)
+                .map_err(|source| SocksProxyError::MalformedAuthPassword { source })?;
 
             let user = User {
                 username: username_str,
@@ -580,11 +623,17 @@ impl SocksClient {
             if self.authenticator.is_allowed(&user) {
                 debug!("Access Granted. User: {}", user.username);
                 let response = [1, ResponseCodeV5::Success as u8];
-                self.stream.write_all(&response).await?;
+                self.stream
+                    .write_all(&response)
+                    .await
+                    .map_err(|source| SocksProxyError::SocketWriteError { source })?;
             } else {
                 debug!("Access Denied. User: {}", user.username);
                 let response = [1, ResponseCodeV5::Failure as u8];
-                self.stream.write_all(&response).await?;
+                self.stream
+                    .write_all(&response)
+                    .await
+                    .map_err(|source| SocksProxyError::SocketWriteError { source })?;
 
                 // Shutdown
                 self.shutdown().await?;
@@ -595,12 +644,18 @@ impl SocksClient {
             // set the default auth method (no auth)
             response[1] = AuthenticationMethods::NoAuth as u8;
             debug!("Sending NOAUTH packet");
-            self.stream.write_all(&response).await?;
+            self.stream
+                .write_all(&response)
+                .await
+                .map_err(|source| SocksProxyError::SocketWriteError { source })?;
             Ok(())
         } else {
             warn!("Client has no suitable authentication methods!");
             response[1] = AuthenticationMethods::NoMethods as u8;
-            self.stream.write_all(&response).await?;
+            self.stream
+                .write_all(&response)
+                .await
+                .map_err(|source| SocksProxyError::SocketWriteError { source })?;
             self.shutdown().await?;
             Err(ResponseCodeV5::Failure.into())
         }
@@ -611,7 +666,10 @@ impl SocksClient {
         let mut methods: Vec<u8> = Vec::with_capacity(self.auth_nmethods as usize);
         for _ in 0..self.auth_nmethods {
             let mut method = [0u8; 1];
-            self.stream.read_exact(&mut method).await?;
+            self.stream
+                .read_exact(&mut method)
+                .await
+                .map_err(|source| SocksProxyError::SocketReadError { source })?;
             if self.authenticator.auth_methods.contains(&method[0]) {
                 methods.append(&mut method.to_vec());
             }
@@ -619,3 +677,18 @@ impl SocksClient {
         Ok(methods)
     }
 }
+//
+// impl ServiceProviderClient<Socks5Request> for SocksClient {
+//     type ServiceProviderClientError = SocksProxyError;
+//
+//     fn provider_interface_version(&self) -> ProviderInterfaceVersion {
+//         todo!()
+//     }
+//
+//     async fn send_request(
+//         &mut self,
+//         request: Request<Socks5Request>,
+//     ) -> Result<Option<Response<Socks5Request>>, Self::ServiceProviderClientError> {
+//         todo!()
+//     }
+// }

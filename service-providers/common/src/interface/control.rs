@@ -70,6 +70,18 @@ impl ControlRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct BinaryInformation {
+    pub binary_name: String,
+    pub build_information: BinaryBuildInformationOwned,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SupportedVersions {
+    pub interface_version: String,
+    pub provider_version: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorResponse {
     message: String,
 }
@@ -77,8 +89,8 @@ pub struct ErrorResponse {
 #[derive(Debug)]
 pub enum ControlResponse {
     Health,
-    BinaryInfo(Box<BinaryInformation>),
-    SupportedRequestVersions,
+    BinaryInfo(BinaryInformation),
+    SupportedRequestVersions(SupportedVersions),
     Error(ErrorResponse),
 }
 
@@ -136,7 +148,14 @@ impl Serializable for ControlResponse {
                     ServiceProviderMessagingError::MalformedBinaryInfoControlResponse { source },
                 ),
             },
-            ControlResponseTag::SupportedRequestVersions => todo!(),
+            ControlResponseTag::SupportedRequestVersions => match serde_json::from_slice(&b[1..]) {
+                Ok(supported_versions) => Ok(ControlResponse::SupportedRequestVersions(
+                    supported_versions,
+                )),
+                Err(source) => {
+                    Err(ServiceProviderMessagingError::MalformedErrorControlResponse { source })
+                }
+            },
             ControlResponseTag::Error => match serde_json::from_slice(&b[1..]) {
                 Ok(error_response) => Ok(ControlResponse::Error(error_response)),
                 Err(source) => {
@@ -152,7 +171,7 @@ impl ControlResponse {
         match self {
             ControlResponse::Health => ControlResponseTag::Health,
             ControlResponse::BinaryInfo(_) => ControlResponseTag::BinaryInfo,
-            ControlResponse::SupportedRequestVersions => {
+            ControlResponse::SupportedRequestVersions(_) => {
                 ControlResponseTag::SupportedRequestVersions
             }
             ControlResponse::Error(_) => ControlResponseTag::Error,
@@ -177,13 +196,9 @@ impl ControlResponse {
                 serde_json::to_vec(&info).unwrap()
             }
             ControlResponse::Error(error_response) => serde_json::to_vec(&error_response).unwrap(),
-            ControlResponse::SupportedRequestVersions => todo!(),
+            ControlResponse::SupportedRequestVersions(supported_versions) => {
+                serde_json::to_vec(&supported_versions).unwrap()
+            }
         }
     }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct BinaryInformation {
-    pub binary_name: String,
-    pub build_information: BinaryBuildInformationOwned,
 }

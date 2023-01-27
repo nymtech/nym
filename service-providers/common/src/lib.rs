@@ -3,7 +3,7 @@
 
 use crate::interface::{
     BinaryInformation, ControlRequest, ControlResponse, EmptyMessage, ProviderInterfaceVersion,
-    Request, RequestContent, Response, ResponseContent, ServiceProviderRequest,
+    Request, RequestContent, Response, ResponseContent, ServiceProviderRequest, SupportedVersions,
 };
 use async_trait::async_trait;
 use nymsphinx_anonymous_replies::requests::AnonymousSenderTag;
@@ -80,12 +80,11 @@ where
                 }
                 ControlRequest::BinaryInfo => {
                     let info = self.handle_binary_info_control_request().await?;
-                    Some(ControlResponse::BinaryInfo(Box::new(info)))
+                    Some(ControlResponse::BinaryInfo(info))
                 }
                 ControlRequest::SupportedRequestVersions => {
-                    // let versions = self.handle_supported_request_versions_request().await?;
-                    // Some(ControlResponse::SupportedRequestVersions)
-                    todo!()
+                    let versions = self.handle_supported_request_versions_request().await?;
+                    Some(ControlResponse::SupportedRequestVersions(versions))
                 } //
                   // TODO: if we ever add new request for interface version 4 (or higher),
                   // we need to include a check to make sure we return a `None` if passed `interface_version` was 3
@@ -105,15 +104,14 @@ where
         &self,
     ) -> Result<BinaryInformation, Self::ServiceProviderError>;
 
-    // async fn handle_supported_request_versions_request(
-    //     &self,
-    // ) -> Result<RequestVersion<T>, Self::ServiceProviderError> {
-    //     todo!("figure out how to get rid of that generic here since control responses shouldn't have to know about it")
-    //     // Ok(RequestVersion {
-    //     //     provider_interface: ProviderInterfaceVersion::new_current(),
-    //     //     provider_protocol: T::max_supported_version(),
-    //     // })
-    // }
+    async fn handle_supported_request_versions_request(
+        &self,
+    ) -> Result<SupportedVersions, Self::ServiceProviderError> {
+        Ok(SupportedVersions {
+            interface_version: ProviderInterfaceVersion::new_current().to_string(),
+            provider_version: T::max_supported_version().to_string(),
+        })
+    }
 
     async fn handle_provider_data_request(
         &mut self,

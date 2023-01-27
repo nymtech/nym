@@ -5688,6 +5688,7 @@ version = "0.1.0"
 dependencies = [
  "nymsphinx-addressing",
  "serde",
+ "serde_json",
  "service-providers-common",
  "thiserror",
 ]

@@ -1,11 +1,12 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub use control::{BinaryInformation, ControlRequest, ControlResponse};
+pub use control::{BinaryInformation, ControlRequest, ControlResponse, SupportedVersions};
 pub use request::{Request, RequestContent, ServiceProviderRequest};
 pub use response::{Response, ResponseContent, ServiceProviderResponse};
-pub use version::{ProviderInterfaceVersion, RequestVersion};
+pub use version::{ProviderInterfaceVersion, RequestVersion, Version};
 
+use std::fmt::{Display, Formatter};
 use thiserror::Error;
 
 mod control;
@@ -52,6 +53,9 @@ pub enum ServiceProviderMessagingError {
 
     #[error("the received error control response was malformed: {source}")]
     MalformedErrorControlResponse { source: serde_json::Error },
+
+    #[error("the received supported versions control response was malformed: {source}")]
+    MalformedSupportedVersionsResponse { source: serde_json::Error },
 }
 
 // can't use 'normal' trait (i.e. Serialize/Deserialize from serde) as `Socks5Message` uses custom serialization
@@ -71,6 +75,14 @@ pub struct EmptyMessage;
 #[derive(Debug, Clone)]
 pub struct Empty;
 
+impl Display for Empty {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "n/a")
+    }
+}
+
+impl Version for Empty {}
+
 impl ServiceProviderRequest for EmptyMessage {
     type ProtocolVersion = Empty;
     type Response = EmptyMessage;
@@ -83,17 +95,9 @@ impl ServiceProviderRequest for EmptyMessage {
     fn max_supported_version() -> Self::ProtocolVersion {
         Empty
     }
-
-    // fn provider_specific_version(&self) -> u8 {
-    //     1
-    // }
 }
 
-impl ServiceProviderResponse for EmptyMessage {
-    // fn provider_specific_version(&self) -> u8 {
-    //     1
-    // }
-}
+impl ServiceProviderResponse for EmptyMessage {}
 
 impl Serializable for EmptyMessage {
     type Error = ServiceProviderMessagingError;

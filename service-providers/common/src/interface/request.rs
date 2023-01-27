@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::interface::version::Version;
 use crate::interface::{
     ControlRequest, EmptyMessage, ProviderInterfaceVersion, Serializable,
     ServiceProviderMessagingError, ServiceProviderResponse,
@@ -9,7 +10,7 @@ use log::warn;
 use std::fmt::Debug;
 
 pub trait ServiceProviderRequest: Serializable + Debug {
-    type ProtocolVersion: Debug + Clone;
+    type ProtocolVersion: Version + Debug + Clone;
     type Response: ServiceProviderResponse;
     // TODO: should this one perhaps be separated into RequestError and ResponseError?
     type Error: From<ServiceProviderMessagingError>

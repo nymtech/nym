@@ -38,10 +38,13 @@ impl<T: ServiceProviderRequest> RequestVersion<T> {
     }
 }
 
+pub trait Version: std::fmt::Display {}
+
 #[macro_export]
 macro_rules! define_simple_version {
     ($name: ident, $initial_version: ident, $current_version: ident) => {
         use serde::{Deserialize, Serialize};
+        use std::fmt::{self, Display, Formatter};
 
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize)]
         #[serde(tag = "type", content = "version")]
@@ -97,6 +100,15 @@ macro_rules! define_simple_version {
                 $name::Versioned(INTERFACE_VERSION)
             }
         }
+
+        // I'm not fully convinced about this just yet...
+        impl Display for $name {
+            fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+                write!(f, "{}", serde_json::to_string(&self).unwrap())
+            }
+        }
+
+        impl Version for $name {}
     };
 }
 

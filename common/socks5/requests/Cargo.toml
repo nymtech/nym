@@ -9,6 +9,7 @@ edition = "2021"
 [dependencies]
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 
 nymsphinx-addressing = { path = "../../../common/nymsphinx/addressing" }
 service-providers-common = { path = "../../../service-providers/common" }

@@ -38,14 +38,13 @@ impl<T: ServiceProviderRequest> RequestVersion<T> {
     }
 }
 
-trait Version {}
-
 #[macro_export]
 macro_rules! define_simple_version {
     ($name: ident, $initial_version: ident, $current_version: ident) => {
         use serde::{Deserialize, Serialize};
 
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd, Serialize, Deserialize)]
+        #[serde(tag = "type", content = "version")]
         pub enum $name {
             Legacy,
             Versioned(u8),

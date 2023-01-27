@@ -12,7 +12,7 @@ bs58 = "0.4"
 serde = "1.0"
 thiserror = "1"
 
-crypto = { path = "../../crypto" }
+crypto = { path = "../../crypto", features = ["symmetric", "rand"] }
 nymsphinx-addressing = { path = "../addressing" }
 nymsphinx-params = { path = "../params" }
 nymsphinx-types = { path = "../types" }

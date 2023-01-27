@@ -33,11 +33,12 @@ where
 
     async fn handle_request(
         &mut self,
+        sender: Option<AnonymousSenderTag>,
         request: Request<T>,
     ) -> Result<Option<Response<T>>, Self::ServiceProviderError> {
         match request.content {
             RequestContent::Control(control_request) => self
-                .handle_control_request(control_request, request.interface_version)
+                .handle_control_request(sender, control_request, request.interface_version)
                 .await
                 .map(|maybe_res| {
                     maybe_res.map(|control_res| Response {
@@ -46,7 +47,11 @@ where
                     })
                 }),
             RequestContent::ProviderData(provider_data_request) => self
-                .handle_provider_data_request(provider_data_request, request.interface_version)
+                .handle_provider_data_request(
+                    sender,
+                    provider_data_request,
+                    request.interface_version,
+                )
                 .await
                 .map(|maybe_res| {
                     maybe_res.map(|provider_data_res| Response {
@@ -59,6 +64,7 @@ where
 
     async fn handle_control_request(
         &mut self,
+        _sender: Option<AnonymousSenderTag>,
         request: ControlRequest,
         interface_version: ProviderInterfaceVersion,
     ) -> Result<Option<ControlResponse>, Self::ServiceProviderError> {
@@ -111,6 +117,7 @@ where
 
     async fn handle_provider_data_request(
         &mut self,
+        sender: Option<AnonymousSenderTag>,
         request: T,
         interface_version: ProviderInterfaceVersion,
     ) -> Result<Option<T::Response>, Self::ServiceProviderError>;

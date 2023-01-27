@@ -3,7 +3,9 @@
 
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
-use service_providers_common::interface::RequestVersion;
+use service_providers_common::interface::{
+    ControlRequest, ControlResponse, ProviderInterfaceVersion, RequestVersion,
+};
 use socks5_requests::{
     ConnectionId, NetworkData, Socks5ProviderRequest, Socks5ProviderResponse, Socks5Request,
     Socks5RequestContent, Socks5Response, Socks5ResponseContent,
@@ -33,7 +35,7 @@ impl Debug for MixnetMessage {
 }
 
 impl MixnetMessage {
-    pub(crate) fn new_provider_data_response<A: Into<MixnetAddress>>(
+    pub(crate) fn new_provider_response<A: Into<MixnetAddress>>(
         address: A,
         connection_id: ConnectionId,
         msg: Socks5ProviderResponse,
@@ -45,7 +47,7 @@ impl MixnetMessage {
         }
     }
 
-    pub(crate) fn new_provider_data_request<A: Into<MixnetAddress>>(
+    pub(crate) fn new_provider_request<A: Into<MixnetAddress>>(
         address: A,
         connection_id: ConnectionId,
         msg: Socks5ProviderRequest,
@@ -68,7 +70,7 @@ impl MixnetMessage {
             Socks5Request::new(request_version.provider_protocol, content),
         );
 
-        Self::new_provider_data_request(address, connection_id, msg)
+        Self::new_provider_request(address, connection_id, msg)
     }
 
     pub(crate) fn new_network_data_response(
@@ -85,7 +87,27 @@ impl MixnetMessage {
         let msg =
             Socks5ProviderResponse::new_provider_data(request_version.provider_interface, res);
 
-        Self::new_provider_data_response(address, connection_id, msg)
+        Self::new_provider_response(address, connection_id, msg)
+    }
+
+    pub(crate) fn new_control_request<A: Into<MixnetAddress>>(
+        address: A,
+        request_version: ProviderInterfaceVersion,
+        content: ControlRequest,
+    ) -> Self {
+        let msg = Socks5ProviderRequest::new_control(request_version, content);
+        // TODO: not sure what to think about 0 connection_id here...
+        Self::new_provider_request(address, 0, msg)
+    }
+
+    pub(crate) fn new_control_response<A: Into<MixnetAddress>>(
+        address: A,
+        response_version: ProviderInterfaceVersion,
+        content: ControlResponse,
+    ) -> Self {
+        let msg = Socks5ProviderResponse::new_control(response_version, content);
+        // TODO: not sure what to think about 0 connection_id here...
+        Self::new_provider_response(address, 0, msg)
     }
 
     pub(crate) fn new_connection_error(
@@ -103,7 +125,7 @@ impl MixnetMessage {
         let msg =
             Socks5ProviderResponse::new_provider_data(request_version.provider_interface, res);
 
-        Self::new_provider_data_response(address, connection_id, msg)
+        Self::new_provider_response(address, connection_id, msg)
     }
 
     // TODO: the naming is awful, but naming things is difficult...

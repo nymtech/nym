@@ -17,6 +17,7 @@ use client_connections::{
 use futures::channel::mpsc;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
+use log::warn;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::receiver::ReconstructedMessage;
@@ -25,8 +26,7 @@ use proxy_helpers::connection_controller::{
 };
 use proxy_helpers::proxy_runner::{MixProxyReader, MixProxySender};
 use service_providers_common::interface::{
-    BinaryInformation, ControlRequest, ProviderInterfaceVersion, Request, RequestContent,
-    RequestVersion,
+    BinaryInformation, ProviderInterfaceVersion, Request, RequestVersion,
 };
 use service_providers_common::ServiceProvider;
 use socks5_requests::{
@@ -36,7 +36,7 @@ use socks5_requests::{
 use statistics_common::collector::StatisticsSender;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use task::TaskClient;
+use task::{TaskClient, TaskManager};
 use tokio_tungstenite::tungstenite::protocol::Message;
 use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 
@@ -50,12 +50,26 @@ pub(crate) fn new_legacy_request_version() -> RequestVersion<Socks5Request> {
     }
 }
 
-pub struct NRServiceProvider {
+// TODO: 'Builder' is not the most appropriate name here, but I needed
+// ... something ...
+pub struct NRServiceProviderBuilder {
     websocket_address: String,
     outbound_request_filter: OutboundRequestFilter,
     open_proxy: bool,
     enable_statistics: bool,
     stats_provider_addr: Option<Recipient>,
+}
+
+struct NRServiceProvider {
+    outbound_request_filter: OutboundRequestFilter,
+    open_proxy: bool,
+
+    websocket_stream: SplitStream<TSWebsocketStream>,
+    controller_sender: ControllerSender,
+    mix_input_sender: MixProxySender<MixnetMessage>,
+    shared_lane_queue_lengths: LaneQueueLengths,
+    stats_collector: Option<ServiceStatisticsCollector>,
+    shutdown: TaskManager,
 }
 
 #[async_trait]
@@ -67,8 +81,17 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
         sender: Option<AnonymousSenderTag>,
         request: Request<Socks5Request>,
     ) -> Result<(), Self::ServiceProviderError> {
-        if let Some(response) = self.handle_request(request).await? {
-            //
+        if let Some(response) = self.handle_request(sender, request).await? {
+            // TODO: this (i.e. `reply::MixnetAddress`) should be incorporated into the actual interface
+            if let Some(return_address) = reply::MixnetAddress::new(None, sender) {
+                let msg = MixnetMessage::new_provider_response(return_address, 0, response);
+                self.mix_input_sender
+                    .send(msg)
+                    .await
+                    .expect("InputMessageReceiver has stopped receiving!");
+            } else {
+                warn!("currently we can only send generic replies via reply surbs and we haven't got any : (")
+            }
         }
         Ok(())
     }
@@ -84,24 +107,60 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
 
     async fn handle_provider_data_request(
         &mut self,
+        sender: Option<AnonymousSenderTag>,
         request: Socks5Request,
         interface_version: ProviderInterfaceVersion,
     ) -> Result<Option<Socks5Response>, Self::ServiceProviderError> {
-        todo!()
-        // match request.content {
-        //     Socks5RequestContent::Connect(_) => {}
-        //     Socks5RequestContent::Send(_) => {}
-        // }
+        // TODO: streamline this a bit more
+        let request_version = RequestVersion::new(interface_version, request.protocol_version);
+
+        println!(
+            "received request of version {:?} / {:?}",
+            interface_version, request.protocol_version
+        );
+
+        match request.content {
+            Socks5RequestContent::Connect(req) => {
+                if let Some(stats_collector) = &self.stats_collector {
+                    stats_collector
+                        .connected_services
+                        .write()
+                        .await
+                        .insert(req.conn_id, req.remote_addr.clone());
+                }
+                self.handle_proxy_connect(request_version, sender, req)
+                    .await
+            }
+            Socks5RequestContent::Send(req) => {
+                if let Some(stats_collector) = &self.stats_collector {
+                    if let Some(remote_addr) = stats_collector
+                        .connected_services
+                        .read()
+                        .await
+                        .get(&req.conn_id)
+                    {
+                        stats_collector
+                            .request_stats_data
+                            .write()
+                            .await
+                            .processed(remote_addr, req.data.len() as u32);
+                    }
+                }
+                self.handle_proxy_send(req)
+            }
+        }
+
+        Ok(None)
     }
 }
 
-impl NRServiceProvider {
+impl NRServiceProviderBuilder {
     pub async fn new(
         websocket_address: String,
         open_proxy: bool,
         enable_statistics: bool,
         stats_provider_addr: Option<Recipient>,
-    ) -> NRServiceProvider {
+    ) -> NRServiceProviderBuilder {
         let standard_hosts = allowed_hosts::fetch_standard_allowed_list().await;
 
         log::info!("Standard allowed hosts: {:?}", standard_hosts);
@@ -119,12 +178,135 @@ impl NRServiceProvider {
         );
 
         let outbound_request_filter = OutboundRequestFilter::new(allowed_hosts, unknown_hosts);
-        NRServiceProvider {
+        NRServiceProviderBuilder {
             websocket_address,
             outbound_request_filter,
             open_proxy,
             enable_statistics,
             stats_provider_addr,
+        }
+    }
+
+    /// Start all subsystems
+    pub async fn run_service_provider(self) -> Result<(), NetworkRequesterError> {
+        let websocket_stream = Self::connect_websocket(&self.websocket_address).await?;
+
+        // split the websocket so that we could read and write from separate threads
+        let (websocket_writer, websocket_reader) = websocket_stream.split();
+
+        // channels responsible for managing messages that are to be sent to the mix network. The receiver is
+        // going to be used by `mixnet_response_listener`
+        let (mix_input_sender, mix_input_receiver) = tokio::sync::mpsc::channel::<MixnetMessage>(1);
+
+        // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
+        let shutdown = task::TaskManager::default();
+
+        // Channel for announcing client connection state by the controller.
+        // The `mixnet_response_listener` will use this to either report closed connection to the
+        // client or request lane queue lengths.
+        let (client_connection_tx, client_connection_rx) = mpsc::unbounded();
+
+        // Shared queue length data. Published by the `OutQueueController` in the client, and used
+        // primarily to throttle incoming connections
+        let shared_lane_queue_lengths = LaneQueueLengths::new();
+
+        // Controller for managing all active connections.
+        // We provide it with a ShutdownListener since it requires it, even though for the network
+        // requester shutdown signalling is not yet fully implemented.
+        let (mut active_connections_controller, controller_sender) = Controller::new(
+            client_connection_tx,
+            BroadcastActiveConnections::On,
+            shutdown.subscribe(),
+        );
+
+        tokio::spawn(async move {
+            active_connections_controller.run().await;
+        });
+
+        let stats_collector = if self.enable_statistics {
+            let stats_collector =
+                ServiceStatisticsCollector::new(self.stats_provider_addr, mix_input_sender.clone())
+                    .await
+                    .expect("Service statistics collector could not be bootstrapped");
+            let mut stats_sender = StatisticsSender::new(stats_collector.clone());
+
+            tokio::spawn(async move {
+                stats_sender.run().await;
+            });
+            Some(stats_collector)
+        } else {
+            None
+        };
+
+        let stats_collector_clone = stats_collector.clone();
+        // start the listener for mix messages
+        tokio::spawn(async move {
+            NRServiceProvider::mixnet_response_listener(
+                websocket_writer,
+                mix_input_receiver,
+                stats_collector_clone,
+                client_connection_rx,
+            )
+            .await;
+        });
+
+        let service_provider = NRServiceProvider {
+            outbound_request_filter: self.outbound_request_filter,
+            open_proxy: self.open_proxy,
+            websocket_stream: websocket_reader,
+            controller_sender,
+            mix_input_sender,
+            shared_lane_queue_lengths,
+            stats_collector,
+            shutdown,
+        };
+
+        log::info!("All systems go. Press CTRL-C to stop the server.");
+        service_provider.run().await
+    }
+
+    // Make the websocket connection so we can receive incoming Mixnet messages.
+    async fn connect_websocket(uri: &str) -> Result<TSWebsocketStream, NetworkRequesterError> {
+        match websocket::Connection::new(uri).connect().await {
+            Ok(ws_stream) => {
+                log::info!("* connected to local websocket server at {}", uri);
+                Ok(ws_stream)
+            }
+            Err(err) => {
+                log::error!(
+                    "Error: websocket connection attempt failed, is the Nym client running?"
+                );
+                Err(err.into())
+            }
+        }
+    }
+}
+
+impl NRServiceProvider {
+    async fn run(mut self) -> Result<(), NetworkRequesterError> {
+        // TODO: incorporate graceful shutdowns
+        loop {
+            let Some(reconstructed) = self.read_websocket_message().await else {
+                log::error!("The websocket stream has finished!");
+                return Err(NetworkRequesterError::ConnectionClosed);
+            };
+
+            let sender = reconstructed.sender_tag;
+            let request = match Socks5ProviderRequest::try_from_bytes(&reconstructed.message) {
+                Ok(req) => req,
+                Err(err) => {
+                    // TODO: or should it even be further lowered to debug/trace?
+                    log::warn!("Failed to deserialize received message: {err}");
+                    continue;
+                }
+            };
+
+            if let Err(err) = self.on_request(sender, request).await {
+                // TODO: again, should it be a warning?
+                // we should also probably log some information regarding the origin of the request
+                // so that it would be easier to debug it
+                log::warn!("failed to resolve the received request: {err}");
+            }
         }
     }
 
@@ -204,11 +386,8 @@ impl NRServiceProvider {
         }
     }
 
-    async fn read_websocket_message(
-        websocket_reader: &mut SplitStream<TSWebsocketStream>,
-        lane_queue_lengths: LaneQueueLengths,
-    ) -> Option<ReconstructedMessage> {
-        while let Some(msg) = websocket_reader.next().await {
+    async fn read_websocket_message(&mut self) -> Option<ReconstructedMessage> {
+        while let Some(msg) = self.websocket_stream.next().await {
             let data = match msg {
                 Ok(msg) => msg.into_data(),
                 Err(err) => {
@@ -233,7 +412,7 @@ impl NRServiceProvider {
                 ServerResponse::Received(received) => received,
                 ServerResponse::LaneQueueLength { lane, queue_length } => {
                     Self::handle_lane_queue_length_response(
-                        &lane_queue_lengths,
+                        &self.shared_lane_queue_lengths,
                         lane,
                         queue_length,
                     );
@@ -249,6 +428,7 @@ impl NRServiceProvider {
         None
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn start_proxy(
         remote_version: RequestVersion<Socks5Request>,
         connection_id: ConnectionId,
@@ -330,16 +510,11 @@ impl NRServiceProvider {
         );
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn handle_proxy_connect(
         &mut self,
         remote_version: RequestVersion<Socks5Request>,
-        controller_sender: &mut ControllerSender,
-        mix_input_sender: &MixProxySender<MixnetMessage>,
-        lane_queue_lengths: LaneQueueLengths,
         sender_tag: Option<AnonymousSenderTag>,
         connect_req: Box<ConnectRequest>,
-        shutdown: TaskClient,
     ) {
         let Some(return_address) = reply::MixnetAddress::new(connect_req.return_address, sender_tag) else {
             log::warn!(
@@ -360,15 +535,17 @@ impl NRServiceProvider {
                 conn_id,
                 log_msg,
             );
-            mix_input_sender
+            self.mix_input_sender
                 .send(msg)
                 .await
                 .expect("InputMessageReceiver has stopped receiving!");
             return;
         }
 
-        let controller_sender_clone = controller_sender.clone();
-        let mix_input_sender_clone = mix_input_sender.clone();
+        let controller_sender_clone = self.controller_sender.clone();
+        let mix_input_sender_clone = self.mix_input_sender.clone();
+        let lane_queue_lengths_clone = self.shared_lane_queue_lengths.clone();
+        let shutdown = self.shutdown.subscribe();
 
         // and start the proxy for this connection
         tokio::spawn(async move {
@@ -379,228 +556,14 @@ impl NRServiceProvider {
                 return_address,
                 controller_sender_clone,
                 mix_input_sender_clone,
-                lane_queue_lengths,
+                lane_queue_lengths_clone,
                 shutdown,
             )
             .await
         });
     }
 
-    fn handle_proxy_send(controller_sender: &mut ControllerSender, req: SendRequest) {
-        controller_sender.unbounded_send(req.into()).unwrap()
-    }
-
-    async fn handle_control_request(&mut self, _request: ControlRequest) {
-        todo!("received a control request which we don't know how to handle yet!")
-    }
-
-    // TODO: move most of those arguments onto `Self` instead
-    async fn handle_provider_request(
-        &mut self,
-        sender_tag: Option<AnonymousSenderTag>,
-        remote_version: RequestVersion<Socks5Request>,
-        request: Socks5Request,
-        controller_sender: &mut ControllerSender,
-        mix_input_sender: &MixProxySender<MixnetMessage>,
-        lane_queue_lengths: LaneQueueLengths,
-        stats_collector: Option<ServiceStatisticsCollector>,
-        shutdown: TaskClient,
-    ) {
-        match request.content {
-            Socks5RequestContent::Connect(req) => {
-                // TODO: stats might be invalid if connection fails to start
-                if let Some(stats_collector) = stats_collector {
-                    stats_collector
-                        .connected_services
-                        .write()
-                        .await
-                        .insert(req.conn_id, req.remote_addr.clone());
-                }
-                self.handle_proxy_connect(
-                    remote_version,
-                    controller_sender,
-                    mix_input_sender,
-                    lane_queue_lengths,
-                    sender_tag,
-                    req,
-                    shutdown,
-                )
-                .await
-            }
-
-            Socks5RequestContent::Send(req) => {
-                if let Some(stats_collector) = stats_collector {
-                    if let Some(remote_addr) = stats_collector
-                        .connected_services
-                        .read()
-                        .await
-                        .get(&req.conn_id)
-                    {
-                        stats_collector
-                            .request_stats_data
-                            .write()
-                            .await
-                            .processed(remote_addr, req.data.len() as u32);
-                    }
-                }
-                Self::handle_proxy_send(controller_sender, req)
-            }
-        }
-    }
-
-    async fn handle_proxy_message(
-        &mut self,
-        message: ReconstructedMessage,
-        controller_sender: &mut ControllerSender,
-        mix_input_sender: &MixProxySender<MixnetMessage>,
-        lane_queue_lengths: LaneQueueLengths,
-        stats_collector: Option<ServiceStatisticsCollector>,
-        shutdown: TaskClient,
-    ) {
-        let request = match Socks5ProviderRequest::try_from_bytes(&message.message) {
-            Ok(msg) => msg,
-            Err(err) => {
-                // TODO: or should it even be further lowered to debug/trace?
-                log::warn!("Failed to deserialize received message: {err}");
-                return;
-            }
-        };
-
-        println!(
-            "received request of version {:?}",
-            request.interface_version
-        );
-
-        match request.content {
-            RequestContent::Control(control_request) => {
-                self.handle_control_request(control_request).await
-            }
-            RequestContent::ProviderData(provider_request) => {
-                let request_version = RequestVersion::new(
-                    request.interface_version,
-                    provider_request.protocol_version,
-                );
-
-                self.handle_provider_request(
-                    message.sender_tag,
-                    request_version,
-                    provider_request,
-                    controller_sender,
-                    mix_input_sender,
-                    lane_queue_lengths,
-                    stats_collector,
-                    shutdown,
-                )
-                .await
-            }
-        }
-    }
-
-    /// Start all subsystems
-    pub async fn run(&mut self) -> Result<(), NetworkRequesterError> {
-        let websocket_stream = self.connect_websocket(&self.websocket_address).await?;
-
-        // split the websocket so that we could read and write from separate threads
-        let (websocket_writer, mut websocket_reader) = websocket_stream.split();
-
-        // channels responsible for managing messages that are to be sent to the mix network. The receiver is
-        // going to be used by `mixnet_response_listener`
-        let (mix_input_sender, mix_input_receiver) = tokio::sync::mpsc::channel::<MixnetMessage>(1);
-
-        // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
-        let shutdown = task::TaskManager::default();
-
-        // Channel for announcing client connection state by the controller.
-        // The `mixnet_response_listener` will use this to either report closed connection to the
-        // client or request lane queue lengths.
-        let (client_connection_tx, client_connection_rx) = mpsc::unbounded();
-
-        // Shared queue length data. Published by the `OutQueueController` in the client, and used
-        // primarily to throttle incoming connections
-        let shared_lane_queue_lengths = LaneQueueLengths::new();
-
-        // Controller for managing all active connections.
-        // We provide it with a ShutdownListener since it requires it, even though for the network
-        // requester shutdown signalling is not yet fully implemented.
-        let (mut active_connections_controller, mut controller_sender) = Controller::new(
-            client_connection_tx,
-            BroadcastActiveConnections::On,
-            shutdown.subscribe(),
-        );
-
-        tokio::spawn(async move {
-            active_connections_controller.run().await;
-        });
-
-        let stats_collector = if self.enable_statistics {
-            let stats_collector =
-                ServiceStatisticsCollector::new(self.stats_provider_addr, mix_input_sender.clone())
-                    .await
-                    .expect("Service statistics collector could not be bootstrapped");
-            let mut stats_sender = StatisticsSender::new(stats_collector.clone());
-
-            tokio::spawn(async move {
-                stats_sender.run().await;
-            });
-            Some(stats_collector)
-        } else {
-            None
-        };
-
-        let stats_collector_clone = stats_collector.clone();
-        // start the listener for mix messages
-        tokio::spawn(async move {
-            Self::mixnet_response_listener(
-                websocket_writer,
-                mix_input_receiver,
-                stats_collector_clone,
-                client_connection_rx,
-            )
-            .await;
-        });
-
-        log::info!("All systems go. Press CTRL-C to stop the server.");
-        // for each incoming message from the websocket... (which in 99.99% cases is going to be a mix message)
-        loop {
-            let Some(received) = Self::read_websocket_message(
-                    &mut websocket_reader,
-                    shared_lane_queue_lengths.clone()
-                )
-                .await
-            else {
-                log::error!("The websocket stream has finished!");
-                return Err(NetworkRequesterError::ConnectionClosed);
-            };
-
-            // TODO: imo this should be refactored so that those fields are part of 'self'
-            self.handle_proxy_message(
-                received,
-                &mut controller_sender,
-                &mix_input_sender,
-                shared_lane_queue_lengths.clone(),
-                stats_collector.clone(),
-                shutdown.subscribe(),
-            )
-            .await;
-        }
-    }
-
-    // Make the websocket connection so we can receive incoming Mixnet messages.
-    async fn connect_websocket(
-        &self,
-        uri: &str,
-    ) -> Result<TSWebsocketStream, NetworkRequesterError> {
-        match websocket::Connection::new(uri).connect().await {
-            Ok(ws_stream) => {
-                log::info!("* connected to local websocket server at {}", uri);
-                Ok(ws_stream)
-            }
-            Err(err) => {
-                log::error!(
-                    "Error: websocket connection attempt failed, is the Nym client running?"
-                );
-                Err(err.into())
-            }
-        }
+    fn handle_proxy_send(&mut self, req: SendRequest) {
+        self.controller_sender.unbounded_send(req.into()).unwrap()
     }
 }

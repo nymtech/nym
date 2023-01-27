@@ -45,29 +45,29 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --manifest-path nym-connect-android/Cargo.toml --workspace
+          args: --manifest-path nym-connect-android/src-tauri/Cargo.toml --workspace
 
       - name: Run all tests
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path nym-connect-android/Cargo.toml --workspace
+          args: --manifest-path nym-connect-android/src-tauri/Cargo.toml --workspace
 
       - name: Check formatting
         uses: actions-rs/cargo@v1
         with:
           command: fmt
-          args: --manifest-path nym-connect-android/Cargo.toml --all -- --check
+          args: --manifest-path nym-connect-android/src-tauri/Cargo.toml --all -- --check
 
       - uses: actions-rs/clippy-check@v1
         name: Clippy checks
         continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --manifest-path nym-connect-android/Cargo.toml --workspace --all-features
+          args: --manifest-path nym-connect-android/src-tauri/Cargo.toml --workspace --all-features
 
       - name: Run clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --manifest-path nym-connect-android/Cargo.toml --workspace --all-features -- -D warnings
+          args: --manifest-path nym-connect-android/src-tauri/Cargo.toml --workspace --all-features -- -D warnings

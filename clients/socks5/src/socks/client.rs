@@ -18,7 +18,7 @@ use proxy_helpers::proxy_runner::ProxyRunner;
 use rand::RngCore;
 use service_providers_common::interface::{ProviderInterfaceVersion, RequestVersion};
 use socks5_requests::{
-    ConnectionId, PlaceholderRequest, RemoteAddress, Socks5ProtocolVersion, Socks5Request,
+    ConnectionId, RemoteAddress, Socks5ProtocolVersion, Socks5ProviderRequest, Socks5Request,
 };
 use std::io;
 use std::net::SocketAddr;
@@ -319,7 +319,7 @@ impl SocksClient {
             None,
         );
         let msg =
-            PlaceholderRequest::new_provider_data(self.config.provider_interface_version, req);
+            Socks5ProviderRequest::new_provider_data(self.config.provider_interface_version, req);
 
         let input_message = InputMessage::new_anonymous(
             self.service_provider,
@@ -342,7 +342,7 @@ impl SocksClient {
             Some(self.self_address),
         );
         let msg =
-            PlaceholderRequest::new_provider_data(self.config.provider_interface_version, req);
+            Socks5ProviderRequest::new_provider_data(self.config.provider_interface_version, req);
 
         let input_message = InputMessage::new_regular(
             self.service_provider,
@@ -402,7 +402,7 @@ impl SocksClient {
                 read_data,
                 socket_closed,
             );
-            let provider_message = PlaceholderRequest::new_provider_data(
+            let provider_message = Socks5ProviderRequest::new_provider_data(
                 request_version.provider_interface,
                 provider_request,
             );

@@ -1,5 +1,6 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
+
 use crate::allowed_hosts;
 use crate::allowed_hosts::OutboundRequestFilter;
 use crate::error::NetworkRequesterError;
@@ -8,6 +9,8 @@ use crate::statistics::ServiceStatisticsCollector;
 use crate::websocket;
 use crate::websocket::TSWebsocketStream;
 use crate::{reply, socks5};
+use async_trait::async_trait;
+use build_information::BinaryBuildInformation;
 use client_connections::{
     ConnectionCommand, ConnectionCommandReceiver, LaneQueueLengths, TransmissionLane,
 };
@@ -22,11 +25,13 @@ use proxy_helpers::connection_controller::{
 };
 use proxy_helpers::proxy_runner::{MixProxyReader, MixProxySender};
 use service_providers_common::interface::{
-    ControlRequest, ProviderInterfaceVersion, RequestContent, RequestVersion,
+    BinaryInformation, ControlRequest, ProviderInterfaceVersion, Request, RequestContent,
+    RequestVersion,
 };
+use service_providers_common::ServiceProvider;
 use socks5_requests::{
-    ConnectRequest, ConnectionId, NetworkData, PlaceholderRequest, SendRequest,
-    Socks5ProtocolVersion, Socks5Request, Socks5RequestContent,
+    ConnectRequest, ConnectionId, NetworkData, SendRequest, Socks5ProtocolVersion,
+    Socks5ProviderRequest, Socks5Request, Socks5RequestContent, Socks5Response,
 };
 use statistics_common::collector::StatisticsSender;
 use std::path::PathBuf;
@@ -45,7 +50,7 @@ pub(crate) fn new_legacy_request_version() -> RequestVersion<Socks5Request> {
     }
 }
 
-pub struct ServiceProvider {
+pub struct NRServiceProvider {
     websocket_address: String,
     outbound_request_filter: OutboundRequestFilter,
     open_proxy: bool,
@@ -53,13 +58,50 @@ pub struct ServiceProvider {
     stats_provider_addr: Option<Recipient>,
 }
 
-impl ServiceProvider {
+#[async_trait]
+impl ServiceProvider<Socks5Request> for NRServiceProvider {
+    type ServiceProviderError = NetworkRequesterError;
+
+    async fn on_request(
+        &mut self,
+        sender: Option<AnonymousSenderTag>,
+        request: Request<Socks5Request>,
+    ) -> Result<(), Self::ServiceProviderError> {
+        if let Some(response) = self.handle_request(request).await? {
+            //
+        }
+        Ok(())
+    }
+
+    async fn handle_binary_info_control_request(
+        &self,
+    ) -> Result<BinaryInformation, Self::ServiceProviderError> {
+        Ok(BinaryInformation {
+            binary_name: env!("CARGO_PKG_NAME").to_string(),
+            build_information: BinaryBuildInformation::new(env!("CARGO_PKG_VERSION")).to_owned(),
+        })
+    }
+
+    async fn handle_provider_data_request(
+        &mut self,
+        request: Socks5Request,
+        interface_version: ProviderInterfaceVersion,
+    ) -> Result<Option<Socks5Response>, Self::ServiceProviderError> {
+        todo!()
+        // match request.content {
+        //     Socks5RequestContent::Connect(_) => {}
+        //     Socks5RequestContent::Send(_) => {}
+        // }
+    }
+}
+
+impl NRServiceProvider {
     pub async fn new(
         websocket_address: String,
         open_proxy: bool,
         enable_statistics: bool,
         stats_provider_addr: Option<Recipient>,
-    ) -> ServiceProvider {
+    ) -> NRServiceProvider {
         let standard_hosts = allowed_hosts::fetch_standard_allowed_list().await;
 
         log::info!("Standard allowed hosts: {:?}", standard_hosts);
@@ -77,7 +119,7 @@ impl ServiceProvider {
         );
 
         let outbound_request_filter = OutboundRequestFilter::new(allowed_hosts, unknown_hosts);
-        ServiceProvider {
+        NRServiceProvider {
             websocket_address,
             outbound_request_filter,
             open_proxy,
@@ -415,7 +457,7 @@ impl ServiceProvider {
         stats_collector: Option<ServiceStatisticsCollector>,
         shutdown: TaskClient,
     ) {
-        let request = match PlaceholderRequest::try_from_bytes(&message.message) {
+        let request = match Socks5ProviderRequest::try_from_bytes(&message.message) {
             Ok(msg) => msg,
             Err(err) => {
                 // TODO: or should it even be further lowered to debug/trace?

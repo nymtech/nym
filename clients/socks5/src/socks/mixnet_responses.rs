@@ -7,7 +7,7 @@ use client_core::client::received_buffer::{ReceivedBufferMessage, ReceivedBuffer
 use nymsphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::ControllerSender;
 use service_providers_common::interface::{ControlResponse, ResponseContent};
-use socks5_requests::{PlaceholderResponse, Socks5Response, Socks5ResponseContent};
+use socks5_requests::{Socks5ProviderResponse, Socks5Response, Socks5ResponseContent};
 use task::TaskClient;
 
 use crate::error::Socks5ClientError;
@@ -89,7 +89,7 @@ impl MixnetResponseListener {
         if reconstructed_message.sender_tag.is_some() {
             warn!("this message was sent anonymously - it couldn't have come from the service provider");
         }
-        match PlaceholderResponse::try_from_bytes(&raw_message) {
+        match Socks5ProviderResponse::try_from_bytes(&raw_message) {
             Err(err) => {
                 warn!("failed to parse received response: {err}");
                 Ok(())

@@ -6,8 +6,13 @@ use crate::interface::{
     Request, RequestContent, Response, ResponseContent, ServiceProviderRequest,
 };
 use async_trait::async_trait;
+use nymsphinx_anonymous_replies::requests::AnonymousSenderTag;
 
 pub mod interface;
+
+// FUTURE WORK:
+// for next version (v4) of the interface, refactor `reply::MixnetAddress` from the socks5 SP
+// and move it here so that you could optionally attach your sender address with any request for easier responses
 
 /// Trait that every ServiceProvider on the Nym network should implement and adhere to.
 #[async_trait]
@@ -17,6 +22,14 @@ where
     Self: Sync,
 {
     type ServiceProviderError: From<<T as ServiceProviderRequest>::Error>;
+
+    // TODO: refactor to use some version of `reply::MixnetAddress`
+    // in case explicit address was provided
+    async fn on_request(
+        &mut self,
+        sender: Option<AnonymousSenderTag>,
+        request: Request<T>,
+    ) -> Result<(), Self::ServiceProviderError>;
 
     async fn handle_request(
         &mut self,

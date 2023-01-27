@@ -5,7 +5,7 @@ use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use service_providers_common::interface::RequestVersion;
 use socks5_requests::{
-    ConnectionId, NetworkData, PlaceholderRequest, PlaceholderResponse, Socks5Request,
+    ConnectionId, NetworkData, Socks5ProviderRequest, Socks5ProviderResponse, Socks5Request,
     Socks5RequestContent, Socks5Response, Socks5ResponseContent,
 };
 use std::fmt::{Debug, Formatter};
@@ -36,7 +36,7 @@ impl MixnetMessage {
     pub(crate) fn new_provider_data_response<A: Into<MixnetAddress>>(
         address: A,
         connection_id: ConnectionId,
-        msg: PlaceholderResponse,
+        msg: Socks5ProviderResponse,
     ) -> Self {
         MixnetMessage {
             address: address.into(),
@@ -48,7 +48,7 @@ impl MixnetMessage {
     pub(crate) fn new_provider_data_request<A: Into<MixnetAddress>>(
         address: A,
         connection_id: ConnectionId,
-        msg: PlaceholderRequest,
+        msg: Socks5ProviderRequest,
     ) -> Self {
         MixnetMessage {
             address: address.into(),
@@ -63,7 +63,7 @@ impl MixnetMessage {
         connection_id: ConnectionId,
         content: Socks5RequestContent,
     ) -> Self {
-        let msg = PlaceholderRequest::new_provider_data(
+        let msg = Socks5ProviderRequest::new_provider_data(
             request_version.provider_interface,
             Socks5Request::new(request_version.provider_protocol, content),
         );
@@ -82,7 +82,8 @@ impl MixnetMessage {
             request_version.provider_protocol,
             Socks5ResponseContent::NetworkData(content),
         );
-        let msg = PlaceholderResponse::new_provider_data(request_version.provider_interface, res);
+        let msg =
+            Socks5ProviderResponse::new_provider_data(request_version.provider_interface, res);
 
         Self::new_provider_data_response(address, connection_id, msg)
     }
@@ -99,7 +100,8 @@ impl MixnetMessage {
             connection_id,
             error_message,
         );
-        let msg = PlaceholderResponse::new_provider_data(request_version.provider_interface, res);
+        let msg =
+            Socks5ProviderResponse::new_provider_data(request_version.provider_interface, res);
 
         Self::new_provider_data_response(address, connection_id, msg)
     }

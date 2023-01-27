@@ -3,12 +3,12 @@
 
 use crate::dealers::storage::{current_dealers, past_dealers};
 use crate::dealings::storage::DEALINGS_BYTES;
-use crate::epoch_state::storage::{CURRENT_EPOCH, THRESHOLD};
+use crate::epoch_state::storage::{CURRENT_EPOCH, INITIAL_REPLACEMENT_DATA, THRESHOLD};
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::STATE;
-use coconut_dkg_common::types::{Epoch, EpochState};
-use cosmwasm_std::{DepsMut, Env, Order, Response, Storage};
+use coconut_dkg_common::types::{Epoch, EpochState, InitialReplacementData};
+use cosmwasm_std::{Addr, Deps, DepsMut, Env, Order, Response, Storage};
 
 fn reset_epoch_state(storage: &mut dyn Storage) -> Result<(), ContractError> {
     THRESHOLD.remove(storage);
@@ -27,13 +27,13 @@ fn reset_epoch_state(storage: &mut dyn Storage) -> Result<(), ContractError> {
     Ok(())
 }
 
-fn dealers_still_active(deps: &DepsMut<'_>) -> Result<usize, ContractError> {
+fn dealers_still_active(
+    deps: &Deps<'_>,
+    dealers: impl Iterator<Item = Addr>,
+) -> Result<usize, ContractError> {
     let state = STATE.load(deps.storage)?;
     let mut still_active = 0;
-    for dealer_addr in current_dealers()
-        .keys(deps.storage, None, None, Order::Ascending)
-        .flatten()
-    {
+    for dealer_addr in dealers {
         if state
             .group_addr
             .is_voting_member(&deps.querier, &dealer_addr, None)?
@@ -46,7 +46,12 @@ fn dealers_still_active(deps: &DepsMut<'_>) -> Result<usize, ContractError> {
 }
 
 fn dealers_eq_members(deps: &DepsMut<'_>) -> Result<bool, ContractError> {
-    let dealers_still_active = dealers_still_active(&deps)?;
+    let dealers_still_active = dealers_still_active(
+        &deps.as_ref(),
+        current_dealers()
+            .keys(deps.storage, None, None, Order::Ascending)
+            .flatten(),
+    )?;
     let all_dealers = current_dealers()
         .keys(deps.storage, None, None, Order::Ascending)
         .count();
@@ -57,6 +62,17 @@ fn dealers_eq_members(deps: &DepsMut<'_>) -> Result<bool, ContractError> {
         .len();
 
     Ok(dealers_still_active == all_dealers && all_dealers == group_members)
+}
+
+fn replacement_threshold_surpassed(deps: &DepsMut<'_>) -> Result<bool, ContractError> {
+    let threshold = THRESHOLD.load(deps.storage)? as usize;
+    let initial_dealers = INITIAL_REPLACEMENT_DATA.load(deps.storage)?.initial_dealers;
+    let initial_dealer_count = initial_dealers.len();
+    let replacement_threshold = threshold - (initial_dealers.len() + 2 - 1) / 2 + 1;
+    let removed_dealer_count =
+        initial_dealer_count - dealers_still_active(&deps.as_ref(), initial_dealers.into_iter())?;
+
+    Ok(removed_dealer_count >= replacement_threshold)
 }
 
 pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, ContractError> {
@@ -73,13 +89,20 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
     let current_epoch = CURRENT_EPOCH.load(deps.storage)?;
     let next_epoch = if let Some(state) = current_epoch.state.next() {
         // We are during DKG process
-        if state == (EpochState::DealingExchange { resharing: false }) {
-            let current_dealer_count = current_dealers()
+        if let EpochState::DealingExchange { resharing } = state {
+            let current_dealers = current_dealers()
                 .keys(deps.storage, None, None, Order::Ascending)
-                .count();
+                .collect::<Result<Vec<Addr>, _>>()?;
             // note: ceiling in integer division can be achieved via q = (x + y - 1) / y;
-            let threshold = (2 * current_dealer_count as u64 + 3 - 1) / 3;
+            let threshold = (2 * current_dealers.len() as u64 + 3 - 1) / 3;
             THRESHOLD.save(deps.storage, &threshold)?;
+            if !resharing {
+                let replacement_data = InitialReplacementData {
+                    initial_dealers: current_dealers,
+                    initial_height: None,
+                };
+                INITIAL_REPLACEMENT_DATA.save(deps.storage, &replacement_data)?;
+            }
         }
         Epoch::new(
             state,
@@ -97,10 +120,21 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
             env.block.time,
         )
     } else {
-        // Dealer set changed, we need to redo DKG from scratch
+        // Dealer set changed, we need to redo DKG...
+        let state = if replacement_threshold_surpassed(&deps)? {
+            // ... in reset mode
+            EpochState::default()
+        } else {
+            // ... in reshare mode
+            INITIAL_REPLACEMENT_DATA.update(deps.storage, |mut data| {
+                data.initial_height = Some(env.block.height);
+                Ok(data)
+            })?;
+            EpochState::PublicKeySubmission { resharing: true }
+        };
         reset_epoch_state(deps.storage)?;
         Epoch::new(
-            EpochState::default(),
+            state,
             current_epoch.epoch_id + 1,
             current_epoch.time_configuration,
             env.block.time,
@@ -118,7 +152,10 @@ pub(crate) fn try_surpassed_threshold(
     check_epoch_state(deps.storage, EpochState::InProgress)?;
 
     let threshold = THRESHOLD.load(deps.storage)?;
-    if dealers_still_active(&deps)? < threshold as usize {
+    let dealers = current_dealers()
+        .keys(deps.storage, None, None, Order::Ascending)
+        .flatten();
+    if dealers_still_active(&deps.as_ref(), dealers)? < threshold as usize {
         reset_epoch_state(deps.storage)?;
         CURRENT_EPOCH.update::<_, ContractError>(deps.storage, |epoch| {
             Ok(Epoch::new(
@@ -168,7 +205,9 @@ pub(crate) mod tests {
                     weight: 10,
                 });
             }
-            assert_eq!(0, dealers_still_active(&deps.as_mut()).unwrap());
+            assert_eq!(0, dealers_still_active(&deps.as_ref(), current_dealers()
+        .keys(&deps.storage, None, None, Order::Ascending)
+        .flatten()).unwrap());
             for i in 0..3 as u64 {
                 let details = dealer_details_fixture(i + 1);
                 current_dealers()
@@ -176,7 +215,9 @@ pub(crate) mod tests {
                     .unwrap();
                 assert_eq!(
                     i as usize + 1,
-                    dealers_still_active(&deps.as_mut()).unwrap()
+                    dealers_still_active(&deps.as_ref(), current_dealers()
+        .keys(&deps.storage, None, None, Order::Ascending)
+        .flatten()).unwrap()
                 );
             }
         }

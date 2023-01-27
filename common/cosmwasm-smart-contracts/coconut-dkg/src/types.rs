@@ -18,6 +18,12 @@ pub type EpochId = u64;
 // 2 public attributes, 2 private attributes, 1 fixed for coconut credential
 pub const TOTAL_DEALINGS: usize = 2 + 2 + 1;
 
+#[derive(Serialize, Deserialize, Default, Clone, Debug, PartialEq, Eq, Ord, PartialOrd)]
+pub struct InitialReplacementData {
+    pub initial_dealers: Vec<Addr>,
+    pub initial_height: Option<u64>,
+}
+
 #[derive(
     Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq, Ord, PartialOrd, JsonSchema,
 )]

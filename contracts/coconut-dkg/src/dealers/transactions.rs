@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::dealers::storage as dealers_storage;
+use crate::epoch_state::storage::INITIAL_REPLACEMENT_DATA;
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use crate::state::{State, STATE};
@@ -11,7 +12,12 @@ use cosmwasm_std::{Addr, DepsMut, MessageInfo, Response};
 // currently we only require that
 // a) it's part of the signer group
 // b) it isn't already a dealer
-fn verify_dealer(deps: DepsMut<'_>, state: &State, dealer: &Addr) -> Result<(), ContractError> {
+fn verify_dealer(
+    deps: DepsMut<'_>,
+    state: &State,
+    dealer: &Addr,
+    resharing: bool,
+) -> Result<(), ContractError> {
     if dealers_storage::current_dealers()
         .may_load(deps.storage, dealer)?
         .is_some()
@@ -19,9 +25,14 @@ fn verify_dealer(deps: DepsMut<'_>, state: &State, dealer: &Addr) -> Result<(), 
         return Err(ContractError::AlreadyADealer);
     }
 
+    let height = if resharing {
+        INITIAL_REPLACEMENT_DATA.load(deps.storage)?.initial_height
+    } else {
+        None
+    };
     state
         .group_addr
-        .is_voting_member(&deps.querier, dealer, None)?
+        .is_voting_member(&deps.querier, dealer, height)?
         .ok_or(ContractError::Unauthorized {})?;
 
     Ok(())
@@ -37,7 +48,7 @@ pub fn try_add_dealer(
     check_epoch_state(deps.storage, EpochState::PublicKeySubmission { resharing })?;
     let state = STATE.load(deps.storage)?;
 
-    verify_dealer(deps.branch(), &state, &info.sender)?;
+    verify_dealer(deps.branch(), &state, &info.sender, resharing)?;
 
     // if it was already a dealer in the past, assign the same node index
     let node_index = if let Some(prior_details) =

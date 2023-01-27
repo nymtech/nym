@@ -3,6 +3,7 @@
 
 use crate::dealers::storage as dealers_storage;
 use crate::dealings::storage::DEALINGS_BYTES;
+use crate::epoch_state::storage::INITIAL_REPLACEMENT_DATA;
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
 use coconut_dkg_common::types::{ContractSafeBytes, EpochState};
@@ -21,6 +22,14 @@ pub fn try_commit_dealings(
         .is_none()
     {
         return Err(ContractError::NotADealer);
+    }
+    if resharing
+        && !INITIAL_REPLACEMENT_DATA
+            .load(deps.storage)?
+            .initial_dealers
+            .contains(&info.sender)
+    {
+        return Err(ContractError::NotAnInitialDealer);
     }
 
     // check if this dealer has already committed to all dealings

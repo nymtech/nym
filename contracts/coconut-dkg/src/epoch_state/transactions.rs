@@ -45,6 +45,20 @@ fn dealers_still_active(deps: &DepsMut<'_>) -> Result<usize, ContractError> {
     Ok(still_active)
 }
 
+fn dealers_eq_members(deps: &DepsMut<'_>) -> Result<bool, ContractError> {
+    let dealers_still_active = dealers_still_active(&deps)?;
+    let all_dealers = current_dealers()
+        .keys(deps.storage, None, None, Order::Ascending)
+        .count();
+    let group_members = STATE
+        .load(deps.storage)?
+        .group_addr
+        .list_members(&deps.querier, None, None)?
+        .len();
+
+    Ok(dealers_still_active == all_dealers && all_dealers == group_members)
+}
+
 pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, ContractError> {
     let epoch = CURRENT_EPOCH.load(deps.storage)?;
     if epoch.finish_timestamp > env.block.time {
@@ -73,14 +87,9 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
             current_epoch.time_configuration,
             env.block.time,
         )
-    } else if dealers_still_active(&deps)?
-        == STATE
-            .load(deps.storage)?
-            .group_addr
-            .list_members(&deps.querier, None, None)?
-            .len()
-    {
+    } else if dealers_eq_members(&deps)? {
         // The dealer set hasn't changed, so we only extend the finish timestamp
+        // The epoch remains the same, as we use it as key for storing VKs
         Epoch::new(
             current_epoch.state,
             current_epoch.epoch_id,

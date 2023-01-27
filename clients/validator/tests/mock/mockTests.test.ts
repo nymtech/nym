@@ -1,5 +1,6 @@
 import { INyxdQuery } from "../../src/query-client";
-import { Mock } from "moq.ts";
+import { MixnetContractVersion } from "../../compiledTypes";
+import { Mock, Times } from "moq.ts";
 import expect from 'expect';
 
 describe("nym-client mocks", () => {
@@ -14,9 +15,33 @@ describe("nym-client mocks", () => {
     let rewardingIntervalNonce = 1;
     let gatewayowneraddress = "n1rqqw8km7a0rvf8lr6k8dsdqvvkyn2mglj7xxfm"
 
-    it("get contract version", async () => {
-        const contract = await client.setup((nym) => nym.getContractVersion(mixnet));
-        expect(contract).toBeTruthy();
+    it("get mixnet contract version data", async () => {
+        
+        //build the expected response type
+        let mix = <MixnetContractVersion>{
+            build_timestamp: "test",
+            commit_branch: "test",
+            build_version: "test",
+            rustc_version: "test",
+            commit_sha: "test",
+            commit_timestamp: "test"
+        }
+        
+        //buld the client and expect the response
+        const client = new Mock<INyxdQuery>().setup((nym) => nym.getContractVersion(mixnet)).returns(Promise.resolve(mix));
+        
+        const obj = client.object();
+        
+        //execute the method
+        let execute = await obj.getContractVersion(mixnet);
+        
+        client.verify(
+            (nym) => nym.getContractVersion(mixnet),
+            Times.Exactly(1)
+        );
+        
+        expect(execute).toStrictEqual(mix);
+        expect(execute).toBeTruthy();
     });
 
     it("get circulating supply", async () => {
@@ -109,3 +134,6 @@ describe("nym-client mocks", () => {
         expect(gateway).toBeTruthy();
     });
 });
+
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));

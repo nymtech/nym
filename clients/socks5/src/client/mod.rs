@@ -209,21 +209,23 @@ impl NymClient {
 
     pub async fn start(self) -> Result<TaskManager, Socks5ClientError> {
         #[cfg(not(feature = "mobile"))]
-        let fs_reply_surb_backend = non_wasm_helpers::setup_fs_reply_surb_backend(
-            Some(self.config.get_base().get_reply_surb_database_path()),
-            self.config.get_debug_settings(),
-        )
-        .await?;
-
-        #[cfg(feature = "mobile")]
-        let fs_reply_surb_backend =
-            setup_empty_reply_surb_backend(self.config.get_debug_settings());
-
         let base_builder = BaseClientBuilder::new_from_base_config(
             self.config.get_base(),
             self.key_manager,
             Some(Self::create_bandwidth_controller(&self.config).await),
-            fs_reply_surb_backend,
+            non_wasm_helpers::setup_fs_reply_surb_backend(
+                Some(self.config.get_base().get_reply_surb_database_path()),
+                self.config.get_debug_settings(),
+            )
+            .await?,
+        );
+
+        #[cfg(feature = "mobile")]
+        let base_builder = BaseClientBuilder::<_, QueryNyxdClient>::new_from_base_config(
+            self.config.get_base(),
+            self.key_manager,
+            None,
+            setup_empty_reply_surb_backend(self.config.get_debug_settings()),
         );
 
         let self_address = base_builder.as_mix_recipient();

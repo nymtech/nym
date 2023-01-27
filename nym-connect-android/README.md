@@ -37,6 +37,10 @@ Inside the `nym-connect-android/src-tauri` directory, run the following command:
 WRY_ANDROID_PACKAGE=net.nymtech.nym_connect_android WRY_ANDROID_LIBRARY=nym_connect_android cargo tauri android dev
 ```
 
+#### Debugging
+
+https://next--tauri.netlify.app/next/guides/debugging/application#mobile
+
 ## Production
 
 To build the application bundles (APK and AAB files), run the build command.

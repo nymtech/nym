@@ -75,15 +75,6 @@ impl AppBuilder {
                 crate::operations::connection::disconnect::start_disconnecting,
                 crate::operations::directory::get_services,
                 crate::operations::export::export_keys,
-                // crate::operations::window::hide_window,
-                // crate::operations::growth::test_and_earn::growth_tne_get_client_id,
-                // crate::operations::growth::test_and_earn::growth_tne_take_part,
-                // crate::operations::growth::test_and_earn::growth_tne_get_draws,
-                // crate::operations::growth::test_and_earn::growth_tne_ping,
-                // crate::operations::growth::test_and_earn::growth_tne_submit_wallet_address,
-                // crate::operations::growth::test_and_earn::growth_tne_enter_draw,
-                // crate::operations::growth::test_and_earn::growth_tne_toggle_window,
-                // crate::operations::help::log::help_log_toggle_window,
             ])
             .setup(move |app| {
                 if let Some(setup) = setup {

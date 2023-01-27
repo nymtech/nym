@@ -9,6 +9,7 @@ rm -rf ../../../../dist || true
 
 # run the build
 scripts/build.sh
+node scripts/buildPackageJson.mjs
 
 # move the output outside of the yarn/npm workspaces
 mkdir -p ../../../../dist

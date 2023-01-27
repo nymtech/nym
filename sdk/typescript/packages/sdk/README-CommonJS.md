@@ -60,18 +60,3 @@ Send a message to another user (you will need to know their address at a Gateway
   const recipient = '<< RECIPIENT ADDRESS GOES HERE >>';
   await nym.client.send({ payload, recipient });
 ```
-
-### Building from source
-
-You will need to have the Rust WASM toolchain installed. Please [follow the instructions here](https://rustwasm.github.io/docs/book/game-of-life/setup.html)
-to install `wasm-pack`.
-
-Make sure you have either Node 16 LTS or Node 18 LTS installed and are using it to do the build.
-
-Run these commands to build the SDK:
-```
-yarn
-yarn build:dev
-```
-
-The output bundle will be created in the `dist` directory.

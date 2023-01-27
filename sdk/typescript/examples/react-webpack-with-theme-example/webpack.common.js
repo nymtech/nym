@@ -1,6 +1,6 @@
 const path = require('path');
 const { mergeWithRules } = require('webpack-merge');
-const { webpackCommon } = require('@nymproject/webpack');
+const { webpackCommon } = require('../.webpack/webpack.base');
 
 module.exports = mergeWithRules({
   module: {

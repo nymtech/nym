@@ -20,17 +20,18 @@ import CallReceivedIcon from '@mui/icons-material/CallReceived';
 import PersonIcon from '@mui/icons-material/Person';
 import PersonOffIcon from '@mui/icons-material/PersonOff';
 import ErrorIcon from '@mui/icons-material/Error';
-import { NymLogo } from '@nymproject/react/logo/NymLogo';
-import { NymThemeProvider } from '@nymproject/mui-theme';
 import { useTheme } from '@mui/material/styles';
 import { useClipboard } from 'use-clipboard-copy';
 import { DropzoneDialog } from 'react-mui-dropzone';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import ArticleIcon from '@mui/icons-material/Article';
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile';
+import { NymThemeProvider } from './theme';
 import { ThemeToggle } from './ThemeToggle';
 import { AppContextProvider, useAppContext } from './context';
 import { MixnetContextProvider, parseBinaryMessageHeaders, useMixnetContext } from './context/mixnet';
+// eslint-disable-next-line import/no-relative-packages
+import Logo from '../../../../../assets/logo/logo-circle.svg';
 
 export const AppTheme: FCWithChildren = ({ children }) => {
   const { mode } = useAppContext();
@@ -227,7 +228,7 @@ export const Content: FCWithChildren = () => {
       <Box display="flex" flexDirection="row-reverse" pb={2}>
         <ThemeToggle />
       </Box>
-      <NymLogo height={50} />
+      <Logo height={50} width={50} />
       <h1>Nym Mixnet Chat App</h1>
       <Box mb={5}>
         <Typography>

@@ -9,7 +9,6 @@
     "@nymproject/sdk": "1"
   },
   "devDependencies": {
-    "@nymproject/eslint-config-react-typescript": "^1.0.0",
     "@types/jest": "^27.0.1",
     "@types/node": "^16.7.13",
     "@typescript-eslint/eslint-plugin": "^5.13.0",
@@ -31,16 +30,8 @@
     "typescript": "^4.6.2"
   },
   "scripts": {
-    "prestart": "yarn build:dependencies",
     "start": "npx parcel",
-    "start:only-this": "npx parcel",
-    "build:dependencies": "run-s build:dependencies:nym-client-wasm build:dependencies:ts-packages build:dependencies:sdk",
-    "build:dependencies:nym-client-wasm": "../../packages/nym-client-wasm/scripts/build.sh",
-    "build:dependencies:ts-packages": "cd ../../../.. && yarn && yarn build",
-    "build:dependencies:sdk": "cd ../../packages/sdk && yarn build",
-    "prebuild": "yarn build:dependencies",
     "build": "npx parcel build",
-    "build:only-this": "npx parcel build --log-level info",
     "build:serve": "npx serve dist",
     "test": "jest",
     "test:watch": "jest --watch",

@@ -6,9 +6,6 @@ use build_information::BinaryBuildInformationOwned;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
-pub struct Placeholder;
-
-#[derive(Debug)]
 pub enum ControlRequest {
     Health,
     BinaryInfo,
@@ -72,12 +69,17 @@ impl ControlRequest {
     }
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ErrorResponse {
+    message: String,
+}
+
 #[derive(Debug)]
 pub enum ControlResponse {
     Health,
     BinaryInfo(Box<BinaryInformation>),
     SupportedRequestVersions,
-    Error(Placeholder),
+    Error(ErrorResponse),
 }
 
 #[repr(u8)]
@@ -105,6 +107,7 @@ impl TryFrom<u8> for ControlResponseTag {
             _ if value == (Self::SupportedRequestVersions as u8) => {
                 Ok(Self::SupportedRequestVersions)
             }
+            _ if value == (Self::Error as u8) => Ok(Self::Error),
             received => Err(ServiceProviderMessagingError::InvalidControlResponseTag { received }),
         }
     }
@@ -134,7 +137,12 @@ impl Serializable for ControlResponse {
                 ),
             },
             ControlResponseTag::SupportedRequestVersions => todo!(),
-            ControlResponseTag::Error => todo!(),
+            ControlResponseTag::Error => match serde_json::from_slice(&b[1..]) {
+                Ok(error_response) => Ok(ControlResponse::Error(error_response)),
+                Err(source) => {
+                    Err(ServiceProviderMessagingError::MalformedErrorControlResponse { source })
+                }
+            },
         }
     }
 }
@@ -168,8 +176,8 @@ impl ControlResponse {
                 // (unless the serde's macro is bugged but at this point we're already out of luck)
                 serde_json::to_vec(&info).unwrap()
             }
+            ControlResponse::Error(error_response) => serde_json::to_vec(&error_response).unwrap(),
             ControlResponse::SupportedRequestVersions => todo!(),
-            ControlResponse::Error(_) => todo!(),
         }
     }
 }

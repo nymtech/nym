@@ -49,6 +49,9 @@ pub enum ServiceProviderMessagingError {
 
     #[error("the received binary information control response was malformed: {source}")]
     MalformedBinaryInfoControlResponse { source: serde_json::Error },
+
+    #[error("the received error control response was malformed: {source}")]
+    MalformedErrorControlResponse { source: serde_json::Error },
 }
 
 // can't use 'normal' trait (i.e. Serialize/Deserialize from serde) as `Socks5Message` uses custom serialization

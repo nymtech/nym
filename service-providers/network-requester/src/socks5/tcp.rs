@@ -6,7 +6,7 @@ use crate::reply::MixnetMessage;
 use client_connections::LaneQueueLengths;
 use proxy_helpers::connection_controller::ConnectionReceiver;
 use proxy_helpers::proxy_runner::{MixProxySender, ProxyRunner};
-use service_providers_common::interface::{ProviderInterfaceVersion, RequestVersion};
+use service_providers_common::interface::RequestVersion;
 use socks5_requests::{ConnectionId, RemoteAddress, Socks5Request};
 use std::io;
 use task::TaskClient;

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::interface::{
-    ControlResponse, EmptyMessage, ProviderInterfaceVersion, RequestContent, Serializable,
+    ControlResponse, EmptyMessage, ProviderInterfaceVersion, Serializable,
     ServiceProviderMessagingError, ServiceProviderRequest,
 };
 use log::warn;

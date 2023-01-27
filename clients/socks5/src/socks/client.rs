@@ -19,7 +19,6 @@ use rand::RngCore;
 use service_providers_common::interface::{ProviderInterfaceVersion, RequestVersion};
 use socks5_requests::{
     ConnectionId, PlaceholderRequest, RemoteAddress, Socks5ProtocolVersion, Socks5Request,
-    Socks5RequestContent,
 };
 use std::io;
 use std::net::SocketAddr;

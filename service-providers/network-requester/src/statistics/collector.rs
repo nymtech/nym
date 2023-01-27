@@ -11,7 +11,7 @@ use ordered_buffer::OrderedMessageSender;
 use proxy_helpers::proxy_runner::MixProxySender;
 use rand::RngCore;
 use serde::Deserialize;
-use service_providers_common::interface::{ProviderInterfaceVersion, RequestVersion};
+use service_providers_common::interface::RequestVersion;
 use socks5_requests::{ConnectionId, RemoteAddress, Socks5Request, Socks5RequestContent};
 use sqlx::types::chrono::{DateTime, Utc};
 use statistics_common::api::{

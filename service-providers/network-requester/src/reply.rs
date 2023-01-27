@@ -90,6 +90,7 @@ impl MixnetMessage {
         Self::new_provider_response(address, connection_id, msg)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn new_control_request<A: Into<MixnetAddress>>(
         address: A,
         request_version: ProviderInterfaceVersion,
@@ -100,6 +101,7 @@ impl MixnetMessage {
         Self::new_provider_request(address, 0, msg)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn new_control_response<A: Into<MixnetAddress>>(
         address: A,
         response_version: ProviderInterfaceVersion,

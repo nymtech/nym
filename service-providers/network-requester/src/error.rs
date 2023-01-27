@@ -1,5 +1,5 @@
 use crate::websocket::WebsocketConnectionError;
-use socks5_requests::MessageError;
+use socks5_requests::Socks5RequestError;
 
 #[derive(thiserror::Error, Debug)]
 pub enum NetworkRequesterError {
@@ -15,6 +15,6 @@ pub enum NetworkRequesterError {
     #[error("encountered an error while trying to handle a provider request: {source}")]
     ProviderRequestError {
         #[from]
-        source: MessageError,
+        source: Socks5RequestError,
     },
 }

@@ -1,7 +1,7 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{ConnectionId, MessageError, Socks5ProtocolVersion};
+use crate::{ConnectionId, Socks5ProtocolVersion, Socks5RequestError};
 use service_providers_common::interface::{Serializable, ServiceProviderResponse};
 use thiserror::Error;
 
@@ -52,7 +52,7 @@ pub struct Socks5Response {
 }
 
 impl Serializable for Socks5Response {
-    type Error = MessageError;
+    type Error = Socks5RequestError;
 
     // legacy responses had the format of
     // 1 (Message::RESPONSE_FLAG) || <data> for data responses

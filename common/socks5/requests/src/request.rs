@@ -1,7 +1,7 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{MessageError, Socks5ProtocolVersion, Socks5Response};
+use crate::{Socks5ProtocolVersion, Socks5RequestError, Socks5Response};
 use nymsphinx_addressing::clients::{Recipient, RecipientFormattingError};
 use service_providers_common::interface::{Serializable, ServiceProviderRequest};
 use std::convert::TryFrom;
@@ -81,7 +81,7 @@ pub struct Socks5Request {
 }
 
 impl Serializable for Socks5Request {
-    type Error = MessageError;
+    type Error = Socks5RequestError;
 
     // legacy requests had the format of
     // 0 (Message::REQUEST_FLAG) || 0 (RequestFlag::Connect) || <data> for connect requests
@@ -118,7 +118,7 @@ impl Serializable for Socks5Request {
 impl ServiceProviderRequest for Socks5Request {
     type ProtocolVersion = Socks5ProtocolVersion;
     type Response = Socks5Response;
-    type Error = MessageError;
+    type Error = Socks5RequestError;
 
     fn provider_specific_version(&self) -> Self::ProtocolVersion {
         self.protocol_version

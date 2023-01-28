@@ -21,11 +21,10 @@ export const ConnectionPage = () => {
     }
   });
 
-  const handleConnectClick = React.useCallback(async () => {
+  const handleConnectClick = async () => {
     const currentStatus = context.connectionStatus;
     if (currentStatus === 'connected' || currentStatus === 'disconnected') {
       setBusy(true);
-
       // eslint-disable-next-line default-case
       switch (currentStatus) {
         case 'disconnected':
@@ -40,8 +39,7 @@ export const ConnectionPage = () => {
       }
       setBusy(false);
     }
-    1;
-  }, [context.connectionStatus]);
+  };
 
   if (context.connectionStatus === 'connected')
     return (

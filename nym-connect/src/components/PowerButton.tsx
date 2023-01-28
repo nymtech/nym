@@ -10,14 +10,15 @@ export const PowerButton: FCWithChildren<{
 }> = ({ onClick, disabled, status }) => {
   const [hover, setHover] = React.useState<boolean>(false);
 
-  const handleClick = React.useCallback(() => {
+  const handleClick = () => {
     if (disabled === true) {
       return;
     }
     if (onClick) {
       onClick(status);
     }
-  }, [status, disabled]);
+  };
+
   return (
     <svg width="190" height="190" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
       <g

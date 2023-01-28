@@ -17,8 +17,8 @@ if (elem) {
   const root = createRoot(elem);
   root.render(
     <ErrorBoundary FallbackComponent={ErrorFallback}>
-      <ClientContextProvider>
-        <Router>
+      <Router>
+        <ClientContextProvider>
           <TestAndEarnContextProvider>
             <GlobalStyles styles={{ html: { borderRadius: 10 } }} />
             <NymMixnetTheme mode="dark">
@@ -27,8 +27,8 @@ if (elem) {
               </AppWindowFrame>
             </NymMixnetTheme>
           </TestAndEarnContextProvider>
-        </Router>
-      </ClientContextProvider>
+        </ClientContextProvider>
+      </Router>
     </ErrorBoundary>,
   );
 }

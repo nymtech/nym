@@ -23,7 +23,7 @@ export type TClientContext = {
   connectedSince?: DateTime;
   error?: Error;
   gatewayPerformance: GatewayPerformance;
-  selectedProvider: ServiceProvider | undefined;
+  selectedProvider?: ServiceProvider;
   setMode: (mode: ModeType) => void;
   clearError: () => void;
   setConnectionStatus: (connectionStatus: ConnectionStatusKind) => void;
@@ -141,12 +141,12 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     }
   }, []);
 
-  const setServiceProvider = useCallback(async (newServiceProvider?: ServiceProvider) => {
+  const setServiceProvider = async (newServiceProvider?: ServiceProvider) => {
     if (newServiceProvider) {
       await invoke('set_gateway', { gateway: newServiceProvider.gateway });
       await invoke('set_service_provider', { serviceProvider: newServiceProvider.address });
     }
-  }, []);
+  };
 
   const setSpInStorage = async (sp: ServiceProvider) => {
     await forage.setItem({
@@ -178,10 +178,12 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const setRandomSerivceProvider = async () => {
     if (serviceProviders) {
       const randomServiceProvider = getRandomSPFromList(serviceProviders);
+
       await setServiceProvider(randomServiceProvider);
       setSelectedProvider(randomServiceProvider);
     }
   };
+
   const clearError = () => setError(undefined);
 
   const contextValue = useMemo(
@@ -213,6 +215,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       connectionStats,
       connectedSince,
       gatewayPerformance,
+      selectedProvider,
     ],
   );
 

@@ -22,7 +22,7 @@ export const Disconnected: FCWithChildren<{
   serviceProvider?: ServiceProvider;
   clearError: () => void;
   onConnectClick: (status: ConnectionStatusKind) => void;
-}> = ({ status, error, busy, isError, onConnectClick, clearError, serviceProvider }) => {
+}> = ({ status, error, onConnectClick, clearError, serviceProvider }) => {
   return (
     <>
       {error && <InfoModal show title={error.title} description={error.message} onClose={clearError} />}
@@ -33,9 +33,7 @@ export const Disconnected: FCWithChildren<{
             <ConnectionTimer />
           </Box>
         }
-        ConnectButton={
-          <PowerButton onClick={() => onConnectClick?.('disconnected')} status={status} disabled={false} />
-        }
+        ConnectButton={<PowerButton onClick={onConnectClick} status={status} disabled={false} />}
         BottomContent={
           <Stack justifyContent="space-between" pt={1}>
             <Typography

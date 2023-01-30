@@ -24,10 +24,10 @@ pub enum ResponseContent<T: ServiceProviderRequest = EmptyMessage> {
 
 #[repr(u8)]
 pub enum ResponseTag {
-    /// Value tag representing [`Control`] variant of the [`Reponse`]
+    /// Value tag representing [`Control`] variant of the [`Response`]
     Control = 0x00,
 
-    /// Value tag representing [`ProviderData`] variant of the [`Reponse`]
+    /// Value tag representing [`ProviderData`] variant of the [`Response`]
     ProviderData = 0x01,
 }
 

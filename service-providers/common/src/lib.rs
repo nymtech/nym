@@ -80,7 +80,7 @@ where
                 }
                 ControlRequest::BinaryInfo => {
                     let info = self.handle_binary_info_control_request().await?;
-                    Some(ControlResponse::BinaryInfo(info))
+                    Some(ControlResponse::BinaryInfo(Box::new(info)))
                 }
                 ControlRequest::SupportedRequestVersions => {
                     let versions = self.handle_supported_request_versions_request().await?;

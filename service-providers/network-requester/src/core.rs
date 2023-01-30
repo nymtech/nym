@@ -514,7 +514,7 @@ impl NRServiceProvider {
         &mut self,
         remote_version: RequestVersion<Socks5Request>,
         sender_tag: Option<AnonymousSenderTag>,
-        connect_req: ConnectRequest,
+        connect_req: Box<ConnectRequest>,
     ) {
         let Some(return_address) = reply::MixnetAddress::new(connect_req.return_address, sender_tag) else {
             log::warn!(

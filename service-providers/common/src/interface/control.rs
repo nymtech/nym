@@ -89,7 +89,7 @@ pub struct ErrorResponse {
 #[derive(Debug)]
 pub enum ControlResponse {
     Health,
-    BinaryInfo(BinaryInformation),
+    BinaryInfo(Box<BinaryInformation>),
     SupportedRequestVersions(SupportedVersions),
     Error(ErrorResponse),
 }

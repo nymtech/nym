@@ -175,7 +175,7 @@ pub enum Socks5RequestContent {
     /// Start a new TCP connection to the specified `RemoteAddress` and send
     /// the request data up the connection.
     /// All responses produced on this `ConnectionId` should come back to the specified `Recipient`
-    Connect(ConnectRequest),
+    Connect(Box<ConnectRequest>),
 
     /// Re-use an existing TCP connection, sending more request data up it.
     Send(SendRequest),
@@ -188,11 +188,11 @@ impl Socks5RequestContent {
         remote_addr: RemoteAddress,
         return_address: Option<Recipient>,
     ) -> Socks5RequestContent {
-        Socks5RequestContent::Connect(ConnectRequest {
+        Socks5RequestContent::Connect(Box::new(ConnectRequest {
             conn_id,
             remote_addr,
             return_address,
-        })
+        }))
     }
 
     /// Construct a new Request::Send instance

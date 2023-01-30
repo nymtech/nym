@@ -45,7 +45,8 @@ const DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE: u32 = 100;
 
 const DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE: u32 = 500;
 
-const DEFAULT_MAXIMUM_REPLY_SURB_WAITING_PERIOD: Duration = Duration::from_secs(10);
+const DEFAULT_MAXIMUM_REPLY_SURB_REREQUEST_WAITING_PERIOD: Duration = Duration::from_secs(10);
+const DEFAULT_MAXIMUM_REPLY_SURB_DROP_WAITING_PERIOD: Duration = Duration::from_secs(5 * 60);
 
 // 12 hours
 const DEFAULT_MAXIMUM_REPLY_SURB_AGE: Duration = Duration::from_secs(12 * 60 * 60);
@@ -372,8 +373,12 @@ impl<T> Config<T> {
         self.debug.maximum_allowed_reply_surb_request_size
     }
 
-    pub fn get_maximum_reply_surb_waiting_period(&self) -> Duration {
-        self.debug.maximum_reply_surb_waiting_period
+    pub fn get_maximum_reply_surb_rerequest_waiting_period(&self) -> Duration {
+        self.debug.maximum_reply_surb_rerequest_waiting_period
+    }
+
+    pub fn get_maximum_reply_surb_drop_waiting_period(&self) -> Duration {
+        self.debug.maximum_reply_surb_drop_waiting_period
     }
 
     pub fn get_maximum_reply_surb_age(&self) -> Duration {
@@ -663,7 +668,12 @@ pub struct DebugConfig {
     /// Defines maximum amount of time the client is going to wait for reply surbs before explicitly asking
     /// for more even though in theory they wouldn't need to.
     #[serde(with = "humantime_serde")]
-    pub maximum_reply_surb_waiting_period: Duration,
+    pub maximum_reply_surb_rerequest_waiting_period: Duration,
+
+    /// Defines maximum amount of time the client is going to wait for reply surbs before
+    /// deciding it's never going to get them and would drop all pending messages
+    #[serde(with = "humantime_serde")]
+    pub maximum_reply_surb_drop_waiting_period: Duration,
 
     /// Defines maximum amount of time given reply surb is going to be valid for.
     /// This is going to be superseded by key rotation once implemented.
@@ -704,7 +714,9 @@ impl Default for DebugConfig {
             minimum_reply_surb_request_size: DEFAULT_MINIMUM_REPLY_SURB_REQUEST_SIZE,
             maximum_reply_surb_request_size: DEFAULT_MAXIMUM_REPLY_SURB_REQUEST_SIZE,
             maximum_allowed_reply_surb_request_size: DEFAULT_MAXIMUM_ALLOWED_SURB_REQUEST_SIZE,
-            maximum_reply_surb_waiting_period: DEFAULT_MAXIMUM_REPLY_SURB_WAITING_PERIOD,
+            maximum_reply_surb_rerequest_waiting_period:
+                DEFAULT_MAXIMUM_REPLY_SURB_REREQUEST_WAITING_PERIOD,
+            maximum_reply_surb_drop_waiting_period: DEFAULT_MAXIMUM_REPLY_SURB_DROP_WAITING_PERIOD,
             maximum_reply_surb_age: DEFAULT_MAXIMUM_REPLY_SURB_AGE,
             maximum_reply_key_age: DEFAULT_MAXIMUM_REPLY_KEY_AGE,
         }

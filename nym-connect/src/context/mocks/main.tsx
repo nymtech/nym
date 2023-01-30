@@ -8,6 +8,8 @@ const mockValues: TClientContext = {
   connectionStatus: 'disconnected',
   selectedProvider: { id: '1', description: 'Keybase service provider', gateway: 'abc123', address: '123abc' },
   gatewayPerformance: 'Good',
+  showInfoModal: false,
+  setShowInfoModal: () => {},
   setMode: () => {},
   clearError: () => {},
   setConnectedSince: () => {},

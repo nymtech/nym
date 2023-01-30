@@ -24,11 +24,13 @@ export type TClientContext = {
   error?: Error;
   gatewayPerformance: GatewayPerformance;
   selectedProvider?: ServiceProvider;
+  showInfoModal: boolean;
   setMode: (mode: ModeType) => void;
   clearError: () => void;
   setConnectionStatus: (connectionStatus: ConnectionStatusKind) => void;
   setConnectionStats: (connectionStats: ConnectionStatsItem[] | undefined) => void;
   setConnectedSince: (connectedSince: DateTime | undefined) => void;
+  setShowInfoModal: (show: boolean) => void;
   setRandomSerivceProvider: () => void;
   startConnecting: () => Promise<void>;
   startDisconnecting: () => Promise<void>;
@@ -46,6 +48,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const [error, setError] = useState<Error>();
   const [appVersion, setAppVersion] = useState<string>();
   const [gatewayPerformance, setGatewayPerformance] = useState<GatewayPerformance>('Good');
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   const getAppVersion = async () => {
     const version = await getVersion();
@@ -178,7 +181,6 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const setRandomSerivceProvider = async () => {
     if (serviceProviders) {
       const randomServiceProvider = getRandomSPFromList(serviceProviders);
-
       await setServiceProvider(randomServiceProvider);
       setSelectedProvider(randomServiceProvider);
     }
@@ -196,6 +198,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       connectionStatus,
       setConnectionStatus,
       connectionStats,
+      showInfoModal,
       setConnectionStats,
       selectedProvider,
       connectedSince,
@@ -204,12 +207,14 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       startConnecting,
       startDisconnecting,
       gatewayPerformance,
+      setShowInfoModal,
     }),
     [
       appVersion,
       mode,
       appVersion,
       error,
+      showInfoModal,
       connectedSince,
       connectionStatus,
       connectionStats,

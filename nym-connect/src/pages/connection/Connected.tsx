@@ -14,6 +14,7 @@ import { PowerButton } from 'src/components/PowerButton';
 
 export const Connected: FCWithChildren<{
   status: ConnectionStatusKind;
+  showInfoModal: boolean;
   gatewayPerformance: GatewayPerformance;
   stats: ConnectionStatsItem[];
   ipAddress: string;
@@ -21,10 +22,12 @@ export const Connected: FCWithChildren<{
   connectedSince?: DateTime;
   busy?: boolean;
   isError?: boolean;
-  onConnectClick: (status: ConnectionStatusKind) => void;
   serviceProvider?: ServiceProvider;
+  onConnectClick: (status: ConnectionStatusKind) => void;
+  closeInfoModal: () => void;
 }> = ({
   status,
+  showInfoModal,
   gatewayPerformance,
   ipAddress,
   port,
@@ -33,18 +36,11 @@ export const Connected: FCWithChildren<{
   isError,
   serviceProvider,
   onConnectClick,
+  closeInfoModal,
 }) => {
-  const [showInfoModal, setShowInfoMdal] = useState(true);
-
   return (
     <>
-      <IpAddressAndPortModal
-        show={showInfoModal}
-        onClose={() => setShowInfoMdal(false)}
-        ipAddress={ipAddress}
-        port={port}
-      />
-
+      <IpAddressAndPortModal show={showInfoModal} onClose={closeInfoModal} ipAddress={ipAddress} port={port} />
       <ConnectionLayout
         TopContent={
           <Box>

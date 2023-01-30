@@ -13,7 +13,7 @@ export const ServiceProviderInfo = ({ serviceProvider }: { serviceProvider: Serv
     </Typography>
     <Divider />
     <Typography variant="caption" fontWeight="bold">
-      Provider <Typography variant="caption">{serviceProvider.address.slice(0, 35)}...</Typography>
+      Service provider <Typography variant="caption">{serviceProvider.address.slice(0, 35)}...</Typography>
     </Typography>
   </Stack>
 );

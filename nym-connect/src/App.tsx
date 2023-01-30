@@ -48,6 +48,8 @@ export const App: FCWithChildren = () => {
   return (
     <Connected
       status={context.connectionStatus}
+      showInfoModal={context.showInfoModal}
+      closeInfoModal={() => context.setShowInfoModal(false)}
       busy={busy}
       onConnectClick={handleConnectClick}
       ipAddress="127.0.0.1"

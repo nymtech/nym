@@ -31,6 +31,7 @@ export const ConnectionPage = () => {
           await context.setRandomSerivceProvider();
           await context.startConnecting();
           context.setConnectedSince(DateTime.now());
+          context.setShowInfoModal(true);
           break;
         case 'connected':
           await context.startDisconnecting();
@@ -41,10 +42,13 @@ export const ConnectionPage = () => {
     }
   };
 
+  const closeInfoModal = () => context.setShowInfoModal(false);
+
   if (context.connectionStatus === 'connected')
     return (
       <Connected
         status={context.connectionStatus}
+        showInfoModal={context.showInfoModal}
         busy={busy}
         onConnectClick={handleConnectClick}
         ipAddress="127.0.0.1"
@@ -52,6 +56,7 @@ export const ConnectionPage = () => {
         gatewayPerformance={context.gatewayPerformance}
         connectedSince={context.connectedSince}
         serviceProvider={context.selectedProvider}
+        closeInfoModal={closeInfoModal}
         stats={[
           {
             label: 'in:',

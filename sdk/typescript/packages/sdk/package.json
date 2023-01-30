@@ -1,22 +1,17 @@
 {
   "name": "@nymproject/sdk",
-  "version": "1.1.4",
+  "version": "1.1.6",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",
-  "main": "dist/index.js",
-  "types": "./dist/index.d.ts",
+  "type": "module",
+  "browser": "dist/esm/index.js",
+  "main": "dist/cjs/index.js",
+  "types": "./dist/esm/index.d.ts",
   "files": [
-    "dist/worker.js",
-    "dist/nym_client_wasm.d.ts",
-    "dist/nym_client_wasm.js",
-    "dist/nym_client_wasm_bg.wasm",
-    "dist/nym_client_wasm_bg.wasm.d.ts",
+    "dist/esm/worker.js",
+    "dist/cjs/worker.js",
     "dist/**/*"
   ],
-  "exports": {
-    ".": "./dist/index.js",
-    "./mixnet/wasm/*": "./dist/mixnet/wasm/*"
-  },
   "scripts": {
     "start": "tsc -w",
     "clean": "rimraf dist",
@@ -28,19 +23,18 @@
     "build:dependencies:nym-client-wasm": "../nym-client-wasm/scripts/build.sh",
     "prebuild": "yarn build:dependencies",
     "build": "yarn build:only-this",
-    "build:only-this": "run-s build:worker build:tsc build:worker:move",
-    "postbuild:only-this": "yarn copy:readme",
-    "build:tsc": "tsc",
-    "build:worker": "rollup src/mixnet/wasm/worker.ts -c rollup.config.mjs",
-    "postbuild:worker": "rm -rf dist/index.d.ts dist/coconut dist/mixnet && mkdir -p dist/mixnet/wasm",
-    "build:worker:move": "rm dist/mixnet/wasm/worker.js && mv dist/worker.js dist/mixnet/wasm",
-    "copy:readme": "cp README.md dist"
+    "build:only-this": "scripts/build-prod.sh",
+    "build:dev": "yarn build:dev:only-this",
+    "build:dev:only-this": "scripts/build.sh"
   },
   "dependencies": {
     "comlink": "^4.3.1"
   },
   "devDependencies": {
     "@nymproject/eslint-config-react-typescript": "^1.0.0",
+    "@rollup/plugin-commonjs": "^24.0.1",
+    "@rollup/plugin-inject": "^5.0.3",
+    "@rollup/plugin-json": "^6.0.0",
     "@rollup/plugin-node-resolve": "^15.0.1",
     "@rollup/plugin-replace": "^5.0.2",
     "@rollup/plugin-terser": "^0.2.1",

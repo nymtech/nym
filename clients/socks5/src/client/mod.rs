@@ -8,9 +8,12 @@ use crate::socks::{
     authentication::{AuthenticationMethods, Authenticator, User},
     server::SphinxSocksServer,
 };
-use client_core::client::base_client::{
-    non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
-};
+
+#[cfg(feature = "mobile")]
+use client_core::client::base_client::helpers::setup_empty_reply_surb_backend;
+#[cfg(not(feature = "mobile"))]
+use client_core::client::base_client::non_wasm_helpers;
+use client_core::client::base_client::{BaseClientBuilder, ClientInput, ClientOutput, ClientState};
 use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use futures::channel::mpsc;
@@ -54,6 +57,18 @@ impl NymClient {
         }
     }
 
+    pub fn new_with_keys(config: Config, key_manager: Option<KeyManager>) -> Self {
+        let key_manager = key_manager.unwrap_or_else(|| {
+            let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
+            KeyManager::load_keys(&pathfinder).expect("failed to load stored keys")
+        });
+
+        NymClient {
+            config,
+            key_manager,
+        }
+    }
+
     async fn create_bandwidth_controller(config: &Config) -> BandwidthController<QueryNyxdClient> {
         let details = network_defaults::NymNetworkDetails::new_from_env();
         let mut client_config = validator_client::Config::try_from_nym_network_details(&details)
@@ -72,10 +87,15 @@ impl NymClient {
         client_config = client_config.with_urls(nyxd_url, api_url);
         let client = validator_client::Client::new_query(client_config)
             .expect("Could not construct query client");
-        BandwidthController::new(
-            credential_storage::initialise_storage(config.get_base().get_database_path()).await,
-            client,
-        )
+
+        #[cfg(not(feature = "mobile"))]
+        let storage =
+            credential_storage::initialise_storage(config.get_base().get_database_path()).await;
+
+        #[cfg(feature = "mobile")]
+        let storage = mobile_storage::PersistentStorage {};
+
+        BandwidthController::new(storage, client)
     }
 
     fn start_socks5_listener(
@@ -190,15 +210,22 @@ impl NymClient {
     }
 
     pub async fn start(self) -> Result<TaskManager, Socks5ClientError> {
+        #[cfg(not(feature = "mobile"))]
+        let fs_reply_surb_backend = non_wasm_helpers::setup_fs_reply_surb_backend(
+            Some(self.config.get_base().get_reply_surb_database_path()),
+            self.config.get_debug_settings(),
+        )
+        .await?;
+
+        #[cfg(feature = "mobile")]
+        let fs_reply_surb_backend =
+            setup_empty_reply_surb_backend(self.config.get_debug_settings());
+
         let base_builder = BaseClientBuilder::new_from_base_config(
             self.config.get_base(),
             self.key_manager,
             Some(Self::create_bandwidth_controller(&self.config).await),
-            non_wasm_helpers::setup_fs_reply_surb_backend(
-                Some(self.config.get_base().get_reply_surb_database_path()),
-                self.config.get_debug_settings(),
-            )
-            .await?,
+            fs_reply_surb_backend,
         );
 
         let self_address = base_builder.as_mix_recipient();

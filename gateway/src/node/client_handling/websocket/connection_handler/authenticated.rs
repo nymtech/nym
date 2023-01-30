@@ -52,23 +52,18 @@ pub(crate) enum RequestHandlingError {
     #[error("Nyxd Error - {0}")]
     NyxdError(#[from] validator_client::nyxd::error::NyxdError),
 
-    #[cfg(feature = "coconut")]
     #[error("Validator API error - {0}")]
     APIError(#[from] validator_client::ValidatorClientError),
 
-    #[cfg(feature = "coconut")]
     #[error("Not enough nym API endpoints provided. Needed {needed}, received {received}")]
     NotEnoughNymAPIs { received: usize, needed: usize },
 
-    #[cfg(feature = "coconut")]
     #[error("There was a problem with the proposal id: {reason}")]
     ProposalIdError { reason: String },
 
-    #[cfg(feature = "coconut")]
     #[error("Coconut interface error - {0}")]
     CoconutInterfaceError(#[from] coconut_interface::error::CoconutInterfaceError),
 
-    #[cfg(feature = "coconut")]
     #[error("Credential error - {0}")]
     CredentialError(#[from] credentials::error::Error),
 }
@@ -192,7 +187,6 @@ where
         }
     }
 
-    #[cfg(feature = "coconut")]
     /// Tries to handle the received bandwidth request by checking correctness of the received data
     /// and if successful, increases client's bandwidth by an appropriate amount.
     ///
@@ -200,7 +194,7 @@ where
     ///
     /// * `enc_credential`: raw encrypted bandwidth credential to verify.
     /// * `iv`: fresh iv used for the credential.
-    async fn handle_coconut_bandwidth(
+    async fn handle_bandwidth(
         &mut self,
         enc_credential: Vec<u8>,
         iv: Vec<u8>,
@@ -261,70 +255,6 @@ where
         let available_total = self.get_available_bandwidth().await?;
 
         Ok(ServerResponse::Bandwidth { available_total })
-    }
-
-    #[cfg(not(feature = "coconut"))]
-    /// Tries to handle the received bandwidth request by checking correctness of the received data
-    /// and if successful, increases client's bandwidth by an appropriate amount.
-    ///
-    /// # Arguments
-    ///
-    /// * `enc_credential`: raw encrypted bandwidth credential to verify.
-    /// * `iv`: fresh iv used for the credential.
-    async fn handle_token_bandwidth(
-        &mut self,
-        enc_credential: Vec<u8>,
-        iv: Vec<u8>,
-    ) -> Result<ServerResponse, RequestHandlingError> {
-        let iv = IV::try_from_bytes(&iv)?;
-        let credential = ClientControlRequest::try_from_enc_token_bandwidth_credential(
-            enc_credential,
-            &self.client.shared_keys,
-            iv,
-        )?;
-        if !self
-            .inner
-            .check_local_identity(&credential.gateway_identity())
-        {
-            return Err(RequestHandlingError::InvalidBandwidthCredential(
-                String::from("gateway"),
-            ));
-        }
-
-        if !credential.verify_signature() {
-            return Err(RequestHandlingError::InvalidBandwidthCredential(
-                String::from("gateway"),
-            ));
-        }
-
-        let bandwidth = Bandwidth::from(credential);
-        let bandwidth_value = bandwidth.value();
-
-        if bandwidth_value > i64::MAX as u64 {
-            // note that this would have represented more than 1 exabyte,
-            // which is like 125,000 worth of hard drives so I don't think we have
-            // to worry about it for now...
-            warn!("Somehow we received bandwidth value higher than 9223372036854775807. We don't really want to deal with this now");
-            return Err(RequestHandlingError::UnsupportedBandwidthValue(
-                bandwidth_value,
-            ));
-        }
-
-        self.increase_bandwidth(bandwidth_value as i64).await?;
-        let available_total = self.get_available_bandwidth().await?;
-
-        Ok(ServerResponse::Bandwidth { available_total })
-    }
-
-    async fn handle_bandwidth(
-        &mut self,
-        enc_credential: Vec<u8>,
-        iv: Vec<u8>,
-    ) -> Result<ServerResponse, RequestHandlingError> {
-        #[cfg(feature = "coconut")]
-        return self.handle_coconut_bandwidth(enc_credential, iv).await;
-        #[cfg(not(feature = "coconut"))]
-        return self.handle_token_bandwidth(enc_credential, iv).await;
     }
 
     async fn handle_claim_testnet_bandwidth(

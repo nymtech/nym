@@ -1,0 +1,70 @@
+name: Nym Connect for Android (rust)
+
+on:
+  push:
+    paths:
+      - "nym-connect-android/src-tauri/**"
+      - "clients/client-core/**"
+      - "clients/socks5/**"
+      - "common/**"
+      - "gateway/gateway-requests/**"
+      - "contracts/vesting/**"
+      - "nym-api/nym-api-requests/**"
+  pull_request:
+    paths:
+      - "nym-connect-android/src-tauri/**"
+      - "clients/client-core/**"
+      - "clients/socks5/**"
+      - "common/**"
+      - "gateway/gateway-requests/**"
+      - "contracts/vesting/**"
+      - "nym-api/nym-api-requests/**"
+
+jobs:
+  build:
+    #runs-on: [self-hosted, custom-linux]
+    runs-on: ubuntu-22.04
+    #env:
+      #RUSTC_WRAPPER: /home/ubuntu/.cargo/bin/sccache
+    #defaults:
+      #run:
+        #working-directory: nym-connect-android/src-tauri/
+    steps:
+      - name: Install Dependencies (Linux)
+        if: ${{ !env.ACT }}
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install \
+          libwebkit2gtk-4.1-dev \
+          build-essential \
+          curl \
+          wget \
+          libssl-dev \
+          libgtk-3-dev \
+          squashfs-tools \
+          libayatana-appindicator3-dev \
+          librsvg2-dev \
+          libsoup-3.0-dev \
+          libjavascriptcoregtk-4.1-dev
+        #continue-on-error: true
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+
+      - name: Check formatting
+        run: cargo fmt --manifest-path nym-connect-android/src-tauri/Cargo.toml -- --check
+
+      - name: Build all binaries
+        run: cargo build --manifest-path nym-connect-android/src-tauri/Cargo.toml
+
+      - name: Run all tests
+        run: cargo test  --manifest-path nym-connect-android/src-tauri/Cargo.toml
+
+      - name: Clippy
+        run: cargo clippy --manifest-path nym-connect-android/src-tauri/Cargo.toml --all-targets -- -D warnings

@@ -117,38 +117,6 @@ jobs:
         with:
           command: clean
 
-      # COCONUT stuff
-      - name: Build all binaries with coconut enabled
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --workspace --features=coconut
-
-      - name: Reclaim some disk space (because Windows is being annoying)
-        uses: actions-rs/cargo@v1
-        if: ${{ matrix.os == 'windows-latest' }}
-        with:
-          command: clean
-
-      - name: Run all tests with coconut enabled
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --workspace --features=coconut
-
-      - name: Reclaim some disk space (because Windows is being annoying)
-        uses: actions-rs/cargo@v1
-        if: ${{ matrix.os == 'windows-latest' }}
-        with:
-          command: clean
-
-      - name: Run clippy with coconut enabled
-        uses: actions-rs/cargo@v1
-        if: ${{ matrix.rust != 'nightly' }}
-        with:
-          command: clippy
-          args: --workspace --all-targets --features=coconut -- -D warnings
-
       # nym-wallet (the rust part)
       - name: Build nym-wallet rust code
         uses: actions-rs/cargo@v1

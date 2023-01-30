@@ -22,7 +22,6 @@ pub(crate) struct Run {
     id: String,
 
     /// Comma separated list of rest endpoints of the nyxd validators
-    #[cfg(feature = "coconut")]
     #[clap(long, alias = "nymd_validators", value_delimiter = ',')]
     nyxd_urls: Option<Vec<url::Url>>,
 
@@ -55,7 +54,6 @@ pub(crate) struct Run {
 
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
     /// with bandwidth credential requirement.
-    #[cfg(feature = "coconut")]
     #[clap(long)]
     enabled_credentials_mode: Option<bool>,
 }
@@ -68,10 +66,7 @@ impl From<Run> for OverrideConfig {
             port: run_config.port,
             fastmode: run_config.fastmode,
             no_cover: run_config.no_cover,
-
-            #[cfg(feature = "coconut")]
             nyxd_urls: run_config.nyxd_urls,
-            #[cfg(feature = "coconut")]
             enabled_credentials_mode: run_config.enabled_credentials_mode,
         }
     }

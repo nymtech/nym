@@ -30,11 +30,12 @@ url = "2.2"
 build-information = { path = "../../common/build-information" }
 client-core = { path = "../client-core", features = ["fs-surb-storage"] }
 client-connections = { path = "../../common/client-connections" }
-coconut-interface = { path = "../../common/coconut-interface", optional = true }
+coconut-interface = { path = "../../common/coconut-interface" }
 config = { path = "../../common/config" }
 completions = { path = "../../common/completions" }
-credential-storage = { path = "../../common/credential-storage" }
-credentials = { path = "../../common/credentials", optional = true }
+credential-storage = { path = "../../common/credential-storage", optional = true }
+mobile-storage = { path = "../../common/mobile-storage", optional = true }
+credentials = { path = "../../common/credentials" }
 crypto = { path = "../../common/crypto" }
 logging = { path = "../../common/logging"}
 gateway-client = { path = "../../common/client-libs/gateway-client" }
@@ -52,5 +53,6 @@ validator-client = { path = "../../common/client-libs/validator-client", feature
 version-checker = { path = "../../common/version-checker" }
 
 [features]
-coconut = ["coconut-interface", "credentials", "gateway-requests/coconut", "gateway-client/coconut", "credentials/coconut", "client-core/coconut"]
+default = ["credential-storage"]
 eth = []
+mobile = ["mobile-storage", "gateway-client/mobile"]

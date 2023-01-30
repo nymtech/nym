@@ -1,6 +1,6 @@
 const path = require('path');
 const { mergeWithRules } = require('webpack-merge');
-const { webpackCommon } = require('@nymproject/webpack');
+const { webpackCommon } = require('../.webpack/webpack.base');
 
 module.exports = mergeWithRules({
   module: {
@@ -21,7 +21,6 @@ module.exports = mergeWithRules({
   {
     entry: {
       index: path.resolve(__dirname, 'src/index.tsx'),
-      worker: require.resolve('@nymproject/sdk/mixnet/wasm/worker.js'),
     },
     output: {
       path: path.resolve(__dirname, 'dist'),

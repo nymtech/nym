@@ -14,11 +14,11 @@ const getStatusFillColor = (status: ConnectionStatusKind, hover: boolean, isErro
       if (hover) {
         return '#FFF';
       }
-      return '#CCC';
+      return '#BBB';
     case 'connecting':
       return '#FFF';
     case 'disconnecting':
-      return 'primary.main';
+      return '#FFF';
     default:
       // connected
       if (hover) {
@@ -61,15 +61,8 @@ export const PowerButton: FCWithChildren<{
       onMouseLeave={() => !disabled && setHover(false)}
     >
       <g transform="translate(-30, -25) ">
-        <g filter="url(#filter0_f_944_9033)">
-          <circle cx={131} cy={131} r={30} fill="url(#paint0_radial_944_9033)" />
-        </g>
-        <path
-          opacity={0.1}
-          d="M131 195.5C166.622 195.5 195.5 166.622 195.5 131C195.5 95.3776 166.622 66.5 131 66.5C95.3776 66.5 66.5 95.3776 66.5 131C66.5 166.622 95.3776 195.5 131 195.5Z"
-          stroke="white"
-        />
-
+        <circle cx={131} cy={131} r={70} strokeWidth={2} stroke={statusFillColor} filter="url(#blur)" opacity="0.6" />
+        <circle cx={131} cy={131} r={22} strokeWidth={1} stroke={statusFillColor} filter="url(#blur)" opacity="0.3" />
         <circle opacity={0.6} cx={131} cy={131} r={68.5} stroke={statusFillColor} />
         <g filter="url(#filter1_d_944_9033)">
           <circle cx={131} cy={131} r={64} fill="url(#paint1_radial_944_9033)" />
@@ -129,24 +122,9 @@ export const PowerButton: FCWithChildren<{
             <feBlend mode="normal" in="SourceGraphic" in2="BackgroundImageFix" result="shape" />
             <feGaussianBlur stdDeviation={5} result="effect1_foregroundBlur_944_9033" />
           </filter>
-          <radialGradient
-            id="paint0_radial_944_9033"
-            cx={0}
-            cy={0}
-            r={1}
-            gradientUnits="userSpaceOnUse"
-            gradientTransform="translate(131 131) rotate(90) scale(51)"
-          >
-            <stop stopColor="#1C1C1F" />
-            <stop offset={1} stopColor={statusFillColor} />
-          </radialGradient>
-
-          <clipPath id="clip0_944_9033">
-            <rect width={48} height={48} fill="white" transform="translate(107 107)" />
-          </clipPath>
-          <clipPath id="clip1_944_9033">
-            <rect width={48} height={48} fill="white" transform="translate(107 107)" />
-          </clipPath>
+          <filter id="blur">
+            <feGaussianBlur stdDeviation="5" />
+          </filter>
         </defs>
       </g>
     </svg>

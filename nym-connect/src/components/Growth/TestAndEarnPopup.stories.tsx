@@ -74,7 +74,7 @@ const Wrapper: FCWithChildren<{ text: React.ReactNode }> = ({ text }) => (
 );
 
 export const Stage0 = () => (
-  <MockProvider connectionStatus={'connected'}>
+  <MockProvider connectionStatus={ConnectionStatusKind.connected}>
     <MockTestAndEarnProvider_NotRegistered>
       <Wrapper text="The user sees this content when they have not joined Test&Earn." />
     </MockTestAndEarnProvider_NotRegistered>
@@ -82,7 +82,7 @@ export const Stage0 = () => (
 );
 
 export const Stage1EnterDraw = () => (
-  <MockProvider connectionStatus={'connected'}>
+  <MockProvider connectionStatus={ConnectionStatusKind.connected}>
     <MockTestAndEarnProvider_RegisteredWithDraws>
       <Wrapper text="The user has signed up and can see the next draw and choose the enter." />
     </MockTestAndEarnProvider_RegisteredWithDraws>
@@ -90,7 +90,7 @@ export const Stage1EnterDraw = () => (
 );
 
 export const Stage2GetTask = () => (
-  <MockProvider connectionStatus={'connected'}>
+  <MockProvider connectionStatus={ConnectionStatusKind.connected}>
     <MockTestAndEarnProvider_RegisteredWithDrawsAndEntry>
       <Wrapper text="The user has entered a draw and can view the word of the day if they missed the popup notification." />
     </MockTestAndEarnProvider_RegisteredWithDrawsAndEntry>
@@ -98,7 +98,7 @@ export const Stage2GetTask = () => (
 );
 
 export const Stage3Winner = () => (
-  <MockProvider connectionStatus={'connected'}>
+  <MockProvider connectionStatus={ConnectionStatusKind.connected}>
     <MockTestAndEarnProvider_RegisteredWithDrawsAndEntryAndWinner>
       <Wrapper text="The user has won and can claim their prize." />
     </MockTestAndEarnProvider_RegisteredWithDrawsAndEntryAndWinner>
@@ -106,7 +106,7 @@ export const Stage3Winner = () => (
 );
 
 export const Stage3NoPrize = () => (
-  <MockProvider connectionStatus={'connected'}>
+  <MockProvider connectionStatus={ConnectionStatusKind.connected}>
     <MockTestAndEarnProvider_RegisteredWithDrawsAndEntryAndNoWinner>
       <Wrapper text="The user has not won. A winner has been announced." />
     </MockTestAndEarnProvider_RegisteredWithDrawsAndEntryAndNoWinner>
@@ -114,7 +114,7 @@ export const Stage3NoPrize = () => (
 );
 
 export const Stage4EnterWalletAddress = () => (
-  <MockProvider connectionStatus={'connected'}>
+  <MockProvider connectionStatus={ConnectionStatusKind.connected}>
     <MockTestAndEarnProvider_RegisteredWithDrawsAndEntryAndWinnerCollectWallet>
       <Wrapper text="The user is a winner, claims their prize and enters their wallet address." />
     </MockTestAndEarnProvider_RegisteredWithDrawsAndEntryAndWinnerCollectWallet>
@@ -122,7 +122,7 @@ export const Stage4EnterWalletAddress = () => (
 );
 
 export const Stage5ClaimedPrize = () => (
-  <MockProvider connectionStatus={'connected'}>
+  <MockProvider connectionStatus={ConnectionStatusKind.connected}>
     <MockTestAndEarnProvider_RegisteredWithDrawsAndEntryAndWinnerClaimed>
       <Wrapper text="The user is a winner and has claimed their prize." />
     </MockTestAndEarnProvider_RegisteredWithDrawsAndEntryAndWinnerClaimed>
@@ -130,7 +130,7 @@ export const Stage5ClaimedPrize = () => (
 );
 
 export const Stage6DrawsFinished = () => (
-  <MockProvider connectionStatus={'connected'}>
+  <MockProvider connectionStatus={ConnectionStatusKind.connected}>
     <MockTestAndEarnProvider_RegisteredWithDrawsNoCurrent>
       <Wrapper text="There are no more draws. The user can see their entries and prizes they have claimed." />
     </MockTestAndEarnProvider_RegisteredWithDrawsNoCurrent>
@@ -138,7 +138,7 @@ export const Stage6DrawsFinished = () => (
 );
 
 export const Connecting = () => (
-  <MockProvider connectionStatus={'connecting'}>
+  <MockProvider connectionStatus={ConnectionStatusKind.connecting}>
     <TestAndEarnContextProvider>
       <Wrapper text="Test&Earn requires the user to be connected to talk the API. This is shown while connecting." />
     </TestAndEarnContextProvider>
@@ -146,7 +146,7 @@ export const Connecting = () => (
 );
 
 export const Disconnected = () => (
-  <MockProvider connectionStatus={'disconnected'}>
+  <MockProvider connectionStatus={ConnectionStatusKind.disconnected}>
     <TestAndEarnContextProvider>
       <Wrapper text="Test&Earn requires the user to be connected to talk the API. This is shown when not connected." />
     </TestAndEarnContextProvider>

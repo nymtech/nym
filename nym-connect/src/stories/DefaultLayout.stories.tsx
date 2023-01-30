@@ -13,14 +13,19 @@ const onClick = () => undefined;
 
 export const Default: ComponentStory<typeof Disconnected> = () => (
   <Box p={1} width={230} sx={{ bgcolor: 'nym.background.dark' }}>
-    <Disconnected status={'disconnected'} clearError={() => {}} error={undefined} onConnectClick={onClick} />
+    <Disconnected
+      status={ConnectionStatusKind.disconnected}
+      clearError={() => {}}
+      error={undefined}
+      onConnectClick={onClick}
+    />
   </Box>
 );
 
 export const WithServices: ComponentStory<typeof Disconnected> = () => (
   <Box p={1} width={230} sx={{ bgcolor: 'nym.background.dark' }}>
     <Disconnected
-      status={'disconnected'}
+      status={ConnectionStatusKind.disconnected}
       services={[
         {
           id: '1',

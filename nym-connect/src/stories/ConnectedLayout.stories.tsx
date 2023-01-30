@@ -3,6 +3,7 @@ import { ComponentMeta, ComponentStory } from '@storybook/react';
 import { Box } from '@mui/material';
 import { DateTime } from 'luxon';
 import { Connected } from 'src/pages/connection/Connected';
+import { ConnectionStatusKind } from 'src/types';
 
 const onClick = () => undefined;
 
@@ -19,7 +20,7 @@ export const Default: ComponentStory<typeof Connected> = () => (
       closeInfoModal={() => {
         return undefined;
       }}
-      status={'connected'}
+      status={ConnectionStatusKind.connected}
       connectedSince={DateTime.now()}
       ipAddress="127.0.0.1"
       serviceProvider={{ id: 'service 1', description: 'good services', address: 'abc123', gateway: '8910xyz' }}

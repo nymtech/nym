@@ -45,7 +45,7 @@ export const Connected: FCWithChildren<{
         TopContent={
           <Box>
             <ConnectionStatus
-              status={'connected'}
+              status={ConnectionStatusKind.connected}
               gatewayPerformance={gatewayPerformance}
               serviceProvider={serviceProvider}
             />

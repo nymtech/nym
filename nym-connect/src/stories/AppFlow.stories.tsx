@@ -4,10 +4,10 @@ import { Box } from '@mui/material';
 import { DateTime } from 'luxon';
 import { AppWindowFrame } from '../components/AppWindowFrame';
 import { useClientContext } from '../context/main';
-import {} from '../types';
 import { Services } from '../types/directory';
 import { Disconnected } from 'src/pages/connection/Disconnected';
 import { Connected } from 'src/pages/connection/Connected';
+import { ConnectionStatusKind } from 'src/types';
 
 export default {
   title: 'App/Flow',
@@ -42,10 +42,10 @@ export const Mock: ComponentStory<typeof AppWindowFrame> = () => {
       // eslint-disable-next-line default-case
       switch (oldStatus) {
         case 'disconnected':
-          context.setConnectionStatus('connecting');
+          context.setConnectionStatus(ConnectionStatusKind.connecting);
           break;
         case 'connected':
-          context.setConnectionStatus('disconnecting');
+          context.setConnectionStatus(ConnectionStatusKind.disconnecting);
           break;
       }
 
@@ -54,10 +54,10 @@ export const Mock: ComponentStory<typeof AppWindowFrame> = () => {
         switch (oldStatus) {
           case 'disconnected':
             context.setConnectedSince(DateTime.now());
-            context.setConnectionStatus('connected');
+            context.setConnectionStatus(ConnectionStatusKind.connected);
             break;
           case 'connected':
-            context.setConnectionStatus('disconnected');
+            context.setConnectionStatus(ConnectionStatusKind.disconnected);
             break;
         }
         setBusy(false);
@@ -65,7 +65,10 @@ export const Mock: ComponentStory<typeof AppWindowFrame> = () => {
     }
   }, [context.connectionStatus]);
 
-  if (context.connectionStatus === 'disconnected' || context.connectionStatus === 'connecting') {
+  if (
+    context.connectionStatus === ConnectionStatusKind.disconnected ||
+    context.connectionStatus === ConnectionStatusKind.connecting
+  ) {
     return (
       <Box width={width} height={height}>
         <AppWindowFrame>

@@ -4,7 +4,7 @@ import { DateTime } from 'luxon';
 import { ConnectionStatusKind, GatewayPerformance } from '../types';
 import { ServiceProvider } from '../types/directory';
 import { GatwayWarningInfo, ServiceProviderInfo } from './TooltipInfo';
-import { InfoOutlined } from '@mui/icons-material';
+import { ErrorOutline, InfoOutlined } from '@mui/icons-material';
 
 const FONT_SIZE = '14px';
 const FONT_WEIGHT = '600';
@@ -13,7 +13,27 @@ const FONT_STYLE = 'normal';
 const ConnectionStatusContent: FCWithChildren<{
   status: ConnectionStatusKind;
   serviceProvider?: ServiceProvider;
-}> = ({ status, serviceProvider }) => {
+  gatewayError: boolean;
+}> = ({ status, serviceProvider, gatewayError }) => {
+  if (gatewayError) {
+    return (
+      <Tooltip title={serviceProvider ? <GatwayWarningInfo /> : undefined}>
+        <Box
+          display="flex"
+          alignItems="center"
+          gap={0.5}
+          justifyContent="center"
+          sx={{ cursor: 'pointer' }}
+          color="warning.main"
+        >
+          <ErrorOutline sx={{ fontSize: 14 }} />
+          <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} fontSize={FONT_SIZE} textAlign="center">
+            Gateway has issues
+          </Typography>
+        </Box>
+      </Tooltip>
+    );
+  }
   switch (status) {
     case 'connected':
       return (
@@ -63,25 +83,16 @@ export const ConnectionStatus: FCWithChildren<{
   serviceProvider?: ServiceProvider;
 }> = ({ status, serviceProvider, gatewayPerformance }) => {
   const color = status === 'connected' || status === 'disconnecting' ? '#21D072' : 'white';
+  console.log(gatewayPerformance);
 
   return (
     <>
       <Box color={color} sx={{ mb: 2 }}>
-        {status === 'connected' && gatewayPerformance !== 'Good' ? (
-          <Tooltip title={serviceProvider ? <GatwayWarningInfo /> : undefined}>
-            <Typography
-              fontWeight={FONT_WEIGHT}
-              fontStyle={FONT_STYLE}
-              fontSize={FONT_SIZE}
-              textAlign="center"
-              color="warning.main"
-            >
-              Gateway has issues
-            </Typography>
-          </Tooltip>
-        ) : (
-          <ConnectionStatusContent status={status} serviceProvider={serviceProvider} />
-        )}
+        <ConnectionStatusContent
+          status={status}
+          serviceProvider={serviceProvider}
+          gatewayError={gatewayPerformance !== 'Good'}
+        />
       </Box>
     </>
   );

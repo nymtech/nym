@@ -29,7 +29,7 @@ export const Disconnected: FCWithChildren<{
       <ConnectionLayout
         TopContent={
           <Box>
-            <ConnectionStatus status={'disconnected'} />
+            <ConnectionStatus status={ConnectionStatusKind.disconnected} gatewayPerformance="Good" />
             <ConnectionTimer />
           </Box>
         }

@@ -10,17 +10,17 @@ export default {
 } as ComponentMeta<typeof ConnectionStatus>;
 
 export const Disconnected: ComponentStory<typeof ConnectionStatus> = () => (
-  <ConnectionStatus status={'disconnected'} gatewayPerformance="Good" />
+  <ConnectionStatus status={ConnectionStatusKind.disconnected} gatewayPerformance="Good" />
 );
 
 export const Connecting: ComponentStory<typeof ConnectionStatus> = () => (
-  <ConnectionStatus status={'connecting'} gatewayPerformance="Good" />
+  <ConnectionStatus status={ConnectionStatusKind.connecting} gatewayPerformance="Good" />
 );
 
 export const Connected: ComponentStory<typeof ConnectionStatus> = () => (
-  <ConnectionStatus status={'connected'} connectedSince={DateTime.now()} gatewayPerformance="Good" />
+  <ConnectionStatus status={ConnectionStatusKind.connected} connectedSince={DateTime.now()} gatewayPerformance="Good" />
 );
 
 export const Disconnecting: ComponentStory<typeof ConnectionStatus> = () => (
-  <ConnectionStatus status={'disconnecting'} gatewayPerformance="Good" />
+  <ConnectionStatus status={ConnectionStatusKind.disconnecting} gatewayPerformance="Good" />
 );

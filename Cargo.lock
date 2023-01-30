@@ -3312,6 +3312,7 @@ dependencies = [
  "cw4",
  "schemars",
  "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -3683,7 +3684,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "1.1.7"
+version = "1.1.8"
 dependencies = [
  "anyhow",
  "atty",

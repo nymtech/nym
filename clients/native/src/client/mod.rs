@@ -102,7 +102,8 @@ impl SocketClient {
             reply_controller_sender,
         );
 
-        websocket::Listener::new(config.get_listening_port()).start(websocket_handler, shutdown);
+        websocket::Listener::new(config.get_listening_ip(), config.get_listening_port())
+            .start(websocket_handler, shutdown);
     }
 
     /// blocking version of `start_socket` method. Will run forever (or until SIGINT is sent)

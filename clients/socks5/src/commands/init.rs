@@ -158,7 +158,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
     .await
     .tap_err(|err| eprintln!("Failed to setup gateway\nError: {err}"))?;
 
-    config.get_base_mut().with_gateway_endpoint(gateway);
+    config.get_base_mut().set_gateway_endpoint(gateway);
 
     // TODO: ask the service provider we specified for its interface version and set it in the config
 

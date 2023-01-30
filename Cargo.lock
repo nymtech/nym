@@ -5497,13 +5497,17 @@ dependencies = [
 name = "service-providers-common"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "async-trait",
  "build-information",
  "log",
+ "nym-client",
  "nymsphinx-anonymous-replies",
+ "rand 0.7.3",
  "serde",
  "serde_json",
  "thiserror",
+ "tokio",
 ]
 
 [[package]]

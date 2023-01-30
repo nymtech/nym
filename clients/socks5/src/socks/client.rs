@@ -677,18 +677,3 @@ impl SocksClient {
         Ok(methods)
     }
 }
-//
-// impl ServiceProviderClient<Socks5Request> for SocksClient {
-//     type ServiceProviderClientError = SocksProxyError;
-//
-//     fn provider_interface_version(&self) -> ProviderInterfaceVersion {
-//         todo!()
-//     }
-//
-//     async fn send_request(
-//         &mut self,
-//         request: Request<Socks5Request>,
-//     ) -> Result<Option<Response<Socks5Request>>, Self::ServiceProviderClientError> {
-//         todo!()
-//     }
-// }

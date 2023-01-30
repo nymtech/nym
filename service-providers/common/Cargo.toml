@@ -14,3 +14,11 @@ log = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"]}
 serde_json = { workspace = true }
+
+[dev-dependencies]
+# for the control requests example
+anyhow = "1.0.68"
+rand = "0.7.3"
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+
+nym-client = { path = "../../clients/native" }

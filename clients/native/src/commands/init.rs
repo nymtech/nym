@@ -145,7 +145,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
     .await
     .tap_err(|err| eprintln!("Failed to setup gateway\nError: {err}"))?;
 
-    config.get_base_mut().with_gateway_endpoint(gateway);
+    config.get_base_mut().set_gateway_endpoint(gateway);
 
     config.save_to_file(None).tap_err(|_| {
         log::error!("Failed to save the config file");

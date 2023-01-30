@@ -3,8 +3,7 @@
 
 use crate::interface::{
     BinaryInformation, ControlRequest, ControlResponse, EmptyMessage, ProviderInterfaceVersion,
-    Request, RequestContent, Response, ResponseContent, ServiceProviderMessagingError,
-    ServiceProviderRequest, SupportedVersions,
+    Request, RequestContent, Response, ResponseContent, ServiceProviderRequest, SupportedVersions,
 };
 use async_trait::async_trait;
 use nymsphinx_anonymous_replies::requests::AnonymousSenderTag;
@@ -122,64 +121,64 @@ where
     ) -> Result<Option<T::Response>, Self::ServiceProviderError>;
 }
 
-#[async_trait]
-pub trait ServiceProviderClient<T: ServiceProviderRequest = EmptyMessage>
-where
-    T: Send + 'static,
-    Self: Sync,
-{
-    type ServiceProviderClientError: From<<T as ServiceProviderRequest>::Error>;
-
-    fn provider_interface_version(&self) -> ProviderInterfaceVersion;
-
-    async fn send_request(
-        &mut self,
-        request: Request<T>,
-    ) -> Result<Option<Response<T>>, Self::ServiceProviderClientError>;
-
-    async fn send_control_request(
-        &mut self,
-        request: ControlRequest,
-    ) -> Result<Option<ControlResponse>, Self::ServiceProviderClientError> {
-        let maybe_res = self
-            .send_request(Request::new_control(
-                self.provider_interface_version(),
-                request,
-            ))
-            .await?;
-
-        let Some(res) = maybe_res else {
-            return Ok(None)
-        };
-
-        match res.content {
-            ResponseContent::Control(res) => Ok(Some(res)),
-            ResponseContent::ProviderData(_) => Err(Self::ServiceProviderClientError::from(
-                ServiceProviderMessagingError::UnexpectedProviderDataResponse.into(),
-            )),
-        }
-    }
-
-    async fn send_provider_data_request(
-        &mut self,
-        request: T,
-    ) -> Result<Option<T::Response>, Self::ServiceProviderClientError> {
-        let maybe_res = self
-            .send_request(Request::new_provider_data(
-                self.provider_interface_version(),
-                request,
-            ))
-            .await?;
-
-        let Some(res) = maybe_res else {
-            return Ok(None)
-        };
-
-        match res.content {
-            ResponseContent::ProviderData(res) => Ok(Some(res)),
-            ResponseContent::Control(_) => Err(Self::ServiceProviderClientError::from(
-                ServiceProviderMessagingError::UnexpectedControlResponse.into(),
-            )),
-        }
-    }
-}
+// #[async_trait]
+// pub trait ServiceProviderClient<T: ServiceProviderRequest = EmptyMessage>
+// where
+//     T: Send + 'static,
+//     Self: Sync,
+// {
+//     type ServiceProviderClientError: From<<T as ServiceProviderRequest>::Error>;
+//
+//     fn provider_interface_version(&self) -> ProviderInterfaceVersion;
+//
+//     fn get_control_response(
+//         maybe_res: Option<Response<T>>,
+//     ) -> Result<Option<ControlResponse>, Self::ServiceProviderClientError> {
+//         let Some(res) = maybe_res else {
+//                 return Ok(None)
+//             };
+//
+//         match res.content {
+//             ResponseContent::Control(res) => Ok(Some(res)),
+//             ResponseContent::ProviderData(_) => Err(Self::ServiceProviderClientError::from(
+//                 ServiceProviderMessagingError::UnexpectedProviderDataResponse.into(),
+//             )),
+//         }
+//     }
+//
+//     fn get_provider_data_response(
+//         maybe_res: Option<Response<T>>,
+//     ) -> Result<Option<T::Response>, Self::ServiceProviderClientError> {
+//         let Some(res) = maybe_res else {
+//                 return Ok(None)
+//             };
+//
+//         match res.content {
+//             ResponseContent::ProviderData(res) => Ok(Some(res)),
+//             ResponseContent::Control(_) => Err(Self::ServiceProviderClientError::from(
+//                 ServiceProviderMessagingError::UnexpectedControlResponse.into(),
+//             )),
+//         }
+//     }
+//
+//     // async fn send_control_request_anonymously(
+//     //     &mut self,
+//     //     request: ControlRequest,
+//     // ) -> Result<Option<ControlResponse>, Self::ServiceProviderClientError>;
+//     //
+//     // async fn send_provider_data_request_anonymously(
+//     //     &mut self,
+//     //     request: T,
+//     // ) -> Result<Option<T::Response>, Self::ServiceProviderClientError>;
+//     //
+//     // TODO: extend the traits and messaging to allow for attaching own address
+//     // async fn send_control_request_with_address(
+//     //     &mut self,
+//     //     request: ControlRequest,
+//     // ) -> Result<Option<ControlResponse>, Self::ServiceProviderClientError>;
+//     //
+//     // async fn send_provider_data_request_with_address(
+//     //     &mut self,
+//     //     request: T,
+//     // ) -> Result<Option<T::Response>, Self::ServiceProviderClientError>;
+// }

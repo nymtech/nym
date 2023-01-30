@@ -1,3 +1,4 @@
+use socks5_requests::Socks5RequestError;
 use std::string::FromUtf8Error;
 use thiserror::Error;
 
@@ -76,6 +77,12 @@ pub enum SocksProxyError {
 
     #[error(transparent)]
     Socks5ResponseFailure(#[from] ResponseCodeV5),
+
+    #[error("could not complete the provider request: {source}")]
+    ProviderRequestFailure {
+        #[from]
+        source: Socks5RequestError,
+    },
 }
 
 /// DST.addr variant types

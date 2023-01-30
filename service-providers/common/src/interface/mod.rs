@@ -54,6 +54,9 @@ pub enum ServiceProviderMessagingError {
     #[error("Received control response while provider data was expected")]
     UnexpectedControlResponse,
 
+    #[error("Attempted to use control request in 'Legacy' mode")]
+    ControlRequestInLegacyMode,
+
     #[error("the received binary information control response was malformed: {source}")]
     MalformedBinaryInfoControlResponse { source: serde_json::Error },
 

@@ -55,9 +55,14 @@ impl MixnetResponseListener {
 
     fn on_control_response(
         &self,
-        _control_response: ControlResponse,
+        control_response: ControlResponse,
     ) -> Result<(), Socks5ClientError> {
-        todo!("received a control response which we don't know how to handle yet!")
+        error!("received a control response which we don't know how to handle yet!");
+        error!("got: {:?}", control_response);
+
+        // I guess we'd need another channel here to forward those to where they need to go
+
+        Ok(())
     }
 
     fn on_provider_data_response(

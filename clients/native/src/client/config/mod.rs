@@ -2,15 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::template::config_template;
-pub use client_core::config::Config as BaseConfig;
-pub use client_core::config::MISSING_VALUE;
-use client_core::config::{ClientCoreConfigTrait, DebugConfig};
+use client_core::config::ClientCoreConfigTrait;
 use config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use config::{NymConfig, OptionalSet};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
 use std::path::PathBuf;
 use std::str::FromStr;
+
+pub use client_core::config::Config as BaseConfig;
+pub use client_core::config::MISSING_VALUE;
+pub use client_core::config::{DebugConfig, GatewayEndpointConfig};
 
 mod template;
 

@@ -170,8 +170,13 @@ impl<T> Config<T> {
         self
     }
 
-    pub fn with_gateway_endpoint(&mut self, gateway_endpoint: GatewayEndpointConfig) {
+    pub fn set_gateway_endpoint(&mut self, gateway_endpoint: GatewayEndpointConfig) {
         self.client.gateway_endpoint = gateway_endpoint;
+    }
+
+    pub fn with_gateway_endpoint(mut self, gateway_endpoint: GatewayEndpointConfig) -> Self {
+        self.client.gateway_endpoint = gateway_endpoint;
+        self
     }
 
     pub fn with_gateway_id<S: Into<String>>(&mut self, id: S) {

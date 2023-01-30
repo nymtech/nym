@@ -54,9 +54,6 @@ async fn main() -> anyhow::Result<()> {
         .start_direct()
         .await?;
 
-    let address = client.address();
-    println!("{address}");
-
     // generic service provider request, so we don't even need to care it's to the socks5 provider
     let request_health = ControlRequest::Health;
     let request_binary_info = ControlRequest::BinaryInfo;
@@ -74,19 +71,22 @@ async fn main() -> anyhow::Result<()> {
         .send_anonymous_message(provider, full_request_health.into_bytes(), 10)
         .await;
     let response = wait_for_control_response(&mut client).await;
-    println!("response to 'Health' request: {response:?}");
+    println!("response to 'Health' request: {response:#?}");
 
     client
         .send_anonymous_message(provider, full_request_binary_info.into_bytes(), 10)
         .await;
     let response = wait_for_control_response(&mut client).await;
-    println!("response to 'BinaryInfo' request: {response:?}");
+    println!("response to 'BinaryInfo' request: {response:#?}");
 
     client
         .send_anonymous_message(provider, full_request_versions.into_bytes(), 10)
         .await;
     let response = wait_for_control_response(&mut client).await;
-    println!("response to 'SupportedRequestVersions' request: {response:?}");
+    println!("response to 'SupportedRequestVersions' request: {response:#?}");
+
+    client.signal_shutdown()?;
+    client.wait_for_shutdown().await;
 
     Ok(())
 }

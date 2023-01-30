@@ -11,13 +11,16 @@ use client_core::client::base_client::{
     non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
 use client_core::client::inbound_messages::InputMessage;
-use client_core::client::received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
+use client_core::client::received_buffer::{
+    ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
+};
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
 use log::*;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use task::TaskManager;
+use tokio::sync::watch::error::SendError;
 use validator_client::nyxd::QueryNyxdClient;
 
 pub use client_core::client::key_manager::KeyManager;
@@ -207,25 +210,36 @@ impl SocketClient {
 
         Ok(DirectClient {
             client_input,
+            _received_buffer_request_sender: client_output.received_buffer_request_sender,
             reconstructed_receiver,
             address,
-            _shutdown_notifier: started_client.task_manager,
+            shutdown_notifier: started_client.task_manager,
         })
     }
 }
 
 pub struct DirectClient {
     client_input: ClientInput,
+    // make sure to not drop the channel
+    _received_buffer_request_sender: ReceivedBufferRequestSender,
     reconstructed_receiver: ReconstructedMessagesReceiver,
     address: Recipient,
 
     // we need to keep reference to this guy otherwise things will start dropping
-    _shutdown_notifier: TaskManager,
+    shutdown_notifier: TaskManager,
 }
 
 impl DirectClient {
     pub fn address(&self) -> &Recipient {
         &self.address
+    }
+
+    pub fn signal_shutdown(&self) -> Result<(), SendError<()>> {
+        self.shutdown_notifier.signal_shutdown()
+    }
+
+    pub async fn wait_for_shutdown(&mut self) {
+        self.shutdown_notifier.wait_for_shutdown().await
     }
 
     /// EXPERIMENTAL DIRECT RUST API

@@ -16,15 +16,15 @@ describe("Gateway mock tests", () => {
     });
 
     it("get Gateways Paged", async () => {
-        let execute = testHelper.tests(client, "getGatewaysPaged", [mixnet], <PagedGatewayResponse>{
-            gateway: [],
+        let execute = await testHelper.tests(client, "getGatewaysPaged", [mixnet], <PagedGatewayResponse>{
+            nodes: [],
             per_page: 25
         });
         expect(execute).toBeTruthy();
     });
 
     it("owns Gateway", async () => {
-        let execute = testHelper.tests(client, "ownsGateway", [mixnet, gatewayowneraddress], <GatewayOwnershipResponse>{
+        let execute = await testHelper.tests(client, "ownsGateway", [mixnet, gatewayowneraddress], <GatewayOwnershipResponse>{
             address: gatewayowneraddress,
             gateway: {}
         });

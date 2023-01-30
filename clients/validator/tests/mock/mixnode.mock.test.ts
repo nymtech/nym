@@ -18,7 +18,7 @@ describe("Mixnode mock tests", () => {
     });
 
     it("get Mixnode Bonds", async () => {
-        let execute = testHelper.tests(client, "getMixNodeBonds", [mixnet], <PagedMixNodeBondResponse>{
+        let execute = await testHelper.tests(client, "getMixNodeBonds", [mixnet], <PagedMixNodeBondResponse>{
             nodes: [],
             per_page: 25,
         });
@@ -26,7 +26,7 @@ describe("Mixnode mock tests", () => {
     });
 
     it("get Mixnode Delegations Paged", async () => {
-        let execute = testHelper.tests(client, "getMixNodeDelegationsPaged", [mixnet, mix_identity], <PagedMixDelegationsResponse>{
+        let execute = await testHelper.tests(client, "getMixNodeDelegationsPaged", [mixnet, mix_identity], <PagedMixDelegationsResponse>{
             delegations: [],
             per_page: 25,
         });
@@ -35,7 +35,7 @@ describe("Mixnode mock tests", () => {
 
 
     it("get Mixnodes Detailed", async () => {
-        let execute = testHelper.tests(client, "getMixNodesDetailed", [mixnet], <PagedMixNodeDetailsResponse>{
+        let execute = await testHelper.tests(client, "getMixNodesDetailed", [mixnet], <PagedMixNodeDetailsResponse>{
             nodes: [],
             per_page: 25,
         });
@@ -43,7 +43,7 @@ describe("Mixnode mock tests", () => {
     });
 
     it("get Mixnode Rewarding Details", async () => {
-        let execute = testHelper.tests(client, "getMixnodeRewardingDetails", [mixnet, mix_id], <MixNodeRewarding>{
+        let execute = await testHelper.tests(client, "getMixnodeRewardingDetails", [mixnet, mix_id], <MixNodeRewarding>{
             cost_params: {},
             operator: "",
             delegates: "",
@@ -56,7 +56,7 @@ describe("Mixnode mock tests", () => {
     });
 
     it("get Owned Mixnode", async () => {
-        let execute = testHelper.tests(client, "getOwnedMixnode", [mixnet, mixnodeowneraddress], <MixOwnershipResponse>{
+        let execute = await testHelper.tests(client, "getOwnedMixnode", [mixnet, mixnodeowneraddress], <MixOwnershipResponse>{
             address: "",
             mixnode: {}
         });
@@ -64,7 +64,7 @@ describe("Mixnode mock tests", () => {
     });
 
     it("get Unbonded Mixnode Information", async () => {
-        let execute = testHelper.tests(client, "getUnbondedMixNodeInformation", [mixnet, mix_id], <UnbondedMixnodeResponse>{
+        let execute = await testHelper.tests(client, "getUnbondedMixNodeInformation", [mixnet, mix_id], <UnbondedMixnodeResponse>{
 
         });
         expect(execute).toBeTruthy();

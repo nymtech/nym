@@ -19,7 +19,7 @@ describe("Delegation mock tests", () => {
     });
 
     it("get Delegation Details", async () => {
-        let execute = testHelper.tests(client, "getDelegationDetails", [mixnet, mix_identity, mixnodeowneraddress], <Delegation>{
+        let execute = await testHelper.tests(client, "getDelegationDetails", [mixnet, mix_identity, mixnodeowneraddress], <Delegation>{
             owner: mixnodeowneraddress,
             mix_id: mix_id,
             amount: {
@@ -33,31 +33,15 @@ describe("Delegation mock tests", () => {
     });
 
     it("get All Delegations Paged", async () => {
-        let execute = testHelper.tests(client, "getAllDelegationsPaged", [mixnet], <PagedAllDelegationsResponse>{
+        let execute = await testHelper.tests(client, "getAllDelegationsPaged", [mixnet], <PagedAllDelegationsResponse>{
             delegations: [],
         });
         expect(execute).toBeTruthy();
     });
 
     it("get Delegator Delegations Paged", async () => {
-        let execute = testHelper.tests(client, "getDelegatorDelegationsPaged", [mixnet, mixnodeowneraddress], <PagedDelegatorDelegationsResponse>{
+        let execute = await testHelper.tests(client, "getDelegatorDelegationsPaged", [mixnet, mixnodeowneraddress], <PagedDelegatorDelegationsResponse>{
             delegations: [],
-        });
-        expect(execute).toBeTruthy();
-    });
-
-    it("get Gateways Paged", async () => {
-        let execute = testHelper.tests(client, "getGatewaysPaged", [mixnet], <PagedGatewayResponse>{
-            gateway: [],
-            per_page: 25
-        });
-        expect(execute).toBeTruthy();
-    });
-
-    it("owns Gateway", async () => {
-        let execute = testHelper.tests(client, "ownsGateway", [mixnet, gatewayowneraddress], <GatewayOwnershipResponse>{
-            address: gatewayowneraddress,
-            gateway: {}
         });
         expect(execute).toBeTruthy();
     });

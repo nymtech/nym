@@ -10,7 +10,7 @@ export interface ConnectionStatsItem {
 
 const FONT_SIZE = '14px';
 
-export const ConnectionStats: React.FC<{
+export const ConnectionStats: FCWithChildren<{
   stats: ConnectionStatsItem[];
 }> = ({ stats }) => (
   <Box color="rgba(255,255,255,0.6)" width="100%" display="flex" justifyContent="space-between">

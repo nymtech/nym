@@ -1,18 +1,21 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::commands::{ensure_correct_bech32_prefix, OverrideConfig};
+use crate::error::GatewayError;
+use crate::support::config::build_config;
 use crate::{
-    commands::{validate_bech32_address_or_exit, version_check},
-    config::{persistence::pathfinder::GatewayPathfinder, Config},
+    commands::ensure_config_version_compatibility,
+    config::persistence::pathfinder::GatewayPathfinder,
 };
 use anyhow::{anyhow, Result};
 use clap::{ArgGroup, Args};
-use config::NymConfig;
 use crypto::asymmetric::identity;
-use log::error;
+use std::error::Error;
+use validator_client::nyxd;
 
 #[derive(Args, Clone)]
-#[clap(group(ArgGroup::new("sign").required(true).args(&["address", "text"])))]
+#[clap(group(ArgGroup::new("sign").required(true).args(&["wallet_address", "text"])))]
 pub struct Sign {
     /// The id of the mixnode you want to sign with
     #[clap(long)]
@@ -20,7 +23,7 @@ pub struct Sign {
 
     /// Signs your blockchain address with your identity key
     #[clap(long)]
-    address: Option<String>,
+    wallet_address: Option<nyxd::AccountId>,
 
     /// Signs an arbitrary piece of text with your identity key
     #[clap(long)]
@@ -29,7 +32,7 @@ pub struct Sign {
 
 enum SignedTarget {
     Text(String),
-    Address(String),
+    Address(nyxd::AccountId),
 }
 
 impl TryFrom<Sign> for SignedTarget {
@@ -38,7 +41,7 @@ impl TryFrom<Sign> for SignedTarget {
     fn try_from(args: Sign) -> Result<Self, Self::Error> {
         if let Some(text) = args.text {
             Ok(SignedTarget::Text(text))
-        } else if let Some(address) = args.address {
+        } else if let Some(address) = args.wallet_address {
             Ok(SignedTarget::Address(address))
         } else {
             // This is unreachable, and hopefully clap will support it explicitly by outputting an
@@ -58,61 +61,44 @@ pub fn load_identity_keys(pathfinder: &GatewayPathfinder) -> identity::KeyPair {
     identity_keypair
 }
 
-fn print_signed_address(private_key: &identity::PrivateKey, raw_address: &str) {
-    let trimmed = raw_address.trim();
-    validate_bech32_address_or_exit(trimmed);
-    let signature = private_key.sign_text(trimmed);
+fn print_signed_address(
+    private_key: &identity::PrivateKey,
+    wallet_address: nyxd::AccountId,
+) -> Result<(), GatewayError> {
+    // perform extra validation to ensure we have correct prefix
+    ensure_correct_bech32_prefix(&wallet_address)?;
 
-    println!(
-        "The base58-encoded signature on '{}' is: {}",
-        trimmed, signature
-    );
+    let signature = private_key.sign_text(wallet_address.as_ref());
+    eprintln!("The base58-encoded signature on '{wallet_address}' is: {signature}");
+    Ok(())
 }
 
 fn print_signed_text(private_key: &identity::PrivateKey, text: &str) {
-    println!(
+    eprintln!(
         "Signing the text {:?} using your mixnode's Ed25519 identity key...",
         text
     );
 
     let signature = private_key.sign_text(text);
 
-    println!(
+    eprintln!(
         "The base58-encoded signature on '{}' is: {}",
         text, signature
     );
 }
 
-pub fn execute(args: &Sign) {
-    let config = match Config::load_from_file(Some(&args.id)) {
-        Ok(cfg) => cfg,
-        Err(err) => {
-            error!(
-                "Failed to load config for {}. Are you sure you have run `init` before? (Error was: {})",
-                args.id,
-                err
-            );
-            return;
-        }
-    };
+pub fn execute(args: Sign) -> Result<(), Box<dyn Error + Send + Sync>> {
+    let config = build_config(args.id.clone(), OverrideConfig::default())?;
+    ensure_config_version_compatibility(&config)?;
 
-    if !version_check(&config) {
-        error!("failed the local version check");
-        return;
-    }
-
-    let signed_target = match SignedTarget::try_from(args.clone()) {
-        Ok(s) => s,
-        Err(err) => {
-            error!("{err}");
-            return;
-        }
-    };
+    let signed_target = SignedTarget::try_from(args)?;
     let pathfinder = GatewayPathfinder::new_from_config(&config);
     let identity_keypair = load_identity_keys(&pathfinder);
 
     match signed_target {
         SignedTarget::Text(text) => print_signed_text(identity_keypair.private_key(), &text),
-        SignedTarget::Address(addr) => print_signed_address(identity_keypair.private_key(), &addr),
+        SignedTarget::Address(addr) => print_signed_address(identity_keypair.private_key(), addr)?,
     }
+
+    Ok(())
 }

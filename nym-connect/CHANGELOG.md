@@ -1,11 +1,24 @@
+# Changelog
+
 ## UNRELEASED
+
+## [nym-connect-v1.1.7](https://github.com/nymtech/nym/tree/nym-connect-v1.1.7) (2023-01-24)
+
+- Remove test and earn ([#2865])
+
+[#2865]: https://github.com/nymtech/nym/issue/2865
+
+## [nym-connect-v1.1.6](https://github.com/nymtech/nym/tree/nym-connect-v1.1.6) (2023-01-17)
+
+- part (1) show gateway status on the UI if the gateway is not live, is overloaded or is slow ([#2824])
+
+[#2824]: https://github.com/nymtech/nym/pull/2824
 
 ## [nym-connect-v1.1.5](https://github.com/nymtech/nym/tree/nym-connect-v1.1.5) (2023-01-10)
 
 - get version number from tauri and display by @fmtabbara in https://github.com/nymtech/nym/pull/2684
 - Feature/nym connect experimental software text by @fmtabbara in https://github.com/nymtech/nym/pull/2692
 - NymConnect - Display service info in tooltip **1.1.5 Release** by @fmtabbara in https://github.com/nymtech/nym/pull/2704
-- Feat/2130 tables update rebase by @gala1234 in https://github.com/nymtech/nym/pull/2742
 
 ## [nym-connect-v1.1.4](https://github.com/nymtech/nym/tree/nym-connect-v1.1.4) (2022-12-20)
 
@@ -42,7 +55,6 @@ This release contains the new opt-in Test & Earn program, and it uses a stress-t
 [#1789]: https://github.com/nymtech/nym/pull/1789
 [#1805]: https://github.com/nymtech/nym/pull/1805
 
-
 ## [nym-connect-v1.1.0](https://github.com/nymtech/nym/tree/nym-connect-v1.1.0) (2022-11-09)
 
 - nym-connect: rework of rewarding changes the directory data structures that describe the mixnet topology ([#1472])
@@ -51,7 +63,7 @@ This release contains the new opt-in Test & Earn program, and it uses a stress-t
 - native-client/socks5-client: `disable_main_poisson_packet_distribution` Debug config option to make the client ignore poisson distribution in the main packet stream and ONLY send real message (and as fast as they come) ([#1664])
 - native-client/socks5-client: `use_extended_packet_size` Debug config option to make the client use 'ExtendedPacketSize' for its traffic (32kB as opposed to 2kB in 1.0.2) ([#1671])
 - network-requester: added additional Blockstream Green wallet endpoint to `example.allowed.list` ([#1611])
-- validator-client: added `query_contract_smart` and `query_contract_raw` on `NymdClient` ([#1558])
+- validator-client: added `query_contract_smart` and `query_contract_raw` on `NyxdClient` ([#1558])
 
 [#1472]: https://github.com/nymtech/nym/pull/1472
 [#1558]: https://github.com/nymtech/nym/pull/1558
@@ -69,7 +81,6 @@ This release contains the new opt-in Test & Earn program, and it uses a stress-t
 - nym-connect: add `local-forage` for storing user settings ([#1540])
 
 [#1540]: https://github.com/nymtech/nym/pull/1540
-
 
 ## [nym-connect-v1.0.1](https://github.com/nymtech/nym/tree/nym-connect-v1.0.1) (2022-07-22)
 

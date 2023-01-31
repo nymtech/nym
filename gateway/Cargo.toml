@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-gateway"
-version = "1.1.5"
+version = "1.1.7"
 authors = [
     "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
     "Jędrzej Stuczyński <andrew@nymtech.net>",
@@ -19,18 +19,19 @@ anyhow = "1.0.53"
 async-trait = { version = "0.1.51" }
 bip39 = "1.0.1"
 bs58 = "0.4.0"
-clap = { version = "3.2", features = ["cargo", "derive"] }
+clap = { version = "4.0", features = ["cargo", "derive"] }
 colored = "2.0"
 dashmap = "4.0"
 dirs = "4.0"
 dotenv = "0.15.0"
 futures = "0.3"
 humantime-serde = "1.0.1"
-log = "0.4"
+lazy_static = "1.4.0"
+log = { workspace = true }
 once_cell = "1.7.2"
 pretty_env_logger = "0.4"
 rand = "0.7"
-serde = { version = "1.0.104", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
 sqlx = { version = "0.5", features = [
     "runtime-tokio-rustls",
     "sqlite",
@@ -39,15 +40,15 @@ sqlx = { version = "0.5", features = [
 ] }
 subtle-encoding = { version = "0.5", features = ["bech32-preview"] }
 thiserror = "1"
-tokio = { version = "1.21.2", features = [
+tokio = { version = "1.24.1", features = [
     "rt-multi-thread",
     "net",
     "signal",
     "fs",
 ] }
-tokio-stream = { version = "0.1.9", features = ["fs"] }
+tokio-stream = { version = "0.1.11", features = ["fs"] }
 tokio-tungstenite = "0.14"
-tokio-util = { version = "0.7.3", features = ["codec"] }
+tokio-util = { version = "0.7.4", features = ["codec"] }
 url = { version = "2.2", features = ["serde"] }
 tracing = "0.1.37"
 tracing-subscriber = {version = "0.3.16", features = ["registry", "std", "env-filter"]}
@@ -57,12 +58,13 @@ opentelemetry = {version = "0.18.0", features = ["rt-tokio"]}
 tracing-flame = "0.2.0"
 
 # internal
+build-information = { path = "../common/build-information" }
 coconut-interface = { path = "../common/coconut-interface", optional = true }
 credentials = { path = "../common/credentials" }
 config = { path = "../common/config" }
 crypto = { path = "../common/crypto" }
 completions = { path = "../common/completions" }
-logging = { path = "../common/logging"}
+logging = { path = "../common/logging" }
 gateway-requests = { path = "gateway-requests" }
 mixnet-client = { path = "../common/client-libs/mixnet-client" }
 mixnode-common = { path = "../common/mixnode-common" }
@@ -71,10 +73,14 @@ nymsphinx = { path = "../common/nymsphinx" }
 pemstore = { path = "../common/pemstore" }
 statistics-common = { path = "../common/statistics" }
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
+task = { path = "../common/task" }
 validator-client = { path = "../common/client-libs/validator-client", features = [
-    "nymd-client",
+    "nyxd-client",
 ] }
 version-checker = { path = "../common/version-checker" }
+nym-types = { path = "../common/types" }
+serde_json = "1"
+atty = "0.2"
 
 [features]
 coconut = [
@@ -85,16 +91,10 @@ coconut = [
 ]
 
 [build-dependencies]
-tokio = { version = "1.21.2", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
 sqlx = { version = "0.5", features = [
     "runtime-tokio-rustls",
     "sqlite",
     "macros",
     "migrate",
-] }
-vergen = { version = "5", default-features = false, features = [
-    "build",
-    "git",
-    "rustc",
-    "cargo",
 ] }

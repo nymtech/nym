@@ -168,6 +168,7 @@ pub fn prepare_for_spending(
     voucher_info: String,
     serial_number: PrivateAttribute,
     binding_number: PrivateAttribute,
+    epoch_id: u64,
     signature: &Signature,
     verification_key: &VerificationKey,
 ) -> Result<Credential, Error> {
@@ -179,6 +180,7 @@ pub fn prepare_for_spending(
         voucher_info,
         serial_number,
         binding_number,
+        epoch_id,
         signature,
         verification_key,
     )

@@ -84,7 +84,7 @@ impl TryFrom<u8> for ErrorKind {
 
             n => Err(Error::new(
                 ErrorKind::MalformedResponse,
-                format!("invalid error code {}", n),
+                format!("invalid error code {n}"),
             )),
         }
     }

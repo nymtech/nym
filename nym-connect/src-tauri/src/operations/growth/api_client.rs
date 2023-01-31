@@ -33,7 +33,7 @@ impl GrowthApiClient {
     pub fn new(resource_base: &str) -> Self {
         let base_url = std::env::var("API_BASE_URL").unwrap_or_else(|_| API_BASE_URL.to_string());
         GrowthApiClient {
-            base_url: format!("{}{}", base_url, resource_base),
+            base_url: format!("{base_url}{resource_base}"),
         }
     }
 
@@ -83,6 +83,7 @@ impl GrowthApiClient {
         }
     }
 
+    // TODO: use the method in `operations::http` instead
     pub(crate) async fn post<REQ: Serialize + ?Sized, RESP: DeserializeOwned>(
         &self,
         url: &str,
@@ -249,9 +250,7 @@ impl DailyDraws {
 
     #[allow(dead_code)]
     pub async fn status(&self, draw_id: &str) -> Result<DrawWithWordOfTheDay, ApiClientError> {
-        self.client
-            .get(format!("/status/{}", draw_id).as_str())
-            .await
+        self.client.get(format!("/status/{draw_id}").as_str()).await
     }
 
     pub async fn enter(&self, entry: &DrawEntryPartial) -> Result<DrawEntry, ApiClientError> {

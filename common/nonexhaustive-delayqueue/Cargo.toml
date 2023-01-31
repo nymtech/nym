@@ -7,9 +7,9 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "1.21.2", features = [] }
-tokio-stream = "0.1.9" # this one seems to be a thing until `Stream` trait is stabilised in stdlib
-tokio-util = { version = "0.7.3", features = ["time"] }
+tokio = { version = "1.24.1", features = [] }
+tokio-stream = "0.1.11" # this one seems to be a thing until `Stream` trait is stabilised in stdlib
+tokio-util = { version = "0.7.4", features = ["time"] }
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-timer]
 git = "https://github.com/mmsinclair/wasm-timer"

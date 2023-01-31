@@ -1,6 +1,6 @@
 import React, { FC, useContext, useEffect, useState } from 'react';
-import { Box, Button, Paper, Stack, Typography, CircularProgress } from '@mui/material';
-import { useTheme, Theme } from '@mui/material/styles';
+import { Box, Button, CircularProgress, Paper, Stack, Typography } from '@mui/material';
+import { Theme, useTheme } from '@mui/material/styles';
 import { DecCoin, decimalToFloatApproximation, DelegationWithEverything, FeeDetails } from '@nymproject/types';
 import { Link } from '@nymproject/react/link/Link';
 import { AppContext, urls } from 'src/context/main';
@@ -9,8 +9,9 @@ import { TPoolOption } from 'src/components';
 import { Console } from 'src/utils/console';
 import { OverSaturatedBlockerModal } from 'src/components/Delegation/DelegateBlocker';
 import { getSpendableCoins, userBalance } from 'src/requests';
+import { getIntervalAsDate, toPercentIntegerString } from 'src/utils';
 import { RewardsSummary } from '../../components/Rewards/RewardsSummary';
-import { DelegationContextProvider, useDelegationContext, TDelegations } from '../../context/delegations';
+import { DelegationContextProvider, TDelegations, useDelegationContext } from '../../context/delegations';
 import { RewardsContextProvider, useRewardsContext } from '../../context/rewards';
 import { DelegateModal } from '../../components/Delegation/DelegateModal';
 import { UndelegateModal } from '../../components/Delegation/UndelegateModal';
@@ -18,7 +19,6 @@ import { DelegationListItemActions } from '../../components/Delegation/Delegatio
 import { RedeemModal } from '../../components/Rewards/RedeemModal';
 import { DelegationModal, DelegationModalProps } from '../../components/Delegation/DelegationModal';
 import { backDropStyles, modalStyles } from '../../../.storybook/storiesStyles';
-import { toPercentIntegerString, getIntervalAsDate } from 'src/utils';
 
 const storybookStyles = (theme: Theme, isStorybook?: boolean, backdropProps?: object) =>
   isStorybook
@@ -77,8 +77,8 @@ export const Delegation: FC<{ isStorybook?: boolean }> = ({ isStorybook }) => {
 
   const getNextInterval = async () => {
     try {
-      const { nextEpoch } = await getIntervalAsDate();
-      setNextEpoch(nextEpoch);
+      const { nextEpoch: newNextEpoch } = await getIntervalAsDate();
+      setNextEpoch(newNextEpoch);
     } catch {
       setNextEpoch(Error());
     }

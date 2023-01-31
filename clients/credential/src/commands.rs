@@ -13,7 +13,8 @@ use credentials::coconut::bandwidth::{BandwidthVoucher, TOTAL_ATTRIBUTES};
 use credentials::coconut::utils::obtain_aggregate_signature;
 use crypto::asymmetric::{encryption, identity};
 use network_defaults::{NymNetworkDetails, VOUCHER_INFO};
-use validator_client::nymd::tx::Hash;
+use validator_client::nyxd::traits::DkgQueryClient;
+use validator_client::nyxd::tx::Hash;
 use validator_client::{CoconutApiClient, Config};
 
 use crate::client::Client;
@@ -38,9 +39,9 @@ pub(crate) struct Run {
     #[clap(long)]
     pub(crate) client_home_directory: std::path::PathBuf,
 
-    /// The nymd URL that should be used
+    /// The nyxd URL that should be used
     #[clap(long)]
-    pub(crate) nymd_url: String,
+    pub(crate) nyxd_url: String,
 
     /// A mnemonic for the account that buys the credential
     #[clap(long)]
@@ -51,12 +52,12 @@ pub(crate) struct Run {
     pub(crate) amount: u64,
 }
 
-pub(crate) async fn deposit(nymd_url: &str, mnemonic: &str, amount: u64) -> Result<State> {
+pub(crate) async fn deposit(nyxd_url: &str, mnemonic: &str, amount: u64) -> Result<State> {
     let mut rng = OsRng;
     let signing_keypair = KeyPair::from(identity::KeyPair::new(&mut rng));
     let encryption_keypair = KeyPair::from(encryption::KeyPair::new(&mut rng));
 
-    let client = Client::new(nymd_url, mnemonic);
+    let client = Client::new(nyxd_url, mnemonic);
     let tx_hash = client
         .deposit(
             amount,
@@ -80,7 +81,8 @@ pub(crate) async fn get_credential(state: &State, shared_storage: PersistentStor
     let network_details = NymNetworkDetails::new_from_env();
     let config = Config::try_from_nym_network_details(&network_details)?;
     let client = validator_client::Client::new_query(config)?;
-    let coconut_api_clients = CoconutApiClient::all_coconut_api_clients(&client).await?;
+    let epoch_id = client.nyxd.get_current_epoch().await?.epoch_id;
+    let coconut_api_clients = CoconutApiClient::all_coconut_api_clients(&client, epoch_id).await?;
 
     let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
     let bandwidth_credential_attributes = BandwidthVoucher::new(
@@ -106,6 +108,7 @@ pub(crate) async fn get_credential(state: &State, shared_storage: PersistentStor
             bandwidth_credential_attributes.get_private_attributes()[0].to_bs58(),
             bandwidth_credential_attributes.get_private_attributes()[1].to_bs58(),
             signature.to_bs58(),
+            epoch_id.to_string(),
         )
         .await?;
 

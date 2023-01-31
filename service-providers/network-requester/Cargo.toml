@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-network-requester"
-version = "1.1.5"
+version = "1.1.7"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>", "Jędrzej Stuczyński <andrew@nymtech.net>"]
 edition = "2021"
 rust-version = "1.65"
@@ -12,11 +12,11 @@ rust-version = "1.65"
 
 [dependencies]
 async-trait = { version = "0.1.51" }
-clap = {version = "3.2", features = ["derive"]}
+clap = {version = "4.0", features = ["derive"]}
 dirs = "4.0"
 futures = "0.3.24"
 ipnetwork = "0.20.0"
-log = "0.4.17"
+log = { workspace = true }
 pretty_env_logger = "0.4.0"
 publicsuffix = "1.5" # Can't update this until bip updates to support newer idna version
 rand = "0.7.3"
@@ -24,7 +24,7 @@ reqwest = { version = "0.11.11", features = ["json"] }
 serde = { version = "1.0", features = ["derive"] }
 sqlx = { version = "0.6.1", features = ["runtime-tokio-rustls", "chrono"]}
 thiserror = "1.0"
-tokio = { version = "1.21.2", features = [ "net", "rt-multi-thread", "macros" ] }
+tokio = { version = "1.24.1", features = [ "net", "rt-multi-thread", "macros" ] }
 tokio-tungstenite = "0.17.2"
 
 

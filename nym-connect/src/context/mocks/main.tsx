@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ConnectionStatusKind } from 'src/types';
 import { ClientContext, TClientContext } from '../main';
 
@@ -9,6 +9,7 @@ const mockValues: TClientContext = {
   services: [],
   showHelp: false,
   serviceProvider: { id: '1', description: 'Keybase service provider', gateway: 'abc123', address: '123abc' },
+  gatewayPerformance: 'Good',
   setMode: () => {},
   clearError: () => {},
   handleShowHelp: () => {},
@@ -20,9 +21,10 @@ const mockValues: TClientContext = {
   startDisconnecting: async () => {},
 };
 
-export const MockProvider: React.FC<{
+export const MockProvider: FCWithChildren<{
   children?: React.ReactNode;
   connectionStatus?: ConnectionStatusKind;
-}> = ({ connectionStatus = ConnectionStatusKind.disconnected, children }) => (
-  <ClientContext.Provider value={{ ...mockValues, connectionStatus }}>{children}</ClientContext.Provider>
-);
+}> = ({ connectionStatus = ConnectionStatusKind.disconnected, children }) => {
+  const value = useMemo(() => ({ ...mockValues, connectionStatus }), [connectionStatus]);
+  return <ClientContext.Provider value={value}>{children}</ClientContext.Provider>;
+};

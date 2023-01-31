@@ -4,6 +4,8 @@ import Select, { SelectChangeEvent } from '@mui/material/Select';
 import { Filters } from './Filters/Filters';
 import { useIsMobile } from '../hooks/useIsMobile';
 
+const fieldsHeight = '42.25px';
+
 type TableToolBarProps = {
   onChangeSearch: (arg: string) => void;
   onChangePageSize: (event: SelectChangeEvent<string>) => void;
@@ -14,7 +16,7 @@ type TableToolBarProps = {
   childrenAfter?: React.ReactNode;
 };
 
-export const TableToolbar: React.FC<TableToolBarProps> = ({
+export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
   searchTerm,
   onChangeSearch,
   onChangePageSize,
@@ -35,7 +37,7 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
       }}
     >
       <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column-reverse' : 'row', alignItems: 'middle' }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', height: fieldsHeight }}>
           {childrenBefore}
           <Select
             labelId="simple-select-label"
@@ -65,6 +67,9 @@ export const TableToolbar: React.FC<TableToolBarProps> = ({
           sx={{
             width: isMobile ? '100%' : 200,
             marginBottom: isMobile ? 2 : 0,
+            '& > :not(style)': {
+              height: fieldsHeight,
+            },
           }}
           value={searchTerm}
           data-testid="search-box"

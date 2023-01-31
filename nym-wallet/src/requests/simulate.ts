@@ -64,8 +64,7 @@ export const simulateClaimOperatorReward = async () => invokeWrapper<FeeDetails>
 export const simulateVestingClaimOperatorReward = async () =>
   invokeWrapper<FeeDetails>('simulate_vesting_claim_operator_reward');
 
-export const simulateBondMore = async (args: any) =>
-  invokeWrapper<FeeDetails>('simulate_pledge_more', args);
+export const simulateBondMore = async (args: any) => invokeWrapper<FeeDetails>('simulate_pledge_more', args);
 
 export const simulateVestingBondMore = async (args: any) =>
   invokeWrapper<FeeDetails>('simulate_vesting_pledge_more', args);

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BackendError;
-use crate::nymd_client;
+use crate::nyxd_client;
 use crate::state::WalletState;
 use cosmwasm_std::Decimal;
 use mixnet_contract_common::{IdentityKey, MixId, Percent};
@@ -10,8 +10,8 @@ use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
 use nym_wallet_types::app::AppEnv;
 use serde::{Deserialize, Serialize};
-use validator_client::nymd::traits::MixnetQueryClient;
-use validator_client::nymd::{tx, Coin, CosmosCoin, Gas, GasPrice};
+use validator_client::nyxd::traits::MixnetQueryClient;
+use validator_client::nyxd::{tx, Coin, CosmosCoin, Gas, GasPrice};
 
 fn get_env_as_option(key: &str) -> Option<String> {
     match ::std::env::var(key) {
@@ -31,8 +31,8 @@ pub fn get_env() -> AppEnv {
 
 #[tauri::command]
 pub async fn owns_mixnode(state: tauri::State<'_, WalletState>) -> Result<bool, BackendError> {
-    Ok(nymd_client!(state)
-        .get_owned_mixnode(nymd_client!(state).address())
+    Ok(nyxd_client!(state)
+        .get_owned_mixnode(nyxd_client!(state).address())
         .await?
         .mixnode_details
         .is_some())
@@ -40,8 +40,8 @@ pub async fn owns_mixnode(state: tauri::State<'_, WalletState>) -> Result<bool, 
 
 #[tauri::command]
 pub async fn owns_gateway(state: tauri::State<'_, WalletState>) -> Result<bool, BackendError> {
-    Ok(nymd_client!(state)
-        .get_owned_gateway(nymd_client!(state).address())
+    Ok(nyxd_client!(state)
+        .get_owned_gateway(nyxd_client!(state).address())
         .await?
         .gateway
         .is_some())
@@ -52,7 +52,7 @@ pub async fn try_convert_pubkey_to_mix_id(
     state: tauri::State<'_, WalletState>,
     mix_identity: IdentityKey,
 ) -> Result<Option<MixId>, BackendError> {
-    let res = nymd_client!(state)
+    let res = nyxd_client!(state)
         .get_mixnode_details_by_identity(mix_identity)
         .await?;
     Ok(res.map(|mixnode_details| mixnode_details.mix_id()))
@@ -185,7 +185,7 @@ pub async fn get_old_and_incorrect_hardcoded_fee(
     operation: Operation,
 ) -> Result<DecCoin, BackendError> {
     let guard = state.read().await;
-    let mut approximate_fee = operation.default_fee(guard.current_client()?.nymd.gas_price());
+    let mut approximate_fee = operation.default_fee(guard.current_client()?.nyxd.gas_price());
     // on all our chains it should only ever contain a single type of currency
     assert_eq!(approximate_fee.amount.len(), 1);
     let coin: Coin = approximate_fee.amount.pop().unwrap().into();

@@ -11,7 +11,7 @@ const networks: { networkName: Network; name: string }[] = [
   { networkName: 'QA', name: 'QA' },
 ];
 
-const NetworkItem: React.FC<{ title: string; isSelected: boolean; onSelect: () => void }> = ({
+const NetworkItem: FCWithChildren<{ title: string; isSelected: boolean; onSelect: () => void }> = ({
   title,
   isSelected,
   onSelect,
@@ -22,7 +22,7 @@ const NetworkItem: React.FC<{ title: string; isSelected: boolean; onSelect: () =
   </ListItem>
 );
 
-export const NetworkSelector: React.FC<{
+export const NetworkSelector: FCWithChildren<{
   network?: Network;
   onSwitchNetwork?: (newNetwork: Network) => void;
 }> = ({ network, onSwitchNetwork }) => {

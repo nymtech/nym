@@ -1,13 +1,6 @@
 import React from 'react';
 import { ConnectionStatusKind } from '../types';
 
-const getBusyFillColor = (color: string): string => {
-  if (color === '#F4B02D') {
-    return '#21D072';
-  }
-  return '#F4B02D';
-};
-
 const getStatusFillColor = (status: ConnectionStatusKind, hover: boolean, isError: boolean): string => {
   if (isError && hover) {
     return '#21D072';
@@ -51,13 +44,13 @@ const getStatusText = (status: ConnectionStatusKind, hover: boolean): string => 
   }
 };
 
-export const ConnectionButton: React.FC<{
+export const ConnectionButton: FCWithChildren<{
   status: ConnectionStatusKind;
   disabled?: boolean;
   busy?: boolean;
   isError?: boolean;
   onClick?: (status: ConnectionStatusKind) => void;
-}> = ({ status, disabled, isError, onClick, busy }) => {
+}> = ({ status, disabled, isError, onClick }) => {
   const [hover, setHover] = React.useState<boolean>(false);
 
   const handleClick = React.useCallback(() => {

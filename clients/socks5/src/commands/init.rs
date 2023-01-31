@@ -8,6 +8,7 @@ use crate::{
 };
 use clap::Args;
 use config::NymConfig;
+use crypto::asymmetric::identity;
 use nymsphinx::addressing::clients::Recipient;
 use serde::Serialize;
 use std::fmt::Display;
@@ -21,32 +22,35 @@ pub(crate) struct Init {
 
     /// Address of the socks5 provider to send messages to.
     #[clap(long)]
-    provider: String,
+    provider: Recipient,
 
     /// Specifies whether this client is going to use an anonymous sender tag for communication with the service provider.
     /// While this is going to hide its actual address information, it will make the actual communication
     /// slower and consume nearly double the bandwidth as it will require sending reply SURBs.
     ///
     /// Note that some service providers might not support this.
-    #[clap(long)]
-    use_anonymous_sender_tag: bool,
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    #[clap(long, alias = "use_anonymous_sender_tag")]
+    use_reply_surbs: Option<bool>,
 
     /// Id of the gateway we are going to connect to.
     #[clap(long)]
-    gateway: Option<String>,
+    gateway: Option<identity::PublicKey>,
 
     /// Force register gateway. WARNING: this will overwrite any existing keys for the given id,
     /// potentially causing loss of access.
     #[clap(long)]
     force_register_gateway: bool,
 
-    /// Comma separated list of rest endpoints of the nymd validators
-    #[clap(long)]
-    nymd_validators: Option<String>,
+    /// Comma separated list of rest endpoints of the nyxd validators
+    #[cfg(feature = "coconut")]
+    #[clap(long, alias = "nymd_validators", value_delimiter = ',')]
+    nyxd_urls: Option<Vec<url::Url>>,
 
     /// Comma separated list of rest endpoints of the API validators
-    #[clap(long)]
-    api_validators: Option<String>,
+    #[clap(long, alias = "api_validators", value_delimiter = ',')]
+    // the alias here is included for backwards compatibility (1.1.4 and before)
+    nym_apis: Option<Vec<url::Url>>,
 
     /// Port for the socket to listen on in all subsequent runs
     #[clap(short, long)]
@@ -54,18 +58,18 @@ pub(crate) struct Init {
 
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
-    #[clap(long, hidden = true)]
+    #[clap(long, hide = true)]
     fastmode: bool,
 
     /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
-    #[clap(long, hidden = true)]
+    #[clap(long, hide = true)]
     no_cover: bool,
 
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
     /// with bandwidth credential requirement.
     #[cfg(feature = "coconut")]
     #[clap(long)]
-    enabled_credentials_mode: bool,
+    enabled_credentials_mode: Option<bool>,
 
     /// Save a summary of the initialization to a json file
     #[clap(long)]
@@ -75,12 +79,14 @@ pub(crate) struct Init {
 impl From<Init> for OverrideConfig {
     fn from(init_config: Init) -> Self {
         OverrideConfig {
-            nymd_validators: init_config.nymd_validators,
-            api_validators: init_config.api_validators,
+            nym_apis: init_config.nym_apis,
             port: init_config.port,
-            use_anonymous_sender_tag: init_config.use_anonymous_sender_tag,
+            use_anonymous_replies: init_config.use_reply_surbs,
             fastmode: init_config.fastmode,
             no_cover: init_config.no_cover,
+
+            #[cfg(feature = "coconut")]
+            nyxd_urls: init_config.nyxd_urls,
             #[cfg(feature = "coconut")]
             enabled_credentials_mode: init_config.enabled_credentials_mode,
         }
@@ -118,16 +124,15 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
 
     let already_init = Config::default_config_file_path(Some(id)).exists();
     if already_init {
-        println!(
-            "SOCKS5 client \"{}\" was already initialised before! \
-            Config information will be overwritten (but keys will be kept)!",
-            id
-        );
+        println!("SOCKS5 client \"{id}\" was already initialised before");
     }
 
     // Usually you only register with the gateway on the first init, however you can force
     // re-registering if wanted.
     let user_wants_force_register = args.force_register_gateway;
+    if user_wants_force_register {
+        println!("Instructed to force registering gateway. This might overwrite keys!");
+    }
 
     // If the client was already initialized, don't generate new keys and don't re-register with
     // the gateway (because this would create a new shared key).
@@ -135,17 +140,17 @@ pub(crate) async fn execute(args: &Init) -> Result<(), Socks5ClientError> {
     let register_gateway = !already_init || user_wants_force_register;
 
     // Attempt to use a user-provided gateway, if possible
-    let user_chosen_gateway_id = args.gateway.clone();
+    let user_chosen_gateway_id = args.gateway;
 
     // Load and potentially override config
     let mut config = override_config(
-        Config::new(id, provider_address),
+        Config::new(id, &provider_address.to_string()),
         OverrideConfig::from(args.clone()),
     );
 
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
-    let gateway = client_core::init::setup_gateway::<_, Config, _>(
+    let gateway = client_core::init::setup_gateway_from_config::<Config, _>(
         register_gateway,
         user_chosen_gateway_id,
         config.get_base(),

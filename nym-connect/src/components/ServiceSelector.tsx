@@ -14,7 +14,7 @@ import { Service, ServiceProvider, Services } from '../types/directory';
 import { useTauriEvents } from '../utils';
 import { ServiceProviderPopup } from './ServiceProviderPopup';
 
-export const ServiceSelector: React.FC<{
+export const ServiceSelector: FCWithChildren<{
   onChange?: (serviceProvider?: ServiceProvider) => void;
   services?: Services;
   currentSp?: ServiceProvider;

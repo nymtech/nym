@@ -25,11 +25,7 @@ import { NYM_WEBSITE } from '../api/constants';
 import { ExpandableButton } from './Nav';
 import { DarkLightSwitchMobile } from './Switch';
 
-type MobileNavProps = {
-  children: React.ReactNode;
-};
-
-export const MobileNav: React.FC<{ children: React.ReactNode }> = ({ children }: MobileNavProps) => {
+export const MobileNav: FCWithChildren = ({ children }) => {
   const theme = useTheme();
   const { navState, updateNavState } = useMainContext();
   const [drawerOpen, setDrawerOpen] = React.useState(false);

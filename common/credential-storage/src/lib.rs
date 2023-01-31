@@ -70,6 +70,7 @@ impl Storage for PersistentStorage {
         serial_number: String,
         binding_number: String,
         signature: String,
+        epoch_id: String,
     ) -> Result<(), StorageError> {
         self.coconut_credential_manager
             .insert_coconut_credential(
@@ -78,6 +79,7 @@ impl Storage for PersistentStorage {
                 serial_number,
                 binding_number,
                 signature,
+                epoch_id,
             )
             .await?;
 

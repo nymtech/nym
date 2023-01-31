@@ -8,6 +8,7 @@ import {
   LoadedEvent,
   StringMessageReceivedEvent,
   BinaryMessageReceivedEvent,
+  MimeTypes,
 } from './types';
 
 /**
@@ -22,7 +23,9 @@ export interface NymMixnetClient {
  * Create a client to send and receive traffic from the Nym mixnet.
  *
  */
-export const createNymMixnetClient = async (): Promise<NymMixnetClient> => {
+export const createNymMixnetClient = async (options?: {
+  mimeTypes?: string[] | MimeTypes[];
+}): Promise<NymMixnetClient> => {
   // create a web worker that runs the WASM client on another thread and wait until it signals that it is ready
   // eslint-disable-next-line @typescript-eslint/no-use-before-define
   const worker = await createWorker();
@@ -88,6 +91,11 @@ export const createNymMixnetClient = async (): Promise<NymMixnetClient> => {
 
   // let comlink handle interop with the web worker
   const client = Comlink.wrap<IWebWorker>(worker);
+
+  // set any options
+  if (options?.mimeTypes) {
+    await client.setTextMimeTypes(options.mimeTypes);
+  }
 
   // pass the client interop and subscription manage back to the caller
   return {

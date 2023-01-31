@@ -3,26 +3,26 @@
 
 use network_defaults::{
     setup_env,
-    var_names::{API_VALIDATOR, MIXNET_CONTRACT_ADDRESS, NYMD_VALIDATOR, VESTING_CONTRACT_ADDRESS},
+    var_names::{MIXNET_CONTRACT_ADDRESS, NYM_API, NYXD, VESTING_CONTRACT_ADDRESS},
     NymNetworkDetails,
 };
 use tap::prelude::*;
 pub use validator_client::nym_api::Client as NymApiClient;
-use validator_client::nymd::{self, AccountId, NymdClient, QueryNymdClient, SigningNymdClient};
+use validator_client::nyxd::{self, AccountId, NyxdClient, QueryNyxdClient, SigningNyxdClient};
 
 use crate::context::errors::ContextError;
 
 pub mod errors;
 
-pub type SigningClient = validator_client::nymd::NymdClient<SigningNymdClient>;
-pub type QueryClient = validator_client::nymd::NymdClient<QueryNymdClient>;
-pub type SigningClientWithNymd = validator_client::Client<SigningNymdClient>;
-pub type QueryClientWithNymd = validator_client::Client<QueryNymdClient>;
+pub type SigningClient = validator_client::nyxd::NyxdClient<SigningNyxdClient>;
+pub type QueryClient = validator_client::nyxd::NyxdClient<QueryNyxdClient>;
+pub type SigningClientWithNyxd = validator_client::Client<SigningNyxdClient>;
+pub type QueryClientWithNyxd = validator_client::Client<QueryNyxdClient>;
 
 #[derive(Debug)]
 pub struct ClientArgs {
     pub config_env_file: Option<std::path::PathBuf>,
-    pub nymd_url: Option<String>,
+    pub nyxd_url: Option<String>,
     pub nym_api_url: Option<String>,
     pub mnemonic: Option<bip39::Mnemonic>,
     pub mixnet_contract_address: Option<AccountId>,
@@ -32,14 +32,14 @@ pub struct ClientArgs {
 pub fn get_network_details(args: &ClientArgs) -> Result<NymNetworkDetails, ContextError> {
     // let the network defaults crate handle setting up the env vars if the file arg is set, otherwise
     // it will default to what is already in env vars, falling back to mainnet
-    setup_env(args.config_env_file.clone());
+    setup_env(args.config_env_file.as_ref());
 
     // override the env vars with user supplied arguments, if set
-    if let Some(nymd_url) = args.nymd_url.as_ref() {
-        std::env::set_var(NYMD_VALIDATOR, nymd_url);
+    if let Some(nyxd_url) = args.nyxd_url.as_ref() {
+        std::env::set_var(NYXD, nyxd_url);
     }
     if let Some(nym_api_url) = args.nym_api_url.as_ref() {
-        std::env::set_var(API_VALIDATOR, nym_api_url);
+        std::env::set_var(NYM_API, nym_api_url);
     }
     if let Some(mixnet_contract_address) = args.mixnet_contract_address.as_ref() {
         std::env::set_var(MIXNET_CONTRACT_ADDRESS, mixnet_contract_address.to_string());
@@ -58,7 +58,7 @@ pub fn create_signing_client(
     args: ClientArgs,
     network_details: &NymNetworkDetails,
 ) -> Result<SigningClient, ContextError> {
-    let client_config = nymd::Config::try_from_nym_network_details(network_details)
+    let client_config = nyxd::Config::try_from_nym_network_details(network_details)
         .tap_err(|err| log::error!("Failed to get client config - {err}"))?;
 
     // get mnemonic
@@ -71,42 +71,42 @@ pub fn create_signing_client(
         },
     };
 
-    let nymd_url = network_details
+    let nyxd_url = network_details
         .endpoints
         .first()
         .expect("network details are not defined")
-        .nymd_url
+        .nyxd_url
         .as_str();
 
-    match NymdClient::connect_with_mnemonic(client_config, nymd_url, mnemonic, None) {
+    match NyxdClient::connect_with_mnemonic(client_config, nyxd_url, mnemonic, None) {
         Ok(client) => Ok(client),
-        Err(e) => Err(ContextError::NymdError(format!("{:?}", e))),
+        Err(e) => Err(ContextError::NyxdError(format!("{e}"))),
     }
 }
 
 pub fn create_query_client(
     network_details: &NymNetworkDetails,
 ) -> Result<QueryClient, ContextError> {
-    let client_config = nymd::Config::try_from_nym_network_details(network_details)
+    let client_config = nyxd::Config::try_from_nym_network_details(network_details)
         .tap_err(|err| log::error!("Failed to get client config - {err}"))?;
 
-    let nymd_url = network_details
+    let nyxd_url = network_details
         .endpoints
         .first()
         .expect("network details are not defined")
-        .nymd_url
+        .nyxd_url
         .as_str();
 
-    match NymdClient::connect(client_config, nymd_url) {
+    match NyxdClient::connect(client_config, nyxd_url) {
         Ok(client) => Ok(client),
-        Err(e) => Err(ContextError::NymdError(format!("{:?}", e))),
+        Err(e) => Err(ContextError::NyxdError(format!("{e}"))),
     }
 }
 
 pub fn create_signing_client_with_nym_api(
     args: ClientArgs,
     network_details: &NymNetworkDetails,
-) -> Result<SigningClientWithNymd, ContextError> {
+) -> Result<SigningClientWithNyxd, ContextError> {
     let client_config = validator_client::Config::try_from_nym_network_details(network_details)
         .tap_err(|err| log::error!("Failed to get client config - {err}"))?;
 
@@ -122,18 +122,18 @@ pub fn create_signing_client_with_nym_api(
 
     match validator_client::client::Client::new_signing(client_config, mnemonic) {
         Ok(client) => Ok(client),
-        Err(e) => Err(ContextError::NymdError(format!("{:?}", e))),
+        Err(e) => Err(ContextError::NyxdError(format!("{e}"))),
     }
 }
 
 pub fn create_query_client_with_nym_api(
     network_details: &NymNetworkDetails,
-) -> Result<QueryClientWithNymd, ContextError> {
+) -> Result<QueryClientWithNyxd, ContextError> {
     let client_config = validator_client::Config::try_from_nym_network_details(network_details)
         .tap_err(|err| log::error!("Failed to get client config - {err}"))?;
 
     match validator_client::client::Client::new_query(client_config) {
         Ok(client) => Ok(client),
-        Err(e) => Err(ContextError::NymdError(format!("{:?}", e))),
+        Err(e) => Err(ContextError::NyxdError(format!("{e}"))),
     }
 }

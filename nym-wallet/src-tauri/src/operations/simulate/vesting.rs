@@ -26,13 +26,13 @@ async fn simulate_vesting_operation(
     };
 
     let client = guard.current_client()?;
-    let vesting_contract = client.nymd.vesting_contract_address();
+    let vesting_contract = client.nyxd.vesting_contract_address();
 
     let msg = client
-        .nymd
+        .nyxd
         .wrap_contract_execute_message(vesting_contract, &msg, funds)?;
 
-    let result = client.nymd.simulate(vec![msg]).await?;
+    let result = client.nyxd.simulate(vec![msg]).await?;
     guard.create_detailed_fee(result)
 }
 
@@ -151,7 +151,11 @@ pub async fn simulate_vesting_delegate_to_mixnode(
     let amount = guard.attempt_convert_to_base_coin(amount)?.into();
 
     simulate_vesting_operation(
-        ExecuteMsg::DelegateToMixnode { mix_id, amount },
+        ExecuteMsg::DelegateToMixnode {
+            on_behalf_of: None,
+            mix_id,
+            amount,
+        },
         None,
         &state,
     )
@@ -163,7 +167,15 @@ pub async fn simulate_vesting_undelegate_from_mixnode(
     mix_id: MixId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {
-    simulate_vesting_operation(ExecuteMsg::UndelegateFromMixnode { mix_id }, None, &state).await
+    simulate_vesting_operation(
+        ExecuteMsg::UndelegateFromMixnode {
+            on_behalf_of: None,
+            mix_id,
+        },
+        None,
+        &state,
+    )
+    .await
 }
 
 #[tauri::command]

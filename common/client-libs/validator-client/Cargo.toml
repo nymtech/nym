@@ -17,21 +17,22 @@ mixnet-contract-common = { path= "../../cosmwasm-smart-contracts/mixnet-contract
 vesting-contract-common = { path= "../../cosmwasm-smart-contracts/vesting-contract" }
 coconut-bandwidth-contract-common = { path= "../../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 multisig-contract-common = { path = "../../cosmwasm-smart-contracts/multisig-contract" }
+group-contract-common = { path = "../../cosmwasm-smart-contracts/group-contract" }
 vesting-contract = { path = "../../../contracts/vesting" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 reqwest = { version = "0.11", features = ["json"] }
 thiserror = "1"
-log = "0.4"
+log = { workspace = true }
 url = { version = "2.2", features = ["serde"] }
-tokio = { version = "1.21.2", features = ["sync", "time"] }
+tokio = { version = "1.24.1", features = ["sync", "time"] }
 futures = "0.3"
 
 coconut-interface = { path = "../../coconut-interface" }
 network-defaults = { path = "../../network-defaults" }
 nym-api-requests = { path = "../../../nym-api/nym-api-requests", features = ["coconut"] }
 
-# required for nymd-client
+# required for nyxd-client
 # at some point it might be possible to make it wasm-compatible
 # perhaps after https://github.com/cosmos/cosmos-rust/pull/97 is resolved (and tendermint-rs is updated)
 async-trait = { version = "0.1.51", optional = true }
@@ -39,6 +40,7 @@ bip39 = { version = "1", features = ["rand"], optional = true }
 config = { path = "../../config", optional = true }
 cosmrs = { git = "https://github.com/neacsu/cosmos-rust", branch = "neacsu/feegrant_support", features = ["rpc", "bip32", "cosmwasm"], optional = true}
 cw3 = { version = "0.13.4", optional = true }
+cw4 = { version = "0.13.4", optional = true }
 prost = { version = "0.10", default-features = false, optional = true }
 flate2 = { version = "1.0.20", optional = true }
 sha2 = { version = "0.9.5", optional = true }
@@ -50,12 +52,13 @@ execute = { path = "../../execute" }
 ts-rs = "6.1.2"
 
 [features]
-nymd-client = [
+nyxd-client = [
     "async-trait",
     "bip39",
     "config",
     "cosmrs",
     "cw3",
+    "cw4",
     "prost",
     "flate2",
     "sha2",

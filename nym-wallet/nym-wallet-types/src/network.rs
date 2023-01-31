@@ -62,7 +62,7 @@ impl Default for Network {
 
 impl fmt::Display for Network {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
+        write!(f, "{self:?}")
     }
 }
 
@@ -109,6 +109,7 @@ mod sandbox {
         "nymt17p9rzwnnfxcjp32un9ug7yhhzgtkhvl9f8xzkv";
     pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
         "nymt1nz0r0au8aj6dc00wmm3ufy4g4k86rjzlgq608r";
+    pub(crate) const GROUP_CONTRACT_ADDRESS: &str = "nymt1k8re7jwz6rnnwrktnejdwkwnncte7ek7kk6fvg";
     pub(crate) const MULTISIG_CONTRACT_ADDRESS: &str =
         "nymt1k8re7jwz6rnnwrktnejdwkwnncte7ek7kk6fvg";
     pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str =
@@ -145,6 +146,7 @@ mod sandbox {
                 coconut_bandwidth_contract_address: parse_optional_str(
                     COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
                 ),
+                group_contract_address: parse_optional_str(GROUP_CONTRACT_ADDRESS),
                 multisig_contract_address: parse_optional_str(MULTISIG_CONTRACT_ADDRESS),
                 coconut_dkg_contract_address: parse_optional_str(COCONUT_DKG_CONTRACT_ADDRESS),
             },
@@ -170,6 +172,7 @@ mod qa {
         "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
     pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
         "n1ghd753shjuwexxywmgs4xz7x2q732vcn7ty4yw";
+    pub(crate) const GROUP_CONTRACT_ADDRESS: &str = "n17p9rzwnnfxcjp32un9ug7yhhzgtkhvl988qccs";
     pub(crate) const MULTISIG_CONTRACT_ADDRESS: &str = "n17p9rzwnnfxcjp32un9ug7yhhzgtkhvl988qccs";
     pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str =
         "n17p9rzwnnfxcjp32un9ug7yhhzgtkhvl988qccs";
@@ -204,6 +207,7 @@ mod qa {
                 coconut_bandwidth_contract_address: parse_optional_str(
                     COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
                 ),
+                group_contract_address: parse_optional_str(GROUP_CONTRACT_ADDRESS),
                 multisig_contract_address: parse_optional_str(MULTISIG_CONTRACT_ADDRESS),
                 coconut_dkg_contract_address: parse_optional_str(COCONUT_DKG_CONTRACT_ADDRESS),
             },

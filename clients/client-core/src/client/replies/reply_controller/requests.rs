@@ -99,6 +99,24 @@ impl ReplyControllerSender {
     }
 }
 
+pub struct ReplyQueueLengths {
+    reply_controller_sender: ReplyControllerSender,
+}
+
+impl ReplyQueueLengths {
+    pub fn new(reply_controller_sender: ReplyControllerSender) -> Self {
+        Self {
+            reply_controller_sender,
+        }
+    }
+
+    pub async fn get_lane_queue_length(&self, connection_id: ConnectionId) -> usize {
+        self.reply_controller_sender
+            .get_lane_queue_length(connection_id)
+            .await
+    }
+}
+
 pub(crate) type ReplyControllerReceiver = mpsc::UnboundedReceiver<ReplyControllerMessage>;
 
 #[derive(Debug)]

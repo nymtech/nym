@@ -8,7 +8,6 @@ import { ConnectionStatusKind } from '../types';
 import { DefaultLayout } from '../layouts/DefaultLayout';
 import { ConnectedLayout } from '../layouts/ConnectedLayout';
 import { Services } from '../types/directory';
-import { TestAndEarnButtonArea } from '../components/Growth/TestAndEarnButtonArea';
 
 export default {
   title: 'App/Flow',
@@ -86,32 +85,31 @@ export const Mock: ComponentStory<typeof AppWindowFrame> = () => {
   }
 
   return (
-    <Box width={width} height={height}>
-      <AppWindowFrame>
-        <ConnectedLayout
-          showInfoModal={false}
-          handleCloseInfoModal={() => undefined}
-          status={context.connectionStatus}
-          busy={busy}
-          onConnectClick={handleConnectClick}
-          ipAddress="127.0.0.1"
-          port={1080}
-          connectedSince={context.connectedSince}
-          serviceProvider={services[0].items[0]}
-          stats={[
-            {
-              label: 'in:',
-              totalBytes: 1024,
-              rateBytesPerSecond: 1024 * 1024 * 1024 + 10,
-            },
-            {
-              label: 'out:',
-              totalBytes: 1024 * 1024 * 1024 * 1024 * 20,
-              rateBytesPerSecond: 1024 * 1024 + 10,
-            },
-          ]}
-        />
-      </AppWindowFrame>
-    </Box>
+    <AppWindowFrame>
+      <ConnectedLayout
+        gatewayPerformance="Good"
+        showInfoModal={false}
+        handleCloseInfoModal={() => undefined}
+        status={context.connectionStatus}
+        busy={busy}
+        onConnectClick={handleConnectClick}
+        ipAddress="127.0.0.1"
+        port={1080}
+        connectedSince={context.connectedSince}
+        serviceProvider={services[0].items[0]}
+        stats={[
+          {
+            label: 'in:',
+            totalBytes: 1024,
+            rateBytesPerSecond: 1024 * 1024 * 1024 + 10,
+          },
+          {
+            label: 'out:',
+            totalBytes: 1024 * 1024 * 1024 * 1024 * 20,
+            rateBytesPerSecond: 1024 * 1024 + 10,
+          },
+        ]}
+      />
+    </AppWindowFrame>
   );
 };

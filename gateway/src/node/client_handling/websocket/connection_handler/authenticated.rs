@@ -22,6 +22,7 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 use crate::node::client_handling::bandwidth::Bandwidth;
 use crate::node::client_handling::FREE_TESTNET_BANDWIDTH_VALUE;
 use gateway_requests::iv::IV;
+use task::TaskClient;
 
 #[derive(Debug, Error)]
 pub(crate) enum RequestHandlingError {
@@ -49,8 +50,8 @@ pub(crate) enum RequestHandlingError {
     #[error("This gateway is only accepting coconut credentials for bandwidth")]
     OnlyCoconutCredentials,
 
-    #[error("Nymd Error - {0}")]
-    NymdError(#[from] validator_client::nymd::error::NymdError),
+    #[error("Nyxd Error - {0}")]
+    NyxdError(#[from] validator_client::nyxd::error::NyxdError),
 
     #[cfg(feature = "coconut")]
     #[error("Validator API error - {0}")]
@@ -67,6 +68,10 @@ pub(crate) enum RequestHandlingError {
     #[cfg(feature = "coconut")]
     #[error("Coconut interface error - {0}")]
     CoconutInterfaceError(#[from] coconut_interface::error::CoconutInterfaceError),
+
+    #[cfg(feature = "coconut")]
+    #[error("Credential error - {0}")]
+    CredentialError(#[from] credentials::error::Error),
 }
 
 impl RequestHandlingError {
@@ -209,12 +214,28 @@ where
             iv,
         )?;
 
-        if !credential.verify(
-            self.inner
-                .coconut_verifier
-                .as_ref()
-                .aggregated_verification_key(),
-        ) {
+        // Get the latest coconut signers and their VK
+        let credential_api_clients = self
+            .inner
+            .coconut_verifier
+            .all_coconut_api_clients(*credential.epoch_id())
+            .await?;
+        let current_api_clients = self
+            .inner
+            .coconut_verifier
+            .all_current_coconut_api_clients()
+            .await?;
+        if credential_api_clients.is_empty() || current_api_clients.is_empty() {
+            return Err(RequestHandlingError::NotEnoughNymAPIs {
+                received: 0,
+                needed: 1,
+            });
+        }
+
+        let aggregated_verification_key =
+            credentials::obtain_aggregate_verification_key(&credential_api_clients).await?;
+
+        if !credential.verify(&aggregated_verification_key) {
             return Err(RequestHandlingError::InvalidBandwidthCredential(
                 String::from("credential failed to verify on gateway"),
             ));
@@ -222,7 +243,7 @@ where
 
         self.inner
             .coconut_verifier
-            .release_funds(&credential)
+            .release_funds(current_api_clients, &credential)
             .await?;
 
         let bandwidth = Bandwidth::from(credential);
@@ -419,15 +440,18 @@ where
     /// binary requests to forward sphinx packets or increase bandwidth
     /// and for sphinx packets received from the mix network that should be sent back to the client.
     //SW#[instrument(level="info", skip_all, name="Serving requests")]
-    pub(crate) async fn listen_for_requests(mut self)
+    pub(crate) async fn listen_for_requests(mut self, mut shutdown: TaskClient)
     where
         S: AsyncRead + AsyncWrite + Unpin,
         St: Storage,
     {
         trace!("Started listening for ALL incoming requests...");
 
-        loop {
+        while !shutdown.is_shutdown() {
             tokio::select! {
+                _ = shutdown.recv() => {
+                    log::trace!("client_handling::AuthenticatedHandler: received shutdown");
+                }
                 socket_msg = self.inner.read_websocket_message() => {
                     //let span = info_span!("Processing client request");
                     //let guard = span.enter();

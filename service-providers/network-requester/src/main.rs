@@ -8,13 +8,13 @@ use completions::{fig_generate, ArgShell};
 use logging::setup_logging;
 
 use error::NetworkRequesterError;
-use network_defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use nymsphinx::addressing::clients::Recipient;
 
 mod allowed_hosts;
-mod connection;
 mod core;
 mod error;
+mod reply;
+mod socks5;
 mod statistics;
 mod websocket;
 
@@ -26,7 +26,7 @@ struct Run {
     #[clap(long)]
     open_proxy: bool,
 
-    /// Websocket port to bind to
+    /// Websocket port to bind to.
     #[clap(long)]
     websocket_port: Option<String>,
 
@@ -46,7 +46,7 @@ impl Run {
         }
 
         if self.enable_statistics {
-            println!("\n\nTHE NETWORK REQUESTER STATISTICS ARE ENABLED. IT WILL COLLECT AND SEND ANONYMIZED STATISTICS TO A CENTRAL SERVER. PLEASE QUIT IF YOU DON'T WANT THIS TO HAPPEN AND START WITHOUT THE {} FLAG .\n\n", ENABLE_STATISTICS);
+            println!("\n\nTHE NETWORK REQUESTER STATISTICS ARE ENABLED. IT WILL COLLECT AND SEND ANONYMIZED STATISTICS TO A CENTRAL SERVER. PLEASE QUIT IF YOU DON'T WANT THIS TO HAPPEN AND START WITHOUT THE {ENABLE_STATISTICS} FLAG .\n\n");
         }
 
         let stats_provider_addr = self
@@ -56,20 +56,21 @@ impl Run {
             .transpose()
             .unwrap_or(None);
 
-        let uri = format!(
+        let websocket_address = format!(
             "ws://localhost:{}",
             self.websocket_port
                 .as_ref()
-                .unwrap_or(&DEFAULT_WEBSOCKET_LISTENING_PORT.to_string())
+                .unwrap_or(&network_defaults::DEFAULT_WEBSOCKET_LISTENING_PORT.to_string())
         );
 
         log::info!("Starting socks5 service provider");
         let mut server = core::ServiceProvider::new(
-            uri,
+            websocket_address,
             self.open_proxy,
             self.enable_statistics,
             stats_provider_addr,
-        );
+        )
+        .await;
         server.run().await
     }
 }
@@ -98,8 +99,8 @@ pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {
 
     match &args.command {
         Commands::Run(r) => r.execute().await?,
-        Commands::Completions(s) => s.generate(&mut crate::Cli::into_app(), bin_name),
-        Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::into_app(), bin_name),
+        Commands::Completions(s) => s.generate(&mut crate::Cli::command(), bin_name),
+        Commands::GenerateFigSpec => fig_generate(&mut crate::Cli::command(), bin_name),
     }
     Ok(())
 }

@@ -1,6 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::var_names::{DEPRECATED_API_VALIDATOR, DEPRECATED_NYMD_VALIDATOR, NYM_API, NYXD};
 use serde::{Deserialize, Serialize};
 use std::{env::var, ops::Not, path::PathBuf};
 use url::Url;
@@ -35,6 +36,7 @@ pub struct NymContracts {
     pub vesting_contract_address: Option<String>,
     pub bandwidth_claim_contract_address: Option<String>,
     pub coconut_bandwidth_contract_address: Option<String>,
+    pub group_contract_address: Option<String>,
     pub multisig_contract_address: Option<String>,
     pub coconut_dkg_contract_address: Option<String>,
 }
@@ -77,8 +79,8 @@ impl NymNetworkDetails {
                     .expect("denomination exponent is not u32"),
             })
             .with_validator_endpoint(ValidatorDetails::new(
-                var(var_names::NYMD_VALIDATOR).expect("nymd validator not set"),
-                Some(var(var_names::API_VALIDATOR).expect("api validator not set")),
+                var(var_names::NYXD).expect("nyxd validator not set"),
+                Some(var(var_names::NYM_API).expect("nym api not set")),
             ))
             .with_mixnet_contract(Some(
                 var(var_names::MIXNET_CONTRACT_ADDRESS).expect("mixnet contract not set"),
@@ -93,6 +95,9 @@ impl NymNetworkDetails {
             .with_coconut_bandwidth_contract(Some(
                 var(var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS)
                     .expect("coconut bandwidth contract not set"),
+            ))
+            .with_group_contract(Some(
+                var(var_names::GROUP_CONTRACT_ADDRESS).expect("group contract not set"),
             ))
             .with_multisig_contract(Some(
                 var(var_names::MULTISIG_CONTRACT_ADDRESS).expect("multisig contract not set"),
@@ -124,6 +129,7 @@ impl NymNetworkDetails {
                 coconut_bandwidth_contract_address: parse_optional_str(
                     mainnet::COCONUT_BANDWIDTH_CONTRACT_ADDRESS,
                 ),
+                group_contract_address: parse_optional_str(mainnet::GROUP_CONTRACT_ADDRESS),
                 multisig_contract_address: parse_optional_str(mainnet::MULTISIG_CONTRACT_ADDRESS),
                 coconut_dkg_contract_address: parse_optional_str(
                     mainnet::COCONUT_DKG_CONTRACT_ADDRESS,
@@ -193,6 +199,12 @@ impl NymNetworkDetails {
     }
 
     #[must_use]
+    pub fn with_group_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
+        self.contracts.multisig_contract_address = contract.map(Into::into);
+        self
+    }
+
+    #[must_use]
     pub fn with_multisig_contract<S: Into<String>>(mut self, contract: Option<S>) -> Self {
         self.contracts.multisig_contract_address = contract.map(Into::into);
         self
@@ -254,7 +266,7 @@ impl DenomDetailsOwned {
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct ValidatorDetails {
     // it is assumed those values are always valid since they're being provided in our defaults file
-    pub nymd_url: String,
+    pub nyxd_url: String,
     // Right now api_url is optional as we are not running the api reliably on all validators
     // however, later on it should be a mandatory field
     pub api_url: Option<String>,
@@ -262,24 +274,24 @@ pub struct ValidatorDetails {
 }
 
 impl ValidatorDetails {
-    pub fn new<S: Into<String>>(nymd_url: S, api_url: Option<S>) -> Self {
+    pub fn new<S: Into<String>>(nyxd_url: S, api_url: Option<S>) -> Self {
         ValidatorDetails {
-            nymd_url: nymd_url.into(),
+            nyxd_url: nyxd_url.into(),
             api_url: api_url.map(Into::into),
         }
     }
 
-    pub fn new_nymd_only<S: Into<String>>(nymd_url: S) -> Self {
+    pub fn new_nyxd_only<S: Into<String>>(nyxd_url: S) -> Self {
         ValidatorDetails {
-            nymd_url: nymd_url.into(),
+            nyxd_url: nyxd_url.into(),
             api_url: None,
         }
     }
 
-    pub fn nymd_url(&self) -> Url {
-        self.nymd_url
+    pub fn nyxd_url(&self) -> Url {
+        self.nyxd_url
             .parse()
-            .expect("the provided nymd url is invalid!")
+            .expect("the provided nyxd url is invalid!")
     }
 
     pub fn api_url(&self) -> Option<Url> {
@@ -289,13 +301,28 @@ impl ValidatorDetails {
     }
 }
 
-pub fn setup_env(config_env_file: Option<PathBuf>) {
+fn fix_deprecated_environmental_variables() {
+    // if we're using the outdated environmental variables, set the updated ones to preserve compatibility
+    if let Ok(nyxd) = std::env::var(DEPRECATED_NYMD_VALIDATOR) {
+        if std::env::var(NYXD).is_err() {
+            std::env::set_var(NYXD, nyxd)
+        }
+    }
+    if let Ok(nym_apis) = std::env::var(DEPRECATED_API_VALIDATOR) {
+        if std::env::var(NYM_API).is_err() {
+            std::env::set_var(NYM_API, nym_apis)
+        }
+    }
+}
+
+pub fn setup_env(config_env_file: Option<&PathBuf>) {
     match std::env::var(var_names::CONFIGURED) {
         // if the configuration is not already set in the env vars
         Err(std::env::VarError::NotPresent) => {
             if let Some(config_env_file) = config_env_file {
                 dotenv::from_path(config_env_file)
                     .expect("Invalid path to environment configuration file");
+                fix_deprecated_environmental_variables();
             } else {
                 // if nothing is set, the use mainnet defaults
                 // if the user has not set `CONFIGURED`, then even if they set any of the env variables,
@@ -304,7 +331,9 @@ pub fn setup_env(config_env_file: Option<PathBuf>) {
             }
         }
         Err(_) => crate::mainnet::export_to_env(),
-        _ => {}
+        _ => {
+            fix_deprecated_environmental_variables();
+        }
     }
 
     // if we haven't explicitly defined any of the constants, fallback to defaults

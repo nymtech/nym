@@ -4,14 +4,15 @@
 use crate::coconut::client::Client;
 use crate::coconut::error::CoconutError;
 use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch, NodeIndex};
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId, NodeIndex};
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use contracts_common::dealings::ContractSafeBytes;
 use cw3::ProposalResponse;
+use cw4::MemberResponse;
 use dkg::Threshold;
-use validator_client::nymd::cosmwasm_client::logs::{find_attribute, NODE_INDEX};
-use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
-use validator_client::nymd::AccountId;
+use validator_client::nyxd::cosmwasm_client::logs::{find_attribute, NODE_INDEX};
+use validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
+use validator_client::nyxd::AccountId;
 
 pub(crate) struct DkgClient {
     inner: Box<dyn Client + Send + Sync>,
@@ -22,16 +23,16 @@ impl DkgClient {
     // Until we determine why that is, retry the query a few more times
     const RETRIES: usize = 3;
 
-    pub(crate) fn new<C>(nymd_client: C) -> Self
+    pub(crate) fn new<C>(nyxd_client: C) -> Self
     where
         C: Client + Send + Sync + 'static,
     {
         DkgClient {
-            inner: Box::new(nymd_client),
+            inner: Box::new(nyxd_client),
         }
     }
 
-    pub(crate) async fn _get_address(&self) -> AccountId {
+    pub(crate) async fn get_address(&self) -> AccountId {
         self.inner.address().await
     }
 
@@ -44,6 +45,12 @@ impl DkgClient {
             ret = self.inner.get_current_epoch().await;
         }
         ret
+    }
+
+    pub(crate) async fn group_member(&self) -> Result<MemberResponse, CoconutError> {
+        self.inner
+            .group_member(self.get_address().await.to_string())
+            .await
     }
 
     pub(crate) async fn get_current_epoch_threshold(
@@ -78,8 +85,9 @@ impl DkgClient {
 
     pub(crate) async fn get_verification_key_shares(
         &self,
+        epoch_id: EpochId,
     ) -> Result<Vec<ContractVKShare>, CoconutError> {
-        self.inner.get_verification_key_shares().await
+        self.inner.get_verification_key_shares(epoch_id).await
     }
 
     pub(crate) async fn list_proposals(&self) -> Result<Vec<ProposalResponse>, CoconutError> {

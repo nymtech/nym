@@ -37,7 +37,7 @@ pub async fn obtain_aggregate_verification_key(
 async fn obtain_partial_credential(
     params: &Parameters,
     attributes: &BandwidthVoucher,
-    client: &validator_client::client::ApiClient,
+    client: &validator_client::client::NymApiClient,
     validator_vk: &VerificationKey,
 ) -> Result<Signature, Error> {
     let public_attributes = attributes.get_public_attributes();
@@ -137,12 +137,14 @@ pub async fn obtain_aggregate_signature(
 }
 
 // TODO: better type flow
+#[allow(clippy::too_many_arguments)]
 pub fn prepare_credential_for_spending(
     params: &Parameters,
     voucher_value: u64,
     voucher_info: String,
     serial_number: Attribute,
     binding_number: Attribute,
+    epoch_id: u64,
     signature: &Signature,
     verification_key: &VerificationKey,
 ) -> Result<Credential, Error> {
@@ -159,5 +161,6 @@ pub fn prepare_credential_for_spending(
         theta,
         voucher_value,
         voucher_info,
+        epoch_id,
     ))
 }

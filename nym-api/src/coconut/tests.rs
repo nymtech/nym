@@ -30,21 +30,22 @@ use validator_client::nym_api::routes::{
     API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL,
     COCONUT_ROUTES, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
 };
-use validator_client::nymd::Coin;
-use validator_client::nymd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
+use validator_client::nyxd::Coin;
+use validator_client::nyxd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
 
 use crate::coconut::State;
-use crate::NymApiStorage;
+use crate::support::storage::NymApiStorage;
 use async_trait::async_trait;
 use coconut_dkg_common::dealer::{
     ContractDealing, DealerDetails, DealerDetailsResponse, DealerType,
 };
 use coconut_dkg_common::event_attributes::{DKG_PROPOSAL_ID, NODE_INDEX};
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch, TOTAL_DEALINGS};
+use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId, TOTAL_DEALINGS};
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use contracts_common::dealings::ContractSafeBytes;
 use crypto::asymmetric::{encryption, identity};
 use cw3::ProposalResponse;
+use cw4::MemberResponse;
 use dkg::Threshold;
 use rand_07::rngs::OsRng;
 use rand_07::Rng;
@@ -53,8 +54,8 @@ use rocket::local::asynchronous::Client;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, RwLock};
-use validator_client::nymd::cosmwasm_client::logs::Log;
-use validator_client::nymd::cosmwasm_client::types::ExecuteResult;
+use validator_client::nyxd::cosmwasm_client::logs::Log;
+use validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 
 const TEST_COIN_DENOM: &str = "unym";
 const TEST_REWARDING_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
@@ -192,6 +193,10 @@ impl super::client::Client for DummyClient {
         Ok(*self.epoch.read().unwrap())
     }
 
+    async fn group_member(&self, _addr: String) -> Result<MemberResponse> {
+        todo!()
+    }
+
     async fn get_current_epoch_threshold(&self) -> Result<Option<Threshold>> {
         Ok(*self.threshold.read().unwrap())
     }
@@ -231,7 +236,10 @@ impl super::client::Client for DummyClient {
             .collect())
     }
 
-    async fn get_verification_key_shares(&self) -> Result<Vec<ContractVKShare>> {
+    async fn get_verification_key_shares(
+        &self,
+        _epoch_id: EpochId,
+    ) -> Result<Vec<ContractVKShare>> {
         Ok(self
             .verification_share
             .read()
@@ -342,6 +350,7 @@ impl super::client::Client for DummyClient {
                 announce_address: dealer_details.announce_address.clone(),
                 node_index: dealer_details.assigned_index,
                 owner: Addr::unchecked(self.validator_address.to_string()),
+                epoch_id: 0,
                 verified: false,
             },
         );
@@ -398,7 +407,7 @@ impl DummyCommunicationChannel {
 
 #[async_trait]
 impl super::comm::APICommunicationChannel for DummyCommunicationChannel {
-    async fn aggregated_verification_key(&self) -> Result<VerificationKey> {
+    async fn aggregated_verification_key(&self, _epoch_id: EpochId) -> Result<VerificationKey> {
         Ok(self.aggregated_verification_key.clone())
     }
 }
@@ -466,15 +475,15 @@ async fn signed_before() {
         .write()
         .unwrap()
         .insert(tx_hash.to_string(), tx_entry.clone());
-    let nymd_client =
+    let nyxd_client =
         DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap())
             .with_tx_db(&tx_db);
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
-    staged_key_pair.set(key_pair).await;
+    staged_key_pair.set(Some(key_pair)).await;
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
-        nymd_client,
+        nyxd_client,
         TEST_COIN_DENOM.to_string(),
         staged_key_pair,
         comm_channel,
@@ -530,7 +539,7 @@ async fn signed_before() {
 
 #[tokio::test]
 async fn state_functions() {
-    let nymd_client =
+    let nyxd_client =
         DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap());
     let params = Parameters::new(4).unwrap();
     let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
@@ -539,9 +548,9 @@ async fn state_functions() {
     let storage = NymApiStorage::init(db_dir).await.unwrap();
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
-    staged_key_pair.set(key_pair).await;
+    staged_key_pair.set(Some(key_pair)).await;
     let state = State::new(
-        nymd_client,
+        nyxd_client,
         TEST_COIN_DENOM.to_string(),
         staged_key_pair,
         comm_channel,
@@ -703,15 +712,15 @@ async fn blind_sign_correct() {
         .write()
         .unwrap()
         .insert(tx_hash.to_string(), tx_entry.clone());
-    let nymd_client =
+    let nyxd_client =
         DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap())
             .with_tx_db(&tx_db);
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
-    staged_key_pair.set(key_pair).await;
+    staged_key_pair.set(Some(key_pair)).await;
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
-        nymd_client,
+        nyxd_client,
         TEST_COIN_DENOM.to_string(),
         staged_key_pair,
         comm_channel,
@@ -781,14 +790,14 @@ async fn signature_test() {
     let mut db_dir = std::env::temp_dir();
     db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
     let storage = NymApiStorage::init(db_dir).await.unwrap();
-    let nymd_client =
+    let nyxd_client =
         DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap());
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
-    staged_key_pair.set(key_pair).await;
+    staged_key_pair.set(Some(key_pair)).await;
 
     let rocket = rocket::build().attach(InternalSignRequest::stage(
-        nymd_client,
+        nyxd_client,
         TEST_COIN_DENOM.to_string(),
         staged_key_pair,
         comm_channel,
@@ -848,7 +857,7 @@ async fn verification_of_bandwidth_credential() {
     let validator_address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
     let proposal_db = Arc::new(RwLock::new(HashMap::new()));
     let spent_credential_db = Arc::new(RwLock::new(HashMap::new()));
-    let nymd_client = DummyClient::new(validator_address.clone())
+    let nyxd_client = DummyClient::new(validator_address.clone())
         .with_proposal_db(&proposal_db)
         .with_spent_credential_db(&spent_credential_db);
     let mut db_dir = std::env::temp_dir();
@@ -872,9 +881,9 @@ async fn verification_of_bandwidth_credential() {
     let storage1 = NymApiStorage::init(db_dir).await.unwrap();
     let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
     let staged_key_pair = crate::coconut::KeyPair::new();
-    staged_key_pair.set(key_pair).await;
+    staged_key_pair.set(Some(key_pair)).await;
     let rocket = rocket::build().attach(InternalSignRequest::stage(
-        nymd_client.clone(),
+        nyxd_client.clone(),
         TEST_COIN_DENOM.to_string(),
         staged_key_pair,
         comm_channel.clone(),
@@ -885,7 +894,7 @@ async fn verification_of_bandwidth_credential() {
         .await
         .expect("valid rocket instance");
 
-    let credential = Credential::new(4, theta.clone(), voucher_value, voucher_info.to_string());
+    let credential = Credential::new(4, theta.clone(), voucher_value, voucher_info.to_string(), 0);
     let proposal_id = 42;
     // The address is not used, so we can use a duplicate
     let gateway_cosmos_addr = validator_address.clone();
@@ -1036,6 +1045,7 @@ async fn verification_of_bandwidth_credential() {
         theta.clone(),
         voucher_value,
         String::from("bad voucher info"),
+        0,
     );
     let bad_req =
         VerifyCredentialBody::new(bad_credential, proposal_id, gateway_cosmos_addr.clone());

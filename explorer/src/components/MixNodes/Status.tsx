@@ -36,7 +36,7 @@ export const getMixNodeStatusText = (status: MixnodeStatus) => {
   }
 };
 
-export const MixNodeStatus: React.FC<MixNodeStatusProps> = ({ status }) => {
+export const MixNodeStatus: FCWithChildren<MixNodeStatusProps> = ({ status }) => {
   const theme = useTheme();
   const Icon = React.useMemo(() => getMixNodeIcon(status), [status]);
   const color = React.useMemo(() => getMixNodeStatusColor(theme, status), [status, theme]);

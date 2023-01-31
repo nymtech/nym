@@ -66,9 +66,9 @@ nym_api_urls = [
     {{/each}}
 ]
 
-# Addresses to validators which the node uses to check for double spending of ERC20 tokens.
-validator_nymd_urls = [
-    {{#each gateway.validator_nymd_urls }}
+# Addresses to validators which the node uses to check for double spending of nym tokens.
+nyxd_urls = [
+    {{#each gateway.nyxd_urls }}
         '{{this}}',
     {{/each}}
 ]

@@ -507,14 +507,10 @@ where
         let mult = self.sending_delay_controller.current_multiplier();
         let delay = self.current_average_message_sending_delay().as_millis();
         let status_str = if self.config.disable_poisson_packet_distribution {
-            format!(
-                "Status: {lanes} lanes, backlog: {:.2} kiB ({packets}), no delay",
-                backlog
-            )
+            format!("Status: {lanes} lanes, backlog: {backlog:.2} kiB ({packets}), no delay")
         } else {
             format!(
-                "Status: {lanes} lanes, backlog: {:.2} kiB ({packets}), avg delay: {}ms ({mult})",
-                backlog, delay
+                "Status: {lanes} lanes, backlog: {backlog:.2} kiB ({packets}), avg delay: {delay}ms ({mult})"
             )
         };
         if packets > 1000 {
@@ -574,9 +570,7 @@ where
                     }
                 }
             }
-            tokio::time::timeout(Duration::from_secs(5), shutdown.recv())
-                .await
-                .expect("Task stopped without shutdown called");
+            shutdown.recv_timeout().await;
         }
 
         #[cfg(target_arch = "wasm32")]

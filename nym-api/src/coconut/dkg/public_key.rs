@@ -4,23 +4,31 @@
 use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::state::State;
 use crate::coconut::error::CoconutError;
+use coconut_dkg_common::dealer::DealerType;
 
 pub(crate) async fn public_key_submission(
     dkg_client: &DkgClient,
     state: &mut State,
 ) -> Result<(), CoconutError> {
+    if state.was_in_progress() {
+        state.reset_persistent().await;
+    }
     if state.node_index().is_some() {
         return Ok(());
     }
 
     let bte_key = bs58::encode(&state.dkg_keypair().public_key().to_bytes()).into_string();
-    let index = if let Some(details) = dkg_client
-        .get_self_registered_dealer_details()
-        .await?
-        .details
-    {
+    let dealer_details = dkg_client.get_self_registered_dealer_details().await?;
+    let index = if let Some(details) = dealer_details.details {
+        if dealer_details.dealer_type == DealerType::Past {
+            // If it was a dealer in a previous epoch, re-register it for this epoch
+            dkg_client
+                .register_dealer(bte_key, state.announce_address().to_string())
+                .await?;
+        }
         details.assigned_index
     } else {
+        // First time registration
         dkg_client
             .register_dealer(bte_key, state.announce_address().to_string())
             .await?
@@ -42,7 +50,7 @@ pub(crate) mod tests {
     use std::path::PathBuf;
     use std::str::FromStr;
     use url::Url;
-    use validator_client::nymd::AccountId;
+    use validator_client::nyxd::AccountId;
 
     const TEST_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
 

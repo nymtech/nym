@@ -3,7 +3,7 @@ use crate::state::WalletState;
 use nym_types::currency::DecCoin;
 use nym_types::transaction::{SendTxResult, TransactionDetails};
 use std::str::FromStr;
-use validator_client::nymd::{AccountId, Fee};
+use validator_client::nyxd::{AccountId, Fee};
 
 #[tauri::command]
 pub async fn send(
@@ -17,7 +17,7 @@ pub async fn send(
     let amount_base = guard.attempt_convert_to_base_coin(amount.clone())?;
 
     let to_address = AccountId::from_str(address)?;
-    let from_address = guard.current_client()?.nymd.address().to_string();
+    let from_address = guard.current_client()?.nyxd.address().to_string();
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     log::info!(
         ">>> Send: display_amount = {}, base_amount = {}, from = {}, to = {}, fee = {:?}",
@@ -29,7 +29,7 @@ pub async fn send(
     );
     let raw_res = guard
         .current_client()?
-        .nymd
+        .nyxd
         .send(&to_address, vec![amount_base], memo, fee)
         .await?;
     log::info!("<<< tx hash = {}", raw_res.hash.to_string());

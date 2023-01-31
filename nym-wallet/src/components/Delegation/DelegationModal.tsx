@@ -36,12 +36,13 @@ export type DelegationModalProps = {
   }[];
 };
 
-export const DelegationModal: React.FC<
+export const DelegationModal: FCWithChildren<
   DelegationModalProps & {
     open: boolean;
     onClose: () => void;
     sx?: SxProps;
     backdropProps?: object;
+    children?: React.ReactNode;
   }
 > = ({ status, action, message, transactions, open, onClose, children, sx, backdropProps }) => {
   if (status === 'loading') return <LoadingModal sx={sx} backdropProps={backdropProps} />;

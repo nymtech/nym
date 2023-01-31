@@ -3,7 +3,7 @@
 
 use gateway_requests::registration::handshake::SharedKeys;
 use gateway_requests::ServerResponse;
-use log::{trace, warn};
+use tracing::*;
 use nymsphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
 use tokio::io::{AsyncRead, AsyncWrite};

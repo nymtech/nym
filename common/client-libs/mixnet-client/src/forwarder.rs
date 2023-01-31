@@ -4,7 +4,7 @@
 use crate::client::{Client, Config, SendWithoutResponse};
 use futures::channel::mpsc;
 use futures::StreamExt;
-use log::*;
+use tracing::*;
 use nymsphinx::forwarding::packet::MixPacket;
 use std::time::Duration;
 

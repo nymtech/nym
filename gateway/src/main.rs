@@ -6,6 +6,16 @@ use logging::setup_logging;
 use network_defaults::setup_env;
 use once_cell::sync::OnceCell;
 
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::{EnvFilter, Registry, filter};
+use tracing::*;
+use opentelemetry::trace::{TraceError};
+use tracing_flame::FlameLayer;
+use std::time::Duration;
+use std::thread::sleep;
+
+
+
 mod commands;
 mod config;
 mod node;
@@ -29,8 +39,30 @@ struct Cli {
 }
 
 #[tokio::main]
-async fn main() {
-    setup_logging();
+async fn main()  -> Result<(), TraceError>{
+    let tracer = opentelemetry_jaeger::new_agent_pipeline()
+        .with_endpoint("143.42.21.138:6831")
+        .with_service_name("nym_gateway")
+        .install_simple()
+        .expect("Failed to initialize tracer");
+
+    let jaeger_layer = tracing_opentelemetry::layer().with_tracer(tracer);
+    let filter_layer = filter::filter_fn(|metadata| {metadata.target().starts_with("nym_gateway")});
+
+    let (flame_layer, _guard) = FlameLayer::with_file("./tracing.folded").unwrap();
+
+    let subscriber = Registry::default()
+        .with(EnvFilter::from_default_env())
+        .with(filter_layer)
+        .with(tracing_subscriber::fmt::layer().pretty())
+        .with(flame_layer)
+        .with(jaeger_layer);
+
+
+    tracing::subscriber::set_global_default(subscriber)
+     .expect("Failed to set global subscriber");
+    //tracing_subscriber::fmt::init();
+    //setup_logging();
     println!("{}", banner());
     LONG_VERSION
         .set(long_version())
@@ -38,7 +70,10 @@ async fn main() {
 
     let args = Cli::parse();
     setup_env(args.config_env_file.clone());
-    commands::execute(args).await;
+    commands::execute(args).instrument( info_span!("Executing run command")).await;
+    opentelemetry::global::shutdown_tracer_provider();
+    println!("Exiting");
+    Ok(())
 }
 
 fn banner() -> String {

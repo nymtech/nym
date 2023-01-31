@@ -49,6 +49,12 @@ tokio-stream = { version = "0.1.9", features = ["fs"] }
 tokio-tungstenite = "0.14"
 tokio-util = { version = "0.7.3", features = ["codec"] }
 url = { version = "2.2", features = ["serde"] }
+tracing = "0.1.37"
+tracing-subscriber = {version = "0.3.16", features = ["registry", "std", "env-filter"]}
+tracing-opentelemetry = "0.18.0"
+opentelemetry-jaeger = {version = "0.17.0", features = ["collector_client","rt-tokio","isahc_collector_client"]}
+opentelemetry = {version = "0.18.0", features = ["rt-tokio"]}
+tracing-flame = "0.2.0"
 
 # internal
 coconut-interface = { path = "../common/coconut-interface", optional = true }

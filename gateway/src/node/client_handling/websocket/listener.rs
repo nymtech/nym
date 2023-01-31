@@ -5,7 +5,7 @@ use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::websocket::connection_handler::FreshHandler;
 use crate::node::storage::Storage;
 use crypto::asymmetric::identity;
-use log::*;
+use tracing::*;
 use mixnet_client::forwarder::MixForwardingSender;
 use rand::rngs::OsRng;
 use std::net::SocketAddr;

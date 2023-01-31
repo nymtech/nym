@@ -3,7 +3,7 @@
 
 use std::time::{Duration, SystemTime};
 
-use log::*;
+use tracing::*;
 
 use coconut_interface::{Credential, VerificationKey};
 use validator_client::{

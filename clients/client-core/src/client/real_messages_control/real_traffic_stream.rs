@@ -369,7 +369,7 @@ where
     fn poll_poisson(&mut self, cx: &mut Context<'_>) -> Poll<Option<StreamMessage>> {
         // The average delay could change depending on if backpressure in the downstream channel
         // (mix_tx) was detected.
-        self.adjust_current_average_message_sending_delay();
+        //self.adjust_current_average_message_sending_delay();
         let avg_delay = self.current_average_message_sending_delay();
 
         // Start by checking if we have any incoming messages about closed connections
@@ -544,6 +544,9 @@ where
     }
 
     pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
+        self.run_test().await;
+        return;
+        println!("START LINE");
         debug!("Started OutQueueControl with graceful shutdown support");
 
         #[cfg(not(target_arch = "wasm32"))]
@@ -614,6 +617,7 @@ where
         }
 
         info!("10sec warmup done");
+        return;
         sleep(Duration::new(10, 0));
         info!("10 seconds cooldown elapsed");
         info!("Resetting delay");

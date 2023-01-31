@@ -7,7 +7,7 @@ use crate::node::mixnet_handling::receiver::packet_processing::PacketProcessor;
 use crate::node::storage::error::StorageError;
 use crate::node::storage::Storage;
 use futures::StreamExt;
-use log::*;
+use tracing::*;
 use mixnet_client::forwarder::MixForwardingSender;
 use mixnode_common::packet_processor::processor::ProcessedFinalHop;
 use nymsphinx::forwarding::packet::MixPacket;
@@ -85,7 +85,6 @@ impl<St: Storage> ConnectionHandler<St> {
             }
         }
     }
-
     fn try_push_message_to_client(
         &mut self,
         client_address: DestinationAddressBytes,
@@ -104,7 +103,6 @@ impl<St: Storage> ConnectionHandler<St> {
             }
         }
     }
-
     pub(crate) async fn store_processed_packet_payload(
         &self,
         client_address: DestinationAddressBytes,
@@ -117,7 +115,6 @@ impl<St: Storage> ConnectionHandler<St> {
 
         self.storage.store_message(client_address, message).await
     }
-
     fn forward_ack(&self, forward_ack: Option<MixPacket>, client_address: DestinationAddressBytes) {
         if let Some(forward_ack) = forward_ack {
             trace!(

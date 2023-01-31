@@ -10,7 +10,7 @@ use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandle
 use crate::node::statistics::collector::GatewayStatisticsCollector;
 use crate::node::storage::Storage;
 use crypto::asymmetric::{encryption, identity};
-use log::*;
+use tracing::*;
 use mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 #[cfg(feature = "coconut")]
 use network_defaults::NymNetworkDetails;
@@ -213,7 +213,7 @@ where
             self.config.get_maximum_connection_buffer_size(),
             self.config.get_use_legacy_sphinx_framing(),
         );
-
+        //let span = info_span!("PacketForwarder Run");
         tokio::spawn(async move { packet_forwarder.run().await });
         packet_sender
     }

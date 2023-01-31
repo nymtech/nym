@@ -3,7 +3,7 @@
 
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::storage::Storage;
-use log::*;
+use tracing::*;
 use std::net::SocketAddr;
 use std::process;
 use tokio::task::JoinHandle;
@@ -17,7 +17,7 @@ impl Listener {
     pub(crate) fn new(address: SocketAddr) -> Self {
         Listener { address }
     }
-
+    //SW#[instrument(level="info", skip_all, name="Mixnet Listener")]
     pub(crate) async fn run<St>(&mut self, connection_handler: ConnectionHandler<St>)
     where
         St: Storage + Clone + 'static,

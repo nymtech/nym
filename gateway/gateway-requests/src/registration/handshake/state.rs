@@ -12,7 +12,7 @@ use crypto::{
     symmetric::stream_cipher,
 };
 use futures::{Sink, SinkExt, Stream, StreamExt};
-use log::*;
+use tracing::*;
 use nymsphinx::params::{GatewayEncryptionAlgorithm, GatewaySharedKeyHkdfAlgorithm};
 use rand::{CryptoRng, RngCore};
 use std::convert::{TryFrom, TryInto};

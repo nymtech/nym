@@ -4,8 +4,12 @@
 
 ## [nym-connect-v1.1.8](https://github.com/nymtech/nym/tree/nym-connect-v1.1.8) (2023-01-31)
 
-- New user interface
-- One click connect
+- Add supported apps in the menu + update guide ([#2868])
+
+- Copy changes to remove the dropdown: ([#2777])
+
+[#2868]: https://github.com/nymtech/nym/issues/2868
+[#2777]: https://github.com/nymtech/nym/issues/2777
 
 ## [nym-connect-v1.1.7](https://github.com/nymtech/nym/tree/nym-connect-v1.1.7) (2023-01-24)
 

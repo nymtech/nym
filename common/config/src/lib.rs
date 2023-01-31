@@ -30,23 +30,15 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
     fn default_root_directory() -> PathBuf;
 
     // default, most probable, implementations; can be easily overridden where required
-    fn default_config_directory(id: Option<&str>) -> PathBuf {
-        if let Some(id) = id {
-            Self::default_root_directory().join(id).join(CONFIG_DIR)
-        } else {
-            Self::default_root_directory().join(CONFIG_DIR)
-        }
+    fn default_config_directory(id: &str) -> PathBuf {
+        Self::default_root_directory().join(id).join(CONFIG_DIR)
     }
 
-    fn default_data_directory(id: Option<&str>) -> PathBuf {
-        if let Some(id) = id {
-            Self::default_root_directory().join(id).join(DATA_DIR)
-        } else {
-            Self::default_root_directory().join(DATA_DIR)
-        }
+    fn default_data_directory(id: &str) -> PathBuf {
+        Self::default_root_directory().join(id).join(DATA_DIR)
     }
 
-    fn default_config_file_path(id: Option<&str>) -> PathBuf {
+    fn default_config_file_path(id: &str) -> PathBuf {
         Self::default_config_directory(id).join(Self::config_file_name())
     }
 
@@ -54,23 +46,15 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
 
     fn try_default_root_directory() -> Option<PathBuf>;
 
-    fn try_default_config_directory(id: Option<&str>) -> Option<PathBuf> {
-        if let Some(id) = id {
-            Self::try_default_root_directory().map(|d| d.join(id).join(CONFIG_DIR))
-        } else {
-            Self::try_default_root_directory().map(|d| d.join(CONFIG_DIR))
-        }
+    fn try_default_config_directory(id: &str) -> Option<PathBuf> {
+        Self::try_default_root_directory().map(|d| d.join(id).join(CONFIG_DIR))
     }
 
-    fn try_default_data_directory(id: Option<&str>) -> Option<PathBuf> {
-        if let Some(id) = id {
-            Self::try_default_root_directory().map(|d| d.join(id).join(DATA_DIR))
-        } else {
-            Self::try_default_root_directory().map(|d| d.join(DATA_DIR))
-        }
+    fn try_default_data_directory(id: &str) -> Option<PathBuf> {
+        Self::try_default_root_directory().map(|d| d.join(id).join(DATA_DIR))
     }
 
-    fn try_default_config_file_path(id: Option<&str>) -> Option<PathBuf> {
+    fn try_default_config_file_path(id: &str) -> Option<PathBuf> {
         Self::try_default_config_directory(id).map(|d| d.join(Self::config_file_name()))
     }
 
@@ -113,7 +97,7 @@ pub trait NymConfig: Default + Serialize + DeserializeOwned {
         Ok(())
     }
 
-    fn load_from_file(id: Option<&str>) -> io::Result<Self> {
+    fn load_from_file(id: &str) -> io::Result<Self> {
         let file = Self::default_config_file_path(id);
         log::trace!("Loading from file: {:#?}", file);
         let config_contents = fs::read_to_string(file)?;

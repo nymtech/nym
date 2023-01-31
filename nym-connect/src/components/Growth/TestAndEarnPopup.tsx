@@ -28,7 +28,7 @@ export const TestAndEarnPopupContent: FCWithChildren<{
     );
   }
 
-  if (!connectionStatus || connectionStatus === ConnectionStatusKind.disconnected) {
+  if (!connectionStatus || connectionStatus === 'disconnected') {
     return (
       <Box p={4}>
         <ContentNotAvailable />
@@ -36,7 +36,7 @@ export const TestAndEarnPopupContent: FCWithChildren<{
     );
   }
 
-  if (connectionStatus === ConnectionStatusKind.connecting || connectionStatus === ConnectionStatusKind.disconnecting) {
+  if (connectionStatus === 'connecting' || connectionStatus === 'disconnecting') {
     return (
       <Box p={4} justifyContent="center" alignItems="center" display="flex">
         <CircularProgress />
@@ -77,7 +77,7 @@ export const TestAndEarnPopup: FCWithChildren = () => {
   const context = useTestAndEarnContext();
 
   React.useEffect(() => {
-    if (clientContext.connectionStatus === ConnectionStatusKind.connected) {
+    if (clientContext.connectionStatus === 'connected') {
       context.refresh();
     }
   }, [clientContext.connectionStatus]);
@@ -94,7 +94,7 @@ export const TestAndEarnPopup: FCWithChildren = () => {
     return () => clearInterval(interval);
   }, []);
 
-  if (!context.loadedOnce && clientContext.connectionStatus === ConnectionStatusKind.connected) {
+  if (!context.loadedOnce && clientContext.connectionStatus === 'connected') {
     const message = 'Waiting for data to be transferred over the mixnet...';
     return (
       <Box p={4}>

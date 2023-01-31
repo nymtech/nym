@@ -291,7 +291,7 @@ pub struct GatewayUptimeHistoryResponse {
 
 #[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct CirculatingSupplyResponse {
-    pub initial_supply: Coin,
+    pub total_supply: Coin,
     pub mixmining_reserve: Coin,
     pub vesting_tokens: Coin,
     pub circulating_supply: Coin,

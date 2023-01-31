@@ -24,7 +24,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - nym-api: an `--id` flag is now always explicitly required ([#2873])
 
 [#2754]: https://github.com/nymtech/nym/issues/2754
-[#2839]: https://github.com/nymtech/nym/issues/2810
+[#2810]: https://github.com/nymtech/nym/issues/2810
 [#2931]: https://github.com/nymtech/nym/issues/2931
 [#1902]: https://github.com/nymtech/nym/issues/1902
 [#2873]: https://github.com/nymtech/nym/issues/2873

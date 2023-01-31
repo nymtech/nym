@@ -49,18 +49,19 @@ pub fn try_commit_dealings(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::epoch_state::storage::CURRENT_EPOCH;
     use crate::epoch_state::transactions::advance_epoch_state;
-    use crate::support::tests::fixtures::dealing_bytes_fixture;
+    use crate::support::tests::fixtures::{dealer_details_fixture, dealing_bytes_fixture};
     use crate::support::tests::helpers;
     use coconut_dkg_common::dealer::DealerDetails;
-    use coconut_dkg_common::types::TimeConfiguration;
+    use coconut_dkg_common::types::{InitialReplacementData, TimeConfiguration};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::Addr;
 
     #[test]
     fn invalid_commit_dealing() {
         let mut deps = helpers::init_contract();
-        let owner = Addr::unchecked("owner");
+        let owner = Addr::unchecked("owner1");
         let mut env = mock_env();
         let info = mock_info(owner.as_str(), &[]);
         let dealing_bytes = dealing_bytes_fixture();
@@ -95,14 +96,40 @@ pub(crate) mod tests {
             .save(deps.as_mut().storage, &owner, &dealer_details)
             .unwrap();
 
+        // assume we're in resharing mode
+        CURRENT_EPOCH
+            .update::<_, ContractError>(deps.as_mut().storage, |mut epoch| {
+                epoch.state = EpochState::DealingExchange { resharing: true };
+                Ok(epoch)
+            })
+            .unwrap();
+        INITIAL_REPLACEMENT_DATA
+            .save(
+                deps.as_mut().storage,
+                &InitialReplacementData {
+                    initial_dealers: vec![],
+                    initial_height: None,
+                },
+            )
+            .unwrap();
+        let ret = try_commit_dealings(deps.as_mut(), info.clone(), dealing_bytes.clone(), true)
+            .unwrap_err();
+        assert_eq!(ret, ContractError::NotAnInitialDealer);
+
+        INITIAL_REPLACEMENT_DATA
+            .update::<_, ContractError>(deps.as_mut().storage, |mut data| {
+                data.initial_dealers = vec![dealer_details_fixture(1).address];
+                Ok(data)
+            })
+            .unwrap();
+
         for dealings in DEALINGS_BYTES {
             assert!(!dealings.has(deps.as_mut().storage, &owner));
-            let ret =
-                try_commit_dealings(deps.as_mut(), info.clone(), dealing_bytes.clone(), false);
+            let ret = try_commit_dealings(deps.as_mut(), info.clone(), dealing_bytes.clone(), true);
             assert!(ret.is_ok());
             assert!(dealings.has(deps.as_mut().storage, &owner));
         }
-        let ret = try_commit_dealings(deps.as_mut(), info.clone(), dealing_bytes.clone(), false)
+        let ret = try_commit_dealings(deps.as_mut(), info.clone(), dealing_bytes.clone(), true)
             .unwrap_err();
         assert_eq!(
             ret,

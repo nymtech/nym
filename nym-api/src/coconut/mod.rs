@@ -5,6 +5,7 @@ use self::comm::APICommunicationChannel;
 use crate::coconut::client::Client as LocalClient;
 use crate::coconut::deposit::extract_encryption_key;
 use crate::coconut::error::{CoconutError, Result};
+use crate::coconut::helpers::accepted_vote_err;
 use crate::support::storage::NymApiStorage;
 use coconut_bandwidth_contract_common::spend_credential::{
     funds_from_cosmos_msgs, SpendCredentialStatus,
@@ -33,7 +34,6 @@ use rocket::State as RocketState;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use validator_client::nym_api::routes::{BANDWIDTH, COCONUT_ROUTES};
-use validator_client::nyxd::error::NyxdError::AbciError;
 use validator_client::nyxd::{Coin, Fee};
 
 pub(crate) mod client;
@@ -41,6 +41,7 @@ pub(crate) mod comm;
 mod deposit;
 pub(crate) mod dkg;
 pub(crate) mod error;
+pub(crate) mod helpers;
 pub(crate) mod keypair;
 #[cfg(test)]
 pub(crate) mod tests;
@@ -301,6 +302,7 @@ pub async fn verify_bandwidth_credential(
             state.mix_denom.clone(),
         );
 
+    // Vote yes or no on the proposal based on the verification result
     let ret = state
         .client
         .vote_proposal(
@@ -313,16 +315,7 @@ pub async fn verify_bandwidth_credential(
             )),
         )
         .await;
-    // Vote yes or no on the proposal based on the verification result
-    // If the result is already established, the vote might be redundant and
-    // thus the transaction might fail
-    if let Err(CoconutError::NyxdError(AbciError { ref log, .. })) = ret {
-        let accepted_err = multisig_contract_common::error::ContractError::NotOpen {}.to_string();
-        // If redundant voting is not the case, error out on all other error variants
-        if !log.value().contains(&accepted_err) {
-            ret?;
-        }
-    }
+    accepted_vote_err(ret)?;
 
     Ok(Json(VerifyCredentialResponse::new(vote_yes)))
 }

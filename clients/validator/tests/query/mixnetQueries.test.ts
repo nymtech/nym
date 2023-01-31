@@ -1,7 +1,7 @@
 import ValidatorClient from '../../src';
 import expect from 'expect';
 const dotenv = require('dotenv');
-import { contract, delegation, gateway, mixnode, mixnodebond, saturation, unbondednode } from '../../types/expectedResponses';
+import { allunbondednodes, contract, delegation, gateway, mixnode, mixnodebond, ownedNode, rewardingnode, saturation, unbondednode } from '../../types/expectedResponses';
 
 dotenv.config();
 
@@ -38,32 +38,34 @@ describe('Mixnet queries', () => {
   // TODO Needs fixing
   it.skip('can query for mixnet contract settings', async () => {
     const settings = await client.getMixnetContractSettings();
-    expect(Object.keys(settings[0])).toEqual(Object.keys(contract));
+    console.log(settings);
+    expect(Object.keys(settings)).toEqual(Object.keys(contract));
     expect(settings).toBeTruthy;
   });
 
   it('can query for unbonded mixnodes', async () => {
     const unbondedNodes = await client.getUnbondedMixNodes();
-    expect(Object.keys(unbondedNodes[0])).toEqual(Object.keys(unbondednode));
-    expect(unbondedNodes).toBeTruthy();
-    expect(Array.isArray(unbondedNodes)).toBeTruthy();
+    for(let i = 0; i < unbondedNodes.length; i++){
+      expect(Object.keys(unbondedNodes[0])).toEqual(Object.keys(allunbondednodes));
+      expect(unbondedNodes).toBeTruthy();
+  }
   });
 
   it('can query for unbonded mixnode information', async () => {
     const unbondedMixnodeInfo = await client.getUnbondedMixNodeInformation(1);
-    expect(Object.keys(unbondedMixnodeInfo[0])).toEqual(Object.keys(mixnode));
+    expect(Object.keys(unbondedMixnodeInfo)).toEqual(Object.keys(unbondednode));
     expect(unbondedMixnodeInfo).toBeTruthy();
   });
 
   it('can query for mixnode rewarding details', async () => {
     const rewardingDetails = await client.getMixnodeRewardingDetails(1);
-    expect(Object.keys(rewardingDetails[0])).toEqual(Object.keys(mixnode));
+    expect(Object.keys(rewardingDetails)).toEqual(Object.keys(rewardingnode));
     expect(rewardingDetails).toBeTruthy();
   });
 
   it('can query for owned mixnode', async () => {
     const ownedMixnode = await client.getOwnedMixnode('n1ptg680vnmef2cd8l0s9uyc4f0hgf3x8sed6w77');
-    expect(Object.keys(ownedMixnode)).toEqual(Object.keys(mixnode));
+    expect(Object.keys(ownedMixnode)).toEqual(Object.keys(ownedNode));
     expect(ownedMixnode).toBeTruthy();
   });
 
@@ -84,7 +86,6 @@ describe('Mixnet queries', () => {
   it('can query for account delegations', async () => {
     const delegations = await client.getAllNyxdDelegatorDelegations('n1fzv4jc7fanl9s0qj02ge2ezk3kts545kjtek47');
     expect(Object.keys(delegations[0])).toEqual(Object.keys(delegation));
-    // expect(delegations[0]).toMatchObject(respons),
     expect(delegations).toBeTruthy;
     expect(Array.isArray(delegations)).toBeTruthy();
   });

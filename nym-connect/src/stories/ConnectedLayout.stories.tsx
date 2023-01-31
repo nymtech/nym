@@ -2,23 +2,28 @@ import React from 'react';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
 import { Box } from '@mui/material';
 import { DateTime } from 'luxon';
-import { ConnectedLayout } from '../layouts/ConnectedLayout';
-import { ConnectionStatusKind } from '../types';
+import { Connected } from 'src/pages/connection/Connected';
+import { ConnectionStatusKind } from 'src/types';
+
+const onClick = () => undefined;
 
 export default {
   title: 'Layouts/ConnectedLayout',
-  component: ConnectedLayout,
-} as ComponentMeta<typeof ConnectedLayout>;
+  component: Connected,
+} as ComponentMeta<typeof Connected>;
 
-export const Default: ComponentStory<typeof ConnectedLayout> = () => (
+export const Default: ComponentStory<typeof Connected> = () => (
   <Box p={2} width={242} sx={{ bgcolor: 'nym.background.dark' }}>
-    <ConnectedLayout
-      showInfoModal={false}
+    <Connected
       gatewayPerformance="Good"
-      handleCloseInfoModal={() => undefined}
+      showInfoModal={false}
+      closeInfoModal={() => {
+        return undefined;
+      }}
       status={ConnectionStatusKind.connected}
       connectedSince={DateTime.now()}
       ipAddress="127.0.0.1"
+      serviceProvider={{ id: 'service 1', description: 'good services', address: 'abc123', gateway: '8910xyz' }}
       port={1080}
       stats={[
         {
@@ -32,6 +37,7 @@ export const Default: ComponentStory<typeof ConnectedLayout> = () => (
           rateBytesPerSecond: 1024 * 1024 + 10,
         },
       ]}
+      onConnectClick={onClick}
     />
   </Box>
 );

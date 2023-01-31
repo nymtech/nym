@@ -2,6 +2,11 @@
 
 ## UNRELEASED
 
+## [nym-connect-v1.1.8](https://github.com/nymtech/nym/tree/nym-connect-v1.1.8) (2023-01-31)
+
+- New user interface
+- One click connect
+
 ## [nym-connect-v1.1.7](https://github.com/nymtech/nym/tree/nym-connect-v1.1.7) (2023-01-24)
 
 - Remove test and earn ([#2865])

@@ -56,9 +56,9 @@ pub enum BackendError {
     InitializationPanic,
     #[error("could not get config id before gateway is set")]
     CouldNotGetIdWithoutGateway,
-    #[error("could initialize without gateway set")]
+    #[error("could not initialize without gateway set")]
     CouldNotInitWithoutGateway,
-    #[error("could initialize without service provider set")]
+    #[error("could not initialize without service provider set")]
     CouldNotInitWithoutServiceProvider,
     #[error("could not get file name")]
     CouldNotGetFilename,

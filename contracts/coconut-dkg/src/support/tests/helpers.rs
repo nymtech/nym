@@ -19,7 +19,7 @@ pub const GROUP_CONTRACT: &str = "group contract address";
 pub const MULTISIG_CONTRACT: &str = "multisig contract address";
 
 lazy_static! {
-    pub static ref GROUP_MEMBERS: Mutex<Vec<Member>> = Mutex::new(vec![]);
+    pub static ref GROUP_MEMBERS: Mutex<Vec<(Member, u64)>> = Mutex::new(vec![]);
 }
 
 fn querier_handler(query: &WasmQuery) -> QuerierResult {
@@ -29,9 +29,14 @@ fn querier_handler(query: &WasmQuery) -> QuerierResult {
                 panic!("Not supported");
             }
             match from_binary(msg) {
-                Ok(Cw4QueryMsg::Member { addr, .. }) => {
-                    let weight = GROUP_MEMBERS.lock().unwrap().iter().find_map(|m| {
+                Ok(Cw4QueryMsg::Member { addr, at_height }) => {
+                    let weight = GROUP_MEMBERS.lock().unwrap().iter().find_map(|(m, h)| {
                         if m.addr == addr {
+                            if let Some(height) = at_height {
+                                if height != *h {
+                                    return None;
+                                }
+                            }
                             Some(m.weight)
                         } else {
                             None
@@ -40,7 +45,12 @@ fn querier_handler(query: &WasmQuery) -> QuerierResult {
                     to_binary(&MemberResponse { weight }).unwrap()
                 }
                 Ok(Cw4QueryMsg::ListMembers { .. }) => {
-                    let members = GROUP_MEMBERS.lock().unwrap().to_vec();
+                    let members = GROUP_MEMBERS
+                        .lock()
+                        .unwrap()
+                        .iter()
+                        .map(|m| m.0.clone())
+                        .collect();
                     to_binary(&MemberListResponse { members }).unwrap()
                 }
                 _ => panic!("Not supported"),

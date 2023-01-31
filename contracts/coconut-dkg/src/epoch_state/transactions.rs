@@ -126,7 +126,7 @@ pub(crate) fn advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Respons
             EpochState::default()
         } else {
             // ... in reshare mode
-            INITIAL_REPLACEMENT_DATA.update(deps.storage, |mut data| {
+            INITIAL_REPLACEMENT_DATA.update::<_, ContractError>(deps.storage, |mut data| {
                 data.initial_height = Some(env.block.height);
                 Ok(data)
             })?;
@@ -192,18 +192,18 @@ pub(crate) mod tests {
             {
                 let mut group = GROUP_MEMBERS.lock().unwrap();
 
-                group.push(Member {
+                group.push((Member {
                     addr: "owner1".to_string(),
                     weight: 10,
-                });
-                group.push(Member {
+                }, 1));
+                group.push((Member {
                     addr: "owner2".to_string(),
                     weight: 10,
-                });
-                group.push(Member {
+                }, 1));
+                group.push((Member {
                     addr: "owner3".to_string(),
                     weight: 10,
-                });
+                }, 1));
             }
             assert_eq!(0, dealers_still_active(&deps.as_ref(), current_dealers()
         .keys(&deps.storage, None, None, Order::Ascending)
@@ -229,18 +229,18 @@ pub(crate) mod tests {
             {
                 let mut group = GROUP_MEMBERS.lock().unwrap();
 
-                group.push(Member {
+                group.push((Member {
                     addr: "owner1".to_string(),
                     weight: 10,
-                });
-                group.push(Member {
+                }, 1));
+                group.push((Member {
                     addr: "owner2".to_string(),
                     weight: 10,
-                });
-                group.push(Member {
+                }, 1));
+                group.push((Member {
                     addr: "owner3".to_string(),
                     weight: 10,
-                });
+                }, 1));
             }
 
             let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
@@ -399,10 +399,10 @@ pub(crate) mod tests {
             assert_eq!(curr_epoch, expected_epoch);
 
             // Group changed, slightly, so reset dkg state
-            *GROUP_MEMBERS.lock().unwrap().first_mut().unwrap() = Member {
+            *GROUP_MEMBERS.lock().unwrap().first_mut().unwrap() = (Member {
                 addr: "owner4".to_string(),
                 weight: 10,
-            };
+            }, 1);
             env.block.time = env
                 .block
                 .time
@@ -429,18 +429,18 @@ pub(crate) mod tests {
         {
             let mut group = GROUP_MEMBERS.lock().unwrap();
 
-            group.push(Member {
+            group.push((Member {
                 addr: "owner1".to_string(),
                 weight: 10,
-            });
-            group.push(Member {
+            }, 1));
+            group.push((Member {
                 addr: "owner2".to_string(),
                 weight: 10,
-            });
-            group.push(Member {
+            }, 1));
+            group.push((Member {
                 addr: "owner3".to_string(),
                 weight: 10,
-            });
+            }, 1));
         }
 
         let ret = try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap_err();
@@ -477,19 +477,19 @@ pub(crate) mod tests {
         assert_eq!(THRESHOLD.load(&deps.storage).unwrap(), 2);
         assert_eq!(CURRENT_EPOCH.load(&deps.storage).unwrap(), curr_epoch);
 
-        *GROUP_MEMBERS.lock().unwrap().first_mut().unwrap() = Member {
+        *GROUP_MEMBERS.lock().unwrap().first_mut().unwrap() = (Member {
             addr: "owner4".to_string(),
             weight: 10,
-        };
+        }, 1);
         // epoch hasn't advanced as we are still in the threshold range
         try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap();
         assert_eq!(THRESHOLD.load(&deps.storage).unwrap(), 2);
         assert_eq!(CURRENT_EPOCH.load(&deps.storage).unwrap(), curr_epoch);
 
-        *GROUP_MEMBERS.lock().unwrap().last_mut().unwrap() = Member {
+        *GROUP_MEMBERS.lock().unwrap().last_mut().unwrap() = (Member {
             addr: "owner5".to_string(),
             weight: 10,
-        };
+        }, 1);
         try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap();
         assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
         let next_epoch = CURRENT_EPOCH.load(&deps.storage).unwrap();

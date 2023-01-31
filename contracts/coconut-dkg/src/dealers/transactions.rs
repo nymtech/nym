@@ -5,25 +5,21 @@ use crate::dealers::storage as dealers_storage;
 use crate::epoch_state::storage::INITIAL_REPLACEMENT_DATA;
 use crate::epoch_state::utils::check_epoch_state;
 use crate::error::ContractError;
-use crate::state::{State, STATE};
+use crate::state::STATE;
 use coconut_dkg_common::types::{DealerDetails, EncodedBTEPublicKeyWithProof, EpochState};
 use cosmwasm_std::{Addr, DepsMut, MessageInfo, Response};
 
 // currently we only require that
 // a) it's part of the signer group
 // b) it isn't already a dealer
-fn verify_dealer(
-    deps: DepsMut<'_>,
-    state: &State,
-    dealer: &Addr,
-    resharing: bool,
-) -> Result<(), ContractError> {
+fn verify_dealer(deps: DepsMut<'_>, dealer: &Addr, resharing: bool) -> Result<(), ContractError> {
     if dealers_storage::current_dealers()
         .may_load(deps.storage, dealer)?
         .is_some()
     {
         return Err(ContractError::AlreadyADealer);
     }
+    let state = STATE.load(deps.storage)?;
 
     let height = if resharing {
         INITIAL_REPLACEMENT_DATA.load(deps.storage)?.initial_height
@@ -46,9 +42,8 @@ pub fn try_add_dealer(
     resharing: bool,
 ) -> Result<Response, ContractError> {
     check_epoch_state(deps.storage, EpochState::PublicKeySubmission { resharing })?;
-    let state = STATE.load(deps.storage)?;
 
-    verify_dealer(deps.branch(), &state, &info.sender, resharing)?;
+    verify_dealer(deps.branch(), &info.sender, resharing)?;
 
     // if it was already a dealer in the past, assign the same node index
     let node_index = if let Some(prior_details) =
@@ -81,10 +76,63 @@ pub fn try_add_dealer(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+    use crate::dealers::storage::current_dealers;
     use crate::epoch_state::transactions::advance_epoch_state;
+    use crate::support::tests::fixtures::dealer_details_fixture;
     use crate::support::tests::helpers;
-    use coconut_dkg_common::types::TimeConfiguration;
+    use crate::support::tests::helpers::GROUP_MEMBERS;
+    use coconut_dkg_common::types::{InitialReplacementData, TimeConfiguration};
     use cosmwasm_std::testing::{mock_env, mock_info};
+    use cw4::Member;
+    use rusty_fork::rusty_fork_test;
+
+    rusty_fork_test! {
+        #[test]
+        fn verification() {
+            let mut deps = helpers::init_contract();
+            let new_dealer = Addr::unchecked("new_dealer");
+            let details1 = dealer_details_fixture(1);
+            let details2 = dealer_details_fixture(2);
+            let details3 = dealer_details_fixture(3);
+            current_dealers()
+                .save(deps.as_mut().storage, &details1.address, &details1)
+                .unwrap();
+            let err = verify_dealer(deps.as_mut(), &details1.address, false).unwrap_err();
+            assert_eq!(err, ContractError::AlreadyADealer);
+
+            INITIAL_REPLACEMENT_DATA
+                .save(
+                    deps.as_mut().storage,
+                    &InitialReplacementData {
+                        initial_dealers: vec![details1.address, details2.address, details3.address],
+                        initial_height: Some(1),
+                    },
+                )
+                .unwrap();
+            let err = verify_dealer(deps.as_mut(), &new_dealer, false).unwrap_err();
+            assert_eq!(err, ContractError::Unauthorized);
+
+            GROUP_MEMBERS.lock().unwrap().push((
+                Member {
+                    addr: new_dealer.to_string(),
+                    weight: 10,
+                },
+                2,
+            ));
+            verify_dealer(deps.as_mut(), &new_dealer, false).unwrap();
+
+            let err = verify_dealer(deps.as_mut(), &new_dealer, true).unwrap_err();
+            assert_eq!(err, ContractError::Unauthorized);
+
+            INITIAL_REPLACEMENT_DATA
+                .update::<_, ContractError>(deps.as_mut().storage, |mut data| {
+                    data.initial_height = Some(2);
+                    Ok(data)
+                })
+                .unwrap();
+            verify_dealer(deps.as_mut(), &new_dealer, true).unwrap();
+        }
+    }
 
     #[test]
     fn invalid_state() {

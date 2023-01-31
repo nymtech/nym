@@ -8,7 +8,7 @@
 
 [#2913]: https://github.com/nymtech/nym/pull/2913
 [#2186]: https://github.com/nymtech/nym/issues/2186
-[#2332]:https://github.com/nymtech/nym/issues/2332
+[#2332]: https://github.com/nymtech/nym/issues/2332
 
 ## [nym-explorer-v1.0.3](https://github.com/nymtech/nym/tree/nym-explorer-v1.0.3) (2023-01-24)
 

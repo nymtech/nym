@@ -8,26 +8,20 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ### Added
 
-- dkg rerun from scratch and dkg-specific epochs ([#2839])
-- nym-sdk: add support for surb storage ([#2870])
-- nym-sdk: enable reply-SURBs by default ([#2874])
 - Rust SDK - Support SURBS (anonymous send + storage) ([#2754])
+- dkg rerun from scratch and dkg-specific epochs ([#2810])
 - Rename `'initial_supply'` field to `'total_supply'` in the circulating supply endpoint ([#2931])
-- Enforce the --id param on the nym-api init command ([#2873])
 - Circulating supply api endpoint (read the note inside before testing/deploying) ([#1902])
 
 ### Changed
 
-- nym-api: an `--id` flag is now always explicitly required ([#2898])
+- nym-api: an `--id` flag is now always explicitly required ([#2873])
 
 [#2754]: https://github.com/nymtech/nym/issues/2754
-[#2839]: https://github.com/nymtech/nym/pull/2839
-[#2870]: https://github.com/nymtech/nym/pull/2870
-[#2874]: https://github.com/nymtech/nym/pull/2874
+[#2839]: https://github.com/nymtech/nym/issues/2810
 [#2931]: https://github.com/nymtech/nym/issues/2931
-[#2873]: https://github.com/nymtech/nym/issues/2873
 [#1902]: https://github.com/nymtech/nym/issues/1902
-[#2898]: https://github.com/nymtech/nym/pull/2898
+[#2873]: https://github.com/nymtech/nym/issues/2873
 
 
 # [v1.1.7] (2023-01-24)

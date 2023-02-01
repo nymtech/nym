@@ -15,7 +15,9 @@ pub mod test_helpers {
     use crate::delegations::queries::query_mixnode_delegations_paged;
     use crate::delegations::storage as delegations_storage;
     use crate::delegations::transactions::try_delegate_to_mixnode;
-    use crate::gateways::transactions::try_add_gateway;
+    use crate::families::transactions::{try_create_family, try_join_family};
+    use crate::gateways::storage as gateways_storage;
+    use crate::gateways::transactions::{try_add_gateway, try_add_gateway_on_behalf};
     use crate::interval::transactions::{
         perform_pending_epoch_actions, perform_pending_interval_actions,
     };
@@ -25,6 +27,7 @@ pub mod test_helpers {
         minimum_mixnode_pledge, rewarding_denom, rewarding_validator_address,
     };
     use crate::mixnodes::storage as mixnodes_storage;
+    use crate::mixnodes::storage::mixnode_bonds;
     use crate::mixnodes::transactions::{
         try_add_mixnode, try_add_mixnode_on_behalf, try_remove_mixnode,
     };
@@ -40,7 +43,7 @@ pub mod test_helpers {
     use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::testing::MockApi;
     use cosmwasm_std::testing::MockQuerier;
-    use cosmwasm_std::{coin, Addr, BankMsg, CosmosMsg, Storage};
+    use cosmwasm_std::{coin, Addr, Api, BankMsg, CosmosMsg, Storage};
     use cosmwasm_std::{Coin, Order};
     use cosmwasm_std::{Decimal, Empty, MemoryStorage};
     use cosmwasm_std::{Deps, OwnedDeps};
@@ -56,9 +59,10 @@ pub mod test_helpers {
     use mixnet_contract_common::rewarding::simulator::Simulator;
     use mixnet_contract_common::rewarding::RewardDistribution;
     use mixnet_contract_common::{
-        Delegation, Gateway, InitialRewardingParams, InstantiateMsg, Interval, MixId, MixNode,
-        Percent, RewardedSetNodeStatus,
+        Delegation, Gateway, IdentityKey, InitialRewardingParams, InstantiateMsg, Interval, MixId,
+        MixNode, MixNodeBond, Percent, RewardedSetNodeStatus,
     };
+    use nym_crypto::asymmetric::identity;
     use nym_crypto::asymmetric::identity::KeyPair;
     use rand_chacha::rand_core::{CryptoRng, RngCore, SeedableRng};
     use rand_chacha::ChaCha20Rng;
@@ -157,6 +161,42 @@ pub mod test_helpers {
                 .collect::<Vec<_>>()
         }
 
+        #[allow(unused)]
+        pub fn join_family(
+            &mut self,
+            member: &str,
+            member_keys: &identity::KeyPair,
+            head_keys: &identity::KeyPair,
+        ) {
+            let identity_signature = member_keys.private_key().sign_text(member);
+            let join_signature = head_keys
+                .private_key()
+                .sign(&member_keys.public_key().to_bytes())
+                .to_base58_string();
+            let head_identity = head_keys.public_key().to_base58_string();
+
+            try_join_family(
+                self.deps_mut(),
+                mock_info(member, &[]),
+                Some(identity_signature),
+                join_signature,
+                head_identity,
+            )
+            .unwrap();
+        }
+
+        pub fn create_dummy_mixnode_with_new_family(
+            &mut self,
+            head: &str,
+            label: &str,
+        ) -> (MixId, identity::KeyPair) {
+            let (mix_id, keys) = self.add_dummy_mixnode_with_keypair(head, None);
+            let sig = keys.private_key().sign_text(head);
+
+            try_create_family(self.deps_mut(), mock_info(head, &[]), sig, label).unwrap();
+            (mix_id, keys)
+        }
+
         pub fn add_dummy_mixnode(&mut self, owner: &str, stake: Option<Uint128>) -> MixId {
             let stake = match stake {
                 Some(amount) => {
@@ -170,12 +210,11 @@ pub mod test_helpers {
             add_mixnode(&mut self.rng, self.deps.as_mut(), env, owner, vec![stake])
         }
 
-        pub fn add_dummy_mixnode_with_proxy(
+        pub fn add_dummy_mixnode_with_keypair(
             &mut self,
             owner: &str,
             stake: Option<Uint128>,
-            proxy: Addr,
-        ) -> MixId {
+        ) -> (MixId, identity::KeyPair) {
             let stake = match stake {
                 Some(amount) => {
                     let denom = rewarding_denom(self.deps().storage).unwrap();
@@ -184,7 +223,9 @@ pub mod test_helpers {
                 None => minimum_mixnode_pledge(self.deps.as_ref().storage).unwrap(),
             };
 
-            let keypair = nym_crypto::asymmetric::identity::KeyPair::new(&mut self.rng);
+            let proxy = self.vesting_contract();
+
+            let keypair = identity::KeyPair::new(&mut self.rng);
             let owner_signature = keypair
                 .private_key()
                 .sign(owner.as_bytes())
@@ -216,7 +257,98 @@ pub mod test_helpers {
             .unwrap();
 
             // newly added mixnode gets assigned the current counter + 1
-            current_id_counter + 1
+            (current_id_counter + 1, keypair)
+        }
+
+        pub fn add_dummy_mixnode_with_legal_proxy(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+        ) -> MixId {
+            self.add_dummy_mixnode_with_keypair(owner, stake).0
+        }
+
+        pub fn set_illegal_mixnode_proxy(&mut self, mix_id: MixId, proxy: Addr) {
+            let mut bond_details = mixnodes_storage::mixnode_bonds()
+                .load(self.deps().storage, mix_id)
+                .unwrap();
+            bond_details.proxy = Some(proxy);
+            mixnodes_storage::mixnode_bonds()
+                .save(self.deps_mut().storage, mix_id, &bond_details)
+                .unwrap();
+        }
+
+        pub fn add_dummy_gateway_with_illegal_proxy(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+            proxy: Addr,
+        ) -> IdentityKey {
+            let gateway_identity = self.add_dummy_gateway_with_legal_proxy(owner, stake);
+            self.set_illegal_gateway_proxy(&gateway_identity, proxy);
+            gateway_identity
+        }
+
+        pub fn set_illegal_gateway_proxy(&mut self, gateway_id: &str, proxy: Addr) {
+            let mut gateway = gateways_storage::gateways()
+                .load(self.deps().storage, gateway_id)
+                .unwrap();
+            gateway.proxy = Some(proxy);
+            gateways_storage::gateways()
+                .save(self.deps_mut().storage, gateway_id, &gateway)
+                .unwrap();
+        }
+
+        pub fn add_dummy_gateway_with_legal_proxy(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+        ) -> IdentityKey {
+            let stake = match stake {
+                Some(amount) => {
+                    let denom = rewarding_denom(self.deps().storage).unwrap();
+                    Coin { denom, amount }
+                }
+                None => minimum_mixnode_pledge(self.deps.as_ref().storage).unwrap(),
+            };
+
+            let proxy = self.vesting_contract();
+
+            let legit_sphinx_key = crypto::asymmetric::encryption::KeyPair::new(&mut self.rng);
+            let keypair = crypto::asymmetric::identity::KeyPair::new(&mut self.rng);
+            let owner_signature = keypair
+                .private_key()
+                .sign(owner.as_bytes())
+                .to_base58_string();
+
+            let env = self.env();
+            let info = mock_info(proxy.as_ref(), &[stake]);
+
+            try_add_gateway_on_behalf(
+                self.deps_mut(),
+                env,
+                info,
+                Gateway {
+                    identity_key: keypair.public_key().to_base58_string(),
+                    sphinx_key: legit_sphinx_key.public_key().to_base58_string(),
+                    ..tests::fixtures::gateway_fixture()
+                },
+                owner.to_string(),
+                owner_signature,
+            )
+            .unwrap();
+            keypair.public_key().to_base58_string()
+        }
+
+        pub fn add_dummy_mixnode_with_illegal_proxy(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+            proxy: Addr,
+        ) -> MixId {
+            let mix_id = self.add_dummy_mixnode_with_legal_proxy(owner, stake);
+            self.set_illegal_mixnode_proxy(mix_id, proxy);
+            mix_id
         }
 
         pub fn start_unbonding_mixnode(&mut self, mix_id: MixId) {
@@ -263,7 +395,34 @@ pub mod test_helpers {
             .unwrap();
         }
 
-        pub fn add_immediate_delegation_with_proxy(
+        pub fn add_immediate_delegation_with_legal_proxy(
+            &mut self,
+            delegator: &str,
+            amount: impl Into<Uint128>,
+            target: MixId,
+        ) {
+            let denom = rewarding_denom(self.deps().storage).unwrap();
+            let amount = Coin {
+                denom,
+                amount: amount.into(),
+            };
+            let env = self.env();
+            let proxy = self.vesting_contract();
+            pending_events::delegate(
+                self.deps_mut(),
+                &env,
+                env.block.height,
+                Addr::unchecked(delegator),
+                target,
+                amount,
+                Some(proxy),
+            )
+            .unwrap();
+        }
+
+        // to set illegal proxy we have to bypass "normal" flow and put the value
+        // directly into the storage
+        pub fn add_immediate_delegation_with_illegal_proxy(
             &mut self,
             delegator: &str,
             amount: impl Into<Uint128>,
@@ -275,17 +434,41 @@ pub mod test_helpers {
                 denom,
                 amount: amount.into(),
             };
-            let env = self.env();
-            pending_events::delegate(
-                self.deps_mut(),
-                &env,
-                env.block.height,
-                Addr::unchecked(delegator),
+
+            let owner = self.deps.api.addr_validate(delegator).unwrap();
+            let storage_key = Delegation::generate_storage_key(target, &owner, Some(&proxy));
+
+            let mut mix_rewarding = self.mix_rewarding(target);
+
+            let mut stored_delegation_amount = amount;
+
+            if let Some(existing_delegation) = delegations_storage::delegations()
+                .may_load(&self.deps.storage, storage_key.clone())
+                .unwrap()
+            {
+                let og_with_reward = mix_rewarding.undelegate(&existing_delegation).unwrap();
+                stored_delegation_amount.amount += og_with_reward.amount;
+            }
+
+            mix_rewarding
+                .add_base_delegation(stored_delegation_amount.amount)
+                .unwrap();
+
+            let delegation = Delegation::new(
+                owner,
                 target,
-                amount,
+                mix_rewarding.total_unit_reward,
+                stored_delegation_amount,
+                self.env.block.height,
                 Some(proxy),
-            )
-            .unwrap();
+            );
+
+            delegations_storage::delegations()
+                .save(&mut self.deps.storage, storage_key, &delegation)
+                .unwrap();
+            rewards_storage::MIXNODE_REWARDING
+                .save(&mut self.deps.storage, target, &mix_rewarding)
+                .unwrap();
         }
 
         #[allow(unused)]
@@ -461,6 +644,11 @@ pub mod test_helpers {
             rewards_storage::MIXNODE_REWARDING
                 .load(self.deps().storage, node)
                 .unwrap()
+        }
+
+        #[allow(unused)]
+        pub fn mix_bond(&self, mix_id: MixId) -> MixNodeBond {
+            mixnode_bonds().load(self.deps().storage, mix_id).unwrap()
         }
 
         pub fn delegation(&self, mix: MixId, owner: &str, proxy: &Option<Addr>) -> Delegation {

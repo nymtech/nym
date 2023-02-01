@@ -778,4 +778,75 @@ mod tests {
         let pledge = account.load_gateway_pledge(&deps.storage).unwrap().unwrap();
         assert_eq!(Uint128::new(90_000_000_000), pledge.amount().amount);
     }
+
+    #[test]
+    fn test_delegations_cap() {
+        let mut deps = init_contract();
+        let mut env = mock_env();
+
+        let vesting_period_length_secs = 3600;
+
+        let account_creation_timestamp = 1650000000;
+        let account_creation_blockheight = 12345;
+
+        env.block.height = account_creation_blockheight;
+        env.block.time = Timestamp::from_seconds(account_creation_timestamp);
+
+        // lets define some helper timestamps
+
+        // lets create our vesting account
+        let periods = populate_vesting_periods(
+            account_creation_timestamp,
+            VestingSpecification::new(None, Some(vesting_period_length_secs), None),
+        );
+
+        let vesting_account = Account::new(
+            Addr::unchecked("owner"),
+            Some(Addr::unchecked("staking")),
+            Coin {
+                amount: Uint128::new(1_000_000_000_000),
+                denom: TEST_COIN_DENOM.to_string(),
+            },
+            Timestamp::from_seconds(account_creation_timestamp),
+            periods,
+            Some(PledgeCap::Absolute(Uint128::from(100_000_000_000u128))),
+            deps.as_mut().storage,
+        )
+        .unwrap();
+
+        // time for some delegations
+
+        let mix_id = 42;
+
+        let delegation = Coin {
+            amount: Uint128::new(42),
+            denom: TEST_COIN_DENOM.to_string(),
+        };
+
+        // you can have at most `MAX_PER_MIX_DELEGATIONS` delegations so those should be fine
+        for _ in 0..MAX_PER_MIX_DELEGATIONS {
+            vesting_account
+                .try_delegate_to_mixnode(mix_id, delegation.clone(), &env, &mut deps.storage)
+                .unwrap();
+
+            env.block.height += 1;
+            env.block.time = env.block.time.plus_seconds(42);
+        }
+
+        // but the additional one is going to fail
+        let res = vesting_account
+            .try_delegate_to_mixnode(mix_id, delegation.clone(), &env, &mut deps.storage)
+            .unwrap_err();
+
+        assert_eq!(
+            res,
+            ContractError::TooManyDelegations {
+                address: vesting_account.owner_address(),
+                acc_id: vesting_account.storage_key(),
+                mix_id,
+                num: MAX_PER_MIX_DELEGATIONS,
+                cap: MAX_PER_MIX_DELEGATIONS
+            }
+        );
+    }
 }

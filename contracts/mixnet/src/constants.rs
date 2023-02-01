@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::Uint128;
-use pkg_version::*;
 
 /// Constant specifying minimum of coin amount required to bond a gateway
 pub const INITIAL_GATEWAY_PLEDGE_AMOUNT: Uint128 = Uint128::new(100_000_000);
@@ -77,9 +76,3 @@ pub(crate) const MIXNODES_REWARDING_PK_NAMESPACE: &str = "mnr";
 pub(crate) const FAMILIES_INDEX_NAMESPACE: &str = "faml2";
 pub(crate) const FAMILIES_MAP_NAMESPACE: &str = "fam2";
 pub(crate) const MEMBERS_MAP_NAMESPACE: &str = "memb2";
-
-pub const MAJOR: u32 = pkg_version_major!();
-pub const MINOR: u32 = pkg_version_minor!();
-pub const PATCH: u32 = pkg_version_patch!();
-
-pub const CONTRACT_INFO_NAMESPACE: &str = "contract_info";

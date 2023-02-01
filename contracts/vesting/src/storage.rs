@@ -1,16 +1,10 @@
 use crate::errors::ContractError;
 use crate::vesting::Account;
+use cosmwasm_std::Order;
 use cosmwasm_std::{Addr, Api, Storage, Uint128};
-use cosmwasm_std::{Order, StdResult};
 use cw_storage_plus::{Item, Map};
-use mixnet_contract_common::ContractVersion;
 use mixnet_contract_common::{IdentityKey, MixId};
-use pkg_version::*;
 use vesting_contract_common::PledgeData;
-
-const MAJOR: u32 = pkg_version_major!();
-const MINOR: u32 = pkg_version_minor!();
-const PATCH: u32 = pkg_version_patch!();
 
 pub(crate) type BlockTimestampSecs = u64;
 pub(crate) type AccountStorageKey = u32;
@@ -215,18 +209,4 @@ pub fn account_from_address(
     api: &dyn Api,
 ) -> Result<Account, ContractError> {
     validate_account(api.addr_validate(address)?, storage)
-}
-
-pub const CONTRACT: Item<ContractVersion> = Item::new("contract_info");
-
-pub fn set_contract_version(store: &mut dyn Storage) -> StdResult<()> {
-    let val = ContractVersion {
-        contract: "nym-vesting-contract".to_string(),
-        version: format!("{MAJOR}.{MINOR}.{PATCH}"),
-    };
-    CONTRACT.save(store, &val)
-}
-
-pub fn get_contract_info(store: &dyn Storage) -> StdResult<ContractVersion> {
-    CONTRACT.load(store)
 }

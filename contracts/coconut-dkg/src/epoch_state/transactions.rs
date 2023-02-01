@@ -185,29 +185,137 @@ pub(crate) mod tests {
     use rusty_fork::rusty_fork_test;
 
     // Because of the global variable handling group, we need individual process for each test
+
     rusty_fork_test! {
+        // Using values from the DKG document
+        #[test]
+        fn threshold_surpassed() {
+            let mut deps = init_contract();
+            let two_thirds = |n: u64| (2 * n + 3 - 1) / 3;
+            let three_fourths = |n: u64| (3 * n + 4 - 1) / 4;
+            let ninty_pc = |n: u64| (9 * n + 10 - 2) / 10;
+            let mut limits = [3, 4, 5, 5, 7, 11, 10, 14, 21, 18, 26, 41].iter();
+
+            for n in [10, 25, 50, 100] {
+                let dealers: Vec<_> = (0..n).map(dealer_details_fixture).collect();
+                let initial_dealers = dealers.iter().map(|d| d.address.clone()).collect();
+                let data = InitialReplacementData {
+                    initial_dealers,
+                    initial_height: None,
+                };
+                for f in [two_thirds, three_fourths, ninty_pc] {
+                    let threshold = f(n);
+                    THRESHOLD.save(deps.as_mut().storage, &threshold).unwrap();
+                    INITIAL_REPLACEMENT_DATA
+                        .save(deps.as_mut().storage, &data)
+                        .unwrap();
+
+                    let limit = *limits.next().unwrap();
+                    {
+                        let mut group_members = GROUP_MEMBERS.lock().unwrap();
+                        for i in 0..n as usize {
+                            group_members.push((
+                                Member {
+                                    addr: dealers[i].address.to_string(),
+                                    weight: 10,
+                                },
+                                1,
+                            ));
+                        }
+                        for _ in 1..limit {
+                            group_members.pop();
+                        }
+                    }
+                    assert!(!replacement_threshold_surpassed(&deps.as_mut()).unwrap());
+                    GROUP_MEMBERS.lock().unwrap().pop();
+                    assert!(replacement_threshold_surpassed(&deps.as_mut()).unwrap());
+
+                    *GROUP_MEMBERS.lock().unwrap() = vec![];
+                }
+            }
+        }
+
+        #[test]
+        fn dealers_and_members() {
+            let mut deps = init_contract();
+
+            assert!(dealers_eq_members(&deps.as_mut()).unwrap());
+
+            let details = dealer_details_fixture(1);
+            let different_details = dealer_details_fixture(2);
+            current_dealers()
+                .save(deps.as_mut().storage, &details.address, &details)
+                .unwrap();
+            assert!(!dealers_eq_members(&deps.as_mut()).unwrap());
+
+            current_dealers()
+                .remove(deps.as_mut().storage, &details.address)
+                .unwrap();
+            GROUP_MEMBERS.lock().unwrap().push((
+                Member {
+                    addr: "owner1".to_string(),
+                    weight: 10,
+                },
+                1,
+            ));
+            assert!(!dealers_eq_members(&deps.as_mut()).unwrap());
+
+            current_dealers()
+                .save(
+                    deps.as_mut().storage,
+                    &different_details.address,
+                    &different_details,
+                )
+                .unwrap();
+            assert!(!dealers_eq_members(&deps.as_mut()).unwrap());
+
+            current_dealers()
+                .remove(deps.as_mut().storage, &different_details.address)
+                .unwrap();
+            current_dealers()
+                .save(deps.as_mut().storage, &details.address, &details)
+                .unwrap();
+            assert!(dealers_eq_members(&deps.as_mut()).unwrap());
+        }
+
         #[test]
         fn still_active() {
             let mut deps = init_contract();
             {
                 let mut group = GROUP_MEMBERS.lock().unwrap();
 
-                group.push((Member {
-                    addr: "owner1".to_string(),
-                    weight: 10,
-                }, 1));
-                group.push((Member {
-                    addr: "owner2".to_string(),
-                    weight: 10,
-                }, 1));
-                group.push((Member {
-                    addr: "owner3".to_string(),
-                    weight: 10,
-                }, 1));
+                group.push((
+                    Member {
+                        addr: "owner1".to_string(),
+                        weight: 10,
+                    },
+                    1,
+                ));
+                group.push((
+                    Member {
+                        addr: "owner2".to_string(),
+                        weight: 10,
+                    },
+                    1,
+                ));
+                group.push((
+                    Member {
+                        addr: "owner3".to_string(),
+                        weight: 10,
+                    },
+                    1,
+                ));
             }
-            assert_eq!(0, dealers_still_active(&deps.as_ref(), current_dealers()
-        .keys(&deps.storage, None, None, Order::Ascending)
-        .flatten()).unwrap());
+            assert_eq!(
+                0,
+                dealers_still_active(
+                    &deps.as_ref(),
+                    current_dealers()
+                        .keys(&deps.storage, None, None, Order::Ascending)
+                        .flatten()
+                )
+                .unwrap()
+            );
             for i in 0..3 as u64 {
                 let details = dealer_details_fixture(i + 1);
                 current_dealers()
@@ -215,9 +323,13 @@ pub(crate) mod tests {
                     .unwrap();
                 assert_eq!(
                     i as usize + 1,
-                    dealers_still_active(&deps.as_ref(), current_dealers()
-        .keys(&deps.storage, None, None, Order::Ascending)
-        .flatten()).unwrap()
+                    dealers_still_active(
+                        &deps.as_ref(),
+                        current_dealers()
+                            .keys(&deps.storage, None, None, Order::Ascending)
+                            .flatten()
+                    )
+                    .unwrap()
                 );
             }
         }
@@ -229,22 +341,41 @@ pub(crate) mod tests {
             {
                 let mut group = GROUP_MEMBERS.lock().unwrap();
 
-                group.push((Member {
-                    addr: "owner1".to_string(),
-                    weight: 10,
-                }, 1));
-                group.push((Member {
-                    addr: "owner2".to_string(),
-                    weight: 10,
-                }, 1));
-                group.push((Member {
-                    addr: "owner3".to_string(),
-                    weight: 10,
-                }, 1));
+                group.push((
+                    Member {
+                        addr: "owner1".to_string(),
+                        weight: 10,
+                    },
+                    1,
+                ));
+                group.push((
+                    Member {
+                        addr: "owner2".to_string(),
+                        weight: 10,
+                    },
+                    1,
+                ));
+                group.push((
+                    Member {
+                        addr: "owner3".to_string(),
+                        weight: 10,
+                    },
+                    1,
+                ));
+                group.push((
+                    Member {
+                        addr: "owner4".to_string(),
+                        weight: 10,
+                    },
+                    1,
+                ));
             }
 
             let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-            assert_eq!(epoch.state, EpochState::PublicKeySubmission{resharing: false});
+            assert_eq!(
+                epoch.state,
+                EpochState::PublicKeySubmission { resharing: false }
+            );
             assert_eq!(
                 epoch.finish_timestamp,
                 env.block
@@ -261,16 +392,37 @@ pub(crate) mod tests {
                 EarlyEpochStateAdvancement(1)
             );
 
+            // setup dealer details
+            let all_details: [_; 4] = std::array::from_fn(|i| dealer_details_fixture(i as u64 + 1));
+            for details in all_details.iter() {
+                current_dealers()
+                    .save(deps.as_mut().storage, &details.address, details)
+                    .unwrap();
+            }
+
+            assert!(INITIAL_REPLACEMENT_DATA
+                .may_load(&deps.storage)
+                .unwrap()
+                .is_none());
             env.block.time = env.block.time.plus_seconds(1);
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
             let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-            assert_eq!(epoch.state, EpochState::DealingExchange{resharing: false});
+            assert_eq!(
+                epoch.state,
+                EpochState::DealingExchange { resharing: false }
+            );
             assert_eq!(
                 epoch.finish_timestamp,
                 env.block
                     .time
                     .plus_seconds(epoch.time_configuration.dealing_exchange_time_secs)
             );
+            let replacement_data = INITIAL_REPLACEMENT_DATA.load(&deps.storage).unwrap();
+            let expected_replacement_data = InitialReplacementData {
+                initial_dealers: all_details.iter().map(|d| d.address.clone()).collect(),
+                initial_height: None,
+            };
+            assert_eq!(replacement_data, expected_replacement_data);
 
             env.block.time = env
                 .block
@@ -284,7 +436,10 @@ pub(crate) mod tests {
             env.block.time = env.block.time.plus_seconds(3);
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
             let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-            assert_eq!(epoch.state, EpochState::VerificationKeySubmission{resharing: false});
+            assert_eq!(
+                epoch.state,
+                EpochState::VerificationKeySubmission { resharing: false }
+            );
             assert_eq!(
                 epoch.finish_timestamp,
                 env.block.time.plus_seconds(
@@ -308,7 +463,10 @@ pub(crate) mod tests {
             env.block.time = env.block.time.plus_seconds(3);
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
             let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-            assert_eq!(epoch.state, EpochState::VerificationKeyValidation{resharing: false});
+            assert_eq!(
+                epoch.state,
+                EpochState::VerificationKeyValidation { resharing: false }
+            );
             assert_eq!(
                 epoch.finish_timestamp,
                 env.block.time.plus_seconds(
@@ -332,7 +490,10 @@ pub(crate) mod tests {
             env.block.time = env.block.time.plus_seconds(3);
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
             let epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
-            assert_eq!(epoch.state, EpochState::VerificationKeyFinalization{resharing: false});
+            assert_eq!(
+                epoch.state,
+                EpochState::VerificationKeyFinalization { resharing: false }
+            );
             assert_eq!(
                 epoch.finish_timestamp,
                 env.block.time.plus_seconds(
@@ -377,14 +538,6 @@ pub(crate) mod tests {
                 EarlyEpochStateAdvancement(50)
             );
 
-            // setup dealer details
-            let all_details: [_; 3] = std::array::from_fn(|i| dealer_details_fixture(i as u64 + 1));
-            for details in all_details.iter() {
-                current_dealers()
-                    .save(deps.as_mut().storage, &details.address, details)
-                    .unwrap();
-            }
-
             // Group hasn't changed, so we remain in the same epoch, with updated finish timestamp
             env.block.time = env.block.time.plus_seconds(100);
             let prev_epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
@@ -398,11 +551,14 @@ pub(crate) mod tests {
             );
             assert_eq!(curr_epoch, expected_epoch);
 
-            // Group changed, slightly, so reset dkg state
-            *GROUP_MEMBERS.lock().unwrap().first_mut().unwrap() = (Member {
-                addr: "owner4".to_string(),
-                weight: 10,
-            }, 1);
+            // Group changed slightly, so re-run dkg in reshare mode
+            *GROUP_MEMBERS.lock().unwrap().first_mut().unwrap() = (
+                Member {
+                    addr: "owner5".to_string(),
+                    weight: 10,
+                },
+                1,
+            );
             env.block.time = env
                 .block
                 .time
@@ -411,7 +567,49 @@ pub(crate) mod tests {
             advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
             let curr_epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
             let expected_epoch = Epoch::new(
-                EpochState::default(),
+                EpochState::PublicKeySubmission { resharing: true },
+                prev_epoch.epoch_id + 1,
+                prev_epoch.time_configuration,
+                env.block.time,
+            );
+            assert_eq!(curr_epoch, expected_epoch);
+            assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
+
+            let all_details: [_; 2] = std::array::from_fn(|i| dealer_details_fixture(i as u64 + 2));
+            for details in all_details.iter() {
+                past_dealers().remove(deps.as_mut().storage, &details.address).unwrap();
+                current_dealers()
+                    .save(deps.as_mut().storage, &details.address, details)
+                    .unwrap();
+            }
+            for times in [
+                epoch.time_configuration.public_key_submission_time_secs,
+                epoch.time_configuration.dealing_exchange_time_secs,
+                epoch.time_configuration.verification_key_submission_time_secs,
+                epoch.time_configuration.verification_key_validation_time_secs,
+                epoch.time_configuration.verification_key_finalization_time_secs,
+            ] {
+                env.block.time = env.block.time.plus_seconds(times);
+                advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+            }
+
+            // Group changed even more, surpassing threshold, so re-run dkg in reset mode
+            *GROUP_MEMBERS.lock().unwrap().last_mut().unwrap() = (
+                Member {
+                    addr: "owner6".to_string(),
+                    weight: 10,
+                },
+                1,
+            );
+            env.block.time = env
+                .block
+                .time
+                .plus_seconds(epoch.time_configuration.in_progress_time_secs);
+            let prev_epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
+            advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+            let curr_epoch = CURRENT_EPOCH.load(deps.as_mut().storage).unwrap();
+            let expected_epoch = Epoch::new(
+                EpochState::PublicKeySubmission { resharing: false },
                 prev_epoch.epoch_id + 1,
                 prev_epoch.time_configuration,
                 env.block.time,
@@ -420,89 +618,103 @@ pub(crate) mod tests {
             assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
         }
 
+        #[test]
+        fn surpass_threshold() {
+            let mut deps = init_contract();
+            let mut env = mock_env();
+            let time_configuration = TimeConfiguration::default();
+            {
+                let mut group = GROUP_MEMBERS.lock().unwrap();
 
-    #[test]
-    fn surpass_threshold() {
-        let mut deps = init_contract();
-        let mut env = mock_env();
-        let time_configuration = TimeConfiguration::default();
-        {
-            let mut group = GROUP_MEMBERS.lock().unwrap();
-
-            group.push((Member {
-                addr: "owner1".to_string(),
-                weight: 10,
-            }, 1));
-            group.push((Member {
-                addr: "owner2".to_string(),
-                weight: 10,
-            }, 1));
-            group.push((Member {
-                addr: "owner3".to_string(),
-                weight: 10,
-            }, 1));
-        }
-
-        let ret = try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap_err();
-        assert_eq!(
-            ret,
-            ContractError::IncorrectEpochState {
-                current_state: EpochState::default().to_string(),
-                expected_state: EpochState::InProgress.to_string()
+                group.push((
+                    Member {
+                        addr: "owner1".to_string(),
+                        weight: 10,
+                    },
+                    1,
+                ));
+                group.push((
+                    Member {
+                        addr: "owner2".to_string(),
+                        weight: 10,
+                    },
+                    1,
+                ));
+                group.push((
+                    Member {
+                        addr: "owner3".to_string(),
+                        weight: 10,
+                    },
+                    1,
+                ));
             }
-        );
 
-        let all_details: [_; 3] = std::array::from_fn(|i| dealer_details_fixture(i as u64 + 1));
-        for details in all_details.iter() {
-            current_dealers()
-                .save(deps.as_mut().storage, &details.address, details)
-                .unwrap();
+            let ret = try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap_err();
+            assert_eq!(
+                ret,
+                ContractError::IncorrectEpochState {
+                    current_state: EpochState::default().to_string(),
+                    expected_state: EpochState::InProgress.to_string()
+                }
+            );
+
+            let all_details: [_; 3] = std::array::from_fn(|i| dealer_details_fixture(i as u64 + 1));
+            for details in all_details.iter() {
+                current_dealers()
+                    .save(deps.as_mut().storage, &details.address, details)
+                    .unwrap();
+            }
+
+            for times in [
+                time_configuration.public_key_submission_time_secs,
+                time_configuration.dealing_exchange_time_secs,
+                time_configuration.verification_key_submission_time_secs,
+                time_configuration.verification_key_validation_time_secs,
+                time_configuration.verification_key_finalization_time_secs,
+            ] {
+                env.block.time = env.block.time.plus_seconds(times);
+                advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
+            }
+            let curr_epoch = CURRENT_EPOCH.load(&deps.storage).unwrap();
+            assert_eq!(THRESHOLD.load(&deps.storage).unwrap(), 2);
+
+            // epoch hasn't advanced as we are still in the threshold range
+            try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap();
+            assert_eq!(THRESHOLD.load(&deps.storage).unwrap(), 2);
+            assert_eq!(CURRENT_EPOCH.load(&deps.storage).unwrap(), curr_epoch);
+
+            *GROUP_MEMBERS.lock().unwrap().first_mut().unwrap() = (
+                Member {
+                    addr: "owner4".to_string(),
+                    weight: 10,
+                },
+                1,
+            );
+            // epoch hasn't advanced as we are still in the threshold range
+            try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap();
+            assert_eq!(THRESHOLD.load(&deps.storage).unwrap(), 2);
+            assert_eq!(CURRENT_EPOCH.load(&deps.storage).unwrap(), curr_epoch);
+
+            *GROUP_MEMBERS.lock().unwrap().last_mut().unwrap() = (
+                Member {
+                    addr: "owner5".to_string(),
+                    weight: 10,
+                },
+                1,
+            );
+            try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap();
+            assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
+            let next_epoch = CURRENT_EPOCH.load(&deps.storage).unwrap();
+            assert_eq!(
+                next_epoch,
+                Epoch::new(
+                    EpochState::default(),
+                    curr_epoch.epoch_id + 1,
+                    curr_epoch.time_configuration,
+                    env.block.time,
+                )
+            );
         }
-
-        for times in [
-            time_configuration.public_key_submission_time_secs,
-            time_configuration.dealing_exchange_time_secs,
-            time_configuration.verification_key_submission_time_secs,
-            time_configuration.verification_key_validation_time_secs,
-            time_configuration.verification_key_finalization_time_secs,
-        ] {
-            env.block.time = env.block.time.plus_seconds(times);
-            advance_epoch_state(deps.as_mut(), env.clone()).unwrap();
-        }
-        let curr_epoch = CURRENT_EPOCH.load(&deps.storage).unwrap();
-        assert_eq!(THRESHOLD.load(&deps.storage).unwrap(), 2);
-
-        // epoch hasn't advanced as we are still in the threshold range
-        try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap();
-        assert_eq!(THRESHOLD.load(&deps.storage).unwrap(), 2);
-        assert_eq!(CURRENT_EPOCH.load(&deps.storage).unwrap(), curr_epoch);
-
-        *GROUP_MEMBERS.lock().unwrap().first_mut().unwrap() = (Member {
-            addr: "owner4".to_string(),
-            weight: 10,
-        }, 1);
-        // epoch hasn't advanced as we are still in the threshold range
-        try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap();
-        assert_eq!(THRESHOLD.load(&deps.storage).unwrap(), 2);
-        assert_eq!(CURRENT_EPOCH.load(&deps.storage).unwrap(), curr_epoch);
-
-        *GROUP_MEMBERS.lock().unwrap().last_mut().unwrap() = (Member {
-            addr: "owner5".to_string(),
-            weight: 10,
-        }, 1);
-        try_surpassed_threshold(deps.as_mut(), env.clone()).unwrap();
-        assert!(THRESHOLD.may_load(&deps.storage).unwrap().is_none());
-        let next_epoch = CURRENT_EPOCH.load(&deps.storage).unwrap();
-        assert_eq!(
-            next_epoch,
-            Epoch::new(
-                EpochState::default(),
-                curr_epoch.epoch_id + 1,
-                curr_epoch.time_configuration,
-                env.block.time,
-            )
-        );
-    }
     }
 
     #[test]

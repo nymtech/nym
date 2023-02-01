@@ -38,7 +38,8 @@ pub async fn generate(args: Args) {
             let address =
                 std::env::var(network_defaults::var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS)
                     .expect("Coconut bandwidth contract address has to be set");
-            AccountId::from_str(address.as_str()).expect("Failed converting bandwidth contract address to AccountId")
+            AccountId::from_str(address.as_str())
+                .expect("Failed converting bandwidth contract address to AccountId")
         });
 
     let coconut_dkg_contract_address = args.coconut_dkg_contract_address.unwrap_or_else(|| {

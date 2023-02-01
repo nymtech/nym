@@ -1,12 +1,14 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use clap::Parser;
-use log::{debug, info};
+use std::str::FromStr;
 
+use clap::Parser;
 use cosmwasm_std::Decimal;
 use cw_utils::{Duration, Threshold};
+use log::{debug, info};
 use multisig_contract_common::msg::InstantiateMsg;
+use validator_client::nyxd::AccountId;
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -20,10 +22,10 @@ pub struct Args {
     pub max_voting_period: u64,
 
     #[clap(long)]
-    pub coconut_bandwidth_contract_address: Option<String>,
+    pub coconut_bandwidth_contract_address: Option<AccountId>,
 
     #[clap(long)]
-    pub coconut_dkg_contract_address: Option<String>,
+    pub coconut_dkg_contract_address: Option<AccountId>,
 }
 
 pub async fn generate(args: Args) {
@@ -33,13 +35,17 @@ pub async fn generate(args: Args) {
 
     let coconut_bandwidth_contract_address =
         args.coconut_bandwidth_contract_address.unwrap_or_else(|| {
-            std::env::var(network_defaults::var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS)
-                .expect("Coconut bandwidth contract address has to be set")
+            let address =
+                std::env::var(network_defaults::var_names::COCONUT_BANDWIDTH_CONTRACT_ADDRESS)
+                    .expect("Coconut bandwidth contract address has to be set");
+            AccountId::from_str(address.as_str()).expect("Failed converting bandwidth contract address to AccountId")
         });
 
     let coconut_dkg_contract_address = args.coconut_dkg_contract_address.unwrap_or_else(|| {
-        std::env::var(network_defaults::var_names::COCONUT_DKG_CONTRACT_ADDRESS)
-            .expect("Coconut DKG contract address has to be set")
+        let address = std::env::var(network_defaults::var_names::COCONUT_DKG_CONTRACT_ADDRESS)
+            .expect("Coconut DKG contract address has to be set");
+        AccountId::from_str(address.as_str())
+            .expect("Failed converting DKG contract address to AccountId")
     });
 
     let instantiate_msg = InstantiateMsg {
@@ -49,8 +55,8 @@ pub async fn generate(args: Args) {
                 .expect("threshold can't be converted to Decimal"),
         },
         max_voting_period: Duration::Time(args.max_voting_period),
-        coconut_bandwidth_contract_address,
-        coconut_dkg_contract_address,
+        coconut_bandwidth_contract_address: coconut_bandwidth_contract_address.to_string(),
+        coconut_dkg_contract_address: coconut_dkg_contract_address.to_string(),
     };
 
     debug!("instantiate_msg: {:?}", instantiate_msg);

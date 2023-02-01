@@ -175,7 +175,7 @@ fn validate_proposal(proposal: &ProposalResponse) -> Option<(Addr, u64)> {
 pub(crate) async fn verification_key_validation(
     dkg_client: &DkgClient,
     state: &mut State,
-    resharing: bool,
+    _resharing: bool,
 ) -> Result<(), CoconutError> {
     if state.voted_vks() {
         return Ok(());
@@ -234,7 +234,7 @@ pub(crate) async fn verification_key_validation(
 pub(crate) async fn verification_key_finalization(
     dkg_client: &DkgClient,
     state: &mut State,
-    resharing: bool,
+    _resharing: bool,
 ) -> Result<(), CoconutError> {
     if state.executed_proposal() {
         return Ok(());

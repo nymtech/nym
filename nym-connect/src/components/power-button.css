@@ -1,0 +1,46 @@
+#ring-expand {
+  animation-name: rings-expand;
+  animation-duration: 0.4s;
+  animation-timing-function: ease-in-out;
+  animation-play-state: paused;
+}
+
+#ring-one.expand {
+  opacity: 0.6;
+  transition: opacity 0.1s ease-in-out;
+}
+
+#ring-two.expand {
+  opacity: 0.4;
+  transition: opacity 0.2s ease-in-out;
+}
+
+#ring-three.expand {
+  opacity: 0.3;
+  transition: opacity 0.3s ease-in-out;
+}
+
+#ring-four.expand {
+  opacity: 0.1;
+  transition: opacity 0.4s ease-in-out;
+}
+
+#ring-one.contract {
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+
+#ring-two.contract {
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+#ring-three.contract {
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+#ring-four.contract {
+  opacity: 0;
+  transition: opacity 0.1s;
+}

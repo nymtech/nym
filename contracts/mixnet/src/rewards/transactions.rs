@@ -11,7 +11,7 @@ use crate::mixnodes::storage as mixnodes_storage;
 use crate::rewards::helpers;
 use crate::support::helpers::{
     ensure_bonded, ensure_is_authorized, ensure_is_owner, ensure_proxy_match,
-    send_to_proxy_or_owner,
+    ensure_sent_by_vesting_contract, send_to_proxy_or_owner,
 };
 use cosmwasm_std::{wasm_execute, Addr, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
@@ -130,6 +130,8 @@ pub(crate) fn try_withdraw_operator_reward_on_behalf(
     info: MessageInfo,
     owner: String,
 ) -> Result<Response, MixnetContractError> {
+    ensure_sent_by_vesting_contract(&info, deps.storage)?;
+
     let proxy = info.sender;
     let owner = deps.api.addr_validate(&owner)?;
     _try_withdraw_operator_reward(deps, owner, Some(proxy))
@@ -195,6 +197,8 @@ pub(crate) fn try_withdraw_delegator_reward_on_behalf(
     mix_id: MixId,
     owner: String,
 ) -> Result<Response, MixnetContractError> {
+    ensure_sent_by_vesting_contract(&info, deps.storage)?;
+
     let proxy = info.sender;
     let owner = deps.api.addr_validate(&owner)?;
     _try_withdraw_delegator_reward(deps, mix_id, owner, Some(proxy))
@@ -1104,8 +1108,9 @@ pub mod tests {
     mod withdrawing_delegator_reward {
         use super::*;
         use crate::interval::pending_events;
+        use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::{assert_eq_with_leeway, TestSetup};
-        use cosmwasm_std::{BankMsg, CosmosMsg, Decimal, Uint128};
+        use cosmwasm_std::{coin, BankMsg, CosmosMsg, Decimal, Uint128};
         use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
         #[test]
@@ -1422,14 +1427,57 @@ pub mod tests {
             let accumulated_actual = truncate_reward_amount(accumulated_quad);
             assert_eq_with_leeway(total_claimed, accumulated_actual, Uint128::new(6));
         }
+
+        #[test]
+        fn fails_for_illegal_proxy() {
+            let test = TestSetup::new();
+
+            let illegal_proxy = Addr::unchecked("not-vesting-contract");
+            let vesting_contract = test.vesting_contract();
+
+            let mut test = TestSetup::new();
+            let mix_id =
+                test.add_dummy_mixnode("mix-owner1", Some(Uint128::new(1_000_000_000_000)));
+
+            let delegator = "delegator";
+
+            test.add_immediate_delegation_with_illegal_proxy(
+                delegator,
+                100_000_000u128,
+                mix_id,
+                illegal_proxy.clone(),
+            );
+
+            // reward the node
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+
+            let res = try_withdraw_delegator_reward_on_behalf(
+                test.deps_mut(),
+                mock_info(illegal_proxy.as_ref(), &[coin(123, TEST_COIN_DENOM)]),
+                mix_id,
+                delegator.to_string(),
+            )
+            .unwrap_err();
+
+            assert_eq!(
+                res,
+                MixnetContractError::SenderIsNotVestingContract {
+                    received: illegal_proxy,
+                    vesting_contract
+                }
+            )
+        }
     }
 
     #[cfg(test)]
     mod withdrawing_operator_reward {
         use super::*;
         use crate::interval::pending_events;
+        use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use crate::support::tests::test_helpers::TestSetup;
-        use cosmwasm_std::{BankMsg, CosmosMsg, Uint128};
+        use cosmwasm_std::{coin, BankMsg, CosmosMsg, Uint128};
 
         #[test]
         fn can_only_be_done_if_bond_exists() {
@@ -1536,6 +1584,41 @@ pub mod tests {
                     owner: Addr::unchecked(owner2)
                 })
             );
+        }
+
+        #[test]
+        fn fails_for_illegal_proxy() {
+            let mut test = TestSetup::new();
+
+            let illegal_proxy = Addr::unchecked("not-vesting-contract");
+            let vesting_contract = test.vesting_contract();
+
+            let owner = "mix-owner1";
+            let mix_id = test.add_dummy_mixnode_with_illegal_proxy(
+                owner,
+                Some(Uint128::new(1_000_000_000_000)),
+                illegal_proxy.clone(),
+            );
+
+            // reward the node
+            test.skip_to_next_epoch_end();
+            test.update_rewarded_set(vec![mix_id]);
+            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+
+            let res = try_withdraw_operator_reward_on_behalf(
+                test.deps_mut(),
+                mock_info(illegal_proxy.as_ref(), &[coin(123, TEST_COIN_DENOM)]),
+                owner.to_string(),
+            )
+            .unwrap_err();
+
+            assert_eq!(
+                res,
+                MixnetContractError::SenderIsNotVestingContract {
+                    received: illegal_proxy,
+                    vesting_contract
+                }
+            )
         }
     }
 

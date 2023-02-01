@@ -5,7 +5,7 @@ use super::storage;
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
-use crate::support::helpers::validate_delegation_stake;
+use crate::support::helpers::{ensure_sent_by_vesting_contract, validate_delegation_stake};
 use cosmwasm_std::{Addr, Coin, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
@@ -30,6 +30,8 @@ pub(crate) fn try_delegate_to_mixnode_on_behalf(
     mix_id: MixId,
     delegate: String,
 ) -> Result<Response, MixnetContractError> {
+    ensure_sent_by_vesting_contract(&info, deps.storage)?;
+
     let delegate = deps.api.addr_validate(&delegate)?;
     _try_delegate_to_mixnode(deps, env, mix_id, delegate, info.funds, Some(info.sender))
 }
@@ -89,6 +91,8 @@ pub(crate) fn try_remove_delegation_from_mixnode_on_behalf(
     mix_id: MixId,
     delegate: String,
 ) -> Result<Response, MixnetContractError> {
+    ensure_sent_by_vesting_contract(&info, deps.storage)?;
+
     let delegate = deps.api.addr_validate(&delegate)?;
     _try_remove_delegation_from_mixnode(deps, env, mix_id, delegate, Some(info.sender))
 }
@@ -353,6 +357,35 @@ mod tests {
                 }
             );
         }
+
+        #[test]
+        fn fails_for_illegal_proxy() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+
+            let illegal_proxy = Addr::unchecked("not-vesting-contract");
+            let vesting_contract = test.vesting_contract();
+
+            let owner = "delegator";
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+
+            let res = try_delegate_to_mixnode_on_behalf(
+                test.deps_mut(),
+                env,
+                mock_info(illegal_proxy.as_ref(), &[coin(123, TEST_COIN_DENOM)]),
+                mix_id,
+                owner.into(),
+            )
+            .unwrap_err();
+
+            assert_eq!(
+                res,
+                MixnetContractError::SenderIsNotVestingContract {
+                    received: illegal_proxy,
+                    vesting_contract
+                }
+            )
+        }
     }
 
     #[cfg(test)]
@@ -461,6 +494,41 @@ mod tests {
                 mix_id_unbonded_leftover,
             );
             assert!(res.is_ok());
+        }
+
+        #[test]
+        fn fails_for_illegal_proxy() {
+            let mut test = TestSetup::new();
+            let env = test.env();
+
+            let illegal_proxy = Addr::unchecked("not-vesting-contract");
+            let vesting_contract = test.vesting_contract();
+
+            let owner = "delegator";
+            let mix_id = test.add_dummy_mixnode("mix-owner", None);
+            test.add_immediate_delegation_with_illegal_proxy(
+                owner,
+                10000u32,
+                mix_id,
+                illegal_proxy.clone(),
+            );
+
+            let res = try_remove_delegation_from_mixnode_on_behalf(
+                test.deps_mut(),
+                env,
+                mock_info(illegal_proxy.as_ref(), &[coin(123, TEST_COIN_DENOM)]),
+                mix_id,
+                owner.into(),
+            )
+            .unwrap_err();
+
+            assert_eq!(
+                res,
+                MixnetContractError::SenderIsNotVestingContract {
+                    received: illegal_proxy,
+                    vesting_contract
+                }
+            )
         }
     }
 }

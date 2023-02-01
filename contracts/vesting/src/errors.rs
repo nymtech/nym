@@ -91,6 +91,12 @@ pub enum ContractError {
         cap: u32,
     },
 
+    #[error("VESTING: Failed to parse {value} into a valid SemVer version: {error_message}")]
+    SemVerFailure {
+        value: String,
+        error_message: String,
+    },
+
     #[error("VESTING: {message}")]
     Other { message: String },
 }

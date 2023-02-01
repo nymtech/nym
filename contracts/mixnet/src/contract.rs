@@ -1,11 +1,11 @@
-// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
+
 use crate::constants::{INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMOUNT};
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnode_storage;
 use crate::rewards::storage as rewards_storage;
-use crate::storage::set_contract_version;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
 };
@@ -13,6 +13,11 @@ use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
     ContractState, ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg, QueryMsg,
 };
+use semver::Version;
+
+// version info for migration info
+const CONTRACT_NAME: &str = "crate:nym-mixnet-contract";
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn default_initial_state(
     owner: Addr,
@@ -77,8 +82,7 @@ pub fn instantiate(
     mixnet_params_storage::initialise_storage(deps.storage, state)?;
     mixnode_storage::initialise_storage(deps.storage)?;
     rewards_storage::initialise_storage(deps.storage, reward_params)?;
-
-    set_contract_version(deps.storage)?;
+    cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     Ok(Response::default())
 }
@@ -384,9 +388,7 @@ pub fn query(
         QueryMsg::GetContractVersion {} => {
             to_binary(&crate::mixnet_contract_settings::queries::query_contract_version())
         }
-        QueryMsg::ContractInfo {} => {
-            to_binary(&crate::mixnet_contract_settings::queries::query_contract_info(deps.storage)?)
-        }
+        QueryMsg::GetCW2ContractVersion {} => to_binary(&cw2::get_contract_version(deps.storage)?),
         QueryMsg::GetStateParams {} => to_binary(
             &crate::mixnet_contract_settings::queries::query_contract_settings_params(deps)?,
         ),
@@ -576,6 +578,30 @@ pub fn migrate(
     _env: Env,
     msg: MigrateMsg,
 ) -> Result<Response, MixnetContractError> {
+    // note: don't remove this particular bit of code as we have to ALWAYS check whether we have to update the stored version
+    let version: Version = CONTRACT_VERSION.parse().map_err(|error: semver::Error| {
+        MixnetContractError::SemVerFailure {
+            value: CONTRACT_VERSION.to_string(),
+            error_message: error.to_string(),
+        }
+    })?;
+
+    let storage_version_raw = cw2::get_contract_version(deps.storage)?.version;
+    let storage_version: Version =
+        storage_version_raw
+            .parse()
+            .map_err(|error: semver::Error| MixnetContractError::SemVerFailure {
+                value: storage_version_raw,
+                error_message: error.to_string(),
+            })?;
+
+    if storage_version < version {
+        cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+        // If state structure changed in any contract version in the way migration is needed, it
+        // should occur here
+    }
+
     // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address
     // and vesting contract requiring the mixnet contract address), if we ever want to deploy any new fresh
     // environment, one of the contracts will HAVE TO go through a migration

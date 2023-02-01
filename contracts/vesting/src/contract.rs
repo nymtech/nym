@@ -1,20 +1,21 @@
 use crate::errors::ContractError;
 use crate::storage::{
-    account_from_address, get_contract_info, save_account, set_contract_version,
-    BlockTimestampSecs, ACCOUNTS, ADMIN, DELEGATIONS, MIXNET_CONTRACT_ADDRESS, MIX_DENOM,
+    account_from_address, save_account, BlockTimestampSecs, ACCOUNTS, ADMIN, DELEGATIONS,
+    MIXNET_CONTRACT_ADDRESS, MIX_DENOM,
 };
 use crate::traits::{
     DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, NodeFamilies, VestingAccount,
 };
 use crate::vesting::{populate_vesting_periods, Account};
-use contracts_common::{ContractBuildInformation, ContractVersion};
+use contracts_common::ContractBuildInformation;
 use cosmwasm_std::{
     coin, entry_point, to_binary, Addr, BankMsg, Coin, Deps, DepsMut, Env, MessageInfo, Order,
-    QueryResponse, Response, StdResult, Storage, Timestamp, Uint128,
+    QueryResponse, Response, StdResult, Timestamp, Uint128,
 };
 use cw_storage_plus::Bound;
 use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
 use mixnet_contract_common::{Gateway, MixId, MixNode};
+use semver::Version;
 use vesting_contract_common::events::{
     new_ownership_transfer_event, new_periodic_vesting_account_event,
     new_staking_address_update_event, new_track_gateway_unbond_event,
@@ -29,6 +30,10 @@ use vesting_contract_common::{
     DelegationTimesResponse, OriginalVestingResponse, Period, PledgeCap, PledgeData,
     VestingCoinsResponse, VestingDelegation,
 };
+
+// version info for migration info
+const CONTRACT_NAME: &str = "crate:nym-vesting-contract";
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub const INITIAL_LOCKED_PLEDGE_CAP: Uint128 = Uint128::new(100_000_000_000);
 
@@ -61,13 +66,38 @@ pub fn instantiate(
     MIXNET_CONTRACT_ADDRESS.save(deps.storage, &mixnet_contract_address)?;
     MIX_DENOM.save(deps.storage, &msg.mix_denom)?;
 
-    set_contract_version(deps.storage)?;
+    cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     Ok(Response::default())
 }
 
 #[entry_point]
-pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+pub fn migrate(deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
+    // note: don't remove this particular bit of code as we have to ALWAYS check whether we have to update the stored version
+    let version: Version =
+        CONTRACT_VERSION
+            .parse()
+            .map_err(|error: semver::Error| ContractError::SemVerFailure {
+                value: CONTRACT_VERSION.to_string(),
+                error_message: error.to_string(),
+            })?;
+
+    let storage_version_raw = cw2::get_contract_version(deps.storage)?.version;
+    let storage_version: Version =
+        storage_version_raw
+            .parse()
+            .map_err(|error: semver::Error| ContractError::SemVerFailure {
+                value: storage_version_raw,
+                error_message: error.to_string(),
+            })?;
+
+    if storage_version < version {
+        cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+        // If state structure changed in any contract version in the way migration is needed, it
+        // should occur here
+    }
+
     Ok(Response::new())
 }
 
@@ -639,7 +669,7 @@ fn try_create_periodic_vesting_account(
 pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
     let query_res = match msg {
         QueryMsg::GetContractVersion {} => to_binary(&get_contract_version()),
-        QueryMsg::ContractInfo {} => to_binary(&query_contract_info(deps.storage)?),
+        QueryMsg::GetCW2ContractVersion {} => to_binary(&cw2::get_contract_version(deps.storage)?),
         QueryMsg::GetAccountsPaged {
             start_next_after,
             limit,
@@ -1017,8 +1047,4 @@ fn ensure_staking_permission(addr: &Addr, account: &Account) -> Result<(), Contr
         address: addr.clone(),
         for_account: account.owner_address(),
     })
-}
-
-pub fn query_contract_info(store: &dyn Storage) -> StdResult<ContractVersion> {
-    get_contract_info(store)
 }

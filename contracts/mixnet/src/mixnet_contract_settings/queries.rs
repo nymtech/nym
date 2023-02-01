@@ -1,12 +1,9 @@
-use crate::storage::get_contract_version;
-
 // Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
+
 use super::storage;
-use cosmwasm_std::{Deps, StdResult, Storage};
-use mixnet_contract_common::{
-    ContractBuildInformation, ContractState, ContractStateParams, ContractVersion,
-};
+use cosmwasm_std::{Deps, StdResult};
+use mixnet_contract_common::{ContractBuildInformation, ContractState, ContractStateParams};
 
 pub(crate) fn query_contract_state(deps: Deps<'_>) -> StdResult<ContractState> {
     storage::CONTRACT_STATE.load(deps.storage)
@@ -36,10 +33,6 @@ pub(crate) fn query_contract_version() -> ContractBuildInformation {
         commit_branch: env!("VERGEN_GIT_BRANCH").to_string(),
         rustc_version: env!("VERGEN_RUSTC_SEMVER").to_string(),
     }
-}
-
-pub fn query_contract_info(store: &dyn Storage) -> StdResult<ContractVersion> {
-    get_contract_version(store)
 }
 
 #[cfg(test)]

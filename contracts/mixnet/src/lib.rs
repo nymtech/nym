@@ -13,7 +13,6 @@ mod interval;
 mod mixnet_contract_settings;
 mod mixnodes;
 mod rewards;
-mod storage;
 mod support;
 
 #[cfg(feature = "contract-testing")]

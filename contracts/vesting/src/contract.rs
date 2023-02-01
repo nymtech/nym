@@ -32,6 +32,19 @@ use vesting_contract_common::{
 
 pub const INITIAL_LOCKED_PLEDGE_CAP: Uint128 = Uint128::new(100_000_000_000);
 
+// as of 01.02.23 the maximum number of delegations anyone has made towards particular mixnode is 12.
+// thus restricting it to 25, which is more than double of that, doesn't seem too unreasonable.
+// and is going to alleviate the issue of unbounded iteration in `remove_delegations_for_mix`
+// that happens upon advancing the current epoch.
+//
+// However, do note it doesn't necessarily mean that upon reaching this limit it's impossible to perform
+// further delegations (towards the same node)
+// while this might not be the best workaround, you could remove the existing delegation
+// (thus removing all separate entries from the storage, i.e. the `DELEGATIONS` map)
+// and re-delegate it with the reclaimed amount (which will include all rewards)
+// which will only result in a single key-value being stored.
+pub const MAX_PER_MIX_DELEGATIONS: u32 = 25;
+
 /// Instantiate the contract
 #[entry_point]
 pub fn instantiate(
@@ -490,6 +503,14 @@ fn try_delegate_to_mixnode(
     env: Env,
     deps: DepsMut<'_>,
 ) -> Result<Response, ContractError> {
+    // TODO
+    // as of 01.02.23
+    // thus restricting it to 25, which is more than double of that, doesn't seem too unreasonable.
+
+    // while this might not be the best workaround, if user wishes to delegate more tokens towards the same node
+    // they could remove the existing delegation (thus removing all separate entries from the storage)
+    // and re-delegate it with the reclaimed amount (which will include all rewards).
+
     let mix_denom = MIX_DENOM.load(deps.storage)?;
     let amount = validate_funds(&[amount], mix_denom)?;
 

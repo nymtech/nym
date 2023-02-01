@@ -1,7 +1,7 @@
 use crate::errors::ContractError;
 use crate::vesting::Account;
-use cosmwasm_std::StdResult;
 use cosmwasm_std::{Addr, Api, Storage, Uint128};
+use cosmwasm_std::{Order, StdResult};
 use cw_storage_plus::{Item, Map};
 use mixnet_contract_common::ContractVersion;
 use mixnet_contract_common::{IdentityKey, MixId};
@@ -78,6 +78,27 @@ pub fn remove_delegation(
 ) -> Result<(), ContractError> {
     DELEGATIONS.remove(storage, key);
     Ok(())
+}
+
+pub fn load_delegation_timestamps(
+    prefix: (AccountStorageKey, MixId),
+    storage: &dyn Storage,
+) -> Result<Vec<BlockTimestampSecs>, ContractError> {
+    let block_timestamps = DELEGATIONS
+        .prefix(prefix)
+        .keys(storage, None, None, Order::Ascending)
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(block_timestamps)
+}
+
+pub fn count_subdelegations_for_mix(
+    prefix: (AccountStorageKey, MixId),
+    storage: &dyn Storage,
+) -> u32 {
+    DELEGATIONS
+        .prefix(prefix)
+        .keys(storage, None, None, Order::Ascending)
+        .count() as u32
 }
 
 pub fn load_withdrawn(

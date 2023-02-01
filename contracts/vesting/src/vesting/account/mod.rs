@@ -1,13 +1,13 @@
 use super::VestingPeriod;
 use crate::errors::ContractError;
 use crate::storage::{
-    load_balance, load_bond_pledge, load_gateway_pledge, load_withdrawn, remove_bond_pledge,
-    remove_delegation, remove_gateway_pledge, save_account, save_balance, save_bond_pledge,
-    save_gateway_pledge, save_withdrawn, AccountStorageKey, BlockTimestampSecs, DELEGATIONS, KEY,
+    count_subdelegations_for_mix, load_balance, load_bond_pledge, load_delegation_timestamps,
+    load_gateway_pledge, load_withdrawn, remove_bond_pledge, remove_delegation,
+    remove_gateway_pledge, save_account, save_balance, save_bond_pledge, save_gateway_pledge,
+    save_withdrawn, AccountStorageKey, BlockTimestampSecs, DELEGATIONS, KEY,
 };
 use crate::traits::VestingAccount;
 use cosmwasm_std::{Addr, Coin, Order, Storage, Timestamp, Uint128};
-use cw_storage_plus::Bound;
 use mixnet_contract_common::MixId;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -244,39 +244,21 @@ impl Account {
             .is_some()
     }
 
+    pub fn num_subdelegations_for_mix(&self, mix_id: MixId, storage: &dyn Storage) -> u32 {
+        count_subdelegations_for_mix((self.storage_key(), mix_id), storage)
+    }
+
     pub fn remove_delegations_for_mix(
         &self,
         mix_id: MixId,
         storage: &mut dyn Storage,
     ) -> Result<(), ContractError> {
-        let limit = 50;
-        let mut start_after = None;
-        let mut block_heights = Vec::new();
-        let mut prev_len = 0;
-        // TODO: Test this
-        loop {
-            block_heights.extend(
-                DELEGATIONS
-                    .prefix((self.storage_key(), mix_id))
-                    .keys(storage, start_after, None, Order::Ascending)
-                    .take(limit)
-                    .filter_map(|key| key.ok()),
-            );
+        // note that the limit is implicitly set to `MAX_PER_MIX_DELEGATIONS`
+        // as it should be impossible to create more delegations than that.
+        let block_timestamps = load_delegation_timestamps((self.storage_key(), mix_id), storage)?;
 
-            if prev_len == block_heights.len() {
-                break;
-            }
-
-            prev_len = block_heights.len();
-
-            start_after = block_heights.last().map(|last| Bound::exclusive(*last));
-            if start_after.is_none() {
-                break;
-            }
-        }
-
-        for block_height in block_heights {
-            remove_delegation((self.storage_key(), mix_id, block_height), storage)?;
+        for block_timestamp in block_timestamps {
+            remove_delegation((self.storage_key(), mix_id, block_timestamp), storage)?;
         }
         Ok(())
     }

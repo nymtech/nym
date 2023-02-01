@@ -139,7 +139,7 @@ fn do_upgrade(mut config: Config, args: &Upgrade, package_version: Version) {
 pub async fn execute(args: &Upgrade) {
     let package_version = parse_package_version();
 
-    let existing_config = Config::load_from_file(Some(&args.id)).unwrap_or_else(|err| {
+    let existing_config = Config::load_from_file(&args.id).unwrap_or_else(|err| {
         eprintln!("failed to load existing config file! - {err}");
         process::exit(1)
     });

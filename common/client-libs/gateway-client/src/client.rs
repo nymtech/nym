@@ -27,11 +27,17 @@ use task::TaskClient;
 use tungstenite::protocol::Message;
 
 #[cfg(not(target_arch = "wasm32"))]
-use credential_storage::PersistentStorage;
-#[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::connect_async;
 #[cfg(not(target_arch = "wasm32"))]
 use validator_client::nyxd::CosmWasmClient;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "mobile"))]
+use credential_storage::PersistentStorage;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "mobile")]
+use mobile_storage::PersistentStorage;
 
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::CosmWasmClient;

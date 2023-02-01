@@ -28,6 +28,7 @@ pemstore = { path = "../../pemstore" }
 validator-client = { path = "../validator-client" }
 task = { path = "../../task" }
 serde = { version = "1.0", features = ["derive"]}
+mobile-storage = { path = "../../mobile-storage" }
 
 
 [dependencies.tungstenite]
@@ -80,3 +81,4 @@ features = ["js"]
 
 [features]
 wasm = []
+mobile = []

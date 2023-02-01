@@ -74,24 +74,24 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --all-features
+          args: --workspace
 
       - name: Run expensive tests
         if: github.ref == 'refs/heads/develop' || github.event.pull_request.base.ref == 'develop' || github.event.pull_request.base.ref == 'master'
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --all-features -- --ignored
+          args: --workspace -- --ignored
 
       - uses: actions-rs/clippy-check@v1
         name: Clippy checks
         continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --workspace --all-features
+          args: --workspace
 
       - name: Run clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --workspace --all-targets --all-features -- -D warnings
+          args: --workspace --all-targets -- -D warnings

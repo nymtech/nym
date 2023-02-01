@@ -4,10 +4,11 @@
   "private": true,
   "license": "Apache 2.0",
   "workspaces": [
-    "sdk/typescript/**",
+    "sdk/typescript/packages/**",
     "ts-packages/*",
     "nym-wallet",
     "nym-connect",
+    "nym-connect-android",
     "explorer",
     "types",
     "clients/validator"

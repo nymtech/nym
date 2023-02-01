@@ -20,7 +20,7 @@ import {
  */
 const nymPalette: NymPalette = {
   /** emphasises important elements */
-  highlight: '#FB6E4E',
+  highlight: '#21D072',
   success: '#21D073',
   info: '#60D7EF',
   warning: '#FFE600',

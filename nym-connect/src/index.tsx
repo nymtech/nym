@@ -7,6 +7,9 @@ import { NymMixnetTheme } from './theme';
 import { App } from './App';
 import { AppWindowFrame } from './components/AppWindowFrame';
 import { TestAndEarnContextProvider } from './components/Growth/context/TestAndEarnContext';
+import { BrowserRouter as Router } from 'react-router-dom';
+import { AppRoutes } from './routes';
+import { GlobalStyles } from '@mui/material';
 
 const elem = document.getElementById('root');
 
@@ -14,15 +17,18 @@ if (elem) {
   const root = createRoot(elem);
   root.render(
     <ErrorBoundary FallbackComponent={ErrorFallback}>
-      <ClientContextProvider>
-        <TestAndEarnContextProvider>
-          <NymMixnetTheme mode="dark">
-            <AppWindowFrame>
-              <App />
-            </AppWindowFrame>
-          </NymMixnetTheme>
-        </TestAndEarnContextProvider>
-      </ClientContextProvider>
+      <Router>
+        <ClientContextProvider>
+          <TestAndEarnContextProvider>
+            <GlobalStyles styles={{ html: { borderRadius: 10 } }} />
+            <NymMixnetTheme mode="dark">
+              <AppWindowFrame>
+                <AppRoutes />
+              </AppWindowFrame>
+            </NymMixnetTheme>
+          </TestAndEarnContextProvider>
+        </ClientContextProvider>
+      </Router>
     </ErrorBoundary>,
   );
 }

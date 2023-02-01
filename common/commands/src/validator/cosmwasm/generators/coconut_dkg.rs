@@ -7,6 +7,7 @@ use std::str::FromStr;
 
 use coconut_dkg_common::msg::InstantiateMsg;
 use coconut_dkg_common::types::TimeConfiguration;
+use validator_client::nyxd::AccountId;
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -14,7 +15,7 @@ pub struct Args {
     pub group_addr: String,
 
     #[clap(long)]
-    pub multisig_addr: Option<String>,
+    pub multisig_addr: Option<AccountId>,
 
     #[clap(long)]
     pub public_key_submission_time_secs: Option<u64>,
@@ -44,8 +45,10 @@ pub async fn generate(args: Args) {
     debug!("Received arguments: {:?}", args);
 
     let multisig_addr = args.multisig_addr.unwrap_or_else(|| {
-        std::env::var(network_defaults::var_names::REWARDING_VALIDATOR_ADDRESS)
-            .expect("Multisig address has to be set")
+        let address = std::env::var(network_defaults::var_names::REWARDING_VALIDATOR_ADDRESS)
+            .expect("Multisig address has to be set");
+        AccountId::from_str(address.as_str())
+            .expect("Failed converting multisig address to AccountId")
     });
 
     let mix_denom = args.mix_denom.unwrap_or_else(|| {
@@ -86,7 +89,7 @@ pub async fn generate(args: Args) {
 
     let instantiate_msg = InstantiateMsg {
         group_addr: args.group_addr,
-        multisig_addr,
+        multisig_addr: multisig_addr.to_string(),
         time_configuration: Some(time_configuration),
         mix_denom,
     };

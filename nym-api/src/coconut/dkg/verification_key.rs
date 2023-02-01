@@ -5,6 +5,7 @@ use crate::coconut::dkg::client::DkgClient;
 use crate::coconut::dkg::complaints::ComplaintReason;
 use crate::coconut::dkg::state::{ConsistentState, State};
 use crate::coconut::error::CoconutError;
+use crate::coconut::helpers::accepted_vote_err;
 use coconut_dkg_common::event_attributes::DKG_PROPOSAL_ID;
 use coconut_dkg_common::types::{NodeIndex, TOTAL_DEALINGS};
 use coconut_dkg_common::verification_key::owner_from_cosmos_msgs;
@@ -207,21 +208,23 @@ pub(crate) async fn verification_key_validation(
                         .iter()
                         .position(|node_index| contract_share.node_index == *node_index)
                     {
-                        if !check_vk_pairing(&params, &recovered_partials[idx], &vk) {
+                        let ret = if !check_vk_pairing(&params, &recovered_partials[idx], &vk) {
                             dkg_client
                                 .vote_verification_key_share(proposal_id, false)
-                                .await?;
+                                .await
                         } else {
                             dkg_client
                                 .vote_verification_key_share(proposal_id, true)
-                                .await?;
-                        }
+                                .await
+                        };
+                        accepted_vote_err(ret)?;
                     }
                 }
                 Err(_) => {
-                    dkg_client
+                    let ret = dkg_client
                         .vote_verification_key_share(proposal_id, false)
-                        .await?
+                        .await;
+                    accepted_vote_err(ret)?;
                 }
             }
         }

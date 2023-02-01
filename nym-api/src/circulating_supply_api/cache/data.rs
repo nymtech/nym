@@ -7,7 +7,7 @@ use validator_client::nyxd::Coin;
 
 pub(crate) struct CirculatingSupplyCacheData {
     // no need to cache that one as it's constant, but let's put it here for consistency sake
-    pub(crate) initial_supply: Coin,
+    pub(crate) total_supply: Coin,
     pub(crate) mixmining_reserve: Cache<Coin>,
     pub(crate) vesting_tokens: Cache<Coin>,
     pub(crate) circulating_supply: Cache<Coin>,
@@ -18,7 +18,7 @@ impl CirculatingSupplyCacheData {
         let zero_coin = Coin::new(0, &mix_denom);
 
         CirculatingSupplyCacheData {
-            initial_supply: Coin::new(1_000_000_000_000_000, mix_denom),
+            total_supply: Coin::new(1_000_000_000_000_000, mix_denom),
             mixmining_reserve: Cache::new(zero_coin.clone()),
             vesting_tokens: Cache::new(zero_coin.clone()),
             circulating_supply: Cache::new(zero_coin),
@@ -29,7 +29,7 @@ impl CirculatingSupplyCacheData {
 impl<'a> From<&'a CirculatingSupplyCacheData> for CirculatingSupplyResponse {
     fn from(value: &'a CirculatingSupplyCacheData) -> Self {
         CirculatingSupplyResponse {
-            initial_supply: value.initial_supply.clone().into(),
+            total_supply: value.total_supply.clone().into(),
             mixmining_reserve: value.mixmining_reserve.clone().into_inner().into(),
             vesting_tokens: value.vesting_tokens.clone().into_inner().into(),
             circulating_supply: value.circulating_supply.clone().into_inner().into(),

@@ -701,7 +701,7 @@ dependencies = [
 
 [[package]]
 name = "client-core"
-version = "1.1.7"
+version = "1.1.8"
 dependencies = [
  "async-trait",
  "client-connections",
@@ -1891,7 +1891,7 @@ dependencies = [
 
 [[package]]
 name = "explorer-api"
-version = "1.1.7"
+version = "1.1.8"
 dependencies = [
  "chrono",
  "clap 4.1.3",
@@ -2169,6 +2169,7 @@ dependencies = [
  "gateway-requests",
  "getrandom 0.2.8",
  "log",
+ "mobile-storage",
  "network-defaults",
  "nymsphinx",
  "pemstore",
@@ -3275,6 +3276,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "mobile-storage"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "thiserror",
+]
+
+[[package]]
 name = "multer"
 version = "2.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3305,6 +3314,7 @@ dependencies = [
  "cw4",
  "schemars",
  "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -3428,7 +3438,7 @@ dependencies = [
 
 [[package]]
 name = "nym-api"
-version = "1.1.7"
+version = "1.1.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3526,7 +3536,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.7"
+version = "1.1.8"
 dependencies = [
  "anyhow",
  "base64 0.13.1",
@@ -3584,7 +3594,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.7"
+version = "1.1.8"
 dependencies = [
  "build-information",
  "clap 4.1.3",
@@ -3624,7 +3634,7 @@ dependencies = [
 
 [[package]]
 name = "nym-gateway"
-version = "1.1.7"
+version = "1.1.8"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3676,7 +3686,7 @@ dependencies = [
 
 [[package]]
 name = "nym-mixnode"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "anyhow",
  "atty",
@@ -3721,7 +3731,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.7"
+version = "1.1.8"
 dependencies = [
  "async-trait",
  "clap 4.1.3",
@@ -3753,7 +3763,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-statistics"
-version = "1.1.7"
+version = "1.1.8"
 dependencies = [
  "dirs",
  "log",
@@ -3810,7 +3820,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.7"
+version = "1.1.8"
 dependencies = [
  "build-information",
  "clap 4.1.3",
@@ -3829,6 +3839,7 @@ dependencies = [
  "lazy_static",
  "log",
  "logging",
+ "mobile-storage",
  "network-defaults",
  "nymsphinx",
  "ordered-buffer",

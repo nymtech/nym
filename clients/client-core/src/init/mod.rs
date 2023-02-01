@@ -149,7 +149,7 @@ pub fn load_existing_gateway_config<T>(id: &str) -> Result<GatewayEndpointConfig
 where
     T: NymConfig + ClientCoreConfigTrait,
 {
-    T::load_from_file(Some(id))
+    T::load_from_file(id)
         .map(|existing_config| existing_config.get_gateway_endpoint().clone())
         .map_err(|err| {
             log::error!(

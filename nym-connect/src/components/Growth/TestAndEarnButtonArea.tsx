@@ -25,7 +25,7 @@ export const Wrapper: FCWithChildren<{ disabled: boolean }> = ({ disabled, child
 export const TestAndEarnButtonArea: FCWithChildren = () => {
   const clientContext = useClientContext();
   const context = useTestAndEarnContext();
-  const disabled = clientContext.connectionStatus !== ConnectionStatusKind.connected;
+  const disabled = clientContext.connectionStatus !== 'connected';
   const pinger = React.useRef<NodeJS.Timer | null>();
 
   const doPing = async () => {

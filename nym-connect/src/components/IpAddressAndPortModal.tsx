@@ -3,6 +3,9 @@ import { Box, Button, Typography } from '@mui/material';
 import { InfoModal } from './InfoModal';
 import { CopyToClipboard } from './CopyToClipboard';
 
+const FONT_SIZE = '12px';
+const FONT_COLOR = 'grey.400';
+
 export const IpAddressAndPortModal = ({
   show,
   ipAddress,
@@ -16,12 +19,15 @@ export const IpAddressAndPortModal = ({
 }) => (
   <InfoModal
     show={show}
-    title="Almost there"
-    description="Copy these values to the proxy settings in your application"
-    Action={<Button onClick={onClose}>Done</Button>}
+    title="You are half way there"
+    description="Check NymConnect menu for supported apps"
+    onClose={onClose}
   >
     <Box sx={{ mt: 1 }}>
-      <Typography fontSize="14px" sx={{ color: 'grey.600' }}>
+      <Typography fontSize={FONT_SIZE} color={FONT_COLOR} sx={{ my: 2 }}>
+        Paste below values in the proxy settings of your app
+      </Typography>
+      <Typography fontSize={FONT_SIZE} sx={{ color: 'grey.600' }}>
         Socks5 address
       </Typography>
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -29,7 +35,7 @@ export const IpAddressAndPortModal = ({
         <CopyToClipboard text={ipAddress} iconButton light />
       </Box>
 
-      <Typography fontSize="14px" sx={{ color: 'grey.600', mt: 2 }}>
+      <Typography fontSize={FONT_SIZE} sx={{ color: 'grey.600', mt: 2 }}>
         Port
       </Typography>
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>

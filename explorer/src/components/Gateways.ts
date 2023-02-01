@@ -1,4 +1,4 @@
-import { GatewayResponse, GatewayResponseItem, GatewayReportResponse } from '../typeDefs/explorer-api';
+import { GatewayResponse, GatewayBond, GatewayReportResponse } from '../typeDefs/explorer-api';
 
 export type GatewayRowType = {
   id: string;
@@ -8,6 +8,7 @@ export type GatewayRowType = {
   host: string;
   location: string;
   version: string;
+  performance: string;
 };
 
 export type GatewayEnrichedRowType = GatewayRowType & {
@@ -28,13 +29,11 @@ export function gatewayToGridRow(arrayOfGateways: GatewayResponse): GatewayRowTy
         bond: gw.pledge_amount.amount || 0,
         host: gw.gateway.host || '',
         version: gw.gateway.version || '',
+        performance: gw.performance,
       }));
 }
 
-export function gatewayEnrichedToGridRow(
-  gateway: GatewayResponseItem,
-  report: GatewayReportResponse,
-): GatewayEnrichedRowType {
+export function gatewayEnrichedToGridRow(gateway: GatewayBond, report: GatewayReportResponse): GatewayEnrichedRowType {
   return {
     id: gateway.owner,
     owner: gateway.owner,
@@ -47,5 +46,6 @@ export function gatewayEnrichedToGridRow(
     mixPort: gateway.gateway.mix_port || 0,
     routingScore: `${report.most_recent}%`,
     avgUptime: `${report.last_day || report.last_hour}%`,
+    performance: gateway.performance,
   };
 }

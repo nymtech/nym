@@ -40,7 +40,9 @@ use coconut_dkg_common::dealer::{
     ContractDealing, DealerDetails, DealerDetailsResponse, DealerType,
 };
 use coconut_dkg_common::event_attributes::{DKG_PROPOSAL_ID, NODE_INDEX};
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId, TOTAL_DEALINGS};
+use coconut_dkg_common::types::{
+    EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, TOTAL_DEALINGS,
+};
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use contracts_common::dealings::ContractSafeBytes;
 use crypto::asymmetric::{encryption, identity};
@@ -199,6 +201,10 @@ impl super::client::Client for DummyClient {
 
     async fn get_current_epoch_threshold(&self) -> Result<Option<Threshold>> {
         Ok(*self.threshold.read().unwrap())
+    }
+
+    async fn get_initial_dealers(&self) -> Result<Option<InitialReplacementData>> {
+        todo!()
     }
 
     async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse> {

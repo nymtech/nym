@@ -7,6 +7,7 @@ use crate::support::config::Config;
 use anyhow::Result;
 use async_trait::async_trait;
 use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
+use coconut_dkg_common::types::InitialReplacementData;
 use coconut_dkg_common::{
     dealer::{ContractDealing, DealerDetails, DealerDetailsResponse},
     types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId},
@@ -336,6 +337,12 @@ impl crate::coconut::client::Client for Client {
             .nyxd
             .get_current_epoch_threshold()
             .await?)
+    }
+
+    async fn get_initial_dealers(
+        &self,
+    ) -> crate::coconut::error::Result<Option<InitialReplacementData>> {
+        Ok(self.0.read().await.nyxd.get_initial_dealers().await?)
     }
 
     async fn get_self_registered_dealer_details(

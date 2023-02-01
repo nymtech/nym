@@ -4,7 +4,9 @@
 use crate::coconut::error::Result;
 use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
 use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId};
+use coconut_dkg_common::types::{
+    EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData,
+};
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use contracts_common::dealings::ContractSafeBytes;
 use cw3::ProposalResponse;
@@ -26,6 +28,7 @@ pub trait Client {
     async fn get_current_epoch(&self) -> Result<Epoch>;
     async fn group_member(&self, addr: String) -> Result<MemberResponse>;
     async fn get_current_epoch_threshold(&self) -> Result<Option<Threshold>>;
+    async fn get_initial_dealers(&self) -> Result<Option<InitialReplacementData>>;
     async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse>;
     async fn get_current_dealers(&self) -> Result<Vec<DealerDetails>>;
     async fn get_dealings(&self, idx: usize) -> Result<Vec<ContractDealing>>;

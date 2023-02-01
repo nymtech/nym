@@ -49,6 +49,7 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
     GetCurrentEpochState {},
     GetCurrentEpochThreshold {},
+    GetInitialDealers {},
     GetDealerDetails {
         dealer_address: String,
     },

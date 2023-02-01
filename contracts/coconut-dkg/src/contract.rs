@@ -7,7 +7,9 @@ use crate::dealers::queries::{
 use crate::dealers::transactions::try_add_dealer;
 use crate::dealings::queries::query_dealings_paged;
 use crate::dealings::transactions::try_commit_dealings;
-use crate::epoch_state::queries::{query_current_epoch, query_current_epoch_threshold};
+use crate::epoch_state::queries::{
+    query_current_epoch, query_current_epoch_threshold, query_initial_dealers,
+};
 use crate::epoch_state::storage::CURRENT_EPOCH;
 use crate::epoch_state::transactions::{advance_epoch_state, try_surpassed_threshold};
 use crate::error::ContractError;
@@ -99,6 +101,7 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
         QueryMsg::GetCurrentEpochThreshold {} => {
             to_binary(&query_current_epoch_threshold(deps.storage)?)?
         }
+        QueryMsg::GetInitialDealers {} => to_binary(&query_initial_dealers(deps.storage)?)?,
         QueryMsg::GetDealerDetails { dealer_address } => {
             to_binary(&query_dealer_details(deps, dealer_address)?)?
         }

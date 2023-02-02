@@ -9,6 +9,7 @@ use completions::{fig_generate, ArgShell};
 use config::OptionalSet;
 use lazy_static::lazy_static;
 use std::error::Error;
+use std::net::IpAddr;
 
 pub(crate) mod init;
 pub(crate) mod run;
@@ -56,6 +57,7 @@ pub(crate) struct OverrideConfig {
     nym_apis: Option<Vec<url::Url>>,
     disable_socket: Option<bool>,
     port: Option<u16>,
+    host: Option<IpAddr>,
     fastmode: bool,
     no_cover: bool,
     nyxd_urls: Option<Vec<url::Url>>,
@@ -81,6 +83,7 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
         .with_base(BaseConfig::with_high_default_traffic_volume, args.fastmode)
         .with_base(BaseConfig::with_disabled_cover_traffic, args.no_cover)
         .with_optional(Config::with_port, args.port)
+        .with_optional(Config::with_host, args.host)
         .with_optional_custom_env_ext(
             BaseConfig::with_custom_nym_apis,
             args.nym_apis,

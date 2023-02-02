@@ -9,6 +9,7 @@ use config::defaults::DEFAULT_WEBSOCKET_LISTENING_PORT;
 use config::{NymConfig, OptionalSet};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use std::net::{IpAddr, Ipv4Addr};
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -104,6 +105,11 @@ impl Config {
         self
     }
 
+    pub fn with_host(mut self, host: IpAddr) -> Self {
+        self.socket.host = host;
+        self
+    }
+
     pub fn with_port(mut self, port: u16) -> Self {
         self.socket.listening_port = port;
         self
@@ -128,6 +134,10 @@ impl Config {
 
     pub fn get_socket_type(&self) -> SocketType {
         self.socket.socket_type
+    }
+
+    pub fn get_listening_ip(&self) -> IpAddr {
+        self.socket.host
     }
 
     pub fn get_listening_port(&self) -> u16 {
@@ -180,9 +190,10 @@ impl Config {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(default, deny_unknown_fields)]
 pub struct Socket {
     socket_type: SocketType,
+    host: IpAddr,
     listening_port: u16,
 }
 
@@ -190,6 +201,7 @@ impl Default for Socket {
     fn default() -> Self {
         Socket {
             socket_type: SocketType::WebSocket,
+            host: IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
             listening_port: DEFAULT_WEBSOCKET_LISTENING_PORT,
         }
     }

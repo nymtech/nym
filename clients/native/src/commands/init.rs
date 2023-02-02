@@ -12,6 +12,7 @@ use crypto::asymmetric::identity;
 use nymsphinx::addressing::clients::Recipient;
 use serde::Serialize;
 use std::fmt::Display;
+use std::net::IpAddr;
 use tap::TapFallible;
 
 #[derive(Args, Clone)]
@@ -46,6 +47,10 @@ pub(crate) struct Init {
     #[clap(short, long)]
     port: Option<u16>,
 
+    /// Ip for the socket (if applicable) to listen for requests.
+    #[clap(long)]
+    host: Option<IpAddr>,
+
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
     #[clap(long, hide = true)]
@@ -71,6 +76,7 @@ impl From<Init> for OverrideConfig {
             nym_apis: init_config.nym_apis,
             disable_socket: init_config.disable_socket,
             port: init_config.port,
+            host: init_config.host,
             fastmode: init_config.fastmode,
             no_cover: init_config.no_cover,
 

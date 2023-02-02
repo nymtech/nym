@@ -193,6 +193,7 @@ impl StoredLogin {
 
 /// Multiple stored accounts, each entry having an id and a data field.
 #[derive(Serialize, Deserialize, Clone, Debug, Zeroize, PartialEq, Eq)]
+#[zeroize(drop)]
 pub(crate) struct MultipleAccounts {
     accounts: Vec<WalletAccount>,
 }
@@ -220,8 +221,8 @@ impl MultipleAccounts {
             .find(|account| account.mnemonic() == mnemonic)
     }
 
-    pub(crate) fn into_accounts(self) -> impl Iterator<Item = WalletAccount> {
-        self.accounts.into_iter()
+    pub(crate) fn inner(&self) -> &[WalletAccount] {
+        &self.accounts
     }
 
     #[allow(unused)]
@@ -269,6 +270,7 @@ impl From<Vec<WalletAccount>> for MultipleAccounts {
 
 /// An entry in the list of stored accounts
 #[derive(Serialize, Deserialize, Clone, Debug, Zeroize, PartialEq, Eq)]
+#[zeroize(drop)]
 pub(crate) struct WalletAccount {
     id: AccountId,
     account: AccountData,

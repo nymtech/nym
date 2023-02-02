@@ -2,7 +2,7 @@ use crate::config::{Config, CUSTOM_SIMULATED_GAS_MULTIPLIER};
 use crate::error::BackendError;
 use crate::network_config;
 use crate::state::{WalletAccountIds, WalletState};
-use crate::wallet_storage::{self, DEFAULT_LOGIN_ID};
+use crate::wallet_storage::{self, UserPassword, DEFAULT_LOGIN_ID};
 use bip39::{Language, Mnemonic};
 use config::defaults::{NymNetworkDetails, COSMOS_DERIVATION_PATH};
 use cosmrs::bip32::DerivationPath;
@@ -296,7 +296,7 @@ pub fn does_password_file_exist() -> Result<bool, BackendError> {
 }
 
 #[tauri::command]
-pub fn create_password(mnemonic: &str, password: String) -> Result<(), BackendError> {
+pub fn create_password(mnemonic: &str, password: UserPassword) -> Result<(), BackendError> {
     if does_password_file_exist()? {
         return Err(BackendError::WalletFileAlreadyExists);
     }
@@ -306,20 +306,18 @@ pub fn create_password(mnemonic: &str, password: String) -> Result<(), BackendEr
     let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
     // Currently we only support a single, default, login id in the wallet
     let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
-    let password = wallet_storage::UserPassword::new(password);
     wallet_storage::store_login_with_multiple_accounts(mnemonic, hd_path, login_id, &password)
 }
 
 #[tauri::command]
 pub async fn sign_in_with_password(
-    password: String,
+    password: UserPassword,
     state: tauri::State<'_, WalletState>,
 ) -> Result<Account, BackendError> {
     log::info!("Signing in with password");
 
     // Currently we only support a single, default, id in the wallet
     let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
-    let password = wallet_storage::UserPassword::new(password);
     let stored_login = wallet_storage::load_existing_login(&login_id, &password)?;
 
     let mnemonic = extract_first_mnemonic(&stored_login)?;
@@ -352,7 +350,7 @@ fn extract_first_mnemonic(
 #[tauri::command]
 pub async fn sign_in_with_password_and_account_id(
     account_id: &str,
-    password: &str,
+    password: UserPassword,
     state: tauri::State<'_, WalletState>,
 ) -> Result<Account, BackendError> {
     log::info!("Signing in with password");
@@ -360,7 +358,6 @@ pub async fn sign_in_with_password_and_account_id(
     // Currently we only support a single, default, id in the wallet
     let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
     let account_id = wallet_storage::AccountId::new(account_id.to_string());
-    let password = wallet_storage::UserPassword::new(password.to_string());
     let stored_login = wallet_storage::load_existing_login(&login_id, &password)?;
 
     let mnemonic = extract_mnemonic(&stored_login, &account_id)?;
@@ -403,7 +400,7 @@ pub fn archive_wallet_file() -> Result<(), BackendError> {
 #[tauri::command]
 pub async fn add_account_for_password(
     mnemonic: &str,
-    password: &str,
+    password: UserPassword,
     account_id: &str,
     state: tauri::State<'_, WalletState>,
 ) -> Result<AccountEntry, BackendError> {
@@ -413,7 +410,6 @@ pub async fn add_account_for_password(
     // Currently we only support a single, default, login id in the wallet
     let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
     let account_id = wallet_storage::AccountId::new(account_id.to_string());
-    let password = wallet_storage::UserPassword::new(password.to_string());
 
     wallet_storage::append_account_to_login(
         mnemonic.clone(),
@@ -450,12 +446,10 @@ async fn set_state_with_all_accounts(
     state: tauri::State<'_, WalletState>,
 ) -> Result<(), BackendError> {
     log::trace!("Set state with accounts:");
-    let all_accounts: Vec<_> = stored_login
-        .unwrap_into_multiple_accounts(first_id_when_converting)
-        .into_accounts()
-        .collect();
+    let stored = stored_login.unwrap_into_multiple_accounts(first_id_when_converting);
+    let all_accounts = stored.inner();
 
-    for account in &all_accounts {
+    for account in all_accounts {
         log::trace!("account: {:?}", account.id());
     }
 
@@ -490,7 +484,7 @@ async fn set_state_with_all_accounts(
 
 #[tauri::command]
 pub async fn remove_account_for_password(
-    password: &str,
+    password: UserPassword,
     account_id: &str,
     state: tauri::State<'_, WalletState>,
 ) -> Result<(), BackendError> {
@@ -498,7 +492,6 @@ pub async fn remove_account_for_password(
     // Currently we only support a single, default, id in the wallet
     let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
     let account_id = wallet_storage::AccountId::new(account_id.to_string());
-    let password = wallet_storage::UserPassword::new(password.to_string());
     wallet_storage::remove_account_from_login(&login_id, &account_id, &password)?;
 
     // Load to reset the internal state
@@ -547,12 +540,11 @@ pub async fn list_accounts(
 #[tauri::command]
 pub fn show_mnemonic_for_account_in_password(
     account_id: String,
-    password: String,
+    password: UserPassword,
 ) -> Result<String, BackendError> {
     log::info!("Getting mnemonic for: {account_id}");
     let login_id = wallet_storage::LoginId::new(DEFAULT_LOGIN_ID.to_string());
     let account_id = wallet_storage::AccountId::new(account_id);
-    let password = wallet_storage::UserPassword::new(password);
     let mnemonic = _show_mnemonic_for_account_in_password(&login_id, &account_id, &password)?;
     Ok(mnemonic.to_string())
 }
@@ -606,8 +598,8 @@ mod tests {
 
         let all_accounts: Vec<_> = stored_login
             .unwrap_into_multiple_accounts(account_id.clone())
-            .into_accounts()
-            .collect();
+            .inner()
+            .to_vec();
 
         assert_eq!(
             all_accounts,
@@ -639,8 +631,8 @@ mod tests {
 
         let all_accounts: Vec<_> = stored_login
             .unwrap_into_multiple_accounts(account_id)
-            .into_accounts()
-            .collect();
+            .inner()
+            .to_vec();
 
         let expected_mn2 = bip39::Mnemonic::from_str("border hurt skull lunar goddess second danger game dismiss exhaust oven thumb dog drama onion false orchard spice tent next predict invite cherry green").unwrap();
         let expected_mn3 = bip39::Mnemonic::from_str("gentle crowd rule snap girl urge flat jump winner cluster night sand museum stock grunt quick tree acquire traffic major awake tag rack peasant").unwrap();

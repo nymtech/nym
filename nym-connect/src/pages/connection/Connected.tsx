@@ -10,7 +10,7 @@ import { IpAddressAndPort } from 'src/components/IpAddressAndPort';
 import { ServiceProvider } from 'src/types/directory';
 import { ExperimentalWarning } from 'src/components/ExperimentalWarning';
 import { ConnectionLayout } from 'src/layouts/ConnectionLayout';
-import { PowerButton } from 'src/components/PowerButton';
+import { PowerButton } from 'src/components/PowerButton/PowerButton';
 
 export const Connected: FCWithChildren<{
   status: ConnectionStatusKind;
@@ -58,7 +58,7 @@ export const Connected: FCWithChildren<{
             busy={busy}
             onClick={onConnectClick}
             isError={isError}
-            disabled={status === 'connecting' || status === 'disconnecting'}
+            disabled={status === 'disconnecting'}
           />
         }
         BottomContent={

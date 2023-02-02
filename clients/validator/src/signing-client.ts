@@ -36,6 +36,7 @@ import {
   PagedMixNodeBondResponse,
   PagedMixNodeDetailsResponse,
   PagedUnbondedMixnodesResponse,
+  RewardingParams,
   RewardingStatus,
   UnbondedMixnodeResponse,
 } from '../compiledTypes';
@@ -331,7 +332,7 @@ export default class SigningClient extends SigningCosmWasmClient implements ISig
     return this.nyxdQuerier.getLayerDistribution(mixnetContractAddress);
   }
 
-  getRewardParams(mixnetContractAddress: string): Promise<string> {
+  getRewardParams(mixnetContractAddress: string): Promise<RewardingParams> {
     return this.nyxdQuerier.getRewardParams(mixnetContractAddress);
   }
 

@@ -1,7 +1,20 @@
-import ValidatorClient from '../../src';
 import expect from 'expect';
+import ValidatorClient from '../../src';
+
+import {
+  allunbondednodes,
+  contract,
+  delegation,
+  gateway,
+  mixnode,
+  mixnodebond,
+  ownedNode,
+  rewardingnode,
+  saturation,
+  unbondednode,
+} from '../../types/expectedResponses';
+
 const dotenv = require('dotenv');
-import { allunbondednodes, contract, delegation, gateway, mixnode, mixnodebond, ownedNode, rewardingnode, saturation, unbondednode } from '../../types/expectedResponses';
 
 dotenv.config();
 
@@ -36,16 +49,15 @@ describe('Mixnet queries', () => {
   });
 
   it('can query for contract version', async () => {
-    const contract = await client.getMixnetContractVersion();
-    expect(contract).toBeTruthy();
+    const contractV = await client.getMixnetContractVersion();
+    expect(contractV).toBeTruthy();
   });
 
   // TODO Needs fixing
   it.skip('can query for mixnet contract settings', async () => {
     const settings = await client.getMixnetContractSettings();
-    console.log(settings);
     expect(Object.keys(settings)).toEqual(Object.keys(contract));
-    expect(settings).toBeTruthy;
+    expect(settings).toBeTruthy();
   });
 
   it('can query for reward pool', async () => {
@@ -118,21 +130,21 @@ describe('Mixnet queries', () => {
   it('can query for account delegations', async () => {
     const delegations = await client.getAllNyxdDelegatorDelegations('n1fzv4jc7fanl9s0qj02ge2ezk3kts545kjtek47');
     expect(Object.keys(delegations[0])).toEqual(Object.keys(delegation));
-    expect(delegations).toBeTruthy;
+    expect(delegations).toBeTruthy();
     expect(Array.isArray(delegations)).toBeTruthy();
   });
 
   it('can query for all delegations', async () => {
     const allDelegations = await client.getAllNyxdDelegations();
     expect(Object.keys(allDelegations[0])).toEqual(Object.keys(delegation));
-    expect(allDelegations).toBeTruthy;
+    expect(allDelegations).toBeTruthy();
     expect(Array.isArray(allDelegations)).toBeTruthy();
   });
 
   it('can query for all delegations on a node', async () => {
     const mixnodeDelegations = await client.getAllNyxdSingleMixnodeDelegations(1);
     expect(Object.keys(mixnodeDelegations[0])).toEqual(Object.keys(delegation));
-    expect(mixnodeDelegations).toBeTruthy;
+    expect(mixnodeDelegations).toBeTruthy();
   });
 
   //
@@ -146,4 +158,3 @@ describe('Mixnet queries', () => {
     expect(Array.isArray(gateways)).toBeTruthy();
   }).timeout(10000);
 });
-

@@ -1,12 +1,12 @@
-import { INyxdQuery } from "../../src/query-client";
-import { Mock, Times } from "moq.ts";
+import { Mock, Times } from 'moq.ts';
 import expect from 'expect';
+import { INyxdQuery } from '../../src/query-client';
 
 export class TestHelper {
-
-    tests = async <T>(methodName: string, args: any[], expectedResult: any): Promise<T> => {
-
-    const client = new Mock<INyxdQuery>().setup((nym) => nym[methodName](...args)).returns(Promise.resolve(expectedResult));
+  tests = async <T>(methodName: string, args: any[], expectedResult: any): Promise<T> => {
+    const client = new Mock<INyxdQuery>()
+      .setup((nym) => nym[methodName](...args))
+      .returns(Promise.resolve(expectedResult));
     const obj = client.object();
     const actualDetails = await obj[methodName](...args);
 
@@ -15,5 +15,5 @@ export class TestHelper {
     expect(actualDetails).toBeDefined();
 
     return actualDetails;
-};
-};
+  };
+}

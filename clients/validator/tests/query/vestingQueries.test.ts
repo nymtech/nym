@@ -1,5 +1,6 @@
 import expect from 'expect';
 import ValidatorClient from '../../src';
+
 const dotenv = require('dotenv');
 
 dotenv.config();

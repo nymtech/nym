@@ -4,8 +4,6 @@ const { webpackCommon } = require('@nymproject/webpack');
 
 const entry = {
   app: path.resolve(__dirname, 'src/index.tsx'),
-  // growth: path.resolve(__dirname, 'src/growth.tsx'),
-  // log: path.resolve(__dirname, 'src/log.tsx'),
 };
 
 module.exports = mergeWithRules({
@@ -18,22 +16,20 @@ module.exports = mergeWithRules({
 })(
   webpackCommon(__dirname, [
     { filename: 'index.html', chunks: ['app'], template: path.resolve(__dirname, 'public/index.html') },
-    // { filename: 'log.html', chunks: ['log'], template: path.resolve(__dirname, 'public/log.html') },
-    // { filename: 'growth.html', chunks: ['growth'], template: path.resolve(__dirname, 'public/growth.html') },
   ]),
   {
     module: {
       rules: [
-        // {
-        //   test: /\.mdx?$/,
-        //   use: [
-        //     {
-        //       loader: '@mdx-js/loader',
-        //       /** @type {import('@mdx-js/loader').Options} */
-        //       options: {},
-        //     },
-        //   ],
-        // },
+        {
+          test: /\.mdx?$/,
+          use: [
+            {
+              loader: '@mdx-js/loader',
+              /** @type {import('@mdx-js/loader').Options} */
+              options: {},
+            },
+          ],
+        },
         {
           test: /\.ya?ml$/,
           type: 'asset/resource',

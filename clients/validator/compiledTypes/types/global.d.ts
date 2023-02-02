@@ -127,4 +127,21 @@ export declare type LayerDistribution = {
   layer2: number;
   layer3: number;
 };
+
+export declare type IntervalRewardParams = {
+  reward_pool: number;
+  staking_supply: number;
+  staking_supply_scale_factor: number;
+  epoch_reward_budget: number;
+  stake_saturation_point: number;
+  sybil_resistance: number;
+  active_set_work_factor: number;
+  interval_pool_emission: number;
+}
+
+export declare type RewardingParams = {
+  interval: IntervalRewardParams;
+  rewarded_set_size: number;
+  active_set_size: number;
+};
 //# sourceMappingURL=global.d.ts.map

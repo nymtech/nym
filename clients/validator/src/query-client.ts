@@ -26,6 +26,7 @@ import {
 } from '../compiledTypes';
 import NymApiQuerier, { INymApiQuery } from './nym-api-querier';
 import { ICosmWasmQuery } from './types';
+import { RewardingParams } from '../compiledTypes/types/global';
 
 export interface INyxdQuery {
   // nym-specific implemented inside NymQuerier
@@ -63,7 +64,8 @@ export interface INyxdQuery {
   ): Promise<PagedDelegatorDelegationsResponse>;
   getDelegationDetails(mixnetContractAddress: string, mixIdentity: string, delegator: string): Promise<Delegation>;
   getLayerDistribution(mixnetContractAddress: string): Promise<LayerDistribution>;
-  getRewardParams(mixnetContractAddress: string): Promise<string>;
+  // getRewardParams(mixnetContractAddress: string): Promise<string>;
+  getRewardParams(mixnetContractAddress: string): Promise<RewardingParams>;
   getRewardingStatus(
     mixnetContractAddress: string,
     mixIdentity: string,
@@ -186,7 +188,7 @@ export default class QueryClient extends CosmWasmClient implements IQueryClient 
     return this.nyxdQuerier.getLayerDistribution(mixnetContractAddress);
   }
 
-  getRewardParams(mixnetContractAddress: string): Promise<string> {
+  getRewardParams(mixnetContractAddress: string): Promise<RewardingParams> {
     return this.nyxdQuerier.getRewardParams(mixnetContractAddress);
   }
 

@@ -10,7 +10,7 @@ export const delegation = {
     },
     height: expect.any(Number || BigInt),
     proxy: expect.any(String || null)
-};
+}
 
 export const gateway = {
     pledge_amount: {
@@ -29,7 +29,18 @@ export const gateway = {
         version: expect.any(String),
     },
     proxy: expect.any(String || null)
-};
+}
+
+export const pagedGateway = {
+    nodes: gateway,
+    per_page: expect.any(Number),
+    start_next_after: expect.any(Number)
+}
+
+export const ownGateway = {
+    address: expect.any(String),
+    gateway: gateway
+}
 
 export const rewardingdetails = {
     cost_params: {
@@ -90,6 +101,15 @@ export const saturation = {
     uncapped_saturation: expect.any(String)
 }
 
+export const contractVersion = {
+    build_timestamp: expect.any(String),
+    build_version: expect.any(String),
+    commit_sha: expect.any(String),
+    commit_timestamp: expect.any(String),
+    commit_branch: expect.any(String),
+    rustc_version: expect.any(String)
+};
+
 export const contract = {
     minimum_mixnode_pledge: expect.any(String),
     minimum_gateway_pledge: expect.any(String),
@@ -119,4 +139,29 @@ export const allunbondednodes = [
         proxy: expect.any(String) || null,
         unbonding_height: expect.any(Number)
     }
-];
+]
+
+export const layerDistribution = {
+    gateways: expect.any(Number),
+    layer1: expect.any(Number),
+    layer2: expect.any(Number),
+    layer3: expect.any(Number)
+}
+
+
+export const intervalRewardParams = {
+    reward_pool: expect.any(Number),
+    staking_supply: expect.any(Number),
+    staking_supply_scale_factor: expect.any(Number),
+    epoch_reward_budget: expect.any(Number),
+    stake_saturation_point: expect.any(Number),
+    sybil_resistance: expect.any(Number),
+    active_set_work_factor: expect.any(Number),
+    interval_pool_emission: expect.any(Number)
+}
+
+export const rewardingParams = {
+    interval: intervalRewardParams,
+    rewarded_set_size: expect.any(Number),
+    active_set_size: expect.any(Number)
+}

@@ -24,6 +24,7 @@ import {
   LayerDistribution,
 } from '../compiledTypes';
 import { SmartContractQuery } from './types';
+import { RewardingParams } from '../compiledTypes/types/global';
 
 export default class NyxdQuerier implements INyxdQuery {
   client: SmartContractQuery;
@@ -181,7 +182,7 @@ export default class NyxdQuerier implements INyxdQuery {
     });
   }
 
-  getRewardParams(mixnetContractAddress: string): Promise<string> {
+  getRewardParams(mixnetContractAddress: string): Promise<RewardingParams> {
     return this.client.queryContractSmart(mixnetContractAddress, {
       get_rewarding_params: {},
     });

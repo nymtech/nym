@@ -19,13 +19,18 @@ describe('Mixnet queries', () => {
     );
   });
 
+  //
+  // CONTRACT
+  //
+
   it('can query for an account balance', async () => {
     const balance = await client.getBalance('n1ptg680vnmef2cd8l0s9uyc4f0hgf3x8sed6w77');
     expect(Number.parseFloat(balance.amount)).toBeGreaterThan(0);
   });
 
   it('can query for stake saturation', async () => {
-    const stakeSaturation = await client.getStakeSaturation(8);
+    const stakeSaturation = await client.getStakeSaturation(7);
+    expect(Object.keys(stakeSaturation)).toEqual(Object.keys(saturation));
     expect(stakeSaturation).toBeTruthy();
     expect(stakeSaturation?.current_saturation).toBeTruthy();
   });
@@ -43,12 +48,22 @@ describe('Mixnet queries', () => {
     expect(settings).toBeTruthy;
   });
 
+  it('can query for reward pool', async () => {
+    const rewardPool = await client.getRewardParams();
+    // TODO add velidation here
+    expect(rewardPool).toBeTruthy();
+  });
+
+  //
+  // MIXNODES
+  //
+
   it('can query for unbonded mixnodes', async () => {
     const unbondedNodes = await client.getUnbondedMixNodes();
-    for(let i = 0; i < unbondedNodes.length; i++){
+    for (let i = 0; i < unbondedNodes.length; i++) {
       expect(Object.keys(unbondedNodes[0])).toEqual(Object.keys(allunbondednodes));
       expect(unbondedNodes).toBeTruthy();
-  }
+    }
   });
 
   it('can query for unbonded mixnode information', async () => {
@@ -83,6 +98,23 @@ describe('Mixnet queries', () => {
     expect(Array.isArray(mixnodeDetails)).toBeTruthy();
   });
 
+  it('can query for all active mixnodes', async () => {
+    const activeNodes = await client.getActiveMixnodes();
+    expect(Object.keys(activeNodes[0])).toEqual(Object.keys(mixnode));
+    expect(activeNodes).toBeTruthy();
+    expect(Array.isArray(activeNodes)).toBeTruthy();
+  });
+
+  it('can query for rewarded mixnodes', async () => {
+    const rewardNodes = await client.getRewardedMixnodes();
+    expect(Object.keys(rewardNodes[0])).toEqual(Object.keys(mixnode));
+    expect(rewardNodes).toBeTruthy();
+  });
+
+  //
+  // DELEGATIONS
+  //
+
   it('can query for account delegations', async () => {
     const delegations = await client.getAllNyxdDelegatorDelegations('n1fzv4jc7fanl9s0qj02ge2ezk3kts545kjtek47');
     expect(Object.keys(delegations[0])).toEqual(Object.keys(delegation));
@@ -103,35 +135,15 @@ describe('Mixnet queries', () => {
     expect(mixnodeDelegations).toBeTruthy;
   });
 
+  //
+  // GATEWAYS
+  //
+
   it('can query for all gateways', async () => {
     const gateways = await client.getAllNyxdGateways();
     expect(Object.keys(gateways[0])).toEqual(Object.keys(gateway));
     expect(gateways).toBeTruthy();
     expect(Array.isArray(gateways)).toBeTruthy();
   }).timeout(10000);
-
-  it('can query for all active mixnodes', async () => {
-    const activeNodes = await client.getActiveMixnodes();
-    expect(Object.keys(activeNodes[0])).toEqual(Object.keys(mixnode));
-    expect(activeNodes).toBeTruthy();
-    expect(Array.isArray(activeNodes)).toBeTruthy();
-  });
-
-  it('can query for reward pool', async () => {
-    const rewardPool = await client.getRewardParams();
-    // TODO add velidation here
-    expect(rewardPool).toBeTruthy();
-  });
-
-  it('can query for rewarded mixnodes', async () => {
-    const rewardNodes = await client.getRewardedMixnodes();
-    expect(Object.keys(rewardNodes[0])).toEqual(Object.keys(mixnode));
-    expect(rewardNodes).toBeTruthy();
-  });
-
-  it('can query for stake saturation', async () => {
-    const stakeSaturation = await client.getStakeSaturation(7);
-    expect(Object.keys(stakeSaturation)).toEqual(Object.keys(saturation));
-    expect(stakeSaturation).toBeTruthy();
-  });
 });
+

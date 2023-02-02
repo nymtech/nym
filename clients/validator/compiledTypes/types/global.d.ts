@@ -129,14 +129,14 @@ export declare type LayerDistribution = {
 };
 
 export declare type IntervalRewardParams = {
-  reward_pool: number;
-  staking_supply: number;
-  staking_supply_scale_factor: number;
-  epoch_reward_budget: number;
-  stake_saturation_point: number;
-  sybil_resistance: number;
-  active_set_work_factor: number;
-  interval_pool_emission: number;
+  reward_pool: string;
+  staking_supply: string;
+  staking_supply_scale_factor: string;
+  epoch_reward_budget: string;
+  stake_saturation_point: string;
+  sybil_resistance: string;
+  active_set_work_factor: string;
+  interval_pool_emission: string;
 }
 
 export declare type RewardingParams = {

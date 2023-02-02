@@ -26,6 +26,7 @@ import {
   PagedMixNodeBondResponse,
   PagedMixNodeDetailsResponse,
   PagedUnbondedMixnodesResponse,
+  RewardingParams,
   StakeSaturationResponse,
   UnbondedMixnodeResponse,
 } from '../compiledTypes';
@@ -183,7 +184,7 @@ export default class ValidatorClient implements INymClient {
     return this.client.getSpendableCoins(this.vestingContract, vestingAccountAddress);
   }
 
-  public async getRewardParams(): Promise<string> {
+  public async getRewardParams(): Promise<RewardingParams> {
     return this.client.getRewardParams(this.mixnetContract);
   }
 

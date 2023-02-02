@@ -1,6 +1,7 @@
 export interface IntervalRewardParams {
     reward_pool: string;
     staking_supply: string;
+    staking_supply_scale_factor: string;
     epoch_reward_budget: string;
     stake_saturation_point: string;
     sybil_resistance: string;

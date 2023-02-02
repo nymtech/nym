@@ -1,7 +1,7 @@
 import expect from 'expect';
 import { Delegation, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse } from '../../compiledTypes';
 import { TestHelper } from './client';
-import { mixnet, mixnodeowneraddress, mixId, mixIdentity } from './testData';
+import { mixnet, mixnodeowneraddress, mixIdentity } from './testData';
 
 describe('Delegation mock tests', () => {
   const testHelper = new TestHelper();

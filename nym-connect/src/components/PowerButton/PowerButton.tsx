@@ -50,9 +50,22 @@ export const PowerButton: FCWithChildren<{
   const statusFillColor = getStatusFillColor(status, hover, Boolean(isError));
 
   const getClassName = useCallback(() => {
-    if (hover && status === 'connected') return 'contract';
-    if (!hover && status === 'disconnected') return 'contract';
-    return 'expand';
+    if (hover) {
+      switch (status) {
+        case 'disconnected':
+          return 'expand';
+        default:
+          return 'contract';
+      }
+    }
+    if (!hover) {
+      switch (status) {
+        case 'connected':
+          return 'expand';
+        default:
+          return 'contract';
+      }
+    }
   }, [status, hover]);
 
   const buttonPulse = () => {

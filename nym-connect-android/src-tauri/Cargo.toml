@@ -41,8 +41,8 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_repr = "0.1"
 tap = "1.0.1"
-tauri = { git = "https://github.com/tauri-apps/tauri", branch = "next", features = ["clipboard-write-text", "native-tls-vendored", "notification-all", "shell-open", "system-tray", "window-close", "window-minimize", "window-start-dragging"] }
-# tauri = { version = "2.0.0-alpha.0", features = ["clipboard-write-text", "native-tls-vendored", "notification-all", "shell-open", "system-tray", "window-close", "window-minimize", "window-start-dragging"] }
+# TODO swithing to `rfd101` temporarily, untill https://github.com/tauri-apps/tauri/pull/6174 is merged
+tauri = { git = "https://github.com/tauri-apps/tauri", branch = "rfd101", features = ["clipboard-write-text", "native-tls-vendored", "notification-all", "shell-open", "system-tray", "window-close", "window-minimize", "window-start-dragging"] }
 tendermint-rpc = "0.23.0"
 thiserror = "1.0"
 tokio = { version = "1.24.1", features = ["sync", "time"] }

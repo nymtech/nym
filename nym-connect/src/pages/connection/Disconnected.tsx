@@ -7,7 +7,7 @@ import { Error } from 'src/types/error';
 import { ExperimentalWarning } from 'src/components/ExperimentalWarning';
 import { ServiceProvider, Services } from 'src/types/directory';
 import { ConnectionStatusKind } from 'src/types';
-import { PowerButton } from 'src/components/PowerButton';
+import { PowerButton } from 'src/components/PowerButton/PowerButton';
 import { Box } from '@mui/system';
 import { ConnectionLayout } from 'src/layouts/ConnectionLayout';
 
@@ -20,7 +20,7 @@ export const Disconnected: FCWithChildren<{
   serviceProvider?: ServiceProvider;
   clearError: () => void;
   onConnectClick: (status: ConnectionStatusKind) => void;
-}> = ({ status, error, onConnectClick, clearError, serviceProvider }) => {
+}> = ({ status, error, onConnectClick, clearError }) => {
   return (
     <>
       {error && <InfoModal show title={error.title} description={error.message} onClose={clearError} />}
@@ -31,7 +31,7 @@ export const Disconnected: FCWithChildren<{
             <ConnectionTimer />
           </Box>
         }
-        ConnectButton={<PowerButton onClick={onConnectClick} status={status} disabled={false} />}
+        ConnectButton={<PowerButton onClick={onConnectClick} status={status} disabled={status === 'connecting'} />}
         BottomContent={
           <Stack justifyContent="space-between" pt={1}>
             <Typography

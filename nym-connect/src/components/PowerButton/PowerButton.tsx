@@ -55,6 +55,11 @@ export const PowerButton: FCWithChildren<{
     return 'expand';
   }, [status, hover]);
 
+  const buttonPulse = () => {
+    if (status === 'connecting' || status === 'disconnecting') return 'pulse';
+    return undefined;
+  };
+
   return (
     <svg
       width="190"
@@ -72,25 +77,14 @@ export const PowerButton: FCWithChildren<{
         <circle cx={131} cy={131} r={25} strokeWidth={2} stroke={statusFillColor} filter="url(#blur)" opacity="0.5" />
         <g id="Button power">
           <circle cx="131" cy="131" r="68.5" stroke={statusFillColor} stroke-width="0.5" />
-          <circle id="ring-one" className={getClassName()} cx="131" cy="131" r="72.5" stroke={statusFillColor} />
-          <circle id="ring-two" className={getClassName()} cx="131" cy="131" r="76.5" stroke={statusFillColor} />
-          <circle id="ring-three" className={getClassName()} cx="131" cy="131" r="80.5" stroke={statusFillColor} />
-          <circle id="ring-four" className={getClassName()} cx="131" cy="131" r="84.5" stroke={statusFillColor} />
+          <circle id="ring-one" className={getClassName()} cx="131" cy="131" r="73" stroke={statusFillColor} />
+          <circle id="ring-two" className={getClassName()} cx="131" cy="131" r="77" stroke={statusFillColor} />
+          <circle id="ring-three" className={getClassName()} cx="131" cy="131" r="81" stroke={statusFillColor} />
+          <circle id="ring-four" className={getClassName()} cx="131" cy="131" r="85" stroke={statusFillColor} />
           <g id="button bg">
-            <circle cx="131" cy="131" r="63" stroke={statusFillColor} stroke-width="3" />
+            <circle cx="131" cy="131" r="63" stroke={statusFillColor} stroke-width="3" className={buttonPulse()} />
           </g>
           <g id="Power icon">
-            <g id="glow" opacity="0.5" filter="url(#filter2_f_944_8739)">
-              <g id="Group 672">
-                <g id="power_settings_new_black_24dp (1) 1" clip-path="url(#clip0_944_8739)">
-                  <path
-                    id="Vector"
-                    d="M131 113C129.9 113 129 113.9 129 115V131C129 132.1 129.9 133 131 133C132.1 133 133 132.1 133 131V115C133 113.9 132.1 113 131 113ZM141.28 118.72C140.5 119.5 140.52 120.72 141.26 121.5C143.52 123.9 144.92 127.1 145 130.64C145.18 138.3 138.84 144.9 131.18 144.98C123.36 145.1 117 138.8 117 131C117 127.32 118.42 123.98 120.74 121.48C121.48 120.7 121.48 119.48 120.72 118.72C119.92 117.92 118.62 117.94 117.86 118.76C114.96 121.84 113.14 125.94 113 130.48C112.72 140.24 120.66 148.68 130.42 148.98C140.62 149.3 149 141.12 149 130.98C149 126.24 147.16 121.96 144.16 118.76C143.4 117.94 142.08 117.92 141.28 118.72Z"
-                    fill={statusFillColor}
-                  />
-                </g>
-              </g>
-            </g>
             <g id="Icon">
               <g id="Group 672_2">
                 <g id="power_settings_new_black_24dp (1) 1_2" clip-path="url(#clip1_944_8739)">
@@ -98,6 +92,7 @@ export const PowerButton: FCWithChildren<{
                     id="Vector_2"
                     d="M131 113C129.9 113 129 113.9 129 115V131C129 132.1 129.9 133 131 133C132.1 133 133 132.1 133 131V115C133 113.9 132.1 113 131 113ZM141.28 118.72C140.5 119.5 140.52 120.72 141.26 121.5C143.52 123.9 144.92 127.1 145 130.64C145.18 138.3 138.84 144.9 131.18 144.98C123.36 145.1 117 138.8 117 131C117 127.32 118.42 123.98 120.74 121.48C121.48 120.7 121.48 119.48 120.72 118.72C119.92 117.92 118.62 117.94 117.86 118.76C114.96 121.84 113.14 125.94 113 130.48C112.72 140.24 120.66 148.68 130.42 148.98C140.62 149.3 149 141.12 149 130.98C149 126.24 147.16 121.96 144.16 118.76C143.4 117.94 142.08 117.92 141.28 118.72Z"
                     fill={statusFillColor}
+                    className={buttonPulse()}
                   />
                 </g>
               </g>

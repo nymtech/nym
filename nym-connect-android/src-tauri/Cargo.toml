@@ -64,3 +64,9 @@ tempfile = "3.3.0"
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+
+# [profile.dev]
+# strip = true
+# opt-level = "s"
+# lto = true
+

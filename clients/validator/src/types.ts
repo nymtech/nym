@@ -78,7 +78,7 @@ export interface INymdQuery {
   ): Promise<PagedAllDelegationsResponse>;
   getMixNodeDelegationsPaged(
     mixnetContractAddress: string,
-    mixIdentity: string,
+    mix_id: number,
     limit?: number,
     startAfter?: string,
   ): Promise<PagedMixDelegationsResponse>;
@@ -88,13 +88,8 @@ export interface INymdQuery {
     limit?: number,
     startAfter?: string,
   ): Promise<PagedDelegatorDelegationsResponse>;
-  getDelegationDetails(mixnetContractAddress: string, mixIdentity: string, delegator: string): Promise<Delegation>;
+  getDelegationDetails(mixnetContractAddress: string, mix_id: number, delegator: string): Promise<Delegation>;
   getLayerDistribution(mixnetContractAddress: string): Promise<LayerDistribution>;
-  getRewardingStatus(
-    mixnetContractAddress: string,
-    mixIdentity: string,
-    rewardingIntervalNonce: number,
-  ): Promise<RewardingStatus>;
   getStakeSaturation(mixnetContractAddress: string, mixId: number): Promise<StakeSaturationResponse>;
   getUnbondedMixNodeInformation(mixnetContractAddress: string, mixId: number): Promise<UnbondedMixnodeResponse>;
   getMixnodeRewardingDetails(mixnetContractAddress: string, mixId: number): Promise<MixNodeRewarding>;

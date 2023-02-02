@@ -7,7 +7,7 @@ describe('Gateway mock tests', () => {
   const testHelper = new TestHelper();
 
   it('get Gateways Paged', () => {
-    const execute = testHelper.tests('getGatewaysPaged', [mixnet], <PagedGatewayResponse>{
+    const execute = testHelper.buildMethod('getGatewaysPaged', [mixnet], <PagedGatewayResponse>{
       nodes: [],
       per_page: 25,
     });
@@ -15,7 +15,7 @@ describe('Gateway mock tests', () => {
   });
 
   it('owns Gateway', () => {
-    const execute = testHelper.tests('ownsGateway', [mixnet, gatewayowneraddress], <GatewayOwnershipResponse>{
+    const execute = testHelper.buildMethod('ownsGateway', [mixnet, gatewayowneraddress], <GatewayOwnershipResponse>{
       address: gatewayowneraddress,
       gateway: {},
     });

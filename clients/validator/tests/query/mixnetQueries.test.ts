@@ -6,13 +6,16 @@ import {
   contract,
   delegation,
   gateway,
+  layerDistribution,
   mixnode,
   mixnodebond,
   ownedNode,
+  ownGateway,
   rewardingnode,
   saturation,
   unbondednode,
 } from '../../types/expectedResponses';
+import { gatewayowneraddress } from '../mock/testData';
 
 const dotenv = require('dotenv');
 
@@ -64,6 +67,12 @@ describe('Mixnet queries', () => {
     const rewardPool = await client.getRewardParams();
     // TODO add velidation here
     expect(rewardPool).toBeTruthy();
+  });
+
+  it('can query for layer distribution', async () => {
+    const layer = await client.getLayerDistribution();
+    expect(Object.keys(layer)).toEqual(Object.keys(layerDistribution));
+    expect(layer).toBeTruthy();
   });
 
   //
@@ -147,6 +156,13 @@ describe('Mixnet queries', () => {
     expect(mixnodeDelegations).toBeTruthy();
   });
 
+  // TODO Needs fixing
+  it.skip('can query for detailed delegations', async () => {
+    const detailedDelegation = await client.getDelegationDetails(7, 'n1lemst75va9700tsrxq58adzujrh6h9s5x60h9h');
+    expect(Object.keys(detailedDelegation)).toEqual(Object.keys(delegation));
+    expect(detailedDelegation).toBeTruthy();
+  });
+
   //
   // GATEWAYS
   //
@@ -156,5 +172,12 @@ describe('Mixnet queries', () => {
     expect(Object.keys(gateways[0])).toEqual(Object.keys(gateway));
     expect(gateways).toBeTruthy();
     expect(Array.isArray(gateways)).toBeTruthy();
+  }).timeout(10000);
+
+  // TODO Needs fixing
+  it.skip('can query for owned gateway', async () => {
+    const gateway = await client.ownsGateway(gatewayowneraddress);
+    expect(Object.keys(gateway)).toEqual(Object.keys(ownGateway));
+    expect(gateway).toBeTruthy();
   }).timeout(10000);
 });

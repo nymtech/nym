@@ -122,7 +122,6 @@ export declare type MappedCoin = {
   readonly fractionalDigits: number;
 };
 export declare type LayerDistribution = {
-  gateways: number;
   layer1: number;
   layer2: number;
   layer3: number;

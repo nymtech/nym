@@ -142,7 +142,6 @@ export const allunbondednodes = [
 ]
 
 export const layerDistribution = {
-    gateways: expect.any(Number),
     layer1: expect.any(Number),
     layer2: expect.any(Number),
     layer3: expect.any(Number)

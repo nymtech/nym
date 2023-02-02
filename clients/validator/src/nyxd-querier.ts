@@ -139,13 +139,13 @@ export default class NyxdQuerier implements INyxdQuery {
 
   getMixNodeDelegationsPaged(
     mixnetContractAddress: string,
-    mixIdentity: number,
+    mix_id: number,
     limit?: number,
     startAfter?: string,
   ): Promise<PagedMixDelegationsResponse> {
     return this.client.queryContractSmart(mixnetContractAddress, {
       get_mixnode_delegations: {
-        mix_id: mixIdentity,
+        mix_id: mix_id,
         start_after: startAfter,
         limit,
       },
@@ -167,10 +167,10 @@ export default class NyxdQuerier implements INyxdQuery {
     });
   }
 
-  getDelegationDetails(mixnetContractAddress: string, mixIdentity: string, delegator: string): Promise<Delegation> {
+  getDelegationDetails(mixnetContractAddress: string, mix_id: number, delegator: string): Promise<Delegation> {
     return this.client.queryContractSmart(mixnetContractAddress, {
       get_delegation_details: {
-        mix_identity: mixIdentity,
+        mix_identity: mix_id,
         delegator,
       },
     });
@@ -178,26 +178,13 @@ export default class NyxdQuerier implements INyxdQuery {
 
   getLayerDistribution(mixnetContractAddress: string): Promise<LayerDistribution> {
     return this.client.queryContractSmart(mixnetContractAddress, {
-      layer_distribution: {},
+      get_layer_distribution: {},
     });
   }
 
   getRewardParams(mixnetContractAddress: string): Promise<RewardingParams> {
     return this.client.queryContractSmart(mixnetContractAddress, {
       get_rewarding_params: {},
-    });
-  }
-
-  getRewardingStatus(
-    mixnetContractAddress: string,
-    mixIdentity: string,
-    rewardingIntervalNonce: number,
-  ): Promise<RewardingStatus> {
-    return this.client.queryContractSmart(mixnetContractAddress, {
-      get_rewarding_status: {
-        mix_identity: mixIdentity,
-        rewarding_interval_nonce: rewardingIntervalNonce,
-      },
     });
   }
 

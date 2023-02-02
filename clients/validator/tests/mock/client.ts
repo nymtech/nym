@@ -3,7 +3,7 @@ import expect from 'expect';
 import { INyxdQuery } from '../../src/query-client';
 
 export class TestHelper {
-  tests = async <T>(methodName: string, args: any[], expectedResult: any): Promise<T> => {
+  buildMethod = async <T>(methodName: string, args: any[], expectedResult: any): Promise<T> => {
     const client = new Mock<INyxdQuery>()
       .setup((nym) => nym[methodName](...args))
       .returns(Promise.resolve(expectedResult));

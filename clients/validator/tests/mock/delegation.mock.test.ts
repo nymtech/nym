@@ -1,13 +1,13 @@
 import expect from 'expect';
 import { Delegation, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse } from '../../compiledTypes';
 import { TestHelper } from './client';
-import { mixnet, mixnodeowneraddress, mixIdentity } from './testData';
+import { mixnet, mixnodeowneraddress, mix_id } from './testData';
 
 describe('Delegation mock tests', () => {
   const testHelper = new TestHelper();
 
   it('get Delegation Details', () => {
-    const execute = testHelper.tests('getDelegationDetails', [mixnet, mixIdentity, mixnodeowneraddress], <Delegation>{
+    const execute = testHelper.buildMethod('getDelegationDetails', [mixnet, mix_id, mixnodeowneraddress], <Delegation>{
       owner: mixnodeowneraddress,
       mix_id: 0,
       cumulative_reward_ratio: '',
@@ -22,14 +22,14 @@ describe('Delegation mock tests', () => {
   });
 
   it('get All Delegations Paged', () => {
-    const execute = testHelper.tests('getAllDelegationsPaged', [mixnet], <PagedAllDelegationsResponse>{
+    const execute = testHelper.buildMethod('getAllDelegationsPaged', [mixnet], <PagedAllDelegationsResponse>{
       delegations: [],
     });
     expect(execute).toBeTruthy();
   });
 
   it('get Delegator Delegations Paged', () => {
-    const execute = testHelper.tests('getDelegatorDelegationsPaged', [mixnet, mixnodeowneraddress], <
+    const execute = testHelper.buildMethod('getDelegatorDelegationsPaged', [mixnet, mixnodeowneraddress], <
       PagedDelegatorDelegationsResponse
     >{
       delegations: [],

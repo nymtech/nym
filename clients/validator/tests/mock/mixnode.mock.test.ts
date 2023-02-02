@@ -8,13 +8,13 @@ import {
   UnbondedMixnodeResponse,
 } from '../../compiledTypes';
 import { TestHelper } from './client';
-import { mixnet, mixnodeowneraddress, mixId, mixIdentity } from './testData';
+import { mixnet, mixnodeowneraddress, mix_id } from './testData';
 
 describe('Mixnode mock tests', () => {
   const testHelper = new TestHelper();
 
   it('get Mixnode Bonds', () => {
-    const execute = testHelper.tests('getMixNodeBonds', [mixnet], <PagedMixNodeBondResponse>{
+    const execute = testHelper.buildMethod('getMixNodeBonds', [mixnet], <PagedMixNodeBondResponse>{
       nodes: [],
       per_page: 25,
     });
@@ -22,7 +22,9 @@ describe('Mixnode mock tests', () => {
   });
 
   it('get Mixnode Delegations Paged', () => {
-    const execute = testHelper.tests('getMixNodeDelegationsPaged', [mixnet, mixIdentity], <PagedMixDelegationsResponse>{
+    const execute = testHelper.buildMethod('getMixNodeDelegationsPaged', [mixnet, mix_id], <
+      PagedMixDelegationsResponse
+    >{
       delegations: [],
       per_page: 25,
     });
@@ -30,7 +32,7 @@ describe('Mixnode mock tests', () => {
   });
 
   it('get Mixnodes Detailed', () => {
-    const execute = testHelper.tests('getMixNodesDetailed', [mixnet], <PagedMixNodeDetailsResponse>{
+    const execute = testHelper.buildMethod('getMixNodesDetailed', [mixnet], <PagedMixNodeDetailsResponse>{
       nodes: [],
       per_page: 25,
     });
@@ -38,7 +40,7 @@ describe('Mixnode mock tests', () => {
   });
 
   it('get Mixnode Rewarding Details', () => {
-    const execute = testHelper.tests('getMixnodeRewardingDetails', [mixnet, mixId], <MixNodeRewarding>{
+    const execute = testHelper.buildMethod('getMixnodeRewardingDetails', [mixnet, mix_id], <MixNodeRewarding>{
       cost_params: {},
       operator: '',
       delegates: '',
@@ -51,7 +53,7 @@ describe('Mixnode mock tests', () => {
   });
 
   it('get Owned Mixnode', () => {
-    const execute = testHelper.tests('getOwnedMixnode', [mixnet, mixnodeowneraddress], <MixOwnershipResponse>{
+    const execute = testHelper.buildMethod('getOwnedMixnode', [mixnet, mixnodeowneraddress], <MixOwnershipResponse>{
       address: '',
       mixnode: {},
     });
@@ -59,7 +61,11 @@ describe('Mixnode mock tests', () => {
   });
 
   it('get Unbonded Mixnode Information', () => {
-    const execute = testHelper.tests('getUnbondedMixNodeInformation', [mixnet, mixId], <UnbondedMixnodeResponse>{});
+    const execute = testHelper.buildMethod(
+      'getUnbondedMixNodeInformation',
+      [mixnet, mix_id],
+      <UnbondedMixnodeResponse>{},
+    );
     expect(execute).toBeTruthy();
   });
 });

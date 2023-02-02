@@ -3,19 +3,17 @@ import {
   ContractStateParams,
   LayerDistribution,
   MixnetContractVersion,
-  RewardingStatus,
   StakeSaturationResponse,
 } from '../../compiledTypes';
 import { TestHelper } from './client';
-import { mixId, mixnet, mixIdentity, rewardingIntervalNonce } from './testData';
+import { mixnet, mix_id } from './testData';
 import { RewardingParams } from '../../compiledTypes/types/global';
 
 describe('Mixnet mock tests', () => {
   const testHelper = new TestHelper();
 
   it('get Layer Distribution', () => {
-    const execute = testHelper.tests('getLayerDistribution', [mixnet], <LayerDistribution>{
-      gateways: 10,
+    const execute = testHelper.buildMethod('getLayerDistribution', [mixnet], <LayerDistribution>{
       layer1: 2,
       layer2: 2,
       layer3: 5,
@@ -24,7 +22,7 @@ describe('Mixnet mock tests', () => {
   });
 
   it('get Reward Params', () => {
-    const execute = testHelper.tests('getRewardParams', [mixnet], <RewardingParams>{
+    const execute = testHelper.buildMethod('getRewardParams', [mixnet], <RewardingParams>{
       interval: {},
       rewarded_set_size: 0,
       active_set_size: 0,
@@ -32,17 +30,8 @@ describe('Mixnet mock tests', () => {
     expect(execute).toBeTruthy();
   });
 
-  it('get Rewarding Status', () => {
-    const execute = testHelper.tests('getRewardingStatus', [mixnet, mixIdentity, rewardingIntervalNonce], <
-      RewardingStatus
-    >{
-      Complete: {},
-    });
-    expect(execute).toBeTruthy();
-  });
-
   it('get Stake Saturation', () => {
-    const execute = testHelper.tests('getStakeSaturation', [mixnet, mixId], <StakeSaturationResponse>{
+    const execute = testHelper.buildMethod('getStakeSaturation', [mixnet, mix_id], <StakeSaturationResponse>{
       mix_id: 0,
       current_saturation: '',
       uncapped_saturation: '',
@@ -51,7 +40,7 @@ describe('Mixnet mock tests', () => {
   });
 
   it('get State Params', () => {
-    const execute = testHelper.tests('getStateParams', [mixnet], <ContractStateParams>{
+    const execute = testHelper.buildMethod('getStateParams', [mixnet], <ContractStateParams>{
       minimum_mixnode_pledge: '',
       minimum_gateway_pledge: '',
       mixnode_rewarded_set_size: 240,
@@ -61,7 +50,7 @@ describe('Mixnet mock tests', () => {
   });
 
   it('get Contract Version', () => {
-    const execute = testHelper.tests('getContractVersion', [mixnet], <MixnetContractVersion>{
+    const execute = testHelper.buildMethod('getContractVersion', [mixnet], <MixnetContractVersion>{
       build_timestamp: 'test',
       commit_branch: 'test',
       build_version: 'test',

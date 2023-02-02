@@ -8,17 +8,21 @@ import {
 import { Bip39, Random } from '@cosmjs/crypto';
 import { DirectSecp256k1HdWallet, EncodeObject } from '@cosmjs/proto-signing';
 import { Coin, coin as cosmosCoin, DeliverTxResponse, isDeliverTxFailure, StdFee } from '@cosmjs/stargate';
+import { Misbehaviour } from 'cosmjs-types/ibc/lightclients/tendermint/v1/tendermint';
 import {
   ContractStateParams,
   Delegation,
   Gateway,
   GatewayBond,
+  GatewayOwnershipResponse,
+  LayerDistribution,
   MixnetContractVersion,
   MixNode,
   MixNodeBond,
   MixNodeCostParams,
   MixNodeDetails,
   MixNodeRewarding,
+  MixOwnershipResponse,
   PagedAllDelegationsResponse,
   PagedDelegatorDelegationsResponse,
   PagedGatewayResponse,
@@ -164,8 +168,16 @@ export default class ValidatorClient implements INymClient {
     return this.client.getMixnodeRewardingDetails(this.mixnetContract, mixId);
   }
 
-  async getOwnedMixnode(address: string): Promise<any> {
+  async getOwnedMixnode(address: string): Promise<MixOwnershipResponse> {
     return this.client.getOwnedMixnode(this.mixnetContract, address);
+  }
+
+  async ownsGateway(address: string): Promise<GatewayOwnershipResponse> {
+    return this.client.ownsGateway(this.mixnetContract, address);
+  }
+
+  async getLayerDistribution(): Promise<LayerDistribution> {
+    return this.client.getLayerDistribution(this.mixnetContract);
   }
 
   public async getMixnetContractSettings(): Promise<ContractStateParams> {
@@ -263,9 +275,9 @@ export default class ValidatorClient implements INymClient {
   /**
    * Gets list of all delegations towards particular mixnode.
    *
-   * @param mixIdentity identity of the node to which the delegation was sent
+   * @param mix_id identity of the node to which the delegation was sent
    */
-  public async getAllNyxdSingleMixnodeDelegations(mixIdentity: number): Promise<Delegation[]> {
+  public async getAllNyxdSingleMixnodeDelegations(mix_id: number): Promise<Delegation[]> {
     let delegations: Delegation[] = [];
     const limit = 250;
     let startAfter;
@@ -273,7 +285,7 @@ export default class ValidatorClient implements INymClient {
       // eslint-disable-next-line no-await-in-loop
       const pagedResponse: PagedMixDelegationsResponse = await this.client.getMixNodeDelegationsPaged(
         this.mixnetContract,
-        mixIdentity,
+        mix_id,
         limit,
         startAfter,
       );
@@ -332,6 +344,10 @@ export default class ValidatorClient implements INymClient {
 
     return delegations;
   }
+
+  public async getDelegationDetails(mix_id: number, delegator: string): Promise<Delegation>{
+    return this.client.getDelegationDetails(this.mixnetContract, mix_id, delegator);
+  };
 
   /**
    * Generate a minimum gateway bond required to create a fresh mixnode.

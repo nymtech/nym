@@ -122,7 +122,7 @@ pub(crate) fn build_config(args: CliArgs) -> Result<Config> {
 
     let config = override_config(config_from_file, args);
 
-    if already_initialized {
+    if !already_initialized {
         fs::create_dir_all(Config::default_config_directory(&id))
             .expect("Could not create config directory");
         fs::create_dir_all(Config::default_data_directory(&id))

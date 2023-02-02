@@ -1,6 +1,6 @@
 import React from 'react';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
-import { PowerButton } from 'src/components/PowerButton';
+import { PowerButton } from 'src/components/PowerButton/PowerButton';
 import { ConnectionStatusKind } from 'src/types';
 
 export default {

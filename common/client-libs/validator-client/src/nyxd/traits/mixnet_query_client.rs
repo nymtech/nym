@@ -20,10 +20,11 @@ use nym_mixnet_contract_common::{
     delegation, ContractBuildInformation, ContractState, ContractStateParams,
     CurrentIntervalResponse, EpochEventId, GatewayBondResponse, GatewayOwnershipResponse,
     IdentityKey, IntervalEventId, LayerDistribution, MixId, MixOwnershipResponse,
-    MixnodeDetailsResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
-    PagedFamiliesResponse, PagedGatewayResponse, PagedMembersResponse,
-    PagedMixNodeDelegationsResponse, PagedMixnodeBondsResponse, PagedRewardedSetResponse,
-    PendingEpochEventsResponse, PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg,
+    MixnodeDetailsResponse, NumberOfPendingEventsResponse, PagedAllDelegationsResponse,
+    PagedDelegatorDelegationsResponse, PagedFamiliesResponse, PagedGatewayResponse,
+    PagedMembersResponse, PagedMixNodeDelegationsResponse, PagedMixnodeBondsResponse,
+    PagedRewardedSetResponse, PendingEpochEventsResponse, PendingIntervalEventsResponse,
+    QueryMsg as MixnetQueryMsg,
 };
 use serde::Deserialize;
 
@@ -375,6 +376,13 @@ pub trait MixnetQueryClient {
             mix_identity,
         })
         .await
+    }
+
+    async fn get_number_of_pending_events(
+        &self,
+    ) -> Result<NumberOfPendingEventsResponse, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetNumberOfPendingEvents {})
+            .await
     }
 
     async fn get_node_family_by_label(&self, label: &str) -> Result<Option<Family>, NyxdError> {

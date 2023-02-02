@@ -567,6 +567,9 @@ pub fn query(
                 limit,
             )?,
         ),
+        QueryMsg::GetNumberOfPendingEvents {} => to_binary(
+            &crate::interval::queries::query_number_of_pending_events(deps)?,
+        ),
     };
 
     Ok(query_res?)

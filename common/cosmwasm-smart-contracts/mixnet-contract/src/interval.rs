@@ -400,6 +400,21 @@ impl PendingIntervalEventsResponse {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Deserialize, Serialize)]
+pub struct NumberOfPendingEventsResponse {
+    pub epoch_events: u32,
+    pub interval_events: u32,
+}
+
+impl NumberOfPendingEventsResponse {
+    pub fn new(epoch_events: u32, interval_events: u32) -> Self {
+        Self {
+            epoch_events,
+            interval_events,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

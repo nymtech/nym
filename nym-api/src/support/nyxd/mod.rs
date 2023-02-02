@@ -213,6 +213,11 @@ impl Client {
         self.0.read().await.get_all_family_members().await
     }
 
+    pub(crate) async fn get_pending_events_count(&self) -> Result<u32, ValidatorClientError> {
+        let pending = self.0.read().await.get_number_of_pending_events().await?;
+        Ok(pending.epoch_events + pending.interval_events)
+    }
+
     pub(crate) async fn send_rewarding_messages(
         &self,
         nodes: &[MixnodeToReward],
@@ -268,12 +273,15 @@ impl Client {
         Ok(())
     }
 
-    pub(crate) async fn reconcile_epoch_events(&self) -> Result<(), ValidatorClientError> {
+    pub(crate) async fn reconcile_epoch_events(
+        &self,
+        limit: Option<u32>,
+    ) -> Result<(), ValidatorClientError> {
         self.0
             .write()
             .await
             .nyxd
-            .reconcile_epoch_events(None, None)
+            .reconcile_epoch_events(limit, None)
             .await?;
         Ok(())
     }

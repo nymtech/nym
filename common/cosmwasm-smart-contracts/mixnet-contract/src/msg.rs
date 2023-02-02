@@ -495,6 +495,7 @@ pub enum QueryMsg {
         limit: Option<u32>,
         start_after: Option<u32>,
     },
+    GetNumberOfPendingEvents {},
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]

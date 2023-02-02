@@ -40,11 +40,6 @@ pub enum BackendError {
         #[from]
         source: ClientCoreError,
     },
-    #[error("{source}")]
-    ApiClientError {
-        #[from]
-        source: crate::operations::growth::api_client::ApiClientError,
-    },
 
     #[error("could not send disconnect signal to the SOCKS5 client")]
     CoundNotSendDisconnectSignal,

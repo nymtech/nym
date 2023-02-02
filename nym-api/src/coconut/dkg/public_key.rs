@@ -12,7 +12,7 @@ pub(crate) async fn public_key_submission(
     resharing: bool,
 ) -> Result<(), CoconutError> {
     if state.was_in_progress() {
-        state.reset_persistent().await;
+        state.reset_persistent(resharing).await;
     }
     if state.node_index().is_some() {
         return Ok(());

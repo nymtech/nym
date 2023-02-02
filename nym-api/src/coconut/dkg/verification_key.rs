@@ -14,6 +14,7 @@ use cosmwasm_std::Addr;
 use credentials::coconut::bandwidth::{PRIVATE_ATTRIBUTES, PUBLIC_ATTRIBUTES};
 use cw3::{ProposalResponse, Status};
 use dkg::bte::{decrypt_share, setup};
+use dkg::error::DkgError;
 use dkg::{combine_shares, try_recover_verification_keys, Dealing, Threshold};
 use nymcoconut::tests::helpers::transpose_matrix;
 use nymcoconut::{check_vk_pairing, Base58, KeyPair, Parameters, SecretKey, VerificationKey};
@@ -26,10 +27,21 @@ async fn deterministic_filter_dealers(
     dkg_client: &DkgClient,
     state: &mut State,
     threshold: Threshold,
+    resharing: bool,
 ) -> Result<Vec<BTreeMap<NodeIndex, (Addr, Dealing)>>, CoconutError> {
     let mut dealings_maps = vec![];
     let initial_dealers_by_addr = state.current_dealers_by_addr();
     let initial_receivers = state.current_dealers_by_idx();
+    let initial_resharing_dealers = if resharing {
+        dkg_client
+            .get_initial_dealers()
+            .await?
+            .map(|d| d.initial_dealers)
+            .unwrap_or_default()
+    } else {
+        vec![]
+    };
+
     let params = setup();
 
     for idx in 0..TOTAL_DEALINGS {
@@ -66,11 +78,15 @@ async fn deterministic_filter_dealers(
             }));
         dealings_maps.push(dealings_map);
     }
+
     for (addr, _) in initial_dealers_by_addr.iter() {
-        for dealings_map in dealings_maps.iter() {
-            if !dealings_map.iter().any(|(_, (address, _))| address == addr) {
-                state.mark_bad_dealer(addr, ComplaintReason::MissingDealing);
-                break;
+        // in resharing mode, we don't commit dealings from dealers outside the initial set
+        if !resharing || initial_resharing_dealers.contains(addr) {
+            for dealings_map in dealings_maps.iter() {
+                if !dealings_map.iter().any(|(_, (address, _))| address == addr) {
+                    state.mark_bad_dealer(addr, ComplaintReason::MissingDealing);
+                    break;
+                }
             }
         }
     }
@@ -90,16 +106,16 @@ fn derive_partial_keypair(
     let mut scalars = vec![];
     let mut recovered_vks = vec![];
     for dealings_map in dealings_maps.into_iter() {
-        let filtered_dealings: Vec<_> = dealings_map
+        let (filtered_dealers, filtered_dealings): (Vec<_>, Vec<_>) = dealings_map
             .into_iter()
-            .filter_map(|(_, (addr, dealing))| {
+            .filter_map(|(idx, (addr, dealing))| {
                 if filtered_dealers_by_addr.keys().any(|a| addr == *a) {
-                    Some(dealing)
+                    Some((idx, dealing))
                 } else {
                     None
                 }
             })
-            .collect();
+            .unzip();
         let recovered = try_recover_verification_keys(
             &filtered_dealings,
             threshold,
@@ -111,19 +127,18 @@ fn derive_partial_keypair(
             .iter()
             .map(|dealing| decrypt_share(dk, node_index_value, &dealing.ciphertexts, None))
             .collect::<Result<_, _>>()?;
-        let scalar = combine_shares(
-            shares,
-            &filtered_receivers_by_idx
-                .keys()
-                .copied()
-                .collect::<Vec<_>>(),
-        )?;
+        let scalar = combine_shares(shares, &filtered_dealers)?;
         scalars.push(scalar);
     }
     state.set_recovered_vks(recovered_vks);
 
     let params = Parameters::new(PUBLIC_ATTRIBUTES + PRIVATE_ATTRIBUTES)?;
-    let x = scalars.pop().unwrap();
+    let x = scalars.pop().ok_or(CoconutError::DkgError(
+        DkgError::NotEnoughDealingsAvailable {
+            available: 0,
+            required: 1,
+        },
+    ))?;
     let sk = SecretKey::create_from_raw(x, scalars);
     let vk = sk.verification_key(&params);
 
@@ -141,7 +156,8 @@ pub(crate) async fn verification_key_submission(
     }
 
     let threshold = state.threshold()?;
-    let dealings_maps = deterministic_filter_dealers(dkg_client, state, threshold).await?;
+    let dealings_maps =
+        deterministic_filter_dealers(dkg_client, state, threshold, resharing).await?;
     let coconut_keypair = derive_partial_keypair(state, threshold, dealings_maps)?;
     let vk_share = coconut_keypair.verification_key().to_bs58();
     pemstore::store_keypair(&coconut_keypair, keypair_path)?;
@@ -385,7 +401,7 @@ pub(crate) mod tests {
         let db = MockContractDb::new();
         let mut clients_and_states = prepare_clients_and_states(&db).await;
         for (dkg_client, state) in clients_and_states.iter_mut() {
-            let filtered = deterministic_filter_dealers(dkg_client, state, 2)
+            let filtered = deterministic_filter_dealers(dkg_client, state, 2, false)
                 .await
                 .unwrap();
             assert_eq!(filtered.len(), TOTAL_DEALINGS);
@@ -413,7 +429,7 @@ pub(crate) mod tests {
             });
 
         for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
-            let filtered = deterministic_filter_dealers(dkg_client, state, 2)
+            let filtered = deterministic_filter_dealers(dkg_client, state, 2, false)
                 .await
                 .unwrap();
             assert_eq!(filtered.len(), TOTAL_DEALINGS);
@@ -445,7 +461,7 @@ pub(crate) mod tests {
             });
 
         for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
-            let filtered = deterministic_filter_dealers(dkg_client, state, 2)
+            let filtered = deterministic_filter_dealers(dkg_client, state, 2, false)
                 .await
                 .unwrap();
             assert_eq!(filtered.len(), TOTAL_DEALINGS);
@@ -480,12 +496,12 @@ pub(crate) mod tests {
             });
 
         for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
-            deterministic_filter_dealers(dkg_client, state, 2)
+            deterministic_filter_dealers(dkg_client, state, 2, false)
                 .await
                 .unwrap();
             // second filter will leave behind the bad dealer and surface why it was left out
             // in the first place
-            let filtered = deterministic_filter_dealers(dkg_client, state, 2)
+            let filtered = deterministic_filter_dealers(dkg_client, state, 2, false)
                 .await
                 .unwrap();
             assert_eq!(filtered.len(), TOTAL_DEALINGS);
@@ -522,12 +538,12 @@ pub(crate) mod tests {
             });
 
         for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
-            deterministic_filter_dealers(dkg_client, state, 2)
+            deterministic_filter_dealers(dkg_client, state, 2, false)
                 .await
                 .unwrap();
             // second filter will leave behind the bad dealer and surface why it was left out
             // in the first place
-            let filtered = deterministic_filter_dealers(dkg_client, state, 2)
+            let filtered = deterministic_filter_dealers(dkg_client, state, 2, false)
                 .await
                 .unwrap();
             assert_eq!(filtered.len(), TOTAL_DEALINGS);
@@ -547,7 +563,7 @@ pub(crate) mod tests {
         let db = MockContractDb::new();
         let mut clients_and_states = prepare_clients_and_states(&db).await;
         for (dkg_client, state) in clients_and_states.iter_mut() {
-            let filtered = deterministic_filter_dealers(dkg_client, state, 2)
+            let filtered = deterministic_filter_dealers(dkg_client, state, 2, false)
                 .await
                 .unwrap();
             assert!(derive_partial_keypair(state, 2, filtered).is_ok());
@@ -572,7 +588,7 @@ pub(crate) mod tests {
             });
 
         for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
-            let filtered = deterministic_filter_dealers(dkg_client, state, 2)
+            let filtered = deterministic_filter_dealers(dkg_client, state, 2, false)
                 .await
                 .unwrap();
             assert!(derive_partial_keypair(state, 2, filtered).is_ok());

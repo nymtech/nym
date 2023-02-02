@@ -9,6 +9,7 @@ use coconut_dkg_common::types::EpochState;
 use cosmwasm_std::Addr;
 use dkg::bte::{keys::KeyPair as DkgKeyPair, PublicKey, PublicKeyWithProof};
 use dkg::{NodeIndex, RecoveredVerificationKeys, Threshold};
+use nymcoconut::SecretKey;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::BTreeMap;
@@ -241,8 +242,10 @@ impl State {
         }
     }
 
-    pub async fn reset_persistent(&mut self) {
-        self.coconut_keypair.set(None).await;
+    pub async fn reset_persistent(&mut self, resharing: bool) {
+        if !resharing {
+            self.coconut_keypair.set(None).await;
+        }
         self.node_index = Default::default();
         self.dealers = Default::default();
         self.receiver_index = Default::default();
@@ -268,6 +271,14 @@ impl State {
 
     pub async fn coconut_keypair_is_some(&self) -> bool {
         self.coconut_keypair.get().await.is_some()
+    }
+
+    pub async fn coconut_secret_key(&self) -> Option<SecretKey> {
+        self.coconut_keypair
+            .get()
+            .await
+            .as_ref()
+            .map(|kp| kp.secret_key().clone())
     }
 
     pub fn node_index(&self) -> Option<NodeIndex> {

@@ -4,7 +4,9 @@
 use crate::coconut::client::Client;
 use crate::coconut::error::CoconutError;
 use coconut_dkg_common::dealer::{ContractDealing, DealerDetails, DealerDetailsResponse};
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId, NodeIndex};
+use coconut_dkg_common::types::{
+    EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, NodeIndex,
+};
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use contracts_common::dealings::ContractSafeBytes;
 use cw3::ProposalResponse;
@@ -57,6 +59,12 @@ impl DkgClient {
         &self,
     ) -> Result<Option<Threshold>, CoconutError> {
         self.inner.get_current_epoch_threshold().await
+    }
+
+    pub(crate) async fn get_initial_dealers(
+        &self,
+    ) -> Result<Option<InitialReplacementData>, CoconutError> {
+        self.inner.get_initial_dealers().await
     }
 
     pub(crate) async fn get_self_registered_dealer_details(

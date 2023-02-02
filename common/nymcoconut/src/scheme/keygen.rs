@@ -93,6 +93,10 @@ impl SecretKey {
         Self { x, ys }
     }
 
+    pub fn into_raw(&self) -> (Scalar, Vec<Scalar>) {
+        (self.x, self.ys.clone())
+    }
+
     /// Derive verification key using this secret key.
     pub fn verification_key(&self, params: &Parameters) -> VerificationKey {
         let g1 = params.gen1();

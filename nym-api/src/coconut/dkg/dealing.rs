@@ -9,6 +9,7 @@ use contracts_common::dealings::ContractSafeBytes;
 use dkg::bte::setup;
 use dkg::Dealing;
 use rand::RngCore;
+use std::collections::VecDeque;
 
 pub(crate) async fn dealing_exchange(
     dkg_client: &DkgClient,
@@ -22,26 +23,57 @@ pub(crate) async fn dealing_exchange(
 
     let dealers = dkg_client.get_current_dealers().await?;
     let threshold = dkg_client.get_current_epoch_threshold().await?;
+    let initial_dealers = dkg_client
+        .get_initial_dealers()
+        .await?
+        .map(|d| d.initial_dealers)
+        .unwrap_or_default();
+    let own_address = dkg_client.get_address().await.as_ref().to_string();
     state.set_dealers(dealers);
     state.set_threshold(threshold);
     let receivers = state.current_dealers_by_idx();
-    let params = setup();
     let dealer_index = state.node_index_value()?;
     let receiver_index = receivers
         .keys()
         .position(|node_index| *node_index == dealer_index);
-    for _ in 0..TOTAL_DEALINGS {
-        let (dealing, _) = Dealing::create(
-            rng.clone(),
-            &params,
-            dealer_index,
-            state.threshold()?,
-            &receivers,
-            None,
-        );
-        dkg_client
-            .submit_dealing(ContractSafeBytes::from(&dealing), resharing)
-            .await?;
+
+    let prior_resharing_secrets = if let Some(sk) = state.coconut_secret_key().await {
+        // Double check that we are in resharing mode, otherwise
+        if resharing {
+            let (x, mut scalars) = sk.into_raw();
+            if scalars.len() + 1 != TOTAL_DEALINGS {
+                return Err(CoconutError::CorruptedCoconutKeyPair);
+            }
+            scalars.push(x);
+            scalars
+        } else {
+            log::warn!("Coconut key hasn't been reset in memory. The state might be corrupt");
+            vec![]
+        }
+    } else {
+        vec![]
+    };
+    let mut prior_resharing_secrets = VecDeque::from(prior_resharing_secrets);
+    if !resharing
+        || initial_dealers
+            .iter()
+            .find(|d| d.to_string() == own_address)
+            .is_some()
+    {
+        let params = setup();
+        for _ in 0..TOTAL_DEALINGS {
+            let (dealing, _) = Dealing::create(
+                rng.clone(),
+                &params,
+                dealer_index,
+                state.threshold()?,
+                &receivers,
+                prior_resharing_secrets.pop_front(),
+            );
+            dkg_client
+                .submit_dealing(ContractSafeBytes::from(&dealing), resharing)
+                .await?;
+        }
     }
 
     info!("DKG: Finished submitting dealing");

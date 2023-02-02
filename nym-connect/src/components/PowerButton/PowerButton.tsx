@@ -86,7 +86,7 @@ export const PowerButton: FCWithChildren<{
       onMouseLeave={() => !disabled && setHover(false)}
     >
       <g transform="translate(-30, -25) ">
-        <circle cx={131} cy={131} r={75} strokeWidth={5} stroke={statusFillColor} filter="url(#blur)" opacity="0.6" />
+        <circle cx={131} cy={131} r={75} strokeWidth={4} stroke={statusFillColor} filter="url(#blur)" opacity="0.6" />
         <circle cx={131} cy={131} r={25} strokeWidth={2} stroke={statusFillColor} filter="url(#blur)" opacity="0.5" />
         <g id="Button power">
           <circle cx="131" cy="131" r="68.5" stroke={statusFillColor} stroke-width="0.5" />
@@ -114,7 +114,7 @@ export const PowerButton: FCWithChildren<{
         </g>
         <defs>
           <filter id="blur" width="200%" height="200%" x="-50%" y="-50%">
-            <feGaussianBlur stdDeviation="15" />
+            <feGaussianBlur stdDeviation="12.5" />
           </filter>
         </defs>
       </g>

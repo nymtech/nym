@@ -28,21 +28,30 @@
 #ring-one.contract {
   opacity: 0;
   transition: opacity 0.4s;
+  transition-delay: 0.1s;
 }
 
 #ring-two.contract {
   opacity: 0;
   transition: opacity 0.3s;
+  transition-delay: 0.1s;
 }
 
 #ring-three.contract {
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity 0.1s;
+  transition-delay: 0.1s;
 }
 
 #ring-four.contract {
   opacity: 0;
   transition: opacity 0.1s;
+  transition-delay: 0.1s;
+}
+
+circle,
+path {
+  transition: stroke 0.5s, fill 0.5s;
 }
 
 .pulse {

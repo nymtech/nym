@@ -15,8 +15,7 @@ pub fn create_account(args: Args, prefix: &str) {
     let word_count = args.word_count.unwrap_or(24);
     let mnemonic = bip39::Mnemonic::generate(word_count).expect("failed to generate mnemonic!");
 
-    let wallet =
-        DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic).expect("failed to build wallet!");
+    let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
 
     // Output address and mnemonics into separate lines for easier parsing
     println!("{}", wallet.mnemonic());

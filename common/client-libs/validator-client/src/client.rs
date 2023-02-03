@@ -132,10 +132,9 @@ impl Config {
 #[cfg(feature = "nyxd-client")]
 #[derive(Clone)]
 pub struct Client<C: Clone> {
-    // TODO: we really shouldn't be storing a mnemonic here, but removing it would be
-    // non-trivial amount of work and it's out of scope of the current branch
-    mnemonic: Option<bip39::Mnemonic>,
-
+    // // TODO: we really shouldn't be storing a mnemonic here, but removing it would be
+    // // non-trivial amount of work and it's out of scope of the current branch
+    // mnemonic: Option<bip39::Mnemonic>,
     mixnode_page_limit: Option<u32>,
     gateway_page_limit: Option<u32>,
     mixnode_delegations_page_limit: Option<u32>,
@@ -159,12 +158,11 @@ impl Client<SigningNyxdClient> {
         let nyxd_client = NyxdClient::connect_with_mnemonic(
             config.nyxd_config.clone(),
             config.nyxd_url.as_str(),
-            mnemonic.clone(),
+            mnemonic,
             None,
         )?;
 
         Ok(Client {
-            mnemonic: Some(mnemonic),
             mixnode_page_limit: config.mixnode_page_limit,
             gateway_page_limit: config.gateway_page_limit,
             mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,
@@ -178,12 +176,7 @@ impl Client<SigningNyxdClient> {
     }
 
     pub fn change_nyxd(&mut self, new_endpoint: Url) -> Result<(), ValidatorClientError> {
-        self.nyxd = NyxdClient::connect_with_mnemonic(
-            self.nyxd.current_config().clone(),
-            new_endpoint.as_ref(),
-            self.mnemonic.clone().unwrap(),
-            None,
-        )?;
+        self.nyxd.change_endpoint(new_endpoint.as_ref())?;
         Ok(())
     }
 
@@ -200,7 +193,6 @@ impl Client<QueryNyxdClient> {
             NyxdClient::connect(config.nyxd_config.clone(), config.nyxd_url.as_str())?;
 
         Ok(Client {
-            mnemonic: None,
             mixnode_page_limit: config.mixnode_page_limit,
             gateway_page_limit: config.gateway_page_limit,
             mixnode_delegations_page_limit: config.mixnode_delegations_page_limit,

@@ -51,21 +51,19 @@ pub async fn get_pubkey(
 }
 
 pub fn get_pubkey_from_mnemonic(address: AccountId, prefix: &str, mnemonic: bip39::Mnemonic) {
-    match DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic) {
-        Ok(wallet) => match wallet.try_derive_accounts() {
-            Ok(accounts) => match accounts.iter().find(|a| *a.address() == address) {
-                Some(account) => {
-                    println!("{}", account.public_key().to_string());
-                }
-                None => {
-                    error!("Could not derive key that matches {}", address)
-                }
-            },
-            Err(e) => {
-                error!("Failed to derive accounts. {}", e);
+    let wallet = DirectSecp256k1HdWallet::from_mnemonic(prefix, mnemonic);
+    match wallet.try_derive_accounts() {
+        Ok(accounts) => match accounts.iter().find(|a| *a.address() == address) {
+            Some(account) => {
+                println!("{}", account.public_key().to_string());
+            }
+            None => {
+                error!("Could not derive key that matches {}", address)
             }
         },
-        Err(e) => show_error(e),
+        Err(e) => {
+            error!("Failed to derive accounts. {}", e);
+        }
     }
 }
 

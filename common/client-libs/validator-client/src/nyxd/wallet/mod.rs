@@ -8,6 +8,7 @@ use cosmrs::crypto::secp256k1::{Signature, SigningKey};
 use cosmrs::crypto::PublicKey;
 use cosmrs::tx::SignDoc;
 use cosmrs::{tx, AccountId};
+use zeroize::Zeroize;
 
 /// Derivation information required to derive a keypair and an address from a mnemonic.
 #[derive(Debug, Clone)]
@@ -56,19 +57,40 @@ pub struct DirectSecp256k1HdWallet {
     accounts: Vec<Secp256k1Derivation>,
 }
 
+impl Zeroize for DirectSecp256k1HdWallet {
+    fn zeroize(&mut self) {
+        // in ideal world, Mnemonic would have had zeroize defined on it (there's an almost year old PR that introduces it)
+        // and the memory would have been filled with zeroes.
+        //
+        // we really don't want to keep our real mnemonic in memory, so let's do the semi-nasty thing
+        // of overwriting it with a fresh mnemonic that was never used before
+        //
+        // note: this function can only fail on an invalid word count, which clearly is not the case here
+        self.secret = bip39::Mnemonic::generate(self.secret.word_count()).unwrap();
+        self.seed.zeroize();
+        // there's nothing secret about derivation paths
+    }
+}
+
+impl Drop for DirectSecp256k1HdWallet {
+    fn drop(&mut self) {
+        self.zeroize()
+    }
+}
+
 impl DirectSecp256k1HdWallet {
     pub fn builder(prefix: &str) -> DirectSecp256k1HdWalletBuilder {
         DirectSecp256k1HdWalletBuilder::new(prefix)
     }
 
     /// Restores a wallet from the given BIP39 mnemonic using default options.
-    pub fn from_mnemonic(prefix: &str, mnemonic: bip39::Mnemonic) -> Result<Self, NyxdError> {
+    pub fn from_mnemonic(prefix: &str, mnemonic: bip39::Mnemonic) -> Self {
         DirectSecp256k1HdWalletBuilder::new(prefix).build(mnemonic)
     }
 
     pub fn generate(prefix: &str, word_count: usize) -> Result<Self, NyxdError> {
         let mneomonic = bip39::Mnemonic::generate(word_count)?;
-        Self::from_mnemonic(prefix, mneomonic)
+        Ok(Self::from_mnemonic(prefix, mneomonic))
     }
 
     fn derive_keypair(&self, hd_path: &DerivationPath) -> Result<Secp256k1Keypair, NyxdError> {
@@ -145,11 +167,14 @@ impl DirectSecp256k1HdWallet {
 }
 
 #[must_use]
+#[derive(Zeroize)]
+#[zeroize(drop)]
 pub struct DirectSecp256k1HdWalletBuilder {
     /// The password to use when deriving a BIP39 seed from a mnemonic.
     bip39_password: String,
 
     /// The BIP-32/SLIP-10 derivation paths
+    #[zeroize(skip)]
     hd_paths: Vec<DerivationPath>,
 
     /// The bech32 address prefix (human readable part)
@@ -185,23 +210,23 @@ impl DirectSecp256k1HdWalletBuilder {
         self
     }
 
-    pub fn build(self, mnemonic: bip39::Mnemonic) -> Result<DirectSecp256k1HdWallet, NyxdError> {
+    pub fn build(self, mnemonic: bip39::Mnemonic) -> DirectSecp256k1HdWallet {
         let seed = mnemonic.to_seed(&self.bip39_password);
-        let prefix = self.prefix;
+        let prefix = self.prefix.clone();
         let accounts = self
             .hd_paths
-            .into_iter()
+            .iter()
             .map(|hd_path| Secp256k1Derivation {
-                hd_path,
+                hd_path: hd_path.clone(),
                 prefix: prefix.clone(),
             })
             .collect();
 
-        Ok(DirectSecp256k1HdWallet {
+        DirectSecp256k1HdWallet {
             accounts,
             seed,
             secret: mnemonic,
-        })
+        }
     }
 }
 
@@ -229,8 +254,7 @@ mod tests {
             "n17n9flp6jflljg6fp05dsy07wcprf2uuu8g40rf",
         ];
         for (idx, mnemonic) in mnemonics.iter().enumerate() {
-            let wallet =
-                DirectSecp256k1HdWallet::from_mnemonic(&prefix, mnemonic.parse().unwrap()).unwrap();
+            let wallet = DirectSecp256k1HdWallet::from_mnemonic(&prefix, mnemonic.parse().unwrap());
             assert_eq!(
                 wallet.try_derive_accounts().unwrap()[0].address,
                 addrs[idx].parse().unwrap()

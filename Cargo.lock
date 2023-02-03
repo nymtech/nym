@@ -6905,6 +6905,7 @@ dependencies = [
  "url",
  "vesting-contract",
  "vesting-contract-common",
+ "zeroize",
 ]
 
 [[package]]

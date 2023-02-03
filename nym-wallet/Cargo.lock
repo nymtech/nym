@@ -4023,7 +4023,7 @@ version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bfa0f585226d2e68097d4f95d113b15b83a82e819ab25717ec0590d9584ef366"
 dependencies = [
- "semver 1.0.6",
+ "semver 1.0.16",
 ]
 
 [[package]]
@@ -4216,9 +4216,9 @@ dependencies = [
 
 [[package]]
 name = "semver"
-version = "1.0.6"
+version = "1.0.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4a3381e03edd24287172047536f20cabde766e2cd3e65e6b00fb3af51c4f38d"
+checksum = "58bc9567378fc7690d6b2addae4e60ac2eeea07becb2c64b9f218b53865cba2a"
 dependencies = [
  "serde",
 ]
@@ -4770,7 +4770,7 @@ dependencies = [
  "raw-window-handle",
  "regex",
  "rfd",
- "semver 1.0.6",
+ "semver 1.0.16",
  "serde",
  "serde_json",
  "serde_repr",
@@ -4803,7 +4803,7 @@ dependencies = [
  "cargo_toml",
  "heck 0.4.0",
  "json-patch",
- "semver 1.0.6",
+ "semver 1.0.16",
  "serde_json",
  "tauri-utils",
  "winres",
@@ -4824,7 +4824,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "regex",
- "semver 1.0.6",
+ "semver 1.0.16",
  "serde",
  "serde_json",
  "sha2 0.10.2",
@@ -4907,7 +4907,7 @@ dependencies = [
  "phf 0.10.1",
  "proc-macro2",
  "quote",
- "semver 1.0.6",
+ "semver 1.0.16",
  "serde",
  "serde_json",
  "serde_with",
@@ -5434,6 +5434,7 @@ dependencies = [
  "url",
  "vesting-contract",
  "vesting-contract-common",
+ "zeroize",
 ]
 
 [[package]]
@@ -5490,8 +5491,10 @@ dependencies = [
  "contracts-common",
  "cosmwasm-std",
  "cw-storage-plus",
+ "cw2",
  "mixnet-contract-common",
  "schemars",
+ "semver 1.0.16",
  "serde",
  "thiserror",
  "vergen",
@@ -6081,9 +6084,9 @@ checksum = "d2d7d3948613f75c98fd9328cfdcc45acc4d360655289d0a7d4ec931392200a3"
 
 [[package]]
 name = "zeroize"
-version = "1.4.3"
+version = "1.5.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d68d9dcec5f9b43a30d38c49f91dfedfaac384cb8f085faca366c26207dd1619"
+checksum = "c394b5bd0c6f669e7275d9c20aa90ae064cb22e75a1cad54e1b34088034b149f"
 dependencies = [
  "zeroize_derive",
 ]

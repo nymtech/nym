@@ -45,10 +45,10 @@ check_mixnode_binary_build() {
     VALUE=${VALUE#\"}
     VALUE=${VALUE%\"}
 
-    echo $VALUE
+    result=$(echo ${VALUE})
     # do asserts here based upon the output on init
 
-    assert ${VALUE} $(echo ${WALLET_ADDRESS_CONST})
+    assert result $(echo ${WALLET_ADDRESS_CONST})
     assert_end nym-mixnode-tests
   else
     echo "exiting test no binary found"

@@ -34,7 +34,7 @@ on:
       - 'tools/ts-rs-cli/**'
 
 env:
-  NETWORK: mainnet    
+  NETWORK: mainnet
 
 jobs:
   publish-nym:
@@ -46,6 +46,15 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v3
+
+      - name: Prepare build output directory
+        shell: bash
+        env:
+          OUTPUT_DIR: ci-builds/${{ github.ref_name }}
+        run: |
+          rm -rf ci-builds || true
+          mkdir -p $OUTPUT_DIR
+          echo $OUTPUT_DIR
 
       - name: Install Dependencies (Linux)
         run: sudo apt-get update && sudo apt-get -y install libwebkit2gtk-4.0-dev build-essential curl wget libssl-dev libgtk-3-dev libudev-dev squashfs-tools
@@ -75,31 +84,29 @@ jobs:
 
       - name: Prepare build output
         shell: bash
+        env:
+          OUTPUT_DIR: ci-builds/${{ github.ref_name }}
         run: |
-          rm -rf ci-builds || true
-          mkdir ci-builds
+          cp target/release/nym-client $OUTPUT_DIR
+          cp target/release/nym-gateway $OUTPUT_DIR
+          cp target/release/nym-mixnode $OUTPUT_DIR
+          cp target/release/nym-socks5-client $OUTPUT_DIR
+          cp target/release/nym-api $OUTPUT_DIR
+          cp target/release/nym-network-requester $OUTPUT_DIR
+          cp target/release/nym-network-statistics $OUTPUT_DIR
+          cp target/release/nym-cli $OUTPUT_DIR
 
-          cp target/release/nym-client ci-builds
-          cp target/release/nym-gateway ci-builds
-          cp target/release/nym-mixnode ci-builds
-          cp target/release/nym-socks5-client ci-builds
-          cp target/release/nym-api ci-builds
-          cp target/release/nym-network-requester ci-builds
-          cp target/release/nym-network-statistics ci-builds
-          cp target/release/nym-cli ci-builds
-
-          cp contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm ci-builds
-          cp contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm ci-builds
+          cp contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm $OUTPUT_DIR
+          cp contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm $OUTPUT_DIR
 
       - name: Deploy branch to CI www
         continue-on-error: true
         uses: easingthemes/ssh-deploy@main
         env:
           SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
-          ARGS: "-rltgoDzvO --delete"
+          ARGS: "-avzr"
           SOURCE: "ci-builds/"
           REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
           REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
-          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/${{ env.GITHUB_REF_NAME }}/
+          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/
           EXCLUDE: "/dist/, /node_modules/"
-

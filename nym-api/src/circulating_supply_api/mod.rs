@@ -15,7 +15,11 @@ pub(crate) mod routes;
 
 /// Merges the routes with http information and returns it to Rocket for serving
 pub(crate) fn circulating_supply_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
-    openapi_get_routes_spec![settings: routes::get_circulating_supply]
+    openapi_get_routes_spec![
+        settings: routes::get_full_circulating_supply,
+        routes::get_total_supply,
+        routes::get_circulating_supply
+    ]
 }
 
 /// Spawn the circulating supply cache refresher.

@@ -181,6 +181,7 @@ impl<St: Storage> ConnectionHandler<St> {
         mut shutdown: TaskClient,
     ) {
         debug!("Starting connection handler for {:?}", remote);
+        shutdown.mark_as_success();
         let mut framed_conn = Framed::new(conn, SphinxCodec);
         while !shutdown.is_shutdown() {
             tokio::select! {

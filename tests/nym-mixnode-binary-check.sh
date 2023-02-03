@@ -34,8 +34,10 @@ check_mixnode_binary_build() {
     # we wont use config env files for now
     OUTPUT=$(./${BINARY_NAME} --output json init --id ${ID} --host ${MOCK_HOST} --wallet-address ${WALLET_ADDRESS_CONST})
 
+    echo "displaying output from binary save"
     echo $OUTPUT
-    sleep 2
+    sleep 10
+    echo "done"
 
     # get jq values for things we can assert against
     # tidy this bit up - okay for first push
@@ -43,9 +45,10 @@ check_mixnode_binary_build() {
     VALUE=${VALUE#\"}
     VALUE=${VALUE%\"}
 
+    echo $VALUE
     # do asserts here based upon the output on init
 
-    assert echo $(echo ${VALUE}) $(echo ${WALLET_ADDRESS_CONST})
+    assert ${VALUE} $(echo ${WALLET_ADDRESS_CONST})
     assert_end nym-mixnode-tests
   else
     echo "exiting test no binary found"

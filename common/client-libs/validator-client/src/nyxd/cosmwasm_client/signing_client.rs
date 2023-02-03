@@ -756,6 +756,19 @@ impl Client {
         })
     }
 
+    pub fn change_endpoint<U>(&mut self, new_endpoint: U) -> Result<(), NyxdError>
+    where
+        U: TryInto<HttpClientUrl, Error = TendermintRpcError>,
+    {
+        let new_rpc_client = HttpClient::new(new_endpoint)?;
+        self.rpc_client = new_rpc_client;
+        Ok(())
+    }
+
+    pub fn into_signer(self) -> DirectSecp256k1HdWallet {
+        self.signer
+    }
+
     pub fn set_broadcast_polling_rate(&mut self, broadcast_polling_rate: Duration) {
         self.broadcast_polling_rate = broadcast_polling_rate
     }

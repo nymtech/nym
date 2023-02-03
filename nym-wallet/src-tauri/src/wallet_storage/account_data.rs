@@ -19,6 +19,7 @@ use validator_client::nyxd::bip32::DerivationPath;
 use zeroize::Zeroize;
 
 use crate::error::BackendError;
+use crate::utils::ZeroizeMnemonicWrapper;
 
 use super::encryption::EncryptedData;
 use super::password::{AccountId, LoginId};
@@ -237,17 +238,19 @@ impl MultipleAccounts {
     pub(crate) fn add(
         &mut self,
         id: AccountId,
-        mnemonic: bip39::Mnemonic,
+        mnemonic: ZeroizeMnemonicWrapper,
         hd_path: DerivationPath,
     ) -> Result<(), BackendError> {
         if self.get_account(&id).is_some() {
             Err(BackendError::WalletAccountIdAlreadyExistsInWalletLogin)
-        } else if self.get_account_with_mnemonic(&mnemonic).is_some() {
+        } else if self.get_account_with_mnemonic(mnemonic.as_ref()).is_some() {
             Err(BackendError::WalletMnemonicAlreadyExistsInWalletLogin)
         } else {
             self.accounts.push(WalletAccount::new(
                 id,
-                MnemonicAccount::new(mnemonic, hd_path),
+                // safety: the call to `clone_inner` is fine here as the raw mnemonic will get immediately
+                // passed to `MnemonicAccount` which will zeroize it on drop
+                MnemonicAccount::new(mnemonic.into_cloned_inner(), hd_path),
             ));
             Ok(())
         }

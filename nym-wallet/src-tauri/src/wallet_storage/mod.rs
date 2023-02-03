@@ -14,6 +14,7 @@ pub(crate) use crate::wallet_storage::password::{AccountId, LoginId, UserPasswor
 
 use crate::error::BackendError;
 use crate::platform_constants::{STORAGE_DIR_NAME, WALLET_INFO_FILENAME};
+use crate::utils::ZeroizeMnemonicWrapper;
 use chrono::Local;
 use std::ffi::OsString;
 use std::fs::{self, create_dir_all, OpenOptions};
@@ -138,7 +139,7 @@ fn store_login_at_file(
 }
 
 pub(crate) fn store_login_with_multiple_accounts(
-    mnemonic: bip39::Mnemonic,
+    mnemonic: ZeroizeMnemonicWrapper,
     hd_path: DerivationPath,
     id: LoginId,
     password: &UserPassword,
@@ -153,7 +154,7 @@ pub(crate) fn store_login_with_multiple_accounts(
 
 fn store_login_with_multiple_accounts_at_file(
     filepath: &Path,
-    mnemonic: bip39::Mnemonic,
+    mnemonic: ZeroizeMnemonicWrapper,
     hd_path: DerivationPath,
     id: LoginId,
     password: &UserPassword,
@@ -184,7 +185,7 @@ fn store_login_with_multiple_accounts_at_file(
 /// account in the list of accounts associated with the encrypted entry. The inner id for this
 /// entry will be set to the same as the outer, unencrypted, id.
 pub(crate) fn append_account_to_login(
-    mnemonic: bip39::Mnemonic,
+    mnemonic: ZeroizeMnemonicWrapper,
     hd_path: DerivationPath,
     id: LoginId,
     inner_id: AccountId,
@@ -200,7 +201,7 @@ pub(crate) fn append_account_to_login(
 
 fn append_account_to_login_at_file(
     filepath: &Path,
-    mnemonic: bip39::Mnemonic,
+    mnemonic: ZeroizeMnemonicWrapper,
     hd_path: DerivationPath,
     id: LoginId,
     inner_id: AccountId,
@@ -418,12 +419,19 @@ mod tests {
     fn store_single_login() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
 
-        store_login_at_file(&wallet_file, account1, hd_path, id1.clone(), &password).unwrap();
+        store_login_at_file(
+            &wallet_file,
+            account1.into_cloned_inner(),
+            hd_path,
+            id1.clone(),
+            &password,
+        )
+        .unwrap();
 
         let stored_wallet = load_existing_wallet_at_file(&wallet_file).unwrap();
         assert_eq!(stored_wallet.len(), 1);
@@ -439,7 +447,7 @@ mod tests {
     fn store_single_login_with_multi() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
         let cosmos_hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -467,7 +475,7 @@ mod tests {
     fn store_twice_for_the_same_id_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -475,7 +483,7 @@ mod tests {
         // Store the first login
         store_login_at_file(
             &wallet_file,
-            account1.clone(),
+            account1.unchecked_clone_inner(),
             hd_path.clone(),
             id1.clone(),
             &password,
@@ -484,7 +492,13 @@ mod tests {
 
         // and storing the same id again fails
         assert!(matches!(
-            store_login_at_file(&wallet_file, account1, hd_path, id1, &password,),
+            store_login_at_file(
+                &wallet_file,
+                account1.into_cloned_inner(),
+                hd_path,
+                id1,
+                &password,
+            ),
             Err(BackendError::WalletLoginIdAlreadyExists),
         ));
     }
@@ -493,7 +507,7 @@ mod tests {
     fn store_twice_for_the_same_id_fails_with_multiple() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -525,13 +539,20 @@ mod tests {
     fn load_with_wrong_password_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let bad_password = UserPassword::new("bad-password".to_string());
         let id1 = LoginId::new("first".to_string());
 
-        store_login_at_file(&wallet_file, account1, hd_path, id1.clone(), &password).unwrap();
+        store_login_at_file(
+            &wallet_file,
+            account1.into_cloned_inner(),
+            hd_path,
+            id1.clone(),
+            &password,
+        )
+        .unwrap();
 
         // Trying to load it with wrong password now fails
         assert!(matches!(
@@ -544,7 +565,7 @@ mod tests {
     fn load_with_wrong_password_fails_with_multi() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let bad_password = UserPassword::new("bad-password".to_string());
@@ -570,13 +591,20 @@ mod tests {
     fn load_with_wrong_id_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
         let id2 = LoginId::new("second".to_string());
 
-        store_login_at_file(&wallet_file, account1, hd_path, id1, &password).unwrap();
+        store_login_at_file(
+            &wallet_file,
+            account1.into_cloned_inner(),
+            hd_path,
+            id1,
+            &password,
+        )
+        .unwrap();
 
         // Trying to load with the wrong id
         assert!(matches!(
@@ -589,7 +617,7 @@ mod tests {
     fn load_with_wrong_id_fails_with_multi() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -609,14 +637,14 @@ mod tests {
     fn store_and_load_a_single_login() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
 
         store_login_at_file(
             &wallet_file,
-            account1.clone(),
+            account1.unchecked_clone_inner(),
             hd_path.clone(),
             id1.clone(),
             &password,
@@ -625,7 +653,7 @@ mod tests {
 
         let loaded_login = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
         let acc = loaded_login.as_mnemonic_account().unwrap();
-        assert_eq!(&account1, acc.mnemonic());
+        assert_eq!(account1.as_ref(), acc.mnemonic());
         assert_eq!(&hd_path, acc.hd_path());
     }
 
@@ -633,7 +661,7 @@ mod tests {
     fn store_and_load_a_single_login_with_multi() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let acc1 = bip39::Mnemonic::generate(24).unwrap();
+        let acc1 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -654,7 +682,7 @@ mod tests {
             .get_account(&DEFAULT_FIRST_ACCOUNT_NAME.into())
             .unwrap();
         assert_eq!(account.id().as_ref(), DEFAULT_FIRST_ACCOUNT_NAME);
-        assert_eq!(account.mnemonic(), &acc1);
+        assert_eq!(account.mnemonic(), acc1.as_ref());
         assert_eq!(account.hd_path(), &hd_path);
     }
 
@@ -662,8 +690,8 @@ mod tests {
     fn store_a_second_login_with_a_different_password_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
-        let account2 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
+        let account2 = ZeroizeMnemonicWrapper::generate_random();
         let cosmos_hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let bad_password = UserPassword::new("bad-password".to_string());
@@ -672,7 +700,7 @@ mod tests {
 
         store_login_at_file(
             &wallet_file,
-            account1,
+            account1.into_cloned_inner(),
             cosmos_hd_path.clone(),
             id1,
             &password,
@@ -681,7 +709,13 @@ mod tests {
 
         // Can't store a second login if you use different password
         assert!(matches!(
-            store_login_at_file(&wallet_file, account2, cosmos_hd_path, id2, &bad_password),
+            store_login_at_file(
+                &wallet_file,
+                account2.into_cloned_inner(),
+                cosmos_hd_path,
+                id2,
+                &bad_password
+            ),
             Err(BackendError::WalletDifferentPasswordDetected),
         ));
     }
@@ -690,8 +724,8 @@ mod tests {
     fn store_a_second_login_with_a_different_password_fails_with_multi() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
-        let account2 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
+        let account2 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let bad_password = UserPassword::new("bad-password".to_string());
@@ -711,7 +745,7 @@ mod tests {
         assert!(matches!(
             store_login_with_multiple_accounts_at_file(
                 &wallet_file,
-                account2,
+                account2.into(),
                 hd_path,
                 id2,
                 &bad_password
@@ -724,8 +758,8 @@ mod tests {
     fn store_two_mnemonic_accounts_gives_different_salts_and_iv() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
-        let account2 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
+        let account2 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let different_hd_path: DerivationPath = "m".parse().unwrap();
         let password = UserPassword::new("password".to_string());
@@ -733,7 +767,14 @@ mod tests {
         let id2 = LoginId::new("second".to_string());
 
         // Store the first account
-        store_login_at_file(&wallet_file, account1, hd_path, id1, &password).unwrap();
+        store_login_at_file(
+            &wallet_file,
+            account1.into_cloned_inner(),
+            hd_path,
+            id1,
+            &password,
+        )
+        .unwrap();
 
         let stored_wallet = load_existing_wallet_at_file(&wallet_file).unwrap();
         let encrypted_blob = &stored_wallet
@@ -746,7 +787,14 @@ mod tests {
         let original_salt = encrypted_blob.salt().to_vec();
 
         // Add an extra account
-        store_login_at_file(&wallet_file, account2, different_hd_path, id2, &password).unwrap();
+        store_login_at_file(
+            &wallet_file,
+            account2.into_cloned_inner(),
+            different_hd_path,
+            id2,
+            &password,
+        )
+        .unwrap();
 
         let loaded_accounts = load_existing_wallet_at_file(&wallet_file).unwrap();
         assert_eq!(loaded_accounts.len(), 2);
@@ -764,8 +812,8 @@ mod tests {
     fn store_two_mnemonic_accounts_using_two_logins() {
         let store_dir = tempdir().unwrap();
         let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
-        let account2 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
+        let account2 = ZeroizeMnemonicWrapper::generate_random();
         let cosmos_hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let different_hd_path: DerivationPath = "m".parse().unwrap();
         let password = UserPassword::new("password".to_string());
@@ -775,7 +823,7 @@ mod tests {
         // Store the first account
         store_login_at_file(
             &wallet,
-            account1.clone(),
+            account1.unchecked_clone_inner(),
             cosmos_hd_path.clone(),
             id1.clone(),
             &password,
@@ -784,13 +832,13 @@ mod tests {
 
         let login = load_existing_login_at_file(&wallet, &id1, &password).unwrap();
         let acc = login.as_mnemonic_account().unwrap();
-        assert_eq!(&account1, acc.mnemonic());
+        assert_eq!(account1.as_ref(), acc.mnemonic());
         assert_eq!(&cosmos_hd_path, acc.hd_path());
 
         // Add an extra account
         store_login_at_file(
             &wallet,
-            account2.clone(),
+            account2.unchecked_clone_inner(),
             different_hd_path.clone(),
             id2.clone(),
             &password,
@@ -800,12 +848,12 @@ mod tests {
         // first account should be unchanged
         let loaded_login = load_existing_login_at_file(&wallet, &id1, &password).unwrap();
         let acc1 = loaded_login.as_mnemonic_account().unwrap();
-        assert_eq!(&account1, acc1.mnemonic());
+        assert_eq!(account1.as_ref(), acc1.mnemonic());
         assert_eq!(&cosmos_hd_path, acc1.hd_path());
 
         let loaded_login = load_existing_login_at_file(&wallet, &id2, &password).unwrap();
         let acc2 = loaded_login.as_mnemonic_account().unwrap();
-        assert_eq!(&account2, acc2.mnemonic());
+        assert_eq!(account2.as_ref(), acc2.mnemonic());
         assert_eq!(&different_hd_path, acc2.hd_path());
     }
 
@@ -813,8 +861,8 @@ mod tests {
     fn store_one_mnemonic_account_and_one_multi_account() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
-        let account2 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
+        let account2 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let different_hd_path: DerivationPath = "m".parse().unwrap();
         let password = UserPassword::new("password".to_string());
@@ -824,7 +872,7 @@ mod tests {
         // Store the first account
         store_login_at_file(
             &wallet_file,
-            account1.clone(),
+            account1.unchecked_clone_inner(),
             hd_path.clone(),
             id1.clone(),
             &password,
@@ -833,7 +881,7 @@ mod tests {
 
         let loaded_login = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
         let acc = loaded_login.as_mnemonic_account().unwrap();
-        assert_eq!(&account1, acc.mnemonic());
+        assert_eq!(account1.as_ref(), acc.mnemonic());
         assert_eq!(&hd_path, acc.hd_path());
 
         // Add an extra account
@@ -849,7 +897,7 @@ mod tests {
         // first account should be unchanged
         let loaded_login = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
         let acc1 = loaded_login.as_mnemonic_account().unwrap();
-        assert_eq!(&account1, acc1.mnemonic());
+        assert_eq!(account1.as_ref(), acc1.mnemonic());
         assert_eq!(&hd_path, acc1.hd_path());
 
         let loaded_login = load_existing_login_at_file(&wallet_file, &id2, &password).unwrap();
@@ -859,7 +907,7 @@ mod tests {
             .get_account(&DEFAULT_FIRST_ACCOUNT_NAME.into())
             .unwrap();
         assert_eq!(account.id().as_ref(), DEFAULT_FIRST_ACCOUNT_NAME);
-        assert_eq!(account.mnemonic(), &account2);
+        assert_eq!(account.mnemonic(), account2.as_ref());
         assert_eq!(account.hd_path(), &different_hd_path);
     }
 
@@ -867,7 +915,7 @@ mod tests {
     fn remove_non_existent_id_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -887,8 +935,8 @@ mod tests {
     fn store_and_remove_wallet_login_information() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
-        let account2 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
+        let account2 = ZeroizeMnemonicWrapper::generate_random();
         let cosmos_hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let different_hd_path: DerivationPath = "m".parse().unwrap();
         let password = UserPassword::new("password".to_string());
@@ -898,7 +946,7 @@ mod tests {
         // Store two accounts with two different passwords
         store_login_at_file(
             &wallet_file,
-            account1.clone(),
+            account1.unchecked_clone_inner(),
             cosmos_hd_path.clone(),
             id1.clone(),
             &password,
@@ -906,7 +954,7 @@ mod tests {
         .unwrap();
         store_login_at_file(
             &wallet_file,
-            account2.clone(),
+            account2.unchecked_clone_inner(),
             different_hd_path.clone(),
             id2.clone(),
             &password,
@@ -916,12 +964,12 @@ mod tests {
         // Load and compare
         let loaded_login = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
         let acc1 = loaded_login.as_mnemonic_account().unwrap();
-        assert_eq!(&account1, acc1.mnemonic());
+        assert_eq!(account1.as_ref(), acc1.mnemonic());
         assert_eq!(&cosmos_hd_path, acc1.hd_path());
 
         let loaded_login = load_existing_login_at_file(&wallet_file, &id2, &password).unwrap();
         let acc2 = loaded_login.as_mnemonic_account().unwrap();
-        assert_eq!(&account2, acc2.mnemonic());
+        assert_eq!(account2.as_ref(), acc2.mnemonic());
         assert_eq!(&different_hd_path, acc2.hd_path());
 
         // Delete the second account
@@ -930,7 +978,7 @@ mod tests {
         // The first account should be unchanged
         let loaded_login = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
         let acc1 = loaded_login.as_mnemonic_account().unwrap();
-        assert_eq!(&account1, acc1.mnemonic());
+        assert_eq!(account1.as_ref(), acc1.mnemonic());
         assert_eq!(&cosmos_hd_path, acc1.hd_path());
 
         // And we can't load the second one anymore
@@ -957,8 +1005,8 @@ mod tests {
     fn append_account_converts_the_type() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
-        let account2 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
+        let account2 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -966,7 +1014,7 @@ mod tests {
 
         store_login_at_file(
             &wallet_file,
-            account1.clone(),
+            account1.unchecked_clone_inner(),
             hd_path.clone(),
             id1.clone(),
             &password,
@@ -976,7 +1024,7 @@ mod tests {
         // Check that it's there as the correct non-multiple type
         let loaded_login = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
         let acc = loaded_login.as_mnemonic_account().unwrap();
-        assert_eq!(acc.mnemonic(), &account1);
+        assert_eq!(acc.mnemonic(), account1.as_ref());
         assert_eq!(acc.hd_path(), &hd_path);
 
         append_account_to_login_at_file(
@@ -993,8 +1041,14 @@ mod tests {
         let loaded_login = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
         let loaded_accounts = loaded_login.as_multiple_accounts().unwrap();
         let expected = vec![
-            WalletAccount::new(id1.into(), MnemonicAccount::new(account1, hd_path.clone())),
-            WalletAccount::new(id2, MnemonicAccount::new(account2, hd_path)),
+            WalletAccount::new(
+                id1.into(),
+                MnemonicAccount::new(account1.into_cloned_inner(), hd_path.clone()),
+            ),
+            WalletAccount::new(
+                id2,
+                MnemonicAccount::new(account2.into_cloned_inner(), hd_path),
+            ),
         ]
         .into();
         assert_eq!(loaded_accounts, &expected);
@@ -1004,10 +1058,10 @@ mod tests {
     fn append_accounts_to_existing_login() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
-        let account2 = bip39::Mnemonic::generate(24).unwrap();
-        let account3 = bip39::Mnemonic::generate(24).unwrap();
-        let account4 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
+        let account2 = ZeroizeMnemonicWrapper::generate_random();
+        let account3 = ZeroizeMnemonicWrapper::generate_random();
+        let account4 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -1017,7 +1071,7 @@ mod tests {
 
         store_login_at_file(
             &wallet_file,
-            account1.clone(),
+            account1.unchecked_clone_inner(),
             hd_path.clone(),
             id1.clone(),
             &password,
@@ -1026,7 +1080,7 @@ mod tests {
 
         store_login_at_file(
             &wallet_file,
-            account2.clone(),
+            account2.unchecked_clone_inner(),
             hd_path.clone(),
             id2.clone(),
             &password,
@@ -1036,7 +1090,7 @@ mod tests {
         // Check that it's there as the correct non-multiple type
         let loaded_login = load_existing_login_at_file(&wallet_file, &id2, &password).unwrap();
         let acc2 = loaded_login.as_mnemonic_account().unwrap();
-        assert_eq!(acc2.mnemonic(), &account2);
+        assert_eq!(acc2.mnemonic(), account2.as_ref());
         assert_eq!(acc2.hd_path(), &hd_path);
 
         // Add a third and fourth mnenonic grouped together with the second one
@@ -1062,15 +1116,24 @@ mod tests {
         // Check that we can load all four
         let loaded_login = load_existing_login_at_file(&wallet_file, &id1, &password).unwrap();
         let acc1 = loaded_login.as_mnemonic_account().unwrap();
-        assert_eq!(acc1.mnemonic(), &account1);
+        assert_eq!(acc1.mnemonic(), account1.as_ref());
         assert_eq!(acc1.hd_path(), &hd_path);
 
         let loaded_login = load_existing_login_at_file(&wallet_file, &id2, &password).unwrap();
         let loaded_accounts = loaded_login.as_multiple_accounts().unwrap();
         let expected = vec![
-            WalletAccount::new(id2.into(), MnemonicAccount::new(account2, hd_path.clone())),
-            WalletAccount::new(id3, MnemonicAccount::new(account3, hd_path.clone())),
-            WalletAccount::new(id4, MnemonicAccount::new(account4, hd_path)),
+            WalletAccount::new(
+                id2.into(),
+                MnemonicAccount::new(account2.into_cloned_inner(), hd_path.clone()),
+            ),
+            WalletAccount::new(
+                id3,
+                MnemonicAccount::new(account3.into_cloned_inner(), hd_path.clone()),
+            ),
+            WalletAccount::new(
+                id4,
+                MnemonicAccount::new(account4.into_cloned_inner(), hd_path),
+            ),
         ]
         .into();
         assert_eq!(loaded_accounts, &expected);
@@ -1080,10 +1143,10 @@ mod tests {
     fn append_accounts_to_existing_login_with_multi() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
-        let account2 = bip39::Mnemonic::generate(24).unwrap();
-        let account3 = bip39::Mnemonic::generate(24).unwrap();
-        let account4 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
+        let account2 = ZeroizeMnemonicWrapper::generate_random();
+        let account3 = ZeroizeMnemonicWrapper::generate_random();
+        let account4 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -1134,7 +1197,7 @@ mod tests {
         let loaded_accounts = loaded_login.as_multiple_accounts().unwrap();
         let expected = vec![WalletAccount::new(
             DEFAULT_FIRST_ACCOUNT_NAME.into(),
-            MnemonicAccount::new(account1, hd_path.clone()),
+            MnemonicAccount::new(account1.into_cloned_inner(), hd_path.clone()),
         )]
         .into();
         assert_eq!(loaded_accounts, &expected);
@@ -1144,10 +1207,16 @@ mod tests {
         let expected = vec![
             WalletAccount::new(
                 DEFAULT_FIRST_ACCOUNT_NAME.into(),
-                MnemonicAccount::new(account2, hd_path.clone()),
+                MnemonicAccount::new(account2.into_cloned_inner(), hd_path.clone()),
             ),
-            WalletAccount::new(id3, MnemonicAccount::new(account3, hd_path.clone())),
-            WalletAccount::new(id4, MnemonicAccount::new(account4, hd_path)),
+            WalletAccount::new(
+                id3,
+                MnemonicAccount::new(account3.into_cloned_inner(), hd_path.clone()),
+            ),
+            WalletAccount::new(
+                id4,
+                MnemonicAccount::new(account4.into_cloned_inner(), hd_path),
+            ),
         ]
         .into();
         assert_eq!(loaded_accounts, &expected);
@@ -1157,7 +1226,7 @@ mod tests {
     fn append_the_same_mnemonic_twice_fails() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -1182,14 +1251,21 @@ mod tests {
     fn delete_the_same_account_twice_for_a_login_fails() {
         let store_dir = tempdir().unwrap();
         let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
-        let account2 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
+        let account2 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
         let id2 = AccountId::new("second".to_string());
 
-        store_login_at_file(&wallet, account1, hd_path.clone(), id1.clone(), &password).unwrap();
+        store_login_at_file(
+            &wallet,
+            account1.into_cloned_inner(),
+            hd_path.clone(),
+            id1.clone(),
+            &password,
+        )
+        .unwrap();
 
         append_account_to_login_at_file(
             &wallet,
@@ -1213,8 +1289,8 @@ mod tests {
     fn delete_the_same_account_twice_for_a_login_fails_with_multi() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
-        let account2 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
+        let account2 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -1251,9 +1327,9 @@ mod tests {
     fn delete_appended_account_doesnt_affect_others() {
         let store_dir = tempdir().unwrap();
         let wallet_file = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
-        let account2 = bip39::Mnemonic::generate(24).unwrap();
-        let account3 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
+        let account2 = ZeroizeMnemonicWrapper::generate_random();
+        let account3 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -1262,7 +1338,7 @@ mod tests {
 
         store_login_at_file(
             &wallet_file,
-            account1,
+            account1.into_cloned_inner(),
             hd_path.clone(),
             id1.clone(),
             &password,
@@ -1271,7 +1347,7 @@ mod tests {
 
         store_login_at_file(
             &wallet_file,
-            account2.clone(),
+            account2.unchecked_clone_inner(),
             hd_path.clone(),
             id2.clone(),
             &password,
@@ -1294,8 +1370,14 @@ mod tests {
         let loaded_login = load_existing_login_at_file(&wallet_file, &id2, &password).unwrap();
         let loaded_accounts = loaded_login.as_multiple_accounts().unwrap();
         let expected = vec![
-            WalletAccount::new(id2.into(), MnemonicAccount::new(account2, hd_path.clone())),
-            WalletAccount::new(id3, MnemonicAccount::new(account3, hd_path)),
+            WalletAccount::new(
+                id2.into(),
+                MnemonicAccount::new(account2.into_cloned_inner(), hd_path.clone()),
+            ),
+            WalletAccount::new(
+                id3,
+                MnemonicAccount::new(account3.into_cloned_inner(), hd_path),
+            ),
         ]
         .into();
         assert_eq!(loaded_accounts, &expected);
@@ -1305,8 +1387,8 @@ mod tests {
     fn remove_all_accounts_for_a_login_removes_the_file_when_empty() {
         let store_dir = tempdir().unwrap();
         let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
-        let account2 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
+        let account2 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -1354,9 +1436,9 @@ mod tests {
     fn remove_all_accounts_for_a_login_removes_that_login() {
         let store_dir = tempdir().unwrap();
         let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
-        let account1 = bip39::Mnemonic::generate(24).unwrap();
-        let account2 = bip39::Mnemonic::generate(24).unwrap();
-        let account3 = bip39::Mnemonic::generate(24).unwrap();
+        let account1 = ZeroizeMnemonicWrapper::generate_random();
+        let account2 = ZeroizeMnemonicWrapper::generate_random();
+        let account3 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -1411,7 +1493,7 @@ mod tests {
         let acc3 = loaded_login.as_multiple_accounts().unwrap();
         let expected = vec![WalletAccount::new(
             DEFAULT_FIRST_ACCOUNT_NAME.into(),
-            MnemonicAccount::new(account3, hd_path),
+            MnemonicAccount::new(account3.into_cloned_inner(), hd_path),
         )]
         .into();
         assert_eq!(acc3, &expected);
@@ -1421,10 +1503,10 @@ mod tests {
     fn append_accounts_and_remove_appended_accounts() {
         let store_dir = tempdir().unwrap();
         let wallet = store_dir.path().join(WALLET_INFO_FILENAME);
-        let acc1 = bip39::Mnemonic::generate(24).unwrap();
-        let acc2 = bip39::Mnemonic::generate(24).unwrap();
-        let acc3 = bip39::Mnemonic::generate(24).unwrap();
-        let acc4 = bip39::Mnemonic::generate(24).unwrap();
+        let acc1 = ZeroizeMnemonicWrapper::generate_random();
+        let acc2 = ZeroizeMnemonicWrapper::generate_random();
+        let acc3 = ZeroizeMnemonicWrapper::generate_random();
+        let acc4 = ZeroizeMnemonicWrapper::generate_random();
         let hd_path: DerivationPath = COSMOS_DERIVATION_PATH.parse().unwrap();
         let password = UserPassword::new("password".to_string());
         let id1 = LoginId::new("first".to_string());
@@ -1434,7 +1516,7 @@ mod tests {
 
         store_login_at_file(
             &wallet,
-            acc1.clone(),
+            acc1.unchecked_clone_inner(),
             hd_path.clone(),
             id1.clone(),
             &password,
@@ -1443,7 +1525,7 @@ mod tests {
 
         store_login_at_file(
             &wallet,
-            acc2.clone(),
+            acc2.unchecked_clone_inner(),
             hd_path.clone(),
             id2.clone(),
             &password,
@@ -1479,9 +1561,12 @@ mod tests {
         let expected = vec![
             WalletAccount::new(
                 id2.clone().into(),
-                MnemonicAccount::new(acc2, hd_path.clone()),
+                MnemonicAccount::new(acc2.into_cloned_inner(), hd_path.clone()),
             ),
-            WalletAccount::new(id4.clone(), MnemonicAccount::new(acc4, hd_path.clone())),
+            WalletAccount::new(
+                id4.clone(),
+                MnemonicAccount::new(acc4.into_cloned_inner(), hd_path.clone()),
+            ),
         ]
         .into();
         assert_eq!(loaded_accounts, &expected);
@@ -1497,7 +1582,7 @@ mod tests {
         // The first login is still available
         let loaded_login = load_existing_login_at_file(&wallet, &id1, &password).unwrap();
         let account = loaded_login.as_mnemonic_account().unwrap();
-        assert_eq!(account.mnemonic(), &acc1);
+        assert_eq!(account.mnemonic(), acc1.as_ref());
         assert_eq!(account.hd_path(), &hd_path);
     }
 

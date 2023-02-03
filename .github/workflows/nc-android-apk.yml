@@ -11,7 +11,7 @@ jobs:
     name: Build APK
     runs-on: ubuntu-latest
     env:
-      ANDROID_HOME: ./android-sdk
+      ANDROID_HOME: ${{ github.workspace }}/android-sdk
       NDK_VERSION: 25.1.8937393
       NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/${{ env.NDK_VERSION }}
       SDK_PLATFORM_VERSION: android-33
@@ -19,7 +19,6 @@ jobs:
 
     steps:
       - name: Install Dependencies (Linux)
-        # if: ${{ !env.ACT }}
         # https://next--tauri.netlify.app/next/guides/getting-started/prerequisites/linux/#1-system-dependencies
         run: |
           sudo apt-get update
@@ -33,9 +32,6 @@ jobs:
           squashfs-tools \
           libayatana-appindicator3-dev \
           librsvg2-dev
-
-      - name: Checkout
-        uses: actions/checkout@v3
 
       - name: Install Java
         uses: actions/setup-java@v3
@@ -54,21 +50,18 @@ jobs:
 
       - name: Install Android S/NDK
         run: |
-          echo y | ./$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-          echo y | ./$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+          echo y | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+          echo y | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
             "platforms;$SDK_PLATFORM_VERSION" \
             "platform-tools" \
             "ndk;$NDK_VERSION" \
             "build-tools;$SDK_BUILDTOOLS_VERSION"
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-          components: clippy
+        uses: dtolnay/rust-toolchain@stable
 
       - name: Install tauri cli
-        run: cargo install tauri-cli --version "^2.0.0-alpha"
+        run: cargo install tauri-cli --version "^2.0.0-alpha.2"
 
       - name: Install rust android targets
         run: |
@@ -77,46 +70,56 @@ jobs:
             i686-linux-android \
             x86_64-linux-android
 
-      # - name: Run tests
-      #   working-directory: nym-connect-android/src-tauri/
-      #   run: cargo test
+      - name: Setup Nodejs
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
 
-      # - name: Clippy
-      #   working-directory: nym-connect-android/src-tauri/
-      #   run: cargo clippy --all-targets -- -D warnings
+      - name: Install yarn
+        run: |
+          npm i -g yarn
+          yarn --version
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Build frontend code
+        run: |
+          yarn install --frozen-lockfile
+          yarn build
+          yarn workspace @nym/nym-connect-android webpack:prod
 
       - name: Build APK
-        working-directory: nym-connect-android/src-tauri/
+        working-directory: nym-connect-android
         env:
           WRY_ANDROID_PACKAGE: net.nymtech.nym_connect_android
           WRY_ANDROID_LIBRARY: nym_connect_android
         run: cargo tauri android build --debug --apk
 
+      # TODO add the version number to APK name
       - name: Rename APK artifact
         run: |
-          mv nym-connect-android/src-tauri/gen/android/nym-connect-android/app/build/outputs/apk/universal/debug/app-universal-debug.apk \
+          mv nym-connect-android/src-tauri/gen/android/nym_connect_android/app/build/outputs/apk/universal/debug/app-universal-debug.apk \
             nym-connect-debug.apk
-          ls -la
 
-      # - name: Upload APK artifact
-      #   uses: actions/upload-artifact@v3
-      #   with:
-      #     name: nc-apk-debug
-      #     path: ./nym-connect-android/src-tauri/nym-connect-debug.apk
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nc-apk-debug
+          path: nym-connect-debug.apk
 
-  # gh-release:
-  #   name: Publish Github Release
-  #   needs: build
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v3
-  #     - name: Download binary artifact
-  #       uses: actions/download-artifact@v3
-  #       with:
-  #         name: nc-apk-debug
-  #         path: ./target/release/
-  #     - name: Release
-  #       uses: softprops/action-gh-release@v1
-  #       with:
-  #         files: target/release/apekey
+  publish:
+    name: Publish APK
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Download binary artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: nc-apk-debug
+          path: apk
+      # TODO add a step to upload the APK somewhere
+      # - name: Publish
+      #   uses: ???

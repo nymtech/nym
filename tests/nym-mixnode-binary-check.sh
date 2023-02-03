@@ -54,7 +54,7 @@ check_mixnode_binary_build() {
 check_mixnode_binary_build
 # whoami
 # this is dependant on where it runs on ci potentially, will need to tweak this in the future
-echo $(cat /root/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =") >>origin_config.txt
+first_init=$(cat /root/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =")
 
 #lets remove the binary then navigate to the target/release directory for checking the latest version
 if [ -f "$BINARY_NAME" ]; then
@@ -75,20 +75,13 @@ check_mixnode_binary_build
 echo "diff the config files after each init"
 echo "-------------------------------------"
 
-echo $(cat /root/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =") >>second_origin_config.txt
+second_init=$(cat /root/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =")
 
-# compare the two files
-mv second_origin_config.txt ../../tests 
-
-# move to parent directory
-cd ../../tests 
-
-diff -w origin_config.txt second_origin_config.txt
+diff -w <(echo "$first_init") <(echo "$second_init")
 
 # check the status of the diff
 if [ $? -eq 0 ]; then
   echo "no differences in config files, exiting script"
-  rm -rf origin_config.txt second_origin_config.txt
   exit 0
 else
   echo "there are differences in the config files, it may require a fresh init on the binary"

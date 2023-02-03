@@ -90,9 +90,11 @@ pub(crate) mod tests {
     use crate::coconut::tests::DummyClient;
     use crate::coconut::KeyPair;
     use coconut_dkg_common::dealer::DealerDetails;
+    use coconut_dkg_common::types::InitialReplacementData;
     use cosmwasm_std::Addr;
     use dkg::bte::keys::KeyPair as DkgKeyPair;
     use dkg::bte::Params;
+    use nymcoconut::{ttp_keygen, Parameters};
     use rand::rngs::OsRng;
     use std::collections::HashMap;
     use std::path::PathBuf;
@@ -101,10 +103,11 @@ pub(crate) mod tests {
     use url::Url;
     use validator_client::nyxd::AccountId;
 
-    const TEST_VALIDATORS_ADDRESS: [&str; 3] = [
+    const TEST_VALIDATORS_ADDRESS: [&str; 4] = [
         "n1aq9kakfgwqcufr23lsv644apavcntrsqsk4yus",
         "n1s9l3xr4g0rglvk4yctktmck3h4eq0gp6z2e20v",
         "n19kl4py32vsk297dm93ezem992cdyzdy4zuc2x6",
+        "n1jfrs6cmw9t7dv0x8cgny6geunzjh56n2s89fkv",
     ];
 
     fn insert_dealers(
@@ -236,5 +239,89 @@ pub(crate) mod tests {
                 .unwrap_err(),
             ComplaintReason::InvalidBTEPublicKey
         );
+    }
+
+    #[tokio::test]
+    #[ignore] // expensive test
+    async fn resharing_exchange_dealing() {
+        let self_index = 2;
+        let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
+        let dealings_db = Arc::new(RwLock::new(HashMap::new()));
+        let threshold_db = Arc::new(RwLock::new(Some(3)));
+        let initial_dealers_db = Arc::new(RwLock::new(Some(InitialReplacementData {
+            initial_dealers: vec![Addr::unchecked(TEST_VALIDATORS_ADDRESS[0])],
+            initial_height: Some(100),
+        })));
+        let dkg_client = DkgClient::new(
+            DummyClient::new(
+                AccountId::from_str("n1vxkywf9g4cg0k2dehanzwzz64jw782qm0kuynf").unwrap(),
+            )
+            .with_dealer_details(&dealer_details_db)
+            .with_dealings(&dealings_db)
+            .with_threshold(&threshold_db)
+            .with_initial_dealers_db(&initial_dealers_db),
+        );
+        let params = setup();
+        let mut keys = ttp_keygen(&Parameters::new(4).unwrap(), 3, 4).unwrap();
+        let coconut_keypair = KeyPair::new();
+        coconut_keypair.set(Some(keys.pop().unwrap())).await;
+
+        let mut state = State::new(
+            PathBuf::default(),
+            PersistentState::default(),
+            Url::parse("localhost:8000").unwrap(),
+            DkgKeyPair::new(&params, OsRng),
+            coconut_keypair.clone(),
+        );
+        state.set_node_index(Some(self_index));
+        let keypairs = insert_dealers(&params, &dealer_details_db);
+
+        dealing_exchange(&dkg_client, &mut state, OsRng, true)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            state.current_dealers_by_idx().values().collect::<Vec<_>>(),
+            keypairs
+                .iter()
+                .map(|k| k.public_key().public_key())
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(state.threshold().unwrap(), 3);
+        assert_eq!(state.receiver_index().unwrap(), 1);
+        assert!(dealings_db
+            .read()
+            .unwrap()
+            .get(dkg_client.get_address().await.as_ref())
+            .is_none());
+
+        let mut state = State::new(
+            PathBuf::default(),
+            PersistentState::default(),
+            Url::parse("localhost:8000").unwrap(),
+            DkgKeyPair::new(&params, OsRng),
+            coconut_keypair,
+        );
+        state.set_node_index(Some(self_index));
+        // Use a client that is in the initial dealers set
+        let dkg_client = DkgClient::new(
+            DummyClient::new(AccountId::from_str(TEST_VALIDATORS_ADDRESS[0]).unwrap())
+                .with_dealer_details(&dealer_details_db)
+                .with_dealings(&dealings_db)
+                .with_threshold(&threshold_db)
+                .with_initial_dealers_db(&initial_dealers_db),
+        );
+
+        dealing_exchange(&dkg_client, &mut state, OsRng, true)
+            .await
+            .unwrap();
+
+        let dealings = dealings_db
+            .read()
+            .unwrap()
+            .get(TEST_VALIDATORS_ADDRESS[0])
+            .unwrap()
+            .clone();
+        assert_eq!(dealings.len(), TOTAL_DEALINGS);
     }
 }

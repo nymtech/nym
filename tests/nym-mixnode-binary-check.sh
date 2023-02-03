@@ -75,10 +75,9 @@ check_mixnode_binary_build
 echo "diff the config files after each init"
 echo "-------------------------------------"
 
-echo $(cat /root/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =") >>second_origin_config.txt
+echo $(cat /root/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =") >>../target/release/second_origin_config.txt
 
-# compare the files
-
+# compare the two files
 diff -w origin_config.txt second_origin_config.txt
 
 # check the status of the diff

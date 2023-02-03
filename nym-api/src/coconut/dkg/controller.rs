@@ -18,7 +18,7 @@ use coconut_dkg_common::types::EpochState;
 use dkg::bte::keys::KeyPair as DkgKeyPair;
 use nym_task::{TaskClient, TaskManager};
 use rand::rngs::OsRng;
-use rand::RngCore;
+use rand::{CryptoRng, RngCore};
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
 use tokio::time::interval;
@@ -46,7 +46,7 @@ pub(crate) struct DkgController<R> {
     polling_rate: Duration,
 }
 
-impl<R: RngCore + Clone> DkgController<R> {
+impl<R: RngCore + CryptoRng + Clone> DkgController<R> {
     pub(crate) async fn new(
         config: &Config,
         nyxd_client: nyxd::Client,

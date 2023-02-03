@@ -56,7 +56,7 @@ check_mixnode_binary_build
 PATH_TO_ORIGIN_INIT_CONFIG="$(cat /root/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =")"
 
 echo $PATH_TO_ORIGIN_INIT_CONFIG
-sleep 10
+sleep 5
 #lets remove the binary then navigate to the target/release directory for checking the latest version
 if [ -f "$BINARY_NAME" ]; then
   echo "removing nym-mixnode"
@@ -79,10 +79,12 @@ echo "-------------------------------------"
 PATH_TO_SECOND_ORIGIN_INIT_CONFIG="$(cat /root/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =")"
 
 echo $PATH_TO_SECOND_ORIGIN_INIT_CONFIG
-sleep 10
+sleep 5
 
 # compare the files
-echo "$PATH_TO_ORIGIN_INIT_CONFIG" | diff - "$PATH_TO_SECOND_ORIGIN_INIT_CONFIG" >/dev/null
+# echo "$PATH_TO_ORIGIN_INIT_CONFIG" | diff - "$PATH_TO_SECOND_ORIGIN_INIT_CONFIG" >/dev/null
+
+diff $PATH_TO_ORIGIN_INIT_CONFIG $PATH_TO_SECOND_ORIGIN_INIT_CONFIG >/dev/null
 
 # check the status of the diff
 if [ $? -eq 0 ]; then

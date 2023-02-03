@@ -32,7 +32,7 @@ check_mixnode_binary_build() {
   if [ -f "$BINARY_NAME" ]; then
     echo "running init tests"
     # we wont use config env files for now
-    OUTPUT=$(./${BINARY_NAME} --output json init --id ${ID} --host ${MOCK_HOST} --wallet-address ${WALLET_ADDRESS_CONST})
+    OUTPUT=$(./${BINARY_NAME} --output json init --id ${ID} --host ${MOCK_HOST} --wallet-address ${WALLET_ADDRESS_CONST} > /dev/null) 
     # get jq values for things we can assert against
     # tidy this bit up - okay for first push
 

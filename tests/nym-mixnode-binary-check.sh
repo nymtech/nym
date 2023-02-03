@@ -70,6 +70,8 @@ cd $PWD$RELEASE_DIRECTORY
 #re run against the current binary built locally
 check_mixnode_binary_build
 
+echo "diff the config files after each init"
+echo "-------------------------------------"
 PATH_TO_SECOND_ORIGIN_INIT_CONFIG="$(cat /root/.nym/mixnodes/${ID}/config/config.toml)"
 
 # compare the files

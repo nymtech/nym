@@ -74,23 +74,22 @@ jobs:
         run: make wasm
 
       - name: Prepare build output
-        steps:
-          - shell: bash
-            run: |
-              rm -rf ci-builds || true
-              mkdir ci-builds
-              
-              cp target/release/nym-client ci-builds
-              cp target/release/nym-gateway ci-builds
-              cp target/release/nym-mixnode ci-builds
-              cp target/release/nym-socks5-client ci-builds
-              cp target/release/nym-api ci-builds
-              cp target/release/nym-network-requester ci-builds
-              cp target/release/nym-network-statistics ci-builds
-              cp target/release/nym-cli ci-builds
-              
-              cp contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm ci-builds
-              cp contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm ci-builds
+        shell: bash
+        run: |
+          rm -rf ci-builds || true
+          mkdir ci-builds
+
+          cp target/release/nym-client ci-builds
+          cp target/release/nym-gateway ci-builds
+          cp target/release/nym-mixnode ci-builds
+          cp target/release/nym-socks5-client ci-builds
+          cp target/release/nym-api ci-builds
+          cp target/release/nym-network-requester ci-builds
+          cp target/release/nym-network-statistics ci-builds
+          cp target/release/nym-cli ci-builds
+
+          cp contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm ci-builds
+          cp contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm ci-builds
 
       - name: Deploy branch to CI www
         continue-on-error: true

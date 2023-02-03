@@ -137,3 +137,16 @@ impl PacketSize {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::AckEncryptionAlgorithm;
+    use crypto::symmetric::stream_cipher::IvSizeUser;
+
+    #[test]
+    fn ack_iv_size_assertion() {
+        let iv_size = AckEncryptionAlgorithm::iv_size();
+        assert_eq!(iv_size, ACK_IV_SIZE);
+    }
+}

@@ -7,7 +7,7 @@ use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::GatewayBond;
 use nymsphinx_addressing::nodes::NodeIdentity;
 use nymsphinx_types::Node as SphinxNode;
-use rand::Rng;
+use rand::{CryptoRng, Rng};
 use std::collections::HashMap;
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
@@ -181,8 +181,7 @@ impl NymTopology {
         gateway_identity: &NodeIdentity,
     ) -> Result<Vec<SphinxNode>, NymTopologyError>
     where
-        // I don't think there's a need for this RNG to be crypto-secure
-        R: Rng + ?Sized,
+        R: Rng + CryptoRng + ?Sized,
     {
         let gateway = self.get_gateway(gateway_identity).ok_or(
             NymTopologyError::NonExistentGatewayError {

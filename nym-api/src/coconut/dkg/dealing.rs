@@ -59,7 +59,7 @@ pub(crate) mod tests {
     use coconut_dkg_common::dealer::DealerDetails;
     use cosmwasm_std::Addr;
     use dkg::bte::keys::KeyPair as DkgKeyPair;
-    use dkg::bte::Params;
+    use dkg::bte::{Params, PublicKeyWithProof};
     use rand::rngs::OsRng;
     use std::collections::HashMap;
     use std::path::PathBuf;
@@ -186,8 +186,18 @@ pub(crate) mod tests {
                 let mut bytes = bs58::decode(details.bte_public_key_with_proof.clone())
                     .into_vec()
                     .unwrap();
-                let last_byte = bytes.last_mut().unwrap();
-                *last_byte += 1;
+                // Find another value for last byte that still deserializes to a public key with proof
+                let initial_byte = *bytes.last_mut().unwrap();
+                loop {
+                    let last_byte = bytes.last_mut().unwrap();
+                    let (ret, _) = last_byte.overflowing_add(1);
+                    *last_byte = ret;
+                    // stop when we find that value, or if we do a full round trip of u8 values
+                    // and can't find one, in which case this test is invalid
+                    if PublicKeyWithProof::try_from_bytes(&bytes).is_ok() || ret == initial_byte {
+                        break;
+                    }
+                }
                 details.bte_public_key_with_proof = bs58::encode(&bytes).into_string();
             });
 

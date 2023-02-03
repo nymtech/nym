@@ -45,6 +45,8 @@ check_mixnode_binary_build() {
     echo "exiting test no binary found"
   fi
 }
+# this is dependant on where it runs on ci potentially, will need to tweak this in the future
+PATH_TO_ORIGIN_INIT_CONFIG="/root/.nym/mixnodes/${ID}/config/config.toml"
 
 #-------------------------------
 # tests
@@ -67,3 +69,21 @@ fi
 cd $PWD$RELEASE_DIRECTORY
 #re run against the current binary built locally
 check_mixnode_binary_build
+
+PATH_TO_SECOND_ORIGIN_INIT_CONFIG="/root/.nym/mixnodes/${ID}/config/config.toml"
+
+# Store the contents of the two files in variables
+origin_config="$(cat ${PATH_TO_ORIGIN_INIT_CONFIG})"
+origin_update="$(cat ${PATH_TO_SECOND_ORIGIN_INIT_CONFIG})"
+
+# compare the files
+echo "$origin_config" | diff - "$origin_update" >/dev/null
+
+# check the status of the diff
+if [ $? -eq 0 ]; then
+  echo "no differences in config files, exiting script"
+  exit 0
+else
+  echo "there are differences in the config files, it may require a fresh init on the binary"
+  exit 1
+fi

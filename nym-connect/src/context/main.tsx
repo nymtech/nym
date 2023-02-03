@@ -57,19 +57,13 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
 
   const timerId = useRef<NodeJS.Timeout>();
 
-  const flattenProviders = (services: Services) => {
-    return services.reduce((a: ServiceProvider[], b) => {
-      return [...a, ...b.items];
-    }, []);
-  };
-
   const initialiseApp = async () => {
     const services = await invoke('get_services');
-    const allServiceProviders = flattenProviders(services as Services);
     const AppVersion = await getAppVersion();
+    console.log(services);
 
     setAppVersion(AppVersion);
-    setServiceProviders(allServiceProviders);
+    setServiceProviders(services as ServiceProvider[]);
   };
 
   useEffect(() => {

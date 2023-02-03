@@ -52,11 +52,10 @@ check_mixnode_binary_build() {
 
 # we run the release version first
 check_mixnode_binary_build
+# whoami
 # this is dependant on where it runs on ci potentially, will need to tweak this in the future
-PATH_TO_ORIGIN_INIT_CONFIG="$(cat /root/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =")"
+echo $(cat /root/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =") >>origin_config.txt
 
-echo $PATH_TO_ORIGIN_INIT_CONFIG
-sleep 5
 #lets remove the binary then navigate to the target/release directory for checking the latest version
 if [ -f "$BINARY_NAME" ]; then
   echo "removing nym-mixnode"
@@ -76,19 +75,16 @@ check_mixnode_binary_build
 echo "diff the config files after each init"
 echo "-------------------------------------"
 
-PATH_TO_SECOND_ORIGIN_INIT_CONFIG="$(cat /root/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =")"
-
-echo $PATH_TO_SECOND_ORIGIN_INIT_CONFIG
-sleep 5
+echo $(cat /root/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =") >>second_origin_config.txt
 
 # compare the files
-# echo "$PATH_TO_ORIGIN_INIT_CONFIG" | diff - "$PATH_TO_SECOND_ORIGIN_INIT_CONFIG" >/dev/null
 
-diff "$PATH_TO_ORIGIN_INIT_CONFIG" "$PATH_TO_SECOND_ORIGIN_INIT_CONFIG" > /dev/null
+diff -w origin_config.txt second_origin_config.txt
 
 # check the status of the diff
 if [ $? -eq 0 ]; then
   echo "no differences in config files, exiting script"
+  rm -rf origin_config.txt second_origin_config.txt
   exit 0
 else
   echo "there are differences in the config files, it may require a fresh init on the binary"

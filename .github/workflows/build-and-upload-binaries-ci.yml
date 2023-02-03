@@ -80,6 +80,7 @@ jobs:
         run: |
           rm -rf ci-builds || true
           mkdir -p $OUTPUT_DIR
+          echo $OUTPUT_DIR
 
           cp target/release/nym-client $OUTPUT_DIR
           cp target/release/nym-gateway $OUTPUT_DIR
@@ -98,10 +99,10 @@ jobs:
         uses: easingthemes/ssh-deploy@main
         env:
           SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
-          ARGS: "-rltgoDzvO --delete"
+          ARGS: "-avzr --delete"
           SOURCE: "ci-builds/"
           REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
           REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
-          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/${{ env.GITHUB_REF_NAME }}/
+          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/
           EXCLUDE: "/dist/, /node_modules/"
 

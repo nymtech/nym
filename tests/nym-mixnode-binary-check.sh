@@ -55,7 +55,7 @@ check_mixnode_binary_build() {
 }
 
 # we run the release version first
-check_mixnode_build
+check_mixnode_binary_build
 #lets remove the binary then navigate to the target/release directory for checking the latest version
 if [ -f $BINARY_NAME ]; then
   echo "removing nym-mixnode"
@@ -66,4 +66,4 @@ else
 fi
 # we should expect it to pass because no errors should be presented when performing the upgrade of an init
 # this should be caught at testing staage
-check_mixnode_build
+check_mixnode_binary_build

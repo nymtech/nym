@@ -22,14 +22,14 @@ echo "the version number is ${VERSION_NUMBER} to be installed from github"
 
 # install the current release binary
 # so this is dependant on running on a linux machine for the time being
-curl -L https://github.com/nymtech/nym/releases/download/nym-binaries-${RELEASE_VERSION_NUMBER}/$BINARY_NAME -o $BINARY_NAME
-chmod u+x $BINARY_NAME
+curl -L "https://github.com/nymtech/nym/releases/download/nym-binaries-${RELEASE_VERSION_NUMBER}/${$BINARY_NAME}" -o "$BINARY_NAME"
+chmod u+x "$BINARY_NAME"
 
 #--------------------------------------
 # functions
 #--------------------------------------
 check_mixnode_binary_build() {
-  if [ -f $BINARY_NAME ]; then
+  if [ -f "$BINARY_NAME" ]; then
     echo "running init tests"
     # we wont use config env files for now
     OUTPUT=$(./$BINARY_NAME --output json init --id ${ID} --host ${MOCK_HOST} --wallet-address ${WALLET_ADDRESS_CONST}) >/dev/null 2>&1
@@ -43,11 +43,9 @@ check_mixnode_binary_build() {
     VALUE=${VALUE#\"}
     VALUE=${VALUE%\"}
 
-    
-
     # do asserts here based upon the output on init
 
-    assert $(cat ${VALUE}) $(echo ${WALLET_ADDRESS_CONST})
+    assert test $(echo ${WALLET_ADDRESS_CONST})
     assert_end nym-mixnode-tests
   else
     echo "exiting test no binary found"
@@ -57,9 +55,9 @@ check_mixnode_binary_build() {
 # we run the release version first
 check_mixnode_binary_build
 #lets remove the binary then navigate to the target/release directory for checking the latest version
-if [ -f $BINARY_NAME ]; then
+if [ -f "$BINARY_NAME" ]; then
   echo "removing nym-mixnode"
-  rm -rf $BINARY_NAME
+  rm -rf "$BINARY_NAME"
 else
   echo "no binary found exiting"
   exit 1

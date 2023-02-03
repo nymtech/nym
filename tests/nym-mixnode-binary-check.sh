@@ -33,19 +33,12 @@ check_mixnode_binary_build() {
     echo "running init tests"
     # we wont use config env files for now
     OUTPUT=$(./${BINARY_NAME} --output json init --id ${ID} --host ${MOCK_HOST} --wallet-address ${WALLET_ADDRESS_CONST})
-
-    echo "displaying output from binary save"
-    echo $OUTPUT
-    sleep 5
-    echo "done"
-
     # get jq values for things we can assert against
     # tidy this bit up - okay for first push
+    
     VALUE="$(echo ${OUTPUT} | jq .wallet_address | tr -d '"')"
-    sleep 2
-    echo $VALUE
-    # do asserts here based upon the output on init
 
+    # do asserts here based upon the output on init
     assert "echo ${VALUE}" $(echo ${WALLET_ADDRESS_CONST})
     assert_end nym-mixnode-tests
   else
@@ -59,10 +52,14 @@ check_mixnode_binary_build
 if [ -f "$BINARY_NAME" ]; then
   echo "removing nym-mixnode"
   rm -rf "$BINARY_NAME"
+  echo "successfully removed nym-mixnode"
 else
   echo "no binary found exiting"
   exit 1
 fi
 # we should expect it to pass because no errors should be presented when performing the upgrade of an init
-# this should be caught at testing staage
+# this should be caught at testing stage
+# navigate to latest binary build
+cd $PWD$RELEASE_DIRECTORY
+#re run against the current binary built locally
 check_mixnode_binary_build

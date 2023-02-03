@@ -46,7 +46,7 @@ check_mixnode_binary_build() {
   fi
 }
 # this is dependant on where it runs on ci potentially, will need to tweak this in the future
-PATH_TO_ORIGIN_INIT_CONFIG="$(cat /root/.nym/mixnodes/${ID}/config/config.toml)"
+PATH_TO_ORIGIN_INIT_CONFIG="$(cat /root/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =")"
 
 #-------------------------------
 # tests
@@ -72,7 +72,7 @@ check_mixnode_binary_build
 
 echo "diff the config files after each init"
 echo "-------------------------------------"
-PATH_TO_SECOND_ORIGIN_INIT_CONFIG="$(cat /root/.nym/mixnodes/${ID}/config/config.toml)"
+PATH_TO_SECOND_ORIGIN_INIT_CONFIG="$(cat /root/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =")"
 
 # compare the files
 echo "$PATH_TO_ORIGIN_INIT_CONFIG" | diff - "$PATH_TO_SECOND_ORIGIN_INIT_CONFIG" >/dev/null

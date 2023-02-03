@@ -35,7 +35,7 @@ check_mixnode_binary_build() {
     OUTPUT=$(./${BINARY_NAME} --output json init --id ${ID} --host ${MOCK_HOST} --wallet-address ${WALLET_ADDRESS_CONST})
     # get jq values for things we can assert against
     # tidy this bit up - okay for first push
-    
+
     VALUE="$(echo ${OUTPUT} | jq .wallet_address | tr -d '"')"
 
     # do asserts here based upon the output on init
@@ -45,6 +45,10 @@ check_mixnode_binary_build() {
     echo "exiting test no binary found"
   fi
 }
+
+#-------------------------------
+# tests
+#-------------------------------
 
 # we run the release version first
 check_mixnode_binary_build

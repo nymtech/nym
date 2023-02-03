@@ -45,11 +45,6 @@ check_mixnode_binary_build() {
     echo "exiting test no binary found"
   fi
 }
-# this is dependant on where it runs on ci potentially, will need to tweak this in the future
-PATH_TO_ORIGIN_INIT_CONFIG="$(cat /root/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =")"
-
-echo $PATH_TO_ORIGIN_INIT_CONFIG
-sleep 10
 
 #-------------------------------
 # tests
@@ -57,6 +52,11 @@ sleep 10
 
 # we run the release version first
 check_mixnode_binary_build
+# this is dependant on where it runs on ci potentially, will need to tweak this in the future
+PATH_TO_ORIGIN_INIT_CONFIG="$(cat /root/.nym/mixnodes/${ID}/config/config.toml | grep -v "^\[mixnode\]$" | grep -v "^version =")"
+
+echo $PATH_TO_ORIGIN_INIT_CONFIG
+sleep 10
 #lets remove the binary then navigate to the target/release directory for checking the latest version
 if [ -f "$BINARY_NAME" ]; then
   echo "removing nym-mixnode"

@@ -36,19 +36,17 @@ check_mixnode_binary_build() {
 
     echo "displaying output from binary save"
     echo $OUTPUT
-    sleep 10
+    sleep 5
     echo "done"
 
     # get jq values for things we can assert against
     # tidy this bit up - okay for first push
-    VALUE=$(echo ${OUTPUT} | jq .wallet_address)
-    VALUE=${VALUE#\"}
-    VALUE=${VALUE%\"}
-
-    result=$(echo ${VALUE})
+    VALUE="$(echo ${OUTPUT} | jq .wallet_address | tr -d '"')"
+    sleep 2
+    echo $VALUE
     # do asserts here based upon the output on init
 
-    assert result $(echo ${WALLET_ADDRESS_CONST})
+    assert $(echo ${VALUE}) $(echo ${WALLET_ADDRESS_CONST})
     assert_end nym-mixnode-tests
   else
     echo "exiting test no binary found"

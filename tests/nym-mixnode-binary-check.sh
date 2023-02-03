@@ -84,7 +84,7 @@ sleep 5
 # compare the files
 # echo "$PATH_TO_ORIGIN_INIT_CONFIG" | diff - "$PATH_TO_SECOND_ORIGIN_INIT_CONFIG" >/dev/null
 
-diff $PATH_TO_ORIGIN_INIT_CONFIG $PATH_TO_SECOND_ORIGIN_INIT_CONFIG >/dev/null
+diff $PATH_TO_ORIGIN_INIT_CONFIG $PATH_TO_SECOND_ORIGIN_INIT_CONFIG > /dev/null
 
 # check the status of the diff
 if [ $? -eq 0 ]; then

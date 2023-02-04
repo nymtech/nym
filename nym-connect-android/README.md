@@ -21,10 +21,11 @@ https://next--tauri.netlify.app/next/guides/getting-started/prerequisites/linux#
 
 ## Installation
 
-Inside the `nym-connect-android` directory, run the following command:
+Inside the `nym-connect-android` directory, run the following commands:
 
 ```
 yarn install
+yarn prewebpack:dev
 ```
 
 ## Development
@@ -43,7 +44,7 @@ https://next--tauri.netlify.app/next/guides/debugging/application#mobile
 
 ## Production
 
-To build the APK, run the build command.
+To build the APK, run the build commands.
 
 ```
 yarn webpack:prod

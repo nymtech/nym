@@ -51,11 +51,13 @@ pub mod non_wasm_helpers;
 
 pub mod helpers;
 
+#[derive(Clone)]
 pub struct ClientInput {
     pub connection_command_sender: ConnectionCommandSender,
     pub input_sender: InputMessageSender,
 }
 
+#[derive(Clone)]
 pub struct ClientOutput {
     pub received_buffer_request_sender: ReceivedBufferRequestSender,
 }

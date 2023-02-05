@@ -1,3 +1,5 @@
+use client_connections::TransmissionLane;
+use nym_sdk::mixnet::InputMessage;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use websocket_requests::requests::ClientRequest;
@@ -35,6 +37,21 @@ impl ReturnAddress {
                 message,
                 sender_tag,
                 connection_id: Some(connection_id),
+            },
+        }
+    }
+
+    pub(super) fn send_back_to2(self, message: Vec<u8>, connection_id: u64) -> InputMessage {
+        match self {
+            ReturnAddress::Known(recipient) => InputMessage::Regular {
+                recipient: *recipient,
+                data: message,
+                lane: TransmissionLane::ConnectionId(connection_id),
+            },
+            ReturnAddress::Anonymous(sender_tag) => InputMessage::Reply {
+                recipient_tag: sender_tag,
+                data: message,
+                lane: TransmissionLane::ConnectionId(connection_id),
             },
         }
     }

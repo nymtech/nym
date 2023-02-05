@@ -31,9 +31,10 @@ tokio-tungstenite = "0.17.2"
 # internal
 client-connections = { path = "../../common/client-connections" }
 completions = { path = "../../common/completions" }
-network-defaults = { path = "../../common/network-defaults" }
-nymsphinx = { path = "../../common/nymsphinx" }
 logging = { path = "../../common/logging"}
+network-defaults = { path = "../../common/network-defaults" }
+nym-sdk = { path = "../../sdk/rust/nym-sdk" }
+nymsphinx = { path = "../../common/nymsphinx" }
 ordered-buffer = {path = "../../common/socks5/ordered-buffer"}
 proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
 socks5-requests = { path = "../../common/socks5/requests" }

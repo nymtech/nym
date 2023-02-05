@@ -36,8 +36,8 @@ mod connection_state;
 mod keys;
 mod paths;
 
-pub use client::{MixnetClient, MixnetClientBuilder};
-pub use client_core::config::GatewayEndpointConfig;
+pub use client::{MixnetClient, MixnetClientBuilder, MixnetClientSender};
+pub use client_core::{client::inbound_messages::InputMessage, config::GatewayEndpointConfig};
 pub use config::Config;
 pub use keys::{Keys, KeysArc};
 pub use nymsphinx::{

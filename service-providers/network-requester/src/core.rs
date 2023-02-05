@@ -13,6 +13,7 @@ use client_connections::{
 use futures::channel::mpsc;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
+use nym_sdk::mixnet::MixnetClient;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::receiver::ReconstructedMessage;
@@ -78,10 +79,11 @@ impl ServiceProvider {
     /// Listens for any messages from `mix_reader` that should be written back to the mix network
     /// via the `websocket_writer`.
     async fn mixnet_response_listener(
-        mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
+        mut mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
+        //mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
         mut mix_reader: MixProxyReader<(Socks5Message, reply::ReturnAddress)>,
         stats_collector: Option<ServiceStatisticsCollector>,
-        mut client_connection_rx: ConnectionCommandReceiver,
+        mut _client_connection_rx: ConnectionCommandReceiver,
     ) {
         loop {
             tokio::select! {
@@ -104,37 +106,41 @@ impl ServiceProvider {
 
                         // make 'request' to native-websocket client
                         let conn_id = msg.conn_id();
-                        let response_message = return_address.send_back_to(msg.into_bytes(), conn_id);
+                        //let response_message = return_address.send_back_to(msg.into_bytes(), conn_id);
+                        let response_message = return_address.send_back_to2(msg.into_bytes(), conn_id);
 
-                        let message = Message::Binary(response_message.serialize());
-                        websocket_writer.send(message).await.unwrap();
+                        // We should be able to call mixnet_client.send(response_message).await;
+                        mixnet_client_sender.send_msg(response_message).await;
+
+                        //let message = Message::Binary(response_message.serialize());
+                        //websocket_writer.send(message).await.unwrap();
                     } else {
                         log::error!("Exiting: channel closed!");
                         break;
                     }
                 },
-                Some(command) = client_connection_rx.next() => {
-                    match command {
-                        ConnectionCommand::Close(id) => {
-                            let msg = ClientRequest::ClosedConnection(id);
-                            let ws_msg = Message::Binary(msg.serialize());
-                            websocket_writer.send(ws_msg).await.unwrap();
-                        }
-                        ConnectionCommand::ActiveConnections(ids) => {
-                            // We can optimize this by sending a single request, but this is
-                            // usually in the low single digits, max a few tens, so we leave that
-                            // for a rainy day.
-                            // Also that means fiddling with the currently manual
-                            // serialize/deserialize we do with ClientRequests ...
-                            for id in ids {
-                                log::trace!("Requesting lane queue length for: {}", id);
-                                let msg = ClientRequest::GetLaneQueueLength(id);
-                                let ws_msg = Message::Binary(msg.serialize());
-                                websocket_writer.send(ws_msg).await.unwrap();
-                            }
-                        }
-                    }
-                },
+                //Some(command) = client_connection_rx.next() => {
+                //    match command {
+                //        ConnectionCommand::Close(id) => {
+                //            let msg = ClientRequest::ClosedConnection(id);
+                //            let ws_msg = Message::Binary(msg.serialize());
+                //            websocket_writer.send(ws_msg).await.unwrap();
+                //        }
+                //        ConnectionCommand::ActiveConnections(ids) => {
+                //            // We can optimize this by sending a single request, but this is
+                //            // usually in the low single digits, max a few tens, so we leave that
+                //            // for a rainy day.
+                //            // Also that means fiddling with the currently manual
+                //            // serialize/deserialize we do with ClientRequests ...
+                //            for id in ids {
+                //                log::trace!("Requesting lane queue length for: {}", id);
+                //                let msg = ClientRequest::GetLaneQueueLength(id);
+                //                let ws_msg = Message::Binary(msg.serialize());
+                //                websocket_writer.send(ws_msg).await.unwrap();
+                //            }
+                //        }
+                //    }
+                //},
             }
         }
     }
@@ -153,50 +159,54 @@ impl ServiceProvider {
         }
     }
 
-    async fn read_websocket_message(
-        websocket_reader: &mut SplitStream<TSWebsocketStream>,
-        lane_queue_lengths: LaneQueueLengths,
-    ) -> Option<ReconstructedMessage> {
-        while let Some(msg) = websocket_reader.next().await {
-            let data = match msg {
-                Ok(msg) => msg.into_data(),
-                Err(err) => {
-                    log::error!("Failed to read from the websocket: {err}");
-                    continue;
-                }
-            };
+    //async fn read_websocket_message(
+    //    //websocket_reader: &mut SplitStream<TSWebsocketStream>,
+    //    mixnet_client: &mut MixnetClient,
+    //    lane_queue_lengths: LaneQueueLengths,
+    //) -> Option<ReconstructedMessage> {
+    //    //while let Some(msg) = websocket_reader.next().await {
+    //    while let Some(msgs) = mixnet_client.wait_for_messages().await {
+    //        for msg in msgs {
+    //            let data = match msg {
+    //                Ok(msg) => msg.into_data(),
+    //                Err(err) => {
+    //                    log::error!("Failed to read from the websocket: {err}");
+    //                    continue;
+    //                }
+    //            };
+    //        }
 
-            // try to recover the actual message from the mix network...
-            let deserialized_message = match ServerResponse::deserialize(&data) {
-                Ok(deserialized) => deserialized,
-                Err(err) => {
-                    log::error!(
-                        "Failed to deserialize received websocket message! - {}",
-                        err
-                    );
-                    continue;
-                }
-            };
+    //        // try to recover the actual message from the mix network...
+    //        let deserialized_message = match ServerResponse::deserialize(&data) {
+    //            Ok(deserialized) => deserialized,
+    //            Err(err) => {
+    //                log::error!(
+    //                    "Failed to deserialize received websocket message! - {}",
+    //                    err
+    //                );
+    //                continue;
+    //            }
+    //        };
 
-            let received = match deserialized_message {
-                ServerResponse::Received(received) => received,
-                ServerResponse::LaneQueueLength { lane, queue_length } => {
-                    Self::handle_lane_queue_length_response(
-                        &lane_queue_lengths,
-                        lane,
-                        queue_length,
-                    );
-                    continue;
-                }
-                ServerResponse::Error(err) => {
-                    panic!("received error from native client! - {err}")
-                }
-                _ => unimplemented!("probably should never be reached?"),
-            };
-            return Some(received);
-        }
-        None
-    }
+    //        let received = match deserialized_message {
+    //            ServerResponse::Received(received) => received,
+    //            ServerResponse::LaneQueueLength { lane, queue_length } => {
+    //                Self::handle_lane_queue_length_response(
+    //                    &lane_queue_lengths,
+    //                    lane,
+    //                    queue_length,
+    //                );
+    //                continue;
+    //            }
+    //            ServerResponse::Error(err) => {
+    //                panic!("received error from native client! - {err}")
+    //            }
+    //            _ => unimplemented!("probably should never be reached?"),
+    //        };
+    //        return Some(received);
+    //    }
+    //    None
+    //}
 
     async fn start_proxy(
         conn_id: ConnectionId,
@@ -395,10 +405,14 @@ impl ServiceProvider {
 
     /// Start all subsystems
     pub async fn run(&mut self) -> Result<(), NetworkRequesterError> {
-        let websocket_stream = self.connect_websocket(&self.websocket_address).await?;
+        let mut mixnet_client = nym_sdk::mixnet::MixnetClient::connect().await.unwrap();
+
+        //let websocket_stream = self.connect_websocket(&self.websocket_address).await?;
 
         // split the websocket so that we could read and write from separate threads
-        let (websocket_writer, mut websocket_reader) = websocket_stream.split();
+        // WIP(JON): so, instead of having this websocket that we read/write to, we can have a
+        // MixnetClient that we read/write into
+        //let (websocket_writer, mut websocket_reader) = websocket_stream.split();
 
         // channels responsible for managing messages that are to be sent to the mix network. The receiver is
         // going to be used by `mixnet_response_listener`
@@ -447,9 +461,13 @@ impl ServiceProvider {
 
         let stats_collector_clone = stats_collector.clone();
         // start the listener for mix messages
+        // WIP(JON): this should be replaced by MixnetClient?
+        // How do we write? Can we get a channel?
+        let mixnet_client_sender = mixnet_client.get_sender();
         tokio::spawn(async move {
             Self::mixnet_response_listener(
-                websocket_writer,
+                mixnet_client_sender,
+                //websocket_writer,
                 mix_input_receiver,
                 stats_collector_clone,
                 client_connection_rx,
@@ -460,44 +478,56 @@ impl ServiceProvider {
         log::info!("All systems go. Press CTRL-C to stop the server.");
         // for each incoming message from the websocket... (which in 99.99% cases is going to be a mix message)
         loop {
-            let Some(received) = Self::read_websocket_message(
-                    &mut websocket_reader,
-                    shared_lane_queue_lengths.clone()
-                )
-                .await
-            else {
-                log::error!("The websocket stream has finished!");
-                return Err(NetworkRequesterError::ConnectionClosed);
-            };
+            // WIP(JON): here we need the MixnetClient
+            // What is mixnet client receiving? Same type? Think so
+            // let Some(received) = mixnet_client.wait_for_messages().await else {
+            //  ..
+            // }
+            //let Some(received) = Self::read_websocket_message(
+            //        &mut websocket_reader,
+            //        shared_lane_queue_lengths.clone()
+            //    )
+            //    .await
+            //else {
+            //    log::error!("The websocket stream has finished!");
+            //    return Err(NetworkRequesterError::ConnectionClosed);
+            //};
 
-            self.handle_proxy_message(
-                received,
-                &mut controller_sender,
-                &mix_input_sender,
-                shared_lane_queue_lengths.clone(),
-                stats_collector.clone(),
-                shutdown.subscribe(),
-            )
-            .await;
+            let received = mixnet_client.wait_for_messages().await;
+
+            // WIP(JON)
+            let received = received.unwrap();
+
+            for received in received {
+                self.handle_proxy_message(
+                    received,
+                    &mut controller_sender,
+                    &mix_input_sender,
+                    shared_lane_queue_lengths.clone(),
+                    stats_collector.clone(),
+                    shutdown.subscribe(),
+                )
+                .await;
+            }
         }
     }
 
     // Make the websocket connection so we can receive incoming Mixnet messages.
-    async fn connect_websocket(
-        &self,
-        uri: &str,
-    ) -> Result<TSWebsocketStream, NetworkRequesterError> {
-        match websocket::Connection::new(uri).connect().await {
-            Ok(ws_stream) => {
-                log::info!("* connected to local websocket server at {}", uri);
-                Ok(ws_stream)
-            }
-            Err(err) => {
-                log::error!(
-                    "Error: websocket connection attempt failed, is the Nym client running?"
-                );
-                Err(err.into())
-            }
-        }
-    }
+    //async fn connect_websocket(
+    //    &self,
+    //    uri: &str,
+    //) -> Result<TSWebsocketStream, NetworkRequesterError> {
+    //    match websocket::Connection::new(uri).connect().await {
+    //        Ok(ws_stream) => {
+    //            log::info!("* connected to local websocket server at {}", uri);
+    //            Ok(ws_stream)
+    //        }
+    //        Err(err) => {
+    //            log::error!(
+    //                "Error: websocket connection attempt failed, is the Nym client running?"
+    //            );
+    //            Err(err.into())
+    //        }
+    //    }
+    //}
 }

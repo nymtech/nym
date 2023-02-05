@@ -3743,6 +3743,7 @@ dependencies = [
  "log",
  "logging",
  "network-defaults",
+ "nym-sdk",
  "nymsphinx",
  "ordered-buffer",
  "pretty_env_logger",

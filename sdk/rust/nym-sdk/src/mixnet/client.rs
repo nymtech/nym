@@ -278,6 +278,21 @@ pub struct MixnetClient {
     task_manager: TaskManager,
 }
 
+pub struct MixnetClientSender {
+    client_input: ClientInput,
+}
+
+impl MixnetClientSender {
+    pub async fn send_msg(&mut self, msg: InputMessage) {
+        // WIP(JON): check (or return?) Result
+        self.client_input.input_sender.send(msg).await.unwrap()
+    }
+}
+
+pub struct MixnetClientReceiver {
+    reconstructed_receiver: ReconstructedMessagesReceiver,
+}
+
 impl MixnetClient {
     /// Create a new client and connect to the mixnet using ephemeral in-memory keys that are
     /// discarded at application close.
@@ -432,6 +447,18 @@ impl MixnetClient {
         let message_bytes = message.to_string().into_bytes();
         self.send_bytes(address, message_bytes).await;
     }
+
+    pub fn get_sender(&self) -> MixnetClientSender {
+        MixnetClientSender {
+            client_input: self.client_input.clone(),
+        }
+    }
+
+    //pub fn get_receiver(&self) -> MixnetClientReceiver {
+    //    MixnetClientReceiver {
+    //        reconstructed_receiver: self.reconstructed_receiver.clone(),
+    //    }
+    //}
 
     /// Sends bytes to the supplied Nym address
     ///

@@ -10,7 +10,7 @@ use client_core::client::{
 };
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use proxy_helpers::connection_controller::{BroadcastActiveConnections, Controller};
+use proxy_helpers::connection_controller::Controller;
 use std::net::SocketAddr;
 use tap::TapFallible;
 use task::TaskClient;
@@ -69,7 +69,7 @@ impl SphinxSocksServer {
         // controller for managing all active connections
         let (mut active_streams_controller, controller_sender) = Controller::new(
             client_connection_tx,
-            BroadcastActiveConnections::Off,
+            //BroadcastActiveConnections::Off,
             self.shutdown.clone(),
         );
         tokio::spawn(async move {

@@ -150,7 +150,7 @@ impl DummyClient {
         self
     }
 
-    pub fn with_group_db(
+    pub fn _with_group_db(
         mut self,
         group_db: &Arc<RwLock<HashMap<String, MemberResponse>>>,
     ) -> Self {

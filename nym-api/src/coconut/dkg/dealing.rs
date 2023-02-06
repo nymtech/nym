@@ -56,12 +56,7 @@ pub(crate) async fn dealing_exchange(
         vec![]
     };
     let mut prior_resharing_secrets = VecDeque::from(prior_resharing_secrets);
-    if !resharing
-        || initial_dealers
-            .iter()
-            .find(|d| d.to_string() == own_address)
-            .is_some()
-    {
+    if !resharing || initial_dealers.iter().any(|d| *d == own_address) {
         let params = setup();
         for _ in 0..TOTAL_DEALINGS {
             let (dealing, _) = Dealing::create(
@@ -291,11 +286,8 @@ pub(crate) mod tests {
         );
         assert_eq!(state.threshold().unwrap(), 3);
         assert_eq!(state.receiver_index().unwrap(), 1);
-        assert!(dealings_db
-            .read()
-            .unwrap()
-            .get(dkg_client.get_address().await.as_ref())
-            .is_none());
+        let addr = dkg_client.get_address().await;
+        assert!(dealings_db.read().unwrap().get(addr.as_ref()).is_none());
 
         let mut state = State::new(
             PathBuf::default(),

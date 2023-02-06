@@ -278,7 +278,7 @@ impl State {
             .get()
             .await
             .as_ref()
-            .map(|kp| kp.secret_key().clone())
+            .map(|kp| kp.secret_key())
     }
 
     pub fn node_index(&self) -> Option<NodeIndex> {

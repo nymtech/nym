@@ -114,9 +114,10 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
         // TODO: streamline this a bit more
         let request_version = RequestVersion::new(interface_version, request.protocol_version);
 
-        println!(
-            "received request of version {:?} / {:?}",
-            interface_version, request.protocol_version
+        log::debug!(
+            "received request of version {:?} (interface) / {:?} (socks5)",
+            interface_version,
+            request.protocol_version
         );
 
         match request.content {

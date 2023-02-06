@@ -18,6 +18,7 @@ use client_core::client::key_manager::KeyManager;
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use futures::channel::mpsc;
 use futures::StreamExt;
+#[cfg(not(feature = "mobile"))]
 use gateway_client::bandwidth::BandwidthController;
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
@@ -69,6 +70,7 @@ impl NymClient {
         }
     }
 
+    #[cfg(not(feature = "mobile"))]
     async fn create_bandwidth_controller(config: &Config) -> BandwidthController<QueryNyxdClient> {
         let details = network_defaults::NymNetworkDetails::new_from_env();
         let mut client_config = validator_client::Config::try_from_nym_network_details(&details)

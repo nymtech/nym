@@ -90,14 +90,3 @@ pub async fn get_gateways_detailed() -> Result<Vec<GatewayBondAnnotated>> {
         .await?;
     Ok(res)
 }
-
-#[tauri::command]
-pub async fn get_gateways_detailed() -> Result<Vec<GatewayBondAnnotated>> {
-    log::trace!("Fetching all gateway details");
-    let res = reqwest::get(GATEWAYS_DETAILED_URL)
-        .await?
-        .json::<Vec<GatewayBondAnnotated>>()
-        .await?;
-    log::trace!("Received: {:#?}", res);
-    Ok(res)
-}

@@ -145,19 +145,19 @@ impl ServiceProvider {
         }
     }
 
-    fn handle_lane_queue_length_response(
-        lane_queue_lengths: &LaneQueueLengths,
-        lane: u64,
-        queue_length: usize,
-    ) {
-        log::trace!("Received LaneQueueLength lane: {lane}, queue_length: {queue_length}");
-        if let Ok(mut lane_queue_lengths) = lane_queue_lengths.lock() {
-            let lane = TransmissionLane::ConnectionId(lane);
-            lane_queue_lengths.map.insert(lane, queue_length);
-        } else {
-            log::warn!("Unable to lock lane queue lengths, skipping updating received lane length")
-        }
-    }
+    //fn handle_lane_queue_length_response(
+    //    lane_queue_lengths: &LaneQueueLengths,
+    //    lane: u64,
+    //    queue_length: usize,
+    //) {
+    //    log::trace!("Received LaneQueueLength lane: {lane}, queue_length: {queue_length}");
+    //    if let Ok(mut lane_queue_lengths) = lane_queue_lengths.lock() {
+    //        let lane = TransmissionLane::ConnectionId(lane);
+    //        lane_queue_lengths.map.insert(lane, queue_length);
+    //    } else {
+    //        log::warn!("Unable to lock lane queue lengths, skipping updating received lane length")
+    //    }
+    //}
 
     //async fn read_websocket_message(
     //    //websocket_reader: &mut SplitStream<TSWebsocketStream>,
@@ -405,6 +405,7 @@ impl ServiceProvider {
 
     /// Start all subsystems
     pub async fn run(&mut self) -> Result<(), NetworkRequesterError> {
+
         let mut mixnet_client = nym_sdk::mixnet::MixnetClient::connect().await.unwrap();
 
         //let websocket_stream = self.connect_websocket(&self.websocket_address).await?;
@@ -429,7 +430,7 @@ impl ServiceProvider {
 
         // Shared queue length data. Published by the `OutQueueController` in the client, and used
         // primarily to throttle incoming connections
-        let shared_lane_queue_lengths = LaneQueueLengths::new();
+        //let shared_lane_queue_lengths = LaneQueueLengths::new();
 
         // Controller for managing all active connections.
         // We provide it with a ShutdownListener since it requires it, even though for the network
@@ -475,7 +476,10 @@ impl ServiceProvider {
             .await;
         });
 
+        let nym_address = mixnet_client.nym_address();
+        log::info!("Our nym address is: {nym_address}");
         log::info!("All systems go. Press CTRL-C to stop the server.");
+
         // for each incoming message from the websocket... (which in 99.99% cases is going to be a mix message)
         loop {
             // WIP(JON): here we need the MixnetClient
@@ -503,7 +507,8 @@ impl ServiceProvider {
                     received,
                     &mut controller_sender,
                     &mix_input_sender,
-                    shared_lane_queue_lengths.clone(),
+                    //shared_lane_queue_lengths.clone(),
+                    mixnet_client.shared_lane_queue_lengths(),
                     stats_collector.clone(),
                     shutdown.subscribe(),
                 )

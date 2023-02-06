@@ -37,9 +37,11 @@ function formatCellValues(val: string | number, field: string) {
       </Box>
     );
   }
+
   if (field === 'bond') {
     return unymToNym(val, 6);
   }
+
   if (field === 'owner') {
     console.log(val);
     return (
@@ -48,6 +50,8 @@ function formatCellValues(val: string | number, field: string) {
       </Link>
     );
   }
+
+  return val;
 }
 
 export const DetailTable: FCWithChildren<{

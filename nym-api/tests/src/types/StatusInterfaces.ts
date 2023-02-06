@@ -48,17 +48,17 @@ export interface RewardParams {
 }
 
 export interface ComputeRewardEstimation {
-  performance: string,
-  active_in_rewarded_set: boolean,
-  pledge_amount: number,
-  total_delegation: number,
+  performance: string;
+  active_in_rewarded_set: boolean;
+  pledge_amount: number;
+  total_delegation: number;
   interval_operating_cost: IntervalOperatingCost;
-  profit_margin_percent: string
+  profit_margin_percent: string;
 }
 
 export interface IntervalOperatingCost {
-  denom: string,
-  amount: string
+  denom: string;
+  amount: string;
 }
 
 export interface Interval {
@@ -123,14 +123,14 @@ export interface History {
 }
 
 export interface NodeHistory {
-  mix_id: number,
+  mix_id: number;
   identity: string;
   owner: string;
   history: History[];
 }
 
 export interface CoreCount {
-  mix_id: number,
+  mix_id: number;
   identity: string;
   count: number;
 }

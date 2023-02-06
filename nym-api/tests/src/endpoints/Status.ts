@@ -1,7 +1,6 @@
 import {
   ActiveStatus,
   AvgUptime,
-  ComputeRewardEstimation,
   CoreCount,
   DetailedGateway,
   DetailedMixnodes,
@@ -96,7 +95,7 @@ export default class Status extends APIClient {
   ): Promise<RewardEstimation> {
     const response = await this.restClient.sendPost({
       route: `/mixnode/${mix_id}/compute-reward-estimation`,
-      data: { 
+      data: {
         // performance: "10",
         active_in_rewarded_set: true,
         // pledge_amount: 10,
@@ -106,7 +105,7 @@ export default class Status extends APIClient {
         //   amount: "250000000"
         // },
         // profit_margin_percent: 10
-      }
+      },
     });
 
     return response.data;
@@ -120,9 +119,7 @@ export default class Status extends APIClient {
     return response.data;
   }
 
-  public async getMixnodeAverageUptime(
-    mix_id: number
-  ): Promise<AvgUptime> {
+  public async getMixnodeAverageUptime(mix_id: number): Promise<AvgUptime> {
     const response = await this.restClient.sendGet({
       route: `/mixnode/${mix_id}/avg_uptime`,
     });
@@ -150,13 +147,13 @@ export default class Status extends APIClient {
 
   public async getAllMixnodeInclusionProbability(): Promise<InclusionProbabilities> {
     const response = await this.restClient.sendGet({
-      route: `/mixnodes/inclusion-probability`,
+      route: `/mixnodes/inclusion_probability`,
     });
 
     return response.data;
   }
 
-  public async getDetailedMixnodes(): Promise<DetailedMixnodes> {
+  public async getDetailedMixnodes(): Promise<DetailedMixnodes[]> {
     const response = await this.restClient.sendGet({
       route: `/mixnodes/detailed`,
     });
@@ -164,7 +161,7 @@ export default class Status extends APIClient {
     return response.data;
   }
 
-  public async getDetailedRewardedMixnodes(): Promise<DetailedMixnodes> {
+  public async getDetailedRewardedMixnodes(): Promise<DetailedMixnodes[]> {
     const response = await this.restClient.sendGet({
       route: `/mixnodes/rewarded/detailed`,
     });
@@ -172,7 +169,7 @@ export default class Status extends APIClient {
     return response.data;
   }
 
-  public async getDetailedActiveMixnodes(): Promise<DetailedMixnodes> {
+  public async getDetailedActiveMixnodes(): Promise<DetailedMixnodes[]> {
     const response = await this.restClient.sendGet({
       route: `/mixnodes/active/detailed`,
     });

@@ -6,7 +6,6 @@ import {
   BlacklistedGateways,
   BlacklistedMixnodes,
   CurrentEpoch,
-  Mixnode
 } from "../types/ContractCacheTypes";
 import { APIClient } from "./abstracts/APIClient";
 
@@ -81,16 +80,15 @@ export default class ContractCache extends APIClient {
 
   public async getEpochRewardParams(): Promise<EpochRewardParams> {
     const response = await this.restClient.sendGet({
-      route: `epoch/reward_params`
+      route: `epoch/reward_params`,
     });
     return response.data;
   }
 
   public async getCurrentEpoch(): Promise<CurrentEpoch> {
     const response = await this.restClient.sendGet({
-      route: `epoch/current`
+      route: `epoch/current`,
     });
     return response.data;
   }
-
 }

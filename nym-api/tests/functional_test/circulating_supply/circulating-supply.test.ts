@@ -12,13 +12,22 @@ describe("Get circulating supply", (): void => {
   it("Get circulating supply amounts", async (): Promise<void> => {
     const response = await contract.getCirculatingSupply();
 
-    let initial: number = +(response.initial_supply.amount);
-    let mixmining: number = +(response.mixmining_reserve.amount);
-    let vest: number = +(response.vesting_tokens.amount);
-    let circsupply: number = +(response.circulating_supply.amount);
+    const initial: number = +response.total_supply.amount;
+    const mixmining: number = +response.mixmining_reserve.amount;
+    const vest: number = +response.vesting_tokens.amount;
+    const circsupply: number = +response.circulating_supply.amount;
 
-    expect(typeof response.vesting_tokens.amount).toBe('string');
+    expect(typeof response.vesting_tokens.amount).toBe("string");
     expect(initial - mixmining - vest).toStrictEqual(circsupply);
-
-    });
   });
+
+  it("Get total supply value", async (): Promise<void> => {
+    const response = await contract.getTotalSupplyValue();
+    expect(typeof response).toBe("number");
+  });
+
+  it("Get circulating supply value", async (): Promise<void> => {
+    const response = await contract.getCirculatingSupplyValue();
+    expect(typeof response).toBe("number");
+  });
+});

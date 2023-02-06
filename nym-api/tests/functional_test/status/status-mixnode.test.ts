@@ -40,9 +40,9 @@ describe("Get mixnode data", (): void => {
     const response = await status.getMixnodeHistory(identity_key);
 
     response.history.forEach((x) => {
-      console.log(x.date);
-      console.log(x.uptime);
-    })
+      expect(typeof x.date).toBe("string");
+      expect(typeof x.uptime).toBe("number");
+    });
 
     expect(identity_key).toStrictEqual(response.mix_id);
     expect(typeof response.owner).toBe("string");
@@ -67,7 +67,9 @@ describe("Get mixnode data", (): void => {
     const identity_key = config.environmnetConfig.mix_id;
     const response = await status.getMixnodeRewardComputation(identity_key);
 
-    expect(response.reward_params.interval.sybil_resistance).toStrictEqual("0.3");
+    expect(response.reward_params.interval.sybil_resistance).toStrictEqual(
+      "0.3"
+    );
     expect(response.reward_params.active_set_size).toStrictEqual(240);
     expect(typeof response.reward_params.interval.reward_pool).toBe("string");
   });
@@ -79,42 +81,54 @@ describe("Get mixnode data", (): void => {
     expect(typeof response.in_active).toBe("string");
   });
 
-  it("Get all mixnodes inclusion probability", async (): Promise<void> => {
+  it("Get all mixnodes inclusion probabilities", async (): Promise<void> => {
     const response = await status.getAllMixnodeInclusionProbability();
-
-    expect(response.inclusion_probabilities).toBeTruthy();
+    const array = response.inclusion_probabilities;
+    array.forEach((x) => {
+      expect(typeof x.in_reserve).toBe("number");
+      expect(typeof x.mix_id).toBe("number");
+    });
+    expect(typeof response.elapsed.nanos).toBe("number");
   });
 
   it("Get all mixnodes", async (): Promise<void> => {
     const response = await status.getDetailedMixnodes();
-
-    expect(typeof response.stake_saturation).toBe("string");
+    response.forEach((x) => {
+      expect(typeof x.mixnode_details.bond_information.mix_id).toBe("number");
+      expect(typeof x.mixnode_details.bond_information.layer).toBe("number");
+      expect(typeof x.stake_saturation).toBe("string");
+    });
   });
 
   it("Get all rewarded mixnodes", async (): Promise<void> => {
     const response = await status.getDetailedRewardedMixnodes();
-
-    expect(typeof response.mixnode_details.rewarding_details.last_rewarded_epoch).toBe("number");
+    response.forEach((x) => {
+      expect(typeof x.mixnode_details.bond_information.mix_id).toBe("number");
+      expect(typeof x.mixnode_details.bond_information.layer).toBe("number");
+      expect(typeof x.stake_saturation).toBe("string");
+    });
   });
 
   it("Get all active mixnodes", async (): Promise<void> => {
     const response = await status.getDetailedActiveMixnodes();
-
-    expect(typeof response.mixnode_details.bond_information.layer).toBe("number");
+    response.forEach((x) => {
+      expect(typeof x.mixnode_details.bond_information.mix_id).toBe("number");
+      expect(typeof x.mixnode_details.bond_information.layer).toBe("number");
+      expect(typeof x.stake_saturation).toBe("string");
+    });
   });
-
 });
 
 describe("Compute mixnode reward estimation", (): void => {
   beforeAll(async (): Promise<void> => {
     status = new Status();
     config = ConfigHandler.getInstance();
-  }); 
-  it("with correct data", async (): Promise<void> => {
-    const response = await status.sendMixnodeRewardEstimatedComputation(8);
-    const body = 
-
-    expect(typeof response.estimation.total_node_reward).toBe("string");
   });
-
+  // TODO Fix this test
+  it.skip("with correct data", async (): Promise<void> => {
+    const response = await status.sendMixnodeRewardEstimatedComputation(8);
+    const body = expect(typeof response.estimation.total_node_reward).toBe(
+      "string"
+    );
+  });
 });

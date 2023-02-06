@@ -12,7 +12,7 @@ export type BondInformation = {
   proxy: string;
   bonding_height: number;
   is_unbonding: boolean;
-}
+};
 
 export type RewardingDetails = {
   cost_params: CostParams;
@@ -22,22 +22,22 @@ export type RewardingDetails = {
   unit_delegation: string;
   last_rewarded_epoch: number;
   unique_delegations: number;
-}
+};
 
 export type CostParams = {
   profit_margin_percent: string;
   interval_operating_cost: IntervalOperatingCost;
-}
+};
 
 export type IntervalOperatingCost = {
   denom: string;
   amount: string;
-}
+};
 
 export type OriginalPledge = {
   denom: string;
   amount: string;
-}
+};
 
 export type TotalDelegation = {
   denom: string;
@@ -63,23 +63,21 @@ export type MixnodeBond = {
   mix_node: Mixnode;
   proxy: string;
   accumulated_rewards: string;
-}
+};
 
 export type MixnodesDetailed = {
   mixnode_details: AllMixnodes;
   stake_saturation: string;
   uncapped_stake_saturation: string;
   performance: string;
-  estimated_operator_apy: string
+  estimated_operator_apy: string;
   estimated_delegators_apy: string;
-  family: string
+  family: string;
 };
 
-export type BlacklistedMixnodes = {
-};
+export type BlacklistedMixnodes = {};
 
-export type BlacklistedGateways = {
-};
+export type BlacklistedGateways = {};
 
 export interface Gateway {
   host: string;
@@ -114,7 +112,7 @@ export type Interval = {
   sybil_resistance: string;
   active_set_work_factor: string;
   interval_pool_emission: string;
-}
+};
 
 export type CurrentEpoch = {
   id: number;
@@ -129,4 +127,3 @@ export type EpochLength = {
   secs: number;
   nanos: number;
 };
-

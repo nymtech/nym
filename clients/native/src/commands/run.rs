@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::error::Error;
+use std::net::IpAddr;
 
 use crate::{
     client::{config::Config, SocketClient},
@@ -22,7 +23,6 @@ pub(crate) struct Run {
     id: String,
 
     /// Comma separated list of rest endpoints of the nyxd validators
-    #[cfg(feature = "coconut")]
     #[clap(long, alias = "nymd_validators", value_delimiter = ',')]
     nyxd_urls: Option<Vec<url::Url>>,
 
@@ -44,6 +44,10 @@ pub(crate) struct Run {
     #[clap(short, long)]
     port: Option<u16>,
 
+    /// Ip for the socket (if applicable) to listen for requests.
+    #[clap(long)]
+    host: Option<IpAddr>,
+
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
     #[clap(long, hide = true)]
@@ -55,7 +59,6 @@ pub(crate) struct Run {
 
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
     /// with bandwidth credential requirement.
-    #[cfg(feature = "coconut")]
     #[clap(long)]
     enabled_credentials_mode: Option<bool>,
 }
@@ -66,12 +69,10 @@ impl From<Run> for OverrideConfig {
             nym_apis: run_config.nym_apis,
             disable_socket: run_config.disable_socket,
             port: run_config.port,
+            host: run_config.host,
             fastmode: run_config.fastmode,
             no_cover: run_config.no_cover,
-
-            #[cfg(feature = "coconut")]
             nyxd_urls: run_config.nyxd_urls,
-            #[cfg(feature = "coconut")]
             enabled_credentials_mode: run_config.enabled_credentials_mode,
         }
     }
@@ -99,7 +100,7 @@ fn version_check(cfg: &Config) -> bool {
 pub(crate) async fn execute(args: &Run) -> Result<(), Box<dyn Error + Send + Sync>> {
     let id = &args.id;
 
-    let mut config = match Config::load_from_file(Some(id)) {
+    let mut config = match Config::load_from_file(id) {
         Ok(cfg) => cfg,
         Err(err) => {
             error!("Failed to load config for {}. Are you sure you have run `init` before? (Error was: {err})", id);

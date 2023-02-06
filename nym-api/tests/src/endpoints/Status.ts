@@ -1,4 +1,3 @@
-import { AxiosResponse } from "axios";
 import {
   ActiveStatus,
   AvgUptime,
@@ -53,7 +52,6 @@ export default class Status extends APIClient {
 
     return response.data;
   }
-
 
   // MIXNODES
 

@@ -58,7 +58,7 @@ impl MixNode {
     }
 
     fn load_node_description(config: &Config) -> NodeDescription {
-        NodeDescription::load_from_file(Config::default_config_directory(Some(&config.get_id())))
+        NodeDescription::load_from_file(Config::default_config_directory(&config.get_id()))
             .unwrap_or_default()
     }
 

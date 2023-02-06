@@ -11,7 +11,7 @@
     "test:prod": "TEST_ENV=prod jest --forceExit --detectOpenHandles --passWithNoTests",
     "build": "tsc",
     "lint": "eslint --ext .js,.ts,.tsx .",
-    "lint:fix": "eslint --fix",
+    "lint:fix": "eslint src --fix",
     "cleanup": "rm -rf node_modules; rm -rf dist; yarn install"
   },
   "author": "Nymtech",
@@ -34,6 +34,7 @@
   },
   "devDependencies": {
     "@types/jest": "28.1.6",
+    "@types/mocha": "^10.0.1",
     "@typescript-eslint/eslint-plugin": "^5.12.1",
     "@typescript-eslint/parser": "^5.33.0",
     "axios-mock-adapter": "^1.20.0",

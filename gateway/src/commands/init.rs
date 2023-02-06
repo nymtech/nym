@@ -51,7 +51,6 @@ pub struct Init {
     nym_apis: Option<Vec<url::Url>>,
 
     /// Comma separated list of endpoints of the validator
-    #[cfg(feature = "coconut")]
     #[clap(
         long,
         alias = "validators",
@@ -67,7 +66,6 @@ pub struct Init {
 
     /// Set this gateway to work only with coconut credentials; that would disallow clients to
     /// bypass bandwidth credential requirement
-    #[cfg(feature = "coconut")]
     #[clap(long)]
     only_coconut_credentials: Option<bool>,
 
@@ -95,9 +93,7 @@ impl From<Init> for OverrideConfig {
             enabled_statistics: init_config.enabled_statistics,
             statistics_service_url: init_config.statistics_service_url,
 
-            #[cfg(feature = "coconut")]
             nyxd_urls: init_config.nyxd_urls,
-            #[cfg(feature = "coconut")]
             only_coconut_credentials: init_config.only_coconut_credentials,
         }
     }
@@ -106,7 +102,7 @@ impl From<Init> for OverrideConfig {
 pub async fn execute(args: Init, output: OutputFormat) -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("Initialising gateway {}...", args.id);
 
-    let already_init = if Config::default_config_file_path(Some(&args.id)).exists() {
+    let already_init = if Config::default_config_file_path(&args.id).exists() {
         eprintln!(
             "Gateway \"{}\" was already initialised before! Config information will be \
             overwritten (but keys will be kept)!",
@@ -184,9 +180,7 @@ mod tests {
             mnemonic: None,
             statistics_service_url: None,
             enabled_statistics: None,
-            #[cfg(feature = "coconut")]
             nyxd_urls: None,
-            #[cfg(feature = "coconut")]
             only_coconut_credentials: None,
         };
         std::env::set_var(BECH32_PREFIX, "n");

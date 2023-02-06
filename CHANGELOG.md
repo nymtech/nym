@@ -2,18 +2,60 @@
 
 Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+# [Unreleased]
 
 ### Added
 
-- dkg rerun from scratch and dkg-specific epochs ([#2839])
-- nym-sdk: add support for surb storage ([#2870])
-- nym-sdk: enable reply-SURBs by default ([#2874])
+- remove coconut feature and unify builds ([#2890])
+- native-client: is now capable of listening for requests on sockets different than `127.0.0.1` ([#2939]). This can be specified via `--host` flag during `init` or `run`. Alternatively a custom `host` can be set in `config.toml` file under `socket` section.
 
-[#2839]: https://github.com/nymtech/nym/pull/2839
-[#2870]: https://github.com/nymtech/nym/pull/2870
-[#2874]: https://github.com/nymtech/nym/pull/2874
+[#2890]: https://github.com/nymtech/nym/pull/2890
+[#2939]: https://github.com/nymtech/nym/pull/2939
 
+# [v1.1.8] (2023-01-31)
+
+### Added
+
+- Rust SDK - Support SURBS (anonymous send + storage) ([#2754])
+- dkg rerun from scratch and dkg-specific epochs ([#2810])
+- Rename `'initial_supply'` field to `'total_supply'` in the circulating supply endpoint ([#2931])
+- Circulating supply api endpoint (read the note inside before testing/deploying) ([#1902])
+
+### Changed
+
+- nym-api: an `--id` flag is now always explicitly required ([#2873])
+
+[#2754]: https://github.com/nymtech/nym/issues/2754
+[#2810]: https://github.com/nymtech/nym/issues/2810
+[#2931]: https://github.com/nymtech/nym/issues/2931
+[#1902]: https://github.com/nymtech/nym/issues/1902
+[#2873]: https://github.com/nymtech/nym/issues/2873
+
+
+# [v1.1.7] (2023-01-24)
+
+### Added
+
+- Gateways now shut down gracefully ([#2019]).
+- Rust SDK - Initial version for nym-client ([#2669]).
+- Introduce vesting contract query for addresses of all vesting accounts (required for the circulating supply calculation) ([#2778]).
+- Add threshold value to the contract storage ([#1893])
+
+### Changed
+
+- Refactor vesting account storage (and in particular, ACCOUNTS saving) ([#2795]).
+- Move from manual advancing DKG state to an automatic process ([#2670]).
+
+### Fixed
+
+- Gateways now shut down gracefully ([#2019]).
+
+[#2019]: https://github.com/nymtech/nym/issues/2019
+[#2669]: https://github.com/nymtech/nym/issues/2669
+[#2795]: https://github.com/nymtech/nym/issues/2795
+[#2778]: https://github.com/nymtech/nym/issues/2778
+[#2670]: https://github.com/nymtech/nym/issues/2670
+[#1893]: https://github.com/nymtech/nym/issues/1893
 
 ## [v1.1.6] (2023-01-17)
 
@@ -41,6 +83,12 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 [#2814]: https://github.com/nymtech/nym/pull/2814
 [#2772]: https://github.com/nymtech/nym/pull/2772
 [#2774]: https://github.com/nymtech/nym/pull/2774
+
+## [v1.1.5] (2023-01-10)
+
+### Added
+
+### Changed
 
 ## [v1.1.5] (2023-01-10)
 

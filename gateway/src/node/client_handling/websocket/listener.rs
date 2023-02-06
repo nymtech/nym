@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::client_handling::active_clients::ActiveClientsStore;
+use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 use crate::node::client_handling::websocket::connection_handler::FreshHandler;
 use crate::node::storage::Storage;
 use crypto::asymmetric::identity;
@@ -13,15 +14,10 @@ use std::process;
 use std::sync::Arc;
 use tokio::task::JoinHandle;
 
-#[cfg(feature = "coconut")]
-use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
-
 pub(crate) struct Listener {
     address: SocketAddr,
     local_identity: Arc<identity::KeyPair>,
     only_coconut_credentials: bool,
-
-    #[cfg(feature = "coconut")]
     pub(crate) coconut_verifier: Arc<CoconutVerifier>,
 }
 
@@ -30,13 +26,12 @@ impl Listener {
         address: SocketAddr,
         local_identity: Arc<identity::KeyPair>,
         only_coconut_credentials: bool,
-        #[cfg(feature = "coconut")] coconut_verifier: Arc<CoconutVerifier>,
+        coconut_verifier: Arc<CoconutVerifier>,
     ) -> Self {
         Listener {
             address,
             local_identity,
             only_coconut_credentials,
-            #[cfg(feature = "coconut")]
             coconut_verifier,
         }
     }
@@ -81,7 +76,6 @@ impl Listener {
                                 Arc::clone(&self.local_identity),
                                 storage.clone(),
                                 active_clients_store.clone(),
-                                #[cfg(feature = "coconut")]
                                 Arc::clone(&self.coconut_verifier),
                             );
                             let shutdown = shutdown.clone();

@@ -5,6 +5,7 @@ use self::comm::APICommunicationChannel;
 use crate::coconut::client::Client as LocalClient;
 use crate::coconut::deposit::extract_encryption_key;
 use crate::coconut::error::{CoconutError, Result};
+use crate::coconut::helpers::accepted_vote_err;
 use crate::support::storage::NymApiStorage;
 use coconut_bandwidth_contract_common::spend_credential::{
     funds_from_cosmos_msgs, SpendCredentialStatus,
@@ -40,6 +41,7 @@ pub(crate) mod comm;
 mod deposit;
 pub(crate) mod dkg;
 pub(crate) mod error;
+pub(crate) mod helpers;
 pub(crate) mod keypair;
 #[cfg(test)]
 pub(crate) mod tests;
@@ -301,7 +303,7 @@ pub async fn verify_bandwidth_credential(
         );
 
     // Vote yes or no on the proposal based on the verification result
-    state
+    let ret = state
         .client
         .vote_proposal(
             proposal_id,
@@ -312,7 +314,8 @@ pub async fn verify_bandwidth_credential(
                 Some(verify_credential_body.gateway_cosmos_addr().to_owned()),
             )),
         )
-        .await?;
+        .await;
+    accepted_vote_err(ret)?;
 
     Ok(Json(VerifyCredentialResponse::new(vote_yes)))
 }

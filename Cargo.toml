@@ -38,6 +38,7 @@ members = [
     "common/cosmwasm-smart-contracts/mixnet-contract",
     "common/cosmwasm-smart-contracts/multisig-contract",
     "common/cosmwasm-smart-contracts/vesting-contract",
+    "common/mobile-storage",
     "common/credential-storage",
     "common/credentials",
     "common/crypto",
@@ -95,7 +96,7 @@ default-members = [
     "explorer-api",
 ]
 
-exclude = ["explorer", "contracts", "clients/webassembly", "nym-wallet", "nym-connect"]
+exclude = ["explorer", "contracts", "clients/webassembly", "nym-wallet", "nym-connect", "nym-connect-android"]
 
 [workspace.package]
 authors = ["Nym Technologies SA"]

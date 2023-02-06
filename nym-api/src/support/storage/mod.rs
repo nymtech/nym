@@ -737,7 +737,6 @@ impl NymApiStorage {
             .map_err(|err| err.into())
     }
 
-    #[cfg(feature = "coconut")]
     pub(crate) async fn get_blinded_signature_response(
         &self,
         tx_hash: &str,
@@ -748,7 +747,6 @@ impl NymApiStorage {
             .map_err(|err| err.into())
     }
 
-    #[cfg(feature = "coconut")]
     pub(crate) async fn insert_blinded_signature_response(
         &self,
         tx_hash: &str,

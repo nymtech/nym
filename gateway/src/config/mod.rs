@@ -128,7 +128,6 @@ impl Config {
         self
     }
 
-    #[cfg(feature = "coconut")]
     pub fn with_only_coconut_credentials(mut self, only_coconut_credentials: bool) -> Self {
         self.gateway.only_coconut_credentials = only_coconut_credentials;
         self
@@ -149,7 +148,6 @@ impl Config {
         self
     }
 
-    #[cfg(feature = "coconut")]
     pub fn with_custom_validator_nyxd(mut self, validator_nyxd_urls: Vec<Url>) -> Self {
         self.gateway.nyxd_urls = validator_nyxd_urls;
         self
@@ -237,12 +235,10 @@ impl Config {
         self.gateway.nym_api_urls.clone()
     }
 
-    #[cfg(feature = "coconut")]
     pub fn get_nyxd_urls(&self) -> Vec<Url> {
         self.gateway.nyxd_urls.clone()
     }
 
-    #[cfg(feature = "coconut")]
     pub fn get_cosmos_mnemonic(&self) -> bip39::Mnemonic {
         self.gateway.cosmos_mnemonic.clone()
     }
@@ -378,23 +374,23 @@ pub struct Gateway {
 
 impl Gateway {
     fn default_private_sphinx_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("private_sphinx.pem")
+        Config::default_data_directory(id).join("private_sphinx.pem")
     }
 
     fn default_public_sphinx_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("public_sphinx.pem")
+        Config::default_data_directory(id).join("public_sphinx.pem")
     }
 
     fn default_private_identity_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("private_identity.pem")
+        Config::default_data_directory(id).join("private_identity.pem")
     }
 
     fn default_public_identity_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("public_identity.pem")
+        Config::default_data_directory(id).join("public_identity.pem")
     }
 
     fn default_database_path(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("db.sqlite")
+        Config::default_data_directory(id).join("db.sqlite")
     }
 }
 

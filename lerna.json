@@ -3,6 +3,7 @@
     "ts-packages/*",
     "nym-wallet",
     "nym-connect",
+    "nym-connect-android",
     "sdk/typescript/**"
   ],
   "version": "0.0.0"

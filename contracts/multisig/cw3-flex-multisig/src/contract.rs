@@ -17,8 +17,8 @@ use cw4::{Cw4Contract, MemberChangedHookMsg, MemberDiff};
 use cw_storage_plus::Bound;
 use cw_utils::{maybe_addr, Expiration, ThresholdResponse};
 
-use crate::error::ContractError;
 use crate::state::{Config, CONFIG};
+use multisig_contract_common::error::ContractError;
 use multisig_contract_common::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
 
 // version info for migration info

@@ -10,6 +10,7 @@ env:
 
 jobs:
   publish-nym:
+    if: ${{ startsWith(github.ref, 'refs/tags/nym-explorer-api-') && (github.event_name == 'release' || github.event_name == 'workflow_dispatch') }}
     strategy:
       fail-fast: false
       matrix:
@@ -24,7 +25,6 @@ jobs:
         continue-on-error: true
 
       - name: Check the release tag starts with `nym-explorer-api-`
-        if: startsWith(github.ref, 'refs/tags/nym-explorer-api-') == false && github.event_name != 'workflow_dispatch'
         uses: actions/github-script@v3
         with:
           script: |

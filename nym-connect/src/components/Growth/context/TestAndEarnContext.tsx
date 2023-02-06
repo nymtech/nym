@@ -151,7 +151,7 @@ export const TestAndEarnContextProvider: FCWithChildren = ({ children }) => {
   }, []);
 
   React.useEffect(() => {
-    if (registration && clientContext.connectionStatus === ConnectionStatusKind.connected) {
+    if (registration && clientContext.connectionStatus === 'connected') {
       setTimeout(() => {
         loadDraws().catch(console.error);
       }, 1000 * 3);

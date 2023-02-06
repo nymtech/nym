@@ -2,6 +2,12 @@
 
 ## UNRELEASED
 
+## [nym-wallet-v1.1.8](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.8) (2023-01-24)
+
+- Fix delegations sorting ([#2885])
+
+[#2885]: https://github.com/nymtech/nym/issues/2885
+
 ## [nym-wallet-v1.1.7](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.7) (2023-01-17)
 
 - link to the ng mixnet explorer for account info ([#2823])
@@ -15,6 +21,10 @@
 - Add epoch info to unbond modal **1.1.5 Release** by @fmtabbara in https://github.com/nymtech/nym/pull/2718
 - Feat/2130 tables update rebase by @gala1234 https://github.com/nymtech/nym/pull/2742
 - pass wallet address as url param by @doums in https://github.com/nymtech/nym/pull/2780
+
+## [nym-wallet-v1.1.5](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.5) (2022-12-22)
+
+This release contains the APY calculator feature.
 
 ## [nym-wallet-v1.1.5](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.5) (2022-12-22)
 

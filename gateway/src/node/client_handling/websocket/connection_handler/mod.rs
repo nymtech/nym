@@ -15,7 +15,6 @@ pub(crate) use self::authenticated::AuthenticatedHandler;
 pub(crate) use self::fresh::FreshHandler;
 
 mod authenticated;
-#[cfg(feature = "coconut")]
 pub(crate) mod coconut;
 mod fresh;
 

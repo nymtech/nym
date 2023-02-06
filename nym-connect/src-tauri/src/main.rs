@@ -16,6 +16,7 @@ use crate::window::window_toggle;
 
 mod config;
 mod error;
+mod events;
 mod logging;
 mod menu;
 mod models;
@@ -40,13 +41,16 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             crate::config::get_config_file_location,
             crate::config::get_config_id,
-            crate::operations::connection::status::get_connection_status,
             crate::operations::connection::connect::get_gateway,
             crate::operations::connection::connect::get_service_provider,
             crate::operations::connection::connect::set_gateway,
             crate::operations::connection::connect::set_service_provider,
             crate::operations::connection::connect::start_connecting,
             crate::operations::connection::disconnect::start_disconnecting,
+            crate::operations::connection::status::get_connection_health_check_status,
+            crate::operations::connection::status::get_connection_status,
+            crate::operations::connection::status::get_gateway_connection_status,
+            crate::operations::connection::status::start_connection_health_check_task,
             crate::operations::directory::get_services,
             crate::operations::export::export_keys,
             crate::operations::window::hide_window,

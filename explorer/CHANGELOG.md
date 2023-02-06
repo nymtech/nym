@@ -1,5 +1,23 @@
 ## UNRELEASED
 
+## [nym-explorer-v1.0.4](https://github.com/nymtech/nym/tree/nym-explorer-v1.0.4) (2023-01-31)
+
+- Add routing score on gateway list ([#2913])
+- Add gateway's last Routing Score to the gateways list page ([#2186])
+- Upgrade Sandbox and make below changes:  ([#2332])
+
+[#2913]: https://github.com/nymtech/nym/pull/2913
+[#2186]: https://github.com/nymtech/nym/issues/2186
+[#2332]: https://github.com/nymtech/nym/issues/2332
+
+## [nym-explorer-v1.0.3](https://github.com/nymtech/nym/tree/nym-explorer-v1.0.3) (2023-01-24)
+
+- Stake Saturation tooltip on node list and node pages updated ([#2877])
+- Sandbox Upgrade : Name change from "Network Explorer" to "Sandbox Explorer", button to mainnet explorer and link to faucet ([#2332)])
+
+[#2877]: https://github.com/nymtech/nym/issues/2877
+[#2332]: https://github.com/nymtech/nym/issues/2332
+
 ## [nym-explorer-v1.0.2](https://github.com/nymtech/nym/tree/nym-explorer-v1.0.2) (2023-01-17)
 
 - changing the explorers guru link ([#2820]) 

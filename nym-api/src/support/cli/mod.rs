@@ -44,7 +44,7 @@ pub(crate) struct CliArgs {
 
     /// Id of the nym-api we want to run
     #[clap(long)]
-    pub(crate) id: Option<String>,
+    pub(crate) id: String,
 
     /// Specifies whether network monitoring is enabled on this API
     #[clap(short = 'm', long)]
@@ -93,23 +93,22 @@ pub(crate) struct CliArgs {
     pub(crate) enabled_credentials_mode: Option<bool>,
 
     /// Announced address where coconut clients will connect.
-    #[cfg(feature = "coconut")]
     #[clap(long)]
     pub(crate) announce_address: Option<url::Url>,
 
     /// Flag to indicate whether coconut signer authority is enabled on this API
-    #[cfg(feature = "coconut")]
     #[clap(long, requires = "mnemonic", requires = "announce_address")]
     pub(crate) enable_coconut: Option<bool>,
 }
 
 pub(crate) fn build_config(args: CliArgs) -> Result<Config> {
+    let id = args.id.clone();
+
     // try to load config from the file, if it doesn't exist, use default values
-    let id = args.id.as_deref();
-    let (config_from_file, _already_initialized) = match Config::load_from_file(id) {
+    let (config_from_file, already_initialized) = match Config::load_from_file(&id) {
         Ok(cfg) => (cfg, true),
         Err(_) => {
-            let config_path = Config::default_config_file_path(id)
+            let config_path = Config::default_config_file_path(&id)
                 .into_os_string()
                 .into_string()
                 .unwrap();
@@ -123,24 +122,20 @@ pub(crate) fn build_config(args: CliArgs) -> Result<Config> {
 
     let config = override_config(config_from_file, args);
 
-    #[cfg(feature = "coconut")]
-    if !_already_initialized {
+    if !already_initialized {
+        fs::create_dir_all(Config::default_config_directory(&id))
+            .expect("Could not create config directory");
+        fs::create_dir_all(Config::default_data_directory(&id))
+            .expect("Could not create data directory");
         crate::coconut::dkg::controller::init_keypair(&config)?;
     }
 
     Ok(config)
 }
 
-pub(crate) fn override_config(mut config: Config, args: CliArgs) -> Config {
-    if let Some(id) = args.id {
-        fs::create_dir_all(Config::default_config_directory(Some(&id)))
-            .expect("Could not create config directory");
-        fs::create_dir_all(Config::default_data_directory(Some(&id)))
-            .expect("Could not create data directory");
-        config = config.with_id(&id);
-    }
-
-    config = config
+pub(crate) fn override_config(config: Config, args: CliArgs) -> Config {
+    config
+        .with_id(&args.id)
         .with_optional(Config::with_custom_nyxd_validator, args.nyxd_validator)
         .with_optional_env(
             Config::with_custom_mixnet_contract,
@@ -170,14 +165,7 @@ pub(crate) fn override_config(mut config: Config, args: CliArgs) -> Config {
         .with_optional(
             Config::with_disabled_credentials_mode,
             args.enabled_credentials_mode.map(|b| !b),
-        );
-
-    #[cfg(feature = "coconut")]
-    {
-        config = config
-            .with_optional(Config::with_announce_address, args.announce_address)
-            .with_optional(Config::with_coconut_signer_enabled, args.enable_coconut);
-    }
-
-    config
+        )
+        .with_optional(Config::with_announce_address, args.announce_address)
+        .with_optional(Config::with_coconut_signer_enabled, args.enable_coconut)
 }

@@ -39,9 +39,6 @@ pub(crate) struct GatewayPackets {
     /// Public key of the target gateway.
     pub(crate) pub_key: identity::PublicKey,
 
-    /// The address of the gateway owner.
-    pub(crate) gateway_owner: String,
-
     /// All the packets that are going to get sent to the gateway.
     pub(crate) packets: Vec<MixPacket>,
 }
@@ -50,26 +47,19 @@ impl GatewayPackets {
     pub(crate) fn new(
         clients_address: String,
         pub_key: identity::PublicKey,
-        gateway_owner: String,
         packets: Vec<MixPacket>,
     ) -> Self {
         GatewayPackets {
             clients_address,
             pub_key,
-            gateway_owner,
             packets,
         }
     }
 
-    pub(crate) fn empty(
-        clients_address: String,
-        pub_key: identity::PublicKey,
-        gateway_owner: String,
-    ) -> Self {
+    pub(crate) fn empty(clients_address: String, pub_key: identity::PublicKey) -> Self {
         GatewayPackets {
             clients_address,
             pub_key,
-            gateway_owner,
             packets: Vec::new(),
         }
     }
@@ -182,7 +172,6 @@ impl PacketSender {
     fn new_gateway_client_handle(
         address: String,
         identity: identity::PublicKey,
-        owner: String,
         fresh_gateway_client_data: &FreshGatewayClientData,
     ) -> (
         GatewayClientHandle,
@@ -200,7 +189,6 @@ impl PacketSender {
             address,
             Arc::clone(&fresh_gateway_client_data.local_identity),
             identity,
-            owner,
             None,
             message_sender,
             ack_sender,
@@ -280,7 +268,6 @@ impl PacketSender {
     async fn create_new_gateway_client_handle_and_authenticate(
         address: String,
         identity: identity::PublicKey,
-        owner: String,
         fresh_gateway_client_data: &FreshGatewayClientData,
         gateway_connection_timeout: Duration,
     ) -> Option<(
@@ -288,7 +275,7 @@ impl PacketSender {
         (MixnetMessageReceiver, AcknowledgementReceiver),
     )> {
         let (new_client, (message_receiver, ack_receiver)) =
-            Self::new_gateway_client_handle(address, identity, owner, fresh_gateway_client_data);
+            Self::new_gateway_client_handle(address, identity, fresh_gateway_client_data);
 
         // Put this in timeout in case the gateway has incorrectly set their ulimit and our connection
         // gets stuck in their TCP queue and just hangs on our end but does not terminate
@@ -365,7 +352,6 @@ impl PacketSender {
                 Self::create_new_gateway_client_handle_and_authenticate(
                     packets.clients_address,
                     packets.pub_key,
-                    packets.gateway_owner,
                     &fresh_gateway_client_data,
                     gateway_connection_timeout,
                 )

@@ -9,8 +9,8 @@
       "webworker"
     ],
     "outDir": "./dist/",
-    "module": "ES2020",
-    "target": "es2021",
+    "module": "esnext",
+    "target": "esnext",
     "allowJs": false,
     "strict": true,
     "moduleResolution": "node",

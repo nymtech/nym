@@ -84,6 +84,7 @@ impl PacketSender {
         tested_node: TestedNode,
     ) -> Result<Measurement, RttError> {
         let mut shutdown_listener = self.shutdown_listener.clone();
+        shutdown_listener.mark_as_success();
 
         let mut conn = match tokio::time::timeout(
             self.connection_timeout,

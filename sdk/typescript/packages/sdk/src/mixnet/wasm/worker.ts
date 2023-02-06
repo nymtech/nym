@@ -234,7 +234,7 @@ init(wasmBytes())
           payloadBytes = args.payload.message;
         } else {
           console.error(
-            '[Nym WASM client] Payload is a string. It should be a UintArray, or the mime-type should be set with `setTextMimeTypes` for auto-conversion',
+            "[Nym WASM client] Payload is a string. It should be a UintArray, or the mime-type should be set with `setTextMimeTypes` or in the options for `init({ autoConvertStringMimeTypes: ['text/plain', 'application/json'] })` for auto-conversion",
           );
           return;
         }

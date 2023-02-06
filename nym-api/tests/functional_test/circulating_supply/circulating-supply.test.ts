@@ -3,7 +3,6 @@ import ContractCache from "../../src/endpoints/CirculatingSupply";
 let contract: ContractCache;
 let config: ConfigHandler;
 
-
 describe("Get circulating supply", (): void => {
   beforeAll(async (): Promise<void> => {
     contract = new ContractCache();

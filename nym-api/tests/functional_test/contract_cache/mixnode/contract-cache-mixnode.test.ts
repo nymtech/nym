@@ -4,7 +4,6 @@ import ConfigHandler from "../../../src/config/configHandler";
 let contract: ContractCache;
 let config: ConfigHandler;
 
-
 describe("Get mixnode data", (): void => {
   beforeAll(async (): Promise<void> => {
     contract = new ContractCache();

@@ -12,9 +12,7 @@ async fn main() {
     println!("Our client nym address is: {our_address}");
 
     // Send a message throught the mixnet to ourselves
-    client
-        .send_str(&our_address.to_string(), "hello there")
-        .await;
+    client.send_str(*our_address, "hello there").await;
 
     println!("Waiting for message (ctrl-c to exit)");
     client

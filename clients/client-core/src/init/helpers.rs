@@ -63,7 +63,6 @@ pub(super) async fn register_with_gateway(
     let mut gateway_client: GatewayClient<SigningNyxdClient> = GatewayClient::new_init(
         gateway.clients_address(),
         gateway.identity_key,
-        gateway.owner.clone(),
         our_identity.clone(),
         timeout,
     );

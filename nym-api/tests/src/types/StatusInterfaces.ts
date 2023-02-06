@@ -7,7 +7,6 @@ export interface CurrentEpoch {
   active_set_work_factor: number;
 }
 
-
 export interface Epoch {
   id: number;
   epochs_in_interval: number;
@@ -139,7 +138,6 @@ export interface CoreCount {
 export interface ActiveStatus {
   status: string;
 }
-
 
 export interface PledgeAmount {
   denom: string;

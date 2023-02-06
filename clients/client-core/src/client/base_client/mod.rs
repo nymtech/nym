@@ -57,6 +57,15 @@ pub struct ClientInput {
     pub input_sender: InputMessageSender,
 }
 
+impl ClientInput {
+    pub async fn send(
+        &mut self,
+        message: InputMessage,
+    ) -> Result<(), mpsc::error::SendError<InputMessage>> {
+        self.input_sender.send(message).await
+    }
+}
+
 #[derive(Clone)]
 pub struct ClientOutput {
     pub received_buffer_request_sender: ReceivedBufferRequestSender,

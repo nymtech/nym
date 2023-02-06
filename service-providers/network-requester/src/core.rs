@@ -110,6 +110,7 @@ impl ServiceProvider {
                         let response_message = return_address.send_back_to2(msg.into_bytes(), conn_id);
 
                         // We should be able to call mixnet_client.send(response_message).await;
+                        // WIP(JON): this should have NO backpressure
                         mixnet_client_sender.send_msg(response_message).await;
 
                         //let message = Message::Binary(response_message.serialize());

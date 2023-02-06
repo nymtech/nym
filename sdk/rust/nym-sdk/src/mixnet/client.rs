@@ -268,7 +268,6 @@ pub struct MixnetClient {
 
     /// The current state of the client that is exposed to the user. This includes things like
     /// current message send queue length.
-    #[allow(dead_code)]
     client_state: ClientState,
 
     /// A channel for messages arriving from the mixnet after they have been reconstructed.
@@ -285,12 +284,8 @@ pub struct MixnetClientSender {
 impl MixnetClientSender {
     pub async fn send_msg(&mut self, msg: InputMessage) {
         // WIP(JON): check (or return?) Result
-        self.client_input.input_sender.send(msg).await.unwrap()
+        self.client_input.send(msg).await.unwrap()
     }
-}
-
-pub struct MixnetClientReceiver {
-    reconstructed_receiver: ReconstructedMessagesReceiver,
 }
 
 impl MixnetClient {
@@ -436,6 +431,18 @@ impl MixnetClient {
         &self.nym_address
     }
 
+    /// Get a shallow clone of [`MixnetClientSender`]
+    pub fn get_sender(&self) -> MixnetClientSender {
+        MixnetClientSender {
+            client_input: self.client_input.clone(),
+        }
+    }
+
+    /// Get a shallow clone of [`LaneQueueLengths`]
+    pub fn shared_lane_queue_lengths(&self) -> client_connections::LaneQueueLengths {
+        self.client_state.shared_lane_queue_lengths.clone()
+    }
+
     /// Sends stringy data to the supplied Nym address
     pub async fn send_str(&self, address: Recipient, message: &str) {
         let message_bytes = message.to_string().into_bytes();
@@ -445,20 +452,8 @@ impl MixnetClient {
     /// Sends stringy data to the supplied Nym address, and skip sending reply-SURBs
     pub async fn send_str_direct(&self, address: Recipient, message: &str) {
         let message_bytes = message.to_string().into_bytes();
-        self.send_bytes(address, message_bytes).await;
+        self.send_bytes_direct(address, message_bytes).await;
     }
-
-    pub fn get_sender(&self) -> MixnetClientSender {
-        MixnetClientSender {
-            client_input: self.client_input.clone(),
-        }
-    }
-
-    //pub fn get_receiver(&self) -> MixnetClientReceiver {
-    //    MixnetClientReceiver {
-    //        reconstructed_receiver: self.reconstructed_receiver.clone(),
-    //    }
-    //}
 
     /// Sends bytes to the supplied Nym address
     ///
@@ -478,13 +473,12 @@ impl MixnetClient {
     pub async fn send_bytes(&self, address: Recipient, message: Vec<u8>) {
         let lane = TransmissionLane::General;
         let input_msg = InputMessage::new_anonymous(address, message, 20, lane);
-        if self
-            .client_input
-            .input_sender
-            .send(input_msg)
-            .await
-            .is_err()
-        {
+        self.send_input_message(input_msg).await
+    }
+
+    /// Sends a [`InputMessage`] to the mixnet.
+    async fn send_input_message(&self, message: InputMessage) {
+        if self.client_input.send(message).await.is_err() {
             log::error!("Failed to send message");
         }
     }

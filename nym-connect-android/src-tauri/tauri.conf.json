@@ -6,8 +6,8 @@
   "build": {
     "distDir": "../dist",
     "devPath": "http://localhost:9000",
-    "beforeDevCommand": "yarn webpack:dev:onlyThis",
-    "beforeBuildCommand": "yarn webpack:prod"
+    "beforeDevCommand": "",
+    "beforeBuildCommand": ""
   },
   "tauri": {
     "bundle": {

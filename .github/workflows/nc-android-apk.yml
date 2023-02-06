@@ -1,0 +1,127 @@
+name: NC Android APK Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "release/nc-android-v[0-9].[0-9].[0-9]*"
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+    env:
+      ANDROID_HOME: ${{ github.workspace }}/android-sdk
+      NDK_VERSION: 25.1.8937393
+      NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/${{ env.NDK_VERSION }}
+      SDK_PLATFORM_VERSION: android-33
+      SDK_BUILDTOOLS_VERSION: 33.0.1
+
+    steps:
+      - name: Install Dependencies (Linux)
+        # https://next--tauri.netlify.app/next/guides/getting-started/prerequisites/linux/#1-system-dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install \
+          libwebkit2gtk-4.0-dev \
+          build-essential \
+          curl \
+          wget \
+          libssl-dev \
+          libgtk-3-dev \
+          squashfs-tools \
+          libayatana-appindicator3-dev \
+          librsvg2-dev
+
+      - name: Install Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Install Android SDK manager
+        # https://developer.android.com/studio/command-line/sdkmanager
+        run: |
+          curl -sS https://dl.google.com/android/repository/commandlinetools-linux-9477386_latest.zip -o cmdline-tools.zip
+          unzip cmdline-tools.zip
+          mkdir -p $ANDROID_HOME/cmdline-tools/latest
+          mv cmdline-tools/* $ANDROID_HOME/cmdline-tools/latest
+          rm -rf cmdline-tools
+
+      - name: Install Android S/NDK
+        run: |
+          echo y | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
+          echo y | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager \
+            "platforms;$SDK_PLATFORM_VERSION" \
+            "platform-tools" \
+            "ndk;$NDK_VERSION" \
+            "build-tools;$SDK_BUILDTOOLS_VERSION"
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install tauri cli
+        run: cargo install tauri-cli --version "^2.0.0-alpha.2"
+
+      - name: Install rust android targets
+        run: |
+          rustup target add aarch64-linux-android \
+            armv7-linux-androideabi \
+            i686-linux-android \
+            x86_64-linux-android
+
+      - name: Setup Nodejs
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install yarn
+        run: |
+          npm i -g yarn
+          yarn --version
+
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Build frontend code
+        run: |
+          yarn install --frozen-lockfile
+          yarn build
+          yarn workspace @nym/nym-connect-android webpack:prod
+
+      - name: Build APK
+        working-directory: nym-connect-android
+        env:
+          WRY_ANDROID_PACKAGE: net.nymtech.nym_connect_android
+          WRY_ANDROID_LIBRARY: nym_connect_android
+        # TODO build with release profile (--release), it will requires
+        # to sign the APK. For now build with debug profile to avoid that
+        run: cargo tauri android build --debug --apk
+
+      # TODO add the version number to APK name
+      - name: Rename APK artifact
+        run: |
+          mv nym-connect-android/src-tauri/gen/android/nym_connect_android/app/build/outputs/apk/universal/debug/app-universal-debug.apk \
+            nym-connect-debug.apk
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: nc-apk-debug
+          path: nym-connect-debug.apk
+
+  publish:
+    name: Publish APK
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Download binary artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: nc-apk-debug
+          path: apk
+      # TODO add a step to upload the APK somewhere
+      # - name: Publish
+      #   uses: ???

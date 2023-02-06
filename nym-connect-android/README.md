@@ -21,10 +21,11 @@ https://next--tauri.netlify.app/next/guides/getting-started/prerequisites/linux#
 
 ## Installation
 
-Inside the `nym-connect-android` directory, run the following command:
+Inside the `nym-connect-android` directory, run the following commands:
 
 ```
 yarn install
+yarn prewebpack:dev
 ```
 
 ## Development
@@ -34,7 +35,7 @@ or a real [device](https://developer.android.com/studio/run/device) connected.
 Inside the `nym-connect-android/src-tauri` directory, run the following command:
 
 ```
-WRY_ANDROID_PACKAGE=net.nymtech.nym_connect_android WRY_ANDROID_LIBRARY=nym_connect_android cargo tauri android dev
+yarn dev
 ```
 
 #### Debugging
@@ -43,10 +44,11 @@ https://next--tauri.netlify.app/next/guides/debugging/application#mobile
 
 ## Production
 
-To build the application bundles (APK and AAB files), run the build command.
+To build the APK, run the build commands.
 
 ```
-WRY_ANDROID_PACKAGE=net.nymtech.nym_connect_android WRY_ANDROID_LIBRARY=nym_connect_android cargo tauri android build
+yarn webpack:prod
+WRY_ANDROID_PACKAGE=net.nymtech.nym_connect_android WRY_ANDROID_LIBRARY=nym_connect_android cargo tauri android build --debug --apk
 ```
 
 # Storybook

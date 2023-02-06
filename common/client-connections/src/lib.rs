@@ -30,7 +30,7 @@ pub enum ConnectionCommand {
     // regularly, so we know what connections we need to request lane queue lengths for from the
     // client.
     // In the socks5-client, this is not needed since have direct access to the lane queue lengths.
-    ActiveConnections(Vec<ConnectionId>),
+    //ActiveConnections(Vec<ConnectionId>),
 }
 
 // The `OutQueueControl` publishes the backlog per lane, primarily so that upstream can slow down

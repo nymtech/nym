@@ -59,9 +59,9 @@ pub struct ClientInput {
 
 impl ClientInput {
     pub async fn send(
-        &mut self,
+        &self,
         message: InputMessage,
-    ) -> Result<(), mpsc::error::SendError<InputMessage>> {
+    ) -> Result<(), tokio::sync::mpsc::error::SendError<InputMessage>> {
         self.input_sender.send(message).await
     }
 }

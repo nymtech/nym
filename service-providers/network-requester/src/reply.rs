@@ -26,22 +26,7 @@ impl ReturnAddress {
         None
     }
 
-    pub(super) fn send_back_to(self, message: Vec<u8>, connection_id: u64) -> ClientRequest {
-        match self {
-            ReturnAddress::Known(recipient) => ClientRequest::Send {
-                recipient: *recipient,
-                message,
-                connection_id: Some(connection_id),
-            },
-            ReturnAddress::Anonymous(sender_tag) => ClientRequest::Reply {
-                message,
-                sender_tag,
-                connection_id: Some(connection_id),
-            },
-        }
-    }
-
-    pub(super) fn send_back_to2(self, message: Vec<u8>, connection_id: u64) -> InputMessage {
+    pub(super) fn send_back_to(self, message: Vec<u8>, connection_id: u64) -> InputMessage {
         match self {
             ReturnAddress::Known(recipient) => InputMessage::Regular {
                 recipient: *recipient,

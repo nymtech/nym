@@ -4,8 +4,6 @@ use crate::allowed_hosts;
 use crate::allowed_hosts::OutboundRequestFilter;
 use crate::error::NetworkRequesterError;
 use crate::statistics::ServiceStatisticsCollector;
-use crate::websocket;
-use crate::websocket::TSWebsocketStream;
 use crate::{reply, socks5};
 use client_connections::{
     ConnectionCommand, ConnectionCommandReceiver, LaneQueueLengths, TransmissionLane,
@@ -80,10 +78,8 @@ impl ServiceProvider {
     /// via the `websocket_writer`.
     async fn mixnet_response_listener(
         mut mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
-        //mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
         mut mix_reader: MixProxyReader<(Socks5Message, reply::ReturnAddress)>,
         stats_collector: Option<ServiceStatisticsCollector>,
-        mut _client_connection_rx: ConnectionCommandReceiver,
     ) {
         loop {
             tokio::select! {
@@ -104,17 +100,10 @@ impl ServiceProvider {
                             }
                         }
 
-                        // make 'request' to native-websocket client
                         let conn_id = msg.conn_id();
-                        //let response_message = return_address.send_back_to(msg.into_bytes(), conn_id);
-                        let response_message = return_address.send_back_to2(msg.into_bytes(), conn_id);
+                        let response_message = return_address.send_back_to(msg.into_bytes(), conn_id);
 
-                        // We should be able to call mixnet_client.send(response_message).await;
-                        // WIP(JON): this should have NO backpressure
-                        mixnet_client_sender.send_msg(response_message).await;
-
-                        //let message = Message::Binary(response_message.serialize());
-                        //websocket_writer.send(message).await.unwrap();
+                        mixnet_client_sender.send_input_message(response_message).await;
                     } else {
                         log::error!("Exiting: channel closed!");
                         break;
@@ -406,15 +395,8 @@ impl ServiceProvider {
 
     /// Start all subsystems
     pub async fn run(&mut self) -> Result<(), NetworkRequesterError> {
-
+        // Connect to the mixnet
         let mut mixnet_client = nym_sdk::mixnet::MixnetClient::connect().await.unwrap();
-
-        //let websocket_stream = self.connect_websocket(&self.websocket_address).await?;
-
-        // split the websocket so that we could read and write from separate threads
-        // WIP(JON): so, instead of having this websocket that we read/write to, we can have a
-        // MixnetClient that we read/write into
-        //let (websocket_writer, mut websocket_reader) = websocket_stream.split();
 
         // channels responsible for managing messages that are to be sent to the mix network. The receiver is
         // going to be used by `mixnet_response_listener`
@@ -424,21 +406,9 @@ impl ServiceProvider {
         // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
         let shutdown = task::TaskManager::default();
 
-        // Channel for announcing client connection state by the controller.
-        // The `mixnet_response_listener` will use this to either report closed connection to the
-        // client or request lane queue lengths.
-        let (client_connection_tx, client_connection_rx) = mpsc::unbounded();
-
-        // Shared queue length data. Published by the `OutQueueController` in the client, and used
-        // primarily to throttle incoming connections
-        //let shared_lane_queue_lengths = LaneQueueLengths::new();
-
         // Controller for managing all active connections.
-        // We provide it with a ShutdownListener since it requires it, even though for the network
-        // requester shutdown signalling is not yet fully implemented.
         let (mut active_connections_controller, mut controller_sender) = Controller::new(
-            client_connection_tx,
-            BroadcastActiveConnections::On,
+            mixnet_client.connection_command_sender(),
             shutdown.subscribe(),
         );
 
@@ -462,17 +432,14 @@ impl ServiceProvider {
         };
 
         let stats_collector_clone = stats_collector.clone();
+        let mixnet_client_sender = mixnet_client.sender();
+
         // start the listener for mix messages
-        // WIP(JON): this should be replaced by MixnetClient?
-        // How do we write? Can we get a channel?
-        let mixnet_client_sender = mixnet_client.get_sender();
         tokio::spawn(async move {
             Self::mixnet_response_listener(
                 mixnet_client_sender,
-                //websocket_writer,
                 mix_input_receiver,
                 stats_collector_clone,
-                client_connection_rx,
             )
             .await;
         });
@@ -481,34 +448,12 @@ impl ServiceProvider {
         log::info!("Our nym address is: {nym_address}");
         log::info!("All systems go. Press CTRL-C to stop the server.");
 
-        // for each incoming message from the websocket... (which in 99.99% cases is going to be a mix message)
-        loop {
-            // WIP(JON): here we need the MixnetClient
-            // What is mixnet client receiving? Same type? Think so
-            // let Some(received) = mixnet_client.wait_for_messages().await else {
-            //  ..
-            // }
-            //let Some(received) = Self::read_websocket_message(
-            //        &mut websocket_reader,
-            //        shared_lane_queue_lengths.clone()
-            //    )
-            //    .await
-            //else {
-            //    log::error!("The websocket stream has finished!");
-            //    return Err(NetworkRequesterError::ConnectionClosed);
-            //};
-
-            let received = mixnet_client.wait_for_messages().await;
-
-            // WIP(JON)
-            let received = received.unwrap();
-
+        while let Some(received) = mixnet_client.wait_for_messages().await {
             for received in received {
                 self.handle_proxy_message(
                     received,
                     &mut controller_sender,
                     &mix_input_sender,
-                    //shared_lane_queue_lengths.clone(),
                     mixnet_client.shared_lane_queue_lengths(),
                     stats_collector.clone(),
                     shutdown.subscribe(),
@@ -516,24 +461,8 @@ impl ServiceProvider {
                 .await;
             }
         }
-    }
 
-    // Make the websocket connection so we can receive incoming Mixnet messages.
-    //async fn connect_websocket(
-    //    &self,
-    //    uri: &str,
-    //) -> Result<TSWebsocketStream, NetworkRequesterError> {
-    //    match websocket::Connection::new(uri).connect().await {
-    //        Ok(ws_stream) => {
-    //            log::info!("* connected to local websocket server at {}", uri);
-    //            Ok(ws_stream)
-    //        }
-    //        Err(err) => {
-    //            log::error!(
-    //                "Error: websocket connection attempt failed, is the Nym client running?"
-    //            );
-    //            Err(err.into())
-    //        }
-    //    }
-    //}
+        log::error!("Network requester exited unexpectedly");
+        Ok(())
+    }
 }

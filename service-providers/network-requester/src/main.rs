@@ -16,7 +16,6 @@ mod error;
 mod reply;
 mod socks5;
 mod statistics;
-mod websocket;
 
 const ENABLE_STATISTICS: &str = "enable-statistics";
 

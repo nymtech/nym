@@ -277,17 +277,6 @@ pub struct MixnetClient {
     task_manager: TaskManager,
 }
 
-pub struct MixnetClientSender {
-    client_input: ClientInput,
-}
-
-impl MixnetClientSender {
-    pub async fn send_msg(&mut self, msg: InputMessage) {
-        // WIP(JON): check (or return?) Result
-        self.client_input.send(msg).await.unwrap()
-    }
-}
-
 impl MixnetClient {
     /// Create a new client and connect to the mixnet using ephemeral in-memory keys that are
     /// discarded at application close.
@@ -432,13 +421,18 @@ impl MixnetClient {
     }
 
     /// Get a shallow clone of [`MixnetClientSender`]
-    pub fn get_sender(&self) -> MixnetClientSender {
+    pub fn sender(&self) -> MixnetClientSender {
         MixnetClientSender {
             client_input: self.client_input.clone(),
         }
     }
 
-    /// Get a shallow clone of [`LaneQueueLengths`]
+    /// Get a shallow clone of [`ConnectionCommandSender`].
+    pub fn connection_command_sender(&self) -> client_connections::ConnectionCommandSender {
+        self.client_input.connection_command_sender.clone()
+    }
+
+    /// Get a shallow clone of [`LaneQueueLengths`].
     pub fn shared_lane_queue_lengths(&self) -> client_connections::LaneQueueLengths {
         self.client_state.shared_lane_queue_lengths.clone()
     }
@@ -520,5 +514,17 @@ impl MixnetClient {
     pub async fn disconnect(&mut self) {
         self.task_manager.signal_shutdown().ok();
         self.task_manager.wait_for_shutdown().await;
+    }
+}
+
+pub struct MixnetClientSender {
+    client_input: ClientInput,
+}
+
+impl MixnetClientSender {
+    pub async fn send_input_message(&mut self, message: InputMessage) {
+        if self.client_input.send(message).await.is_err() {
+            log::error!("Failed to send message");
+        }
     }
 }

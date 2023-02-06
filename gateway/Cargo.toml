@@ -23,7 +23,7 @@ clap = { version = "4.0", features = ["cargo", "derive"] }
 colored = "2.0"
 dashmap = "4.0"
 dirs = "4.0"
-dotenv = "0.15.0"
+dotenvy = { workspace = true }
 futures = "0.3"
 humantime-serde = "1.0.1"
 lazy_static = "1.4.0"

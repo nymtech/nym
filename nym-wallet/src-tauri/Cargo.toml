@@ -21,10 +21,9 @@ tauri-macros = "=1.2.1"
 [dependencies]
 bip39 = "1.0"
 cfg-if = "1.0.0"
-chrono = "0.4"
 colored = "2.0"
 dirs = "4.0"
-dotenv = "0.15.0"
+dotenvy = "0.15.6"
 eyre = "0.6.5"
 fern = { version = "0.6.1", features = ["colored"] }
 futures = "0.3.15"
@@ -40,6 +39,7 @@ serde_repr = "0.1"
 strum = { version = "0.23", features = ["derive"] }
 tauri = { version = "=1.2.3", features = ["clipboard-all", "shell-open", "updater", "window-maximize"] }
 tendermint-rpc = "0.23.0"
+time = { version = "0.3.17", features = ["local-offset"] }
 thiserror = "1.0"
 tokio = { version = "1.10", features = ["full"] }
 toml = "0.5.8"

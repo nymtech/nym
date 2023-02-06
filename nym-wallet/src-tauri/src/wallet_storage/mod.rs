@@ -15,10 +15,10 @@ pub(crate) use crate::wallet_storage::password::{AccountId, LoginId, UserPasswor
 use crate::error::BackendError;
 use crate::platform_constants::{STORAGE_DIR_NAME, WALLET_INFO_FILENAME};
 use crate::utils::ZeroizeMnemonicWrapper;
-use chrono::Local;
 use std::ffi::OsString;
 use std::fs::{self, create_dir_all, OpenOptions};
 use std::path::{Path, PathBuf};
+use time::OffsetDateTime;
 use validator_client::nyxd::bip32::DerivationPath;
 
 #[cfg(test)]
@@ -284,7 +284,10 @@ fn append_timestamp_to_filename(
 }
 
 fn _archive_wallet_file(path: &Path) -> Result<(), BackendError> {
-    let timestamp: OsString = Local::now().timestamp_millis().to_string().into();
+    let timestamp: OsString = OffsetDateTime::now_utc()
+        .unix_timestamp()
+        .to_string()
+        .into();
     let mut additional_number = 0;
     let mut new_path = append_timestamp_to_filename(path, timestamp.clone(), None)?;
 

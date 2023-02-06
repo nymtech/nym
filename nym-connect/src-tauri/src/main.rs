@@ -52,6 +52,7 @@ fn main() {
             crate::operations::connection::status::get_gateway_connection_status,
             crate::operations::connection::status::start_connection_health_check_task,
             crate::operations::directory::get_services,
+            crate::operations::directory::get_gateways_detailed,
             crate::operations::export::export_keys,
             crate::operations::window::hide_window,
             crate::operations::growth::test_and_earn::growth_tne_get_client_id,

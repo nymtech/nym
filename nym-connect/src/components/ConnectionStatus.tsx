@@ -83,7 +83,6 @@ export const ConnectionStatus: FCWithChildren<{
   serviceProvider?: ServiceProvider;
 }> = ({ status, serviceProvider, gatewayPerformance }) => {
   const color = status === 'connected' || status === 'disconnecting' ? '#21D072' : 'white';
-  console.log(gatewayPerformance);
 
   return (
     <>

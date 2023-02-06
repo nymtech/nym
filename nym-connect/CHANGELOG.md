@@ -2,6 +2,11 @@
 
 ## UNRELEASED
 
+## [nym-connect-v1.1.9](https://github.com/nymtech/nym/tree/nym-connect-v1.1.9) (2023-02-07)
+
+- Only allow connections to gateways with performance >= 90%
+- Perform health check on inital connection. Provide user feedback on a failed/bad health check
+
 ## [nym-connect-v1.1.8](https://github.com/nymtech/nym/tree/nym-connect-v1.1.8) (2023-01-31)
 
 - Add supported apps in the menu + update guide ([#2868])

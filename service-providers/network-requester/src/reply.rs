@@ -2,7 +2,6 @@ use client_connections::TransmissionLane;
 use nym_sdk::mixnet::InputMessage;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
-use websocket_requests::requests::ClientRequest;
 
 /// A return address is a way to send a message back to the original sender. It can be either
 /// an explicitly known Recipient, or a surb AnonymousSenderTag.

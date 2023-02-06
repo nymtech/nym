@@ -10,7 +10,7 @@ use client_core::client::{
 };
 use log::*;
 use nymsphinx::addressing::clients::Recipient;
-use proxy_helpers::connection_controller::{BroadcastActiveConnections, Controller};
+use proxy_helpers::connection_controller::Controller;
 use std::net::SocketAddr;
 use tap::TapFallible;
 use task::TaskClient;

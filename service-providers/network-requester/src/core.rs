@@ -5,20 +5,15 @@ use crate::allowed_hosts::OutboundRequestFilter;
 use crate::error::NetworkRequesterError;
 use crate::statistics::ServiceStatisticsCollector;
 use crate::{reply, socks5};
-use client_connections::{
-    ConnectionCommand, ConnectionCommandReceiver, LaneQueueLengths, TransmissionLane,
-};
+use client_connections::LaneQueueLengths;
 use futures::channel::mpsc;
-use futures::stream::{SplitSink, SplitStream};
-use futures::{SinkExt, StreamExt};
-use nym_sdk::mixnet::MixnetClient;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nymsphinx::receiver::ReconstructedMessage;
-use proxy_helpers::connection_controller::{
-    BroadcastActiveConnections, Controller, ControllerCommand, ControllerSender,
+use proxy_helpers::{
+    connection_controller::{Controller, ControllerCommand, ControllerSender},
+    proxy_runner::{MixProxyReader, MixProxySender},
 };
-use proxy_helpers::proxy_runner::{MixProxyReader, MixProxySender};
 use socks5_requests::{
     ConnectRequest, ConnectionId, Message as Socks5Message, NetworkRequesterResponse, Request,
     Response,
@@ -27,14 +22,11 @@ use statistics_common::collector::StatisticsSender;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use task::TaskClient;
-use tokio_tungstenite::tungstenite::protocol::Message;
-use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 
 // Since it's an atomic, it's safe to be kept static and shared across threads
 static ACTIVE_PROXIES: AtomicUsize = AtomicUsize::new(0);
 
 pub struct ServiceProvider {
-    websocket_address: String,
     outbound_request_filter: OutboundRequestFilter,
     open_proxy: bool,
     enable_statistics: bool,
@@ -43,7 +35,6 @@ pub struct ServiceProvider {
 
 impl ServiceProvider {
     pub async fn new(
-        websocket_address: String,
         open_proxy: bool,
         enable_statistics: bool,
         stats_provider_addr: Option<Recipient>,
@@ -66,7 +57,6 @@ impl ServiceProvider {
 
         let outbound_request_filter = OutboundRequestFilter::new(allowed_hosts, unknown_hosts);
         ServiceProvider {
-            websocket_address,
             outbound_request_filter,
             open_proxy,
             enable_statistics,
@@ -109,94 +99,9 @@ impl ServiceProvider {
                         break;
                     }
                 },
-                //Some(command) = client_connection_rx.next() => {
-                //    match command {
-                //        ConnectionCommand::Close(id) => {
-                //            let msg = ClientRequest::ClosedConnection(id);
-                //            let ws_msg = Message::Binary(msg.serialize());
-                //            websocket_writer.send(ws_msg).await.unwrap();
-                //        }
-                //        ConnectionCommand::ActiveConnections(ids) => {
-                //            // We can optimize this by sending a single request, but this is
-                //            // usually in the low single digits, max a few tens, so we leave that
-                //            // for a rainy day.
-                //            // Also that means fiddling with the currently manual
-                //            // serialize/deserialize we do with ClientRequests ...
-                //            for id in ids {
-                //                log::trace!("Requesting lane queue length for: {}", id);
-                //                let msg = ClientRequest::GetLaneQueueLength(id);
-                //                let ws_msg = Message::Binary(msg.serialize());
-                //                websocket_writer.send(ws_msg).await.unwrap();
-                //            }
-                //        }
-                //    }
-                //},
             }
         }
     }
-
-    //fn handle_lane_queue_length_response(
-    //    lane_queue_lengths: &LaneQueueLengths,
-    //    lane: u64,
-    //    queue_length: usize,
-    //) {
-    //    log::trace!("Received LaneQueueLength lane: {lane}, queue_length: {queue_length}");
-    //    if let Ok(mut lane_queue_lengths) = lane_queue_lengths.lock() {
-    //        let lane = TransmissionLane::ConnectionId(lane);
-    //        lane_queue_lengths.map.insert(lane, queue_length);
-    //    } else {
-    //        log::warn!("Unable to lock lane queue lengths, skipping updating received lane length")
-    //    }
-    //}
-
-    //async fn read_websocket_message(
-    //    //websocket_reader: &mut SplitStream<TSWebsocketStream>,
-    //    mixnet_client: &mut MixnetClient,
-    //    lane_queue_lengths: LaneQueueLengths,
-    //) -> Option<ReconstructedMessage> {
-    //    //while let Some(msg) = websocket_reader.next().await {
-    //    while let Some(msgs) = mixnet_client.wait_for_messages().await {
-    //        for msg in msgs {
-    //            let data = match msg {
-    //                Ok(msg) => msg.into_data(),
-    //                Err(err) => {
-    //                    log::error!("Failed to read from the websocket: {err}");
-    //                    continue;
-    //                }
-    //            };
-    //        }
-
-    //        // try to recover the actual message from the mix network...
-    //        let deserialized_message = match ServerResponse::deserialize(&data) {
-    //            Ok(deserialized) => deserialized,
-    //            Err(err) => {
-    //                log::error!(
-    //                    "Failed to deserialize received websocket message! - {}",
-    //                    err
-    //                );
-    //                continue;
-    //            }
-    //        };
-
-    //        let received = match deserialized_message {
-    //            ServerResponse::Received(received) => received,
-    //            ServerResponse::LaneQueueLength { lane, queue_length } => {
-    //                Self::handle_lane_queue_length_response(
-    //                    &lane_queue_lengths,
-    //                    lane,
-    //                    queue_length,
-    //                );
-    //                continue;
-    //            }
-    //            ServerResponse::Error(err) => {
-    //                panic!("received error from native client! - {err}")
-    //            }
-    //            _ => unimplemented!("probably should never be reached?"),
-    //        };
-    //        return Some(received);
-    //    }
-    //    None
-    //}
 
     async fn start_proxy(
         conn_id: ConnectionId,

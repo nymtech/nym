@@ -55,7 +55,7 @@ export const useEvents = ({
     });
 
     listen('socks5-connection-fail-event', (e: TauriEvent) => {
-      onError({ title: 'Connection failed', message: e.payload.message });
+      onError({ title: 'Connection failed', message: `${e.payload.message} - Please disconnect and reconnect.` });
       onGatewayPerformanceChange('Poor');
     }).then((result) => {
       unlisten.push(result);

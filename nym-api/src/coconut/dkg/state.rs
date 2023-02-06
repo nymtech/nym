@@ -335,8 +335,11 @@ impl State {
         self.recovered_vks = recovered_vks;
     }
 
-    pub async fn set_coconut_keypair(&mut self, coconut_keypair: coconut_interface::KeyPair) {
-        self.coconut_keypair.set(Some(coconut_keypair)).await
+    pub async fn set_coconut_keypair(
+        &mut self,
+        coconut_keypair: Option<coconut_interface::KeyPair>,
+    ) {
+        self.coconut_keypair.set(coconut_keypair).await
     }
 
     pub fn set_node_index(&mut self, node_index: Option<NodeIndex>) {

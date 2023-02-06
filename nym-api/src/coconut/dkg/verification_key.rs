@@ -174,7 +174,7 @@ pub(crate) async fn verification_key_submission(
             reason: String::from("proposal id could not be parsed to u64"),
         })?;
     state.set_proposal_id(proposal_id);
-    state.set_coconut_keypair(coconut_keypair).await;
+    state.set_coconut_keypair(Some(coconut_keypair)).await;
     info!("DKG: Submitted own verification key");
 
     Ok(())

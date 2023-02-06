@@ -38,12 +38,14 @@ pub(crate) async fn dealing_exchange(
         .position(|node_index| *node_index == dealer_index);
 
     let prior_resharing_secrets = if let Some(sk) = state.coconut_secret_key().await {
-        // Double check that we are in resharing mode, otherwise
+        // Double check that we are in resharing mode
         if resharing {
             let (x, mut scalars) = sk.into_raw();
             if scalars.len() + 1 != TOTAL_DEALINGS {
                 return Err(CoconutError::CorruptedCoconutKeyPair);
             }
+            // We can now erase the keypair from memory
+            state.set_coconut_keypair(None).await;
             scalars.push(x);
             scalars
         } else {

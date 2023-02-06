@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::error::Error;
+use std::net::IpAddr;
 
 use crate::{
     client::{config::Config, SocketClient},
@@ -43,6 +44,10 @@ pub(crate) struct Run {
     #[clap(short, long)]
     port: Option<u16>,
 
+    /// Ip for the socket (if applicable) to listen for requests.
+    #[clap(long)]
+    host: Option<IpAddr>,
+
     /// Mostly debug-related option to increase default traffic rate so that you would not need to
     /// modify config post init
     #[clap(long, hide = true)]
@@ -64,6 +69,7 @@ impl From<Run> for OverrideConfig {
             nym_apis: run_config.nym_apis,
             disable_socket: run_config.disable_socket,
             port: run_config.port,
+            host: run_config.host,
             fastmode: run_config.fastmode,
             no_cover: run_config.no_cover,
             nyxd_urls: run_config.nyxd_urls,

@@ -19,9 +19,6 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 # tauri-build = { version = "2.0.0-alpha.0", features = [] }
 tauri-build = {  git = "https://github.com/tauri-apps/tauri", branch = "next", features = [] }
 
-# tauri-codegen = "2.0.0-alpha.0"
-# tauri-macros = "2.0.0-alpha.0"
-
 [dependencies]
 anyhow = "1.0"
 bip39 = "1.0"
@@ -42,7 +39,6 @@ serde_json = "1.0"
 serde_repr = "0.1"
 tap = "1.0.1"
 tauri = { git = "https://github.com/tauri-apps/tauri", branch = "next", features = ["clipboard-write-text", "native-tls-vendored", "notification-all", "shell-open", "system-tray", "window-close", "window-minimize", "window-start-dragging"] }
-# tauri = { version = "2.0.0-alpha.0", features = ["clipboard-write-text", "native-tls-vendored", "notification-all", "shell-open", "system-tray", "window-close", "window-minimize", "window-start-dragging"] }
 tendermint-rpc = "0.23.0"
 thiserror = "1.0"
 tokio = { version = "1.24.1", features = ["sync", "time"] }
@@ -64,3 +60,13 @@ tempfile = "3.3.0"
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+
+# [profile.dev]
+# strip = true
+# opt-level = "s"
+# lto = true
+
+[profile.release]
+strip = true
+opt-level = "s"
+lto = true

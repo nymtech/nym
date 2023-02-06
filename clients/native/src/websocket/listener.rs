@@ -3,6 +3,7 @@
 
 use super::handler::HandlerBuilder;
 use log::*;
+use std::net::IpAddr;
 use std::{net::SocketAddr, process, sync::Arc};
 use tokio::io::AsyncWriteExt;
 use tokio::{sync::Notify, task::JoinHandle};
@@ -24,10 +25,9 @@ pub(crate) struct Listener {
 }
 
 impl Listener {
-    pub(crate) fn new(port: u16) -> Self {
+    pub(crate) fn new(host: IpAddr, port: u16) -> Self {
         Listener {
-            // unless we find compelling reason not to, just listen on local only
-            address: SocketAddr::new("127.0.0.1".parse().unwrap(), port),
+            address: SocketAddr::new(host, port),
             state: State::AwaitingConnection,
         }
     }

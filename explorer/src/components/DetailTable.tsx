@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import { Link, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { Tooltip } from '@nymproject/react/tooltip/Tooltip';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
@@ -40,7 +40,14 @@ function formatCellValues(val: string | number, field: string) {
   if (field === 'bond') {
     return unymToNym(val, 6);
   }
-  return val;
+  if (field === 'owner') {
+    console.log(val);
+    return (
+      <Link underline="none" color="inherit" target="_blank" href={`https://mixnet.explorers.guru/account/${val}`}>
+        {val}
+      </Link>
+    );
+  }
 }
 
 export const DetailTable: FCWithChildren<{

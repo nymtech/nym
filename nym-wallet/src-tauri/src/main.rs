@@ -29,7 +29,7 @@ mod wallet_storage;
 
 #[allow(clippy::too_many_lines)]
 fn main() {
-    dotenv::dotenv().ok();
+    dotenvy::dotenv().ok();
 
     let context = tauri::generate_context!();
     tauri::Builder::default()

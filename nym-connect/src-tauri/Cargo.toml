@@ -21,7 +21,6 @@ tauri-macros = "^1.2.1"
 [dependencies]
 anyhow = "1.0"
 bip39 = "1.0"
-chrono = "0.4"
 dirs = "4.0"
 eyre = "0.6.5"
 fix-path-env = { git = "https://github.com/tauri-apps/fix-path-env-rs", branch = "release"}
@@ -40,9 +39,11 @@ tap = "1.0.1"
 tauri = { version = "^1.2.2", features = ["clipboard-write-text", "macos-private-api", "notification-all", "shell-open", "system-tray", "updater", "window-close", "window-minimize", "window-start-dragging"] }
 tendermint-rpc = "0.23.0"
 thiserror = "1.0"
+time = { version = "0.3.17", features = ["local-offset"] }
 tokio = { version = "1.24.1", features = ["sync", "time"] }
 url = "2.2"
 yaml-rust = "0.4"
+
 
 client-core = { path = "../../clients/client-core" }
 nym-api-requests = { path = "../../nym-api/nym-api-requests" }

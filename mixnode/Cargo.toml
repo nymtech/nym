@@ -22,7 +22,6 @@ clap = { version = "4.0", features = ["cargo", "derive"] }
 colored = "2.0"
 cupid = "0.6.1"
 dirs = "4.0"
-dotenv = "0.15.0"
 futures = "0.3.0"
 humantime-serde = "1.0"
 lazy_static = "1.4.0"

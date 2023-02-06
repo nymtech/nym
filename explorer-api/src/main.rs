@@ -4,7 +4,7 @@ extern crate rocket;
 extern crate rocket_okapi;
 
 use clap::Parser;
-use dotenv::dotenv;
+use dotenvy::dotenv;
 use log::info;
 use logging::setup_logging;
 use network_defaults::setup_env;

@@ -43,7 +43,6 @@ function formatCellValues(val: string | number, field: string) {
   }
 
   if (field === 'owner') {
-    console.log(val);
     return (
       <Link underline="none" color="inherit" target="_blank" href={`https://mixnet.explorers.guru/account/${val}`}>
         {val}

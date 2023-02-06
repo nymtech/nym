@@ -278,6 +278,7 @@ pub(crate) mod tests {
     use crate::coconut::tests::DummyClient;
     use crate::coconut::KeyPair;
     use coconut_dkg_common::dealer::DealerDetails;
+    use coconut_dkg_common::types::InitialReplacementData;
     use coconut_dkg_common::verification_key::ContractVKShare;
     use contracts_common::dealings::ContractSafeBytes;
     use dkg::bte::keys::KeyPair as DkgKeyPair;
@@ -297,6 +298,7 @@ pub(crate) mod tests {
         proposal_db: Arc<RwLock<HashMap<u64, ProposalResponse>>>,
         verification_share_db: Arc<RwLock<HashMap<String, ContractVKShare>>>,
         threshold_db: Arc<RwLock<Option<Threshold>>>,
+        initial_dealers_db: Arc<RwLock<Option<InitialReplacementData>>>,
     }
 
     impl MockContractDb {
@@ -307,6 +309,7 @@ pub(crate) mod tests {
                 proposal_db: Arc::new(Default::default()),
                 verification_share_db: Arc::new(Default::default()),
                 threshold_db: Arc::new(RwLock::new(Some(2))),
+                initial_dealers_db: Arc::new(RwLock::new(Default::default())),
             }
         }
     }
@@ -328,7 +331,8 @@ pub(crate) mod tests {
                     .with_dealings(&db.dealings_db)
                     .with_proposal_db(&db.proposal_db)
                     .with_verification_share(&db.verification_share_db)
-                    .with_threshold(&db.threshold_db),
+                    .with_threshold(&db.threshold_db)
+                    .with_initial_dealers_db(&db.initial_dealers_db),
             );
             let keypair = DkgKeyPair::new(&params, OsRng);
             let state = State::new(
@@ -345,6 +349,13 @@ pub(crate) mod tests {
                 .await
                 .unwrap();
         }
+        clients_and_states
+    }
+
+    async fn prepare_clients_and_states_with_dealing(
+        db: &MockContractDb,
+    ) -> Vec<(DkgClient, State)> {
+        let mut clients_and_states = prepare_clients_and_states(db).await;
         for (dkg_client, state) in clients_and_states.iter_mut() {
             dealing_exchange(dkg_client, state, OsRng, false)
                 .await
@@ -356,7 +367,7 @@ pub(crate) mod tests {
     async fn prepare_clients_and_states_with_submission(
         db: &MockContractDb,
     ) -> Vec<(DkgClient, State)> {
-        let mut clients_and_states = prepare_clients_and_states(db).await;
+        let mut clients_and_states = prepare_clients_and_states_with_dealing(db).await;
         for (dkg_client, state) in clients_and_states.iter_mut() {
             let random_file: usize = OsRng.gen();
             let private_key_path = temp_dir().join(format!("private{}.pem", random_file));
@@ -399,7 +410,7 @@ pub(crate) mod tests {
     #[ignore] // expensive test
     async fn check_dealers_filter_all_good() {
         let db = MockContractDb::new();
-        let mut clients_and_states = prepare_clients_and_states(&db).await;
+        let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
         for (dkg_client, state) in clients_and_states.iter_mut() {
             let filtered = deterministic_filter_dealers(dkg_client, state, 2, false)
                 .await
@@ -415,7 +426,7 @@ pub(crate) mod tests {
     #[ignore] // expensive test
     async fn check_dealers_filter_one_bad_dealing() {
         let db = MockContractDb::new();
-        let mut clients_and_states = prepare_clients_and_states(&db).await;
+        let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
 
         // corrupt just one dealing
         db.dealings_db
@@ -445,9 +456,42 @@ pub(crate) mod tests {
 
     #[tokio::test]
     #[ignore] // expensive test
-    async fn check_dealers_filter_all_bad_dealings() {
+    async fn check_dealers_resharing_filter_one_bad_dealing() {
         let db = MockContractDb::new();
         let mut clients_and_states = prepare_clients_and_states(&db).await;
+
+        // add all but the first dealing
+        for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
+            dealing_exchange(dkg_client, state, OsRng, true)
+                .await
+                .unwrap();
+        }
+
+        for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
+            *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
+                initial_dealers: vec![Addr::unchecked(TEST_VALIDATORS_ADDRESS[0])],
+                initial_height: None,
+            });
+            let filtered = deterministic_filter_dealers(dkg_client, state, 2, true)
+                .await
+                .unwrap();
+            assert_eq!(filtered.len(), TOTAL_DEALINGS);
+            let corrupted_status = state
+                .all_dealers()
+                .get(&Addr::unchecked(TEST_VALIDATORS_ADDRESS[0]))
+                .unwrap()
+                .as_ref()
+                .unwrap_err();
+
+            assert_eq!(*corrupted_status, ComplaintReason::MissingDealing);
+        }
+    }
+
+    #[tokio::test]
+    #[ignore] // expensive test
+    async fn check_dealers_filter_all_bad_dealings() {
+        let db = MockContractDb::new();
+        let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
 
         // corrupt all dealings of one address
         db.dealings_db
@@ -482,7 +526,7 @@ pub(crate) mod tests {
     #[ignore] // expensive test
     async fn check_dealers_filter_malformed_dealing() {
         let db = MockContractDb::new();
-        let mut clients_and_states = prepare_clients_and_states(&db).await;
+        let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
 
         // corrupt just one dealing
         db.dealings_db
@@ -519,7 +563,7 @@ pub(crate) mod tests {
     #[ignore] // expensive test
     async fn check_dealers_filter_dealing_verification_error() {
         let db = MockContractDb::new();
-        let mut clients_and_states = prepare_clients_and_states(&db).await;
+        let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
 
         // corrupt just one dealing
         db.dealings_db
@@ -561,7 +605,7 @@ pub(crate) mod tests {
     #[ignore] // expensive test
     async fn partial_keypair_derivation() {
         let db = MockContractDb::new();
-        let mut clients_and_states = prepare_clients_and_states(&db).await;
+        let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
         for (dkg_client, state) in clients_and_states.iter_mut() {
             let filtered = deterministic_filter_dealers(dkg_client, state, 2, false)
                 .await
@@ -574,7 +618,7 @@ pub(crate) mod tests {
     #[ignore] // expensive test
     async fn partial_keypair_derivation_with_threshold() {
         let db = MockContractDb::new();
-        let mut clients_and_states = prepare_clients_and_states(&db).await;
+        let mut clients_and_states = prepare_clients_and_states_with_dealing(&db).await;
 
         // corrupt just one dealing
         db.dealings_db

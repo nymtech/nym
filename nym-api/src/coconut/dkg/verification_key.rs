@@ -839,11 +839,11 @@ pub(crate) mod tests {
             KeyPair::new(),
         );
 
-        let removed_dealer = clients_and_states.first().unwrap();
+        let removed_dealer = clients_and_states.first().unwrap().0.get_address().await;
         db.dealer_details_db
             .write()
             .unwrap()
-            .remove(removed_dealer.0.get_address().await.as_ref());
+            .remove(removed_dealer.as_ref());
         *db.dealings_db.write().unwrap() = Default::default();
         *db.verification_share_db.write().unwrap() = Default::default();
         *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {

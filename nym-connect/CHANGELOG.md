@@ -4,8 +4,15 @@
 
 ## [nym-connect-v1.1.9](https://github.com/nymtech/nym/tree/nym-connect-v1.1.9) (2023-02-07)
 
-- Only allow connections to gateways with performance >= 90%
-- Perform health check on inital connection. Provide user feedback on a failed/bad health check
+- NC - Button animations ([#2949])
+- NC - add effect when the button is clicked ([#2947])
+- NC - UI to select gateways based on some performance criteria by checking gateways' routing score from nym-api ([#2942])
+- NC - client health check when connecting ([#2859])
+
+[#2949]: https://github.com/nymtech/nym/issues/2949
+[#2947]: https://github.com/nymtech/nym/issues/2947
+[#2942]: https://github.com/nymtech/nym/issues/2942
+[#2859]: https://github.com/nymtech/nym/issues/2859
 
 ## [nym-connect-v1.1.8](https://github.com/nymtech/nym/tree/nym-connect-v1.1.8) (2023-01-31)
 

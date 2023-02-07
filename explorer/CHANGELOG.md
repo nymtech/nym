@@ -1,4 +1,11 @@
 ## UNRELEASED
+## [nym-explorer-v1.0.5](https://github.com/nymtech/nym/tree/nym-explorer-v1.0.5) (2023-01-31)
+
+- NE - link `Owner` field on the node detail page to the account details on NG explorer ([#2923])
+- NE - Upgrade Sandbox and make below changes:  ([#2332])
+
+[#2923]: https://github.com/nymtech/nym/issues/2923
+[#2332]: https://github.com/nymtech/nym/issues/2332
 
 ## [nym-explorer-v1.0.4](https://github.com/nymtech/nym/tree/nym-explorer-v1.0.4) (2023-01-31)
 

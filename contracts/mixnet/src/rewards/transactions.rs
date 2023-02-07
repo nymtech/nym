@@ -1,4 +1,4 @@
-// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
@@ -9,9 +9,10 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::helpers::get_mixnode_details_by_owner;
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::rewards::helpers;
+use crate::rewards::helpers::update_and_save_last_rewarded;
 use crate::support::helpers::{
-    ensure_bonded, ensure_is_authorized, ensure_is_owner, ensure_proxy_match,
-    ensure_sent_by_vesting_contract, send_to_proxy_or_owner,
+    ensure_bonded, ensure_can_advance_epoch, ensure_epoch_in_progress_state, ensure_is_authorized,
+    ensure_is_owner, ensure_proxy_match, ensure_sent_by_vesting_contract, send_to_proxy_or_owner,
 };
 use cosmwasm_std::{wasm_execute, Addr, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
@@ -36,7 +37,9 @@ pub(crate) fn try_reward_mixnode(
     mix_id: MixId,
     node_performance: Performance,
 ) -> Result<Response, MixnetContractError> {
-    ensure_is_authorized(info.sender, deps.storage)?;
+    // check whether this `info.sender` is the same one as set in `epoch_status.being_advanced_by`
+    // if so, return `epoch_status` so we could avoid having to perform extra read from the storage
+    let current_epoch_status = ensure_can_advance_epoch(&info.sender, deps.storage)?;
 
     // see if the epoch has finished
     let interval = interval_storage::current_interval(deps.storage)?;
@@ -47,6 +50,10 @@ pub(crate) fn try_reward_mixnode(
             epoch_end: interval.current_epoch_end_unix_timestamp(),
         });
     }
+
+    // update the epoch state with this node as being rewarded most recently
+    // (if the transaction fails down the line, it will be reverted)
+    update_and_save_last_rewarded(deps.storage, current_epoch_status, mix_id)?;
 
     // there's a chance of this failing to load the details if the mixnode unbonded before rewards
     // were distributed and all of its delegators are also gone
@@ -297,6 +304,10 @@ pub(crate) fn try_update_active_set_size(
             active_set_size,
         )))
     } else {
+        // updating active sety size is only allowed if the epoch is currently not in the process of being advanced
+        // (unless the force flag was used)
+        ensure_epoch_in_progress_state(deps.storage)?;
+
         // push the epoch event
         let epoch_event = PendingEpochEventKind::UpdateActiveSetSize {
             new_size: active_set_size,
@@ -336,6 +347,10 @@ pub(crate) fn try_update_rewarding_params(
             rewarding_params.interval,
         )))
     } else {
+        // changing rewarding parameters is only allowed if the epoch is currently not in the process of being advanced
+        // (unless the force flag was used)
+        ensure_epoch_in_progress_state(deps.storage)?;
+
         // push the interval event
         let interval_event = PendingIntervalEventKind::UpdateRewardingParams {
             update: updated_params,
@@ -371,6 +386,11 @@ pub mod tests {
         };
         use mixnet_contract_common::helpers::compare_decimals;
         use mixnet_contract_common::RewardedSetNodeStatus;
+
+        #[test]
+        fn epoch_state_is_correctly_updated() {
+            todo!()
+        }
 
         #[test]
         fn can_only_be_performed_by_specified_rewarding_validator() {
@@ -1628,6 +1648,11 @@ pub mod tests {
         use crate::support::tests::test_helpers::TestSetup;
 
         #[test]
+        fn cant_be_performed_if_epoch_transition_is_in_progress_unless_forced() {
+            todo!()
+        }
+
+        #[test]
         fn can_only_be_done_by_contract_owner() {
             let mut test = TestSetup::new();
 
@@ -1789,6 +1814,11 @@ pub mod tests {
         use super::*;
         use crate::support::tests::test_helpers::{assert_decimals, TestSetup};
         use cosmwasm_std::Decimal;
+
+        #[test]
+        fn cant_be_performed_if_epoch_transition_is_in_progress_unless_forced() {
+            todo!()
+        }
 
         #[test]
         fn can_only_be_done_by_contract_owner() {

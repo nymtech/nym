@@ -1,4 +1,4 @@
-// Copyright 2021-2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
@@ -8,7 +8,20 @@ use cosmwasm_std::{Coin, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::helpers::IntoBaseDecimal;
 use mixnet_contract_common::mixnode::{MixNodeDetails, MixNodeRewarding};
-use mixnet_contract_common::Delegation;
+use mixnet_contract_common::{Delegation, EpochState, EpochStatus, MixId};
+
+pub(crate) fn update_and_save_last_rewarded(
+    storage: &mut dyn Storage,
+    mut current_epoch_status: EpochStatus,
+    new_last_rewarded: MixId,
+) -> Result<(), MixnetContractError> {
+    let is_done = current_epoch_status.update_last_rewarded(new_last_rewarded)?;
+    if is_done {
+        current_epoch_status.state = EpochState::ReconcilingEvents
+    }
+    interval_storage::save_current_epoch_status(storage, &current_epoch_status)?;
+    Ok(())
+}
 
 /// Recomputes rewarding parameters (such as staking supply, saturation point, etc) based on
 /// pending changes currently stored in `PENDING_REWARD_POOL_CHANGE`.

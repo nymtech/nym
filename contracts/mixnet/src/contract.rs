@@ -68,7 +68,7 @@ pub fn instantiate(
     let vesting_contract_address = deps.api.addr_validate(&msg.vesting_contract_address)?;
     let state = default_initial_state(
         info.sender,
-        rewarding_validator_address,
+        rewarding_validator_address.clone(),
         msg.rewarding_denom,
         vesting_contract_address,
     );
@@ -78,7 +78,11 @@ pub fn instantiate(
         .initial_rewarding_params
         .into_rewarding_params(msg.epochs_in_interval)?;
 
-    interval_storage::initialise_storage(deps.storage, starting_interval)?;
+    interval_storage::initialise_storage(
+        deps.storage,
+        starting_interval,
+        rewarding_validator_address,
+    )?;
     mixnet_params_storage::initialise_storage(deps.storage, state)?;
     mixnode_storage::initialise_storage(deps.storage)?;
     rewards_storage::initialise_storage(deps.storage, reward_params)?;
@@ -208,6 +212,9 @@ pub fn execute(
             epoch_duration_secs,
             force_immediately,
         ),
+        ExecuteMsg::BeginEpochTransition => {
+            crate::interval::transactions::try_begin_epoch_transition(deps, env, info)
+        }
         ExecuteMsg::AdvanceCurrentEpoch {
             new_rewarded_set,
             // families_in_layer,
@@ -603,6 +610,7 @@ pub fn migrate(
 
         // If state structure changed in any contract version in the way migration is needed, it
         // should occur here
+        crate::queued_migrations::create_epoch_status(deps.storage)?;
     }
 
     // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address

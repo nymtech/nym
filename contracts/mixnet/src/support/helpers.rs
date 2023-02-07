@@ -8,7 +8,7 @@ use cosmwasm_std::{
     wasm_execute, Addr, BankMsg, Coin, CosmosMsg, Deps, MessageInfo, Response, Storage,
 };
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::{IdentityKeyRef, MixId, MixNodeBond};
+use mixnet_contract_common::{EpochState, EpochStatus, IdentityKeyRef, MixId, MixNodeBond};
 use vesting_contract_common::messages::ExecuteMsg as VestingContractExecuteMsg;
 
 // helper trait to attach `Msg` to a response if it's provided
@@ -214,14 +214,78 @@ pub(crate) fn validate_delegation_stake(
     Ok(delegation.pop().unwrap())
 }
 
-pub(crate) fn ensure_is_authorized(
-    sender: Addr,
+pub(crate) fn ensure_epoch_in_progress_state(
     storage: &dyn Storage,
 ) -> Result<(), MixnetContractError> {
-    if sender != crate::mixnet_contract_settings::storage::rewarding_validator_address(storage)? {
+    let epoch_status = crate::interval::storage::current_epoch_status(storage)?;
+    if !matches!(epoch_status.state, EpochState::InProgress) {
+        return Err(MixnetContractError::EpochAdvancementInProgress {
+            current_state: epoch_status.state,
+        });
+    }
+    Ok(())
+}
+
+// pub(crate) fn ensure_mix_rewarding_state(storage: &dyn Storage) -> Result<(), MixnetContractError> {
+//     let epoch_status = crate::interval::storage::current_epoch_status(storage)?;
+//     if !matches!(epoch_status.state, EpochState::Rewarding { .. }) {
+//         return Err(MixnetContractError::EpochNotInMixRewardingState {
+//             current_state: epoch_status.state,
+//         });
+//     }
+//     Ok(())
+// }
+//
+// pub(crate) fn ensure_event_reconciliation_state(
+//     storage: &dyn Storage,
+// ) -> Result<(), MixnetContractError> {
+//     let epoch_status = crate::interval::storage::current_epoch_status(storage)?;
+//     if !matches!(epoch_status.state, EpochState::ReconcilingEvents) {
+//         return Err(MixnetContractError::EpochNotInEventReconciliationState {
+//             current_state: epoch_status.state,
+//         });
+//     }
+//     Ok(())
+// }
+//
+// pub(crate) fn ensure_epoch_advancement_state(
+//     storage: &dyn Storage,
+// ) -> Result<(), MixnetContractError> {
+//     let epoch_status = crate::interval::storage::current_epoch_status(storage)?;
+//     if !matches!(epoch_status.state, EpochState::AdvancingEpoch) {
+//         return Err(MixnetContractError::EpochNotInAdvancementState {
+//             current_state: epoch_status.state,
+//         });
+//     }
+//     Ok(())
+// }
+
+pub(crate) fn ensure_is_authorized(
+    sender: &Addr,
+    storage: &dyn Storage,
+) -> Result<(), MixnetContractError> {
+    if sender != &crate::mixnet_contract_settings::storage::rewarding_validator_address(storage)? {
         return Err(MixnetContractError::Unauthorized);
     }
     Ok(())
+}
+
+pub(crate) fn ensure_can_advance_epoch(
+    sender: &Addr,
+    storage: &dyn Storage,
+) -> Result<EpochStatus, MixnetContractError> {
+    let epoch_status = crate::interval::storage::current_epoch_status(storage)?;
+    if sender != &epoch_status.being_advanced_by {
+        // well, we know we're going to throw an error now,
+        // but we might as well also check if we're even a validator
+        // to return a possibly better error message
+        ensure_is_authorized(sender, storage)?;
+        return Err(MixnetContractError::RewardingValidatorMismatch {
+            current_validator: sender.clone(),
+            chosen_validator: epoch_status.being_advanced_by,
+        });
+    }
+    Ok(epoch_status)
 }
 
 pub(crate) fn ensure_is_owner(

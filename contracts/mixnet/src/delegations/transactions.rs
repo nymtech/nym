@@ -5,7 +5,9 @@ use super::storage;
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
-use crate::support::helpers::{ensure_sent_by_vesting_contract, validate_delegation_stake};
+use crate::support::helpers::{
+    ensure_epoch_in_progress_state, ensure_sent_by_vesting_contract, validate_delegation_stake,
+};
 use cosmwasm_std::{Addr, Coin, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
@@ -44,6 +46,9 @@ pub(crate) fn _try_delegate_to_mixnode(
     amount: Vec<Coin>,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
+    // delegation is only allowed if the epoch is currently not in the process of being advanced
+    ensure_epoch_in_progress_state(deps.storage)?;
+
     // check if the delegation contains any funds of the appropriate denomination
     let contract_state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
     let delegation = validate_delegation_stake(
@@ -104,6 +109,9 @@ pub(crate) fn _try_remove_delegation_from_mixnode(
     delegate: Addr,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
+    // undelegation is only allowed if the epoch is currently not in the process of being advanced
+    ensure_epoch_in_progress_state(deps.storage)?;
+
     // see if the delegation even exists
     let storage_key = Delegation::generate_storage_key(mix_id, &delegate, proxy.as_ref());
 
@@ -144,6 +152,11 @@ mod tests {
         use crate::support::tests::test_helpers::TestSetup;
         use cosmwasm_std::testing::mock_info;
         use cosmwasm_std::{coin, Decimal};
+
+        #[test]
+        fn cant_be_performed_if_epoch_transition_is_in_progress() {
+            todo!()
+        }
 
         #[test]
         fn can_only_be_done_towards_an_existing_mixnode() {
@@ -396,6 +409,11 @@ mod tests {
         use crate::support::tests::test_helpers::TestSetup;
         use cosmwasm_std::coin;
         use cosmwasm_std::testing::mock_info;
+
+        #[test]
+        fn cant_be_performed_if_epoch_transition_is_in_progress() {
+            todo!()
+        }
 
         #[test]
         fn cannot_be_performed_if_delegation_never_existed() {

@@ -1,15 +1,13 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, useRef } from 'react';
 import { DateTime } from 'luxon';
 import { invoke } from '@tauri-apps/api';
-import type { UnlistenFn } from '@tauri-apps/api/event';
-import { listen } from '@tauri-apps/api/event';
 import { forage } from '@tauri-apps/tauri-forage';
 import { Error } from 'src/types/error';
-import { TauriEvent } from 'src/types/event';
 import { getVersion } from '@tauri-apps/api/app';
 import { ConnectionStatusKind, GatewayPerformance } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ServiceProvider, Services } from '../types/directory';
+import { useEvents } from 'src/hooks/events';
 
 const TAURI_EVENT_STATUS_CHANGED = 'app:connection-status-changed';
 
@@ -66,6 +64,12 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     setServiceProviders(services as ServiceProvider[]);
   };
 
+  useEvents({
+    onError: (error) => setError(error),
+    onGatewayPerformanceChange: (performance) => setGatewayPerformance(performance),
+    onStatusChange: (status) => setConnectionStatus(status),
+  });
+
   useEffect(() => {
     initialiseApp();
   }, []);
@@ -76,49 +80,6 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       const currentStatus: ConnectionStatusKind = await invoke('get_connection_status');
       setConnectionStatus(currentStatus);
     })();
-  }, []);
-
-  useEffect(() => {
-    const unlisten: UnlistenFn[] = [];
-
-    // TODO: fix typings
-    listen(TAURI_EVENT_STATUS_CHANGED, (event) => {
-      const { status } = event.payload as any;
-      console.log(TAURI_EVENT_STATUS_CHANGED, { status, event });
-      setConnectionStatus(status);
-    })
-      .then((result) => {
-        unlisten.push(result);
-      })
-      .catch((e) => console.log(e));
-
-    listen('socks5-event', (e: TauriEvent) => {
-      console.log(e);
-
-      setError(e.payload);
-    }).then((result) => {
-      unlisten.push(result);
-    });
-
-    listen('socks5-status-event', (e: TauriEvent) => {
-      if (e.payload.message.includes('slow')) {
-        setGatewayPerformance('Poor');
-
-        if (timerId.current) {
-          clearTimeout(timerId.current);
-        }
-
-        timerId.current = setTimeout(() => {
-          setGatewayPerformance('Good');
-        }, 10000);
-      }
-    }).then((result) => {
-      unlisten.push(result);
-    });
-
-    return () => {
-      unlisten.forEach((unsubscribe) => unsubscribe());
-    };
   }, []);
 
   const startConnecting = useCallback(async () => {

@@ -11,10 +11,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - Separate `nym-api` endpoints with values of "total-supply" and "circulating-supply" in `nym` ([#2964])
 - Add `host` option to client init ([#2912])
 - Remove Coconut feature flag ([#2793])
-
-[#2964]: https://github.com/nymtech/nym/issues/2964
-[#2912]: https://github.com/nymtech/nym/issues/2912
-[#2793]: https://github.com/nymtech/nym/issues/2793
+- Don't drop in mixnet connection handler ([#2963])
 
 ### Changed
 - native-client: is now capable of listening for requests on sockets different than `127.0.0.1` ([#2939]). This can be specified via `--host` flag during `init` or `run`. Alternatively a custom `host` can be set in `config.toml` file under `socket` section.

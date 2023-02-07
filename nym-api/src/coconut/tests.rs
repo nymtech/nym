@@ -323,16 +323,23 @@ impl super::client::Client for DummyClient {
         announce_address: String,
         _resharing: bool,
     ) -> Result<ExecuteResult> {
-        let assigned_index = OsRng.gen();
-        self.dealer_details.write().unwrap().insert(
-            self.validator_address.to_string(),
-            DealerDetails {
-                address: Addr::unchecked(self.validator_address.to_string()),
-                bte_public_key_with_proof,
-                announce_address,
-                assigned_index,
-            },
-        );
+        let mut dealer_details = self.dealer_details.write().unwrap();
+        let assigned_index =
+            if let Some(details) = dealer_details.get(self.validator_address.as_ref()) {
+                details.assigned_index
+            } else {
+                let assigned_index = OsRng.gen();
+                dealer_details.insert(
+                    self.validator_address.to_string(),
+                    DealerDetails {
+                        address: Addr::unchecked(self.validator_address.to_string()),
+                        bte_public_key_with_proof,
+                        announce_address,
+                        assigned_index,
+                    },
+                );
+                assigned_index
+            };
         Ok(ExecuteResult {
             logs: vec![Log {
                 msg_index: 0,

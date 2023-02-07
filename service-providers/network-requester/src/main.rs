@@ -64,14 +64,14 @@ impl Run {
         );
 
         log::info!("Starting socks5 service provider");
-        let mut server = core::ServiceProvider::new(
+        let server = core::NRServiceProviderBuilder::new(
             websocket_address,
             self.open_proxy,
             self.enable_statistics,
             stats_provider_addr,
         )
         .await;
-        server.run().await
+        server.run_service_provider().await
     }
 }
 

@@ -11,19 +11,22 @@ use client_core::client::base_client::{
     non_wasm_helpers, BaseClientBuilder, ClientInput, ClientOutput, ClientState,
 };
 use client_core::client::inbound_messages::InputMessage;
-use client_core::client::key_manager::KeyManager;
-use client_core::client::received_buffer::{ReceivedBufferMessage, ReconstructedMessagesReceiver};
+use client_core::client::received_buffer::{
+    ReceivedBufferMessage, ReceivedBufferRequestSender, ReconstructedMessagesReceiver,
+};
 use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
 use log::*;
-use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nymsphinx::receiver::ReconstructedMessage;
 use task::TaskManager;
+use tokio::sync::watch::error::SendError;
 use validator_client::nyxd::QueryNyxdClient;
 
-pub(crate) mod config;
+pub use client_core::client::key_manager::KeyManager;
+pub use nymsphinx::addressing::clients::Recipient;
+pub use nymsphinx::receiver::ReconstructedMessage;
+pub mod config;
 
 pub struct SocketClient {
     /// Client configuration options, including, among other things, packet sending rates,
@@ -39,6 +42,13 @@ impl SocketClient {
         let pathfinder = ClientKeyPathfinder::new_from_config(config.get_base());
         let key_manager = KeyManager::load_keys(&pathfinder).expect("failed to load stored keys");
 
+        SocketClient {
+            config,
+            key_manager,
+        }
+    }
+
+    pub fn new_with_keys(config: Config, key_manager: KeyManager) -> Self {
         SocketClient {
             config,
             key_manager,
@@ -120,10 +130,17 @@ impl SocketClient {
             return Err(ClientError::InvalidSocketMode);
         }
 
+        // don't create bandwidth controller if credentials are disabled
+        let bandwidth_controller = if self.config.get_base().get_disabled_credentials_mode() {
+            None
+        } else {
+            Some(Self::create_bandwidth_controller(&self.config).await)
+        };
+
         let base_builder = BaseClientBuilder::new_from_base_config(
             self.config.get_base(),
             self.key_manager,
-            Some(Self::create_bandwidth_controller(&self.config).await),
+            bandwidth_controller,
             non_wasm_helpers::setup_fs_reply_surb_backend(
                 Some(self.config.get_base().get_reply_surb_database_path()),
                 self.config.get_debug_settings(),
@@ -157,16 +174,25 @@ impl SocketClient {
             return Err(ClientError::InvalidSocketMode);
         }
 
+        // don't create bandwidth controller if credentials are disabled
+        let bandwidth_controller = if self.config.get_base().get_disabled_credentials_mode() {
+            None
+        } else {
+            Some(Self::create_bandwidth_controller(&self.config).await)
+        };
+
         let base_client = BaseClientBuilder::new_from_base_config(
             self.config.get_base(),
             self.key_manager,
-            Some(Self::create_bandwidth_controller(&self.config).await),
+            bandwidth_controller,
             non_wasm_helpers::setup_fs_reply_surb_backend(
                 Some(self.config.get_base().get_reply_surb_database_path()),
                 self.config.get_debug_settings(),
             )
             .await?,
         );
+
+        let address = base_client.as_mix_recipient();
 
         let mut started_client = base_client.start_base().await?;
         let client_input = started_client.client_input.register_producer();
@@ -185,21 +211,38 @@ impl SocketClient {
 
         Ok(DirectClient {
             client_input,
+            _received_buffer_request_sender: client_output.received_buffer_request_sender,
             reconstructed_receiver,
-            _shutdown_notifier: started_client.task_manager,
+            address,
+            shutdown_notifier: started_client.task_manager,
         })
     }
 }
 
 pub struct DirectClient {
     client_input: ClientInput,
+    // make sure to not drop the channel
+    _received_buffer_request_sender: ReceivedBufferRequestSender,
     reconstructed_receiver: ReconstructedMessagesReceiver,
+    address: Recipient,
 
     // we need to keep reference to this guy otherwise things will start dropping
-    _shutdown_notifier: TaskManager,
+    shutdown_notifier: TaskManager,
 }
 
 impl DirectClient {
+    pub fn address(&self) -> &Recipient {
+        &self.address
+    }
+
+    pub fn signal_shutdown(&self) -> Result<(), SendError<()>> {
+        self.shutdown_notifier.signal_shutdown()
+    }
+
+    pub async fn wait_for_shutdown(&mut self) {
+        self.shutdown_notifier.wait_for_shutdown().await
+    }
+
     /// EXPERIMENTAL DIRECT RUST API
     /// It's untested and there are absolutely no guarantees about it (but seems to have worked
     /// well enough in local tests)

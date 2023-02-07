@@ -8,9 +8,11 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 - remove coconut feature and unify builds ([#2890])
 - native-client: is now capable of listening for requests on sockets different than `127.0.0.1` ([#2939]). This can be specified via `--host` flag during `init` or `run`. Alternatively a custom `host` can be set in `config.toml` file under `socket` section.
+- mixnode, gateway: fix unexpected shutdown on corrupted connection ([#2963])
 
 [#2890]: https://github.com/nymtech/nym/pull/2890
 [#2939]: https://github.com/nymtech/nym/pull/2939
+[#2963]: https://github.com/nymtech/nym/pull/2963
 
 # [v1.1.8] (2023-01-31)
 

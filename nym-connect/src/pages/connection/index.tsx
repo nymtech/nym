@@ -47,6 +47,8 @@ export const ConnectionPage = () => {
   if (context.connectionStatus === 'connected')
     return (
       <Connected
+        error={context.error}
+        clearError={context.clearError}
         status={context.connectionStatus}
         showInfoModal={context.showInfoModal}
         busy={busy}

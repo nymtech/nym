@@ -87,6 +87,7 @@ export const Mock: ComponentStory<typeof AppWindowFrame> = () => {
   return (
     <AppWindowFrame>
       <Connected
+        clearError={() => {}}
         gatewayPerformance="Good"
         showInfoModal={false}
         closeInfoModal={() => undefined}

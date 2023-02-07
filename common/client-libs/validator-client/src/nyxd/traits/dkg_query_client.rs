@@ -8,7 +8,7 @@ use coconut_dkg_common::dealer::{
     DealerDetailsResponse, PagedDealerResponse, PagedDealingsResponse,
 };
 use coconut_dkg_common::msg::QueryMsg as DkgQueryMsg;
-use coconut_dkg_common::types::{Epoch, EpochId};
+use coconut_dkg_common::types::{Epoch, EpochId, InitialReplacementData};
 use coconut_dkg_common::verification_key::PagedVKSharesResponse;
 use cosmrs::AccountId;
 
@@ -16,6 +16,7 @@ use cosmrs::AccountId;
 pub trait DkgQueryClient {
     async fn get_current_epoch(&self) -> Result<Epoch, NyxdError>;
     async fn get_current_epoch_threshold(&self) -> Result<Option<u64>, NyxdError>;
+    async fn get_initial_dealers(&self) -> Result<Option<InitialReplacementData>, NyxdError>;
     async fn get_dealer_details(
         &self,
         address: &AccountId,
@@ -62,6 +63,14 @@ where
             .query_contract_smart(self.coconut_dkg_contract_address(), &request)
             .await
     }
+
+    async fn get_initial_dealers(&self) -> Result<Option<InitialReplacementData>, NyxdError> {
+        let request = DkgQueryMsg::GetInitialDealers {};
+        self.client
+            .query_contract_smart(self.coconut_dkg_contract_address(), &request)
+            .await
+    }
+
     async fn get_dealer_details(
         &self,
         address: &AccountId,

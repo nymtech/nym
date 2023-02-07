@@ -30,11 +30,12 @@ pub struct PagedVKSharesResponse {
 
 pub fn to_cosmos_msg(
     owner: Addr,
+    resharing: bool,
     coconut_dkg_addr: String,
     multisig_addr: String,
     expiration_time: Timestamp,
 ) -> StdResult<CosmosMsg> {
-    let verify_vk_share_req = ExecuteMsg::VerifyVerificationKeyShare { owner };
+    let verify_vk_share_req = ExecuteMsg::VerifyVerificationKeyShare { owner, resharing };
     let verify_vk_share_msg = CosmosMsg::Wasm(WasmMsg::Execute {
         contract_addr: coconut_dkg_addr,
         msg: to_binary(&verify_vk_share_req)?,
@@ -62,7 +63,8 @@ pub fn owner_from_cosmos_msgs(msgs: &[CosmosMsg]) -> Option<Addr> {
         funds: _,
     })) = msgs.get(0)
     {
-        if let Ok(ExecuteMsg::VerifyVerificationKeyShare { owner }) = from_binary::<ExecuteMsg>(msg)
+        if let Ok(ExecuteMsg::VerifyVerificationKeyShare { owner, .. }) =
+            from_binary::<ExecuteMsg>(msg)
         {
             return Some(owner);
         }

@@ -9,9 +9,10 @@ use coconut_dkg_common::dealer::DealerType;
 pub(crate) async fn public_key_submission(
     dkg_client: &DkgClient,
     state: &mut State,
+    resharing: bool,
 ) -> Result<(), CoconutError> {
     if state.was_in_progress() {
-        state.reset_persistent().await;
+        state.reset_persistent(resharing).await;
     }
     if state.node_index().is_some() {
         return Ok(());
@@ -23,14 +24,14 @@ pub(crate) async fn public_key_submission(
         if dealer_details.dealer_type == DealerType::Past {
             // If it was a dealer in a previous epoch, re-register it for this epoch
             dkg_client
-                .register_dealer(bte_key, state.announce_address().to_string())
+                .register_dealer(bte_key, state.announce_address().to_string(), resharing)
                 .await?;
         }
         details.assigned_index
     } else {
         // First time registration
         dkg_client
-            .register_dealer(bte_key, state.announce_address().to_string())
+            .register_dealer(bte_key, state.announce_address().to_string(), resharing)
             .await?
     };
     state.set_node_index(Some(index));
@@ -74,7 +75,7 @@ pub(crate) mod tests {
             .unwrap()
             .details
             .is_none());
-        public_key_submission(&dkg_client, &mut state)
+        public_key_submission(&dkg_client, &mut state, false)
             .await
             .unwrap();
         let client_idx = dkg_client
@@ -88,7 +89,7 @@ pub(crate) mod tests {
 
         // keeps the same index from chain, not calling register_dealer again
         state.set_node_index(None);
-        public_key_submission(&dkg_client, &mut state)
+        public_key_submission(&dkg_client, &mut state, false)
             .await
             .unwrap();
         assert_eq!(state.node_index().unwrap(), client_idx);

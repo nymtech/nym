@@ -103,6 +103,7 @@ fn dkg_proposal() {
         &RegisterDealer {
             bte_key_with_proof: "bte_key_with_proof".to_string(),
             announce_address: "127.0.0.1:8000".to_string(),
+            resharing: false,
         },
         &vec![],
     )
@@ -124,6 +125,7 @@ fn dkg_proposal() {
 
     let msg = CommitVerificationKeyShare {
         share: "share".to_string(),
+        resharing: false,
     };
     let res = app
         .execute_contract(

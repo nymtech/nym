@@ -9,6 +9,7 @@ use coconut_dkg_common::types::EpochState;
 use cosmwasm_std::Addr;
 use dkg::bte::{keys::KeyPair as DkgKeyPair, PublicKey, PublicKeyWithProof};
 use dkg::{NodeIndex, RecoveredVerificationKeys, Threshold};
+use nymcoconut::SecretKey;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::BTreeMap;
@@ -71,18 +72,18 @@ pub(crate) trait ConsistentState {
     fn proposal_id_value(&self) -> Result<u64, CoconutError>;
     async fn is_consistent(&self, epoch_state: EpochState) -> Result<(), CoconutError> {
         match epoch_state {
-            EpochState::PublicKeySubmission => {}
-            EpochState::DealingExchange => {
+            EpochState::PublicKeySubmission { .. } => {}
+            EpochState::DealingExchange { .. } => {
                 self.node_index_value()?;
             }
-            EpochState::VerificationKeySubmission => {
+            EpochState::VerificationKeySubmission { .. } => {
                 self.receiver_index_value()?;
                 self.threshold()?;
             }
-            EpochState::VerificationKeyValidation => {
+            EpochState::VerificationKeyValidation { .. } => {
                 self.coconut_keypair_is_some().await?;
             }
-            EpochState::VerificationKeyFinalization => {
+            EpochState::VerificationKeyFinalization { .. } => {
                 self.proposal_id_value()?;
             }
             EpochState::InProgress => {}
@@ -241,8 +242,10 @@ impl State {
         }
     }
 
-    pub async fn reset_persistent(&mut self) {
-        self.coconut_keypair.set(None).await;
+    pub async fn reset_persistent(&mut self, resharing: bool) {
+        if !resharing {
+            self.coconut_keypair.set(None).await;
+        }
         self.node_index = Default::default();
         self.dealers = Default::default();
         self.receiver_index = Default::default();
@@ -268,6 +271,14 @@ impl State {
 
     pub async fn coconut_keypair_is_some(&self) -> bool {
         self.coconut_keypair.get().await.is_some()
+    }
+
+    pub async fn coconut_secret_key(&self) -> Option<SecretKey> {
+        self.coconut_keypair
+            .get()
+            .await
+            .as_ref()
+            .map(|kp| kp.secret_key())
     }
 
     pub fn node_index(&self) -> Option<NodeIndex> {
@@ -324,8 +335,11 @@ impl State {
         self.recovered_vks = recovered_vks;
     }
 
-    pub async fn set_coconut_keypair(&mut self, coconut_keypair: coconut_interface::KeyPair) {
-        self.coconut_keypair.set(Some(coconut_keypair)).await
+    pub async fn set_coconut_keypair(
+        &mut self,
+        coconut_keypair: Option<coconut_interface::KeyPair>,
+    ) {
+        self.coconut_keypair.set(coconut_keypair).await
     }
 
     pub fn set_node_index(&mut self, node_index: Option<NodeIndex>) {

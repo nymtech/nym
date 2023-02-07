@@ -7,7 +7,9 @@ use crate::dealers::queries::{
 use crate::dealers::transactions::try_add_dealer;
 use crate::dealings::queries::query_dealings_paged;
 use crate::dealings::transactions::try_commit_dealings;
-use crate::epoch_state::queries::{query_current_epoch, query_current_epoch_threshold};
+use crate::epoch_state::queries::{
+    query_current_epoch, query_current_epoch_threshold, query_initial_dealers,
+};
 use crate::epoch_state::storage::CURRENT_EPOCH;
 use crate::epoch_state::transactions::{advance_epoch_state, try_surpassed_threshold};
 use crate::error::ContractError;
@@ -75,15 +77,17 @@ pub fn execute(
         ExecuteMsg::RegisterDealer {
             bte_key_with_proof,
             announce_address,
-        } => try_add_dealer(deps, info, bte_key_with_proof, announce_address),
-        ExecuteMsg::CommitDealing { dealing_bytes } => {
-            try_commit_dealings(deps, info, dealing_bytes)
+            resharing,
+        } => try_add_dealer(deps, info, bte_key_with_proof, announce_address, resharing),
+        ExecuteMsg::CommitDealing {
+            dealing_bytes,
+            resharing,
+        } => try_commit_dealings(deps, info, dealing_bytes, resharing),
+        ExecuteMsg::CommitVerificationKeyShare { share, resharing } => {
+            try_commit_verification_key_share(deps, env, info, share, resharing)
         }
-        ExecuteMsg::CommitVerificationKeyShare { share } => {
-            try_commit_verification_key_share(deps, env, info, share)
-        }
-        ExecuteMsg::VerifyVerificationKeyShare { owner } => {
-            try_verify_verification_key_share(deps, info, owner)
+        ExecuteMsg::VerifyVerificationKeyShare { owner, resharing } => {
+            try_verify_verification_key_share(deps, info, owner, resharing)
         }
         ExecuteMsg::SurpassedThreshold {} => try_surpassed_threshold(deps, env),
         ExecuteMsg::AdvanceEpochState {} => advance_epoch_state(deps, env),
@@ -97,6 +101,7 @@ pub fn query(deps: Deps<'_>, _env: Env, msg: QueryMsg) -> Result<QueryResponse, 
         QueryMsg::GetCurrentEpochThreshold {} => {
             to_binary(&query_current_epoch_threshold(deps.storage)?)?
         }
+        QueryMsg::GetInitialDealers {} => to_binary(&query_initial_dealers(deps.storage)?)?,
         QueryMsg::GetDealerDetails { dealer_address } => {
             to_binary(&query_dealer_details(deps, dealer_address)?)?
         }
@@ -238,6 +243,7 @@ mod tests {
                     &RegisterDealer {
                         bte_key_with_proof: "bte_key_with_proof".to_string(),
                         announce_address: "127.0.0.1:8000".to_string(),
+                        resharing: false,
                     },
                     &vec![],
                 )
@@ -251,6 +257,7 @@ mod tests {
                     &RegisterDealer {
                         bte_key_with_proof: "bte_key_with_proof".to_string(),
                         announce_address: "127.0.0.1:8000".to_string(),
+                        resharing: false,
                     },
                     &vec![],
                 )
@@ -266,6 +273,7 @@ mod tests {
                 &RegisterDealer {
                     bte_key_with_proof: "bte_key_with_proof".to_string(),
                     announce_address: "127.0.0.1:8000".to_string(),
+                    resharing: false,
                 },
                 &vec![],
             )

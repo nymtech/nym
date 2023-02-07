@@ -101,13 +101,19 @@ impl<R: RngCore + Clone> DkgController<R> {
                     return;
                 }
                 let ret = match epoch.state {
-                    EpochState::PublicKeySubmission => {
-                        public_key_submission(&self.dkg_client, &mut self.state).await
+                    EpochState::PublicKeySubmission { resharing } => {
+                        public_key_submission(&self.dkg_client, &mut self.state, resharing).await
                     }
-                    EpochState::DealingExchange => {
-                        dealing_exchange(&self.dkg_client, &mut self.state, self.rng.clone()).await
+                    EpochState::DealingExchange { resharing } => {
+                        dealing_exchange(
+                            &self.dkg_client,
+                            &mut self.state,
+                            self.rng.clone(),
+                            resharing,
+                        )
+                        .await
                     }
-                    EpochState::VerificationKeySubmission => {
+                    EpochState::VerificationKeySubmission { resharing } => {
                         let keypair_path = pemstore::KeyPairPath::new(
                             self.secret_key_path.clone(),
                             self.verification_key_path.clone(),
@@ -116,14 +122,17 @@ impl<R: RngCore + Clone> DkgController<R> {
                             &self.dkg_client,
                             &mut self.state,
                             &keypair_path,
+                            resharing,
                         )
                         .await
                     }
-                    EpochState::VerificationKeyValidation => {
-                        verification_key_validation(&self.dkg_client, &mut self.state).await
+                    EpochState::VerificationKeyValidation { resharing } => {
+                        verification_key_validation(&self.dkg_client, &mut self.state, resharing)
+                            .await
                     }
-                    EpochState::VerificationKeyFinalization => {
-                        verification_key_finalization(&self.dkg_client, &mut self.state).await
+                    EpochState::VerificationKeyFinalization { resharing } => {
+                        verification_key_finalization(&self.dkg_client, &mut self.state, resharing)
+                            .await
                     }
                     // Just wait, in case we need to redo dkg at some point
                     EpochState::InProgress => {

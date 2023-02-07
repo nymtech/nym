@@ -1,13 +1,14 @@
-import React, { useContext, useEffect } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container, Button, Stack } from '@mui/material';
 import { AuthContext } from 'src/context/auth';
-import { useClipboard } from 'use-clipboard-copy';
 import { Mnemonic } from '../../../components';
 
 export const CreateMnemonic = () => {
   const { mnemonic, mnemonicWords, generateMnemonic, resetState } = useContext(AuthContext);
   const navigate = useNavigate();
+
+  const [confirmed, setConfirmed] = useState(false);
 
   useEffect(() => {
     if (mnemonicWords.length === 0) {
@@ -15,11 +16,10 @@ export const CreateMnemonic = () => {
     }
   }, []);
 
-  const { copy, copied } = useClipboard({ copiedTimeout: 5000 });
   return (
     <Container maxWidth="xs">
       <Stack alignItems="center" spacing={3} maxWidth="xs">
-        <Mnemonic mnemonic={mnemonic} handleCopy={copy} copied={copied} />
+        <Mnemonic mnemonic={mnemonic} handleConfirmed={setConfirmed} confirmed={confirmed} />
 
         <Button
           variant="contained"
@@ -28,9 +28,9 @@ export const CreateMnemonic = () => {
           size="large"
           onClick={() => navigate('/verify-mnemonic')}
           sx={{ width: '100%', fontSize: 15 }}
-          disabled={!copied}
+          disabled={!confirmed}
         >
-          I saved my mnemonic
+          Continue
         </Button>
         <Button
           onClick={() => {

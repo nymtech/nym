@@ -1,18 +1,17 @@
 import React from 'react';
-import { Button, Stack, TextField, Typography } from '@mui/material';
-import { Check, ContentCopySharp } from '@mui/icons-material';
+import { Checkbox, FormControlLabel, Stack, TextField, Typography } from '@mui/material';
 import { Warning } from './Warning';
 
 export const Mnemonic = ({
   mnemonic,
-  copied,
-  handleCopy,
+  confirmed,
+  handleConfirmed,
 }: {
   mnemonic: string;
-  copied: boolean;
-  handleCopy: (text?: string) => void;
+  confirmed?: boolean;
+  handleConfirmed?: (confirmed: boolean) => void;
 }) => (
-  <Stack spacing={2} alignItems="center">
+  <Stack spacing={2}>
     <Warning>
       <Typography sx={{ textAlign: 'center' }}>
         Below is your 24 word mnemonic, make sure to store it in a safe place for accessing your wallet in the future
@@ -38,19 +37,11 @@ export const Mnemonic = ({
       }}
     />
 
-    <Button
-      color="inherit"
-      disableElevation
-      size="large"
-      onClick={() => {
-        handleCopy(mnemonic);
-      }}
-      sx={{
-        width: 250,
-      }}
-      endIcon={!copied ? <ContentCopySharp /> : <Check color="success" />}
-    >
-      Copy mnemonic
-    </Button>
+    {handleConfirmed && (
+      <FormControlLabel
+        label="I saved my mnemonic"
+        control={<Checkbox checked={confirmed} onChange={(e, checked) => handleConfirmed(checked)} />}
+      />
+    )}
   </Stack>
 );

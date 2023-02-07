@@ -40,6 +40,9 @@ pub enum ContractError {
     #[error("This sender is not a dealer for the current epoch")]
     NotADealer,
 
+    #[error("This sender is not a dealer for the current resharing epoch")]
+    NotAnInitialDealer,
+
     #[error("This dealer has already committed {commitment}")]
     AlreadyCommitted { commitment: String },
 

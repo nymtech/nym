@@ -17,18 +17,21 @@ pub trait DkgSigningClient {
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
         announce_address: String,
+        resharing: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError>;
 
     async fn submit_dealing_bytes(
         &self,
         commitment: ContractSafeBytes,
+        resharing: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError>;
 
     async fn submit_verification_key_share(
         &self,
         share: VerificationKeyShare,
+        resharing: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError>;
 }
@@ -57,11 +60,13 @@ where
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
         announce_address: String,
+        resharing: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         let req = DkgExecuteMsg::RegisterDealer {
             bte_key_with_proof: bte_key,
             announce_address,
+            resharing,
         };
 
         self.client
@@ -79,9 +84,13 @@ where
     async fn submit_dealing_bytes(
         &self,
         dealing_bytes: ContractSafeBytes,
+        resharing: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let req = DkgExecuteMsg::CommitDealing { dealing_bytes };
+        let req = DkgExecuteMsg::CommitDealing {
+            dealing_bytes,
+            resharing,
+        };
 
         self.client
             .execute(
@@ -98,9 +107,10 @@ where
     async fn submit_verification_key_share(
         &self,
         share: VerificationKeyShare,
+        resharing: bool,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
-        let req = DkgExecuteMsg::CommitVerificationKeyShare { share };
+        let req = DkgExecuteMsg::CommitVerificationKeyShare { share, resharing };
 
         self.client
             .execute(

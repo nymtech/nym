@@ -40,7 +40,9 @@ use coconut_dkg_common::dealer::{
     ContractDealing, DealerDetails, DealerDetailsResponse, DealerType,
 };
 use coconut_dkg_common::event_attributes::{DKG_PROPOSAL_ID, NODE_INDEX};
-use coconut_dkg_common::types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId, TOTAL_DEALINGS};
+use coconut_dkg_common::types::{
+    EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, TOTAL_DEALINGS,
+};
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use contracts_common::dealings::ContractSafeBytes;
 use crypto::asymmetric::{encryption, identity};
@@ -72,6 +74,8 @@ pub(crate) struct DummyClient {
     threshold: Arc<RwLock<Option<Threshold>>>,
     dealings: Arc<RwLock<HashMap<String, Vec<ContractSafeBytes>>>>,
     verification_share: Arc<RwLock<HashMap<String, ContractVKShare>>>,
+    group_db: Arc<RwLock<HashMap<String, MemberResponse>>>,
+    initial_dealers_db: Arc<RwLock<Option<InitialReplacementData>>>,
 }
 
 impl DummyClient {
@@ -86,6 +90,8 @@ impl DummyClient {
             threshold: Arc::new(RwLock::new(None)),
             dealings: Arc::new(RwLock::new(HashMap::new())),
             verification_share: Arc::new(RwLock::new(HashMap::new())),
+            group_db: Arc::new(RwLock::new(HashMap::new())),
+            initial_dealers_db: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -143,6 +149,22 @@ impl DummyClient {
         self.verification_share = Arc::clone(verification_share);
         self
     }
+
+    pub fn _with_group_db(
+        mut self,
+        group_db: &Arc<RwLock<HashMap<String, MemberResponse>>>,
+    ) -> Self {
+        self.group_db = Arc::clone(group_db);
+        self
+    }
+
+    pub fn with_initial_dealers_db(
+        mut self,
+        initial_dealers: &Arc<RwLock<Option<InitialReplacementData>>>,
+    ) -> Self {
+        self.initial_dealers_db = Arc::clone(initial_dealers);
+        self
+    }
 }
 
 #[async_trait]
@@ -193,12 +215,22 @@ impl super::client::Client for DummyClient {
         Ok(*self.epoch.read().unwrap())
     }
 
-    async fn group_member(&self, _addr: String) -> Result<MemberResponse> {
-        todo!()
+    async fn group_member(&self, addr: String) -> Result<MemberResponse> {
+        Ok(self
+            .group_db
+            .read()
+            .unwrap()
+            .get(&addr)
+            .cloned()
+            .unwrap_or(MemberResponse { weight: None }))
     }
 
     async fn get_current_epoch_threshold(&self) -> Result<Option<Threshold>> {
         Ok(*self.threshold.read().unwrap())
+    }
+
+    async fn get_initial_dealers(&self) -> Result<Option<InitialReplacementData>> {
+        Ok(self.initial_dealers_db.read().unwrap().clone())
     }
 
     async fn get_self_registered_dealer_details(&self) -> Result<DealerDetailsResponse> {
@@ -289,17 +321,25 @@ impl super::client::Client for DummyClient {
         &self,
         bte_public_key_with_proof: EncodedBTEPublicKeyWithProof,
         announce_address: String,
+        _resharing: bool,
     ) -> Result<ExecuteResult> {
-        let assigned_index = OsRng.gen();
-        self.dealer_details.write().unwrap().insert(
-            self.validator_address.to_string(),
-            DealerDetails {
-                address: Addr::unchecked(self.validator_address.to_string()),
-                bte_public_key_with_proof,
-                announce_address,
-                assigned_index,
-            },
-        );
+        let mut dealer_details = self.dealer_details.write().unwrap();
+        let assigned_index =
+            if let Some(details) = dealer_details.get(self.validator_address.as_ref()) {
+                details.assigned_index
+            } else {
+                let assigned_index = OsRng.gen();
+                dealer_details.insert(
+                    self.validator_address.to_string(),
+                    DealerDetails {
+                        address: Addr::unchecked(self.validator_address.to_string()),
+                        bte_public_key_with_proof,
+                        announce_address,
+                        assigned_index,
+                    },
+                );
+                assigned_index
+            };
         Ok(ExecuteResult {
             logs: vec![Log {
                 msg_index: 0,
@@ -312,7 +352,11 @@ impl super::client::Client for DummyClient {
         })
     }
 
-    async fn submit_dealing(&self, dealing_bytes: ContractSafeBytes) -> Result<ExecuteResult> {
+    async fn submit_dealing(
+        &self,
+        dealing_bytes: ContractSafeBytes,
+        _resharing: bool,
+    ) -> Result<ExecuteResult> {
         self.dealings
             .write()
             .unwrap()
@@ -335,6 +379,7 @@ impl super::client::Client for DummyClient {
     async fn submit_verification_key_share(
         &self,
         share: VerificationKeyShare,
+        resharing: bool,
     ) -> Result<ExecuteResult> {
         let dealer_details = self
             .dealer_details
@@ -357,6 +402,7 @@ impl super::client::Client for DummyClient {
         let proposal_id = OsRng.gen();
         let verify_vk_share_req = coconut_dkg_common::msg::ExecuteMsg::VerifyVerificationKeyShare {
             owner: Addr::unchecked(self.validator_address.as_ref()),
+            resharing,
         };
         let verify_vk_share_msg = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: String::new(),

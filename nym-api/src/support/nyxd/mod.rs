@@ -7,6 +7,7 @@ use crate::support::config::Config;
 use anyhow::Result;
 use async_trait::async_trait;
 use coconut_bandwidth_contract_common::spend_credential::SpendCredentialResponse;
+use coconut_dkg_common::types::InitialReplacementData;
 use coconut_dkg_common::{
     dealer::{ContractDealing, DealerDetails, DealerDetailsResponse},
     types::{EncodedBTEPublicKeyWithProof, Epoch, EpochId},
@@ -338,6 +339,12 @@ impl crate::coconut::client::Client for Client {
             .await?)
     }
 
+    async fn get_initial_dealers(
+        &self,
+    ) -> crate::coconut::error::Result<Option<InitialReplacementData>> {
+        Ok(self.0.read().await.nyxd.get_initial_dealers().await?)
+    }
+
     async fn get_self_registered_dealer_details(
         &self,
     ) -> crate::coconut::error::Result<DealerDetailsResponse> {
@@ -413,39 +420,42 @@ impl crate::coconut::client::Client for Client {
         &self,
         bte_key: EncodedBTEPublicKeyWithProof,
         announce_address: String,
+        resharing: bool,
     ) -> Result<ExecuteResult, CoconutError> {
         Ok(self
             .0
             .write()
             .await
             .nyxd
-            .register_dealer(bte_key, announce_address, None)
+            .register_dealer(bte_key, announce_address, resharing, None)
             .await?)
     }
 
     async fn submit_dealing(
         &self,
         dealing_bytes: ContractSafeBytes,
+        resharing: bool,
     ) -> Result<ExecuteResult, CoconutError> {
         Ok(self
             .0
             .write()
             .await
             .nyxd
-            .submit_dealing_bytes(dealing_bytes, None)
+            .submit_dealing_bytes(dealing_bytes, resharing, None)
             .await?)
     }
 
     async fn submit_verification_key_share(
         &self,
         share: VerificationKeyShare,
+        resharing: bool,
     ) -> crate::coconut::error::Result<ExecuteResult> {
         Ok(self
             .0
             .write()
             .await
             .nyxd
-            .submit_verification_key_share(share, None)
+            .submit_verification_key_share(share, resharing, None)
             .await?)
     }
 }

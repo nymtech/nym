@@ -9,11 +9,13 @@ use contracts_common::dealings::ContractSafeBytes;
 use dkg::bte::setup;
 use dkg::Dealing;
 use rand::RngCore;
+use std::collections::VecDeque;
 
 pub(crate) async fn dealing_exchange(
     dkg_client: &DkgClient,
     state: &mut State,
     rng: impl RngCore + Clone,
+    resharing: bool,
 ) -> Result<(), CoconutError> {
     if state.receiver_index().is_some() {
         return Ok(());
@@ -21,26 +23,54 @@ pub(crate) async fn dealing_exchange(
 
     let dealers = dkg_client.get_current_dealers().await?;
     let threshold = dkg_client.get_current_epoch_threshold().await?;
+    let initial_dealers = dkg_client
+        .get_initial_dealers()
+        .await?
+        .map(|d| d.initial_dealers)
+        .unwrap_or_default();
+    let own_address = dkg_client.get_address().await.as_ref().to_string();
     state.set_dealers(dealers);
     state.set_threshold(threshold);
     let receivers = state.current_dealers_by_idx();
-    let params = setup();
     let dealer_index = state.node_index_value()?;
     let receiver_index = receivers
         .keys()
         .position(|node_index| *node_index == dealer_index);
-    for _ in 0..TOTAL_DEALINGS {
-        let (dealing, _) = Dealing::create(
-            rng.clone(),
-            &params,
-            dealer_index,
-            state.threshold()?,
-            &receivers,
-            None,
-        );
-        dkg_client
-            .submit_dealing(ContractSafeBytes::from(&dealing))
-            .await?;
+
+    let prior_resharing_secrets = if let Some(sk) = state.coconut_secret_key().await {
+        // Double check that we are in resharing mode
+        if resharing {
+            let (x, mut scalars) = sk.into_raw();
+            if scalars.len() + 1 != TOTAL_DEALINGS {
+                return Err(CoconutError::CorruptedCoconutKeyPair);
+            }
+            // We can now erase the keypair from memory
+            state.set_coconut_keypair(None).await;
+            scalars.push(x);
+            scalars
+        } else {
+            log::warn!("Coconut key hasn't been reset in memory. The state might be corrupt");
+            vec![]
+        }
+    } else {
+        vec![]
+    };
+    let mut prior_resharing_secrets = VecDeque::from(prior_resharing_secrets);
+    if !resharing || initial_dealers.iter().any(|d| *d == own_address) {
+        let params = setup();
+        for _ in 0..TOTAL_DEALINGS {
+            let (dealing, _) = Dealing::create(
+                rng.clone(),
+                &params,
+                dealer_index,
+                state.threshold()?,
+                &receivers,
+                prior_resharing_secrets.pop_front(),
+            );
+            dkg_client
+                .submit_dealing(ContractSafeBytes::from(&dealing), resharing)
+                .await?;
+        }
     }
 
     info!("DKG: Finished submitting dealing");
@@ -57,9 +87,11 @@ pub(crate) mod tests {
     use crate::coconut::tests::DummyClient;
     use crate::coconut::KeyPair;
     use coconut_dkg_common::dealer::DealerDetails;
+    use coconut_dkg_common::types::InitialReplacementData;
     use cosmwasm_std::Addr;
     use dkg::bte::keys::KeyPair as DkgKeyPair;
     use dkg::bte::{Params, PublicKeyWithProof};
+    use nymcoconut::{ttp_keygen, Parameters};
     use rand::rngs::OsRng;
     use std::collections::HashMap;
     use std::path::PathBuf;
@@ -68,10 +100,11 @@ pub(crate) mod tests {
     use url::Url;
     use validator_client::nyxd::AccountId;
 
-    const TEST_VALIDATORS_ADDRESS: [&str; 3] = [
+    const TEST_VALIDATORS_ADDRESS: [&str; 4] = [
         "n1aq9kakfgwqcufr23lsv644apavcntrsqsk4yus",
         "n1s9l3xr4g0rglvk4yctktmck3h4eq0gp6z2e20v",
         "n19kl4py32vsk297dm93ezem992cdyzdy4zuc2x6",
+        "n1jfrs6cmw9t7dv0x8cgny6geunzjh56n2s89fkv",
     ];
 
     fn insert_dealers(
@@ -121,7 +154,7 @@ pub(crate) mod tests {
         state.set_node_index(Some(self_index));
         let keypairs = insert_dealers(&params, &dealer_details_db);
 
-        dealing_exchange(&dkg_client, &mut state, OsRng)
+        dealing_exchange(&dkg_client, &mut state, OsRng, false)
             .await
             .unwrap();
 
@@ -142,7 +175,7 @@ pub(crate) mod tests {
             .clone();
         assert_eq!(dealings.len(), TOTAL_DEALINGS);
 
-        dealing_exchange(&dkg_client, &mut state, OsRng)
+        dealing_exchange(&dkg_client, &mut state, OsRng, false)
             .await
             .unwrap();
         let new_dealings = dealings_db
@@ -201,7 +234,7 @@ pub(crate) mod tests {
                 details.bte_public_key_with_proof = bs58::encode(&bytes).into_string();
             });
 
-        dealing_exchange(&dkg_client, &mut state, OsRng)
+        dealing_exchange(&dkg_client, &mut state, OsRng, false)
             .await
             .unwrap();
         assert_eq!(
@@ -213,5 +246,86 @@ pub(crate) mod tests {
                 .unwrap_err(),
             ComplaintReason::InvalidBTEPublicKey
         );
+    }
+
+    #[tokio::test]
+    #[ignore] // expensive test
+    async fn resharing_exchange_dealing() {
+        let self_index = 2;
+        let dealer_details_db = Arc::new(RwLock::new(HashMap::new()));
+        let dealings_db = Arc::new(RwLock::new(HashMap::new()));
+        let threshold_db = Arc::new(RwLock::new(Some(3)));
+        let initial_dealers_db = Arc::new(RwLock::new(Some(InitialReplacementData {
+            initial_dealers: vec![Addr::unchecked(TEST_VALIDATORS_ADDRESS[0])],
+            initial_height: Some(100),
+        })));
+        let dkg_client = DkgClient::new(
+            DummyClient::new(
+                AccountId::from_str("n1vxkywf9g4cg0k2dehanzwzz64jw782qm0kuynf").unwrap(),
+            )
+            .with_dealer_details(&dealer_details_db)
+            .with_dealings(&dealings_db)
+            .with_threshold(&threshold_db)
+            .with_initial_dealers_db(&initial_dealers_db),
+        );
+        let params = setup();
+        let mut keys = ttp_keygen(&Parameters::new(4).unwrap(), 3, 4).unwrap();
+        let coconut_keypair = KeyPair::new();
+        coconut_keypair.set(Some(keys.pop().unwrap())).await;
+
+        let mut state = State::new(
+            PathBuf::default(),
+            PersistentState::default(),
+            Url::parse("localhost:8000").unwrap(),
+            DkgKeyPair::new(&params, OsRng),
+            coconut_keypair.clone(),
+        );
+        state.set_node_index(Some(self_index));
+        let keypairs = insert_dealers(&params, &dealer_details_db);
+
+        dealing_exchange(&dkg_client, &mut state, OsRng, true)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            state.current_dealers_by_idx().values().collect::<Vec<_>>(),
+            keypairs
+                .iter()
+                .map(|k| k.public_key().public_key())
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(state.threshold().unwrap(), 3);
+        assert_eq!(state.receiver_index().unwrap(), 1);
+        let addr = dkg_client.get_address().await;
+        assert!(dealings_db.read().unwrap().get(addr.as_ref()).is_none());
+
+        let mut state = State::new(
+            PathBuf::default(),
+            PersistentState::default(),
+            Url::parse("localhost:8000").unwrap(),
+            DkgKeyPair::new(&params, OsRng),
+            coconut_keypair,
+        );
+        state.set_node_index(Some(self_index));
+        // Use a client that is in the initial dealers set
+        let dkg_client = DkgClient::new(
+            DummyClient::new(AccountId::from_str(TEST_VALIDATORS_ADDRESS[0]).unwrap())
+                .with_dealer_details(&dealer_details_db)
+                .with_dealings(&dealings_db)
+                .with_threshold(&threshold_db)
+                .with_initial_dealers_db(&initial_dealers_db),
+        );
+
+        dealing_exchange(&dkg_client, &mut state, OsRng, true)
+            .await
+            .unwrap();
+
+        let dealings = dealings_db
+            .read()
+            .unwrap()
+            .get(TEST_VALIDATORS_ADDRESS[0])
+            .unwrap()
+            .clone();
+        assert_eq!(dealings.len(), TOTAL_DEALINGS);
     }
 }

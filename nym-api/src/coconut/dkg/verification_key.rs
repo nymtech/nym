@@ -456,7 +456,7 @@ pub(crate) mod tests {
 
     #[tokio::test]
     #[ignore] // expensive test
-    async fn check_dealers_resharing_filter_one_bad_dealing() {
+    async fn check_dealers_resharing_filter_one_missing_dealing() {
         let db = MockContractDb::new();
         let mut clients_and_states = prepare_clients_and_states(&db).await;
 
@@ -484,6 +484,37 @@ pub(crate) mod tests {
                 .unwrap_err();
 
             assert_eq!(*corrupted_status, ComplaintReason::MissingDealing);
+        }
+    }
+
+    #[tokio::test]
+    #[ignore] // expensive test
+    async fn check_dealers_resharing_filter_one_noninitial_missing_dealing() {
+        let db = MockContractDb::new();
+        let mut clients_and_states = prepare_clients_and_states(&db).await;
+
+        // add all but the first dealing
+        for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
+            dealing_exchange(dkg_client, state, OsRng, true)
+                .await
+                .unwrap();
+        }
+
+        for (dkg_client, state) in clients_and_states.iter_mut().skip(1) {
+            *db.initial_dealers_db.write().unwrap() = Some(InitialReplacementData {
+                initial_dealers: vec![],
+                initial_height: None,
+            });
+            let filtered = deterministic_filter_dealers(dkg_client, state, 2, true)
+                .await
+                .unwrap();
+            assert_eq!(filtered.len(), TOTAL_DEALINGS);
+            assert!(state
+                .all_dealers()
+                .get(&Addr::unchecked(TEST_VALIDATORS_ADDRESS[0]))
+                .unwrap()
+                .as_ref()
+                .is_ok(),);
         }
     }
 

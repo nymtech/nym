@@ -374,23 +374,23 @@ pub struct Gateway {
 
 impl Gateway {
     fn default_private_sphinx_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("private_sphinx.pem")
+        Config::default_data_directory(id).join("private_sphinx.pem")
     }
 
     fn default_public_sphinx_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("public_sphinx.pem")
+        Config::default_data_directory(id).join("public_sphinx.pem")
     }
 
     fn default_private_identity_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("private_identity.pem")
+        Config::default_data_directory(id).join("private_identity.pem")
     }
 
     fn default_public_identity_key_file(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("public_identity.pem")
+        Config::default_data_directory(id).join("public_identity.pem")
     }
 
     fn default_database_path(id: &str) -> PathBuf {
-        Config::default_data_directory(Some(id)).join("db.sqlite")
+        Config::default_data_directory(id).join("db.sqlite")
     }
 }
 

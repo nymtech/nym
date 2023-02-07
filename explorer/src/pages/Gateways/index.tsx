@@ -82,6 +82,24 @@ export const PageGateways: FCWithChildren = () => {
       ),
     },
     {
+      field: 'performance',
+      headerName: 'Routing Score',
+      renderHeader: () => <CustomColumnHeading headingTitle="Routing Score" />,
+      width: 150,
+      headerAlign: 'left',
+      headerClassName: 'MuiDataGrid-header-override',
+      renderCell: (params: GridRenderCellParams) => (
+        <MuiLink
+          sx={{ ...cellStyles }}
+          component={RRDLink}
+          to={`/network-components/gateway/${params.row.identityKey}`}
+          data-testid="pledge-amount"
+        >
+          {`${params.value}%`}
+        </MuiLink>
+      ),
+    },
+    {
       field: 'host',
       renderHeader: () => <CustomColumnHeading headingTitle="IP:Port" />,
       width: 180,

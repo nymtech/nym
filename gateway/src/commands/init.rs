@@ -102,7 +102,7 @@ impl From<Init> for OverrideConfig {
 pub async fn execute(args: Init, output: OutputFormat) -> Result<(), Box<dyn Error + Send + Sync>> {
     println!("Initialising gateway {}...", args.id);
 
-    let already_init = if Config::default_config_file_path(Some(&args.id)).exists() {
+    let already_init = if Config::default_config_file_path(&args.id).exists() {
         eprintln!(
             "Gateway \"{}\" was already initialised before! Config information will be \
             overwritten (but keys will be kept)!",

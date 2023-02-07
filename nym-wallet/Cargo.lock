@@ -2710,6 +2710,7 @@ dependencies = [
  "cw4",
  "schemars",
  "serde",
+ "thiserror",
 ]
 
 [[package]]

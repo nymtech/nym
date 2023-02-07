@@ -79,7 +79,7 @@ fn special_addresses() -> Vec<&'static str> {
 pub(crate) async fn execute(args: &Run, output: OutputFormat) {
     eprintln!("Starting mixnode {}...", args.id);
 
-    let mut config = match Config::load_from_file(Some(&args.id)) {
+    let mut config = match Config::load_from_file(&args.id) {
         Ok(cfg) => cfg,
         Err(err) => {
             error!(

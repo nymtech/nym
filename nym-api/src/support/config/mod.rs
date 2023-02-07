@@ -201,8 +201,8 @@ pub struct NetworkMonitor {
 impl NetworkMonitor {
     pub const DB_FILE: &'static str = "credentials_database.db";
 
-    fn default_credentials_database_path() -> PathBuf {
-        Config::default_data_directory(None).join(Self::DB_FILE)
+    fn default_credentials_database_path(id: &str) -> PathBuf {
+        Config::default_data_directory(id).join(Self::DB_FILE)
     }
 }
 
@@ -220,7 +220,7 @@ impl Default for NetworkMonitor {
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             gateway_connection_timeout: DEFAULT_GATEWAY_CONNECTION_TIMEOUT,
             packet_delivery_timeout: DEFAULT_PACKET_DELIVERY_TIMEOUT,
-            credentials_database_path: Self::default_credentials_database_path(),
+            credentials_database_path: Default::default(),
             test_routes: DEFAULT_TEST_ROUTES,
             minimum_test_routes: DEFAULT_MINIMUM_TEST_ROUTES,
             route_test_packets: DEFAULT_ROUTE_TEST_PACKETS,
@@ -242,15 +242,15 @@ pub struct NodeStatusAPI {
 impl NodeStatusAPI {
     pub const DB_FILE: &'static str = "db.sqlite";
 
-    fn default_database_path() -> PathBuf {
-        Config::default_data_directory(None).join(Self::DB_FILE)
+    fn default_database_path(id: &str) -> PathBuf {
+        Config::default_data_directory(id).join(Self::DB_FILE)
     }
 }
 
 impl Default for NodeStatusAPI {
     fn default() -> Self {
         NodeStatusAPI {
-            database_path: Self::default_database_path(),
+            database_path: Default::default(),
             caching_interval: DEFAULT_NODE_STATUS_CACHE_INTERVAL,
         }
     }
@@ -342,24 +342,24 @@ impl CoconutSigner {
     pub const COCONUT_VERIFICATION_KEY_FILE: &'static str = "coconut_verification_key.pem";
     pub const COCONUT_SECRET_KEY_FILE: &'static str = "coconut_secret_key.pem";
 
-    fn default_coconut_verification_key_path() -> PathBuf {
-        Config::default_data_directory(None).join(Self::COCONUT_VERIFICATION_KEY_FILE)
+    fn default_coconut_verification_key_path(id: &str) -> PathBuf {
+        Config::default_data_directory(id).join(Self::COCONUT_VERIFICATION_KEY_FILE)
     }
 
-    fn default_coconut_secret_key_path() -> PathBuf {
-        Config::default_data_directory(None).join(Self::COCONUT_SECRET_KEY_FILE)
+    fn default_coconut_secret_key_path(id: &str) -> PathBuf {
+        Config::default_data_directory(id).join(Self::COCONUT_SECRET_KEY_FILE)
     }
 
-    fn default_dkg_persistent_state_path() -> PathBuf {
-        Config::default_data_directory(None).join(Self::DKG_PERSISTENT_STATE_FILE)
+    fn default_dkg_persistent_state_path(id: &str) -> PathBuf {
+        Config::default_data_directory(id).join(Self::DKG_PERSISTENT_STATE_FILE)
     }
 
-    fn default_dkg_decryption_key_path() -> PathBuf {
-        Config::default_data_directory(None).join(Self::DKG_DECRYPTION_KEY_FILE)
+    fn default_dkg_decryption_key_path(id: &str) -> PathBuf {
+        Config::default_data_directory(id).join(Self::DKG_DECRYPTION_KEY_FILE)
     }
 
-    fn default_dkg_public_key_with_proof_path() -> PathBuf {
-        Config::default_data_directory(None).join(Self::DKG_PUBLIC_KEY_WITH_PROOF_FILE)
+    fn default_dkg_public_key_with_proof_path(id: &str) -> PathBuf {
+        Config::default_data_directory(id).join(Self::DKG_PUBLIC_KEY_WITH_PROOF_FILE)
     }
 }
 
@@ -367,11 +367,11 @@ impl Default for CoconutSigner {
     fn default() -> Self {
         Self {
             enabled: Default::default(),
-            dkg_persistent_state_path: CoconutSigner::default_dkg_persistent_state_path(),
-            verification_key_path: CoconutSigner::default_coconut_verification_key_path(),
-            secret_key_path: CoconutSigner::default_coconut_secret_key_path(),
-            decryption_key_path: CoconutSigner::default_dkg_decryption_key_path(),
-            public_key_with_proof_path: CoconutSigner::default_dkg_public_key_with_proof_path(),
+            dkg_persistent_state_path: Default::default(),
+            verification_key_path: Default::default(),
+            secret_key_path: Default::default(),
+            decryption_key_path: Default::default(),
+            public_key_with_proof_path: Default::default(),
             dkg_contract_polling_rate: DEFAULT_DKG_CONTRACT_POLLING_RATE,
         }
     }
@@ -384,20 +384,18 @@ impl Config {
 
     pub fn with_id(mut self, id: &str) -> Self {
         self.base.id = id.to_string();
-        self.node_status_api.database_path =
-            Config::default_data_directory(Some(id)).join(NodeStatusAPI::DB_FILE);
+        self.node_status_api.database_path = NodeStatusAPI::default_database_path(id);
         self.network_monitor.credentials_database_path =
-            Config::default_data_directory(Some(id)).join(NetworkMonitor::DB_FILE);
+            NetworkMonitor::default_credentials_database_path(id);
         self.coconut_signer.dkg_persistent_state_path =
-            Config::default_data_directory(Some(id)).join(CoconutSigner::DKG_PERSISTENT_STATE_FILE);
-        self.coconut_signer.verification_key_path = Config::default_data_directory(Some(id))
-            .join(CoconutSigner::COCONUT_VERIFICATION_KEY_FILE);
-        self.coconut_signer.secret_key_path =
-            Config::default_data_directory(Some(id)).join(CoconutSigner::COCONUT_SECRET_KEY_FILE);
+            CoconutSigner::default_dkg_persistent_state_path(id);
+        self.coconut_signer.verification_key_path =
+            CoconutSigner::default_coconut_verification_key_path(id);
+        self.coconut_signer.secret_key_path = CoconutSigner::default_coconut_secret_key_path(id);
         self.coconut_signer.decryption_key_path =
-            Config::default_data_directory(Some(id)).join(CoconutSigner::DKG_DECRYPTION_KEY_FILE);
-        self.coconut_signer.public_key_with_proof_path = Config::default_data_directory(Some(id))
-            .join(CoconutSigner::DKG_PUBLIC_KEY_WITH_PROOF_FILE);
+            CoconutSigner::default_dkg_decryption_key_path(id);
+        self.coconut_signer.public_key_with_proof_path =
+            CoconutSigner::default_dkg_public_key_with_proof_path(id);
         self
     }
 

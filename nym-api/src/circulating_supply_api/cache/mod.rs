@@ -76,7 +76,7 @@ impl CirculatingSupplyCache {
     pub(crate) async fn update(&self, mixmining_reserve: Coin, vesting_tokens: Coin) {
         let mut cache = self.data.write().await;
 
-        let mut circulating_supply = cache.initial_supply.clone();
+        let mut circulating_supply = cache.total_supply.clone();
         circulating_supply.amount -= mixmining_reserve.amount;
         circulating_supply.amount -= vesting_tokens.amount;
 

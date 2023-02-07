@@ -108,7 +108,7 @@ pub(crate) async fn execute(args: &Init) -> Result<(), ClientError> {
 
     let id = &args.id;
 
-    let already_init = Config::default_config_file_path(Some(id)).exists();
+    let already_init = Config::default_config_file_path(id).exists();
     if already_init {
         println!("Client \"{id}\" was already initialised before");
     }

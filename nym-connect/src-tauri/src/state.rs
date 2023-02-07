@@ -154,7 +154,7 @@ impl State {
 
     pub fn load_socks5_config(&self) -> Result<Socks5Config> {
         let id = self.get_config_id()?;
-        let config = Socks5Config::load_from_file(Some(&id))
+        let config = Socks5Config::load_from_file(&id)
             .tap_err(|_| log::warn!("Failed to load configuration file"))?;
         Ok(config)
     }

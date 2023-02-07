@@ -121,7 +121,7 @@ pub async fn init_socks5_config(
     )
     .await?;
 
-    config.get_base_mut().with_gateway_endpoint(gateway);
+    config.get_base_mut().set_gateway_endpoint(gateway);
 
     print_saved_config(&config);
 

@@ -141,7 +141,7 @@ pub async fn init_socks5_config(provider_address: String, chosen_gateway_id: Str
     )
     .await?;
 
-    config.get_base_mut().with_gateway_endpoint(gateway);
+    config.get_base_mut().set_gateway_endpoint(gateway);
 
     config.get_socks5().save_to_file(None).tap_err(|_| {
         log::error!("Failed to save the config file");

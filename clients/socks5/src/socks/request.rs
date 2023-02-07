@@ -28,7 +28,10 @@ impl SocksRequest {
         log::trace!("read from stream socks4");
 
         let mut packet = [0u8; 3];
-        stream.read_exact(&mut packet).await?;
+        stream
+            .read_exact(&mut packet)
+            .await
+            .map_err(|source| SocksProxyError::SocketReadError { source })?;
 
         // CD (command)
         let Some(command) = SocksCommand::from(packet[0] as usize) else {
@@ -43,7 +46,10 @@ impl SocksRequest {
 
         // DSTIP
         let mut ip = [0u8; 4];
-        stream.read_exact(&mut ip).await?;
+        stream
+            .read_exact(&mut ip)
+            .await
+            .map_err(|source| SocksProxyError::SocketReadError { source })?;
 
         // USERID
         let _userid = read_until_zero(stream).await;
@@ -76,12 +82,17 @@ impl SocksRequest {
 
         let mut packet = [0u8; 4];
         // Read a byte from the stream and determine the version being requested
-        stream.read_exact(&mut packet).await?;
+        stream
+            .read_exact(&mut packet)
+            .await
+            .map_err(|source| SocksProxyError::SocketReadError { source })?;
 
         // VER
         if packet[0] != SOCKS5_VERSION {
             warn!("Unsupported version: SOCKS{}", packet[0]);
-            return Err(SocksProxyError::UnsupportedProxyVersion(packet[0]));
+            return Err(SocksProxyError::UnsupportedProxyVersion {
+                version: (packet[0]),
+            });
         }
 
         // CMD
@@ -103,26 +114,41 @@ impl SocksRequest {
         let addr = match addr_type {
             AddrType::Domain => {
                 let mut domain_length = [0u8];
-                stream.read_exact(&mut domain_length).await?;
+                stream
+                    .read_exact(&mut domain_length)
+                    .await
+                    .map_err(|source| SocksProxyError::SocketReadError { source })?;
                 let mut domain = vec![0u8; domain_length[0] as usize];
-                stream.read_exact(&mut domain).await?;
+                stream
+                    .read_exact(&mut domain)
+                    .await
+                    .map_err(|source| SocksProxyError::SocketReadError { source })?;
                 domain
             }
             AddrType::V4 => {
                 let mut addr = [0u8; 4];
-                stream.read_exact(&mut addr).await?;
+                stream
+                    .read_exact(&mut addr)
+                    .await
+                    .map_err(|source| SocksProxyError::SocketReadError { source })?;
                 addr.to_vec()
             }
             AddrType::V6 => {
                 let mut addr = [0u8; 16];
-                stream.read_exact(&mut addr).await?;
+                stream
+                    .read_exact(&mut addr)
+                    .await
+                    .map_err(|source| SocksProxyError::SocketReadError { source })?;
                 addr.to_vec()
             }
         };
 
         // DST.PORT
         let mut port = [0u8; 2];
-        stream.read_exact(&mut port).await?;
+        stream
+            .read_exact(&mut port)
+            .await
+            .map_err(|source| SocksProxyError::SocketReadError { source })?;
         let port = merge_u8_into_u16(port[0], port[1]);
 
         Ok(SocksRequest {
@@ -179,7 +205,10 @@ where
     let mut result = Vec::new();
     let mut char = [0u8];
     loop {
-        stream.read_exact(&mut char).await?;
+        stream
+            .read_exact(&mut char)
+            .await
+            .map_err(|source| SocksProxyError::SocketReadError { source })?;
         if char[0] == 0 {
             break;
         }

@@ -1,7 +1,9 @@
-// Copyright 2020-2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::{Socks5ProtocolVersion, Socks5RequestError, Socks5Response};
 use nymsphinx_addressing::clients::{Recipient, RecipientFormattingError};
+use service_providers_common::interface::{Serializable, ServiceProviderRequest};
 use std::convert::TryFrom;
 use thiserror::Error;
 
@@ -16,19 +18,19 @@ pub enum RequestFlag {
 }
 
 impl TryFrom<u8> for RequestFlag {
-    type Error = RequestError;
+    type Error = RequestDeserializationError;
 
-    fn try_from(value: u8) -> Result<RequestFlag, RequestError> {
+    fn try_from(value: u8) -> Result<RequestFlag, RequestDeserializationError> {
         match value {
             _ if value == (RequestFlag::Connect as u8) => Ok(Self::Connect),
             _ if value == (RequestFlag::Send as u8) => Ok(Self::Send),
-            _ => Err(RequestError::UnknownRequestFlag),
+            value => Err(RequestDeserializationError::UnknownRequestFlag { value }),
         }
     }
 }
 
 #[derive(Debug, Error)]
-pub enum RequestError {
+pub enum RequestDeserializationError {
     #[error("not enough bytes to recover the length of the address")]
     AddressLengthTooShort,
 
@@ -41,8 +43,8 @@ pub enum RequestError {
     #[error("no data provided")]
     NoData,
 
-    #[error("request of unknown type")]
-    UnknownRequestFlag,
+    #[error("{value} is not a valid request flag")]
+    UnknownRequestFlag { value: u8 },
 
     #[error("too short return address")]
     ReturnAddressTooShort,
@@ -51,13 +53,13 @@ pub enum RequestError {
     MalformedReturnAddress(RecipientFormattingError),
 }
 
-impl RequestError {
+impl RequestDeserializationError {
     pub fn is_malformed_return(&self) -> bool {
-        matches!(self, RequestError::MalformedReturnAddress(_))
+        matches!(self, RequestDeserializationError::MalformedReturnAddress(_))
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ConnectRequest {
     // TODO: is connection_id redundant now?
     pub conn_id: ConnectionId,
@@ -65,27 +67,128 @@ pub struct ConnectRequest {
     pub return_address: Option<Recipient>,
 }
 
+#[derive(Debug, Clone)]
+pub struct SendRequest {
+    pub conn_id: ConnectionId,
+    pub data: Vec<u8>,
+    pub local_closed: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct Socks5Request {
+    pub protocol_version: Socks5ProtocolVersion,
+    pub content: Socks5RequestContent,
+}
+
+impl Serializable for Socks5Request {
+    type Error = Socks5RequestError;
+
+    // legacy requests had the format of
+    // 0 (Message::REQUEST_FLAG) || 0 (RequestFlag::Connect) || <data> for connect requests
+    // 0 (Message::REQUEST_FLAG) || 1 (RequestFlag::Send) || <data> for send requests
+    // the updated formats use
+    // 3 (Socks5ProtocolVersion) || 0 (RequestFlag::Connect) || <data> for connect requests
+    // 3 (Socks5ProtocolVersion) || 1 (RequestFlag::Send) || <data> for send requests
+    // in both cases, the actual data is serialized the same way, so the process is quite straight forward
+    fn into_bytes(self) -> Vec<u8> {
+        if let Some(version) = self.protocol_version.as_u8() {
+            std::iter::once(version)
+                .chain(self.content.into_bytes().into_iter())
+                .collect()
+        } else {
+            std::iter::once(Self::LEGACY_TYPE_TAG)
+                .chain(self.content.into_bytes())
+                .collect()
+        }
+    }
+
+    fn try_from_bytes(b: &[u8]) -> Result<Self, Self::Error> {
+        if b.is_empty() {
+            return Err(RequestDeserializationError::NoData.into());
+        }
+
+        let protocol_version = Socks5ProtocolVersion::from(b[0]);
+        Ok(Socks5Request {
+            protocol_version,
+            content: Socks5RequestContent::try_from_bytes(&b[1..])?,
+        })
+    }
+}
+
+impl ServiceProviderRequest for Socks5Request {
+    type ProtocolVersion = Socks5ProtocolVersion;
+    type Response = Socks5Response;
+    type Error = Socks5RequestError;
+
+    fn provider_specific_version(&self) -> Self::ProtocolVersion {
+        self.protocol_version
+    }
+
+    fn max_supported_version() -> Self::ProtocolVersion {
+        Socks5ProtocolVersion::new_current()
+    }
+}
+
+impl Socks5Request {
+    // type tag that used to be prepended to all request messages
+    const LEGACY_TYPE_TAG: u8 = 0x00;
+
+    pub fn new(
+        protocol_version: Socks5ProtocolVersion,
+        content: Socks5RequestContent,
+    ) -> Socks5Request {
+        Socks5Request {
+            protocol_version,
+            content,
+        }
+    }
+
+    pub fn new_connect(
+        protocol_version: Socks5ProtocolVersion,
+        conn_id: ConnectionId,
+        remote_addr: RemoteAddress,
+        return_address: Option<Recipient>,
+    ) -> Socks5Request {
+        Socks5Request {
+            protocol_version,
+            content: Socks5RequestContent::new_connect(conn_id, remote_addr, return_address),
+        }
+    }
+
+    pub fn new_send(
+        protocol_version: Socks5ProtocolVersion,
+        conn_id: ConnectionId,
+        data: Vec<u8>,
+        local_closed: bool,
+    ) -> Socks5Request {
+        Socks5Request {
+            protocol_version,
+            content: Socks5RequestContent::new_send(conn_id, data, local_closed),
+        }
+    }
+}
+
 /// A request from a SOCKS5 client that a Nym Socks5 service provider should
 /// take an action for an application using a (probably local) Nym Socks5 proxy.
-#[derive(Debug)]
-pub enum Request {
+#[derive(Debug, Clone)]
+pub enum Socks5RequestContent {
     /// Start a new TCP connection to the specified `RemoteAddress` and send
     /// the request data up the connection.
     /// All responses produced on this `ConnectionId` should come back to the specified `Recipient`
     Connect(Box<ConnectRequest>),
 
     /// Re-use an existing TCP connection, sending more request data up it.
-    Send(ConnectionId, Vec<u8>, bool),
+    Send(SendRequest),
 }
 
-impl Request {
+impl Socks5RequestContent {
     /// Construct a new Request::Connect instance
     pub fn new_connect(
         conn_id: ConnectionId,
         remote_addr: RemoteAddress,
         return_address: Option<Recipient>,
-    ) -> Request {
-        Request::Connect(Box::new(ConnectRequest {
+    ) -> Socks5RequestContent {
+        Socks5RequestContent::Connect(Box::new(ConnectRequest {
             conn_id,
             remote_addr,
             return_address,
@@ -93,8 +196,16 @@ impl Request {
     }
 
     /// Construct a new Request::Send instance
-    pub fn new_send(conn_id: ConnectionId, data: Vec<u8>, local_closed: bool) -> Request {
-        Request::Send(conn_id, data, local_closed)
+    pub fn new_send(
+        conn_id: ConnectionId,
+        data: Vec<u8>,
+        local_closed: bool,
+    ) -> Socks5RequestContent {
+        Socks5RequestContent::Send(SendRequest {
+            conn_id,
+            data,
+            local_closed,
+        })
     }
 
     /// Deserialize the request type, connection id, destination address and port,
@@ -111,23 +222,23 @@ impl Request {
     /// The request_flag tells us whether this is a new connection request (`new_connect`),
     /// an already-established connection we should send up (`new_send`), or
     /// a request to close an established connection (`new_close`).
-    pub fn try_from_bytes(b: &[u8]) -> Result<Request, RequestError> {
+    pub fn try_from_bytes(b: &[u8]) -> Result<Socks5RequestContent, RequestDeserializationError> {
         // each request needs to at least contain flag and ConnectionId
         if b.is_empty() {
-            return Err(RequestError::NoData);
+            return Err(RequestDeserializationError::NoData);
         }
 
         if b.len() < 9 {
-            return Err(RequestError::ConnectionIdTooShort);
+            return Err(RequestDeserializationError::ConnectionIdTooShort);
         }
-        let connection_id = u64::from_be_bytes([b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8]]);
+        let conn_id = u64::from_be_bytes([b[1], b[2], b[3], b[4], b[5], b[6], b[7], b[8]]);
         match RequestFlag::try_from(b[0])? {
             RequestFlag::Connect => {
                 let connect_request_bytes = &b[9..];
 
                 // we need to be able to read at least 2 bytes that specify address length
                 if connect_request_bytes.len() < 2 {
-                    return Err(RequestError::AddressLengthTooShort);
+                    return Err(RequestDeserializationError::AddressLengthTooShort);
                 }
 
                 let address_length =
@@ -135,7 +246,7 @@ impl Request {
                         as usize;
 
                 if connect_request_bytes.len() < 2 + address_length {
-                    return Err(RequestError::AddressTooShort);
+                    return Err(RequestDeserializationError::AddressTooShort);
                 }
 
                 let address_start = 2;
@@ -150,19 +261,19 @@ impl Request {
                     None
                 } else {
                     if recipient_data_bytes.len() != Recipient::LEN {
-                        return Err(RequestError::ReturnAddressTooShort);
+                        return Err(RequestDeserializationError::ReturnAddressTooShort);
                     }
 
                     let mut return_bytes = [0u8; Recipient::LEN];
                     return_bytes.copy_from_slice(&recipient_data_bytes[..Recipient::LEN]);
                     Some(
                         Recipient::try_from_bytes(return_bytes)
-                            .map_err(RequestError::MalformedReturnAddress)?,
+                            .map_err(RequestDeserializationError::MalformedReturnAddress)?,
                     )
                 };
 
-                Ok(Request::new_connect(
-                    connection_id,
+                Ok(Socks5RequestContent::new_connect(
+                    conn_id,
                     remote_address,
                     return_address,
                 ))
@@ -171,7 +282,11 @@ impl Request {
                 let local_closed = b[9] != 0;
                 let data = b[10..].to_vec();
 
-                Ok(Request::Send(connection_id, data, local_closed))
+                Ok(Socks5RequestContent::Send(SendRequest {
+                    conn_id,
+                    data,
+                    local_closed,
+                }))
             }
         }
     }
@@ -182,7 +297,7 @@ impl Request {
     pub fn into_bytes(self) -> Vec<u8> {
         match self {
             // connect is: CONN_FLAG || CONN_ID || REMOTE_LEN || REMOTE || RETURN
-            Request::Connect(req) => {
+            Socks5RequestContent::Connect(req) => {
                 let remote_address_bytes = req.remote_addr.into_bytes();
                 let remote_address_bytes_len = remote_address_bytes.len() as u16;
 
@@ -197,10 +312,10 @@ impl Request {
                     iter.collect()
                 }
             }
-            Request::Send(conn_id, data, local_closed) => std::iter::once(RequestFlag::Send as u8)
-                .chain(conn_id.to_be_bytes().into_iter())
-                .chain(std::iter::once(local_closed as u8))
-                .chain(data.into_iter())
+            Socks5RequestContent::Send(req) => std::iter::once(RequestFlag::Send as u8)
+                .chain(req.conn_id.to_be_bytes().into_iter())
+                .chain(std::iter::once(req.local_closed as u8))
+                .chain(req.data.into_iter())
                 .collect(),
         }
     }
@@ -216,8 +331,8 @@ mod request_deserialization_tests {
         #[test]
         fn returns_error_when_zero_bytes() {
             let request_bytes = Vec::new();
-            match Request::try_from_bytes(&request_bytes).unwrap_err() {
-                RequestError::NoData => {}
+            match Socks5RequestContent::try_from_bytes(&request_bytes).unwrap_err() {
+                RequestDeserializationError::NoData => {}
                 _ => unreachable!(),
             }
         }
@@ -225,8 +340,8 @@ mod request_deserialization_tests {
         #[test]
         fn returns_error_when_connection_id_too_short() {
             let request_bytes = [RequestFlag::Connect as u8, 1, 2, 3, 4, 5, 6, 7].to_vec(); // 7 bytes connection id
-            match Request::try_from_bytes(&request_bytes).unwrap_err() {
-                RequestError::ConnectionIdTooShort => {}
+            match Socks5RequestContent::try_from_bytes(&request_bytes).unwrap_err() {
+                RequestDeserializationError::ConnectionIdTooShort => {}
                 _ => unreachable!(),
             }
         }
@@ -241,13 +356,13 @@ mod request_deserialization_tests {
             let request_bytes1 = [RequestFlag::Connect as u8, 1, 2, 3, 4, 5, 6, 7, 8].to_vec(); // 8 bytes connection id, 0 bytes address length (2 were expected)
             let request_bytes2 = [RequestFlag::Connect as u8, 1, 2, 3, 4, 5, 6, 7, 8, 0].to_vec(); // 8 bytes connection id, 1 bytes address length (2 were expected)
 
-            match Request::try_from_bytes(&request_bytes1).unwrap_err() {
-                RequestError::AddressLengthTooShort => {}
+            match Socks5RequestContent::try_from_bytes(&request_bytes1).unwrap_err() {
+                RequestDeserializationError::AddressLengthTooShort => {}
                 _ => unreachable!(),
             }
 
-            match Request::try_from_bytes(&request_bytes2).unwrap_err() {
-                RequestError::AddressLengthTooShort => {}
+            match Socks5RequestContent::try_from_bytes(&request_bytes2).unwrap_err() {
+                RequestDeserializationError::AddressLengthTooShort => {}
                 _ => unreachable!(),
             }
         }
@@ -255,8 +370,8 @@ mod request_deserialization_tests {
         #[test]
         fn returns_error_when_address_too_short_for_given_address_length() {
             let request_bytes = [RequestFlag::Connect as u8, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1].to_vec(); // 8 bytes connection id, 2 bytes address length, missing address
-            match Request::try_from_bytes(&request_bytes).unwrap_err() {
-                RequestError::AddressTooShort => {}
+            match Socks5RequestContent::try_from_bytes(&request_bytes).unwrap_err() {
+                RequestDeserializationError::AddressTooShort => {}
                 _ => unreachable!(),
             }
         }
@@ -295,8 +410,8 @@ mod request_deserialization_tests {
                 .chain(recipient_bytes.iter().take(40).cloned())
                 .collect();
 
-            match Request::try_from_bytes(&request_bytes).unwrap_err() {
-                RequestError::ReturnAddressTooShort => {}
+            match Socks5RequestContent::try_from_bytes(&request_bytes).unwrap_err() {
+                RequestDeserializationError::ReturnAddressTooShort => {}
                 _ => unreachable!(),
             }
         }
@@ -338,7 +453,7 @@ mod request_deserialization_tests {
                 .cloned()
                 .chain(recipient_bytes.into_iter())
                 .collect();
-            assert!(Request::try_from_bytes(&request_bytes)
+            assert!(Socks5RequestContent::try_from_bytes(&request_bytes)
                 .unwrap_err()
                 .is_malformed_return());
         }
@@ -376,9 +491,9 @@ mod request_deserialization_tests {
                 .chain(recipient_bytes.into_iter())
                 .collect();
 
-            let request = Request::try_from_bytes(&request_bytes).unwrap();
+            let request = Socks5RequestContent::try_from_bytes(&request_bytes).unwrap();
             match request {
-                Request::Connect(req) => {
+                Socks5RequestContent::Connect(req) => {
                     assert_eq!("foo.com".to_string(), req.remote_addr);
                     assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), req.conn_id);
                     assert_eq!(
@@ -423,9 +538,9 @@ mod request_deserialization_tests {
                 .chain(recipient_bytes.into_iter())
                 .collect();
 
-            let request = Request::try_from_bytes(&request_bytes).unwrap();
+            let request = Socks5RequestContent::try_from_bytes(&request_bytes).unwrap();
             match request {
-                Request::Connect(req) => {
+                Socks5RequestContent::Connect(req) => {
                     assert_eq!("foo.com".to_string(), req.remote_addr);
                     assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), req.conn_id);
                     assert_eq!(
@@ -446,9 +561,13 @@ mod request_deserialization_tests {
         fn works_when_request_is_sized_properly_even_without_data() {
             // correct 8 bytes of connection_id, 1 byte of local_closed and 0 bytes request data
             let request_bytes = [RequestFlag::Send as u8, 1, 2, 3, 4, 5, 6, 7, 8, 0].to_vec();
-            let request = Request::try_from_bytes(&request_bytes).unwrap();
+            let request = Socks5RequestContent::try_from_bytes(&request_bytes).unwrap();
             match request {
-                Request::Send(conn_id, data, local_closed) => {
+                Socks5RequestContent::Send(SendRequest {
+                    conn_id,
+                    data,
+                    local_closed,
+                }) => {
                     assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
                     assert_eq!(Vec::<u8>::new(), data);
                     assert!(!local_closed)
@@ -477,9 +596,13 @@ mod request_deserialization_tests {
             ]
             .to_vec();
 
-            let request = Request::try_from_bytes(&request_bytes).unwrap();
+            let request = Socks5RequestContent::try_from_bytes(&request_bytes).unwrap();
             match request {
-                Request::Send(conn_id, data, local_closed) => {
+                Socks5RequestContent::Send(SendRequest {
+                    conn_id,
+                    data,
+                    local_closed,
+                }) => {
                     assert_eq!(u64::from_be_bytes([1, 2, 3, 4, 5, 6, 7, 8]), conn_id);
                     assert_eq!(vec![255, 255, 255], data);
                     assert!(!local_closed)

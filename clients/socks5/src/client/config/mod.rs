@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::config::template::config_template;
@@ -9,6 +9,8 @@ use config::defaults::DEFAULT_SOCKS5_LISTENING_PORT;
 use config::{NymConfig, OptionalSet};
 use nymsphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
+use service_providers_common::interface::ProviderInterfaceVersion;
+use socks5_requests::Socks5ProtocolVersion;
 use std::fmt::Debug;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -90,6 +92,16 @@ impl Config {
         self
     }
 
+    pub fn with_provider_interface_version(mut self, version: ProviderInterfaceVersion) -> Self {
+        self.socks5.provider_interface_version = version;
+        self
+    }
+
+    pub fn with_socks5_protocol_version(mut self, version: Socks5ProtocolVersion) -> Self {
+        self.socks5.socks5_protocol_version = version;
+        self
+    }
+
     pub fn with_anonymous_replies(mut self, anonymous_replies: bool) -> Self {
         self.socks5.send_anonymously = anonymous_replies;
         self
@@ -115,6 +127,14 @@ impl Config {
     pub fn get_provider_mix_address(&self) -> Recipient {
         Recipient::try_from_base58_string(&self.socks5.provider_mix_address)
             .expect("malformed provider address")
+    }
+
+    pub fn get_provider_interface_version(&self) -> ProviderInterfaceVersion {
+        self.socks5.provider_interface_version
+    }
+
+    pub fn get_socks5_protocol_version(&self) -> Socks5ProtocolVersion {
+        self.socks5.socks5_protocol_version
     }
 
     pub fn get_send_anonymously(&self) -> bool {
@@ -187,6 +207,15 @@ pub struct Socks5 {
     /// The mix address of the provider to which all requests are going to be sent.
     provider_mix_address: String,
 
+    /// The version of the 'service provider' this client is going to use in its communication with the
+    /// specified socks5 provider.
+    // if in doubt, use the legacy version as initially nobody will be using the updated binaries
+    #[serde(default = "ProviderInterfaceVersion::new_legacy")]
+    provider_interface_version: ProviderInterfaceVersion,
+
+    #[serde(default = "Socks5ProtocolVersion::new_legacy")]
+    socks5_protocol_version: Socks5ProtocolVersion,
+
     /// Specifies whether this client is going to use an anonymous sender tag for communication with the service provider.
     /// While this is going to hide its actual address information, it will make the actual communication
     /// slower and consume nearly double the bandwidth as it will require sending reply SURBs.
@@ -201,6 +230,8 @@ impl Socks5 {
         Socks5 {
             listening_port: DEFAULT_SOCKS5_LISTENING_PORT,
             provider_mix_address: provider_mix_address.into(),
+            provider_interface_version: ProviderInterfaceVersion::Legacy,
+            socks5_protocol_version: Socks5ProtocolVersion::Legacy,
             send_anonymously: false,
         }
     }
@@ -211,6 +242,8 @@ impl Default for Socks5 {
         Socks5 {
             listening_port: DEFAULT_SOCKS5_LISTENING_PORT,
             provider_mix_address: "".into(),
+            provider_interface_version: ProviderInterfaceVersion::Legacy,
+            socks5_protocol_version: Socks5ProtocolVersion::Legacy,
             send_anonymously: false,
         }
     }

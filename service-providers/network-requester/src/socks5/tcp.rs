@@ -1,15 +1,16 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::reply;
+use crate::reply::MixnetMessage;
 use client_connections::LaneQueueLengths;
 use proxy_helpers::connection_controller::ConnectionReceiver;
 use proxy_helpers::proxy_runner::{MixProxySender, ProxyRunner};
-use socks5_requests::{ConnectionId, Message as Socks5Message, RemoteAddress, Response};
+use service_providers_common::interface::RequestVersion;
+use socks5_requests::{ConnectionId, RemoteAddress, Socks5Request};
 use std::io;
 use task::TaskClient;
 use tokio::net::TcpStream;
-
-use crate::reply;
 
 /// An outbound TCP connection between the Socks5 service provider, which makes
 /// requests on behalf of users and returns the responses through
@@ -19,14 +20,14 @@ pub(crate) struct Connection {
     id: ConnectionId,
     address: RemoteAddress,
     conn: Option<TcpStream>,
-    return_address: reply::ReturnAddress,
+    return_address: reply::MixnetAddress,
 }
 
 impl Connection {
     pub(crate) async fn new(
         id: ConnectionId,
         address: RemoteAddress,
-        return_address: reply::ReturnAddress,
+        return_address: reply::MixnetAddress,
     ) -> io::Result<Self> {
         let conn = TcpStream::connect(&address).await?;
 
@@ -40,8 +41,9 @@ impl Connection {
 
     pub(crate) async fn run_proxy(
         &mut self,
+        remote_version: RequestVersion<Socks5Request>,
         mix_receiver: ConnectionReceiver,
-        mix_sender: MixProxySender<(Socks5Message, reply::ReturnAddress)>,
+        mix_sender: MixProxySender<MixnetMessage>,
         lane_queue_lengths: LaneQueueLengths,
         shutdown: TaskClient,
     ) {
@@ -60,9 +62,12 @@ impl Connection {
             shutdown,
         )
         .run(move |conn_id, read_data, socket_closed| {
-            (
-                Socks5Message::Response(Response::new(conn_id, read_data, socket_closed)),
+            MixnetMessage::new_network_data_response_content(
                 return_address.clone(),
+                remote_version.clone(),
+                conn_id,
+                read_data,
+                socket_closed,
             )
         })
         .await

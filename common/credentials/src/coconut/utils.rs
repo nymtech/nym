@@ -92,6 +92,7 @@ pub async fn obtain_aggregate_signature(
     params: &Parameters,
     attributes: &BandwidthVoucher,
     coconut_api_clients: &[CoconutApiClient],
+    threshold: u64,
 ) -> Result<Signature, Error> {
     if coconut_api_clients.is_empty() {
         return Err(Error::NoValidatorsAvailable);
@@ -110,15 +111,20 @@ pub async fn obtain_aggregate_signature(
         .collect();
 
     for coconut_api_client in coconut_api_clients.iter() {
-        let signature = obtain_partial_credential(
+        if let Ok(signature) = obtain_partial_credential(
             params,
             attributes,
             &coconut_api_client.api_client,
             &coconut_api_client.verification_key,
         )
-        .await?;
-        let share = SignatureShare::new(signature, coconut_api_client.node_id);
-        shares.push(share)
+        .await
+        {
+            let share = SignatureShare::new(signature, coconut_api_client.node_id);
+            shares.push(share)
+        }
+    }
+    if shares.len() < threshold as usize {
+        return Err(Error::NotEnoughShares);
     }
 
     let mut attributes = Vec::with_capacity(private_attributes.len() + public_attributes.len());

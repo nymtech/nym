@@ -29,4 +29,7 @@ pub enum Error {
 
     #[error("Could not parse the key - {0}")]
     ParsePublicKey(#[from] KeyRecoveryError),
+
+    #[error("Could not gather enough signature shares")]
+    NotEnoughShares,
 }

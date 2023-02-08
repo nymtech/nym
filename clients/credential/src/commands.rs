@@ -82,6 +82,11 @@ pub(crate) async fn get_credential(state: &State, shared_storage: PersistentStor
     let config = Config::try_from_nym_network_details(&network_details)?;
     let client = validator_client::Client::new_query(config)?;
     let epoch_id = client.nyxd.get_current_epoch().await?.epoch_id;
+    let threshold = client
+        .nyxd
+        .get_current_epoch_threshold()
+        .await?
+        .ok_or(CredentialClientError::NoThreshold)?;
     let coconut_api_clients = CoconutApiClient::all_coconut_api_clients(&client, epoch_id).await?;
 
     let params = Parameters::new(TOTAL_ATTRIBUTES).unwrap();
@@ -98,6 +103,7 @@ pub(crate) async fn get_credential(state: &State, shared_storage: PersistentStor
         &params,
         &bandwidth_credential_attributes,
         &coconut_api_clients,
+        threshold,
     )
     .await?;
     println!("Signature: {:?}", signature.to_bs58());

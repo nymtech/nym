@@ -4,7 +4,6 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { ClientContextProvider } from './context/main';
 import { ErrorFallback } from './components/Error';
 import { NymMixnetTheme } from './theme';
-import { App } from './App';
 import { AppWindowFrame } from './components/AppWindowFrame';
 import { TestAndEarnContextProvider } from './components/Growth/context/TestAndEarnContext';
 import { BrowserRouter as Router } from 'react-router-dom';

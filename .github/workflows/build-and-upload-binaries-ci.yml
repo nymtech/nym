@@ -34,7 +34,7 @@ on:
       - 'tools/ts-rs-cli/**'
 
 env:
-  NETWORK: mainnet    
+  NETWORK: mainnet
 
 jobs:
   publish-nym:
@@ -46,7 +46,7 @@ jobs:
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Prepare build output directory
         shell: bash
         env:
@@ -110,4 +110,3 @@ jobs:
           REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
           TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/
           EXCLUDE: "/dist/, /node_modules/"
-

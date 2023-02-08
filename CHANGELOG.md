@@ -6,13 +6,27 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ### Added
 
-- remove coconut feature and unify builds ([#2890])
-- native-client: is now capable of listening for requests on sockets different than `127.0.0.1` ([#2939]). This can be specified via `--host` flag during `init` or `run`. Alternatively a custom `host` can be set in `config.toml` file under `socket` section.
 - dkg resharing mode ([#2936])
 
-[#2890]: https://github.com/nymtech/nym/pull/2890
-[#2939]: https://github.com/nymtech/nym/pull/2939
 [#2936]: https://github.com/nymtech/nym/pull/2936
+
+
+# [v1.1.9] (2023-02-07)
+
+### Added
+
+- Separate `nym-api` endpoints with values of "total-supply" and "circulating-supply" in `nym` ([#2964])
+- Add `host` option to client init ([#2912])
+- Remove Coconut feature flag ([#2793])
+- Don't drop in mixnet connection handler ([#2963])
+
+### Changed
+- native-client: is now capable of listening for requests on sockets different than `127.0.0.1` ([#2939]). This can be specified via `--host` flag during `init` or `run`. Alternatively a custom `host` can be set in `config.toml` file under `socket` section.
+- mixnode, gateway: fix unexpected shutdown on corrupted connection ([#2963])
+
+[#2939]: https://github.com/nymtech/nym/pull/2939
+[#2963]: https://github.com/nymtech/nym/pull/2963
+
 
 # [v1.1.8] (2023-01-31)
 

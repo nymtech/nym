@@ -6,7 +6,6 @@ import Content from './content/en.yaml';
 import { useClientContext } from '../../context/main';
 import { useTestAndEarnContext } from './context/TestAndEarnContext';
 import { NymShipyardTheme } from '../../theme';
-import { ConnectionStatusKind } from '../../types';
 
 export const Wrapper: FCWithChildren<{ disabled: boolean }> = ({ disabled, children }) => {
   if (disabled) {

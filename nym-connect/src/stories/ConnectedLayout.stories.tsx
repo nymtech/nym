@@ -18,9 +18,7 @@ export const Default: ComponentStory<typeof Connected> = () => (
       clearError={() => {}}
       gatewayPerformance="Good"
       showInfoModal={false}
-      closeInfoModal={() => {
-        return undefined;
-      }}
+      closeInfoModal={() => undefined}
       status={ConnectionStatusKind.connected}
       connectedSince={DateTime.now()}
       ipAddress="127.0.0.1"

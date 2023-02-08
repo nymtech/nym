@@ -19,8 +19,8 @@ export const CompatibleApps = () => (
     <Divider sx={{ mb: 2 }} />
 
     <Box sx={{ mb: 4 }}>
-      {appsSchema.messagingApps.map((app, i) => (
-        <Typography variant="body2" color="grey.400" sx={{ mb: 2 }} key={i}>
+      {appsSchema.messagingApps.map((app) => (
+        <Typography variant="body2" color="grey.400" sx={{ mb: 2 }} key={app}>
           {app}
         </Typography>
       ))}
@@ -32,8 +32,8 @@ export const CompatibleApps = () => (
     <Divider sx={{ mb: 2 }} />
 
     <Box sx={{ mb: 4 }}>
-      {appsSchema.wallets.map((wallet, i) => (
-        <Typography variant="body2" color="grey.400" sx={{ mb: 2 }} key={i}>
+      {appsSchema.wallets.map((wallet) => (
+        <Typography variant="body2" color="grey.400" sx={{ mb: 2 }} key={wallet}>
           {wallet}
         </Typography>
       ))}

@@ -1,15 +1,12 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, useRef } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { DateTime } from 'luxon';
 import { invoke } from '@tauri-apps/api';
-import { forage } from '@tauri-apps/tauri-forage';
 import { Error } from 'src/types/error';
 import { getVersion } from '@tauri-apps/api/app';
+import { useEvents } from 'src/hooks/events';
 import { ConnectionStatusKind, GatewayPerformance } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
-import { ServiceProvider, Services } from '../types/directory';
-import { useEvents } from 'src/hooks/events';
-
-const TAURI_EVENT_STATUS_CHANGED = 'app:connection-status-changed';
+import { ServiceProvider } from '../types/directory';
 
 type ModeType = 'light' | 'dark';
 
@@ -53,8 +50,6 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     return version;
   };
 
-  const timerId = useRef<NodeJS.Timeout>();
-
   const initialiseApp = async () => {
     const services = await invoke('get_services');
     const AppVersion = await getAppVersion();
@@ -65,7 +60,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   };
 
   useEvents({
-    onError: (error) => setError(error),
+    onError: (e) => setError(e),
     onGatewayPerformanceChange: (performance) => setGatewayPerformance(performance),
     onStatusChange: (status) => setConnectionStatus(status),
   });
@@ -106,30 +101,8 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     }
   };
 
-  const setSpInStorage = async (sp: ServiceProvider) => {
-    await forage.setItem({
-      key: 'nym-connect-sp',
-      value: sp,
-    } as any)();
-  };
-
-  const removeSpFromStorage = async () => {
-    await forage.removeItem({
-      key: 'nym-connect-sp',
-    })();
-  };
-
-  const getSpFromStorage = async (): Promise<ServiceProvider | undefined> => {
-    try {
-      const spFromStorage = await forage.getItem({ key: 'nym-connect-sp' })();
-      return spFromStorage;
-    } catch (e) {
-      console.warn(e);
-    }
-  };
-
-  const getRandomSPFromList = (serviceProviders: ServiceProvider[]) => {
-    const randomSelection = serviceProviders[Math.floor(Math.random() * serviceProviders.length)];
+  const getRandomSPFromList = (services: ServiceProvider[]) => {
+    const randomSelection = services[Math.floor(Math.random() * services.length)];
     return randomSelection;
   };
 

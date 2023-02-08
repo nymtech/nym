@@ -4,7 +4,8 @@
     "nym-wallet",
     "nym-connect",
     "nym-connect-android",
-    "sdk/typescript/**"
+    "sdk/typescript/examples/docs",
+    "sdk/typescript/packages/**"
   ],
   "version": "0.0.0"
 }

@@ -1,5 +1,5 @@
 /* eslint-disable no-nested-ternary */
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import zxcvbn, { ZXCVBNScore } from 'zxcvbn';
 import { LockOutlined } from '@mui/icons-material';
 import { LinearProgress, Stack, Typography, Box } from '@mui/material';

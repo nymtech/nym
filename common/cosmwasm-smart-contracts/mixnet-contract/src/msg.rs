@@ -375,6 +375,7 @@ pub enum QueryMsg {
     GetStateParams {},
     GetState {},
     GetRewardingParams {},
+    GetEpochStatus {},
     GetCurrentIntervalDetails {},
     GetRewardedSet {
         limit: Option<u32>,

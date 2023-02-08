@@ -12,9 +12,14 @@ use cw_storage_plus::Bound;
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
 use mixnet_contract_common::{
-    CurrentIntervalResponse, EpochEventId, IntervalEventId, MixId, NumberOfPendingEventsResponse,
-    PagedRewardedSetResponse, PendingEpochEventsResponse, PendingIntervalEventsResponse,
+    CurrentIntervalResponse, EpochEventId, EpochStatus, IntervalEventId, MixId,
+    NumberOfPendingEventsResponse, PagedRewardedSetResponse, PendingEpochEventsResponse,
+    PendingIntervalEventsResponse,
 };
+
+pub fn query_epoch_status(deps: Deps<'_>) -> StdResult<EpochStatus> {
+    storage::current_epoch_status(deps.storage)
+}
 
 pub fn query_current_interval_details(
     deps: Deps<'_>,

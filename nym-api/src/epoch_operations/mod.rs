@@ -291,6 +291,33 @@ impl RewardedSetUpdater {
     }
 
     // This is where the epoch gets advanced, and all epoch related transactions originate
+    /// Upon each epoch having finished the following actions are executed by this nym-api:
+    /// 1. it queries the mixnet contract to check the current `EpochState` in order to figure out whether
+    ///     a different nym-api has already started epoch transition (not yet applicable)
+    /// 2. it sends a `BeginEpochTransition` message to the mixnet contract causing the following to happen:
+    ///     - if successful, the address of the this validator is going to be saved as being responsible for progressing this epoch.
+    ///     What it means in practice is that once we have multiple instances of nym-api running,
+    ///     only this one will try to perform the rest of the actions. It will also allow it to
+    ///     more easily recover in case of crashes.
+    ///     - the `EpochState` changes to `Rewarding`, meaning the nym-api will now be allowed to send
+    ///    `RewardMixnode` transactions. However, it's not going to be able anything else like `ReconcileEpochEvents`
+    ///     until that is done.
+    ///     - ability to send transactions (by other users) that get resolved once given epoch/interval rolls over,
+    ///     such as `BondMixnode` or `DelegateToMixnode` will temporarily be frozen until the entire procedure is finished.
+    /// 3. it obtains the current rewarded set and for each node in there (**SORTED BY MIX_ID!!**),
+    ///    it sends (in a single batch) `RewardMixnode` message with the measured performance.
+    ///    Once the final message gets executed, the mixnet contract automatically transitions
+    ///    the state to `ReconcilingEvents`.
+    /// 4. it obtains the number of pending epoch and interval events and repeatedly sends
+    ///    `ReconcileEpochEvents` transaction until all of them are resolved.
+    ///    At this point the mixnet contract automatically transitions the state to `AdvancingEpoch`.
+    /// 5. it obtains the list of all nodes on the network and pseudorandomly (but weighted by total stake)
+    ///    determines the new rewarded set. It then assigns layers to the provided nodes taking
+    ///    family information into consideration. Finally it sends `AdvanceCurrentEpoch` message
+    ///    containing the set and layer information thus rolling over the epoch and changing the state
+    ///    to `InProgress`.
+    /// 6. it purges old (older than 48h) measurement data
+    /// 7. the whole process repeats once the new epoch finishes
     async fn perform_epoch_operations(&self, interval: Interval) -> Result<(), RewardingError> {
         log::info!("The current epoch has finished.");
         log::info!(
@@ -312,6 +339,34 @@ impl RewardedSetUpdater {
         let all_mixnodes = self.nym_contract_cache.mixnodes().await;
         if all_mixnodes.is_empty() {
             log::warn!("there don't seem to be any mixnodes on the network!")
+        }
+
+        let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
+        if !epoch_status.is_in_progress() {
+            if epoch_status.being_advanced_by.as_str()
+                != self.nyxd_client.client_address().await.as_ref()
+            {
+                // another nym-api is already handling
+                error!("another nym-api ({}) is already advancing the epoch... but we shouldn't have other nym-apis yet!", epoch_status.being_advanced_by);
+                return Ok(());
+            } else {
+                warn!("we seem to have crashed mid-epoch advancement...");
+                todo!("continue from the point of failure here")
+            }
+        }
+
+        info!("starting the epoch transition...");
+        if let Err(err) = self.nyxd_client.begin_epoch_transition().await {
+            // perform the state query again to make sure it's not because other nym-api (not yet applicable)
+            // wasn't faster
+            let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
+            return if !epoch_status.is_in_progress() {
+                log::error!("FAILED to begin epoch progression: {err}");
+                Err(err.into())
+            } else {
+                error!("another nym-api ({}) is already advancing the epoch... but we shouldn't have other nym-apis yet!", epoch_status.being_advanced_by);
+                Ok(())
+            };
         }
 
         // Reward all the nodes in the still current, soon to be previous rewarded set

@@ -21,8 +21,8 @@ use mixnet_contract_common::families::{Family, FamilyHead};
 use mixnet_contract_common::mixnode::MixNodeDetails;
 use mixnet_contract_common::reward_params::RewardingParams;
 use mixnet_contract_common::{
-    CurrentIntervalResponse, ExecuteMsg, GatewayBond, IdentityKey, LayerAssignment, MixId,
-    RewardedSetNodeStatus,
+    CurrentIntervalResponse, EpochStatus, ExecuteMsg, GatewayBond, IdentityKey, LayerAssignment,
+    MixId, RewardedSetNodeStatus,
 };
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -157,6 +157,12 @@ impl Client {
         Ok(self.0.read().await.get_current_interval_details().await?)
     }
 
+    pub(crate) async fn get_current_epoch_status(
+        &self,
+    ) -> Result<EpochStatus, ValidatorClientError> {
+        Ok(self.0.read().await.nyxd.get_current_epoch_status().await?)
+    }
+
     pub(crate) async fn get_current_rewarding_parameters(
         &self,
     ) -> Result<RewardingParams, ValidatorClientError> {
@@ -216,6 +222,16 @@ impl Client {
     pub(crate) async fn get_pending_events_count(&self) -> Result<u32, ValidatorClientError> {
         let pending = self.0.read().await.get_number_of_pending_events().await?;
         Ok(pending.epoch_events + pending.interval_events)
+    }
+
+    pub(crate) async fn begin_epoch_transition(&self) -> Result<(), ValidatorClientError> {
+        self.0
+            .write()
+            .await
+            .nyxd
+            .begin_epoch_transition(None)
+            .await?;
+        Ok(())
     }
 
     pub(crate) async fn send_rewarding_messages(

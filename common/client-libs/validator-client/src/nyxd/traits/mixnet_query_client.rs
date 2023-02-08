@@ -18,13 +18,13 @@ use mixnet_contract_common::rewarding::{
 };
 use mixnet_contract_common::{
     delegation, ContractBuildInformation, ContractState, ContractStateParams,
-    CurrentIntervalResponse, EpochEventId, GatewayBondResponse, GatewayOwnershipResponse,
-    IdentityKey, IntervalEventId, LayerDistribution, MixId, MixOwnershipResponse,
-    MixnodeDetailsResponse, NumberOfPendingEventsResponse, PagedAllDelegationsResponse,
-    PagedDelegatorDelegationsResponse, PagedFamiliesResponse, PagedGatewayResponse,
-    PagedMembersResponse, PagedMixNodeDelegationsResponse, PagedMixnodeBondsResponse,
-    PagedRewardedSetResponse, PendingEpochEventsResponse, PendingIntervalEventsResponse,
-    QueryMsg as MixnetQueryMsg,
+    CurrentIntervalResponse, EpochEventId, EpochStatus, GatewayBondResponse,
+    GatewayOwnershipResponse, IdentityKey, IntervalEventId, LayerDistribution, MixId,
+    MixOwnershipResponse, MixnodeDetailsResponse, NumberOfPendingEventsResponse,
+    PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse, PagedFamiliesResponse,
+    PagedGatewayResponse, PagedMembersResponse, PagedMixNodeDelegationsResponse,
+    PagedMixnodeBondsResponse, PagedRewardedSetResponse, PendingEpochEventsResponse,
+    PendingIntervalEventsResponse, QueryMsg as MixnetQueryMsg,
 };
 use serde::Deserialize;
 
@@ -58,6 +58,11 @@ pub trait MixnetQueryClient {
 
     async fn get_rewarding_parameters(&self) -> Result<RewardingParams, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetRewardingParams {})
+            .await
+    }
+
+    async fn get_current_epoch_status(&self) -> Result<EpochStatus, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::GetEpochStatus {})
             .await
     }
 

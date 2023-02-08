@@ -129,6 +129,10 @@ impl EpochStatus {
         }
         Ok(())
     }
+
+    pub fn is_in_progress(&self) -> bool {
+        matches!(self.state, EpochState::InProgress)
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq)]

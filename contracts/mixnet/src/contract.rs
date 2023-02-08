@@ -408,6 +408,9 @@ pub fn query(
         QueryMsg::GetRewardingParams {} => {
             to_binary(&crate::rewards::queries::query_rewarding_params(deps)?)
         }
+        QueryMsg::GetEpochStatus {} => {
+            to_binary(&crate::interval::queries::query_epoch_status(deps)?)
+        }
         QueryMsg::GetCurrentIntervalDetails {} => to_binary(
             &crate::interval::queries::query_current_interval_details(deps, env)?,
         ),

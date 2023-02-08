@@ -11,12 +11,15 @@ use completions::fig_generate;
 use config::{DATA_DIR, DB_FILE_NAME};
 use error::Result;
 use network_defaults::{setup_env, NymNetworkDetails};
-use std::time::Duration;
+use std::process::exit;
+use std::time::{Duration, SystemTime};
 
 use clap::{CommandFactory, Parser};
 use validator_client::nyxd::traits::DkgQueryClient;
 use validator_client::nyxd::CosmWasmClient;
 use validator_client::Config;
+
+const SAFETY_BUFFER_SECS: u64 = 10 * 60; // 10 minutes
 
 #[derive(Parser)]
 #[clap(author = "Nymtech", version, about)]
@@ -35,6 +38,14 @@ async fn block_until_coconut_is_available<C: Clone + CosmWasmClient + Send + Syn
     loop {
         let epoch = client.nyxd.get_current_epoch().await?;
         if epoch.state.is_final() {
+            let current_timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
+
+            if current_timestamp.as_secs() + SAFETY_BUFFER_SECS >= epoch.finish_timestamp.seconds()
+            {
+                println!("In the next {} minutes, a transition will take place in the coconut system. Deposits should be halted in this time for safety reasons.", SAFETY_BUFFER_SECS / 60);
+                exit(0);
+            }
+
             break;
         } else {
             let secs_until_final = epoch.secs_until_final();

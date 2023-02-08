@@ -11,6 +11,7 @@ export const CreatePassword = () => {
   const { password, setPassword, resetState, mnemonic } = useContext(AuthContext);
   const [confirmedPassword, setConfirmedPassword] = useState<string>('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSafePassword, setIsSafePassword] = useState(false);
 
   const navigate = useNavigate();
 
@@ -47,7 +48,9 @@ export const CreatePassword = () => {
               label="Password"
               autoFocus
             />
-            {!!password.length && <PasswordStrength password={password} />}
+            {!!password.length && (
+              <PasswordStrength password={password} handleIsSafePassword={setIsSafePassword} withWarnings />
+            )}
           </>
           <PasswordInput
             password={confirmedPassword}
@@ -57,7 +60,7 @@ export const CreatePassword = () => {
           <Button
             size="large"
             variant="contained"
-            disabled={password !== confirmedPassword || password.length === 0 || isLoading}
+            disabled={password !== confirmedPassword || password.length === 0 || isLoading || !isSafePassword}
             onClick={storePassword}
           >
             Next

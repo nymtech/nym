@@ -61,17 +61,34 @@ const getPasswordStrength = (score: ZXCVBNScore) => {
   }
 };
 
-export const PasswordStrength = ({ password }: { password: string }) => {
+export const PasswordStrength = ({
+  password,
+  withWarnings,
+  handleIsSafePassword,
+}: {
+  password: string;
+  withWarnings?: boolean;
+  handleIsSafePassword: (isSafe: boolean) => void;
+}) => {
   const result = zxcvbn(password);
+
+  handleIsSafePassword(result.score > 1);
 
   return (
     <Stack spacing={0.5}>
       <LinearProgress variant="determinate" color={colorMap[result.score]} value={getPasswordStrength(result.score)} />
-      <Box display="flex" alignItems="center">
-        <LockOutlined sx={{ fontSize: 15, color: getColor(result.score) }} />
-        <Typography variant="caption" sx={{ ml: 0.5, color: getColor(result.score) }}>
-          {getText(result.score)}
-        </Typography>
+      <Box display="flex" alignItems="center" justifyContent="space-between">
+        <Box display="flex" alignItems="center">
+          <LockOutlined sx={{ fontSize: 15, color: getColor(result.score) }} />
+          <Typography variant="caption" sx={{ ml: 0.5, color: getColor(result.score) }}>
+            {getText(result.score)}
+          </Typography>
+        </Box>
+        {withWarnings && result.feedback.warning && (
+          <Typography variant="caption" color="grey.400">
+            {result.feedback.warning}
+          </Typography>
+        )}
       </Box>
     </Stack>
   );

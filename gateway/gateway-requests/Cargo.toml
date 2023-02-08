@@ -22,11 +22,8 @@ thiserror = "1.0"
 crypto = { path = "../../common/crypto" }
 pemstore = { path = "../../common/pemstore" }
 
-coconut-interface = { path = "../../common/coconut-interface", optional = true }
+coconut-interface = { path = "../../common/coconut-interface" }
 credentials = { path = "../../common/credentials" }
-
-[features]
-coconut = ["coconut-interface", "credentials/coconut"]
 
 [dependencies.tungstenite]
 version = "0.13.0"

@@ -4,6 +4,23 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 # [Unreleased]
 
+# [v1.1.9] (2023-02-07)
+
+### Added
+
+- Separate `nym-api` endpoints with values of "total-supply" and "circulating-supply" in `nym` ([#2964])
+- Add `host` option to client init ([#2912])
+- Remove Coconut feature flag ([#2793])
+- Don't drop in mixnet connection handler ([#2963])
+
+### Changed
+- native-client: is now capable of listening for requests on sockets different than `127.0.0.1` ([#2939]). This can be specified via `--host` flag during `init` or `run`. Alternatively a custom `host` can be set in `config.toml` file under `socket` section.
+- mixnode, gateway: fix unexpected shutdown on corrupted connection ([#2963])
+
+[#2939]: https://github.com/nymtech/nym/pull/2939
+[#2963]: https://github.com/nymtech/nym/pull/2963
+
+
 # [v1.1.8] (2023-01-31)
 
 ### Added
@@ -18,7 +35,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - nym-api: an `--id` flag is now always explicitly required ([#2873])
 
 [#2754]: https://github.com/nymtech/nym/issues/2754
-[#2839]: https://github.com/nymtech/nym/issues/2810
+[#2810]: https://github.com/nymtech/nym/issues/2810
 [#2931]: https://github.com/nymtech/nym/issues/2931
 [#1902]: https://github.com/nymtech/nym/issues/1902
 [#2873]: https://github.com/nymtech/nym/issues/2873

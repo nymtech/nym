@@ -1,6 +1,6 @@
 import React from 'react';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
-import { PowerButton } from 'src/components/PowerButton';
+import { PowerButton } from 'src/components/PowerButton/PowerButton';
 import { ConnectionStatusKind } from 'src/types';
 
 export default {
@@ -13,7 +13,7 @@ export const Disconnected: ComponentStory<typeof PowerButton> = () => (
 );
 
 export const Connecting: ComponentStory<typeof PowerButton> = () => (
-  <PowerButton status={ConnectionStatusKind.connecting} />
+  <PowerButton status={ConnectionStatusKind.connecting} disabled />
 );
 
 export const Connected: ComponentStory<typeof PowerButton> = () => (
@@ -21,9 +21,9 @@ export const Connected: ComponentStory<typeof PowerButton> = () => (
 );
 
 export const Disconnecting: ComponentStory<typeof PowerButton> = () => (
-  <PowerButton status={ConnectionStatusKind.disconnecting} />
+  <PowerButton status={ConnectionStatusKind.disconnecting} disabled />
 );
 
 export const Disabled: ComponentStory<typeof PowerButton> = () => (
-  <PowerButton status={ConnectionStatusKind.connecting} disabled />
+  <PowerButton status={ConnectionStatusKind.disconnected} disabled />
 );

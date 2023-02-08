@@ -15,6 +15,7 @@ export default {
 export const Default: ComponentStory<typeof Connected> = () => (
   <Box p={2} width={242} sx={{ bgcolor: 'nym.background.dark' }}>
     <Connected
+      clearError={() => {}}
       gatewayPerformance="Good"
       showInfoModal={false}
       closeInfoModal={() => {

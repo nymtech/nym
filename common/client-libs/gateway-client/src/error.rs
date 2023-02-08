@@ -3,9 +3,13 @@
 
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::StorageError;
+#[cfg(not(feature = "mobile"))]
 #[cfg(not(target_arch = "wasm32"))]
 use credential_storage::error::StorageError;
 use gateway_requests::registration::handshake::error::HandshakeError;
+#[cfg(feature = "mobile")]
+#[cfg(not(target_arch = "wasm32"))]
+use mobile_storage::StorageError;
 use std::io;
 use thiserror::Error;
 use tungstenite::Error as WsError;
@@ -26,7 +30,6 @@ pub enum GatewayClientError {
     #[error("There was a credential storage error - {0}")]
     CredentialStorageError(#[from] StorageError),
 
-    #[cfg(feature = "coconut")]
     #[error("Coconut error - {0}")]
     CoconutError(#[from] coconut_interface::CoconutError),
 

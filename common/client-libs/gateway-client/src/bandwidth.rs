@@ -1,27 +1,34 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#[cfg(feature = "coconut")]
 use crate::error::GatewayClientError;
 
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::Storage;
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "mobile"))]
 use credential_storage::storage::Storage;
 
-#[cfg(all(target_arch = "wasm32", feature = "coconut"))]
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "mobile")]
+use mobile_storage::Storage;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "mobile")]
+use mobile_storage::StorageError;
+
+#[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::StorageError;
 
-#[cfg(all(not(target_arch = "wasm32"), feature = "coconut"))]
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "mobile"))]
 use credential_storage::error::StorageError;
 
 #[cfg(target_arch = "wasm32")]
 use crate::wasm_mockups::{Client, CosmWasmClient};
-#[cfg(feature = "coconut")]
 use std::str::FromStr;
 #[cfg(not(target_arch = "wasm32"))]
 use validator_client::{nyxd::CosmWasmClient, Client};
-#[cfg(feature = "coconut")]
 use {
     coconut_interface::Base58,
     credentials::coconut::{
@@ -34,7 +41,12 @@ use {
 use crate::wasm_mockups::PersistentStorage;
 
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(not(feature = "mobile"))]
 use credential_storage::PersistentStorage;
+
+#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "mobile")]
+use mobile_storage::PersistentStorage;
 
 #[derive(Clone)]
 #[allow(dead_code)]
@@ -55,7 +67,6 @@ where
         }
     }
 
-    #[cfg(feature = "coconut")]
     pub async fn prepare_coconut_credential(
         &self,
     ) -> Result<(coconut_interface::Credential, i64), GatewayClientError> {
@@ -98,7 +109,6 @@ where
         ))
     }
 
-    #[cfg(feature = "coconut")]
     pub async fn consume_credential(&self, id: i64) -> Result<(), GatewayClientError> {
         Ok(self.storage.consume_coconut_credential(id).await?)
     }

@@ -30,7 +30,8 @@ pub struct Config {
     min_surb_request_size: u32,
     max_surb_request_size: u32,
     maximum_allowed_reply_surb_request_size: u32,
-    max_surb_waiting_period: Duration,
+    max_surb_rerequest_waiting_period: Duration,
+    max_surb_drop_waiting_period: Duration,
     max_reply_surb_age: Duration,
     max_reply_key_age: Duration,
 }
@@ -40,7 +41,8 @@ impl Config {
         min_surb_request_size: u32,
         max_surb_request_size: u32,
         maximum_allowed_reply_surb_request_size: u32,
-        max_surb_waiting_period: Duration,
+        max_surb_rerequest_waiting_period: Duration,
+        max_surb_drop_waiting_period: Duration,
         max_reply_surb_age: Duration,
         max_reply_key_age: Duration,
     ) -> Self {
@@ -48,7 +50,8 @@ impl Config {
             min_surb_request_size,
             max_surb_request_size,
             maximum_allowed_reply_surb_request_size,
-            max_surb_waiting_period,
+            max_surb_rerequest_waiting_period,
+            max_surb_drop_waiting_period,
             max_reply_surb_age,
             max_reply_key_age,
         }
@@ -742,9 +745,13 @@ where
 
             let diff = now - last_received_time;
 
-            if diff > self.config.max_surb_waiting_period {
-                warn!("We haven't received any surbs in {:?} from {pending_reply_target}. Going to explicitly ask for more", diff);
-                to_request.push(*pending_reply_target);
+            if diff > self.config.max_surb_rerequest_waiting_period {
+                if diff > self.config.max_surb_drop_waiting_period {
+                    to_remove.push(*pending_reply_target)
+                } else {
+                    debug!("We haven't received any surbs in {:?} from {pending_reply_target}. Going to explicitly ask for more", diff);
+                    to_request.push(*pending_reply_target);
+                }
             }
         }
 

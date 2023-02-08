@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node::client_handling::active_clients::ActiveClientsStore;
-#[cfg(feature = "coconut")]
 use crate::node::client_handling::websocket::connection_handler::coconut::CoconutVerifier;
 use crate::node::client_handling::websocket::connection_handler::{
     AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream,
@@ -75,8 +74,6 @@ pub(crate) struct FreshHandler<R, S, St> {
     pub(crate) outbound_mix_sender: MixForwardingSender,
     pub(crate) socket_connection: SocketStream<S>,
     pub(crate) storage: St,
-
-    #[cfg(feature = "coconut")]
     pub(crate) coconut_verifier: Arc<CoconutVerifier>,
 }
 
@@ -98,7 +95,7 @@ where
         local_identity: Arc<identity::KeyPair>,
         storage: St,
         active_clients_store: ActiveClientsStore,
-        #[cfg(feature = "coconut")] coconut_verifier: Arc<CoconutVerifier>,
+        coconut_verifier: Arc<CoconutVerifier>,
     ) -> Self {
         FreshHandler {
             rng,
@@ -108,18 +105,8 @@ where
             socket_connection: SocketStream::RawTcp(conn),
             local_identity,
             storage,
-            #[cfg(feature = "coconut")]
             coconut_verifier,
         }
-    }
-
-    #[cfg(not(feature = "coconut"))]
-    /// Check that the local identity matches a given identity.
-    pub(crate) fn check_local_identity(
-        &self,
-        identity: &crypto::asymmetric::identity::PublicKey,
-    ) -> bool {
-        self.local_identity.public_key().eq(identity)
     }
 
     /// Attempts to perform websocket handshake with the remote and upgrades the raw TCP socket

@@ -51,16 +51,7 @@ pub fn instantiate(
 }
 
 #[entry_point]
-pub fn migrate(_deps: DepsMut<'_>, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
-    // we can't perform this check inside the migrate function since there are 12k addresses to check
-    // and this invariant MUST hold, otherwise we're gonna have bad time
-    if !msg.manually_verified_no_staking_addresses {
-        return Err(ContractError::Other {
-            message:
-                "the assumption that nobody has set a staking address hasn't been manually verified"
-                    .to_string(),
-        });
-    }
+pub fn migrate(_deps: DepsMut<'_>, _env: Env, _msg: MigrateMsg) -> Result<Response, ContractError> {
     Ok(Response::new())
 }
 

@@ -6,6 +6,7 @@ on:
       - 'ts-packages/**'
       - 'sdk/typescript/**'
       - nym-connect
+      - nym-connect-android
       - nym-wallet
 
 jobs:

@@ -16,7 +16,7 @@ rust-version = "1.56"
 
 [dependencies]
 async-trait = "0.1.52"
-bs58 = {version = "0.4.0", optional = true }
+bs58 = {version = "0.4.0" }
 bip39 = "1"
 cfg-if = "1.0"
 clap = { version = "4.0", features = ["cargo", "derive"] }
@@ -67,26 +67,26 @@ schemars = { version = "0.8", features = ["preserve_order"] }
 ## internal
 build-information = { path = "../common/build-information" }
 coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg", optional = true }
-coconut-interface = { path = "../common/coconut-interface", optional = true }
+coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
+coconut-interface = { path = "../common/coconut-interface" }
 config = { path = "../common/config" }
 cosmwasm-std = "1.0.0"
 credential-storage = { path = "../common/credential-storage" }
-credentials = { path = "../common/credentials", optional = true }
+credentials = { path = "../common/credentials" }
 crypto = { path = "../common/crypto" }
 logging = { path = "../common/logging"}
-cw3 = { version = "0.13.4", optional = true }
-cw4 = { version = "0.13.4", optional = true }
-dkg = { path = "../common/crypto/dkg", optional = true }
+cw3 = { version = "0.13.4" }
+cw4 = { version = "0.13.4" }
+dkg = { path = "../common/crypto/dkg" }
 gateway-client = { path = "../common/client-libs/gateway-client" }
 inclusion-probability = { path = "../common/inclusion-probability" }
 mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract" }
 vesting-contract-common = { path = "../common/cosmwasm-smart-contracts/vesting-contract" }
-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common", features = ["coconut"] }
+contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common", features = ["dkg"] }
 multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
-nymcoconut = { path = "../common/nymcoconut", optional = true }
+nymcoconut = { path = "../common/nymcoconut" }
 nymsphinx = { path = "../common/nymsphinx" }
-pemstore = { path = "../common/pemstore", optional = true }
+pemstore = { path = "../common/pemstore" }
 task = { path = "../common/task" }
 topology = { path = "../common/topology" }
 nym-api-requests = { path = "nym-api-requests" }
@@ -96,20 +96,6 @@ validator-client = { path = "../common/client-libs/validator-client", features =
 version-checker = { path = "../common/version-checker" }
 
 [features]
-coconut = [
-    "coconut-interface",
-    "credentials",
-    "cw3",
-    "cw4",
-    "gateway-client/coconut",
-    "credentials/coconut",
-    "nym-api-requests/coconut",
-    "nymcoconut",
-    "coconut-dkg-common",
-    "dkg",
-    "bs58",
-    "pemstore",
-]
 no-reward = []
 generate-ts = ["ts-rs"]
 

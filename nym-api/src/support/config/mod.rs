@@ -414,7 +414,6 @@ impl Config {
         self
     }
 
-    #[cfg(feature = "coconut")]
     pub fn with_coconut_signer_enabled(mut self, enabled: bool) -> Self {
         self.coconut_signer.enabled = enabled;
         self
@@ -425,7 +424,6 @@ impl Config {
         self
     }
 
-    #[cfg(feature = "coconut")]
     pub fn with_announce_address(mut self, announce_address: Url) -> Self {
         self.base.announce_address = announce_address;
         self
@@ -469,7 +467,6 @@ impl Config {
         self.network_monitor.enabled
     }
 
-    #[cfg(feature = "coconut")]
     pub fn get_coconut_signer_enabled(&self) -> bool {
         self.coconut_signer.enabled
     }
@@ -490,7 +487,6 @@ impl Config {
         self.base.local_validator.clone()
     }
 
-    #[cfg(feature = "coconut")]
     pub fn get_announce_address(&self) -> Url {
         self.base.announce_address.clone()
     }
@@ -571,32 +567,26 @@ impl Config {
         self.node_status_api.database_path.clone()
     }
 
-    #[cfg(feature = "coconut")]
     pub fn persistent_state_path(&self) -> PathBuf {
         self.coconut_signer.dkg_persistent_state_path.clone()
     }
 
-    #[cfg(feature = "coconut")]
     pub fn verification_key_path(&self) -> PathBuf {
         self.coconut_signer.verification_key_path.clone()
     }
 
-    #[cfg(feature = "coconut")]
     pub fn secret_key_path(&self) -> PathBuf {
         self.coconut_signer.secret_key_path.clone()
     }
 
-    #[cfg(feature = "coconut")]
     pub fn decryption_key_path(&self) -> PathBuf {
         self.coconut_signer.decryption_key_path.clone()
     }
 
-    #[cfg(feature = "coconut")]
     pub fn public_key_with_proof_path(&self) -> PathBuf {
         self.coconut_signer.public_key_with_proof_path.clone()
     }
 
-    #[cfg(feature = "coconut")]
     pub fn get_dkg_contract_polling_rate(&self) -> Duration {
         self.coconut_signer.dkg_contract_polling_rate
     }

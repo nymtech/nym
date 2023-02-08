@@ -2,8 +2,23 @@ name: Nym Connect (rust)
 
 on:
   push:
-    paths-ignore:
-      - 'explorer/**'
+    paths:
+      - 'nym-connect/**'
+      - 'clients/client-core/**'
+      - 'clients/socks5/**'
+      - 'common/**'
+      - 'gateway/gateway-requests/**'
+      - 'contracts/vesting/**'
+      - 'nym-api/nym-api-requests/**'
+  pull_request:
+    paths:
+      - 'nym-connect/**'
+      - 'clients/client-core/**'
+      - 'clients/socks5/**'
+      - 'common/**'
+      - 'gateway/gateway-requests/**'
+      - 'contracts/vesting/**'
+      - 'nym-api/nym-api-requests/**'
 
 jobs:
   build:

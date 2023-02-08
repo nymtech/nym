@@ -93,12 +93,10 @@ pub(crate) struct CliArgs {
     pub(crate) enabled_credentials_mode: Option<bool>,
 
     /// Announced address where coconut clients will connect.
-    #[cfg(feature = "coconut")]
     #[clap(long)]
     pub(crate) announce_address: Option<url::Url>,
 
     /// Flag to indicate whether coconut signer authority is enabled on this API
-    #[cfg(feature = "coconut")]
     #[clap(long, requires = "mnemonic", requires = "announce_address")]
     pub(crate) enable_coconut: Option<bool>,
 }
@@ -124,21 +122,19 @@ pub(crate) fn build_config(args: CliArgs) -> Result<Config> {
 
     let config = override_config(config_from_file, args);
 
-    if already_initialized {
+    if !already_initialized {
         fs::create_dir_all(Config::default_config_directory(&id))
             .expect("Could not create config directory");
         fs::create_dir_all(Config::default_data_directory(&id))
             .expect("Could not create data directory");
-
-        #[cfg(feature = "coconut")]
         crate::coconut::dkg::controller::init_keypair(&config)?;
     }
 
     Ok(config)
 }
 
-pub(crate) fn override_config(mut config: Config, args: CliArgs) -> Config {
-    config = config
+pub(crate) fn override_config(config: Config, args: CliArgs) -> Config {
+    config
         .with_id(&args.id)
         .with_optional(Config::with_custom_nyxd_validator, args.nyxd_validator)
         .with_optional_env(
@@ -169,14 +165,7 @@ pub(crate) fn override_config(mut config: Config, args: CliArgs) -> Config {
         .with_optional(
             Config::with_disabled_credentials_mode,
             args.enabled_credentials_mode.map(|b| !b),
-        );
-
-    #[cfg(feature = "coconut")]
-    {
-        config = config
-            .with_optional(Config::with_announce_address, args.announce_address)
-            .with_optional(Config::with_coconut_signer_enabled, args.enable_coconut);
-    }
-
-    config
+        )
+        .with_optional(Config::with_announce_address, args.announce_address)
+        .with_optional(Config::with_coconut_signer_enabled, args.enable_coconut)
 }

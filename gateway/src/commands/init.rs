@@ -55,7 +55,8 @@ pub struct Init {
         long,
         alias = "validators",
         alias = "nymd_validators",
-        value_delimiter = ','
+        value_delimiter = ',',
+        hide = true
     )]
     // the alias here is included for backwards compatibility (1.1.4 and before)
     nyxd_urls: Option<Vec<url::Url>>,
@@ -66,7 +67,7 @@ pub struct Init {
 
     /// Set this gateway to work only with coconut credentials; that would disallow clients to
     /// bypass bandwidth credential requirement
-    #[clap(long)]
+    #[clap(long, hide = true)]
     only_coconut_credentials: Option<bool>,
 
     /// Enable/disable gateway anonymized statistics that get sent to a statistics aggregator server

@@ -93,11 +93,16 @@ pub(crate) struct CliArgs {
     pub(crate) enabled_credentials_mode: Option<bool>,
 
     /// Announced address where coconut clients will connect.
-    #[clap(long)]
+    #[clap(long, hide = true)]
     pub(crate) announce_address: Option<url::Url>,
 
     /// Flag to indicate whether coconut signer authority is enabled on this API
-    #[clap(long, requires = "mnemonic", requires = "announce_address")]
+    #[clap(
+        long,
+        requires = "mnemonic",
+        requires = "announce_address",
+        hide = true
+    )]
     pub(crate) enable_coconut: Option<bool>,
 }
 

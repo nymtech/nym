@@ -43,7 +43,7 @@ pub(crate) struct Init {
     force_register_gateway: bool,
 
     /// Comma separated list of rest endpoints of the nyxd validators
-    #[clap(long, alias = "nymd_validators", value_delimiter = ',')]
+    #[clap(long, alias = "nymd_validators", value_delimiter = ',', hide = true)]
     nyxd_urls: Option<Vec<url::Url>>,
 
     /// Comma separated list of rest endpoints of the API validators
@@ -66,7 +66,7 @@ pub(crate) struct Init {
 
     /// Set this client to work in a enabled credentials mode that would attempt to use gateway
     /// with bandwidth credential requirement.
-    #[clap(long)]
+    #[clap(long, hide = true)]
     enabled_credentials_mode: Option<bool>,
 
     /// Save a summary of the initialization to a json file

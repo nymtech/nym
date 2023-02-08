@@ -34,4 +34,7 @@ pub enum CredentialClientError {
 
     #[error("Could not use shared storage")]
     SharedStorageError(#[from] StorageError),
+
+    #[error("Threshold not set yet")]
+    NoThreshold,
 }

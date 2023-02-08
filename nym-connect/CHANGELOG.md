@@ -1,7 +1,5 @@
 # Changelog
 
-## UNRELEASED
-
 ## [nym-connect-v1.1.9](https://github.com/nymtech/nym/tree/nym-connect-v1.1.9) (2023-02-07)
 
 - NC - Button animations ([#2949])

@@ -10,7 +10,6 @@ import { Subtitle, Title, PasswordStrength } from '../components';
 export const CreatePassword = () => {
   const { password, setPassword, resetState, mnemonic } = useContext(AuthContext);
   const [confirmedPassword, setConfirmedPassword] = useState<string>('');
-  const [isStrongPassword, setIsStrongPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
@@ -48,7 +47,7 @@ export const CreatePassword = () => {
               label="Password"
               autoFocus
             />
-            <PasswordStrength password={password} onChange={(isStrong) => setIsStrongPassword(isStrong)} />
+            {!!password.length && <PasswordStrength password={password} />}
           </>
           <PasswordInput
             password={confirmedPassword}
@@ -58,7 +57,7 @@ export const CreatePassword = () => {
           <Button
             size="large"
             variant="contained"
-            disabled={password !== confirmedPassword || password.length === 0 || !isStrongPassword || isLoading}
+            disabled={password !== confirmedPassword || password.length === 0 || isLoading}
             onClick={storePassword}
           >
             Next

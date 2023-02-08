@@ -4,7 +4,6 @@ import { forage } from '@tauri-apps/tauri-forage';
 import { invoke } from '@tauri-apps/api';
 import { ClientId, DrawEntry, Draws, Registration } from './types';
 import { useClientContext } from '../../../context/main';
-import { ConnectionStatusKind } from '../../../types';
 
 export type TTestAndEarnContext = {
   loadedOnce: boolean;

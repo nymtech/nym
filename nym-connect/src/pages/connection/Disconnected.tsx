@@ -20,34 +20,32 @@ export const Disconnected: FCWithChildren<{
   serviceProvider?: ServiceProvider;
   clearError: () => void;
   onConnectClick: (status: ConnectionStatusKind) => void;
-}> = ({ status, error, onConnectClick, clearError }) => {
-  return (
-    <>
-      {error && <InfoModal show title={error.title} description={error.message} onClose={clearError} />}
-      <ConnectionLayout
-        TopContent={
-          <Box>
-            <ConnectionStatus status={ConnectionStatusKind.disconnected} gatewayPerformance="Good" />
-            <ConnectionTimer />
-          </Box>
-        }
-        ConnectButton={<PowerButton onClick={onConnectClick} status={status} disabled={status === 'connecting'} />}
-        BottomContent={
-          <Stack justifyContent="space-between" pt={1}>
-            <Typography
-              fontWeight={600}
-              textTransform="uppercase"
-              textAlign="center"
-              fontSize="12px"
-              sx={{ wordSpacing: 1.5, letterSpacing: 1.5 }}
-              color="warning.main"
-            >
-              You are not protected
-            </Typography>
-            <ExperimentalWarning />
-          </Stack>
-        }
-      />
-    </>
-  );
-};
+}> = ({ status, error, onConnectClick, clearError }) => (
+  <>
+    {error && <InfoModal show title={error.title} description={error.message} onClose={clearError} />}
+    <ConnectionLayout
+      TopContent={
+        <Box>
+          <ConnectionStatus status={ConnectionStatusKind.disconnected} gatewayPerformance="Good" />
+          <ConnectionTimer />
+        </Box>
+      }
+      ConnectButton={<PowerButton onClick={onConnectClick} status={status} disabled={status === 'connecting'} />}
+      BottomContent={
+        <Stack justifyContent="space-between" pt={1}>
+          <Typography
+            fontWeight={600}
+            textTransform="uppercase"
+            textAlign="center"
+            fontSize="12px"
+            sx={{ wordSpacing: 1.5, letterSpacing: 1.5 }}
+            color="warning.main"
+          >
+            You are not protected
+          </Typography>
+          <ExperimentalWarning />
+        </Stack>
+      }
+    />
+  </>
+);

@@ -66,6 +66,7 @@ export const PowerButton: FCWithChildren<{
           return 'contract';
       }
     }
+    return 'contract';
   }, [status, hover]);
 
   const buttonPulse = () => {

@@ -1,8 +1,8 @@
 import React from 'react';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
 import { Box } from '@mui/material';
-import { ConnectionStatusKind } from '../types';
 import { Disconnected } from 'src/pages/connection/Disconnected';
+import { ConnectionStatusKind } from '../types';
 
 export default {
   title: 'Layouts/DefaultLayout',

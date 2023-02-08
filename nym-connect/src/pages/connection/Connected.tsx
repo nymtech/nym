@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Box, Stack } from '@mui/material';
 import { DateTime } from 'luxon';
 import { IpAddressAndPortModal } from 'src/components/IpAddressAndPortModal';
@@ -43,40 +43,38 @@ export const Connected: FCWithChildren<{
   clearError,
   onConnectClick,
   closeInfoModal,
-}) => {
-  return (
-    <>
-      {error && <InfoModal show title={error.title} description={error.message} onClose={clearError} />}
-      <IpAddressAndPortModal show={showInfoModal} onClose={closeInfoModal} ipAddress={ipAddress} port={port} />
-      <ConnectionLayout
-        TopContent={
-          <Box>
-            <ConnectionStatus
-              status={ConnectionStatusKind.connected}
-              gatewayPerformance={gatewayPerformance}
-              serviceProvider={serviceProvider}
-            />
-            <ConnectionTimer connectedSince={connectedSince} />
-          </Box>
-        }
-        ConnectButton={
-          <PowerButton
-            status={status}
-            busy={busy}
-            onClick={onConnectClick}
-            isError={isError}
-            disabled={status === 'disconnecting'}
+}) => (
+  <>
+    {error && <InfoModal show title={error.title} description={error.message} onClose={clearError} />}
+    <IpAddressAndPortModal show={showInfoModal} onClose={closeInfoModal} ipAddress={ipAddress} port={port} />
+    <ConnectionLayout
+      TopContent={
+        <Box>
+          <ConnectionStatus
+            status={ConnectionStatusKind.connected}
+            gatewayPerformance={gatewayPerformance}
+            serviceProvider={serviceProvider}
           />
-        }
-        BottomContent={
-          <Stack justifyContent="space-between">
-            <Box sx={{ mb: 2 }}>
-              <IpAddressAndPort label="Socks5 address" ipAddress={ipAddress} port={port} />
-            </Box>
-            <ExperimentalWarning />
-          </Stack>
-        }
-      />
-    </>
-  );
-};
+          <ConnectionTimer connectedSince={connectedSince} />
+        </Box>
+      }
+      ConnectButton={
+        <PowerButton
+          status={status}
+          busy={busy}
+          onClick={onConnectClick}
+          isError={isError}
+          disabled={status === 'disconnecting'}
+        />
+      }
+      BottomContent={
+        <Stack justifyContent="space-between">
+          <Box sx={{ mb: 2 }}>
+            <IpAddressAndPort label="Socks5 address" ipAddress={ipAddress} port={port} />
+          </Box>
+          <ExperimentalWarning />
+        </Stack>
+      }
+    />
+  </>
+);

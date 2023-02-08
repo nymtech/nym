@@ -46,16 +46,14 @@ const getTitleIcon = (path: string) => {
   return <NymWordmark width={36} />;
 };
 
-export const CustomTitleBar = ({ path = '/' }: { path?: string }) => {
-  return (
-    <Box data-tauri-drag-region style={customTitleBarStyles.titlebar}>
-      {/* set width to keep logo centered */}
-      <Box sx={{ width: '40px' }}>{path === '/' ? <MenuIcon /> : <ArrowBackIcon />}</Box>
-      {getTitleIcon(path)}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <CustomButton Icon={Minimize} onClick={() => appWindow.minimize()} />
-        <CustomButton Icon={Close} onClick={() => appWindow.close()} />
-      </Box>
+export const CustomTitleBar = ({ path = '/' }: { path?: string }) => (
+  <Box data-tauri-drag-region style={customTitleBarStyles.titlebar}>
+    {/* set width to keep logo centered */}
+    <Box sx={{ width: '40px' }}>{path === '/' ? <MenuIcon /> : <ArrowBackIcon />}</Box>
+    {getTitleIcon(path)}
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+      <CustomButton Icon={Minimize} onClick={() => appWindow.minimize()} />
+      <CustomButton Icon={Close} onClick={() => appWindow.close()} />
     </Box>
-  );
-};
+  </Box>
+);

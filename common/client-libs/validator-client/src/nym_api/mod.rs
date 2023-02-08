@@ -449,23 +449,6 @@ impl Client {
         .await
     }
 
-    pub async fn partial_bandwidth_credential(
-        &self,
-        request_body: &str,
-    ) -> Result<BlindedSignatureResponse, NymAPIError> {
-        self.post_nym_api(
-            &[
-                routes::API_VERSION,
-                routes::COCONUT_ROUTES,
-                routes::BANDWIDTH,
-                routes::COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL,
-            ],
-            NO_PARAMS,
-            request_body,
-        )
-        .await
-    }
-
     pub async fn verify_bandwidth_credential(
         &self,
         request_body: &VerifyCredentialBody,

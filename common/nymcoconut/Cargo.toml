@@ -33,9 +33,6 @@ criterion = { version="0.3", features=["html_reports"] }
 doc-comment = "0.3"
 rand_chacha = "0.3"
 
-[dev-dependencies.bincode]
-version = "1"
-
 [[bench]]
 name = "benchmarks"
 harness = false

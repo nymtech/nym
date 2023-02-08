@@ -51,6 +51,10 @@ pub(crate) struct Run {
     /// The amount of utokens the credential will hold
     #[clap(long)]
     pub(crate) amount: u64,
+
+    /// Path to a file used to recover in case of unconsumed deposits
+    #[clap(long)]
+    pub(crate) recovery_file_path: std::path::PathBuf,
 }
 
 pub(crate) async fn deposit(nyxd_url: &str, mnemonic: &str, amount: u64) -> Result<State> {

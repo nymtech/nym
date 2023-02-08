@@ -934,16 +934,6 @@ impl NymApiClient {
         Ok(self.nym_api_client.blind_sign(request_body).await?)
     }
 
-    pub async fn partial_bandwidth_credential(
-        &self,
-        request_body: &str,
-    ) -> Result<BlindedSignatureResponse, ValidatorClientError> {
-        Ok(self
-            .nym_api_client
-            .partial_bandwidth_credential(request_body)
-            .await?)
-    }
-
     pub async fn verify_bandwidth_credential(
         &self,
         request_body: &VerifyCredentialBody,

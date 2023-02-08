@@ -12,10 +12,11 @@ use credential_storage::PersistentStorage;
 use credentials::coconut::bandwidth::{BandwidthVoucher, TOTAL_ATTRIBUTES};
 use credentials::coconut::utils::obtain_aggregate_signature;
 use crypto::asymmetric::{encryption, identity};
-use network_defaults::{NymNetworkDetails, VOUCHER_INFO};
+use network_defaults::VOUCHER_INFO;
 use validator_client::nyxd::traits::DkgQueryClient;
 use validator_client::nyxd::tx::Hash;
-use validator_client::{CoconutApiClient, Config};
+use validator_client::nyxd::CosmWasmClient;
+use validator_client::CoconutApiClient;
 
 use crate::client::Client;
 use crate::error::{CredentialClientError, Result};
@@ -77,10 +78,11 @@ pub(crate) async fn deposit(nyxd_url: &str, mnemonic: &str, amount: u64) -> Resu
     Ok(state)
 }
 
-pub(crate) async fn get_credential(state: &State, shared_storage: PersistentStorage) -> Result<()> {
-    let network_details = NymNetworkDetails::new_from_env();
-    let config = Config::try_from_nym_network_details(&network_details)?;
-    let client = validator_client::Client::new_query(config)?;
+pub(crate) async fn get_credential<C: Clone + CosmWasmClient + Send + Sync>(
+    state: &State,
+    client: validator_client::Client<C>,
+    shared_storage: PersistentStorage,
+) -> Result<()> {
     let epoch_id = client.nyxd.get_current_epoch().await?.epoch_id;
     let threshold = client
         .nyxd

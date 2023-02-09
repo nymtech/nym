@@ -13,7 +13,7 @@ jobs:
     env:
       ANDROID_HOME: ${{ github.workspace }}/android-sdk
       NDK_VERSION: 25.1.8937393
-      NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/${{ env.NDK_VERSION }}
+      NDK_HOME: ${{ github.workspace }}/android-sdk/ndk/25.1.8937393
       SDK_PLATFORM_VERSION: android-33
       SDK_BUILDTOOLS_VERSION: 33.0.1
 

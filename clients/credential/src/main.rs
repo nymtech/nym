@@ -43,7 +43,7 @@ async fn block_until_coconut_is_available<C: Clone + CosmWasmClient + Send + Syn
             .as_secs();
         if epoch.state.is_final() {
             if current_timestamp_secs + SAFETY_BUFFER_SECS >= epoch.finish_timestamp.seconds() {
-                println!("In the next {} minutes, a transition will take place in the coconut system. Deposits should be halted in this time for safety reasons.", SAFETY_BUFFER_SECS / 60);
+                println!("In the next {} minute(s), a transition will take place in the coconut system. Deposits should be halted in this time for safety reasons.", SAFETY_BUFFER_SECS / 60);
                 exit(0);
             }
 
@@ -75,7 +75,7 @@ async fn main() -> Result<()> {
             let client = validator_client::Client::new_query(config)?;
 
             block_until_coconut_is_available(&client).await?;
-            println!("Finished sleeping, starting depositing funds, don't kill the process");
+            println!("Starting depositing funds, don't kill the process");
 
             if !r.recovery_mode {
                 let state = deposit(&r.nyxd_url, &r.mnemonic, r.amount).await?;

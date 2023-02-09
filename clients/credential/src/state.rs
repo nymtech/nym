@@ -30,7 +30,6 @@ impl From<encryption::KeyPair> for KeyPair {
 }
 
 pub(crate) struct State {
-    pub amount: u64,
     pub voucher: BandwidthVoucher,
     pub params: Parameters,
 }

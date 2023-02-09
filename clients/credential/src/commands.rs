@@ -93,11 +93,7 @@ pub(crate) async fn deposit(nyxd_url: &str, mnemonic: &str, amount: u64) -> Resu
         encryption::PrivateKey::from_base58_string(&encryption_keypair.private_key)?,
     );
 
-    let state = State {
-        amount,
-        voucher,
-        params,
-    };
+    let state = State { voucher, params };
 
     Ok(state)
 }
@@ -125,7 +121,7 @@ pub(crate) async fn get_credential<C: Clone + CosmWasmClient + Send + Sync>(
     println!("Signature: {:?}", signature.to_bs58());
     shared_storage
         .insert_coconut_credential(
-            state.amount.to_string(),
+            state.voucher.get_voucher_value(),
             VOUCHER_INFO.to_string(),
             state.voucher.get_private_attributes()[0].to_bs58(),
             state.voucher.get_private_attributes()[1].to_bs58(),
@@ -144,7 +140,6 @@ pub(crate) async fn recover_credentials<C: Clone + CosmWasmClient + Send + Sync>
 ) -> Result<()> {
     for voucher in recovery_storage.unconsumed_vouchers()? {
         let state = State {
-            amount: 0,
             voucher,
             params: Parameters::new(TOTAL_ATTRIBUTES).unwrap(),
         };

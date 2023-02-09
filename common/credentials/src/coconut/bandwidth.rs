@@ -239,6 +239,10 @@ impl BandwidthVoucher {
         &self.blind_sign_request
     }
 
+    pub fn get_voucher_value(&self) -> String {
+        self.voucher_value_plain.clone()
+    }
+
     pub fn get_public_attributes_plain(&self) -> Vec<String> {
         vec![
             self.voucher_value_plain.clone(),

@@ -5,9 +5,12 @@ import { Error } from 'src/types/error';
 import { getVersion } from '@tauri-apps/api/app';
 import { useEvents } from 'src/hooks/events';
 import { UserDefinedGateway } from 'src/types/gateway';
+import { forage } from '@tauri-apps/tauri-forage';
 import { ConnectionStatusKind, GatewayPerformance } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ServiceProvider } from '../types/directory';
+
+const FORAGE_KEY = 'nym-connect-user-gateway';
 
 type ModeType = 'light' | 'dark';
 
@@ -54,12 +57,36 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     return version;
   };
 
+  const setUserGatewayInStorage = async (gateway: UserDefinedGateway) => {
+    try {
+      await forage.setItem({
+        key: FORAGE_KEY,
+        value: gateway,
+      } as any)();
+    } catch (e) {
+      console.warn(e);
+    }
+    return undefined;
+  };
+
+  const getUserGatewayFromStorage = async (): Promise<UserDefinedGateway | undefined> => {
+    try {
+      const gatewayFromStorage = await forage.getItem({ key: FORAGE_KEY })();
+      return gatewayFromStorage;
+    } catch (e) {
+      console.warn(e);
+    }
+    return undefined;
+  };
+
   const initialiseApp = async () => {
     const services = await invoke('get_services');
     const AppVersion = await getAppVersion();
+    const storedUserDefinedGateway = await getUserGatewayFromStorage();
 
     setAppVersion(AppVersion);
     setServiceProviders(services as ServiceProvider[]);
+    if (storedUserDefinedGateway) setUserDefinedGateway(storedUserDefinedGateway);
   };
 
   useEvents({
@@ -117,8 +144,10 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     if (serviceProviders) {
       const randomServiceProvider = getRandomSPFromList(serviceProviders);
       await setServiceProvider(randomServiceProvider);
+      await setUserGatewayInStorage(userDefinedGateway);
       setSelectedProvider(randomServiceProvider);
     }
+    return undefined;
   };
 
   const clearError = () => setError(undefined);

@@ -13,7 +13,7 @@ const Template: ComponentStory<typeof PasswordStrength> = (args) => {
   return (
     <Stack alignContent="center">
       <TextField value={password} onChange={(e) => setPassword(e.target.value)} sx={{ mb: 0.5 }} />
-      <PasswordStrength {...args} password={password} />
+      {!!password.length && <PasswordStrength {...args} password={password} />}
     </Stack>
   );
 };

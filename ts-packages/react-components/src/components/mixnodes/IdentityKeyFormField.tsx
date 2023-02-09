@@ -19,6 +19,7 @@ export const IdentityKeyFormField: FCWithChildren<{
   onValidate?: (isValid: boolean, error?: string) => void;
   textFieldProps?: TextFieldProps;
   errorText?: string;
+  size?: 'small' | 'medium';
   sx?: SxProps;
 }> = ({
   required,
@@ -33,6 +34,7 @@ export const IdentityKeyFormField: FCWithChildren<{
   onValidate,
   textFieldProps,
   showTickOnValid = true,
+  size,
 }) => {
   const [value, setValue] = React.useState<string | undefined>(initialValue);
   const [validationError, setValidationError] = React.useState<string | undefined>();
@@ -100,6 +102,7 @@ export const IdentityKeyFormField: FCWithChildren<{
       defaultValue={initialValue}
       onChange={handleChange}
       InputLabelProps={{ shrink: true }}
+      size={size}
     />
   );
 };

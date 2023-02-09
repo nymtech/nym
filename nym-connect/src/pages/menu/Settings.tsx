@@ -48,16 +48,17 @@ export const Settings = () => {
         {connectionStatus === ConnectionStatusKind.connected && (
           <FormHelperText sx={{ m: 0, my: 1 }}>This setting is disabled during an active connection</FormHelperText>
         )}
-
-        <IdentityKeyFormField
-          size="small"
-          placeholder="Gateway identity key"
-          onChanged={setGatewayKey}
-          initialValue={gatewayKey}
-          onValidate={handleIsValidGatewayKey}
-          sx={{ mt: 1 }}
-          disabled={connectionStatus === 'connected' || !userDefinedGateway?.isActive}
-        />
+        {userDefinedGateway?.isActive && (
+          <IdentityKeyFormField
+            size="small"
+            placeholder="Gateway identity key"
+            onChanged={setGatewayKey}
+            initialValue={gatewayKey}
+            onValidate={handleIsValidGatewayKey}
+            sx={{ mt: 1 }}
+            disabled={connectionStatus === 'connected' || !userDefinedGateway?.isActive}
+          />
+        )}
       </FormControl>
     </Box>
   );

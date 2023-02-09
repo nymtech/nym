@@ -12,59 +12,28 @@
 // 3. Eventually this whole procedure is going to get expanded to allow for distribution of rewarded set generation
 //    and hence this might be a good place for it.
 
-use crate::epoch_operations::helpers::stake_to_f64;
 use crate::node_status_api::ONE_DAY;
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::nyxd::Client;
-use crate::support::storage::models::RewardingReport;
 use crate::support::storage::NymApiStorage;
 use error::RewardingError;
-use mixnet_contract_common::families::FamilyHead;
-use mixnet_contract_common::{
-    reward_params::Performance, CurrentIntervalResponse, ExecuteMsg, Interval, MixId,
-};
-use mixnet_contract_common::{IdentityKey, Layer, LayerAssignment, MixNodeDetails};
-use rand::prelude::SliceRandom;
-use rand::rngs::OsRng;
-use std::collections::HashMap;
+use mixnet_contract_common::{CurrentIntervalResponse, Interval};
+pub(crate) use rewarding::MixnodeToReward;
 use std::collections::HashSet;
 use std::time::Duration;
 use task::{TaskClient, TaskManager};
 use tokio::time::sleep;
 
 pub(crate) mod error;
+mod event_reconciliation;
 mod helpers;
-
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct MixnodeToReward {
-    pub(crate) mix_id: MixId,
-
-    pub(crate) performance: Performance,
-}
-
-impl From<MixnodeToReward> for ExecuteMsg {
-    fn from(mix_reward: MixnodeToReward) -> Self {
-        ExecuteMsg::RewardMixnode {
-            mix_id: mix_reward.mix_id,
-            performance: mix_reward.performance,
-        }
-    }
-}
+mod rewarded_set_assignment;
+mod rewarding;
 
 pub struct RewardedSetUpdater {
     nyxd_client: Client,
     nym_contract_cache: NymContractCache,
     storage: NymApiStorage,
-}
-
-// Weight of a layer being chose is reciprocal to current count in layer
-fn layer_weight(l: &Layer, layer_assignments: &HashMap<Layer, f32>) -> f32 {
-    let total = layer_assignments.values().fold(0., |acc, i| acc + i);
-    if total == 0. {
-        1.
-    } else {
-        1. - (layer_assignments.get(l).unwrap_or(&0.) / total)
-    }
 }
 
 impl RewardedSetUpdater {
@@ -84,210 +53,6 @@ impl RewardedSetUpdater {
             nym_contract_cache,
             storage,
         }
-    }
-
-    async fn determine_layers(
-        &self,
-        rewarded_set: &[MixNodeDetails],
-    ) -> Result<(Vec<LayerAssignment>, HashMap<String, Layer>), RewardingError> {
-        let mut families_in_layer: HashMap<String, Layer> = HashMap::new();
-        let mut assignments = vec![];
-        let mut layer_assignments: HashMap<Layer, f32> = HashMap::new();
-        let mut rng = OsRng;
-        let layers = vec![Layer::One, Layer::Two, Layer::Three];
-
-        let mix_to_family = self.nym_contract_cache.mix_to_family().await.to_vec();
-
-        let mix_to_family = mix_to_family
-            .into_iter()
-            .collect::<HashMap<IdentityKey, FamilyHead>>();
-
-        for mix in rewarded_set {
-            let family = mix_to_family.get(&mix.bond_information.identity().to_owned());
-            // Get layer already assigned to nodes family, if any
-            let family_layer = family.and_then(|h| families_in_layer.get(h.identity()));
-
-            // Same node families are always assigned to the same layer, otherwise layer selected by a random weighted choice
-            let layer = if let Some(layer) = family_layer {
-                layer.to_owned()
-            } else {
-                layers
-                    .choose_weighted(&mut rng, |l| layer_weight(l, &layer_assignments))?
-                    .to_owned()
-            };
-
-            assignments.push(LayerAssignment::new(mix.mix_id(), layer));
-
-            // layer accounting
-            let layer_entry = layer_assignments.entry(layer).or_insert(0.);
-            *layer_entry += 1.;
-            if let Some(family) = family {
-                families_in_layer.insert(family.identity().to_string(), layer);
-            }
-        }
-
-        Ok((assignments, families_in_layer))
-    }
-
-    fn determine_rewarded_set(
-        &self,
-        mixnodes: &[MixNodeDetails],
-        nodes_to_select: u32,
-    ) -> Result<Vec<MixNodeDetails>, RewardingError> {
-        if mixnodes.is_empty() {
-            return Ok(Vec::new());
-        }
-
-        let mut rng = OsRng;
-
-        // generate list of mixnodes and their relatively weight (by total stake)
-        let choices = mixnodes
-            .iter()
-            .map(|mix| {
-                let total_stake = stake_to_f64(mix.total_stake());
-                (mix.to_owned(), total_stake)
-            })
-            .collect::<Vec<_>>();
-
-        // the unwrap here is fine as an error can only be thrown under one of the following conditions:
-        // - our mixnode list is empty - we have already checked for that
-        // - we have invalid weights, i.e. less than zero or NaNs - it shouldn't happen in our case as we safely cast down from u128
-        // - all weights are zero - it's impossible in our case as the list of nodes is not empty and weight is proportional to stake. You must have non-zero stake in order to bond
-        // - we have more than u32::MAX values (which is incredibly unrealistic to have 4B mixnodes bonded... literally every other person on the planet would need one)
-        Ok(choices
-            .choose_multiple_weighted(&mut rng, nodes_to_select as usize, |item| item.1)?
-            .map(|(mix, _weight)| mix.to_owned())
-            .collect())
-    }
-
-    async fn reward_current_rewarded_set(
-        &self,
-        current_interval: Interval,
-    ) -> Result<(), RewardingError> {
-        let to_reward = self.nodes_to_reward(current_interval).await;
-
-        if let Some(existing_report) = self
-            .storage
-            .get_rewarding_report(current_interval.current_epoch_absolute_id())
-            .await?
-        {
-            warn!("We have already rewarded mixnodes for this rewarding epoch ({}). {} nodes should have gotten rewards", existing_report.absolute_epoch_id, existing_report.eligible_mixnodes);
-            return Ok(());
-        }
-
-        if to_reward.is_empty() {
-            info!("There are no nodes to reward in this epoch");
-        } else if let Err(err) = self.nyxd_client.send_rewarding_messages(&to_reward).await {
-            error!(
-                "failed to perform mixnode rewarding for epoch {}! Error encountered: {err}",
-                current_interval.current_epoch_absolute_id(),
-            );
-            return Err(err.into());
-        }
-
-        log::info!("rewarded {} mixnodes...", to_reward.len());
-
-        let rewarding_report = RewardingReport {
-            absolute_epoch_id: current_interval.current_epoch_absolute_id(),
-            eligible_mixnodes: to_reward.len() as u32,
-        };
-
-        self.storage
-            .insert_rewarding_report(rewarding_report)
-            .await?;
-
-        Ok(())
-    }
-
-    async fn nodes_to_reward(&self, interval: Interval) -> Vec<MixnodeToReward> {
-        // try to get current up to date view of the network bypassing the cache
-        // in case the epochs were significantly shortened for the purposes of testing
-        let rewarded_set: Vec<MixId> = match self.nyxd_client.get_rewarded_set_mixnodes().await {
-            Ok(nodes) => nodes.into_iter().map(|(id, _)| id).collect::<Vec<_>>(),
-            Err(err) => {
-                warn!("failed to obtain the current rewarded set - {err}. falling back to the cached version");
-                self.nym_contract_cache
-                    .rewarded_set()
-                    .await
-                    .into_inner()
-                    .into_iter()
-                    .map(|node| node.mix_id())
-                    .collect::<Vec<_>>()
-            }
-        };
-
-        let mut eligible_nodes = Vec::with_capacity(rewarded_set.len());
-        for mix_id in rewarded_set {
-            let uptime = self
-                .storage
-                .get_average_mixnode_uptime_in_the_last_24hrs(
-                    mix_id,
-                    interval.current_epoch_end_unix_timestamp(),
-                )
-                .await
-                .unwrap_or_default();
-            eligible_nodes.push(MixnodeToReward {
-                mix_id,
-                performance: uptime.into(),
-            })
-        }
-
-        eligible_nodes
-    }
-
-    async fn update_rewarded_set_and_advance_epoch(
-        &self,
-        all_mixnodes: &[MixNodeDetails],
-    ) -> Result<(), RewardingError> {
-        // we grab rewarding parameters here as they might have gotten updated when performing epoch actions
-        let rewarding_parameters = self.nyxd_client.get_current_rewarding_parameters().await?;
-
-        let new_rewarded_set =
-            self.determine_rewarded_set(all_mixnodes, rewarding_parameters.rewarded_set_size)?;
-
-        let (layer_assignments, _families_in_layer) =
-            self.determine_layers(&new_rewarded_set).await?;
-
-        self.nyxd_client
-            .advance_current_epoch(layer_assignments, rewarding_parameters.active_set_size)
-            .await?;
-
-        Ok(())
-    }
-
-    async fn reconcile_epoch_events(&self) -> Result<(), RewardingError> {
-        let pending_events = self.nyxd_client.get_pending_events_count().await?;
-        // if there's no pending events, job's done.
-        if pending_events == 0 {
-            return Ok(());
-        }
-
-        // be conservative about number of events we resolve at once.
-        // contract should be able to handle few hundred at once
-        // but keep it on the lower side.
-        let limit = 100;
-
-        let mut required_calls = pending_events / limit;
-        if pending_events % limit != 0 {
-            required_calls += 1;
-        }
-
-        for _ in 0..required_calls {
-            self.nyxd_client.reconcile_epoch_events(Some(limit)).await?;
-        }
-
-        // in the incredibly unlikely/borderline impossible scenario a HUGE number of events got pushed
-        // while we were reconciling the events, do it one more time
-        //
-        // note: it's perfectly fine if we don't clear EXACTLY everything,
-        // since when we execute transaction to actually advance the epoch,
-        // it will resolve all remaining events.
-        let pending_events = self.nyxd_client.get_pending_events_count().await?;
-        if pending_events > 20 {
-            self.nyxd_client.reconcile_epoch_events(Some(limit)).await?;
-        }
-
-        Ok(())
     }
 
     // This is where the epoch gets advanced, and all epoch related transactions originate

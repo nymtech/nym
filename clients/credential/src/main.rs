@@ -20,7 +20,7 @@ use validator_client::nyxd::traits::DkgQueryClient;
 use validator_client::nyxd::CosmWasmClient;
 use validator_client::Config;
 
-const SAFETY_BUFFER_SECS: u64 = 10 * 60; // 10 minutes
+const SAFETY_BUFFER_SECS: u64 = 1 * 60; // 1 minute
 
 #[derive(Parser)]
 #[clap(author = "Nymtech", version, about)]

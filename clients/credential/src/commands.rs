@@ -54,8 +54,9 @@ pub(crate) struct Run {
     #[clap(long)]
     pub(crate) mnemonic: String,
 
-    /// The amount of utokens the credential will hold. If recovery mode is enabled, this
-    #[clap(long)]
+    /// The amount of utokens the credential will hold. If recovery mode is enabled, this value
+    /// is not needed
+    #[clap(long, default_value = "0")]
     pub(crate) amount: u64,
 
     /// Path to a directory used to store recovery files for unconsumed deposits

@@ -21,6 +21,7 @@ export const IdentityKeyFormField: FCWithChildren<{
   errorText?: string;
   size?: 'small' | 'medium';
   sx?: SxProps;
+  disabled?: boolean;
 }> = ({
   required,
   fullWidth,
@@ -35,6 +36,7 @@ export const IdentityKeyFormField: FCWithChildren<{
   textFieldProps,
   showTickOnValid = true,
   size,
+  disabled,
 }) => {
   const [value, setValue] = React.useState<string | undefined>(initialValue);
   const [validationError, setValidationError] = React.useState<string | undefined>();
@@ -103,6 +105,7 @@ export const IdentityKeyFormField: FCWithChildren<{
       onChange={handleChange}
       InputLabelProps={{ shrink: true }}
       size={size}
+      disabled={disabled}
     />
   );
 };

@@ -4,6 +4,7 @@
 mod client;
 mod commands;
 mod error;
+mod recovery_storage;
 mod state;
 
 use commands::*;
@@ -67,6 +68,7 @@ async fn main() -> Result<()> {
         Command::Run(r) => {
             let db_path = r.client_home_directory.join(DATA_DIR).join(DB_FILE_NAME);
             let shared_storage = credential_storage::initialise_storage(db_path).await;
+            let recovery_storage = recovery_storage::RecoveryStorage::new(r.recovery_dir)?;
 
             let network_details = NymNetworkDetails::new_from_env();
             let config = Config::try_from_nym_network_details(&network_details)?;
@@ -75,9 +77,21 @@ async fn main() -> Result<()> {
             block_until_coconut_is_available(&client).await?;
             println!("Finished sleeping, starting depositing funds, don't kill the process");
 
-            let state = deposit(&r.nyxd_url, &r.mnemonic, r.amount).await?;
-
-            get_credential(&state, client, shared_storage).await?;
+            if !r.recovery_mode {
+                let state = deposit(&r.nyxd_url, &r.mnemonic, r.amount).await?;
+                if get_credential(&state, client, shared_storage)
+                    .await
+                    .is_err()
+                {
+                    let file_path = recovery_storage.insert_voucher(&state.voucher)?;
+                    println!(
+                        "Failed to obtain credential. Dumping recovery data to {:?}. Try using recovery mode to convert it to a credential",
+                        file_path
+                    );
+                }
+            } else {
+                recover_credentials(client, &recovery_storage, shared_storage).await?;
+            }
         }
         Command::Completions(c) => c.generate(&mut crate::Cli::command(), bin_name),
         Command::GenerateFigSpec => fig_generate(&mut crate::Cli::command(), bin_name),

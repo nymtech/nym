@@ -9,6 +9,9 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("IO error")]
+    IOError(#[from] std::io::Error),
+
     #[error("The detailed description is yet to be determined")]
     BandwidthCredentialError,
 

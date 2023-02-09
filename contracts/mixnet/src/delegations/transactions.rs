@@ -5,7 +5,9 @@ use super::storage;
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnodes_storage;
-use crate::support::helpers::{ensure_sent_by_vesting_contract, validate_delegation_stake};
+use crate::support::helpers::{
+    ensure_epoch_in_progress_state, ensure_sent_by_vesting_contract, validate_delegation_stake,
+};
 use cosmwasm_std::{Addr, Coin, DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
@@ -44,6 +46,9 @@ pub(crate) fn _try_delegate_to_mixnode(
     amount: Vec<Coin>,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
+    // delegation is only allowed if the epoch is currently not in the process of being advanced
+    ensure_epoch_in_progress_state(deps.storage)?;
+
     // check if the delegation contains any funds of the appropriate denomination
     let contract_state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
     let delegation = validate_delegation_stake(
@@ -104,6 +109,9 @@ pub(crate) fn _try_remove_delegation_from_mixnode(
     delegate: Addr,
     proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
+    // undelegation is only allowed if the epoch is currently not in the process of being advanced
+    ensure_epoch_in_progress_state(deps.storage)?;
+
     // see if the delegation even exists
     let storage_key = Delegation::generate_storage_key(mix_id, &delegate, proxy.as_ref());
 
@@ -144,6 +152,40 @@ mod tests {
         use crate::support::tests::test_helpers::TestSetup;
         use cosmwasm_std::testing::mock_info;
         use cosmwasm_std::{coin, Decimal};
+        use mixnet_contract_common::{EpochState, EpochStatus};
+
+        #[test]
+        fn cant_be_performed_if_epoch_transition_is_in_progress() {
+            let bad_states = vec![
+                EpochState::Rewarding {
+                    last_rewarded: 0,
+                    final_node_id: 0,
+                },
+                EpochState::ReconcilingEvents,
+                EpochState::AdvancingEpoch,
+            ];
+
+            for bad_state in bad_states {
+                let mut test = TestSetup::new();
+
+                let mut status = EpochStatus::new(test.rewarding_validator().sender);
+                status.state = bad_state;
+                interval_storage::save_current_epoch_status(test.deps_mut().storage, &status)
+                    .unwrap();
+
+                let env = test.env();
+
+                let owner = "delegator";
+                let mix_id = test.add_dummy_mixnode("mix-owner", None);
+                let sender = mock_info(owner, &[coin(50_000_000, TEST_COIN_DENOM)]);
+
+                let res = try_delegate_to_mixnode(test.deps_mut(), env.clone(), sender, mix_id);
+                assert!(matches!(
+                    res,
+                    Err(MixnetContractError::EpochAdvancementInProgress { .. })
+                ));
+            }
+        }
 
         #[test]
         fn can_only_be_done_towards_an_existing_mixnode() {
@@ -396,6 +438,42 @@ mod tests {
         use crate::support::tests::test_helpers::TestSetup;
         use cosmwasm_std::coin;
         use cosmwasm_std::testing::mock_info;
+        use mixnet_contract_common::{EpochState, EpochStatus};
+
+        #[test]
+        fn cant_be_performed_if_epoch_transition_is_in_progress() {
+            let bad_states = vec![
+                EpochState::Rewarding {
+                    last_rewarded: 0,
+                    final_node_id: 0,
+                },
+                EpochState::ReconcilingEvents,
+                EpochState::AdvancingEpoch,
+            ];
+
+            for bad_state in bad_states {
+                let mut test = TestSetup::new();
+                let mix_id = test.add_dummy_mixnode("owner", None);
+                test.add_immediate_delegation("foomp", 1000u32, mix_id);
+
+                let mut status = EpochStatus::new(test.rewarding_validator().sender);
+                status.state = bad_state;
+                interval_storage::save_current_epoch_status(test.deps_mut().storage, &status)
+                    .unwrap();
+
+                let env = test.env();
+                let res = try_remove_delegation_from_mixnode(
+                    test.deps_mut(),
+                    env.clone(),
+                    mock_info("sender", &[]),
+                    mix_id,
+                );
+                assert!(matches!(
+                    res,
+                    Err(MixnetContractError::EpochAdvancementInProgress { .. })
+                ));
+            }
+        }
 
         #[test]
         fn cannot_be_performed_if_delegation_never_existed() {

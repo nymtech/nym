@@ -10,8 +10,9 @@ use crate::mixnodes::helpers::{
     get_mixnode_details_by_owner, must_get_mixnode_bond_by_owner, save_new_mixnode,
 };
 use crate::support::helpers::{
-    ensure_bonded, ensure_is_authorized, ensure_no_existing_bond, ensure_proxy_match,
-    ensure_sent_by_vesting_contract, validate_node_identity_signature, validate_pledge,
+    ensure_bonded, ensure_epoch_in_progress_state, ensure_is_authorized, ensure_no_existing_bond,
+    ensure_proxy_match, ensure_sent_by_vesting_contract, validate_node_identity_signature,
+    validate_pledge,
 };
 use cosmwasm_std::{coin, Addr, Coin, DepsMut, Env, MessageInfo, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
@@ -47,7 +48,7 @@ pub fn assign_mixnode_layer(
     mix_id: MixId,
     layer: Layer,
 ) -> Result<Response, MixnetContractError> {
-    ensure_is_authorized(info.sender, deps.storage)?;
+    ensure_is_authorized(&info.sender, deps.storage)?;
 
     update_mixnode_layer(mix_id, layer, deps.storage)?;
 
@@ -185,6 +186,9 @@ pub fn _try_increase_pledge(
         .ok_or(MixnetContractError::NoAssociatedMixNodeBond { owner })?;
     let mix_id = mix_details.mix_id();
 
+    // increasing pledge is only allowed if the epoch is currently not in the process of being advanced
+    ensure_epoch_in_progress_state(deps.storage)?;
+
     ensure_proxy_match(&proxy, &mix_details.bond_information.proxy)?;
     ensure_bonded(&mix_details.bond_information)?;
 
@@ -236,6 +240,9 @@ pub(crate) fn _try_remove_mixnode(
         .item(deps.storage, owner.clone())?
         .ok_or(MixnetContractError::NoAssociatedMixNodeBond { owner })?
         .1;
+
+    // unbonding is only allowed if the epoch is currently not in the process of being advanced
+    ensure_epoch_in_progress_state(deps.storage)?;
 
     // see if the proxy matches
     ensure_proxy_match(&proxy, &existing_bond.proxy)?;
@@ -354,6 +361,9 @@ pub(crate) fn _try_update_mixnode_cost_params(
     // see if the node still exists
     let existing_bond = must_get_mixnode_bond_by_owner(deps.storage, &owner)?;
 
+    // changing cost params is only allowed if the epoch is currently not in the process of being advanced
+    ensure_epoch_in_progress_state(deps.storage)?;
+
     ensure_proxy_match(&proxy, &existing_bond.proxy)?;
     ensure_bonded(&existing_bond)?;
 
@@ -385,7 +395,9 @@ pub mod tests {
     use crate::support::tests::{fixtures, test_helpers};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{Order, StdResult, Uint128};
-    use mixnet_contract_common::{ExecuteMsg, Layer, LayerDistribution, Percent};
+    use mixnet_contract_common::{
+        EpochState, EpochStatus, ExecuteMsg, Layer, LayerDistribution, Percent,
+    };
 
     #[test]
     fn mixnode_add() {
@@ -538,6 +550,37 @@ pub mod tests {
                 vesting_contract
             }
         )
+    }
+
+    #[test]
+    fn removing_mixnode_cant_be_performed_if_epoch_transition_is_in_progress() {
+        let bad_states = vec![
+            EpochState::Rewarding {
+                last_rewarded: 0,
+                final_node_id: 0,
+            },
+            EpochState::ReconcilingEvents,
+            EpochState::AdvancingEpoch,
+        ];
+
+        for bad_state in bad_states {
+            let mut test = TestSetup::new();
+            let env = test.env();
+            let owner = "alice";
+            let info = mock_info(owner, &[]);
+
+            test.add_dummy_mixnode(owner, None);
+
+            let mut status = EpochStatus::new(test.rewarding_validator().sender);
+            status.state = bad_state;
+            interval_storage::save_current_epoch_status(test.deps_mut().storage, &status).unwrap();
+
+            let res = try_remove_mixnode(test.deps_mut(), env.clone(), info);
+            assert!(matches!(
+                res,
+                Err(MixnetContractError::EpochAdvancementInProgress { .. })
+            ));
+        }
     }
 
     #[test]
@@ -721,6 +764,43 @@ pub mod tests {
     }
 
     #[test]
+    fn mixnode_cost_params_cant_be_updated_when_epoch_transition_is_in_progress() {
+        let bad_states = vec![
+            EpochState::Rewarding {
+                last_rewarded: 0,
+                final_node_id: 0,
+            },
+            EpochState::ReconcilingEvents,
+            EpochState::AdvancingEpoch,
+        ];
+
+        let update = MixNodeCostParams {
+            profit_margin_percent: Percent::from_percentage_value(42).unwrap(),
+            interval_operating_cost: Coin::new(12345678, TEST_COIN_DENOM),
+        };
+
+        for bad_state in bad_states {
+            let mut test = TestSetup::new();
+            let env = test.env();
+            let owner = "alice";
+            let info = mock_info(owner, &[]);
+
+            test.add_dummy_mixnode(owner, None);
+
+            let mut status = EpochStatus::new(test.rewarding_validator().sender);
+            status.state = bad_state;
+            interval_storage::save_current_epoch_status(test.deps_mut().storage, &status).unwrap();
+
+            let res =
+                try_update_mixnode_cost_params(test.deps_mut(), env.clone(), info, update.clone());
+            assert!(matches!(
+                res,
+                Err(MixnetContractError::EpochAdvancementInProgress { .. })
+            ));
+        }
+    }
+
+    #[test]
     fn updating_mixnode_cost_params() {
         let mut test = TestSetup::new();
         let env = test.env();
@@ -895,6 +975,40 @@ pub mod tests {
             setup_mix_combinations, OWNER_UNBONDED, OWNER_UNBONDED_LEFTOVER, OWNER_UNBONDING,
         };
         use crate::support::tests::test_helpers::TestSetup;
+        use mixnet_contract_common::{EpochState, EpochStatus};
+
+        #[test]
+        fn cant_be_performed_if_epoch_transition_is_in_progress() {
+            let bad_states = vec![
+                EpochState::Rewarding {
+                    last_rewarded: 0,
+                    final_node_id: 0,
+                },
+                EpochState::ReconcilingEvents,
+                EpochState::AdvancingEpoch,
+            ];
+
+            for bad_state in bad_states {
+                let mut test = TestSetup::new();
+                let env = test.env();
+                let owner = "mix-owner";
+
+                test.add_dummy_mixnode(owner, None);
+
+                let mut status = EpochStatus::new(test.rewarding_validator().sender);
+                status.state = bad_state;
+                interval_storage::save_current_epoch_status(test.deps_mut().storage, &status)
+                    .unwrap();
+
+                let sender = mock_info(owner, &[test.coin(1000)]);
+                let res = try_increase_pledge(test.deps_mut(), env, sender);
+
+                assert!(matches!(
+                    res,
+                    Err(MixnetContractError::EpochAdvancementInProgress { .. })
+                ));
+            }
+        }
 
         #[test]
         fn is_not_allowed_if_account_doesnt_own_mixnode() {

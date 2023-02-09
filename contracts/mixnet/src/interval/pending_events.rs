@@ -603,19 +603,31 @@ mod tests {
             let delegation_coin_new = coin(delegation_new, TEST_COIN_DENOM);
 
             // perform some rewarding here to advance the unit delegation beyond the initial value
-            test.update_rewarded_set(vec![mix_id]);
+            test.force_change_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             let owner = "delegator";
             test.add_immediate_delegation(owner, delegation_og, mix_id);
 
             test.skip_to_next_epoch_end();
-            let dist1 = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            let dist1 = test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
             test.skip_to_next_epoch_end();
-            let dist2 = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            let dist2 = test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             let storage_key =
                 Delegation::generate_storage_key(mix_id, &Addr::unchecked(owner), None);
@@ -674,11 +686,17 @@ mod tests {
             let delegation_coin = coin(120_000_000u128, TEST_COIN_DENOM);
 
             // perform some rewarding here to advance the unit delegation beyond the initial value
-            test.update_rewarded_set(vec![mix_id]);
+            test.force_change_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             let storage_key =
                 Delegation::generate_storage_key(mix_id, &Addr::unchecked(owner), None);
@@ -863,18 +881,30 @@ mod tests {
             let delegation = 120_000_000u128;
 
             // perform some rewarding here to advance the unit delegation beyond the initial value
-            test.update_rewarded_set(vec![mix_id]);
+            test.force_change_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
             test.skip_to_next_epoch_end();
-            test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             test.add_immediate_delegation(owner, delegation, mix_id);
 
             test.skip_to_next_epoch_end();
-            let dist1 = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            let dist1 = test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
             test.skip_to_next_epoch_end();
-            let dist2 = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            let dist2 = test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             let expected_reward = dist1.delegates + dist2.delegates;
             let truncated_reward = truncate_reward_amount(expected_reward);
@@ -1032,11 +1062,17 @@ mod tests {
                 .unwrap();
             let layer = mix_details.layer;
 
-            test.update_rewarded_set(vec![mix_id]);
+            test.force_change_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
-            let dist1 = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            let dist1 = test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
             test.skip_to_next_epoch_end();
-            let dist2 = test.reward_with_distribution(mix_id, test_helpers::performance(100.0));
+            let dist2 = test.reward_with_distribution_with_state_bypass(
+                mix_id,
+                test_helpers::performance(100.0),
+            );
 
             let expected_reward = dist1.operator + dist2.operator;
             let truncated_reward = truncate_reward_amount(expected_reward);
@@ -1217,12 +1253,16 @@ mod tests {
             test.add_immediate_delegation("carol", 111_111_111u128, mix_id_full_pledge);
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
+            test.force_change_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
 
-            let dist1 =
-                test.reward_with_distribution(mix_id_repledge, test_helpers::performance(100.0));
-            let dist2 =
-                test.reward_with_distribution(mix_id_full_pledge, test_helpers::performance(100.0));
+            let dist1 = test.reward_with_distribution_with_state_bypass(
+                mix_id_repledge,
+                test_helpers::performance(100.0),
+            );
+            let dist2 = test.reward_with_distribution_with_state_bypass(
+                mix_id_full_pledge,
+                test_helpers::performance(100.0),
+            );
 
             assert_eq!(dist1, dist2)
         }
@@ -1240,10 +1280,12 @@ mod tests {
             test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_repledge);
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id_repledge]);
+            test.force_change_rewarded_set(vec![mix_id_repledge]);
 
-            let dist =
-                test.reward_with_distribution(mix_id_repledge, test_helpers::performance(100.0));
+            let dist = test.reward_with_distribution_with_state_bypass(
+                mix_id_repledge,
+                test_helpers::performance(100.0),
+            );
 
             let increase = test.coin(pledge2.u128());
             increase_pledge(test.deps_mut(), 123, mix_id_repledge, increase).unwrap();
@@ -1279,15 +1321,19 @@ mod tests {
             );
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
+            test.force_change_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
 
             // go through few epochs of rewarding
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist1 = test
-                    .reward_with_distribution(mix_id_repledge, test_helpers::performance(100.0));
-                let dist2 = test
-                    .reward_with_distribution(mix_id_full_pledge, test_helpers::performance(100.0));
+                let dist1 = test.reward_with_distribution_with_state_bypass(
+                    mix_id_repledge,
+                    test_helpers::performance(100.0),
+                );
+                let dist2 = test.reward_with_distribution_with_state_bypass(
+                    mix_id_full_pledge,
+                    test_helpers::performance(100.0),
+                );
 
                 assert_eq!(dist1, dist2)
             }
@@ -1306,7 +1352,7 @@ mod tests {
             test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_repledge);
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id_repledge]);
+            test.force_change_rewarded_set(vec![mix_id_repledge]);
 
             let mut cumulative_op_reward = Decimal::zero();
             let mut cumulative_del_reward = Decimal::zero();
@@ -1314,8 +1360,10 @@ mod tests {
             // go few epochs of rewarding before adding more pledge
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist = test
-                    .reward_with_distribution(mix_id_repledge, test_helpers::performance(100.0));
+                let dist = test.reward_with_distribution_with_state_bypass(
+                    mix_id_repledge,
+                    test_helpers::performance(100.0),
+                );
                 cumulative_op_reward += dist.operator;
                 cumulative_del_reward += dist.delegates;
             }
@@ -1355,15 +1403,19 @@ mod tests {
             );
 
             test.skip_to_next_epoch_end();
-            test.update_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
+            test.force_change_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
 
             // go through few more epochs of rewarding
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist1 = test
-                    .reward_with_distribution(mix_id_repledge, test_helpers::performance(100.0));
-                let dist2 = test
-                    .reward_with_distribution(mix_id_full_pledge, test_helpers::performance(100.0));
+                let dist1 = test.reward_with_distribution_with_state_bypass(
+                    mix_id_repledge,
+                    test_helpers::performance(100.0),
+                );
+                let dist2 = test.reward_with_distribution_with_state_bypass(
+                    mix_id_full_pledge,
+                    test_helpers::performance(100.0),
+                );
 
                 assert_eq!(dist1, dist2)
             }

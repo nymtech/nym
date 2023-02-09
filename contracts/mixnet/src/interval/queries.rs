@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::constants::{
@@ -12,9 +12,14 @@ use cw_storage_plus::Bound;
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
 use mixnet_contract_common::{
-    CurrentIntervalResponse, EpochEventId, IntervalEventId, MixId, NumberOfPendingEventsResponse,
-    PagedRewardedSetResponse, PendingEpochEventsResponse, PendingIntervalEventsResponse,
+    CurrentIntervalResponse, EpochEventId, EpochStatus, IntervalEventId, MixId,
+    NumberOfPendingEventsResponse, PagedRewardedSetResponse, PendingEpochEventsResponse,
+    PendingIntervalEventsResponse,
 };
+
+pub fn query_epoch_status(deps: Deps<'_>) -> StdResult<EpochStatus> {
+    storage::current_epoch_status(deps.storage)
+}
 
 pub fn query_current_interval_details(
     deps: Deps<'_>,
@@ -202,7 +207,7 @@ mod tests {
 
         fn set_rewarded_set_to_n_nodes(test: &mut TestSetup, n: usize) {
             let set = (1u32..).take(n).collect::<Vec<_>>();
-            test.update_rewarded_set(set)
+            test.force_change_rewarded_set(set)
         }
 
         #[test]

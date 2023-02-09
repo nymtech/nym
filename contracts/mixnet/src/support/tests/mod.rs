@@ -19,7 +19,7 @@ pub mod test_helpers {
     use crate::gateways::storage as gateways_storage;
     use crate::gateways::transactions::{try_add_gateway, try_add_gateway_on_behalf};
     use crate::interval::transactions::{
-        perform_pending_epoch_actions, perform_pending_interval_actions,
+        perform_pending_epoch_actions, perform_pending_interval_actions, try_begin_epoch_transition,
     };
     use crate::interval::{pending_events, storage as interval_storage};
     use crate::mixnet_contract_settings::storage as mixnet_params_storage;
@@ -59,8 +59,8 @@ pub mod test_helpers {
     use mixnet_contract_common::rewarding::simulator::Simulator;
     use mixnet_contract_common::rewarding::RewardDistribution;
     use mixnet_contract_common::{
-        Delegation, Gateway, IdentityKey, InitialRewardingParams, InstantiateMsg, Interval, MixId,
-        MixNode, MixNodeBond, Percent, RewardedSetNodeStatus,
+        Delegation, EpochState, EpochStatus, Gateway, IdentityKey, InitialRewardingParams,
+        InstantiateMsg, Interval, MixId, MixNode, MixNodeBond, Percent, RewardedSetNodeStatus,
     };
     use nym_crypto::asymmetric::identity;
     use nym_crypto::asymmetric::identity::KeyPair;
@@ -314,8 +314,8 @@ pub mod test_helpers {
 
             let proxy = self.vesting_contract();
 
-            let legit_sphinx_key = crypto::asymmetric::encryption::KeyPair::new(&mut self.rng);
-            let keypair = crypto::asymmetric::identity::KeyPair::new(&mut self.rng);
+            let legit_sphinx_key = nym_crypto::asymmetric::encryption::KeyPair::new(&mut self.rng);
+            let keypair = nym_crypto::asymmetric::identity::KeyPair::new(&mut self.rng);
             let owner_signature = keypair
                 .private_key()
                 .sign(owner.as_bytes())
@@ -499,6 +499,48 @@ pub mod test_helpers {
             .unwrap();
         }
 
+        pub fn start_epoch_transition(&mut self) {
+            let env = self.env.clone();
+            let sender = self.rewarding_validator.clone();
+            try_begin_epoch_transition(self.deps_mut(), env, sender).unwrap();
+        }
+
+        pub fn set_epoch_in_progress_state(&mut self) {
+            let being_advanced_by = self.rewarding_validator.sender.clone();
+            interval_storage::save_current_epoch_status(
+                self.deps_mut().storage,
+                &EpochStatus {
+                    being_advanced_by,
+                    state: EpochState::InProgress,
+                },
+            )
+            .unwrap();
+        }
+
+        pub fn set_epoch_reconciliation_state(&mut self) {
+            let being_advanced_by = self.rewarding_validator.sender.clone();
+            interval_storage::save_current_epoch_status(
+                self.deps_mut().storage,
+                &EpochStatus {
+                    being_advanced_by,
+                    state: EpochState::ReconcilingEvents,
+                },
+            )
+            .unwrap();
+        }
+
+        pub fn set_epoch_advancement_state(&mut self) {
+            let being_advanced_by = self.rewarding_validator.sender.clone();
+            interval_storage::save_current_epoch_status(
+                self.deps_mut().storage,
+                &EpochStatus {
+                    being_advanced_by,
+                    state: EpochState::AdvancingEpoch,
+                },
+            )
+            .unwrap();
+        }
+
         #[allow(unused)]
         pub fn pending_operator_reward(&mut self, mix: MixId) -> Decimal {
             query_pending_mixnode_operator_reward(self.deps(), mix)
@@ -559,10 +601,12 @@ pub mod test_helpers {
                 )
             }
 
-            interval_storage::save_interval(self.deps_mut().storage, &advanced).unwrap()
+            interval_storage::save_interval(self.deps_mut().storage, &advanced).unwrap();
+            // if we're going into next epoch, we're back into in progress
+            self.set_epoch_in_progress_state();
         }
 
-        pub fn update_rewarded_set(&mut self, nodes: Vec<MixId>) {
+        pub fn force_change_rewarded_set(&mut self, nodes: Vec<MixId>) {
             let active_set_size = rewards_storage::REWARDING_PARAMS
                 .load(self.deps().storage)
                 .unwrap()
@@ -592,6 +636,20 @@ pub mod test_helpers {
                 .range(self.deps().storage, None, None, Order::Ascending)
                 .map(|res| res.unwrap().1)
                 .collect::<Vec<_>>()
+        }
+
+        pub fn reward_with_distribution_with_state_bypass(
+            &mut self,
+            mix_id: MixId,
+            performance: Performance,
+        ) -> RewardDistribution {
+            let initial_status =
+                interval_storage::current_epoch_status(self.deps().storage).unwrap();
+            self.start_epoch_transition();
+            let res = self.reward_with_distribution(mix_id, performance);
+            interval_storage::save_current_epoch_status(self.deps_mut().storage, &initial_status)
+                .unwrap();
+            res
         }
 
         pub fn reward_with_distribution(

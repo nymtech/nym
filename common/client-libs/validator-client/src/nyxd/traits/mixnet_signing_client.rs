@@ -106,6 +106,11 @@ pub trait MixnetSigningClient {
         .await
     }
 
+    async fn begin_epoch_transition(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
+        self.execute_mixnet_contract(fee, MixnetExecuteMsg::BeginEpochTransition {}, vec![])
+            .await
+    }
+
     async fn advance_current_epoch(
         &self,
         new_rewarded_set: Vec<LayerAssignment>,

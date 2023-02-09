@@ -139,6 +139,7 @@ pub enum ExecuteMsg {
         epoch_duration_secs: u64,
         force_immediately: bool,
     },
+    BeginEpochTransition,
     AdvanceCurrentEpoch {
         new_rewarded_set: Vec<LayerAssignment>,
         // families_in_layer: HashMap<String, Layer>,
@@ -282,6 +283,7 @@ impl ExecuteMsg {
             ExecuteMsg::UpdateIntervalConfig {
                 force_immediately, ..
             } => format!("updating mixnet interval configuration. forced: {force_immediately}"),
+            ExecuteMsg::BeginEpochTransition => "beginning epoch transition".into(),
             ExecuteMsg::AdvanceCurrentEpoch { .. } => "advancing current epoch".into(),
             ExecuteMsg::ReconcileEpochEvents { .. } => "reconciling epoch events".into(),
             ExecuteMsg::BondMixnode { mix_node, .. } => {
@@ -373,6 +375,7 @@ pub enum QueryMsg {
     GetStateParams {},
     GetState {},
     GetRewardingParams {},
+    GetEpochStatus {},
     GetCurrentIntervalDetails {},
     GetRewardedSet {
         limit: Option<u32>,

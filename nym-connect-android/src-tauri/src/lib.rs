@@ -42,8 +42,8 @@ impl AppBuilder {
 
     #[must_use]
     pub fn setup<F>(mut self, setup: F) -> Self
-    where
-        F: FnOnce(&mut App) -> Result<(), Box<dyn std::error::Error>> + Send + 'static,
+        where
+            F: FnOnce(&mut App) -> Result<(), Box<dyn std::error::Error>> + Send + 'static,
     {
         self.setup.replace(Box::new(setup));
         self
@@ -66,14 +66,18 @@ impl AppBuilder {
             .invoke_handler(tauri::generate_handler![
                 crate::config::get_config_file_location,
                 crate::config::get_config_id,
-                crate::operations::connection::status::get_connection_status,
                 crate::operations::connection::connect::get_gateway,
                 crate::operations::connection::connect::get_service_provider,
                 crate::operations::connection::connect::set_gateway,
                 crate::operations::connection::connect::set_service_provider,
                 crate::operations::connection::connect::start_connecting,
                 crate::operations::connection::disconnect::start_disconnecting,
+                crate::operations::connection::status::get_connection_health_check_status,
+                crate::operations::connection::status::get_connection_status,
+                crate::operations::connection::status::get_gateway_connection_status,
+                crate::operations::connection::status::start_connection_health_check_task,
                 crate::operations::directory::get_services,
+                crate::operations::directory::get_gateways_detailed,
                 crate::operations::export::export_keys,
             ])
             .setup(move |app| {

@@ -31,12 +31,8 @@ const GATEWAY_CONNECTIVITY_TIMEOUT_SECS: u64 = 20;
 pub enum GatewayConnectivity {
     #[default]
     Good,
-    Bad {
-        when: Instant,
-    },
-    VeryBad {
-        when: Instant,
-    },
+    Bad { when: Instant },
+    VeryBad { when: Instant },
 }
 
 impl TryFrom<&ClientCoreStatusMessage> for GatewayConnectivity {
@@ -173,17 +169,6 @@ impl State {
         window: &tauri::Window<tauri::Wry>,
     ) -> Result<(task::StatusReceiver, ExitStatusReceiver)> {
         self.set_state(ConnectionStatusKind::Connecting, window);
-
-        // Setup configuration by writing to file
-        //if let Err(err) = self.init_config().await {
-        //    log::error!("Failed to initialize: {err}");
-
-        //    // Wait a little to give the user some rudimentary feedback that the click actually
-        //    // registered.
-        //    tokio::time::sleep(Duration::from_secs(1)).await;
-        //    self.set_state(ConnectionStatusKind::Disconnected, window);
-        //    return Err(err);
-        //}
 
         let res = self.init_config().await;
         match &res {

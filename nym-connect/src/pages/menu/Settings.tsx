@@ -5,11 +5,21 @@ import { useClientContext } from 'src/context/main';
 import { ConnectionStatusKind } from 'src/types';
 
 export const Settings = () => {
-  const [isActive, setIsActive] = useState(false);
-  const [gatewayKey, setGatewayKey] = useState<string>();
+  const { userDefinedGateway, setUserDefinedGateway } = useClientContext();
+  const [gatewayKey, setGatewayKey] = useState<string | undefined>(userDefinedGateway?.gateway);
+
+  const handleIsValidGatewayKey = (isValid: boolean) => {
+    let gateway: string | undefined;
+
+    if (isValid) {
+      gateway = gatewayKey;
+    }
+
+    setUserDefinedGateway((current) => ({ ...current, gateway }));
+  };
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setIsActive(e.target.checked);
+    setUserDefinedGateway((current) => ({ ...current, isActive: e.target.checked }));
   };
 
   const { connectionStatus } = useClientContext();
@@ -19,32 +29,35 @@ export const Settings = () => {
       <Typography fontWeight="bold" variant="body2" mb={1}>
         Select your Gateway
       </Typography>
-      <Typography color="grey.300" variant="body2" mb={1}>
+      <Typography color="grey.300" variant="body2" mb={2}>
         Use a gateway of your choice
       </Typography>
       <FormControl fullWidth>
         <FormControlLabel
           control={
             <Switch
-              checked={isActive}
+              checked={userDefinedGateway?.isActive}
               onChange={handleChange}
               disabled={connectionStatus === ConnectionStatusKind.connected}
+              size="small"
+              sx={{ ml: 1 }}
             />
           }
-          label={isActive ? 'On' : 'Off'}
-          sx={{ mb: 1 }}
+          label={userDefinedGateway?.isActive ? 'On' : 'Off'}
         />
         {connectionStatus === ConnectionStatusKind.connected && (
-          <FormHelperText sx={{ m: 0 }}>This option is disabled during an active connection</FormHelperText>
+          <FormHelperText sx={{ m: 0, my: 1 }}>This setting is disabled during an active connection</FormHelperText>
         )}
-        {isActive && (
-          <IdentityKeyFormField
-            size="small"
-            placeholder="Gateway identity key"
-            onChanged={setGatewayKey}
-            initialValue={gatewayKey}
-          />
-        )}
+
+        <IdentityKeyFormField
+          size="small"
+          placeholder="Gateway identity key"
+          onChanged={setGatewayKey}
+          initialValue={gatewayKey}
+          onValidate={handleIsValidGatewayKey}
+          sx={{ mt: 1 }}
+          disabled={connectionStatus === 'connected' || !userDefinedGateway?.isActive}
+        />
       </FormControl>
     </Box>
   );

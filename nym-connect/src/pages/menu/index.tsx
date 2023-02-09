@@ -1,5 +1,5 @@
 import React from 'react';
-import { Apps, HelpOutline } from '@mui/icons-material';
+import { Apps, HelpOutline, Settings } from '@mui/icons-material';
 import { Stack, Link, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { AppVersion } from 'src/components/AppVersion';
@@ -7,6 +7,7 @@ import { AppVersion } from 'src/components/AppVersion';
 const menuSchema = [
   { title: 'Supported apps', icon: Apps, path: 'apps' },
   { title: 'How to connect guide', icon: HelpOutline, path: 'guide' },
+  { title: 'Settings', icon: Settings, path: 'settings' },
 ];
 
 export const Menu = () => (

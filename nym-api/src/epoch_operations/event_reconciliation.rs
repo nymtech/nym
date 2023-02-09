@@ -3,9 +3,38 @@
 
 use crate::epoch_operations::error::RewardingError;
 use crate::RewardedSetUpdater;
+use mixnet_contract_common::EpochState;
 
 impl RewardedSetUpdater {
     pub(super) async fn reconcile_epoch_events(&self) -> Result<(), RewardingError> {
+        let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
+        match epoch_status.state {
+            state @ EpochState::InProgress | state @ EpochState::Rewarding { .. } => {
+                // hard error, this shouldn't have happened!
+                error!("tried to perform node rewarding while in {state} state!");
+                Err(RewardingError::InvalidEpochState {
+                    current_state: state,
+                    operation: "reconciling epoch events".to_string(),
+                })
+            }
+            EpochState::AdvancingEpoch => {
+                warn!("we seem to have crashed mid epoch operations... no need to reconcile events as we've already done that!");
+                Ok(())
+            }
+            EpochState::ReconcilingEvents => {
+                log::info!("Reconciling all pending epoch events...");
+                if let Err(err) = self._reconcile_epoch_events().await {
+                    log::error!("FAILED to reconcile epoch events... - {err}");
+                    Err(err)
+                } else {
+                    log::info!("Reconciled all pending epoch events... SUCCESS");
+                    Ok(())
+                }
+            }
+        }
+    }
+
+    async fn _reconcile_epoch_events(&self) -> Result<(), RewardingError> {
         let pending_events = self.nyxd_client.get_pending_events_count().await?;
         // if there's no pending events, job's done.
         if pending_events == 0 {

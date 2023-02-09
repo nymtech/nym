@@ -5,7 +5,7 @@ use crate::epoch_operations::error::RewardingError;
 use crate::support::storage::models::RewardingReport;
 use crate::RewardedSetUpdater;
 use mixnet_contract_common::reward_params::Performance;
-use mixnet_contract_common::{ExecuteMsg, Interval, MixId};
+use mixnet_contract_common::{EpochState, ExecuteMsg, Interval, MixId};
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct MixnodeToReward {
@@ -25,6 +25,37 @@ impl From<MixnodeToReward> for ExecuteMsg {
 
 impl RewardedSetUpdater {
     pub(super) async fn reward_current_rewarded_set(
+        &self,
+        current_interval: Interval,
+    ) -> Result<(), RewardingError> {
+        let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
+        match epoch_status.state {
+            EpochState::InProgress => {
+                // hard error, this shouldn't have happened!
+                error!("tried to perform node rewarding while the epoch is still in progress!");
+                Err(RewardingError::InvalidEpochState {
+                    current_state: EpochState::InProgress,
+                    operation: "mix rewarding".to_string(),
+                })
+            }
+            EpochState::ReconcilingEvents | EpochState::AdvancingEpoch => {
+                warn!("we seem to have crashed mid epoch operations... no need to reward mixnodes as we've already done that!");
+                Ok(())
+            }
+            EpochState::Rewarding { .. } => {
+                log::info!("Rewarding the current rewarded set...");
+                if let Err(err) = self._reward_current_rewarded_set(current_interval).await {
+                    log::error!("FAILED to reward rewarded set - {err}");
+                    Err(err)
+                } else {
+                    log::info!("Rewarded current rewarded set... SUCCESS");
+                    Ok(())
+                }
+            }
+        }
+    }
+
+    async fn _reward_current_rewarded_set(
         &self,
         current_interval: Interval,
     ) -> Result<(), RewardingError> {

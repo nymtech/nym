@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::node_status_api::models::NymApiStorageError;
+use mixnet_contract_common::EpochState;
 use thiserror::Error;
 use validator_client::nyxd::error::NyxdError;
 use validator_client::nyxd::AccountId;
@@ -13,6 +14,12 @@ pub enum RewardingError {
     Unauthorised {
         our_address: AccountId,
         allowed_address: AccountId,
+    },
+
+    #[error("the current epoch is in the wrong state ({current_state}) to perform the requested operation: {operation}")]
+    InvalidEpochState {
+        current_state: EpochState,
+        operation: String,
     },
 
     // #[error("There were no mixnodes to reward (network is dead)")]

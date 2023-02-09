@@ -133,6 +133,18 @@ impl EpochStatus {
     pub fn is_in_progress(&self) -> bool {
         matches!(self.state, EpochState::InProgress)
     }
+
+    pub fn is_rewarding(&self) -> bool {
+        matches!(self.state, EpochState::Rewarding { .. })
+    }
+
+    pub fn is_reconciling(&self) -> bool {
+        matches!(self.state, EpochState::ReconcilingEvents)
+    }
+
+    pub fn is_advancing(&self) -> bool {
+        matches!(self.state, EpochState::AdvancingEpoch)
+    }
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, Eq, PartialEq)]

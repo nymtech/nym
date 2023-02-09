@@ -29,6 +29,7 @@ mod event_reconciliation;
 mod helpers;
 mod rewarded_set_assignment;
 mod rewarding;
+mod transition_beginning;
 
 pub struct RewardedSetUpdater {
     nyxd_client: Client,
@@ -103,6 +104,7 @@ impl RewardedSetUpdater {
 
         let all_mixnodes = self.nym_contract_cache.mixnodes().await;
         if all_mixnodes.is_empty() {
+            // that's a bit weird, but
             log::warn!("there don't seem to be any mixnodes on the network!")
         }
 
@@ -116,61 +118,23 @@ impl RewardedSetUpdater {
                 return Ok(());
             } else {
                 warn!("we seem to have crashed mid-epoch advancement...");
-                todo!("continue from the point of failure here")
             }
-        }
-
-        info!("starting the epoch transition...");
-        if let Err(err) = self.nyxd_client.begin_epoch_transition().await {
-            // perform the state query again to make sure it's not because other nym-api (not yet applicable)
-            // wasn't faster
-            let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
-            return if !epoch_status.is_in_progress() {
-                log::error!("FAILED to begin epoch progression: {err}");
-                Err(err.into())
-            } else {
-                error!("another nym-api ({}) is already advancing the epoch... but we shouldn't have other nym-apis yet!", epoch_status.being_advanced_by);
-                Ok(())
-            };
+        } else {
+            let should_continue = self.begin_epoch_transition().await?;
+            if !should_continue {
+                return Ok(());
+            }
         }
 
         // Reward all the nodes in the still current, soon to be previous rewarded set
         log::info!("Rewarding the current rewarded set...");
-        if let Err(err) = self.reward_current_rewarded_set(interval).await {
-            log::error!("FAILED to reward rewarded set - {err}");
-            // since we haven't advanced the epoch yet, we will attempt to reward those nodes again
-            // next time we enter this function (i.e. within 2min or so)
-            //
-            // TODO: deal with the following edge case:
-            // - the nym api REWARDS all mixnodes
-            // - then crashes before advancing epoch
-            // - upon restart it will attempt (and fail) to re-reward the mixnodes
-            return Err(err);
-        } else {
-            log::info!("Rewarded current rewarded set... SUCCESS");
-        }
+        self.reward_current_rewarded_set(interval).await?;
 
         // note: those operations don't really have to be atomic, so it's fine to send them
         // as separate transactions
-
-        log::info!("Reconciling all pending epoch events...");
-        if let Err(err) = self.reconcile_epoch_events().await {
-            log::error!("FAILED to reconcile epoch events... - {err}");
-            return Err(err);
-        } else {
-            log::info!("Reconciled all pending epoch events... SUCCESS");
-        }
-
-        log::info!("Advancing epoch and updating the rewarded set...");
-        if let Err(err) = self
-            .update_rewarded_set_and_advance_epoch(&all_mixnodes)
-            .await
-        {
-            log::error!("FAILED to advance the current epoch... - {err}");
-            return Err(err);
-        } else {
-            log::info!("Advanced the epoch and updated the rewarded set... SUCCESS");
-        }
+        self.reconcile_epoch_events().await?;
+        self.update_rewarded_set_and_advance_epoch(&all_mixnodes)
+            .await?;
 
         log::info!("Purging old node statuses from the storage...");
         let cutoff = (epoch_end - 2 * ONE_DAY).unix_timestamp();

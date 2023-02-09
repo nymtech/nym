@@ -5,7 +5,7 @@ use crate::epoch_operations::error::RewardingError;
 use crate::epoch_operations::helpers::stake_to_f64;
 use crate::RewardedSetUpdater;
 use mixnet_contract_common::families::FamilyHead;
-use mixnet_contract_common::{IdentityKey, Layer, LayerAssignment, MixNodeDetails};
+use mixnet_contract_common::{EpochState, IdentityKey, Layer, LayerAssignment, MixNodeDetails};
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
 use std::collections::HashMap;
@@ -96,6 +96,36 @@ impl RewardedSetUpdater {
     }
 
     pub(super) async fn update_rewarded_set_and_advance_epoch(
+        &self,
+        all_mixnodes: &[MixNodeDetails],
+    ) -> Result<(), RewardingError> {
+        let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
+        match epoch_status.state {
+            EpochState::AdvancingEpoch => {
+                log::info!("Advancing epoch and updating the rewarded set...");
+                if let Err(err) = self
+                    ._update_rewarded_set_and_advance_epoch(all_mixnodes)
+                    .await
+                {
+                    log::error!("FAILED to advance the current epoch... - {err}");
+                    Err(err)
+                } else {
+                    log::info!("Advanced the epoch and updated the rewarded set... SUCCESS");
+                    Ok(())
+                }
+            }
+            state => {
+                // hard error, this shouldn't have happened!
+                error!("tried to perform node rewarded set assignment while in {state} state!");
+                Err(RewardingError::InvalidEpochState {
+                    current_state: state,
+                    operation: "assigning rewarded set".to_string(),
+                })
+            }
+        }
+    }
+
+    async fn _update_rewarded_set_and_advance_epoch(
         &self,
         all_mixnodes: &[MixNodeDetails],
     ) -> Result<(), RewardingError> {

@@ -1053,6 +1053,7 @@ dependencies = [
  "credential-storage",
  "credentials",
  "crypto",
+ "log",
  "network-defaults",
  "pemstore",
  "rand 0.7.3",

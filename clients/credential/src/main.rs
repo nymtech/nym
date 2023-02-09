@@ -11,6 +11,7 @@ use commands::*;
 use completions::fig_generate;
 use config::{DATA_DIR, DB_FILE_NAME};
 use error::Result;
+use log::*;
 use network_defaults::{setup_env, NymNetworkDetails};
 use std::process::exit;
 use std::time::{Duration, SystemTime};
@@ -43,14 +44,14 @@ async fn block_until_coconut_is_available<C: Clone + CosmWasmClient + Send + Syn
             .as_secs();
         if epoch.state.is_final() {
             if current_timestamp_secs + SAFETY_BUFFER_SECS >= epoch.finish_timestamp.seconds() {
-                println!("In the next {} minute(s), a transition will take place in the coconut system. Deposits should be halted in this time for safety reasons.", SAFETY_BUFFER_SECS / 60);
+                info!("In the next {} minute(s), a transition will take place in the coconut system. Deposits should be halted in this time for safety reasons.", SAFETY_BUFFER_SECS / 60);
                 exit(0);
             }
 
             break;
         } else {
             let secs_until_final = epoch.final_timestamp_secs() - current_timestamp_secs;
-            println!("Approximately {} seconds until coconut is available. Sleeping until then. You can safely kill the process at any moment.", secs_until_final);
+            info!("Approximately {} seconds until coconut is available. Sleeping until then. You can safely kill the process at any moment.", secs_until_final);
             std::thread::sleep(Duration::from_secs(secs_until_final));
         }
     }
@@ -75,7 +76,7 @@ async fn main() -> Result<()> {
             let client = validator_client::Client::new_query(config)?;
 
             block_until_coconut_is_available(&client).await?;
-            println!("Starting depositing funds, don't kill the process");
+            info!("Starting depositing funds, don't kill the process");
 
             if !r.recovery_mode {
                 let state = deposit(&r.nyxd_url, &r.mnemonic, r.amount).await?;
@@ -83,11 +84,15 @@ async fn main() -> Result<()> {
                     .await
                     .is_err()
                 {
-                    let file_path = recovery_storage.insert_voucher(&state.voucher)?;
-                    println!(
-                        "Failed to obtain credential. Dumping recovery data to {:?}. Try using recovery mode to convert it to a credential",
-                        file_path
-                    );
+                    warn!("Failed to obtain credential. Dumping recovery data.",);
+                    match recovery_storage.insert_voucher(&state.voucher) {
+                        Ok(file_path) => {
+                            warn!("Dumped recovery data to {:?}. Try using recovery mode to convert it to a credential", file_path);
+                        }
+                        Err(e) => {
+                            error!("Could not dump recovery data to file system due to {:?}, the deposit will be lost!", e)
+                        }
+                    }
                 }
             } else {
                 recover_credentials(client, &recovery_storage, shared_storage).await?;

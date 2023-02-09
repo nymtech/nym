@@ -3,6 +3,7 @@
 
 use clap::{ArgGroup, Args, Subcommand};
 use completions::ArgShell;
+use log::*;
 use rand::rngs::OsRng;
 use std::str::FromStr;
 
@@ -118,7 +119,7 @@ pub(crate) async fn get_credential<C: Clone + CosmWasmClient + Send + Sync>(
         threshold,
     )
     .await?;
-    println!("Signature: {:?}", signature.to_bs58());
+    info!("Signature: {:?}", signature.to_bs58());
     shared_storage
         .insert_coconut_credential(
             state.voucher.get_voucher_value(),
@@ -144,18 +145,18 @@ pub(crate) async fn recover_credentials<C: Clone + CosmWasmClient + Send + Sync>
             params: Parameters::new(TOTAL_ATTRIBUTES).unwrap(),
         };
         if let Err(e) = get_credential(&state, client.clone(), shared_storage.clone()).await {
-            println!(
+            error!(
                 "Could not recover deposit {} due to {:?}, try again later",
                 state.voucher.tx_hash(),
                 e
             )
         } else {
-            println!(
+            info!(
                 "Converted deposit {} to a credential, removing recovery data for it",
                 state.voucher.tx_hash()
             );
             if let Err(e) = recovery_storage.remove_voucher(state.voucher.tx_hash().to_string()) {
-                println!("Could not remove recovery data - {:?}", e);
+                warn!("Could not remove recovery data - {:?}", e);
             }
         }
     }

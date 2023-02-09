@@ -4,10 +4,10 @@ import { invoke } from '@tauri-apps/api';
 import { Error } from 'src/types/error';
 import { getVersion } from '@tauri-apps/api/app';
 import { useEvents } from 'src/hooks/events';
+import { UserDefinedGateway } from 'src/types/gateway';
 import { ConnectionStatusKind, GatewayPerformance } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ServiceProvider } from '../types/directory';
-import { UserDefinedGateway } from 'src/types/gateway';
 
 type ModeType = 'light' | 'dark';
 
@@ -97,37 +97,28 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     }
   }, []);
 
-  const setServiceProvider = async (newServiceProvider: ServiceProvider) => {
-    if (!!userDefinedGateway.gateway && userDefinedGateway.isActive) {
-      newServiceProvider.gateway = userDefinedGateway.gateway;
-    }
+  const shouldUseUserGateway = !!userDefinedGateway.gateway && userDefinedGateway.isActive;
 
-    if (newServiceProvider) {
-      await invoke('set_gateway', { gateway: newServiceProvider.gateway });
-      await invoke('set_service_provider', { serviceProvider: newServiceProvider.address });
-    }
+  const setServiceProvider = async (newServiceProvider: ServiceProvider) => {
+    await invoke('set_gateway', {
+      gateway: newServiceProvider.gateway,
+    });
+    await invoke('set_service_provider', { serviceProvider: newServiceProvider.address });
   };
 
   const getRandomSPFromList = (services: ServiceProvider[]) => {
     const randomSelection = services[Math.floor(Math.random() * services.length)];
+
+    if (shouldUseUserGateway) return { ...randomSelection, gateway: userDefinedGateway.gateway } as ServiceProvider;
     return randomSelection;
   };
 
   const setRandomSerivceProvider = async () => {
     if (serviceProviders) {
       const randomServiceProvider = getRandomSPFromList(serviceProviders);
-
-      if (userDefinedGateway.gateway && userDefinedGateway.isActive)
-        randomServiceProvider.gateway = userDefinedGateway.gateway;
-      console.log(randomServiceProvider, userDefinedGateway);
-
       await setServiceProvider(randomServiceProvider);
       setSelectedProvider(randomServiceProvider);
     }
-  };
-
-  const useUserDefinedGateway = (serviceProvider: ServiceProvider) => {
-    return { ...serviceProvider, gateway: userDefinedGateway };
   };
 
   const clearError = () => setError(undefined);

@@ -1,8 +1,8 @@
 import React from 'react';
 import { Box } from '@mui/material';
 import { useLocation } from 'react-router-dom';
-import { CustomTitleBar } from './CustomTitleBar';
 import { useClientContext } from 'src/context/main';
+import { CustomTitleBar } from './CustomTitleBar';
 
 export const AppWindowFrame: FCWithChildren = ({ children }) => {
   const location = useLocation();
@@ -15,7 +15,7 @@ export const AppWindowFrame: FCWithChildren = ({ children }) => {
         return () => {
           // when the user moves away from the settings page and the gateway is not valid
           // set isActive to false
-          if (!Boolean(userDefinedGateway?.gateway)) {
+          if (!userDefinedGateway?.gateway) {
             setUserDefinedGateway((current) => ({ ...current, isActive: false }));
           }
         };

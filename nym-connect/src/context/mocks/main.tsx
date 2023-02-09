@@ -9,6 +9,7 @@ const mockValues: TClientContext = {
   selectedProvider: { id: '1', description: 'Keybase service provider', gateway: 'abc123', address: '123abc' },
   gatewayPerformance: 'Good',
   showInfoModal: false,
+  userDefinedGateway: { isActive: false, gateway: '' },
   setShowInfoModal: () => {},
   setMode: () => {},
   clearError: () => {},
@@ -18,6 +19,7 @@ const mockValues: TClientContext = {
   startConnecting: async () => {},
   startDisconnecting: async () => {},
   setRandomSerivceProvider: () => {},
+  setUserDefinedGateway: () => {},
 };
 
 export const MockProvider: FCWithChildren<{

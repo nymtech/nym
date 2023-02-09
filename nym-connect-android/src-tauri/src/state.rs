@@ -31,8 +31,12 @@ const GATEWAY_CONNECTIVITY_TIMEOUT_SECS: u64 = 20;
 pub enum GatewayConnectivity {
     #[default]
     Good,
-    Bad { when: Instant },
-    VeryBad { when: Instant },
+    Bad {
+        when: Instant,
+    },
+    VeryBad {
+        when: Instant,
+    },
 }
 
 impl TryFrom<&ClientCoreStatusMessage> for GatewayConnectivity {

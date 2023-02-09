@@ -42,8 +42,8 @@ impl AppBuilder {
 
     #[must_use]
     pub fn setup<F>(mut self, setup: F) -> Self
-        where
-            F: FnOnce(&mut App) -> Result<(), Box<dyn std::error::Error>> + Send + 'static,
+    where
+        F: FnOnce(&mut App) -> Result<(), Box<dyn std::error::Error>> + Send + 'static,
     {
         self.setup.replace(Box::new(setup));
         self

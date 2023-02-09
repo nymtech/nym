@@ -39,7 +39,7 @@ impl RewardedSetUpdater {
                 })
             }
             EpochState::ReconcilingEvents | EpochState::AdvancingEpoch => {
-                warn!("we seem to have crashed mid epoch operations... no need to reward mixnodes as we've already done that!");
+                warn!("we seem to have crashed mid epoch operations... no need to reward mixnodes as we've already done that! (or this could be a false positive if there were no nodes to reward - to fix this warning later)");
                 Ok(())
             }
             EpochState::Rewarding { .. } => {
@@ -59,7 +59,8 @@ impl RewardedSetUpdater {
         &self,
         current_interval: Interval,
     ) -> Result<(), RewardingError> {
-        let to_reward = self.nodes_to_reward(current_interval).await;
+        let mut to_reward = self.nodes_to_reward(current_interval).await;
+        to_reward.sort_by_key(|a| a.mix_id);
 
         if let Some(existing_report) = self
             .storage

@@ -15,11 +15,10 @@ export default {
 export const Default: ComponentStory<typeof Connected> = () => (
   <Box p={2} width={242} sx={{ bgcolor: 'nym.background.dark' }}>
     <Connected
+      clearError={() => {}}
       gatewayPerformance="Good"
       showInfoModal={false}
-      closeInfoModal={() => {
-        return undefined;
-      }}
+      closeInfoModal={() => undefined}
       status={ConnectionStatusKind.connected}
       connectedSince={DateTime.now()}
       ipAddress="127.0.0.1"

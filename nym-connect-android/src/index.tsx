@@ -1,8 +1,8 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { ErrorBoundary } from 'react-error-boundary';
-import { GlobalStyles } from '@mui/material';
 import { BrowserRouter as Router } from 'react-router-dom';
+import { GlobalStyles } from '@mui/material';
 import { ClientContextProvider } from './context/main';
 import { ErrorFallback } from './components/Error';
 import { NymMixnetTheme } from './theme';

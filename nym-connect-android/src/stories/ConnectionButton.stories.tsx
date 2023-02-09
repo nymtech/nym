@@ -1,7 +1,7 @@
 import React from 'react';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
-import { ConnectionButton } from '../components/ConnectionButton';
 import { ConnectionStatusKind } from 'src/types';
+import { ConnectionButton } from '../components/ConnectionButton';
 
 export default {
   title: 'Components/ConnectionButton',

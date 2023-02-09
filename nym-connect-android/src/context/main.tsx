@@ -1,17 +1,12 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, useRef } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { DateTime } from 'luxon';
 import { invoke } from '@tauri-apps/api';
-import type { UnlistenFn } from '@tauri-apps/api/event';
-import { listen } from '@tauri-apps/api/event';
-import { forage } from '@tauri-apps/tauri-forage';
 import { Error } from 'src/types/error';
-import { TauriEvent } from 'src/types/event';
 import { getVersion } from '@tauri-apps/api/app';
+import { useEvents } from 'src/hooks/events';
 import { ConnectionStatusKind, GatewayPerformance } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
-import { ServiceProvider, Services } from '../types/directory';
-
-const TAURI_EVENT_STATUS_CHANGED = 'app:connection-status-changed';
+import { ServiceProvider } from '../types/directory';
 
 type ModeType = 'light' | 'dark';
 
@@ -55,22 +50,20 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     return version;
   };
 
-  const timerId = useRef<NodeJS.Timeout>();
-
-  const flattenProviders = (services: Services) => {
-    return services.reduce((a: ServiceProvider[], b) => {
-      return [...a, ...b.items];
-    }, []);
-  };
-
   const initialiseApp = async () => {
     const services = await invoke('get_services');
-    const allServiceProviders = flattenProviders(services as Services);
     const AppVersion = await getAppVersion();
+    console.log(services);
 
     setAppVersion(AppVersion);
-    setServiceProviders(allServiceProviders);
+    setServiceProviders(services as ServiceProvider[]);
   };
+
+  useEvents({
+    onError: (e) => setError(e),
+    onGatewayPerformanceChange: (performance) => setGatewayPerformance(performance),
+    onStatusChange: (status) => setConnectionStatus(status),
+  });
 
   useEffect(() => {
     initialiseApp();
@@ -82,49 +75,6 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       const currentStatus: ConnectionStatusKind = await invoke('get_connection_status');
       setConnectionStatus(currentStatus);
     })();
-  }, []);
-
-  useEffect(() => {
-    const unlisten: UnlistenFn[] = [];
-
-    // TODO: fix typings
-    listen(TAURI_EVENT_STATUS_CHANGED, (event) => {
-      const { status } = event.payload as any;
-      console.log(TAURI_EVENT_STATUS_CHANGED, { status, event });
-      setConnectionStatus(status);
-    })
-      .then((result) => {
-        unlisten.push(result);
-      })
-      .catch((e) => console.log(e));
-
-    listen('socks5-event', (e: TauriEvent) => {
-      console.log(e);
-
-      setError(e.payload);
-    }).then((result) => {
-      unlisten.push(result);
-    });
-
-    listen('socks5-status-event', (e: TauriEvent) => {
-      if (e.payload.message.includes('slow')) {
-        setGatewayPerformance('Poor');
-
-        if (timerId.current) {
-          clearTimeout(timerId.current);
-        }
-
-        timerId.current = setTimeout(() => {
-          setGatewayPerformance('Good');
-        }, 10000);
-      }
-    }).then((result) => {
-      unlisten.push(result);
-    });
-
-    return () => {
-      unlisten.forEach((unsubscribe) => unsubscribe());
-    };
   }, []);
 
   const startConnecting = useCallback(async () => {
@@ -151,30 +101,8 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     }
   };
 
-  const setSpInStorage = async (sp: ServiceProvider) => {
-    await forage.setItem({
-      key: 'nym-connect-sp',
-      value: sp,
-    } as any)();
-  };
-
-  const removeSpFromStorage = async () => {
-    await forage.removeItem({
-      key: 'nym-connect-sp',
-    })();
-  };
-
-  const getSpFromStorage = async (): Promise<ServiceProvider | undefined> => {
-    try {
-      const spFromStorage = await forage.getItem({ key: 'nym-connect-sp' })();
-      return spFromStorage;
-    } catch (e) {
-      console.warn(e);
-    }
-  };
-
-  const getRandomSPFromList = (serviceProviders: ServiceProvider[]) => {
-    const randomSelection = serviceProviders[Math.floor(Math.random() * serviceProviders.length)];
+  const getRandomSPFromList = (services: ServiceProvider[]) => {
+    const randomSelection = services[Math.floor(Math.random() * services.length)];
     return randomSelection;
   };
 

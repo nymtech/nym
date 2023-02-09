@@ -49,6 +49,8 @@ export const ConnectionPage = () => {
     return (
       <Stack height="100%" justifyContent="center">
         <Connected
+          error={context.error}
+          clearError={context.clearError}
           status={context.connectionStatus}
           showInfoModal={context.showInfoModal}
           busy={busy}

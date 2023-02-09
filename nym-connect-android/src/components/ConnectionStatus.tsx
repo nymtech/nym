@@ -1,10 +1,10 @@
 import React from 'react';
 import { Box, CircularProgress, Tooltip, Typography } from '@mui/material';
 import { DateTime } from 'luxon';
+import { ErrorOutline, InfoOutlined } from '@mui/icons-material';
 import { ConnectionStatusKind, GatewayPerformance } from '../types';
 import { ServiceProvider } from '../types/directory';
 import { GatwayWarningInfo, ServiceProviderInfo } from './TooltipInfo';
-import { ErrorOutline, InfoOutlined } from '@mui/icons-material';
 
 const FONT_SIZE = '14px';
 const FONT_WEIGHT = '600';
@@ -83,17 +83,14 @@ export const ConnectionStatus: FCWithChildren<{
   serviceProvider?: ServiceProvider;
 }> = ({ status, serviceProvider, gatewayPerformance }) => {
   const color = status === 'connected' || status === 'disconnecting' ? '#21D072' : 'white';
-  console.log(gatewayPerformance);
 
   return (
-    <>
-      <Box color={color} sx={{ mb: 2 }}>
-        <ConnectionStatusContent
-          status={status}
-          serviceProvider={serviceProvider}
-          gatewayError={gatewayPerformance !== 'Good'}
-        />
-      </Box>
-    </>
+    <Box color={color} sx={{ mb: 2 }}>
+      <ConnectionStatusContent
+        status={status}
+        serviceProvider={serviceProvider}
+        gatewayError={gatewayPerformance !== 'Good'}
+      />
+    </Box>
   );
 };

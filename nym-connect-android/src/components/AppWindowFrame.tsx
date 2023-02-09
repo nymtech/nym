@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box } from '@mui/material';
-import { CustomTitleBar } from './CustomTitleBar';
 import { useLocation } from 'react-router-dom';
+import { CustomTitleBar } from './CustomTitleBar';
 
 export const AppWindowFrame: FCWithChildren = ({ children }) => {
   const location = useLocation();

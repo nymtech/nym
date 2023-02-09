@@ -31,6 +31,8 @@ pub enum Error {
          supported, and likely and user mistake"
     )]
     ReregisteringGatewayNotSupported,
+    #[error("no gateway key set")]
+    NoGatewayKeySet,
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

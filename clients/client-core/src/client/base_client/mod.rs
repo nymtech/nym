@@ -51,11 +51,22 @@ pub mod non_wasm_helpers;
 
 pub mod helpers;
 
+#[derive(Clone)]
 pub struct ClientInput {
     pub connection_command_sender: ConnectionCommandSender,
     pub input_sender: InputMessageSender,
 }
 
+impl ClientInput {
+    pub async fn send(
+        &self,
+        message: InputMessage,
+    ) -> Result<(), tokio::sync::mpsc::error::SendError<InputMessage>> {
+        self.input_sender.send(message).await
+    }
+}
+
+#[derive(Clone)]
 pub struct ClientOutput {
     pub received_buffer_request_sender: ReceivedBufferRequestSender,
 }
@@ -303,6 +314,7 @@ where
         let shared_key = if self.key_manager.is_gateway_key_set() {
             Some(self.key_manager.gateway_shared_key())
         } else {
+            log::info!("Gateway key not set! Will proceed anyway.");
             None
         };
 

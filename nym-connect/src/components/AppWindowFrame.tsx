@@ -2,9 +2,27 @@ import React from 'react';
 import { Box } from '@mui/material';
 import { useLocation } from 'react-router-dom';
 import { CustomTitleBar } from './CustomTitleBar';
+import { useClientContext } from 'src/context/main';
 
 export const AppWindowFrame: FCWithChildren = ({ children }) => {
   const location = useLocation();
+  const { userDefinedGateway, setUserDefinedGateway } = useClientContext();
+
+  // defined functions to be used when moving away from pages
+  const onBack = () => {
+    switch (location.pathname) {
+      case '/menu/settings':
+        return () => {
+          // when the user moves away from the settings page and the gateway is not valid
+          // set isActive to false
+          if (!Boolean(userDefinedGateway?.gateway)) {
+            setUserDefinedGateway((current) => ({ ...current, isActive: false }));
+          }
+        };
+      default:
+        return undefined;
+    }
+  };
 
   return (
     <Box
@@ -14,7 +32,7 @@ export const AppWindowFrame: FCWithChildren = ({ children }) => {
         height: '100vh',
       }}
     >
-      <CustomTitleBar path={location.pathname} />
+      <CustomTitleBar path={location.pathname} onBack={onBack()} />
       <Box style={{ padding: '16px' }}>{children}</Box>
     </Box>
   );

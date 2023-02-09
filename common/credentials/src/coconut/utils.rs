@@ -128,7 +128,7 @@ pub async fn obtain_aggregate_signature(
     attributes.extend_from_slice(&public_attributes);
 
     aggregate_signature_shares(params, &verification_key, &attributes, &shares)
-        .map_err(|e| Error::SignatureAggregationError(e))
+        .map_err(Error::SignatureAggregationError)
 }
 
 // TODO: better type flow

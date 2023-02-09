@@ -94,15 +94,15 @@ impl BandwidthVoucher {
 
         ret.extend_from_slice(&serial_number_b);
         ret.extend_from_slice(&binding_number_b);
-        ret.extend_from_slice(&tx_hash_b);
+        ret.extend_from_slice(tx_hash_b);
         ret.extend_from_slice(&signing_key_b);
         ret.extend_from_slice(&encryption_key_b);
         ret.extend_from_slice(&(voucher_value_plain_b.len() as u64).to_be_bytes());
         ret.extend_from_slice(&(voucher_info_plain_b.len() as u64).to_be_bytes());
         ret.extend_from_slice(&(blind_sign_request_b.len() as u64).to_be_bytes());
         ret.extend_from_slice(&(self.pedersen_commitments_openings.len() as u64).to_be_bytes());
-        ret.extend_from_slice(&voucher_value_plain_b);
-        ret.extend_from_slice(&voucher_info_plain_b);
+        ret.extend_from_slice(voucher_value_plain_b);
+        ret.extend_from_slice(voucher_info_plain_b);
         ret.extend_from_slice(&blind_sign_request_b);
         for commitment in self.pedersen_commitments_openings.iter() {
             ret.extend_from_slice(&commitment.to_bytes());
@@ -131,16 +131,12 @@ impl BandwidthVoucher {
         buff.copy_from_slice(&bytes[2 * 32..3 * 32]);
         let tx_hash = Hash::new(buff);
         buff.copy_from_slice(&bytes[3 * 32..4 * 32]);
-        let signing_key = identity::PrivateKey::from_bytes(&buff).or_else(|_| {
-            Err(Error::BandwidthVoucherDeserializationError(String::from(
-                "Invalid key",
-            )))
+        let signing_key = identity::PrivateKey::from_bytes(&buff).map_err(|_| {
+            Error::BandwidthVoucherDeserializationError(String::from("Invalid key"))
         })?;
         buff.copy_from_slice(&bytes[4 * 32..5 * 32]);
-        let encryption_key = encryption::PrivateKey::from_bytes(&buff).or_else(|_| {
-            Err(Error::BandwidthVoucherDeserializationError(String::from(
-                "Invalid key",
-            )))
+        let encryption_key = encryption::PrivateKey::from_bytes(&buff).map_err(|_| {
+            Error::BandwidthVoucherDeserializationError(String::from("Invalid key"))
         })?;
         small_buff.copy_from_slice(&bytes[5 * 32..5 * 32 + 8]);
         let voucher_value_plain_no = u64::from_be_bytes(small_buff) as usize;
@@ -159,8 +155,7 @@ impl BandwidthVoucher {
             + pedersen_commitments_openings_no * 32;
         if bytes.len() != total_length {
             return Err(Error::BandwidthVoucherDeserializationError(format!(
-                "Expected {} bytes",
-                total_length
+                "Expected {total_length} bytes",
             )));
         }
 

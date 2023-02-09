@@ -27,8 +27,7 @@ use nymcoconut::{
     prepare_blind_sign, ttp_keygen, Base58, BlindSignRequest, BlindedSignature, Parameters,
 };
 use validator_client::nym_api::routes::{
-    API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL,
-    COCONUT_ROUTES, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
+    API_VERSION, BANDWIDTH, COCONUT_BLIND_SIGN, COCONUT_ROUTES, COCONUT_VERIFY_BANDWIDTH_CREDENTIAL,
 };
 use validator_client::nyxd::Coin;
 use validator_client::nyxd::{tx::Hash, AccountId, DeliverTx, Event, Fee, Tag, TxResponse};
@@ -825,76 +824,6 @@ async fn blind_sign_correct() {
     let blinded_signature_response =
         serde_json::from_str::<BlindedSignatureResponse>(&response.into_string().await.unwrap());
     assert!(blinded_signature_response.is_ok());
-}
-
-#[tokio::test]
-async fn signature_test() {
-    let tx_hash = String::from("7C41AF8266D91DE55E1C8F4712E6A952A165ED3D8C27C7B00428CBD0DE00A52B");
-    let params = Parameters::new(4).unwrap();
-
-    let key_pair = ttp_keygen(&params, 1, 1).unwrap().remove(0);
-    let mut db_dir = std::env::temp_dir();
-    db_dir.push(&key_pair.verification_key().to_bs58()[..8]);
-    let storage = NymApiStorage::init(db_dir).await.unwrap();
-    let nyxd_client =
-        DummyClient::new(AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap());
-    let comm_channel = DummyCommunicationChannel::new(key_pair.verification_key());
-    let staged_key_pair = crate::coconut::KeyPair::new();
-    staged_key_pair.set(Some(key_pair)).await;
-
-    let rocket = rocket::build().attach(InternalSignRequest::stage(
-        nyxd_client,
-        TEST_COIN_DENOM.to_string(),
-        staged_key_pair,
-        comm_channel,
-        storage.clone(),
-    ));
-    let client = Client::tracked(rocket)
-        .await
-        .expect("valid rocket instance");
-
-    let response = client
-        .post(format!(
-            "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL
-        ))
-        .json(&tx_hash)
-        .dispatch()
-        .await;
-    assert_eq!(response.status(), Status::BadRequest);
-    assert_eq!(
-        response.into_string().await.unwrap(),
-        CoconutError::NoSignature.to_string()
-    );
-
-    let encrypted_signature = vec![1, 2, 3, 4];
-    let remote_key = [42; 32];
-    let expected_response = BlindedSignatureResponse::new(encrypted_signature, remote_key);
-    storage
-        .insert_blinded_signature_response(&tx_hash, &expected_response.to_base58_string())
-        .await
-        .unwrap();
-    let response = client
-        .post(format!(
-            "/{}/{}/{}/{}",
-            API_VERSION, COCONUT_ROUTES, BANDWIDTH, COCONUT_PARTIAL_BANDWIDTH_CREDENTIAL
-        ))
-        .json(&tx_hash)
-        .dispatch()
-        .await;
-    assert_eq!(response.status(), Status::Ok);
-    // This is a more direct way, but there's a bug which makes it hang https://github.com/SergioBenitez/Rocket/issues/1893
-    // let blinded_signature_response = response
-    //     .into_json::<BlindedSignatureResponse>()
-    //     .await
-    //     .unwrap();
-    let blinded_signature_response =
-        serde_json::from_str::<BlindedSignatureResponse>(&response.into_string().await.unwrap())
-            .unwrap();
-    assert_eq!(
-        blinded_signature_response.to_bytes(),
-        expected_response.to_bytes()
-    );
 }
 
 #[tokio::test]

@@ -14,7 +14,7 @@ export const Menu = () => (
   <Stack justifyContent="space-between" height="100%">
     <List dense disablePadding>
       {menuSchema.map((item) => (
-        <Link component={RouterLink} to={item.path} underline="none" color="white">
+        <Link component={RouterLink} to={item.path} underline="none" color="white" key={item.title}>
           <ListItem disablePadding>
             <ListItemButton>
               <ListItemIcon sx={{ minWidth: 25 }}>

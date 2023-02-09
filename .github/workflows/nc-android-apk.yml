@@ -57,11 +57,13 @@ jobs:
             "ndk;$NDK_VERSION" \
             "build-tools;$SDK_BUILDTOOLS_VERSION"
 
+      - name: Debug
+        run: |
+          echo $ANDROID_HOME
+          ls -la $ANDROID_HOME
+
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
-
-      - name: Install tauri cli
-        run: cargo install tauri-cli --version "^2.0.0-alpha.2"
 
       - name: Install rust android targets
         run: |
@@ -96,7 +98,7 @@ jobs:
           WRY_ANDROID_LIBRARY: nym_connect_android
         # TODO build with release profile (--release), it will requires
         # to sign the APK. For now build with debug profile to avoid that
-        run: cargo tauri android build --debug --apk --split-per-abi
+        run: yarn tauri android build --debug --apk --split-per-abi
 
       # TODO add the version number to APK name
       - name: Rename APK artifact

@@ -8,6 +8,7 @@
     "webpack:dev": "yarn webpack serve --config webpack.dev.js",
     "webpack:dev:onlyThis": "yarn webpack serve --config webpack.dev.js",
     "webpack:prod": "yarn webpack --progress --config webpack.prod.js",
+    "tauri": "tauri",
     "tauri:dev": "WRY_ANDROID_PACKAGE=net.nymtech.nym_connect_android WRY_ANDROID_LIBRARY=nym_connect_android cargo tauri android dev",
     "tauri:build": "WRY_ANDROID_PACKAGE=net.nymtech.nym_connect_android WRY_ANDROID_LIBRARY=nym_connect_android cargo tauri android build",
     "dev": "run-p webpack:dev:onlyThis tauri:dev",

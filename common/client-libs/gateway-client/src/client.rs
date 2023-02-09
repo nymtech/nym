@@ -441,6 +441,7 @@ where
         }
 
         debug_assert!(self.connection.is_available());
+        log::trace!("Registering gateway");
 
         // it's fine to instantiate it here as it's only used once (during authentication or registration)
         // and putting it into the GatewayClient struct would be a hassle

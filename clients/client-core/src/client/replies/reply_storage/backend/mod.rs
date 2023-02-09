@@ -3,7 +3,7 @@
 
 use crate::client::replies::reply_storage::CombinedReplyStorage;
 use async_trait::async_trait;
-use std::error::Error;
+use std::{error::Error, path::PathBuf};
 use thiserror::Error;
 
 #[cfg(target_arch = "wasm32")]
@@ -29,6 +29,13 @@ pub struct Empty {
 #[async_trait]
 impl ReplyStorageBackend for Empty {
     type StorageError = UndefinedError;
+
+    async fn new(debug_config: &crate::config::DebugConfig, _db_path: Option<PathBuf>) -> Self {
+        Self {
+            min_surb_threshold: debug_config.minimum_reply_surb_storage_threshold,
+            max_surb_threshold: debug_config.maximum_reply_surb_storage_threshold,
+        }
+    }
 
     async fn flush_surb_storage(
         &mut self,
@@ -62,6 +69,8 @@ impl ReplyStorageBackend for Empty {
 #[async_trait]
 pub trait ReplyStorageBackend: Sized {
     type StorageError: Error + 'static;
+
+    async fn new(debug_config: &crate::config::DebugConfig, db_path: Option<PathBuf>) -> Self;
 
     fn is_active(&self) -> bool {
         true

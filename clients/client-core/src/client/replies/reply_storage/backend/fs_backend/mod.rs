@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::client::base_client::non_wasm_helpers;
 use crate::client::replies::reply_storage::backend::fs_backend::manager::StorageManager;
 use crate::client::replies::reply_storage::backend::fs_backend::models::{
     ReplySurbStorageMetadata, StoredReplyKey, StoredReplySurb, StoredSenderTag, StoredSurbSender,
@@ -366,6 +367,12 @@ impl Backend {
 #[async_trait]
 impl ReplyStorageBackend for Backend {
     type StorageError = error::StorageError;
+
+    async fn new(debug_config: &crate::config::DebugConfig, db_path: Option<PathBuf>) -> Self {
+        non_wasm_helpers::setup_fs_reply_surb_backend(db_path, debug_config)
+            .await
+            .unwrap()
+    }
 
     fn is_active(&self) -> bool {
         self.manager.is_active()

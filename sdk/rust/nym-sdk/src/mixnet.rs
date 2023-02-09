@@ -10,7 +10,7 @@
 //! async fn main() {
 //!     // Passing no config makes the client fire up an ephemeral session and figure stuff out on
 //!     // its own
-//!     let mut client = mixnet::MixnetClient::connect().await.unwrap();
+//!     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
 //!
 //!     // Be able to get our client address
 //!     let our_address = client.nym_address();
@@ -36,8 +36,14 @@ mod connection_state;
 mod keys;
 mod paths;
 
-pub use client::{MixnetClient, MixnetClientBuilder};
-pub use client_core::config::GatewayEndpointConfig;
+pub use client::{DisconnectedMixnetClient, MixnetClient, MixnetClientBuilder, MixnetClientSender};
+pub use client_core::{
+    client::{
+        inbound_messages::InputMessage,
+        replies::reply_storage::{fs_backend::Backend as ReplyStorage, Empty as EmptyReplyStorage},
+    },
+    config::GatewayEndpointConfig,
+};
 pub use config::Config;
 pub use keys::{Keys, KeysArc};
 pub use nymsphinx::{

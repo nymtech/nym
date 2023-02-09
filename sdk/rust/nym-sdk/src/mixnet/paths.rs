@@ -104,3 +104,20 @@ impl From<StoragePaths> for ClientKeyPathfinder {
         }
     }
 }
+
+impl<T> From<&client_core::config::Config<T>> for StoragePaths {
+    fn from(value: &client_core::config::Config<T>) -> Self {
+        Self {
+            operating_mode: KeyMode::Keep,
+            private_identity: value.get_private_identity_key_file(),
+            public_identity: value.get_public_identity_key_file(),
+            private_encryption: value.get_private_encryption_key_file(),
+            public_encryption: value.get_public_encryption_key_file(),
+            ack_key: value.get_ack_key_file(),
+            gateway_shared_key: value.get_gateway_shared_key_file(),
+            gateway_endpoint_config: Default::default(),
+            credential_database_path: value.get_database_path(),
+            reply_surb_database_path: value.get_reply_surb_database_path(),
+        }
+    }
+}

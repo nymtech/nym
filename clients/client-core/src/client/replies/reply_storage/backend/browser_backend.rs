@@ -29,13 +29,16 @@ impl Backend {
 impl ReplyStorageBackend for Backend {
     type StorageError = <Empty as ReplyStorageBackend>::StorageError;
 
-    async fn new(debug_config: &crate::config::DebugConfig, _db_path: Option<PathBuf>) -> Self {
-        Backend {
+    async fn new(
+        debug_config: &crate::config::DebugConfig,
+        _db_path: Option<PathBuf>,
+    ) -> Result<Self, Self::StorageError> {
+        Ok(Backend {
             empty: Empty {
                 min_surb_threshold: debug_config.minimum_reply_surb_storage_threshold,
                 max_surb_threshold: debug_config.maximum_reply_surb_storage_threshold,
             },
-        }
+        })
     }
 
     async fn flush_surb_storage(

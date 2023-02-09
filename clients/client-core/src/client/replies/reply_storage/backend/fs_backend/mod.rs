@@ -368,10 +368,18 @@ impl Backend {
 impl ReplyStorageBackend for Backend {
     type StorageError = error::StorageError;
 
-    async fn new(debug_config: &crate::config::DebugConfig, db_path: Option<PathBuf>) -> Self {
+    async fn new(
+        debug_config: &crate::config::DebugConfig,
+        db_path: Option<PathBuf>,
+    ) -> Result<Self, Self::StorageError> {
         non_wasm_helpers::setup_fs_reply_surb_backend(db_path, debug_config)
             .await
-            .unwrap()
+            .map_err(|err| {
+                log::error!("Failed to create storage: {err}");
+                Self::StorageError::FailedToCreateStorage {
+                    source: Box::new(err),
+                }
+            })
     }
 
     fn is_active(&self) -> bool {

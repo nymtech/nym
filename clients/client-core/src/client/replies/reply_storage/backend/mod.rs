@@ -30,11 +30,14 @@ pub struct Empty {
 impl ReplyStorageBackend for Empty {
     type StorageError = UndefinedError;
 
-    async fn new(debug_config: &crate::config::DebugConfig, _db_path: Option<PathBuf>) -> Self {
-        Self {
+    async fn new(
+        debug_config: &crate::config::DebugConfig,
+        _db_path: Option<PathBuf>,
+    ) -> Result<Self, Self::StorageError> {
+        Ok(Self {
             min_surb_threshold: debug_config.minimum_reply_surb_storage_threshold,
             max_surb_threshold: debug_config.maximum_reply_surb_storage_threshold,
-        }
+        })
     }
 
     async fn flush_surb_storage(
@@ -70,7 +73,10 @@ impl ReplyStorageBackend for Empty {
 pub trait ReplyStorageBackend: Sized {
     type StorageError: Error + 'static;
 
-    async fn new(debug_config: &crate::config::DebugConfig, db_path: Option<PathBuf>) -> Self;
+    async fn new(
+        debug_config: &crate::config::DebugConfig,
+        db_path: Option<PathBuf>,
+    ) -> Result<Self, Self::StorageError>;
 
     fn is_active(&self) -> bool {
         true

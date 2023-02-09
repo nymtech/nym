@@ -33,6 +33,11 @@ pub enum Error {
     ReregisteringGatewayNotSupported,
     #[error("no gateway key set")]
     NoGatewayKeySet,
+
+    #[error("failed to create reply storage backend: {source}")]
+    StorageError {
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
 }
 
 pub type Result<T, E = Error> = std::result::Result<T, E>;

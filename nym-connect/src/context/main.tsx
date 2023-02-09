@@ -7,6 +7,7 @@ import { useEvents } from 'src/hooks/events';
 import { ConnectionStatusKind, GatewayPerformance } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
 import { ServiceProvider } from '../types/directory';
+import { UserDefinedGateway } from 'src/types/gateway';
 
 type ModeType = 'light' | 'dark';
 
@@ -20,6 +21,7 @@ export type TClientContext = {
   gatewayPerformance: GatewayPerformance;
   selectedProvider?: ServiceProvider;
   showInfoModal: boolean;
+  userDefinedGateway?: UserDefinedGateway;
   setMode: (mode: ModeType) => void;
   clearError: () => void;
   setConnectionStatus: (connectionStatus: ConnectionStatusKind) => void;
@@ -29,6 +31,7 @@ export type TClientContext = {
   setRandomSerivceProvider: () => void;
   startConnecting: () => Promise<void>;
   startDisconnecting: () => Promise<void>;
+  setUserDefinedGateway: React.Dispatch<React.SetStateAction<UserDefinedGateway>>;
 };
 
 export const ClientContext = createContext({} as TClientContext);
@@ -44,6 +47,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const [appVersion, setAppVersion] = useState<string>();
   const [gatewayPerformance, setGatewayPerformance] = useState<GatewayPerformance>('Good');
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [userDefinedGateway, setUserDefinedGateway] = useState<UserDefinedGateway>({ isActive: false, gateway: '' });
 
   const getAppVersion = async () => {
     const version = await getVersion();
@@ -53,7 +57,6 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const initialiseApp = async () => {
     const services = await invoke('get_services');
     const AppVersion = await getAppVersion();
-    console.log(services);
 
     setAppVersion(AppVersion);
     setServiceProviders(services as ServiceProvider[]);
@@ -94,7 +97,11 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
     }
   }, []);
 
-  const setServiceProvider = async (newServiceProvider?: ServiceProvider) => {
+  const setServiceProvider = async (newServiceProvider: ServiceProvider) => {
+    if (!!userDefinedGateway.gateway && userDefinedGateway.isActive) {
+      newServiceProvider.gateway = userDefinedGateway.gateway;
+    }
+
     if (newServiceProvider) {
       await invoke('set_gateway', { gateway: newServiceProvider.gateway });
       await invoke('set_service_provider', { serviceProvider: newServiceProvider.address });
@@ -109,9 +116,18 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const setRandomSerivceProvider = async () => {
     if (serviceProviders) {
       const randomServiceProvider = getRandomSPFromList(serviceProviders);
+
+      if (userDefinedGateway.gateway && userDefinedGateway.isActive)
+        randomServiceProvider.gateway = userDefinedGateway.gateway;
+      console.log(randomServiceProvider, userDefinedGateway);
+
       await setServiceProvider(randomServiceProvider);
       setSelectedProvider(randomServiceProvider);
     }
+  };
+
+  const useUserDefinedGateway = (serviceProvider: ServiceProvider) => {
+    return { ...serviceProvider, gateway: userDefinedGateway };
   };
 
   const clearError = () => setError(undefined);
@@ -136,6 +152,8 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       startDisconnecting,
       gatewayPerformance,
       setShowInfoModal,
+      userDefinedGateway,
+      setUserDefinedGateway,
     }),
     [
       mode,
@@ -148,6 +166,7 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       connectedSince,
       gatewayPerformance,
       selectedProvider,
+      userDefinedGateway,
     ],
   );
 

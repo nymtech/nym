@@ -1,4 +1,4 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::constants::{
@@ -207,7 +207,7 @@ mod tests {
 
         fn set_rewarded_set_to_n_nodes(test: &mut TestSetup, n: usize) {
             let set = (1u32..).take(n).collect::<Vec<_>>();
-            test.update_rewarded_set(set)
+            test.force_change_rewarded_set(set)
         }
 
         #[test]

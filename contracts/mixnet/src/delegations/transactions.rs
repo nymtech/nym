@@ -152,10 +152,39 @@ mod tests {
         use crate::support::tests::test_helpers::TestSetup;
         use cosmwasm_std::testing::mock_info;
         use cosmwasm_std::{coin, Decimal};
+        use mixnet_contract_common::{EpochState, EpochStatus};
 
         #[test]
         fn cant_be_performed_if_epoch_transition_is_in_progress() {
-            todo!()
+            let bad_states = vec![
+                EpochState::Rewarding {
+                    last_rewarded: 0,
+                    final_node_id: 0,
+                },
+                EpochState::ReconcilingEvents,
+                EpochState::AdvancingEpoch,
+            ];
+
+            for bad_state in bad_states {
+                let mut test = TestSetup::new();
+
+                let mut status = EpochStatus::new(test.rewarding_validator().sender);
+                status.state = bad_state;
+                interval_storage::save_current_epoch_status(test.deps_mut().storage, &status)
+                    .unwrap();
+
+                let env = test.env();
+
+                let owner = "delegator";
+                let mix_id = test.add_dummy_mixnode("mix-owner", None);
+                let sender = mock_info(owner, &[coin(50_000_000, TEST_COIN_DENOM)]);
+
+                let res = try_delegate_to_mixnode(test.deps_mut(), env.clone(), sender, mix_id);
+                assert!(matches!(
+                    res,
+                    Err(MixnetContractError::EpochAdvancementInProgress { .. })
+                ));
+            }
         }
 
         #[test]
@@ -409,10 +438,41 @@ mod tests {
         use crate::support::tests::test_helpers::TestSetup;
         use cosmwasm_std::coin;
         use cosmwasm_std::testing::mock_info;
+        use mixnet_contract_common::{EpochState, EpochStatus};
 
         #[test]
         fn cant_be_performed_if_epoch_transition_is_in_progress() {
-            todo!()
+            let bad_states = vec![
+                EpochState::Rewarding {
+                    last_rewarded: 0,
+                    final_node_id: 0,
+                },
+                EpochState::ReconcilingEvents,
+                EpochState::AdvancingEpoch,
+            ];
+
+            for bad_state in bad_states {
+                let mut test = TestSetup::new();
+                let mix_id = test.add_dummy_mixnode("owner", None);
+                test.add_immediate_delegation("foomp", 1000u32, mix_id);
+
+                let mut status = EpochStatus::new(test.rewarding_validator().sender);
+                status.state = bad_state;
+                interval_storage::save_current_epoch_status(test.deps_mut().storage, &status)
+                    .unwrap();
+
+                let env = test.env();
+                let res = try_remove_delegation_from_mixnode(
+                    test.deps_mut(),
+                    env.clone(),
+                    mock_info("sender", &[]),
+                    mix_id,
+                );
+                assert!(matches!(
+                    res,
+                    Err(MixnetContractError::EpochAdvancementInProgress { .. })
+                ));
+            }
         }
 
         #[test]

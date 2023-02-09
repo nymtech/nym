@@ -228,14 +228,14 @@ mod tests {
         assert_eq!(res.amount, Uint128::zero());
 
         test.skip_to_next_epoch_end();
-        test.update_rewarded_set(vec![mix_id]);
-        let dist1 = test.reward_with_distribution(mix_id, performance(100.0));
+        test.force_change_rewarded_set(vec![mix_id]);
+        let dist1 = test.reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
 
         test.skip_to_next_epoch_end();
-        let dist2 = test.reward_with_distribution(mix_id, performance(100.0));
+        let dist2 = test.reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
 
         test.skip_to_next_epoch_end();
-        let dist3 = test.reward_with_distribution(mix_id, performance(100.0));
+        let dist3 = test.reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
 
         let mix_details = get_mixnode_details_by_id(test.deps().storage, mix_id)
             .unwrap()
@@ -267,14 +267,14 @@ mod tests {
         assert_eq!(res.amount, Uint128::zero());
 
         test.skip_to_next_epoch_end();
-        test.update_rewarded_set(vec![mix_id]);
-        let dist1 = test.reward_with_distribution(mix_id, performance(100.0));
+        test.force_change_rewarded_set(vec![mix_id]);
+        let dist1 = test.reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
 
         test.skip_to_next_epoch_end();
-        let dist2 = test.reward_with_distribution(mix_id, performance(100.0));
+        let dist2 = test.reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
 
         test.skip_to_next_epoch_end();
-        let dist3 = test.reward_with_distribution(mix_id, performance(100.0));
+        let dist3 = test.reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
 
         let delegation_pre = test.delegation(mix_id, delegator, &None);
         let mix_rewarding = test.mix_rewarding(mix_id);

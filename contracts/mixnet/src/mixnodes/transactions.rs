@@ -395,7 +395,9 @@ pub mod tests {
     use crate::support::tests::{fixtures, test_helpers};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{Order, StdResult, Uint128};
-    use mixnet_contract_common::{ExecuteMsg, Layer, LayerDistribution, Percent};
+    use mixnet_contract_common::{
+        EpochState, EpochStatus, ExecuteMsg, Layer, LayerDistribution, Percent,
+    };
 
     #[test]
     fn mixnode_add() {
@@ -552,7 +554,33 @@ pub mod tests {
 
     #[test]
     fn removing_mixnode_cant_be_performed_if_epoch_transition_is_in_progress() {
-        todo!()
+        let bad_states = vec![
+            EpochState::Rewarding {
+                last_rewarded: 0,
+                final_node_id: 0,
+            },
+            EpochState::ReconcilingEvents,
+            EpochState::AdvancingEpoch,
+        ];
+
+        for bad_state in bad_states {
+            let mut test = TestSetup::new();
+            let env = test.env();
+            let owner = "alice";
+            let info = mock_info(owner, &[]);
+
+            test.add_dummy_mixnode(owner, None);
+
+            let mut status = EpochStatus::new(test.rewarding_validator().sender);
+            status.state = bad_state;
+            interval_storage::save_current_epoch_status(test.deps_mut().storage, &status).unwrap();
+
+            let res = try_remove_mixnode(test.deps_mut(), env.clone(), info);
+            assert!(matches!(
+                res,
+                Err(MixnetContractError::EpochAdvancementInProgress { .. })
+            ));
+        }
     }
 
     #[test]
@@ -737,7 +765,39 @@ pub mod tests {
 
     #[test]
     fn mixnode_cost_params_cant_be_updated_when_epoch_transition_is_in_progress() {
-        todo!()
+        let bad_states = vec![
+            EpochState::Rewarding {
+                last_rewarded: 0,
+                final_node_id: 0,
+            },
+            EpochState::ReconcilingEvents,
+            EpochState::AdvancingEpoch,
+        ];
+
+        let update = MixNodeCostParams {
+            profit_margin_percent: Percent::from_percentage_value(42).unwrap(),
+            interval_operating_cost: Coin::new(12345678, TEST_COIN_DENOM),
+        };
+
+        for bad_state in bad_states {
+            let mut test = TestSetup::new();
+            let env = test.env();
+            let owner = "alice";
+            let info = mock_info(owner, &[]);
+
+            test.add_dummy_mixnode(owner, None);
+
+            let mut status = EpochStatus::new(test.rewarding_validator().sender);
+            status.state = bad_state;
+            interval_storage::save_current_epoch_status(test.deps_mut().storage, &status).unwrap();
+
+            let res =
+                try_update_mixnode_cost_params(test.deps_mut(), env.clone(), info, update.clone());
+            assert!(matches!(
+                res,
+                Err(MixnetContractError::EpochAdvancementInProgress { .. })
+            ));
+        }
     }
 
     #[test]
@@ -915,10 +975,39 @@ pub mod tests {
             setup_mix_combinations, OWNER_UNBONDED, OWNER_UNBONDED_LEFTOVER, OWNER_UNBONDING,
         };
         use crate::support::tests::test_helpers::TestSetup;
+        use mixnet_contract_common::{EpochState, EpochStatus};
 
         #[test]
         fn cant_be_performed_if_epoch_transition_is_in_progress() {
-            todo!()
+            let bad_states = vec![
+                EpochState::Rewarding {
+                    last_rewarded: 0,
+                    final_node_id: 0,
+                },
+                EpochState::ReconcilingEvents,
+                EpochState::AdvancingEpoch,
+            ];
+
+            for bad_state in bad_states {
+                let mut test = TestSetup::new();
+                let env = test.env();
+                let owner = "mix-owner";
+
+                test.add_dummy_mixnode(owner, None);
+
+                let mut status = EpochStatus::new(test.rewarding_validator().sender);
+                status.state = bad_state;
+                interval_storage::save_current_epoch_status(test.deps_mut().storage, &status)
+                    .unwrap();
+
+                let sender = mock_info(owner, &[test.coin(1000)]);
+                let res = try_increase_pledge(test.deps_mut(), env, sender);
+
+                assert!(matches!(
+                    res,
+                    Err(MixnetContractError::EpochAdvancementInProgress { .. })
+                ));
+            }
         }
 
         #[test]

@@ -61,7 +61,7 @@ pub(crate) mod string_rfc3339_offset_date_time {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct EpochStatus {
     // TODO: introduce mechanism to allow another validator to take over if no progress has been made in X blocks / Y seconds
     /// Specifies either, which validator is currently performing progression into the following epoch (if the epoch is currently being progressed),
@@ -87,7 +87,7 @@ impl EpochStatus {
                 ref mut last_rewarded,
                 final_node_id,
             } => {
-                if new_last_rewarded < *last_rewarded {
+                if new_last_rewarded <= *last_rewarded {
                     return Err(MixnetContractError::RewardingOutOfOrder {
                         last_rewarded: *last_rewarded,
                         attempted_to_reward: new_last_rewarded,

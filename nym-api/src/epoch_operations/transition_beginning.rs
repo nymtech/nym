@@ -14,7 +14,7 @@ impl RewardedSetUpdater {
             let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
             if !epoch_status.is_in_progress() {
                 log::error!("FAILED to begin epoch progression: {err}");
-                Err(err.into())
+                Err(err)
             } else {
                 error!("another nym-api ({}) is already advancing the epoch... but we shouldn't have other nym-apis yet!", epoch_status.being_advanced_by);
                 Ok(false)

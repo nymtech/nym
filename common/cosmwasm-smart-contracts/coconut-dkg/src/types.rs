@@ -114,6 +114,33 @@ impl Epoch {
             finish_timestamp: current_timestamp.plus_seconds(duration),
         }
     }
+
+    pub fn final_timestamp_secs(&self) -> u64 {
+        let mut finish = self.finish_timestamp.seconds();
+        let time_configuration = self.time_configuration;
+        let mut curr_epoch_state = self.state;
+        while let Some(state) = curr_epoch_state.next() {
+            curr_epoch_state = state;
+            let adding = match curr_epoch_state {
+                EpochState::PublicKeySubmission { .. } => {
+                    time_configuration.public_key_submission_time_secs
+                }
+                EpochState::DealingExchange { .. } => time_configuration.dealing_exchange_time_secs,
+                EpochState::VerificationKeySubmission { .. } => {
+                    time_configuration.verification_key_submission_time_secs
+                }
+                EpochState::VerificationKeyValidation { .. } => {
+                    time_configuration.verification_key_validation_time_secs
+                }
+                EpochState::VerificationKeyFinalization { .. } => {
+                    time_configuration.verification_key_finalization_time_secs
+                }
+                EpochState::InProgress { .. } => 0,
+            };
+            finish += adding;
+        }
+        finish
+    }
 }
 
 // currently (it is still extremely likely to change, we might be able to get rid of verification key-related complaints),
@@ -194,5 +221,9 @@ impl EpochState {
         }
 
         states
+    }
+
+    pub fn is_final(&self) -> bool {
+        *self == EpochState::InProgress
     }
 }

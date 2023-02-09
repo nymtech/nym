@@ -45,21 +45,15 @@ async fn obtain_partial_credential(
     let private_attributes = attributes.get_private_attributes();
     let blind_sign_request = attributes.blind_sign_request();
 
-    let response = if attributes.use_request() {
-        let blind_sign_request_body = BlindSignRequestBody::new(
-            blind_sign_request,
-            attributes.tx_hash().to_string(),
-            attributes.sign(blind_sign_request).to_base58_string(),
-            &public_attributes,
-            public_attributes_plain,
-            (public_attributes.len() + private_attributes.len()) as u32,
-        );
-        client.blind_sign(&blind_sign_request_body).await?
-    } else {
-        client
-            .partial_bandwidth_credential(&attributes.tx_hash().to_string())
-            .await?
-    };
+    let blind_sign_request_body = BlindSignRequestBody::new(
+        blind_sign_request,
+        attributes.tx_hash().to_string(),
+        attributes.sign(blind_sign_request).to_base58_string(),
+        &public_attributes,
+        public_attributes_plain,
+        (public_attributes.len() + private_attributes.len()) as u32,
+    );
+    let response = client.blind_sign(&blind_sign_request_body).await?;
     let encrypted_signature = response.encrypted_signature;
     let remote_key = PublicKey::from_bytes(&response.remote_key)?;
 
@@ -109,6 +103,8 @@ pub async fn obtain_aggregate_signature(
         .iter()
         .map(|api_client| api_client.node_id)
         .collect();
+    let verification_key =
+        aggregate_verification_keys(&validators_partial_vks, Some(indices.as_ref()))?;
 
     for coconut_api_client in coconut_api_clients.iter() {
         if let Ok(signature) = obtain_partial_credential(
@@ -131,15 +127,8 @@ pub async fn obtain_aggregate_signature(
     attributes.extend_from_slice(&private_attributes);
     attributes.extend_from_slice(&public_attributes);
 
-    let verification_key =
-        aggregate_verification_keys(&validators_partial_vks, Some(indices.as_ref()))?;
-
-    Ok(aggregate_signature_shares(
-        params,
-        &verification_key,
-        &attributes,
-        &shares,
-    )?)
+    aggregate_signature_shares(params, &verification_key, &attributes, &shares)
+        .map_err(Error::SignatureAggregationError)
 }
 
 // TODO: better type flow

@@ -9,6 +9,9 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum Error {
+    #[error("IO error")]
+    IOError(#[from] std::io::Error),
+
     #[error("The detailed description is yet to be determined")]
     BandwidthCredentialError,
 
@@ -30,6 +33,12 @@ pub enum Error {
     #[error("Could not parse the key - {0}")]
     ParsePublicKey(#[from] KeyRecoveryError),
 
-    #[error("Could not gather enough signature shares")]
+    #[error("Could not gather enough signature shares. Try again using the recovery command")]
     NotEnoughShares,
+
+    #[error("Could not aggregate signature shares - {0}. Try again using the recovery command")]
+    SignatureAggregationError(CoconutError),
+
+    #[error("Could not deserialize bandwidth voucher - {0}")]
+    BandwidthVoucherDeserializationError(String),
 }

@@ -42,41 +42,9 @@ pub struct BandwidthVoucher {
     encryption_key: encryption::PrivateKey,
     pedersen_commitments_openings: Vec<Attribute>,
     blind_sign_request: BlindSignRequest,
-    use_request: bool,
 }
 
 impl BandwidthVoucher {
-    pub fn new_with_blind_sign_req(
-        private_attributes: [PrivateAttribute; PRIVATE_ATTRIBUTES as usize],
-        public_attributes_plain: [&str; PUBLIC_ATTRIBUTES as usize],
-        tx_hash: Hash,
-        signing_key: identity::PrivateKey,
-        encryption_key: encryption::PrivateKey,
-        pedersen_commitments_openings: Vec<Attribute>,
-        blind_sign_request: BlindSignRequest,
-    ) -> Self {
-        let voucher_value = public_attributes_plain[0];
-        let voucher_info = public_attributes_plain[1];
-        let voucher_value_plain = voucher_value.to_string();
-        let voucher_info_plain = voucher_info.to_string();
-        let voucher_value = hash_to_scalar(voucher_value.as_bytes());
-        let voucher_info = hash_to_scalar(voucher_info.as_bytes());
-
-        BandwidthVoucher {
-            serial_number: private_attributes[0],
-            binding_number: private_attributes[1],
-            voucher_value,
-            voucher_value_plain,
-            voucher_info,
-            voucher_info_plain,
-            tx_hash,
-            signing_key,
-            encryption_key,
-            pedersen_commitments_openings,
-            blind_sign_request,
-            use_request: false,
-        }
-    }
     pub fn new(
         params: &Parameters,
         voucher_value: String,
@@ -109,8 +77,133 @@ impl BandwidthVoucher {
             encryption_key,
             pedersen_commitments_openings,
             blind_sign_request,
-            use_request: true,
         }
+    }
+
+    pub fn to_bytes(&self) -> Vec<u8> {
+        let serial_number_b = self.serial_number.to_bytes();
+        let binding_number_b = self.binding_number.to_bytes();
+        let voucher_value_plain_b = self.voucher_value_plain.as_bytes();
+        let voucher_info_plain_b = self.voucher_info_plain.as_bytes();
+        let tx_hash_b = self.tx_hash.as_bytes();
+        let signing_key_b = self.signing_key.to_bytes();
+        let encryption_key_b = self.encryption_key.to_bytes();
+        let blind_sign_request_b = self.blind_sign_request.to_bytes();
+
+        let mut ret = Vec::new();
+
+        ret.extend_from_slice(&serial_number_b);
+        ret.extend_from_slice(&binding_number_b);
+        ret.extend_from_slice(tx_hash_b);
+        ret.extend_from_slice(&signing_key_b);
+        ret.extend_from_slice(&encryption_key_b);
+        ret.extend_from_slice(&(voucher_value_plain_b.len() as u64).to_be_bytes());
+        ret.extend_from_slice(&(voucher_info_plain_b.len() as u64).to_be_bytes());
+        ret.extend_from_slice(&(blind_sign_request_b.len() as u64).to_be_bytes());
+        ret.extend_from_slice(&(self.pedersen_commitments_openings.len() as u64).to_be_bytes());
+        ret.extend_from_slice(voucher_value_plain_b);
+        ret.extend_from_slice(voucher_info_plain_b);
+        ret.extend_from_slice(&blind_sign_request_b);
+        for commitment in self.pedersen_commitments_openings.iter() {
+            ret.extend_from_slice(&commitment.to_bytes());
+        }
+
+        ret
+    }
+
+    pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, Error> {
+        if bytes.len() < 32 * 5 + 4 * 8 {
+            return Err(Error::BandwidthVoucherDeserializationError(format!(
+                "Less then {} bytes needed",
+                32 * 5 + 4 * 8
+            )));
+        }
+        let mut buff = [0u8; 32];
+        let mut small_buff = [0u8; 8];
+        let scalar_err =
+            || Error::BandwidthVoucherDeserializationError(String::from("Invalid Scalar"));
+        buff.copy_from_slice(&bytes[..32]);
+        let serial_number = Option::<PrivateAttribute>::from(PrivateAttribute::from_bytes(&buff))
+            .ok_or_else(scalar_err)?;
+        buff.copy_from_slice(&bytes[32..2 * 32]);
+        let binding_number = Option::<PrivateAttribute>::from(PrivateAttribute::from_bytes(&buff))
+            .ok_or_else(scalar_err)?;
+        buff.copy_from_slice(&bytes[2 * 32..3 * 32]);
+        let tx_hash = Hash::new(buff);
+        buff.copy_from_slice(&bytes[3 * 32..4 * 32]);
+        let signing_key = identity::PrivateKey::from_bytes(&buff).map_err(|_| {
+            Error::BandwidthVoucherDeserializationError(String::from("Invalid key"))
+        })?;
+        buff.copy_from_slice(&bytes[4 * 32..5 * 32]);
+        let encryption_key = encryption::PrivateKey::from_bytes(&buff).map_err(|_| {
+            Error::BandwidthVoucherDeserializationError(String::from("Invalid key"))
+        })?;
+        small_buff.copy_from_slice(&bytes[5 * 32..5 * 32 + 8]);
+        let voucher_value_plain_no = u64::from_be_bytes(small_buff) as usize;
+        small_buff.copy_from_slice(&bytes[5 * 32 + 8..5 * 32 + 2 * 8]);
+        let voucher_info_plain_no = u64::from_be_bytes(small_buff) as usize;
+        small_buff.copy_from_slice(&bytes[5 * 32 + 2 * 8..5 * 32 + 3 * 8]);
+        let blind_sign_request_no = u64::from_be_bytes(small_buff) as usize;
+        small_buff.copy_from_slice(&bytes[5 * 32 + 3 * 8..5 * 32 + 4 * 8]);
+        let pedersen_commitments_openings_no = u64::from_be_bytes(small_buff) as usize;
+
+        let total_length = 32 * 5
+            + 4 * 8
+            + voucher_value_plain_no
+            + voucher_info_plain_no
+            + blind_sign_request_no
+            + pedersen_commitments_openings_no * 32;
+        if bytes.len() != total_length {
+            return Err(Error::BandwidthVoucherDeserializationError(format!(
+                "Expected {total_length} bytes",
+            )));
+        }
+
+        let utf_err = |_| {
+            Err(Error::BandwidthVoucherDeserializationError(String::from(
+                "Invalid UTF8 string",
+            )))
+        };
+        let mut var_length_pointer = 5 * 32 + 4 * 8;
+        let voucher_value_plain = String::from_utf8(
+            bytes[var_length_pointer..var_length_pointer + voucher_value_plain_no].to_vec(),
+        )
+        .or_else(utf_err)?;
+        let voucher_value = hash_to_scalar(&voucher_value_plain);
+        var_length_pointer += voucher_value_plain_no;
+        let voucher_info_plain = String::from_utf8(
+            bytes[var_length_pointer..var_length_pointer + voucher_info_plain_no].to_vec(),
+        )
+        .or_else(utf_err)?;
+        let voucher_info = hash_to_scalar(&voucher_info_plain);
+        var_length_pointer += voucher_info_plain_no;
+        let blind_sign_request = BlindSignRequest::from_bytes(
+            &bytes[var_length_pointer..var_length_pointer + blind_sign_request_no],
+        )?;
+        var_length_pointer += blind_sign_request_no;
+
+        let mut pedersen_commitments_openings = Vec::new();
+        for _ in 0..pedersen_commitments_openings_no {
+            buff.copy_from_slice(&bytes[var_length_pointer..var_length_pointer + 32]);
+            let commitment =
+                Option::<Attribute>::from(Attribute::from_bytes(&buff)).ok_or_else(scalar_err)?;
+            var_length_pointer += 32;
+            pedersen_commitments_openings.push(commitment);
+        }
+
+        Ok(Self {
+            serial_number,
+            binding_number,
+            voucher_value,
+            voucher_value_plain,
+            voucher_info,
+            voucher_info_plain,
+            tx_hash,
+            signing_key,
+            encryption_key,
+            pedersen_commitments_openings,
+            blind_sign_request,
+        })
     }
 
     /// Check if the plain values correspond to the PublicAttributes
@@ -141,8 +234,8 @@ impl BandwidthVoucher {
         &self.blind_sign_request
     }
 
-    pub fn use_request(&self) -> bool {
-        self.use_request
+    pub fn get_voucher_value(&self) -> String {
+        self.voucher_value_plain.clone()
     }
 
     pub fn get_public_attributes_plain(&self) -> Vec<String> {
@@ -189,13 +282,13 @@ pub fn prepare_for_spending(
 #[cfg(test)]
 mod test {
     use super::*;
+    use coconut_interface::Base58;
     use rand::rngs::OsRng;
 
-    #[test]
-    fn voucher_consistency() {
+    fn voucher_fixture() -> BandwidthVoucher {
         let params = Parameters::new(4).unwrap();
         let mut rng = OsRng;
-        let voucher = BandwidthVoucher::new(
+        BandwidthVoucher::new(
             &params,
             "1234".to_string(),
             "voucher info".to_string(),
@@ -210,7 +303,48 @@ mod test {
                 &encryption::KeyPair::new(&mut rng).private_key().to_bytes(),
             )
             .unwrap(),
+        )
+    }
+
+    #[test]
+    fn serde_voucher() {
+        let voucher = voucher_fixture();
+        let bytes = voucher.to_bytes();
+        let deserialized_voucher = BandwidthVoucher::try_from_bytes(&bytes).unwrap();
+        assert_eq!(voucher.serial_number, deserialized_voucher.serial_number);
+        assert_eq!(voucher.binding_number, deserialized_voucher.binding_number);
+        assert_eq!(voucher.voucher_value, deserialized_voucher.voucher_value);
+        assert_eq!(
+            voucher.voucher_value_plain,
+            deserialized_voucher.voucher_value_plain
         );
+        assert_eq!(voucher.voucher_info, deserialized_voucher.voucher_info);
+        assert_eq!(
+            voucher.voucher_info_plain,
+            deserialized_voucher.voucher_info_plain
+        );
+        assert_eq!(voucher.tx_hash, deserialized_voucher.tx_hash);
+        assert_eq!(
+            voucher.signing_key.to_string(),
+            deserialized_voucher.signing_key.to_string()
+        );
+        assert_eq!(
+            voucher.encryption_key.to_string(),
+            deserialized_voucher.encryption_key.to_string()
+        );
+        assert_eq!(
+            voucher.pedersen_commitments_openings,
+            deserialized_voucher.pedersen_commitments_openings
+        );
+        assert_eq!(
+            voucher.blind_sign_request.to_bs58(),
+            deserialized_voucher.blind_sign_request.to_bs58()
+        );
+    }
+
+    #[test]
+    fn voucher_consistency() {
+        let voucher = voucher_fixture();
         assert!(!BandwidthVoucher::verify_against_plain(
             &[],
             &voucher.get_public_attributes_plain()

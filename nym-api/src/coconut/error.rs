@@ -70,9 +70,6 @@ pub enum CoconutError {
     )]
     DifferentPublicAttributes(String, String),
 
-    #[error("No signature found")]
-    NoSignature,
-
     #[error("Error in coconut interface - {0}")]
     CoconutInterfaceError(#[from] coconut_interface::error::CoconutInterfaceError),
 

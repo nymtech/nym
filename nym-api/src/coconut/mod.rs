@@ -182,11 +182,7 @@ impl InternalSignRequest {
             rocket.manage(state).mount(
                 // this format! is so ugly...
                 format!("/{}/{}/{}", NYM_API_VERSION, COCONUT_ROUTES, BANDWIDTH),
-                routes![
-                    post_blind_sign,
-                    post_partial_bandwidth_credential,
-                    verify_bandwidth_credential
-                ],
+                routes![post_blind_sign, verify_bandwidth_credential],
             )
         })
     }
@@ -240,18 +236,6 @@ pub async fn post_blind_sign(
         .await?;
 
     Ok(Json(response))
-}
-
-#[post("/partial-bandwidth-credential", data = "<tx_hash>")]
-pub async fn post_partial_bandwidth_credential(
-    tx_hash: Json<String>,
-    state: &RocketState<State>,
-) -> Result<Json<BlindedSignatureResponse>> {
-    let v = state
-        .signed_before(&tx_hash)
-        .await?
-        .ok_or(CoconutError::NoSignature)?;
-    Ok(Json(v))
 }
 
 #[post("/verify-bandwidth-credential", data = "<verify_credential_body>")]

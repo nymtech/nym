@@ -1,6 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::time::SystemTimeError;
 use thiserror::Error;
 
 use credential_storage::error::StorageError;
@@ -14,6 +15,9 @@ pub type Result<T> = std::result::Result<T, CredentialClientError>;
 
 #[derive(Error, Debug)]
 pub enum CredentialClientError {
+    #[error("IO error: {0}")]
+    IOError(#[from] std::io::Error),
+
     #[error("Nyxd error: {0}")]
     Nyxd(#[from] NyxdError),
 
@@ -34,6 +38,9 @@ pub enum CredentialClientError {
 
     #[error("Could not use shared storage")]
     SharedStorageError(#[from] StorageError),
+
+    #[error("Could not get system time")]
+    SysTimeError(#[from] SystemTimeError),
 
     #[error("Threshold not set yet")]
     NoThreshold,

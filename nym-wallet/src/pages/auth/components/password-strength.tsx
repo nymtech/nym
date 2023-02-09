@@ -85,9 +85,7 @@ export const PasswordStrength = ({
           </Typography>
         </Box>
         {withWarnings && result.feedback.warning && (
-          <Typography variant="caption" color="grey.400">
-            {result.feedback.warning}
-          </Typography>
+          <Typography variant="caption">{result.feedback.warning}</Typography>
         )}
       </Box>
     </Stack>

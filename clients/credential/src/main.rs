@@ -38,18 +38,18 @@ async fn block_until_coconut_is_available<C: Clone + CosmWasmClient + Send + Syn
 ) -> Result<()> {
     loop {
         let epoch = client.nyxd.get_current_epoch().await?;
+        let current_timestamp_secs = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)?
+            .as_secs();
         if epoch.state.is_final() {
-            let current_timestamp = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH)?;
-
-            if current_timestamp.as_secs() + SAFETY_BUFFER_SECS >= epoch.finish_timestamp.seconds()
-            {
+            if current_timestamp_secs + SAFETY_BUFFER_SECS >= epoch.finish_timestamp.seconds() {
                 println!("In the next {} minutes, a transition will take place in the coconut system. Deposits should be halted in this time for safety reasons.", SAFETY_BUFFER_SECS / 60);
                 exit(0);
             }
 
             break;
         } else {
-            let secs_until_final = epoch.secs_until_final();
+            let secs_until_final = epoch.final_timestamp_secs() - current_timestamp_secs;
             println!("Approximately {} seconds until coconut is available. Sleeping until then. You can safely kill the process at any moment.", secs_until_final);
             std::thread::sleep(Duration::from_secs(secs_until_final));
         }

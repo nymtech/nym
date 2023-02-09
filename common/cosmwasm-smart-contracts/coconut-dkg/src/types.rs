@@ -115,7 +115,7 @@ impl Epoch {
         }
     }
 
-    pub fn secs_until_final(&self) -> u64 {
+    pub fn final_timestamp_secs(&self) -> u64 {
         let mut finish = self.finish_timestamp.seconds();
         let time_configuration = self.time_configuration;
         let mut curr_epoch_state = self.state;

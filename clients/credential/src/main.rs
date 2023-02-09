@@ -17,6 +17,7 @@ use std::process::exit;
 use std::time::{Duration, SystemTime};
 
 use clap::{CommandFactory, Parser};
+use logging::setup_logging;
 use validator_client::nyxd::traits::DkgQueryClient;
 use validator_client::nyxd::CosmWasmClient;
 use validator_client::Config;
@@ -50,7 +51,8 @@ async fn block_until_coconut_is_available<C: Clone + CosmWasmClient + Send + Syn
 
             break;
         } else {
-            let secs_until_final = epoch.final_timestamp_secs() - current_timestamp_secs;
+            // Use 10 additional seconds to avoid the exact moment of going into the final epoch state
+            let secs_until_final = epoch.final_timestamp_secs() + 10 - current_timestamp_secs;
             info!("Approximately {} seconds until coconut is available. Sleeping until then. You can safely kill the process at any moment.", secs_until_final);
             std::thread::sleep(Duration::from_secs(secs_until_final));
         }
@@ -62,6 +64,7 @@ async fn block_until_coconut_is_available<C: Clone + CosmWasmClient + Send + Syn
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Cli::parse();
+    setup_logging();
     setup_env(args.config_env_file.as_ref());
     let bin_name = "nym-credential-client";
 

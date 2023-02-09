@@ -69,11 +69,12 @@ impl MixnetClientBuilder {
     pub async fn build<B>(self) -> Result<DisconnectedMixnetClient<B>>
     where
         B: ReplyStorageBackend + Send + Sync + 'static,
+        <B as ReplyStorageBackend>::StorageError: Send + Sync,
     {
         let config = self.config.unwrap_or_default();
         let storage_paths = self.storage_paths;
 
-        let mut client = DisconnectedMixnetClient::new(Some(config), storage_paths).await;
+        let mut client = DisconnectedMixnetClient::new(Some(config), storage_paths).await?;
 
         if let Some(keys) = self.keys {
             client.set_keys(keys);
@@ -121,15 +122,22 @@ where
     async fn new(
         config: Option<Config>,
         paths: Option<StoragePaths>,
-    ) -> DisconnectedMixnetClient<B> {
+    ) -> Result<DisconnectedMixnetClient<B>>
+    where
+        <B as ReplyStorageBackend>::StorageError: Send + Sync,
+    {
         let config = config.unwrap_or_default();
 
         let reply_surb_database_path = paths.as_ref().map(|p| p.reply_surb_database_path.clone());
 
         let reply_storage_backend =
-            ReplyStorageBackend::new(&config.debug_config, reply_surb_database_path).await;
+            ReplyStorageBackend::new(&config.debug_config, reply_surb_database_path)
+                .await
+                .map_err(|err| Error::StorageError {
+                    source: Box::new(err),
+                })?;
 
-        create_new_client_with_custom_storage(Some(config), paths, reply_storage_backend).unwrap()
+        create_new_client_with_custom_storage(Some(config), paths, reply_storage_backend)
     }
 
     /// Client keys are generated at client creation if none were found. The gateway shared

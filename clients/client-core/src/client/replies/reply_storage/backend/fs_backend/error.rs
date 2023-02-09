@@ -56,4 +56,9 @@ pub enum StorageError {
         details: String,
         // err: Option<Box<dyn std::error::Error>>
     },
+
+    #[error("failed to create storage")]
+    FailedToCreateStorage {
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
 }

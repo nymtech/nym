@@ -1,20 +1,21 @@
 import React from 'react';
 import { Box } from '@mui/material';
+import { useLocation } from 'react-router-dom';
 import { CustomTitleBar } from './CustomTitleBar';
-import { AppVersion } from './AppVersion';
 
-export const AppWindowFrame: FCWithChildren = ({ children }) => (
-  <Box
-    sx={{
-      display: 'grid',
-      borderRadius: '12px',
-      gridTemplateRows: '40px 1fr 30px',
-      height: '100vh',
-      overflowY: 'hidden',
-    }}
-  >
-    <CustomTitleBar />
-    <Box style={{ padding: '16px' }}>{children}</Box>
-    <AppVersion />
-  </Box>
-);
+export const AppWindowFrame: FCWithChildren = ({ children }) => {
+  const location = useLocation();
+
+  return (
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateRows: '40px 1fr',
+        height: '100vh',
+      }}
+    >
+      <CustomTitleBar path={location.pathname} />
+      <Box style={{ padding: '16px' }}>{children}</Box>
+    </Box>
+  );
+};

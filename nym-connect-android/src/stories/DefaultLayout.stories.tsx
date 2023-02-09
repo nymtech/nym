@@ -1,23 +1,30 @@
 import React from 'react';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
 import { Box } from '@mui/material';
-import { DefaultLayout } from '../layouts/DefaultLayout';
+import { Disconnected } from 'src/pages/connection/Disconnected';
 import { ConnectionStatusKind } from '../types';
 
 export default {
   title: 'Layouts/DefaultLayout',
-  component: DefaultLayout,
-} as ComponentMeta<typeof DefaultLayout>;
+  component: Disconnected,
+} as ComponentMeta<typeof Disconnected>;
 
-export const Default: ComponentStory<typeof DefaultLayout> = () => (
+const onClick = () => undefined;
+
+export const Default: ComponentStory<typeof Disconnected> = () => (
   <Box p={1} width={230} sx={{ bgcolor: 'nym.background.dark' }}>
-    <DefaultLayout status={ConnectionStatusKind.disconnected} clearError={() => {}} error={undefined} />
+    <Disconnected
+      status={ConnectionStatusKind.disconnected}
+      clearError={() => {}}
+      error={undefined}
+      onConnectClick={onClick}
+    />
   </Box>
 );
 
-export const WithServices: ComponentStory<typeof DefaultLayout> = () => (
+export const WithServices: ComponentStory<typeof Disconnected> = () => (
   <Box p={1} width={230} sx={{ bgcolor: 'nym.background.dark' }}>
-    <DefaultLayout
+    <Disconnected
       status={ConnectionStatusKind.disconnected}
       services={[
         {
@@ -28,6 +35,7 @@ export const WithServices: ComponentStory<typeof DefaultLayout> = () => (
       ]}
       clearError={() => {}}
       error={undefined}
+      onConnectClick={onClick}
     />
   </Box>
 );

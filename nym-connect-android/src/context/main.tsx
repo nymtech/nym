@@ -1,17 +1,12 @@
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState, useRef } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { DateTime } from 'luxon';
 import { invoke } from '@tauri-apps/api';
-import type { UnlistenFn } from '@tauri-apps/api/event';
-import { listen } from '@tauri-apps/api/event';
-import { forage } from '@tauri-apps/tauri-forage';
 import { Error } from 'src/types/error';
-import { TauriEvent } from 'src/types/event';
 import { getVersion } from '@tauri-apps/api/app';
+import { useEvents } from 'src/hooks/events';
 import { ConnectionStatusKind, GatewayPerformance } from '../types';
 import { ConnectionStatsItem } from '../components/ConnectionStats';
-import { ServiceProvider, Services } from '../types/directory';
-
-const TAURI_EVENT_STATUS_CHANGED = 'app:connection-status-changed';
+import { ServiceProvider } from '../types/directory';
 
 type ModeType = 'light' | 'dark';
 
@@ -21,19 +16,17 @@ export type TClientContext = {
   connectionStatus: ConnectionStatusKind;
   connectionStats?: ConnectionStatsItem[];
   connectedSince?: DateTime;
-  services?: Services;
-  serviceProvider?: ServiceProvider;
-  showHelp: boolean;
   error?: Error;
   gatewayPerformance: GatewayPerformance;
+  selectedProvider?: ServiceProvider;
+  showInfoModal: boolean;
   setMode: (mode: ModeType) => void;
   clearError: () => void;
-  handleShowHelp: () => void;
   setConnectionStatus: (connectionStatus: ConnectionStatusKind) => void;
   setConnectionStats: (connectionStats: ConnectionStatsItem[] | undefined) => void;
   setConnectedSince: (connectedSince: DateTime | undefined) => void;
-  setServiceProvider: (serviceProvider?: ServiceProvider) => void;
-
+  setShowInfoModal: (show: boolean) => void;
+  setRandomSerivceProvider: () => void;
   startConnecting: () => Promise<void>;
   startDisconnecting: () => Promise<void>;
 };
@@ -42,28 +35,38 @@ export const ClientContext = createContext({} as TClientContext);
 
 export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const [mode, setMode] = useState<ModeType>('dark');
-  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatusKind>(ConnectionStatusKind.disconnected);
+  const [connectionStatus, setConnectionStatus] = useState<ConnectionStatusKind>(ConnectionStatusKind.connected);
   const [connectionStats, setConnectionStats] = useState<ConnectionStatsItem[]>();
   const [connectedSince, setConnectedSince] = useState<DateTime>();
-  const [services, setServices] = React.useState<Services>([]);
-  const [serviceProvider, setRawServiceProvider] = React.useState<ServiceProvider>();
-  const [showHelp, setShowHelp] = useState(false);
+  const [selectedProvider, setSelectedProvider] = React.useState<ServiceProvider>();
+  const [serviceProviders, setServiceProviders] = React.useState<ServiceProvider[]>();
   const [error, setError] = useState<Error>();
   const [appVersion, setAppVersion] = useState<string>();
   const [gatewayPerformance, setGatewayPerformance] = useState<GatewayPerformance>('Good');
+  const [showInfoModal, setShowInfoModal] = useState(false);
 
   const getAppVersion = async () => {
     const version = await getVersion();
-    setAppVersion(version);
+    return version;
   };
 
-  const timerId = useRef<NodeJS.Timeout>();
+  const initialiseApp = async () => {
+    const services = await invoke('get_services');
+    const AppVersion = await getAppVersion();
+    console.log(services);
+
+    setAppVersion(AppVersion);
+    setServiceProviders(services as ServiceProvider[]);
+  };
+
+  useEvents({
+    onError: (e) => setError(e),
+    onGatewayPerformanceChange: (performance) => setGatewayPerformance(performance),
+    onStatusChange: (status) => setConnectionStatus(status),
+  });
 
   useEffect(() => {
-    invoke('get_services').then((result) => {
-      setServices(result as Services);
-    });
-    getAppVersion();
+    initialiseApp();
   }, []);
 
   useEffect(() => {
@@ -72,49 +75,6 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       const currentStatus: ConnectionStatusKind = await invoke('get_connection_status');
       setConnectionStatus(currentStatus);
     })();
-  }, []);
-
-  useEffect(() => {
-    const unlisten: UnlistenFn[] = [];
-
-    // TODO: fix typings
-    listen(TAURI_EVENT_STATUS_CHANGED, (event) => {
-      const { status } = event.payload as any;
-      console.log(TAURI_EVENT_STATUS_CHANGED, { status, event });
-      setConnectionStatus(status);
-    })
-      .then((result) => {
-        unlisten.push(result);
-      })
-      .catch((e) => console.log(e));
-
-    listen('socks5-event', (e: TauriEvent) => {
-      console.log(e);
-
-      setError(e.payload);
-    }).then((result) => {
-      unlisten.push(result);
-    });
-
-    listen('socks5-status-event', (e: TauriEvent) => {
-      if (e.payload.message.includes('slow')) {
-        setGatewayPerformance('Poor');
-
-        if (timerId.current) {
-          clearTimeout(timerId.current);
-        }
-
-        timerId.current = setTimeout(() => {
-          setGatewayPerformance('Good');
-        }, 10000);
-      }
-    }).then((result) => {
-      unlisten.push(result);
-    });
-
-    return () => {
-      unlisten.forEach((unsubscribe) => unsubscribe());
-    };
   }, []);
 
   const startConnecting = useCallback(async () => {
@@ -129,63 +89,32 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
   const startDisconnecting = useCallback(async () => {
     try {
       await invoke('start_disconnecting');
-      setGatewayPerformance('Good');
     } catch (e) {
       console.log(e);
     }
   }, []);
 
-  const setSpInStorage = async (sp: ServiceProvider) => {
-    await forage.setItem({
-      key: 'nym-connect-sp',
-      value: sp,
-    } as any)();
-  };
-
-  const setServiceProvider = useCallback(async (newServiceProvider?: ServiceProvider) => {
-    await invoke('set_gateway', { gateway: newServiceProvider?.gateway });
-    await invoke('set_service_provider', { serviceProvider: newServiceProvider?.address });
+  const setServiceProvider = async (newServiceProvider?: ServiceProvider) => {
     if (newServiceProvider) {
-      await setSpInStorage(newServiceProvider);
-    }
-    setRawServiceProvider(newServiceProvider);
-  }, []);
-
-  const getSpFromStorage = async () => {
-    try {
-      const spFromStorage = await forage.getItem({ key: 'nym-connect-sp' })();
-      if (spFromStorage) {
-        setRawServiceProvider(spFromStorage);
-        setServiceProvider(spFromStorage);
-      }
-    } catch (e) {
-      console.warn(e);
+      await invoke('set_gateway', { gateway: newServiceProvider.gateway });
+      await invoke('set_service_provider', { serviceProvider: newServiceProvider.address });
     }
   };
 
-  const handleShowHelp = () => setShowHelp((show) => !show);
+  const getRandomSPFromList = (services: ServiceProvider[]) => {
+    const randomSelection = services[Math.floor(Math.random() * services.length)];
+    return randomSelection;
+  };
+
+  const setRandomSerivceProvider = async () => {
+    if (serviceProviders) {
+      const randomServiceProvider = getRandomSPFromList(serviceProviders);
+      await setServiceProvider(randomServiceProvider);
+      setSelectedProvider(randomServiceProvider);
+    }
+  };
 
   const clearError = () => setError(undefined);
-
-  useEffect(() => {
-    const validityCheck = async () => {
-      if (services.length > 0 && serviceProvider) {
-        const isValid = services.some(({ items }) => items.some(({ id }) => id === serviceProvider.id));
-        if (!isValid) {
-          console.warn('invalid SP, cleaning local storage');
-          await forage.removeItem({
-            key: 'nym-connect-sp',
-          })();
-          setRawServiceProvider(undefined);
-        }
-      }
-    };
-    validityCheck();
-  }, [services, serviceProvider]);
-
-  useEffect(() => {
-    getSpFromStorage();
-  }, []);
 
   const contextValue = useMemo(
     () => ({
@@ -197,31 +126,28 @@ export const ClientContextProvider: FCWithChildren = ({ children }) => {
       connectionStatus,
       setConnectionStatus,
       connectionStats,
+      showInfoModal,
       setConnectionStats,
+      selectedProvider,
       connectedSince,
       setConnectedSince,
+      setRandomSerivceProvider,
       startConnecting,
       startDisconnecting,
-      services,
-      serviceProvider,
-      setServiceProvider,
-      showHelp,
-      handleShowHelp,
       gatewayPerformance,
+      setShowInfoModal,
     }),
     [
-      appVersion,
       mode,
       appVersion,
       error,
+      showInfoModal,
       connectedSince,
-      showHelp,
       connectionStatus,
       connectionStats,
       connectedSince,
-      services,
-      serviceProvider,
       gatewayPerformance,
+      selectedProvider,
     ],
   );
 

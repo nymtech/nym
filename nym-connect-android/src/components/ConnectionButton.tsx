@@ -10,13 +10,13 @@ const getStatusFillColor = (status: ConnectionStatusKind, hover: boolean, isErro
   }
 
   switch (status) {
-    case ConnectionStatusKind.disconnected:
+    case 'disconnected':
       if (hover) {
         return '#FFFF33';
       }
       return '#FFE600';
-    case ConnectionStatusKind.connecting:
-    case ConnectionStatusKind.disconnecting:
+    case 'connecting':
+    case 'disconnecting':
       return '#FFE600';
     default:
       // connected
@@ -29,11 +29,11 @@ const getStatusFillColor = (status: ConnectionStatusKind, hover: boolean, isErro
 
 const getStatusText = (status: ConnectionStatusKind, hover: boolean): string => {
   switch (status) {
-    case ConnectionStatusKind.disconnected:
+    case 'disconnected':
       return 'Connect';
-    case ConnectionStatusKind.connecting:
+    case 'connecting':
       return 'Connecting';
-    case ConnectionStatusKind.disconnecting:
+    case 'disconnecting':
       return 'Connected';
     default:
       // connected
@@ -89,7 +89,7 @@ export const ConnectionButton: FCWithChildren<{
             <circle cx="131" cy="131" r="64" stroke={statusFillColor} strokeWidth="2" />
           </g>
           <circle cx="131" cy="131" r="73.5" stroke={statusFillColor} strokeOpacity="0.5" />
-          {status === ConnectionStatusKind.connected && hover ? (
+          {status === 'connected' && hover ? (
             <path
               d="M120.217 119.833C120.217 117.838 121.838 116.217 123.833 116.217H128.5V114H123.833C120.613 114 118 116.613 118 119.833C118 123.053 120.613 125.667 123.833 125.667H128.5V123.45H123.833C121.838 123.45 120.217 121.828 120.217 119.833ZM127 121H136.333V118.667H127V121ZM139.5 114H134.833V116.217H139.505C141.5 116.217 143.117 117.838 143.117 119.833C143.117 121.828 141.495 123.45 139.5 123.45H134.833V125.667H139.5C142.72 125.667 145.333 123.053 145.333 119.833C145.333 116.613 142.72 114 139.5 114Z"
               fill="white"

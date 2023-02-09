@@ -2,11 +2,11 @@ import React from 'react';
 import { ComponentMeta, ComponentStory } from '@storybook/react';
 import { Box } from '@mui/material';
 import { DateTime } from 'luxon';
+import { Disconnected } from 'src/pages/connection/Disconnected';
+import { Connected } from 'src/pages/connection/Connected';
+import { ConnectionStatusKind } from 'src/types';
 import { AppWindowFrame } from '../components/AppWindowFrame';
 import { useClientContext } from '../context/main';
-import { ConnectionStatusKind } from '../types';
-import { DefaultLayout } from '../layouts/DefaultLayout';
-import { ConnectedLayout } from '../layouts/ConnectedLayout';
 import { Services } from '../types/directory';
 
 export default {
@@ -36,15 +36,15 @@ export const Mock: ComponentStory<typeof AppWindowFrame> = () => {
   ];
   const handleConnectClick = React.useCallback(() => {
     const oldStatus = context.connectionStatus;
-    if (oldStatus === ConnectionStatusKind.connected || oldStatus === ConnectionStatusKind.disconnected) {
+    if (oldStatus === 'connected' || oldStatus === 'disconnected') {
       setBusy(true);
 
       // eslint-disable-next-line default-case
       switch (oldStatus) {
-        case ConnectionStatusKind.disconnected:
+        case 'disconnected':
           context.setConnectionStatus(ConnectionStatusKind.connecting);
           break;
-        case ConnectionStatusKind.connected:
+        case 'connected':
           context.setConnectionStatus(ConnectionStatusKind.disconnecting);
           break;
       }
@@ -52,11 +52,11 @@ export const Mock: ComponentStory<typeof AppWindowFrame> = () => {
       setTimeout(() => {
         // eslint-disable-next-line default-case
         switch (oldStatus) {
-          case ConnectionStatusKind.disconnected:
+          case 'disconnected':
             context.setConnectedSince(DateTime.now());
             context.setConnectionStatus(ConnectionStatusKind.connected);
             break;
-          case ConnectionStatusKind.connected:
+          case 'connected':
             context.setConnectionStatus(ConnectionStatusKind.disconnected);
             break;
         }
@@ -72,7 +72,7 @@ export const Mock: ComponentStory<typeof AppWindowFrame> = () => {
     return (
       <Box width={width} height={height}>
         <AppWindowFrame>
-          <DefaultLayout
+          <Disconnected
             status={context.connectionStatus}
             busy={busy}
             onConnectClick={handleConnectClick}
@@ -86,10 +86,11 @@ export const Mock: ComponentStory<typeof AppWindowFrame> = () => {
 
   return (
     <AppWindowFrame>
-      <ConnectedLayout
+      <Connected
+        clearError={() => {}}
         gatewayPerformance="Good"
         showInfoModal={false}
-        handleCloseInfoModal={() => undefined}
+        closeInfoModal={() => undefined}
         status={context.connectionStatus}
         busy={busy}
         onConnectClick={handleConnectClick}

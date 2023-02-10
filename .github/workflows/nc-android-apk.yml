@@ -9,7 +9,7 @@ on:
 jobs:
   build:
     name: Build APK
-    runs-on: ubuntu-latest
+    runs-on: custom-runner-linux
     env:
       ANDROID_HOME: ${{ github.workspace }}/android-sdk
       NDK_VERSION: 25.1.8937393
@@ -63,6 +63,9 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install tauri cli
+        run: cargo install tauri-cli --version "^2.0.0-alpha.2"
+
       - name: Install rust android targets
         run: |
           rustup target add aarch64-linux-android \
@@ -92,10 +95,9 @@ jobs:
           ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
           WRY_ANDROID_PACKAGE: net.nymtech.nym_connect_android
           WRY_ANDROID_LIBRARY: nym_connect_android
-          NODE_BIN_PATH: ${{ github.workspace }}/nym-connect-android/node_modules/.bin
         # TODO build with release profile (--release), it will requires
         # to sign the APK. For now build with debug profile to avoid that
-        run: yarn tauri android build --debug --apk --split-per-abi
+        run: cargo tauri android build --debug --apk --split-per-abi -t aarch64
 
       # TODO add the version number to APK name
       - name: Rename APK artifact

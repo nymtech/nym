@@ -27,20 +27,16 @@ open class BuildTask : DefaultTask() {
         val target = target ?: throw GradleException("target cannot be null")
         val release = release ?: throw GradleException("release cannot be null")
         val home = (System.getenv("HOME") ?: "")
-        val nodeBinPath = (System.getenv("NODE_BIN_PATH") ?: "")
         val cargoHome = (System.getenv("CARGO_HOME") ?: "$home/.cargo")
-        val cargoExecutable = "$cargoHome/bin/cargo-tauri";
-        val nodeExecutable = "$nodeBinPath/tauri";
-        val tauriCli = when {
-            File(cargoExecutable).isFile() -> cargoExecutable
-            File(nodeExecutable).isFile() -> nodeExecutable
-            else -> throw GradleException("couldn't find tauri-cli executable")
+        val tauriCli = "$cargoHome/bin/cargo-tauri"
+        if (!File(tauriCli).isFile()) {
+            throw GradleException("$tauriCli no shuch file")
         }
         println("gradle Rust plugin, using tauri cli executable: $tauriCli")
         project.exec {
             workingDir(File(project.projectDir, rootDirRel.path))
             executable(tauriCli)
-            args(listOf("android", "android-studio-script"))
+            args(listOf("tauri", "android", "android-studio-script"))
             if (project.logger.isEnabled(LogLevel.DEBUG)) {
                 args("-vv")
             } else if (project.logger.isEnabled(LogLevel.INFO)) {

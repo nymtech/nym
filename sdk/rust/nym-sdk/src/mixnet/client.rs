@@ -566,6 +566,14 @@ impl MixnetClient {
         }
     }
 
+    /// Sends a [`InputMessage`] to the mixnet. This is the most low-level sending function, for
+    /// full customization.
+    ///
+    /// Waits until the message is actually sent, or close to being sent, until returning.
+    async fn send_wait(&self, message: InputMessage) {
+        todo!();
+    }
+
     /// Wait for messages from the mixnet
     pub async fn wait_for_messages(&mut self) -> Option<Vec<ReconstructedMessage>> {
         self.reconstructed_receiver.next().await

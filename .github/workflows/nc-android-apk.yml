@@ -25,6 +25,7 @@ jobs:
           sudo apt-get -y install \
           libwebkit2gtk-4.0-dev \
           build-essential \
+          unzip \
           curl \
           wget \
           libssl-dev \

@@ -33,6 +33,9 @@ jobs:
           libayatana-appindicator3-dev \
           librsvg2-dev
 
+      - name: Checkout
+        uses: actions/checkout@v3
+
       - name: Install Java
         uses: actions/setup-java@v3
         with:
@@ -57,11 +60,6 @@ jobs:
             "ndk;$NDK_VERSION" \
             "build-tools;$SDK_BUILDTOOLS_VERSION"
 
-      - name: Debug
-        run: |
-          echo $ANDROID_HOME
-          ls -la $ANDROID_HOME
-
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
@@ -82,9 +80,6 @@ jobs:
           npm i -g yarn
           yarn --version
 
-      - name: Checkout
-        uses: actions/checkout@v3
-
       - name: Build frontend code
         run: |
           yarn install --frozen-lockfile
@@ -94,8 +89,10 @@ jobs:
       - name: Build APK
         working-directory: nym-connect-android
         env:
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
           WRY_ANDROID_PACKAGE: net.nymtech.nym_connect_android
           WRY_ANDROID_LIBRARY: nym_connect_android
+          NODE_BIN_PATH: ${{ github.workspace }}/nym-connect-android/node_modules/.bin
         # TODO build with release profile (--release), it will requires
         # to sign the APK. For now build with debug profile to avoid that
         run: yarn tauri android build --debug --apk --split-per-abi

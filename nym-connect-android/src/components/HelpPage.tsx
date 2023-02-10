@@ -20,7 +20,7 @@ export const HelpPage = ({
   onPrev?: () => void;
 }) => (
   <Stack justifyContent="space-between" sx={{ height: '100%' }}>
-    <Stack gap={2}>
+    <Stack gap={2} alignItems="center">
       <StepIndicator step={step} />
       <Typography variant="body2" color="white" fontWeight="bold">
         How to connect guide {step}/{totalSteps}

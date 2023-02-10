@@ -17,7 +17,7 @@ export const Menu = () => (
           <ListItem disablePadding>
             <ListItemButton>
               <ListItemIcon sx={{ minWidth: 25 }}>
-                <item.icon sx={{ fontSize: '12px' }} />
+                <item.icon sx={{ fontSize: '18px' }} />
               </ListItemIcon>{' '}
               <ListItemText>{item.title}</ListItemText>
             </ListItemButton>

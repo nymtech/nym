@@ -48,7 +48,7 @@ yaml-rust = "0.4"
 
 client-core = { path = "../../clients/client-core" }
 nym-api-requests = { path = "../../nym-api/nym-api-requests" }
-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common"}
+nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common"}
 config-common = { path = "../../common/config", package = "config" }
 nym-crypto = { path = "../../common/crypto" }
 logging = { path = "../../common/logging"}

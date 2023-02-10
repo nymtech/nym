@@ -522,7 +522,8 @@ impl MixnetClient {
     ///     let address = "foobar";
     ///     let recipient = mixnet::Recipient::try_from_base58_string(address).unwrap();
     ///     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
-    ///     client.send_bytes(recipient, "hi").await;
+    ///     let surbs = mixnet::IncludedSurbs::default();
+    ///     client.send_bytes(recipient, "hi", surbs).await;
     /// }
     /// ```
     pub async fn send_str(&self, address: Recipient, message: &str) {
@@ -544,7 +545,8 @@ impl MixnetClient {
     ///     let address = "foobar";
     ///     let recipient = mixnet::Recipient::try_from_base58_string(address).unwrap();
     ///     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
-    ///     client.send_bytes(recipient, "hi".to_owned().into_bytes(), None).await;
+    ///     let surbs = mixnet::IncludedSurbs::default();
+    ///     client.send_bytes(recipient, "hi".to_owned().into_bytes(), surbs).await;
     /// }
     /// ```
     pub async fn send_bytes(&self, address: Recipient, message: Vec<u8>, surbs: IncludedSurbs) {
@@ -570,7 +572,10 @@ impl MixnetClient {
     /// full customization.
     ///
     /// Waits until the message is actually sent, or close to being sent, until returning.
-    async fn send_wait(&self, message: InputMessage) {
+    ///
+    /// NOTE: this not yet implemented.
+    #[allow(unused)]
+    async fn send_wait(&self, _message: InputMessage) {
         todo!();
     }
 

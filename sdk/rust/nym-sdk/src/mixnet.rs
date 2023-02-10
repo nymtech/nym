@@ -36,7 +36,9 @@ mod connection_state;
 mod keys;
 mod paths;
 
-pub use client::{DisconnectedMixnetClient, MixnetClient, MixnetClientBuilder, MixnetClientSender};
+pub use client::{
+    DisconnectedMixnetClient, IncludedSurbs, MixnetClient, MixnetClientBuilder, MixnetClientSender,
+};
 pub use client_core::{
     client::{
         inbound_messages::InputMessage,

@@ -27,6 +27,9 @@ use crate::{Error, Result};
 
 use super::{connection_state::BuilderState, Config, GatewayKeyMode, Keys, KeysArc, StoragePaths};
 
+// The number of surbs to include in a message by default
+const DEFAULT_NUMBER_OF_SURBS: u32 = 5;
+
 #[derive(Default)]
 pub struct MixnetClientBuilder {
     config: Option<Config>,
@@ -183,7 +186,7 @@ where
             config,
             storage_paths: paths,
             state: BuilderState::New,
-            reply_storage_backend: reply_storage_backend,
+            reply_storage_backend,
         })
     }
 
@@ -400,6 +403,30 @@ where
     }
 }
 
+pub enum IncludedSurbs {
+    Amount(u32),
+    ExposeSelfAddress,
+}
+impl Default for IncludedSurbs {
+    fn default() -> Self {
+        Self::Amount(DEFAULT_NUMBER_OF_SURBS)
+    }
+}
+
+impl IncludedSurbs {
+    pub fn new(reply_surbs: u32) -> Self {
+        Self::Amount(reply_surbs)
+    }
+
+    pub fn none() -> Self {
+        Self::Amount(0)
+    }
+
+    pub fn expose_self_address() -> Self {
+        Self::ExposeSelfAddress
+    }
+}
+
 /// Client connected to the Nym mixnet.
 pub struct MixnetClient {
     /// The nym address of this connected client.
@@ -462,36 +489,28 @@ impl MixnetClient {
         &self.nym_address
     }
 
-    /// Get a shallow clone of [`MixnetClientSender`]
+    /// Get a shallow clone of [`MixnetClientSender`]. Useful if you want split the send and
+    /// receive logic in different locations.
     pub fn sender(&self) -> MixnetClientSender {
         MixnetClientSender {
             client_input: self.client_input.clone(),
         }
     }
 
-    /// Get a shallow clone of [`ConnectionCommandSender`].
+    /// Get a shallow clone of [`ConnectionCommandSender`]. This is useful if you want to e.g
+    /// explictly close a transmission lane that is still sending data even though it should
+    /// cancel.
     pub fn connection_command_sender(&self) -> client_connections::ConnectionCommandSender {
         self.client_input.connection_command_sender.clone()
     }
 
-    /// Get a shallow clone of [`LaneQueueLengths`].
+    /// Get a shallow clone of [`LaneQueueLengths`]. This is useful to manually implement some form
+    /// of backpressure logic.
     pub fn shared_lane_queue_lengths(&self) -> client_connections::LaneQueueLengths {
         self.client_state.shared_lane_queue_lengths.clone()
     }
 
     /// Sends stringy data to the supplied Nym address
-    pub async fn send_str(&self, address: Recipient, message: &str) {
-        let message_bytes = message.to_string().into_bytes();
-        self.send_bytes(address, message_bytes).await;
-    }
-
-    /// Sends stringy data to the supplied Nym address, and skip sending reply-SURBs
-    pub async fn send_str_direct(&self, address: Recipient, message: &str) {
-        let message_bytes = message.to_string().into_bytes();
-        self.send_bytes_direct(address, message_bytes).await;
-    }
-
-    /// Sends bytes to the supplied Nym address
     ///
     /// # Example
     ///
@@ -503,33 +522,46 @@ impl MixnetClient {
     ///     let address = "foobar";
     ///     let recipient = mixnet::Recipient::try_from_base58_string(address).unwrap();
     ///     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
-    ///     client.send_bytes(recipient, "hi".to_owned().into_bytes()).await;
+    ///     client.send_bytes(recipient, "hi").await;
     /// }
     /// ```
-    pub async fn send_bytes(&self, address: Recipient, message: Vec<u8>) {
-        let lane = TransmissionLane::General;
-        let input_msg = InputMessage::new_anonymous(address, message, 20, lane);
-        self.send_input_message(input_msg).await
+    pub async fn send_str(&self, address: Recipient, message: &str) {
+        let message_bytes = message.to_string().into_bytes();
+        self.send_bytes(address, message_bytes, IncludedSurbs::default())
+            .await;
     }
 
-    /// Sends a [`InputMessage`] to the mixnet.
-    async fn send_input_message(&self, message: InputMessage) {
+    /// Sends bytes to the supplied Nym address. There is the option to specify the number of
+    /// reply-SURBs to include.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use nym_sdk::mixnet;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let address = "foobar";
+    ///     let recipient = mixnet::Recipient::try_from_base58_string(address).unwrap();
+    ///     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    ///     client.send_bytes(recipient, "hi".to_owned().into_bytes(), None).await;
+    /// }
+    /// ```
+    pub async fn send_bytes(&self, address: Recipient, message: Vec<u8>, surbs: IncludedSurbs) {
+        let lane = TransmissionLane::General;
+        let input_msg = match surbs {
+            IncludedSurbs::Amount(surbs) => {
+                InputMessage::new_anonymous(address, message, surbs, lane)
+            }
+            IncludedSurbs::ExposeSelfAddress => InputMessage::new_regular(address, message, lane),
+        };
+        self.send(input_msg).await
+    }
+
+    /// Sends a [`InputMessage`] to the mixnet. This is the most low-level sending function, for
+    /// full customization.
+    async fn send(&self, message: InputMessage) {
         if self.client_input.send(message).await.is_err() {
-            log::error!("Failed to send message");
-        }
-    }
-
-    /// Sends bytes to the supplied Nym address, and skip sending reply-SURBs
-    pub async fn send_bytes_direct(&self, address: Recipient, message: Vec<u8>) {
-        let lane = TransmissionLane::General;
-        let input_msg = InputMessage::new_regular(address, message, lane);
-        if self
-            .client_input
-            .input_sender
-            .send(input_msg)
-            .await
-            .is_err()
-        {
             log::error!("Failed to send message");
         }
     }

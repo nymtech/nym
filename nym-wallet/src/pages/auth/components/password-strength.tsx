@@ -74,6 +74,8 @@ export const PasswordStrength = ({
 
   handleIsSafePassword(result.score > 1);
 
+  if (!password.length) return null;
+
   return (
     <Stack spacing={0.5}>
       <LinearProgress variant="determinate" color={colorMap[result.score]} value={getPasswordStrength(result.score)} />

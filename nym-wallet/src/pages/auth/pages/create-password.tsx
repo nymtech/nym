@@ -48,9 +48,7 @@ export const CreatePassword = () => {
               label="Password"
               autoFocus
             />
-            {!!password.length && (
-              <PasswordStrength password={password} handleIsSafePassword={setIsSafePassword} withWarnings />
-            )}
+            <PasswordStrength password={password} handleIsSafePassword={setIsSafePassword} withWarnings />
           </>
           <PasswordInput
             password={confirmedPassword}

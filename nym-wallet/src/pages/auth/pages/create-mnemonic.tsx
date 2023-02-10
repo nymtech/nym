@@ -16,7 +16,7 @@ export const CreateMnemonic = () => {
   }, []);
 
   return (
-    <Container maxWidth="xs">
+    <Container maxWidth="sm">
       <Stack alignItems="center" spacing={3} maxWidth="xs">
         <Mnemonic mnemonic={mnemonic} handleConfirmed={setConfirmed} confirmed={confirmed} />
         <Button

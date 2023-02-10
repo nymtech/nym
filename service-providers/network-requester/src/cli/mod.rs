@@ -60,18 +60,6 @@ pub(crate) struct OverrideConfig {
     enabled_credentials_mode: Option<bool>,
 }
 
-pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {
-    let bin_name = "nym-network-requester";
-
-    match &args.command {
-        Commands::Init(m) => init::execute(m).await?,
-        Commands::Run(m) => run::execute(m).await?,
-        Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),
-        Commands::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),
-    }
-    Ok(())
-}
-
 pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
     config
         .with_base(BaseConfig::with_high_default_traffic_volume, args.fastmode)
@@ -92,6 +80,18 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
             BaseConfig::with_disabled_credentials,
             args.enabled_credentials_mode.map(|b| !b),
         )
+}
+
+pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {
+    let bin_name = "nym-network-requester";
+
+    match &args.command {
+        Commands::Init(m) => init::execute(m).await?,
+        Commands::Run(m) => run::execute(m).await?,
+        Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),
+        Commands::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),
+    }
+    Ok(())
 }
 
 #[cfg(test)]

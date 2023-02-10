@@ -522,8 +522,7 @@ impl MixnetClient {
     ///     let address = "foobar";
     ///     let recipient = mixnet::Recipient::try_from_base58_string(address).unwrap();
     ///     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
-    ///     let surbs = mixnet::IncludedSurbs::default();
-    ///     client.send_bytes(recipient, "hi", surbs).await;
+    ///     client.send_str(recipient, "hi").await;
     /// }
     /// ```
     pub async fn send_str(&self, address: Recipient, message: &str) {

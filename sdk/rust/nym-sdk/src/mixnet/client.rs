@@ -119,6 +119,12 @@ impl<B> DisconnectedMixnetClient<B>
 where
     B: ReplyStorageBackend + Sync + Send + 'static,
 {
+    /// Create a new mixnet client in a disconnected state. If no config options are supplied,
+    /// creates a new client with ephemeral keys stored in RAM, which will be discarded at
+    /// application close.
+    ///
+    /// Callers have the option of supplying futher parameters to store persistent identities at a
+    /// location on-disk, if desired.
     async fn new(
         config: Option<Config>,
         paths: Option<StoragePaths>,
@@ -127,17 +133,58 @@ where
         <B as ReplyStorageBackend>::StorageError: Send + Sync,
     {
         let config = config.unwrap_or_default();
-
         let reply_surb_database_path = paths.as_ref().map(|p| p.reply_surb_database_path.clone());
 
-        let reply_storage_backend =
-            ReplyStorageBackend::new(&config.debug_config, reply_surb_database_path)
-                .await
-                .map_err(|err| Error::StorageError {
-                    source: Box::new(err),
-                })?;
+        // The reply storage backend is generic, and can be set by the caller/instantiator
+        let reply_storage_backend = B::new(&config.debug_config, reply_surb_database_path)
+            .await
+            .map_err(|err| Error::StorageError {
+                source: Box::new(err),
+            })?;
 
-        create_new_client_with_custom_storage(Some(config), paths, reply_storage_backend)
+        // If we are provided paths to keys, use them if they are available. And if they are
+        // not, write the generated keys back to storage.
+        let key_manager = if let Some(ref paths) = paths {
+            let path_finder = ClientKeyPathfinder::from(paths.clone());
+
+            // Try load keys
+            match KeyManager::load_keys_but_gateway_is_optional(&path_finder) {
+                Ok(key_manager) => {
+                    log::debug!("Keys loaded");
+                    key_manager
+                }
+                Err(err) => {
+                    log::debug!("Not loading keys: {err}");
+                    if let Some(path) = path_finder.any_file_exists_and_return() {
+                        if paths.operating_mode.is_keep() {
+                            return Err(Error::DontOverwrite(path));
+                        }
+                    }
+
+                    // Double check using a function that has slightly different internal logic. I
+                    // know this is a bit defensive, but I don't want to overwrite
+                    assert!(!(path_finder.any_file_exists() && paths.operating_mode.is_keep()));
+
+                    // Create new keys and write to storage
+                    let key_manager = client_core::init::new_client_keys();
+                    // WARN: this will overwrite!
+                    key_manager.store_keys(&path_finder)?;
+                    key_manager
+                }
+            }
+        } else {
+            // Ephemeral keys that we only store in memory
+            log::debug!("Creating new ephemeral keys");
+            client_core::init::new_client_keys()
+        };
+
+        Ok(DisconnectedMixnetClient {
+            key_manager,
+            config,
+            storage_paths: paths,
+            state: BuilderState::New,
+            reply_storage_backend: reply_storage_backend,
+        })
     }
 
     /// Client keys are generated at client creation if none were found. The gateway shared
@@ -351,70 +398,6 @@ where
             task_manager: started_client.task_manager,
         })
     }
-}
-
-/// Create a new mixnet client builder. If no config options are supplied, creates a new client with
-/// ephemeral keys stored in RAM, which will be discarded at application close.
-///
-/// Callers have the option of supplying futher parameters to store persistent identities at a
-/// location on-disk, if desired.
-///
-/// A custom storage backend can be passed in.
-///
-/// NOTE: the major reason for this being a free function is to allow convenient type deduction
-fn create_new_client_with_custom_storage<B>(
-    config_option: Option<Config>,
-    paths: Option<StoragePaths>,
-    reply_storage_backend: B,
-) -> Result<DisconnectedMixnetClient<B>>
-where
-    B: ReplyStorageBackend + Sync + Send + 'static,
-{
-    let config = config_option.unwrap_or_default();
-
-    // If we are provided paths to keys, use them if they are available. And if they are
-    // not, write the generated keys back to storage.
-    let key_manager = if let Some(ref paths) = paths {
-        let path_finder = ClientKeyPathfinder::from(paths.clone());
-
-        // Try load keys
-        match KeyManager::load_keys_but_gateway_is_optional(&path_finder) {
-            Ok(key_manager) => {
-                log::debug!("Keys loaded");
-                key_manager
-            }
-            Err(err) => {
-                log::debug!("Not loading keys: {err}");
-                if let Some(path) = path_finder.any_file_exists_and_return() {
-                    if paths.operating_mode.is_keep() {
-                        return Err(Error::DontOverwrite(path));
-                    }
-                }
-
-                // Double check using a function that has slightly different internal logic. I
-                // know this is a bit defensive, but I don't want to overwrite
-                assert!(!(path_finder.any_file_exists() && paths.operating_mode.is_keep()));
-
-                // Create new keys and write to storage
-                let key_manager = client_core::init::new_client_keys();
-                // WARN: this will overwrite!
-                key_manager.store_keys(&path_finder)?;
-                key_manager
-            }
-        }
-    } else {
-        // Ephemeral keys that we only store in memory
-        log::debug!("Creating new ephemeral keys");
-        client_core::init::new_client_keys()
-    };
-
-    Ok(DisconnectedMixnetClient {
-        key_manager,
-        config,
-        storage_paths: paths,
-        state: BuilderState::New,
-        reply_storage_backend,
-    })
 }
 
 /// Client connected to the Nym mixnet.

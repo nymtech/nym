@@ -1,14 +1,14 @@
 import React from 'react';
-import { Box } from '@mui/material';
+import { Box, Stack } from '@mui/material';
 
 const Step = ({ highlight }: { highlight: boolean }) => (
-  <Box sx={{ width: '65px', height: '1px', bgcolor: highlight ? 'nym.highlight' : 'grey.600' }} />
+  <Box sx={{ width: '65px', height: '3px', bgcolor: highlight ? 'nym.highlight' : 'grey.600' }} />
 );
 
 export const StepIndicator = ({ step }: { step: number }) => (
-  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+  <Stack direction="row" alignItems="center" justifyContent="space-between" width="240px">
     <Step highlight />
     <Step highlight={step >= 2} />
     <Step highlight={step >= 3} />
-  </Box>
+  </Stack>
 );

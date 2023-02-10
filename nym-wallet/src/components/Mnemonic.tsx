@@ -7,16 +7,20 @@ import { Box } from '@mui/system';
 export const Mnemonic = ({
   mnemonic,
   confirmed,
+  withTitle,
   handleConfirmed,
 }: {
   mnemonic: string;
   confirmed?: boolean;
+  withTitle?: boolean;
   handleConfirmed?: (confirmed: boolean) => void;
 }) => (
   <Stack spacing={2}>
-    <Box sx={{ pb: 2, textAlign: 'center' }}>
-      <Title title="Copy and save or write down your mnemonic" />
-    </Box>
+    {withTitle && (
+      <Box sx={{ pb: 2, textAlign: 'center' }}>
+        <Title title="Copy and save or write down your mnemonic" />
+      </Box>
+    )}
     <Box sx={{ pb: 2 }}>
       <Warning>
         <Typography sx={{ textAlign: 'center' }}>

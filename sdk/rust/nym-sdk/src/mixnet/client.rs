@@ -27,6 +27,9 @@ use crate::{Error, Result};
 
 use super::{connection_state::BuilderState, Config, GatewayKeyMode, Keys, KeysArc, StoragePaths};
 
+// The number of surbs to include in a message by default
+const DEFAULT_NUMBER_OF_SURBS: u32 = 5;
+
 #[derive(Default)]
 pub struct MixnetClientBuilder {
     config: Option<Config>,
@@ -119,6 +122,12 @@ impl<B> DisconnectedMixnetClient<B>
 where
     B: ReplyStorageBackend + Sync + Send + 'static,
 {
+    /// Create a new mixnet client in a disconnected state. If no config options are supplied,
+    /// creates a new client with ephemeral keys stored in RAM, which will be discarded at
+    /// application close.
+    ///
+    /// Callers have the option of supplying futher parameters to store persistent identities at a
+    /// location on-disk, if desired.
     async fn new(
         config: Option<Config>,
         paths: Option<StoragePaths>,
@@ -127,17 +136,58 @@ where
         <B as ReplyStorageBackend>::StorageError: Send + Sync,
     {
         let config = config.unwrap_or_default();
-
         let reply_surb_database_path = paths.as_ref().map(|p| p.reply_surb_database_path.clone());
 
-        let reply_storage_backend =
-            ReplyStorageBackend::new(&config.debug_config, reply_surb_database_path)
-                .await
-                .map_err(|err| Error::StorageError {
-                    source: Box::new(err),
-                })?;
+        // The reply storage backend is generic, and can be set by the caller/instantiator
+        let reply_storage_backend = B::new(&config.debug_config, reply_surb_database_path)
+            .await
+            .map_err(|err| Error::StorageError {
+                source: Box::new(err),
+            })?;
 
-        create_new_client_with_custom_storage(Some(config), paths, reply_storage_backend)
+        // If we are provided paths to keys, use them if they are available. And if they are
+        // not, write the generated keys back to storage.
+        let key_manager = if let Some(ref paths) = paths {
+            let path_finder = ClientKeyPathfinder::from(paths.clone());
+
+            // Try load keys
+            match KeyManager::load_keys_but_gateway_is_optional(&path_finder) {
+                Ok(key_manager) => {
+                    log::debug!("Keys loaded");
+                    key_manager
+                }
+                Err(err) => {
+                    log::debug!("Not loading keys: {err}");
+                    if let Some(path) = path_finder.any_file_exists_and_return() {
+                        if paths.operating_mode.is_keep() {
+                            return Err(Error::DontOverwrite(path));
+                        }
+                    }
+
+                    // Double check using a function that has slightly different internal logic. I
+                    // know this is a bit defensive, but I don't want to overwrite
+                    assert!(!(path_finder.any_file_exists() && paths.operating_mode.is_keep()));
+
+                    // Create new keys and write to storage
+                    let key_manager = client_core::init::new_client_keys();
+                    // WARN: this will overwrite!
+                    key_manager.store_keys(&path_finder)?;
+                    key_manager
+                }
+            }
+        } else {
+            // Ephemeral keys that we only store in memory
+            log::debug!("Creating new ephemeral keys");
+            client_core::init::new_client_keys()
+        };
+
+        Ok(DisconnectedMixnetClient {
+            key_manager,
+            config,
+            storage_paths: paths,
+            state: BuilderState::New,
+            reply_storage_backend,
+        })
     }
 
     /// Client keys are generated at client creation if none were found. The gateway shared
@@ -353,68 +403,28 @@ where
     }
 }
 
-/// Create a new mixnet client builder. If no config options are supplied, creates a new client with
-/// ephemeral keys stored in RAM, which will be discarded at application close.
-///
-/// Callers have the option of supplying futher parameters to store persistent identities at a
-/// location on-disk, if desired.
-///
-/// A custom storage backend can be passed in.
-///
-/// NOTE: the major reason for this being a free function is to allow convenient type deduction
-fn create_new_client_with_custom_storage<B>(
-    config_option: Option<Config>,
-    paths: Option<StoragePaths>,
-    reply_storage_backend: B,
-) -> Result<DisconnectedMixnetClient<B>>
-where
-    B: ReplyStorageBackend + Sync + Send + 'static,
-{
-    let config = config_option.unwrap_or_default();
+pub enum IncludedSurbs {
+    Amount(u32),
+    ExposeSelfAddress,
+}
+impl Default for IncludedSurbs {
+    fn default() -> Self {
+        Self::Amount(DEFAULT_NUMBER_OF_SURBS)
+    }
+}
 
-    // If we are provided paths to keys, use them if they are available. And if they are
-    // not, write the generated keys back to storage.
-    let key_manager = if let Some(ref paths) = paths {
-        let path_finder = ClientKeyPathfinder::from(paths.clone());
+impl IncludedSurbs {
+    pub fn new(reply_surbs: u32) -> Self {
+        Self::Amount(reply_surbs)
+    }
 
-        // Try load keys
-        match KeyManager::load_keys_but_gateway_is_optional(&path_finder) {
-            Ok(key_manager) => {
-                log::debug!("Keys loaded");
-                key_manager
-            }
-            Err(err) => {
-                log::debug!("Not loading keys: {err}");
-                if let Some(path) = path_finder.any_file_exists_and_return() {
-                    if paths.operating_mode.is_keep() {
-                        return Err(Error::DontOverwrite(path));
-                    }
-                }
+    pub fn none() -> Self {
+        Self::Amount(0)
+    }
 
-                // Double check using a function that has slightly different internal logic. I
-                // know this is a bit defensive, but I don't want to overwrite
-                assert!(!(path_finder.any_file_exists() && paths.operating_mode.is_keep()));
-
-                // Create new keys and write to storage
-                let key_manager = client_core::init::new_client_keys();
-                // WARN: this will overwrite!
-                key_manager.store_keys(&path_finder)?;
-                key_manager
-            }
-        }
-    } else {
-        // Ephemeral keys that we only store in memory
-        log::debug!("Creating new ephemeral keys");
-        client_core::init::new_client_keys()
-    };
-
-    Ok(DisconnectedMixnetClient {
-        key_manager,
-        config,
-        storage_paths: paths,
-        state: BuilderState::New,
-        reply_storage_backend,
-    })
+    pub fn expose_self_address() -> Self {
+        Self::ExposeSelfAddress
+    }
 }
 
 /// Client connected to the Nym mixnet.
@@ -479,36 +489,28 @@ impl MixnetClient {
         &self.nym_address
     }
 
-    /// Get a shallow clone of [`MixnetClientSender`]
+    /// Get a shallow clone of [`MixnetClientSender`]. Useful if you want split the send and
+    /// receive logic in different locations.
     pub fn sender(&self) -> MixnetClientSender {
         MixnetClientSender {
             client_input: self.client_input.clone(),
         }
     }
 
-    /// Get a shallow clone of [`ConnectionCommandSender`].
+    /// Get a shallow clone of [`ConnectionCommandSender`]. This is useful if you want to e.g
+    /// explictly close a transmission lane that is still sending data even though it should
+    /// cancel.
     pub fn connection_command_sender(&self) -> client_connections::ConnectionCommandSender {
         self.client_input.connection_command_sender.clone()
     }
 
-    /// Get a shallow clone of [`LaneQueueLengths`].
+    /// Get a shallow clone of [`LaneQueueLengths`]. This is useful to manually implement some form
+    /// of backpressure logic.
     pub fn shared_lane_queue_lengths(&self) -> client_connections::LaneQueueLengths {
         self.client_state.shared_lane_queue_lengths.clone()
     }
 
     /// Sends stringy data to the supplied Nym address
-    pub async fn send_str(&self, address: Recipient, message: &str) {
-        let message_bytes = message.to_string().into_bytes();
-        self.send_bytes(address, message_bytes).await;
-    }
-
-    /// Sends stringy data to the supplied Nym address, and skip sending reply-SURBs
-    pub async fn send_str_direct(&self, address: Recipient, message: &str) {
-        let message_bytes = message.to_string().into_bytes();
-        self.send_bytes_direct(address, message_bytes).await;
-    }
-
-    /// Sends bytes to the supplied Nym address
     ///
     /// # Example
     ///
@@ -520,35 +522,60 @@ impl MixnetClient {
     ///     let address = "foobar";
     ///     let recipient = mixnet::Recipient::try_from_base58_string(address).unwrap();
     ///     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
-    ///     client.send_bytes(recipient, "hi".to_owned().into_bytes()).await;
+    ///     client.send_str(recipient, "hi").await;
     /// }
     /// ```
-    pub async fn send_bytes(&self, address: Recipient, message: Vec<u8>) {
-        let lane = TransmissionLane::General;
-        let input_msg = InputMessage::new_anonymous(address, message, 20, lane);
-        self.send_input_message(input_msg).await
+    pub async fn send_str(&self, address: Recipient, message: &str) {
+        let message_bytes = message.to_string().into_bytes();
+        self.send_bytes(address, message_bytes, IncludedSurbs::default())
+            .await;
     }
 
-    /// Sends a [`InputMessage`] to the mixnet.
-    async fn send_input_message(&self, message: InputMessage) {
+    /// Sends bytes to the supplied Nym address. There is the option to specify the number of
+    /// reply-SURBs to include.
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// use nym_sdk::mixnet;
+    ///
+    /// #[tokio::main]
+    /// async fn main() {
+    ///     let address = "foobar";
+    ///     let recipient = mixnet::Recipient::try_from_base58_string(address).unwrap();
+    ///     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    ///     let surbs = mixnet::IncludedSurbs::default();
+    ///     client.send_bytes(recipient, "hi".to_owned().into_bytes(), surbs).await;
+    /// }
+    /// ```
+    pub async fn send_bytes(&self, address: Recipient, message: Vec<u8>, surbs: IncludedSurbs) {
+        let lane = TransmissionLane::General;
+        let input_msg = match surbs {
+            IncludedSurbs::Amount(surbs) => {
+                InputMessage::new_anonymous(address, message, surbs, lane)
+            }
+            IncludedSurbs::ExposeSelfAddress => InputMessage::new_regular(address, message, lane),
+        };
+        self.send(input_msg).await
+    }
+
+    /// Sends a [`InputMessage`] to the mixnet. This is the most low-level sending function, for
+    /// full customization.
+    async fn send(&self, message: InputMessage) {
         if self.client_input.send(message).await.is_err() {
             log::error!("Failed to send message");
         }
     }
 
-    /// Sends bytes to the supplied Nym address, and skip sending reply-SURBs
-    pub async fn send_bytes_direct(&self, address: Recipient, message: Vec<u8>) {
-        let lane = TransmissionLane::General;
-        let input_msg = InputMessage::new_regular(address, message, lane);
-        if self
-            .client_input
-            .input_sender
-            .send(input_msg)
-            .await
-            .is_err()
-        {
-            log::error!("Failed to send message");
-        }
+    /// Sends a [`InputMessage`] to the mixnet. This is the most low-level sending function, for
+    /// full customization.
+    ///
+    /// Waits until the message is actually sent, or close to being sent, until returning.
+    ///
+    /// NOTE: this not yet implemented.
+    #[allow(unused)]
+    async fn send_wait(&self, _message: InputMessage) {
+        todo!();
     }
 
     /// Wait for messages from the mixnet

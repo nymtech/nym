@@ -35,7 +35,7 @@ export const inputValidationSchema = Yup.object().shape({
     .test('Is valid operator cost value', (value, ctx) => {
       const stringValueToNumber = Math.round(Number(value));
 
-      if (isGreaterThan(stringValueToNumber, -1) && isLessThan(stringValueToNumber, 101)) return true;
+      if (isGreaterThan(stringValueToNumber, -1)) return true;
       return ctx.createError({ message: 'Operator cost must be a valid number' });
     }),
 });

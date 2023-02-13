@@ -32,14 +32,13 @@ async fn main() {
 
         // Create a client without a storage backend, but with explicitly set keys and gateway
         // configuration. This creates the client in a registered state.
-        let client = mixnet::MixnetClientBuilder::new()
+        mixnet::MixnetClientBuilder::new()
             .config(config)
             .keys(keys)
             .gateway_config(gateway_config)
             .build::<mixnet::EmptyReplyStorage>()
             .await
-            .unwrap();
-        client
+            .unwrap()
     };
 
     // Connect to the mixnet, now we're listening for incoming

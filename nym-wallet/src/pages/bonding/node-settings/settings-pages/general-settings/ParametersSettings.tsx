@@ -56,7 +56,7 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
       const { nextInterval } = await getIntervalAsDate();
       setIntervalTime(nextInterval);
     } catch {
-      console.log('cant retrieve next interval');
+      Console.log('cant retrieve next interval');
     }
   };
 

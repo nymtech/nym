@@ -7,6 +7,7 @@ import { CalculateArgs, Inputs } from 'src/components/RewardsPlayground/Inputs';
 import { TBondedMixnode } from 'src/context';
 import { useSnackbar } from 'notistack';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
+import { Console } from 'src/utils/console';
 import { computeEstimate, computeStakeSaturation, handleCalculatePeriodRewards } from './utils';
 
 export type DefaultInputValues = {
@@ -99,7 +100,7 @@ export const ApyPlayground = ({ bondedNode }: { bondedNode: TBondedMixnode }) =>
       setStakeSaturation(computedStakeSaturation);
       setResults(estimationResult);
     } catch (e) {
-      console.log(e);
+      Console.log(e);
     }
   };
 

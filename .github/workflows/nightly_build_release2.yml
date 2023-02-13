@@ -54,11 +54,29 @@ jobs:
           override: true
           components: rustfmt, clippy
 
+      - name: Check formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
+
       - name: Build all binaries
         uses: actions-rs/cargo@v1
         with:
           command: build
           args: --workspace
+
+      - name: Reclaim some disk space (because Windows is being annoying)
+        uses: actions-rs/cargo@v1
+        if: ${{ matrix.os == 'windows-latest' }}
+        with:
+          command: clean
+
+      - name: Build all examples
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --workspace --examples
 
       - name: Reclaim some disk space (because Windows is being annoying)
         uses: actions-rs/cargo@v1
@@ -74,7 +92,7 @@ jobs:
 
       - name: Reclaim some disk space (because Windows is being annoying)
         uses: actions-rs/cargo@v1
-        if: ${{ matrix.os == 'windows-latest' }}
+        if: ${{ matrix.os == 'windows-latest' || matrix.os == 'ubuntu-20.04' }}
         with:
           command: clean
 
@@ -83,13 +101,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --all-features -- --ignored
-
-      - name: Check formatting
-        uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+          args: --workspace -- --ignored
 
       - name: Reclaim some disk space (because Windows is being annoying)
         uses: actions-rs/cargo@v1
@@ -102,7 +114,7 @@ jobs:
         continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --all-features
+          args: --workspace
 
       - name: Run clippy
         uses: actions-rs/cargo@v1

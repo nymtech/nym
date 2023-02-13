@@ -21,6 +21,7 @@ import {
 const nymPalette: NymPalette = {
   /** emphasises important elements */
   highlight: '#21D072',
+  cta: '#FB6E4E',
   success: '#21D073',
   info: '#60D7EF',
   warning: '#FFE600',

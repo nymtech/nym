@@ -29,9 +29,13 @@ const MenuIcon = () => {
   return <CustomButton Icon={Menu} onClick={() => navigate('/menu')} />;
 };
 
-const ArrowBackIcon = () => {
+const ArrowBackIcon = ({ onBack }: { onBack?: () => void }) => {
   const navigate = useNavigate();
-  return <CustomButton Icon={ArrowBack} onClick={() => navigate(-1)} />;
+  const handleBack = () => {
+    onBack?.();
+    navigate(-1);
+  };
+  return <CustomButton Icon={ArrowBack} onClick={handleBack} />;
 };
 
 const getTitleIcon = (path: string) => {
@@ -46,10 +50,10 @@ const getTitleIcon = (path: string) => {
   return <NymWordmark width={36} />;
 };
 
-export const CustomTitleBar = ({ path = '/' }: { path?: string }) => (
+export const CustomTitleBar = ({ path = '/', onBack }: { path?: string; onBack?: () => void }) => (
   <Box data-tauri-drag-region style={customTitleBarStyles.titlebar}>
     {/* set width to keep logo centered */}
-    <Box sx={{ width: '40px' }}>{path === '/' ? <MenuIcon /> : <ArrowBackIcon />}</Box>
+    <Box sx={{ width: '40px' }}>{path === '/' ? <MenuIcon /> : <ArrowBackIcon onBack={onBack} />}</Box>
     {getTitleIcon(path)}
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
       <CustomButton Icon={Minimize} onClick={() => appWindow.minimize()} />

@@ -9,7 +9,7 @@ use futures::lock::{Mutex, MutexGuard};
 use futures::{SinkExt, StreamExt};
 use log::warn;
 use nym_crypto::asymmetric::encryption;
-use nym_sphinx::receiver::{MessageReceiver, MessageRecoveryError};
+use nym_sphinx::receiver::{MessageReceiver, MessageRecoveryError, SphinxMessageReceiver};
 use std::mem;
 use std::sync::Arc;
 use thiserror::Error;
@@ -55,7 +55,7 @@ struct ReceivedProcessorInner {
     client_encryption_keypair: Arc<encryption::KeyPair>,
 
     /// Structure responsible for decrypting and recovering plaintext message from received ciphertexts.
-    message_receiver: MessageReceiver,
+    message_receiver: SphinxMessageReceiver,
 
     /// Vector containing all received (and decrypted) packets in the current test run.
     received_packets: Vec<TestPacket>,
@@ -116,7 +116,7 @@ impl ReceivedProcessor {
                 test_nonce: None,
                 packets_receiver,
                 client_encryption_keypair,
-                message_receiver: MessageReceiver::new(),
+                message_receiver: SphinxMessageReceiver::new(),
                 received_packets: Vec::new(),
             }));
 

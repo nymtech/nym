@@ -17,7 +17,7 @@ use nym_sphinx::anonymous_replies::requests::{
 use nym_sphinx::anonymous_replies::{encryption_key::EncryptionKeyDigest, SurbEncryptionKey};
 use nym_sphinx::message::{NymMessage, PlainMessage};
 use nym_sphinx::params::ReplySurbKeyDigestAlgorithm;
-use nym_sphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
+use nym_sphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage, SphinxMessageReceiver};
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -36,7 +36,7 @@ struct ReceivedMessagesBufferInner {
 
     // TODO: looking how it 'looks' here, perhaps `MessageReceiver` should be renamed to something
     // else instead.
-    message_receiver: MessageReceiver,
+    message_receiver: SphinxMessageReceiver,
     message_sender: Option<ReconstructedMessagesSender>,
 
     // TODO: this will get cleared upon re-running the client
@@ -102,13 +102,13 @@ impl ReceivedMessagesBufferInner {
         &mut self,
         reply_ciphertext: &mut [u8],
         reply_key: SurbEncryptionKey,
-    ) -> Option<NymMessage> {
+    ) -> Result<Option<NymMessage>, MessageRecoveryError> {
         // note: this performs decryption IN PLACE without extra allocation
         self.message_receiver
-            .recover_plaintext_from_reply(reply_ciphertext, reply_key);
+            .recover_plaintext_from_reply(reply_ciphertext, reply_key)?;
         let fragment_data = reply_ciphertext;
 
-        self.recover_from_fragment(fragment_data)
+        Ok(self.recover_from_fragment(fragment_data))
     }
 
     fn process_received_regular_packet(&mut self, mut raw_fragment: Vec<u8>) -> Option<NymMessage> {
@@ -146,7 +146,7 @@ impl ReceivedMessagesBuffer {
             inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
                 messages: Vec::new(),
                 local_encryption_keypair,
-                message_receiver: MessageReceiver::new(),
+                message_receiver: SphinxMessageReceiver::new(),
                 message_sender: None,
                 recently_reconstructed: HashSet::new(),
             })),
@@ -328,7 +328,10 @@ impl ReceivedMessagesBuffer {
             })
     }
 
-    async fn handle_new_received(&mut self, msgs: Vec<Vec<u8>>) {
+    async fn handle_new_received(
+        &mut self,
+        msgs: Vec<Vec<u8>>,
+    ) -> Result<(), MessageRecoveryError> {
         trace!(
             "Processing {:?} new message that might get added to the buffer!",
             msgs.len()
@@ -344,7 +347,7 @@ impl ReceivedMessagesBuffer {
             // if yes - this is a reply message
             let completed_message =
                 if let Some((reply_key, reply_message)) = self.get_reply_key(&mut msg) {
-                    inner_guard.process_received_reply(reply_message, reply_key)
+                    inner_guard.process_received_reply(reply_message, reply_key)?
                 } else {
                     inner_guard.process_received_regular_packet(msg)
                 };
@@ -360,6 +363,7 @@ impl ReceivedMessagesBuffer {
         if !completed_messages.is_empty() {
             self.handle_reconstructed_messages(completed_messages).await
         }
+        Ok(())
     }
 }
 
@@ -438,13 +442,16 @@ impl FragmentedMessageReceiver {
         }
     }
 
-    async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
+    async fn run_with_shutdown(
+        &mut self,
+        mut shutdown: task::TaskClient,
+    ) -> Result<(), MessageRecoveryError> {
         debug!("Started FragmentedMessageReceiver with graceful shutdown support");
         while !shutdown.is_shutdown() {
             tokio::select! {
                 new_messages = self.mixnet_packet_receiver.next() => {
                     if let Some(new_messages) = new_messages {
-                        self.received_buffer.handle_new_received(new_messages).await;
+                        self.received_buffer.handle_new_received(new_messages).await?;
                     } else {
                         log::trace!("FragmentedMessageReceiver: Stopping since channel closed");
                         break;
@@ -457,6 +464,7 @@ impl FragmentedMessageReceiver {
         }
         shutdown.recv_timeout().await;
         log::debug!("FragmentedMessageReceiver: Exiting");
+        Ok(())
     }
 }
 
@@ -494,9 +502,13 @@ impl ReceivedMessagesBufferController {
 
         let shutdown_handle = shutdown.clone();
         spawn_future(async move {
-            fragmented_message_receiver
+            match fragmented_message_receiver
                 .run_with_shutdown(shutdown_handle)
-                .await;
+                .await
+            {
+                Ok(_) => {}
+                Err(e) => error!("{e}"),
+            }
         });
         spawn_future(async move {
             request_receiver.run_with_shutdown(shutdown).await;

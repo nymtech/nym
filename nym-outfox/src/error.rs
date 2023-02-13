@@ -3,7 +3,7 @@ use chacha20::cipher::InvalidLength;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum OutFoxError {
+pub enum OutfoxError {
     #[error("Lengths mismatch, expected: {expected}, got: {got}")]
     LenMismatch { expected: usize, got: usize },
     #[error("{source}")]

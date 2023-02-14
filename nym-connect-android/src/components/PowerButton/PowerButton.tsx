@@ -74,7 +74,12 @@ export const PowerButton: FCWithChildren<{
     return undefined;
   };
 
-  const statusText = status === 'connected' ? 'stop' : status === 'disconnected' ? 'start' : '';
+  let statusText: string;
+  if (status === 'connected') {
+    statusText = 'stop';
+  } else {
+    statusText = status === 'disconnected' ? 'start' : '';
+  }
 
   return (
     <svg

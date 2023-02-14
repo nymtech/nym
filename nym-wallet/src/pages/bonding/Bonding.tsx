@@ -17,6 +17,7 @@ import { AppContext, urls } from 'src/context/main';
 import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs, TBondMoreArgs } from 'src/types';
 import { BondedGateway } from 'src/components/Bonding/BondedGateway';
 import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsModal';
+import { Console } from 'src/utils/console';
 import { BondingContextProvider, useBondingContext } from '../../context';
 import { getMixnodeStakeSaturation } from '../../requests';
 
@@ -104,7 +105,7 @@ const Bonding = () => {
       }
       return { isOverSaturated: false, saturationPercentage: undefined };
     } catch (e) {
-      console.error('Error fetching the saturation, error:', e);
+      Console.error('Error fetching the saturation, error:', e);
       return { isOverSaturated: false, saturationPercentage: undefined };
     }
   };

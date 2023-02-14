@@ -11,14 +11,11 @@ import {
   Typography,
 } from '@mui/material';
 import { AccountsContext } from 'src/context';
-import { useClipboard } from 'use-clipboard-copy';
 import { Mnemonic, PasswordInput } from 'src/components';
 import { StyledBackButton } from 'src/components/StyledBackButton';
 
 export const MnemonicModal = () => {
   const [password, setPassword] = useState('');
-
-  const { copy, copied } = useClipboard({ copiedTimeout: 5000 });
 
   const {
     dialogToDisplay,
@@ -72,7 +69,7 @@ export const MnemonicModal = () => {
               />
             </>
           ) : (
-            <Mnemonic mnemonic={accountMnemonic.value} handleCopy={copy} copied={copied} />
+            <Mnemonic mnemonic={accountMnemonic.value} />
           )}
         </Box>
       </DialogContent>

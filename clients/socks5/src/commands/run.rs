@@ -43,7 +43,7 @@ pub(crate) struct Run {
     gateway: Option<identity::PublicKey>,
 
     /// Comma separated list of rest endpoints of the nyxd validators
-    #[clap(long, alias = "nymd_validators", value_delimiter = ',', hide = true)]
+    #[clap(long, alias = "nyxd_validators", value_delimiter = ',', hide = true)]
     nyxd_urls: Option<Vec<url::Url>>,
 
     /// Comma separated list of rest endpoints of the Nym APIs

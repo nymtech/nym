@@ -52,7 +52,7 @@ pub struct Run {
     #[clap(
         long,
         alias = "validators",
-        alias = "nymd_validators",
+        alias = "nyxd_validators",
         value_delimiter = ',',
         hide = true
     )]

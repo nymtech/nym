@@ -5,23 +5,20 @@
 #   ./git-merge-check origin/develop origin/release/v1.1.9
 #
 
-#set -x
+set -x
 
 set -o nounset
 set -o pipefail
 
 # Start from branch ...
 branch1=$1
-#branch1="origin/release/v1.1.9"
-#branch1="jon/chore/add-nym-prefix-to-mixnet-and-vesting-contract-packages"
 
 # ... and try to merge in
 branch2=$2
-#branch2="origin/develop"
 
 echo "Checking if $branch2 merges without conflicts into $branch1..."
 
-git checkout -q $branch1
+git checkout -q $branch1 || exit 1
 
 # There are two options here as far as I see on what we should check for. Either
 #

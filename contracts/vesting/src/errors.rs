@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, StdError, Uint128};
+use cosmwasm_std::{Addr, OverflowError, StdError, Uint128};
 use mixnet_contract_common::MixId;
 use thiserror::Error;
 
@@ -6,6 +6,9 @@ use thiserror::Error;
 pub enum ContractError {
     #[error("VESTING ({}): {0}", line!())]
     Std(#[from] StdError),
+
+    #[error("VESTING: {0}")]
+    OverflowError(#[from] OverflowError),
 
     #[error("VESTING ({}): Account does not exist - {0}", line!())]
     NoAccountForAddress(String),

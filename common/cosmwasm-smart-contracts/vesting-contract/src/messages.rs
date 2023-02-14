@@ -221,12 +221,22 @@ pub enum QueryMsg {
     GetOriginalVesting {
         vesting_account_address: String,
     },
-    GetDelegatedFree {
-        block_time: Option<Timestamp>,
+    GetHistoricalVestingStakingReward {
         vesting_account_address: String,
     },
-    GetDelegatedVesting {
-        block_time: Option<Timestamp>,
+    GetSpendableVestedCoins {
+        vesting_account_address: String,
+    },
+    GetSpendableRewardCoins {
+        vesting_account_address: String,
+    },
+    GetDelegatedCoins {
+        vesting_account_address: String,
+    },
+    GetPledgedCoins {
+        vesting_account_address: String,
+    },
+    GetStakedCoins {
         vesting_account_address: String,
     },
     GetAccount {

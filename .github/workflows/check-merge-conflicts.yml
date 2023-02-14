@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  get-release:
+  get_release:
     runs-on: ubuntu-20.04
     outputs:
       output1: ${{ steps.step2.outputs.latest_release }}

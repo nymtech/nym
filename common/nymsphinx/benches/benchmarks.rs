@@ -94,7 +94,7 @@ fn make_packet_copy(packet: &SphinxPacket) -> SphinxPacket {
 fn bench_loop_packet_create(c: &mut Criterion) {
     let mut group = c.benchmark_group("benchmark-sphinx");
     // group.sample_size(200);
-    // group.measurement_time(Duration::from_secs(600));
+    group.measurement_time(Duration::from_secs(500));
 
     let mut rng = rand::thread_rng();
     let case = BenchCase {
@@ -162,7 +162,7 @@ fn bench_loop_packet_create(c: &mut Criterion) {
 fn bench_new_no_surb(c: &mut Criterion) {
     let mut group = c.benchmark_group("benchmark-sphinx");
     // group.sample_size(200);
-    // group.measurement_time(Duration::from_secs(600));
+    group.measurement_time(Duration::from_secs(500));
 
     let mut rng = rand::thread_rng();
     let case = BenchCase {

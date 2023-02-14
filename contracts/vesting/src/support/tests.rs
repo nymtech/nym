@@ -206,8 +206,6 @@ pub mod helpers {
             let vested = self.vested_coins(account);
 
             let locked = self.locked_coins(account);
-            // let locked = "N/A";
-
             let spendable = self.spendable_coins(account);
             let spendable_vested = self.spendable_vested_coins(account);
             let spendable_reward = self.spendable_reward_coins(account);
@@ -218,10 +216,6 @@ pub mod helpers {
             );
 
             let total_delegated = self.delegated_total(account);
-            // let delegated_free = self.delegated_free_coins(account);
-            // let delegated_vesting = self.delegated_vesting_coins(account);
-            // let pledged_free = self.pledged_free_coins(account);
-            // let pledged_vesting = self.pledged_vesting_coins(account);
             let historical_rewards = self.historical_staking_rewards(account);
 
             let pretty = format!(
@@ -249,10 +243,6 @@ pub mod helpers {
                 "spendable vested",
                 "spendable reward",
                 "total delegated",
-                // "delegated free",
-                // "delegated vesting",
-                // "pledged free",
-                // "pledged vesting",
             );
 
             println!("{pretty}")
@@ -314,30 +304,6 @@ pub mod helpers {
                     .u128(),
             )
         }
-
-        // pub fn delegated_free_coins(&self, account: &Account) -> Coin {
-        //     account
-        //         .get_delegated_free(None, &self.env, self.deps().storage)
-        //         .unwrap()
-        // }
-        //
-        // pub fn delegated_vesting_coins(&self, account: &Account) -> Coin {
-        //     account
-        //         .get_delegated_vesting(None, &self.env, self.deps().storage)
-        //         .unwrap()
-        // }
-        //
-        // pub fn pledged_free_coins(&self, account: &Account) -> Coin {
-        //     account
-        //         .get_pledged_free(None, &self.env, self.deps().storage)
-        //         .unwrap()
-        // }
-        //
-        // pub fn pledged_vesting_coins(&self, account: &Account) -> Coin {
-        //     account
-        //         .get_pledged_vesting(None, &self.env, self.deps().storage)
-        //         .unwrap()
-        // }
 
         pub fn historical_staking_rewards(&self, account: &Account) -> Coin {
             account

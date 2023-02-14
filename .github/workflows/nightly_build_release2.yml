@@ -28,7 +28,7 @@ jobs:
         run: git fetch --all
       - name: Set output variable to latest release branch
         id: step2
-        run: echo "latest_release=$(git branch -r | grep -E 'release/v[0-9]+\.[0-9]+\.[0-9]+' | tail -n 2 | head -n 1 | sed 's/  origin\///')" >> $GITHUB_OUTPUT
+        run: echo "latest_release=$(git branch -r | grep -E 'release/v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 2 | head -n 1 | sed 's/  origin\///')" >> $GITHUB_OUTPUT
   build:
     needs: [get_release,matrix_prep]
     strategy:

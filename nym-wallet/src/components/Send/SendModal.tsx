@@ -22,7 +22,10 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
   const [txDetails, setTxDetails] = useState<TTransactionDetails>();
 
   const { clientDetails, userBalance, network } = useContext(AppContext);
-  const { fee, getFee } = useGetFee();
+  const { fee, getFee, feeError } = useGetFee();
+
+  // removes any zero-width spaces and trailing white space
+  const sanitizeAddress = (address: string) => address.replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
 
   const handleOnNext = async () => {
     if (amount) {
@@ -60,7 +63,7 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
 
   if (isLoading) return <LoadingModal />;
 
-  if (sendError) return <SendErrorModal onClose={onClose} />;
+  if (sendError) return <SendErrorModal onClose={onClose} error={feeError} />;
 
   if (txDetails) return <SendSuccessModal txDetails={txDetails} onClose={onClose} />;
 
@@ -90,7 +93,7 @@ export const SendModal = ({ onClose, hasStorybookStyles }: { onClose: () => void
       error={error}
       denom={clientDetails?.display_mix_denom}
       onAmountChange={(value) => setAmount(value)}
-      onAddressChange={(value) => setToAddress(value)}
+      onAddressChange={(value) => setToAddress(sanitizeAddress(value))}
       {...hasStorybookStyles}
     />
   );

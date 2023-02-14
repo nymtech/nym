@@ -628,7 +628,7 @@ dependencies = [
 
 [[package]]
 name = "client-core"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "async-trait",
  "client-connections",
@@ -3648,7 +3648,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.8"
+version = "1.1.9"
 dependencies = [
  "build-information",
  "clap",

@@ -38,7 +38,7 @@ export const Disconnected: FCWithChildren<{
               fontWeight={600}
               textTransform="uppercase"
               textAlign="center"
-              fontSize="12px"
+              fontSize="14px"
               sx={{ wordSpacing: 1.5, letterSpacing: 1.5 }}
               color="warning.main"
             >

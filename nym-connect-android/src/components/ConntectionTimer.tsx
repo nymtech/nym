@@ -17,10 +17,12 @@ export const ConnectionTimer = ({ connectedSince }: { connectedSince?: DateTime 
 
   return (
     <Stack alignItems="center">
-      <Typography variant="caption" sx={{ color: 'grey.600' }}>
+      <Typography variant="caption" sx={{ color: 'grey.600' }} fontSize="14px" fontWeight={400}>
         Connection time
       </Typography>
-      <Typography letterSpacing="0.15em">{duration || '00:00:00'}</Typography>
+      <Typography letterSpacing="0.20em" fontSize="20px" fontWeight={400}>
+        {duration || '00:00:00'}
+      </Typography>
     </Stack>
   );
 };

@@ -37,10 +37,10 @@ export const IpAddressAndPort: FCWithChildren<{
   return (
     <IpAddressAndPortContainer>
       <Box display="flex" justifyContent="space-between" color="rgba(255,255,255,0.6)">
-        <Typography fontSize="14px" sx={{ color: 'grey.600' }}>
+        <Typography fontSize="14px" sx={{ color: 'grey.600' }} fontWeight={400}>
           {label}
         </Typography>
-        <Typography fontSize="14px" sx={{ color: 'grey.600' }}>
+        <Typography fontSize="14px" sx={{ color: 'grey.600' }} fontWeight={400}>
           Port
         </Typography>
       </Box>
@@ -58,8 +58,9 @@ export const IpAddressAndPort: FCWithChildren<{
           }
         >
           <Typography
-            fontWeight="600"
+            fontWeight="400"
             className="hoverAddressCopy"
+            fontSize="20px"
             onClick={async () => {
               await writeText(`${ipAddress}`);
               setIpAddressCopied(true);
@@ -81,7 +82,8 @@ export const IpAddressAndPort: FCWithChildren<{
           }
         >
           <Typography
-            fontWeight="600"
+            fontWeight="400"
+            fontSize="20px"
             className="hoverAddressCopy"
             onClick={async () => {
               await writeText(`${port}`);

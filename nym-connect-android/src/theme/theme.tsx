@@ -234,7 +234,7 @@ export const getDesignTokens = (mode: PaletteMode, isShipyard: boolean = false):
         'Ubuntu',
         'Helvetica Neue',
       ].join(','),
-      fontSize: 14,
+      fontSize: 16,
       fontWeightRegular: 500,
       button: {
         textTransform: 'none',

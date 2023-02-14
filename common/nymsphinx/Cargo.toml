@@ -27,6 +27,11 @@ topology = { path = "../topology" }
 
 [dev-dependencies]
 mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
+criterion = "0.3"
+
+[[bench]]
+name = "benchmarks"
+harness = false
 
 # do not include this when compiling into wasm as it somehow when combined together with reqwest, it will require
 # net2 via tokio-util -> tokio -> mio -> net2

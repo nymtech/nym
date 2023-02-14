@@ -3924,6 +3924,7 @@ dependencies = [
 name = "nymsphinx"
 version = "0.1.0"
 dependencies = [
+ "criterion 0.3.6",
  "crypto",
  "mixnet-contract-common",
  "nymsphinx-acknowledgements",

@@ -1,6 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use rand::{CryptoRng, RngCore};
+
 use crypto::aes::cipher::{KeyIvInit, StreamCipher};
 use crypto::asymmetric::encryption;
 use crypto::shared_key::new_ephemeral_shared_key;
@@ -12,7 +14,6 @@ use nymsphinx_chunking::fragment::Fragment;
 use nymsphinx_params::{
     PacketEncryptionAlgorithm, PacketHkdfAlgorithm, ReplySurbEncryptionAlgorithm,
 };
-use rand::{CryptoRng, RngCore};
 
 pub struct NymsphinxPayloadBuilder {
     fragment: Fragment,
@@ -27,10 +28,10 @@ impl NymsphinxPayloadBuilder {
     fn build<C>(
         self,
         packet_encryption_key: &CipherKey<C>,
-        variant_data: impl IntoIterator<Item = u8>,
+        variant_data: impl IntoIterator<Item=u8>,
     ) -> NymsphinxPayload
-    where
-        C: StreamCipher + KeyIvInit,
+        where
+            C: StreamCipher + KeyIvInit,
     {
         let (_, surb_ack_bytes) = self.surb_ack.prepare_for_sending();
 
@@ -68,8 +69,8 @@ impl NymsphinxPayloadBuilder {
         rng: &mut R,
         recipient_encryption_key: &encryption::PublicKey,
     ) -> NymsphinxPayload
-    where
-        R: RngCore + CryptoRng,
+        where
+            R: RngCore + CryptoRng,
     {
         // create keys for 'payload' encryption
         let (ephemeral_keypair, shared_key) = new_ephemeral_shared_key::<
@@ -88,6 +89,7 @@ impl NymsphinxPayloadBuilder {
 // the actual byte data that will be put into the sphinx packet paylaod.
 // no more transformations are going to happen to it
 // TODO: use that fact for some better compile time assertions
+#[derive(Clone)]
 pub struct NymsphinxPayload(Vec<u8>);
 
 impl AsRef<[u8]> for NymsphinxPayload {

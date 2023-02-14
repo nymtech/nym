@@ -1,11 +1,12 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::convert::TryFrom;
+use std::fmt::{self, Debug, Display, Formatter};
+
 use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, NymNodeRoutingAddressError};
 use nymsphinx_params::{PacketMode, PacketSize};
 use nymsphinx_types::SphinxPacket;
-use std::convert::TryFrom;
-use std::fmt::{self, Debug, Display, Formatter};
 
 #[derive(Debug)]
 pub enum MixPacketFormattingError {
@@ -46,7 +47,7 @@ impl From<NymNodeRoutingAddressError> for MixPacketFormattingError {
 
 pub struct MixPacket {
     next_hop: NymNodeRoutingAddress,
-    sphinx_packet: SphinxPacket,
+    pub sphinx_packet: SphinxPacket,
     packet_mode: PacketMode,
 }
 

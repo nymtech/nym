@@ -4,10 +4,14 @@
 
 ## [nym-wallet-v1.1.9](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.9) (2023-02-14)
 
-- Allow more flexibility for user when setting passwords
-- User feedback on weak passwords
-- User no longer has to copy mnemonic to continune account creation
-- Updated instructional steps for creating accounts with a password
+- Allow more flexibility for user when setting passwords ([#2993])
+- User feedback on weak passwords ([#2993])
+- User no longer has to copy mnemonic to continune account creation ([#2948])
+- Updated instructional steps for creating accounts with a password ([#2962])
+
+[#2948]: https://github.com/nymtech/nym/issues/2948
+[#2993]: https://github.com/nymtech/nym/issues/2993
+[#2962]: https://github.com/nymtech/nym/issues/2962
 
 ## [nym-wallet-v1.1.8](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.8) (2023-01-24)
 

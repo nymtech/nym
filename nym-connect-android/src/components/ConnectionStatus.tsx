@@ -96,7 +96,7 @@ export const ConnectionStatus: FCWithChildren<{
   const color = status === 'connected' || status === 'disconnecting' ? '#21D072' : 'white';
 
   return (
-    <Box color={color} sx={{ mb: 2 }}>
+    <Box color={color} sx={{ mb: 3 }}>
       <ConnectionStatusContent
         status={status}
         serviceProvider={serviceProvider}

@@ -254,7 +254,7 @@ fn bench_new_no_surb(c: &mut Criterion) {
 
     group.bench_function(
         &format!(
-            "[Sphinx] process_loop_cover_packet_with_payload_size_{}",
+            "[Sphinx] process_packet_with_payload_size_{}",
             case.packet_size.payload_size(),
         ),
         |b| {

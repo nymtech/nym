@@ -134,31 +134,64 @@ pub trait VestingQueryClient {
         .await
     }
 
-    async fn delegated_free(
+    async fn get_historical_vesting_staking_reward(
         &self,
         vesting_account_address: &str,
-        block_time: Option<Timestamp>,
-    ) -> Result<Coin, NyxdError> {
-        self.query_vesting_contract::<CosmWasmCoin>(VestingQueryMsg::GetDelegatedFree {
+    ) -> Result<CosmWasmCoin, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetHistoricalVestingStakingReward {
             vesting_account_address: vesting_account_address.to_string(),
-            block_time,
         })
         .await
-        .map(Into::into)
     }
 
-    /// Returns the total amount of delegated tokens that have vested
-    async fn delegated_vesting(
+    async fn get_spendable_vested_coins(
         &self,
         vesting_account_address: &str,
-        block_time: Option<Timestamp>,
-    ) -> Result<Coin, NyxdError> {
-        self.query_vesting_contract::<CosmWasmCoin>(VestingQueryMsg::GetDelegatedVesting {
+    ) -> Result<CosmWasmCoin, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetSpendableVestedCoins {
             vesting_account_address: vesting_account_address.to_string(),
-            block_time,
         })
         .await
-        .map(Into::into)
+    }
+
+    async fn get_spendable_reward_coins(
+        &self,
+        vesting_account_address: &str,
+    ) -> Result<CosmWasmCoin, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetSpendableRewardCoins {
+            vesting_account_address: vesting_account_address.to_string(),
+        })
+        .await
+    }
+
+    async fn get_delegated_coins(
+        &self,
+        vesting_account_address: &str,
+    ) -> Result<CosmWasmCoin, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetDelegatedCoins {
+            vesting_account_address: vesting_account_address.to_string(),
+        })
+        .await
+    }
+
+    async fn get_pledged_coins(
+        &self,
+        vesting_account_address: &str,
+    ) -> Result<CosmWasmCoin, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetPledgedCoins {
+            vesting_account_address: vesting_account_address.to_string(),
+        })
+        .await
+    }
+
+    async fn get_staked_coins(
+        &self,
+        vesting_account_address: &str,
+    ) -> Result<CosmWasmCoin, NyxdError> {
+        self.query_vesting_contract(VestingQueryMsg::GetStakedCoins {
+            vesting_account_address: vesting_account_address.to_string(),
+        })
+        .await
     }
 
     async fn get_account(&self, address: &str) -> Result<Account, NyxdError> {

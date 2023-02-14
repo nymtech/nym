@@ -5,10 +5,12 @@ name: check-merge-conflicts
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '5 6 * * *'
 
 jobs:
   get_release:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     outputs:
       output1: ${{ steps.step2.outputs.latest_release }}
     steps:

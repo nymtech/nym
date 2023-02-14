@@ -1,8 +1,7 @@
 import React from 'react';
-import { Checkbox, FormControlLabel, Stack, TextField, Typography } from '@mui/material';
-import { Warning } from './Warning';
+import { Box, Checkbox, FormControlLabel, Stack, TextField, Typography } from '@mui/material';
 import { Title } from 'src/pages/auth/components/heading';
-import { Box } from '@mui/system';
+import { Warning } from './Warning';
 
 export const Mnemonic = ({
   mnemonic,

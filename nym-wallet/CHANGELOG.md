@@ -2,6 +2,13 @@
 
 ## UNRELEASED
 
+## [nym-wallet-v1.1.9](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.9) (2023-02-14)
+
+- Allow more flexibility for user when setting passwords
+- User feedback on weak passwords
+- User no longer has to copy mnemonic to continune account creation
+- Updated instructional steps for creating accounts with a password
+
 ## [nym-wallet-v1.1.8](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.8) (2023-01-24)
 
 - Fix delegations sorting ([#2885])

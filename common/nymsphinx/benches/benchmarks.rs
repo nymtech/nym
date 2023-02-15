@@ -17,7 +17,7 @@ use nymsphinx::builder::SphinxPacketBuilder;
 use nymsphinx::chunking::fragment::{Fragment, FragmentHeader, FragmentIdentifier};
 use nymsphinx::cover::generate_loop_cover_packet;
 use nymsphinx::crypto::keygen;
-use nymsphinx::params::packet_sizes::PacketSize::RegularPacket;
+use nymsphinx::params::packet_sizes::PacketSize::{ExtendedPacket16, ExtendedPacket32, ExtendedPacket8, RegularPacket};
 use nymsphinx::params::PacketSize;
 use topology::{gateway, mix, MixLayer, NymTopology};
 
@@ -166,7 +166,7 @@ fn bench_new_no_surb(c: &mut Criterion) {
 
     let mut rng = rand::thread_rng();
     let case = BenchCase {
-        packet_size: RegularPacket,
+        packet_size: ExtendedPacket8,
     };
 
     // create sender

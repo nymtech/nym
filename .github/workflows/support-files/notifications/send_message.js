@@ -1,6 +1,5 @@
 require('dotenv').config();
 
-const Bot = require('keybase-bot');
 const { sendMatrixMessage } = require('./send_message_to_matrix');
 
 let context = {
@@ -22,21 +21,6 @@ function validateContext() {
   if (!context.env.NYM_PROJECT_NAME) {
     throw new Error(
       'Please set env var NYM_PROJECT_NAME with the project name for displaying in notification messages',
-    );
-  }
-  if (!context.env.KEYBASE_NYM_CHANNEL) {
-    throw new Error(
-      'Please set env var KEYBASE_NYM_CHANNEL with the channel name for the notification message',
-    );
-  }
-  if (!context.env.KEYBASE_NYMBOT_USERNAME) {
-    throw new Error(
-      'Username is not defined. Please set env var KEYBASE_NYMBOT_USERNAME',
-    );
-  }
-  if (!context.env.KEYBASE_NYMBOT_PAPERKEY) {
-    throw new Error(
-      'Paperkey is not defined. Please set env var KEYBASE_NYMBOT_PAPERKEY',
     );
   }
   if (context.env.MATRIX_ROOM) {
@@ -84,12 +68,6 @@ function createTemplateContext() {
 
   context.kind = context.env.NYM_NOTIFICATION_KIND;
 
-  context.keybase = {
-    channel: context.env.KEYBASE_NYM_CHANNEL,
-    username: context.env.KEYBASE_NYMBOT_USERNAME,
-    paperkey: context.env.KEYBASE_NYMBOT_PAPERKEY,
-  };
-
   if (!context.env.GIT_BRANCH_NAME) {
     context.env.GIT_BRANCH_NAME = context.env.GITHUB_REF.split('/')
       .slice(2)
@@ -97,40 +75,6 @@ function createTemplateContext() {
   }
 
   context.status = process.env.IS_SUCCESS === 'true' ? 'success' : 'failure';
-}
-
-async function sendKeybaseMessage(messageBody) {
-  const bot = new Bot();
-  try {
-    console.log(
-      `Initialising keybase with user "${
-        context.keybase.username
-      }" and key: "${'*'.repeat(context.keybase.paperkey.length)}"...`,
-    );
-    await bot.init(context.keybase.username, context.keybase.paperkey, {
-      verbose: false,
-    });
-
-    const channel = {
-      name: context.env.KEYBASE_NYMBOT_TEAM || 'nymtech_bot',
-      membersType: 'team',
-      topicName: context.keybase.channel,
-      topic_type: 'CHAT',
-    };
-    const message = {
-      body: messageBody,
-    };
-
-    console.log(`Sending to ${channel.name}#${channel.topicName}...`);
-    await bot.chat.send(channel, message);
-
-    console.log('Message sent!');
-  } catch (error) {
-    console.error(error);
-    process.exitCode = -1;
-  } finally {
-    await bot.deinit();
-  }
 }
 
 /**
@@ -169,7 +113,6 @@ async function main() {
     console.log(messageBody);
     console.log('-----------------------------------------');
   }
-  await sendKeybaseMessage(messageBody);
   if(context.env.MATRIX_ROOM) {
     await sendMatrixMessage(context, messageBody, context.env.MATRIX_ROOM)
   }

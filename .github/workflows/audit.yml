@@ -39,18 +39,14 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: 16
-      - name: Keybase - Node Install
+      - name: Matrix - Node Install
         run: npm install
         working-directory: .github/workflows/support-files
-      - name: Keybase - Send Notification
+      - name: Matrix - Send Notification
         env:
           NYM_NOTIFICATION_KIND: security
           NYM_PROJECT_NAME: "Daily security report"
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
-          KEYBASE_NYMBOT_USERNAME: "${{ secrets.KEYBASE_NYMBOT_USERNAME }}"
-          KEYBASE_NYMBOT_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
-          KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBOT_TEAM }}"
-          KEYBASE_NYM_CHANNEL: "security"
           MATRIX_SERVER: "${{ secrets.MATRIX_SERVER }}"
           MATRIX_ROOM: "${{ secrets.MATRIX_ROOM }}"
           MATRIX_USER_ID: "${{ secrets.MATRIX_USER_ID }}"

@@ -75,10 +75,15 @@ export const PowerButton: FCWithChildren<{
   };
 
   let statusText: string;
-  if (status === 'connected') {
-    statusText = 'stop';
-  } else {
-    statusText = status === 'disconnected' ? 'start' : '';
+  switch (status) {
+    case 'connected':
+      statusText = 'stop';
+      break;
+    case 'disconnected':
+      statusText = 'start';
+      break;
+    default:
+      return '';
   }
 
   return (

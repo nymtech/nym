@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { Link as RRDLink } from 'react-router-dom';
-import { Box, Button, Card, Grid, Link as MuiLink } from '@mui/material';
+import { Box, Button, Card, Grid, Link as MuiLink, FormControl, Select, MenuItem } from '@mui/material';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { useMainContext } from '../../context/main';
@@ -14,22 +14,29 @@ import { unymToNym } from '../../utils/currency';
 import { Tooltip } from '../../components/Tooltip';
 import { NYM_BIG_DIPPER } from '../../api/constants';
 import { splice } from '../../utils';
+import { VersionDisplaySelector, VersionSelectOptions } from '../../components/Gateways/VersionDisplaySelector';
 
 export const PageGateways: FCWithChildren = () => {
   const { gateways } = useMainContext();
   const [filteredGateways, setFilteredGateways] = React.useState<GatewayResponse>([]);
   const [pageSize, setPageSize] = React.useState<string>('50');
   const [searchTerm, setSearchTerm] = React.useState<string>('');
+  const [versionFilter, setVersionFilter] = React.useState<VersionSelectOptions>(VersionSelectOptions.latestVersion);
 
   const handleSearch = (str: string) => {
     setSearchTerm(str.toLowerCase());
   };
 
   React.useEffect(() => {
-    if (searchTerm === '' && gateways?.data) {
-      setFilteredGateways(gateways?.data);
+    const filteredByVersion = gateways?.data?.filter((g) => {
+      if (versionFilter === 'Latest version') return versionToNumber(g.gateway.version) === 118;
+      return versionToNumber(g.gateway.version) < 118;
+    });
+
+    if (searchTerm === '' && filteredByVersion) {
+      setFilteredGateways(filteredByVersion);
     } else {
-      const filtered = gateways?.data?.filter((g) => {
+      const filtered = filteredByVersion?.filter((g) => {
         if (
           g.gateway.location.toLowerCase().includes(searchTerm) ||
           g.gateway.identity_key.toLocaleLowerCase().includes(searchTerm) ||
@@ -39,11 +46,17 @@ export const PageGateways: FCWithChildren = () => {
         }
         return null;
       });
+
       if (filtered) {
         setFilteredGateways(filtered);
       }
     }
-  }, [searchTerm, gateways?.data]);
+  }, [searchTerm, gateways?.data, versionFilter]);
+
+  const versionToNumber = (version: string) => {
+    const asNumber = Number(version.split('.').join(''));
+    return asNumber;
+  };
 
   const columns: GridColDef[] = [
     {
@@ -201,6 +214,12 @@ export const PageGateways: FCWithChildren = () => {
                 onChangePageSize={handlePageSize}
                 pageSize={pageSize}
                 searchTerm={searchTerm}
+                childrenBefore={
+                  <VersionDisplaySelector
+                    handleChange={(option) => setVersionFilter(option)}
+                    selected={versionFilter}
+                  />
+                }
               />
               <UniversalDataGrid
                 pagination

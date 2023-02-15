@@ -40,8 +40,6 @@ export const TableToolbar: FCWithChildren<TableToolBarProps> = ({
         <Box sx={{ display: 'flex', justifyContent: 'space-between', height: fieldsHeight }}>
           {childrenBefore}
           <Select
-            labelId="simple-select-label"
-            id="simple-select"
             value={pageSize}
             onChange={onChangePageSize}
             sx={{

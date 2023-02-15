@@ -28,16 +28,20 @@ const MenuIcon = () => {
   return <CustomButton Icon={Menu} onClick={() => navigate('/menu')} />;
 };
 
-const ArrowBackIcon = () => {
+const ArrowBackIcon = ({ onBack }: { onBack?: () => void }) => {
   const navigate = useNavigate();
-  return <CustomButton Icon={ArrowBack} onClick={() => navigate(-1)} />;
+  const handleBack = () => {
+    onBack?.();
+    navigate(-1);
+  };
+  return <CustomButton Icon={ArrowBack} onClick={handleBack} />;
 };
 
 const getTitleIcon = (path: string) => {
   if (path !== '/') {
     const title = path.split('/').slice(-1);
     return (
-      <Typography textTransform="capitalize" fontWeight={700}>
+      <Typography textTransform="capitalize" fontSize="16px" fontWeight={700}>
         {title}
       </Typography>
     );
@@ -45,10 +49,10 @@ const getTitleIcon = (path: string) => {
   return <NymWordmark width={36} />;
 };
 
-export const CustomTitleBar = ({ path = '/' }: { path?: string }) => (
+export const CustomTitleBar = ({ path = '/', onBack }: { path?: string; onBack?: () => void }) => (
   <Box data-tauri-drag-region style={customTitleBarStyles.titlebar}>
     {/* set width to keep logo centered */}
-    <Box sx={{ width: '40px' }}>{path === '/' ? <MenuIcon /> : <ArrowBackIcon />}</Box>
+    <Box sx={{ width: '40px' }}>{path === '/' ? <MenuIcon /> : <ArrowBackIcon onBack={onBack} />}</Box>
     {getTitleIcon(path)}
   </Box>
 );

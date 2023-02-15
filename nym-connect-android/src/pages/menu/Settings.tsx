@@ -1,6 +1,6 @@
 import React, { ChangeEvent, useState } from 'react';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
-import { Box, FormControl, FormControlLabel, FormHelperText, Link, Stack, Switch, Typography } from '@mui/material';
+import { Box, FormControl, FormControlLabel, FormHelperText, Stack, Switch, Typography } from '@mui/material';
 import { useClientContext } from 'src/context/main';
 import { ConnectionStatusKind } from 'src/types';
 import { AppVersion } from 'src/components/AppVersion';

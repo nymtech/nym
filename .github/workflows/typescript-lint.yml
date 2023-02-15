@@ -24,7 +24,7 @@ jobs:
     - name: Setup yarn
       run: npm install -g yarn
     - name: Lint
-      run: yarn && yarn lint && yarn tsc
+      run: yarn && yarn build && yarn lint && yarn tsc
     - name: Matrix - Node Install
       run: npm install
       working-directory: .github/workflows/support-files

@@ -1,13 +1,13 @@
-import React from 'react';
-import { Box, CircularProgress, Tooltip, Typography } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, CircularProgress, Typography } from '@mui/material';
 import { DateTime } from 'luxon';
 import { ErrorOutline, InfoOutlined } from '@mui/icons-material';
 import { ConnectionStatusKind, GatewayPerformance } from '../types';
 import { ServiceProvider } from '../types/directory';
 import { GatwayWarningInfo, ServiceProviderInfo } from './TooltipInfo';
+import { InfoModal } from './InfoModal';
 
 const FONT_SIZE = '14px';
-const FONT_WEIGHT = '600';
 const FONT_STYLE = 'normal';
 
 const ConnectionStatusContent: FCWithChildren<{
@@ -15,9 +15,22 @@ const ConnectionStatusContent: FCWithChildren<{
   serviceProvider?: ServiceProvider;
   gatewayError: boolean;
 }> = ({ status, serviceProvider, gatewayError }) => {
+  const [showSpInfo, setShowSpInfo] = useState(false);
+  const [showGatewayWarn, setShowGatewayWarn] = useState(false);
+
   if (gatewayError) {
     return (
-      <Tooltip title={serviceProvider ? <GatwayWarningInfo /> : undefined}>
+      <>
+        {serviceProvider && (
+          <InfoModal
+            title="Connection issue"
+            description=""
+            show={showGatewayWarn}
+            onClose={() => setShowGatewayWarn(false)}
+          >
+            <GatwayWarningInfo />
+          </InfoModal>
+        )}
         <Box
           display="flex"
           alignItems="center"
@@ -27,28 +40,52 @@ const ConnectionStatusContent: FCWithChildren<{
           color="warning.main"
         >
           <ErrorOutline sx={{ fontSize: 14 }} />
-          <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} fontSize={FONT_SIZE} textAlign="center">
+          <Typography
+            fontWeight={400}
+            fontStyle={FONT_STYLE}
+            fontSize="14px"
+            textAlign="center"
+            sx={{ textDecorationLine: 'underline' }}
+          >
             Gateway has issues
           </Typography>
         </Box>
-      </Tooltip>
+      </>
     );
   }
   switch (status) {
     case 'connected':
       return (
-        <Tooltip title={serviceProvider ? <ServiceProviderInfo serviceProvider={serviceProvider} /> : undefined}>
-          <Box display="flex" alignItems="center" gap={0.5} justifyContent="center" sx={{ cursor: 'pointer' }}>
+        <>
+          {serviceProvider && (
+            <InfoModal title="Connection info" description="" show={showSpInfo} onClose={() => setShowSpInfo(false)}>
+              <ServiceProviderInfo serviceProvider={serviceProvider} />
+            </InfoModal>
+          )}
+          <Box
+            display="flex"
+            alignItems="center"
+            gap={0.5}
+            onClick={() => setShowSpInfo(true)}
+            justifyContent="center"
+            sx={{ cursor: 'pointer' }}
+          >
             <InfoOutlined sx={{ fontSize: 14 }} />
-            <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} fontSize={FONT_SIZE} textAlign="center">
+            <Typography
+              fontWeight={400}
+              fontStyle={FONT_STYLE}
+              fontSize="14px"
+              textAlign="center"
+              sx={{ textDecorationLine: 'underline' }}
+            >
               Connected to Nym Mixnet
             </Typography>
           </Box>
-        </Tooltip>
+        </>
       );
     case 'disconnected':
       return (
-        <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} textAlign="center" fontSize={FONT_SIZE}>
+        <Typography fontWeight={400} fontStyle={FONT_STYLE} textAlign="center" fontSize="20px">
           Connect to the mixnet
         </Typography>
       );
@@ -56,7 +93,7 @@ const ConnectionStatusContent: FCWithChildren<{
       return (
         <Box display="flex" alignItems="center" justifyContent="center">
           <CircularProgress size={FONT_SIZE} color="inherit" />
-          <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE}>
+          <Typography fontWeight={400} fontStyle={FONT_STYLE} fontSize="20px">
             Disconnecting...
           </Typography>
         </Box>
@@ -65,7 +102,7 @@ const ConnectionStatusContent: FCWithChildren<{
       return (
         <Box display="flex" alignItems="center" justifyContent="center">
           <CircularProgress size={FONT_SIZE} color="inherit" />
-          <Typography fontWeight={FONT_WEIGHT} fontStyle={FONT_STYLE} ml={1}>
+          <Typography fontWeight={400} fontStyle={FONT_STYLE} ml={1} fontSize="20px">
             Connecting...
           </Typography>
         </Box>
@@ -85,7 +122,7 @@ export const ConnectionStatus: FCWithChildren<{
   const color = status === 'connected' || status === 'disconnecting' ? '#21D072' : 'white';
 
   return (
-    <Box color={color} sx={{ mb: 2 }}>
+    <Box color={color} sx={{ mb: 3 }}>
       <ConnectionStatusContent
         status={status}
         serviceProvider={serviceProvider}

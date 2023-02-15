@@ -50,7 +50,7 @@
 }
 
 circle,
-path {
+path, text {
   transition: stroke 0.5s, fill 0.5s;
 }
 

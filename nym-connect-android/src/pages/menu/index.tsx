@@ -1,6 +1,6 @@
 import React from 'react';
 import { Apps, HelpOutline } from '@mui/icons-material';
-import { Stack, Link, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import { Stack, Link, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { AppVersion } from 'src/components/AppVersion';
 
@@ -19,7 +19,11 @@ export const Menu = () => (
               <ListItemIcon sx={{ minWidth: 25 }}>
                 <item.icon sx={{ fontSize: '18px' }} />
               </ListItemIcon>{' '}
-              <ListItemText>{item.title}</ListItemText>
+              <ListItemText>
+                <Typography fontSize="16px" fontWeight={400}>
+                  {item.title}
+                </Typography>
+              </ListItemText>
             </ListItemButton>
           </ListItem>
         </Link>

@@ -50,9 +50,10 @@ const getTitleIcon = (path: string) => {
 };
 
 export const CustomTitleBar = ({ path = '/', onBack }: { path?: string; onBack?: () => void }) => (
-  <Box data-tauri-drag-region style={customTitleBarStyles.titlebar}>
+  <Box style={customTitleBarStyles.titlebar}>
     {/* set width to keep logo centered */}
     <Box sx={{ width: '40px' }}>{path === '/' ? <MenuIcon /> : <ArrowBackIcon onBack={onBack} />}</Box>
     {getTitleIcon(path)}
+    {path !== '/' && <Box sx={{ width: '40px' }} />}
   </Box>
 );

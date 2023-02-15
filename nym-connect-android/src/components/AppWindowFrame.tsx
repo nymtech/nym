@@ -33,7 +33,7 @@ export const AppWindowFrame: FCWithChildren = ({ children }) => {
       }}
     >
       <CustomTitleBar path={location.pathname} onBack={onBack()} />
-      <Box style={{ padding: '16px' }}>{children}</Box>
+      <Box style={{ padding: '16px', paddingTop: '24px' }}>{children}</Box>
     </Box>
   );
 };

@@ -9,27 +9,24 @@ const appsSchema = {
 
 export const CompatibleApps = () => (
   <Box>
-    <Typography fontSize="small" color="grey.600" sx={{ mb: 2 }}>
+    <Typography fontWeight={600} sx={{ mb: 3 }}>
       Supported apps
     </Typography>
-    <Typography color="nym.highlight" sx={{ mb: 2 }}>
+    <Typography color="nym.highlight" fontWeight={400} sx={{ mb: 2 }}>
       Messaging apps
     </Typography>
 
-    <Divider sx={{ mb: 2 }} />
-
-    <Box sx={{ mb: 4 }}>
+    <Box sx={{ mb: 3 }}>
       {appsSchema.messagingApps.map((app) => (
         <Typography variant="body2" color="grey.400" sx={{ mb: 2 }} key={app}>
           {app}
         </Typography>
       ))}
     </Box>
-    <Typography color="nym.highlight" sx={{ mb: 2 }}>
+    <Divider sx={{ mb: 3 }} />
+    <Typography color="nym.highlight" fontWeight={400} sx={{ mb: 2 }}>
       Wallets
     </Typography>
-
-    <Divider sx={{ mb: 2 }} />
 
     <Box sx={{ mb: 4 }}>
       {appsSchema.wallets.map((wallet) => (

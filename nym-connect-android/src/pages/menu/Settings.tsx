@@ -30,7 +30,7 @@ export const Settings = () => {
     <Box height="100%">
       <Stack justifyContent="space-between" height="100%">
         <Box>
-          <Typography fontWeight="bold" variant="body2" mb={1}>
+          <Typography fontWeight="bold" variant="body2" mb={1} fontSize="14px">
             Select your Gateway
           </Typography>
           <Typography color="grey.300" variant="body2" mb={3}>
@@ -66,7 +66,7 @@ export const Settings = () => {
           </FormControl>
         </Box>
         <Box>
-          <Typography variant="body2" mb={3}>
+          <Typography variant="body2" mb={4}>
             To find a gateway go to{' '}
             <Typography variant="body2" color="nym.cta">
               explorer.nymtech.net/network-components/gateways

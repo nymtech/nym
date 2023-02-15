@@ -903,6 +903,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "cosmwasm-contract-testing"
+version = "0.1.0"
+dependencies = [
+ "base64 0.21.0",
+ "cosmwasm-std",
+ "cosmwasm-storage",
+ "hex",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "cosmwasm-crypto"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -939,6 +952,16 @@ dependencies = [
  "serde-json-wasm",
  "thiserror",
  "uint",
+]
+
+[[package]]
+name = "cosmwasm-storage"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d18403b07304d15d304dad11040d45bbcaf78d603b4be3fb5e2685c16f9229b5"
+dependencies = [
+ "cosmwasm-std",
+ "serde",
 ]
 
 [[package]]
@@ -2727,6 +2750,18 @@ dependencies = [
  "js-sys",
  "wasm-bindgen",
  "web-sys",
+]
+
+[[package]]
+name = "integration-tests"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-contract-testing",
+ "cosmwasm-std",
+ "mixnet-contract",
+ "mixnet-contract-common",
+ "vesting-contract",
+ "vesting-contract-common",
 ]
 
 [[package]]

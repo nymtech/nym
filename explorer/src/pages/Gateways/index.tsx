@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Link as RRDLink } from 'react-router-dom';
-import { Box, Button, Card, Grid, Link as MuiLink, FormControl, Select, MenuItem } from '@mui/material';
+import { Box, Button, Card, Grid, Link as MuiLink } from '@mui/material';
+import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { useMainContext } from '../../context/main';
@@ -27,10 +28,18 @@ export const PageGateways: FCWithChildren = () => {
     setSearchTerm(str.toLowerCase());
   };
 
+  const versionToNumber = (version: string) => {
+    const asNumber = Number(version.split('.').join(''));
+    return asNumber;
+  };
+
+  //TODO Get this value from somewhere
+  const CURRENT_VERSION = 118;
+
   React.useEffect(() => {
     const filteredByVersion = gateways?.data?.filter((g) => {
-      if (versionFilter === 'Latest version') return versionToNumber(g.gateway.version) === 118;
-      return versionToNumber(g.gateway.version) < 118;
+      if (versionFilter === 'Latest version') return versionToNumber(g.gateway.version) === CURRENT_VERSION;
+      return versionToNumber(g.gateway.version) < CURRENT_VERSION;
     });
 
     if (searchTerm === '' && filteredByVersion) {
@@ -53,27 +62,29 @@ export const PageGateways: FCWithChildren = () => {
     }
   }, [searchTerm, gateways?.data, versionFilter]);
 
-  const versionToNumber = (version: string) => {
-    const asNumber = Number(version.split('.').join(''));
-    return asNumber;
-  };
-
   const columns: GridColDef[] = [
     {
-      field: 'identityKey',
+      field: 'identity_key',
       headerName: 'Identity Key',
       renderHeader: () => <CustomColumnHeading headingTitle="Identity Key" />,
       headerClassName: 'MuiDataGrid-header-override',
       width: 380,
       headerAlign: 'left',
       renderCell: (params: GridRenderCellParams) => (
-        <MuiLink
-          sx={{ ...cellStyles }}
-          component={RRDLink}
-          to={`/network-components/gateway/${params.row.identityKey}`}
-        >
-          {params.value}
-        </MuiLink>
+        <>
+          <CopyToClipboard
+            sx={{ mr: 1, fontSize: 12 }}
+            value={params.value}
+            tooltip={`Copy identity key ${params.value} to clipboard`}
+          />
+          <MuiLink
+            sx={{ ...cellStyles }}
+            component={RRDLink}
+            to={`/network-components/gateway/${params.row.identity_key}`}
+          >
+            {params.value}
+          </MuiLink>
+        </>
       ),
     },
     {

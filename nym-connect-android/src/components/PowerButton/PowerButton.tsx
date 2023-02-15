@@ -83,7 +83,7 @@ export const PowerButton: FCWithChildren<{
       statusText = 'start';
       break;
     default:
-      return '';
+      statusText = '';
   }
 
   return (

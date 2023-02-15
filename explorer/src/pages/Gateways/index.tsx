@@ -28,18 +28,22 @@ export const PageGateways: FCWithChildren = () => {
     setSearchTerm(str.toLowerCase());
   };
 
-  const versionToNumber = (version: string) => {
-    const asNumber = Number(version.split('.').join(''));
-    return asNumber;
-  };
+  const versionToNumber = (version: string) => Number(version.split('.').join(''));
 
-  //TODO Get this value from somewhere
-  const CURRENT_VERSION = 118;
+  // TODO Get this value from somewhere
+
+  const getCurrentVersion = React.useCallback(() => {
+    let version = 0;
+    if (gateways?.data) {
+      version = Math.max(...gateways.data.reduce((a: number[], b) => [...a, versionToNumber(b?.gateway.version)], []));
+    }
+    return version;
+  }, [gateways]);
 
   React.useEffect(() => {
     const filteredByVersion = gateways?.data?.filter((g) => {
-      if (versionFilter === 'Latest version') return versionToNumber(g.gateway.version) === CURRENT_VERSION;
-      return versionToNumber(g.gateway.version) < CURRENT_VERSION;
+      if (versionFilter === 'Latest version') return versionToNumber(g.gateway.version) === getCurrentVersion();
+      return versionToNumber(g.gateway.version) < getCurrentVersion();
     });
 
     if (searchTerm === '' && filteredByVersion) {

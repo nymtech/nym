@@ -6,7 +6,7 @@
 use std::sync::Arc;
 
 use config_common::defaults::setup_env;
-use tauri::{Manager, Menu};
+use tauri::Manager;
 use tokio::sync::RwLock;
 
 use crate::menu::{create_tray_menu, tray_menu_event_handler};

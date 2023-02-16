@@ -30,7 +30,7 @@ pub struct DuplicateContractAddress {
 ///     entry_point, Deps, DepsMut, Env, MessageInfo, Querier, QueryResponse, Response, StdError,
 ///     Storage,
 /// };
-/// use testing::TestableContract;
+/// use cosmwasm_contract_testing::TestableContract;
 ///
 /// type ExecuteMsg = ();
 /// type QueryMsg = ();

@@ -1,8 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crypto::asymmetric::identity::PUBLIC_KEY_LENGTH;
 use gateway_client::GatewayClient;
+use nym_crypto::asymmetric::identity::PUBLIC_KEY_LENGTH;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::{Mutex, MutexGuard, TryLockError};

@@ -8,7 +8,7 @@ use crate::OutputFormat;
 use crate::{commands::override_config, config::persistence::pathfinder::MixNodePathfinder};
 use clap::Args;
 use config::NymConfig;
-use crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::{encryption, identity};
 use std::net::IpAddr;
 use validator_client::nyxd;
 
@@ -85,18 +85,18 @@ pub(crate) fn execute(args: &Init, output: OutputFormat) {
         let identity_keys = identity::KeyPair::new(&mut rng);
         let sphinx_keys = encryption::KeyPair::new(&mut rng);
         let pathfinder = MixNodePathfinder::new_from_config(&config);
-        pemstore::store_keypair(
+        nym_pemstore::store_keypair(
             &identity_keys,
-            &pemstore::KeyPairPath::new(
+            &nym_pemstore::KeyPairPath::new(
                 pathfinder.private_identity_key().to_owned(),
                 pathfinder.public_identity_key().to_owned(),
             ),
         )
         .expect("Failed to save identity keys");
 
-        pemstore::store_keypair(
+        nym_pemstore::store_keypair(
             &sphinx_keys,
-            &pemstore::KeyPairPath::new(
+            &nym_pemstore::KeyPairPath::new(
                 pathfinder.private_encryption_key().to_owned(),
                 pathfinder.public_encryption_key().to_owned(),
             ),

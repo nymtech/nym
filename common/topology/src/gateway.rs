@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{filter, NetworkAddress};
-use crypto::asymmetric::{encryption, identity};
-use mixnet_contract_common::GatewayBond;
+use nym_crypto::asymmetric::{encryption, identity};
+use nym_mixnet_contract_common::GatewayBond;
 use nymsphinx_addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
 use nymsphinx_types::Node as SphinxNode;
 use std::convert::{TryFrom, TryInto};

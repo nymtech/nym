@@ -4,9 +4,6 @@
 use crate::{nym_api, ValidatorClientError};
 use coconut_dkg_common::types::NodeIndex;
 use coconut_interface::VerificationKey;
-use mixnet_contract_common::mixnode::MixNodeDetails;
-use mixnet_contract_common::MixId;
-use mixnet_contract_common::{GatewayBond, IdentityKeyRef};
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
@@ -14,6 +11,9 @@ use nym_api_requests::models::{
     GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
     RewardEstimationResponse, StakeSaturationResponse,
 };
+use nym_mixnet_contract_common::mixnode::MixNodeDetails;
+use nym_mixnet_contract_common::MixId;
+use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef};
 
 #[cfg(feature = "nyxd-client")]
 use crate::nyxd::traits::{DkgQueryClient, MixnetQueryClient, MultisigQueryClient};
@@ -30,16 +30,16 @@ use coconut_interface::Base58;
 #[cfg(feature = "nyxd-client")]
 use cw3::ProposalResponse;
 #[cfg(feature = "nyxd-client")]
-use mixnet_contract_common::{
+use network_defaults::NymNetworkDetails;
+#[cfg(feature = "nyxd-client")]
+use nym_api_requests::models::MixNodeBondAnnotated;
+#[cfg(feature = "nyxd-client")]
+use nym_mixnet_contract_common::{
     families::{Family, FamilyHead},
     mixnode::MixNodeBond,
     pending_events::{PendingEpochEvent, PendingIntervalEvent},
     Delegation, IdentityKey, RewardedSetNodeStatus, UnbondedMixnode,
 };
-#[cfg(feature = "nyxd-client")]
-use network_defaults::NymNetworkDetails;
-#[cfg(feature = "nyxd-client")]
-use nym_api_requests::models::MixNodeBondAnnotated;
 #[cfg(feature = "nyxd-client")]
 use std::str::FromStr;
 use url::Url;

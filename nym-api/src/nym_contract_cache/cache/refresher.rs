@@ -2,7 +2,7 @@ use super::NymContractCache;
 use crate::nyxd::Client;
 use crate::support::caching::CacheNotification;
 use anyhow::Result;
-use mixnet_contract_common::{MixId, MixNodeDetails, RewardedSetNodeStatus};
+use nym_mixnet_contract_common::{MixId, MixNodeDetails, RewardedSetNodeStatus};
 use std::{collections::HashMap, sync::atomic::Ordering, time::Duration};
 use task::TaskClient;
 use tokio::sync::watch;

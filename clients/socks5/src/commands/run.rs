@@ -9,8 +9,8 @@ use crate::{
 
 use clap::Args;
 use config::NymConfig;
-use crypto::asymmetric::identity;
 use log::*;
+use nym_crypto::asymmetric::identity;
 use nymsphinx::addressing::clients::Recipient;
 use version_checker::is_minor_version_compatible;
 

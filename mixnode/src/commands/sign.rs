@@ -9,8 +9,8 @@ use crate::node::MixNode;
 use anyhow::{anyhow, Result};
 use clap::{ArgGroup, Args};
 use config::NymConfig;
-use crypto::asymmetric::identity;
 use log::error;
+use nym_crypto::asymmetric::identity;
 use validator_client::nyxd;
 
 use super::version_check;

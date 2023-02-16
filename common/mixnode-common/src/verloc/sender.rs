@@ -4,8 +4,8 @@
 use crate::verloc::error::RttError;
 use crate::verloc::measurement::Measurement;
 use crate::verloc::packet::{EchoPacket, ReplyPacket};
-use crypto::asymmetric::identity;
 use log::*;
+use nym_crypto::asymmetric::identity;
 use rand::{thread_rng, Rng};
 use std::net::SocketAddr;
 use std::sync::Arc;

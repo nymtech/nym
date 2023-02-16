@@ -7,11 +7,11 @@ use rocket::{response, Request, Response};
 use std::io::Cursor;
 use thiserror::Error;
 
-use crypto::asymmetric::{
+use dkg::error::DkgError;
+use nym_crypto::asymmetric::{
     encryption::KeyRecoveryError,
     identity::{Ed25519RecoveryError, SignatureError},
 };
-use dkg::error::DkgError;
 use validator_client::nyxd::error::NyxdError;
 
 use crate::node_status_api::models::NymApiStorageError;

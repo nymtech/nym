@@ -4,8 +4,8 @@ use crate::error::Result;
 use crate::models::{
     DirectoryService, DirectoryServiceProvider, HarbourMasterService, PagedResult,
 };
-use contracts_common::types::Percent;
 use nym_api_requests::models::GatewayBondAnnotated;
+use nym_contracts_common::types::Percent;
 
 static SERVICE_PROVIDER_WELLKNOWN_URL: &str =
     "https://nymtech.net/.wellknown/connect/service-providers.json";

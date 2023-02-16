@@ -1,5 +1,5 @@
 [package]
-name = "crypto"
+name = "nym-crypto"
 version = "0.1.0"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net"]
 edition = "2021"
@@ -26,7 +26,7 @@ thiserror = "1.0.37"
 
 # internal
 nymsphinx-types = { path = "../nymsphinx/types" }
-pemstore = { path = "../../common/pemstore" }
+nym-pemstore = { path = "../../common/pemstore" }
 
 [dev-dependencies]
 rand_chacha = "0.2"

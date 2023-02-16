@@ -7,11 +7,11 @@ use crate::{
     error::ClientCoreError,
 };
 use config::NymConfig;
-use crypto::asymmetric::identity;
 #[cfg(target_arch = "wasm32")]
 use gateway_client::wasm_mockups::SigningNyxdClient;
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
+use nym_crypto::asymmetric::identity;
 use rand::{seq::SliceRandom, thread_rng};
 use std::{sync::Arc, time::Duration};
 use tap::TapFallible;

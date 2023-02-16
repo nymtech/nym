@@ -11,7 +11,7 @@ use serde::Serialize;
 use tap::TapFallible;
 
 use config::NymConfig;
-use crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::{encryption, identity};
 use url::Url;
 
 use crate::client::key_manager::KeyManager;
@@ -188,7 +188,7 @@ where
         pathfinder: &ClientKeyPathfinder,
     ) -> Result<identity::KeyPair, ClientCoreError> {
         let identity_keypair: identity::KeyPair =
-            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
                 pathfinder.private_identity_key().to_owned(),
                 pathfinder.public_identity_key().to_owned(),
             ))
@@ -200,7 +200,7 @@ where
         pathfinder: &ClientKeyPathfinder,
     ) -> Result<encryption::KeyPair, ClientCoreError> {
         let sphinx_keypair: encryption::KeyPair =
-            pemstore::load_keypair(&pemstore::KeyPairPath::new(
+            nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
                 pathfinder.private_encryption_key().to_owned(),
                 pathfinder.public_encryption_key().to_owned(),
             ))

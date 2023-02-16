@@ -1,7 +1,7 @@
 use crate::error::BackendError;
 use crate::state::WalletState;
 use crate::vesting::rewards::vesting_claim_delegator_reward;
-use mixnet_contract_common::{MixId, RewardingParams};
+use nym_mixnet_contract_common::{MixId, RewardingParams};
 use nym_types::transaction::TransactionExecuteResult;
 use validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
 use validator_client::nyxd::Fee;

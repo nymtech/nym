@@ -5,8 +5,8 @@ use crate::support::caching::Cache;
 
 use self::data::NodeStatusCacheData;
 use self::inclusion_probabilities::InclusionProbabilities;
-use mixnet_contract_common::MixId;
 use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated, MixnodeStatus};
+use nym_mixnet_contract_common::MixId;
 use rocket::fairing::AdHoc;
 use std::{sync::Arc, time::Duration};
 use thiserror::Error;

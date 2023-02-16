@@ -1,6 +1,6 @@
 use crate::currency::{DecCoin, RegisteredCoins};
 use crate::error::TypesError;
-use mixnet_contract_common::{
+use nym_mixnet_contract_common::{
     Gateway as MixnetContractGateway, GatewayBond as MixnetContractGatewayBond,
 };
 use schemars::JsonSchema;

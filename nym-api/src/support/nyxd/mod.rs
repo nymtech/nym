@@ -14,16 +14,17 @@ use coconut_dkg_common::{
     verification_key::{ContractVKShare, VerificationKeyShare},
 };
 use config::defaults::{ChainDetails, NymNetworkDetails, DEFAULT_NYM_API_PORT};
-use contracts_common::dealings::ContractSafeBytes;
 use cw3::ProposalResponse;
 use cw4::MemberResponse;
-use mixnet_contract_common::families::{Family, FamilyHead};
-use mixnet_contract_common::mixnode::MixNodeDetails;
-use mixnet_contract_common::reward_params::RewardingParams;
-use mixnet_contract_common::{
+use nym_contracts_common::dealings::ContractSafeBytes;
+use nym_mixnet_contract_common::families::{Family, FamilyHead};
+use nym_mixnet_contract_common::mixnode::MixNodeDetails;
+use nym_mixnet_contract_common::reward_params::RewardingParams;
+use nym_mixnet_contract_common::{
     CurrentIntervalResponse, ExecuteMsg, GatewayBond, IdentityKey, LayerAssignment, MixId,
     RewardedSetNodeStatus,
 };
+use nym_vesting_contract_common::AccountVestingCoins;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use validator_client::nyxd::error::NyxdError;
@@ -41,7 +42,6 @@ use validator_client::nyxd::{
     AccountId, Coin, SigningNyxdClient, TendermintTime, VestingQueryClient,
 };
 use validator_client::ValidatorClientError;
-use vesting_contract_common::AccountVestingCoins;
 
 pub(crate) struct Client(pub(crate) Arc<RwLock<validator_client::Client<SigningNyxdClient>>>);
 

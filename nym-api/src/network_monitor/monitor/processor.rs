@@ -4,11 +4,11 @@
 use crate::network_monitor::gateways_reader::GatewayMessages;
 use crate::network_monitor::test_packet::{TestPacket, TestPacketError};
 use crate::network_monitor::ROUTE_TESTING_TEST_NONCE;
-use crypto::asymmetric::encryption;
 use futures::channel::mpsc;
 use futures::lock::{Mutex, MutexGuard};
 use futures::{SinkExt, StreamExt};
 use log::warn;
+use nym_crypto::asymmetric::encryption;
 use nymsphinx::receiver::{MessageReceiver, MessageRecoveryError};
 use std::mem;
 use std::sync::Arc;

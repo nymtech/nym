@@ -3,11 +3,11 @@
 
 use crate::verloc::listener::PacketListener;
 use crate::verloc::sender::{PacketSender, TestedNode};
-use crypto::asymmetric::identity;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use log::*;
 use network_defaults::mainnet::NYM_API;
+use nym_crypto::asymmetric::identity;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;

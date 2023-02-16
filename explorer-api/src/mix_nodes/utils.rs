@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use mixnet_contract_common::families::FamilyHead;
+use nym_mixnet_contract_common::families::FamilyHead;
 use rand::Rng;
 use rand_pcg::Pcg64;
 use rand_seeder::Seeder;

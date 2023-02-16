@@ -13,7 +13,7 @@ use client_core::{
     },
     config::{persistence::key_pathfinder::ClientKeyPathfinder, GatewayEndpointConfig},
 };
-use crypto::asymmetric::identity;
+use nym_crypto::asymmetric::identity;
 use nymsphinx::{
     addressing::clients::{ClientIdentity, Recipient},
     receiver::ReconstructedMessage,

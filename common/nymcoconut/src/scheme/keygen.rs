@@ -9,7 +9,7 @@ use std::convert::TryInto;
 
 use bls12_381::{G1Projective, G2Projective, Scalar};
 use group::Curve;
-use pemstore::traits::{PemStorableKey, PemStorableKeyPair};
+use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use serde_derive::{Deserialize, Serialize};
 
 use crate::error::{CoconutError, Result};

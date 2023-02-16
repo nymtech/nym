@@ -9,7 +9,7 @@ use crate::mix_node::models::{
     EconomicDynamicsStats, NodeDescription, NodeStats, PrettyDetailedMixNodeBond, SummedDelegations,
 };
 use crate::state::ExplorerApiStateContext;
-use mixnet_contract_common::{Delegation, MixId};
+use nym_mixnet_contract_common::{Delegation, MixId};
 use reqwest::Error as ReqwestError;
 use rocket::response::status::NotFound;
 use rocket::serde::json::Json;

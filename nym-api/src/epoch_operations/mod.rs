@@ -19,11 +19,11 @@ use crate::support::nyxd::Client;
 use crate::support::storage::models::RewardingReport;
 use crate::support::storage::NymApiStorage;
 use error::RewardingError;
-use mixnet_contract_common::families::FamilyHead;
-use mixnet_contract_common::{
+use nym_mixnet_contract_common::families::FamilyHead;
+use nym_mixnet_contract_common::{
     reward_params::Performance, CurrentIntervalResponse, ExecuteMsg, Interval, MixId,
 };
-use mixnet_contract_common::{IdentityKey, Layer, LayerAssignment, MixNodeDetails};
+use nym_mixnet_contract_common::{IdentityKey, Layer, LayerAssignment, MixNodeDetails};
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
 use std::collections::HashMap;

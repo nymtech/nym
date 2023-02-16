@@ -19,14 +19,14 @@ use config::defaults::NYM_API_VERSION;
 use credentials::coconut::params::{
     NymApiCredentialEncryptionAlgorithm, NymApiCredentialHkdfAlgorithm,
 };
-use crypto::asymmetric::encryption;
-use crypto::shared_key::new_ephemeral_shared_key;
-use crypto::symmetric::stream_cipher;
 use getset::{CopyGetters, Getters};
 use keypair::KeyPair;
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
+use nym_crypto::asymmetric::encryption;
+use nym_crypto::shared_key::new_ephemeral_shared_key;
+use nym_crypto::symmetric::stream_cipher;
 use rand_07::rngs::OsRng;
 use rocket::fairing::AdHoc;
 use rocket::serde::json::Json;

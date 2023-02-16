@@ -4,7 +4,7 @@
 use crate::context::SigningClient;
 use clap::Parser;
 use log::info;
-use mixnet_contract_common::{Coin, MixId};
+use nym_mixnet_contract_common::{Coin, MixId};
 use validator_client::nyxd::traits::{MixnetQueryClient, MixnetSigningClient};
 
 #[derive(Debug, Parser)]

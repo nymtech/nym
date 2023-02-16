@@ -17,13 +17,13 @@ use cosmrs::rpc::HttpClientUrl;
 use cosmrs::tx::Msg;
 use execute::execute;
 use log::debug;
-use mixnet_contract_common::MixId;
 use network_defaults::{ChainDetails, NymNetworkDetails};
+use nym_mixnet_contract_common::MixId;
+use nym_vesting_contract_common::ExecuteMsg as VestingExecuteMsg;
+use nym_vesting_contract_common::PledgeCap;
 use serde::{Deserialize, Serialize};
 use std::convert::TryInto;
 use std::time::SystemTime;
-use vesting_contract_common::ExecuteMsg as VestingExecuteMsg;
-use vesting_contract_common::PledgeCap;
 
 pub use crate::nyxd::cosmwasm_client::client::CosmWasmClient;
 pub use crate::nyxd::cosmwasm_client::signing_client::SigningCosmWasmClient;

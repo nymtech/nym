@@ -6,10 +6,12 @@ use crate::nyxd::cosmwasm_client::types::ExecuteResult;
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Coin, Fee, NyxdClient};
 use async_trait::async_trait;
-use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
-use mixnet_contract_common::{Gateway, MixId, MixNode};
-use vesting_contract_common::messages::{ExecuteMsg as VestingExecuteMsg, VestingSpecification};
-use vesting_contract_common::PledgeCap;
+use nym_mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
+use nym_mixnet_contract_common::{Gateway, MixId, MixNode};
+use nym_vesting_contract_common::messages::{
+    ExecuteMsg as VestingExecuteMsg, VestingSpecification,
+};
+use nym_vesting_contract_common::PledgeCap;
 
 #[async_trait]
 pub trait VestingSigningClient {

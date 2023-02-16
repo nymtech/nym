@@ -8,10 +8,10 @@ use coconut_dkg_common::types::{
     EncodedBTEPublicKeyWithProof, Epoch, EpochId, InitialReplacementData, NodeIndex,
 };
 use coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
-use contracts_common::dealings::ContractSafeBytes;
 use cw3::ProposalResponse;
 use cw4::MemberResponse;
 use dkg::Threshold;
+use nym_contracts_common::dealings::ContractSafeBytes;
 use validator_client::nyxd::cosmwasm_client::logs::{find_attribute, NODE_INDEX};
 use validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 use validator_client::nyxd::AccountId;

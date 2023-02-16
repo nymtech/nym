@@ -7,7 +7,7 @@ pub(crate) fn valid_bond_gateway_msg(
     mut rng: impl RngCore + CryptoRng,
     sender: &str,
 ) -> (ExecuteMsg, IdentityKey) {
-    let keypair = crypto::asymmetric::identity::KeyPair::new(&mut rng);
+    let keypair = nym_crypto::asymmetric::identity::KeyPair::new(&mut rng);
     let owner_signature = keypair
         .private_key()
         .sign(sender.as_bytes())

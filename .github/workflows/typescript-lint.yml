@@ -5,9 +5,12 @@ on:
     paths:
       - 'ts-packages/**'
       - 'sdk/typescript/**'
-      - nym-connect
-      - nym-connect-android
-      - nym-wallet
+      - 'nym-connect/src/**'
+      - 'nym-connect/package.json'
+      - 'nym-connect-android/src/**'
+      - 'nym-connect-android/package.json'
+      - 'nym-wallet/src/**'
+      - 'nym-wallet/package.json'
 
 jobs:
   build:
@@ -23,8 +26,12 @@ jobs:
         node-version: 16
     - name: Setup yarn
       run: npm install -g yarn
+    - name: Install
+      run: yarn
+    - name: Build packages
+      run: yarn build
     - name: Lint
-      run: yarn && yarn build && yarn lint && yarn tsc
+      run: yarn lint && yarn tsc
     - name: Matrix - Node Install
       run: npm install
       working-directory: .github/workflows/support-files

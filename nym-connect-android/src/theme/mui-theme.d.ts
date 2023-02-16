@@ -29,6 +29,7 @@ declare module '@mui/material/styles' {
    */
   interface NymPalette {
     highlight: string;
+    cta: string;
     success: string;
     warning: string;
     info: string;

@@ -175,10 +175,16 @@ impl State {
         self.set_state(ConnectionStatusKind::Connecting, window);
 
         let res = self.init_config().await;
-        match &res {
+        match res {
             Ok(_) => {}
             Err(e) => {
-                dbg!(e);
+                log::error!("Failed to initialize: {e}");
+
+                // Wait a little to give the user some rudimentary feedback that the click actually
+                // registered.
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                self.set_state(ConnectionStatusKind::Disconnected, window);
+                return Err(e);
             }
         };
         let (config, keys) = res.unwrap();

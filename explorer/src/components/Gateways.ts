@@ -3,7 +3,7 @@ import { GatewayResponse, GatewayBond, GatewayReportResponse } from '../typeDefs
 export type GatewayRowType = {
   id: string;
   owner: string;
-  identityKey: string;
+  identity_key: string;
   bond: number;
   host: string;
   location: string;
@@ -24,7 +24,7 @@ export function gatewayToGridRow(arrayOfGateways: GatewayResponse): GatewayRowTy
     : arrayOfGateways.map((gw) => ({
         id: gw.owner,
         owner: gw.owner,
-        identityKey: gw.gateway.identity_key || '',
+        identity_key: gw.gateway.identity_key || '',
         location: gw?.gateway?.location || '',
         bond: gw.pledge_amount.amount || 0,
         host: gw.gateway.host || '',
@@ -37,7 +37,7 @@ export function gatewayEnrichedToGridRow(gateway: GatewayBond, report: GatewayRe
   return {
     id: gateway.owner,
     owner: gateway.owner,
-    identityKey: gateway.gateway.identity_key || '',
+    identity_key: gateway.gateway.identity_key || '',
     location: gateway?.gateway?.location || '',
     bond: gateway.pledge_amount.amount || 0,
     host: gateway.gateway.host || '',

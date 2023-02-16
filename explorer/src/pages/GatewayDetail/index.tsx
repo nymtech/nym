@@ -14,7 +14,7 @@ import { Title } from '../../components/Title';
 
 const columns: ColumnsType[] = [
   {
-    field: 'identityKey',
+    field: 'identity_key',
     title: 'Identity Key',
     headerAlign: 'left',
     width: 230,

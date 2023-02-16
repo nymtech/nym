@@ -12,5 +12,8 @@
         <!-- Status bar color. -->
         <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
         <!-- Customize your theme here. -->
+        <item name="windowSplashScreenBackground">@color/grey_900</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher_round</item>
+        <item name="postSplashScreenTheme">@style/Theme.nym_connect_android</item>
     </style>
 </resources>

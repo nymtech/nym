@@ -198,13 +198,10 @@ fn claiming_vesting_delegator_rewards() {
         Err(err) => panic!("{err}"),
     }
 
-    // state after execution
+    // state after execution (we can still read values the 'normal' way)
     let updated_state = multi_mock.contract_state(VESTING_CONTRACT_ADDRESS).unwrap();
-    let vesting_account = updated_state
-        .load_map_value(&VESTING_ACCOUNTS, dummy_account.clone())
-        .unwrap();
-    let new_vesting_balance = vesting_account
-        .load_balance(updated_state.deps().storage)
-        .unwrap();
+    let deps = updated_state.deps();
+    let vesting_account = VESTING_ACCOUNTS.load(deps.storage, dummy_account).unwrap();
+    let new_vesting_balance = vesting_account.load_balance(deps.storage).unwrap();
     assert_eq!(new_vesting_balance, vesting_balance + pending_reward_amount)
 }

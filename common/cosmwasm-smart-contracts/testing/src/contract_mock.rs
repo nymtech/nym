@@ -1,12 +1,12 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::raw_state::{ContractState, DecodingError, EncodingError, KeyValue};
+use crate::raw_state::{DecodingError, EncodingError, ImportedContractState, KeyValue};
 use crate::AVERAGE_BLOCKTIME_SECS;
 use cosmwasm_std::testing::{mock_env, MockApi, MockQuerier, MockStorage};
 use cosmwasm_std::{
-    Addr, BlockInfo, Coin, Deps, DepsMut, Env, Order, QuerierWrapper, StdResult, Storage,
-    Timestamp, TransactionInfo,
+    Addr, Coin, Deps, DepsMut, Env, Order, QuerierWrapper, StdResult, Storage, Timestamp,
+    TransactionInfo,
 };
 use std::collections::HashMap;
 use std::path::Path;
@@ -20,12 +20,6 @@ struct MockedDependencies {
     // that's a bit annoying. We have to keep track of all balance changes for when we clone the state
     // as there's no easy way of obtaining the up to date list of all balances from the querier...
     _balances: HashMap<String, Vec<Coin>>,
-}
-
-pub fn env_with_block_info(info: BlockInfo) -> Env {
-    let mut env = mock_env();
-    env.block = info;
-    env
 }
 
 impl MockedDependencies {
@@ -69,21 +63,28 @@ impl MockedDependencies {
     }
 }
 
-pub struct ContractMock {
+pub struct ContractState {
     deps: MockedDependencies,
     env: Env,
 }
 
-impl ContractMock {
+impl ContractState {
     pub fn new() -> Self {
-        ContractMock {
+        ContractState {
             deps: MockedDependencies::new_mock(),
             env: mock_env(),
         }
     }
 
+    pub fn new_with_env(env: Env) -> Self {
+        ContractState {
+            deps: MockedDependencies::new_mock(),
+            env,
+        }
+    }
+
     pub fn clone_state(&self) -> Self {
-        ContractMock {
+        ContractState {
             deps: self.deps.clone_state(),
             env: self.env.clone(),
         }
@@ -165,7 +166,7 @@ impl ContractMock {
         self
     }
 
-    pub(crate) fn from_state_dump(state: ContractState, custom_env: Option<Env>) -> Self {
+    pub(crate) fn from_state_dump(state: ImportedContractState, custom_env: Option<Env>) -> Self {
         let env = custom_env.unwrap_or_else(|| {
             // this is not ideal, but we're making an assumption here that block time is approximately 5s
             // at block 5000000, we had a timestamp of 1672411689
@@ -186,14 +187,14 @@ impl ContractMock {
 
         let deps = MockedDependencies::from_raw(state.data);
 
-        ContractMock { deps, env }
+        ContractState { deps, env }
     }
 
     pub fn try_from_state_dump<P: AsRef<Path>>(
         path: P,
         custom_env: Option<Env>,
     ) -> Result<Self, DecodingError> {
-        Ok(ContractState::try_load_from_file(path)?.into_test_mock(custom_env))
+        Ok(ImportedContractState::try_load_from_file(path)?.into_test_mock(custom_env))
     }
 
     pub fn dump_state<P: AsRef<Path>>(&self, output_path: P) -> Result<(), EncodingError> {
@@ -202,7 +203,7 @@ impl ContractMock {
             data.push(KeyValue { key, value })
         }
 
-        let state = ContractState {
+        let state = ImportedContractState {
             height: self.env.block.height,
             data,
         };
@@ -211,9 +212,9 @@ impl ContractMock {
     }
 }
 
-impl Default for ContractMock {
+impl Default for ContractState {
     fn default() -> Self {
-        ContractMock {
+        ContractState {
             deps: MockedDependencies::new_mock(),
             env: mock_env(),
         }

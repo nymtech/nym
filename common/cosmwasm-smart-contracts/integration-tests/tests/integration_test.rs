@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_contract_testing::{
-    env_with_block_info, ContractMock, MultiContractMock, TestableContract,
+    env_with_block_info, ContractState, MultiContractMock, TestableContract,
 };
 use cosmwasm_std::testing::mock_info;
 use cosmwasm_std::{
@@ -13,11 +13,21 @@ struct VestingContract;
 
 impl TestableContract for VestingContract {
     type ContractError = vesting_contract::errors::ContractError;
+    type InstantiateMsg = vesting_contract_common::InitMsg;
     type ExecuteMsg = vesting_contract_common::ExecuteMsg;
     type QueryMsg = vesting_contract_common::QueryMsg;
 
     fn new() -> Self {
         VestingContract
+    }
+
+    fn instantiate(
+        deps: DepsMut<'_>,
+        env: Env,
+        info: MessageInfo,
+        msg: Self::InstantiateMsg,
+    ) -> Result<Response, Self::ContractError> {
+        vesting_contract::contract::instantiate(deps, env, info, msg)
     }
 
     fn execute(
@@ -42,11 +52,21 @@ struct MixnetContract;
 
 impl TestableContract for MixnetContract {
     type ContractError = mixnet_contract_common::error::MixnetContractError;
+    type InstantiateMsg = mixnet_contract_common::InstantiateMsg;
     type ExecuteMsg = mixnet_contract_common::ExecuteMsg;
     type QueryMsg = mixnet_contract_common::QueryMsg;
 
     fn new() -> Self {
         MixnetContract
+    }
+
+    fn instantiate(
+        deps: DepsMut<'_>,
+        env: Env,
+        info: MessageInfo,
+        msg: Self::InstantiateMsg,
+    ) -> Result<Response, Self::ContractError> {
+        mixnet_contract::contract::instantiate(deps, env, info, msg)
     }
 
     fn execute(
@@ -79,13 +99,13 @@ fn multi_mock() {
     };
     let custom_env = env_with_block_info(current_block);
 
-    let mix_mock = ContractMock::try_from_state_dump(
+    let mix_mock = ContractState::try_from_state_dump(
         "contract-states/15.02.23-173000-qwerty-mixnet.json",
         Some(custom_env.clone()),
     )
     .unwrap()
     .with_contract_address(mixnet_contract_address);
-    let vesting_mock = ContractMock::try_from_state_dump(
+    let vesting_mock = ContractState::try_from_state_dump(
         "contract-states/15.02.23-173000-qwerty-vesting.json",
         Some(custom_env),
     )

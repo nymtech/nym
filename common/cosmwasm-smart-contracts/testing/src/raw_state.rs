@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::contract_mock::ContractMock;
+use crate::contract_mock::ContractState;
 use base64::{engine::general_purpose, Engine};
 use cosmwasm_std::Env;
 use serde::{Deserialize, Serialize};
@@ -59,7 +59,7 @@ pub enum EncodingError {
     },
 }
 
-pub struct ContractState {
+pub struct ImportedContractState {
     pub height: u64,
     pub data: Vec<KeyValue>,
 }
@@ -69,7 +69,7 @@ pub struct KeyValue {
     pub value: Vec<u8>,
 }
 
-impl ContractState {
+impl ImportedContractState {
     pub fn try_from_json(value: &str) -> Result<Self, DecodingError> {
         RawContractState::from_json(value)?.decode()
     }
@@ -85,8 +85,8 @@ impl ContractState {
             .map(|kv| kv.value.as_ref())
     }
 
-    pub fn into_test_mock(self, custom_env: Option<Env>) -> ContractMock {
-        ContractMock::from_state_dump(self, custom_env)
+    pub fn into_test_mock(self, custom_env: Option<Env>) -> ContractState {
+        ContractState::from_state_dump(self, custom_env)
     }
 
     pub(crate) fn encode(self) -> RawContractState {
@@ -104,8 +104,8 @@ pub(crate) struct RawContractState {
 }
 
 impl RawContractState {
-    fn decode(self) -> Result<ContractState, DecodingError> {
-        Ok(ContractState {
+    fn decode(self) -> Result<ImportedContractState, DecodingError> {
+        Ok(ImportedContractState {
             height: self.height.parse()?,
             data: self
                 .result

@@ -1,106 +1,25 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::contract_mock::ContractMock;
+use crate::contract_mock::ContractState;
 use crate::execution::{
     CrossContractTokenMove, ExecutionResult, ExecutionStepResult, FurtherExecution,
 };
-use crate::MockingError;
-use cosmwasm_std::testing::mock_info;
-use cosmwasm_std::{
-    Addr, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, QueryResponse, ReplyOn, Response,
-    StdResult, WasmMsg,
-};
+use crate::{sealed, serialize_msg, test_rng, MockingError, TestableContract};
+use cosmwasm_std::testing::{mock_env, mock_info};
+use cosmwasm_std::{Addr, Binary, CosmosMsg, Env, MessageInfo, ReplyOn, Response, WasmMsg};
+use rand_chacha::rand_core::RngCore;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::collections::HashMap;
 
-// TODO: see if it's possible to create a macro to auto-derive it
-// if you intend to use the MultiContractMock, you need to implement this trait
-// for your contract
-/// ```
-/// use cosmwasm_std::{
-///     entry_point, Deps, DepsMut, Env, MessageInfo, Querier, QueryResponse, Response, StdError,
-///     Storage,
-/// };
-/// use cosmwasm_contract_testing::TestableContract;
-///
-/// type ExecuteMsg = ();
-/// type QueryMsg = ();
-/// type ContractError = StdError;
-///
-/// #[entry_point]
-/// pub fn execute(
-///     deps: DepsMut,
-///     env: Env,
-///     info: MessageInfo,
-///     msg: ExecuteMsg,
-/// ) -> Result<Response, ContractError> {
-///     Ok(Default::default())
-/// }
-///
-/// #[entry_point]
-/// pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<QueryResponse, ContractError> {
-///     Ok(Default::default())
-/// }
-///
-/// struct MyContract;
-///
-/// impl TestableContract for MyContract {
-///     type ContractError = ContractError;
-///     type ExecuteMsg = ExecuteMsg;
-///     type QueryMsg = QueryMsg;
-///
-///     fn new() -> Self {
-///         MyContract
-///     }
-///
-///     fn execute(
-///         deps: DepsMut<'_>,
-///         env: Env,
-///         info: MessageInfo,
-///         msg: Self::ExecuteMsg,
-///     ) -> Result<Response, Self::ContractError> {
-///         execute(deps, env, info, msg)
-///     }
-///
-///     fn query(
-///         deps: Deps<'_>,
-///         env: Env,
-///         msg: Self::QueryMsg,
-///     ) -> Result<QueryResponse, Self::ContractError> {
-///         query(deps, env, msg)
-///     }
-/// }
-/// ```
-pub trait TestableContract {
-    type ContractError: ToString;
-    type ExecuteMsg: DeserializeOwned;
-    type QueryMsg: DeserializeOwned;
-
-    fn new() -> Self;
-
-    fn execute(
-        deps: DepsMut<'_>,
-        env: Env,
-        info: MessageInfo,
-        msg: Self::ExecuteMsg,
-    ) -> Result<Response, Self::ContractError>;
-
-    fn query(
-        deps: Deps<'_>,
-        env: Env,
-        msg: Self::QueryMsg,
-    ) -> Result<QueryResponse, Self::ContractError>;
-}
-
 struct MockedContract {
-    state: ContractMock,
+    state: ContractState,
     handlers: Box<dyn sealed::ErasedTestableContract>,
 }
 
 impl MockedContract {
-    fn new<C: TestableContract + 'static>(state: ContractMock) -> Self {
+    fn new<C: TestableContract + 'static>(state: ContractState) -> Self {
         MockedContract {
             state,
             handlers: Box::new(C::new()),
@@ -114,6 +33,21 @@ pub struct MultiContractMock {
 }
 
 impl MultiContractMock {
+    fn generate_new_contract_address(&self) -> Addr {
+        let mut rng = test_rng();
+        loop {
+            // for the testing purposes u64 contains enough entropy
+            // (I could even argue u8 would be sufficient)
+            // as I doubt anyone would want to generate so many contract names
+            // they would have started colliding...
+            let candidate_id = rng.next_u64();
+            let name = Addr::unchecked(format!("new-contract{candidate_id}"));
+            if !self.contracts.contains_key(&name) {
+                return name;
+            }
+        }
+    }
+
     pub fn new() -> Self {
         MultiContractMock {
             contracts: Default::default(),
@@ -122,7 +56,7 @@ impl MultiContractMock {
 
     pub fn add_contract<C: TestableContract + 'static>(
         &mut self,
-        contract_state: ContractMock,
+        contract_state: ContractState,
     ) -> Result<(), MockingError> {
         let address = contract_state.contract_address().clone();
         if self
@@ -139,7 +73,7 @@ impl MultiContractMock {
 
     pub fn with_contract<C: TestableContract + 'static>(
         mut self,
-        state: ContractMock,
+        state: ContractState,
     ) -> Result<Self, MockingError> {
         self.add_contract::<C>(state)?;
         Ok(self)
@@ -247,6 +181,29 @@ impl MultiContractMock {
             )?
         }
         Ok(())
+    }
+
+    // TODO: add support for sub msgs in instantiate response
+    pub fn instantiate<C>(
+        &mut self,
+        custom_env: Option<Env>,
+        info: MessageInfo,
+        msg: C::InstantiateMsg,
+    ) -> Result<Response, C::ContractError>
+    where
+        C: TestableContract + 'static,
+    {
+        // if custom environment wasn't provided, generate a pseudorandom address so that it wouldn't
+        // clash with any existing contracts
+        let env = custom_env.unwrap_or_else(|| {
+            let mut env = mock_env();
+            env.contract.address = self.generate_new_contract_address();
+            env
+        });
+        let mut state = ContractState::new_with_env(env);
+        let env = state.env_cloned();
+        let deps = state.deps_mut();
+        C::instantiate(deps, env, info, msg)
     }
 
     pub fn execute_full<C>(
@@ -375,60 +332,11 @@ impl MultiContractMock {
     }
 }
 
-fn deserialize_msg<M: DeserializeOwned>(raw: &Binary) -> StdResult<M> {
-    cosmwasm_std::from_binary(raw)
-}
-
-fn serialize_msg<M: Serialize>(msg: &M) -> StdResult<Binary> {
-    cosmwasm_std::to_binary(msg)
-}
-
 // used only for purposes of providing more informative error messages
 fn raw_msg_to_string(raw: &Binary) -> String {
     match serde_json::from_slice::<serde_json::Value>(raw.as_slice()) {
         Ok(deserialized) => deserialized.to_string(),
         Err(_) => "ERR: COULD NOT RECOVER THE ORIGINAL MESSAGE".to_string(),
-    }
-}
-
-pub(crate) mod sealed {
-    use crate::multi_contract_mock::{deserialize_msg, TestableContract};
-    use cosmwasm_std::{Binary, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response};
-
-    pub(crate) trait ErasedTestableContract {
-        fn query(&self, deps: Deps<'_>, env: Env, raw_msg: Binary)
-            -> Result<QueryResponse, String>;
-
-        fn execute(
-            &self,
-            deps: DepsMut<'_>,
-            env: Env,
-            info: MessageInfo,
-            raw_msg: Binary,
-        ) -> Result<Response, String>;
-    }
-
-    impl<T: TestableContract> ErasedTestableContract for T {
-        fn query(
-            &self,
-            deps: Deps<'_>,
-            env: Env,
-            raw_msg: Binary,
-        ) -> Result<QueryResponse, String> {
-            let msg = deserialize_msg(&raw_msg).expect("failed to deserialize 'QueryMsg'");
-            <Self as TestableContract>::query(deps, env, msg).map_err(|err| err.to_string())
-        }
-
-        fn execute(
-            &self,
-            deps: DepsMut<'_>,
-            env: Env,
-            info: MessageInfo,
-            raw_msg: Binary,
-        ) -> Result<Response, String> {
-            let msg = deserialize_msg(&raw_msg).expect("failed to deserialize 'ExecuteMsg'");
-            <Self as TestableContract>::execute(deps, env, info, msg).map_err(|err| err.to_string())
-        }
     }
 }
 

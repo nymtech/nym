@@ -5,6 +5,7 @@ use crate::contract_mock::ContractMock;
 use crate::execution::{
     CrossContractTokenMove, ExecutionResult, ExecutionStepResult, FurtherExecution,
 };
+use crate::MockingError;
 use cosmwasm_std::testing::mock_info;
 use cosmwasm_std::{
     Addr, Binary, CosmosMsg, Deps, DepsMut, Env, MessageInfo, QueryResponse, ReplyOn, Response,
@@ -82,8 +83,7 @@ pub struct DuplicateContractAddress {
 /// ```
 pub trait TestableContract {
     type ContractError: ToString;
-    // TODO: can we avoid the extra `Serialize` trait bound here?
-    type ExecuteMsg: DeserializeOwned + Serialize;
+    type ExecuteMsg: DeserializeOwned;
     type QueryMsg: DeserializeOwned;
 
     fn new() -> Self;
@@ -172,25 +172,36 @@ impl MultiContractMock {
     }
 
     // TODO: incorporate error handling...
-    fn _execute_step(
+    fn execute_step(
         &mut self,
         contract_address: impl Into<String>,
         info: MessageInfo,
         binary_msg: Binary,
-    ) -> ExecutionStepResult {
+    ) -> Result<ExecutionStepResult, MockingError> {
         let addr = Addr::unchecked(contract_address.into());
-        let contract = self
-            .contracts
-            .get_mut(&addr)
-            .expect("TODO: error handling; contract doesnt exist");
+        let contract =
+            self.contracts
+                .get_mut(&addr)
+                .ok_or_else(|| MockingError::NonExistentContract {
+                    address: addr.clone(),
+                })?;
 
         let env = contract.state.env_cloned();
         let deps = contract.state.deps_mut();
 
-        let res = contract
+        let res = match contract
             .handlers
-            .execute(deps, env, info, binary_msg)
-            .unwrap();
+            .execute(deps, env, info, binary_msg.clone())
+        {
+            Ok(res) => res,
+            Err(error) => {
+                return Err(MockingError::ContractExecutionError {
+                    message: raw_msg_to_string(&binary_msg),
+                    contract: addr,
+                    error,
+                })
+            }
+        };
 
         let mut bank_msgs = Vec::new();
         let mut further_execution = Vec::new();
@@ -217,12 +228,12 @@ impl MultiContractMock {
             }
         }
 
-        ExecutionStepResult {
+        Ok(ExecutionStepResult {
             events: res.events,
             incoming_tokens,
             bank_msgs,
             further_execution,
-        }
+        })
     }
 
     // TODO: verify that this is the actual order of execution of sub messages in cosmwasm
@@ -232,8 +243,8 @@ impl MultiContractMock {
         contract: String,
         info: MessageInfo,
         msg: Binary,
-    ) {
-        let step_res = self._execute_step(contract.clone(), info, msg);
+    ) -> Result<(), MockingError> {
+        let step_res = self.execute_step(contract.clone(), info, msg)?;
         res.steps.push(step_res.clone());
         for further_exec in step_res.further_execution {
             let info = mock_info(&contract, &further_exec.funds);
@@ -242,8 +253,9 @@ impl MultiContractMock {
                 further_exec.contract.into_string(),
                 info,
                 further_exec.msg,
-            )
+            )?
         }
+        Ok(())
     }
 
     pub fn execute_full<C>(
@@ -251,24 +263,25 @@ impl MultiContractMock {
         initial_contract: impl Into<String>,
         info: MessageInfo,
         msg: C::ExecuteMsg,
-    ) -> Result<ExecutionResult, String>
+    ) -> Result<ExecutionResult, MockingError>
     where
         C: TestableContract + 'static,
+        C::ExecuteMsg: Serialize,
     {
         let mut execution_result = ExecutionResult::new();
-        let serialized_msg = serialize_msg(&msg).unwrap();
+        let serialized_msg = serialize_msg(&msg)?;
 
         self.execute_branch(
             &mut execution_result,
             initial_contract.into(),
             info,
             serialized_msg,
-        );
+        )?;
         Ok(execution_result)
     }
 
-    // executes only the top level message
-    pub fn execute<C>(
+    // provide unchecked variant of execute to return original error enum
+    pub fn unchecked_execute<C>(
         &mut self,
         contract_address: impl Into<String>,
         info: MessageInfo,
@@ -281,15 +294,45 @@ impl MultiContractMock {
         let contract = self
             .contracts
             .get_mut(&addr)
-            .expect("TODO: error handling; contract doesnt exist");
+            .expect("specified contract does not exist");
+
+        let env = contract.state.env_cloned();
+        let deps = contract.state.deps_mut();
+        C::execute(deps, env, info, msg)
+    }
+
+    // executes only the top level message
+    pub fn execute<C>(
+        &mut self,
+        contract_address: impl Into<String>,
+        info: MessageInfo,
+        msg: C::ExecuteMsg,
+    ) -> Result<Response, MockingError>
+    where
+        C: TestableContract + 'static,
+        C::ExecuteMsg: Serialize,
+    {
+        let addr = Addr::unchecked(contract_address.into());
+        let contract =
+            self.contracts
+                .get_mut(&addr)
+                .ok_or_else(|| MockingError::NonExistentContract {
+                    address: addr.clone(),
+                })?;
 
         let env = contract.state.env_cloned();
         let deps = contract.state.deps_mut();
 
-        C::execute(deps, env, info, msg)
+        let serialized_msg = serialize_msg(&msg)?;
+        C::execute(deps, env, info, msg).map_err(|err| MockingError::ContractExecutionError {
+            message: raw_msg_to_string(&serialized_msg),
+            contract: addr,
+            error: err.to_string(),
+        })
     }
 
-    pub fn query<C, T>(
+    // provide unchecked variant of query to return original error enum
+    pub fn unchecked_query<C, T>(
         &self,
         contract_address: impl Into<String>,
         msg: C::QueryMsg,
@@ -302,21 +345,59 @@ impl MultiContractMock {
         let contract = self
             .contracts
             .get(&addr)
-            .expect("TODO: error handling; contract doesnt exist");
+            .expect("specified contract does not exist");
+
+        let env = contract.state.env_cloned();
+        let deps = contract.state.deps();
+        C::query(deps, env, msg).map(|res| serde_json::from_slice(&res).unwrap())
+    }
+
+    pub fn query<C, T>(
+        &self,
+        contract_address: impl Into<String>,
+        msg: C::QueryMsg,
+    ) -> Result<T, MockingError>
+    where
+        C: TestableContract + 'static,
+        C::QueryMsg: Serialize,
+        T: DeserializeOwned,
+    {
+        let addr = Addr::unchecked(contract_address.into());
+        let contract =
+            self.contracts
+                .get(&addr)
+                .ok_or_else(|| MockingError::NonExistentContract {
+                    address: addr.clone(),
+                })?;
 
         let env = contract.state.env_cloned();
         let deps = contract.state.deps();
 
-        C::query(deps, env, msg).map(|res| serde_json::from_slice(&res).unwrap())
+        let serialized_msg = serialize_msg(&msg)?;
+        C::query(deps, env, msg)
+            .map(|res| serde_json::from_slice(&res).unwrap())
+            .map_err(|err| MockingError::ContractQueryError {
+                message: raw_msg_to_string(&serialized_msg),
+                contract: addr,
+                error: err.to_string(),
+            })
     }
 }
 
-fn deserialize_msg<M: DeserializeOwned>(raw: Binary) -> StdResult<M> {
-    cosmwasm_std::from_binary(&raw)
+fn deserialize_msg<M: DeserializeOwned>(raw: &Binary) -> StdResult<M> {
+    cosmwasm_std::from_binary(raw)
 }
 
 fn serialize_msg<M: Serialize>(msg: &M) -> StdResult<Binary> {
     cosmwasm_std::to_binary(msg)
+}
+
+// used only for purposes of providing more informative error messages
+fn raw_msg_to_string(raw: &Binary) -> String {
+    match serde_json::from_slice::<serde_json::Value>(raw.as_slice()) {
+        Ok(deserialized) => deserialized.to_string(),
+        Err(_) => "ERR: COULD NOT RECOVER THE ORIGINAL MESSAGE".to_string(),
+    }
 }
 
 pub(crate) mod sealed {
@@ -343,7 +424,7 @@ pub(crate) mod sealed {
             env: Env,
             raw_msg: Binary,
         ) -> Result<QueryResponse, String> {
-            let msg = deserialize_msg(raw_msg).expect("failed to deserialize 'QueryMsg'");
+            let msg = deserialize_msg(&raw_msg).expect("failed to deserialize 'QueryMsg'");
             <Self as TestableContract>::query(deps, env, msg).map_err(|err| err.to_string())
         }
 
@@ -354,8 +435,35 @@ pub(crate) mod sealed {
             info: MessageInfo,
             raw_msg: Binary,
         ) -> Result<Response, String> {
-            let msg = deserialize_msg(raw_msg).expect("failed to deserialize 'ExecuteMsg'");
+            let msg = deserialize_msg(&raw_msg).expect("failed to deserialize 'ExecuteMsg'");
             <Self as TestableContract>::execute(deps, env, info, msg).map_err(|err| err.to_string())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde::{Deserialize, Serialize};
+
+    #[test]
+    fn converting_msg_to_string() {
+        #[derive(Serialize, Deserialize)]
+        struct Dummy {
+            field1: String,
+            field2: u32,
+            field3: Vec<u32>,
+        }
+
+        let dummy = Dummy {
+            field1: "aaaa".to_string(),
+            field2: 42,
+            field3: vec![1, 2, 3, 4],
+        };
+
+        let bin = serialize_msg(&dummy).unwrap();
+        let expected = r#"{"field1":"aaaa","field2":42,"field3":[1,2,3,4]}"#;
+        let stringified = raw_msg_to_string(&bin);
+        assert_eq!(expected, stringified)
     }
 }

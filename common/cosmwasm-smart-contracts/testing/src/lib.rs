@@ -1,14 +1,14 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-// use cosmwasm_std::{Deps, DepsMut, Env, MessageInfo, QueryResponse, Response};
-
 mod contract_mock;
+mod error;
 mod execution;
 mod multi_contract_mock;
 mod raw_state;
 
 pub use contract_mock::{env_with_block_info, ContractMock};
+pub use error::MockingError;
 pub use execution::{
     CrossContractTokenMove, ExecutionResult, ExecutionStepResult, FurtherExecution,
 };

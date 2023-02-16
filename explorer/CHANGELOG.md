@@ -2,7 +2,7 @@
 
 - nothing yet
 
-## [nym-explorer-v1.1.10](https://github.com/nymtech/nym/tree/nym-explorer-v1.0.5) (2023-02-21)
+## [nym-explorer-v1.0.6](https://github.com/nymtech/nym/tree/nym-explorer-v1.0.6) (2023-02-21)
 
 - Allow user to filter gateways but current and old versions
 - Add copy buttons to gateway identity keys

@@ -2,6 +2,11 @@
 
 ## UNRELEASED
 
+## [nym-wallet-v1.1.10](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.10) (2023-02-21)
+
+- Remove non-zero and trailing white spaces
+- Add error description on failed send txs
+
 ## [nym-wallet-v1.1.9](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.1.9) (2023-02-14)
 
 - Allow more flexibility for user when setting passwords ([#2993])

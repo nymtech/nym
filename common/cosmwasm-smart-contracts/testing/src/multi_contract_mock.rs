@@ -15,14 +15,14 @@ use std::collections::HashMap;
 
 struct MockedContract {
     state: ContractState,
-    handlers: Box<dyn sealed::ErasedTestableContract>,
+    entry_points: Box<dyn sealed::ErasedTestableContract>,
 }
 
 impl MockedContract {
     fn new<C: TestableContract + 'static>(state: ContractState) -> Self {
         MockedContract {
             state,
-            handlers: Box::new(C::new()),
+            entry_points: Box::new(C::new()),
         }
     }
 }
@@ -115,7 +115,7 @@ impl MultiContractMock {
         let deps = contract.state.deps_mut();
 
         let res = match contract
-            .handlers
+            .entry_points
             .execute(deps, env, info, binary_msg.clone())
         {
             Ok(res) => res,

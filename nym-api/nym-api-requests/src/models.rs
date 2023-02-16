@@ -93,12 +93,21 @@ pub struct MixnodeStatusResponse {
     pub status: MixnodeStatus,
 }
 
+#[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema)]
+pub struct NodePerformance {
+    pub most_recent: Performance,
+    pub last_hour: Performance,
+    pub last_24h: Performance,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct MixNodeBondAnnotated {
     pub mixnode_details: MixNodeDetails,
     pub stake_saturation: StakeSaturation,
     pub uncapped_stake_saturation: StakeSaturation,
+    // NOTE: the performance field is deprecated in favour of node_performance
     pub performance: Performance,
+    pub node_performance: NodePerformance,
     pub estimated_operator_apy: Decimal,
     pub estimated_delegators_apy: Decimal,
     pub family: Option<FamilyHead>,

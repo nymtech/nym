@@ -1,6 +1,6 @@
 use crate::node_status_api::reward_estimate::{compute_apy_from_reward, compute_reward_estimate};
 use crate::support::storage::NymApiStorage;
-use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated};
+use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated, NodePerformance};
 use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::{reward_params::Performance, Interval, MixId};
 use nym_mixnet_contract_common::{
@@ -99,15 +99,14 @@ pub(super) async fn annotate_nodes_with_details(
             .rewarding_details
             .uncapped_bond_saturation(&interval_reward_params);
 
+        let rewarded_set_status = rewarded_set.get(&mixnode.mix_id()).copied();
+
         // If the performance can't be obtained, because the nym-api was not started with
         // the monitoring (and hence, storage), then reward estimates will be all zero
-
         let performance =
             get_mixnode_performance_from_storage(storage, mixnode.mix_id(), current_interval)
                 .await
                 .unwrap_or_default();
-
-        let rewarded_set_status = rewarded_set.get(&mixnode.mix_id()).copied();
 
         let reward_estimate = compute_reward_estimate(
             &mixnode,
@@ -116,6 +115,17 @@ pub(super) async fn annotate_nodes_with_details(
             interval_reward_params,
             current_interval,
         );
+
+        let node_performance = if let Some(storage) = storage {
+            storage
+                .construct_mixnode_report(mixnode.mix_id())
+                .await
+                .map(NodePerformance::from)
+                .ok()
+        } else {
+            None
+        }
+        .unwrap_or_default();
 
         let (estimated_operator_apy, estimated_delegators_apy) =
             compute_apy_from_reward(&mixnode, reward_estimate, current_interval);
@@ -129,6 +139,7 @@ pub(super) async fn annotate_nodes_with_details(
             stake_saturation,
             uncapped_stake_saturation,
             performance,
+            node_performance,
             estimated_operator_apy,
             estimated_delegators_apy,
             family,

@@ -5,7 +5,7 @@ edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[dependencies]
+[dev-dependencies]
 cosmwasm-std = "1.0.0"
 cw-storage-plus = "0.13.4"
 cosmwasm-contract-testing = { path = "../../common/cosmwasm-smart-contracts/testing" }

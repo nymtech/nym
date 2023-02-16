@@ -15,6 +15,7 @@
     "@nymproject/mui-theme": "^1.0.0",
     "@nymproject/nym-validator-client": "^0.18.0",
     "@nymproject/react": "^1.0.0",
+    "big.js": "^6.2.1",
     "d3-scale": "^4.0.0",
     "date-fns": "^2.24.0",
     "i18n-iso-countries": "^6.8.0",
@@ -26,8 +27,8 @@
     "react-router-dom": "6",
     "react-simple-maps": "^2.3.0",
     "react-tooltip": "^4.2.21",
-    "use-clipboard-copy": "^0.2.0",
-    "big.js": "^6.2.1"
+    "semver": "^7.3.8",
+    "use-clipboard-copy": "^0.2.0"
   },
   "devDependencies": {
     "@babel/core": "^7.15.0",

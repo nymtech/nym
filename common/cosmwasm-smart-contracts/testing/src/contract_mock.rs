@@ -1,20 +1,27 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::mock_api::CW12MockApi;
 use crate::raw_state::{DecodingError, EncodingError, ImportedContractState, KeyValue};
 use crate::AVERAGE_BLOCKTIME_SECS;
-use cosmwasm_std::testing::{mock_env, MockApi, MockQuerier, MockStorage};
+use cosmwasm_std::testing::{mock_env, MockQuerier, MockStorage};
 use cosmwasm_std::{
     Addr, Coin, Deps, DepsMut, Env, Order, QuerierWrapper, StdResult, Storage, Timestamp,
     TransactionInfo,
 };
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::path::Path;
 
+#[cfg(feature = "cw-storage-plus")]
+use cw_storage_plus::{Item, Map, PrimaryKey};
+
 // extracted into separate struct for easier cloning, access to mock structs, etc.
+// we also had to redefine the MockApi
 struct MockedDependencies {
     storage: MockStorage,
-    api: MockApi,
+    api: CW12MockApi,
     querier: MockQuerier,
 
     // that's a bit annoying. We have to keep track of all balance changes for when we clone the state
@@ -113,6 +120,65 @@ impl ContractState {
 
     pub fn all_account_balances(&self, address: impl Into<String>) -> StdResult<Vec<Coin>> {
         self.deps().querier.query_all_balances(address)
+    }
+
+    #[cfg(feature = "cw-storage-plus")]
+    pub fn save_map_value<'a, K, T>(&mut self, map: &Map<'a, K, T>, k: K, data: &T) -> StdResult<()>
+    where
+        T: Serialize + DeserializeOwned,
+        K: PrimaryKey<'a>,
+    {
+        map.save(&mut self.deps.storage, k, data)
+    }
+
+    #[cfg(feature = "cw-storage-plus")]
+    pub fn load_map_value<'a, K, T>(&self, map: &Map<'a, K, T>, k: K) -> StdResult<T>
+    where
+        T: Serialize + DeserializeOwned,
+        K: PrimaryKey<'a>,
+    {
+        map.load(&self.deps.storage, k)
+    }
+
+    #[cfg(feature = "cw-storage-plus")]
+    pub fn may_load_map_value<'a, K, T>(&self, map: &Map<'a, K, T>, k: K) -> StdResult<Option<T>>
+    where
+        T: Serialize + DeserializeOwned,
+        K: PrimaryKey<'a>,
+    {
+        map.may_load(&self.deps.storage, k)
+    }
+
+    #[cfg(feature = "cw-storage-plus")]
+    pub fn save_item<T>(&mut self, item: &Item<T>, data: &T) -> StdResult<()>
+    where
+        T: Serialize + DeserializeOwned,
+    {
+        item.save(&mut self.deps.storage, data)
+    }
+
+    #[cfg(feature = "cw-storage-plus")]
+    pub fn load_item<T>(&self, item: &Item<T>) -> StdResult<T>
+    where
+        T: Serialize + DeserializeOwned,
+    {
+        item.load(&self.deps.storage)
+    }
+
+    #[cfg(feature = "cw-storage-plus")]
+    pub fn may_load_item<T>(&self, item: &Item<T>) -> StdResult<Option<T>>
+    where
+        T: Serialize + DeserializeOwned,
+    {
+        item.may_load(&self.deps.storage)
+    }
+
+    pub fn read_key(&self, key: &[u8]) -> Option<Vec<u8>> {
+        self.deps.storage.get(key)
+    }
+
+    pub fn set_key_value(&mut self, key: &[u8], value: &[u8]) {
+        self.deps.storage.set(key, value)
     }
 
     pub fn deps(&self) -> Deps<'_> {

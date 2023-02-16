@@ -5,7 +5,7 @@ use crate::contract_mock::ContractState;
 use crate::execution::{
     CrossContractTokenMove, ExecutionResult, ExecutionStepResult, FurtherExecution,
 };
-use crate::{sealed, serialize_msg, test_rng, MockingError, TestableContract};
+use crate::{raw_msg_to_string, sealed, serialize_msg, test_rng, MockingError, TestableContract};
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{Addr, Binary, CosmosMsg, Env, MessageInfo, ReplyOn, Response, WasmMsg};
 use rand_chacha::rand_core::RngCore;
@@ -183,6 +183,34 @@ impl MultiContractMock {
         Ok(())
     }
 
+    pub fn contract_state(
+        &self,
+        contract_address: impl Into<String>,
+    ) -> Result<&ContractState, MockingError> {
+        let addr = Addr::unchecked(contract_address.into());
+        let contract =
+            self.contracts
+                .get(&addr)
+                .ok_or_else(|| MockingError::NonExistentContract {
+                    address: addr.clone(),
+                })?;
+        Ok(&contract.state)
+    }
+
+    pub fn contract_state_mut(
+        &mut self,
+        contract_address: impl Into<String>,
+    ) -> Result<&mut ContractState, MockingError> {
+        let addr = Addr::unchecked(contract_address.into());
+        let contract =
+            self.contracts
+                .get_mut(&addr)
+                .ok_or_else(|| MockingError::NonExistentContract {
+                    address: addr.clone(),
+                })?;
+        Ok(&mut contract.state)
+    }
+
     // TODO: add support for sub msgs in instantiate response
     pub fn instantiate<C>(
         &mut self,
@@ -329,14 +357,6 @@ impl MultiContractMock {
                 contract: addr,
                 error: err.to_string(),
             })
-    }
-}
-
-// used only for purposes of providing more informative error messages
-fn raw_msg_to_string(raw: &Binary) -> String {
-    match serde_json::from_slice::<serde_json::Value>(raw.as_slice()) {
-        Ok(deserialized) => deserialized.to_string(),
-        Err(_) => "ERR: COULD NOT RECOVER THE ORIGINAL MESSAGE".to_string(),
     }
 }
 

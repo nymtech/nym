@@ -4,6 +4,7 @@
 mod contract_mock;
 mod error;
 mod execution;
+mod mock_api;
 mod multi_contract_mock;
 mod raw_state;
 mod single_contract_mock;
@@ -153,6 +154,14 @@ fn deserialize_msg<M: DeserializeOwned>(raw: &Binary) -> StdResult<M> {
 
 fn serialize_msg<M: Serialize>(msg: &M) -> StdResult<Binary> {
     cosmwasm_std::to_binary(msg)
+}
+
+// used only for purposes of providing more informative error messages
+fn raw_msg_to_string(raw: &Binary) -> String {
+    match serde_json::from_slice::<serde_json::Value>(raw.as_slice()) {
+        Ok(deserialized) => deserialized.to_string(),
+        Err(_) => "ERR: COULD NOT RECOVER THE ORIGINAL MESSAGE".to_string(),
+    }
 }
 
 pub(crate) mod sealed {

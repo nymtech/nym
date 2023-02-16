@@ -6,8 +6,11 @@ use cosmwasm_contract_testing::{
 };
 use cosmwasm_std::testing::mock_info;
 use cosmwasm_std::{
-    coin, BlockInfo, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Timestamp,
+    Addr, BankMsg, BlockInfo, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Timestamp,
 };
+use cw_storage_plus::Map;
+use mixnet_contract_common::rewarding::PendingRewardResponse;
+use vesting_contract::vesting::Account;
 
 struct VestingContract;
 
@@ -87,11 +90,15 @@ impl TestableContract for MixnetContract {
     }
 }
 
-#[test]
-fn multi_mock() {
-    let mixnet_contract_address = "n14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sjyvg3g";
-    let vesting_contract_address = "n1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq73f2nw";
+// this is not directly exported by the vesting contract, but we can easily recreate it
+const VESTING_ACCOUNTS: Map<'_, Addr, Account> = Map::new("acc");
 
+const MIXNET_CONTRACT_ADDRESS: &str =
+    "n14hj2tavq8fpesdwxxcu44rty3hh90vhujrvcmstl4zr3txmfvw9sjyvg3g";
+const VESTING_CONTRACT_ADDRESS: &str =
+    "n1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq73f2nw";
+
+fn set_mock() -> MultiContractMock {
     let current_block = BlockInfo {
         height: 1928125,
         time: Timestamp::from_seconds(1676482616),
@@ -104,13 +111,13 @@ fn multi_mock() {
         Some(custom_env.clone()),
     )
     .unwrap()
-    .with_contract_address(mixnet_contract_address);
+    .with_contract_address(MIXNET_CONTRACT_ADDRESS);
     let vesting_mock = ContractState::try_from_state_dump(
         "contract-states/15.02.23-173000-qwerty-vesting.json",
         Some(custom_env),
     )
     .unwrap()
-    .with_contract_address(vesting_contract_address);
+    .with_contract_address(VESTING_CONTRACT_ADDRESS);
 
     let mut multi_mock = MultiContractMock::new();
 
@@ -118,26 +125,86 @@ fn multi_mock() {
     multi_mock
         .add_contract::<VestingContract>(vesting_mock)
         .unwrap();
+    multi_mock
+}
+
+#[test]
+fn claiming_vesting_delegator_rewards() {
+    let mut multi_mock = set_mock();
+
+    let dummy_account = Addr::unchecked("n1ktpuwtweku40uaxcl4uq7mdkkmjeh698g3l3c8");
+
+    // do some queries to verify state is updated correctly for both contracts
+    let pending_reward: PendingRewardResponse = multi_mock
+        .query::<MixnetContract, _>(
+            MIXNET_CONTRACT_ADDRESS,
+            mixnet_contract_common::QueryMsg::GetPendingDelegatorReward {
+                address: dummy_account.to_string(),
+                mix_id: 8,
+                proxy: Some(VESTING_CONTRACT_ADDRESS.to_string()),
+            },
+        )
+        .unwrap();
+    let pending_reward_amount = pending_reward.amount_earned.unwrap().amount;
+
+    // we can also get whatever we want directly from storage!
+    let contract_state = multi_mock.contract_state(VESTING_CONTRACT_ADDRESS).unwrap();
+    let vesting_account = contract_state
+        .load_map_value(&VESTING_ACCOUNTS, dummy_account.clone())
+        .unwrap();
+    let vesting_balance = vesting_account
+        .load_balance(contract_state.deps().storage)
+        .unwrap();
 
     let res = multi_mock.execute_full::<VestingContract>(
-        vesting_contract_address,
-        mock_info("n1vuz06p7cgagxcaplfezchvpu99u4np7erfxa4c", &[]),
-        vesting_contract_common::ExecuteMsg::DelegateToMixnode {
-            mix_id: 7,
-            amount: coin(1000, "unym"),
-            on_behalf_of: None,
-        },
+        VESTING_CONTRACT_ADDRESS,
+        mock_info(dummy_account.as_str(), &[]),
+        vesting_contract_common::ExecuteMsg::ClaimDelegatorReward { mix_id: 8 },
     );
 
     match res {
         Ok(success) => {
-            // first we should have emitted a "vesting_delegation" event from the vesting contract
-            // followed by "v2_pending_delegation" from the mixnet contract
-            assert_eq!("vesting_delegation", success.steps[0].events[0].ty);
-            assert_eq!("v2_pending_delegation", success.steps[1].events[0].ty);
+            println!("{}", success.pretty());
 
-            // println!("{}", success.pretty())
+            // check the output
+
+            // unfortunately `ClaimDelegatorReward` doesn't emit any events, but we can see
+            // it's going to result into a call into the mixnet contract
+            assert_eq!(
+                success.steps[0].further_execution[0].contract.as_str(),
+                MIXNET_CONTRACT_ADDRESS
+            );
+
+            // mixnet contract will emit a `v2_withdraw_delegator_reward` event
+            // and call the vesting contract again
+            assert_eq!(
+                "v2_withdraw_delegator_reward",
+                success.steps[1].events[0].ty
+            );
+            assert_eq!(
+                success.steps[1].further_execution[0].contract.as_str(),
+                VESTING_CONTRACT_ADDRESS
+            );
+            // and will move our reward amount into the vesting contract...
+            assert!(matches!(
+                &success.steps[1].bank_msgs[0],
+                BankMsg::Send { to_address, amount }
+                if to_address == VESTING_CONTRACT_ADDRESS && amount[0].amount == pending_reward_amount
+            ));
+
+            // and finally the vesting contract will emit the mistyped `track_reaward` event
+            assert_eq!("track_reaward", success.steps[2].events[0].ty);
         }
         Err(err) => panic!("{err}"),
     }
+
+    // state after execution
+    let updated_state = multi_mock.contract_state(VESTING_CONTRACT_ADDRESS).unwrap();
+    let vesting_account = updated_state
+        .load_map_value(&VESTING_ACCOUNTS, dummy_account.clone())
+        .unwrap();
+    let new_vesting_balance = vesting_account
+        .load_balance(updated_state.deps().storage)
+        .unwrap();
+    assert_eq!(new_vesting_balance, vesting_balance + pending_reward_amount)
 }

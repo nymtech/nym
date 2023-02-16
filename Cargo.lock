@@ -909,6 +909,7 @@ dependencies = [
  "base64 0.21.0",
  "cosmwasm-std",
  "cosmwasm-storage",
+ "cw-storage-plus",
  "hex",
  "rand_chacha 0.3.1",
  "serde",
@@ -2759,6 +2760,7 @@ version = "0.1.0"
 dependencies = [
  "cosmwasm-contract-testing",
  "cosmwasm-std",
+ "cw-storage-plus",
  "mixnet-contract",
  "mixnet-contract-common",
  "vesting-contract",

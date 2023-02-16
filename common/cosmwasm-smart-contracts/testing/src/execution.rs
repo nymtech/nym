@@ -1,14 +1,19 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::raw_msg_to_string;
 use cosmwasm_std::{Addr, BankMsg, Binary, Coin, Event};
 
 fn format_coins(coins: &[Coin]) -> String {
-    coins
-        .iter()
-        .map(|c| c.to_string())
-        .collect::<Vec<_>>()
-        .join(",")
+    if coins.is_empty() {
+        "<zero>".to_string()
+    } else {
+        coins
+            .iter()
+            .map(|c| c.to_string())
+            .collect::<Vec<_>>()
+            .join(",")
+    }
 }
 
 // specifically for tokens included in `Execute` that go into the contract
@@ -75,12 +80,12 @@ impl FurtherExecution {
     }
 
     pub fn pretty(&self) -> String {
-        let msg_placeholder = "<PLACEHOLDER>";
+        let msg = raw_msg_to_string(&self.msg);
         let total_funds = format_coins(&self.funds);
 
         format!(
-            "{} will be called with msg {} and {total_funds} funds",
-            self.contract, msg_placeholder
+            "{} will be called with msg {msg} and {total_funds} funds",
+            self.contract
         )
     }
 }
@@ -101,10 +106,12 @@ impl ExecutionStepResult {
         let events = format!("EVENTS: {:?}\n", self.events);
         out.push_str(&events);
 
-        if !self.incoming_tokens.is_empty() {
+        if self.incoming_tokens.iter().any(|c| !c.amount.is_empty()) {
             out.push_str("MOVED TOKENS (CONTRACTS):\n");
             for incoming in &self.incoming_tokens {
-                out.push_str(&format!("{}\n", incoming.pretty()))
+                if !incoming.amount.is_empty() {
+                    out.push_str(&format!("{}\n", incoming.pretty()))
+                }
             }
         }
 

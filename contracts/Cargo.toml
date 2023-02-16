@@ -6,7 +6,8 @@ members = [
     "multisig/cw3-flex-multisig",
     "multisig/cw4-group",
     "coconut-test",
-    "coconut-dkg"
+    "coconut-dkg",
+    "integration-tests",
 ]
 
 [workspace.package]

@@ -9,16 +9,16 @@ use cosmwasm_std::{
     Addr, BankMsg, BlockInfo, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response, Timestamp,
 };
 use cw_storage_plus::Map;
-use mixnet_contract_common::rewarding::PendingRewardResponse;
+use nym_mixnet_contract_common::rewarding::PendingRewardResponse;
 use vesting_contract::vesting::Account;
 
 struct VestingContract;
 
 impl TestableContract for VestingContract {
     type ContractError = vesting_contract::errors::ContractError;
-    type InstantiateMsg = vesting_contract_common::InitMsg;
-    type ExecuteMsg = vesting_contract_common::ExecuteMsg;
-    type QueryMsg = vesting_contract_common::QueryMsg;
+    type InstantiateMsg = nym_vesting_contract_common::InitMsg;
+    type ExecuteMsg = nym_vesting_contract_common::ExecuteMsg;
+    type QueryMsg = nym_vesting_contract_common::QueryMsg;
 
     fn new() -> Self {
         VestingContract
@@ -54,10 +54,10 @@ impl TestableContract for VestingContract {
 struct MixnetContract;
 
 impl TestableContract for MixnetContract {
-    type ContractError = mixnet_contract_common::error::MixnetContractError;
-    type InstantiateMsg = mixnet_contract_common::InstantiateMsg;
-    type ExecuteMsg = mixnet_contract_common::ExecuteMsg;
-    type QueryMsg = mixnet_contract_common::QueryMsg;
+    type ContractError = nym_mixnet_contract_common::error::MixnetContractError;
+    type InstantiateMsg = nym_mixnet_contract_common::InstantiateMsg;
+    type ExecuteMsg = nym_mixnet_contract_common::ExecuteMsg;
+    type QueryMsg = nym_mixnet_contract_common::QueryMsg;
 
     fn new() -> Self {
         MixnetContract
@@ -138,7 +138,7 @@ fn claiming_vesting_delegator_rewards() {
     let pending_reward: PendingRewardResponse = multi_mock
         .query::<MixnetContract, _>(
             MIXNET_CONTRACT_ADDRESS,
-            mixnet_contract_common::QueryMsg::GetPendingDelegatorReward {
+            nym_mixnet_contract_common::QueryMsg::GetPendingDelegatorReward {
                 address: dummy_account.to_string(),
                 mix_id: 8,
                 proxy: Some(VESTING_CONTRACT_ADDRESS.to_string()),
@@ -159,7 +159,7 @@ fn claiming_vesting_delegator_rewards() {
     let res = multi_mock.execute_full::<VestingContract>(
         VESTING_CONTRACT_ADDRESS,
         mock_info(dummy_account.as_str(), &[]),
-        vesting_contract_common::ExecuteMsg::ClaimDelegatorReward { mix_id: 8 },
+        nym_vesting_contract_common::ExecuteMsg::ClaimDelegatorReward { mix_id: 8 },
     );
 
     match res {

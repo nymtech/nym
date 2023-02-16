@@ -2755,19 +2755,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "integration-tests"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-contract-testing",
- "cosmwasm-std",
- "cw-storage-plus",
- "mixnet-contract",
- "mixnet-contract-common",
- "vesting-contract",
- "vesting-contract-common",
-]
-
-[[package]]
 name = "io-lifetimes"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"

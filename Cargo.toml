@@ -34,7 +34,6 @@ members = [
     "common/cosmwasm-smart-contracts/coconut-dkg",
     "common/cosmwasm-smart-contracts/contracts-common",
     "common/cosmwasm-smart-contracts/group-contract",
-    "common/cosmwasm-smart-contracts/integration-tests",
     "common/cosmwasm-smart-contracts/mixnet-contract",
     "common/cosmwasm-smart-contracts/multisig-contract",
     "common/cosmwasm-smart-contracts/testing",

@@ -3,7 +3,7 @@ import { FormControl, MenuItem, Select } from '@mui/material';
 import { useIsMobile } from '../../hooks/useIsMobile';
 
 export enum VersionSelectOptions {
-  latestVersion = 'Latest version',
+  latestVersion = 'Latest versions',
   olderVersions = 'Older versions',
 }
 export const VersionDisplaySelector = ({

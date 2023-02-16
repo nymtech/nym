@@ -39,31 +39,34 @@ export const PageGateways: FCWithChildren = () => {
     return '2.0.0';
   }, [gateways]);
 
-  const filterByLatestVersions = (latestVersion: string) =>
-    gateways?.data?.filter((gw) => {
-      const versionDiff = diff(latestVersion, gw.gateway.version);
+  const filterByLatestVersions = React.useMemo(() => {
+    const filtered = gateways?.data?.filter((gw) => {
+      const versionDiff = diff(highestVersion, gw.gateway.version);
       return versionDiff === 'patch' || versionDiff === null;
     });
+    if (filtered) return filtered;
+    return [];
+  }, [gateways]);
 
-  const filterByOlderVersions = (latestVersion: string) =>
-    gateways?.data?.filter((gw) => {
-      const versionDiff = diff(latestVersion, gw.gateway.version);
+  const filterByOlderVersions = React.useMemo(() => {
+    const filtered = gateways?.data?.filter((gw) => {
+      const versionDiff = diff(highestVersion, gw.gateway.version);
       return versionDiff === 'major' || versionDiff === 'minor';
     });
+    if (filtered) return filtered;
+    return [];
+  }, [gateways]);
 
-  const filterByVersion = (option: VersionSelectOptions) => {
-    if (option === VersionSelectOptions.latestVersion) {
-      return filterByLatestVersions(highestVersion);
-    }
-    return filterByOlderVersions(highestVersion);
-  };
+  const filteredByVersion = React.useMemo(
+    () => (versionFilter === VersionSelectOptions.latestVersion ? filterByLatestVersions : filterByOlderVersions),
+    [versionFilter, gateways],
+  );
 
   React.useEffect(() => {
-    const filteredByVersion = filterByVersion(versionFilter);
-    if (searchTerm === '' && filteredByVersion) {
+    if (searchTerm === '') {
       setFilteredGateways(filteredByVersion);
     } else {
-      const filtered = filteredByVersion?.filter((g) => {
+      const filtered = filteredByVersion.filter((g) => {
         if (
           g.gateway.location.toLowerCase().includes(searchTerm) ||
           g.gateway.identity_key.toLocaleLowerCase().includes(searchTerm) ||

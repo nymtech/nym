@@ -4,7 +4,7 @@
 use crate::currency::{DecCoin, RegisteredCoins};
 use crate::error::TypesError;
 use cosmwasm_std::Decimal;
-use mixnet_contract_common::{
+use nym_mixnet_contract_common::{
     EpochId, MixId, MixNode, MixNodeBond as MixnetContractMixNodeBond,
     MixNodeCostParams as MixnetContractMixNodeCostParams,
     MixNodeDetails as MixnetContractMixNodeDetails,

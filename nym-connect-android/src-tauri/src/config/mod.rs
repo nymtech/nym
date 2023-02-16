@@ -4,7 +4,7 @@ use crate::{
 };
 use client_core::{client::key_manager::KeyManager, config::Config as BaseConfig};
 use config_common::NymConfig;
-use crypto::asymmetric::identity;
+use nym_crypto::asymmetric::identity;
 use nym_socks5::client::config::Config as Socks5Config;
 use std::path::PathBuf;
 use std::sync::Arc;

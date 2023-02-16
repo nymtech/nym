@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::Decimal;
-use mixnet_contract_common::mixnode::MixNodeDetails;
-use mixnet_contract_common::reward_params::{NodeRewardParams, Performance, RewardingParams};
-use mixnet_contract_common::rewarding::RewardEstimate;
-use mixnet_contract_common::{Interval, RewardedSetNodeStatus};
+use nym_mixnet_contract_common::mixnode::MixNodeDetails;
+use nym_mixnet_contract_common::reward_params::{NodeRewardParams, Performance, RewardingParams};
+use nym_mixnet_contract_common::rewarding::RewardEstimate;
+use nym_mixnet_contract_common::{Interval, RewardedSetNodeStatus};
 
 fn compute_apy(epochs_in_year: Decimal, reward: Decimal, pledge_amount: Decimal) -> Decimal {
     if pledge_amount.is_zero() {

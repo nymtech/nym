@@ -5,7 +5,7 @@ use crate::error::BackendError;
 use crate::nyxd_client;
 use crate::state::WalletState;
 use cosmwasm_std::Decimal;
-use mixnet_contract_common::{IdentityKey, MixId, Percent};
+use nym_mixnet_contract_common::{IdentityKey, MixId, Percent};
 use nym_types::currency::DecCoin;
 use nym_types::mixnode::MixNodeCostParams;
 use nym_wallet_types::app::AppEnv;

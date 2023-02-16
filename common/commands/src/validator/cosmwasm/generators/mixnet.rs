@@ -5,7 +5,7 @@ use clap::Parser;
 use log::{debug, info};
 
 use cosmwasm_std::Decimal;
-use mixnet_contract_common::{InitialRewardingParams, InstantiateMsg, Percent};
+use nym_mixnet_contract_common::{InitialRewardingParams, InstantiateMsg, Percent};
 use std::str::FromStr;
 use std::time::Duration;
 use validator_client::nyxd::AccountId;

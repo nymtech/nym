@@ -4,7 +4,7 @@
 use coconut_interface::Parameters;
 use credentials::coconut::bandwidth::BandwidthVoucher;
 
-use crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::{encryption, identity};
 
 pub(crate) struct KeyPair {
     pub public_key: String,

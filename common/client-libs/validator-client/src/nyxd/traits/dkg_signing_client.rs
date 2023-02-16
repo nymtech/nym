@@ -8,7 +8,7 @@ use async_trait::async_trait;
 use coconut_dkg_common::msg::ExecuteMsg as DkgExecuteMsg;
 use coconut_dkg_common::types::EncodedBTEPublicKeyWithProof;
 use coconut_dkg_common::verification_key::VerificationKeyShare;
-use contracts_common::dealings::ContractSafeBytes;
+use nym_contracts_common::dealings::ContractSafeBytes;
 
 #[async_trait]
 pub trait DkgSigningClient {

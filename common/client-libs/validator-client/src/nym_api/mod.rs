@@ -3,8 +3,6 @@
 
 use crate::nym_api::error::NymAPIError;
 use crate::nym_api::routes::{CORE_STATUS_COUNT, SINCE_ARG};
-use mixnet_contract_common::mixnode::MixNodeDetails;
-use mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use nym_api_requests::coconut::{
     BlindSignRequestBody, BlindedSignatureResponse, VerifyCredentialBody, VerifyCredentialResponse,
 };
@@ -15,6 +13,8 @@ use nym_api_requests::models::{
     MixnodeUptimeHistoryResponse, RequestError, RewardEstimationResponse, StakeSaturationResponse,
     UptimeResponse,
 };
+use nym_mixnet_contract_common::mixnode::MixNodeDetails;
+use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
 use reqwest::Response;
 use serde::{Deserialize, Serialize};
 use url::Url;

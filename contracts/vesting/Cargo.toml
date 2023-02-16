@@ -1,5 +1,5 @@
 [package]
-name = "vesting-contract"
+name = "nym-vesting-contract"
 version = "1.1.3"
 authors = ["Drazen Urch <durch@users.noreply.github.com>"]
 edition = "2021"
@@ -11,12 +11,13 @@ exclude = [
 ]
 
 [lib]
+name = "vesting_contract"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract" }
+mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", package = "nym-mixnet-contract-common" }
+contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common", package = "nym-contracts-common" }
+vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", package = "nym-vesting-contract-common" }
 
 cosmwasm-std = { version = "1.0.0 "}
 cw-storage-plus = { version = "0.13.4", features = ["iterator"] }

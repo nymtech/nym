@@ -255,7 +255,7 @@ pub(crate) fn validate_signature(
 mod tests {
     use super::*;
     use cosmwasm_std::testing::mock_dependencies;
-    use crypto::asymmetric::identity;
+    use nym_crypto::asymmetric::identity;
     use rand_chacha::rand_core::SeedableRng;
 
     #[test]

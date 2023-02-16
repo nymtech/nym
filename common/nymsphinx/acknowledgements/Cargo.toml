@@ -10,11 +10,11 @@ edition = "2021"
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 thiserror = "1.0.37"
 
-crypto = { path = "../../crypto", features = ["symmetric", "rand"] }
+nym-crypto = { path = "../../crypto", features = ["symmetric", "rand"] }
 nymsphinx-addressing = { path = "../addressing" }
 nymsphinx-params = { path = "../params" }
 nymsphinx-types = { path = "../types" }
-pemstore = { path = "../../pemstore" }
+nym-pemstore = { path = "../../pemstore" }
 topology = { path = "../../topology" }
 
 

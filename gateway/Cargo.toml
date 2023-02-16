@@ -56,7 +56,7 @@ build-information = { path = "../common/build-information" }
 coconut-interface = { path = "../common/coconut-interface" }
 credentials = { path = "../common/credentials" }
 config = { path = "../common/config" }
-crypto = { path = "../common/crypto" }
+nym-crypto = { path = "../common/crypto" }
 completions = { path = "../common/completions" }
 logging = { path = "../common/logging" }
 gateway-requests = { path = "gateway-requests" }
@@ -64,7 +64,7 @@ mixnet-client = { path = "../common/client-libs/mixnet-client" }
 mixnode-common = { path = "../common/mixnode-common" }
 network-defaults = { path = "../common/network-defaults" }
 nymsphinx = { path = "../common/nymsphinx" }
-pemstore = { path = "../common/pemstore" }
+nym-pemstore = { path = "../common/pemstore" }
 statistics-common = { path = "../common/statistics" }
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
 task = { path = "../common/task" }

@@ -6,9 +6,9 @@ use coconut_bandwidth_contract_common::events::{
     DEPOSIT_VALUE,
 };
 use credentials::coconut::bandwidth::BandwidthVoucher;
-use crypto::asymmetric::encryption;
-use crypto::asymmetric::identity::{self, Signature};
 use nym_api_requests::coconut::BlindSignRequestBody;
+use nym_crypto::asymmetric::encryption;
+use nym_crypto::asymmetric::identity::{self, Signature};
 use validator_client::nyxd::TxResponse;
 
 use super::error::{CoconutError, Result};
@@ -168,7 +168,7 @@ mod test {
         assert!(matches!(
             err,
             CoconutError::Ed25519ParseError(
-                crypto::asymmetric::identity::Ed25519RecoveryError::MalformedSignatureString { .. }
+                nym_crypto::asymmetric::identity::Ed25519RecoveryError::MalformedSignatureString { .. }
             )
         ));
 
@@ -279,7 +279,7 @@ mod test {
         assert!(matches!(
             err,
             CoconutError::Ed25519ParseError(
-                crypto::asymmetric::identity::Ed25519RecoveryError::MalformedPublicKeyString { .. }
+                nym_crypto::asymmetric::identity::Ed25519RecoveryError::MalformedPublicKeyString { .. }
             )
         ));
 
@@ -334,7 +334,7 @@ mod test {
         assert!(matches!(
             err,
             CoconutError::X25519ParseError(
-                crypto::asymmetric::encryption::KeyRecoveryError::MalformedPublicKeyString { .. }
+                nym_crypto::asymmetric::encryption::KeyRecoveryError::MalformedPublicKeyString { .. }
             )
         ));
 
@@ -365,7 +365,7 @@ mod test {
         assert_eq!(
             err.to_string(),
             CoconutError::SignatureVerificationError(
-                crypto::asymmetric::identity::SignatureError::default(),
+                nym_crypto::asymmetric::identity::SignatureError::default(),
             )
             .to_string(),
         );

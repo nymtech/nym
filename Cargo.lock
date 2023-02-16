@@ -698,7 +698,6 @@ dependencies = [
  "async-trait",
  "client-connections",
  "config",
- "crypto",
  "dashmap 5.4.0",
  "dirs",
  "futures",
@@ -708,8 +707,9 @@ dependencies = [
  "humantime-serde",
  "log",
  "nonexhaustive-delayqueue",
+ "nym-crypto",
+ "nym-pemstore",
  "nymsphinx",
- "pemstore",
  "rand 0.7.3",
  "serde",
  "serde_json",
@@ -753,10 +753,10 @@ dependencies = [
 name = "coconut-dkg-common"
 version = "0.1.0"
 dependencies = [
- "contracts-common",
  "cosmwasm-std",
  "cw-utils",
  "multisig-contract-common",
+ "nym-contracts-common",
  "schemars",
  "serde",
 ]
@@ -874,19 +874,6 @@ name = "constant_time_eq"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f3ad85c1f65dc7b37604eb0e89748faf0b9653065f2a8ef69f96a687ec1e9279"
-
-[[package]]
-name = "contracts-common"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "cosmwasm-std",
- "dkg",
- "schemars",
- "serde",
- "serde_json",
- "thiserror",
-]
 
 [[package]]
 name = "cookie"
@@ -1052,11 +1039,11 @@ dependencies = [
  "config",
  "credential-storage",
  "credentials",
- "crypto",
  "log",
  "logging",
  "network-defaults",
- "pemstore",
+ "nym-crypto",
+ "nym-pemstore",
  "rand 0.7.3",
  "serde",
  "thiserror",
@@ -1083,8 +1070,8 @@ dependencies = [
  "bls12_381 0.5.0",
  "coconut-interface",
  "cosmrs",
- "crypto",
  "nym-api-requests",
+ "nym-crypto",
  "rand 0.7.3",
  "thiserror",
  "validator-client",
@@ -1245,31 +1232,6 @@ name = "crunchy"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
-
-[[package]]
-name = "crypto"
-version = "0.1.0"
-dependencies = [
- "aes 0.8.2",
- "blake3",
- "bs58",
- "cipher 0.4.3",
- "ctr 0.9.2",
- "digest 0.10.6",
- "ed25519-dalek",
- "generic-array 0.14.6",
- "hkdf 0.12.3",
- "hmac 0.12.1",
- "nymsphinx-types",
- "pemstore",
- "rand 0.7.3",
- "rand_chacha 0.2.2",
- "serde",
- "serde_bytes",
- "subtle-encoding",
- "thiserror",
- "x25519-dalek",
-]
 
 [[package]]
 name = "crypto-bigint"
@@ -1666,7 +1628,7 @@ dependencies = [
  "ff 0.11.1",
  "group 0.11.0",
  "lazy_static",
- "pemstore",
+ "nym-pemstore",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "rand_core 0.6.4",
@@ -1889,7 +1851,6 @@ version = "1.1.9"
 dependencies = [
  "chrono",
  "clap 4.1.4",
- "contracts-common",
  "dotenv",
  "humantime-serde",
  "isocountry",
@@ -1897,8 +1858,9 @@ dependencies = [
  "log",
  "logging",
  "maxminddb",
- "mixnet-contract-common",
  "network-defaults",
+ "nym-contracts-common",
+ "nym-mixnet-contract-common",
  "okapi",
  "pretty_env_logger",
  "rand 0.8.5",
@@ -2158,15 +2120,15 @@ dependencies = [
  "coconut-interface",
  "credential-storage",
  "credentials",
- "crypto",
  "futures",
  "gateway-requests",
  "getrandom 0.2.8",
  "log",
  "mobile-storage",
  "network-defaults",
+ "nym-crypto",
+ "nym-pemstore",
  "nymsphinx",
- "pemstore",
  "rand 0.7.3",
  "serde",
  "task",
@@ -2190,11 +2152,11 @@ dependencies = [
  "bs58",
  "coconut-interface",
  "credentials",
- "crypto",
  "futures",
  "log",
+ "nym-crypto",
+ "nym-pemstore",
  "nymsphinx",
- "pemstore",
  "rand 0.7.3",
  "serde",
  "serde_json",
@@ -3217,34 +3179,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "mixnet-contract-common"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "contracts-common",
- "cosmwasm-std",
- "humantime-serde",
- "log",
- "rand_chacha 0.3.1",
- "schemars",
- "serde",
- "serde_json",
- "serde_repr",
- "thiserror",
- "time 0.3.17",
- "ts-rs",
-]
-
-[[package]]
 name = "mixnode-common"
 version = "0.1.0"
 dependencies = [
  "bytes",
- "crypto",
  "futures",
  "humantime-serde",
  "log",
  "network-defaults",
+ "nym-crypto",
  "nymsphinx-acknowledgements",
  "nymsphinx-addressing",
  "nymsphinx-forwarding",
@@ -3439,11 +3382,9 @@ dependencies = [
  "coconut-interface",
  "config",
  "console-subscriber",
- "contracts-common",
  "cosmwasm-std",
  "credential-storage",
  "credentials",
- "crypto",
  "cw-utils",
  "cw3",
  "cw4",
@@ -3458,13 +3399,16 @@ dependencies = [
  "lazy_static",
  "log",
  "logging",
- "mixnet-contract-common",
  "multisig-contract-common",
  "nym-api-requests",
+ "nym-contracts-common",
+ "nym-crypto",
+ "nym-mixnet-contract-common",
+ "nym-pemstore",
+ "nym-vesting-contract-common",
  "nymcoconut",
  "nymsphinx",
  "okapi",
- "pemstore",
  "pin-project",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -3488,7 +3432,6 @@ dependencies = [
  "url",
  "validator-client",
  "version-checker",
- "vesting-contract-common",
 ]
 
 [[package]]
@@ -3500,7 +3443,7 @@ dependencies = [
  "cosmrs",
  "cosmwasm-std",
  "getset",
- "mixnet-contract-common",
+ "nym-mixnet-contract-common",
  "schemars",
  "serde",
  "ts-rs",
@@ -3564,9 +3507,10 @@ dependencies = [
  "humantime-serde",
  "k256",
  "log",
- "mixnet-contract-common",
  "multisig-contract-common",
  "network-defaults",
+ "nym-mixnet-contract-common",
+ "nym-vesting-contract-common",
  "rand 0.6.5",
  "serde",
  "serde_json",
@@ -3576,7 +3520,6 @@ dependencies = [
  "toml",
  "url",
  "validator-client",
- "vesting-contract-common",
 ]
 
 [[package]]
@@ -3592,7 +3535,6 @@ dependencies = [
  "config",
  "credential-storage",
  "credentials",
- "crypto",
  "dirs",
  "futures",
  "gateway-client",
@@ -3601,8 +3543,9 @@ dependencies = [
  "log",
  "logging",
  "network-defaults",
+ "nym-crypto",
+ "nym-pemstore",
  "nymsphinx",
- "pemstore",
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",
@@ -3617,6 +3560,44 @@ dependencies = [
  "validator-client",
  "version-checker",
  "websocket-requests",
+]
+
+[[package]]
+name = "nym-contracts-common"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "cosmwasm-std",
+ "dkg",
+ "schemars",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "nym-crypto"
+version = "0.1.0"
+dependencies = [
+ "aes 0.8.2",
+ "blake3",
+ "bs58",
+ "cipher 0.4.3",
+ "ctr 0.9.2",
+ "digest 0.10.6",
+ "ed25519-dalek",
+ "generic-array 0.14.6",
+ "hkdf 0.12.3",
+ "hmac 0.12.1",
+ "nym-pemstore",
+ "nymsphinx-types",
+ "rand 0.7.3",
+ "rand_chacha 0.2.2",
+ "serde",
+ "serde_bytes",
+ "subtle-encoding",
+ "thiserror",
+ "x25519-dalek",
 ]
 
 [[package]]
@@ -3635,7 +3616,6 @@ dependencies = [
  "completions",
  "config",
  "credentials",
- "crypto",
  "dashmap 4.0.2",
  "dirs",
  "dotenv",
@@ -3649,10 +3629,11 @@ dependencies = [
  "mixnode-common",
  "network-defaults",
  "nym-api-requests",
+ "nym-crypto",
+ "nym-pemstore",
  "nym-types",
  "nymsphinx",
  "once_cell",
- "pemstore",
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",
@@ -3672,6 +3653,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-mixnet-contract-common"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "cosmwasm-std",
+ "humantime-serde",
+ "log",
+ "nym-contracts-common",
+ "rand_chacha 0.3.1",
+ "schemars",
+ "serde",
+ "serde_json",
+ "serde_repr",
+ "thiserror",
+ "time 0.3.17",
+ "ts-rs",
+]
+
+[[package]]
 name = "nym-mixnode"
 version = "1.1.10"
 dependencies = [
@@ -3683,7 +3683,6 @@ dependencies = [
  "colored",
  "completions",
  "config",
- "crypto",
  "cupid",
  "dirs",
  "dotenv",
@@ -3695,11 +3694,12 @@ dependencies = [
  "mixnet-client",
  "mixnode-common",
  "nonexhaustive-delayqueue",
+ "nym-crypto",
+ "nym-pemstore",
  "nym-types",
  "nymsphinx",
  "nymsphinx-params",
  "nymsphinx-types",
- "pemstore",
  "pretty_env_logger",
  "rand 0.7.3",
  "rocket",
@@ -3783,18 +3783,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-pemstore"
+version = "0.1.0"
+dependencies = [
+ "pem",
+]
+
+[[package]]
 name = "nym-sdk"
 version = "0.1.0"
 dependencies = [
  "client-connections",
  "client-core",
- "crypto",
  "futures",
  "gateway-client",
  "gateway-requests",
  "log",
  "logging",
  "network-defaults",
+ "nym-crypto",
  "nymsphinx",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -3820,7 +3827,6 @@ dependencies = [
  "config",
  "credential-storage",
  "credentials",
- "crypto",
  "dirs",
  "futures",
  "gateway-client",
@@ -3830,9 +3836,10 @@ dependencies = [
  "logging",
  "mobile-storage",
  "network-defaults",
+ "nym-crypto",
+ "nym-pemstore",
  "nymsphinx",
  "ordered-buffer",
- "pemstore",
  "pin-project",
  "pretty_env_logger",
  "proxy-helpers",
@@ -3862,7 +3869,9 @@ dependencies = [
  "eyre",
  "itertools",
  "log",
- "mixnet-contract-common",
+ "nym-mixnet-contract-common",
+ "nym-vesting-contract",
+ "nym-vesting-contract-common",
  "reqwest",
  "schemars",
  "serde",
@@ -3873,8 +3882,33 @@ dependencies = [
  "ts-rs",
  "url",
  "validator-client",
- "vesting-contract",
- "vesting-contract-common",
+]
+
+[[package]]
+name = "nym-vesting-contract"
+version = "1.1.3"
+dependencies = [
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "nym-contracts-common",
+ "nym-mixnet-contract-common",
+ "nym-vesting-contract-common",
+ "schemars",
+ "serde",
+ "thiserror",
+ "vergen 5.1.17",
+]
+
+[[package]]
+name = "nym-vesting-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-std",
+ "nym-contracts-common",
+ "nym-mixnet-contract-common",
+ "schemars",
+ "serde",
+ "ts-rs",
 ]
 
 [[package]]
@@ -3885,16 +3919,16 @@ dependencies = [
  "cosmrs",
  "cosmwasm-std",
  "hex-literal",
- "mixnet-contract-common",
  "network-defaults",
+ "nym-mixnet-contract-common",
  "nym-types",
+ "nym-vesting-contract",
+ "nym-vesting-contract-common",
  "serde",
  "serde_json",
  "strum 0.23.0",
  "ts-rs",
  "validator-client",
- "vesting-contract",
- "vesting-contract-common",
 ]
 
 [[package]]
@@ -3911,7 +3945,7 @@ dependencies = [
  "getrandom 0.2.8",
  "group 0.11.0",
  "itertools",
- "pemstore",
+ "nym-pemstore",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
  "serde",
@@ -3924,8 +3958,8 @@ dependencies = [
 name = "nymsphinx"
 version = "0.1.0"
 dependencies = [
- "crypto",
- "mixnet-contract-common",
+ "nym-crypto",
+ "nym-mixnet-contract-common",
  "nymsphinx-acknowledgements",
  "nymsphinx-addressing",
  "nymsphinx-anonymous-replies",
@@ -3946,11 +3980,11 @@ dependencies = [
 name = "nymsphinx-acknowledgements"
 version = "0.1.0"
 dependencies = [
- "crypto",
+ "nym-crypto",
+ "nym-pemstore",
  "nymsphinx-addressing",
  "nymsphinx-params",
  "nymsphinx-types",
- "pemstore",
  "rand 0.7.3",
  "thiserror",
  "topology",
@@ -3960,7 +3994,7 @@ dependencies = [
 name = "nymsphinx-addressing"
 version = "0.1.0"
 dependencies = [
- "crypto",
+ "nym-crypto",
  "nymsphinx-types",
  "rand 0.7.3",
  "serde",
@@ -3972,7 +4006,7 @@ name = "nymsphinx-anonymous-replies"
 version = "0.1.0"
 dependencies = [
  "bs58",
- "crypto",
+ "nym-crypto",
  "nymsphinx-addressing",
  "nymsphinx-params",
  "nymsphinx-types",
@@ -3999,7 +4033,7 @@ dependencies = [
 name = "nymsphinx-cover"
 version = "0.1.0"
 dependencies = [
- "crypto",
+ "nym-crypto",
  "nymsphinx-acknowledgements",
  "nymsphinx-addressing",
  "nymsphinx-chunking",
@@ -4035,7 +4069,7 @@ dependencies = [
 name = "nymsphinx-params"
 version = "0.1.0"
 dependencies = [
- "crypto",
+ "nym-crypto",
  "nymsphinx-types",
  "thiserror",
 ]
@@ -4288,13 +4322,6 @@ dependencies = [
  "base64 0.13.1",
  "once_cell",
  "regex",
-]
-
-[[package]]
-name = "pemstore"
-version = "0.1.0"
-dependencies = [
- "pem",
 ]
 
 [[package]]
@@ -6503,9 +6530,9 @@ name = "topology"
 version = "0.1.0"
 dependencies = [
  "bs58",
- "crypto",
  "log",
- "mixnet-contract-common",
+ "nym-crypto",
+ "nym-mixnet-contract-common",
  "nymsphinx-addressing",
  "nymsphinx-types",
  "rand 0.7.3",
@@ -6658,13 +6685,13 @@ name = "ts-rs-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "mixnet-contract-common",
  "nym-api-requests",
+ "nym-mixnet-contract-common",
  "nym-types",
+ "nym-vesting-contract-common",
  "nym-wallet-types",
  "ts-rs",
  "validator-client",
- "vesting-contract-common",
  "walkdir",
 ]
 
@@ -6879,7 +6906,6 @@ dependencies = [
  "coconut-interface",
  "colored",
  "config",
- "contracts-common",
  "cosmrs",
  "cosmwasm-std",
  "cw3",
@@ -6890,10 +6916,13 @@ dependencies = [
  "group-contract-common",
  "itertools",
  "log",
- "mixnet-contract-common",
  "multisig-contract-common",
  "network-defaults",
  "nym-api-requests",
+ "nym-contracts-common",
+ "nym-mixnet-contract-common",
+ "nym-vesting-contract",
+ "nym-vesting-contract-common",
  "prost 0.10.4",
  "reqwest",
  "serde",
@@ -6903,8 +6932,6 @@ dependencies = [
  "tokio",
  "ts-rs",
  "url",
- "vesting-contract",
- "vesting-contract-common",
 ]
 
 [[package]]
@@ -6965,33 +6992,6 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
-
-[[package]]
-name = "vesting-contract"
-version = "1.1.3"
-dependencies = [
- "contracts-common",
- "cosmwasm-std",
- "cw-storage-plus",
- "mixnet-contract-common",
- "schemars",
- "serde",
- "thiserror",
- "vergen 5.1.17",
- "vesting-contract-common",
-]
-
-[[package]]
-name = "vesting-contract-common"
-version = "0.1.0"
-dependencies = [
- "contracts-common",
- "cosmwasm-std",
- "mixnet-contract-common",
- "schemars",
- "serde",
- "ts-rs",
-]
 
 [[package]]
 name = "walkdir"

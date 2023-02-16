@@ -10,7 +10,7 @@ use crate::{
 };
 use anyhow::{anyhow, Result};
 use clap::{ArgGroup, Args};
-use crypto::asymmetric::identity;
+use nym_crypto::asymmetric::identity;
 use std::error::Error;
 use validator_client::nyxd;
 
@@ -53,11 +53,12 @@ impl TryFrom<Sign> for SignedTarget {
 }
 
 pub fn load_identity_keys(pathfinder: &GatewayPathfinder) -> identity::KeyPair {
-    let identity_keypair: identity::KeyPair = pemstore::load_keypair(&pemstore::KeyPairPath::new(
-        pathfinder.private_identity_key().to_owned(),
-        pathfinder.public_identity_key().to_owned(),
-    ))
-    .expect("Failed to read stored identity key files");
+    let identity_keypair: identity::KeyPair =
+        nym_pemstore::load_keypair(&nym_pemstore::KeyPairPath::new(
+            pathfinder.private_identity_key().to_owned(),
+            pathfinder.public_identity_key().to_owned(),
+        ))
+        .expect("Failed to read stored identity key files");
     identity_keypair
 }
 

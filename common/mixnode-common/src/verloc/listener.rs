@@ -4,9 +4,9 @@
 use crate::verloc::error::RttError;
 use crate::verloc::packet::{EchoPacket, ReplyPacket};
 use bytes::{BufMut, BytesMut};
-use crypto::asymmetric::identity;
 use futures::StreamExt;
 use log::*;
+use nym_crypto::asymmetric::identity;
 use std::fmt::{Display, Formatter};
 use std::net::SocketAddr;
 use std::sync::Arc;

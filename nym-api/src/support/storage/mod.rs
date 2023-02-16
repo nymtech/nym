@@ -10,7 +10,7 @@ use crate::node_status_api::models::{
 use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{NodeStatus, RewardingReport, TestingRoute};
-use mixnet_contract_common::{EpochId, MixId};
+use nym_mixnet_contract_common::{EpochId, MixId};
 use rocket::fairing::AdHoc;
 use sqlx::ConnectOptions;
 use std::path::PathBuf;

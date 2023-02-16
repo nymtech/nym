@@ -34,7 +34,7 @@ client-core = { path = "../client-core", default-features = false, features = ["
 client-connections = { path = "../../common/client-connections" }
 coconut-interface = { path = "../../common/coconut-interface" }
 credentials = { path = "../../common/credentials" }
-crypto = { path = "../../common/crypto" }
+nym-crypto = { path = "../../common/crypto" }
 nymsphinx = { path = "../../common/nymsphinx" }
 topology = { path = "../../common/topology" }
 gateway-client = { path = "../../common/client-libs/gateway-client", default-features = false, features = ["wasm"] }

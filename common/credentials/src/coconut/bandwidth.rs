@@ -10,7 +10,7 @@ use coconut_interface::{
     hash_to_scalar, prepare_blind_sign, Attribute, BlindSignRequest, Credential, Parameters,
     PrivateAttribute, PublicAttribute, Signature, VerificationKey,
 };
-use crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::{encryption, identity};
 
 use cosmrs::tx::Hash;
 

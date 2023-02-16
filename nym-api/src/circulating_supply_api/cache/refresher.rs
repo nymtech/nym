@@ -4,7 +4,7 @@
 use super::CirculatingSupplyCache;
 use crate::circulating_supply_api::cache::CirculatingSupplyCacheError;
 use crate::support::nyxd::Client;
-use contracts_common::truncate_decimal;
+use nym_contracts_common::truncate_decimal;
 use std::collections::HashSet;
 use std::sync::atomic::Ordering;
 use std::time::Duration;

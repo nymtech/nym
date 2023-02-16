@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_std::{Coin, Decimal};
-use mixnet_contract_common::families::FamilyHead;
-use mixnet_contract_common::mixnode::MixNodeDetails;
-use mixnet_contract_common::reward_params::{Performance, RewardingParams};
-use mixnet_contract_common::rewarding::RewardEstimate;
-use mixnet_contract_common::{
+use nym_mixnet_contract_common::families::FamilyHead;
+use nym_mixnet_contract_common::mixnode::MixNodeDetails;
+use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
+use nym_mixnet_contract_common::rewarding::RewardEstimate;
+use nym_mixnet_contract_common::{
     GatewayBond, IdentityKey, Interval, MixId, MixNode, Percent, RewardedSetNodeStatus,
 };
 use schemars::JsonSchema;

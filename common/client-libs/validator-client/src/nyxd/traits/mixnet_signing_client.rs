@@ -8,9 +8,9 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::{Fee, NyxdClient, SigningCosmWasmClient};
 use async_trait::async_trait;
 use cosmrs::AccountId;
-use mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
-use mixnet_contract_common::reward_params::{IntervalRewardingParamsUpdate, Performance};
-use mixnet_contract_common::{
+use nym_mixnet_contract_common::mixnode::{MixNodeConfigUpdate, MixNodeCostParams};
+use nym_mixnet_contract_common::reward_params::{IntervalRewardingParamsUpdate, Performance};
+use nym_mixnet_contract_common::{
     ContractStateParams, ExecuteMsg as MixnetExecuteMsg, Gateway, LayerAssignment, MixId, MixNode,
 };
 

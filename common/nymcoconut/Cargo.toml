@@ -18,7 +18,7 @@ bs58 = "0.4.0"
 sha2 = "0.9"
 
 dkg = { path = "../crypto/dkg" }
-pemstore = { path = "../pemstore" }
+nym-pemstore = { path = "../pemstore" }
 
 [dependencies.ff]
 version = "0.11"

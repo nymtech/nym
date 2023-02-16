@@ -3,7 +3,7 @@
 
 use crate::network_monitor::test_packet::{NodeType, TestPacket};
 use crate::network_monitor::ROUTE_TESTING_TEST_NONCE;
-use crypto::asymmetric::identity;
+use nym_crypto::asymmetric::identity;
 use std::fmt::{Debug, Formatter};
 use topology::{gateway, mix, NymTopology};
 

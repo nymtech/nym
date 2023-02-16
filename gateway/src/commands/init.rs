@@ -8,7 +8,7 @@ use crate::{
 };
 use clap::Args;
 use config::NymConfig;
-use crypto::asymmetric::{encryption, identity};
+use nym_crypto::asymmetric::{encryption, identity};
 use std::error::Error;
 use std::net::IpAddr;
 use std::path::PathBuf;
@@ -126,18 +126,18 @@ pub async fn execute(args: Init, output: OutputFormat) -> Result<(), Box<dyn Err
         let identity_keys = identity::KeyPair::new(&mut rng);
         let sphinx_keys = encryption::KeyPair::new(&mut rng);
         let pathfinder = GatewayPathfinder::new_from_config(&config);
-        pemstore::store_keypair(
+        nym_pemstore::store_keypair(
             &sphinx_keys,
-            &pemstore::KeyPairPath::new(
+            &nym_pemstore::KeyPairPath::new(
                 pathfinder.private_encryption_key().to_owned(),
                 pathfinder.public_encryption_key().to_owned(),
             ),
         )
         .expect("Failed to save sphinx keys");
 
-        pemstore::store_keypair(
+        nym_pemstore::store_keypair(
             &identity_keys,
-            &pemstore::KeyPairPath::new(
+            &nym_pemstore::KeyPairPath::new(
                 pathfinder.private_identity_key().to_owned(),
                 pathfinder.public_identity_key().to_owned(),
             ),

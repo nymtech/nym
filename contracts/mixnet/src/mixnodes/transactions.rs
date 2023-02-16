@@ -718,8 +718,8 @@ pub mod tests {
         let mut deps = test_helpers::init_contract();
         let mut rng = test_helpers::test_rng();
 
-        let keypair1 = crypto::asymmetric::identity::KeyPair::new(&mut rng);
-        let keypair2 = crypto::asymmetric::identity::KeyPair::new(&mut rng);
+        let keypair1 = nym_crypto::asymmetric::identity::KeyPair::new(&mut rng);
+        let keypair2 = nym_crypto::asymmetric::identity::KeyPair::new(&mut rng);
         let sig1 = keypair1.private_key().sign_text("alice");
         let sig2 = keypair1.private_key().sign_text("bob");
 
@@ -731,7 +731,7 @@ pub mod tests {
             mix_port: 1234,
             verloc_port: 1234,
             http_api_port: 1234,
-            sphinx_key: crypto::asymmetric::encryption::KeyPair::new(&mut rng)
+            sphinx_key: nym_crypto::asymmetric::encryption::KeyPair::new(&mut rng)
                 .public_key()
                 .to_base58_string(),
             identity_key: keypair1.public_key().to_base58_string(),

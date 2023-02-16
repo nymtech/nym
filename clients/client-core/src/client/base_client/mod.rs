@@ -35,7 +35,7 @@ use nym_crypto::asymmetric::{encryption, identity};
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
-use nym_sphinx::receiver::ReconstructedMessage;
+use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::{TaskClient, TaskManager};
 use nym_topology::provider_trait::TopologyProvider;
@@ -294,14 +294,15 @@ where
         shutdown: TaskClient,
     ) {
         info!("Starting received messages buffer controller...");
-        ReceivedMessagesBufferController::new(
-            local_encryption_keypair,
-            query_receiver,
-            mixnet_receiver,
-            reply_key_storage,
-            reply_controller_sender,
-        )
-        .start_with_shutdown(shutdown)
+        let controller: ReceivedMessagesBufferController<SphinxMessageReceiver> =
+            ReceivedMessagesBufferController::new(
+                local_encryption_keypair,
+                query_receiver,
+                mixnet_receiver,
+                reply_key_storage,
+                reply_controller_sender,
+            );
+        controller.start_with_shutdown(shutdown)
     }
 
     async fn start_gateway_client(

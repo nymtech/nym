@@ -2933,7 +2933,7 @@ dependencies = [
  "serde_json",
  "serde_repr",
  "thiserror",
- "time 0.3.7",
+ "time 0.3.17",
  "ts-rs",
 ]
 

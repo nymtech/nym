@@ -153,11 +153,11 @@ jobs:
         if: env.WORKFLOW_CONCLUSION == 'failure'
         with:
           node-version: 16
-      - name: Keybase - Node Install
+      - name: Matrix - Node Install
         if: env.WORKFLOW_CONCLUSION == 'failure'
         run: npm install
         working-directory: .github/workflows/support-files
-      - name: Keybase - Send Notification
+      - name: Matrix - Send Notification
         if: env.WORKFLOW_CONCLUSION == 'failure'
         env:
           NYM_NOTIFICATION_KIND: nightly
@@ -165,10 +165,6 @@ jobs:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
           GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
           GIT_BRANCH: "${GITHUB_REF##*/}"
-          KEYBASE_NYMBOT_USERNAME: "${{ secrets.KEYBASE_NYMBOT_USERNAME }}"
-          KEYBASE_NYMBOT_PAPERKEY: "${{ secrets.KEYBASE_NYMBOT_PAPERKEY }}"
-          KEYBASE_NYMBOT_TEAM: "${{ secrets.KEYBASE_NYMBOT_TEAM }}"
-          KEYBASE_NYM_CHANNEL: "ci-nightly"
           IS_SUCCESS: "${{ env.WORKFLOW_CONCLUSION == 'success' }}"
           MATRIX_SERVER: "${{ secrets.MATRIX_SERVER }}"
           MATRIX_ROOM: "${{ secrets.MATRIX_ROOM }}"

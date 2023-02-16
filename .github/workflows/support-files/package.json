@@ -1,6 +1,6 @@
 {
-  "name": "send-keybase-message",
-  "description": "Sends a notification message with the keybase package that fails when piped into the keybase CLI",
+  "name": "send-matrix-message",
+  "description": "Sends a notification message with the matrix sdk",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -10,7 +10,6 @@
   "dependencies": {
     "dotenv": "^16.0.0",
     "handlebars": "^4.7.7",
-    "keybase-bot": "^3.6.1",
     "matrix-js-sdk": "^9.3.0",
     "node-localstorage": "^2.1.6",
     "octokit": "^1.7.1",

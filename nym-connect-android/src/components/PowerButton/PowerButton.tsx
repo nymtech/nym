@@ -74,10 +74,22 @@ export const PowerButton: FCWithChildren<{
     return undefined;
   };
 
+  let statusText: string;
+  switch (status) {
+    case 'connected':
+      statusText = 'stop';
+      break;
+    case 'disconnected':
+      statusText = 'start';
+      break;
+    default:
+      statusText = '';
+  }
+
   return (
     <svg
-      width="190"
-      height="190"
+      width="220"
+      height="220"
       viewBox="0 0 200 200"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -112,6 +124,19 @@ export const PowerButton: FCWithChildren<{
               </g>
             </g>
           </g>
+          <text
+            className="button_text"
+            x={131}
+            y={165}
+            fill={statusFillColor}
+            dominantBaseline="middle"
+            textAnchor="middle"
+            fontWeight="500"
+            fontSize="12px"
+            letterSpacing={1}
+          >
+            {statusText.toUpperCase()}
+          </text>
         </g>
         <defs>
           <filter id="blur" width="200%" height="200%" x="-50%" y="-50%">

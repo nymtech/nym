@@ -6,10 +6,9 @@
 use std::sync::Arc;
 
 use config_common::defaults::setup_env;
-use tauri::{Manager, Menu};
+use tauri::Manager;
 use tokio::sync::RwLock;
 
-use crate::menu::AddDefaultSubmenus;
 use crate::menu::{create_tray_menu, tray_menu_event_handler};
 use crate::state::State;
 use crate::window::window_toggle;
@@ -64,7 +63,6 @@ fn main() {
             crate::operations::growth::test_and_earn::growth_tne_toggle_window,
             crate::operations::help::log::help_log_toggle_window,
         ])
-        .menu(Menu::os_default(&context.package_info().name).add_default_app_submenus())
         .on_menu_event(|event| {
             if event.menu_item_id() == menu::SHOW_LOG_WINDOW {
                 let _r = crate::operations::help::log::help_log_toggle_window(

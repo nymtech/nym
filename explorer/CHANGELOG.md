@@ -2,10 +2,15 @@
 
 - nothing yet
 
+## [nym-explorer-v1.1.10](https://github.com/nymtech/nym/tree/nym-explorer-v1.0.5) (2023-02-21)
+
+- Allow user to filter gateways but current and old versions
+- Add copy buttons to gateway identity keys
+
 ## [nym-explorer-v1.0.5](https://github.com/nymtech/nym/tree/nym-explorer-v1.0.5) (2023-02-14)
 
 - NE - link `Owner` field on the node detail page to the account details on NG explorer ([#2923])
-- NE - Upgrade Sandbox and make below changes:  ([#2332])
+- NE - Upgrade Sandbox and make below changes: ([#2332])
 
 [#2923]: https://github.com/nymtech/nym/issues/2923
 [#2332]: https://github.com/nymtech/nym/issues/2332
@@ -14,7 +19,7 @@
 
 - Add routing score on gateway list ([#2913])
 - Add gateway's last Routing Score to the gateways list page ([#2186])
-- Upgrade Sandbox and make below changes:  ([#2332])
+- Upgrade Sandbox and make below changes: ([#2332])
 
 [#2913]: https://github.com/nymtech/nym/pull/2913
 [#2186]: https://github.com/nymtech/nym/issues/2186
@@ -30,7 +35,7 @@
 
 ## [nym-explorer-v1.0.2](https://github.com/nymtech/nym/tree/nym-explorer-v1.0.2) (2023-01-17)
 
-- changing the explorers guru link ([#2820]) 
+- changing the explorers guru link ([#2820])
 
 [#2820]: https://github.com/nymtech/nym/pull/2820
 

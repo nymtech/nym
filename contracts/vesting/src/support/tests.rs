@@ -1,5 +1,8 @@
 #[cfg(test)]
 pub mod helpers {
+
+    // TODO: once https://github.com/nymtech/nym/pull/3040 gets merged,
+    // the `ContractState` should replace the below
     #[allow(unused)]
     mod state_dump_decoder {
         use base64::{engine::general_purpose, Engine};

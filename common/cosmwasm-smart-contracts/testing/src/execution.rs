@@ -38,7 +38,7 @@ impl CrossContractTokenMove {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ExecutionResult {
     pub steps: Vec<ExecutionStepResult>,
 }
@@ -116,7 +116,7 @@ impl ExecutionStepResult {
                         "{} will be transferred to {to_address}",
                         format_coins(amount)
                     ),
-                    BankMsg::Burn { amount } => format!("{} WILL BE BURNT", format_coins(&amount)),
+                    BankMsg::Burn { amount } => format!("{} WILL BE BURNT", format_coins(amount)),
                     _ => "unknown variant of BankMsg was introduced!".to_string(),
                 };
                 out.push_str(&format!("{formatted}\n"))

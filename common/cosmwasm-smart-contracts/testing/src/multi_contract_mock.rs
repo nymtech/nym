@@ -171,7 +171,6 @@ impl MultiContractMock {
         }
     }
 
-    // TODO: incorporate error handling...
     fn execute_step(
         &mut self,
         contract_address: impl Into<String>,

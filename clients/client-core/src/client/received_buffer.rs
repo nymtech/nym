@@ -17,7 +17,7 @@ use nym_sphinx::anonymous_replies::requests::{
 use nym_sphinx::anonymous_replies::{encryption_key::EncryptionKeyDigest, SurbEncryptionKey};
 use nym_sphinx::message::{NymMessage, PlainMessage};
 use nym_sphinx::params::ReplySurbKeyDigestAlgorithm;
-use nym_sphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage, SphinxMessageReceiver};
+use nym_sphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -30,13 +30,13 @@ pub type ReceivedBufferRequestReceiver = mpsc::UnboundedReceiver<ReceivedBufferM
 pub type ReconstructedMessagesSender = mpsc::UnboundedSender<Vec<ReconstructedMessage>>;
 pub type ReconstructedMessagesReceiver = mpsc::UnboundedReceiver<Vec<ReconstructedMessage>>;
 
-struct ReceivedMessagesBufferInner {
+struct ReceivedMessagesBufferInner<R: MessageReceiver> {
     messages: Vec<ReconstructedMessage>,
     local_encryption_keypair: Arc<encryption::KeyPair>,
 
     // TODO: looking how it 'looks' here, perhaps `MessageReceiver` should be renamed to something
     // else instead.
-    message_receiver: SphinxMessageReceiver,
+    message_receiver: R,
     message_sender: Option<ReconstructedMessagesSender>,
 
     // TODO: this will get cleared upon re-running the client
@@ -45,7 +45,7 @@ struct ReceivedMessagesBufferInner {
     recently_reconstructed: HashSet<i32>,
 }
 
-impl ReceivedMessagesBufferInner {
+impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
     fn recover_from_fragment(&mut self, fragment_data: &[u8]) -> Option<NymMessage> {
         if nym_sphinx::cover::is_cover(fragment_data) {
             trace!("The message was a loop cover message! Skipping it");
@@ -130,13 +130,13 @@ impl ReceivedMessagesBufferInner {
 #[derive(Debug, Clone)]
 // Note: you should NEVER create more than a single instance of this using 'new()'.
 // You should always use .clone() to create additional instances
-struct ReceivedMessagesBuffer {
-    inner: Arc<Mutex<ReceivedMessagesBufferInner>>,
+struct ReceivedMessagesBuffer<R: MessageReceiver> {
+    inner: Arc<Mutex<ReceivedMessagesBufferInner<R>>>,
     reply_key_storage: SentReplyKeys,
     reply_controller_sender: ReplyControllerSender,
 }
 
-impl ReceivedMessagesBuffer {
+impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
     fn new(
         local_encryption_keypair: Arc<encryption::KeyPair>,
         reply_key_storage: SentReplyKeys,
@@ -146,7 +146,7 @@ impl ReceivedMessagesBuffer {
             inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
                 messages: Vec::new(),
                 local_encryption_keypair,
-                message_receiver: SphinxMessageReceiver::new(),
+                message_receiver: R::new(),
                 message_sender: None,
                 recently_reconstructed: HashSet::new(),
             })),
@@ -376,14 +376,14 @@ pub enum ReceivedBufferMessage {
     ReceiverDisconnect,
 }
 
-struct RequestReceiver {
-    received_buffer: ReceivedMessagesBuffer,
+struct RequestReceiver<R: MessageReceiver> {
+    received_buffer: ReceivedMessagesBuffer<R>,
     query_receiver: ReceivedBufferRequestReceiver,
 }
 
-impl RequestReceiver {
+impl<R: MessageReceiver> RequestReceiver<R> {
     fn new(
-        received_buffer: ReceivedMessagesBuffer,
+        received_buffer: ReceivedMessagesBuffer<R>,
         query_receiver: ReceivedBufferRequestReceiver,
     ) -> Self {
         RequestReceiver {
@@ -426,14 +426,14 @@ impl RequestReceiver {
     }
 }
 
-struct FragmentedMessageReceiver {
-    received_buffer: ReceivedMessagesBuffer,
+struct FragmentedMessageReceiver<R: MessageReceiver> {
+    received_buffer: ReceivedMessagesBuffer<R>,
     mixnet_packet_receiver: MixnetMessageReceiver,
 }
 
-impl FragmentedMessageReceiver {
+impl<R: MessageReceiver> FragmentedMessageReceiver<R> {
     fn new(
-        received_buffer: ReceivedMessagesBuffer,
+        received_buffer: ReceivedMessagesBuffer<R>,
         mixnet_packet_receiver: MixnetMessageReceiver,
     ) -> Self {
         FragmentedMessageReceiver {
@@ -444,7 +444,7 @@ impl FragmentedMessageReceiver {
 
     async fn run_with_shutdown(
         &mut self,
-        mut shutdown: task::TaskClient,
+        mut shutdown: nym_task::TaskClient,
     ) -> Result<(), MessageRecoveryError> {
         debug!("Started FragmentedMessageReceiver with graceful shutdown support");
         while !shutdown.is_shutdown() {
@@ -468,12 +468,12 @@ impl FragmentedMessageReceiver {
     }
 }
 
-pub(crate) struct ReceivedMessagesBufferController {
-    fragmented_message_receiver: FragmentedMessageReceiver,
-    request_receiver: RequestReceiver,
+pub(crate) struct ReceivedMessagesBufferController<R: MessageReceiver> {
+    fragmented_message_receiver: FragmentedMessageReceiver<R>,
+    request_receiver: RequestReceiver<R>,
 }
 
-impl ReceivedMessagesBufferController {
+impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferController<R> {
     pub(crate) fn new(
         local_encryption_keypair: Arc<encryption::KeyPair>,
         query_receiver: ReceivedBufferRequestReceiver,

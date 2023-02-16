@@ -9,7 +9,7 @@ use futures::lock::{Mutex, MutexGuard};
 use futures::{SinkExt, StreamExt};
 use log::warn;
 use nym_crypto::asymmetric::encryption;
-use nym_sphinx::receiver::{MessageReceiver, MessageRecoveryError, SphinxMessageReceiver};
+use nym_sphinx::receiver::{MessageReceiver, MessageRecoveryError};
 use std::mem;
 use std::sync::Arc;
 use thiserror::Error;
@@ -43,7 +43,7 @@ enum LockPermit {
     Free,
 }
 
-struct ReceivedProcessorInner {
+struct ReceivedProcessorInner<R: MessageReceiver> {
     /// Nonce of the current test run indicating which packets should get rejected.
     test_nonce: Option<u64>,
 
@@ -55,13 +55,13 @@ struct ReceivedProcessorInner {
     client_encryption_keypair: Arc<encryption::KeyPair>,
 
     /// Structure responsible for decrypting and recovering plaintext message from received ciphertexts.
-    message_receiver: SphinxMessageReceiver,
+    message_receiver: R,
 
     /// Vector containing all received (and decrypted) packets in the current test run.
     received_packets: Vec<TestPacket>,
 }
 
-impl ReceivedProcessorInner {
+impl<R: MessageReceiver> ReceivedProcessorInner<R> {
     fn on_message(&mut self, mut message: Vec<u8>) -> Result<(), ProcessingError> {
         // if the nonce is none it means the packet was received during the 'waiting' for the
         // next test run
@@ -101,22 +101,22 @@ impl ReceivedProcessorInner {
     }
 }
 
-pub(crate) struct ReceivedProcessor {
+pub(crate) struct ReceivedProcessor<R: MessageReceiver> {
     permit_changer: Option<mpsc::Sender<LockPermit>>,
-    inner: Arc<Mutex<ReceivedProcessorInner>>,
+    inner: Arc<Mutex<ReceivedProcessorInner<R>>>,
 }
 
-impl ReceivedProcessor {
+impl<R: MessageReceiver + Send + 'static> ReceivedProcessor<R> {
     pub(crate) fn new(
         packets_receiver: ReceivedProcessorReceiver,
         client_encryption_keypair: Arc<encryption::KeyPair>,
     ) -> Self {
-        let inner: Arc<Mutex<ReceivedProcessorInner>> =
+        let inner: Arc<Mutex<ReceivedProcessorInner<R>>> =
             Arc::new(Mutex::new(ReceivedProcessorInner {
                 test_nonce: None,
                 packets_receiver,
                 client_encryption_keypair,
-                message_receiver: SphinxMessageReceiver::new(),
+                message_receiver: R::new(),
                 received_packets: Vec::new(),
             }));
 
@@ -138,9 +138,9 @@ impl ReceivedProcessor {
                 receive_or_release_permit(&mut permit_receiver, permit).await;
             }
 
-            async fn receive_or_release_permit(
+            async fn receive_or_release_permit<Q: MessageReceiver>(
                 permit_receiver: &mut mpsc::Receiver<LockPermit>,
-                mut inner: MutexGuard<'_, ReceivedProcessorInner>,
+                mut inner: MutexGuard<'_, ReceivedProcessorInner<Q>>,
             ) {
                 loop {
                     tokio::select! {
@@ -166,10 +166,10 @@ impl ReceivedProcessor {
             // // this lint really looks like a false positive because when lifetimes are elided,
             // // the compiler can't figure out appropriate lifetime bounds
             // #[allow(clippy::needless_lifetimes)]
-            async fn wait_for_permit<'a: 'b, 'b>(
+            async fn wait_for_permit<'a: 'b, 'b, P: MessageReceiver>(
                 permit_receiver: &'b mut mpsc::Receiver<LockPermit>,
-                inner: &'a Mutex<ReceivedProcessorInner>,
-            ) -> Option<MutexGuard<'a, ReceivedProcessorInner>> {
+                inner: &'a Mutex<ReceivedProcessorInner<P>>,
+            ) -> Option<MutexGuard<'a, ReceivedProcessorInner<P>>> {
                 loop {
                     match permit_receiver.next().await {
                         // we should only ever get this on the very first run

@@ -12,7 +12,7 @@ pub use error::MockingError;
 pub use execution::{
     CrossContractTokenMove, ExecutionResult, ExecutionStepResult, FurtherExecution,
 };
-pub use multi_contract_mock::{DuplicateContractAddress, MultiContractMock, TestableContract};
+pub use multi_contract_mock::{MultiContractMock, TestableContract};
 pub use raw_state::ContractState;
 
 pub const AVERAGE_BLOCKTIME_SECS: u64 = 5;

@@ -14,14 +14,6 @@ use cosmwasm_std::{
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::collections::HashMap;
-use std::fmt::Debug;
-use thiserror::Error;
-
-#[derive(Debug, Error)]
-#[error("attempted to add another contract mock that has the same address as an existing one - {address}")]
-pub struct DuplicateContractAddress {
-    address: Addr,
-}
 
 // TODO: see if it's possible to create a macro to auto-derive it
 // if you intend to use the MultiContractMock, you need to implement this trait
@@ -131,13 +123,13 @@ impl MultiContractMock {
     pub fn add_contract<C: TestableContract + 'static>(
         &mut self,
         contract_state: ContractMock,
-    ) -> Result<(), DuplicateContractAddress> {
+    ) -> Result<(), MockingError> {
         let address = contract_state.contract_address().clone();
         if self
             .contracts
             .contains_key(contract_state.contract_address())
         {
-            Err(DuplicateContractAddress { address })
+            Err(MockingError::DuplicateContractAddress { address })
         } else {
             let mocked = MockedContract::new::<C>(contract_state);
             self.contracts.insert(address, mocked);
@@ -148,7 +140,7 @@ impl MultiContractMock {
     pub fn with_contract<C: TestableContract + 'static>(
         mut self,
         state: ContractMock,
-    ) -> Result<Self, DuplicateContractAddress> {
+    ) -> Result<Self, MockingError> {
         self.add_contract::<C>(state)?;
         Ok(self)
     }

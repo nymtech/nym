@@ -139,6 +139,16 @@ pub struct GatewayBondAnnotated {
     pub node_performance: NodePerformance,
 }
 
+impl GatewayBondAnnotated {
+    pub fn identity(&self) -> &String {
+        self.gateway_bond.identity()
+    }
+
+    pub fn owner(&self) -> &Addr {
+        self.gateway_bond.owner()
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]
 pub struct ComputeRewardEstParam {
     pub performance: Option<Performance>,

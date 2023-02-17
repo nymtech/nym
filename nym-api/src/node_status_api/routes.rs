@@ -4,7 +4,8 @@
 use super::helpers::_get_gateways_detailed;
 use super::NodeStatusCache;
 use crate::node_status_api::helpers::{
-    _compute_mixnode_reward_estimation, _get_active_set_detailed, _get_mixnode_avg_uptime,
+    _compute_mixnode_reward_estimation, _gateway_core_status_count, _gateway_report,
+    _gateway_uptime_history, _get_active_set_detailed, _get_mixnode_avg_uptime,
     _get_mixnode_inclusion_probabilities, _get_mixnode_inclusion_probability,
     _get_mixnode_reward_estimation, _get_mixnode_stake_saturation, _get_mixnode_status,
     _get_mixnodes_detailed, _get_rewarded_set_detailed, _mixnode_core_status_count,
@@ -21,7 +22,6 @@ use nym_api_requests::models::{
     RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
 };
 use nym_mixnet_contract_common::MixId;
-use rocket::http::Status;
 use rocket::serde::json::Json;
 use rocket::State;
 use rocket_okapi::openapi;
@@ -29,15 +29,10 @@ use rocket_okapi::openapi;
 #[openapi(tag = "status")]
 #[get("/gateway/<identity>/report")]
 pub(crate) async fn gateway_report(
-    storage: &State<NymApiStorage>,
+    cache: &State<NodeStatusCache>,
     identity: &str,
 ) -> Result<Json<GatewayStatusReportResponse>, ErrorResponse> {
-    storage
-        .construct_gateway_report(identity)
-        .await
-        .map(GatewayStatusReportResponse::from)
-        .map(Json)
-        .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
+    Ok(Json(_gateway_report(cache, identity).await?))
 }
 
 #[openapi(tag = "status")]
@@ -46,12 +41,7 @@ pub(crate) async fn gateway_uptime_history(
     storage: &State<NymApiStorage>,
     identity: &str,
 ) -> Result<Json<GatewayUptimeHistoryResponse>, ErrorResponse> {
-    storage
-        .get_gateway_uptime_history(identity)
-        .await
-        .map(GatewayUptimeHistoryResponse::from)
-        .map(Json)
-        .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
+    Ok(Json(_gateway_uptime_history(storage, identity).await?))
 }
 
 #[openapi(tag = "status")]
@@ -60,16 +50,10 @@ pub(crate) async fn gateway_core_status_count(
     storage: &State<NymApiStorage>,
     identity: &str,
     since: Option<i64>,
-) -> Json<GatewayCoreStatusResponse> {
-    let count = storage
-        .get_core_gateway_status_count(identity, since)
-        .await
-        .unwrap_or_default();
-
-    Json(GatewayCoreStatusResponse {
-        identity: identity.to_string(),
-        count,
-    })
+) -> Result<Json<GatewayCoreStatusResponse>, ErrorResponse> {
+    Ok(Json(
+        _gateway_core_status_count(storage, identity, since).await?,
+    ))
 }
 
 #[openapi(tag = "status")]

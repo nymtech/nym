@@ -131,6 +131,7 @@ fn main() {
             vesting::queries::get_spendable_reward_coins,
             vesting::queries::get_delegated_coins,
             vesting::queries::get_pledged_coins,
+            vesting::queries::get_withdrawn_coins,
             vesting::queries::get_staked_coins,
             vesting::queries::delegated_free,
             vesting::queries::delegated_vesting,

@@ -193,6 +193,14 @@ pub trait VestingQueryClient {
         .map(Into::into)
     }
 
+    async fn get_withdrawn_coins(&self, vesting_account_address: &str) -> Result<Coin, NyxdError> {
+        self.query_vesting_contract::<CosmWasmCoin>(VestingQueryMsg::GetWithdrawnCoins {
+            vesting_account_address: vesting_account_address.to_string(),
+        })
+        .await
+        .map(Into::into)
+    }
+
     async fn get_account(&self, address: &str) -> Result<Account, NyxdError> {
         self.query_vesting_contract(VestingQueryMsg::GetAccount {
             address: address.to_string(),

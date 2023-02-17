@@ -689,6 +689,9 @@ pub fn query(deps: Deps<'_>, env: Env, msg: QueryMsg) -> Result<QueryResponse, C
         QueryMsg::GetStakedCoins {
             vesting_account_address,
         } => to_binary(&try_get_staked_coins(&vesting_account_address, deps)?),
+        QueryMsg::GetWithdrawnCoins {
+            vesting_account_address,
+        } => to_binary(&try_get_withdrawn_coins(&vesting_account_address, deps)?),
         QueryMsg::GetAccount { address } => to_binary(&try_get_account(&address, deps)?),
         QueryMsg::GetMixnode { address } => to_binary(&try_get_mixnode(&address, deps)?),
         QueryMsg::GetGateway { address } => to_binary(&try_get_gateway(&address, deps)?),
@@ -937,6 +940,16 @@ pub fn try_get_staked_coins(
     let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
     let denom = MIX_DENOM.load(deps.storage)?;
     let amount = account.total_staked(deps.storage)?;
+    Ok(Coin { denom, amount })
+}
+
+pub fn try_get_withdrawn_coins(
+    vesting_account_address: &str,
+    deps: Deps<'_>,
+) -> Result<Coin, ContractError> {
+    let account = account_from_address(vesting_account_address, deps.storage, deps.api)?;
+    let denom = MIX_DENOM.load(deps.storage)?;
+    let amount = account.load_withdrawn(deps.storage)?;
     Ok(Coin { denom, amount })
 }
 

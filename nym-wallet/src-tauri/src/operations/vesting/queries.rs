@@ -251,6 +251,23 @@ pub(crate) async fn get_staked_coins(
 }
 
 #[tauri::command]
+pub(crate) async fn get_withdrawn_coins(
+    state: tauri::State<'_, WalletState>,
+) -> Result<DecCoin, BackendError> {
+    log::info!(">>> Query withdrawn coins");
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    let res = client
+        .nyxd
+        .get_withdrawn_coins(client.nyxd.address().as_ref())
+        .await?;
+    let display = guard.attempt_convert_to_display_dec_coin(res)?;
+    log::info!("<<< pledged coins = {}", display);
+    Ok(display)
+}
+
+#[tauri::command]
 pub(crate) async fn delegated_free(
     _vesting_account_address: &str,
     _block_time: Option<u64>,

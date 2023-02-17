@@ -239,6 +239,9 @@ pub enum QueryMsg {
     GetStakedCoins {
         vesting_account_address: String,
     },
+    GetWithdrawnCoins {
+        vesting_account_address: String,
+    },
     GetAccount {
         address: String,
     },

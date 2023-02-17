@@ -55,6 +55,7 @@ pub async fn query(args: Args, client: QueryClient, address_from_mnemonic: Optio
     let vesting_coins = client.vesting_coins(&vesting_address, None).await;
     let delegated = client.get_delegated_coins(&vesting_address).await;
     let pledged = client.get_pledged_coins(&vesting_address).await;
+    let withdrawn = client.get_withdrawn_coins(&vesting_address).await;
     let staked = client.get_staked_coins(&vesting_address).await;
 
     original_vesting.as_ref().map_or_else(show_error, |res| {
@@ -139,6 +140,9 @@ pub async fn query(args: Args, client: QueryClient, address_from_mnemonic: Optio
     println!("The following are shown for information (more help text will follow soon):");
     vesting_coins.map_or_else(show_error, |res| {
         println!("Vesting coins:     {}   ({})", pretty_coin(&res), res);
+    });
+    withdrawn.map_or_else(show_error, |res| {
+        println!("Withdrawn:         {}   ({})", pretty_coin(&res), res);
     });
     delegated.map_or_else(show_error, |res| {
         println!("Delegated:         {}   ({})", pretty_coin(&res), res);

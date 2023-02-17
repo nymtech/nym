@@ -88,7 +88,17 @@ impl NymApiTopologyProvider {
     }
 }
 
+// hehe, wasm
+#[cfg(not(target_arch = "wasm32"))]
 #[async_trait]
+impl TopologyProvider for NymApiTopologyProvider {
+    async fn get_new_topology(&mut self) -> Option<NymTopology> {
+        self.get_current_compatible_topology().await
+    }
+}
+
+#[cfg(target_arch = "wasm32")]
+#[async_trait(?Send)]
 impl TopologyProvider for NymApiTopologyProvider {
     async fn get_new_topology(&mut self) -> Option<NymTopology> {
         self.get_current_compatible_topology().await

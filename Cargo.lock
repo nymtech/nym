@@ -3983,6 +3983,7 @@ dependencies = [
 name = "nym-topology"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "bs58",
  "log",
  "nym-bin-common",

@@ -15,6 +15,7 @@ use crate::client::replies::reply_controller::{ReplyControllerReceiver, ReplyCon
 use crate::client::replies::reply_storage::{
     CombinedReplyStorage, PersistentReplyStorage, ReplyStorageBackend, SentReplyKeys,
 };
+use crate::client::topology_control::nym_api_provider::NymApiTopologyProvider;
 use crate::client::topology_control::{
     TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
@@ -349,13 +350,15 @@ where
         topology_accessor: TopologyAccessor,
         shutdown: TaskClient,
     ) -> Result<(), ClientCoreError> {
-        let topology_refresher_config = TopologyRefresherConfig::new(
-            nym_api_urls,
-            refresh_rate,
-            env!("CARGO_PKG_VERSION").to_string(),
+        let topology_refresher_config = TopologyRefresherConfig::new(refresh_rate);
+        let topology_provider =
+            NymApiTopologyProvider::new(nym_api_urls, env!("CARGO_PKG_VERSION").to_string());
+
+        let mut topology_refresher = TopologyRefresher::new(
+            topology_refresher_config,
+            topology_accessor,
+            Box::new(topology_provider),
         );
-        let mut topology_refresher =
-            TopologyRefresher::new(topology_refresher_config, topology_accessor);
         // before returning, block entire runtime to refresh the current network view so that any
         // components depending on topology would see a non-empty view
         info!("Obtaining initial network topology");

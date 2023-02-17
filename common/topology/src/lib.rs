@@ -20,6 +20,9 @@ pub mod filter;
 pub mod gateway;
 pub mod mix;
 
+#[cfg(feature = "provider-trait")]
+pub mod provider_trait;
+
 #[derive(Debug, Clone, Error)]
 pub enum NymTopologyError {
     #[error("The provided network topology is empty - there are no mixnodes and no gateways on it - the network request(s) probably failed")]
@@ -39,6 +42,16 @@ pub enum NymTopologyError {
 
     #[error("No mixnodes available on layer {layer}")]
     EmptyMixLayer { layer: MixLayer },
+
+    #[error("Uneven layer distribution. Layer {layer} has {nodes} on it, while we expected a value between {lower_bound} and {upper_bound} as we have {total_nodes} nodes in total. Full breakdown: {layer_distribution:?}")]
+    UnevenLayerDistribution {
+        layer: MixLayer,
+        nodes: usize,
+        lower_bound: usize,
+        upper_bound: usize,
+        total_nodes: usize,
+        layer_distribution: Vec<(MixLayer, usize)>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -97,7 +110,7 @@ impl NymTopology {
     }
 
     pub fn num_mixnodes(&self) -> usize {
-        self.mixes.values().flat_map(|m| m.iter()).count()
+        self.mixes.values().map(|m| m.len()).sum()
     }
 
     pub fn mixes_as_vec(&self) -> Vec<mix::Node> {
@@ -232,6 +245,46 @@ impl NymTopology {
                         return Err(NymTopologyError::EmptyMixLayer { layer });
                     }
                 }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn ensure_even_layer_distribution(
+        &self,
+        lower_threshold: f32,
+        upper_threshold: f32,
+    ) -> Result<(), NymTopologyError> {
+        let mixnodes_count = self.num_mixnodes();
+
+        let layers = self
+            .mixes
+            .iter()
+            .map(|(k, v)| (*k, v.len()))
+            .collect::<Vec<_>>();
+
+        if self.gateways.is_empty() {
+            return Err(NymTopologyError::NoGatewaysAvailable);
+        }
+
+        if layers.is_empty() {
+            return Err(NymTopologyError::NoMixnodesAvailable);
+        }
+
+        let upper_bound = (mixnodes_count as f32 * upper_threshold) as usize;
+        let lower_bound = (mixnodes_count as f32 * lower_threshold) as usize;
+
+        for (layer, nodes) in &layers {
+            if nodes < &lower_bound || nodes > &upper_bound {
+                return Err(NymTopologyError::UnevenLayerDistribution {
+                    layer: *layer,
+                    nodes: *nodes,
+                    lower_bound,
+                    upper_bound,
+                    total_nodes: mixnodes_count,
+                    layer_distribution: layers,
+                });
             }
         }
 

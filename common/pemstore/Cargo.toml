@@ -3,8 +3,12 @@ name = "nym-pemstore"
 description = "Store private-public keypairs in PEM format"
 version = "0.1.0"
 edition = { workspace = true }
-license = { workspace = true }
 authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+readme = { workspace = true }
+homepage = { workspace = true }
+documentation = { workspace = true }
 
 [dependencies]
-pem = "1.1.1"
+pem = "0.8"

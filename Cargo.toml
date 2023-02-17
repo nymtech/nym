@@ -103,6 +103,7 @@ exclude = ["explorer", "contracts", "clients/webassembly", "nym-wallet", "nym-co
 authors = ["Nym Technologies SA"]
 repository = "https://github.com/nymtech/nym"
 homepage = "https://nymtech.net"
+documentation = "https://nymtech.net"
 edition = "2021"
 license = "Apache-2"
 

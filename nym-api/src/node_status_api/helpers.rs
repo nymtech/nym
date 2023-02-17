@@ -254,21 +254,27 @@ pub(crate) async fn _get_mixnode_inclusion_probability(
 }
 
 pub(crate) async fn _get_mixnode_avg_uptime(
-    cache: &NymContractCache,
-    storage: &NymApiStorage,
+    cache: &NodeStatusCache,
     mix_id: MixId,
 ) -> Result<UptimeResponse, ErrorResponse> {
-    let current_interval = cache
-        .current_interval()
-        .await
-        .into_inner()
-        .ok_or_else(|| ErrorResponse::new("server error", Status::InternalServerError))?;
+    let mixnodes = cache.mixnodes_annotated().await.ok_or(ErrorResponse::new(
+        "no data available",
+        Status::ServiceUnavailable,
+    ))?;
 
-    let performance = average_mixnode_performance(mix_id, current_interval, storage).await?;
+    let mixnode = mixnodes
+        .into_inner()
+        .into_iter()
+        .find(|mixnode| mixnode.mix_id() == mix_id)
+        .ok_or(ErrorResponse::new(
+            "mixnode bond not found",
+            Status::NotFound,
+        ))?;
 
     Ok(UptimeResponse {
         mix_id,
-        avg_uptime: performance.round_to_integer(),
+        avg_uptime: mixnode.node_performance.last_24h.round_to_integer(),
+        performance_last_24h: mixnode.node_performance.last_24h,
     })
 }
 
@@ -288,7 +294,7 @@ pub(crate) async fn _get_mixnode_inclusion_probabilities(
         })
     } else {
         Err(ErrorResponse::new(
-            "No data available".to_string(),
+            "No data available",
             Status::ServiceUnavailable,
         ))
     }

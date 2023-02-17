@@ -171,11 +171,10 @@ pub(crate) async fn get_mixnode_inclusion_probability(
 #[openapi(tag = "status")]
 #[get("/mixnode/<mix_id>/avg_uptime")]
 pub(crate) async fn get_mixnode_avg_uptime(
-    cache: &State<NymContractCache>,
-    storage: &State<NymApiStorage>,
+    cache: &State<NodeStatusCache>,
     mix_id: MixId,
 ) -> Result<Json<UptimeResponse>, ErrorResponse> {
-    Ok(Json(_get_mixnode_avg_uptime(cache, storage, mix_id).await?))
+    Ok(Json(_get_mixnode_avg_uptime(cache, mix_id).await?))
 }
 
 #[openapi(tag = "status")]

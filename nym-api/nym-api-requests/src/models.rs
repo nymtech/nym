@@ -156,7 +156,9 @@ pub struct RewardEstimationResponse {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct UptimeResponse {
     pub mix_id: MixId,
+    // Deprecated in favour of `performance_last_24h`
     pub avg_uptime: u8,
+    pub performance_last_24h: Performance,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]

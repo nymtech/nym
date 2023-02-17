@@ -1,10 +1,10 @@
 [package]
 name = "nym-pemstore"
-version = "0.1.0"
-authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
-edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "Store private-public keypairs in PEM format"
+version = { workspace = true }
+edition = { workspace = true }
+license = { workspace = true }
+authors = { workspace = true }
 
 [dependencies]
-pem = "0.8"
+pem = "1.1.1"

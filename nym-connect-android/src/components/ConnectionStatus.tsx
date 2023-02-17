@@ -38,6 +38,7 @@ const ConnectionStatusContent: FCWithChildren<{
           justifyContent="center"
           sx={{ cursor: 'pointer' }}
           color="warning.main"
+          onClick={() => setShowGatewayWarn(true)}
         >
           <ErrorOutline sx={{ fontSize: 14 }} />
           <Typography

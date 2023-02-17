@@ -3,7 +3,7 @@ import { Divider, Stack, Typography } from '@mui/material';
 import { ServiceProvider } from 'src/types/directory';
 
 export const ServiceProviderInfo = ({ serviceProvider }: { serviceProvider: ServiceProvider }) => (
-  <Stack gap={1} sx={{ wordWrap: 'break-word', maxWidth: 150, p: 1 }}>
+  <Stack gap={1} sx={{ wordWrap: 'break-word', maxWidth: 200, p: 1 }}>
     <Typography variant="caption" fontWeight="bold">
       Gateway <Typography variant="caption">{serviceProvider.gateway}</Typography>
     </Typography>
@@ -15,7 +15,7 @@ export const ServiceProviderInfo = ({ serviceProvider }: { serviceProvider: Serv
 );
 
 export const GatwayWarningInfo = () => (
-  <Stack gap={1} sx={{ wordWrap: 'break-word', maxWidth: 150, p: 1 }}>
+  <Stack gap={1} sx={{ wordWrap: 'break-word', maxWidth: 200, p: 1 }}>
     <Typography variant="caption">Try disconnecting and connecting again</Typography>
   </Stack>
 );

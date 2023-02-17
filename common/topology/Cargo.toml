@@ -16,7 +16,7 @@ bs58 = "0.4"
 log = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 thiserror = "1.0.37"
-async-trait = { version = "0.1.64", optional = true }
+async-trait = { workspace = true, optional = true }
 
 ## internal
 nym-crypto = { path = "../crypto" }

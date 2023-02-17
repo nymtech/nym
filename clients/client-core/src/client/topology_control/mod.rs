@@ -51,8 +51,15 @@ impl TopologyRefresher {
         self.topology_provider = provider;
     }
 
-    pub async fn refresh(&mut self) {
+    pub async fn try_refresh(&mut self) {
         trace!("Refreshing the topology");
+
+        if self.topology_accessor.controlled_manually() {
+            info!("topology is being controlled manually - we're going to wait until the control is released...");
+            self.topology_accessor
+                .wait_for_released_manual_control()
+                .await;
+        }
 
         let new_topology = self.topology_provider.get_new_topology().await;
         if new_topology.is_none() {
@@ -94,7 +101,7 @@ impl TopologyRefresher {
             while !shutdown.is_shutdown() {
                 tokio::select! {
                     _ = interval.next() => {
-                        self.refresh().await;
+                        self.try_refresh().await;
                     },
                     _ = shutdown.recv() => {
                         log::trace!("TopologyRefresher: Received shutdown");

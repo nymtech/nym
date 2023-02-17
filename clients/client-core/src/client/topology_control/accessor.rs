@@ -5,35 +5,41 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::DEFAULT_NUM_MIX_HOPS;
 use nym_topology::{NymTopology, NymTopologyError};
 use std::ops::Deref;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tokio::sync::{RwLock, RwLockReadGuard};
+use tokio::sync::{Notify, RwLock, RwLockReadGuard};
 
-// I'm extremely curious why compiler NEVER complained about lack of Debug here before
 #[derive(Debug)]
-pub struct TopologyAccessorInner(Option<NymTopology>);
-
-impl AsRef<Option<NymTopology>> for TopologyAccessorInner {
-    fn as_ref(&self) -> &Option<NymTopology> {
-        &self.0
-    }
+pub struct TopologyAccessorInner {
+    controlled_manually: AtomicBool,
+    released_manual_control: Notify,
+    // `RwLock` *seems to* be the better approach for this as write access is only requested every
+    // few seconds, while reads are needed every single packet generated.
+    // However, proper benchmarks will be needed to determine if `RwLock` is indeed a better
+    // approach than a `Mutex`
+    topology: RwLock<Option<NymTopology>>,
 }
 
 impl TopologyAccessorInner {
     fn new() -> Self {
-        TopologyAccessorInner(None)
+        TopologyAccessorInner {
+            controlled_manually: AtomicBool::new(false),
+            released_manual_control: Notify::new(),
+            topology: RwLock::new(None),
+        }
     }
 
-    fn update(&mut self, new: Option<NymTopology>) {
-        self.0 = new;
+    async fn update(&self, new: Option<NymTopology>) {
+        *self.topology.write().await = new;
     }
 }
 
 pub struct TopologyReadPermit<'a> {
-    permit: RwLockReadGuard<'a, TopologyAccessorInner>,
+    permit: RwLockReadGuard<'a, Option<NymTopology>>,
 }
 
 impl<'a> Deref for TopologyReadPermit<'a> {
-    type Target = TopologyAccessorInner;
+    type Target = Option<NymTopology>;
 
     fn deref(&self) -> &Self::Target {
         &self.permit
@@ -51,7 +57,6 @@ impl<'a> TopologyReadPermit<'a> {
         // 1. Have we managed to get anything from the refresher, i.e. have the nym-api queries gone through?
         let topology = self
             .permit
-            .as_ref()
             .as_ref()
             .ok_or(NymTopologyError::EmptyNetworkTopology)?;
 
@@ -80,8 +85,8 @@ impl<'a> TopologyReadPermit<'a> {
     }
 }
 
-impl<'a> From<RwLockReadGuard<'a, TopologyAccessorInner>> for TopologyReadPermit<'a> {
-    fn from(read_permit: RwLockReadGuard<'a, TopologyAccessorInner>) -> Self {
+impl<'a> From<RwLockReadGuard<'a, Option<NymTopology>>> for TopologyReadPermit<'a> {
+    fn from(read_permit: RwLockReadGuard<'a, Option<NymTopology>>) -> Self {
         TopologyReadPermit {
             permit: read_permit,
         }
@@ -90,32 +95,48 @@ impl<'a> From<RwLockReadGuard<'a, TopologyAccessorInner>> for TopologyReadPermit
 
 #[derive(Clone, Debug)]
 pub struct TopologyAccessor {
-    // `RwLock` *seems to* be the better approach for this as write access is only requested every
-    // few seconds, while reads are needed every single packet generated.
-    // However, proper benchmarks will be needed to determine if `RwLock` is indeed a better
-    // approach than a `Mutex`
-    inner: Arc<RwLock<TopologyAccessorInner>>,
+    inner: Arc<TopologyAccessorInner>,
 }
 
 impl TopologyAccessor {
     pub fn new() -> Self {
         TopologyAccessor {
-            inner: Arc::new(RwLock::new(TopologyAccessorInner::new())),
+            inner: Arc::new(TopologyAccessorInner::new()),
         }
     }
 
+    pub fn controlled_manually(&self) -> bool {
+        self.inner.controlled_manually.load(Ordering::SeqCst)
+    }
+
     pub async fn get_read_permit(&self) -> TopologyReadPermit<'_> {
-        self.inner.read().await.into()
+        self.inner.topology.read().await.into()
     }
 
     pub(crate) async fn update_global_topology(&self, new_topology: Option<NymTopology>) {
-        self.inner.write().await.update(new_topology);
+        self.inner.update(new_topology).await;
+    }
+
+    pub(crate) async fn wait_for_released_manual_control(&self) {
+        self.inner.released_manual_control.notified().await
+    }
+
+    pub async fn manually_change_topology(&self, new_topology: NymTopology) {
+        self.inner.controlled_manually.store(true, Ordering::SeqCst);
+        self.inner.update(Some(new_topology)).await;
+    }
+
+    pub fn release_manual_control(&self) {
+        self.inner
+            .controlled_manually
+            .store(false, Ordering::SeqCst);
+        self.inner.released_manual_control.notify_waiters();
     }
 
     // only used by the client at startup to get a slightly more reasonable error message
     // (currently displays as unused because health checker is disabled due to required changes)
     pub async fn ensure_is_routable(&self) -> Result<(), NymTopologyError> {
-        match &self.inner.read().await.0 {
+        match self.inner.topology.read().await.deref() {
             None => Err(NymTopologyError::EmptyNetworkTopology),
             Some(ref topology) => topology.ensure_can_construct_path_through(DEFAULT_NUM_MIX_HOPS),
         }

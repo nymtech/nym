@@ -16,7 +16,7 @@ rust-version = "1.56"
 
 [dependencies]
 anyhow = "1.0.53"
-async-trait = { version = "0.1.51" }
+async-trait = { workspace = true }
 bip39 = "1.0.1"
 bs58 = "0.4.0"
 clap = { version = "4.0", features = ["cargo", "derive"] }

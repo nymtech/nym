@@ -93,6 +93,7 @@ impl ClientOutput {
 pub struct ClientState {
     pub shared_lane_queue_lengths: LaneQueueLengths,
     pub reply_controller_sender: ReplyControllerSender,
+    pub topology_accessor: TopologyAccessor,
 }
 
 pub enum ClientInputStatus {
@@ -383,7 +384,7 @@ where
         // before returning, block entire runtime to refresh the current network view so that any
         // components depending on topology would see a non-empty view
         info!("Obtaining initial network topology");
-        topology_refresher.refresh().await;
+        topology_refresher.try_refresh().await;
 
         if let Err(err) = topology_refresher.ensure_topology_is_routable().await {
             log::error!(
@@ -558,7 +559,7 @@ where
                 self.debug_config,
                 self.key_manager.ack_key(),
                 self_address,
-                shared_topology_accessor,
+                shared_topology_accessor.clone(),
                 sphinx_message_sender,
                 task_manager.subscribe(),
             );
@@ -582,6 +583,7 @@ where
             client_state: ClientState {
                 shared_lane_queue_lengths,
                 reply_controller_sender,
+                topology_accessor: shared_topology_accessor,
             },
             task_manager,
         })

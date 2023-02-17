@@ -134,7 +134,9 @@ impl MixNodeBondAnnotated {
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct GatewayBondAnnotated {
     pub gateway_bond: GatewayBond,
+    // NOTE: the performance field is deprecated in favour of node_performance
     pub performance: Performance,
+    pub node_performance: NodePerformance,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema)]

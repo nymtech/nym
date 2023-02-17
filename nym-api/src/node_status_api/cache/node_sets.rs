@@ -163,9 +163,21 @@ pub(crate) async fn annotate_gateways_with_details(
         .await
         .unwrap_or_default();
 
+        let node_performance = if let Some(storage) = storage {
+            storage
+                .construct_gateway_report(gateway_bond.identity())
+                .await
+                .map(NodePerformance::from)
+                .ok()
+        } else {
+            None
+        }
+        .unwrap_or_default();
+
         annotated.push(GatewayBondAnnotated {
             gateway_bond,
             performance,
+            node_performance,
         });
     }
     annotated

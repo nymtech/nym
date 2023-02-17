@@ -238,6 +238,16 @@ impl From<GatewayStatusReport> for GatewayStatusReportResponse {
     }
 }
 
+impl From<GatewayStatusReport> for NodePerformance {
+    fn from(report: GatewayStatusReport) -> Self {
+        NodePerformance {
+            most_recent: report.most_recent.into(),
+            last_hour: report.last_hour.into(),
+            last_24h: report.last_day.into(),
+        }
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 pub struct MixnodeUptimeHistory {
     pub(crate) mix_id: MixId,

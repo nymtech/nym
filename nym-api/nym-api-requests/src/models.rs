@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::{Coin, Decimal};
+use cosmwasm_std::{Addr, Coin, Decimal};
 use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
@@ -120,6 +120,14 @@ impl MixNodeBondAnnotated {
 
     pub fn mix_id(&self) -> MixId {
         self.mixnode_details.mix_id()
+    }
+
+    pub fn identity_key(&self) -> &str {
+        self.mixnode_details.bond_information.identity()
+    }
+
+    pub fn owner(&self) -> &Addr {
+        self.mixnode_details.bond_information.owner()
     }
 }
 

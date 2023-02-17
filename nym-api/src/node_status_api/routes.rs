@@ -75,10 +75,10 @@ pub(crate) async fn gateway_core_status_count(
 #[openapi(tag = "status")]
 #[get("/mixnode/<mix_id>/report")]
 pub(crate) async fn mixnode_report(
-    storage: &State<NymApiStorage>,
+    cache: &State<NodeStatusCache>,
     mix_id: MixId,
 ) -> Result<Json<MixnodeStatusReportResponse>, ErrorResponse> {
-    Ok(Json(_mixnode_report(storage, mix_id).await?))
+    Ok(Json(_mixnode_report(cache, mix_id).await?))
 }
 
 #[openapi(tag = "status")]

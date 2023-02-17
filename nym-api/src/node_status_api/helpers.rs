@@ -12,22 +12,45 @@ use nym_api_requests::models::{
     MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse,
     RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
 };
-use nym_mixnet_contract_common::reward_params::Performance;
-use nym_mixnet_contract_common::{Interval, MixId, RewardedSetNodeStatus};
+use nym_mixnet_contract_common::{MixId, RewardedSetNodeStatus};
 use rocket::http::Status;
 use rocket::State;
 
 use super::reward_estimate::compute_reward_estimate;
 
+async fn get_mixnode_bond_annotated(
+    cache: &NodeStatusCache,
+    mix_id: MixId,
+) -> Result<MixNodeBondAnnotated, ErrorResponse> {
+    let mixnodes = cache.mixnodes_annotated().await.ok_or(ErrorResponse::new(
+        "no data available",
+        Status::ServiceUnavailable,
+    ))?;
+
+    mixnodes
+        .into_inner()
+        .into_iter()
+        .find(|mixnode| mixnode.mix_id() == mix_id)
+        .ok_or(ErrorResponse::new(
+            "mixnode bond not found",
+            Status::NotFound,
+        ))
+}
+
 pub(crate) async fn _mixnode_report(
-    storage: &NymApiStorage,
+    cache: &NodeStatusCache,
     mix_id: MixId,
 ) -> Result<MixnodeStatusReportResponse, ErrorResponse> {
-    storage
-        .construct_mixnode_report(mix_id)
-        .await
-        .map(MixnodeStatusReportResponse::from)
-        .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
+    let mixnode = get_mixnode_bond_annotated(cache, mix_id).await?;
+
+    Ok(MixnodeStatusReportResponse {
+        mix_id,
+        identity: mixnode.identity_key().to_owned(),
+        owner: mixnode.owner().to_string(),
+        most_recent: mixnode.node_performance.most_recent.round_to_integer(),
+        last_hour: mixnode.node_performance.last_hour.round_to_integer(),
+        last_day: mixnode.node_performance.last_24h.round_to_integer(),
+    })
 }
 
 pub(crate) async fn _mixnode_uptime_history(
@@ -101,21 +124,6 @@ pub(crate) async fn _get_mixnode_reward_estimation(
             Status::NotFound,
         ))
     }
-}
-
-async fn average_mixnode_performance(
-    mix_id: MixId,
-    current_interval: Interval,
-    storage: &NymApiStorage,
-) -> Result<Performance, ErrorResponse> {
-    storage
-        .get_average_mixnode_uptime_in_the_last_24hrs(
-            mix_id,
-            current_interval.current_epoch_end_unix_timestamp(),
-        )
-        .await
-        .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
-        .map(Into::into)
 }
 
 pub(crate) async fn _compute_mixnode_reward_estimation(
@@ -257,19 +265,7 @@ pub(crate) async fn _get_mixnode_avg_uptime(
     cache: &NodeStatusCache,
     mix_id: MixId,
 ) -> Result<UptimeResponse, ErrorResponse> {
-    let mixnodes = cache.mixnodes_annotated().await.ok_or(ErrorResponse::new(
-        "no data available",
-        Status::ServiceUnavailable,
-    ))?;
-
-    let mixnode = mixnodes
-        .into_inner()
-        .into_iter()
-        .find(|mixnode| mixnode.mix_id() == mix_id)
-        .ok_or(ErrorResponse::new(
-            "mixnode bond not found",
-            Status::NotFound,
-        ))?;
+    let mixnode = get_mixnode_bond_annotated(cache, mix_id).await?;
 
     Ok(UptimeResponse {
         mix_id,

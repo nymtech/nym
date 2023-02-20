@@ -171,7 +171,7 @@ impl State {
     pub async fn start_connecting(
         &mut self,
         window: &tauri::Window<tauri::Wry>,
-    ) -> Result<(task::StatusReceiver, ExitStatusReceiver)> {
+    ) -> Result<(nym_task::StatusReceiver, ExitStatusReceiver)> {
         self.set_state(ConnectionStatusKind::Connecting, window);
 
         let res = self.init_config().await;
@@ -214,7 +214,7 @@ impl State {
         &mut self,
         config: Config,
         keys: KeyManager,
-    ) -> Result<(task::StatusReceiver, ExitStatusReceiver)> {
+    ) -> Result<(nym_task::StatusReceiver, ExitStatusReceiver)> {
         let id = self.get_config_id()?;
         let (control_tx, msg_rx, exit_status_rx, used_gateway) =
             tasks::start_nym_socks5_client(&id, config, keys)?;

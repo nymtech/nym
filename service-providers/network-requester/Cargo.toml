@@ -36,7 +36,7 @@ client-connections = { path = "../../common/client-connections" }
 client-core = { path = "../../clients/client-core" }
 completions = { path = "../../common/completions" }
 config = { path = "../../common/config" }
-crypto = { path = "../../common/crypto" }
+nym-crypto = { path = "../../common/crypto" }
 logging = { path = "../../common/logging"}
 network-defaults = { path = "../../common/network-defaults" }
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }

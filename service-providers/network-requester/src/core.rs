@@ -240,7 +240,6 @@ impl NRServiceProviderBuilder {
             shutdown,
         };
 
-
         log::info!("The address of this client is: {}", self_address);
         log::info!("All systems go. Press CTRL-C to stop the server.");
         service_provider.run().await

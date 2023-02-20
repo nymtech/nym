@@ -21,7 +21,7 @@ use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
 use nym_crypto::asymmetric::{encryption, identity};
 use std::sync::Arc;
-use task::TaskManager;
+use nym_task::TaskManager;
 use validator_client::nyxd::SigningNyxdClient;
 
 pub(crate) mod chunker;

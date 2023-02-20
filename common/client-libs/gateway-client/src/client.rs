@@ -23,7 +23,7 @@ use rand::rngs::OsRng;
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::time::Duration;
-use task::TaskClient;
+use nym_task::TaskClient;
 use tungstenite::protocol::Message;
 
 #[cfg(not(target_arch = "wasm32"))]

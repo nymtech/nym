@@ -15,7 +15,7 @@ use std::net::SocketAddr;
 use std::net::ToSocketAddrs;
 use std::sync::Arc;
 use std::time::Duration;
-use task::TaskClient;
+use nym_task::TaskClient;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use url::Url;

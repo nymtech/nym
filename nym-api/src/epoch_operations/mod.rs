@@ -29,7 +29,7 @@ use rand::rngs::OsRng;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::time::Duration;
-use task::{TaskClient, TaskManager};
+use nym_task::{TaskClient, TaskManager};
 use tokio::time::sleep;
 
 pub(crate) mod error;

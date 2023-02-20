@@ -19,7 +19,7 @@ use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
 use log::*;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
-use task::TaskManager;
+use nym_task::TaskManager;
 use tokio::sync::watch::error::SendError;
 use validator_client::nyxd::QueryNyxdClient;
 

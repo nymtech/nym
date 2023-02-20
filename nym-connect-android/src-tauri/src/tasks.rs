@@ -6,7 +6,7 @@ use client_core::{
 use futures::{channel::mpsc, StreamExt};
 use std::sync::Arc;
 use tap::TapFallible;
-use task::manager::TaskStatus;
+use nym_task::manager::TaskStatus;
 use tokio::sync::RwLock;
 
 use config_common::NymConfig;

@@ -24,7 +24,7 @@ use nym_contract_cache::cache::NymContractCache;
 use rand::rngs::OsRng;
 use std::error::Error;
 use support::{http, nyxd};
-use task::TaskManager;
+use nym_task::TaskManager;
 
 mod circulating_supply_api;
 mod coconut;

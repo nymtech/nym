@@ -15,7 +15,7 @@ use socks5_requests::ConnectionId;
 use std::fmt::Debug;
 use std::time::Duration;
 use std::{io, sync::Arc};
-use task::TaskClient;
+use nym_task::TaskClient;
 use tokio::select;
 use tokio::{net::tcp::OwnedReadHalf, sync::Notify, time::sleep};
 

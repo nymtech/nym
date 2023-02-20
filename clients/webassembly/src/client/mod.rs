@@ -17,7 +17,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use rand::rngs::OsRng;
 use std::sync::Arc;
-use task::TaskManager;
+use nym_task::TaskManager;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
 use wasm_utils::{console_error, console_log};

@@ -13,7 +13,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use proxy_helpers::connection_controller::Controller;
 use std::net::SocketAddr;
 use tap::TapFallible;
-use task::TaskClient;
+use nym_task::TaskClient;
 use tokio::net::TcpListener;
 
 /// A Socks5 server that listens for connections.

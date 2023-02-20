@@ -29,7 +29,7 @@ use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
-use task::{TaskClient, TaskManager};
+use nym_task::{TaskClient, TaskManager};
 
 mod http;
 mod listener;

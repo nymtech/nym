@@ -7,7 +7,7 @@ use gateway_requests::ServerResponse;
 use log::{trace, warn};
 use nym_sphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
-use task::TaskClient;
+use nym_task::TaskClient;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::WebSocketStream;
 

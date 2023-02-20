@@ -6,7 +6,7 @@ use client_connections::LaneQueueLengths;
 use socks5_requests::ConnectionId;
 use std::fmt::Debug;
 use std::{sync::Arc, time::Duration};
-use task::TaskClient;
+use nym_task::TaskClient;
 use tokio::{net::TcpStream, sync::Notify};
 
 mod inbound;

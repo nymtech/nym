@@ -10,7 +10,7 @@ use futures::{SinkExt, StreamExt};
 use gateway_requests::registration::handshake::SharedKeys;
 use log::*;
 use std::sync::Arc;
-use task::TaskClient;
+use nym_task::TaskClient;
 use tungstenite::Message;
 
 #[cfg(not(target_arch = "wasm32"))]

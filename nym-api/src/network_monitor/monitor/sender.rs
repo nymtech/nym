@@ -24,7 +24,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
-use task::TaskClient;
+use nym_task::TaskClient;
 
 use gateway_client::bandwidth::BandwidthController;
 use validator_client::nyxd::SigningNyxdClient;

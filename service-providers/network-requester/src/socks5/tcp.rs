@@ -9,7 +9,7 @@ use proxy_helpers::proxy_runner::{MixProxySender, ProxyRunner};
 use service_providers_common::interface::RequestVersion;
 use socks5_requests::{ConnectionId, RemoteAddress, Socks5Request};
 use std::io;
-use task::TaskClient;
+use nym_task::TaskClient;
 use tokio::net::TcpStream;
 
 /// An outbound TCP connection between the Socks5 service provider, which makes

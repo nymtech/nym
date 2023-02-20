@@ -8,7 +8,7 @@ use nym_sphinx::receiver::ReconstructedMessage;
 use proxy_helpers::connection_controller::ControllerSender;
 use service_providers_common::interface::{ControlResponse, ResponseContent};
 use socks5_requests::{Socks5ProviderResponse, Socks5Response, Socks5ResponseContent};
-use task::TaskClient;
+use nym_task::TaskClient;
 
 use crate::error::Socks5ClientError;
 

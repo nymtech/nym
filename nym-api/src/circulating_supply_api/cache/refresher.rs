@@ -8,7 +8,7 @@ use nym_contracts_common::truncate_decimal;
 use std::collections::HashSet;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
-use task::TaskClient;
+use nym_task::TaskClient;
 use tokio::time;
 use validator_client::nyxd::Coin;
 

@@ -16,7 +16,7 @@ use nym_sphinx::framing::packet::FramedSphinxPacket;
 use nym_sphinx::DestinationAddressBytes;
 use std::collections::HashMap;
 use std::net::SocketAddr;
-use task::TaskClient;
+use nym_task::TaskClient;
 use tokio::net::TcpStream;
 use tokio_util::codec::Framed;
 

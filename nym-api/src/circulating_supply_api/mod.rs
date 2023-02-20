@@ -4,7 +4,7 @@
 use okapi::openapi3::OpenApi;
 use rocket::Route;
 use rocket_okapi::{openapi_get_routes_spec, settings::OpenApiSettings};
-use task::TaskManager;
+use nym_task::TaskManager;
 
 use crate::support::{config::Config, nyxd};
 

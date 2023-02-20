@@ -4,7 +4,7 @@ use crate::support::caching::CacheNotification;
 use anyhow::Result;
 use nym_mixnet_contract_common::{MixId, MixNodeDetails, RewardedSetNodeStatus};
 use std::{collections::HashMap, sync::atomic::Ordering, time::Duration};
-use task::TaskClient;
+use nym_task::TaskClient;
 use tokio::sync::watch;
 use tokio::time;
 

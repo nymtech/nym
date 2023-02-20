@@ -134,7 +134,7 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use std::time::Duration;
 
-    use task::TaskManager;
+    use nym_task::TaskManager;
 
     use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
     use nym_sphinx_params::packet_sizes::PacketSize;

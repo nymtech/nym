@@ -20,7 +20,7 @@ use rand::rngs::OsRng;
 use rand::RngCore;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
-use task::{TaskClient, TaskManager};
+use nym_task::{TaskClient, TaskManager};
 use tokio::time::interval;
 
 pub(crate) fn init_keypair(config: &Config) -> Result<()> {

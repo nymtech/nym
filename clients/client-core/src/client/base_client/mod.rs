@@ -39,7 +39,7 @@ use nym_sphinx::receiver::ReconstructedMessage;
 use std::sync::Arc;
 use std::time::Duration;
 use tap::TapFallible;
-use task::{TaskClient, TaskManager};
+use nym_task::{TaskClient, TaskManager};
 use url::Url;
 #[cfg(not(target_arch = "wasm32"))]
 use validator_client::nyxd::CosmWasmClient;

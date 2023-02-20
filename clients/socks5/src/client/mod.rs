@@ -23,7 +23,7 @@ use gateway_client::bandwidth::BandwidthController;
 use log::*;
 use nym_sphinx::addressing::clients::Recipient;
 use std::error::Error;
-use task::{TaskClient, TaskManager};
+use nym_task::{TaskClient, TaskManager};
 use validator_client::nyxd::QueryNyxdClient;
 
 pub mod config;

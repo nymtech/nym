@@ -23,7 +23,7 @@ use socks5_requests::{
 use std::io;
 use std::net::SocketAddr;
 use std::pin::Pin;
-use task::TaskClient;
+use nym_task::TaskClient;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio::{self, net::TcpStream};
 

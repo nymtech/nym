@@ -503,7 +503,7 @@ impl Controller {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use task::TaskManager;
+    use nym_task::TaskManager;
 
     #[tokio::test]
     async fn node_stats_reported_are_received() {

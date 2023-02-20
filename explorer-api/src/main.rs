@@ -8,7 +8,7 @@ use dotenv::dotenv;
 use log::info;
 use logging::setup_logging;
 use network_defaults::setup_env;
-use task::TaskManager;
+use nym_task::TaskManager;
 
 pub(crate) mod cache;
 mod client;

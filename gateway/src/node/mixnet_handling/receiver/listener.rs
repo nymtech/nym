@@ -6,7 +6,7 @@ use crate::node::storage::Storage;
 use log::*;
 use std::net::SocketAddr;
 use std::process;
-use task::TaskClient;
+use nym_task::TaskClient;
 use tokio::task::JoinHandle;
 
 pub(crate) struct Listener {

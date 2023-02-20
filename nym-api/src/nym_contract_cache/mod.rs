@@ -8,7 +8,7 @@ use okapi::openapi3::OpenApi;
 use rocket::Route;
 use rocket_okapi::openapi_get_routes_spec;
 use rocket_okapi::settings::OpenApiSettings;
-use task::TaskManager;
+use nym_task::TaskManager;
 
 use self::cache::refresher::NymContractCacheRefresher;
 

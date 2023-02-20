@@ -13,7 +13,7 @@ use crate::{
     support::caching::CacheNotification,
 };
 use std::time::Duration;
-use task::TaskClient;
+use nym_task::TaskClient;
 use tokio::sync::watch;
 use tokio::time;
 

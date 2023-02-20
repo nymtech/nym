@@ -8,7 +8,7 @@ use log::*;
 use ordered_buffer::{OrderedMessage, OrderedMessageBuffer, ReadContiguousData};
 use socks5_requests::{ConnectionId, NetworkData, SendRequest};
 use std::collections::{HashMap, HashSet};
-use task::TaskClient;
+use nym_task::TaskClient;
 
 /// A generic message produced after reading from a socket/connection. It includes data that was
 /// actually read alongside boolean indicating whether the connection got closed so that

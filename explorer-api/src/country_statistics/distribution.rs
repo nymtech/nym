@@ -1,5 +1,5 @@
 use log::info;
-use task::TaskClient;
+use nym_task::TaskClient;
 
 use crate::country_statistics::country_nodes_distribution::CountryNodesDistribution;
 use crate::COUNTRY_DATA_REFRESH_INTERVAL;

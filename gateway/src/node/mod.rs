@@ -25,7 +25,7 @@ use std::error::Error;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
-use task::{TaskClient, TaskManager};
+use nym_task::{TaskClient, TaskManager};
 use validator_client::Client;
 
 pub(crate) mod client_handling;

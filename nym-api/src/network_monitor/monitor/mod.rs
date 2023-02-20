@@ -12,7 +12,7 @@ use crate::support::config::Config;
 use log::{debug, error, info};
 use std::collections::{HashMap, HashSet};
 use std::process;
-use task::TaskClient;
+use nym_task::TaskClient;
 use tokio::time::{sleep, Duration, Instant};
 
 pub(crate) mod gateway_clients_cache;

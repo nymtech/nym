@@ -4,7 +4,7 @@
 use crate::mix_nodes::location::Location;
 use crate::state::ExplorerApiStateContext;
 use log::{info, warn};
-use task::TaskClient;
+use nym_task::TaskClient;
 
 pub(crate) struct GeoLocateTask {
     state: ExplorerApiStateContext,

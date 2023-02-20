@@ -28,7 +28,7 @@ use socks5_requests::{
 use statistics_common::collector::StatisticsSender;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use task::{TaskClient, TaskManager};
+use nym_task::{TaskClient, TaskManager};
 
 // Since it's an atomic, it's safe to be kept static and shared across threads
 static ACTIVE_PROXIES: AtomicUsize = AtomicUsize::new(0);

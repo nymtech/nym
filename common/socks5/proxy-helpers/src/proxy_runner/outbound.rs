@@ -8,7 +8,7 @@ use futures::StreamExt;
 use log::*;
 use socks5_requests::ConnectionId;
 use std::{sync::Arc, time::Duration};
-use task::TaskClient;
+use nym_task::TaskClient;
 use tokio::io::AsyncWriteExt;
 use tokio::select;
 use tokio::{net::tcp::OwnedWriteHalf, sync::Notify, time::sleep, time::Instant};

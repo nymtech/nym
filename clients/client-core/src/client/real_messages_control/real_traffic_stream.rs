@@ -342,7 +342,6 @@ where
         if let Poll::Ready(Some(id)) = Pin::new(&mut self.client_connection_rx).poll_next(cx) {
             match id {
                 ConnectionCommand::Close(id) => self.on_close_connection(id),
-                ConnectionCommand::ActiveConnections(_) => panic!(),
             }
         }
 
@@ -421,7 +420,6 @@ where
         if let Poll::Ready(Some(id)) = Pin::new(&mut self.client_connection_rx).poll_next(cx) {
             match id {
                 ConnectionCommand::Close(id) => self.on_close_connection(id),
-                ConnectionCommand::ActiveConnections(_) => panic!(),
             }
         }
 

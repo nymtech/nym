@@ -3,27 +3,19 @@
 
 use crate::allowed_hosts;
 use crate::allowed_hosts::OutboundRequestFilter;
+use crate::config::Config;
 use crate::error::NetworkRequesterError;
 use crate::reply::MixnetMessage;
 use crate::statistics::ServiceStatisticsCollector;
-use crate::websocket;
-use crate::websocket::TSWebsocketStream;
 use crate::{reply, socks5};
 use async_trait::async_trait;
 use build_information::BinaryBuildInformation;
-use client_connections::{
-    ConnectionCommand, ConnectionCommandReceiver, LaneQueueLengths, TransmissionLane,
-};
+use client_connections::LaneQueueLengths;
 use futures::channel::mpsc;
-use futures::stream::{SplitSink, SplitStream};
-use futures::{SinkExt, StreamExt};
 use log::warn;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nymsphinx::receiver::ReconstructedMessage;
-use proxy_helpers::connection_controller::{
-    BroadcastActiveConnections, Controller, ControllerCommand, ControllerSender,
-};
+use proxy_helpers::connection_controller::{Controller, ControllerCommand, ControllerSender};
 use proxy_helpers::proxy_runner::{MixProxyReader, MixProxySender};
 use service_providers_common::interface::{
     BinaryInformation, ProviderInterfaceVersion, Request, RequestVersion,
@@ -37,8 +29,6 @@ use statistics_common::collector::StatisticsSender;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use task::{TaskClient, TaskManager};
-use tokio_tungstenite::tungstenite::protocol::Message;
-use websocket_requests::{requests::ClientRequest, responses::ServerResponse};
 
 // Since it's an atomic, it's safe to be kept static and shared across threads
 static ACTIVE_PROXIES: AtomicUsize = AtomicUsize::new(0);
@@ -53,7 +43,7 @@ pub(crate) fn new_legacy_request_version() -> RequestVersion<Socks5Request> {
 // TODO: 'Builder' is not the most appropriate name here, but I needed
 // ... something ...
 pub struct NRServiceProviderBuilder {
-    websocket_address: String,
+    config: Config,
     outbound_request_filter: OutboundRequestFilter,
     open_proxy: bool,
     enable_statistics: bool,
@@ -63,11 +53,11 @@ pub struct NRServiceProviderBuilder {
 struct NRServiceProvider {
     outbound_request_filter: OutboundRequestFilter,
     open_proxy: bool,
+    mixnet_client: nym_sdk::mixnet::MixnetClient,
 
-    websocket_stream: SplitStream<TSWebsocketStream>,
     controller_sender: ControllerSender,
     mix_input_sender: MixProxySender<MixnetMessage>,
-    shared_lane_queue_lengths: LaneQueueLengths,
+    //shared_lane_queue_lengths: LaneQueueLengths,
     stats_collector: Option<ServiceStatisticsCollector>,
     shutdown: TaskManager,
 }
@@ -157,7 +147,7 @@ impl ServiceProvider<Socks5Request> for NRServiceProvider {
 
 impl NRServiceProviderBuilder {
     pub async fn new(
-        websocket_address: String,
+        config: Config,
         open_proxy: bool,
         enable_statistics: bool,
         stats_provider_addr: Option<Recipient>,
@@ -180,7 +170,7 @@ impl NRServiceProviderBuilder {
 
         let outbound_request_filter = OutboundRequestFilter::new(allowed_hosts, unknown_hosts);
         NRServiceProviderBuilder {
-            websocket_address,
+            config,
             outbound_request_filter,
             open_proxy,
             enable_statistics,
@@ -190,10 +180,8 @@ impl NRServiceProviderBuilder {
 
     /// Start all subsystems
     pub async fn run_service_provider(self) -> Result<(), NetworkRequesterError> {
-        let websocket_stream = Self::connect_websocket(&self.websocket_address).await?;
-
-        // split the websocket so that we could read and write from separate threads
-        let (websocket_writer, websocket_reader) = websocket_stream.split();
+        // Connect to the mixnet
+        let mixnet_client = create_mixnet_client(self.config.get_base()).await?;
 
         // channels responsible for managing messages that are to be sent to the mix network. The receiver is
         // going to be used by `mixnet_response_listener`
@@ -202,21 +190,9 @@ impl NRServiceProviderBuilder {
         // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
         let shutdown = task::TaskManager::default();
 
-        // Channel for announcing client connection state by the controller.
-        // The `mixnet_response_listener` will use this to either report closed connection to the
-        // client or request lane queue lengths.
-        let (client_connection_tx, client_connection_rx) = mpsc::unbounded();
-
-        // Shared queue length data. Published by the `OutQueueController` in the client, and used
-        // primarily to throttle incoming connections
-        let shared_lane_queue_lengths = LaneQueueLengths::new();
-
         // Controller for managing all active connections.
-        // We provide it with a ShutdownListener since it requires it, even though for the network
-        // requester shutdown signalling is not yet fully implemented.
         let (mut active_connections_controller, controller_sender) = Controller::new(
-            client_connection_tx,
-            BroadcastActiveConnections::On,
+            mixnet_client.connection_command_sender(),
             shutdown.subscribe(),
         );
 
@@ -240,13 +216,15 @@ impl NRServiceProviderBuilder {
         };
 
         let stats_collector_clone = stats_collector.clone();
+        let mixnet_client_sender = mixnet_client.sender();
+        let self_address = *mixnet_client.nym_address();
+
         // start the listener for mix messages
         tokio::spawn(async move {
             NRServiceProvider::mixnet_response_listener(
-                websocket_writer,
+                mixnet_client_sender,
                 mix_input_receiver,
                 stats_collector_clone,
-                client_connection_rx,
             )
             .await;
         });
@@ -254,70 +232,54 @@ impl NRServiceProviderBuilder {
         let service_provider = NRServiceProvider {
             outbound_request_filter: self.outbound_request_filter,
             open_proxy: self.open_proxy,
-            websocket_stream: websocket_reader,
+            mixnet_client,
             controller_sender,
             mix_input_sender,
-            shared_lane_queue_lengths,
+            //shared_lane_queue_lengths: mixnet_client.shared_lane_queue_lengths(),
             stats_collector,
             shutdown,
         };
 
+        log::info!("The address of this client is: {}", self_address);
         log::info!("All systems go. Press CTRL-C to stop the server.");
         service_provider.run().await
-    }
-
-    // Make the websocket connection so we can receive incoming Mixnet messages.
-    async fn connect_websocket(uri: &str) -> Result<TSWebsocketStream, NetworkRequesterError> {
-        match websocket::Connection::new(uri).connect().await {
-            Ok(ws_stream) => {
-                log::info!("* connected to local websocket server at {}", uri);
-                Ok(ws_stream)
-            }
-            Err(err) => {
-                log::error!(
-                    "Error: websocket connection attempt failed, is the Nym client running?"
-                );
-                Err(err.into())
-            }
-        }
     }
 }
 
 impl NRServiceProvider {
     async fn run(mut self) -> Result<(), NetworkRequesterError> {
         // TODO: incorporate graceful shutdowns
-        loop {
-            let Some(reconstructed) = self.read_websocket_message().await else {
-                log::error!("The websocket stream has finished!");
-                return Err(NetworkRequesterError::ConnectionClosed);
-            };
+        while let Some(reconstructed_messages) = self.mixnet_client.wait_for_messages().await {
+            for reconstructed in reconstructed_messages {
+                let sender = reconstructed.sender_tag;
+                let request = match Socks5ProviderRequest::try_from_bytes(&reconstructed.message) {
+                    Ok(req) => req,
+                    Err(err) => {
+                        // TODO: or should it even be further lowered to debug/trace?
+                        log::warn!("Failed to deserialize received message: {err}");
+                        continue;
+                    }
+                };
 
-            let sender = reconstructed.sender_tag;
-            let request = match Socks5ProviderRequest::try_from_bytes(&reconstructed.message) {
-                Ok(req) => req,
-                Err(err) => {
-                    // TODO: or should it even be further lowered to debug/trace?
-                    log::warn!("Failed to deserialize received message: {err}");
-                    continue;
+                if let Err(err) = self.on_request(sender, request).await {
+                    // TODO: again, should it be a warning?
+                    // we should also probably log some information regarding the origin of the request
+                    // so that it would be easier to debug it
+                    log::warn!("failed to resolve the received request: {err}");
                 }
-            };
-
-            if let Err(err) = self.on_request(sender, request).await {
-                // TODO: again, should it be a warning?
-                // we should also probably log some information regarding the origin of the request
-                // so that it would be easier to debug it
-                log::warn!("failed to resolve the received request: {err}");
             }
         }
+
+        log::error!("Network requester exited unexpectedly");
+        Ok(())
     }
 
     /// Listens for any messages from `mix_reader` that should be written back to the mix network
     /// via the `websocket_writer`.
     async fn mixnet_response_listener(
-        mut websocket_writer: SplitSink<TSWebsocketStream, Message>,
+        mut mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
         mut mix_input_reader: MixProxyReader<MixnetMessage>,
         stats_collector: Option<ServiceStatisticsCollector>,
-        mut client_connection_rx: ConnectionCommandReceiver,
     ) {
         loop {
             tokio::select! {
@@ -338,95 +300,15 @@ impl NRServiceProvider {
                             }
                         }
 
-                        // make 'request' to native-websocket client
-                        let response_message = msg.into_client_request();
-                        let message = Message::Binary(response_message.serialize());
-                        websocket_writer.send(message).await.unwrap();
+                        let response_message = msg.into_input_message();
+                        mixnet_client_sender.send_input_message(response_message).await;
                     } else {
                         log::error!("Exiting: channel closed!");
                         break;
                     }
                 },
-                Some(command) = client_connection_rx.next() => {
-                    match command {
-                        ConnectionCommand::Close(id) => {
-                            let msg = ClientRequest::ClosedConnection(id);
-                            let ws_msg = Message::Binary(msg.serialize());
-                            websocket_writer.send(ws_msg).await.unwrap();
-                        }
-                        ConnectionCommand::ActiveConnections(ids) => {
-                            // We can optimize this by sending a single request, but this is
-                            // usually in the low single digits, max a few tens, so we leave that
-                            // for a rainy day.
-                            // Also that means fiddling with the currently manual
-                            // serialize/deserialize we do with ClientRequests ...
-                            for id in ids {
-                                log::trace!("Requesting lane queue length for: {}", id);
-                                let msg = ClientRequest::GetLaneQueueLength(id);
-                                let ws_msg = Message::Binary(msg.serialize());
-                                websocket_writer.send(ws_msg).await.unwrap();
-                            }
-                        }
-                    }
-                },
             }
         }
-    }
-
-    fn handle_lane_queue_length_response(
-        lane_queue_lengths: &LaneQueueLengths,
-        lane: u64,
-        queue_length: usize,
-    ) {
-        log::trace!("Received LaneQueueLength lane: {lane}, queue_length: {queue_length}");
-        if let Ok(mut lane_queue_lengths) = lane_queue_lengths.lock() {
-            let lane = TransmissionLane::ConnectionId(lane);
-            lane_queue_lengths.map.insert(lane, queue_length);
-        } else {
-            log::warn!("Unable to lock lane queue lengths, skipping updating received lane length")
-        }
-    }
-
-    async fn read_websocket_message(&mut self) -> Option<ReconstructedMessage> {
-        while let Some(msg) = self.websocket_stream.next().await {
-            let data = match msg {
-                Ok(msg) => msg.into_data(),
-                Err(err) => {
-                    log::error!("Failed to read from the websocket: {err}");
-                    continue;
-                }
-            };
-
-            // try to recover the actual message from the mix network...
-            let deserialized_message = match ServerResponse::deserialize(&data) {
-                Ok(deserialized) => deserialized,
-                Err(err) => {
-                    log::error!(
-                        "Failed to deserialize received websocket message! - {}",
-                        err
-                    );
-                    continue;
-                }
-            };
-
-            let received = match deserialized_message {
-                ServerResponse::Received(received) => received,
-                ServerResponse::LaneQueueLength { lane, queue_length } => {
-                    Self::handle_lane_queue_length_response(
-                        &self.shared_lane_queue_lengths,
-                        lane,
-                        queue_length,
-                    );
-                    continue;
-                }
-                ServerResponse::Error(err) => {
-                    panic!("received error from native client! - {err}")
-                }
-                _ => unimplemented!("probably should never be reached?"),
-            };
-            return Some(received);
-        }
-        None
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -545,7 +427,7 @@ impl NRServiceProvider {
 
         let controller_sender_clone = self.controller_sender.clone();
         let mix_input_sender_clone = self.mix_input_sender.clone();
-        let lane_queue_lengths_clone = self.shared_lane_queue_lengths.clone();
+        let lane_queue_lengths_clone = self.mixnet_client.shared_lane_queue_lengths();
         let shutdown = self.shutdown.subscribe();
 
         // and start the proxy for this connection
@@ -567,4 +449,35 @@ impl NRServiceProvider {
     fn handle_proxy_send(&mut self, req: SendRequest) {
         self.controller_sender.unbounded_send(req.into()).unwrap()
     }
+}
+
+// Helper function to create the mixnet client.
+// This is NOT in the SDK since we don't want to expose any of the client-core config types.
+// We could however consider moving it to a crate in common in the future.
+async fn create_mixnet_client<T>(
+    config: &client_core::config::Config<T>,
+) -> Result<nym_sdk::mixnet::MixnetClient, NetworkRequesterError> {
+    let nym_api_endpoints = config.get_nym_api_endpoints();
+    let debug_config = config.get_debug_config().clone();
+
+    let mixnet_config = nym_sdk::mixnet::Config {
+        user_chosen_gateway: None,
+        nym_api_endpoints,
+        debug_config,
+    };
+
+    let storage_paths = nym_sdk::mixnet::StoragePaths::from(config);
+
+    let mixnet_client = nym_sdk::mixnet::MixnetClientBuilder::new()
+        .config(mixnet_config)
+        .enable_storage(storage_paths)
+        .gateway_config(config.get_gateway_endpoint_config().clone())
+        .build::<nym_sdk::mixnet::ReplyStorage>()
+        .await
+        .map_err(|err| NetworkRequesterError::FailedToSetupMixnetClient { source: err })?;
+
+    mixnet_client
+        .connect_to_mixnet()
+        .await
+        .map_err(|err| NetworkRequesterError::FailedToConnectToMixnet { source: err })
 }

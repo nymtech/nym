@@ -1,6 +1,8 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use client_connections::TransmissionLane;
+use nym_sdk::mixnet::InputMessage;
 use nymsphinx::addressing::clients::Recipient;
 use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
 use service_providers_common::interface::{
@@ -11,7 +13,6 @@ use socks5_requests::{
     Socks5RequestContent, Socks5Response, Socks5ResponseContent,
 };
 use std::fmt::{Debug, Formatter};
-use websocket_requests::requests::ClientRequest;
 
 /// Generic data this service provider will send back to the mixnet via its connected native client.
 /// It includes serialized socks5 proxy responses to its connected clients
@@ -146,7 +147,7 @@ impl MixnetMessage {
         self.data.len()
     }
 
-    pub(crate) fn into_client_request(self) -> ClientRequest {
+    pub(crate) fn into_input_message(self) -> InputMessage {
         self.address.send_back_to(self.data, self.connection_id)
     }
 }
@@ -173,17 +174,17 @@ impl MixnetAddress {
         None
     }
 
-    pub(super) fn send_back_to(self, message: Vec<u8>, connection_id: u64) -> ClientRequest {
+    pub(super) fn send_back_to(self, message: Vec<u8>, connection_id: u64) -> InputMessage {
         match self {
-            MixnetAddress::Known(recipient) => ClientRequest::Send {
+            MixnetAddress::Known(recipient) => InputMessage::Regular {
                 recipient: *recipient,
-                message,
-                connection_id: Some(connection_id),
+                data: message,
+                lane: TransmissionLane::ConnectionId(connection_id),
             },
-            MixnetAddress::Anonymous(sender_tag) => ClientRequest::Reply {
-                message,
-                sender_tag,
-                connection_id: Some(connection_id),
+            MixnetAddress::Anonymous(sender_tag) => InputMessage::Reply {
+                recipient_tag: sender_tag,
+                data: message,
+                lane: TransmissionLane::ConnectionId(connection_id),
             },
         }
     }

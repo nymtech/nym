@@ -5,7 +5,7 @@ import { useClientContext } from 'src/context/main';
 import { ConnectionStatusKind } from 'src/types';
 import { AppVersion } from 'src/components/AppVersion';
 
-export const Settings = () => {
+export const GatewaySettings = () => {
   const { userDefinedGateway, setUserDefinedGateway } = useClientContext();
   const [gatewayKey, setGatewayKey] = useState<string | undefined>(userDefinedGateway?.gateway);
 

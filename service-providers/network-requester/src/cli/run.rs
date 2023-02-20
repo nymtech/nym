@@ -8,7 +8,7 @@ use crate::{
 };
 use clap::Args;
 use config::NymConfig;
-use nymsphinx::addressing::clients::Recipient;
+use nym_sphinx::addressing::clients::Recipient;
 
 const ENABLE_STATISTICS: &str = "enable-statistics";
 

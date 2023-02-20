@@ -5,7 +5,7 @@
 
 use std::fmt::Display;
 
-use nymsphinx::addressing::{clients::Recipient, nodes::NodeIdentity};
+use nym_sphinx::addressing::{clients::Recipient, nodes::NodeIdentity};
 use rand::rngs::OsRng;
 use serde::Serialize;
 use tap::TapFallible;

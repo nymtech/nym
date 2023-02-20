@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{ReplySurb, ReplySurbError};
-use nymsphinx_addressing::clients::{Recipient, RecipientFormattingError};
+use nym_sphinx_addressing::clients::{Recipient, RecipientFormattingError};
 use rand::{CryptoRng, RngCore};
 use std::fmt::{Display, Formatter};
 use std::mem;

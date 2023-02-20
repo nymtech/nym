@@ -5,7 +5,7 @@ use crate::client::{Client, Config, SendWithoutResponse};
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
-use nymsphinx::forwarding::packet::MixPacket;
+use nym_sphinx::forwarding::packet::MixPacket;
 use std::time::Duration;
 
 pub type MixForwardingSender = mpsc::UnboundedSender<MixPacket>;

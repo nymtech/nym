@@ -6,7 +6,7 @@ use mixnode_common::packet_processor::error::MixProcessingError;
 pub use mixnode_common::packet_processor::processor::MixProcessingResult;
 use mixnode_common::packet_processor::processor::SphinxPacketProcessor;
 use nym_crypto::asymmetric::encryption;
-use nymsphinx::framing::packet::FramedSphinxPacket;
+use nym_sphinx::framing::packet::FramedSphinxPacket;
 
 // PacketProcessor contains all data required to correctly unwrap and forward sphinx packets
 #[derive(Clone)]

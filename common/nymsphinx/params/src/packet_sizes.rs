@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::FRAG_ID_LEN;
-use nymsphinx_types::header::HEADER_SIZE;
-use nymsphinx_types::PAYLOAD_OVERHEAD_SIZE;
+use nym_sphinx_types::header::HEADER_SIZE;
+use nym_sphinx_types::PAYLOAD_OVERHEAD_SIZE;
 use std::convert::TryFrom;
 use std::str::FromStr;
 use thiserror::Error;

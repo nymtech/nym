@@ -3,15 +3,15 @@
 
 use crate::identifier::prepare_identifier;
 use crate::AckKey;
-use nymsphinx_addressing::clients::Recipient;
-use nymsphinx_addressing::nodes::{
+use nym_sphinx_addressing::clients::Recipient;
+use nym_sphinx_addressing::nodes::{
     NymNodeRoutingAddress, NymNodeRoutingAddressError, MAX_NODE_ADDRESS_UNPADDED_LEN,
 };
-use nymsphinx_params::packet_sizes::PacketSize;
-use nymsphinx_params::DEFAULT_NUM_MIX_HOPS;
-use nymsphinx_types::builder::SphinxPacketBuilder;
-use nymsphinx_types::Error as SphinxError;
-use nymsphinx_types::{
+use nym_sphinx_params::packet_sizes::PacketSize;
+use nym_sphinx_params::DEFAULT_NUM_MIX_HOPS;
+use nym_sphinx_types::builder::SphinxPacketBuilder;
+use nym_sphinx_types::Error as SphinxError;
+use nym_sphinx_types::{
     delays::{self, Delay},
     SphinxPacket,
 };

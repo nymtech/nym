@@ -4,10 +4,10 @@
 use futures::channel::mpsc;
 use futures::StreamExt;
 use log::*;
-use nymsphinx::framing::codec::SphinxCodec;
-use nymsphinx::framing::packet::FramedSphinxPacket;
-use nymsphinx::params::PacketMode;
-use nymsphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
+use nym_sphinx::framing::codec::SphinxCodec;
+use nym_sphinx::framing::packet::FramedSphinxPacket;
+use nym_sphinx::params::PacketMode;
+use nym_sphinx::{addressing::nodes::NymNodeRoutingAddress, SphinxPacket};
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;

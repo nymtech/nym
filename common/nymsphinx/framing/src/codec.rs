@@ -3,10 +3,10 @@
 
 use crate::packet::{FramedSphinxPacket, Header};
 use bytes::{Buf, BufMut, BytesMut};
-use nymsphinx_params::packet_modes::InvalidPacketMode;
-use nymsphinx_params::packet_sizes::{InvalidPacketSize, PacketSize};
-use nymsphinx_types::Error as SphinxError;
-use nymsphinx_types::SphinxPacket;
+use nym_sphinx_params::packet_modes::InvalidPacketMode;
+use nym_sphinx_params::packet_sizes::{InvalidPacketSize, PacketSize};
+use nym_sphinx_types::Error as SphinxError;
+use nym_sphinx_types::SphinxPacket;
 use std::io;
 use thiserror::Error;
 use tokio_util::codec::{Decoder, Encoder};
@@ -128,8 +128,8 @@ impl Decoder for SphinxCodec {
 #[cfg(test)]
 mod packet_encoding {
     use super::*;
-    use nymsphinx_types::builder::SphinxPacketBuilder;
-    use nymsphinx_types::{
+    use nym_sphinx_types::builder::SphinxPacketBuilder;
+    use nym_sphinx_types::{
         crypto, Delay as SphinxDelay, Destination, DestinationAddressBytes, Node, NodeAddressBytes,
         DESTINATION_ADDRESS_LENGTH, IDENTIFIER_LENGTH, NODE_ADDRESS_LENGTH,
     };
@@ -189,8 +189,8 @@ mod packet_encoding {
     #[cfg(test)]
     mod decode_will_allocate_enough_bytes_for_next_call {
         use super::*;
-        use nymsphinx_params::packet_version::PacketVersion;
-        use nymsphinx_params::PacketMode;
+        use nym_sphinx_params::packet_version::PacketVersion;
+        use nym_sphinx_params::PacketMode;
 
         #[test]
         fn for_empty_bytes() {

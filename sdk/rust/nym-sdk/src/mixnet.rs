@@ -48,7 +48,7 @@ pub use client_core::{
 };
 pub use config::Config;
 pub use keys::{Keys, KeysArc};
-pub use nymsphinx::{
+pub use nym_sphinx::{
     addressing::clients::{ClientIdentity, Recipient},
     receiver::ReconstructedMessage,
 };

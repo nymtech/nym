@@ -5,7 +5,7 @@ use crate::node::storage::Storage;
 use gateway_requests::registration::handshake::SharedKeys;
 use gateway_requests::ServerResponse;
 use log::{trace, warn};
-use nymsphinx::DestinationAddressBytes;
+use nym_sphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
 use task::TaskClient;
 use tokio::io::{AsyncRead, AsyncWrite};

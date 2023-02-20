@@ -4,8 +4,8 @@
 use crate::spawn_future;
 use futures::StreamExt;
 use log::*;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::params::DEFAULT_NUM_MIX_HOPS;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::params::DEFAULT_NUM_MIX_HOPS;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::ops::Deref;

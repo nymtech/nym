@@ -18,7 +18,7 @@ use gateway_requests::{BinaryRequest, ClientControlRequest, ServerResponse, PROT
 use log::*;
 use network_defaults::{REMAINING_BANDWIDTH_THRESHOLD, TOKENS_TO_BURN};
 use nym_crypto::asymmetric::identity;
-use nymsphinx::forwarding::packet::MixPacket;
+use nym_sphinx::forwarding::packet::MixPacket;
 use rand::rngs::OsRng;
 use std::convert::TryFrom;
 use std::sync::Arc;

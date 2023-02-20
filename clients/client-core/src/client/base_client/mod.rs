@@ -32,10 +32,10 @@ use gateway_client::{
 };
 use log::{debug, info};
 use nym_crypto::asymmetric::{encryption, identity};
-use nymsphinx::acknowledgements::AckKey;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::addressing::nodes::NodeIdentity;
-use nymsphinx::receiver::ReconstructedMessage;
+use nym_sphinx::acknowledgements::AckKey;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::addressing::nodes::NodeIdentity;
+use nym_sphinx::receiver::ReconstructedMessage;
 use std::sync::Arc;
 use std::time::Duration;
 use tap::TapFallible;

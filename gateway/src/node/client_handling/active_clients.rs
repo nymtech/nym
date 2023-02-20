@@ -3,7 +3,7 @@
 
 use crate::node::client_handling::websocket::message_receiver::MixMessageSender;
 use dashmap::DashMap;
-use nymsphinx::DestinationAddressBytes;
+use nym_sphinx::DestinationAddressBytes;
 use std::sync::Arc;
 
 #[derive(Clone)]

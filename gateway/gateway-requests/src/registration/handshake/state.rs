@@ -13,7 +13,7 @@ use nym_crypto::{
     hkdf,
     symmetric::stream_cipher,
 };
-use nymsphinx::params::{GatewayEncryptionAlgorithm, GatewaySharedKeyHkdfAlgorithm};
+use nym_sphinx::params::{GatewayEncryptionAlgorithm, GatewaySharedKeyHkdfAlgorithm};
 use rand::{CryptoRng, RngCore};
 use std::convert::{TryFrom, TryInto};
 use tungstenite::Message as WsMessage;

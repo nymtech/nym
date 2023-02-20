@@ -1,4 +1,4 @@
-use nymsphinx::addressing::clients::Recipient;
+use nym_sphinx::addressing::clients::Recipient;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]

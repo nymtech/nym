@@ -4,7 +4,7 @@
 pub use nym_crypto::generic_array;
 use nym_crypto::hmac::HmacOutput;
 use nym_crypto::OutputSizeUser;
-use nymsphinx::params::GatewayIntegrityHmacAlgorithm;
+use nym_sphinx::params::GatewayIntegrityHmacAlgorithm;
 pub use types::*;
 
 pub mod authentication;

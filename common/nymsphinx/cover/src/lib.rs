@@ -3,18 +3,18 @@
 
 use nym_crypto::shared_key::new_ephemeral_shared_key;
 use nym_crypto::symmetric::stream_cipher;
-use nymsphinx_acknowledgements::surb_ack::SurbAck;
-use nymsphinx_acknowledgements::AckKey;
-use nymsphinx_addressing::clients::Recipient;
-use nymsphinx_addressing::nodes::NymNodeRoutingAddress;
-use nymsphinx_chunking::fragment::COVER_FRAG_ID;
-use nymsphinx_forwarding::packet::MixPacket;
-use nymsphinx_params::packet_sizes::PacketSize;
-use nymsphinx_params::{
+use nym_sphinx_acknowledgements::surb_ack::SurbAck;
+use nym_sphinx_acknowledgements::AckKey;
+use nym_sphinx_addressing::clients::Recipient;
+use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
+use nym_sphinx_chunking::fragment::COVER_FRAG_ID;
+use nym_sphinx_forwarding::packet::MixPacket;
+use nym_sphinx_params::packet_sizes::PacketSize;
+use nym_sphinx_params::{
     PacketEncryptionAlgorithm, PacketHkdfAlgorithm, PacketMode, DEFAULT_NUM_MIX_HOPS,
 };
-use nymsphinx_types::builder::SphinxPacketBuilder;
-use nymsphinx_types::{delays, Error as SphinxError};
+use nym_sphinx_types::builder::SphinxPacketBuilder;
+use nym_sphinx_types::{delays, Error as SphinxError};
 use rand::{CryptoRng, RngCore};
 use std::convert::TryFrom;
 use std::time;

@@ -297,7 +297,7 @@ pub fn split_into_sets<R: Rng>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use nymsphinx_params::packet_sizes::PacketSize;
+    use nym_sphinx_params::packet_sizes::PacketSize;
 
     fn max_plaintext_size() -> usize {
         PacketSize::default().plaintext_size() - PacketSize::AckPacket.size()

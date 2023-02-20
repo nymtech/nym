@@ -1,6 +1,6 @@
 use client_connections::TransmissionLane;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 
 pub type InputMessageSender = tokio::sync::mpsc::Sender<InputMessage>;
 pub type InputMessageReceiver = tokio::sync::mpsc::Receiver<InputMessage>;

@@ -3,7 +3,7 @@
 
 use crate::AckKey;
 use nym_crypto::symmetric::stream_cipher::{self, encrypt, iv_from_slice, random_iv, IvSizeUser};
-use nymsphinx_params::{
+use nym_sphinx_params::{
     packet_sizes::PacketSize, AckEncryptionAlgorithm, SerializedFragmentIdentifier, FRAG_ID_LEN,
 };
 use rand::{CryptoRng, RngCore};

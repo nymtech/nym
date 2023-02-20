@@ -6,7 +6,7 @@ use crate::interface::{
     Request, RequestContent, Response, ResponseContent, ServiceProviderRequest, SupportedVersions,
 };
 use async_trait::async_trait;
-use nymsphinx_anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
 
 pub mod interface;
 

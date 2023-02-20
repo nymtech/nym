@@ -16,7 +16,7 @@ use gateway_client::error::GatewayClientError;
 use gateway_client::{AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver};
 use log::{debug, info, trace, warn};
 use nym_crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
-use nymsphinx::forwarding::packet::MixPacket;
+use nym_sphinx::forwarding::packet::MixPacket;
 use pin_project::pin_project;
 use std::mem;
 use std::num::NonZeroUsize;

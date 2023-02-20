@@ -5,9 +5,9 @@ use crate::client::real_messages_control::acknowledgement_control::PendingAcknow
 use client_connections::{ConnectionId, TransmissionLane};
 use futures::channel::{mpsc, oneshot};
 use log::error;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nymsphinx::anonymous_replies::ReplySurb;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::anonymous_replies::ReplySurb;
 use std::sync::Weak;
 
 pub(crate) fn new_control_channels() -> (ReplyControllerSender, ReplyControllerReceiver) {

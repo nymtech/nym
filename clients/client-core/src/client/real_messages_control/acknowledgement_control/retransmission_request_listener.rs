@@ -12,9 +12,9 @@ use crate::client::replies::reply_controller::ReplyControllerSender;
 use client_connections::TransmissionLane;
 use futures::StreamExt;
 use log::*;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::chunking::fragment::Fragment;
-use nymsphinx::preparer::PreparedFragment;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::chunking::fragment::Fragment;
+use nym_sphinx::preparer::PreparedFragment;
 use rand::{CryptoRng, Rng};
 use std::sync::{Arc, Weak};
 

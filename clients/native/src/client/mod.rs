@@ -18,14 +18,14 @@ use client_core::config::persistence::key_pathfinder::ClientKeyPathfinder;
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
 use log::*;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use task::TaskManager;
 use tokio::sync::watch::error::SendError;
 use validator_client::nyxd::QueryNyxdClient;
 
 pub use client_core::client::key_manager::KeyManager;
-pub use nymsphinx::addressing::clients::Recipient;
-pub use nymsphinx::receiver::ReconstructedMessage;
+pub use nym_sphinx::addressing::clients::Recipient;
+pub use nym_sphinx::receiver::ReconstructedMessage;
 pub mod config;
 
 pub struct SocketClient {

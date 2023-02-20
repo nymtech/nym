@@ -13,8 +13,8 @@ use client_core::client::{inbound_messages::InputMessage, key_manager::KeyManage
 use gateway_client::bandwidth::BandwidthController;
 use gateway_client::wasm_mockups::SigningNyxdClient;
 use js_sys::Promise;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use rand::rngs::OsRng;
 use std::sync::Arc;
 use task::TaskManager;

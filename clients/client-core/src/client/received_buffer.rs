@@ -11,13 +11,13 @@ use gateway_client::MixnetMessageReceiver;
 use log::*;
 use nym_crypto::asymmetric::encryption;
 use nym_crypto::Digest;
-use nymsphinx::anonymous_replies::requests::{
+use nym_sphinx::anonymous_replies::requests::{
     RepliableMessage, RepliableMessageContent, ReplyMessage, ReplyMessageContent,
 };
-use nymsphinx::anonymous_replies::{encryption_key::EncryptionKeyDigest, SurbEncryptionKey};
-use nymsphinx::message::{NymMessage, PlainMessage};
-use nymsphinx::params::ReplySurbKeyDigestAlgorithm;
-use nymsphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
+use nym_sphinx::anonymous_replies::{encryption_key::EncryptionKeyDigest, SurbEncryptionKey};
+use nym_sphinx::message::{NymMessage, PlainMessage};
+use nym_sphinx::params::ReplySurbKeyDigestAlgorithm;
+use nym_sphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
 use std::collections::HashSet;
 use std::sync::Arc;
 

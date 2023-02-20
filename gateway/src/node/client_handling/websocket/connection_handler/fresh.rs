@@ -20,7 +20,7 @@ use gateway_requests::{BinaryResponse, PROTOCOL_VERSION};
 use log::*;
 use mixnet_client::forwarder::MixForwardingSender;
 use nym_crypto::asymmetric::identity;
-use nymsphinx::DestinationAddressBytes;
+use nym_sphinx::DestinationAddressBytes;
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
 use std::sync::Arc;

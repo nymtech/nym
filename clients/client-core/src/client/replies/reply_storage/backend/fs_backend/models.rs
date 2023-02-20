@@ -5,11 +5,11 @@ use crate::client::replies::reply_storage::backend::fs_backend::error::StorageEr
 use crate::client::replies::reply_storage::key_storage::UsedReplyKey;
 use nym_crypto::generic_array::typenum::Unsigned;
 use nym_crypto::Digest;
-use nymsphinx::addressing::clients::{Recipient, RecipientBytes};
-use nymsphinx::anonymous_replies::encryption_key::EncryptionKeyDigest;
-use nymsphinx::anonymous_replies::requests::{AnonymousSenderTag, SENDER_TAG_SIZE};
-use nymsphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey, SurbEncryptionKeySize};
-use nymsphinx::params::ReplySurbKeyDigestAlgorithm;
+use nym_sphinx::addressing::clients::{Recipient, RecipientBytes};
+use nym_sphinx::anonymous_replies::encryption_key::EncryptionKeyDigest;
+use nym_sphinx::anonymous_replies::requests::{AnonymousSenderTag, SENDER_TAG_SIZE};
+use nym_sphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey, SurbEncryptionKeySize};
+use nym_sphinx::params::ReplySurbKeyDigestAlgorithm;
 
 #[derive(Debug, Clone)]
 pub(crate) struct StoredSenderTag {

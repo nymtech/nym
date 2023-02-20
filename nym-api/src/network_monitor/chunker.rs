@@ -1,9 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nymsphinx::forwarding::packet::MixPacket;
-use nymsphinx::message::NymMessage;
-use nymsphinx::{
+use nym_sphinx::forwarding::packet::MixPacket;
+use nym_sphinx::message::NymMessage;
+use nym_sphinx::{
     acknowledgements::AckKey, addressing::clients::Recipient, preparer::MessagePreparer,
 };
 use rand_07::rngs::OsRng;

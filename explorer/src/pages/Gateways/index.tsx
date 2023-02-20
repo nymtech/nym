@@ -4,6 +4,7 @@ import { Box, Button, Card, Grid, Link as MuiLink } from '@mui/material';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { SelectChangeEvent } from '@mui/material/Select';
+import { diff, rcompare } from 'semver';
 import { useMainContext } from '../../context/main';
 import { gatewayToGridRow } from '../../components/Gateways';
 import { GatewayResponse } from '../../typeDefs/explorer-api';
@@ -28,28 +29,44 @@ export const PageGateways: FCWithChildren = () => {
     setSearchTerm(str.toLowerCase());
   };
 
-  const versionToNumber = (version: string) => Number(version.split('.').join(''));
-
-  // TODO Get this value from somewhere
-
-  const getCurrentVersion = React.useCallback(() => {
-    let version = 0;
+  const highestVersion = React.useMemo(() => {
     if (gateways?.data) {
-      version = Math.max(...gateways.data.reduce((a: number[], b) => [...a, versionToNumber(b?.gateway.version)], []));
+      const versions = gateways.data.reduce((a: string[], b) => [...a, b.gateway.version], []);
+      const [lastestVersion] = versions.sort(rcompare);
+      return lastestVersion;
     }
-    return version;
+    // fallback value
+    return '2.0.0';
   }, [gateways]);
 
-  React.useEffect(() => {
-    const filteredByVersion = gateways?.data?.filter((g) => {
-      if (versionFilter === 'Latest version') return versionToNumber(g.gateway.version) === getCurrentVersion();
-      return versionToNumber(g.gateway.version) < getCurrentVersion();
+  const filterByLatestVersions = React.useMemo(() => {
+    const filtered = gateways?.data?.filter((gw) => {
+      const versionDiff = diff(highestVersion, gw.gateway.version);
+      return versionDiff === 'patch' || versionDiff === null;
     });
+    if (filtered) return filtered;
+    return [];
+  }, [gateways]);
 
-    if (searchTerm === '' && filteredByVersion) {
+  const filterByOlderVersions = React.useMemo(() => {
+    const filtered = gateways?.data?.filter((gw) => {
+      const versionDiff = diff(highestVersion, gw.gateway.version);
+      return versionDiff === 'major' || versionDiff === 'minor';
+    });
+    if (filtered) return filtered;
+    return [];
+  }, [gateways]);
+
+  const filteredByVersion = React.useMemo(
+    () => (versionFilter === VersionSelectOptions.latestVersion ? filterByLatestVersions : filterByOlderVersions),
+    [versionFilter, gateways],
+  );
+
+  React.useEffect(() => {
+    if (searchTerm === '') {
       setFilteredGateways(filteredByVersion);
     } else {
-      const filtered = filteredByVersion?.filter((g) => {
+      const filtered = filteredByVersion.filter((g) => {
         if (
           g.gateway.location.toLowerCase().includes(searchTerm) ||
           g.gateway.identity_key.toLocaleLowerCase().includes(searchTerm) ||

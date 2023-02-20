@@ -15,6 +15,6 @@ thiserror = "1.0.37"
 ## internal
 nym-crypto = { path = "../crypto" }
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
-nymsphinx-addressing = { path = "../nymsphinx/addressing" }
-nymsphinx-types = { path = "../nymsphinx/types" }
+nym-sphinx-addressing = { path = "../nymsphinx/addressing" }
+nym-sphinx-types = { path = "../nymsphinx/types" }
 version-checker = { path = "../version-checker" }

@@ -1,5 +1,5 @@
 [package]
-name = "nymsphinx-chunking"
+name = "nym-sphinx-chunking"
 version = "0.1.0"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"
@@ -11,6 +11,6 @@ log = { workspace = true }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 thiserror = "1.0.37"
 
-nymsphinx-addressing = { path = "../addressing" }
-nymsphinx-params = { path = "../params" }
-nymsphinx-types = { path = "../types" }
+nym-sphinx-addressing = { path = "../addressing" }
+nym-sphinx-params = { path = "../params" }
+nym-sphinx-types = { path = "../types" }

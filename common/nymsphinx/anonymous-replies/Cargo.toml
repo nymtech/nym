@@ -1,5 +1,5 @@
 [package]
-name = "nymsphinx-anonymous-replies"
+name = "nym-sphinx-anonymous-replies"
 version = "0.1.0"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"
@@ -13,9 +13,9 @@ serde = "1.0"
 thiserror = "1"
 
 nym-crypto = { path = "../../crypto", features = ["symmetric", "rand"] }
-nymsphinx-addressing = { path = "../addressing" }
-nymsphinx-params = { path = "../params" }
-nymsphinx-types = { path = "../types" }
+nym-sphinx-addressing = { path = "../addressing" }
+nym-sphinx-params = { path = "../params" }
+nym-sphinx-types = { path = "../types" }
 topology = { path = "../../topology" }
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]

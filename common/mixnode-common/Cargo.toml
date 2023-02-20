@@ -20,12 +20,12 @@ thiserror = "1.0.37"
 
 nym-crypto =  { path = "../crypto" }
 network-defaults = { path = "../network-defaults" }
-nymsphinx-acknowledgements = { path = "../nymsphinx/acknowledgements" }
-nymsphinx-addressing = { path = "../nymsphinx/addressing" }
-nymsphinx-forwarding = { path = "../nymsphinx/forwarding" }
-nymsphinx-framing = { path = "../nymsphinx/framing" }
-nymsphinx-params = { path = "../nymsphinx/params" }
-nymsphinx-types = { path = "../nymsphinx/types" }
+nym-sphinx-acknowledgements = { path = "../nymsphinx/acknowledgements" }
+nym-sphinx-addressing = { path = "../nymsphinx/addressing" }
+nym-sphinx-forwarding = { path = "../nymsphinx/forwarding" }
+nym-sphinx-framing = { path = "../nymsphinx/framing" }
+nym-sphinx-params = { path = "../nymsphinx/params" }
+nym-sphinx-types = { path = "../nymsphinx/types" }
 task = { path = "../task" }
 validator-client = { path = "../client-libs/validator-client", features = ["nyxd-client"]}
 version-checker = { path = "../version-checker" }

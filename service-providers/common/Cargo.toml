@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 build-information = { path = "../../common/build-information", features = ["serde"] }
-nymsphinx-anonymous-replies = { path = "../../common/nymsphinx/anonymous-replies" }
+nym-sphinx-anonymous-replies = { path = "../../common/nymsphinx/anonymous-replies" }
 
 async-trait = { workspace = true }
 log = { workspace = true }

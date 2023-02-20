@@ -23,7 +23,7 @@ credentials = { path = "../../credentials" }
 nym-crypto = { path = "../../crypto" }
 gateway-requests = { path = "../../../gateway/gateway-requests" }
 network-defaults = { path = "../../network-defaults" }
-nymsphinx = { path = "../../nymsphinx" }
+nym-sphinx = { path = "../../nymsphinx" }
 nym-pemstore = { path = "../../pemstore" }
 validator-client = { path = "../validator-client" }
 task = { path = "../../task" }

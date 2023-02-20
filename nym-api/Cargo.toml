@@ -85,7 +85,7 @@ nym-vesting-contract-common = { path = "../common/cosmwasm-smart-contracts/vesti
 nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common", features = ["dkg"] }
 multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
 nymcoconut = { path = "../common/nymcoconut" }
-nymsphinx = { path = "../common/nymsphinx" }
+nym-sphinx = { path = "../common/nymsphinx" }
 nym-pemstore = { path = "../common/pemstore" }
 task = { path = "../common/task" }
 topology = { path = "../common/topology" }

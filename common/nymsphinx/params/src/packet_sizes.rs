@@ -142,7 +142,7 @@ impl PacketSize {
 mod tests {
     use super::*;
     use crate::AckEncryptionAlgorithm;
-    use crypto::symmetric::stream_cipher::IvSizeUser;
+    use nym_crypto::symmetric::stream_cipher::IvSizeUser;
 
     #[test]
     fn ack_iv_size_assertion() {

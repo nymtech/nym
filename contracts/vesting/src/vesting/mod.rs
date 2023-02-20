@@ -46,11 +46,12 @@ mod tests {
     use crate::traits::DelegatingAccount;
     use crate::traits::VestingAccount;
     use crate::traits::{GatewayBondingAccount, MixnodeBondingAccount};
+    use crate::vesting::{populate_vesting_periods, Account};
     use cosmwasm_std::testing::{mock_env, mock_info};
     use cosmwasm_std::{coin, coins, Addr, Coin, Timestamp, Uint128};
     use mixnet_contract_common::mixnode::MixNodeCostParams;
     use mixnet_contract_common::{Gateway, MixNode, Percent};
-    use vesting_contract_common::messages::ExecuteMsg;
+    use vesting_contract_common::messages::{ExecuteMsg, VestingSpecification};
     use vesting_contract_common::Period;
     use vesting_contract_common::PledgeCap;
 

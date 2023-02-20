@@ -357,7 +357,7 @@ impl Handler {
     async fn listen_for_requests(
         &mut self,
         mut msg_receiver: ReconstructedMessagesReceiver,
-        mut task_client: task::TaskClient,
+        mut task_client: nym_task::TaskClient,
     ) {
         while !task_client.is_shutdown() {
             tokio::select! {
@@ -410,7 +410,7 @@ impl Handler {
     pub(crate) async fn handle_connection(
         mut self,
         socket: TcpStream,
-        mut task_client: task::TaskClient,
+        mut task_client: nym_task::TaskClient,
     ) {
         // We don't want a crash in the connection handler to trigger a shutdown of the whole
         // process.

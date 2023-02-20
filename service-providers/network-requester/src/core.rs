@@ -188,7 +188,7 @@ impl NRServiceProviderBuilder {
         let (mix_input_sender, mix_input_receiver) = tokio::sync::mpsc::channel::<MixnetMessage>(1);
 
         // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
-        let shutdown = task::TaskManager::default();
+        let shutdown = nym_task::TaskManager::default();
 
         // Controller for managing all active connections.
         let (mut active_connections_controller, controller_sender) = Controller::new(

@@ -460,7 +460,7 @@ where
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    fn log_status(&self, shutdown: &mut task::TaskClient) {
+    fn log_status(&self, shutdown: &mut nym_task::TaskClient) {
         use crate::error::ClientCoreStatusMessage;
 
         let packets = self.transmission_buffer.total_size();
@@ -501,7 +501,7 @@ where
         }
     }
 
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         debug!("Started OutQueueControl with graceful shutdown support");
 
         #[cfg(not(target_arch = "wasm32"))]

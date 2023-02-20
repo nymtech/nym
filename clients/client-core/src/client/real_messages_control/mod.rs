@@ -270,7 +270,7 @@ impl RealMessagesController<OsRng> {
         }
     }
 
-    pub fn start_with_shutdown(self, shutdown: task::TaskClient) {
+    pub fn start_with_shutdown(self, shutdown: nym_task::TaskClient) {
         let mut out_queue_control = self.out_queue_control;
         let ack_control = self.ack_control;
         let mut reply_control = self.reply_control;

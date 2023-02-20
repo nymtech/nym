@@ -36,7 +36,7 @@ pub fn start_nym_socks5_client(
     id: &str,
 ) -> Result<(
     Socks5ControlMessageSender,
-    task::StatusReceiver,
+    nym_task::StatusReceiver,
     ExitStatusReceiver,
     GatewayEndpointConfig,
 )> {

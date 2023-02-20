@@ -76,7 +76,7 @@ where
         }
     }
 
-    pub fn start_with_shutdown(mut self, mut shutdown: task::TaskClient) {
+    pub fn start_with_shutdown(mut self, mut shutdown: nym_task::TaskClient) {
         spawn_future(async move {
             debug!("Started MixTrafficController with graceful shutdown support");
 

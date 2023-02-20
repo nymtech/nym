@@ -32,7 +32,7 @@ impl Listener {
         }
     }
 
-    pub(crate) async fn run(&mut self, handler: HandlerBuilder, mut task_client: task::TaskClient) {
+    pub(crate) async fn run(&mut self, handler: HandlerBuilder, mut task_client: nym_task::TaskClient) {
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
             Ok(listener) => listener,
             Err(err) => {
@@ -103,7 +103,7 @@ impl Listener {
     pub(crate) fn start(
         mut self,
         handler: HandlerBuilder,
-        shutdown: task::TaskClient,
+        shutdown: nym_task::TaskClient,
     ) -> JoinHandle<()> {
         info!("Running websocket on {:?}", self.address.to_string());
 

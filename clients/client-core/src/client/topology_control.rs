@@ -306,7 +306,7 @@ impl TopologyRefresher {
         self.topology_accessor.ensure_is_routable().await
     }
 
-    pub fn start_with_shutdown(mut self, mut shutdown: task::TaskClient) {
+    pub fn start_with_shutdown(mut self, mut shutdown: nym_task::TaskClient) {
         spawn_future(async move {
             debug!("Started TopologyRefresher with graceful shutdown support");
 

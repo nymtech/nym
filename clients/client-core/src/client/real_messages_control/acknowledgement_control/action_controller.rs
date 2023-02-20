@@ -216,7 +216,7 @@ impl ActionController {
     fn handle_expired_ack_timer(
         &mut self,
         expired_ack: Expired<FragmentIdentifier>,
-        task_client: &mut task::TaskClient,
+        task_client: &mut nym_task::TaskClient,
     ) {
         // I'm honestly not sure how to handle it, because getting it means other things in our
         // system are already misbehaving. If we ever see this panic, then I guess we should worry
@@ -260,7 +260,7 @@ impl ActionController {
         }
     }
 
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         debug!("Started ActionController with graceful shutdown support");
 
         while !shutdown.is_shutdown() {

@@ -16,7 +16,7 @@ type MixForwardingReceiver = mpsc::UnboundedReceiver<MixPacket>;
 pub struct PacketForwarder {
     mixnet_client: Client,
     packet_receiver: MixForwardingReceiver,
-    shutdown: task::TaskClient,
+    shutdown: nym_task::TaskClient,
 }
 
 impl PacketForwarder {
@@ -26,7 +26,7 @@ impl PacketForwarder {
         initial_connection_timeout: Duration,
         maximum_connection_buffer_size: usize,
         use_legacy_version: bool,
-        shutdown: task::TaskClient,
+        shutdown: nym_task::TaskClient,
     ) -> (PacketForwarder, MixForwardingSender) {
         let client_config = Config::new(
             initial_reconnection_backoff,

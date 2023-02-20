@@ -28,4 +28,4 @@ nym-sphinx-params = { path = "../nymsphinx/params" }
 nym-sphinx-types = { path = "../nymsphinx/types" }
 task = { path = "../task" }
 validator-client = { path = "../client-libs/validator-client", features = ["nyxd-client"]}
-version-checker = { path = "../version-checker" }
+nym-version-checker = { path = "../version-checker" }

@@ -52,7 +52,6 @@ nym-crypto = { path = "../../common/crypto" }
 logging = { path = "../../common/logging"}
 nym-socks5-client = { path = "../../clients/socks5" }
 task = { path = "../../common/task" }
-topology = { path = "../../common/topology" }
 
 [dev-dependencies]
 ts-rs = "6.1.2"

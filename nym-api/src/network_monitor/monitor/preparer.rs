@@ -11,13 +11,13 @@ use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_contract_common::{Addr, GatewayBond, Layer, MixId, MixNodeBond};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::forwarding::packet::MixPacket;
+use nym_topology::{gateway, mix, NymTopology};
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
 use std::time::Duration;
-use topology::{gateway, mix, NymTopology};
 
 // declared type aliases for easier code reasoning
 type Version = String;

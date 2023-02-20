@@ -8,6 +8,7 @@ use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPAD
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
 use nym_sphinx_types::{delays, Error as SphinxError, SURBMaterial, SphinxPacket, SURB};
+use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, RngCore};
 use serde::de::{Error as SerdeError, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -15,7 +16,6 @@ use std::convert::TryFrom;
 use std::fmt::{self, Formatter};
 use std::time;
 use thiserror::Error;
-use topology::{NymTopology, NymTopologyError};
 
 #[derive(Debug, Error)]
 pub enum ReplySurbError {

@@ -20,7 +20,7 @@ where
     fn filter_by_version(&self, expected_version: &str) -> Self {
         self.iter()
             .filter(|node| {
-                version_checker::is_minor_version_compatible(&node.version(), expected_version)
+                nym_version_checker::is_minor_version_compatible(&node.version(), expected_version)
             })
             .cloned()
             .collect()

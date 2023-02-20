@@ -5,13 +5,13 @@ use crate::network_monitor::monitor::preparer::TestedNode;
 use nym_crypto::asymmetric::identity;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_mixnet_contract_common::MixId;
+use nym_topology::{gateway, mix};
 use std::convert::TryInto;
 use std::fmt::{self, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::mem;
 use std::str::Utf8Error;
 use thiserror::Error;
-use topology::{gateway, mix};
 
 const MIXNODE_TYPE: u8 = 0;
 const GATEWAY_TYPE: u8 = 1;

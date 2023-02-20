@@ -710,6 +710,7 @@ dependencies = [
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
+ "nym-topology",
  "rand 0.7.3",
  "serde",
  "serde_json",
@@ -721,7 +722,6 @@ dependencies = [
  "time 0.3.17",
  "tokio",
  "tokio-stream",
- "topology",
  "url",
  "validator-client",
  "wasm-bindgen",
@@ -3194,6 +3194,7 @@ dependencies = [
  "nym-sphinx-framing",
  "nym-sphinx-params",
  "nym-sphinx-types",
+ "nym-version-checker",
  "rand 0.8.5",
  "serde",
  "task",
@@ -3202,7 +3203,6 @@ dependencies = [
  "tokio-util",
  "url",
  "validator-client",
- "version-checker",
 ]
 
 [[package]]
@@ -3406,6 +3406,8 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-pemstore",
  "nym-sphinx",
+ "nym-topology",
+ "nym-version-checker",
  "nym-vesting-contract-common",
  "nymcoconut",
  "okapi",
@@ -3427,11 +3429,9 @@ dependencies = [
  "time 0.3.17",
  "tokio",
  "tokio-stream",
- "topology",
  "ts-rs",
  "url",
  "validator-client",
- "version-checker",
 ]
 
 [[package]]
@@ -3546,6 +3546,8 @@ dependencies = [
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
+ "nym-topology",
+ "nym-version-checker",
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",
@@ -3555,10 +3557,8 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-tungstenite 0.14.0",
- "topology",
  "url",
  "validator-client",
- "version-checker",
  "websocket-requests",
 ]
 
@@ -3633,6 +3633,7 @@ dependencies = [
  "nym-pemstore",
  "nym-sphinx",
  "nym-types",
+ "nym-version-checker",
  "once_cell",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -3649,7 +3650,6 @@ dependencies = [
  "tokio-util",
  "url",
  "validator-client",
- "version-checker",
 ]
 
 [[package]]
@@ -3699,7 +3699,9 @@ dependencies = [
  "nym-sphinx",
  "nym-sphinx-params",
  "nym-sphinx-types",
+ "nym-topology",
  "nym-types",
+ "nym-version-checker",
  "pretty_env_logger",
  "rand 0.7.3",
  "rocket",
@@ -3710,10 +3712,8 @@ dependencies = [
  "tokio",
  "tokio-util",
  "toml",
- "topology",
  "url",
  "validator-client",
- "version-checker",
 ]
 
 [[package]]
@@ -3737,6 +3737,7 @@ dependencies = [
  "nym-crypto",
  "nym-sdk",
  "nym-sphinx",
+ "nym-version-checker",
  "ordered-buffer",
  "pretty_env_logger",
  "proxy-helpers",
@@ -3754,7 +3755,6 @@ dependencies = [
  "tokio",
  "tokio-tungstenite 0.17.2",
  "url",
- "version-checker",
  "websocket-requests",
 ]
 
@@ -3847,6 +3847,8 @@ dependencies = [
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
+ "nym-topology",
+ "nym-version-checker",
  "ordered-buffer",
  "pin-project",
  "pretty_env_logger",
@@ -3860,10 +3862,8 @@ dependencies = [
  "task",
  "thiserror",
  "tokio",
- "topology",
  "url",
  "validator-client",
- "version-checker",
 ]
 
 [[package]]
@@ -3881,11 +3881,11 @@ dependencies = [
  "nym-sphinx-framing",
  "nym-sphinx-params",
  "nym-sphinx-types",
+ "nym-topology",
  "rand 0.7.3",
  "rand_distr",
  "thiserror",
  "tokio",
- "topology",
 ]
 
 [[package]]
@@ -3897,9 +3897,9 @@ dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-params",
  "nym-sphinx-types",
+ "nym-topology",
  "rand 0.7.3",
  "thiserror",
- "topology",
 ]
 
 [[package]]
@@ -3922,10 +3922,10 @@ dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-params",
  "nym-sphinx-types",
+ "nym-topology",
  "rand 0.7.3",
  "serde",
  "thiserror",
- "topology",
  "wasm-bindgen",
 ]
 
@@ -3952,9 +3952,9 @@ dependencies = [
  "nym-sphinx-forwarding",
  "nym-sphinx-params",
  "nym-sphinx-types",
+ "nym-topology",
  "rand 0.7.3",
  "thiserror",
- "topology",
 ]
 
 [[package]]
@@ -3994,6 +3994,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-topology"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "log",
+ "nym-crypto",
+ "nym-mixnet-contract-common",
+ "nym-sphinx-addressing",
+ "nym-sphinx-types",
+ "nym-version-checker",
+ "rand 0.7.3",
+ "thiserror",
+]
+
+[[package]]
 name = "nym-types"
 version = "1.0.0"
 dependencies = [
@@ -4017,6 +4032,13 @@ dependencies = [
  "ts-rs",
  "url",
  "validator-client",
+]
+
+[[package]]
+name = "nym-version-checker"
+version = "0.1.0"
+dependencies = [
+ "semver 0.11.0",
 ]
 
 [[package]]
@@ -6534,21 +6556,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "topology"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "log",
- "nym-crypto",
- "nym-mixnet-contract-common",
- "nym-sphinx-addressing",
- "nym-sphinx-types",
- "rand 0.7.3",
- "thiserror",
- "version-checker",
-]
-
-[[package]]
 name = "tower"
 version = "0.4.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6986,13 +6993,6 @@ dependencies = [
  "rustversion",
  "thiserror",
  "time 0.3.17",
-]
-
-[[package]]
-name = "version-checker"
-version = "0.1.0"
-dependencies = [
- "semver 0.11.0",
 ]
 
 [[package]]

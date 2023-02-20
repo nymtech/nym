@@ -4,9 +4,9 @@
 use crate::config::{missing_string_value, Config};
 use clap::Args;
 use config::NymConfig;
+use nym_version_checker::Version;
 use std::fmt::Display;
 use std::process;
-use version_checker::Version;
 
 #[derive(Args)]
 pub(crate) struct Upgrade {

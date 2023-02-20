@@ -435,8 +435,8 @@ impl GatewayEndpointConfig {
     }
 }
 
-impl From<topology::gateway::Node> for GatewayEndpointConfig {
-    fn from(node: topology::gateway::Node) -> GatewayEndpointConfig {
+impl From<nym_topology::gateway::Node> for GatewayEndpointConfig {
+    fn from(node: nym_topology::gateway::Node) -> GatewayEndpointConfig {
         let gateway_listener = node.clients_address();
         GatewayEndpointConfig {
             gateway_id: node.identity_key.to_base58_string(),

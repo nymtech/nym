@@ -256,38 +256,38 @@ impl PemStorableKey for PrivateKey {
 }
 
 // compatibility with sphinx keys:
-impl From<PublicKey> for nymsphinx_types::PublicKey {
+impl From<PublicKey> for nym_sphinx_types::PublicKey {
     fn from(key: PublicKey) -> Self {
-        nymsphinx_types::PublicKey::from(key.to_bytes())
+        nym_sphinx_types::PublicKey::from(key.to_bytes())
     }
 }
 
-impl<'a> From<&'a PublicKey> for nymsphinx_types::PublicKey {
+impl<'a> From<&'a PublicKey> for nym_sphinx_types::PublicKey {
     fn from(key: &'a PublicKey) -> Self {
-        nymsphinx_types::PublicKey::from((*key).to_bytes())
+        nym_sphinx_types::PublicKey::from((*key).to_bytes())
     }
 }
 
-impl From<nymsphinx_types::PublicKey> for PublicKey {
-    fn from(pub_key: nymsphinx_types::PublicKey) -> Self {
+impl From<nym_sphinx_types::PublicKey> for PublicKey {
+    fn from(pub_key: nym_sphinx_types::PublicKey) -> Self {
         Self(x25519_dalek::PublicKey::from(*pub_key.as_bytes()))
     }
 }
 
-impl From<PrivateKey> for nymsphinx_types::PrivateKey {
+impl From<PrivateKey> for nym_sphinx_types::PrivateKey {
     fn from(key: PrivateKey) -> Self {
-        nymsphinx_types::PrivateKey::from(key.to_bytes())
+        nym_sphinx_types::PrivateKey::from(key.to_bytes())
     }
 }
 
-impl<'a> From<&'a PrivateKey> for nymsphinx_types::PrivateKey {
+impl<'a> From<&'a PrivateKey> for nym_sphinx_types::PrivateKey {
     fn from(key: &'a PrivateKey) -> Self {
-        nymsphinx_types::PrivateKey::from(key.to_bytes())
+        nym_sphinx_types::PrivateKey::from(key.to_bytes())
     }
 }
 
-impl From<nymsphinx_types::PrivateKey> for PrivateKey {
-    fn from(private_key: nymsphinx_types::PrivateKey) -> Self {
+impl From<nym_sphinx_types::PrivateKey> for PrivateKey {
+    fn from(private_key: nym_sphinx_types::PrivateKey) -> Self {
         let private_key_bytes = private_key.to_bytes();
         assert_eq!(private_key_bytes.len(), PRIVATE_KEY_SIZE);
         Self::from_bytes(&private_key_bytes).unwrap()
@@ -312,10 +312,10 @@ mod sphinx_key_conversion {
             let private_bytes = private.to_bytes();
             let public_bytes = public.to_bytes();
 
-            let sphinx_private: nymsphinx_types::PrivateKey = private.into();
+            let sphinx_private: nym_sphinx_types::PrivateKey = private.into();
             let recovered_private = PrivateKey::from(sphinx_private);
 
-            let sphinx_public: nymsphinx_types::PublicKey = public.into();
+            let sphinx_public: nym_sphinx_types::PublicKey = public.into();
             let recovered_public = PublicKey::from(sphinx_public);
             assert_eq!(private_bytes, recovered_private.to_bytes());
             assert_eq!(public_bytes, recovered_public.to_bytes());
@@ -325,16 +325,16 @@ mod sphinx_key_conversion {
     #[test]
     fn works_for_backward_conversion() {
         for _ in 0..NUM_ITERATIONS {
-            let (sphinx_private, sphinx_public) = nymsphinx_types::crypto::keygen();
+            let (sphinx_private, sphinx_public) = nym_sphinx_types::crypto::keygen();
 
             let private_bytes = sphinx_private.to_bytes();
             let public_bytes = sphinx_public.as_bytes();
 
             let private: PrivateKey = sphinx_private.into();
-            let recovered_sphinx_private: nymsphinx_types::PrivateKey = private.into();
+            let recovered_sphinx_private: nym_sphinx_types::PrivateKey = private.into();
 
             let public: PublicKey = sphinx_public.into();
-            let recovered_sphinx_public: nymsphinx_types::PublicKey = public.into();
+            let recovered_sphinx_public: nym_sphinx_types::PublicKey = public.into();
             assert_eq!(private_bytes, recovered_sphinx_private.to_bytes());
             assert_eq!(public_bytes, recovered_sphinx_public.as_bytes());
         }

@@ -47,7 +47,7 @@ struct ReceivedMessagesBufferInner {
 
 impl ReceivedMessagesBufferInner {
     fn recover_from_fragment(&mut self, fragment_data: &[u8]) -> Option<NymMessage> {
-        if nymsphinx::cover::is_cover(fragment_data) {
+        if nym_sphinx::cover::is_cover(fragment_data) {
             trace!("The message was a loop cover message! Skipping it");
             return None;
         }

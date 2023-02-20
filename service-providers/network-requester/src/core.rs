@@ -217,6 +217,7 @@ impl NRServiceProviderBuilder {
 
         let stats_collector_clone = stats_collector.clone();
         let mixnet_client_sender = mixnet_client.sender();
+        let self_address = *mixnet_client.nym_address();
 
         // start the listener for mix messages
         tokio::spawn(async move {
@@ -239,6 +240,8 @@ impl NRServiceProviderBuilder {
             shutdown,
         };
 
+
+        log::info!("The address of this client is: {}", self_address);
         log::info!("All systems go. Press CTRL-C to stop the server.");
         service_provider.run().await
     }

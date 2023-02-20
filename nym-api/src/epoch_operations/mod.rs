@@ -24,12 +24,12 @@ use nym_mixnet_contract_common::{
     reward_params::Performance, CurrentIntervalResponse, ExecuteMsg, Interval, MixId,
 };
 use nym_mixnet_contract_common::{IdentityKey, Layer, LayerAssignment, MixNodeDetails};
+use nym_task::{TaskClient, TaskManager};
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::time::Duration;
-use task::{TaskClient, TaskManager};
 use tokio::time::sleep;
 
 pub(crate) mod error;

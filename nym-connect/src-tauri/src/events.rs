@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use client_core::error::ClientCoreStatusMessage;
-use task::manager::TaskStatus;
+use nym_task::manager::TaskStatus;
 use tauri::async_runtime::RwLock;
 
 use crate::{

@@ -22,8 +22,8 @@ use futures::StreamExt;
 use gateway_client::bandwidth::BandwidthController;
 use log::*;
 use nym_sphinx::addressing::clients::Recipient;
+use nym_task::{TaskClient, TaskManager};
 use std::error::Error;
-use task::{TaskClient, TaskManager};
 use validator_client::nyxd::QueryNyxdClient;
 
 pub mod config;
@@ -142,7 +142,7 @@ impl NymClient {
             ),
             shutdown.clone(),
         );
-        task::spawn_with_report_error(
+        nym_task::spawn_with_report_error(
             async move {
                 sphinx_socks
                     .serve(
@@ -169,7 +169,7 @@ impl NymClient {
     pub async fn run_and_listen(
         self,
         mut receiver: Socks5ControlMessageReceiver,
-        sender: task::StatusSender,
+        sender: nym_task::StatusSender,
     ) -> Result<(), Box<dyn Error + Send + Sync>> {
         // Start the main task
         let mut shutdown = self.start().await?;

@@ -10,12 +10,12 @@ use client_connections::TransmissionLane;
 use futures::FutureExt;
 use futures::StreamExt;
 use log::*;
+use nym_task::TaskClient;
 use ordered_buffer::OrderedMessageSender;
 use socks5_requests::ConnectionId;
 use std::fmt::Debug;
 use std::time::Duration;
 use std::{io, sync::Arc};
-use task::TaskClient;
 use tokio::select;
 use tokio::{net::tcp::OwnedReadHalf, sync::Notify, time::sleep};
 

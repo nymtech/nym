@@ -19,7 +19,7 @@ use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
 use log::*;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
-use task::TaskManager;
+use nym_task::TaskManager;
 use tokio::sync::watch::error::SendError;
 use validator_client::nyxd::QueryNyxdClient;
 
@@ -85,7 +85,7 @@ impl SocketClient {
         client_output: ClientOutput,
         client_state: ClientState,
         self_address: &Recipient,
-        shutdown: task::TaskClient,
+        shutdown: nym_task::TaskClient,
     ) {
         info!("Starting websocket listener...");
 

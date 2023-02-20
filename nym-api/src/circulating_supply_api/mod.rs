@@ -1,10 +1,10 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nym_task::TaskManager;
 use okapi::openapi3::OpenApi;
 use rocket::Route;
 use rocket_okapi::{openapi_get_routes_spec, settings::OpenApiSettings};
-use task::TaskManager;
 
 use crate::support::{config::Config, nyxd};
 

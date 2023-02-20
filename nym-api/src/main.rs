@@ -21,10 +21,10 @@ use log::info;
 use logging::setup_logging;
 use node_status_api::NodeStatusCache;
 use nym_contract_cache::cache::NymContractCache;
+use nym_task::TaskManager;
 use rand::rngs::OsRng;
 use std::error::Error;
 use support::{http, nyxd};
-use task::TaskManager;
 
 mod circulating_supply_api;
 mod coconut;

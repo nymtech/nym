@@ -4,11 +4,11 @@
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::config::Config;
 use crate::support::{self, nyxd};
+use nym_task::TaskManager;
 use okapi::openapi3::OpenApi;
 use rocket::Route;
 use rocket_okapi::openapi_get_routes_spec;
 use rocket_okapi::settings::OpenApiSettings;
-use task::TaskManager;
 
 use self::cache::refresher::NymContractCacheRefresher;
 

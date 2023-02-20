@@ -643,7 +643,7 @@ where
         None
     }
 
-    pub(crate) async fn start_handling(self, shutdown: task::TaskClient)
+    pub(crate) async fn start_handling(self, shutdown: nym_task::TaskClient)
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
     {

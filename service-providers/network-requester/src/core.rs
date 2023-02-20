@@ -15,6 +15,7 @@ use futures::channel::mpsc;
 use log::warn;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_task::{TaskClient, TaskManager};
 use proxy_helpers::connection_controller::{Controller, ControllerCommand, ControllerSender};
 use proxy_helpers::proxy_runner::{MixProxyReader, MixProxySender};
 use service_providers_common::interface::{
@@ -28,7 +29,6 @@ use socks5_requests::{
 use statistics_common::collector::StatisticsSender;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use task::{TaskClient, TaskManager};
 
 // Since it's an atomic, it's safe to be kept static and shared across threads
 static ACTIVE_PROXIES: AtomicUsize = AtomicUsize::new(0);
@@ -188,7 +188,7 @@ impl NRServiceProviderBuilder {
         let (mix_input_sender, mix_input_receiver) = tokio::sync::mpsc::channel::<MixnetMessage>(1);
 
         // Used to notify tasks to shutdown. Not all tasks fully supports this (yet).
-        let shutdown = task::TaskManager::default();
+        let shutdown = nym_task::TaskManager::default();
 
         // Controller for managing all active connections.
         let (mut active_connections_controller, controller_sender) = Controller::new(

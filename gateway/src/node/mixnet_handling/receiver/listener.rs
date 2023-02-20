@@ -4,9 +4,9 @@
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use crate::node::storage::Storage;
 use log::*;
+use nym_task::TaskClient;
 use std::net::SocketAddr;
 use std::process;
-use task::TaskClient;
 use tokio::task::JoinHandle;
 
 pub(crate) struct Listener {

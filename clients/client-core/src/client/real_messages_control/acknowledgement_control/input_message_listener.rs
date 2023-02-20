@@ -109,7 +109,7 @@ where
         };
     }
 
-    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
+    pub(super) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         debug!("Started InputMessageListener with graceful shutdown support");
 
         while !shutdown.is_shutdown() {

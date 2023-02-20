@@ -4,7 +4,7 @@
 use std::future::Future;
 
 use nym_mixnet_contract_common::GatewayBond;
-use task::TaskClient;
+use nym_task::TaskClient;
 use validator_client::models::MixNodeBondAnnotated;
 use validator_client::nyxd::error::NyxdError;
 use validator_client::nyxd::{Paging, QueryNyxdClient, ValidatorResponse};

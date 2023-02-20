@@ -20,8 +20,8 @@ use credential_storage::PersistentStorage;
 use futures::channel::mpsc;
 use gateway_client::bandwidth::BandwidthController;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_task::TaskManager;
 use std::sync::Arc;
-use task::TaskManager;
 use validator_client::nyxd::SigningNyxdClient;
 
 pub(crate) mod chunker;

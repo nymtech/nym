@@ -835,7 +835,7 @@ where
     //     todo!()
     // }
 
-    pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: task::TaskClient) {
+    pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         debug!("Started ReplyController with graceful shutdown support");
 
         let polling_rate = Duration::from_secs(5);

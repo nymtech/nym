@@ -47,7 +47,7 @@ nym-pemstore = { path = "../../common/pemstore" }
 proxy-helpers = { path = "../../common/socks5/proxy-helpers" }
 service-providers-common = { path = "../../service-providers/common" }
 socks5-requests = { path = "../../common/socks5/requests" }
-task = { path = "../../common/task" }
+nym-task = { path = "../../common/task" }
 nym-topology = { path = "../../common/topology" }
 validator-client = { path = "../../common/client-libs/validator-client", features = ["nyxd-client"] }
 nym-version-checker = { path = "../../common/version-checker" }

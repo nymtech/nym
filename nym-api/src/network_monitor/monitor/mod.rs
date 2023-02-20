@@ -10,9 +10,9 @@ use crate::network_monitor::test_route::TestRoute;
 use crate::storage::NymApiStorage;
 use crate::support::config::Config;
 use log::{debug, error, info};
+use nym_task::TaskClient;
 use std::collections::{HashMap, HashSet};
 use std::process;
-use task::TaskClient;
 use tokio::time::{sleep, Duration, Instant};
 
 pub(crate) mod gateway_clients_cache;

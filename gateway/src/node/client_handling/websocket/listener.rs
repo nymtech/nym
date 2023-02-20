@@ -43,7 +43,7 @@ impl Listener {
         outbound_mix_sender: MixForwardingSender,
         storage: St,
         active_clients_store: ActiveClientsStore,
-        mut shutdown: task::TaskClient,
+        mut shutdown: nym_task::TaskClient,
     ) where
         St: Storage + Clone + 'static,
     {
@@ -94,7 +94,7 @@ impl Listener {
         outbound_mix_sender: MixForwardingSender,
         storage: St,
         active_clients_store: ActiveClientsStore,
-        shutdown: task::TaskClient,
+        shutdown: nym_task::TaskClient,
     ) -> JoinHandle<()>
     where
         St: Storage + Clone + 'static,

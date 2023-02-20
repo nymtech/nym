@@ -9,7 +9,7 @@ use futures::channel::mpsc;
 use log::*;
 use nym_sphinx::addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
 use nym_sphinx::params::packet_sizes::PacketSize;
-use task::TaskClient;
+use nym_task::TaskClient;
 
 pub type MixnetMessageSender = mpsc::UnboundedSender<Vec<Vec<u8>>>;
 pub type MixnetMessageReceiver = mpsc::UnboundedReceiver<Vec<Vec<u8>>>;

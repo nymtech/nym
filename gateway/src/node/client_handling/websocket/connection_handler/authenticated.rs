@@ -21,7 +21,7 @@ use tokio_tungstenite::tungstenite::protocol::Message;
 use crate::node::client_handling::bandwidth::Bandwidth;
 use crate::node::client_handling::FREE_TESTNET_BANDWIDTH_VALUE;
 use gateway_requests::iv::IV;
-use task::TaskClient;
+use nym_task::TaskClient;
 
 #[derive(Debug, Error)]
 pub(crate) enum RequestHandlingError {

@@ -18,7 +18,7 @@ use nym_sphinx::{
     addressing::clients::{ClientIdentity, Recipient},
     receiver::ReconstructedMessage,
 };
-use task::TaskManager;
+use nym_task::TaskManager;
 
 use futures::StreamExt;
 use validator_client::nyxd::SigningNyxdClient;

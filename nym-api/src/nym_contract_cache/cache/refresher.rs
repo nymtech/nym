@@ -3,8 +3,8 @@ use crate::nyxd::Client;
 use crate::support::caching::CacheNotification;
 use anyhow::Result;
 use nym_mixnet_contract_common::{MixId, MixNodeDetails, RewardedSetNodeStatus};
+use nym_task::TaskClient;
 use std::{collections::HashMap, sync::atomic::Ordering, time::Duration};
-use task::TaskClient;
 use tokio::sync::watch;
 use tokio::time;
 

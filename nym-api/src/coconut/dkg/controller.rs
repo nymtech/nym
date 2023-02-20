@@ -16,11 +16,11 @@ use crate::support::config::Config;
 use anyhow::Result;
 use coconut_dkg_common::types::EpochState;
 use dkg::bte::keys::KeyPair as DkgKeyPair;
+use nym_task::{TaskClient, TaskManager};
 use rand::rngs::OsRng;
 use rand::RngCore;
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime};
-use task::{TaskClient, TaskManager};
 use tokio::time::interval;
 
 pub(crate) fn init_keypair(config: &Config) -> Result<()> {

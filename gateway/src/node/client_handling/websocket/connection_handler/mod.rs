@@ -6,8 +6,8 @@ use gateway_requests::registration::handshake::SharedKeys;
 use gateway_requests::ServerResponse;
 use log::{trace, warn};
 use nym_sphinx::DestinationAddressBytes;
+use nym_task::TaskClient;
 use rand::{CryptoRng, Rng};
-use task::TaskClient;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::WebSocketStream;
 

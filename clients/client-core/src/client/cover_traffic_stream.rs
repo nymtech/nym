@@ -213,7 +213,7 @@ impl LoopCoverTrafficStream<OsRng> {
         tokio::task::yield_now().await;
     }
 
-    pub fn start_with_shutdown(mut self, mut shutdown: task::TaskClient) {
+    pub fn start_with_shutdown(mut self, mut shutdown: nym_task::TaskClient) {
         // we should set initial delay only when we actually start the stream
         let sampled =
             sample_poisson_duration(&mut self.rng, self.average_cover_message_sending_delay);

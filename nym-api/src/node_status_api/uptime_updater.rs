@@ -7,8 +7,8 @@ use crate::node_status_api::models::{
 use crate::node_status_api::ONE_DAY;
 use crate::storage::NymApiStorage;
 use log::error;
+use nym_task::{TaskClient, TaskManager};
 use std::time::Duration;
-use task::{TaskClient, TaskManager};
 use time::{OffsetDateTime, PrimitiveDateTime, Time};
 use tokio::time::{interval, sleep};
 

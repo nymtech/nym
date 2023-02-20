@@ -36,10 +36,10 @@ use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_sphinx::receiver::ReconstructedMessage;
+use nym_task::{TaskClient, TaskManager};
 use std::sync::Arc;
 use std::time::Duration;
 use tap::TapFallible;
-use task::{TaskClient, TaskManager};
 use url::Url;
 #[cfg(not(target_arch = "wasm32"))]
 use validator_client::nyxd::CosmWasmClient;

@@ -710,13 +710,13 @@ dependencies = [
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
+ "nym-task",
  "nym-topology",
  "rand 0.7.3",
  "serde",
  "serde_json",
  "sqlx 0.6.2",
  "tap",
- "task",
  "tempfile",
  "thiserror",
  "time 0.3.17",
@@ -1861,6 +1861,7 @@ dependencies = [
  "network-defaults",
  "nym-contracts-common",
  "nym-mixnet-contract-common",
+ "nym-task",
  "okapi",
  "pretty_env_logger",
  "rand 0.8.5",
@@ -1873,7 +1874,6 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "task",
  "thiserror",
  "tokio",
  "validator-client",
@@ -2129,9 +2129,9 @@ dependencies = [
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
+ "nym-task",
  "rand 0.7.3",
  "serde",
- "task",
  "thiserror",
  "tokio",
  "tokio-stream",
@@ -3173,7 +3173,7 @@ dependencies = [
  "futures",
  "log",
  "nym-sphinx",
- "task",
+ "nym-task",
  "tokio",
  "tokio-util",
 ]
@@ -3194,10 +3194,10 @@ dependencies = [
  "nym-sphinx-framing",
  "nym-sphinx-params",
  "nym-sphinx-types",
+ "nym-task",
  "nym-version-checker",
  "rand 0.8.5",
  "serde",
- "task",
  "thiserror",
  "tokio",
  "tokio-util",
@@ -3406,6 +3406,7 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-pemstore",
  "nym-sphinx",
+ "nym-task",
  "nym-topology",
  "nym-version-checker",
  "nym-vesting-contract-common",
@@ -3424,7 +3425,6 @@ dependencies = [
  "serde_json",
  "sqlx 0.6.2",
  "tap",
- "task",
  "thiserror",
  "time 0.3.17",
  "tokio",
@@ -3546,6 +3546,7 @@ dependencies = [
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
+ "nym-task",
  "nym-topology",
  "nym-version-checker",
  "pretty_env_logger",
@@ -3553,7 +3554,6 @@ dependencies = [
  "serde",
  "serde_json",
  "tap",
- "task",
  "thiserror",
  "tokio",
  "tokio-tungstenite 0.14.0",
@@ -3632,6 +3632,7 @@ dependencies = [
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
+ "nym-task",
  "nym-types",
  "nym-version-checker",
  "once_cell",
@@ -3642,7 +3643,6 @@ dependencies = [
  "sqlx 0.5.13",
  "statistics-common",
  "subtle-encoding",
- "task",
  "thiserror",
  "tokio",
  "tokio-stream",
@@ -3699,6 +3699,7 @@ dependencies = [
  "nym-sphinx",
  "nym-sphinx-params",
  "nym-sphinx-types",
+ "nym-task",
  "nym-topology",
  "nym-types",
  "nym-version-checker",
@@ -3708,7 +3709,6 @@ dependencies = [
  "serde",
  "serde_json",
  "sysinfo",
- "task",
  "tokio",
  "tokio-util",
  "toml",
@@ -3737,6 +3737,7 @@ dependencies = [
  "nym-crypto",
  "nym-sdk",
  "nym-sphinx",
+ "nym-task",
  "nym-version-checker",
  "ordered-buffer",
  "pretty_env_logger",
@@ -3750,7 +3751,6 @@ dependencies = [
  "sqlx 0.6.2",
  "statistics-common",
  "tap",
- "task",
  "thiserror",
  "tokio",
  "tokio-tungstenite 0.17.2",
@@ -3811,10 +3811,10 @@ dependencies = [
  "network-defaults",
  "nym-crypto",
  "nym-sphinx",
+ "nym-task",
  "pretty_env_logger",
  "rand 0.7.3",
  "tap",
- "task",
  "thiserror",
  "tokio",
  "toml",
@@ -3847,6 +3847,7 @@ dependencies = [
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
+ "nym-task",
  "nym-topology",
  "nym-version-checker",
  "ordered-buffer",
@@ -3859,7 +3860,6 @@ dependencies = [
  "service-providers-common",
  "socks5-requests",
  "tap",
- "task",
  "thiserror",
  "tokio",
  "url",
@@ -3991,6 +3991,18 @@ name = "nym-sphinx-types"
 version = "0.1.0"
 dependencies = [
  "sphinx",
+]
+
+[[package]]
+name = "nym-task"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "log",
+ "thiserror",
+ "tokio",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
 ]
 
 [[package]]
@@ -4640,9 +4652,9 @@ dependencies = [
  "client-connections",
  "futures",
  "log",
+ "nym-task",
  "ordered-buffer",
  "socks5-requests",
- "task",
  "tokio",
  "tokio-test",
  "tokio-util",
@@ -6150,18 +6162,6 @@ name = "tap"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
-
-[[package]]
-name = "task"
-version = "0.1.0"
-dependencies = [
- "futures",
- "log",
- "thiserror",
- "tokio",
- "wasm-bindgen",
- "wasm-bindgen-futures",
-]
 
 [[package]]
 name = "tempfile"

@@ -6,9 +6,9 @@ use nym_sphinx::message::NymMessage;
 use nym_sphinx::{
     acknowledgements::AckKey, addressing::clients::Recipient, preparer::MessagePreparer,
 };
+use nym_topology::NymTopology;
 use rand_07::rngs::OsRng;
 use std::time::Duration;
-use nym_topology::NymTopology;
 
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);

@@ -6,13 +6,13 @@ use futures::StreamExt;
 use log::*;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::DEFAULT_NUM_MIX_HOPS;
+use nym_topology::{nym_topology_from_detailed, NymTopology, NymTopologyError};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::ops::Deref;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{RwLock, RwLockReadGuard};
-use nym_topology::{nym_topology_from_detailed, NymTopology, NymTopologyError};
 use url::Url;
 
 // I'm extremely curious why compiler NEVER complained about lack of Debug here before

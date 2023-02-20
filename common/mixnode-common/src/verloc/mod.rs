@@ -8,6 +8,7 @@ use futures::StreamExt;
 use log::*;
 use network_defaults::mainnet::NYM_API;
 use nym_crypto::asymmetric::identity;
+use nym_version_checker::parse_version;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
@@ -18,7 +19,6 @@ use task::TaskClient;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use url::Url;
-use nym_version_checker::parse_version;
 
 pub use crate::verloc::measurement::{AtomicVerlocResult, Verloc, VerlocResult};
 
@@ -89,7 +89,10 @@ impl ConfigBuilder {
         Self::default()
     }
 
-    pub fn minimum_compatible_node_version(mut self, version: nym_version_checker::Version) -> Self {
+    pub fn minimum_compatible_node_version(
+        mut self,
+        version: nym_version_checker::Version,
+    ) -> Self {
         self.0.minimum_compatible_node_version = version;
         self
     }

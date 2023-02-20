@@ -19,12 +19,12 @@ use nym_sphinx::message::NymMessage;
 use nym_sphinx::params::{PacketSize, DEFAULT_NUM_MIX_HOPS};
 use nym_sphinx::preparer::{MessagePreparer, PreparedFragment};
 use nym_sphinx::Delay;
+use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, Rng};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
-use nym_topology::{NymTopology, NymTopologyError};
 
 // TODO: move that error elsewhere since it seems to be contaminating different files
 #[derive(Debug, Clone, Error)]

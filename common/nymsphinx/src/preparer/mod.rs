@@ -14,10 +14,10 @@ use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::DEFAULT_NUM_MIX_HOPS;
 use nym_sphinx_types::builder::SphinxPacketBuilder;
 use nym_sphinx_types::{delays, Delay};
+use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
 use std::time::Duration;
-use nym_topology::{NymTopology, NymTopologyError};
 
 pub(crate) mod payload;
 

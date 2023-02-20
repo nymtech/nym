@@ -15,11 +15,11 @@ use nym_sphinx_types::{
     delays::{self, Delay},
     SphinxPacket,
 };
+use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, RngCore};
 use std::convert::TryFrom;
 use std::time;
 use thiserror::Error;
-use nym_topology::{NymTopology, NymTopologyError};
 
 pub struct SurbAck {
     surb_ack_packet: SphinxPacket,

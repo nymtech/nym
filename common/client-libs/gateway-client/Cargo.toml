@@ -25,7 +25,7 @@ gateway-requests = { path = "../../../gateway/gateway-requests" }
 nym-network-defaults = { path = "../../network-defaults" }
 nym-sphinx = { path = "../../nymsphinx" }
 nym-pemstore = { path = "../../pemstore" }
-validator-client = { path = "../validator-client" }
+validator-client = { path = "../validator-client", features = ["nyxd-client"] }
 nym-task = { path = "../../task" }
 serde = { version = "1.0", features = ["derive"]}
 mobile-storage = { path = "../../mobile-storage" }

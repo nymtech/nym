@@ -4,6 +4,7 @@
 use gateway_client::error::GatewayClientError;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_topology::NymTopologyError;
+use topology::gateway::GatewayConversionError;
 use validator_client::ValidatorClientError;
 
 #[derive(thiserror::Error, Debug)]
@@ -53,7 +54,13 @@ pub enum ClientCoreError {
     GatewayOwnerUnknown,
 
     #[error("The address of the gateway is unknown - did you run init?")]
-    GatwayAddressUnknown,
+    GatewayAddressUnknown,
+
+    #[error("The gateway is malformed: {source}")]
+    MalformedGateway {
+        #[from]
+        source: GatewayConversionError,
+    },
 
     #[error("failed to register receiver for reconstructed mixnet messages")]
     FailedToRegisterReceiver,

@@ -6,8 +6,7 @@ use crate::{
     config::{persistence::key_pathfinder::ClientKeyPathfinder, Config},
     error::ClientCoreError,
 };
-#[cfg(target_arch = "wasm32")]
-use gateway_client::wasm_mockups::SigningNyxdClient;
+use futures::{SinkExt, StreamExt};
 use gateway_client::GatewayClient;
 use gateway_requests::registration::handshake::SharedKeys;
 use nym_config::NymConfig;
@@ -16,9 +15,78 @@ use nym_topology::{filter::VersionFilterable, gateway};
 use rand::{seq::SliceRandom, thread_rng};
 use std::{sync::Arc, time::Duration};
 use tap::TapFallible;
+use tokio_tungstenite::tungstenite::Message;
+use topology::{filter::VersionFilterable, gateway};
 use url::Url;
+use validator_client::client::GatewayBond;
+
 #[cfg(not(target_arch = "wasm32"))]
 use validator_client::nyxd::SigningNyxdClient;
+
+#[cfg(target_arch = "wasm32")]
+use gateway_client::wasm_mockups::SigningNyxdClient;
+
+const MEASUREMENTS: usize = 3;
+const CONN_TIMEOUT: Duration = Duration::from_millis(1500);
+const MAX_LATENCY: Duration = Duration::from_secs()
+
+struct GatewayWithLatency {
+    gateway: gateway::Node,
+    latency: Duration,
+}
+
+async fn measure_latency(gateway: GatewayBond) -> Result<GatewayWithLatency, ClientCoreError> {
+    let converted: gateway::Node = gateway.try_into()?;
+    let mut stream = match tokio::time::timeout(
+        CONN_TIMEOUT,
+        tokio_tungstenite::connect_async(&converted.clients_address()),
+    )
+    .await
+    {
+        Err(elapsed) => todo!(),
+        Ok(Err(conn_failure)) => todo!(),
+        Ok(Ok((stream, _))) => stream,
+    };
+
+    todo!()
+}
+
+pub(super) async fn find_closest_gateway(
+    nym_apis: Vec<Url>,
+) -> Result<gateway::Node, ClientCoreError> {
+    let nym_api = nym_apis
+        .choose(&mut thread_rng())
+        .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
+    let client = validator_client::client::NymApiClient::new(nym_api.clone());
+
+    // log::trace!("Fetching list of gateways from: {}", nym_api);
+    let gateways = client.get_cached_gateways().await?;
+    //
+    // let mut gateways_with_latency = Vec::new();
+    // for gateway in gateways {
+    //     let converted: gateway::Node = match gateway.try_into() {
+    //         Ok(node) => node,
+    //         Err(err) => todo!(),
+    //     };
+    //
+    //     let endpoint = converted.clients_address();
+    //     let (mut stream, res) = tokio_tungstenite::connect_async(&endpoint)
+    //         .await
+    //         .expect("todo");
+    //
+    //     let now = tokio::time::Instant::now();
+    //     stream.send(Message::Ping(vec![1, 2, 3])).await.unwrap();
+    //     if let Some(Ok(Message::Pong(content))) = stream.next().await {
+    //         //
+    //     }
+    //     let received = stream.next().await.unwrap().unwrap();
+    //     let elapsed = tokio::time::Instant::now().duration_since(now);
+    //     println!("got: {:?}", received);
+    //     println!("took {:?}", elapsed);
+    // }
+    //
+    todo!()
+}
 
 pub(super) async fn query_gateway_details(
     validator_servers: Vec<Url>,
@@ -88,4 +156,15 @@ where
     Ok(key_manager
         .store_keys(&pathfinder)
         .tap_err(|err| log::error!("Failed to generate keys: {err}"))?)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn foo() {
+        let nym_api = "https://validator.nymtech.net/api/".parse().unwrap();
+        find_closest_gateway(vec![nym_api]).await;
+    }
 }

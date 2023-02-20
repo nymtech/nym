@@ -3,8 +3,8 @@
 
 use dashmap::iter::Iter;
 use dashmap::DashMap;
-use nymsphinx::anonymous_replies::encryption_key::EncryptionKeyDigest;
-use nymsphinx::anonymous_replies::SurbEncryptionKey;
+use nym_sphinx::anonymous_replies::encryption_key::EncryptionKeyDigest;
+use nym_sphinx::anonymous_replies::SurbEncryptionKey;
 use std::ops::Deref;
 use std::sync::Arc;
 use time::OffsetDateTime;

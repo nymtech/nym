@@ -6,7 +6,7 @@ use crate::spawn_future;
 use gateway_client::wasm_mockups::CosmWasmClient;
 use gateway_client::GatewayClient;
 use log::*;
-use nymsphinx::forwarding::packet::MixPacket;
+use nym_sphinx::forwarding::packet::MixPacket;
 #[cfg(not(target_arch = "wasm32"))]
 use validator_client::nyxd::CosmWasmClient;
 

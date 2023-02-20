@@ -1,5 +1,5 @@
 use futures::{SinkExt, StreamExt};
-use nymsphinx::addressing::clients::Recipient;
+use nym_sphinx::addressing::clients::Recipient;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
     connect_async, tungstenite::protocol::Message, MaybeTlsStream, WebSocketStream,

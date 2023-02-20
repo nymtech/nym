@@ -12,7 +12,7 @@ use crate::client::replies::reply_storage::{
 };
 use async_trait::async_trait;
 use log::{error, info, warn};
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use std::fs;
 use std::path::{Path, PathBuf};
 use time::OffsetDateTime;

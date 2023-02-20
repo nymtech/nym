@@ -3,8 +3,8 @@
 
 use client_connections::TransmissionLane;
 use nym_sdk::mixnet::InputMessage;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use service_providers_common::interface::{
     ControlRequest, ControlResponse, ProviderInterfaceVersion, RequestVersion,
 };

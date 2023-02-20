@@ -13,7 +13,7 @@ edition = "2021"
 bs58 = "0.4.0"
 futures = "0.3.15"
 log = { workspace = true }
-nymsphinx = { path = "../../common/nymsphinx" }
+nym-sphinx = { path = "../../common/nymsphinx" }
 rand = { version = "0.7.3", features = ["wasm-bindgen"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"

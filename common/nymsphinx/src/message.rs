@@ -4,14 +4,14 @@
 use crate::chunking;
 use nym_crypto::asymmetric::encryption;
 use nym_crypto::Digest;
-use nymsphinx_addressing::clients::Recipient;
-use nymsphinx_addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
-use nymsphinx_anonymous_replies::requests::{
+use nym_sphinx_addressing::clients::Recipient;
+use nym_sphinx_addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
+use nym_sphinx_anonymous_replies::requests::{
     InvalidReplyRequestError, RepliableMessage, RepliableMessageContent, ReplyMessage,
     ReplyMessageContent,
 };
-use nymsphinx_chunking::fragment::Fragment;
-use nymsphinx_params::{PacketSize, ReplySurbKeyDigestAlgorithm};
+use nym_sphinx_chunking::fragment::Fragment;
+use nym_sphinx_params::{PacketSize, ReplySurbKeyDigestAlgorithm};
 use rand::Rng;
 use std::fmt::{Display, Formatter};
 use thiserror::Error;

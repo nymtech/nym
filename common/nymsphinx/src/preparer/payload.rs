@@ -6,10 +6,10 @@ use nym_crypto::asymmetric::encryption;
 use nym_crypto::shared_key::new_ephemeral_shared_key;
 use nym_crypto::symmetric::stream_cipher;
 use nym_crypto::symmetric::stream_cipher::CipherKey;
-use nymsphinx_acknowledgements::surb_ack::SurbAck;
-use nymsphinx_anonymous_replies::SurbEncryptionKey;
-use nymsphinx_chunking::fragment::Fragment;
-use nymsphinx_params::{
+use nym_sphinx_acknowledgements::surb_ack::SurbAck;
+use nym_sphinx_anonymous_replies::SurbEncryptionKey;
+use nym_sphinx_chunking::fragment::Fragment;
+use nym_sphinx_params::{
     PacketEncryptionAlgorithm, PacketHkdfAlgorithm, ReplySurbEncryptionAlgorithm,
 };
 use rand::{CryptoRng, RngCore};

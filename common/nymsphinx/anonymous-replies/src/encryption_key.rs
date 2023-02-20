@@ -7,7 +7,7 @@ use nym_crypto::{
     symmetric::stream_cipher::{generate_key, CipherKey, KeySizeUser},
     OutputSizeUser,
 };
-use nymsphinx_params::{ReplySurbEncryptionAlgorithm, ReplySurbKeyDigestAlgorithm};
+use nym_sphinx_params::{ReplySurbEncryptionAlgorithm, ReplySurbKeyDigestAlgorithm};
 use rand::{CryptoRng, RngCore};
 use std::fmt::{self, Display, Formatter};
 

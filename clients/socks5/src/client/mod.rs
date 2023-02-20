@@ -21,7 +21,7 @@ use futures::StreamExt;
 #[cfg(not(feature = "mobile"))]
 use gateway_client::bandwidth::BandwidthController;
 use log::*;
-use nymsphinx::addressing::clients::Recipient;
+use nym_sphinx::addressing::clients::Recipient;
 use std::error::Error;
 use task::{TaskClient, TaskManager};
 use validator_client::nyxd::QueryNyxdClient;

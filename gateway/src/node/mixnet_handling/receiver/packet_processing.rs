@@ -5,7 +5,7 @@ use mixnode_common::packet_processor::error::MixProcessingError;
 pub use mixnode_common::packet_processor::processor::MixProcessingResult;
 use mixnode_common::packet_processor::processor::{ProcessedFinalHop, SphinxPacketProcessor};
 use nym_crypto::asymmetric::encryption;
-use nymsphinx::framing::packet::FramedSphinxPacket;
+use nym_sphinx::framing::packet::FramedSphinxPacket;
 use thiserror::Error;
 
 #[derive(Error, Debug)]

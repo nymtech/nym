@@ -4,8 +4,8 @@
 use crate::iv::IV;
 use crate::registration::handshake::shared_key::SharedKeys;
 use nym_crypto::symmetric::stream_cipher;
-use nymsphinx::params::GatewayEncryptionAlgorithm;
-use nymsphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
+use nym_sphinx::params::GatewayEncryptionAlgorithm;
+use nym_sphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 use thiserror::Error;
 
 pub const ENCRYPTED_ADDRESS_SIZE: usize = DESTINATION_ADDRESS_LENGTH;

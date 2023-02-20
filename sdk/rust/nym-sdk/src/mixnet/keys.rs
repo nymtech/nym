@@ -3,7 +3,7 @@ use std::sync::Arc;
 use client_core::client::key_manager::KeyManager;
 use gateway_requests::registration::handshake::SharedKeys;
 use nym_crypto::asymmetric::{encryption, identity};
-use nymsphinx::acknowledgements::AckKey;
+use nym_sphinx::acknowledgements::AckKey;
 
 /// The set of keys used by the client. Identity, encryption and ack keys are generated at creating
 /// unless specified to loaded from storage or somehow explictly specified. The gateway shared key

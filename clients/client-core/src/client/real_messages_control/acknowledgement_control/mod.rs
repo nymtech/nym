@@ -15,9 +15,9 @@ use action_controller::AckActionReceiver;
 use futures::channel::mpsc;
 use gateway_client::AcknowledgementReceiver;
 use log::*;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nymsphinx::params::PacketSize;
-use nymsphinx::{
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::params::PacketSize;
+use nym_sphinx::{
     acknowledgements::AckKey,
     addressing::clients::Recipient,
     chunking::fragment::{Fragment, FragmentIdentifier},

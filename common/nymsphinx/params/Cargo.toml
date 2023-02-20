@@ -1,5 +1,5 @@
 [package]
-name = "nymsphinx-params"
+name = "nym-sphinx-params"
 version = "0.1.0"
 authors = ["Jedrzej Stuczynski <andrew@nymtech.net>"]
 edition = "2021"
@@ -10,4 +10,4 @@ edition = "2021"
 thiserror = "1.0.37"
 
 nym-crypto = { path = "../../crypto", features = ["hashing", "symmetric"] }
-nymsphinx-types = { path = "../types" }
+nym-sphinx-types = { path = "../types" }

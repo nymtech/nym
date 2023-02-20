@@ -6,7 +6,7 @@ use crate::core::new_legacy_request_version;
 use crate::reply::MixnetMessage;
 use async_trait::async_trait;
 use log::*;
-use nymsphinx::addressing::clients::Recipient;
+use nym_sphinx::addressing::clients::Recipient;
 use ordered_buffer::OrderedMessageSender;
 use proxy_helpers::proxy_runner::MixProxySender;
 use rand::RngCore;

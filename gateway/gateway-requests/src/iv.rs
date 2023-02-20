@@ -3,7 +3,7 @@
 
 use nym_crypto::generic_array::{typenum::Unsigned, GenericArray};
 use nym_crypto::symmetric::stream_cipher::{random_iv, IvSizeUser, IV as CryptoIV};
-use nymsphinx::params::GatewayEncryptionAlgorithm;
+use nym_sphinx::params::GatewayEncryptionAlgorithm;
 use rand::{CryptoRng, RngCore};
 use thiserror::Error;
 

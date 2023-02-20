@@ -9,11 +9,11 @@ use coconut_interface::Credential;
 use nym_crypto::generic_array::typenum::Unsigned;
 use nym_crypto::hmac::recompute_keyed_hmac_and_verify_tag;
 use nym_crypto::symmetric::stream_cipher;
-use nymsphinx::addressing::nodes::NymNodeRoutingAddressError;
-use nymsphinx::forwarding::packet::{MixPacket, MixPacketFormattingError};
-use nymsphinx::params::packet_sizes::PacketSize;
-use nymsphinx::params::{GatewayEncryptionAlgorithm, GatewayIntegrityHmacAlgorithm};
-use nymsphinx::DestinationAddressBytes;
+use nym_sphinx::addressing::nodes::NymNodeRoutingAddressError;
+use nym_sphinx::forwarding::packet::{MixPacket, MixPacketFormattingError};
+use nym_sphinx::params::packet_sizes::PacketSize;
+use nym_sphinx::params::{GatewayEncryptionAlgorithm, GatewayIntegrityHmacAlgorithm};
+use nym_sphinx::DestinationAddressBytes;
 use serde::{Deserialize, Serialize};
 use std::{
     convert::{TryFrom, TryInto},

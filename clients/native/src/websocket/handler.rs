@@ -14,9 +14,9 @@ use client_core::client::{
 use futures::channel::mpsc;
 use futures::{SinkExt, StreamExt};
 use log::*;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nymsphinx::receiver::ReconstructedMessage;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::receiver::ReconstructedMessage;
 use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::time::Instant;

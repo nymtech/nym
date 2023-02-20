@@ -709,7 +709,7 @@ dependencies = [
  "nonexhaustive-delayqueue",
  "nym-crypto",
  "nym-pemstore",
- "nymsphinx",
+ "nym-sphinx",
  "rand 0.7.3",
  "serde",
  "serde_json",
@@ -2128,7 +2128,7 @@ dependencies = [
  "network-defaults",
  "nym-crypto",
  "nym-pemstore",
- "nymsphinx",
+ "nym-sphinx",
  "rand 0.7.3",
  "serde",
  "task",
@@ -2156,7 +2156,7 @@ dependencies = [
  "log",
  "nym-crypto",
  "nym-pemstore",
- "nymsphinx",
+ "nym-sphinx",
  "rand 0.7.3",
  "serde",
  "serde_json",
@@ -3172,7 +3172,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "log",
- "nymsphinx",
+ "nym-sphinx",
  "task",
  "tokio",
  "tokio-util",
@@ -3188,12 +3188,12 @@ dependencies = [
  "log",
  "network-defaults",
  "nym-crypto",
- "nymsphinx-acknowledgements",
- "nymsphinx-addressing",
- "nymsphinx-forwarding",
- "nymsphinx-framing",
- "nymsphinx-params",
- "nymsphinx-types",
+ "nym-sphinx-acknowledgements",
+ "nym-sphinx-addressing",
+ "nym-sphinx-forwarding",
+ "nym-sphinx-framing",
+ "nym-sphinx-params",
+ "nym-sphinx-types",
  "rand 0.8.5",
  "serde",
  "task",
@@ -3405,9 +3405,9 @@ dependencies = [
  "nym-crypto",
  "nym-mixnet-contract-common",
  "nym-pemstore",
+ "nym-sphinx",
  "nym-vesting-contract-common",
  "nymcoconut",
- "nymsphinx",
  "okapi",
  "pin-project",
  "pretty_env_logger",
@@ -3545,7 +3545,7 @@ dependencies = [
  "network-defaults",
  "nym-crypto",
  "nym-pemstore",
- "nymsphinx",
+ "nym-sphinx",
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",
@@ -3590,7 +3590,7 @@ dependencies = [
  "hkdf 0.12.3",
  "hmac 0.12.1",
  "nym-pemstore",
- "nymsphinx-types",
+ "nym-sphinx-types",
  "rand 0.7.3",
  "rand_chacha 0.2.2",
  "serde",
@@ -3631,8 +3631,8 @@ dependencies = [
  "nym-api-requests",
  "nym-crypto",
  "nym-pemstore",
+ "nym-sphinx",
  "nym-types",
- "nymsphinx",
  "once_cell",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -3696,10 +3696,10 @@ dependencies = [
  "nonexhaustive-delayqueue",
  "nym-crypto",
  "nym-pemstore",
+ "nym-sphinx",
+ "nym-sphinx-params",
+ "nym-sphinx-types",
  "nym-types",
- "nymsphinx",
- "nymsphinx-params",
- "nymsphinx-types",
  "pretty_env_logger",
  "rand 0.7.3",
  "rocket",
@@ -3736,7 +3736,7 @@ dependencies = [
  "network-defaults",
  "nym-crypto",
  "nym-sdk",
- "nymsphinx",
+ "nym-sphinx",
  "ordered-buffer",
  "pretty_env_logger",
  "proxy-helpers",
@@ -3810,7 +3810,7 @@ dependencies = [
  "logging",
  "network-defaults",
  "nym-crypto",
- "nymsphinx",
+ "nym-sphinx",
  "pretty_env_logger",
  "rand 0.7.3",
  "tap",
@@ -3846,7 +3846,7 @@ dependencies = [
  "network-defaults",
  "nym-crypto",
  "nym-pemstore",
- "nymsphinx",
+ "nym-sphinx",
  "ordered-buffer",
  "pin-project",
  "pretty_env_logger",
@@ -3864,6 +3864,133 @@ dependencies = [
  "url",
  "validator-client",
  "version-checker",
+]
+
+[[package]]
+name = "nym-sphinx"
+version = "0.1.0"
+dependencies = [
+ "nym-crypto",
+ "nym-mixnet-contract-common",
+ "nym-sphinx-acknowledgements",
+ "nym-sphinx-addressing",
+ "nym-sphinx-anonymous-replies",
+ "nym-sphinx-chunking",
+ "nym-sphinx-cover",
+ "nym-sphinx-forwarding",
+ "nym-sphinx-framing",
+ "nym-sphinx-params",
+ "nym-sphinx-types",
+ "rand 0.7.3",
+ "rand_distr",
+ "thiserror",
+ "tokio",
+ "topology",
+]
+
+[[package]]
+name = "nym-sphinx-acknowledgements"
+version = "0.1.0"
+dependencies = [
+ "nym-crypto",
+ "nym-pemstore",
+ "nym-sphinx-addressing",
+ "nym-sphinx-params",
+ "nym-sphinx-types",
+ "rand 0.7.3",
+ "thiserror",
+ "topology",
+]
+
+[[package]]
+name = "nym-sphinx-addressing"
+version = "0.1.0"
+dependencies = [
+ "nym-crypto",
+ "nym-sphinx-types",
+ "rand 0.7.3",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
+name = "nym-sphinx-anonymous-replies"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "nym-crypto",
+ "nym-sphinx-addressing",
+ "nym-sphinx-params",
+ "nym-sphinx-types",
+ "rand 0.7.3",
+ "serde",
+ "thiserror",
+ "topology",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "nym-sphinx-chunking"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "nym-sphinx-addressing",
+ "nym-sphinx-params",
+ "nym-sphinx-types",
+ "rand 0.7.3",
+ "thiserror",
+]
+
+[[package]]
+name = "nym-sphinx-cover"
+version = "0.1.0"
+dependencies = [
+ "nym-crypto",
+ "nym-sphinx-acknowledgements",
+ "nym-sphinx-addressing",
+ "nym-sphinx-chunking",
+ "nym-sphinx-forwarding",
+ "nym-sphinx-params",
+ "nym-sphinx-types",
+ "rand 0.7.3",
+ "thiserror",
+ "topology",
+]
+
+[[package]]
+name = "nym-sphinx-forwarding"
+version = "0.1.0"
+dependencies = [
+ "nym-sphinx-addressing",
+ "nym-sphinx-params",
+ "nym-sphinx-types",
+]
+
+[[package]]
+name = "nym-sphinx-framing"
+version = "0.1.0"
+dependencies = [
+ "bytes",
+ "nym-sphinx-params",
+ "nym-sphinx-types",
+ "thiserror",
+ "tokio-util",
+]
+
+[[package]]
+name = "nym-sphinx-params"
+version = "0.1.0"
+dependencies = [
+ "nym-crypto",
+ "nym-sphinx-types",
+ "thiserror",
+]
+
+[[package]]
+name = "nym-sphinx-types"
+version = "0.1.0"
+dependencies = [
+ "sphinx",
 ]
 
 [[package]]
@@ -3960,133 +4087,6 @@ dependencies = [
  "serde_derive",
  "sha2 0.9.9",
  "thiserror",
-]
-
-[[package]]
-name = "nymsphinx"
-version = "0.1.0"
-dependencies = [
- "nym-crypto",
- "nym-mixnet-contract-common",
- "nymsphinx-acknowledgements",
- "nymsphinx-addressing",
- "nymsphinx-anonymous-replies",
- "nymsphinx-chunking",
- "nymsphinx-cover",
- "nymsphinx-forwarding",
- "nymsphinx-framing",
- "nymsphinx-params",
- "nymsphinx-types",
- "rand 0.7.3",
- "rand_distr",
- "thiserror",
- "tokio",
- "topology",
-]
-
-[[package]]
-name = "nymsphinx-acknowledgements"
-version = "0.1.0"
-dependencies = [
- "nym-crypto",
- "nym-pemstore",
- "nymsphinx-addressing",
- "nymsphinx-params",
- "nymsphinx-types",
- "rand 0.7.3",
- "thiserror",
- "topology",
-]
-
-[[package]]
-name = "nymsphinx-addressing"
-version = "0.1.0"
-dependencies = [
- "nym-crypto",
- "nymsphinx-types",
- "rand 0.7.3",
- "serde",
- "thiserror",
-]
-
-[[package]]
-name = "nymsphinx-anonymous-replies"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "nym-crypto",
- "nymsphinx-addressing",
- "nymsphinx-params",
- "nymsphinx-types",
- "rand 0.7.3",
- "serde",
- "thiserror",
- "topology",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "nymsphinx-chunking"
-version = "0.1.0"
-dependencies = [
- "log",
- "nymsphinx-addressing",
- "nymsphinx-params",
- "nymsphinx-types",
- "rand 0.7.3",
- "thiserror",
-]
-
-[[package]]
-name = "nymsphinx-cover"
-version = "0.1.0"
-dependencies = [
- "nym-crypto",
- "nymsphinx-acknowledgements",
- "nymsphinx-addressing",
- "nymsphinx-chunking",
- "nymsphinx-forwarding",
- "nymsphinx-params",
- "nymsphinx-types",
- "rand 0.7.3",
- "thiserror",
- "topology",
-]
-
-[[package]]
-name = "nymsphinx-forwarding"
-version = "0.1.0"
-dependencies = [
- "nymsphinx-addressing",
- "nymsphinx-params",
- "nymsphinx-types",
-]
-
-[[package]]
-name = "nymsphinx-framing"
-version = "0.1.0"
-dependencies = [
- "bytes",
- "nymsphinx-params",
- "nymsphinx-types",
- "thiserror",
- "tokio-util",
-]
-
-[[package]]
-name = "nymsphinx-params"
-version = "0.1.0"
-dependencies = [
- "nym-crypto",
- "nymsphinx-types",
- "thiserror",
-]
-
-[[package]]
-name = "nymsphinx-types"
-version = "0.1.0"
-dependencies = [
- "sphinx",
 ]
 
 [[package]]
@@ -5526,7 +5526,7 @@ dependencies = [
  "build-information",
  "log",
  "nym-sdk",
- "nymsphinx-anonymous-replies",
+ "nym-sphinx-anonymous-replies",
  "serde",
  "serde_json",
  "thiserror",
@@ -5713,7 +5713,7 @@ dependencies = [
 name = "socks5-requests"
 version = "0.1.0"
 dependencies = [
- "nymsphinx-addressing",
+ "nym-sphinx-addressing",
  "serde",
  "serde_json",
  "service-providers-common",
@@ -6541,8 +6541,8 @@ dependencies = [
  "log",
  "nym-crypto",
  "nym-mixnet-contract-common",
- "nymsphinx-addressing",
- "nymsphinx-types",
+ "nym-sphinx-addressing",
+ "nym-sphinx-types",
  "rand 0.7.3",
  "thiserror",
  "version-checker",
@@ -7184,7 +7184,7 @@ dependencies = [
 name = "websocket-requests"
 version = "0.1.0"
 dependencies = [
- "nymsphinx",
+ "nym-sphinx",
  "serde",
  "serde_json",
 ]

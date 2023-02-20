@@ -9,7 +9,7 @@ use futures::lock::{Mutex, MutexGuard};
 use futures::{SinkExt, StreamExt};
 use log::warn;
 use nym_crypto::asymmetric::encryption;
-use nymsphinx::receiver::{MessageReceiver, MessageRecoveryError};
+use nym_sphinx::receiver::{MessageReceiver, MessageRecoveryError};
 use std::mem;
 use std::sync::Arc;
 use thiserror::Error;

@@ -13,8 +13,8 @@ use build_information::BinaryBuildInformation;
 use client_connections::LaneQueueLengths;
 use futures::channel::mpsc;
 use log::warn;
-use nymsphinx::addressing::clients::Recipient;
-use nymsphinx::anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx::addressing::clients::Recipient;
+use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use proxy_helpers::connection_controller::{Controller, ControllerCommand, ControllerSender};
 use proxy_helpers::proxy_runner::{MixProxyReader, MixProxySender};
 use service_providers_common::interface::{

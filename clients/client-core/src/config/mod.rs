@@ -3,7 +3,7 @@
 
 use config::defaults::NymNetworkDetails;
 use config::{NymConfig, OptionalSet, DB_FILE_NAME};
-use nymsphinx::params::PacketSize;
+use nym_sphinx::params::PacketSize;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 use std::path::PathBuf;

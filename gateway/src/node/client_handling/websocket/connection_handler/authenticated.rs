@@ -10,7 +10,7 @@ use gateway_requests::iv::IVConversionError;
 use gateway_requests::types::{BinaryRequest, ServerResponse};
 use gateway_requests::{ClientControlRequest, GatewayRequestsError};
 use log::*;
-use nymsphinx::forwarding::packet::MixPacket;
+use nym_sphinx::forwarding::packet::MixPacket;
 use rand::{CryptoRng, Rng};
 use std::convert::TryFrom;
 use std::process;

@@ -3,7 +3,7 @@
 
 use nym_crypto::symmetric::stream_cipher::{generate_key, CipherKey, KeySizeUser};
 use nym_pemstore::traits::PemStorableKey;
-use nymsphinx_params::AckEncryptionAlgorithm;
+use nym_sphinx_params::AckEncryptionAlgorithm;
 use rand::{CryptoRng, RngCore};
 use std::fmt::{self, Display, Formatter};
 

@@ -3,11 +3,11 @@
 
 use crate::encryption_key::{SurbEncryptionKey, SurbEncryptionKeyError, SurbEncryptionKeySize};
 use nym_crypto::{generic_array::typenum::Unsigned, Digest};
-use nymsphinx_addressing::clients::Recipient;
-use nymsphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
-use nymsphinx_params::packet_sizes::PacketSize;
-use nymsphinx_params::{ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
-use nymsphinx_types::{delays, Error as SphinxError, SURBMaterial, SphinxPacket, SURB};
+use nym_sphinx_addressing::clients::Recipient;
+use nym_sphinx_addressing::nodes::{NymNodeRoutingAddress, MAX_NODE_ADDRESS_UNPADDED_LEN};
+use nym_sphinx_params::packet_sizes::PacketSize;
+use nym_sphinx_params::{ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
+use nym_sphinx_types::{delays, Error as SphinxError, SURBMaterial, SphinxPacket, SURB};
 use rand::{CryptoRng, RngCore};
 use serde::de::{Error as SerdeError, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -111,7 +111,7 @@ impl ReplySurb {
     /// Returns the expected number of bytes the [`ReplySURB`] will take after serialization.
     /// Useful for deserialization from a bytes stream.
     pub fn serialized_len(mix_hops: u8) -> usize {
-        use nymsphinx_types::{HEADER_SIZE, NODE_ADDRESS_LENGTH, PAYLOAD_KEY_SIZE};
+        use nym_sphinx_types::{HEADER_SIZE, NODE_ADDRESS_LENGTH, PAYLOAD_KEY_SIZE};
 
         // the SURB itself consists of SURB_header, first hop address and set of payload keys
         // (note extra 1 for the gateway)

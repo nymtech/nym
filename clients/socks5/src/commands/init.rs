@@ -9,7 +9,7 @@ use crate::{
 use clap::Args;
 use config::NymConfig;
 use nym_crypto::asymmetric::identity;
-use nymsphinx::addressing::clients::Recipient;
+use nym_sphinx::addressing::clients::Recipient;
 use serde::Serialize;
 use std::fmt::Display;
 use tap::TapFallible;

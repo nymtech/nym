@@ -9,7 +9,7 @@ use client_core::client::inbound_messages::{InputMessage, InputMessageSender};
 use futures::channel::mpsc;
 use futures::task::{Context, Poll};
 use log::*;
-use nymsphinx::addressing::clients::Recipient;
+use nym_sphinx::addressing::clients::Recipient;
 use pin_project::pin_project;
 use proxy_helpers::connection_controller::{
     ConnectionReceiver, ControllerCommand, ControllerSender,

@@ -7,12 +7,12 @@ use nym_crypto::asymmetric::encryption;
 use nym_crypto::shared_key::recompute_shared_key;
 use nym_crypto::symmetric::stream_cipher;
 use nym_crypto::symmetric::stream_cipher::CipherKey;
-use nymsphinx_anonymous_replies::requests::AnonymousSenderTag;
-use nymsphinx_anonymous_replies::SurbEncryptionKey;
-use nymsphinx_chunking::fragment::Fragment;
-use nymsphinx_chunking::reconstruction::MessageReconstructor;
-use nymsphinx_chunking::ChunkingError;
-use nymsphinx_params::{
+use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
+use nym_sphinx_anonymous_replies::SurbEncryptionKey;
+use nym_sphinx_chunking::fragment::Fragment;
+use nym_sphinx_chunking::reconstruction::MessageReconstructor;
+use nym_sphinx_chunking::ChunkingError;
+use nym_sphinx_params::{
     PacketEncryptionAlgorithm, PacketHkdfAlgorithm, ReplySurbEncryptionAlgorithm,
     DEFAULT_NUM_MIX_HOPS,
 };

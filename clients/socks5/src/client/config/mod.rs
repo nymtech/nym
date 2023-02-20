@@ -7,7 +7,7 @@ pub use client_core::config::MISSING_VALUE;
 use client_core::config::{ClientCoreConfigTrait, DebugConfig};
 use config::defaults::DEFAULT_SOCKS5_LISTENING_PORT;
 use config::{NymConfig, OptionalSet};
-use nymsphinx::addressing::clients::Recipient;
+use nym_sphinx::addressing::clients::Recipient;
 use serde::{Deserialize, Serialize};
 use service_providers_common::interface::ProviderInterfaceVersion;
 use socks5_requests::Socks5ProtocolVersion;

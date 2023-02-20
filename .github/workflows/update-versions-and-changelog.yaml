@@ -19,7 +19,7 @@ jobs:
       - name: checkout-source
         uses: actions/checkout@v3
         with:
-          ref: "release/${{ release_version }}"
+          ref: "release/${{ inputs.release_version }}"
 
       - name: checkout-ci-tools-repo
         uses: actions/checkout@v3
@@ -44,6 +44,6 @@ jobs:
         run: |
           git config --global user.name "${{ CI_BOT_AUTHOR }}"
           git config --global user.email "${{ CI_BOT_EMAIL }}"
-          git checkout -b release/${{ release_version }}-preparation
+          git checkout -b release/${{ inputs.release_version }}-preparation
           git commit -am "chore: version bump in preparation for release"
-          git push -u origin release/${{ release_version }}-preparation
+          git push -u origin release/${{ inputs.release_version }}-preparation

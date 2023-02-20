@@ -1,5 +1,5 @@
 [package]
-name = "nym-version-checker"
+name = "nym-bin-common"
 version = "0.1.0"
 edition = { workspace = true }
 authors = { workspace = true }
@@ -13,3 +13,12 @@ documentation = { workspace = true }
 
 [dependencies]
 semver = "0.11"
+log = { workspace = true }
+pretty_env_logger = "0.4.0"
+serde = { workspace = true, features = ["derive"], optional = true }
+
+[build-dependencies]
+vergen = { version = "7", default-features = false, features = ["build", "git", "rustc", "cargo"] }
+
+[features]
+default = []

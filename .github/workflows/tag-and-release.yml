@@ -1,4 +1,4 @@
-name: Tag and release components
+name: tag-and-release
 
 on:
   workflow_dispatch:

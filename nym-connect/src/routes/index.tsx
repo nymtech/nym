@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { ConnectionPage } from 'src/pages/connection';
 import { Menu } from 'src/pages/menu';

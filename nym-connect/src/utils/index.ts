@@ -19,6 +19,6 @@ export const useTauriEvents = <T>(event: EventName, handler: EventCallback<T>) =
   }, []);
 };
 
-export const toggle_log_viewer = async () => {
+export const toggleLogViewer = async () => {
   await invoke('help_log_toggle_window');
 };

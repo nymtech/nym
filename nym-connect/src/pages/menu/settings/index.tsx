@@ -2,7 +2,7 @@ import React from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { Link, List, ListItem, ListItemButton, ListItemText, Stack } from '@mui/material';
 import { AppVersion } from 'src/components/AppVersion';
-import { toggle_log_viewer } from 'src/utils';
+import { toggleLogViewer } from 'src/utils';
 
 const menuSchema = [{ title: 'Select your gateway', path: 'gateway' }];
 
@@ -19,7 +19,7 @@ export const SettingsMenu = () => (
         </Link>
       ))}
       <ListItem disablePadding>
-        <ListItemButton onClick={toggle_log_viewer}>
+        <ListItemButton onClick={toggleLogViewer}>
           <ListItemText>Logs</ListItemText>
         </ListItemButton>
       </ListItem>

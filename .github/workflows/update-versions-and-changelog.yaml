@@ -14,7 +14,7 @@ env:
 
 jobs:
   update-versions:
-    runs-on: ["self-hosted", "custom-runner-linux"]
+    runs-on: ubuntu-22.04
     steps:
       - name: checkout-source
         uses: actions/checkout@v3

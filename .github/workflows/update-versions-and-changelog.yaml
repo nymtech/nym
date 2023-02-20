@@ -35,7 +35,7 @@ jobs:
           toolchain: stable
 
       - name: install-version-bumper
-        run: "cargo install --release"
+        run: "cargo install"
         working-directory: "ci-tools/version-bumper"
 
       - name: run-version-bumper

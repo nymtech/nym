@@ -27,7 +27,7 @@ jobs:
           repository: "nymtech/ci-tools"
           ref: "master"
           path: "ci-tools"
-          token: "${{ secret.ACCESS_TOKEN_PRIVATE_REPOS }}"
+          token: "${{ secrets.ACCESS_TOKEN_PRIVATE_REPOS }}"
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1

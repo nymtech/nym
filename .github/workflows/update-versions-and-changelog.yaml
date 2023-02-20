@@ -7,6 +7,10 @@ on:
         description: "Release version, usually the milestone title"
         required: true
         type: string
+      milestone_id:
+        description: "Milestone ID, check the URL when you're on the specific milestone page"
+        required: true
+        type: string
 
 env:
   CI_BOT_AUTHOR: "Nym bot"
@@ -49,4 +53,43 @@ jobs:
           git checkout -b release/${{ inputs.release_version }}-preparation
           git commit -am "chore: version bump in preparation for release"
           git push -u origin release/${{ inputs.release_version }}-preparation
+        working-directory: "nym"
+
+  update-changelog:
+    runs-on: ubuntu-22.04
+    needs: [update-versions]
+    steps:
+      - name: checkout-source
+        uses: actions/checkout@v3
+        with:
+          ref: "release/${{ inputs.release_version }}"
+          path: "nym"
+
+      - name: checkout-ci-tools-repo
+        uses: actions/checkout@v3
+        with: 
+          repository: "nymtech/ci-tools"
+          ref: "master"
+          path: "ci-tools"
+          token: "${{ secrets.ACCESS_TOKEN_PRIVATE_REPOS }}"
+
+      - name: Install Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: install-changelog-updater
+        run: "cargo install --path ."
+        working-directory: "ci-tools/changelog-updater"
+
+      - name: run-changelog-updater
+        run: "changelog-updater mix ${{ inputs.milestone_id }} release/${{ inputs.release_version }}"
+
+      - name: push-changes-to-branch
+        run: |
+          git config --global user.name "${{ env.CI_BOT_AUTHOR }}"
+          git config --global user.email "${{ env.CI_BOT_EMAIL }}"
+          git checkout release/${{ inputs.release_version }}-preparation
+          git commit -am "chore: update changelog preparation for release"
+          git push
         working-directory: "nym"

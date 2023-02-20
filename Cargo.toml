@@ -42,7 +42,7 @@ members = [
     "common/credential-storage",
     "common/credentials",
     "common/crypto",
-    "common/crypto/dkg",
+    "common/dkg",
     "common/execute",
     "common/inclusion-probability",
     "common/ledger",

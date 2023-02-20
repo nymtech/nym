@@ -3194,6 +3194,7 @@ dependencies = [
  "nym-sphinx-framing",
  "nym-sphinx-params",
  "nym-sphinx-types",
+ "nym-version-checker",
  "rand 0.8.5",
  "serde",
  "task",
@@ -3202,7 +3203,6 @@ dependencies = [
  "tokio-util",
  "url",
  "validator-client",
- "version-checker",
 ]
 
 [[package]]
@@ -3407,6 +3407,7 @@ dependencies = [
  "nym-pemstore",
  "nym-sphinx",
  "nym-topology",
+ "nym-version-checker",
  "nym-vesting-contract-common",
  "nymcoconut",
  "okapi",
@@ -3431,7 +3432,6 @@ dependencies = [
  "ts-rs",
  "url",
  "validator-client",
- "version-checker",
 ]
 
 [[package]]
@@ -3547,6 +3547,7 @@ dependencies = [
  "nym-pemstore",
  "nym-sphinx",
  "nym-topology",
+ "nym-version-checker",
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",
@@ -3558,7 +3559,6 @@ dependencies = [
  "tokio-tungstenite 0.14.0",
  "url",
  "validator-client",
- "version-checker",
  "websocket-requests",
 ]
 
@@ -3633,6 +3633,7 @@ dependencies = [
  "nym-pemstore",
  "nym-sphinx",
  "nym-types",
+ "nym-version-checker",
  "once_cell",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -3649,7 +3650,6 @@ dependencies = [
  "tokio-util",
  "url",
  "validator-client",
- "version-checker",
 ]
 
 [[package]]
@@ -3701,6 +3701,7 @@ dependencies = [
  "nym-sphinx-types",
  "nym-topology",
  "nym-types",
+ "nym-version-checker",
  "pretty_env_logger",
  "rand 0.7.3",
  "rocket",
@@ -3713,7 +3714,6 @@ dependencies = [
  "toml",
  "url",
  "validator-client",
- "version-checker",
 ]
 
 [[package]]
@@ -3737,6 +3737,7 @@ dependencies = [
  "nym-crypto",
  "nym-sdk",
  "nym-sphinx",
+ "nym-version-checker",
  "ordered-buffer",
  "pretty_env_logger",
  "proxy-helpers",
@@ -3754,7 +3755,6 @@ dependencies = [
  "tokio",
  "tokio-tungstenite 0.17.2",
  "url",
- "version-checker",
  "websocket-requests",
 ]
 
@@ -3848,6 +3848,7 @@ dependencies = [
  "nym-pemstore",
  "nym-sphinx",
  "nym-topology",
+ "nym-version-checker",
  "ordered-buffer",
  "pin-project",
  "pretty_env_logger",
@@ -3863,7 +3864,6 @@ dependencies = [
  "tokio",
  "url",
  "validator-client",
- "version-checker",
 ]
 
 [[package]]
@@ -4003,9 +4003,9 @@ dependencies = [
  "nym-mixnet-contract-common",
  "nym-sphinx-addressing",
  "nym-sphinx-types",
+ "nym-version-checker",
  "rand 0.7.3",
  "thiserror",
- "version-checker",
 ]
 
 [[package]]
@@ -4032,6 +4032,13 @@ dependencies = [
  "ts-rs",
  "url",
  "validator-client",
+]
+
+[[package]]
+name = "nym-version-checker"
+version = "0.1.0"
+dependencies = [
+ "semver 0.11.0",
 ]
 
 [[package]]
@@ -6986,13 +6993,6 @@ dependencies = [
  "rustversion",
  "thiserror",
  "time 0.3.17",
-]
-
-[[package]]
-name = "version-checker"
-version = "0.1.0"
-dependencies = [
- "semver 0.11.0",
 ]
 
 [[package]]

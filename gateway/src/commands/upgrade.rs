@@ -6,7 +6,7 @@ use clap::Args;
 use config::NymConfig;
 use std::fmt::Display;
 use std::process;
-use version_checker::Version;
+use nym_version_checker::Version;
 
 #[derive(Args, Clone)]
 pub struct Upgrade {

@@ -73,7 +73,7 @@ fn version_check(cfg: &Config) -> bool {
             binary_version,
             config_version
         );
-        if version_checker::is_minor_version_compatible(binary_version, config_version) {
+        if nym_version_checker::is_minor_version_compatible(binary_version, config_version) {
             log::info!(
                 "but they are still semver compatible. \
                 However, consider running the `upgrade` command"

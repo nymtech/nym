@@ -18,7 +18,7 @@ use task::TaskClient;
 use tokio::task::JoinHandle;
 use tokio::time::sleep;
 use url::Url;
-use version_checker::parse_version;
+use nym_version_checker::parse_version;
 
 pub use crate::verloc::measurement::{AtomicVerlocResult, Verloc, VerlocResult};
 
@@ -44,7 +44,7 @@ const DEFAULT_RETRY_TIMEOUT: Duration = Duration::from_secs(60 * 30);
 #[derive(Clone, Debug)]
 pub struct Config {
     /// Minimum semver version of a node (gateway or mixnode) that is capable of replying to echo packets.
-    minimum_compatible_node_version: version_checker::Version,
+    minimum_compatible_node_version: nym_version_checker::Version,
 
     /// Socket address of this node on which it will be listening for the measurement packets.
     listening_address: SocketAddr,
@@ -89,7 +89,7 @@ impl ConfigBuilder {
         Self::default()
     }
 
-    pub fn minimum_compatible_node_version(mut self, version: version_checker::Version) -> Self {
+    pub fn minimum_compatible_node_version(mut self, version: nym_version_checker::Version) -> Self {
         self.0.minimum_compatible_node_version = version;
         self
     }

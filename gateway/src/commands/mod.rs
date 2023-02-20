@@ -155,7 +155,7 @@ pub(crate) fn ensure_config_version_compatibility(cfg: &Config) -> Result<(), Ga
 
     if binary_version == config_version {
         Ok(())
-    } else if version_checker::is_minor_version_compatible(binary_version, config_version) {
+    } else if nym_version_checker::is_minor_version_compatible(binary_version, config_version) {
         log::warn!(
             "The gateway binary has different version than what is specified in config file! {binary_version} and {config_version}. \
              But, they are still semver compatible. However, consider running the `upgrade` command.");

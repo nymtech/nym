@@ -17,4 +17,4 @@ nym-crypto = { path = "../crypto" }
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 nym-sphinx-addressing = { path = "../nymsphinx/addressing" }
 nym-sphinx-types = { path = "../nymsphinx/types" }
-version-checker = { path = "../version-checker" }
+nym-version-checker = { path = "../version-checker" }

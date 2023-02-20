@@ -71,7 +71,7 @@ task = { path = "../common/task" }
 validator-client = { path = "../common/client-libs/validator-client", features = [
     "nyxd-client",
 ] }
-version-checker = { path = "../common/version-checker" }
+nym-version-checker = { path = "../common/version-checker" }
 nym-types = { path = "../common/types" }
 serde_json = "1"
 atty = "0.2"

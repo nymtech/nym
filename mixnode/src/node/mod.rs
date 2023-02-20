@@ -29,7 +29,7 @@ use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
 use task::{TaskClient, TaskManager};
-use version_checker::parse_version;
+use nym_version_checker::parse_version;
 
 mod http;
 mod listener;

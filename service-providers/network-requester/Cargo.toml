@@ -47,5 +47,5 @@ service-providers-common = { path = "../common" }
 socks5-requests = { path = "../../common/socks5/requests" }
 statistics-common = { path = "../../common/statistics" }
 task = { path = "../../common/task" }
-version-checker = { path = "../../common/version-checker" }
+nym-version-checker = { path = "../../common/version-checker" }
 websocket-requests = { path = "../../clients/native/websocket-requests" }

@@ -1,5 +1,5 @@
 [package]
-name = "version-checker"
+name = "nym-version-checker"
 version = "0.1.0"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2021"

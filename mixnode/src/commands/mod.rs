@@ -141,7 +141,7 @@ pub(crate) fn version_check(cfg: &Config) -> bool {
         true
     } else {
         warn!("The mixnode binary has different version than what is specified in config file! {} and {}", binary_version, config_version);
-        if version_checker::is_minor_version_compatible(binary_version, config_version) {
+        if nym_version_checker::is_minor_version_compatible(binary_version, config_version) {
             info!("but they are still semver compatible. However, consider running the `upgrade` command");
             true
         } else {

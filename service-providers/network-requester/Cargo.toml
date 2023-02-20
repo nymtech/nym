@@ -31,13 +31,12 @@ tokio-tungstenite = "0.17.2"
 url = { workspace = true }
 
 # internal
-build-information = { path = "../../common/build-information" }
 client-connections = { path = "../../common/client-connections" }
 client-core = { path = "../../clients/client-core" }
 completions = { path = "../../common/completions" }
 config = { path = "../../common/config" }
 nym-crypto = { path = "../../common/crypto" }
-logging = { path = "../../common/logging"}
+nym-bin-common = { path = "../../common/bin-common"}
 network-defaults = { path = "../../common/network-defaults" }
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 nym-sphinx = { path = "../../common/nymsphinx" }
@@ -47,5 +46,4 @@ service-providers-common = { path = "../common" }
 socks5-requests = { path = "../../common/socks5/requests" }
 statistics-common = { path = "../../common/statistics" }
 nym-task = { path = "../../common/task" }
-nym-version-checker = { path = "../../common/version-checker" }
 websocket-requests = { path = "../../clients/native/websocket-requests" }

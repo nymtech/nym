@@ -446,14 +446,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "build-information"
-version = "0.1.0"
-dependencies = [
- "serde",
- "vergen 7.5.1",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1040,8 +1032,8 @@ dependencies = [
  "credential-storage",
  "credentials",
  "log",
- "logging",
  "network-defaults",
+ "nym-bin-common",
  "nym-crypto",
  "nym-pemstore",
  "rand 0.7.3",
@@ -1856,9 +1848,9 @@ dependencies = [
  "isocountry",
  "itertools",
  "log",
- "logging",
  "maxminddb",
  "network-defaults",
+ "nym-bin-common",
  "nym-contracts-common",
  "nym-mixnet-contract-common",
  "nym-task",
@@ -3057,14 +3049,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "logging"
-version = "0.1.0"
-dependencies = [
- "log",
- "pretty_env_logger",
-]
-
-[[package]]
 name = "loom"
 version = "0.5.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3187,6 +3171,7 @@ dependencies = [
  "humantime-serde",
  "log",
  "network-defaults",
+ "nym-bin-common",
  "nym-crypto",
  "nym-sphinx-acknowledgements",
  "nym-sphinx-addressing",
@@ -3195,7 +3180,6 @@ dependencies = [
  "nym-sphinx-params",
  "nym-sphinx-types",
  "nym-task",
- "nym-version-checker",
  "rand 0.8.5",
  "serde",
  "thiserror",
@@ -3374,7 +3358,6 @@ dependencies = [
  "async-trait",
  "bip39",
  "bs58",
- "build-information",
  "cfg-if",
  "clap 4.1.4",
  "coconut-bandwidth-contract-common",
@@ -3398,9 +3381,9 @@ dependencies = [
  "inclusion-probability",
  "lazy_static",
  "log",
- "logging",
  "multisig-contract-common",
  "nym-api-requests",
+ "nym-bin-common",
  "nym-contracts-common",
  "nym-crypto",
  "nym-mixnet-contract-common",
@@ -3408,7 +3391,6 @@ dependencies = [
  "nym-sphinx",
  "nym-task",
  "nym-topology",
- "nym-version-checker",
  "nym-vesting-contract-common",
  "nymcoconut",
  "okapi",
@@ -3450,6 +3432,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-bin-common"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "pretty_env_logger",
+ "semver 0.11.0",
+ "serde",
+ "vergen 7.5.1",
+]
+
+[[package]]
 name = "nym-bity-integration"
 version = "0.1.0"
 dependencies = [
@@ -3477,8 +3470,8 @@ dependencies = [
  "clap_complete_fig",
  "dotenv",
  "log",
- "logging",
  "network-defaults",
+ "nym-bin-common",
  "nym-cli-commands",
  "pretty_env_logger",
  "serde",
@@ -3526,7 +3519,6 @@ dependencies = [
 name = "nym-client"
 version = "1.1.9"
 dependencies = [
- "build-information",
  "clap 4.1.4",
  "client-connections",
  "client-core",
@@ -3541,14 +3533,13 @@ dependencies = [
  "gateway-requests",
  "lazy_static",
  "log",
- "logging",
  "network-defaults",
+ "nym-bin-common",
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
  "nym-task",
  "nym-topology",
- "nym-version-checker",
  "pretty_env_logger",
  "rand 0.7.3",
  "serde",
@@ -3609,7 +3600,6 @@ dependencies = [
  "atty",
  "bip39",
  "bs58",
- "build-information",
  "clap 4.1.4",
  "coconut-interface",
  "colored",
@@ -3624,17 +3614,16 @@ dependencies = [
  "humantime-serde",
  "lazy_static",
  "log",
- "logging",
  "mixnet-client",
  "mixnode-common",
  "network-defaults",
  "nym-api-requests",
+ "nym-bin-common",
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
  "nym-task",
  "nym-types",
- "nym-version-checker",
  "once_cell",
  "pretty_env_logger",
  "rand 0.7.3",
@@ -3678,7 +3667,6 @@ dependencies = [
  "anyhow",
  "atty",
  "bs58",
- "build-information",
  "clap 4.1.4",
  "colored",
  "completions",
@@ -3690,10 +3678,10 @@ dependencies = [
  "humantime-serde",
  "lazy_static",
  "log",
- "logging",
  "mixnet-client",
  "mixnode-common",
  "nonexhaustive-delayqueue",
+ "nym-bin-common",
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
@@ -3702,7 +3690,6 @@ dependencies = [
  "nym-task",
  "nym-topology",
  "nym-types",
- "nym-version-checker",
  "pretty_env_logger",
  "rand 0.7.3",
  "rocket",
@@ -3721,7 +3708,6 @@ name = "nym-network-requester"
 version = "1.1.9"
 dependencies = [
  "async-trait",
- "build-information",
  "clap 4.1.4",
  "client-connections",
  "client-core",
@@ -3732,13 +3718,12 @@ dependencies = [
  "ipnetwork 0.20.0",
  "lazy_static",
  "log",
- "logging",
  "network-defaults",
+ "nym-bin-common",
  "nym-crypto",
  "nym-sdk",
  "nym-sphinx",
  "nym-task",
- "nym-version-checker",
  "ordered-buffer",
  "pretty_env_logger",
  "proxy-helpers",
@@ -3764,7 +3749,7 @@ version = "1.1.9"
 dependencies = [
  "dirs",
  "log",
- "logging",
+ "nym-bin-common",
  "pretty_env_logger",
  "rocket",
  "serde",
@@ -3807,8 +3792,8 @@ dependencies = [
  "gateway-client",
  "gateway-requests",
  "log",
- "logging",
  "network-defaults",
+ "nym-bin-common",
  "nym-crypto",
  "nym-sphinx",
  "nym-task",
@@ -3826,7 +3811,6 @@ dependencies = [
 name = "nym-socks5-client"
 version = "1.1.9"
 dependencies = [
- "build-information",
  "clap 4.1.4",
  "client-connections",
  "client-core",
@@ -3841,15 +3825,14 @@ dependencies = [
  "gateway-requests",
  "lazy_static",
  "log",
- "logging",
  "mobile-storage",
  "network-defaults",
+ "nym-bin-common",
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
  "nym-task",
  "nym-topology",
- "nym-version-checker",
  "ordered-buffer",
  "pin-project",
  "pretty_env_logger",
@@ -4011,11 +3994,11 @@ version = "0.1.0"
 dependencies = [
  "bs58",
  "log",
+ "nym-bin-common",
  "nym-crypto",
  "nym-mixnet-contract-common",
  "nym-sphinx-addressing",
  "nym-sphinx-types",
- "nym-version-checker",
  "rand 0.7.3",
  "thiserror",
 ]
@@ -4044,13 +4027,6 @@ dependencies = [
  "ts-rs",
  "url",
  "validator-client",
-]
-
-[[package]]
-name = "nym-version-checker"
-version = "0.1.0"
-dependencies = [
- "semver 0.11.0",
 ]
 
 [[package]]
@@ -5557,8 +5533,8 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "build-information",
  "log",
+ "nym-bin-common",
  "nym-sdk",
  "nym-sphinx-anonymous-replies",
  "serde",

@@ -52,13 +52,12 @@ tokio-util = { version = "0.7.4", features = ["codec"] }
 url = { version = "2.2", features = ["serde"] }
 
 # internal
-build-information = { path = "../common/build-information" }
 coconut-interface = { path = "../common/coconut-interface" }
 credentials = { path = "../common/credentials" }
 config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto" }
 completions = { path = "../common/completions" }
-logging = { path = "../common/logging" }
+nym-bin-common = { path = "../common/bin-common" }
 gateway-requests = { path = "gateway-requests" }
 mixnet-client = { path = "../common/client-libs/mixnet-client" }
 mixnode-common = { path = "../common/mixnode-common" }
@@ -71,7 +70,6 @@ nym-task = { path = "../common/task" }
 validator-client = { path = "../common/client-libs/validator-client", features = [
     "nyxd-client",
 ] }
-nym-version-checker = { path = "../common/version-checker" }
 nym-types = { path = "../common/types" }
 serde_json = "1"
 atty = "0.2"

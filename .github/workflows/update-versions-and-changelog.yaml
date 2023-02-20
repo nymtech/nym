@@ -42,8 +42,8 @@ jobs:
 
       - name: push-changes-to-branch
         run: |
-          git config --global user.name "${{ CI_BOT_AUTHOR }}"
-          git config --global user.email "${{ CI_BOT_EMAIL }}"
+          git config --global user.name "${{ env.CI_BOT_AUTHOR }}"
+          git config --global user.email "${{ env.CI_BOT_EMAIL }}"
           git checkout -b release/${{ inputs.release_version }}-preparation
           git commit -am "chore: version bump in preparation for release"
           git push -u origin release/${{ inputs.release_version }}-preparation

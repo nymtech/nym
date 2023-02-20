@@ -4,9 +4,9 @@ use client_core::{
     error::ClientCoreStatusMessage,
 };
 use futures::{channel::mpsc, StreamExt};
+use nym_task::manager::TaskStatus;
 use std::sync::Arc;
 use tap::TapFallible;
-use nym_task::manager::TaskStatus;
 use tokio::sync::RwLock;
 
 use config_common::NymConfig;

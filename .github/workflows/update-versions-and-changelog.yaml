@@ -20,6 +20,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           ref: "release/${{ inputs.release_version }}"
+          path: "nym"
 
       - name: checkout-ci-tools-repo
         uses: actions/checkout@v3
@@ -40,6 +41,7 @@ jobs:
 
       - name: run-version-bumper
         run: "version-bumper bump binaries"
+        working-directory: "nym"
 
       - name: push-changes-to-branch
         run: |
@@ -48,3 +50,4 @@ jobs:
           git checkout -b release/${{ inputs.release_version }}-preparation
           git commit -am "chore: version bump in preparation for release"
           git push -u origin release/${{ inputs.release_version }}-preparation
+        working-directory: "nym"
